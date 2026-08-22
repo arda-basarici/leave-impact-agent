@@ -5,7 +5,7 @@ snapshot of the current design. Edited in place; the journey lives in the sessio
 log. Wins over VISION.md (the frozen founding snapshot) on disagreement. How it's
 built → ARCHITECTURE (born with the scaffold); pitch → README.
 
-*Design phase · last updated 2026-08-22.*
+*Design phase · last updated 2026-08-23.*
 
 ## Objective
 
@@ -206,6 +206,166 @@ first estimates.
 
 ---
 
+## The world's shape
+
+Rulings made before the Jira and seed probes, because the probes test a model
+rather than bare CRUD. Each is a short decision with its reasoning; the generator
+implements them at the world milestone.
+
+**One generated organization, read-shared, write-isolated, truth-isolated.** The
+org is a single synthetic company of roughly 25–30 people in about five teams,
+both generator parameters (`ORG_SIZE`, `TEAM_COUNT`) rather than fixed numbers.
+The agent sees the whole org: other teams' people, tickets, meetings and policies
+are the plausible-wrong candidates that make coverage a real search, which a
+six-person sandbox cannot produce. Scenarios are slices of that org, not orgs of
+their own: each owns its mutable entities (the leave, its tickets, its events) and
+a time window, never writes into another scenario's entities, and carries its own
+sealed answer key, which the validator re-derives against the full live org so
+cross-scenario contamination is caught rather than assumed away. Every
+scenario-owned entity carries the scenario id in each system (Jira label, calendar
+`extendedProperties`, a Frappe custom field), so a slice is enumerable and can
+later be reset if anything ever writes to the world; the reset itself is not built
+until something does. Org-per-scenario was rejected: it simplifies ground truth by
+removing exactly the irrelevant-but-plausible evidence the evaluation exists to
+test, and multiplies the seed and validation runs for no gain.
+
+People are cheap and scenarios are expensive: a person is a handful of generated
+records per system, a scenario is planted facts, named distractors, a relevant
+policy clause, a defensible key and a hand audit. The golden set therefore grows by
+adding scenarios in new time windows, not by adding employees. Three constraints
+keep the construction honest: a team does not determine its scenario's type (the
+generator assigns type independently, the manifest records both, so structure
+cannot stand in for reasoning); distractors are planted and named in the key with
+the reason each is wrong, so a near-miss is gradable and background filler stays
+bounded rather than "hundreds of tickets"; and policy clauses have real-world scope
+only (contractors, a country, a grade), with scenarios chosen so a clause becomes
+relevant, never clauses written to make one scenario's answer come out.
+
+**Synthetic employees are domain entities, not Atlassian users** — the Calendar
+ruling applied to Jira. Work ownership lives in a dedicated single-select custom
+field keyed by stable employee id (`emp_017 — Alice Demir`); `assignee` stays
+unassigned so the board never claims the service account is responsible for the
+work. Issues, workflows, sprints, components, comments, changelog and JQL remain
+real Jira behaviour. Actor identity is outside the first truth model: every write
+comes from one service account, so changelog and comment authors carry no world
+fact, and the same holds for Calendar's organizer. Rejected: real accounts (Free
+caps at 10 users, the developer instance at 5 and for app development only); a
+hybrid of real and synthetic people (two identity paths in every tool and grader,
+and licensing shaping which people a scenario may involve); Jira Service
+Management customer accounts (free and unlimited, but their appearance in user
+pickers is a documented gap Atlassian is asked to close). The Jira probe tests
+this model: a select field and its options created over REST on Free, exact JQL on
+it, comments naming synthetic people.
+
+**Three layers, and adapters that translate but never launder.** The synthetic
+world (an employee id, a team, skills, a manager) exists independently of any
+vendor; each external system holds a representation of it (a Jira field option, a
+secondary calendar id, a Frappe Employee record); the agent sees a domain-shaped
+tool surface (`search_work_items(employee_id=…)`, `get_free_busy(…)`,
+`get_employee(…)`, `search_policy(…)`) and never a vendor's identity system or
+query syntax. The adapters own credentials, HTTP, pagination, retries and the
+identity mapping — the world manifest is adapter configuration, not agent
+context — and they stay thin: shape and identity are translated, every world fact
+passes through as the system reports it, contradictions included. A planted
+inconsistency (the HRMS says Berlin, the calendar says Istanbul; Jira says In
+Progress, the last comment says blocked) is the agent's to reconcile, and an
+adapter that normalized it away would destroy the evidence the evaluation grades.
+Tools are domain-facing rather than vendor-facing because the question is whether
+an agent can gather evidence across organizational systems, not whether it knows
+JQL; tools answer questions about the world and make no decisions (no
+`get_best_substitute`, no workload judgement). Real-API behaviour — a 403, a rate
+limit, a stale read — surfaces as a tool failure, which is itself an evaluated
+condition. Swapping a vendor (Outlook for Google Calendar) touches one adapter.
+
+**Time is world state, never the machine's clock.** Every run receives a
+`RunContext` — scenario id, world (seed) version, a canonical `now` as an instant
+with a reference timezone, and that's the reproducibility boundary: same
+scenario, same world version, same `now` → same evidence, on any machine, months
+later. `now` is injected into the deterministic core, the agent's context and the
+tools; no core, adapter or evaluator code reads the wall clock for world
+semantics, and a test enforces it. Telling the agent "today is 2026-10-01" is not
+cheating — a deployed assistant knows the date too; only its source is fixed.
+Seeded data carries absolute world dates; human dates are interpreted in the
+employee's or organization's timezone (the calendar probe's own "13:00 UTC on an
+Istanbul calendar" slip is why the instant carries a zone). Three clocks exist and
+only the first is truth: world time (`now`, leave and event dates, deadlines,
+policy-effective dates); vendor operational time (when Jira physically stored the
+issue, API timestamps); run time (when the evaluation executed). The tool surface
+exposes exactly the fields the generator controls, which settles vendor
+timestamps without per-field judgement: Jira's `created` is absent from
+`search_work_items` today because the seed cannot set it, and becomes a world
+fact the moment it can. Tools take explicit date ranges the agent reasons to;
+defaults derived from `now` exist for convenience but the harness handles time
+mechanics and never decides which period is relevant — that relevance is part of
+what is evaluated. A scenario carries two time fields: its reference `now`, and
+its evidence `window` (the span of world state it owns, reaching before and after
+`now`); scenarios take disjoint windows, roughly one per month, which is the
+cheapest write-isolation mechanism and gives the shared calendars a believable
+spread — a rule that may relax once entity ownership is proven. Temporal
+robustness is a metamorphic check over a declared `stable_now_interval`, not a
+universal "advance three days, same answer": within the interval the key must
+hold for any `now`; outside it a scenario may legitimately flip (a notice-period
+clause), and such flips are a temporal-reasoning test of their own. The seed
+spike's criterion gains this check. No attempt is made to alter the vendors'
+clocks.
+
+**Benchmark state is split by audience and authority, and "sealed" is enforced,
+not promised.** Three artifacts: the *world manifest* — adapter configuration and
+cross-system identity routing (`emp_017` → Jira option id, calendar id, Frappe
+record; document locations; org parameters; world version), read by the
+adapters and holding no fact that can change a scenario's answer — the test is
+that deleting it after the vendor ids are resolved loses nothing answer-relevant;
+the *scenario spec* — what the run is asked: scenario id, `now`, the owned
+window, the request under investigation, visible to harness and agent; and the
+*truth manifest* — evaluator-only: planted impacts, named distractors with the
+reason each is wrong, the relevant clauses, required plan constraints, the
+stable-now interval, scoring facts. Distractors carry their reasons so grading
+can separate final-answer correctness, evidence correctness, constraint coverage
+and distractor rejection, and so a failure reads as a sentence ("found the skill
+match, never retrieved the release meeting") rather than a zero. World and truth
+live in separate S3 buckets; the application's IAM role can read world and
+scenario artifacts and has no read capability over truth; the evaluator runs
+under its own role; a CI test assumes the application role, attempts a read on
+the truth bucket and passes only on `AccessDenied` — that public test and its log
+are the evidence a reader can check, since the policy itself cannot be verified
+from outside. The generator knows both halves, so it is never part of the
+deployed runtime: it runs as a separate job under a generator role obtained
+through STS assume-role (an EC2 instance profile is one role, so "the generator
+runs from the instance" means a short-lived role the application process never
+holds), writes its artifacts and terminates. Integrity is the guarantee
+underneath secrecy: the truth artifact is serialized once, hashed as exact bytes,
+versioned in S3, and every world records its truth digest; every evaluation run
+records world version, scenario id, seed, truth digest and S3 version id, harness
+commit and model, recorded before grading — so a result months later is the same
+question about the same world against the same key. Hand auditing produces a
+separately versioned provenance artifact; held-out truth and its audit notes stay
+in the truth bucket, never in the public repository; the repository publishes the
+audit methodology and fully released example scenarios, and a retired evaluation
+set can be published whole.
+
+**History is planted only where it can be planted honestly; qualification is
+derived from atomic facts, never stored as a conclusion.** Jira's REST API cannot
+set `created`, `updated` or `resolutiondate` (the request has been open since
+2014), so "Bob resolved twelve payments tickets last year" is not a plantable
+world fact over REST. Coverage qualification is therefore expressed as atomic,
+world-observable facts spread across the systems — an employee's skills on the
+Frappe record, a Jira component with its named synthetic members, a policy
+clause stating what coverage requires ("component experience and the required
+skill"), the calendar's free/busy, the active tickets a person owns — and the
+agent derives "Bob is a valid candidate" from them; no system stores that
+conclusion, which is the same rule that keeps decisions out of tools. Comments
+are plantable and their content is a world fact ("[2026-09-12, Bob Kaya] blocked
+on the vendor API"), while the comment's own timestamp is vendor operational
+time. Frappe leave records and calendar events take the dates the seed sets, so
+past leave and past meetings are real history where history is needed. The Jira
+probe tests the CSV importer once — three issues with backdated created and
+resolved dates, read back over REST: a pass makes historical tickets a plantable
+world fact and exposes `created` on the tool surface per the time ruling; a fail
+keeps ticket history out of the first truth model, and "who handled this before"
+scenarios become future work rather than a planted lie.
+
+---
+
 ## Verification: five automated questions, and the eval kept apart
 
 **The test suite answers five distinct questions; each level owns one.** SteamLens's
@@ -268,6 +428,21 @@ instance's first-boot configuration is cloud-init until then.
   continuous from the first application slice.
 - Deliberately out: any AWS service beyond the named set until a requirement names
   it — service count does not add to the design.
+- **The organizational tools cost nothing.** Jira, Frappe, Google Calendar (and
+  Slack, if it stays) run on free tiers; spend is AWS and model tokens only. This
+  rules out paid Atlassian seats and Atlassian's official MCP server (paid plans
+  only, verified 2026-08-23), so Jira access is the project's own REST adapter.
+- **Schedule cuts, 2026-08-23** (four of the envelope's six weeks were gone at the
+  probe days; six holds only with the cuts made now): post-approval execution is
+  out — no executor Lambda, no IAM split — but a run still ends in an
+  *approved-plan* state in the event log that nothing consumes yet, so an executor
+  later is a new consumer rather than a reworked seam; Slack is out for the world
+  and investigator milestones, the adapter seam kept; the conversation milestone
+  moves to backlog and is not part of the six-week claim; the first corpus is one
+  answer-changing clause type (real-world scope, per the world rulings) and one
+  staleness pattern; the ephemeral-compute probe moves to future work with its
+  criteria intact. Each returns as an addition; none changes the shape of what
+  is built now.
 
 ## Future work (curated)
 
