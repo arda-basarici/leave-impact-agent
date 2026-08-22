@@ -10,6 +10,7 @@ dependencies = []
 [dependency-groups]
 dev = [
     "pdoc",
+    "pre-commit",
     "pyright",
     "pytest",
     "ruff",

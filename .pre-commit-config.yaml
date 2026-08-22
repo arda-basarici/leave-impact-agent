@@ -1,0 +1,14 @@
+# Runs on every commit once installed (`just hooks`). Two gates only: secrets never
+# reach history, and lint failures never reach CI. Types and tests stay in CI — they
+# are slow enough that a per-commit run would get the hooks disabled.
+# Pins match the locally installed tool versions at bootstrap; `pre-commit autoupdate`
+# bumps them deliberately, never implicitly.
+repos:
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.16.4
+    hooks:
+      - id: ruff-check
