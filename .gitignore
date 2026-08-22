@@ -1,0 +1,39 @@
+# --- secrets (never in source; env or secret store only) ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.credentials*
+
+# --- working files (disposable by design) ---
+WHITEBOARD.md
+logs/
+runs/
+
+# session instructions — kept private (same call as steam-lens)
+CLAUDE.md
+
+# --- data (synthetic-org outputs are seeded/regenerable; commit decisions per artifact
+#     come at design time — start ignored, un-ignore deliberately) ---
+data/
+*.sqlite
+*.sqlite3
+*.db
+
+# --- generated docs (pdoc output; regenerated from docstrings) ---
+docs/api/
+
+# --- python ---
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.coverage
+
+# --- OS noise ---
+Thumbs.db
+.DS_Store
