@@ -94,8 +94,14 @@ and policies; GitHub Actions deploys through OIDC federation (temporary credenti
 trust policy pinned to repository and branch — no stored keys); Secrets Manager;
 CloudWatch for logs and alarms; S3 for golden datasets, evaluation reports, shipped
 audit trails, and precomputed demo replays; AWS Budgets with a cost alert; Bedrock as
-the model provider behind a **provider seam** with Anthropic-direct as the fallback,
-kept as one supporting component rather than the centrepiece. Not added until a
+**the sole model provider behind a model seam** — the Converse API gives one
+request shape across model families, so the seam's question is *which model per
+role* (investigator, extraction sub-tasks, grading), answered by the evaluation on
+the golden set rather than fixed up front; the seam also checks a model's feature
+support (tool use, structured output, caching) at startup so a mismatch fails loudly.
+A direct Anthropic API path is deliberately not committed to — the seam admits it
+later if a reason appears. Bedrock stays one supporting component rather than the
+centrepiece. Not added until a
 requirement names it: ECS services, EKS, RDS, DynamoDB, SQS, EventBridge, CloudFront,
 ElastiCache, OpenSearch, a managed vector store. One bootstrap exception is
 recorded deliberately: the Budgets alert was created by hand before any
@@ -168,8 +174,27 @@ and persistent, excluding model tokens; "box Δ" is the netcup upgrade delta.
 
 Invariant across every surviving column: Frappe on the box behind the `HRProvider`
 adapter · the executor as its own execution identity · the PostgreSQL event log and
-checkpoints as the job seam · Bedrock behind the provider seam · S3 for artifacts ·
-the Budgets alert from day one.
+checkpoints as the job seam · Bedrock as the sole provider behind the model seam ·
+S3 for artifacts · the Budgets alert from day one.
+
+---
+
+## The probe days
+
+The vision's first milestone is two to three days that kill the fatal unknowns
+before anything is designed on them; the hosting ruling adds the deploy-from-day-one
+floor to the same days. **Probes precede the remaining design.** The framework,
+tool-layer, and post-approval questions are decided at a session held after the
+probe days, on their evidence — not before. Each probe's pass criterion is fixed
+before it runs and recorded with the plan in `probes/README.md`; outcomes land in
+`probes/FINDINGS.md` with captures beside them, and later rulings cite those
+findings by name. The milestone exits when the five unknowns (Frappe standing at
+its real footprint, Frappe REST including the `leave_approver` wart, Jira, Google
+Calendar, the generator seed spike) and the two floors (the instance via Terraform,
+the OIDC deploy) pass; the Bedrock model shortlist and Slack may trail into the
+world milestone without blocking it. Honest timebox: three to five days — the
+vision's estimate plus roughly a day for the AWS floor, then the usual 1.5–2× on
+first estimates.
 
 ---
 
@@ -186,6 +211,9 @@ the Budgets alert from day one.
   (criteria above); the thread lives in this document until the probe fires.
 - **Lite 2 as the box tariff** — sufficient for Frappe alone; rejected for box-level
   headroom and a single term reset. Revisit never; the upgrade is one-way.
+- **A direct Anthropic API path beside Bedrock** — not committed to; one provider
+  keeps credentials, billing, and audit in one place. Revisit if Bedrock lacks a
+  model or feature the evaluation shows the product needs.
 
 ## Open questions
 
