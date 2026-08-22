@@ -222,8 +222,9 @@ SteamLens did not — real external systems and a real PostgreSQL.
 | e2e | does the deployed thing work? | after deploy, through the public hostname: health, a replayed scenario, the audit trail rendering | the deploy job, post-approval |
 
 Mechanics: `tests/unit|integration|e2e/` with matching markers; the default run is
-the unit level, agent-smoke tests included (fast, spend-free); `integration`,
-`live`, and `e2e` are selected deliberately; a `justfile` makes the local gate the CI gate by one command.
+the unit level; agent-smoke tests carry the `integration` marker (spend-free, but
+they write the real event log); `integration`, `live`, and `e2e` are selected
+deliberately; a `justfile` makes the local gate the CI gate by one command.
 Cassettes are the honest fake — real payload shapes — and the gated live replay is
 what keeps them from drifting silently; hand-written fakes were rejected because
 they drift without a signal. Coverage is measured, never gated: the number shows
