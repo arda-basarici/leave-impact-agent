@@ -1,0 +1,10 @@
+# netcup box, before the Lite 1 -> Lite 3 upgrade. Captured 2026-08-22 via
+# `ssh steamlens 'free -m; docker stats --no-stream'`.
+# Box idle: no SteamLens ingest/pipeline job was running, so "used" is the resting
+# floor (OS + app + Caddy), not a load figure.
+               total        used        free      shared  buff/cache   available
+Mem:            3917         647         306           0        3245        3269
+Swap:              0           0           0
+CONTAINER ID   NAME                CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O     PIDS
+db5e34089002   steamlens-app-1     0.23%     84.13MiB / 3.825GiB   2.15%     6.38MB / 10.9MB   0B / 37.6MB   3
+72576fd421b7   box-proxy-caddy-1   0.00%     19.67MiB / 3.825GiB   0.50%     137MB / 141MB     0B / 86kB     9

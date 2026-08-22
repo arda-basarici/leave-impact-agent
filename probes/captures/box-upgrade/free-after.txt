@@ -1,0 +1,13 @@
+# netcup box, after the Lite 1 -> Lite 3 upgrade + reboot. Captured 2026-08-22 18:28 (box time)
+# via `free -h; uptime; docker ps --format '{{.Names}}\t{{.Status}}'; systemctl is-active box-firewall`.
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi       554Mi        14Gi       704Ki       364Mi        15Gi
+Swap:             0B          0B          0B
+ 18:28:04 up 1 min,  1 user,  load average: 0.02, 0.01, 0.00
+steamlens-app-1 Up About a minute
+box-proxy-caddy-1       Up About a minute
+active
+
+# External health check from the workstation, same minute:
+# curl -s -w '%{http_code}' https://steamlens.ardabasarici.dev/healthz
+200  {"status":"ok","worker":"ok","database":"ok"}
