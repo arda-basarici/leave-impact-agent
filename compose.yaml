@@ -1,0 +1,51 @@
+# The instance shape (DESIGN, "The application host"): the application and its
+# PostgreSQL as one Compose stack. The app runs the image CI published — no
+# `build:` here, so the 2 GB instance can never become a build server. The proxy
+# that terminates TLS behind Cloudflare owns the shared `web` network and lands
+# with the instance probe; the app joins it and publishes nothing to the host.
+# Local development layers compose.dev.yaml on top.
+name: leaveimpact
+
+services:
+  app:
+    image: ghcr.io/arda-basarici/leave-impact-agent:latest
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql://leaveimpact:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/leaveimpact
+    # No long-running process yet — the baseline image identifies itself and
+    # exits. Flips to `unless-stopped` with the first service entry point.
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - web
+      - store
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: leaveimpact
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_DB: leaveimpact
+    # Data on the host disk (the gp3 volume on the instance): outlives every
+    # container rebuild; the nightly pg_dump runs against the service, not the
+    # files — this mount is for durability, not for copying live.
+    volumes:
+      - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leaveimpact -d leaveimpact"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - store
+
+networks:
+  # Owned by the proxy stack, shared across projects on the host — created once:
+  # `docker network create web`.
+  web:
+    external: true
+  # Private to this stack: PostgreSQL is reachable from the app only.
+  store:

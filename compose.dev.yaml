@@ -1,0 +1,21 @@
+# Laptop overlay — what development adds to the instance shape and production
+# never sees: build from the working tree, and PostgreSQL published on localhost
+# so the integration level (`just test-integration`) has a target.
+#
+#   docker compose -f compose.yaml -f compose.dev.yaml up --build
+#
+# The `web` network must exist locally too (`docker network create web`) — the
+# rehearsal uses the instance's shape, not a parallel dev topology.
+services:
+  app:
+    build:
+      context: .
+      args:
+        # Honest identity even for laptop builds. PowerShell:
+        #   $env:CODE_VERSION = "$(git rev-parse --short HEAD)+dirty"
+        CODE_VERSION: ${CODE_VERSION:?set CODE_VERSION to git rev-parse --short HEAD (+dirty if the tree has changes)}
+    image: leaveimpact:dev
+
+  postgres:
+    ports:
+      - "127.0.0.1:5432:5432"

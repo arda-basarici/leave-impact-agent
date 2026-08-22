@@ -2,7 +2,6 @@
 name = "leaveimpact"
 version = "0.1.0"
 description = "Leave-impact investigation and coverage planning agent over real organizational tools."
-readme = "README.md"
 license = "MIT"
 requires-python = ">=3.13"
 dependencies = [

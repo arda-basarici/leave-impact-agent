@@ -17,6 +17,8 @@ CLAUDE.md
 # --- data (synthetic-org outputs are seeded/regenerable; commit decisions per artifact
 #     come at design time — start ignored, un-ignore deliberately) ---
 data/
+# the Compose PostgreSQL bind mount
+pgdata/
 *.sqlite
 *.sqlite3
 *.db

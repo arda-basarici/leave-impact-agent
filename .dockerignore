@@ -1,0 +1,9 @@
+# Allowlist: the image needs exactly the source and the lockfile pair. Everything
+# else — data, probes, docs, infra, git history — stays out of the build context,
+# so a new top-level file is excluded until deliberately added here.
+*
+!src
+!pyproject.toml
+!uv.lock
+
+src/**/__pycache__

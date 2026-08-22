@@ -3,6 +3,8 @@
 # `uv run …` — the tools own their configuration in pyproject.toml.
 
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
+# .env (git-ignored) supplies POSTGRES_PASSWORD to the db and test recipes.
+set dotenv-load
 
 default: check
 
@@ -23,9 +25,34 @@ test:
 test-all:
     uv run pytest -q -m ""
 
-# Integration level alone — needs the PostgreSQL service (`just db-up`).
+# Integration level alone, against the dev PostgreSQL (`just db-up` first).
+[windows]
 test-integration:
-    uv run pytest -q -m integration
+    $env:DATABASE_URL = "postgresql://leaveimpact:$env:POSTGRES_PASSWORD@localhost:5432/leaveimpact"; uv run pytest -q -m integration
+
+[unix]
+test-integration:
+    DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@localhost:5432/leaveimpact" uv run pytest -q -m integration
+
+# CODE_VERSION is interpolated by every compose command, build or not — the
+# placeholder satisfies the overlay's guard; nothing here builds the app image.
+# Two forms because the shell differs per OS (PowerShell here, sh on the instance).
+# The dev PostgreSQL on 127.0.0.1:5432 for the integration level.
+[windows]
+db-up:
+    $env:CODE_VERSION = "not-a-build"; docker compose -f compose.yaml -f compose.dev.yaml up -d --wait postgres
+
+[unix]
+db-up:
+    CODE_VERSION=not-a-build docker compose -f compose.yaml -f compose.dev.yaml up -d --wait postgres
+
+[windows]
+db-down:
+    $env:CODE_VERSION = "not-a-build"; docker compose -f compose.yaml -f compose.dev.yaml down
+
+[unix]
+db-down:
+    CODE_VERSION=not-a-build docker compose -f compose.yaml -f compose.dev.yaml down
 
 # The API reference is generated from docstrings; a broken docstring breaks this.
 docs:
