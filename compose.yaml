@@ -9,11 +9,13 @@ name: leaveimpact
 services:
   app:
     image: ghcr.io/arda-basarici/leave-impact-agent:latest
-    # Values interpolate from .env (git-ignored) without `env_file`: the app gets
-    # exactly the variables named here, never the whole file. On the instance the
-    # secret store is the source and .env is what the deploy step renders from it.
+    # Values interpolate from the process environment — no .env, no `env_file`:
+    # the app gets exactly the variables named here. Locally they are user
+    # environment variables (never a file in the tree); on the instance the deploy
+    # step reads SSM Parameter Store and exports them for `compose up`, never
+    # rendering a file to disk.
     environment:
-      DATABASE_URL: postgresql://leaveimpact:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/leaveimpact
+      DATABASE_URL: postgresql://leaveimpact:${POSTGRES_PASSWORD:?set in the environment}@postgres:5432/leaveimpact
     # No long-running process yet — the baseline image identifies itself and
     # exits. Flips to `unless-stopped` with the first service entry point.
     restart: "no"
@@ -34,14 +36,14 @@ services:
     image: postgres:16-alpine
     environment:
       POSTGRES_USER: leaveimpact
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in the environment}
       POSTGRES_DB: leaveimpact
-    # Data on the host disk — an absolute path from .env so the instance pins it
+    # Data on the host disk — an absolute path from the environment so the instance pins it
     # to the gp3 volume and a laptop to wherever it likes. Owned by the container's
     # postgres uid; never copied live — the nightly pg_dump runs against the
     # service, this mount is for durability across rebuilds.
     volumes:
-      - ${PGDATA_HOST:?absolute host path for PostgreSQL data, set in .env}:/var/lib/postgresql/data
+      - ${PGDATA_HOST:?absolute host path for PostgreSQL data, set in the environment}:/var/lib/postgresql/data
     mem_limit: 768m
     shm_size: 128m
     logging: *log

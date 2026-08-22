@@ -3,8 +3,8 @@
 # `uv run …` — the tools own their configuration in pyproject.toml.
 
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
-# .env (git-ignored) supplies POSTGRES_PASSWORD to the db and test recipes.
-set dotenv-load
+# POSTGRES_PASSWORD and PGDATA_HOST come from the user's environment — no .env file
+# in the tree (secrets live in env or the secret store, never in the project).
 
 default: check
 
