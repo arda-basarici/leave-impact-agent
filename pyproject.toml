@@ -1,0 +1,51 @@
+[project]
+name = "leaveimpact"
+version = "0.1.0"
+description = "Leave-impact investigation and coverage planning agent over real organizational tools."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pdoc",
+    "pyright",
+    "pytest",
+    "ruff",
+]
+
+[build-system]
+requires = ["uv_build>=0.11.26,<0.12.0"]
+build-backend = "uv_build"
+
+# Lint only — no formatter. Code is hand-formatted and reviewed; a formatter's
+# rewrites would churn diffs without carrying intent (SteamLens precedent).
+[tool.ruff]
+line-length = 100
+target-version = "py313"
+extend-exclude = ["probes"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+# Strict over the package and its tests; probes and scripts stay outside so a
+# throwaway spike never has to satisfy the production type bar.
+[tool.pyright]
+typeCheckingMode = "strict"
+include = ["src", "tests"]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+
+# Doctests are the caller's contract and run with the suite. Levels are markers
+# (DESIGN: "Verification"); `live` and `e2e` are opt-in because they need a
+# deployment or spend quota — `just test-all` lifts the exclusion.
+[tool.pytest.ini_options]
+addopts = "--doctest-modules --strict-markers -m 'not live and not e2e'"
+testpaths = ["src", "tests"]
+markers = [
+    "integration: needs real dependencies (the PostgreSQL service, recorded cassettes)",
+    "live: replays adapters against the real external sandboxes; spends quota",
+    "e2e: runs against a deployment through its public hostname",
+]

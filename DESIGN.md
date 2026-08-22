@@ -69,6 +69,14 @@ its worker. Frappe keeps its own MariaDB — Frappe-on-PostgreSQL is the less-tr
 path and the vision's first-named risk is week-one infrastructure eating the
 schedule. Ownership is clean: Frappe's MariaDB holds HR truth, PostgreSQL holds
 application and orchestration truth, S3 holds immutable exported artifacts.
+Rejected: PostgreSQL on the netcup box reached remotely, like Frappe — the
+application store is chatty (a checkpoint per framework node, an event per narrated
+line) where Frappe is coarse, so every run would pay hundreds of cross-provider
+round trips; it would also put the production write path on a public link and
+confound the HRIS-unavailable evaluation case with the app's own outage. It buys
+~$6/mo and unlocks no better AWS shape — the ephemeral tier it would cheapen is the
+one where a remote store hurts most. The box's headroom serves instead as an
+off-host backup destination and, if useful, a development PostgreSQL.
 
 **The job seam: runs write an event log, surfaces read it.** An investigation is a
 job that appends narrated events and checkpoints to PostgreSQL; the UI streams by
@@ -195,6 +203,60 @@ the OIDC deploy) pass; the Bedrock model shortlist and Slack may trail into the
 world milestone without blocking it. Honest timebox: three to five days — the
 vision's estimate plus roughly a day for the AWS floor, then the usual 1.5–2× on
 first estimates.
+
+---
+
+## Verification: five automated questions, and the eval kept apart
+
+**The test suite answers five distinct questions; each level owns one.** SteamLens's
+suite was unit-dominant with an unlabeled integration layer and nothing end-to-end;
+this project names the levels and gives each a home, because it has two things
+SteamLens did not — real external systems and a real PostgreSQL.
+
+| Level | Question | What runs | When |
+|---|---|---|---|
+| unit | is the pure core right? | rules, constraint checks, evaluator arithmetic, parsers — doctests + pytest, no I/O | every push, default |
+| integration | do the seams hold against real dependencies? | the event-log/checkpoint store against a real PostgreSQL service (never a SQLite stand-in — the store is evaluated on the terms it runs on); tool adapters against recorded HTTP cassettes of Frappe / Jira / Calendar | every push, `-m integration` |
+| live contract | has an external API drifted from the cassettes? | the same adapter tests replayed against the real sandboxes; a pass re-records | gated by env, nightly or on demand |
+| agent smoke | does the loop's plumbing work end to end without model spend? | one scenario through the real loop with a scripted fake model (a fixed tool-call trace), cassettes, PostgreSQL; asserts the event log and the plan's shape | every push |
+| e2e | does the deployed thing work? | after deploy, through the public hostname: health, a replayed scenario, the audit trail rendering | the deploy job, post-approval |
+
+Mechanics: `tests/unit|integration|e2e/` with matching markers; `live` and `e2e`
+excluded by default; a `justfile` makes the local gate the CI gate by one command.
+Cassettes are the honest fake — real payload shapes — and the gated live replay is
+what keeps them from drifting silently; hand-written fakes were rejected because
+they drift without a signal. Coverage is measured, never gated: the number shows
+where the unit layer is thin, a threshold only invites theater. PostgreSQL runs as a
+CI service from the first commit, before any code needs it, so the pattern exists
+when the code arrives.
+
+**The eval is not a test.** The golden-set harness with real models is the project's
+end-to-end evidence, and it is an experiment: preregistered design, a budget,
+baselines, uncertainty reported, its output a finding rather than a green check.
+It lives in its own section and its own tooling (harness, run manifests, results
+persisted to S3), and the suite's only contact with it is the agent-smoke level —
+plumbing verified with a fake model so an eval run never fails for a non-eval
+reason. Listing the eval beside pytest markers would blur exactly the distinction
+the project exists to demonstrate.
+
+**Structural laws are tests.** The core/shell import law and whatever the second
+design session rules about module rank ship as pytest tests with the scaffold (the
+SteamLens `test_import_graph` precedent) — deferred to that session, not past it.
+
+**The baseline inherits SteamLens where it proved out and improves where it was
+thin.** Inherited: `uv_build` backend, src layout, PEP 735 dev group, locked sync in
+CI, ruff lint at 100 columns, pyright strict over `src` and `tests`, doctests via
+`--doctest-modules`, the two-stage Dockerfile with the provenance-or-refuse
+`CODE_VERSION` guard and a non-root runtime, the allowlist `.dockerignore`, a
+production Compose with no `build:`, and the `check → image → deploy` pipeline
+behind an approval environment. Improved: images are built for `linux/arm64` (the
+Graviton instance) and `amd64` (the workstation); the pdoc build runs in CI so a
+broken docstring fails the push; a `justfile` replaces memorized `uv run` lines; the
+pre-commit framework replaces the opt-in hooks path so a fresh clone is scanned;
+Compose declares health checks and `service_healthy` dependencies, which SteamLens
+never needed because its store was a file; the deploy transport is SSM, not SSH.
+Ansible for the application host is deferred to the shared infra side-quest — the
+instance's first-boot configuration is cloud-init until then.
 
 ---
 
