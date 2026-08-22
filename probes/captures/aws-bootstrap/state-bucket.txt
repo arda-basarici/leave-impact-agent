@@ -1,0 +1,6 @@
+# State bucket verification, 2026-08-22 (hand-made bootstrap resource)
+bucket: leave-impact-tfstate-445743457479
+location: eu-central-1
+versioning: Enabled
+public-access-block: True	True	True	True
+encryption: AES256

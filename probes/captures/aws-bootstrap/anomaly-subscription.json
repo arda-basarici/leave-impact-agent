@@ -1,0 +1,32 @@
+{
+    "AnomalySubscriptions": [
+        {
+            "SubscriptionArn": "arn:aws:ce::445743457479:anomalysubscription/8cf5d904-084d-4349-a7c3-b187b4b48707",
+            "AccountId": "445743457479",
+            "MonitorArnList": [
+                "arn:aws:ce::445743457479:anomalymonitor/78fc0fc5-64c4-4bd1-8721-5cb987b7e88c"
+            ],
+            "Subscribers": [
+                {
+                    "Address": "ardabasarici@gmail.com",
+                    "Type": "EMAIL",
+                    "Status": "CONFIRMED"
+                }
+            ],
+            "Threshold": 2.0,
+            "Frequency": "DAILY",
+            "SubscriptionName": "Default-Services-Subscription",
+            "ThresholdExpression": {
+                "Dimensions": {
+                    "Key": "ANOMALY_TOTAL_IMPACT_ABSOLUTE",
+                    "Values": [
+                        "2"
+                    ],
+                    "MatchOptions": [
+                        "GREATER_THAN_OR_EQUAL"
+                    ]
+                }
+            }
+        }
+    ]
+}

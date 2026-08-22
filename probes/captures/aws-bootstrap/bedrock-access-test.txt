@@ -1,0 +1,20 @@
+{
+    "text": "Ok",
+    "usage": {
+        "inputTokens": 7,
+        "outputTokens": 2,
+        "totalTokens": 9
+    },
+    "latencyMs": 311
+}
+{
+    "text": "ok",
+    "usage": {
+        "inputTokens": 14,
+        "outputTokens": 4,
+        "totalTokens": 18,
+        "cacheReadInputTokens": 0,
+        "cacheWriteInputTokens": 0
+    },
+    "latencyMs": 719
+}
