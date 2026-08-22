@@ -221,8 +221,9 @@ SteamLens did not — real external systems and a real PostgreSQL.
 | agent smoke | does the loop's plumbing work end to end without model spend? | one scenario through the real loop with a scripted fake model (a fixed tool-call trace), cassettes, PostgreSQL; asserts the event log and the plan's shape | every push |
 | e2e | does the deployed thing work? | after deploy, through the public hostname: health, a replayed scenario, the audit trail rendering | the deploy job, post-approval |
 
-Mechanics: `tests/unit|integration|e2e/` with matching markers; `live` and `e2e`
-excluded by default; a `justfile` makes the local gate the CI gate by one command.
+Mechanics: `tests/unit|integration|e2e/` with matching markers; the default run is
+the unit level, agent-smoke tests included (fast, spend-free); `integration`,
+`live`, and `e2e` are selected deliberately; a `justfile` makes the local gate the CI gate by one command.
 Cassettes are the honest fake — real payload shapes — and the gated live replay is
 what keeps them from drifting silently; hand-written fakes were rejected because
 they drift without a signal. Coverage is measured, never gated: the number shows
@@ -251,7 +252,7 @@ CI, ruff lint at 100 columns, pyright strict over `src` and `tests`, doctests vi
 production Compose with no `build:`, and the `check → image → deploy` pipeline
 behind an approval environment. Improved: images are built for `linux/arm64` (the
 Graviton instance) and `amd64` (the workstation); the pdoc build runs in CI so a
-broken docstring fails the push; a `justfile` replaces memorized `uv run` lines; the
+module that fails to import fails the push (doctests catch broken examples); a `justfile` replaces memorized `uv run` lines; the
 pre-commit framework replaces the opt-in hooks path so a fresh clone is scanned;
 Compose declares health checks and `service_healthy` dependencies, which SteamLens
 never needed because its store was a file; the deploy transport is SSM, not SSH.
