@@ -7,5 +7,6 @@ reading the HRMS, issue tracker, calendar, and chat — and drafts an evidence-b
 coverage plan for a human to approve. Deterministic rules handle the normal path; the
 agent investigates the exceptions; the human decides.
 
-**Status: design phase.** The vision document is being drafted; no code yet. This
+**Status: design phase.** The vision is fixed (VISION.md); DESIGN.md carries the
+rulings as they land — hosting first; no code yet. This
 README grows with the build and never claims ahead of it.
