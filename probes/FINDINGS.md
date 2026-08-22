@@ -55,3 +55,45 @@ Facts established beyond the criterion:
   the budget still measures unblended cost (verified post-apply).
 - Budget *actions* (auto-stop / deny policies) deliberately not attached — they would
   kill the demo mid-month; a high-line kill switch is a candidate for the instance probe.
+
+## calendar — PASS (2026-08-23)
+
+Three secondary calendars (Probe Alice / Bob / Carol) under one consumer OAuth
+principal; seven events written (a planted Tuesday 13:00–15:00 overlap: Alice + Bob in
+the customer review, Carol's vendor call starting inside it); `freeBusy.query` across
+the three calendar ids returns exactly those busy blocks; `events.list` returns the
+titled events. Second and third runs: every calendar verified via `calendars.get`,
+every event `exists` (deterministic base32hex ids → 409) — no duplicates. Captures:
+`captures/calendar/` (one run file per scope × publishing status, `calendars.json`
+person → calendar-id map).
+
+Facts established beyond the criterion:
+- **Account shape ruled: real Calendar behavior, simulated identity.** Secondary
+  calendars are real Calendar objects — FreeBusy and event listing against them are
+  the production endpoints. What is not modeled: the people as Google users (invites,
+  RSVP, per-user permissions). The agent's questions (who is busy when, who owns
+  which meeting) don't need those; a Workspace tenant would buy them at ~$7/user/month
+  and admin setup, rejected for v1. Participants travel in `extendedProperties.private`
+  as *world* facts; answer-key facts never enter an event — whatever the agent's
+  credentials can read is world by definition.
+- **Scopes, measured:** `calendar.app.created` alone permits `calendars.insert/get`,
+  `events.insert/list` on app-created calendars but refuses `calendarList.list` (the
+  app cannot discover its own calendars — it must remember ids, as the generator's
+  manifest will) and `freeBusy.query` (403 even on app-created calendars). Adding
+  `calendar.freebusy` closes the gap. **`app.created + freebusy` is the working pair**;
+  both are non-sensitive, so the consent screen needs no Google verification. The
+  broad `calendar` scope (sensitive, touches the owner's real calendars) was never
+  needed.
+- **Publishing status:** External + *Testing* gates consent behind a test-user
+  allow-list (403 `access_denied` until the owner was added) and, per Google's OAuth
+  documentation, expires refresh tokens after 7 days — not deployable. Pushed to *In
+  production* (non-sensitive scopes → no verification review); the production refresh
+  token is the one the deployed agent will hold. **Follow-up:** confirm it still
+  refreshes after 2026-08-30 before relying on it in M1.
+- **OAuth client type: Desktop** — consent is a one-time local ceremony by the owner;
+  what travels to the instance is the refresh token (SSM Parameter Store), never a
+  consent flow. Client JSON + tokens live outside the repo under
+  `LEAVE_IMPACT_GOOGLE_DIR`.
+- Incident: the secret-onboarding snippet used a `$dir` variable across lines and a
+  line ran in a shell where it was empty → the client JSON landed in the repo root
+  (untracked; caught by listing). Snippets inline `$env:USERPROFILE\…` from now on.
