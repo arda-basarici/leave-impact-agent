@@ -35,8 +35,9 @@ ARG CODE_VERSION
 RUN test -n "$CODE_VERSION" || { echo "CODE_VERSION build arg required — an image without provenance refuses to build" >&2; exit 1; }
 ENV LEAVEIMPACT_CODE_VERSION=$CODE_VERSION
 
-# Unprivileged uid 1000 — matches the instance's first user so bind-mounted
-# state stays readable by host-side backups without chown games.
+# Unprivileged, fixed uid: the process owns nothing on disk (the only state is
+# PostgreSQL's, in its own container), and a stable uid keeps file ownership
+# predictable if a mount ever appears.
 RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app
 
 WORKDIR /app

@@ -14,6 +14,7 @@ dev = [
     "pre-commit",
     "pyright",
     "pytest",
+    "pytest-cov>=7.1.0",
     "ruff",
 ]
 
@@ -41,10 +42,12 @@ venvPath = "."
 venv = ".venv"
 
 # Doctests are the caller's contract and run with the suite. Levels are markers
-# (DESIGN: "Verification"); `live` and `e2e` are opt-in because they need a
-# deployment or spend quota — `just test-all` lifts the exclusion.
+# (DESIGN: "Verification"): the default run is the unit level (agent-smoke tests
+# are unit-default too — fast, no spend); `integration` needs the PostgreSQL
+# service, `live` and `e2e` need quota or a deployment. `just test-integration`
+# and `just test-all` select the rest. Coverage is a separate recipe, never a gate.
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --strict-markers -m 'not live and not e2e'"
+addopts = "--doctest-modules --strict-markers -m 'not integration and not live and not e2e'"
 testpaths = ["src", "tests"]
 markers = [
     "integration: needs real dependencies (the PostgreSQL service, recorded cassettes)",

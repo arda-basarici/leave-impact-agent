@@ -40,11 +40,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7.0.1
 
-      # Exact tag: setup-uv publishes no floating major tags — bumps are deliberate
-      # edits, not drift.
+      # Exact action tag: setup-uv publishes no floating majors — bumps are
+      # deliberate edits, not drift. The uv version is the one that wrote uv.lock
+      # (and the one the Dockerfile copies in): a lockfile only reproduces when the
+      # resolver replaying it matches.
       - name: Install uv
         uses: astral-sh/setup-uv@v10.0.1
         with:
+          version: "0.11.26"
           python-version: "3.13"
           enable-cache: true
 
@@ -57,13 +60,14 @@ jobs:
       - name: Pyright (types, strict)
         run: uv run pyright
 
-      - name: Pytest (unit, doctests)
+      - name: Pytest (unit level, doctests)
         run: uv run pytest -q
 
       - name: Pytest (integration, against the PostgreSQL service)
         run: uv run pytest -q -m integration
 
-      # A broken docstring breaks the build — the reference is generated, never edited.
+      # The reference is generated, never edited; an import error in any module
+      # fails this step (doctests, above, are what catch broken examples).
       - name: Docs build (pdoc)
         run: uv run python scripts/regen_docs.py
 
@@ -71,7 +75,7 @@ jobs:
     # Push-to-main only: PRs get checked, never published. `needs: check` is
     # load-bearing — the instance only ever runs an image that passed CI, so a
     # red commit must never mint a `latest`.
-    if: github.event_name == 'push'
+    if: github.ref == 'refs/heads/main'
     needs: check
     runs-on: ubuntu-latest
     outputs:
@@ -100,8 +104,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Tagged latest + sha: the instance tracks latest; rollback is pointing the
-      # compose file at the previous sha tag.
+      # Tagged latest + short sha + full sha: the instance tracks latest; rollback
+      # is pointing the compose file at a sha tag (the full one is the immutable
+      # identity; the short one is for humans).
       - uses: docker/build-push-action@v7.3.0
         with:
           context: .
@@ -112,5 +117,6 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ steps.stamp.outputs.sha }}
+            ghcr.io/${{ github.repository }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

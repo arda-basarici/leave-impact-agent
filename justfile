@@ -34,10 +34,10 @@ test-integration:
 test-integration:
     DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@localhost:5432/leaveimpact" uv run pytest -q -m integration
 
-# CODE_VERSION is interpolated by every compose command, build or not — the
-# placeholder satisfies the overlay's guard; nothing here builds the app image.
-# Two forms because the shell differs per OS (PowerShell here, sh on the instance).
-# The dev PostgreSQL on 127.0.0.1:5432 for the integration level.
+# The dev PostgreSQL on 127.0.0.1:5432 for the integration level. (CODE_VERSION
+# is interpolated by every compose command, build or not — the placeholder
+# satisfies the overlay's guard; nothing here builds the app image. Two forms
+# because the shell differs per OS: PowerShell here, sh on the instance.)
 [windows]
 db-up:
     $env:CODE_VERSION = "not-a-build"; docker compose -f compose.yaml -f compose.dev.yaml up -d --wait postgres
@@ -54,7 +54,11 @@ db-down:
 db-down:
     CODE_VERSION=not-a-build docker compose -f compose.yaml -f compose.dev.yaml down
 
-# The API reference is generated from docstrings; a broken docstring breaks this.
+# Coverage as a number to read, never a gate (DESIGN: "Verification").
+coverage:
+    uv run pytest -q --cov=leaveimpact --cov-report=term-missing
+
+# The API reference is generated from docstrings; an import error breaks this.
 docs:
     uv run python scripts/regen_docs.py
 

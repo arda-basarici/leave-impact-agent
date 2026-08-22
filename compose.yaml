@@ -9,12 +9,20 @@ name: leaveimpact
 services:
   app:
     image: ghcr.io/arda-basarici/leave-impact-agent:latest
-    env_file: .env
+    # Values interpolate from .env (git-ignored) without `env_file`: the app gets
+    # exactly the variables named here, never the whole file. On the instance the
+    # secret store is the source and .env is what the deploy step renders from it.
     environment:
       DATABASE_URL: postgresql://leaveimpact:${POSTGRES_PASSWORD:?set in .env}@postgres:5432/leaveimpact
     # No long-running process yet — the baseline image identifies itself and
     # exits. Flips to `unless-stopped` with the first service entry point.
     restart: "no"
+    # Two processes on a 2 GB instance: bound each so one cannot OOM the other;
+    # rotate logs so a chatty event stream cannot fill the root volume.
+    mem_limit: 768m
+    logging: &log
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,11 +36,15 @@ services:
       POSTGRES_USER: leaveimpact
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in .env}
       POSTGRES_DB: leaveimpact
-    # Data on the host disk (the gp3 volume on the instance): outlives every
-    # container rebuild; the nightly pg_dump runs against the service, not the
-    # files — this mount is for durability, not for copying live.
+    # Data on the host disk — an absolute path from .env so the instance pins it
+    # to the gp3 volume and a laptop to wherever it likes. Owned by the container's
+    # postgres uid; never copied live — the nightly pg_dump runs against the
+    # service, this mount is for durability across rebuilds.
     volumes:
-      - ./pgdata:/var/lib/postgresql/data
+      - ${PGDATA_HOST:?absolute host path for PostgreSQL data, set in .env}:/var/lib/postgresql/data
+    mem_limit: 768m
+    shm_size: 128m
+    logging: *log
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U leaveimpact -d leaveimpact"]
       interval: 5s
