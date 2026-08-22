@@ -1,0 +1,68 @@
+name: CI
+
+# The authority for "is this commit good": the same gate `just check` runs locally
+# (lint, types, unit + doctests, docs build), plus the integration level against a
+# real PostgreSQL service. The image and deploy jobs attach to this file when the
+# container (baseline step 5) and the OIDC deploy (probe `oidc-deploy`) land; both
+# will `needs: check` so a red commit never mints an image.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+
+    # The integration level runs against the store it ships with — PostgreSQL, never
+    # a SQLite stand-in (DESIGN: "Verification"). Declared from the first commit so
+    # the wiring exists before the first test needs it.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: leaveimpact
+          POSTGRES_PASSWORD: leaveimpact
+          POSTGRES_DB: leaveimpact_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U leaveimpact"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://leaveimpact:leaveimpact@localhost:5432/leaveimpact_test
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # Exact tag: setup-uv publishes no floating major tags — bumps are deliberate
+      # edits, not drift.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Ruff (lint)
+        run: uv run ruff check
+
+      - name: Pyright (types, strict)
+        run: uv run pyright
+
+      - name: Pytest (unit, doctests)
+        run: uv run pytest -q
+
+      - name: Pytest (integration, against the PostgreSQL service)
+        run: uv run pytest -q -m integration
+
+      # A broken docstring breaks the build — the reference is generated, never edited.
+      - name: Docs build (pdoc)
+        run: uv run python scripts/regen_docs.py
