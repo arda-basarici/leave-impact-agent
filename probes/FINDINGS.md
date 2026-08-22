@@ -30,9 +30,8 @@ Bedrock access test).
 What was set up, in order: root MFA, no root keys, billing access for non-root
 identities · a 17-region read-only sweep (old Amplify project remnants: none; the
 account is clean) · Identity Center single-region instance in `eu-central-1`, user
-`arda`, `AdministratorAccess` permission set, 8 h sessions, MFA required (portal
-`https://d-99674c1aee.awsapps.com/start`, also reachable as
-`https://ssoins-6987073305182688.portal.eu-central-1.app.aws`) · budget
+`arda`, `AdministratorAccess` permission set, 8 h sessions, MFA required (the
+portal URL lives in the stream's access note, off the public repo) · budget
 `leave-impact-monthly` $30/month with actual 50/80/100 % + forecast 25 % alerts ·
 the AWS-created anomaly monitor kept, its subscription re-tuned from "$100 AND 40 %,
 daily" to "$2 absolute, daily" (individual alerts require an SNS topic — deferred to
@@ -97,3 +96,24 @@ Facts established beyond the criterion:
 - Incident: the secret-onboarding snippet used a `$dir` variable across lines and a
   line ran in a shell where it was empty → the client JSON landed in the repo root
   (untracked; caught by listing). Snippets inline `$env:USERPROFILE\…` from now on.
+
+### Corrections (2026-08-23, after the three-lens review)
+
+- **calendar — times were authored in UTC onto Europe/Istanbul calendars.** The
+  "Tuesday 13:00–15:00 overlap" above is 13:00–15:00 **UTC**, i.e. 16:00–18:00 on the
+  calendars as a human sees them (captures: `+03:00` listings). Internally consistent
+  — FreeBusy agrees with what was written — but the generator must author in the
+  calendar's zone; the probe now does (`ZoneInfo`). A dialable timezone gap is also a
+  legitimate distractor class for M1, not only a bug.
+- **calendar — the `app.created`-alone failures have no capture.** The first script
+  wrote its capture only on a fully successful run, so the `calendarList.list` and
+  `freeBusy.query` 403s are asserted from terminal output, not evidence. The script
+  now captures every run (failures included, sequence-stamped); a rerun with
+  `--scope app-created` is pending to put the 403 on record. The person → calendar-id
+  manifest moved out of `captures/` to the principal's secret dir — mutable state,
+  not evidence. Earlier run files renamed to the sequence form (content unchanged).
+- **aws-bootstrap — targeting identifiers redacted.** Not credentials, but in a
+  public repo the Identity Center portal URL + username + alert email together are
+  a phishing starter kit; the portal URLs moved to the stream's access note, the
+  capture's `UserId` / role ARN and the subscriber email are redacted. The account
+  id stays — `backend.tf` needs it and it is not a secret.

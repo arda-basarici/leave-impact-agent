@@ -39,6 +39,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7.0.1
+        with:
+          fetch-depth: 0
 
       # Exact action tag: setup-uv publishes no floating majors — bumps are
       # deliberate edits, not drift. The uv version is the one that wrote uv.lock
@@ -53,6 +55,14 @@ jobs:
 
       - name: Sync the locked environment
         run: uv sync --locked
+
+      # Secrets: the pre-commit hook only runs where someone ran `just hooks`, so CI
+      # is the gate that cannot be skipped. Full history, not just the diff — a secret
+      # pushed past a hook is still in the commits behind it.
+      - name: Gitleaks (full history)
+        uses: gitleaks/gitleaks-action@v2.3.9
+        env:
+          GITLEAKS_ENABLE_SUMMARY: "false"
 
       - name: Ruff (lint)
         run: uv run ruff check

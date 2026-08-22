@@ -5,9 +5,12 @@ calendars, overlaps listed back via freeBusy.query, the refresh-token lifetime r
 the `calendar.app.created` scope tried.
 
 Secrets never enter the repo: the OAuth client JSON and the consent token live in the
-directory named by LEAVE_IMPACT_GOOGLE_DIR. Every write is idempotent — calendars are
-looked up by name, events carry deterministic ids — so a second run changes nothing,
-which rehearses the seed-spike's no-duplicates criterion.
+directory named by LEAVE_IMPACT_GOOGLE_DIR; so does `calendars.json`, the person →
+calendar-id manifest (mutable state owned by that principal, not evidence). Every write
+is idempotent — calendars are remembered by id, events carry deterministic ids and are
+reconciled on conflict — so a second run changes nothing, which rehearses the
+seed-spike's no-duplicates criterion. A capture is written on every run, including a
+failed one (the failure is the finding), under a sequence-stamped name.
 
 Run:  uv run --with google-api-python-client --with google-auth-oauthlib \
           probes/calendar/probe.py [--scope app-created|app-created+freebusy|full] [--status testing|production]
@@ -20,8 +23,9 @@ import hashlib
 import json
 import os
 import sys
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
@@ -41,9 +45,11 @@ CAPTURE_DIR = Path(__file__).resolve().parents[1] / "captures" / "calendar"
 PEOPLE = ["Probe Alice", "Probe Bob", "Probe Carol"]
 TZ = "Europe/Istanbul"
 
-# A fixed week so reruns address the same events. Tuesday 13:00–15:00 is the planted
-# overlap: Alice + Bob share the customer review while Carol's call starts inside it.
-WEEK_START = datetime(2026, 9, 7, tzinfo=UTC)  # a Monday
+# A fixed week so reruns address the same events, authored in the calendars' own zone
+# (the first run used UTC and landed "13:00" at 16:00 local — FINDINGS correction
+# 2026-08-23). Tuesday 13:00–15:00 local is the planted overlap: Alice + Bob share the
+# customer review while Carol's call starts inside it.
+WEEK_START = datetime(2026, 9, 7, tzinfo=ZoneInfo(TZ))  # a Monday
 MEETINGS = [
     ("standup", ["Probe Alice", "Probe Bob", "Probe Carol"], 1, 9, 0, 15),
     ("customer-review", ["Probe Alice", "Probe Bob"], 1, 13, 0, 120),
@@ -61,29 +67,26 @@ def credentials(secret_dir: Path, scope_key: str) -> Credentials:
             return creds
         if creds.expired and creds.refresh_token:
             creds.refresh(Request())
-            token_path.write_text(creds.to_json())
+            token_path.write_text(creds.to_json(), encoding="utf-8")
             return creds
     flow = InstalledAppFlow.from_client_secrets_file(str(secret_dir / "client_secret.json"), scopes)
     creds = flow.run_local_server(port=0)
-    token_path.write_text(creds.to_json())
+    token_path.write_text(creds.to_json(), encoding="utf-8")
     return creds
 
 
-CALENDAR_MAP = CAPTURE_DIR / "calendars.json"
-
-
-def ensure_calendar(svc, name: str) -> str:
+def ensure_calendar(svc, manifest: Path, name: str) -> str:
     # `calendar.app.created` cannot list calendars (finding: calendarList.list -> 403),
     # so the app must remember the ids it created — the generator's manifest will do
-    # the same. Remembered ids are verified with calendars.get before reuse.
-    known = json.loads(CALENDAR_MAP.read_text()) if CALENDAR_MAP.exists() else {}
+    # the same. Remembered ids are verified with calendars.get before reuse; a 404
+    # there means the manifest and the principal disagree, which is a real fault.
+    known = json.loads(manifest.read_text(encoding="utf-8")) if manifest.exists() else {}
     if name in known:
         svc.calendars().get(calendarId=known[name]).execute()
         return known[name]
     created = svc.calendars().insert(body={"summary": name, "timeZone": TZ}).execute()
     known[name] = created["id"]
-    CALENDAR_MAP.parent.mkdir(parents=True, exist_ok=True)
-    CALENDAR_MAP.write_text(json.dumps(known, indent=2))
+    manifest.write_text(json.dumps(known, indent=2), encoding="utf-8")
     return created["id"]
 
 
@@ -108,9 +111,13 @@ def ensure_event(svc, calendar_id: str, key: str, summary: str, start: datetime,
         svc.events().insert(calendarId=calendar_id, body=body).execute()
         return "created"
     except HttpError as err:
-        if err.resp.status == 409:
-            return "exists"
-        raise
+        if err.resp.status != 409:
+            raise
+    # Conflict: the id exists (Google keeps ids of deleted events too). Reconcile the
+    # content rather than trusting it — an edited MEETINGS table must land.
+    patch = {k: v for k, v in body.items() if k != "id"}
+    svc.events().patch(calendarId=calendar_id, eventId=body["id"], body=patch).execute()
+    return "reconciled"
 
 
 def main() -> int:
@@ -124,31 +131,44 @@ def main() -> int:
     creds = credentials(secret_dir, args.scope)
     svc = build("calendar", "v3", credentials=creds)
 
-    calendars = {name: ensure_calendar(svc, name) for name in PEOPLE}
-    print("calendars:", json.dumps(calendars, indent=2))
+    capture = {"scope": SCOPES[args.scope], "consent_screen_status": args.status,
+               "has_refresh_token": bool(creds.refresh_token), "calendar_timezone": TZ}
+    try:
+        calendars = {name: ensure_calendar(svc, secret_dir / "calendars.json", name) for name in PEOPLE}
+        capture["calendars"] = calendars
+        print("calendars:", json.dumps(calendars, indent=2))
 
-    results = []
-    for key, who, day, hour, minute, minutes in MEETINGS:
-        start = WEEK_START + timedelta(days=day, hours=hour, minutes=minute)
-        for person in who:
-            outcome = ensure_event(svc, calendars[person], key, key, start, minutes, who)
-            results.append({"person": person, "event": key, "outcome": outcome})
-    print("events:", json.dumps(results, indent=2))
+        results = []
+        for key, who, day, hour, minute, minutes in MEETINGS:
+            start = WEEK_START + timedelta(days=day, hours=hour, minutes=minute)
+            for person in who:
+                outcome = ensure_event(svc, calendars[person], key, key, start, minutes, who)
+                results.append({"person": person, "event": key, "outcome": outcome})
+        capture["events"] = results
+        print("events:", json.dumps(results, indent=2))
 
-    window = {"timeMin": WEEK_START.isoformat(), "timeMax": (WEEK_START + timedelta(days=7)).isoformat()}
-    busy = svc.freebusy().query(body={**window, "items": [{"id": cid} for cid in calendars.values()]}).execute()
-    listings = {name: svc.events().list(calendarId=cid, singleEvents=True, orderBy="startTime", **window)
-                .execute().get("items", []) for name, cid in calendars.items()}
-
-    CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
-    (CAPTURE_DIR / f"run-{args.scope}-{args.status}.json").write_text(json.dumps({
-        "scope": SCOPES[args.scope], "consent_screen_status": args.status,
-        "has_refresh_token": bool(creds.refresh_token),
-        "calendars": calendars, "events": results, "freebusy": busy["calendars"],
-        "listings": {n: [(e["summary"], e["start"], e["end"]) for e in items] for n, items in listings.items()},
-    }, indent=2, default=str), encoding="utf-8")
-    print("freebusy:", json.dumps(busy["calendars"], indent=2))
-    return 0
+        window = {"timeMin": WEEK_START.isoformat(),
+                  "timeMax": (WEEK_START + timedelta(days=7)).isoformat()}
+        busy = svc.freebusy().query(
+            body={**window, "items": [{"id": cid} for cid in calendars.values()]}).execute()
+        capture["freebusy"] = busy["calendars"]
+        print("freebusy:", json.dumps(busy["calendars"], indent=2))
+        listings = {name: svc.events().list(calendarId=cid, singleEvents=True, orderBy="startTime",
+                                            **window).execute().get("items", [])
+                    for name, cid in calendars.items()}
+        capture["listings"] = {n: [(e["summary"], e["start"], e["end"]) for e in items]
+                               for n, items in listings.items()}
+        return 0
+    except HttpError as err:
+        # The failure is the finding: which call, which status, under which scope.
+        capture["error"] = {"uri": err.uri, "status": err.resp.status, "reason": err.reason}
+        raise
+    finally:
+        CAPTURE_DIR.mkdir(parents=True, exist_ok=True)
+        seq = 1 + sum(1 for _ in CAPTURE_DIR.glob("run-*.json"))
+        path = CAPTURE_DIR / f"run-{seq:02d}-{args.scope}-{args.status}.json"
+        path.write_text(json.dumps(capture, indent=2, default=str), encoding="utf-8")
+        print("capture:", path)
 
 
 if __name__ == "__main__":

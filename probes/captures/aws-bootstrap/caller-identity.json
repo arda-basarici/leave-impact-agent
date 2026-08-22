@@ -1,5 +1,5 @@
 {
-    "UserId": "AROAWPSDBMTD2SXLUPL6H:arda",
+    "UserId": "<redacted>:arda",
     "Account": "445743457479",
-    "Arn": "arn:aws:sts::445743457479:assumed-role/AWSReservedSSO_AdministratorAccess_a1e8564afe941307/arda"
+    "Arn": "arn:aws:sts::445743457479:assumed-role/AWSReservedSSO_AdministratorAccess_<redacted>/arda"
 }

@@ -1,0 +1,178 @@
+{
+  "scope": [
+    "https://www.googleapis.com/auth/calendar.app.created",
+    "https://www.googleapis.com/auth/calendar.freebusy"
+  ],
+  "consent_screen_status": "production",
+  "has_refresh_token": true,
+  "calendar_timezone": "Europe/Istanbul",
+  "calendars": {
+    "Probe Alice": "da11d0510a8e3e478a8705f1f478dfae399c21b4bf30e3013032f4394c736bf7@group.calendar.google.com",
+    "Probe Bob": "c74104b0e024ee3ebbc224d6a067e30fac7286e6594485e18d3ec2b217c1b092@group.calendar.google.com",
+    "Probe Carol": "76f4eef502f8e714ba0d22dd438855e10100b3d8b8542a567e840fef1989bcb8@group.calendar.google.com"
+  },
+  "events": [
+    {
+      "person": "Probe Alice",
+      "event": "standup",
+      "outcome": "reconciled"
+    },
+    {
+      "person": "Probe Bob",
+      "event": "standup",
+      "outcome": "reconciled"
+    },
+    {
+      "person": "Probe Carol",
+      "event": "standup",
+      "outcome": "reconciled"
+    },
+    {
+      "person": "Probe Alice",
+      "event": "customer-review",
+      "outcome": "reconciled"
+    },
+    {
+      "person": "Probe Bob",
+      "event": "customer-review",
+      "outcome": "reconciled"
+    },
+    {
+      "person": "Probe Carol",
+      "event": "vendor-call",
+      "outcome": "reconciled"
+    },
+    {
+      "person": "Probe Alice",
+      "event": "architecture",
+      "outcome": "reconciled"
+    }
+  ],
+  "freebusy": {
+    "da11d0510a8e3e478a8705f1f478dfae399c21b4bf30e3013032f4394c736bf7@group.calendar.google.com": {
+      "busy": [
+        {
+          "start": "2026-09-08T06:00:00Z",
+          "end": "2026-09-08T06:15:00Z"
+        },
+        {
+          "start": "2026-09-08T10:00:00Z",
+          "end": "2026-09-08T12:00:00Z"
+        },
+        {
+          "start": "2026-09-09T12:00:00Z",
+          "end": "2026-09-09T13:00:00Z"
+        }
+      ]
+    },
+    "c74104b0e024ee3ebbc224d6a067e30fac7286e6594485e18d3ec2b217c1b092@group.calendar.google.com": {
+      "busy": [
+        {
+          "start": "2026-09-08T06:00:00Z",
+          "end": "2026-09-08T06:15:00Z"
+        },
+        {
+          "start": "2026-09-08T10:00:00Z",
+          "end": "2026-09-08T12:00:00Z"
+        }
+      ]
+    },
+    "76f4eef502f8e714ba0d22dd438855e10100b3d8b8542a567e840fef1989bcb8@group.calendar.google.com": {
+      "busy": [
+        {
+          "start": "2026-09-08T06:00:00Z",
+          "end": "2026-09-08T06:15:00Z"
+        },
+        {
+          "start": "2026-09-08T11:00:00Z",
+          "end": "2026-09-08T12:00:00Z"
+        }
+      ]
+    }
+  },
+  "listings": {
+    "Probe Alice": [
+      [
+        "standup",
+        {
+          "dateTime": "2026-09-08T09:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-08T09:15:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ],
+      [
+        "customer-review",
+        {
+          "dateTime": "2026-09-08T13:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-08T15:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ],
+      [
+        "architecture",
+        {
+          "dateTime": "2026-09-09T15:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-09T16:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ]
+    ],
+    "Probe Bob": [
+      [
+        "standup",
+        {
+          "dateTime": "2026-09-08T09:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-08T09:15:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ],
+      [
+        "customer-review",
+        {
+          "dateTime": "2026-09-08T13:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-08T15:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ]
+    ],
+    "Probe Carol": [
+      [
+        "standup",
+        {
+          "dateTime": "2026-09-08T09:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-08T09:15:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ],
+      [
+        "vendor-call",
+        {
+          "dateTime": "2026-09-08T14:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        },
+        {
+          "dateTime": "2026-09-08T15:00:00+03:00",
+          "timeZone": "Europe/Istanbul"
+        }
+      ]
+    ]
+  }
+}
