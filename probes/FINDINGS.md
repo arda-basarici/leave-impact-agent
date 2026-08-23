@@ -117,3 +117,40 @@ Facts established beyond the criterion:
   a phishing starter kit; the portal URLs moved to the stream's access note, the
   capture's `UserId` / role ARN and the subscriber email are redacted. The account
   id stays — `backend.tf` needs it and it is not a secret.
+
+## jira — PASS (2026-08-23)
+
+The probe site (Free; named in the stream's access note), project `PRB` created **company-managed over
+REST** (`style=classic`, `assigneeType=UNASSIGNED`) — Free does not restrict the
+project style. The ruled person model holds end to end: (a) a single-select custom
+field `Synthetic Owner` (`customfield_10042`) created over REST with three options
+(`emp_001 — Probe Alice` …) and placed on all three `PRB:` screens by REST; (b) four
+issues with an option set, `assignee` null, label `scenario-probe-01`; (c) exact JQL
+`"Synthetic Owner" = "emp_001 — Probe Alice"` returns {PRB-1, PRB-2} and nothing
+else, per person; (d) a comment naming Probe Bob round-trips — author is the service
+account, as the actor-identity ruling expects; (f) run 2 issued zero creating POSTs,
+count unchanged at 4. Captures: `captures/jira/run-01-model.json` (first run),
+`run-02-model.json` (idempotence), `run-05-readback-csv.json` (both CSV imports).
+
+(e) **CSV import backdates `created`; it does not set `resolutiondate`.** The
+wizard (new "Set up space / Map fields" flow) offers `Created` as a target and the
+read-back shows the file's values exactly (`2026-03-03T10:00:00+0300`, local zone
+honored). It offers no `Resolved`/resolution-date target, so `resolutiondate` stays
+null even with Status=Done and Resolution=Done mapped. The first import landed all
+three at import time (`2026-08-23T03:07`) because the date-format field kept its
+default `dd/MMM/yy h:mm a` against a `yyyy-MM-dd HH:mm` file — a silent fallback to
+now, not an error; the second import, in the wizard's own format, proved the
+mechanism. Both imports landed in the auto-created team-managed project `KAN`: the
+wizard offered only team-managed spaces at "Set up space". Two more limits: the
+wizard did not list the `Synthetic Owner` select field as a mapping target, and it is
+UI-only. Consequence for the history ruling: ticket *existence* history ("this ticket
+was opened in March") is plantable via a one-time CSV step into a team-managed
+project; *resolution* history is not; the import is not a general seeding path (owner
+must be set over REST afterwards). Decide at the world milestone whether the manual
+step is worth a history scenario class, or history stays out of the first truth model.
+
+Facts established beyond the criterion: REST v3 `POST /search/jql` is the live search
+endpoint (the classic `/search` is deprecated) · the site auto-creates a team-managed
+`KAN` project and an example `SAM1` — the generator must target its own project key
+and never assume an empty site · `Invoke-RestMethod` in PS 5.1 needs TLS 1.2 forced or
+Atlassian answers 503 (gotchas).
