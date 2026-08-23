@@ -358,11 +358,14 @@ are plantable and their content is a world fact ("[2026-09-12, Bob Kaya] blocked
 on the vendor API"), while the comment's own timestamp is vendor operational
 time. Frappe leave records and calendar events take the dates the seed sets, so
 past leave and past meetings are real history where history is needed. The Jira
-probe tests the CSV importer once — three issues with backdated created and
-resolved dates, read back over REST: a pass makes historical tickets a plantable
-world fact and exposes `created` on the tool surface per the time ruling; a fail
-keeps ticket history out of the first truth model, and "who handled this before"
-scenarios become future work rather than a planted lie.
+probe (2026-08-23) found the CSV importer backdates `created` but not
+`resolutiondate`, is UI-only and targets team-managed projects — and that the
+question was mis-posed: ticket dates are world facts like ownership, so they live
+in generator-controlled custom date fields (`Opened On`, `Resolved On`) set over
+REST, exposed by the adapter as `opened_on` / `resolved_on`, while Jira's own
+timestamps stay hidden as vendor time. Date-level history ("opened in March,
+resolved in May") is therefore plantable without a manual step; actor-level
+history ("who handled this before") remains outside the first truth model.
 
 ---
 

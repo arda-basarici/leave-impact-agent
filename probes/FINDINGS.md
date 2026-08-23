@@ -154,3 +154,12 @@ endpoint (the classic `/search` is deprecated) · the site auto-creates a team-m
 `KAN` project and an example `SAM1` — the generator must target its own project key
 and never assume an empty site · `Invoke-RestMethod` in PS 5.1 needs TLS 1.2 forced or
 Atlassian answers 503 (gotchas).
+
+**Addendum (2026-08-23, same day):** the resolution gap has the same answer as
+ownership. The tool surface exposes only generator-controlled fields, so Jira's
+`created` and `resolutiondate` are hidden and the world's dates live in custom date
+fields set over plain REST on create (`Opened On`, `Resolved On`), which the adapter
+exposes as `opened_on` / `resolved_on`; JQL date arithmetic works on custom date
+fields. That removes the manual CSV step from the seeding path entirely; the import
+is demoted to a cosmetic option for a human-facing board whose `created` column
+should look aged (a demo-milestone question, not a world-milestone one).
