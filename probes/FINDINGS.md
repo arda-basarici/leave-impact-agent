@@ -163,3 +163,86 @@ exposes as `opened_on` / `resolved_on`; JQL date arithmetic works on custom date
 fields. That removes the manual CSV step from the seeding path entirely; the import
 is demoted to a cosmetic option for a human-facing board whose `created` column
 should look aged (a demo-milestone question, not a world-milestone one).
+
+## frappe-up — PASS (2026-08-23)
+
+Frappe HR stands on the box at `hr.ardabasarici.dev` behind Caddy + Cloudflare:
+login from outside (`/api/method/login` → "Logged In" through the public host),
+hrms modules present (HR, Payroll), versions exactly as pinned (frappe 16.31.0,
+erpnext 16.32.3, hrms 16.16.0). Resident footprint idle with the site installed:
+**~0.9 GB** (box `used` 604 → 1,472 MB; the stack's containers sum to ~0.65 GB,
+the rest is page cache attributable to MariaDB), headroom 14.5 GB against the
+≥ 1.5 GB criterion; swap (2 GB, added before the install) untouched. Only Caddy
+publishes a port. Captures: `captures/frappe-up/free-before.txt`,
+`free-after-resting.txt` (per-container `docker stats`, compose hash, image
+digest), `outside-login.txt`.
+
+Facts established beyond the criterion:
+- **No official image carries hrms** — `frappe/erpnext` ships without it, and
+  hrms requires erpnext. The image is built in CI from `frappe_docker`'s layered
+  Containerfile (pinned commit) with `apps.json` as a BuildKit secret, pushed to
+  GHCR, and the box references it **by digest** (DESIGN: hosts consume
+  artifacts). Build time 4m36s on a standard runner — the 15-minute estimate was
+  pessimistic; runner disk was not a problem. A package pushed by `GITHUB_TOKEN`
+  from a public repo is public on GHCR (anonymous pull verified) — no registry
+  login on the box.
+- **`bench new-site` with erpnext + hrms: 2m08s.** The scheduler is disabled on
+  a fresh site (`*** Scheduler is disabled ***` at the end of the install) and
+  must be enabled explicitly — silent, and it would have stalled every queued job.
+- The "8 GB" premise in DESIGN is Frappe's recommended sizing, not a measured
+  need; the idle figure above replaces it. The seeded-org footprint is the seed
+  spike's number.
+- Frappe's nginx sets its own HSTS (2 y, `includeSubDomains; preload`) and
+  nosniff; the Caddy stanza's copies were removed after the first capture
+  showed both (the header duplicates are in `outside-login.txt`).
+- The new-site admin password and DB root password live in `/srv/frappe/.env`
+  on the box (generated there, never transmitted); they are not backed up and
+  regenerate with the site. The MariaDB data dir is a bind mount
+  (`/srv/frappe/data/db`) awaiting a dump step in the nightly box backup.
+
+## frappe-rest — PASS (2026-08-23)
+
+From the workstation through the public host with an `Administrator` API token
+(`Authorization: token key:secret`): three Employees, three submitted Leave
+Allocations and two submitted, Approved Leave Applications created and read back
+over `/api/resource`; the leave balance read through one whitelisted method
+(`get_leave_balance_on`: 20 → 15 for a Mon–Fri week, → 19 for a single day, 20
+untouched — the arithmetic the agent will rely on). Run 4 issued zero creating
+POSTs. Captures: `captures/frappe-rest/run-01.json` (failed: `Country` is
+`Türkiye`, not `Turkey`), `run-02.json` (failed at Leave Application — see
+below), `run-03.json` (the pass), `run-04.json` (idempotence). Script:
+`probes/frappe/probe.py`.
+
+**The person model holds for HR as it did for Jira.** Synthetic employees are
+`Employee` records only (keyed by `employee_number` = the generator's id; Frappe's
+`HR-EMP-0000n` name is vendor identity, kept in the manifest); `reports_to` links
+Employee → Employee, so the manager relation is a domain fact with no login
+behind it. The one `User` in play is a single service approver
+(`probe.approver@…invalid`, `send_welcome_email: 0`, roles Leave Approver + HR
+User) that every Employee names as `leave_approver` — vendor plumbing outside the
+truth model, like Jira's comment author.
+
+**The `leave_approver` "wart" is smaller than feared.** Setting the field on
+Employee insert works plainly (no `set_value` detour, no server script); hrms
+grants the Leave Approver role itself. The real finding: an `Approved`,
+submitted Leave Application whose `leave_approver` is *not* the submitting
+principal goes through — the System-Manager token bypasses the approver check.
+Convenient for the generator (it seeds approved history in one call) and a
+reminder that the agent's runtime token must not be this one (least privilege
+is a role-scoped tool registry *and* a role-scoped API principal).
+
+Facts established beyond the criterion:
+- A fresh site has no Company; the setup wizard completes over REST
+  (`setup_wizard.setup_complete` with language/country/timezone/currency/
+  company/fiscal year) — the generator needs no UI step.
+- **hrms 16 resolves holiday lists through a submitted `Holiday List Assignment`**
+  (company- or employee-level, from a date). `Company.default_holiday_list` and
+  `Employee.holiday_list` are accepted and ignored: run 2 set both and Leave
+  Application still failed with "No Holiday List was found". Version-specific —
+  v15 docs describe the old fields.
+- Backdated `posting_date` on a Leave Application is taken as given (2026-08-01
+  on a record created 2026-08-23) — Frappe's own `creation` is the vendor
+  timestamp; world dates live in the document's own date fields, the same split
+  Jira needed custom fields for. No CSV, no custom field.
+- `docstatus: 1` on insert creates and submits in one call, for allocations and
+  applications alike.

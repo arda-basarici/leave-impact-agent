@@ -1,0 +1,7 @@
+﻿               total        used        free      shared  buff/cache   available
+Mem:           15993         604       14884           0         764       15389
+Swap:           2047           0        2047
+
+NAME                MEM USAGE / LIMIT
+steamlens-app-1     71.46MiB / 15.62GiB
+box-proxy-caddy-1   56.72MiB / 15.62GiB

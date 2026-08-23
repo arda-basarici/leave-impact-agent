@@ -1,0 +1,20 @@
+﻿               total        used        free      shared  buff/cache   available
+Mem:           15993        1472        8104           1        6748       14521
+Swap:           2047           0        2047
+
+box-proxy-caddy-1      56.73MiB / 15.62GiB   0.03%
+frappe-backend-1       150MiB / 1.5GiB       0.01%
+frappe-db-1            243.4MiB / 1.5GiB     0.02%
+frappe-frontend-1      6.359MiB / 128MiB     0.00%
+frappe-queue-long-1    50.84MiB / 768MiB     0.00%
+frappe-queue-short-1   50.82MiB / 512MiB     0.00%
+frappe-redis-cache-1   14.66MiB / 256MiB     0.28%
+frappe-redis-queue-1   11.89MiB / 256MiB     0.27%
+frappe-scheduler-1     48.83MiB / 256MiB     0.00%
+frappe-websocket-1     21.92MiB / 256MiB     0.00%
+NAME                   MEM USAGE / LIMIT     CPU %
+steamlens-app-1        71.46MiB / 15.62GiB   0.21%
+
+c85bf0807764a99b9ddf1128aea38b1ef03730f8c1993a616ccf29d9f326faea  /srv/frappe/compose.yaml
+FRAPPE_IMAGE=ghcr.io/arda-basarici/leave-impact-frappe@sha256:6fd62eedd1a91c46858551b4205128aea831d7c4767cc8d8261e77bb7779b2e0
+1

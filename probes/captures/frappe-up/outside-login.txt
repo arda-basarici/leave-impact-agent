@@ -1,0 +1,19 @@
+# 2026-08-23 — from the workstation through Cloudflare, then the login from the
+# box's shell (password sourced from /srv/frappe/.env, never printed).
+$ nslookup hr.ardabasarici.dev 1.1.1.1      → 172.67.134.62, 104.21.25.128 (Cloudflare edges; origin hidden)
+$ curl https://hr.ardabasarici.dev/api/method/ping
+{"message":"pong"}                                               HTTP 200
+$ curl -I https://hr.ardabasarici.dev/login                      HTTP 200 text/html
+Server: cloudflare · CF-RAY: …-FCO
+strict-transport-security: max-age=15552000                       ← Caddy stanza (removed after this capture)
+strict-transport-security: max-age=63072000; includeSubDomains; preload   ← Frappe's own nginx
+x-content-type-options: nosniff  (×2, same cause)
+
+$ curl -c c -X POST …/api/method/login --data-urlencode usr=Administrator --data-urlencode pwd=…
+{"message":"Logged In","home_page":"desk","full_name":"Administrator"}
+$ curl -b c …/api/method/frappe.auth.get_logged_user
+{"message":"Administrator"}
+$ curl -b c '…/api/resource/Module Def?filters=[["app_name","=","hrms"]]'
+{"data":[{"name":"HR"},{"name":"Payroll"}]}
+$ curl -b c …/api/method/frappe.utils.change_log.get_versions
+frappe 16.31.0 · erpnext 16.32.3 · hrms 16.16.0
