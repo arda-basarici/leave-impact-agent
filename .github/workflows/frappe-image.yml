@@ -1,0 +1,67 @@
+# Builds the simulated org's HRIS image: Frappe + ERPNext + Frappe HR (hrms).
+# No official image carries hrms, so frappe_docker's "layered" Containerfile
+# bakes the apps in deploy/frappe/apps.json onto Frappe's prebuilt base layers.
+# The box only pulls (its one rule: it never builds) — this job is the builder.
+#
+# Runs on demand, and whenever the app list or this file changes. Not part of
+# ci.yml: a ~15-minute, ~2 GB build has nothing to do with "is this commit good".
+name: frappe-image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - deploy/frappe/apps.json
+      - .github/workflows/frappe-image.yml
+
+env:
+  # frappe_docker pinned by commit: the Containerfile is the build recipe, and a
+  # recipe that floats makes the image unreproducible. Bump deliberately.
+  FRAPPE_DOCKER_REF: 4b9d35666abd84157ffadbf67558bbd3e1e39de7
+  FRAPPE_BRANCH: v16.31.0
+  IMAGE: ghcr.io/${{ github.repository_owner }}/leave-impact-frappe
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          path: repo
+
+      - uses: actions/checkout@v7.0.1
+        with:
+          repository: frappe/frappe_docker
+          ref: ${{ env.FRAPPE_DOCKER_REF }}
+          path: frappe_docker
+
+      - uses: docker/setup-buildx-action@v4.3.0
+
+      - uses: docker/login-action@v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # amd64 only: the box is x86_64 and this image never runs anywhere else.
+      # apps.json travels as a BuildKit secret, the documented path — a
+      # build-arg would persist in `docker image history` (frappe_docker#1860);
+      # ours holds only public URLs, but the habit is the point.
+      - uses: docker/build-push-action@v7.3.0
+        with:
+          context: frappe_docker
+          file: frappe_docker/images/layered/Containerfile
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            FRAPPE_PATH=https://github.com/frappe/frappe
+            FRAPPE_BRANCH=${{ env.FRAPPE_BRANCH }}
+          secret-files: |
+            apps_json=repo/deploy/frappe/apps.json
+          tags: |
+            ${{ env.IMAGE }}:16
+            ${{ env.IMAGE }}:${{ github.sha }}

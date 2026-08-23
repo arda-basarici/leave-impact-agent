@@ -1,0 +1,165 @@
+# Frappe HR on the netcup box — the simulated org's HRIS (DESIGN, "The hybrid
+# split": the application runs on AWS and reaches this stack as a remote system
+# behind the HRProvider adapter; Frappe never runs where the agent runs).
+#
+# Derived from frappe_docker's compose.yaml + mariadb/redis overrides (pinned
+# commit in .github/workflows/frappe-image.yml), flattened so the box runs one
+# file, with three deliberate differences:
+#   - the image is ours (erpnext + hrms baked in — no official image carries
+#     hrms), built in CI, never on the box;
+#   - `frontend` publishes nothing: it joins the shared `web` network and the
+#     box-owned Caddy proxies to it (the box's one rule — only Caddy publishes);
+#   - every service carries a memory limit, so the heaviest tenant on the box
+#     cannot starve SteamLens. First values are a guess from the 16 GB box;
+#     the frappe-up probe re-derives them from `docker stats`.
+#
+# Secrets (DB_PASSWORD) come from /srv/frappe/.env on the box (chmod 600, never
+# committed) — the box-side convention SteamLens set; the *application's* secrets
+# follow this repo's rule (env vars / SSM) and are unrelated to this stack.
+name: frappe
+
+# The full reference, digest included, lives in /srv/frappe/.env — the box
+# runs an immutable artifact, never a tag that can move under it (the `:16`
+# tag exists in the registry for humans only). Updating = editing one line.
+x-image: &image
+  image: ${FRAPPE_IMAGE:?ghcr.io/arda-basarici/leave-impact-frappe@sha256:... in /srv/frappe/.env}
+  restart: unless-stopped
+
+x-depends-on-configurator: &depends_on_configurator
+  depends_on:
+    configurator:
+      condition: service_completed_successfully
+
+x-backend-defaults: &backend_defaults
+  <<: [*depends_on_configurator, *image]
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+
+services:
+  # Writes common_site_config.json once and exits; every bench service waits
+  # on it so no worker starts against an unconfigured bench.
+  configurator:
+    <<: *backend_defaults
+    entrypoint: ["bash", "-c"]
+    command:
+      - >
+        ls -1 apps > sites/apps.txt;
+        bench set-config -g db_host $$DB_HOST;
+        bench set-config -gp db_port $$DB_PORT;
+        bench set-config -g redis_cache "redis://$$REDIS_CACHE";
+        bench set-config -g redis_queue "redis://$$REDIS_QUEUE";
+        bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
+        bench set-config -gp socketio_port $$SOCKETIO_PORT;
+        bench set-config -g chromium_path /usr/bin/chromium-headless-shell;
+    environment:
+      DB_HOST: db
+      DB_PORT: "3306"
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      SOCKETIO_PORT: 9000
+    depends_on:
+      db:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_started
+    restart: on-failure
+
+  backend:
+    <<: *backend_defaults
+    environment:
+      GUNICORN_WORKERS: 2
+      GUNICORN_THREADS: 4
+      GUNICORN_TIMEOUT: 120
+    mem_limit: 1536m
+
+  # nginx: static assets + reverse proxy to backend/websocket. Unpublished —
+  # Caddy reaches it as frappe-frontend-1:8080 over the `web` network.
+  frontend:
+    <<: *image
+    command: ["nginx-entrypoint.sh"]
+    environment:
+      BACKEND: backend:8000
+      SOCKETIO: websocket:9000
+      # One site per bench, named after its public host; pinned rather than
+      # $host so a request that reaches nginx under any name still resolves.
+      FRAPPE_SITE_NAME_HEADER: ${FRAPPE_SITE_NAME}
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: "off"
+      PROXY_READ_TIMEOUT: 120
+      CLIENT_MAX_BODY_SIZE: 50m
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    depends_on:
+      - backend
+      - websocket
+    networks:
+      - default
+      - web
+    mem_limit: 128m
+
+  websocket:
+    <<: [*depends_on_configurator, *image]
+    command: ["node", "/home/frappe/frappe-bench/apps/frappe/socketio.js"]
+    volumes:
+      - sites:/home/frappe/frappe-bench/sites
+    mem_limit: 256m
+
+  queue-short:
+    <<: *backend_defaults
+    command: ["bench", "worker", "--queue", "short,default"]
+    mem_limit: 512m
+
+  queue-long:
+    <<: *backend_defaults
+    command: ["bench", "worker", "--queue", "long,default,short"]
+    mem_limit: 768m
+
+  scheduler:
+    <<: *backend_defaults
+    command: ["bench", "schedule"]
+    mem_limit: 256m
+
+  db:
+    image: mariadb:11.8
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      start_period: 5s
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:?set in /srv/frappe/.env}
+      MARIADB_AUTO_UPGRADE: 1
+    volumes:
+      # Bind mount like every project's state on the box: outlives images,
+      # readable by the nightly backup from the host.
+      - ./data/db:/var/lib/mysql
+    mem_limit: 1536m
+
+  redis-cache:
+    image: redis:8.6-alpine
+    restart: unless-stopped
+    mem_limit: 256m
+
+  redis-queue:
+    image: redis:8.6-alpine
+    restart: unless-stopped
+    volumes:
+      - redis-queue-data:/data
+    mem_limit: 256m
+
+volumes:
+  sites:
+  redis-queue-data:
+
+networks:
+  web:
+    external: true

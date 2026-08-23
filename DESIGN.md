@@ -46,6 +46,17 @@ the box (no cloud deployment at all), the box plus peripheral AWS services (an a
 that "uses S3 and Bedrock" is not a cloud deployment), and everything on AWS (paying
 to host the simulation for no product reason).
 
+**Hosts consume artifacts; they never manufacture them** (ruled 2026-08-23, when
+Frappe HR turned out to need a custom image — no official one carries the `hrms`
+app). The box's rule from SteamLens holds for every deployable in this project:
+`source → CI build → registry → host`, the host references an immutable digest
+and pulls. CI rebuilds an image only when its *inputs* change (`apps.json`, the
+build recipe), never when deployment settings do — image definition and
+deployment definition are different artifacts. Rejected: a one-time build on the
+box (a special-case path for fifteen minutes' gain) and builds from the
+workstation (a release step in an undocumented environment). What the rule buys
+is the claim that the production machine is replaceable.
+
 **The application host: one EC2 instance, one Compose stack.** A `t4g.small`
 (2 vCPU / 2 GB, arm) runs the application and its PostgreSQL in Docker Compose, the
 database on a gp3 EBS volume, Cloudflare in front as the only ingress (no load
