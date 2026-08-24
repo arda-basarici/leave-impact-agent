@@ -246,3 +246,41 @@ Facts established beyond the criterion:
   Jira needed custom fields for. No CSV, no custom field.
 - `docstatus: 1` on insert creates and submits in one call, for allocations and
   applications alike.
+
+## seed-spike — PASS (2026-08-24)
+
+One command (`probes/seed/probe.py`) lands the whole world — 5 people, 1 project,
+8 issues, a week of meetings, 2 approved leaves — in all three systems, keyed by the
+same employee ids. Run 1: 64 creations, every verify true. Run 5 is the idempotence
+pair: **0 creations** and identical verify results. All four extended criteria hold:
+
+- **Same org everywhere** — Frappe answers the on-leave set, Jira the per-person open
+  issues, Calendar the busy blocks, all consistent with the one spec by construction.
+- **Idempotence across all three** — find-or-create against the manifest
+  (`~/.config/leave-impact/seed/manifest.json`); reruns add nothing.
+- **World dates over REST on Free** — `Opened On`/`Resolved On` created as date-picker
+  custom fields over REST, set at issue create, and **JQL date arithmetic on them
+  works on Jira Free**: `"Opened On" <= "…" AND ("Resolved On" IS EMPTY OR …)` returns
+  exactly the spec's open set per person. The resolution-date gap is closed for real.
+- **Stable-now** — `answer(now)` at two instants inside the declared interval is
+  identical; the guarantee that makes it hold is in the spec (no world date inside the
+  interval), which is the generator's contract from here on.
+
+Facts established beyond the criterion:
+- **Fresh containers ruled and exercised:** the `hr-w1` Frappe site (bench new-site
+  ~2 min; the compose frontend now routes by Host header — `FRAPPE_SITE_NAME_HEADER:
+  $host` — so sites-per-world need one Caddy stanza + one DNS record each) and the
+  Jira project `W1` **created over REST on Free** with the company-managed kanban
+  template (`gh-kanban-template`) — no UI step needed. World-resolved issues also
+  transition to Done over REST, so status agrees with the world date.
+- **Transient edge faults are real:** runs 2–4 died on an authorized GET that never
+  reached the origin's nginx (reset/timeout between client and Cloudflare edge;
+  intermittent, same call passes moments later; unauthenticated calls unaffected in
+  the reproductions). A connection-fault-only retry (never on HTTP errors) absorbed
+  it — run 5's capture shows 2 faults on one call, third attempt clean. Lesson for
+  M1/M2: **every adapter needs connection-level retries**; root cause unassigned
+  (Cloudflare security events not yet checked), parked in FIXLOG.
+
+Captures: `captures/seed-spike/run-01.json` (the creation run), `run-05.json` (the
+0-creation idempotence run, transport faults visible in its exchange log); runs 02–04
+are the fault captures — the failures are themselves the finding.

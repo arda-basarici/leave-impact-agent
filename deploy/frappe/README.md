@@ -53,7 +53,7 @@ ssh steamlens 'cd /srv/box-proxy && docker compose exec caddy caddy reload --con
 ssh steamlens 'cd /srv/frappe && docker compose pull && docker compose up -d'
 ssh steamlens 'cd /srv/frappe && set -a && . ./.env && set +a && \
   docker compose exec backend bench new-site "$FRAPPE_SITE_NAME" \
-    --mariadb-user-host-login-scope="%" \
+    --mariadb-user-host-login-scope="%" --db-root-username root \
     --db-root-password "$DB_PASSWORD" \
     --admin-password "<choose; goes into the probe env, not here>" \
     --install-app erpnext --install-app hrms'
@@ -66,6 +66,25 @@ Verify: `https://hr.ardabasarici.dev` shows the login page from outside; on the
 box `docker ps` shows no port arrow on any `frappe-*` container (only Caddy
 publishes); `free -m` and `docker stats --no-stream` captured to
 `probes/captures/frappe-up/`.
+
+## Sites — one per world version (ruled 2026-08-24)
+
+The bench is multi-site: `FRAPPE_SITE_NAME_HEADER` is `$host`, so the Host
+header Caddy forwards selects the site, and sites are named after their public
+hosts. A world gets a fresh site (provably clean by creation — the alternative,
+scrubbing a shared site, can't prove what's left); resetting a world is
+drop-and-recreate, ~2 min. Per new world `<name>` (e.g. `hr-w1`):
+
+```sh
+# 1. Cloudflare: A record <name> -> origin IP, PROXIED (the origin-CA pair
+#    already covers *.ardabasarici.dev).
+# 2. Caddy: copy the hr stanza in the box Caddyfile for <name>.ardabasarici.dev,
+#    reload the proxy.
+# 3. The site (scheduler is disabled on a fresh site — enable it):
+ssh box 'cd /srv/frappe && set -a && . ./.env && set +a &&   docker compose exec backend bench new-site <name>.ardabasarici.dev     --mariadb-user-host-login-scope="%" --db-root-username root     --db-root-password "$DB_PASSWORD"     --admin-password "<choose; env ceremony, never here>"     --install-app erpnext --install-app hrms'
+ssh box 'cd /srv/frappe && docker compose exec backend   bench --site <name>.ardabasarici.dev enable-scheduler'
+# Teardown: bench drop-site + remove the Caddy stanza + the DNS record.
+```
 
 ## Footprint
 

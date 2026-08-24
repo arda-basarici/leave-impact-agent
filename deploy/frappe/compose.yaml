@@ -82,9 +82,12 @@ services:
     environment:
       BACKEND: backend:8000
       SOCKETIO: websocket:9000
-      # One site per bench, named after its public host; pinned rather than
-      # $host so a request that reaches nginx under any name still resolves.
-      FRAPPE_SITE_NAME_HEADER: ${FRAPPE_SITE_NAME}
+      # One site per WORLD on this bench (ruled 2026-08-24): the Host header,
+      # forwarded untouched by Caddy, selects the site — sites are named after
+      # their public hosts. A request under an unknown name now 404s instead of
+      # falling back to a default site; Caddy only proxies declared hosts, so
+      # nothing legitimate is lost.
+      FRAPPE_SITE_NAME_HEADER: $$host
       UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
       UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
       UPSTREAM_REAL_IP_RECURSIVE: "off"
