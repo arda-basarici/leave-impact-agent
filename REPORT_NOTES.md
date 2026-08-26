@@ -7,6 +7,113 @@ decisions it feeds.
 
 ---
 
+## 2026-08-26 — Listed is not callable: the Bedrock catalogue said AUTHORIZED to every model the runtime then refused
+
+*M0 day 2, the bedrock probe (PARTIAL, then PASS for the reachable shortlist, same
+day; detail in `probes/FINDINGS.md`, prices in `probes/captures/bedrock/models.md`).
+Feeds: the report's model-seam and cost sections; a teaching aside for any post about
+"choosing a model on Bedrock".*
+
+The probe's question was modest: for each of six shortlisted models, does the
+instance role get a round-trip, a tool call, and a prompt-cache hit, and what does
+the model cost in Frankfurt. Four days earlier the account bootstrap had recorded
+"Bedrock needs no model-access request in this account", on the strength of Haiku 4.5
+answering cold. On the day, the three Amazon Nova rows passed everything on the first
+run (`probe-run-1.jsonl`), and every Anthropic row failed — for two different
+reasons that took a while to tell apart.
+
+The control plane was no help in telling them apart. `get-foundation-model-availability`
+reported AUTHORIZED and AVAILABLE for all six; the Bedrock console's old "Model
+access" page has been retired; the catalogue lists the 5-series with a price. Only the
+runtime knew the truth, and it knew it per model: Haiku 4.5 wanted Anthropic's
+"use case details" form, which the console offers on the first playground invoke;
+Sonnet 5, Opus 5 and Opus 4.8 were "not available for this account, contact AWS
+Sales"; Sonnet 4.6 answered with no form at all. Reproducing the failures from an
+AdministratorAccess session settled that this was account state, not the role's
+grant — which mattered, because the grant had just been pinned to the shortlist and
+was the first suspect.
+
+The form's behaviour was the surprise worth recording. It was submitted at ~20:02;
+Haiku 4.5 opened three minutes later. Sonnet 4.6, which had been open *before* the
+form, went form-gated, then spent six minutes returning AccessDenied, then opened at
+20:15:58, and flapped once more mid-run. Propagation is per model and not monotonic:
+a model you could call can stop answering while the form works its way through. The
+practical rule for a fresh account: budget twenty minutes and a retry loop, and
+never trust the first answer in either direction. The 5-series gate did not move,
+and a research pass (seven sources, re:Post and r/aws threads since roughly June)
+found the same signature across regions and account types with no official
+criterion and no confirmed fix — so the ruling was not to plan around the 5-series
+at all. A fix later is a one-line edit to the model list in `variables.tf`; a
+Support case is queued for the record.
+
+Two smaller facts fell out. Anthropic's rows are not in the Pricing API (it carries
+only legacy Claude 2/3 US SKUs), so their prices came from the pricing page read in a
+browser by a subagent; the `eu.` inference profiles cost a flat 10 % over `global.`
+across the board. And Nova Pro missed its cache once in five passes — an `eu.`
+profile can route a call to a region that has not yet seen the prefix — which is a
+line item for the M2 cost model, since the $0.75-per-investigation estimate assumes
+caching works.
+
+What the shortlist looks like after all this: two Anthropic models (Haiku 4.5,
+Sonnet 4.6) and three Amazon (Nova Lite, Nova Pro, Nova 2 Lite), all answering from
+the role, with Nova Lite about 14× cheaper than Haiku 4.5 on input. The choice among
+them is deliberately not made here; M2's evaluation on the golden set makes it. The
+probe's job was to find out what can be measured, and the honest summary is that the
+catalogue could not tell us.
+
+Figure: a small table — model × (control-plane says / runtime does / minutes to open
+after the form) — makes the "listed ≠ callable" point in one glance.
+
+## 2026-08-26 — The subject GitHub actually sends: an OIDC trust policy that matched the documentation and not the token
+
+*M0 day 2, the oidc-deploy floor (PASS; detail in `probes/FINDINGS.md`,
+`captures/oidc-deploy/`). Feeds: the report's deployment section (keyless CD, the
+production gate) and the hosting appendix.*
+
+The floor was preregistered as one sentence: a commit to `main` changes the running
+service on the instance, with no AWS key stored anywhere. The mechanism is standard
+— GitHub Actions federates into the account through OIDC, assumes a deploy role, and
+runs the deploy script on the host over SSM `send-command` — and the probe plan
+carried one open fact to record: what `sub` claim the token actually has, since
+repositories created after mid-2026 were rumoured to emit a new form.
+
+The rumour was right and the documentation was not, or at least not for this
+repository. The trust policy was first written with the documented, name-based
+subject. STS refused twelve retries with "Not authorized to perform
+sts:AssumeRoleWithWebIdentity" before the job log gave up the real claim:
+`repo:arda-basarici@133336041/leave-impact-agent@1342572683:environment:production`
+— owner and repository each carrying their numeric id. Pinning the trust to that
+form is the stronger pin, not a workaround: a repository renamed or deleted and
+re-created under the same name inherits nothing, because the ids differ. The role is
+trusted by repository *and environment*, which is why the production gate is part
+of the security story rather than a convenience.
+
+The gate had its own lesson. A workflow that references an environment which does
+not exist creates it, bare; the first deploy went straight through with nobody
+asked. Only after a reviewer and a `main`-only branch policy were set on the
+environment did the re-run stop at "Review pending". A new GitHub environment is
+not a gate until someone configures it to be one — worth one line in any runbook
+that leans on it.
+
+Two identity flips are on record: the first approved run replaced "no application"
+with `leaveimpact 51d3f16`, and the very next commit — the one that recorded the
+probe — flipped it to `leaveimpact 2f028b2` at 12:26:24Z through the same gate. In
+between, the boot script changed (the proxy stack took over the shared network and
+`trusted_proxies` is now rendered from the same pinned Cloudflare ranges as the
+security group), so the instance itself was replaced: new instance, same Elastic
+IP and data volume, certificate re-read from Parameter Store, HTTPS 200 with no
+manual step, in 1m13s (the first boot had taken 4m53s, most of it waiting for the
+secrets to be put). "The host regenerates from code" stopped being a claim and
+became a measured event.
+
+One deviation from the plan's wording is deliberate and should be told as such: the
+row said "pushes an arm64 image to ECR", and there is no ECR. The baseline review
+had already ruled GHCR as the registry, and a second registry would have existed
+only to satisfy the row. The thing the row exists to prove — federation, a role
+trusted by repository and environment, a commit landing on the host through SSM —
+is exercised in full; preregistered criteria stay as written and the findings carry
+the deviation with its reason.
+
 ## 2026-08-24 — One command, three systems, zero duplicates: the seed spike closed probe day 1 — and a network fault earned its place in the adapter design
 
 *The last day-1 probe of M0 (seed-spike, criterion preregistered in `probes/README.md`
@@ -212,6 +319,18 @@ anywhere*.
 ---
 
 *Candidates not yet written (material exists; write when a report or post needs it):*
+
+- *M0 closes with every row verified, the non-blocking one too (2026-08-26) — Slack
+  proved on the first run after a scripted-not-run interlude; the ruling to finish
+  trailing probes rather than carry them, and the 90-day-history fact that makes
+  Slack content a run-time write in the world generator. The cost line as an
+  honesty anecdote: the design doc's ~$21 held and the working estimate of ~$18–19
+  was the low guess (Pricing API, `probes/captures/instance/pricing.md`). Material:
+  SESSION_LOG session 7, FINDINGS slack entry.*
+- *The instance floor (2026-08-26) — the whole host from Terraform, the secrets rail
+  (Origin CA pair as SecureString, read at boot by a path-scoped role), the
+  Cloudflare-only security group, and the three interview rulings annotated lasting
+  vs cheap. Material: SESSION_LOG session 5, FINDINGS instance entry.*
 
 - *The hosting ruling (2026-08-22) — app on AWS, HRIS on the box, decided by the
   career-strategy gap's own wording; tombstoned extremes and the preregistered
