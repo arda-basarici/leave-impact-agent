@@ -111,7 +111,10 @@ resource "aws_instance" "app" {
     encrypted   = true
   }
 
-  user_data                   = templatefile("${path.module}/user_data.sh.tftpl", { app_hostname = var.app_hostname })
+  user_data = templatefile("${path.module}/user_data.sh.tftpl", {
+    app_hostname           = var.app_hostname
+    cloudflare_ipv4_ranges = var.cloudflare_ipv4_ranges
+  })
   user_data_replace_on_change = true
 
   lifecycle {

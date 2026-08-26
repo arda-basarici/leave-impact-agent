@@ -8,7 +8,9 @@ name: leaveimpact
 
 services:
   app:
-    image: ghcr.io/arda-basarici/leave-impact-agent:latest
+    # The deploy script pins APP_TAG to the commit sha it lands; a laptop rehearsal
+    # without one follows `latest`. Rollback = an older sha.
+    image: ghcr.io/arda-basarici/leave-impact-agent:${APP_TAG:-latest}
     # Values interpolate from the process environment — no .env, no `env_file`:
     # the app gets exactly the variables named here. Locally they are user
     # environment variables (never a file in the tree); on the instance the deploy

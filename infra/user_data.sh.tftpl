@@ -2,8 +2,11 @@
 # First-boot configuration (cloud-init user data) for the application host.
 # Runs once per instance; idempotent where a rerun could happen (mount, files).
 # Log: /var/log/leave-agent-boot.log — read it over an SSM session when the
-# site does not answer. This is cloud-init "until the app exists" (DESIGN); the
-# oidc-deploy probe replaces the hello container by image, never this script.
+# site does not answer. This is cloud-init "until the app exists" (DESIGN); it
+# lays the host down — Docker, the data volume, the proxy stack, the shared
+# `web` network. The application stack is the deploy job's (deploy/instance/
+# deploy.sh), never this script's: a replaced instance serves the hello until
+# the next approved deploy lands the app on it.
 set -euo pipefail
 exec > >(tee -a /var/log/leave-agent-boot.log) 2>&1
 echo "=== leave-agent first boot $(date -u +%FT%TZ) ==="
@@ -55,48 +58,62 @@ umask 077
 printf '%s\n' "$CERT" > "$DATA_MNT/proxy/certs/origin.pem"
 printf '%s\n' "$KEY"  > "$DATA_MNT/proxy/certs/origin.key"
 unset CERT KEY
+umask 022
 
-# --- The stack: Caddy terminates TLS with the origin pair, proxies the app ---
-# Caddy is the same proxy the box runs, so the two hosts read alike. The app
-# service starts as a stock hello container; the deploy pipeline swaps the
-# image tag, nothing else.
-install -d "$DATA_MNT/proxy" "$DATA_MNT/app"
+# --- The shared `web` network and the proxy stack -----------------------------
+# The proxy owns `web` (compose.yaml in the repo declares it external); every
+# application stack joins it and publishes nothing to the host. Caddy is the
+# same proxy the box runs, so the two hosts read alike. `trusted_proxies` is
+# rendered from the same Terraform variable as the security group's ingress
+# rules — one pinned list, not another copy. The `hello` service answers the
+# hostname until the application has an HTTP surface; the Caddyfile's
+# reverse_proxy target flips then.
+docker network inspect web >/dev/null 2>&1 || docker network create web
+install -d "$DATA_MNT/proxy" "$DATA_MNT/app" "$DATA_MNT/pgdata"
 cat > "$DATA_MNT/proxy/Caddyfile" <<'EOF'
 {
 	# Cloudflare is the only client and it holds the trust for the origin pair;
 	# no ACME, no port 80.
 	auto_https off
+	servers {
+		# Believe X-Forwarded-* only from Cloudflare's edge (the pinned ranges).
+		trusted_proxies static ${join(" ", cloudflare_ipv4_ranges)}
+	}
 }
 
 ${app_hostname} {
 	tls /certs/origin.pem /certs/origin.key
-	reverse_proxy app:80
+	reverse_proxy hello:80
 }
 EOF
 
-cat > "$DATA_MNT/app/compose.yaml" <<'EOF'
-name: leave-agent
+cat > "$DATA_MNT/proxy/compose.yaml" <<'EOF'
+name: proxy
 services:
-  proxy:
+  caddy:
     image: caddy:2-alpine
     restart: unless-stopped
     ports: ["443:443"]
     volumes:
-      - ../proxy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ../proxy/certs:/certs:ro
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./certs:/certs:ro
       - caddy-data:/data
-    depends_on: [app]
-  app:
-    # Stock multi-arch hello service; echoes the request it received, which
-    # makes the Cloudflare path visible (cf-ray, cf-connecting-ip headers).
+    networks: [web]
+  hello:
+    # Stock multi-arch echo service; shows the request as the app will see it
+    # (cf-ray, the verified visitor IP in X-Forwarded-For).
     image: traefik/whoami:v1.11
     restart: unless-stopped
     environment:
       WHOAMI_NAME: leave-agent hello (M0 instance probe)
+    networks: [web]
 volumes:
   caddy-data:
+networks:
+  web:
+    external: true
 EOF
 
-cd "$DATA_MNT/app" && docker compose up -d
+cd "$DATA_MNT/proxy" && docker compose up -d
 docker compose ps
 echo "=== first boot done $(date -u +%FT%TZ) ==="

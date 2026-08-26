@@ -11,8 +11,9 @@
 # independently.
 locals {
   secret_names = {
-    origin_cert = "/leave-agent/origin-cert"
-    origin_key  = "/leave-agent/origin-key"
+    origin_cert       = "/leave-agent/origin-cert"
+    origin_key        = "/leave-agent/origin-key"
+    postgres_password = "/leave-agent/postgres-password" # read by the deploy script, exported for `compose up`
   }
 }
 

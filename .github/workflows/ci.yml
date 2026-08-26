@@ -3,8 +3,9 @@ name: CI
 # The authority for "is this commit good": the same gate `just check` runs locally
 # (lint, types, unit + doctests, docs build), plus the integration level against a
 # real PostgreSQL service. On a green main push the image job builds the deploy
-# unit for both platforms and pushes it to GHCR. The deploy job attaches when the
-# OIDC deploy (probe `oidc-deploy`) lands, behind the `production` environment.
+# unit for both platforms and pushes it to GHCR; the deploy job then waits behind
+# the `production` environment's reviewer gate and, once approved, lands that
+# exact commit on the instance over SSM with OIDC-federated credentials.
 on:
   push:
     branches: [main]
@@ -130,3 +131,58 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  deploy:
+    # The approval gate: `production` carries a required reviewer, so the job
+    # waits at "Review pending" until a human clicks. Credentials are federated
+    # (OIDC → the deploy role in infra/deploy.tf), so the repository stores no
+    # AWS key; the environment's branch policy pins this to main on GitHub's side.
+    if: github.ref == 'refs/heads/main'
+    needs: image
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: eu-central-1
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      # Probe evidence (`oidc-deploy`): the subject the token really carries is
+      # what the role's trust condition must match. Logged, never assumed.
+      - name: Record the OIDC subject
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      # The host is found by tag, not id, so a replaced instance deploys without
+      # a workflow edit. The script travels inside the command payload — nothing
+      # is fetched from anywhere the host could be lied to by.
+      - name: Deploy to the app host
+        run: |
+          set -euo pipefail
+          IID=$(aws ec2 describe-instances \
+            --filters Name=tag:Name,Values=leave-agent-app Name=instance-state-name,Values=running \
+            --query 'Reservations[].Instances[].InstanceId' --output text)
+          test -n "$IID" || { echo "no running leave-agent-app instance"; exit 1; }
+          jq -n --arg sha "$GITHUB_SHA" --rawfile script deploy/instance/deploy.sh \
+            '{commands: ["export DEPLOY_SHA=\($sha)", $script]}' > payload.json
+          CID=$(aws ssm send-command --instance-ids "$IID" --document-name AWS-RunShellScript \
+            --comment "deploy $GITHUB_SHA" --parameters file://payload.json \
+            --query Command.CommandId --output text)
+          echo "command $CID on $IID"
+          aws ssm wait command-executed --command-id "$CID" --instance-id "$IID" || true
+          aws ssm get-command-invocation --command-id "$CID" --instance-id "$IID" \
+            --query '{Status:Status,Out:StandardOutputContent,Err:StandardErrorContent}' --output json | tee result.json
+          test "$(jq -r .Status result.json)" = Success
