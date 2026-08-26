@@ -1,0 +1,10 @@
+# instance state after the approved deploy (ssm send-command c51ef85d-5ce0-42fa-8b08-0cbc95d61be7)
+51d3f16581cd41189cfec64c5304c7bacb44b732
+leaveimpact-postgres-1  postgres:16-alpine  Up 43 seconds (healthy)
+proxy-caddy-1  caddy:2-alpine  Up 10 minutes
+proxy-hello-1  traefik/whoami:v1.11  Up 10 minutes
+=== leave-agent first boot 2026-08-26T12:08:34Z ===
+=== first boot done 2026-08-26T12:09:47Z ===
+               total        used        free      shared  buff/cache   available
+Mem:            1841         341         128          12        1370        1313
+

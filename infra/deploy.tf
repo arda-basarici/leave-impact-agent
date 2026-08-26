@@ -4,10 +4,6 @@
 # credentials only when the token's subject names this repository's
 # `production` environment. Nothing to rotate, nothing to leak.
 
-locals {
-  github_repo = "arda-basarici/leave-impact-agent"
-}
-
 # One provider per account (GitHub's issuer is global). The thumbprints are
 # GitHub's published root CA fingerprints; AWS validates GitHub's issuer through
 # its own trust store since 2023 and treats these as informational.
@@ -17,12 +13,14 @@ resource "aws_iam_openid_connect_provider" "github" {
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1", "1c58a3a8518e8759bf075b76b750d4f2df264fcd"]
 }
 
-# Trust: the subject a job emits when it runs under an environment is
-# `repo:<owner>/<repo>:environment:<name>` — the branch pin lives in the
-# environment's deployment-branch policy on GitHub (main only) alongside the
-# required-reviewer gate. The `oidc-deploy` probe records the subject the first
-# run actually carried; if GitHub's format differs, this condition is the line
-# to correct.
+# Trust: the subject a job emits when it runs under an environment. Recorded
+# from the first run (oidc-deploy probe, 2026-08-26): repositories created
+# after mid-2026 carry the owner's and the repository's numeric ids in the
+# subject — `repo:<owner>@<id>/<repo>@<id>:environment:<name>` — which is the
+# stronger pin (a renamed or re-created repository of the same name inherits
+# nothing). The classic name-only form was the documented one and was
+# rejected by STS. The branch pin lives in the environment's deployment-branch
+# policy on GitHub (main only) alongside the required-reviewer gate.
 data "aws_iam_policy_document" "deploy_assume" {
   statement {
     actions = ["sts:AssumeRoleWithWebIdentity"]
@@ -38,7 +36,7 @@ data "aws_iam_policy_document" "deploy_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.github_repo}:environment:production"]
+      values   = ["repo:arda-basarici@133336041/leave-impact-agent@1342572683:environment:production"]
     }
   }
 }

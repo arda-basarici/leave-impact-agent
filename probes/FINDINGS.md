@@ -324,3 +324,52 @@ Facts established beyond the criterion:
 Captures: `captures/instance/plan.txt` (the applied plan), `https-and-direct.txt`
 (200 via Cloudflare; direct-to-IP timeouts), `nmap.txt`, `ssm-session.txt`,
 `ssm-boot-state.txt` (boot markers, stack, volume, memory).
+
+## oidc-deploy — PASS (2026-08-26)
+
+A push to `main` lands on the instance with no stored AWS key: the workflow's
+`deploy` job (after `check` and `image`) waits on the `production` environment's
+reviewer gate, then federates into the account through OIDC, assumes
+`leave-agent-deploy`, and runs `deploy/instance/deploy.sh` on the host over `ssm
+send-command` — the compose file and the image *of that commit*, both by sha.
+
+- **The token's `sub` format recorded** (the plan's open fact): repositories
+  created after mid-2026 emit **`repo:<owner>@<id>/<repo>@<id>:environment:<name>`**
+  — `repo:arda-basarici@133336041/leave-impact-agent@1342572683:environment:production`
+  here. The documented name-only form was what the trust policy first carried; STS
+  rejected it ("Not authorized to perform sts:AssumeRoleWithWebIdentity", 12
+  retries). The ID form is the stronger pin: a renamed or re-created repository of
+  the same name inherits nothing.
+- **The response changed with the commit:** the host had no application before;
+  after the approved run it answers `leaveimpact 51d3f16: no service yet; the
+  baseline image runs and identifies itself` and `/srv/app/DEPLOYED` holds the full
+  sha. (The next commit's deploy flips that line — recorded below when it lands.)
+- **The gate is real only once configured:** a workflow that references a missing
+  environment auto-creates it *bare*; the first run went straight through. Reviewer
+  (Arda) and a `main`-only deployment-branch policy were set through the API; the
+  re-run paused at "Review pending" until approved.
+
+Deviation from the plan's wording, by design: **no ECR.** The baseline review
+(2026-08-22/23) had already ruled the image registry — CI publishes the deploy unit to
+GHCR (`ci.yml`, `compose.yaml`), and the package pulls anonymously — so a second
+registry would have existed only to satisfy this row. The floor the row exists to
+prove (OIDC federation, a role trusted by repo + environment, a commit landing on
+the host through SSM) is exercised in full.
+
+Facts established beyond the criterion:
+- **The host regenerates from code alone.** The boot script changed (proxy stack
+  owning the shared `web` network, `trusted_proxies` rendered from the same pinned
+  ranges as the security group), so the instance was *replaced*: new instance, same
+  EIP and data volume, cert re-read from Parameter Store, HTTPS 200 with no manual
+  step. Rebuild boot: **1m13s** (vs 4m53s the first time, which waited for the put).
+- **Least privilege on the deploy role:** `SendCommand` only with the
+  `AWS-RunShellScript` document and only on instances tagged `Name=leave-agent-app`
+  (found by tag, so a replaced instance needs no workflow edit); `DescribeInstances`
+  + `GetCommandInvocation` to find and read. The instance role gained nothing.
+- **Secrets stay in the process:** the deploy script exports `POSTGRES_PASSWORD`
+  from Parameter Store for `compose up` and renders no file — compose.yaml's rule,
+  now exercised on the host. PostgreSQL is up and healthy on the data volume.
+
+Captures: `captures/oidc-deploy/deploy-job-log.txt` (the job's evidence lines: `sub`,
+command id, `Status: Success`, the identity output), `instance-after-deploy.txt`
+(`DEPLOYED`, containers, boot markers, memory).
