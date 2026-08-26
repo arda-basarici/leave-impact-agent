@@ -412,3 +412,26 @@ non-Anthropic" round-trips; the non-Anthropic half passed in full, the Anthropic
 half is blocked by account state that a form (Haiku) or a sales request (5-series)
 may lift. The retry after the form is the open step; the shortlist in
 `variables.tf` gets re-cut at design session part 2 on this table.
+
+## bedrock — PASS for the reachable shortlist (2026-08-26, retry after the use-case form)
+
+Correction to the PARTIAL entry above, same day. The Anthropic use-case form was
+submitted at ~20:02 (the console offers it on the first playground invoke; the old
+"Model access" page is retired). Haiku 4.5 opened within 3 minutes; Sonnet 4.6 —
+added to the shortlist and the role's grant between runs — after 14 minutes, via a
+six-minute `AccessDenied` interlude and one later flap. Runs 2 and 3 from the
+instance role (`probe-run-2.jsonl`, `probe-run-3-sonnet-4-6.jsonl`):
+
+- **Haiku 4.5 and Sonnet 4.6: all three facts PASS** — round-trip (750 / 872 ms
+  model latency), `toolUse` with the right input, cache write ≈4.84k → read ≈4.84k.
+- **Sonnet 5, Opus 5, Opus 4.8: still "not available for this account"** after the
+  form — an account-level entitlement the form does not touch; the resolution path
+  is a Sales/Support request (research in progress, recorded in the stream).
+- **Nova Pro missed its cache once in five passes** (run 2 wrote the prefix again);
+  three passes right after all read. An `eu.` profile can land a call in a region
+  that has not seen the prefix — an M2 cost-model fact.
+
+The criterion — one round-trip per model, Anthropic + ≥ 1 cheaper non-Anthropic,
+with availability, tool-use and price recorded — is met: two Anthropic and three
+Amazon models answer from the role; the three gated models are recorded as such
+with their prices. `captures/bedrock/models.md` is the table.

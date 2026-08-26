@@ -1,0 +1,9 @@
+{"model":"eu.anthropic.claude-sonnet-4-6","probe":"plain","text":"ok","usage":{"inputTokens":14,"outputTokens":4,"totalTokens":18,"cacheReadInputTokens":0,"cacheWriteInputTokens":0},"latencyMs":872,"wallMs":1668,"error":null}
+{"model":"eu.anthropic.claude-sonnet-4-6","probe":"tool","stopReason":null,"toolUse":null,"usage":null,"error":"\nAn error occurred (ResourceNotFoundException) when calling the Converse operation: Model use case details have not been submitted for this account. Fill out the Anthropic use case details form before using the model. If you have already filled out the form, try again in 15 minutes."}
+{"model":"eu.anthropic.claude-sonnet-4-6","probe":"cache","pass":1,"text":"220","usage":{"inputTokens":20,"outputTokens":5,"totalTokens":4868,"cacheReadInputTokens":0,"cacheWriteInputTokens":4843,"cacheDetails":[{"ttl":"5m","inputTokens":4843}]},"error":null}
+{"model":"eu.anthropic.claude-sonnet-4-6","probe":"cache","pass":2,"text":"220","usage":{"inputTokens":20,"outputTokens":5,"totalTokens":4868,"cacheReadInputTokens":4843,"cacheWriteInputTokens":0},"error":null}
+
+{"attempt":1,"stopReason":"tool_use","toolUse":{"employee_id":"emp_001"},"usage":{"inputTokens":584,"outputTokens":75,"totalTokens":659,"cacheReadInputTokens":0,"cacheWriteInputTokens":0}}
+{"attempt":2,"stopReason":"tool_use","toolUse":{"employee_id":"emp_001"},"usage":{"inputTokens":584,"outputTokens":75,"totalTokens":659,"cacheReadInputTokens":0,"cacheWriteInputTokens":0}}
+{"attempt":3,"stopReason":"tool_use","toolUse":{"employee_id":"emp_001"},"usage":{"inputTokens":584,"outputTokens":75,"totalTokens":659,"cacheReadInputTokens":0,"cacheWriteInputTokens":0}}
+	
