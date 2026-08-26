@@ -435,3 +435,24 @@ The criterion — one round-trip per model, Anthropic + ≥ 1 cheaper non-Anthro
 with availability, tool-use and price recorded — is met: two Anthropic and three
 Amazon models answer from the role; the three gated models are recorded as such
 with their prices. `captures/bedrock/models.md` is the table.
+
+## slack — PASS (2026-08-26)
+
+A free workspace (`leave-impact-sandbox`), a blank app (`leave-impact-probe`) with
+three bot scopes (`chat:write`, `channels:history`, `channels:read`), one channel
+the bot was invited to. `probes/slack/probe.sh` from the laptop with the token in
+the environment (`captures/slack/probe-run.txt`):
+
+- **`auth.test`** ok — the token resolves to the workspace and the bot user.
+- **`chat.postMessage`** ok — `ts 1787767817.658809` in `C0BSTFJ5FKP`.
+- **`conversations.history`** filtered to that `ts` returns the same message, text
+  intact, authored by the bot's user id — the post/read round-trip the criterion
+  asks for, on the first run.
+
+Facts for the world milestone: Slack's new-app dialog offers "Blank app" (the old
+"From scratch") and the settings UI lives under `app.slack.com/app-settings/`;
+`conversations.history` on a public channel needs the bot invited, otherwise
+`not_in_channel`; the free plan's 90-day history window bounds how far back a
+seeded conversation can be read — a generator that seeds Slack writes at run time,
+not a dated backlog. Machine-side: a bare `bash` from PowerShell is WSL's
+(`system32\bash.exe`) and sees no Windows environment — Git Bash by full path.

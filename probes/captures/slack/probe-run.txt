@@ -1,0 +1,6 @@
+﻿# auth.test
+{"ok":true,"team":"leave-impact-sandbox","user":"leaveimpactprobe","bot_id":"B0BSG3Z88UF","error":null}
+# chat.postMessage
+{"ok":true,"ts":"1787767817.658809","channel":"C0BSTFJ5FKP","error":null}
+# conversations.history (read back the same message by ts)
+{"ok":true,"error":null,"messages":[{"ts":"1787767817.658809","user":"U0BTRRQ5BLY","text":"leave-impact probe 2026-08-26T18:10:17Z: Probe Alice hands the W1 sprint review to Bob during her leave."}]}
