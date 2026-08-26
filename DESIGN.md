@@ -101,7 +101,7 @@ nothing more.
 **The executor trust boundary.** If post-approval execution survives its own design
 fork (an open question below), the writes run in a **deterministic executor
 Lambda** — not a second agent — with its own IAM role that is the sole principal
-able to read the write credentials in Secrets Manager, and with no model-invocation
+able to read the write credentials in Parameter Store, and with no model-invocation
 permission at all. The investigator's identity cannot retrieve those secrets; they
 do not exist on its host. Input is the human-approved action manifest, output is the
 exact approved writes plus an audit artifact. Two principals on one host would be
@@ -110,13 +110,19 @@ least-privilege claim provable rather than intended.
 
 **The surrounding AWS set, and nothing more.** All of it under Terraform: IAM roles
 and policies; GitHub Actions deploys through OIDC federation (temporary credentials,
-trust policy pinned to repository and branch — no stored keys); Secrets Manager;
+trust policy pinned to the repository and the `production` environment through the
+ID-based subject GitHub emits — no stored keys); SSM Parameter Store SecureString for
+secrets (free tier; Secrets Manager's per-secret fee buys rotation nothing here needs);
 CloudWatch for logs and alarms; S3 for golden datasets, evaluation reports, shipped
 audit trails, and precomputed demo replays; AWS Budgets with a cost alert; Bedrock as
 **the sole model provider behind a model seam** — the Converse API gives one
 request shape across model families, so the seam's question is *which model per
 role* (investigator, extraction sub-tasks, grading), answered by the evaluation on
-the golden set rather than fixed up front; the seam also checks a model's feature
+the golden set rather than fixed up front — from the models the instance role can
+*call*, not the catalogue: Nova opens with no request, Anthropic's 4.x needs a
+use-case form (opens per model within ~20 min), the 5-series is account-gated with
+no resolution path as of 2026-08-26 (`probes/captures/bedrock/models.md`); `eu.`
+inference profiles cost `global.` + 10 %; the seam also checks a model's feature
 support (tool use, structured output, caching) at startup so a mismatch fails loudly.
 A direct Anthropic API path is deliberately not committed to — the seam admits it
 later if a reason appears. Bedrock stays one supporting component rather than the
@@ -142,10 +148,12 @@ SteamLens. Rejected: a second box (two proxies, two firewalls, two backup paths 
 no benefit once the in-place upgrade proved reboot-only).
 
 **Cost envelopes, stated and tracked.** Persistent, excluding model tokens: the box
-delta (+€7.57) plus roughly $21 on AWS (instance ~$12, EBS ~$3, public IPv4 ~$3.65,
-Secrets Manager, S3, CloudWatch, Budgets ~$2–3; the Lambda executor inside the
-permanent free tier) — list-price estimates pending a pricing-calculator pass; the
-account holds no free-tier allowance, so these are the real rates. Model tokens are
+delta (+€7.57) plus roughly $21 on AWS always-on (instance ~$14, EBS ~$3, public
+IPv4 ~$3.65, Parameter Store / S3 / CloudWatch / Budgets ~$0–1) — Frankfurt list
+prices from the Pricing API for the provisioned shape (`probes/captures/instance/
+pricing.md`, 2026-08-26); stopping the instance between working days takes the
+instance line out for those hours; the account holds no free-tier allowance, so
+these are the real rates. Model tokens are
 the larger line: an agentic loop re-sends a growing context every turn, so a single
 investigation is estimated at ~$0.75 on Sonnet-class pricing *with prompt caching*
 (~3× more without), and an evaluation pass scales with scenario count. The budget is
