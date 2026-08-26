@@ -343,7 +343,8 @@ send-command` — the compose file and the image *of that commit*, both by sha.
 - **The response changed with the commit:** the host had no application before;
   after the approved run it answers `leaveimpact 51d3f16: no service yet; the
   baseline image runs and identifies itself` and `/srv/app/DEPLOYED` holds the full
-  sha. (The next commit's deploy flips that line — recorded below when it lands.)
+  sha. The next commit (the one recording this probe) flipped it through the gate:
+  `leaveimpact 2f028b2` at 12:26:24Z — two commits, two identities, one approval each.
 - **The gate is real only once configured:** a workflow that references a missing
   environment auto-creates it *bare*; the first run went straight through. Reviewer
   (Arda) and a `main`-only deployment-branch policy were set through the API; the
@@ -373,3 +374,41 @@ Facts established beyond the criterion:
 Captures: `captures/oidc-deploy/deploy-job-log.txt` (the job's evidence lines: `sub`,
 command id, `Status: Success`, the identity output), `instance-after-deploy.txt`
 (`DEPLOYED`, containers, boot markers, memory).
+
+## bedrock — PARTIAL (2026-08-26)
+
+Six shortlisted `eu.` inference profiles, called from the instance role over SSM
+(`probes/bedrock/probe.sh`; the role's `invoke-shortlisted-models` policy is
+pinned to those six profiles plus the 32 foundation-model ARNs they route to, via
+`infra/bedrock.tf`). Three facts per model: round-trip, tool-use, prompt cache.
+Capture: `captures/bedrock/models.md` (the table + prices), `probe-run-1.jsonl`.
+
+- **Nova Lite, Nova Pro, Nova 2 Lite: all three facts PASS.** Each answers, each
+  emits a `toolUse` block when the prompt demands the tool, and each caches: the
+  ~5k-token system prefix shows `cacheWriteInputTokens` on the first call and
+  the identical count under `cacheReadInputTokens` on the second. Frankfurt
+  in-region prices from the Pricing API: Nova Lite 0.078 / 0.312, Nova 2 Lite
+  0.429 / 3.60, Nova Pro 1.05 / 4.20 per M in / out; cache writes are free.
+- **All three Claude rows BLOCKED, by two different account gates**, reproduced
+  from an AdministratorAccess session, so not the role: Haiku 4.5 wants the
+  "Anthropic use case details" form (retry 15 min after submitting); Sonnet 5 and
+  Opus 5 (and, tested outside the list, Opus 4.8) are "not available for this
+  account … contact AWS Sales". Sonnet 4.6 answers today with no form. The
+  runtime's gates are invisible to `get-foundation-model-availability`, which
+  reports AUTHORIZED / AVAILABLE for every one of them.
+- **Prices recorded, one earlier open fact closed:** Anthropic rows are not in
+  the Pricing API (only legacy Claude 2/3 US SKUs) — read from the pricing page
+  in a browser: `eu.` = `global.` + 10 % flat (Haiku 4.5 1.10 / 5.50, Sonnet 5
+  2.20 / 11.00 at the unlabelled intro rate, Opus 5 5.50 / 27.50). The "Public
+  Extended Access 2×" rate the TODO carried belongs to legacy Claude 3.5 Sonnet
+  rows only.
+- **Correction to aws-bootstrap (2026-08-22), dated:** "Bedrock needs no
+  model-access request in this account" no longer holds for Anthropic — Haiku
+  4.5 answered cold on 08-22 and is form-gated on 08-26; the 5-series and Opus
+  4.8 are account-gated outright. Nova never needed anything.
+
+Status PARTIAL, not FAIL: the criterion asked for "Anthropic + ≥ 1 cheaper
+non-Anthropic" round-trips; the non-Anthropic half passed in full, the Anthropic
+half is blocked by account state that a form (Haiku) or a sales request (5-series)
+may lift. The retry after the form is the open step; the shortlist in
+`variables.tf` gets re-cut at design session part 2 on this table.

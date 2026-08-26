@@ -49,3 +49,20 @@ variable "cloudflare_ipv4_ranges" {
     "131.0.72.0/22",
   ]
 }
+
+# The Bedrock shortlist the instance role may invoke — inference-profile IDs
+# (Frankfurt hosts current models only behind `eu.`/`global.` profiles). This is
+# the M0 probe catalogue, not a choice: the choice waits for M2's measurements
+# on the golden set, and rows are dropped or added here when it lands.
+variable "bedrock_models" {
+  description = "Inference-profile IDs the instance role may invoke."
+  type        = list(string)
+  default = [
+    "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+    "eu.anthropic.claude-sonnet-5",
+    "eu.anthropic.claude-opus-5",
+    "eu.amazon.nova-lite-v1:0",
+    "eu.amazon.nova-pro-v1:0",
+    "eu.amazon.nova-2-lite-v1:0",
+  ]
+}
