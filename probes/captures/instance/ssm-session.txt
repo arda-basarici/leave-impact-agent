@@ -1,0 +1,3 @@
+# 2026-08-26T11:47:56Z — interactive SSM session from the workstation (session-manager-plugin), no SSH involved
+aws ssm start-session --target i-05ff0ad2da846dbaf --profile leave-impact --region eu-central-1
+Starting session with SessionId: arda-k2sayl43ipbue6cx6vlk9soxh4

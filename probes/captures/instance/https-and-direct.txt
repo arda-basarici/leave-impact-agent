@@ -1,0 +1,39 @@
+# 2026-08-26T11:40:09Z — HTTPS through Cloudflare
+HTTP/1.1 200 OK
+Date: Wed, 26 Aug 2026 11:40:09 GMT
+Content-Type: text/plain; charset=utf-8
+Content-Length: 511
+Connection: keep-alive
+alt-svc: h3=":443"; ma=86400
+via: 1.1 Caddy
+cf-cache-status: DYNAMIC
+Report-To: {"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0r%2F9Wn23PIn5MNYi43waHNAAXb9gr1WI8ZWChkiPxrHdUZnpaSLUglzofV7b7fzdNGhIhptkU%2FjMJT5CH3NUPuI5N3mlAU%2BdsyIFOMoQZNoWVJjkRK0ABNpvQA%2Ffr8HvPiipIlbQp8t3sP0Ej9nk"}]}
+Nel: {"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}
+Server: cloudflare
+CF-RAY: <redacted>
+
+Name: leave-agent hello (M0 instance probe)
+Hostname: 0afbf5568f0f
+IP: 127.0.0.1
+IP: 172.18.0.2
+RemoteAddr: 172.18.0.3:60390
+GET / HTTP/1.1
+Host: leave-agent.ardabasarici.dev
+User-Agent: curl/8.10.1
+Accept: */*
+Accept-Encoding: gzip, br
+Cdn-Loop: <redacted>
+Cf-Connecting-Ip: <redacted>
+Cf-Ipcountry: TR
+Cf-Ray: <redacted>
+Cf-Visitor: {"scheme":"https"}
+Via: 2.0 Caddy
+X-Forwarded-For: <redacted>
+X-Forwarded-Host: leave-agent.ardabasarici.dev
+X-Forwarded-Proto: https
+
+
+# direct to EIP 3.68.138.190:443 (expect timeout)
+HTTP 000 curl-exit=28
+# direct to EIP :22 (expect timeout)
+curl-exit=28

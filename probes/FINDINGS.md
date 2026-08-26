@@ -284,3 +284,43 @@ Facts established beyond the criterion:
 Captures: `captures/seed-spike/run-01.json` (the creation run), `run-05.json` (the
 0-creation idempotence run, transport faults visible in its exchange log); runs 02–04
 are the fault captures — the failures are themselves the finding.
+
+## instance — PASS (2026-08-26)
+
+The AWS floor stands from Terraform alone: `infra/` grew from the budget skeleton to
+the full host (32 resources, `plan` → `apply` with 0 changed / 0 destroyed). All
+three criteria:
+- **HTTPS 200 through the public hostname** — `https://leave-agent.ardabasarici.dev/`
+  answers 200 in 0.35 s; the hello echoes `Cf-Visitor: {"scheme":"https"}`,
+  `Server: cloudflare`, `Via: 2.0 Caddy` — the whole path visible in one response.
+- **SSM session opened** — interactive `start-session` from the workstation (session
+  id in the capture); no SSH client, no key pair, no port.
+- **No port 22 from outside** — `nmap -Pn -p 22,80,443` on the Elastic IP: all three
+  `filtered`; direct curls to the IP time out. `sshd` still listens *inside* the host
+  (AL2023 default) but the security group admits 443 from Cloudflare's 15 pinned
+  ranges and nothing else, so nothing reaches it.
+
+Facts established beyond the criterion:
+- **Boot to serving: 4m53s** (`11:32:45Z` → `11:37:38Z`), most of it the boot script
+  polling Parameter Store until the origin cert pair was put — first boot heals
+  itself once the values exist, no ordering ceremony between `apply` and the put.
+- **Idle footprint 313 MB of 1.8 GB** (Docker + Caddy + hello, no swap); the data
+  volume (20 GB gp3) formats and mounts at `/srv` from the boot script by UUID.
+- **Secrets rail proven:** Origin CA pair put out-of-band as SecureString
+  (`/leave-agent/origin-cert`, `/origin-key`, both at version 2 = real value replaced
+  Terraform's placeholder), read at boot by the path-scoped instance role. The cert
+  was issued for `leave-agent.ardabasarici.dev` alone — one pair per host, revocable
+  without touching the box's wildcard.
+- **Two workstation tools installed for the criteria:** Nmap 7.80 and the Session
+  Manager plugin (winget).
+- **Parked for M1:** the instance Caddyfile has no `trusted_proxies`, so the app
+  sees Cloudflare's address in `X-Forwarded-For` — the box's Caddyfile block (same
+  pinned ranges) must join it when the real app lands. Hardening candidate: stop
+  `sshd` on the host outright (belt-and-suspenders; the SG already closes it).
+- **Ongoing cost while running:** ~$12 instance + ~$2.6 EBS + $3.65 EIP ≈ $18–19/mo;
+  stopping the instance between working days keeps EIP, volume, and DNS intact and
+  drops the instance line.
+
+Captures: `captures/instance/plan.txt` (the applied plan), `https-and-direct.txt`
+(200 via Cloudflare; direct-to-IP timeouts), `nmap.txt`, `ssm-session.txt`,
+`ssm-boot-state.txt` (boot markers, stack, volume, memory).

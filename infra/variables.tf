@@ -2,3 +2,50 @@ variable "alert_email" {
   description = "Recipient of budget and anomaly alerts."
   type        = string
 }
+
+variable "app_hostname" {
+  description = <<-EOT
+    The Cloudflare-proxied hostname that fronts the instance. It appears in two
+    places only (the Cloudflare A record and the instance's Caddyfile), so renaming
+    later is cheap. Chosen 2026-08-26 as plumbing, not a public face — a demo-facing
+    name can be added at M3 as a second record to the same origin.
+  EOT
+  type        = string
+  default     = "leave-agent.ardabasarici.dev"
+}
+
+variable "instance_type" {
+  description = "Application host size; the DESIGN ruling is t4g.small (2 vCPU / 2 GB arm)."
+  type        = string
+  default     = "t4g.small"
+}
+
+# Cloudflare's published IPv4 egress ranges (cloudflare.com/ips, fetched
+# 2026-08-10) — the ONLY sources the security group admits on 443. This is the
+# third pinned copy of the same list; the other two are the steam-lens box's
+# `deploy/box/firewall.sh` and its Caddyfile `trusted_proxies`. Pinned rather than
+# fetched so a plan is reproducible offline and the firewall never changes
+# without a deliberate edit; if Cloudflare ever announces a change, refresh all
+# three together. IPv4 only, like the box: Cloudflare dials origins over v4 (the
+# origin DNS record is an A record) and the instance publishes no v6 address.
+variable "cloudflare_ipv4_ranges" {
+  description = "Cloudflare edge IPv4 CIDRs allowed to reach the instance on 443."
+  type        = list(string)
+  default = [
+    "173.245.48.0/20",
+    "103.21.244.0/22",
+    "103.22.200.0/22",
+    "103.31.4.0/22",
+    "141.101.64.0/18",
+    "108.162.192.0/18",
+    "190.93.240.0/20",
+    "188.114.96.0/20",
+    "197.234.240.0/22",
+    "198.41.128.0/17",
+    "162.158.0.0/15",
+    "104.16.0.0/13",
+    "104.24.0.0/14",
+    "172.64.0.0/13",
+    "131.0.72.0/22",
+  ]
+}

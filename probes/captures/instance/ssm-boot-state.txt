@@ -1,0 +1,20 @@
+# ssm send-command 557249e2-b93a-44ae-9b2e-23c7a971c5a3 — boot markers, stack, volume, footprint
+=== leave-agent first boot 2026-08-26T11:32:45Z ===
+=== first boot done 2026-08-26T11:37:38Z ===
+NAME                  IMAGE                  COMMAND                  SERVICE   CREATED         STATUS         PORTS
+leave-agent-app-1     traefik/whoami:v1.11   "/whoami"                app       2 minutes ago   Up 2 minutes   80/tcp
+leave-agent-proxy-1   caddy:2-alpine         "caddy run --config …"   proxy     2 minutes ago   Up 2 minutes   80/tcp, 2019/tcp, 0.0.0.0:443->443/tcp, [::]:443->443/tcp, 443/udp
+NAME          SIZE MOUNTPOINTS
+nvme0n1        12G 
+├─nvme0n1p1    12G /
+└─nvme0n1p128  10M /boot/efi
+nvme1n1        20G /srv
+Filesystem      Size  Used Avail Use% Mounted on
+/dev/nvme1n1     20G   52K   19G   1% /srv
+total 8
+-rw-------. 1 root root 1704 Aug 26 11:37 origin.key
+-rw-------. 1 root root 1671 Aug 26 11:37 origin.pem
+               total        used        free      shared  buff/cache   available
+Mem:            1841         313         582           0         944        1365
+Swap:              0           0           0
+

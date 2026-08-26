@@ -4,3 +4,7 @@
 *.tfvars
 !*.auto.tfvars.example
 crash.log
+
+# Saved plans are run artifacts, not source; a plan embeds variable values.
+tfplan
+*.tfplan

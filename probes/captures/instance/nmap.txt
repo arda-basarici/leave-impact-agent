@@ -1,0 +1,10 @@
+# 2026-08-26 14:46 (UTC+3) — from the workstation, Nmap 7.80: nmap -Pn -p 22,80,443 3.68.138.190
+Nmap scan report for ec2-3-68-138-190.eu-central-1.compute.amazonaws.com (3.68.138.190)
+Host is up.
+
+PORT    STATE    SERVICE
+22/tcp  filtered ssh
+80/tcp  filtered http
+443/tcp filtered https
+
+Nmap done: 1 IP address (1 host up) scanned in 3.59 seconds
