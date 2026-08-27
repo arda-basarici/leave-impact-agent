@@ -135,7 +135,8 @@ jobs:
   deploy:
     # The approval gate: `production` carries a required reviewer, so the job
     # waits at "Review pending" until a human clicks. Credentials are federated
-    # (OIDC → the deploy role in infra/deploy.tf), so the repository stores no
+    # (OIDC → the deploy role owned by the platform repository, in its
+    # `terraform/stacks/leave-impact-prod/deploy.tf`), so the repository stores no
     # AWS key; the environment's branch policy pins this to main on GitHub's side.
     if: github.ref == 'refs/heads/main'
     needs: image

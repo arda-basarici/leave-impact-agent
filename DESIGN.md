@@ -108,7 +108,11 @@ exact approved writes plus an audit artifact. Two principals on one host would b
 two configurations, not a boundary; a separate execution identity is what makes the
 least-privilege claim provable rather than intended.
 
-**The surrounding AWS set, and nothing more.** All of it under Terraform: IAM roles
+**The surrounding AWS set, and nothing more.** All of it under Terraform, owned by
+the `platform` repository since 2026-08-27 (its stack `leave-impact-prod`; this
+repository consumes the contract values its `projects/leave-impact/README.md`
+publishes — the deploy role ARN, the instance tag, the `/leave-agent/` parameter
+prefix — and owns only its deployment entrypoint, `deploy/`): IAM roles
 and policies; GitHub Actions deploys through OIDC federation (temporary credentials,
 trust policy pinned to the repository and the `production` environment through the
 ID-based subject GitHub emits — no stored keys); SSM Parameter Store SecureString for

@@ -40,7 +40,9 @@ just db-down
   (DESIGN, "Verification"); `probes/` — preregistered unknowns and their findings;
   `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
 - `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
-  `compose.dev.yaml` — the laptop overlay.
+  `compose.dev.yaml` — the laptop overlay; `deploy/` — the deployment entrypoint the
+  CI deploy job runs on the host. The host itself (Terraform, the deploy role, the
+  parameter names) is owned by the `platform` repository, stack `leave-impact-prod`.
 
 ## License
 
