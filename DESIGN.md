@@ -25,11 +25,14 @@ from the first milestone on.
 ## Hosting and the cloud line
 
 The vision fixed *deployed from day one* and deferred the target. Two facts settled
-the shape before any option was weighed: the existing netcup box (2 vCPU / 4 GB)
-already hosts SteamLens and sits at ~0.65 GB used, measured idle and in-job; and
-Frappe HR alone wants 8 GB. So the simulated org's HR system needs a bigger host
-whatever else is decided, and the question becomes where the application itself
-runs.
+the shape before any option was weighed: the existing netcup box (then 2 vCPU /
+4 GB) already hosts SteamLens and sat at ~0.65 GB used, measured idle and in-job;
+and Frappe's recommended footprint is 8 GB. The probe days replaced the
+recommendation with a measurement: the box was upgraded in place to 8 vCPU / 16 GB
+on 2026-08-22, and Frappe HR with a site installed idles at ~0.9 GB on it
+(`probes/FINDINGS.md`, box-upgrade and frappe-up). The "bigger host" premise was
+vendor sizing, not a measured need; the split below stands on its other reasons.
+The question is where the application itself runs.
 
 **The hybrid split.** The application runs on AWS; Frappe HR stays on the netcup
 box. Frappe is a heavy, stateful, multi-process system used *as* a realistic HRIS —
@@ -144,9 +147,10 @@ fee, the old tariff refunded pro rata, a new six-month term. Lite 3 (8 vCPU / 16
 +€2.55): 8 GB is Frappe's recommended footprint *alone*, the box's own design is one
 VPS running every project, downgrades do not exist while each upgrade resets the
 term — so headroom is bought once, at box level, rather than in a second upgrade
-later. The upgrade is a probe-day step, not a design-time action: it happens the day
-Frappe goes up, with `free -m` captured before and after, so Frappe's footprint
-becomes a measured number. Box rules that arrive with the new tenant: Compose memory
+later. The upgrade was a probe-day step, not a design-time action: done 2026-08-22
+with `free` captured before and after (15 Gi visible), and Frappe's footprint is
+now a measured number — ~0.9 GB idle with the site installed, so the 8 GB bought
+headroom rather than met a need. Box rules that arrive with the new tenant: Compose memory
 limits on the Frappe stack and a swapfile, so the heaviest tenant cannot starve
 SteamLens. Rejected: a second box (two proxies, two firewalls, two backup paths for
 no benefit once the in-place upgrade proved reboot-only).

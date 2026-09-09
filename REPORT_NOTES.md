@@ -7,6 +7,42 @@ decisions it feeds.
 
 ---
 
+## 2026-09-09 — The gate had a name all along: the 5-series block is an account review, and the public threads never said so
+
+*M0's trailing thread, the Bedrock Support case (case 178776610200708; detail in
+`probes/FINDINGS.md`, the dated 2026-09-09 entry). Feeds: the report's model-seam
+section, as the second half of the "listed is not callable" story; a teaching aside
+on where to look when the public record looks unresolved.*
+
+The 26 August entry below ended with a research pass that found no official
+criterion for the Sonnet 5 / Opus 5 block and no confirmed fix in any public thread,
+and with a Support case queued "for the record". The case was opened the next day
+and the answer came back within hours: access to those models "requires an account
+review process", which Support submits on the customer's behalf once it has a
+business use case (task types, usage pattern, why the region) and a business website.
+That is the criterion the seven-source research pass could not find, and the reason
+it could not is ordinary: the people who got this answer stopped posting. A thread
+that looks unresolved on re:Post is often one where the resolution moved into a
+private channel. The lesson for the report is small and transferable — when a gate
+behaves like account state, ask the account's owner before surveying the crowd, and
+do it early, because the answer arrived faster than the research did.
+
+The case then sat unanswered through the platform detour, auto-closed after ten
+days, and was re-opened and answered on 9 September. The reply is deliberately plain
+about what this is: an individual developer's portfolio project, synthetic data, a
+few hundred evaluation requests per run a handful of times a week under a Budgets
+cap, Frankfurt because the rest of the stack lives there, the portfolio site as the
+"business website". Inventing a company to pass a review would be a poor trade for
+a project whose pitch is honest measurement, and a refusal is itself a usable fact:
+"an individual account was reviewed and declined" is more credible in a report than
+"blocked, cause unknown". [PRELIMINARY — the review's outcome and duration are
+pending; either revises this entry's last paragraph.]
+
+Nothing in the plan moved. The ruling not to build around the 5-series was made for
+schedule reasons, not for lack of a path, and the review has no stated duration;
+M2's Anthropic candidates stay Haiku 4.5 and Sonnet 4.6, and a pass later is a
+one-line edit to the model list in the platform stack.
+
 ## 2026-08-26 — Listed is not callable: the Bedrock catalogue said AUTHORIZED to every model the runtime then refused
 
 *M0 day 2, the bedrock probe (PARTIAL, then PASS for the reachable shortlist, same
@@ -45,6 +81,9 @@ found the same signature across regions and account types with no official
 criterion and no confirmed fix — so the ruling was not to plan around the 5-series
 at all. A fix later is a one-line edit to the model list in `variables.tf`; a
 Support case is queued for the record.
+
+> ⚠ REVISED by the 2026-09-09 entry — the Support case named the criterion: a
+> manual account review with a business use case and website as intake.
 
 Two smaller facts fell out. Anthropic's rows are not in the Pricing API (it carries
 only legacy Claude 2/3 US SKUs), so their prices came from the pricing page read in a

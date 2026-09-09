@@ -436,6 +436,24 @@ with availability, tool-use and price recorded — is met: two Anthropic and thr
 Amazon models answer from the role; the three gated models are recorded as such
 with their prices. `captures/bedrock/models.md` is the table.
 
+## bedrock — the 5-series gate is an account review, by AWS's own answer (2026-09-09)
+
+Correction to the two entries above, dated. The Support case opened 2026-08-27
+(case 178776610200708, "Account and billing") was answered the same day: access to
+Sonnet 5 and Opus 5 "requires an account review process", which Support submits on
+the customer's behalf once given (1) a business use case — task types, usage
+pattern, why the region — and (2) a business website URL. So the earlier finding
+"no official criterion, no confirmed fix in any thread" (session 6's research over
+public threads) is superseded: the gate is a manual review with a named intake, not
+an unresolved fault; the public threads look unresolved because nobody posted the
+Support answer. The case auto-closed after ten days unanswered (2026-09-06) and was
+re-opened and answered 2026-09-09 — an honest individual-developer use case with
+synthetic data, low bursty evaluation traffic under a Budgets cap, Frankfurt for
+residency, and the portfolio site as the website. Outcome pending; the ruling "do
+not plan around the 5-series" stands regardless, since the review has no stated
+duration and M2's candidates are already Haiku 4.5 and Sonnet 4.6. A pass is a
+`bedrock_models` list edit in the platform stack.
+
 ## slack — PASS (2026-08-26)
 
 A free workspace (`leave-impact-sandbox`), a blank app (`leave-impact-probe`) with
