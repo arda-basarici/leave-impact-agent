@@ -4,7 +4,7 @@ in the first golden set."""
 
 import pytest
 
-from leaveimpact.core.enums import EntityKind, Source
+from leaveimpact.core.enums import EmploymentType, EntityKind, Source, WorkItemStatus
 from leaveimpact.core.predicates import (
     REGISTRY,
     ROWS,
@@ -13,6 +13,7 @@ from leaveimpact.core.predicates import (
     index_by_name,
     predicate,
 )
+from leaveimpact.core.values import SKILL_VALUE, ValueKind
 
 
 def test_every_predicate_name_has_exactly_one_registry_row() -> None:
@@ -41,8 +42,10 @@ def test_a_record_outside_its_domain_is_refused_at_construction() -> None:
         Predicate(
             PredicateName.HAS_SKILL,
             EntityKind.EMPLOYEE,
+            SKILL_VALUE,
             Source.FRAPPE,
             frozenset({Source.JIRA}),
+            True,
             True,
         )
 
@@ -65,3 +68,30 @@ def test_the_registry_is_read_only() -> None:
 def test_the_fragmented_tier_cases_declare_their_second_source() -> None:
     assert predicate(PredicateName.HAS_SKILL).evidence_domain == {Source.FRAPPE, Source.JIRA}
     assert predicate(PredicateName.OWNS_WORK_ITEM).evidence_domain == {Source.JIRA, Source.CORPUS}
+
+
+def test_every_row_declares_its_value_and_the_rules_read_the_two_added_rows() -> None:
+    assert predicate(PredicateName.SCHEDULED_AT).value_spec.kind is ValueKind.INSTANT_SPAN
+    assert predicate(PredicateName.SCHEDULED_AT).subject is EntityKind.EVENT
+    assert predicate(PredicateName.IN_COMPONENT).value_spec.entity_kind is EntityKind.COMPONENT
+    assert predicate(PredicateName.IN_COMPONENT).subject is EntityKind.WORK_ITEM
+    assert predicate(PredicateName.REQUIRES).value_spec.kind is ValueKind.REQUIREMENT
+    assert predicate(PredicateName.ON_LEAVE).value_spec.kind is ValueKind.DATE_SPAN
+
+
+def test_the_multi_valued_predicates_are_exactly_the_set_facts() -> None:
+    multi = {name for name, row in REGISTRY.items() if row.multi_valued}
+    assert multi == {
+        PredicateName.HAS_SKILL,
+        PredicateName.MEMBER_OF_COMPONENT,
+        PredicateName.ATTENDS_EVENT,
+        PredicateName.ON_LEAVE,
+    }
+
+
+def test_enum_valued_rows_name_a_vocabulary_core_owns() -> None:
+    for row in REGISTRY.values():
+        if row.value_spec.kind is ValueKind.ENUM:
+            assert row.value_spec.vocabulary is not None, row.name
+    assert predicate(PredicateName.EMPLOYED_AS).value_spec.vocabulary is EmploymentType
+    assert predicate(PredicateName.WORK_ITEM_STATUS).value_spec.vocabulary is WorkItemStatus

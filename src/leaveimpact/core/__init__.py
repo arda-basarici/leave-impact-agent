@@ -1,16 +1,17 @@
 """The domain, pure: what the real system believes, with no knowledge that a benchmark exists.
 
 Holds the types every other package speaks (employee, team, work item, calendar event,
-document, leave, and their ids), the predicate registry, the claim vocabulary with its
-per-type grading keys, ``RunContext`` and world time, and the deterministic rules —
-viability of a person for a need, the system-of-record authority table that resolves
-conflicting observations, closed-world evaluation per declared evidence domain,
-constraint checks. The investigator's deterministic core and the evaluator call the same
-rule functions from here, which makes that sharing visible instead of duplicated (the
-answer-key contract in DESIGN says why sharing rules is safe and sharing code between
-generator and evaluator is not). Vendor-neutral ports that both the generator and the
-investigator consume sit here too; an abstraction that describes how one vendor works
-stays inside that vendor's adapter.
+document, leave, and their ids), the predicate registry with each predicate's value
+spec, the claim vocabulary with its per-type grading keys, ``RunContext`` and world
+time, the fact base a run sees through a ``FactView`` under a ``RunCondition``, and
+the deterministic rules — closed-world evaluation per declared evidence domain, the
+system-of-record authority table that resolves conflicting observations, viability of
+a person for a need, constraint checks. The investigator's deterministic core and the
+evaluator call the same rule functions from here, which makes that sharing visible
+instead of duplicated (the answer-key contract in DESIGN says why sharing rules is
+safe and sharing code between generator and evaluator is not). Vendor-neutral ports
+that both the generator and the investigator consume sit here too; an abstraction
+that describes how one vendor works stays inside that vendor's adapter.
 
 Boundary: never imports ``world`` — the production investigator depends on the domain
 without depending on the benchmark that grades it; performs no I/O; reads no clock —
@@ -21,7 +22,23 @@ Callers import the public names from the package (``from leaveimpact.core import
 Employee``); the module split is a navigation aid, not part of the contract.
 """
 
-from leaveimpact.core import claims, claims_json, entities, enums, ids, predicates, refs, worldtime
+from leaveimpact.core import (
+    authority,
+    claims,
+    claims_json,
+    closure,
+    entities,
+    enums,
+    facts,
+    ids,
+    jsonshape,
+    predicates,
+    refs,
+    values,
+    values_json,
+    worldtime,
+)
+from leaveimpact.core.authority import ConflictFinding, Resolution, conflicts_in, resolve
 from leaveimpact.core.claims import (
     ARTIFACT_KINDS,
     AssessmentKey,
@@ -48,6 +65,16 @@ from leaveimpact.core.claims import (
     structural_problems,
 )
 from leaveimpact.core.claims_json import decode_claim, decode_claims, encode_claim, encode_claims
+from leaveimpact.core.closure import (
+    Closure,
+    DerivedUnknownReason,
+    KnownFalse,
+    KnownTrue,
+    Unresolved,
+    any_true,
+    establish,
+    establish_any,
+)
 from leaveimpact.core.entities import (
     CalendarEvent,
     Comment,
@@ -69,6 +96,7 @@ from leaveimpact.core.enums import (
     Source,
     WorkItemStatus,
 )
+from leaveimpact.core.facts import Fact, FactBase, FactKey, FactView, Gap, RunCondition
 from leaveimpact.core.ids import (
     ClaimId,
     ClauseId,
@@ -90,8 +118,6 @@ from leaveimpact.core.refs import (
     TARGET_KINDS_BY_SOURCE,
     EntityRef,
     EvidenceRef,
-    FactValue,
-    Observation,
     clause_ref,
     comment_ref,
     component_ref,
@@ -103,23 +129,54 @@ from leaveimpact.core.refs import (
     team_ref,
     work_item_ref,
 )
+from leaveimpact.core.values import (
+    DATE_SPAN_VALUE,
+    DATE_VALUE,
+    INSTANT_SPAN_VALUE,
+    REQUIREMENT_VALUE,
+    SKILL_VALUE,
+    TEXT_VALUE,
+    Criterion,
+    EmploymentTypeCriterion,
+    FactValue,
+    Observation,
+    Requirement,
+    SkillCriterion,
+    ValueKind,
+    ValueSpec,
+    entity_value,
+    enum_value,
+)
+from leaveimpact.core.values_json import decode_value, encode_value
 from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_date
 
 # The submodules are listed so the rendered reference keeps their docstrings — each
 # carries the why of its part — beside the public names.
 __all__ = [
+    "authority",
     "claims",
     "claims_json",
+    "closure",
     "entities",
     "enums",
+    "facts",
     "ids",
+    "jsonshape",
     "predicates",
     "refs",
+    "values",
+    "values_json",
     "worldtime",
     "ARTIFACT_KINDS",
+    "DATE_SPAN_VALUE",
+    "DATE_VALUE",
+    "INSTANT_SPAN_VALUE",
     "PREFIX_BY_KIND",
     "REGISTRY",
+    "REQUIREMENT_VALUE",
+    "SKILL_VALUE",
     "TARGET_KINDS_BY_SOURCE",
+    "TEXT_VALUE",
     "AssessmentKey",
     "AssessmentReason",
     "AuthorityRule",
@@ -129,16 +186,20 @@ __all__ = [
     "ClaimId",
     "ClaimType",
     "ClauseId",
+    "Closure",
     "Comment",
     "CommentId",
     "Component",
     "ComponentId",
+    "ConflictFinding",
     "ConflictKey",
     "Constraint",
     "ConstraintKey",
     "CoverageAction",
     "CoverageActionKind",
+    "Criterion",
     "DateSpan",
+    "DerivedUnknownReason",
     "Document",
     "DocumentId",
     "DocumentKind",
@@ -146,17 +207,25 @@ __all__ = [
     "Employee",
     "EmployeeId",
     "EmploymentType",
+    "EmploymentTypeCriterion",
     "EntityKind",
     "EntityRef",
     "EventId",
     "EvidenceRef",
+    "Fact",
+    "FactBase",
+    "FactKey",
     "FactValue",
+    "FactView",
+    "Gap",
     "Grade",
     "GradingKey",
     "Impact",
     "ImpactKey",
     "ImpactSubtype",
     "InstantSpan",
+    "KnownFalse",
+    "KnownTrue",
     "Leave",
     "LeaveId",
     "LeaveKind",
@@ -164,8 +233,12 @@ __all__ = [
     "Observation",
     "Predicate",
     "PredicateName",
+    "Requirement",
+    "Resolution",
+    "RunCondition",
     "RunContext",
     "ScenarioId",
+    "SkillCriterion",
     "SkillId",
     "Source",
     "SourceConflict",
@@ -174,26 +247,38 @@ __all__ = [
     "Unknown",
     "UnknownKey",
     "UnknownReason",
+    "Unresolved",
+    "ValueKind",
+    "ValueSpec",
     "Verdict",
     "WorkItem",
     "WorkItemId",
     "WorkItemStatus",
     "WorldVersion",
+    "any_true",
     "clause_ref",
     "comment_ref",
     "component_ref",
+    "conflicts_in",
     "decode_claim",
     "decode_claims",
+    "decode_value",
     "document_ref",
     "employee_ref",
     "encode_claim",
     "encode_claims",
+    "encode_value",
+    "entity_value",
+    "enum_value",
+    "establish",
+    "establish_any",
     "event_ref",
     "leave_ref",
     "local_date",
     "predicate",
     "require_id",
     "require_well_formed",
+    "resolve",
     "structural_problems",
     "team_ref",
     "work_item_ref",

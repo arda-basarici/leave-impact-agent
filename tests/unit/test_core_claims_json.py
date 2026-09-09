@@ -66,25 +66,29 @@ def test_non_ascii_text_passes_through_unescaped(sample_claims: tuple[Claim, ...
     assert "İK" in text and "\\u" not in text
 
 
-def test_fact_values_are_tagged_by_kind(sample_claims: tuple[Claim, ...], a_date: date) -> None:
+def test_fact_values_are_tagged_by_the_predicate_spec(
+    sample_claims: tuple[Claim, ...], a_date: date
+) -> None:
     conflict = next(claim for claim in sample_claims if isinstance(claim, SourceConflict))
     encoded = encode_claim(conflict)
     leaver = {"kind": "employee", "id": "emp_017"}
     assert encoded["resolved_value"] == {"kind": "entity_ref", "value": leaver}
-    dated = SourceConflict(
-        claim_id=conflict.claim_id,
-        evidence_refs=(),
-        entity=conflict.entity,
-        predicate=conflict.predicate,
-        observations=(Observation(Source.JIRA, a_date), Observation(Source.CORPUS, "2026-09-14")),
-        resolved_value=a_date,
-        authority_rule=conflict.authority_rule,
-    )
-    encoded = encode_claim(dated)
-    assert encoded["resolved_value"] == {"kind": "date", "value": "2026-09-14"}
-    decoded = decode_claim(encoded)
-    assert isinstance(decoded, SourceConflict)
-    assert decoded == dated and decoded.resolved_value == a_date
+    observations = cast(list[dict[str, object]], encoded["observations"])
+    values = [cast(dict[str, object], item["value"]) for item in observations]
+    assert all(value["kind"] == "entity_ref" for value in values)
+    # An observation the predicate's spec refuses never reaches the codec.
+    with pytest.raises(
+        ValueError, match="corpus observes owns_work_item as expected an entity_ref"
+    ):
+        SourceConflict(
+            claim_id=conflict.claim_id,
+            evidence_refs=(),
+            entity=conflict.entity,
+            predicate=conflict.predicate,
+            observations=(Observation(Source.JIRA, a_date), Observation(Source.CORPUS, "text")),
+            resolved_value=a_date,
+            authority_rule=conflict.authority_rule,
+        )
 
 
 def _mutated(claim: Claim, **changes: object) -> dict[str, object]:
@@ -124,7 +128,7 @@ def test_a_wrong_json_type_is_refused(sample_claims: tuple[Claim, ...]) -> None:
 
 def test_an_unknown_fact_value_kind_is_refused(sample_claims: tuple[Claim, ...]) -> None:
     conflict = next(claim for claim in sample_claims if isinstance(claim, SourceConflict))
-    with pytest.raises(ValueError, match="an entity_ref, a date or text, got kind 'int'"):
+    with pytest.raises(ValueError, match="tagged 'int' where an entity_ref to an employee"):
         decode_claim(_mutated(conflict, resolved_value={"kind": "int", "value": 3}))
 
 

@@ -15,17 +15,14 @@ claim is *about*; an evidence reference says where it was *read* — a source, t
 record read there, and the field. The evaluator re-verifies evidence against the
 world, so an evidence reference is checked at construction to name a record its source
 can hold (a clause is never read from the tracker; an employee's skills are read from
-the HR record, not from the employee as a Jira assignee). A conflict's observations
-carry typed values rather than text, because resolution compares them and the
-evaluator re-verifies the resolved one; ``FactValue`` is the union the first golden
-set's conflicts need, and the fact base owns and may extend it from the rules step on.
+the HR record, not from the employee as a Jira assignee). What a fact *says* — the
+typed value a conflict compares — is the values module's, declared per predicate.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import date
 from types import MappingProxyType
 
 from leaveimpact.core.enums import EntityKind, Source
@@ -183,16 +180,3 @@ class EvidenceRef:
             )
         if self.field is not None and not self.field:
             raise ValueError("an evidence field is a name or None, never empty")
-
-
-FactValue = EntityRef | str | date
-"""What an observation can say about a subject: a thing, a text (an enum member serializes
-as its value), or a day. The fact base extends this union when a predicate needs more."""
-
-
-@dataclass(frozen=True, slots=True)
-class Observation:
-    """One source's value for a fact — what a conflict compares and the authority rule ranks."""
-
-    source: Source
-    value: FactValue

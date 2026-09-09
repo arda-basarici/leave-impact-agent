@@ -52,14 +52,13 @@ from leaveimpact.core.predicates import PredicateName, predicate
 from leaveimpact.core.refs import (
     EntityRef,
     EvidenceRef,
-    FactValue,
-    Observation,
     clause_ref,
     employee_ref,
     leave_ref,
     require_id,
     with_article,
 )
+from leaveimpact.core.values import FactValue, Observation
 
 
 class ClaimType(StrEnum):
@@ -408,9 +407,9 @@ class SourceConflict(ClaimBase):
     """Two sources disagree about a fact, and the authority rule resolved it.
 
     At least two observations from distinct sources, each inside the predicate's
-    declared evidence domain; the resolved value is one of the observed ones. Which
-    observation *should* win is the authority table's judgement, checked by the rules,
-    not here.
+    declared evidence domain and each a value the predicate's spec admits; the resolved
+    value is one of the observed ones. Which observation *should* win is the authority
+    table's judgement, checked by the rules, not here.
     """
 
     claim_type: ClassVar[ClaimType] = ClaimType.SOURCE_CONFLICT
@@ -438,13 +437,21 @@ class SourceConflict(ClaimBase):
             raise ValueError(f"{self.claim_id}: a conflict needs at least two observations")
         if len(set(sources)) != len(sources):
             raise ValueError(f"{self.claim_id}: a conflict observes each source once")
-        domain = predicate(self.predicate).evidence_domain
-        outside = sorted(source.value for source in set(sources) - domain)
+        row = predicate(self.predicate)
+        outside = sorted(source.value for source in set(sources) - row.evidence_domain)
         if outside:
             raise ValueError(
                 f"{self.claim_id}: {', '.join(outside)} is outside the evidence domain of "
                 f"{self.predicate.value}"
             )
+        for observation in self.observations:
+            try:
+                row.value_spec.check(observation.value)
+            except ValueError as problem:
+                raise ValueError(
+                    f"{self.claim_id}: {observation.source.value} observes {self.predicate.value} "
+                    f"as {problem}"
+                ) from None
         if self.resolved_value not in {observation.value for observation in self.observations}:
             raise ValueError(f"{self.claim_id}: the resolved value is one of the observed values")
 

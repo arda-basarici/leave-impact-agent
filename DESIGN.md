@@ -498,6 +498,68 @@ resolves to another claim, the provenance graph is acyclic, and no two claims of
 type share a grading key; the semantic chain checks (an unknown assessment rests on
 an unknown claim) belong to the rules.
 
+**The rules in code (ruled 2026-09-10, step 4 of the M1 build).** The fact base is
+the rules' only world: a fact is a subject, a predicate, a typed value, the evidence
+reference it was read from and the world date at which it became observable, and a
+rule that has to reach back into an entity is not reading the fact base, which is why
+two rows joined the registry (`scheduled_at`, an event's half-open instant span;
+`in_component`, a work item's component). Each registry row now declares its value
+spec — an entity reference of a kind, a closed enum vocabulary `core` owns, a skill
+slug whose seeded set only `world` knows, a date, a date span, an instant span, or a
+requirement — a fact validates against the spec at construction, and the JSON tag is
+the spec's kind rather than a second declaration. Multi-valued predicates are one
+fact per value. `on_leave` stores the inclusive date span with the leave record as
+provenance; `requires` stores a requirement, a minimum count and a tuple of typed
+criteria (skill, employment type; grade and country join with their predicates when
+a clause plants them), tagged in JSON so a sealed key survives a later criterion.
+Country, timezone and grade have no predicate until a rule reads one. Absence is a
+record of its own: a `Gap` says the record was observed and this field held no
+value, planted where a scenario class plants a missing fact, never a failed read —
+a failed read is the run condition, a separate `RunCondition` (the reachable
+sources) passed beside `RunContext` because one scenario runs under several. The
+closure rule reads facts and gaps visible at `now` from reachable sources and
+answers in order: a positive fact → known true, with the facts that established
+it; a source of the predicate's declared domain unreachable → unknown /
+inaccessible; a gap → unknown / absent; an open domain → unknown / insufficient;
+otherwise known false. Zero facts mean false only after the evidence domain has been
+fully observed, and a gap blocks that inference. Closure derives three unknown
+reasons and the claim vocabulary keeps five: `ambiguous` and `conflicting` are the
+agent's to emit, never the rule's. The entity's `None`-versus-empty distinction maps
+to gap-versus-no-facts when `world` builds the base, a per-field table there, and a
+ticket without a due date is an observed negative, not a gap. Viability evaluates
+every criterion through closure and combines: any known false → non-viable with
+every failing reason, otherwise any unknown → unknown deriving from one unknown
+claim per unresolved fact, otherwise viable. The criteria and their sources of
+truth: the required skill from the clause-backed requirements that apply to the
+impact's artifact or its component (`skill`); membership of a work item's component,
+a domain rule (`component`); not on leave over the need's window, the investigated
+leave's span for a deadline or responsibility and the event's own span for a
+meeting, and not attending another event overlapping a meeting (`availability`);
+the requirement's policy criteria (`hard_rule`). `load` is pruned: no first-set
+class names it, and a threshold would be either a domain constant the agent can
+only be told or a clause no scenario uses; it returns when a class establishes its
+semantics. The leaver fails through `on_leave` like anyone. A requirement's count
+never touches individual viability: criteria assess a candidate, count judges a
+plan, so one viable person against a two-person clause is a viable candidate and an
+invalid plan. Three record-returning functions carry the plan side, because a
+defective plan is a graded outcome: the plan check resolves each constraint claim's
+clause to its `requires` fact — the agent establishes which clause applies and never
+transcribes its content — and reports `insufficient_cardinality` (per requirement,
+count a minimum, an implicit minimum of one without a clause; under the conjunctive
+model this reduces to the largest count, a property of the current semantics, not
+a theorem), `missing_assessment` and `non_viable_assignee` (an unknown assignee is
+not viable for an assign); the truth outcome over an explicit candidate universe,
+never the `must_assess` set, with `V` viable and `U` unknown against count `n`: `V
+≥ n` assign, `V + U < n` uncovered, otherwise unknown — the expected action is
+truth, an expected assignee set is not; and the chain checks, report-internal and
+named for what they know (an unknown assessment derives from unknown claims about
+that employee on a predicate the rule reads, an unknown action from an unknown
+assessment, an assign action's assignees each hold a viable assessment, an
+uncovered action holds no viable one, a conflict resolves to the system of
+record's observation), with a separate completeness check that takes the universe
+and lists every member without an assessment, so `uncovered` is never inferred from
+a report that simply stopped assessing.
+
 **Four semantic rules travel with the vocabulary.** *Viability is relational and
 preference is never truth:* the key states whether `(need, employee)` is viable and
 why; "the best person" has no exact truth unless an optimization rule is declared,
