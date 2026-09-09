@@ -1,0 +1,194 @@
+"""World time: the run's ``now``, and the two interval conventions every date in the world obeys.
+
+Time is world state, never the machine's clock (DESIGN, "Time is world state"). A run
+receives a ``RunContext`` — which scenario, which world version, and ``now`` as an
+aware instant with the timezone a human reading it would use — and that is the
+reproducibility boundary: same scenario, same world version, same ``now`` gives the
+same evidence on any machine, months later. Nothing in ``core`` reads a clock; the
+composition root reads it once and builds a context, and the import law checks that
+by scanning for clock reads.
+
+Two interval conventions are stated here once and used everywhere. Calendar-day facts
+(a leave, a ticket's dates, a scenario's slice) are inclusive at both ends, the way a
+human reads "10 to 12 September". Instants (a meeting) are half-open, ``[start,
+end)``, so back-to-back meetings never overlap. Instants stay aware and are never
+normalized to one zone: aware datetimes compare correctly across zones, so the
+arithmetic never converts, and the zone on an instant is provenance for how a human
+read it — which is what a timezone-boundary distractor turns on (an event late on one
+calendar day in London falls on the next in Istanbul).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from leaveimpact.core.ids import ScenarioId, WorldVersion
+
+
+def require_aware(instant: datetime, what: str) -> datetime:
+    """``instant`` itself, or a ``ValueError`` naming ``what`` if it carries no timezone.
+
+    A naive datetime has no place in the world: it is a programming error at the
+    boundary that built it, so it fails here, named, rather than comparing wrongly later.
+
+    >>> from datetime import UTC
+    >>> require_aware(datetime(2026, 9, 14, 9, 0, tzinfo=UTC), "now").isoformat()
+    '2026-09-14T09:00:00+00:00'
+    >>> require_aware(datetime(2026, 9, 14, 9, 0), "now")
+    Traceback (most recent call last):
+    ...
+    ValueError: now must be timezone-aware, got naive 2026-09-14 09:00:00
+    """
+    if instant.tzinfo is None or instant.tzinfo.utcoffset(instant) is None:
+        raise ValueError(f"{what} must be timezone-aware, got naive {instant}")
+    return instant
+
+
+def zone(key: str) -> ZoneInfo:
+    """The IANA zone for ``key``, or a ``ValueError`` naming the key that is not one."""
+    try:
+        return ZoneInfo(key)
+    except ZoneInfoNotFoundError as error:
+        raise ValueError(f"not an IANA timezone key: {key!r}") from error
+
+
+def local_date(instant: datetime, timezone: str) -> date:
+    """The calendar day on which a human in ``timezone`` reads ``instant``.
+
+    >>> from datetime import UTC
+    >>> local_date(datetime(2026, 9, 14, 22, 30, tzinfo=UTC), "Europe/Istanbul")
+    datetime.date(2026, 9, 15)
+    """
+    return require_aware(instant, "instant").astimezone(zone(timezone)).date()
+
+
+@dataclass(frozen=True, slots=True)
+class DateSpan:
+    """A run of calendar days, inclusive at both ends — a leave, a slice, a ticket's life.
+
+    >>> span = DateSpan(date(2026, 9, 10), date(2026, 9, 12))
+    >>> span.contains(date(2026, 9, 12)), span.contains(date(2026, 9, 13))
+    (True, False)
+    >>> span.days
+    3
+    """
+
+    start: date
+    end: date
+
+    def __post_init__(self) -> None:
+        if self.end < self.start:
+            raise ValueError(
+                f"a date span ends on or after it starts, got {self.start}..{self.end}"
+            )
+
+    @property
+    def days(self) -> int:
+        """How many calendar days the span covers, both ends counted."""
+        return (self.end - self.start).days + 1
+
+    def contains(self, day: date) -> bool:
+        """Whether ``day`` falls inside the span, ends included."""
+        return self.start <= day <= self.end
+
+    def overlaps(self, other: DateSpan) -> bool:
+        """Whether the two spans share at least one day.
+
+        >>> a = DateSpan(date(2026, 9, 10), date(2026, 9, 12))
+        >>> a.overlaps(DateSpan(date(2026, 9, 12), date(2026, 9, 14)))
+        True
+        >>> a.overlaps(DateSpan(date(2026, 9, 13), date(2026, 9, 14)))
+        False
+        """
+        return self.start <= other.end and other.start <= self.end
+
+
+@dataclass(frozen=True, slots=True)
+class InstantSpan:
+    """A half-open run of time, ``[start, end)`` — a meeting; both ends aware.
+
+    >>> from datetime import UTC
+    >>> span = InstantSpan(
+    ...     datetime(2026, 9, 14, 9, 0, tzinfo=UTC), datetime(2026, 9, 14, 10, 0, tzinfo=UTC)
+    ... )
+    >>> span.contains(datetime(2026, 9, 14, 10, 0, tzinfo=UTC))
+    False
+    """
+
+    start: datetime
+    end: datetime
+
+    def __post_init__(self) -> None:
+        require_aware(self.start, "span start")
+        require_aware(self.end, "span end")
+        if self.end <= self.start:
+            raise ValueError(f"an instant span ends after it starts, got {self.start}..{self.end}")
+
+    @property
+    def duration(self) -> timedelta:
+        return self.end - self.start
+
+    def contains(self, instant: datetime) -> bool:
+        """Whether ``instant`` falls inside the span; the end instant does not."""
+        return self.start <= require_aware(instant, "instant") < self.end
+
+    def overlaps(self, other: InstantSpan) -> bool:
+        """Whether the two spans share any time; touching at an end is not overlap."""
+        return self.start < other.end and other.start < self.end
+
+    def local_dates(self, timezone: str) -> DateSpan:
+        """The calendar days a human in ``timezone`` sees the span on.
+
+        The last instant inside the span is just before ``end``, so a span ending exactly
+        at midnight stays on the earlier day.
+
+        >>> from datetime import UTC
+        >>> span = InstantSpan(
+        ...     datetime(2026, 9, 14, 22, 0, tzinfo=UTC), datetime(2026, 9, 14, 23, 0, tzinfo=UTC)
+        ... )
+        >>> span.local_dates("Europe/London")
+        DateSpan(start=datetime.date(2026, 9, 14), end=datetime.date(2026, 9, 14))
+        >>> span.local_dates("Europe/Istanbul")
+        DateSpan(start=datetime.date(2026, 9, 15), end=datetime.date(2026, 9, 15))
+        """
+        last_inside = self.end - timedelta(microseconds=1)
+        return DateSpan(local_date(self.start, timezone), local_date(last_inside, timezone))
+
+
+@dataclass(frozen=True, slots=True)
+class RunContext:
+    """What a run is: the scenario, the world version, and ``now`` — the reproducibility boundary.
+
+    ``now`` is an aware instant; ``reference_timezone`` is the IANA zone a human reads it
+    in — the organization's, unless a scenario says otherwise — and ``today`` is the
+    calendar day that reading gives. Run provenance (which harness commit, which model,
+    which truth digest) is a separate record the evaluator milestone owns; this context
+    holds only what changes the evidence.
+
+    >>> from datetime import UTC
+    >>> from leaveimpact.core.ids import ScenarioId, WorldVersion
+    >>> context = RunContext(
+    ...     ScenarioId("scenario_003"),
+    ...     WorldVersion("4f2c"),
+    ...     datetime(2026, 9, 14, 22, 30, tzinfo=UTC),
+    ...     "Europe/Istanbul",
+    ... )
+    >>> context.today
+    datetime.date(2026, 9, 15)
+    """
+
+    scenario_id: ScenarioId
+    world_version: WorldVersion
+    now: datetime
+    reference_timezone: str
+
+    def __post_init__(self) -> None:
+        require_aware(self.now, "now")
+        zone(self.reference_timezone)
+
+    @property
+    def today(self) -> date:
+        """The calendar day ``now`` falls on in the reference timezone."""
+        return local_date(self.now, self.reference_timezone)
