@@ -557,13 +557,15 @@ not viable for an assign); the truth outcome over an explicit candidate universe
 never the `must_assess` set, with `V` viable and `U` unknown against count `n`: `V
 ≥ n` assign, `V + U < n` uncovered, otherwise unknown — the expected action is
 truth, an expected assignee set is not; and the chain checks, report-internal and
-named for what they know (an unknown assessment derives from unknown claims about
-that employee on a predicate the rule reads, an unknown action from an unknown
+named for what they know (an unknown assessment derives from unknown claims shaped
+as the rule emits them — about the candidate, the impact's artifact or a clause, on
+a predicate the rule reads for that subject — an unknown action from an unknown
 assessment, an assign action's assignees each hold a viable assessment, an
 uncovered action holds no viable one, a conflict resolves to the system of
-record's observation), with a separate completeness check that takes the universe
-and lists every member without an assessment, so `uncovered` is never inferred from
-a report that simply stopped assessing.
+record's observation under the rule it cites, every impact has exactly one
+coverage action and every action an impact), with a separate completeness check
+that takes the universe and lists every member without an assessment, so
+`uncovered` is never inferred from a report that simply stopped assessing.
 
 **Four semantic rules travel with the vocabulary.** *Viability is relational and
 preference is never truth:* the key states whether `(need, employee)` is viable and

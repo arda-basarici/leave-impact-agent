@@ -24,6 +24,7 @@ Employee``); the module split is a navigation aid, not part of the contract.
 
 from leaveimpact.core import (
     authority,
+    checks,
     claims,
     claims_json,
     closure,
@@ -41,6 +42,12 @@ from leaveimpact.core import (
     worldtime,
 )
 from leaveimpact.core.authority import ConflictFinding, Resolution, conflicts_in, resolve
+from leaveimpact.core.checks import (
+    ABOUT_THE_ARTIFACT,
+    ABOUT_THE_CANDIDATE,
+    chain_problems,
+    completeness_problems,
+)
 from leaveimpact.core.claims import (
     ARTIFACT_KINDS,
     AssessmentKey,
@@ -172,6 +179,7 @@ from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_
 # carries the why of its part — beside the public names.
 __all__ = [
     "authority",
+    "checks",
     "claims",
     "claims_json",
     "closure",
@@ -187,6 +195,8 @@ __all__ = [
     "values_json",
     "viability",
     "worldtime",
+    "ABOUT_THE_ARTIFACT",
+    "ABOUT_THE_CANDIDATE",
     "ARTIFACT_KINDS",
     "DATE_SPAN_VALUE",
     "DATE_VALUE",
@@ -284,8 +294,10 @@ __all__ = [
     "applicable_requirements",
     "assess",
     "assess_impact",
+    "chain_problems",
     "clause_ref",
     "comment_ref",
+    "completeness_problems",
     "component_ref",
     "conflicts_in",
     "decode_claim",
