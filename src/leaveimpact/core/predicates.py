@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
 
-from leaveimpact.core.enums import Source, SubjectKind
+from leaveimpact.core.enums import EntityKind, Source
 
 
 class PredicateName(StrEnum):
@@ -65,7 +65,8 @@ class Predicate:
     """
 
     name: PredicateName
-    subject: SubjectKind
+    subject: EntityKind
+    """The kind of entity the fact is about; a predicate accepts one kind of subject."""
     system_of_record: Source
     evidence_domain: frozenset[Source]
     closed: bool
@@ -80,7 +81,7 @@ class Predicate:
 
 def _row(
     name: PredicateName,
-    subject: SubjectKind,
+    subject: EntityKind,
     system_of_record: Source,
     *evidence: Source,
 ) -> Predicate:
@@ -90,27 +91,27 @@ def _row(
 
 ROWS: tuple[Predicate, ...] = (
     # Employment and location facts: the HR system is the record and the only evidence.
-    _row(PredicateName.MEMBER_OF_TEAM, SubjectKind.EMPLOYEE, Source.FRAPPE),
-    _row(PredicateName.REPORTS_TO, SubjectKind.EMPLOYEE, Source.FRAPPE),
-    _row(PredicateName.LOCATED_IN, SubjectKind.EMPLOYEE, Source.FRAPPE),
-    _row(PredicateName.EMPLOYED_AS, SubjectKind.EMPLOYEE, Source.FRAPPE),
-    _row(PredicateName.ON_LEAVE, SubjectKind.EMPLOYEE, Source.FRAPPE),
+    _row(PredicateName.MEMBER_OF_TEAM, EntityKind.EMPLOYEE, Source.FRAPPE),
+    _row(PredicateName.REPORTS_TO, EntityKind.EMPLOYEE, Source.FRAPPE),
+    _row(PredicateName.LOCATED_IN, EntityKind.EMPLOYEE, Source.FRAPPE),
+    _row(PredicateName.EMPLOYED_AS, EntityKind.EMPLOYEE, Source.FRAPPE),
+    _row(PredicateName.ON_LEAVE, EntityKind.EMPLOYEE, Source.FRAPPE),
     # A qualification may be evidenced in a ticket comment as well as the HR record — the
     # fragmented tier's case — so the tracker is in the domain and the HR system stays
     # the record.
-    _row(PredicateName.HAS_SKILL, SubjectKind.EMPLOYEE, Source.FRAPPE, Source.JIRA),
+    _row(PredicateName.HAS_SKILL, EntityKind.EMPLOYEE, Source.FRAPPE, Source.JIRA),
     # Component membership is the other atomic qualification fact ("component experience
     # and the required skill"); the tracker holds it and nothing else does.
-    _row(PredicateName.MEMBER_OF_COMPONENT, SubjectKind.EMPLOYEE, Source.JIRA),
+    _row(PredicateName.MEMBER_OF_COMPONENT, EntityKind.EMPLOYEE, Source.JIRA),
     # Ownership may also be asserted by a runbook, which the stale-source scenario plants
     # against the tracker; the tracker is the record.
-    _row(PredicateName.OWNS_WORK_ITEM, SubjectKind.WORK_ITEM, Source.JIRA, Source.CORPUS),
-    _row(PredicateName.WORK_ITEM_STATUS, SubjectKind.WORK_ITEM, Source.JIRA),
-    _row(PredicateName.DUE_ON, SubjectKind.WORK_ITEM, Source.JIRA),
-    _row(PredicateName.ATTENDS_EVENT, SubjectKind.EVENT, Source.CALENDAR),
+    _row(PredicateName.OWNS_WORK_ITEM, EntityKind.WORK_ITEM, Source.JIRA, Source.CORPUS),
+    _row(PredicateName.WORK_ITEM_STATUS, EntityKind.WORK_ITEM, Source.JIRA),
+    _row(PredicateName.DUE_ON, EntityKind.WORK_ITEM, Source.JIRA),
+    _row(PredicateName.ATTENDS_EVENT, EntityKind.EVENT, Source.CALENDAR),
     # What a procedure requires is stated by its clause; the corpus is the record here
     # because the fact is normative, not a fact about a person or a ticket.
-    _row(PredicateName.REQUIRES, SubjectKind.CLAUSE, Source.CORPUS),
+    _row(PredicateName.REQUIRES, EntityKind.CLAUSE, Source.CORPUS),
 )
 """The rows in declaration order — the table as authored; ``REGISTRY`` is its index."""
 

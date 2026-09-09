@@ -4,7 +4,7 @@ in the first golden set."""
 
 import pytest
 
-from leaveimpact.core.enums import Source, SubjectKind
+from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.predicates import (
     REGISTRY,
     ROWS,
@@ -28,7 +28,7 @@ def test_a_name_declared_twice_fails_at_construction_not_by_overwrite() -> None:
 
 def test_both_qualification_facts_have_a_row() -> None:
     assert predicate(PredicateName.MEMBER_OF_COMPONENT).system_of_record is Source.JIRA
-    assert predicate(PredicateName.MEMBER_OF_COMPONENT).subject is SubjectKind.EMPLOYEE
+    assert predicate(PredicateName.MEMBER_OF_COMPONENT).subject is EntityKind.EMPLOYEE
 
 
 def test_the_system_of_record_is_inside_its_own_evidence_domain() -> None:
@@ -40,7 +40,7 @@ def test_a_record_outside_its_domain_is_refused_at_construction() -> None:
     with pytest.raises(ValueError, match="has_skill: the system of record"):
         Predicate(
             PredicateName.HAS_SKILL,
-            SubjectKind.EMPLOYEE,
+            EntityKind.EMPLOYEE,
             Source.FRAPPE,
             frozenset({Source.JIRA}),
             True,
@@ -49,7 +49,7 @@ def test_a_record_outside_its_domain_is_refused_at_construction() -> None:
 
 def test_a_document_is_never_the_record_for_a_fact_about_a_person_or_a_ticket() -> None:
     for row in REGISTRY.values():
-        if row.subject in {SubjectKind.EMPLOYEE, SubjectKind.WORK_ITEM}:
+        if row.subject in {EntityKind.EMPLOYEE, EntityKind.WORK_ITEM}:
             assert row.system_of_record is not Source.CORPUS, row.name
 
 

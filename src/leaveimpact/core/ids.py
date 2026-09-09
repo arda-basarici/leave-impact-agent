@@ -6,7 +6,8 @@ string ids side by side, and swapping two of them is a bug the type checker now 
 instead of the validator weeks later. At run time an id is the plain string it wraps —
 no object, no overhead, and it serializes as itself.
 
-Ids are semantic, minted by the world generator, and never a vendor's: ``emp_017`` names
+Ids are semantic, minted by the world generator (a claim id by the report's emitter),
+and never a vendor's: ``emp_017`` names
 an employee in every system, while the Jira option id, the calendar id and the Frappe
 record name that represent that employee belong to the world manifest, projection's
 receipt (DESIGN, "The generator: pure specification, materialized prose, frozen world").
@@ -32,6 +33,7 @@ ClauseId = NewType("ClauseId", str)
 LeaveId = NewType("LeaveId", str)
 SkillId = NewType("SkillId", str)
 ScenarioId = NewType("ScenarioId", str)
+ClaimId = NewType("ClaimId", str)
 WorldVersion = NewType("WorldVersion", str)
 
 NUMBERED_ID = re.compile(r"^[a-z]+_[0-9]{3,}$")
@@ -98,6 +100,16 @@ def leave_id(number: int) -> LeaveId:
 def scenario_id(number: int) -> ScenarioId:
     """The scenario id for ``number`` (``scenario_012``)."""
     return ScenarioId(_numbered("scenario", number))
+
+
+def claim_id(number: int) -> ClaimId:
+    """The claim id for ``number`` (``claim_007``).
+
+    The one numbered kind the world generator does not own: a claim id is minted by
+    whichever emitter writes a report — the answer key or the agent — and identifies
+    the claim inside that report only (DESIGN, "The vocabulary in code").
+    """
+    return ClaimId(_numbered("claim", number))
 
 
 def skill_id(key: str) -> SkillId:

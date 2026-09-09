@@ -1,6 +1,5 @@
 """The domain entities: what the systems believe about people, work, meetings, documents, leaves.
 
-
 Every record is a frozen, slotted dataclass built by code the project controls — the
 world generator or an adapter translating a vendor's shape — and trusted by
 construction; raw external data is validated into these at the adapters, never here
@@ -101,6 +100,11 @@ class Comment:
     A comment carries its own id because an answer-changing fact may live only here (a
     qualification mentioned in passing, a blockage the status does not show) and an
     evidence reference needs a stable target that does not depend on list order.
+    ``world_date`` and ``author_id`` physically live in a fixed bracketed prefix of the
+    text (``[2026-09-12, emp_023 — Bob Kaya] …``), because the tracker's own author is
+    the service account and its timestamp is vendor time; the adapter reads the prefix
+    the way it reads a custom field and ``text`` keeps the comment whole, prefix
+    included (DESIGN, "History is planted only where it can be planted honestly").
     """
 
     id: CommentId

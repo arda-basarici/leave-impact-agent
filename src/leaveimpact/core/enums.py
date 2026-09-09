@@ -31,13 +31,20 @@ class Source(StrEnum):
     CORPUS = "corpus"
 
 
-class SubjectKind(StrEnum):
-    """What kind of entity a predicate is about — the type of a fact's subject."""
+class EntityKind(StrEnum):
+    """The kinds of thing a reference names: a fact's subject, an evidence target, an artifact.
+
+    One vocabulary serves every reference: a predicate restricts itself to the kinds it
+    is about, an impact key to the kinds its subtype allows. ``COMMENT`` exists for
+    evidence alone — no predicate is about a comment, but a qualification may be
+    evidenced by one, which is why comments carry ids.
+    """
 
     EMPLOYEE = "employee"
     TEAM = "team"
     COMPONENT = "component"
     WORK_ITEM = "work_item"
+    COMMENT = "comment"
     EVENT = "event"
     DOCUMENT = "document"
     CLAUSE = "clause"

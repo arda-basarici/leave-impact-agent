@@ -5,7 +5,7 @@ snapshot of the current design. Edited in place; the journey lives in the sessio
 log. Wins over VISION.md (the frozen founding snapshot) on disagreement. How it's
 built → ARCHITECTURE (born with the scaffold); pitch → README.
 
-*Design phase · last updated 2026-08-23.*
+*Design phase · last updated 2026-09-10.*
 
 ## Objective
 
@@ -400,9 +400,17 @@ clause stating what coverage requires ("component experience and the required
 skill"), the calendar's free/busy, the active tickets a person owns — and the
 agent derives "Bob is a valid candidate" from them; no system stores that
 conclusion, which is the same rule that keeps decisions out of tools. Comments
-are plantable and their content is a world fact ("[2026-09-12, Bob Kaya] blocked
-on the vendor API"), while the comment's own timestamp is vendor operational
-time. Frappe leave records and calendar events take the dates the seed sets, so
+are plantable and their content is a world fact ("[2026-09-12, emp_023 — Bob Kaya]
+blocked on the vendor API"), while the comment's own timestamp and author are vendor
+operational facts (every write is the service account's). The bracketed prefix is
+the physical home of the comment's world date and speaker: a fixed shape the
+generator writes, exactly as the owner field carries `emp_017 — Alice Demir`, so the
+adapter reads it into the comment's structured date and author the way it reads a
+custom field — a format translation, not an interpretation of the prose, which stays
+whole, prefix included — and fails loudly on a comment without it; the validator
+checks every projected comment parses (ruled 2026-09-10, at the step 2 review). The
+free-text synthesis the fragmented tier measures is the comment's content, never
+who said it when. Frappe leave records and calendar events take the dates the seed sets, so
 past leave and past meetings are real history where history is needed. The Jira
 probe (2026-08-23) found the CSV importer backdates `created` but not
 `resolutiondate`, is UI-only and targets team-managed projects — and that the
@@ -421,15 +429,19 @@ the same words, so the types, their grading keys and the four semantic rules bel
 are lasting; field names and enum members can still grow. Six claim types:
 
 ```text
-impact                key (subtype, artifact_id)     subtype: deadline | meeting | responsibility
-constraint            key (rule_id, applies_to)
-candidate_assessment  key (need_id, employee_id)     verdict: viable | non_viable | unknown, reason codes
-source_conflict       key (entity_id, predicate)     observations[], resolved_value, authority_rule_id
-unknown               key (subject_id, required_fact) reason: absent | inaccessible | ambiguous | conflicting | insufficient
-coverage_action       key (impact_id)                action: assign | uncovered | unknown, basis_claim_ids[]
+impact                key (leave_id, subtype, artifact)   subtype: deadline | meeting | responsibility
+constraint            key (clause_id, applies_to)
+candidate_assessment  key (impact_key, employee_id)       verdict: viable | non_viable | unknown, reasons[]
+source_conflict       key (entity, predicate)             observations[], resolved_value, authority_rule
+unknown               key (subject, required_fact)        reason: absent | inaccessible | ambiguous | conflicting | insufficient
+coverage_action       key (impact_key)                    action: assign | uncovered | unknown, assignee_ids[], rationale?
 
-shared: claim_id, type, claim_key, entity_refs, evidence_refs[], derived_from_claim_ids[]
+shared: claim_id, type, entity_refs[], evidence_refs[], derived_from_claim_ids[]
 ```
+
+*(Keys as ruled at the claim-vocabulary step, 2026-09-10; the 2026-09-09 draft keyed
+an impact by `(subtype, artifact_id)`, a constraint by a `rule_id`, an assessment by a
+`need_id`, and gave the coverage action its own `basis_claim_ids`.)*
 
 Impacts describe what the leave affects; constraints what a valid response must
 obey; candidate assessments who could satisfy a need; coverage actions what the
@@ -446,6 +458,44 @@ agent to cite one fragment of a multi-source inference. Not added, deliberately:
 `violation` (the constraint checker emits those), `evidence` (that is provenance),
 `risk` (an impact already is one), `reasoning` (report layer, not benchmark
 ontology); a `dependency` impact subtype waits for a scenario class that needs it.
+
+**The vocabulary in code (ruled 2026-09-10, step 3 of the M1 build).** A
+constraint's rule is its clause: `clause_id` is the key, so a constraint the agent
+cannot trace to a clause cannot be expressed, which is the grounding rule made a type.
+Clause-backed requirements become constraint claims; deterministic domain rules (the
+cover may not itself be on leave) constrain validity inside the viability rule
+without becoming claims. There is no need apart from an impact: an impact *is* the
+coverage need, cardinality and eligibility come from constraints and rules, so the
+assessment and the coverage action key on the impact's key. That key carries the
+leave: a run investigates one leave, but the truth manifest holds every scenario's
+impacts side by side and an impact's identity is world-wide, "this leave affects
+this artifact". Grading identity is never a claim id: claim ids are minted by
+whichever emitter wrote the report, so the same world fact carries different ids in
+the agent's report and the answer key; a claim's grading key is computed from its own
+fields and identifies the fact across emitters, while `derived_from_claim_ids` links
+claims inside one report (the coverage action's former `basis_claim_ids` was the same
+relation under a second name and is folded in). References are typed at run time:
+an `EntityRef` pairs an entity kind with an id and validates the id's namespace at
+construction, because a union of `NewType` strings is invisible once the type checker
+leaves; an impact key validates its subtype against the kind (deadline → work item,
+meeting → event, responsibility → work item or clause, since an obligation may be a
+ticket or a runbook paragraph). `entity_refs` say what a claim is about,
+`evidence_refs` (source, target, field) say where it was read. A conflict's
+observations carry typed values (`FactValue`: an entity reference, text, or a date,
+tagged in JSON; the fact base owns and may extend the union from step 4), never text
+flattened for convenience, because resolution compares them. A coverage action names
+its assignees in the plural (the cardinality clause needs two) and carries an
+optional rationale, the only text the LLM judge reads. The assessment's reason
+vocabulary is seeded from what this document already names (skill, component,
+availability, load, hard rule) and closed by the viability rule at step 4.
+Serialization is a stdlib codec in one module, canonical (fixed field order, compact,
+tagged by claim type), decoding through the same constructors the code path uses so
+validation has one home; pydantic stays out of `core`, and may enter at the agent's
+structured-output edge in the investigator milestone without the domain knowing.
+A claim set is well-formed when claim ids are unique, every claim-id reference
+resolves to another claim, the provenance graph is acyclic, and no two claims of one
+type share a grading key; the semantic chain checks (an unknown assessment rests on
+an unknown claim) belong to the rules.
 
 **Four semantic rules travel with the vocabulary.** *Viability is relational and
 preference is never truth:* the key states whether `(need, employee)` is viable and
