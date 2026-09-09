@@ -1,7 +1,8 @@
 """World time: naive instants are refused, the two interval conventions hold at their ends,
 and a run's ``today`` is read in the reference zone — the timezone-boundary case."""
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -92,3 +93,33 @@ def test_a_span_ending_exactly_at_local_midnight_stays_on_the_earlier_day() -> N
     assert until_midnight_istanbul.local_dates("Europe/Istanbul") == DateSpan(
         date(2026, 9, 14), date(2026, 9, 14)
     )
+
+
+LONDON = ZoneInfo("Europe/London")
+
+
+def test_duration_across_a_spring_forward_is_elapsed_time_not_wall_clock() -> None:
+    # 2026-03-29 01:00 UTC: London jumps from 01:00 GMT to 02:00 BST.
+    span = InstantSpan(
+        datetime(2026, 3, 29, 0, 30, tzinfo=LONDON), datetime(2026, 3, 29, 2, 30, tzinfo=LONDON)
+    )
+    assert span.duration == timedelta(hours=1)
+
+
+def test_the_two_readings_of_a_fall_back_hour_are_distinct_ordered_instants() -> None:
+    # 2026-10-25 01:00 UTC: London reads 01:30 twice; fold tells the readings apart.
+    first, second = (
+        datetime(2026, 10, 25, 1, 30, tzinfo=LONDON, fold=fold) for fold in (0, 1)
+    )
+    span = InstantSpan(first, second)
+    assert span.duration == timedelta(hours=1)
+    assert span.contains(first)
+    assert not span.contains(second)
+
+
+def test_local_dates_of_a_span_ending_at_midnight_after_a_fall_back() -> None:
+    # Ends at local midnight of the 26th, one wall-clock hour longer than it looks.
+    span = InstantSpan(
+        datetime(2026, 10, 25, 23, 0, tzinfo=LONDON), datetime(2026, 10, 26, 0, 0, tzinfo=LONDON)
+    )
+    assert span.local_dates("Europe/London") == DateSpan(date(2026, 10, 25), date(2026, 10, 25))

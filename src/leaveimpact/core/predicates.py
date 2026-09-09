@@ -5,13 +5,14 @@ employee, ``owns_work_item`` about a work item — and the registry declares two
 about it that the rules read as data rather than hold as their own copies (DESIGN,
 "The answer-key contract"). The *system of record* is the one source whose value wins
 when observations conflict: ``system_of_record_wins`` is the authority rule, and a
-document is never the record for a fact, so a runbook naming an outdated owner loses
-to the tracker by this table and not by intuition. The *evidence domain* is the set of
-sources that collectively hold every admissible piece of evidence for the predicate in
-this synthetic world, and whether that set is closed: with a closed domain, no positive
-evidence and every source readable is *known false*, while a source unreachable in
-this run turns the same absence into *unknown* — which is why an expected verdict is
-derived per run condition rather than stored.
+document is never the record for an operational fact about a person or a work item
+(the corpus is the record only for what a procedure requires), so a runbook naming an
+outdated owner loses to the tracker by this table and not by intuition. The *evidence
+domain* is the set of sources that collectively hold every admissible piece of evidence
+for the predicate in this synthetic world, and whether that set is closed: with a
+closed domain, no positive evidence and every source readable is *known false*, while
+a source unreachable in this run turns the same absence into *unknown* — which is why
+an expected verdict is derived per run condition rather than stored.
 
 The registry is a plain frozen table: predicates are data the world milestone
 enumerates, not plugins that register themselves, and the tests check the table's
@@ -43,6 +44,7 @@ class PredicateName(StrEnum):
     REPORTS_TO = "reports_to"
     LOCATED_IN = "located_in"
     HAS_SKILL = "has_skill"
+    MEMBER_OF_COMPONENT = "member_of_component"
     EMPLOYED_AS = "employed_as"
     ON_LEAVE = "on_leave"
     OWNS_WORK_ITEM = "owns_work_item"
@@ -86,7 +88,7 @@ def _row(
     return Predicate(name, subject, system_of_record, domain, True)
 
 
-_ROWS: tuple[Predicate, ...] = (
+ROWS: tuple[Predicate, ...] = (
     # Employment and location facts: the HR system is the record and the only evidence.
     _row(PredicateName.MEMBER_OF_TEAM, SubjectKind.EMPLOYEE, Source.FRAPPE),
     _row(PredicateName.REPORTS_TO, SubjectKind.EMPLOYEE, Source.FRAPPE),
@@ -97,6 +99,9 @@ _ROWS: tuple[Predicate, ...] = (
     # fragmented tier's case — so the tracker is in the domain and the HR system stays
     # the record.
     _row(PredicateName.HAS_SKILL, SubjectKind.EMPLOYEE, Source.FRAPPE, Source.JIRA),
+    # Component membership is the other atomic qualification fact ("component experience
+    # and the required skill"); the tracker holds it and nothing else does.
+    _row(PredicateName.MEMBER_OF_COMPONENT, SubjectKind.EMPLOYEE, Source.JIRA),
     # Ownership may also be asserted by a runbook, which the stale-source scenario plants
     # against the tracker; the tracker is the record.
     _row(PredicateName.OWNS_WORK_ITEM, SubjectKind.WORK_ITEM, Source.JIRA, Source.CORPUS),
@@ -107,8 +112,20 @@ _ROWS: tuple[Predicate, ...] = (
     # because the fact is normative, not a fact about a person or a ticket.
     _row(PredicateName.REQUIRES, SubjectKind.CLAUSE, Source.CORPUS),
 )
+"""The rows in declaration order — the table as authored; ``REGISTRY`` is its index."""
 
-REGISTRY: Mapping[PredicateName, Predicate] = MappingProxyType({row.name: row for row in _ROWS})
+
+def index_by_name(rows: tuple[Predicate, ...]) -> Mapping[PredicateName, Predicate]:
+    """The rows by name; a name declared twice fails at import, never by silent overwrite."""
+    by_name: dict[PredicateName, Predicate] = {}
+    for row in rows:
+        if row.name in by_name:
+            raise ValueError(f"predicate {row.name} is declared twice in the registry")
+        by_name[row.name] = row
+    return MappingProxyType(by_name)
+
+
+REGISTRY: Mapping[PredicateName, Predicate] = index_by_name(ROWS)
 """Every registered predicate by name; read-only."""
 
 

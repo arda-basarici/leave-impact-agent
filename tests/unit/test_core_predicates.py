@@ -5,12 +5,30 @@ in the first golden set."""
 import pytest
 
 from leaveimpact.core.enums import Source, SubjectKind
-from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
+from leaveimpact.core.predicates import (
+    REGISTRY,
+    ROWS,
+    Predicate,
+    PredicateName,
+    index_by_name,
+    predicate,
+)
 
 
-def test_every_predicate_name_has_a_registry_row_and_nothing_else_does() -> None:
+def test_every_predicate_name_has_exactly_one_registry_row() -> None:
     assert set(REGISTRY) == set(PredicateName)
+    assert len(ROWS) == len(REGISTRY) == len(PredicateName)
     assert all(row.name == name for name, row in REGISTRY.items())
+
+
+def test_a_name_declared_twice_fails_at_construction_not_by_overwrite() -> None:
+    with pytest.raises(ValueError, match="declared twice"):
+        index_by_name((ROWS[0], ROWS[0]))
+
+
+def test_both_qualification_facts_have_a_row() -> None:
+    assert predicate(PredicateName.MEMBER_OF_COMPONENT).system_of_record is Source.JIRA
+    assert predicate(PredicateName.MEMBER_OF_COMPONENT).subject is SubjectKind.EMPLOYEE
 
 
 def test_the_system_of_record_is_inside_its_own_evidence_domain() -> None:

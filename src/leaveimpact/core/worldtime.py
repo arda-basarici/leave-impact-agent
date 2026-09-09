@@ -11,17 +11,19 @@ by scanning for clock reads.
 Two interval conventions are stated here once and used everywhere. Calendar-day facts
 (a leave, a ticket's dates, a scenario's slice) are inclusive at both ends, the way a
 human reads "10 to 12 September". Instants (a meeting) are half-open, ``[start,
-end)``, so back-to-back meetings never overlap. Instants stay aware and are never
-normalized to one zone: aware datetimes compare correctly across zones, so the
-arithmetic never converts, and the zone on an instant is provenance for how a human
-read it — which is what a timezone-boundary distractor turns on (an event late on one
-calendar day in London falls on the next in Istanbul).
+end)``, so back-to-back meetings never overlap. Instants are stored as given, zone and
+all, because the zone is provenance for how a human read the time — which is what a
+timezone-boundary distractor turns on (an event late on one calendar day in London
+falls on the next in Istanbul). Ordering and duration are computed in UTC, never on
+the stored values: Python compares and subtracts two datetimes that share a tzinfo
+object by wall clock, ignoring offset and fold, and ``ZoneInfo`` caches instances, so
+two London meetings across a DST change would otherwise misorder or misreport an hour.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date, datetime, timedelta
+from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from leaveimpact.core.ids import ScenarioId, WorldVersion
@@ -44,6 +46,22 @@ def require_aware(instant: datetime, what: str) -> datetime:
     if instant.tzinfo is None or instant.tzinfo.utcoffset(instant) is None:
         raise ValueError(f"{what} must be timezone-aware, got naive {instant}")
     return instant
+
+
+def as_utc(instant: datetime, what: str = "instant") -> datetime:
+    """``instant`` on the UTC clock — the form every ordering and duration is computed in.
+
+    A fall-back hour is two instants with one wall-clock reading; ``fold`` tells them
+    apart, and the conversion honours it.
+
+    >>> from zoneinfo import ZoneInfo
+    >>> london = ZoneInfo("Europe/London")
+    >>> as_utc(datetime(2026, 10, 25, 1, 30, tzinfo=london, fold=0)).isoformat()
+    '2026-10-25T00:30:00+00:00'
+    >>> as_utc(datetime(2026, 10, 25, 1, 30, tzinfo=london, fold=1)).isoformat()
+    '2026-10-25T01:30:00+00:00'
+    """
+    return require_aware(instant, what).astimezone(UTC)
 
 
 def zone(key: str) -> ZoneInfo:
@@ -121,22 +139,21 @@ class InstantSpan:
     end: datetime
 
     def __post_init__(self) -> None:
-        require_aware(self.start, "span start")
-        require_aware(self.end, "span end")
-        if self.end <= self.start:
+        if as_utc(self.end, "span end") <= as_utc(self.start, "span start"):
             raise ValueError(f"an instant span ends after it starts, got {self.start}..{self.end}")
 
     @property
     def duration(self) -> timedelta:
-        return self.end - self.start
+        """Elapsed time, not wall-clock difference: one hour across a spring-forward is one hour."""
+        return as_utc(self.end) - as_utc(self.start)
 
     def contains(self, instant: datetime) -> bool:
         """Whether ``instant`` falls inside the span; the end instant does not."""
-        return self.start <= require_aware(instant, "instant") < self.end
+        return as_utc(self.start) <= as_utc(instant) < as_utc(self.end)
 
     def overlaps(self, other: InstantSpan) -> bool:
         """Whether the two spans share any time; touching at an end is not overlap."""
-        return self.start < other.end and other.start < self.end
+        return as_utc(self.start) < as_utc(other.end) and as_utc(other.start) < as_utc(self.end)
 
     def local_dates(self, timezone: str) -> DateSpan:
         """The calendar days a human in ``timezone`` sees the span on.
@@ -153,7 +170,7 @@ class InstantSpan:
         >>> span.local_dates("Europe/Istanbul")
         DateSpan(start=datetime.date(2026, 9, 15), end=datetime.date(2026, 9, 15))
         """
-        last_inside = self.end - timedelta(microseconds=1)
+        last_inside = as_utc(self.end) - timedelta(microseconds=1)
         return DateSpan(local_date(self.start, timezone), local_date(last_inside, timezone))
 
 

@@ -467,7 +467,9 @@ resolve through a deterministic authority table:* "live wins" is the design inte
 `system_of_record_wins` is the rule — each normalized predicate has exactly one
 system of record (employment and location facts → Frappe, ticket owner and status →
 Jira, meeting participation → Calendar, procedure requirements → the corpus) and a
-document is never the record for a fact; conflicts are keyed by `(entity,
+document is never the record for an operational fact about a person or a work item,
+while the corpus is the record for what a procedure requires, a normative fact that
+exists nowhere else; conflicts are keyed by `(entity,
 predicate)`, not by field names that happen to look alike (an office location and
 a calendar timezone are not a contradiction), and the conflict claim cites the rule
 id so precedence is testable instead of intuited. *Closed-world reasoning applies
