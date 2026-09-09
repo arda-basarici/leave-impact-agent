@@ -119,6 +119,15 @@ def test_a_requirement_that_exists_is_a_valid_requirement() -> None:
         Requirement(True, ())
     with pytest.raises(ValueError, match="count is an integer, got 1.5"):
         Requirement(1.5, ())  # type: ignore[arg-type]
+    # A one-element tuple never compares keys while sorting, so only an explicit check catches it.
+    with pytest.raises(ValueError, match="a criterion is a skill or an employment type, got str"):
+        Requirement(1, ("kafka",))  # type: ignore[arg-type]
+
+
+def test_a_criterion_that_exists_is_a_valid_criterion() -> None:
+    assert EmploymentTypeCriterion("employee").employment_type is EmploymentType.EMPLOYEE  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="'freelancer' is not a valid EmploymentType"):
+        EmploymentTypeCriterion("freelancer")  # type: ignore[arg-type]
 
 
 def test_a_date_is_a_day_never_an_instant() -> None:

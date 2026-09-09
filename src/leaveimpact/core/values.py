@@ -59,9 +59,18 @@ class EmploymentTypeCriterion:
 
     employment_type: EmploymentType
 
+    def __post_init__(self) -> None:
+        # A plain string equal to a member's value would pass as the member and then lack
+        # ``.value``; constructing through the enum both validates and normalizes.
+        object.__setattr__(self, "employment_type", EmploymentType(self.employment_type))
+
 
 Criterion = SkillCriterion | EmploymentTypeCriterion
-"""What a requirement asks of each person. Grade and country join when a clause plants them."""
+"""What a requirement asks of each person. Grade and country join with their predicates when
+a clause plants them."""
+
+CRITERION_KINDS: tuple[type[Criterion], ...] = (SkillCriterion, EmploymentTypeCriterion)
+"""The criterion classes, for the runtime check a requirement makes at construction."""
 
 
 def criterion_order(criterion: Criterion) -> tuple[str, str]:
@@ -104,6 +113,14 @@ class Requirement:
             raise ValueError(f"a requirement's count is an integer, got {self.count!r}")
         if self.count < 1:
             raise ValueError(f"a requirement asks for at least one person, got count {self.count}")
+        # A requirement that exists is a valid requirement: the codec's criterion encoder
+        # treats anything else as unreachable, so the check belongs here, not there.
+        for criterion in self.criteria:
+            if type(criterion) not in CRITERION_KINDS:
+                raise ValueError(
+                    "a criterion is a skill or an employment type, got "
+                    f"{type(criterion).__name__} {criterion!r}"
+                )
         if len(set(self.criteria)) != len(self.criteria):
             raise ValueError("a requirement states each criterion once")
         # Canonical order is the one write a frozen dataclass allows itself, so equal
