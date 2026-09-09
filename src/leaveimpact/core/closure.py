@@ -83,11 +83,28 @@ def establish(
     """Whether ``name`` holds of ``subject`` — for the given ``value``, or for any value when
     ``value`` is None — in the world this view can see.
 
-    ``registry`` is the seam for a row the table does not declare (an open domain);
-    production reads the registry as is.
+    A ``value`` the predicate's spec refuses is a programming error and raises, never a
+    known false: a rule asking about ``"Kafka"`` where a skill slug is declared must fail
+    in tests rather than declare a candidate non-viable. ``registry`` is the seam for a
+    row the table does not declare (an open domain); production reads the registry as is.
+
+    >>> from leaveimpact.core.facts import FactBase, RunCondition
+    >>> from leaveimpact.core.refs import employee_ref
+    >>> from leaveimpact.core.ids import EmployeeId
+    >>> from datetime import date
+    >>> empty = FactBase(()).at(date(2026, 9, 14), RunCondition.all_reachable())
+    >>> establish(empty, employee_ref(EmployeeId("emp_017")), PredicateName.HAS_SKILL, "Kafka")
+    Traceback (most recent call last):
+    ...
+    ValueError: has_skill: expected a skill, got 'Kafka': a skill id is a lower-case vocabulary key
     """
     row = registry[name]
     _require_subject(row, subject)
+    if value is not None:
+        try:
+            row.value_spec.check(value)
+        except ValueError as problem:
+            raise ValueError(f"{row.name.value}: {problem}") from None
     facts = tuple(
         fact for fact in view.facts_about(subject, name) if value is None or fact.value == value
     )

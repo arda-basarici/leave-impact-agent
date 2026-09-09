@@ -112,3 +112,16 @@ def test_a_requirement_is_a_minimum_over_canonical_unique_criteria() -> None:
         Requirement(1, (skill, skill))
     with pytest.raises(ValueError, match="a skill id is a lower-case vocabulary key"):
         SkillCriterion(SkillId("Kafka"))
+
+
+def test_a_requirement_that_exists_is_a_valid_requirement() -> None:
+    with pytest.raises(ValueError, match="count is an integer, got True"):
+        Requirement(True, ())
+    with pytest.raises(ValueError, match="count is an integer, got 1.5"):
+        Requirement(1.5, ())  # type: ignore[arg-type]
+
+
+def test_a_date_is_a_day_never_an_instant() -> None:
+    DATE_VALUE.check(A_DAY)
+    with pytest.raises(ValueError, match="expected a date, got an instant"):
+        DATE_VALUE.check(datetime(2026, 9, 14, 9, tzinfo=UTC))

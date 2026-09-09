@@ -82,18 +82,20 @@ def resolve(
 
 @dataclass(frozen=True, slots=True)
 class ConflictFinding:
-    """A planted disagreement as the fact base states it: the facts, one per source, and the
-    resolution."""
+    """A planted disagreement as the fact base states it: every fact involved, the observations
+    one per source, and the resolution.
+
+    A source may state its one value more than once — a runbook naming the owner in two
+    paragraphs is corroboration, and the base admits it — so ``facts`` keeps every record
+    for the evidence references while ``observations`` collapses each source to the one
+    value it holds, which is what the authority rule ranks and the conflict claim carries.
+    """
 
     subject: EntityRef
     predicate: PredicateName
     facts: tuple[Fact, ...]
+    observations: tuple[Observation, ...]
     resolution: Resolution
-
-    @property
-    def observations(self) -> tuple[Observation, ...]:
-        """The facts as the conflict claim carries them."""
-        return tuple(Observation(fact.source, fact.value) for fact in self.facts)
 
 
 def conflicts_in(
@@ -110,9 +112,13 @@ def conflicts_in(
         if len({fact.value for fact in facts}) < 2:
             continue
         ordered = tuple(sorted(facts, key=lambda fact: fact.source.value))
-        observations = tuple(Observation(fact.source, fact.value) for fact in ordered)
+        # One observation per source: the base guarantees a source's facts agree here.
+        by_source = {fact.source: fact.value for fact in ordered}
+        observations = tuple(Observation(source, value) for source, value in by_source.items())
         findings.append(
-            ConflictFinding(subject, name, ordered, resolve(name, observations, registry=registry))
+            ConflictFinding(
+                subject, name, ordered, observations, resolve(name, observations, registry=registry)
+            )
         )
     findings.sort(key=lambda finding: (finding.subject.kind, finding.subject.id, finding.predicate))
     return tuple(findings)

@@ -63,10 +63,25 @@ def test_the_planted_conflict_is_derived_from_the_facts() -> None:
             work_item_ref(w.TICKET),
             PredicateName.OWNS_WORK_ITEM,
             (w.STALE_OWNER, w.LIVE_OWNER),
+            (STALE, LIVE),
             Resolution(ALICE, AuthorityRule.SYSTEM_OF_RECORD_WINS, LIVE),
         ),
     )
-    assert conflicts_in(view)[0].observations == (STALE, LIVE)
+
+
+def test_a_source_stating_its_value_twice_is_one_observation_and_every_fact() -> None:
+    corroboration = w.Fact(
+        work_item_ref(w.TICKET),
+        PredicateName.OWNS_WORK_ITEM,
+        ALICE,
+        w.EvidenceRef(Source.JIRA, w.comment_ref(w.DENIZ_COMMENT), "text"),
+        w.WORLD_START,
+    )
+    view = FactBase((w.LIVE_OWNER, corroboration, w.STALE_OWNER)).at(w.NOW, NORMAL)
+    (finding,) = conflicts_in(view)
+    assert finding.facts == (w.STALE_OWNER, w.LIVE_OWNER, corroboration)
+    assert finding.observations == (STALE, LIVE)
+    assert finding.resolution.value == ALICE
 
 
 def test_agreeing_sources_and_multi_valued_sets_are_not_conflicts() -> None:

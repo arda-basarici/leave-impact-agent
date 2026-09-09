@@ -31,7 +31,7 @@ a conflict compares: one source's value, typed, never text flattened for conveni
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 
 from leaveimpact.core.enums import EmploymentType, EntityKind, Source
@@ -88,12 +88,20 @@ class Requirement:
     Traceback (most recent call last):
     ...
     ValueError: a requirement asks for at least one person, got count 0
+    >>> Requirement(True, ())
+    Traceback (most recent call last):
+    ...
+    ValueError: a requirement's count is an integer, got True
     """
 
     count: int
     criteria: tuple[Criterion, ...]
 
     def __post_init__(self) -> None:
+        # Exactly an int: bool is an int in Python and a float passes a `< 1` test, and a
+        # count of people is neither a flag nor a fraction.
+        if type(self.count) is not int:
+            raise ValueError(f"a requirement's count is an integer, got {self.count!r}")
         if self.count < 1:
             raise ValueError(f"a requirement asks for at least one person, got count {self.count}")
         if len(set(self.criteria)) != len(self.criteria):
@@ -209,7 +217,8 @@ class ValueSpec:
             case ValueKind.SKILL:
                 return isinstance(value, str) and _is_skill(value)
             case ValueKind.DATE:
-                return isinstance(value, date)
+                # datetime subclasses date; a day is a day, and an instant would not decode.
+                return isinstance(value, date) and not isinstance(value, datetime)
             case ValueKind.DATE_SPAN:
                 return isinstance(value, DateSpan)
             case ValueKind.INSTANT_SPAN:
@@ -254,6 +263,8 @@ def _describe(value: FactValue) -> str:
             return "a date_span"
         case InstantSpan():
             return "an instant_span"
+        case datetime():
+            return "an instant"
         case date():
             return "a date"
         case str():

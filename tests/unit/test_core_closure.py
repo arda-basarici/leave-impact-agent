@@ -92,6 +92,15 @@ def test_an_open_domain_is_insufficient_never_false() -> None:
     ) == Unresolved(DENIZ, PredicateName.HAS_SKILL, UnknownReason.INACCESSIBLE)
 
 
+def test_a_query_value_the_spec_refuses_raises_instead_of_answering_false() -> None:
+    with pytest.raises(ValueError, match="has_skill: expected a skill, got 'Kafka'"):
+        establish(VIEW, CAN, PredicateName.HAS_SKILL, "Kafka")
+    with pytest.raises(
+        ValueError, match="member_of_component: expected an entity_ref to a component"
+    ):
+        establish(VIEW, CAN, PredicateName.MEMBER_OF_COMPONENT, work_item_ref(w.TICKET))
+
+
 def test_a_subject_of_the_wrong_kind_is_refused() -> None:
     with pytest.raises(ValueError, match="has_skill is a fact about an employee, got a work_item"):
         establish(VIEW, work_item_ref(w.TICKET), PredicateName.HAS_SKILL)
