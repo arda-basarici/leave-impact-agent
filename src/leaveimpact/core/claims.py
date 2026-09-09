@@ -92,16 +92,17 @@ class Verdict(StrEnum):
 
 
 class AssessmentReason(StrEnum):
-    """Why a candidate is non-viable — the criteria the viability rule checks.
+    """Why a candidate is non-viable — exactly the criteria the viability rule checks.
 
-    Seeded from what DESIGN and the vision already name; the viability rule closes the
-    vocabulary at the rules step, and a member it never emits is pruned there.
+    Closed by the rule at the rules step (DESIGN, "The rules in code"): ``skill`` and
+    ``hard_rule`` fail a clause-backed requirement's criteria, ``component`` and
+    ``availability`` fail a domain rule. ``load`` was seeded and pruned — no first-set
+    class names it — and returns when a scenario class establishes its semantics.
     """
 
     SKILL = "skill"
     COMPONENT = "component"
     AVAILABILITY = "availability"
-    LOAD = "load"
     HARD_RULE = "hard_rule"
 
 

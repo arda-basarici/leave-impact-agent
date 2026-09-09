@@ -32,10 +32,12 @@ from leaveimpact.core import (
     facts,
     ids,
     jsonshape,
+    plans,
     predicates,
     refs,
     values,
     values_json,
+    viability,
     worldtime,
 )
 from leaveimpact.core.authority import ConflictFinding, Resolution, conflicts_in, resolve
@@ -112,6 +114,13 @@ from leaveimpact.core.ids import (
     WorkItemId,
     WorldVersion,
 )
+from leaveimpact.core.plans import (
+    Violation,
+    ViolationKind,
+    expected_action,
+    plan_violations,
+    required_count,
+)
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
@@ -148,6 +157,15 @@ from leaveimpact.core.values import (
     enum_value,
 )
 from leaveimpact.core.values_json import decode_value, encode_value
+from leaveimpact.core.viability import (
+    Assessment,
+    Need,
+    ResolvedRequirement,
+    applicable_requirements,
+    assess,
+    assess_impact,
+    need_of,
+)
 from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_date
 
 # The submodules are listed so the rendered reference keeps their docstrings — each
@@ -162,10 +180,12 @@ __all__ = [
     "facts",
     "ids",
     "jsonshape",
+    "plans",
     "predicates",
     "refs",
     "values",
     "values_json",
+    "viability",
     "worldtime",
     "ARTIFACT_KINDS",
     "DATE_SPAN_VALUE",
@@ -177,6 +197,7 @@ __all__ = [
     "SKILL_VALUE",
     "TARGET_KINDS_BY_SOURCE",
     "TEXT_VALUE",
+    "Assessment",
     "AssessmentKey",
     "AssessmentReason",
     "AuthorityRule",
@@ -230,10 +251,12 @@ __all__ = [
     "LeaveId",
     "LeaveKind",
     "LeaveStatus",
+    "Need",
     "Observation",
     "Predicate",
     "PredicateName",
     "Requirement",
+    "ResolvedRequirement",
     "Resolution",
     "RunCondition",
     "RunContext",
@@ -251,11 +274,16 @@ __all__ = [
     "ValueKind",
     "ValueSpec",
     "Verdict",
+    "Violation",
+    "ViolationKind",
     "WorkItem",
     "WorkItemId",
     "WorkItemStatus",
     "WorldVersion",
     "any_true",
+    "applicable_requirements",
+    "assess",
+    "assess_impact",
     "clause_ref",
     "comment_ref",
     "component_ref",
@@ -273,11 +301,15 @@ __all__ = [
     "establish",
     "establish_any",
     "event_ref",
+    "expected_action",
     "leave_ref",
     "local_date",
+    "need_of",
+    "plan_violations",
     "predicate",
     "require_id",
     "require_well_formed",
+    "required_count",
     "resolve",
     "structural_problems",
     "team_ref",

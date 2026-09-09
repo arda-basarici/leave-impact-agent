@@ -216,7 +216,7 @@ def test_order_free_repeated_fields_are_canonical_at_construction() -> None:
 
 
 def test_reasons_are_stated_exactly_when_non_viable() -> None:
-    _assessment(Verdict.NON_VIABLE, (AssessmentReason.SKILL, AssessmentReason.LOAD))
+    _assessment(Verdict.NON_VIABLE, (AssessmentReason.SKILL, AssessmentReason.HARD_RULE))
     with pytest.raises(ValueError, match="a non-viable assessment states its reasons"):
         _assessment(Verdict.NON_VIABLE)
     with pytest.raises(ValueError, match="a viable assessment carries no reasons"):

@@ -534,8 +534,13 @@ truth: the required skill from the clause-backed requirements that apply to the
 impact's artifact or its component (`skill`); membership of a work item's component,
 a domain rule (`component`); not on leave over the need's window, the investigated
 leave's span for a deadline or responsibility and the event's own span for a
-meeting, and not attending another event overlapping a meeting (`availability`);
-the requirement's policy criteria (`hard_rule`). `load` is pruned: no first-set
+meeting, read in the run's reference timezone, and not attending another event
+overlapping a meeting (`availability`); the requirement's policy criteria
+(`hard_rule`). The investigated leave's span is a run input to the rule, never a
+fact it establishes: a run whose HR system is unreachable still knows which leave it
+investigates. An unreadable work-item component is one unresolved criterion, not an
+unresolved need, so a known failure still settles a candidate; an unreadable meeting
+schedule leaves no window to ask about and is an unresolved need for everyone. `load` is pruned: no first-set
 class names it, and a threshold would be either a domain constant the agent can
 only be told or a clause no scenario uses; it returns when a class establishes its
 semantics. The leaver fails through `on_leave` like anyone. A requirement's count

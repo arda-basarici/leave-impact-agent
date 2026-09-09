@@ -14,6 +14,7 @@ from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
 from leaveimpact.core import (
+    ConstraintKey,
     DateSpan,
     EmploymentType,
     EmploymentTypeCriterion,
@@ -23,6 +24,8 @@ from leaveimpact.core import (
     FactBase,
     FactValue,
     Gap,
+    ImpactKey,
+    ImpactSubtype,
     InstantSpan,
     PredicateName,
     Requirement,
@@ -209,3 +212,12 @@ FACTS: tuple[Fact, ...] = (
 )
 
 WORLD = FactBase(FACTS, (DENIZ_SKILLS_GAP,))
+
+REFERENCE_TIMEZONE = "Europe/Istanbul"
+DEADLINE = ImpactKey(LEAVE, ImpactSubtype.DEADLINE, work_item_ref(TICKET))
+MEETING = ImpactKey(LEAVE, ImpactSubtype.MEETING, event_ref(RELEASE))
+CONSTRAINTS = (
+    ConstraintKey(KAFKA_CLAUSE, work_item_ref(TICKET)),
+    ConstraintKey(TWO_EMPLOYEES_CLAUSE, event_ref(RELEASE)),
+)
+EVERYONE = (ALICE, BOB, DENIZ, CAN)
