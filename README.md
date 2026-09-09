@@ -36,9 +36,13 @@ just db-down
 
 ## Layout
 
-- `src/leaveimpact/` — the package; `tests/{unit,integration,e2e}/` — the test levels
-  (DESIGN, "Verification"); `probes/` — preregistered unknowns and their findings;
-  `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
+- `src/leaveimpact/` — the package: `core` (the domain, pure) · `world` (the
+  benchmark, pure) · `adapters` (one external boundary each) · `generator` and
+  `validator` (the shells); the layout and its import law are in ARCHITECTURE.md and
+  enforced by `tests/unit/test_import_law.py`. `tests/{unit,integration,e2e}/` — the
+  test levels (DESIGN, "Verification"); `probes/` — preregistered unknowns and their
+  findings; `scripts/regen_docs.py` — the API reference, generated from docstrings,
+  never edited.
 - `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
   `compose.dev.yaml` — the laptop overlay; `deploy/` — the deployment entrypoint the
   CI deploy job runs on the host. The host itself (Terraform, the deploy role, the
