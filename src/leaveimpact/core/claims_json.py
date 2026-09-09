@@ -2,9 +2,14 @@
 
 A claim set crosses the seam as text — the answer key sealed in a bucket, an agent's
 report in the event log — and this module is the single place that knows the shape.
-The encoding is canonical so equal claim sets produce equal bytes: fields in declared
-order, compact separators, UTF-8 passed through, enum members as their values, dates
-as ISO strings, every claim tagged by ``type`` and every fact value by ``kind``.
+The encoding is canonical so equal claim sets from one emitter produce equal bytes:
+claims sorted by claim id, fields in declared order, compact separators, UTF-8 passed
+through, enum members as their values, dates as ISO strings, every claim tagged by
+``type`` and every fact value by ``kind``. Claim order carries no meaning — identity is
+the grading key, dependency is ``derived_from_claim_ids``, and the order a reader sees
+is the report view's to compute — so a permutation of a set is the same set here.
+(Two emitters mint different claim ids for the same facts, which is why "equal bytes"
+holds within one emitter's numbering: sealing and replay need that, grading does not.)
 Decoding builds the domain types through their own constructors and adds nothing of
 its own beyond shape: an unknown tag, a missing or surplus field, a wrong JSON type, or
 a payload the domain refuses all raise ``ValueError`` from here, and the domain's
@@ -50,13 +55,14 @@ JsonObject = dict[str, object]
 
 
 def encode_claims(claims: Sequence[Claim]) -> str:
-    """The canonical JSON text of ``claims``: a JSON array, one object per claim, in order.
+    """The canonical JSON text of ``claims``: one object per claim, sorted by claim id.
 
     >>> encode_claims(())
     '[]'
     """
+    ordered = sorted(claims, key=lambda claim: claim.claim_id)
     return json.dumps(
-        [encode_claim(claim) for claim in claims], ensure_ascii=False, separators=(",", ":")
+        [encode_claim(claim) for claim in ordered], ensure_ascii=False, separators=(",", ":")
     )
 
 
@@ -152,7 +158,7 @@ def _encode_value(value: FactValue) -> JsonObject:
 
 
 def decode_claims(text: str) -> tuple[Claim, ...]:
-    """The claims in ``text``, an array as ``encode_claims`` writes it.
+    """The claims in ``text``, an array as ``encode_claims`` writes it, in the array's order.
 
     >>> decode_claims("[]")
     ()
@@ -209,7 +215,7 @@ def decode_claim(data: Mapping[str, object]) -> Claim:
                 derived_from_claim_ids=derived,
                 leave_id=LeaveId(_string(data, "leave_id")),
                 subtype=ImpactSubtype(_string(data, "subtype")),
-                artifact=_decode_ref(_object(data["artifact"], "artifact")),
+                artifact=_decode_ref(_object_field(data, "artifact")),
             )
         case ClaimType.CONSTRAINT:
             return Constraint(
@@ -217,14 +223,14 @@ def decode_claim(data: Mapping[str, object]) -> Claim:
                 evidence_refs=evidence_refs,
                 derived_from_claim_ids=derived,
                 clause_id=ClauseId(_string(data, "clause_id")),
-                applies_to=_decode_ref(_object(data["applies_to"], "applies_to")),
+                applies_to=_decode_ref(_object_field(data, "applies_to")),
             )
         case ClaimType.CANDIDATE_ASSESSMENT:
             return CandidateAssessment(
                 claim_id=claim_id,
                 evidence_refs=evidence_refs,
                 derived_from_claim_ids=derived,
-                impact_key=_decode_impact_key(_object(data["impact_key"], "impact_key")),
+                impact_key=_decode_impact_key(_object_field(data, "impact_key")),
                 employee_id=EmployeeId(_string(data, "employee_id")),
                 verdict=Verdict(_string(data, "verdict")),
                 reasons=tuple(
@@ -237,13 +243,13 @@ def decode_claim(data: Mapping[str, object]) -> Claim:
                 claim_id=claim_id,
                 evidence_refs=evidence_refs,
                 derived_from_claim_ids=derived,
-                entity=_decode_ref(_object(data["entity"], "entity")),
+                entity=_decode_ref(_object_field(data, "entity")),
                 predicate=PredicateName(_string(data, "predicate")),
                 observations=tuple(
                     _decode_observation(_object(item, "an observation"))
                     for item in _array(data, "observations")
                 ),
-                resolved_value=_decode_value(_object(data["resolved_value"], "resolved_value")),
+                resolved_value=_decode_value(_object_field(data, "resolved_value")),
                 authority_rule=AuthorityRule(_string(data, "authority_rule")),
             )
         case ClaimType.UNKNOWN:
@@ -251,7 +257,7 @@ def decode_claim(data: Mapping[str, object]) -> Claim:
                 claim_id=claim_id,
                 evidence_refs=evidence_refs,
                 derived_from_claim_ids=derived,
-                subject=_decode_ref(_object(data["subject"], "subject")),
+                subject=_decode_ref(_object_field(data, "subject")),
                 required_fact=PredicateName(_string(data, "required_fact")),
                 reason=UnknownReason(_string(data, "reason")),
             )
@@ -260,7 +266,7 @@ def decode_claim(data: Mapping[str, object]) -> Claim:
                 claim_id=claim_id,
                 evidence_refs=evidence_refs,
                 derived_from_claim_ids=derived,
-                impact_key=_decode_impact_key(_object(data["impact_key"], "impact_key")),
+                impact_key=_decode_impact_key(_object_field(data, "impact_key")),
                 action=CoverageActionKind(_string(data, "action")),
                 assignee_ids=tuple(
                     EmployeeId(_string_item(item, "assignee_ids"))
@@ -281,7 +287,7 @@ def _decode_evidence(data: Mapping[str, object]) -> EvidenceRef:
     _expect_fields(data, ("source", "target", "field"), "an evidence ref")
     return EvidenceRef(
         Source(_string(data, "source")),
-        _decode_ref(_object(data["target"], "target")),
+        _decode_ref(_object_field(data, "target")),
         _optional_string(data, "field"),
     )
 
@@ -291,14 +297,14 @@ def _decode_impact_key(data: Mapping[str, object]) -> ImpactKey:
     return ImpactKey(
         LeaveId(_string(data, "leave_id")),
         ImpactSubtype(_string(data, "subtype")),
-        _decode_ref(_object(data["artifact"], "artifact")),
+        _decode_ref(_object_field(data, "artifact")),
     )
 
 
 def _decode_observation(data: Mapping[str, object]) -> Observation:
     _expect_fields(data, ("source", "value"), "an observation")
     return Observation(
-        Source(_string(data, "source")), _decode_value(_object(data["value"], "value"))
+        Source(_string(data, "source")), _decode_value(_object_field(data, "value"))
     )
 
 
@@ -306,7 +312,7 @@ def _decode_value(data: Mapping[str, object]) -> FactValue:
     _expect_fields(data, ("kind", "value"), "a fact value")
     kind = _string(data, "kind")
     if kind == "entity_ref":
-        return _decode_ref(_object(data["value"], "an entity_ref value"))
+        return _decode_ref(_object_field(data, "value"))
     if kind == "date":
         return date.fromisoformat(_string(data, "value"))
     if kind == "text":
@@ -333,15 +339,25 @@ def _object(value: object, what: str) -> Mapping[str, object]:
     return cast(dict[str, object], value)
 
 
+def _field(data: Mapping[str, object], key: str) -> object:
+    if key not in data:
+        raise ValueError(f"{key} is missing")
+    return data[key]
+
+
+def _object_field(data: Mapping[str, object], key: str) -> Mapping[str, object]:
+    return _object(_field(data, key), key)
+
+
 def _string(data: Mapping[str, object], key: str) -> str:
-    value = data[key]
+    value = _field(data, key)
     if not isinstance(value, str):
         raise ValueError(f"{key} is a string, got {type(value).__name__}")
     return value
 
 
 def _optional_string(data: Mapping[str, object], key: str) -> str | None:
-    value = data[key]
+    value = _field(data, key)
     if value is None:
         return None
     if not isinstance(value, str):
@@ -356,7 +372,7 @@ def _string_item(value: object, key: str) -> str:
 
 
 def _array(data: Mapping[str, object], key: str) -> list[object]:
-    value = data[key]
+    value = _field(data, key)
     if not isinstance(value, list):
         raise ValueError(f"{key} is a JSON array, got {type(value).__name__}")
     return cast(list[object], value)

@@ -26,11 +26,20 @@ def test_every_type_round_trips(sample_claims: tuple[Claim, ...]) -> None:
     assert decode_claims(encode_claims(sample_claims)) == sample_claims
 
 
-def test_the_canonical_encoding_is_byte_stable(sample_claims: tuple[Claim, ...]) -> None:
+def test_the_canonical_encoding_is_byte_stable_under_permutation(
+    sample_claims: tuple[Claim, ...],
+) -> None:
     text = encode_claims(sample_claims)
     assert encode_claims(decode_claims(text)) == text
-    assert text == encode_claims(tuple(reversed(tuple(reversed(sample_claims)))))
+    permuted = sample_claims[3:] + sample_claims[:3]
+    assert permuted != sample_claims
+    assert encode_claims(permuted) == text
     assert " " not in text.split('"rationale"')[0]
+
+
+def test_decoding_keeps_the_array_order(sample_claims: tuple[Claim, ...]) -> None:
+    permuted = sample_claims[3:] + sample_claims[:3]
+    assert decode_claims(encode_claims(permuted)) == sample_claims
 
 
 def test_the_type_tag_comes_first_then_the_shared_fields(sample_claims: tuple[Claim, ...]) -> None:
@@ -82,6 +91,8 @@ def test_an_unknown_type_tag_is_refused(sample_claims: tuple[Claim, ...]) -> Non
 
 
 def test_a_missing_or_surplus_field_is_refused(sample_claims: tuple[Claim, ...]) -> None:
+    with pytest.raises(ValueError, match="type is missing"):
+        decode_claim(_mutated(sample_claims[0], type=...))
     with pytest.raises(ValueError, match=r"missing \['subtype'\], surplus \[\]"):
         decode_claim(_mutated(sample_claims[0], subtype=...))
     with pytest.raises(ValueError, match=r"missing \[\], surplus \['reasoning'\]"):

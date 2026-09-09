@@ -436,7 +436,8 @@ source_conflict       key (entity, predicate)             observations[], resolv
 unknown               key (subject, required_fact)        reason: absent | inaccessible | ambiguous | conflicting | insufficient
 coverage_action       key (impact_key)                    action: assign | uncovered | unknown, assignee_ids[], rationale?
 
-shared: claim_id, type, entity_refs[], evidence_refs[], derived_from_claim_ids[]
+shared, serialized: claim_id, type, evidence_refs[], derived_from_claim_ids[]
+computed from the payload, never serialized: the grading key, entity_refs[]
 ```
 
 *(Keys as ruled at the claim-vocabulary step, 2026-09-10; the 2026-09-09 draft keyed
