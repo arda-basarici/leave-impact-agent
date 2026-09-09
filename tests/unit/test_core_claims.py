@@ -44,6 +44,7 @@ from leaveimpact.core.ids import (
     leave_id,
     work_item_id,
 )
+from tests.unit.conftest import LEAVER
 
 TICKET = work_item_ref(work_item_id(42))
 EVENT = event_ref(event_id(9))
@@ -336,3 +337,28 @@ def test_require_well_formed_lists_every_problem() -> None:
     expected = r"not well-formed:\n  claim_001 is used by two claims\n  claim_001 and"
     with pytest.raises(ValueError, match=expected):
         require_well_formed((_impact(1), _impact(1)))
+
+
+def test_a_conflict_is_a_disagreement_on_a_single_valued_predicate(
+    sample_claims: tuple[Claim, ...],
+) -> None:
+    conflict = next(claim for claim in sample_claims if isinstance(claim, SourceConflict))
+    with pytest.raises(ValueError, match="has_skill is multi-valued; two sources naming"):
+        replace(
+            conflict,
+            entity=employee_ref(LEAVER),
+            predicate=PredicateName.HAS_SKILL,
+            observations=(
+                Observation(Source.FRAPPE, "kafka"),
+                Observation(Source.JIRA, "postgres"),
+            ),
+            resolved_value="kafka",
+        )
+    with pytest.raises(ValueError, match="a conflict needs two different observed values"):
+        replace(
+            conflict,
+            observations=(
+                Observation(Source.JIRA, employee_ref(LEAVER)),
+                Observation(Source.CORPUS, employee_ref(LEAVER)),
+            ),
+        )

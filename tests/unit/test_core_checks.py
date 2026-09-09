@@ -13,6 +13,7 @@ from leaveimpact.core import (
     AuthorityRule,
     CandidateAssessment,
     Claim,
+    Constraint,
     CoverageAction,
     CoverageActionKind,
     Impact,
@@ -22,11 +23,13 @@ from leaveimpact.core import (
     UnknownReason,
     Verdict,
     chain_problems,
+    clause_ref,
     completeness_problems,
+    component_ref,
     employee_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import claim_id, employee_id, work_item_id
+from leaveimpact.core.ids import claim_id, clause_id, component_id, employee_id, work_item_id
 from tests.unit.conftest import CANDIDATE_UNRECORDED, CANDIDATE_UNSKILLED, LEAVER, STALE_OWNER
 
 
@@ -70,6 +73,43 @@ def test_an_unknown_assessment_derives_from_an_unknown_claim_the_rule_could_ask(
     # The artifact on a predicate the rule asks of people is not.
     wrong_predicate = replace(about_the_ticket, required_fact=PredicateName.OWNS_WORK_ITEM)
     assert len(chain_problems(_swap(sample_claims, unknown, wrong_predicate))) == 1
+
+
+def test_a_clause_unknown_matches_a_constraint_the_report_cites_for_the_impact(
+    sample_claims: tuple[Claim, ...],
+) -> None:
+    unknown = _of(sample_claims, Unknown)
+    constraint = _of(sample_claims, Constraint)
+    requirement_unknown = replace(
+        unknown,
+        subject=clause_ref(constraint.clause_id),
+        required_fact=PredicateName.REQUIRES,
+        reason=UnknownReason.INACCESSIBLE,
+        evidence_refs=(),
+    )
+    # The report's constraint cites clause_011 for the ticket: an admissible unknown.
+    assert chain_problems(_swap(sample_claims, unknown, requirement_unknown)) == ()
+    # A component-scoped constraint could apply to a work item; whether it does is the fact
+    # base's to say.
+    component_scoped = replace(constraint, applies_to=component_ref(component_id(7)))
+    with_scoped = _swap(sample_claims, constraint, component_scoped)
+    assert chain_problems(_swap(with_scoped, unknown, requirement_unknown)) == ()
+    # A clause no reported constraint cites for this impact is not the rule's question.
+    stray = replace(requirement_unknown, subject=clause_ref(clause_id(999)))
+    assert chain_problems(_swap(sample_claims, unknown, stray)) == (
+        "claim_005 derives from claim_004, which is not a question the viability rule asks "
+        "about emp_023 for ticket_042",
+    )
+    # A constraint about another ticket does not lend its clause either.
+    elsewhere = replace(constraint, applies_to=work_item_ref(work_item_id(7)))
+    assert (
+        len(
+            chain_problems(
+                _swap(_swap(sample_claims, constraint, elsewhere), unknown, requirement_unknown)
+            )
+        )
+        == 1
+    )
 
 
 def test_an_unknown_action_rests_on_an_unknown_assessment(

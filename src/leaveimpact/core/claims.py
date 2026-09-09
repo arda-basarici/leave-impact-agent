@@ -407,10 +407,12 @@ class CandidateAssessment(ClaimBase):
 class SourceConflict(ClaimBase):
     """Two sources disagree about a fact, and the authority rule resolved it.
 
-    At least two observations from distinct sources, each inside the predicate's
-    declared evidence domain and each a value the predicate's spec admits; the resolved
-    value is one of the observed ones. Which observation *should* win is the authority
-    table's judgement, checked by the rules, not here.
+    A conflict is a disagreement: the predicate is single-valued (two sources each
+    naming a skill are a set), at least two observations from distinct sources inside the
+    predicate's declared evidence domain, each a value the spec admits, and at least two
+    *different* values among them; the resolved value is one of the observed ones. Which
+    observation *should* win is the authority table's judgement, checked by the rules,
+    not here.
     """
 
     claim_type: ClassVar[ClaimType] = ClaimType.SOURCE_CONFLICT
@@ -439,6 +441,11 @@ class SourceConflict(ClaimBase):
         if len(set(sources)) != len(sources):
             raise ValueError(f"{self.claim_id}: a conflict observes each source once")
         row = predicate(self.predicate)
+        if row.multi_valued:
+            raise ValueError(
+                f"{self.claim_id}: {self.predicate.value} is multi-valued; two sources naming "
+                "different values form a set, not a conflict"
+            )
         outside = sorted(source.value for source in set(sources) - row.evidence_domain)
         if outside:
             raise ValueError(
@@ -453,7 +460,10 @@ class SourceConflict(ClaimBase):
                     f"{self.claim_id}: {observation.source.value} observes {self.predicate.value} "
                     f"as {problem}"
                 ) from None
-        if self.resolved_value not in {observation.value for observation in self.observations}:
+        values = {observation.value for observation in self.observations}
+        if len(values) < 2:
+            raise ValueError(f"{self.claim_id}: a conflict needs two different observed values")
+        if self.resolved_value not in values:
             raise ValueError(f"{self.claim_id}: the resolved value is one of the observed values")
 
 

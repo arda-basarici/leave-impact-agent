@@ -22,9 +22,13 @@ it with the org; the generator runs it against its own truth.
 
 An unknown assessment's unknown claims are checked for shape, not for truth: each is
 about the candidate, or about the impact's artifact, or about a clause, on a predicate
-the viability rule reads for that subject. Which criterion was actually unresolved is
-not in the report, since an unknown assessment carries no reasons, and matching it
-against the fact base is the evaluator's.
+the viability rule reads for that subject — and a clause only when the report's own
+constraint claims cite it for something that could apply to the impact, the artifact
+itself or, for a work item, a component. Whether the ticket really belongs to that
+component is truth; that the report has not justified an unknown with an unrelated
+policy clause is coherence. Which criterion was actually unresolved is not in the
+report, since an unknown assessment carries no reasons, and matching it against the
+fact base is the evaluator's.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ from leaveimpact.core.authority import resolve
 from leaveimpact.core.claims import (
     CandidateAssessment,
     Claim,
+    Constraint,
     CoverageAction,
     CoverageActionKind,
     Impact,
@@ -46,7 +51,7 @@ from leaveimpact.core.claims import (
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import ClaimId, EmployeeId
 from leaveimpact.core.predicates import PredicateName
-from leaveimpact.core.refs import EntityRef, employee_ref
+from leaveimpact.core.refs import EntityRef, clause_ref, employee_ref
 
 ABOUT_THE_CANDIDATE: frozenset[PredicateName] = frozenset(
     {
@@ -80,9 +85,10 @@ def chain_problems(claims: Sequence[Claim]) -> tuple[str, ...]:
     assessments = [claim for claim in claims if isinstance(claim, CandidateAssessment)]
     actions = [claim for claim in claims if isinstance(claim, CoverageAction)]
     impacts = [claim for claim in claims if isinstance(claim, Impact)]
+    constraints = [claim for claim in claims if isinstance(claim, Constraint)]
     problems: list[str] = []
     for assessment in assessments:
-        problems.extend(_unknown_assessment_problems(assessment, by_id))
+        problems.extend(_unknown_assessment_problems(assessment, by_id, constraints))
     for action in actions:
         problems.extend(_action_problems(action, assessments, by_id))
     for claim in claims:
@@ -123,7 +129,9 @@ def completeness_problems(
 
 
 def _unknown_assessment_problems(
-    assessment: CandidateAssessment, by_id: Mapping[ClaimId, Claim]
+    assessment: CandidateAssessment,
+    by_id: Mapping[ClaimId, Claim],
+    constraints: Sequence[Constraint],
 ) -> list[str]:
     if assessment.verdict is not Verdict.UNKNOWN:
         return []
@@ -136,22 +144,38 @@ def _unknown_assessment_problems(
         return [f"{assessment.claim_id} is unknown but derives from no unknown claim"]
     candidate = employee_ref(assessment.employee_id)
     artifact = assessment.impact_key.artifact
+    cited = {
+        clause_ref(constraint.clause_id)
+        for constraint in constraints
+        if _could_apply(constraint.applies_to, artifact)
+    }
     return [
         f"{assessment.claim_id} derives from {unknown.claim_id}, which is not a question the "
         f"viability rule asks about {assessment.employee_id} for {artifact.id}"
         for unknown in unknowns
-        if not _asked_by_the_rule(unknown, candidate, artifact)
+        if not _asked_by_the_rule(unknown, candidate, artifact, cited)
     ]
 
 
-def _asked_by_the_rule(unknown: Unknown, candidate: EntityRef, artifact: EntityRef) -> bool:
+def _asked_by_the_rule(
+    unknown: Unknown, candidate: EntityRef, artifact: EntityRef, cited: set[EntityRef]
+) -> bool:
     if unknown.subject == candidate:
         return unknown.required_fact in ABOUT_THE_CANDIDATE
     if unknown.subject == artifact:
         return unknown.required_fact in ABOUT_THE_ARTIFACT
-    if unknown.subject.kind is EntityKind.CLAUSE:
+    if unknown.subject in cited:
         return unknown.required_fact is PredicateName.REQUIRES
     return False
+
+
+def _could_apply(applies_to: EntityRef, artifact: EntityRef) -> bool:
+    """Whether a constraint's target could be this impact's, read from the report alone: the
+    artifact itself, or a component when the artifact is a work item — whether the ticket is
+    in that component is the fact base's to say."""
+    if applies_to == artifact:
+        return True
+    return artifact.kind is EntityKind.WORK_ITEM and applies_to.kind is EntityKind.COMPONENT
 
 
 def _action_problems(

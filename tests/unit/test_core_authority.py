@@ -45,14 +45,20 @@ def test_observations_that_do_not_form_a_resolvable_conflict_are_refused() -> No
         resolve(PredicateName.OWNS_WORK_ITEM, (LIVE, Observation(Source.JIRA, BOB)))
     with pytest.raises(ValueError, match="calendar is outside the evidence domain"):
         resolve(PredicateName.OWNS_WORK_ITEM, (LIVE, Observation(Source.CALENDAR, BOB)))
+    with pytest.raises(ValueError, match="a multi-valued predicate holds sets, never conflicts"):
+        resolve(PredicateName.HAS_SKILL, (Observation(Source.FRAPPE, "kafka"), STALE_SKILL))
+    with pytest.raises(ValueError, match="a conflict needs two different observed values"):
+        resolve(PredicateName.OWNS_WORK_ITEM, (LIVE, Observation(Source.CORPUS, ALICE)))
     # No two-source domain can lack its record; a wider domain shows the table refusing to guess.
     wide = dict(REGISTRY)
-    wide[PredicateName.HAS_SKILL] = replace(
-        REGISTRY[PredicateName.HAS_SKILL], evidence_domain=frozenset(Source)
+    wide[PredicateName.OWNS_WORK_ITEM] = replace(
+        REGISTRY[PredicateName.OWNS_WORK_ITEM], evidence_domain=frozenset(Source)
     )
-    with pytest.raises(ValueError, match="no observation from the system of record frappe"):
+    with pytest.raises(ValueError, match="no observation from the system of record jira"):
         resolve(
-            PredicateName.HAS_SKILL, (Observation(Source.JIRA, "kafka"), STALE_SKILL), registry=wide
+            PredicateName.OWNS_WORK_ITEM,
+            (STALE, Observation(Source.CALENDAR, ALICE)),
+            registry=wide,
         )
 
 

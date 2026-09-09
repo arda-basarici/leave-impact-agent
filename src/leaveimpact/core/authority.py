@@ -48,9 +48,10 @@ def resolve(
 ) -> Resolution:
     """The value that stands among ``observations`` of ``name``: the system of record's.
 
-    ``ValueError`` when the observations do not form a resolvable conflict — fewer than
-    two, a source twice, a source outside the predicate's domain, or no observation
-    from the system of record, which the table cannot rank without.
+    ``ValueError`` when the observations do not form a resolvable conflict — a
+    multi-valued predicate, fewer than two observations, a source twice, a source
+    outside the predicate's domain, no two different values, or no observation from
+    the system of record, which the table cannot rank without.
 
     >>> from leaveimpact.core.enums import Source
     >>> from leaveimpact.core.ids import EmployeeId
@@ -61,6 +62,8 @@ def resolve(
     'emp_017'
     """
     row = registry[name]
+    if row.multi_valued:
+        raise ValueError(f"{name.value}: a multi-valued predicate holds sets, never conflicts")
     sources = [observation.source for observation in observations]
     if len(sources) < 2:
         raise ValueError(f"{name.value}: a conflict needs at least two observations")
@@ -71,6 +74,8 @@ def resolve(
         raise ValueError(
             f"{name.value}: {', '.join(outside)} is outside the evidence domain of {name.value}"
         )
+    if len({observation.value for observation in observations}) < 2:
+        raise ValueError(f"{name.value}: a conflict needs two different observed values")
     for observation in observations:
         if observation.source is row.system_of_record:
             return Resolution(observation.value, AuthorityRule.SYSTEM_OF_RECORD_WINS, observation)

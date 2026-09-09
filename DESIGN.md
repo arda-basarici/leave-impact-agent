@@ -558,8 +558,9 @@ never the `must_assess` set, with `V` viable and `U` unknown against count `n`: 
 ≥ n` assign, `V + U < n` uncovered, otherwise unknown — the expected action is
 truth, an expected assignee set is not; and the chain checks, report-internal and
 named for what they know (an unknown assessment derives from unknown claims shaped
-as the rule emits them — about the candidate, the impact's artifact or a clause, on
-a predicate the rule reads for that subject — an unknown action from an unknown
+as the rule emits them — about the candidate, the impact's artifact, or a clause the
+report's own constraints cite for something that could apply to the impact, on a
+predicate the rule reads for that subject — an unknown action from an unknown
 assessment, an assign action's assignees each hold a viable assessment, an
 uncovered action holds no viable one, a conflict resolves to the system of
 record's observation under the rule it cites, every impact has exactly one
