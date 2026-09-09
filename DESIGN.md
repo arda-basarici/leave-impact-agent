@@ -212,6 +212,24 @@ adapter · the executor as its own execution identity · the PostgreSQL event lo
 checkpoints as the job seam · Bedrock as the sole provider behind the model seam ·
 S3 for artifacts · the Budgets alert from day one.
 
+**Three rulings at the world milestone's entry (2026-09-09), all cheap to
+reverse.** *The model shortlist* the instance may invoke is re-cut to what the
+account can call: Haiku 4.5, Sonnet 4.6, Nova Lite, Nova Pro, Nova 2 Lite; the
+gated Sonnet 5 and Opus 5 rows leave the list and return the day the account
+review passes. The prose stage's two families are Haiku 4.5 writing and Nova Pro
+checking — configuration, not architecture. *Residency:* `eu.` inference profiles
+throughout, at their ten-percent premium over `global.`; the data is synthetic,
+so this is a story ruling — Frankfurt end to end is a sentence the deployment can
+carry — and the cross-region cache misses the probe observed are an `eu.` fact
+that `global.` would only widen. *Hostname gating:* the Frappe hostnames go
+behind one Cloudflare Access application now — the generator's first write from
+the instance is the cross-host call over the public edge that the platform's
+trigger names, the service token joins the secrets ceremony, and the Frappe login
+stops being scannable; the agent's own hostname stays ungated, since it serves a
+hello page until the demo milestone and that demo must be public, so the
+question returns at that milestone's entry rather than being decided twice. The
+Access application is platform work; this document rules only which hostnames.
+
 ---
 
 ## The probe days
@@ -394,7 +412,339 @@ timestamps stay hidden as vendor time. Date-level history ("opened in March,
 resolved in May") is therefore plantable without a manual step; actor-level
 history ("who handled this before") remains outside the first truth model.
 
+### The answer-key contract (2026-09-09)
+
+**The report and the key speak one typed vocabulary, frozen at the world
+milestone.** Everything downstream grades on it and the generator emits truth in
+the same words, so the types, their grading keys and the four semantic rules below
+are lasting; field names and enum members can still grow. Six claim types:
+
+```text
+impact                key (subtype, artifact_id)     subtype: deadline | meeting | responsibility
+constraint            key (rule_id, applies_to)
+candidate_assessment  key (need_id, employee_id)     verdict: viable | non_viable | unknown, reason codes
+source_conflict       key (entity_id, predicate)     observations[], resolved_value, authority_rule_id
+unknown               key (subject_id, required_fact) reason: absent | inaccessible | ambiguous | conflicting | insufficient
+coverage_action       key (impact_id)                action: assign | uncovered | unknown, basis_claim_ids[]
+
+shared: claim_id, type, claim_key, entity_refs, evidence_refs[], derived_from_claim_ids[]
+```
+
+Impacts describe what the leave affects; constraints what a valid response must
+obey; candidate assessments who could satisfy a need; coverage actions what the
+proposed plan does; conflicts and unknowns where the evidence chain could not be
+established. A responsibility is an existing obligation attached to the leaver — an
+open ticket, a named client contact in a document — and is an impact; "a release
+needs two qualified engineers" is normative and is a constraint, cited from its
+clause, never an impact of the leave. Every type has its own grading identity
+because a universal `(type, entity_id)` fails as soon as a claim is relational (an
+assessment is a person *for* a need, a conflict is an entity *and* a predicate).
+Evidence refs are plural from the first schema: a single non-viability can rest on
+Calendar, Frappe and a clause at once, and a single-source field would tempt the
+agent to cite one fragment of a multi-source inference. Not added, deliberately:
+`violation` (the constraint checker emits those), `evidence` (that is provenance),
+`risk` (an impact already is one), `reasoning` (report layer, not benchmark
+ontology); a `dependency` impact subtype waits for a scenario class that needs it.
+
+**Four semantic rules travel with the vocabulary.** *Viability is relational and
+preference is never truth:* the key states whether `(need, employee)` is viable and
+why; "the best person" has no exact truth unless an optimization rule is declared,
+and none is, which keeps candidate grading from smuggling a reference plan back in.
+*Extra candidates are judged from the truth fact base, never from re-reading the
+world:* the scenario plants a bounded `must_assess` set with authored verdicts (the
+deliberate near-misses that make "why not Deniz?" objectively gradable), and any
+further candidate the agent proposes is recomputed by the evaluator's pure viability
+rule over evaluator-only normalized facts — every planted atomic fact in structured
+form with its provenance, wherever it physically landed, so a skill that lives only
+in a ticket comment is a fact the evaluator holds without solving the agent's
+extraction problem. The evaluator and the deterministic core share those pure rules,
+which is not the generator-echo problem but does admit a shared rule bug; the
+generator invariant that closes it: for every `must_assess` candidate the authored
+verdict must equal the rule's verdict over the fact base, and a mismatch fails
+scenario generation rather than grading an agent wrong. *Conflicting observations
+resolve through a deterministic authority table:* "live wins" is the design intent,
+`system_of_record_wins` is the rule — each normalized predicate has exactly one
+system of record (employment and location facts → Frappe, ticket owner and status →
+Jira, meeting participation → Calendar, procedure requirements → the corpus) and a
+document is never the record for a fact; conflicts are keyed by `(entity,
+predicate)`, not by field names that happen to look alike (an office location and
+a calendar timezone are not a contradiction), and the conflict claim cites the rule
+id so precedence is testable instead of intuited. *Closed-world reasoning applies
+per declared evidence domain:* each predicate declares the sources that
+collectively hold all admissible evidence for it in this synthetic world and whether
+that domain is closed; positive evidence → known true; no positive evidence with a
+closed domain and every required source available → known false; no positive
+evidence with an open or incomplete domain, or a required source absent or
+inaccessible → unknown. So a skills list without Kafka is `non_viable / skill`, an
+explicitly empty list is the same, a missing skills field is `unknown / absent`,
+and a closed domain whose Jira half is unreachable in this run is `unknown /
+inaccessible` even when the HR half shows nothing — which is why expected verdicts
+are derived per run condition from facts plus closure declarations rather than
+stored: a tool-failure run against the same scenario legitimately turns a
+`non_viable` into an `unknown`, and that difference is the tool-failure metric.
+
+**Three coverage outcomes, and the unknowns chain.** `assign` is a positive
+conclusion, `uncovered` a negative one (the evidence suffices and nobody qualifies —
+the vision's own "no qualified coverage exists for the migration" case), `unknown`
+an epistemic limit. Keeping the second apart from the third is what stops the
+benchmark rewarding caution: "I don't know whether anyone can cover this" against a
+complete world that establishes nobody can is wrong, and so is "nobody can" when a
+required source was unreachable. The word `unknown` appears at three levels with
+one relation between them: an `unknown` claim records the missing fact and its
+reason, an assessment whose verdict is `unknown` derives from that claim, a coverage
+action whose action is `unknown` rests on the assessments — missing evidence →
+unknown fact → unknown assessment → unknown coverage, one chain, not three unrelated
+uses of a word. The completeness condition reads over this: every planted impact
+gets a coverage action, `unknown` included, or the plan is incomplete.
+
+**Grading falls out of the vocabulary, with the judge kept away from facts.**
+Impact and constraint discovery: precision/recall over grading keys. Candidate
+assessments: verdict plus reason class against authored or derived truth.
+Distractors: false positives bucketed by the planted reason class (wrong window,
+other team, already resolved, stale document, timezone), so a near-miss reads as a
+sentence. Source conflicts: detected, and resolved to the authority table's value.
+Unknowns: the expected gaps of a missing-information scenario found, and no gap
+claimed where the world is complete. Grounding: evidence refs re-verified against
+the world. The plan: completeness plus deterministic constraint satisfaction over
+coverage actions. Only the rationale text behind an action goes to an LLM judge,
+calibrated on a hand-graded set with its cost budgeted. The ontology is frozen
+whole and exercised gradually: the first golden set covers the three or four types
+its scenario classes need, and no scenario is authored to give a type coverage.
+
+### The first golden set (2026-09-09)
+
+**Thirty scenarios, ten per tier; a tier is a capability level, a class is what a
+scenario is about, and modifiers ride on top.** The tiers name how far the
+reasoning has to reach. Tier 1, structured: every answer-relevant fact sits in a
+structured field — dated tickets the leaver owns, meetings in the slice, skills on
+the HR record, free/busy, open-ticket load; the capability under test is tool use,
+temporal filtering, joins across systems and the deterministic candidate check.
+Tier 2, fragmented: at least one answer-changing fact needs synthesis beyond
+structured fields — a qualification that exists only in a ticket comment, a
+responsibility that exists only in a runbook — and/or the single supported clause
+type ("a release needs two qualified engineers"), which turns a one-person answer
+into two or makes a planted candidate non-viable by `hard_rule`. Tier 3,
+adversarial: the correct output depends on reasoning about the evidence itself —
+a stale runbook naming an outdated owner against Jira (`source_conflict`, resolved
+to the system of record), a genuinely missing fact (`unknown / absent`), or a
+complete world in which nobody qualifies (`uncovered`). Underneath the tiers,
+scenario classes (`structured_deadline`, `structured_meeting`, `structured_mixed`;
+`free_text_qualification`, `free_text_responsibility`,
+`release_cardinality_constraint`, `fragmented_composite`; `stale_source_conflict`,
+`missing_information`, `uncovered`, `adversarial_composite`) give results a second
+reporting axis, so a tier that scores badly decomposes into which mechanism broke.
+Distractors (`wrong_team`, `already_resolved`, `outside_window`,
+`timezone_boundary`) and candidate pressure (`concurrent_leave`) are orthogonal
+modifiers tagged on a scenario, never classes of their own, so the tier
+definitions stop growing as features arrive; every modifier occurs on several
+scenarios, Tier 1 included, so distractor rejection is measured on structured
+evidence before free text enters. Tool failure is a run condition applied over any
+scenario — the same truth, run once normally and once with Calendar unreachable —
+never a scenario class, so degradation is measured against an unchanged key.
+
+**Primitive failure modes repeat independently before any composite.** The
+stratification (counts cheap to change, the rule lasting): Tier 1 — four deadline,
+four meeting, two mixed; Tier 2 — three free-text qualification, three free-text
+responsibility, two release-cardinality, two combinations; Tier 3 — three source
+conflict, three missing information, three uncovered, one controlled composite.
+Three clean `unknown` cases and three clean `uncovered` cases are worth more than
+six in which both occur, because the distinction the vocabulary encodes is only
+measurable when the cases are separate. The set is sized for engineering
+evaluation and failure localization, not fine-grained model ranking: at ten
+scenarios per tier a score of eight in ten carries a Wilson interval near 49–94 %,
+so two tiers a few points apart are not distinguishable, while the failure classes
+behind them are. Claim-level counts are larger but not independent within a
+scenario; uncertainty is reported at scenario level, bootstrapped over scenarios.
+The set grows after the first evaluator shows which classes need more cover, not
+before, and not to narrow an error bar.
+
+**A scenario owns a disjoint fourteen-day slice; the leave sits inside it.** The
+slice is the world state the scenario owns; the leave interval is placed within
+it independently and is usually shorter, and `now` sits inside the slice before
+the leave begins, with the `stable_now_interval` around it. Room before and after
+the leave is what makes "a meeting the day before", "a meeting during", "a
+meeting the day after" plantable without a two-week absence. Thirty slices are
+about fourteen months of organizational history, which the calendars and the
+ticket dates carry believably; the earlier "roughly one per month" was the cost of
+the same isolation at twice the span.
+
+**Org-level facts are static across the world; scenarios select, never mutate.**
+Several classes rest on facts that no scenario owns — a skills field, a team
+membership, a manager link. A missing-information scenario wants the only
+plausible candidate to have no skills record, and blanking that field for one
+slice would leak into every other slice that touches the person. So a person
+whose skills field is blank is blank for all fourteen months, and a scenario
+produces its class by choosing the leaver, the need and the `must_assess` set so
+that the static facts yield the intended outcome; the generator asserts that the
+class emerged (a class invariant beside the `must_assess` invariant) instead of
+editing shared state. Verdicts derive from the fact base, so the same person is
+consistently `unknown` wherever they are a candidate. With roughly twenty-eight
+people and thirty scenarios, leavers repeat, as they would.
+
+**The fact base is world-level and time-filtered by `now`.** A qualification
+evidenced in a ticket comment from month three is admissible in month nine and
+not in month one. Every fact in the truth base therefore carries the world date at
+which its provenance became observable (static HR facts carry world start), and
+the evaluator admits only facts dated at or before the scenario's `now` — the
+"time is world state" rule applied to truth. The truth manifest thus has two
+layers: one world-level fact base with dated provenance, and per-scenario keys
+that own the impacts, the distractors, the `must_assess` set, the slice and `now`.
+It also settles what an evidence domain spans: "relevant Jira history" means the
+whole organization's history up to `now`, not the scenario's slice.
+
+**Two audit depths make "golden" an honest word.** All thirty scenarios receive
+deterministic validation and a human acceptance pass — the scenario, its truth,
+the expected claims, obvious consistency — so every scenario in the set has been
+looked at. Ten of them, stratified three / three / four across the tiers so that
+conflict, missing information, uncovered, free-text qualification and the
+cardinality clause are all represented, receive the full trace: every expected
+claim followed back through its evidence, the candidate facts, the distractors,
+the authority resolution and the coverage outcome. Thirty scenarios inspected only
+ten deep would be a generated evaluation set with an audited subset, and would be
+named that.
+
+### The generator: pure specification, materialized prose, frozen world (2026-09-09)
+
+**Semantic generation is deterministic and pure; surface prose is materialized
+once and frozen; projection reads the frozen world.** Three stages, and the
+reproducibility claim is exact at each. Seed, parameters and generator version go
+into the pure generator and the complete structured world comes out as plain data:
+people, teams, skills, tickets, meetings, leaves, the scenario definitions, the
+truth fact base, the keys, and *briefs* for every piece of prose the world needs.
+A second stage materializes the briefs into text — deterministic templates for
+structured-shaped text (ticket titles and summaries, meeting titles, leave
+descriptions, routine fields; nothing is learned from paying a model to write
+"Release planning — Payments API"), an LLM for the language-bearing artifacts that
+free-text reasoning is meant to exercise (runbooks, client notes, ticket comments,
+procedure prose). Accepted prose joins the specification as immutable canonical
+world data, and the projectors read that bundle; re-projection never invokes a
+model. The seed identifies the semantic specification; the frozen artifact bundle
+identifies the realized world, and the world version is the bundle's content hash,
+not the seed — two construction runs from one seed may differ in prose, and that
+is fine because the seed never claimed to identify the text. Saying "the same seed
+produces the whole world" would have been false the moment a model wrote a
+sentence; the boundary above makes the strong statement true.
+
+**A brief carries facts, never sentences, and the model does surface realization
+only.** A brief lists the planted facts as predicates (`emp_023 has_skill kafka`,
+role `answer_changing`), the context facts the text may mention, and what is
+forbidden (additional qualification claims, additional responsibilities,
+cardinalities); "must include the sentence 'Deniz has Kafka experience'" would turn
+the benchmark into paraphrase detection. Generated text is accepted only under
+**semantic containment**: every required planted fact is present and no additional
+benchmark-relevant fact is introduced — `required(brief) ⊆ claims(text) ⊆
+allowed(brief)`, harmless prose permitted. A lexicon check alone is not that
+guarantee: "Deniz led the Kafka migration" and "Deniz has never worked with Kafka"
+pass the same vocabulary test as "Deniz observed a Kafka migration", and "three
+engineers must attend" adds an answer-changing cardinality without one forbidden
+word. Four guards enforce containment. A namespace check — every employee, client,
+ticket key, skill, project, date and number in the text belongs to the brief's
+vocabulary — catches cheap invention. A required-fact check catches a planted fact
+that vanished in the writing. An independent extraction check recovers the text's
+propositions, negations included (a negated planted fact is an added fact, not a
+missing one), with a different model family and prompt than the writer, and
+compares them to the brief; it is a generation-time gate and never becomes truth,
+which stays the structured brief. And for the first golden set, a human reads every
+generated artifact that carries an answer-changing fact and asks whether the text
+added, reversed, weakened or implied anything the brief did not say — folded into
+the acceptance pass all thirty scenarios receive, not a third ritual. The
+extraction check's agreement with that human pass is recorded, which is the
+evidence for retiring the human pass later and costs nothing now.
+
+**Failed generations are discarded and retried, never patched.** A patched
+artifact has the provenance "model output plus generator fix plus perhaps a human
+edit" and needs edit histories and altered truth assumptions; a discarded one
+needs nothing. Draft → validate → freeze on pass, discard whole on fail, retry.
+After acceptance an artifact is immutable. Materialization runs inside the
+generator job, so the generator role gains invoke rights on the writer and checker
+models (a role-policy edit in the platform stack); the models are cheap ones and
+cheap to change; the materializer sits behind a renderer seam so the unit level
+uses a fake renderer and the real one runs under the `live` marker. At thirty
+scenarios the whole stage costs well under a dollar per world.
+
+**Projection is the effectful, idempotent shell; the validator is separate and
+read-only.** One projector per system — Frappe, Jira, Calendar, and the corpus,
+which is the fourth target: the project's own document system with PostgreSQL
+behind it, so the agent's `search_policy` is an adapter like the other three and
+whether the table gets full-text search or pgvector stays the investigator
+milestone's question, while the documents' canonical form lives in the world
+bucket beside the manifest. Projectors are adapter-bound, find-or-create against
+the world manifest's identity map so a rerun adds nothing (the seed spike's
+contract), and hold no scenario reasoning. The validator is a distinct module that
+only reads: it re-reads the live systems, re-derives each scenario's structured
+expectations (`answer(now)` grown up, at two instants inside the stable interval)
+and compares them with the manifest. It validates the projected systems rather
+than the generator's intermediate objects on purpose, so the projection seam is
+under test too, and a shared generation bug cannot produce an evaluation that
+agrees with a wrong world.
+
 ---
+
+## Package boundaries and the import law (2026-09-09)
+
+**Ranks give the default dependency direction; denied edges enforce the trust
+boundaries.** A rank law alone ("import only lower ranks") would have let the
+investigator import the fact base, the keys and the briefs at source level while
+credentials kept it from the truth bucket at run time — a boundary the whole
+answer-key design depends on, left to convention. So the law has two parts.
+
+| Rank | Package | Purity | Holds |
+|---|---|---|---|
+| 0 | `core` | pure | domain types (employee, work item, event, document, leave), the predicate registry, the claim vocabulary, `RunContext` and world time, the pure rules (viability, the authority table, closure, constraint checks), and vendor-neutral ports where two consumers need one |
+| 1 | `world` | pure | the benchmark: world spec, scenarios, truth facts, keys, briefs, templates, the semantic generator, the construction invariants |
+| 2 | `adapters` | shell | `frappe`, `jira`, `calendar`, `corpus`, `prose` — one external boundary each: vendor shape and identity translated to `core` types and back; credentials, HTTP, pagination, connection-fault retries |
+| 3 | `generator` | shell | prose materialization and its guards, the projectors, sealing, the generation entry point |
+| 3 | `validator` | shell | read-only verification of the live systems against the declared world |
+| 3 | `evaluator`, `agent` | shell | the investigator milestone's; named now so the law has their place |
+| 4 | `app` | shell | the demo milestone's surface |
+
+The laws, all of them pytest tests shipped with the scaffold: imports point
+strictly downward; no lateral imports among the rank-3 shells (the generator never
+reaches the validator or the evaluator, so read-only and non-echo are architectural
+rather than aspirational, and the entry point composes generation then validation
+without either importing the other); `agent` never imports `world`, `generator`,
+`validator` or `evaluator`; `app` never imports a benchmark package; `core` never
+imports `world` — the domain does not know synthetic worlds exist, and the
+production investigator depends on the domain without depending on the benchmark
+that grades it, which is why `world` stays a separate package however small it
+remains; `core` and `world` perform no I/O, guarded by a forbidden-import list
+(`httpx`, `psycopg`, `boto3`, `googleapiclient`) that is a cheap guard and not a
+proof of purity (an allowlist can replace it if the guard ever proves thin);
+sibling adapters never import one another, since cross-system orchestration lives
+above them and a tangled shell can obey the top-level law; external identity is
+supplied at composition — one `JiraAdapter` taking a credential, never a
+`GeneratorJiraAdapter` beside an `AgentJiraAdapter`, so the generator's principal
+and the agent's future read principal differ in authority and share transport, and
+no credential or configuration enters `core`; world time comes only from an
+explicit `RunContext`, and wall-clock time is read only at a composition root
+(a CLI, a job runner, an HTTP startup) and converted into context at once —
+retries and timeouts use monotonic elapsed time, an infrastructure concern that
+never touches scenario time.
+
+**Placements that decide who shares what.** The pure rules live in `core`, not in
+the evaluator: the evaluator's viability and the agent's deterministic core are
+the same functions, and putting them in one place makes the sharing visible where
+duplication would hide it. Sharing rules is not the generator-echo problem; the
+edges that would be are `evaluator → agent` and `agent → evaluator`, both denied.
+Two independent sources check the shared implementation: the generated
+`must_assess` verdicts, authored independently of the rule, and a set of
+hand-written rule cases kept as unit fixtures. Domain-facing ports (`core/ports`:
+work items, people, calendar, document search) sit below their implementations
+because both the generator and the investigator consume them; an abstraction that
+describes what the domain needs belongs below the adapter, one that describes how
+Jira works belongs inside the Jira adapter, and no interface is manufactured to
+make the architecture look hexagonal — the prose renderer has one consumer and
+stays a seam inside its adapter. Two verification points, two packages: the truth-level
+checks (the `must_assess` invariant, the class invariant) are construction
+invariants in `world`, pure, run by the generator before sealing; the validator
+verifies that projection realized the declared world by reading the world spec
+and the live systems, and never reads truth.
+
+**Only the packages the world milestone needs are created at its scaffold** —
+`core`, `world`, `adapters`, `generator`, `validator`. The structural test carries
+the full graph, future names included, and skips a package that does not exist
+yet; empty placeholder packages would be structure for its own sake. Each later
+milestone scaffolds its own package after its own design session.
 
 ## Verification: five automated questions, and the eval kept apart
 
