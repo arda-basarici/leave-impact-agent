@@ -195,6 +195,23 @@ def test_entity_refs_are_derived_from_the_key() -> None:
     assert _assessment(Verdict.VIABLE).entity_refs[0] == employee_ref(employee_id(31))
 
 
+def test_order_free_repeated_fields_are_canonical_at_construction() -> None:
+    jira = EvidenceRef(Source.JIRA, TICKET, "due_on")
+    frappe = EvidenceRef(Source.FRAPPE, leave_ref(LEAVE))
+    assert replace(_impact(), evidence_refs=(jira, frappe)) == replace(
+        _impact(), evidence_refs=(frappe, jira)
+    )
+    assert _constraint(2, claim_id(9), claim_id(1)) == _constraint(2, claim_id(1), claim_id(9))
+    skill_then_availability = (AssessmentReason.SKILL, AssessmentReason.AVAILABILITY)
+    assert _assessment(Verdict.NON_VIABLE, skill_then_availability) == _assessment(
+        Verdict.NON_VIABLE, tuple(reversed(skill_then_availability))
+    )
+    first, second = _two_owners()
+    assert _conflict((second, first), first) == _conflict((first, second))
+    assert _action(CoverageActionKind.ASSIGN, 23, 17) == _action(CoverageActionKind.ASSIGN, 17, 23)
+    assert _action(CoverageActionKind.ASSIGN, 23, 17).assignee_ids == ("emp_017", "emp_023")
+
+
 # --- Per-type invariants ----------------------------------------------------------------
 
 

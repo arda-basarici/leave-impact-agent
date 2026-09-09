@@ -19,7 +19,10 @@ stored tag could disagree with the Python class. Each subclass validates its own
 payload at construction — a viable assessment carries no reasons, an assign action
 names at least one assignee, a conflict observes at least two sources inside the
 predicate's evidence domain — so a malformed claim fails where it is built, and the
-JSON codec decodes through these constructors so validation has one home.
+JSON codec decodes through these constructors so validation has one home. A repeated
+field whose order has no domain meaning — evidence, derivations, reasons, observations,
+assignees — is put in canonical order at construction, so two claims stating the same
+thing are equal in memory as well as in bytes, and the codec never has to sort.
 
 Clause-backed requirements become constraint claims: a constraint's rule is its
 clause, and a constraint the agent cannot trace to a clause cannot be expressed.
@@ -37,7 +40,7 @@ unknown claim — belongs to the rules, which define the chain.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from types import MappingProxyType
@@ -155,6 +158,36 @@ def _require_subject_of(name: PredicateName, entity: EntityRef) -> None:
         )
 
 
+type _Order[T] = Callable[[T], tuple[str, ...]]
+
+
+def _canonical[T](items: tuple[T, ...], order: _Order[T]) -> tuple[T, ...]:
+    return tuple(sorted(items, key=order))
+
+
+def _by_text(item: object) -> tuple[str, ...]:
+    return (str(item),)
+
+
+def _by_source(observation: Observation) -> tuple[str, ...]:
+    return (observation.source.value,)
+
+
+def _evidence_order(evidence: EvidenceRef) -> tuple[str, ...]:
+    return (
+        evidence.source.value,
+        evidence.target.kind.value,
+        evidence.target.id,
+        evidence.field or "",
+    )
+
+
+def _set_canonical[T](claim: ClaimBase, name: str, items: tuple[T, ...], order: _Order[T]) -> None:
+    # A frozen dataclass refuses assignment; canonical order is the one write the
+    # constructor makes on its own field before the object is seen by anyone.
+    object.__setattr__(claim, name, _canonical(items, order))
+
+
 # --- Grading keys -----------------------------------------------------------------
 
 
@@ -244,11 +277,12 @@ GradingKey = ImpactKey | ConstraintKey | AssessmentKey | ConflictKey | UnknownKe
 class ClaimBase:
     """The fields every claim shares; never accepted by a function — ``Claim`` is.
 
-    ``__post_init__`` validates the shared fields, then builds ``key`` so a payload that
-    cannot form its identity fails at construction, then runs the subclass's ``_check``.
-    Subclasses implement ``_check`` rather than chaining ``__post_init__``: a slotted
-    dataclass is a fresh class, and zero-argument ``super()`` inside one does not
-    resolve.
+    ``__post_init__`` puts the order-free repeated fields in canonical order (the shared
+    ones here, the subclass's own through ``_canonicalize``), validates the shared fields,
+    builds ``key`` so a payload that cannot form its identity fails at construction, then
+    runs the subclass's ``_check``. Subclasses implement the two hooks rather than
+    chaining ``__post_init__``: a slotted dataclass is a fresh class, and zero-argument
+    ``super()`` inside one does not resolve.
     """
 
     claim_type: ClassVar[ClaimType]
@@ -258,6 +292,9 @@ class ClaimBase:
     derived_from_claim_ids: tuple[ClaimId, ...] = ()
 
     def __post_init__(self) -> None:
+        _set_canonical(self, "evidence_refs", self.evidence_refs, _evidence_order)
+        _set_canonical(self, "derived_from_claim_ids", self.derived_from_claim_ids, _by_text)
+        self._canonicalize()
         _require_claim_id(self.claim_id)
         for other in self.derived_from_claim_ids:
             _require_claim_id(other)
@@ -279,6 +316,9 @@ class ClaimBase:
     def entity_refs(self) -> tuple[EntityRef, ...]:
         """What the claim is about, derived from the key."""
         raise NotImplementedError
+
+    def _canonicalize(self) -> None:
+        """Put the subclass's own order-free repeated fields in canonical order; none here."""
 
     def _check(self) -> None:
         """The subclass's own payload invariants; the base has none."""
@@ -349,6 +389,9 @@ class CandidateAssessment(ClaimBase):
             self.impact_key.artifact,
         )
 
+    def _canonicalize(self) -> None:
+        _set_canonical(self, "reasons", self.reasons, _by_text)
+
     def _check(self) -> None:
         if len(set(self.reasons)) != len(self.reasons):
             raise ValueError(f"{self.claim_id}: a reason is given once, not twice")
@@ -385,6 +428,9 @@ class SourceConflict(ClaimBase):
     @property
     def entity_refs(self) -> tuple[EntityRef, ...]:
         return (self.entity,)
+
+    def _canonicalize(self) -> None:
+        _set_canonical(self, "observations", self.observations, _by_source)
 
     def _check(self) -> None:
         sources = [observation.source for observation in self.observations]
@@ -450,6 +496,9 @@ class CoverageAction(ClaimBase):
             self.impact_key.artifact,
             *(employee_ref(assignee) for assignee in self.assignee_ids),
         )
+
+    def _canonicalize(self) -> None:
+        _set_canonical(self, "assignee_ids", self.assignee_ids, _by_text)
 
     def _check(self) -> None:
         for assignee in self.assignee_ids:

@@ -11,8 +11,10 @@ and never a vendor's: ``emp_017`` names
 an employee in every system, while the Jira option id, the calendar id and the Frappe
 record name that represent that employee belong to the world manifest, projection's
 receipt (DESIGN, "The generator: pure specification, materialized prose, frozen world").
-Numbered kinds follow ``<prefix>_<number>`` with at least three digits, so a listing sorts
-by number and a prefix says the kind at a glance; skills are vocabulary keys
+Numbered kinds follow ``<prefix>_<number>`` zero-padded to three digits, so a listing of
+up to a thousand sorts by number (past that, text order is still deterministic, which
+is all canonical encoding needs) and a prefix says the kind at a glance; skills are
+vocabulary keys
 (``kafka``), not numbers. A world version is the content hash of the frozen bundle and
 carries no prefix.
 """

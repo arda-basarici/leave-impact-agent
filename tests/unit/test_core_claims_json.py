@@ -4,6 +4,7 @@ wrong JSON type, an id outside its namespace, a payload the domain refuses — f
 loudly at decode."""
 
 import json
+from dataclasses import replace
 from datetime import date
 from typing import cast
 
@@ -11,6 +12,7 @@ import pytest
 
 from leaveimpact.core import (
     Claim,
+    CoverageAction,
     CoverageActionKind,
     Observation,
     Source,
@@ -35,6 +37,16 @@ def test_the_canonical_encoding_is_byte_stable_under_permutation(
     assert permuted != sample_claims
     assert encode_claims(permuted) == text
     assert " " not in text.split('"rationale"')[0]
+
+
+def test_a_claim_built_in_any_field_order_round_trips_to_itself(
+    sample_claims: tuple[Claim, ...],
+) -> None:
+    action = sample_claims[-1]
+    assert isinstance(action, CoverageAction)
+    built = replace(action, derived_from_claim_ids=tuple(reversed(action.derived_from_claim_ids)))
+    assert built == action
+    assert decode_claim(encode_claim(built)) == built
 
 
 def test_decoding_keeps_the_array_order(sample_claims: tuple[Claim, ...]) -> None:
