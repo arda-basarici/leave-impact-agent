@@ -39,9 +39,12 @@ The rules, stated once:
 - **World time is explicit.** `RunContext` carries `now`; the wall clock is read only
   at a composition root and converted into context at once.
 
-`tests/unit/test_import_law.py` holds every rule as a test, plus two that keep the law
-from failing open: every package under `src` must hold a rank, and relative imports are
-banned because the edge scan cannot rank them. The rank table names `evaluator`,
+`tests/unit/test_import_law.py` holds every rule as a test, plus the ones that keep the
+law from failing open: every package under `src` must hold a rank; relative imports are
+banned because the edge scan cannot rank them; the top level holds only the package
+docstring and the composition root, so no unranked module can launder an edge; and an
+import is read with its aliases, so `from leaveimpact import world` names `world` as
+plainly as its dotted path does. The rank table names `evaluator`,
 `agent` and `app` ahead of their milestones; they are not created until then.
 
 ### The life of a world
@@ -55,6 +58,8 @@ banned because the edge scan cannot rank them. The rank table names `evaluator`,
         ▼
     the frozen bundle — world version = its content hash
         ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar · corpus
+        │        └──► world manifest: the identity map (semantic id → vendor id)
+        │             projection writes back, the receipt of the world it realized
         ├──► world bucket: world manifest, scenario specs, documents
         └──► truth bucket: the truth manifest, digest recorded in the world
         │

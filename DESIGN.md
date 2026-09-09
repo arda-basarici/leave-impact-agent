@@ -344,9 +344,10 @@ defaults derived from `now` exist for convenience but the harness handles time
 mechanics and never decides which period is relevant — that relevance is part of
 what is evaluated. A scenario carries two time fields: its reference `now`, and
 its evidence `window` (the span of world state it owns, reaching before and after
-`now`); scenarios take disjoint windows, roughly one per month, which is the
-cheapest write-isolation mechanism and gives the shared calendars a believable
-spread — a rule that may relax once entity ownership is proven. Temporal
+`now`); scenarios take disjoint windows — fourteen-day slices since the first
+golden set's ruling below — which is the cheapest write-isolation mechanism and
+gives the shared calendars a believable spread — a rule that may relax once
+entity ownership is proven. Temporal
 robustness is a metamorphic check over a declared `stable_now_interval`, not a
 universal "advance three days, same answer": within the interval the key must
 hold for any `now`; outside it a scenario may legitimately flip (a notice-period
@@ -565,8 +566,8 @@ the leave begins, with the `stable_now_interval` around it. Room before and afte
 the leave is what makes "a meeting the day before", "a meeting during", "a
 meeting the day after" plantable without a two-week absence. Thirty slices are
 about fourteen months of organizational history, which the calendars and the
-ticket dates carry believably; the earlier "roughly one per month" was the cost of
-the same isolation at twice the span.
+ticket dates carry believably; the first cut, one window per month, was the cost
+of the same isolation at twice the span.
 
 **Org-level facts are static across the world; scenarios select, never mutate.**
 Several classes rest on facts that no scenario owns — a skills field, a team
@@ -668,9 +669,14 @@ which is the fourth target: the project's own document system with PostgreSQL
 behind it, so the agent's `search_policy` is an adapter like the other three and
 whether the table gets full-text search or pgvector stays the investigator
 milestone's question, while the documents' canonical form lives in the world
-bucket beside the manifest. Projectors are adapter-bound, find-or-create against
-the world manifest's identity map so a rerun adds nothing (the seed spike's
-contract), and hold no scenario reasoning. The validator is a distinct module that
+bucket beside the manifest. Projectors are adapter-bound and find-or-create by
+the semantic key each system stores (the employee and scenario ids planted on
+every entity), so a rerun adds nothing (the seed spike's contract); they hold no
+scenario reasoning. The identity map — semantic id to vendor id — is what
+projection writes back, not what it reads: the frozen bundle is sealed before any
+vendor has minted an id, and the world manifest that carries the map is
+projection's receipt, recording the world version it realized. The validator is a
+distinct module that
 only reads: it re-reads the live systems, re-derives each scenario's structured
 expectations (`answer(now)` grown up, at two instants inside the stable interval)
 and compares them with the manifest. It validates the projected systems rather

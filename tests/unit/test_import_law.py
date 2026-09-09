@@ -12,9 +12,13 @@ of purity. World time comes only from an explicit ``RunContext``: the wall clock
 at a composition root and nowhere else.
 
 The law refuses to fail open (the SteamLens precedent): every package under ``src`` must
-hold a rank before the build accepts it, and relative imports — which the edge scan
-cannot rank — are banned outright. The rank table names packages that do not exist yet
-(``evaluator``, ``agent``, ``app``); declared ahead is fine, existing unranked is not.
+hold a rank before the build accepts it; relative imports — which the edge scan cannot
+rank — are banned outright; the top level holds only the package docstring and the
+composition root, so no unranked module can launder an import for a ranked one; and an
+``ImportFrom`` is read with its aliases, so ``from leaveimpact import world`` names
+``world`` as plainly as ``import leaveimpact.world`` does. The rank table names packages
+that do not exist yet (``evaluator``, ``agent``, ``app``); declared ahead is fine,
+existing unranked is not.
 """
 
 from __future__ import annotations
@@ -47,6 +51,16 @@ _DENIED_EDGES: dict[str, frozenset[str]] = {
     "app": frozenset({"world", "generator", "validator", "evaluator"}),
 }
 _PURE = frozenset({"core", "world"})
+# The top level is the package docstring and the composition root, nothing else: a module
+# here has no rank, so the edge scan could not see what it re-exports.
+_TOP_LEVEL_MODULES = frozenset({"__init__.py", "__main__.py"})
+# The subpackages of ``adapters``, one external boundary each; a module at the adapters
+# level itself is a shared helper, not a sibling.
+_ADAPTER_SUBPACKAGES = frozenset(
+    entry.name
+    for entry in (SRC / "adapters").iterdir()
+    if entry.is_dir() and (entry / "__init__.py").exists()
+)
 # Top-level module names whose presence in a pure package means it performs I/O.
 _IO_MODULES = frozenset(
     {
@@ -63,10 +77,11 @@ _IO_MODULES = frozenset(
         "urllib",
     }
 )
-# Composition roots: the only files that may read the wall clock, converting it into
-# an explicit context at once. Monotonic timing for retries is infrastructure and
-# is not matched here.
-_CLOCK_ROOTS = frozenset({"__main__.py", "cli.py"})
+# Composition roots, as exact paths under ``src/leaveimpact``: the only modules that may
+# read the wall clock, converting it into an explicit context at once. A job runner or a
+# CLI joins the set by path when it exists. Monotonic timing for retries is
+# infrastructure and is not matched here.
+_CLOCK_ROOTS = frozenset({Path("__main__.py")})
 _CLOCK_READ = re.compile(r"\b(?:datetime|date)\.(?:now|utcnow|today)\(|\btime\.time\(")
 
 
@@ -93,14 +108,26 @@ def _package(parts: list[str]) -> str | None:
 def _imports(path: Path) -> list[list[str]]:
     """Every absolute import made by the module at ``path``, as dotted part lists.
 
-    Relative imports carry no dotted prefix and are unrankable here; they are banned
-    wholesale by ``test_no_relative_imports``.
+    An ``ImportFrom`` contributes one path per alias, module plus name, so a package
+    imported as a name (``from leaveimpact import world``) ranks exactly like the same
+    package imported by its dotted path. A name that is a symbol rather than a module
+    (``from leaveimpact.core.ids import EmployeeId``) only lengthens the path past the
+    segments the law reads. Relative imports carry no dotted prefix and are unrankable
+    here; they are banned wholesale by ``test_no_relative_imports``.
+
+    >>> import tempfile
+    >>> src = "from leaveimpact import world\\nimport leaveimpact.core.ids as ids\\n"
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     probe = Path(d) / "probe.py"
+    ...     _ = probe.write_text(src, encoding="utf-8")
+    ...     _imports(probe)
+    [['leaveimpact', 'world'], ['leaveimpact', 'core', 'ids']]
     """
     tree = ast.parse(path.read_text(encoding="utf-8"))
     found: list[list[str]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            found.append(node.module.split("."))
+            found.extend([*node.module.split("."), alias.name] for alias in node.names)
         elif isinstance(node, ast.Import):
             found.extend(alias.name.split(".") for alias in node.names)
     return found
@@ -127,6 +154,36 @@ def test_every_package_is_ranked() -> None:
         f"packages missing from the rank table: {unranked} — declare each one's rank "
         f"so the import law can see it"
     )
+
+
+def test_top_level_holds_only_the_composition_root() -> None:
+    """The top level is unranked by design, so it may hold nothing the law would need to rank.
+
+    ``_package`` returns None for a top-level module and every edge test skips None. A
+    ``leaveimpact/helpers.py`` importing ``world`` would therefore be invisible, and so
+    would the investigator importing ``helpers`` — one unranked hop launders the edge.
+    Two rules close it: the top level holds only the package docstring and the
+    composition root, and the docstring module imports nothing from inside the package,
+    so it cannot re-export a ranked package under an unranked name. ``__main__`` composes
+    the shells and may import anything; nothing imports ``__main__``.
+    """
+    stray = sorted(
+        entry.name
+        for entry in SRC.iterdir()
+        if entry.is_file() and entry.suffix == ".py" and entry.name not in _TOP_LEVEL_MODULES
+    )
+    assert not stray, (
+        f"unranked top-level modules: {stray} — the top level holds only the package "
+        f"docstring and the composition root; a new module belongs inside a ranked package"
+    )
+    reexports = [".".join(parts) for parts in _intra_imports(SRC / "__init__.py")]
+    assert not reexports, f"the package __init__ imports from inside the package: {reexports}"
+    importers = [
+        ".".join(parts)
+        for path, parts in _modules()
+        if any(imported[1:2] == ["__main__"] for imported in _intra_imports(path))
+    ]
+    assert not importers, f"modules importing the composition root: {importers}"
 
 
 def test_no_relative_imports() -> None:
@@ -187,7 +244,10 @@ def test_sibling_adapters_do_not_import_one_another() -> None:
     """Each adapter translates one external boundary; orchestration across systems lives above them.
 
     A module inside ``adapters/<x>/`` may import ``adapters`` itself (a shared retry
-    policy, say) and anything lower, never ``adapters/<y>/``.
+    policy, say) and anything lower, never ``adapters/<y>/``. The third path segment is
+    compared against the adapter subpackages that exist, so ``from leaveimpact.adapters
+    import retry_policy`` reads as the shared helper it is and ``from leaveimpact.adapters
+    import frappe`` reads as the sibling it is.
     """
     violations: list[str] = []
     for path, parts in _modules():
@@ -195,7 +255,12 @@ def test_sibling_adapters_do_not_import_one_another() -> None:
             continue  # modules at the adapters level are the shared helpers, not a sibling
         own = parts[2]
         for imported in _intra_imports(path):
-            if len(imported) >= 3 and imported[1] == "adapters" and imported[2] != own:
+            if (
+                len(imported) >= 3
+                and imported[1] == "adapters"
+                and imported[2] in _ADAPTER_SUBPACKAGES
+                and imported[2] != own
+            ):
                 violations.append(
                     f"{'.'.join(parts)} imports sibling adapter '{imported[2]}'"
                 )
@@ -222,7 +287,7 @@ def test_wall_clock_only_at_composition_roots() -> None:
     """
     violations: list[str] = []
     for path, parts in _modules():
-        if path.name in _CLOCK_ROOTS:
+        if path.relative_to(SRC) in _CLOCK_ROOTS:
             continue
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if _CLOCK_READ.search(line):
