@@ -16,3 +16,33 @@ can never quietly call a vendor or a model; is never imported by the investigato
 is what keeps the answer key unreachable at source level and not only by credential.
 Prose is not written here: this package emits briefs, the generator materializes them.
 """
+
+from leaveimpact.world import version, vocabulary
+from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
+from leaveimpact.world.vocabulary import (
+    CITIES,
+    COMPONENT_NAMES,
+    FAMILY_NAMES,
+    GIVEN_NAMES,
+    SKILLS,
+    TEAM_NAMES,
+    City,
+    Skill,
+    vocabulary_digest,
+)
+
+__all__ = [
+    "version",
+    "vocabulary",
+    "CITIES",
+    "COMPONENT_NAMES",
+    "FAMILY_NAMES",
+    "GENERATOR_VERSION",
+    "GIVEN_NAMES",
+    "SKILLS",
+    "TEAM_NAMES",
+    "City",
+    "GeneratorVersion",
+    "Skill",
+    "vocabulary_digest",
+]
