@@ -98,11 +98,8 @@ class InMemoryPeople(_Store):
     def leave(self, id: LeaveId) -> Observed[Leave] | None:
         return self._one(self.leaves, id)
 
-    def leaves_of(self, employee_id: EmployeeId, span: DateSpan) -> tuple[Observed[Leave], ...]:
-        def matches(leave: Leave) -> bool:
-            return leave.employee_id == employee_id and leave.span.overlaps(span)
-
-        return self._all(self.leaves, matches)
+    def leaves_within(self, span: DateSpan) -> tuple[Observed[Leave], ...]:
+        return self._all(self.leaves, lambda leave: leave.span.overlaps(span))
 
     def add_team(self, team: Team) -> str:
         return self._add(self.teams, team.id, team, "team")
@@ -122,16 +119,13 @@ class InMemoryWork(_Store):
     components_by_id: dict[ComponentId, Component] = field(
         default_factory=dict[ComponentId, Component]
     )
-    work_items: dict[WorkItemId, WorkItem] = field(default_factory=dict[WorkItemId, WorkItem])
+    tickets: dict[WorkItemId, WorkItem] = field(default_factory=dict[WorkItemId, WorkItem])
 
     def work_item(self, id: WorkItemId) -> Observed[WorkItem] | None:
-        return self._one(self.work_items, id)
+        return self._one(self.tickets, id)
 
-    def work_items_owned_by(self, owner_id: EmployeeId) -> tuple[Observed[WorkItem], ...]:
-        return self._all(self.work_items, lambda item: item.owner_id == owner_id)
-
-    def work_items_in(self, component_id: ComponentId) -> tuple[Observed[WorkItem], ...]:
-        return self._all(self.work_items, lambda item: item.component_id == component_id)
+    def work_items(self) -> tuple[Observed[WorkItem], ...]:
+        return self._all(self.tickets)
 
     def component(self, id: ComponentId) -> Observed[Component] | None:
         return self._one(self.components_by_id, id)
@@ -143,7 +137,7 @@ class InMemoryWork(_Store):
         return self._add(self.components_by_id, component.id, component, "component")
 
     def add_work_item(self, work_item: WorkItem) -> str:
-        return self._add(self.work_items, work_item.id, work_item, "work_item")
+        return self._add(self.tickets, work_item.id, work_item, "work_item")
 
 
 @dataclass

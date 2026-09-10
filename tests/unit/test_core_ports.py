@@ -176,7 +176,7 @@ def test_a_missing_record_is_a_plain_none_and_a_missing_set_an_empty_tuple() -> 
     assert people.employee(ALICE) is None
     assert people.leave(leave_id(5)) is None
     assert people.employees() == ()
-    assert InMemoryWork().work_items_owned_by(ALICE) == ()
+    assert InMemoryWork().work_items() == ()
 
 
 def test_what_is_added_is_read_back_wrapped_with_the_source() -> None:
@@ -189,24 +189,29 @@ def test_what_is_added_is_read_back_wrapped_with_the_source() -> None:
     assert locator == "frappe-fake:employee:emp_017"
 
 
-def test_leaves_of_answers_by_employee_and_by_overlap_with_the_span() -> None:
+def test_leaves_within_answers_by_overlap_whoever_is_absent() -> None:
     people = InMemoryPeople()
     people.add_leave(_leave(5, ALICE, 15, 19))
     people.add_leave(_leave(6, ALICE, 1, 2))
     people.add_leave(_leave(7, BOB, 16, 16))
     window = DateSpan(date(2026, 9, 14), date(2026, 9, 20))
-    assert [seen.value.id for seen in people.leaves_of(ALICE, window)] == ["leave_005"]
-    assert [seen.value.id for seen in people.leaves_of(BOB, window)] == ["leave_007"]
+    found = people.leaves_within(window)
+    assert [seen.value.id for seen in found] == ["leave_005", "leave_007"]
+    # Whose leave it is stays on the record: the port selected by the window alone.
+    assert [seen.value.employee_id for seen in found] == [ALICE, BOB]
 
 
-def test_work_items_are_queried_by_owner_and_by_component() -> None:
+def test_work_items_and_components_are_read_whole_never_by_owner_or_component() -> None:
     work = InMemoryWork()
     work.add_component(Component(PAYMENTS, "payments", (ALICE,)))
     work.add_work_item(_work_item(42, ALICE))
     work.add_work_item(_work_item(43, BOB, component_id(3)))
-    assert [seen.value.id for seen in work.work_items_owned_by(ALICE)] == ["ticket_042"]
-    assert [seen.value.id for seen in work.work_items_in(PAYMENTS)] == ["ticket_042"]
+    assert [seen.value.id for seen in work.work_items()] == ["ticket_042", "ticket_043"]
     assert [seen.value.id for seen in work.components()] == ["comp_002"]
+    # Owner and component are relationships the domain derives, so the reader has no
+    # method that selects by either — the fact base answers "what does Alice own".
+    assert not hasattr(WorkReader, "work_items_owned_by")
+    assert not hasattr(WorkReader, "work_items_in")
 
 
 def test_events_within_answers_by_overlap_whoever_attends() -> None:

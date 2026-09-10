@@ -898,6 +898,22 @@ memory an external system); hexagonal symmetry is not the reason. A writer adds 
 never finds — find-or-create is the projector's, reading by domain id and adding what
 is missing — and returns the record's locator in the source, an opaque receipt the
 world manifest records; vendor ids otherwise stay inside the adapter's identity map.
+A reader selects by identity or by a window — a leave or an event over a span, the
+queries the systems answer by range — and never by a relationship the domain
+derives (found at the step's review: the first cut let the tracker answer "owned
+by" and "in component", two registered predicates). The registry declares a
+predicate's domain closed and closure turns zero facts from a reachable source into
+known false; that declaration can be honoured only when the run read the universe to
+completion before the rules ran and the adapter translated every record, so a
+malformed one raised instead of being dropped by a vendor-side filter the domain
+never saw, and a fault halfway marks the source unreachable rather than leaving a
+partial read to be graded as absence. Reachability is not completeness — the run
+condition records the first and the ingestion lifecycle owns the second, a contract
+the derivation states and the investigator's harness will have to keep; it becomes
+an explicit record only if reads ever turn incremental. "What Alice owns" is a
+filter over facts derived from every work item: retrieval efficiency spent for the
+benchmark's evidence semantics, negligible at this world size, and pagination stays
+the adapter's without reintroducing a relationship filter.
 `RunContext` carries the leave under investigation as `leave_id` and nothing more:
 run inputs identify what to investigate, ports establish the facts about it, so the
 leave record, its employee and its span are read through the people port as evidence

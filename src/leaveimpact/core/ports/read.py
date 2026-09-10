@@ -7,12 +7,26 @@ never cross: the adapter keeps the identity map that translates a domain id to a
 vendor key, in both directions. A record that is not there is ``None`` or an empty
 tuple; a source that cannot answer raises ``SourceUnreachable`` (``errors``).
 
+A reader selects by identity or by a window, never by a relationship the domain
+derives. "What Alice owns" is not a query here but a filter over the facts derived
+from every work item, because the registry declares a predicate's evidence domain
+closed and closure turns zero facts from a reachable source into known false; that
+declaration can be honoured only when the run read the universe to completion before
+the rules ran and the adapter translated every record it holds, so a malformed one
+raised instead of being dropped by a vendor-side filter the domain never saw, and a
+fault halfway marks the source unreachable rather than leaving a partial read to be
+graded as absence (found at the step-5 review). Reachability is not completeness:
+completing the enumeration is the caller's contract, stated where the facts are
+derived. The organization is small by construction; pagination is the adapter's and
+never a relationship filter in disguise.
+
 Time is applied above the port, not inside it. A reader returns what the system holds;
 the fact view admits a fact from the day its provenance became observable, so a
 comment dated after ``now`` is filtered where every other date is, once, rather than
 in four adapters. The two exceptions are the queries that are time-shaped by nature —
 leaves and events over a span — because the systems answer those by range and the
-rules only ever ask them by range.
+rules only ever ask them by range; who is on leave or who attends stays a property of
+the returned record.
 
 These are ``Protocol`` classes: an adapter conforms by shape and inherits nothing, and
 its conformance is checked by a typed assignment in its tests, so the split between
@@ -58,12 +72,7 @@ class PeopleReader(Protocol):
         ...
 
     def employees(self) -> tuple[Observed[Employee], ...]:
-        """Every employee on record — the candidate universe a coverage plan is judged over.
-
-        Whole, because the organization is small by construction and a rule that
-        needs "everyone in the team" or "everyone in the component" filters the
-        universe by a fact it derived, not by a query it trusts.
-        """
+        """Every employee on record — the candidate universe a coverage plan is judged over."""
         ...
 
     def team(self, id: TeamId) -> Observed[Team] | None:
@@ -74,8 +83,8 @@ class PeopleReader(Protocol):
         """The leave record, or ``None`` — the run input resolved to its record."""
         ...
 
-    def leaves_of(self, employee_id: EmployeeId, span: DateSpan) -> tuple[Observed[Leave], ...]:
-        """Every leave of the employee that shares at least one day with ``span``.
+    def leaves_within(self, span: DateSpan) -> tuple[Observed[Leave], ...]:
+        """Every leave, whoever's, that shares at least one day with ``span``.
 
         Any status: a requested leave is a fact about the record even though it is
         not yet an absence, and the rules decide what a status means.
@@ -90,12 +99,8 @@ class WorkReader(Protocol):
         """The work item with its comments, or ``None``."""
         ...
 
-    def work_items_owned_by(self, owner_id: EmployeeId) -> tuple[Observed[WorkItem], ...]:
-        """Every work item whose current owner is ``owner_id``, any status."""
-        ...
-
-    def work_items_in(self, component_id: ComponentId) -> tuple[Observed[WorkItem], ...]:
-        """Every work item filed under the component, any status."""
+    def work_items(self) -> tuple[Observed[WorkItem], ...]:
+        """Every work item the tracker holds for this world, any status, any owner."""
         ...
 
     def component(self, id: ComponentId) -> Observed[Component] | None:
