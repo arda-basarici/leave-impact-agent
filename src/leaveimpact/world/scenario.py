@@ -281,13 +281,54 @@ class Scenario:
     authored_facts: tuple[Fact, ...] = ()
 
     def __post_init__(self) -> None:
+        """Refuse three records that cannot describe one scenario.
+
+        Structural coherence only — the same scenario id, impacts of the investigated
+        leave, that leave owned and inside the window, ``today`` before it, the stable
+        interval inside the window around ``today`` and ending before the leave. Whether
+        the interval is the *maximal* one for the planted facts is the framework's
+        derivation and the validator's check, never re-run here.
+        """
         if self.spec.id != self.key.scenario_id:
             raise ValueError(
                 f"spec and key name one scenario, got {self.spec.id} and {self.key.scenario_id}"
             )
-        owned_leaves = {planted.entity.id for planted in self.owned.leaves}
-        if self.spec.leave_id not in owned_leaves:
+        leave = self.investigated_leave.span
+        foreign = [e.key for e in self.key.impacts if e.key.leave_id != self.spec.leave_id]
+        if foreign:
             raise ValueError(
-                f"the investigated leave is one the scenario owns, {self.spec.leave_id} is not "
-                f"among {sorted(owned_leaves)}"
+                f"every impact is the investigated leave's ({self.spec.leave_id}), got impacts "
+                f"of {sorted({key.leave_id for key in foreign})}"
             )
+        window, today, stable = self.spec.window, self.spec.today, self.key.stable_interval
+        if not (window.contains(leave.start) and window.contains(leave.end)):
+            raise ValueError(
+                f"the investigated leave lies inside the owned window, got {leave.start}.."
+                f"{leave.end} against {window.start}..{window.end}"
+            )
+        if today >= leave.start:
+            raise ValueError(
+                f"now precedes the leave, got today {today} and leave from {leave.start}"
+            )
+        if not (window.contains(stable.start) and stable.end < leave.start):
+            raise ValueError(
+                f"the stable interval lies inside the window and ends before the leave, got "
+                f"{stable.start}..{stable.end} against window {window.start}..{window.end} and "
+                f"leave from {leave.start}"
+            )
+        if not stable.contains(today):
+            raise ValueError(
+                f"the stable interval contains today, got {stable.start}..{stable.end} and {today}"
+            )
+
+    @property
+    def investigated_leave(self) -> Leave:
+        """The owned leave the spec names."""
+        for planted in self.owned.leaves:
+            if planted.entity.id == self.spec.leave_id:
+                return planted.entity
+        owned = sorted(planted.entity.id for planted in self.owned.leaves)
+        raise ValueError(
+            f"the investigated leave is one the scenario owns, {self.spec.leave_id} is not "
+            f"among {owned}"
+        )

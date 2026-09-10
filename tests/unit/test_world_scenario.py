@@ -117,5 +117,57 @@ def test_a_scenario_binds_one_id_and_owns_the_leave_it_investigates() -> None:
         Scenario(_spec(leave=2), key, owned)
 
 
+def _leave(start: date, end: date, number: int = 1) -> OwnedEntities:
+    leave = Leave(
+        leave_id(number), employee_id(17), start, end, LeaveKind.ANNUAL, LeaveStatus.APPROVED
+    )
+    return OwnedEntities(leaves=(Planted(leave, date(2026, 3, 1)),))
+
+
+def _scenario(
+    *,
+    today: datetime = NOW,
+    leave: tuple[date, date] = (date(2026, 3, 10), date(2026, 3, 12)),
+    stable: tuple[date, date] = (date(2026, 3, 1), date(2026, 3, 9)),
+    impact_leave: int = 1,
+) -> Scenario:
+    expected = ExpectedImpact(
+        ImpactKey(leave_id(impact_leave), ImpactSubtype.DEADLINE, work_item_ref(work_item_id(42))),
+        CoverageActionKind.ASSIGN,
+        (),
+    )
+    key = replace(_key((expected,)), stable_interval=DateSpan(*stable))
+    return Scenario(_spec(today), key, _leave(*leave))
+
+
+def test_every_impact_belongs_to_the_investigated_leave() -> None:
+    with pytest.raises(ValueError, match="investigated leave's"):
+        _scenario(impact_leave=2)
+
+
+def test_the_investigated_leave_lies_inside_the_owned_window() -> None:
+    with pytest.raises(ValueError, match="inside the owned window"):
+        _scenario(leave=(date(2026, 3, 12), date(2026, 3, 16)))
+
+
+def test_now_precedes_the_leave() -> None:
+    late = datetime(2026, 3, 12, 6, 0, tzinfo=UTC)
+    with pytest.raises(ValueError, match="now precedes the leave"):
+        _scenario(
+            today=late,
+            leave=(date(2026, 3, 5), date(2026, 3, 7)),
+            stable=(date(2026, 3, 1), date(2026, 3, 4)),
+        )
+
+
+def test_the_stable_interval_sits_inside_the_window_around_today_and_before_the_leave() -> None:
+    with pytest.raises(ValueError, match="ends before the leave"):
+        _scenario(stable=(date(2026, 3, 1), date(2026, 3, 10)))
+    with pytest.raises(ValueError, match="contains today"):
+        _scenario(stable=(date(2026, 3, 1), date(2026, 3, 4)))
+    one_day = _scenario(stable=(date(2026, 3, 6), date(2026, 3, 6)))
+    assert one_day.investigated_leave.id == leave_id(1)
+
+
 def test_a_modifier_effect_defaults_to_no_change() -> None:
     assert ModifierEffect() == ModifierEffect((), ())
