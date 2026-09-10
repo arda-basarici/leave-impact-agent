@@ -17,7 +17,21 @@ is what keeps the answer key unreachable at source level and not only by credent
 Prose is not written here: this package emits briefs, the generator materializes them.
 """
 
-from leaveimpact.world import org, scenario, slices, version, vocabulary
+from leaveimpact.world import construction, org, scenario, slices, truth_facts, version, vocabulary
+from leaveimpact.world.construction import (
+    Amendment,
+    ConflictingEffects,
+    Construction,
+    ConstructionError,
+    Draft,
+    Frame,
+    Minting,
+    MissingAffordance,
+    Modifier,
+    ScenarioClass,
+    ScenarioInvariantFailed,
+    construct,
+)
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams, OrgSpec, generate_org
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -41,6 +55,13 @@ from leaveimpact.world.slices import (
     place_now,
     stable_interval,
 )
+from leaveimpact.world.truth_facts import (
+    SYSTEM_OF,
+    derive_org,
+    derive_owned,
+    observed,
+    truth_fact_base,
+)
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
 from leaveimpact.world.vocabulary import (
     CITIES,
@@ -55,9 +76,11 @@ from leaveimpact.world.vocabulary import (
 )
 
 __all__ = [
+    "construction",
     "org",
     "scenario",
     "slices",
+    "truth_facts",
     "version",
     "vocabulary",
     "CITIES",
@@ -67,12 +90,22 @@ __all__ = [
     "GENERATOR_VERSION",
     "GIVEN_NAMES",
     "SKILLS",
+    "SYSTEM_OF",
     "TEAM_NAMES",
+    "Amendment",
     "AuthoredVerdict",
     "City",
+    "ConflictingEffects",
+    "Construction",
+    "ConstructionError",
     "DistractorReason",
+    "Draft",
     "ExpectedImpact",
+    "Frame",
     "GeneratorVersion",
+    "Minting",
+    "MissingAffordance",
+    "Modifier",
     "ModifierEffect",
     "ModifierName",
     "NamedDistractor",
@@ -81,16 +114,23 @@ __all__ = [
     "OwnedEntities",
     "Planted",
     "Scenario",
+    "ScenarioClass",
     "ScenarioClassName",
+    "ScenarioInvariantFailed",
     "ScenarioKey",
     "ScenarioSpec",
     "Skill",
     "Tier",
     "VerdictOverride",
     "allocate_slices",
+    "construct",
+    "derive_org",
+    "derive_owned",
     "generate_org",
+    "observed",
     "place_leave",
     "place_now",
     "stable_interval",
+    "truth_fact_base",
     "vocabulary_digest",
 ]
