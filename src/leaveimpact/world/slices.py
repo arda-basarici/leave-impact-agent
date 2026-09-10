@@ -34,8 +34,10 @@ from leaveimpact.core.worldtime import DateSpan, zone
 SLICE_DAYS = 14
 # The gap between consecutive slices, in days; zero keeps two slices adjacent.
 MAX_GAP_DAYS = 3
-# Zero-based offsets into the slice: the leave starts on day five to nine of fourteen.
-LEAVE_START_OFFSET_DAYS = (4, 8)
+# Zero-based offsets into the slice: the leave starts on day six to nine of fourteen. Day
+# six, not five, so that the earliest now (four days before) falls on day two and every
+# slice has at least one day of history before now — a resolved ticket needs one.
+LEAVE_START_OFFSET_DAYS = (5, 8)
 LEAVE_LENGTH_DAYS = (2, 5)
 # How many days before the leave starts the run's ``now`` falls.
 NOW_LEAD_DAYS = (2, 4)

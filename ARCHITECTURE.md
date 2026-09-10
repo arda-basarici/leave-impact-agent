@@ -4,7 +4,7 @@ How it's built and why that structure — a narrative snapshot, edited in place.
 Decisions and their rationale live in DESIGN (cited here by name); the pitch in
 README.
 
-*Snapshot at the world milestone's build, step 6 · last updated 2026-09-11.*
+*Snapshot at the world milestone's build, step 7 · last updated 2026-09-11.*
 
 ## Design shape
 

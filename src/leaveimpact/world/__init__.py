@@ -17,7 +17,17 @@ is what keeps the answer key unreachable at source level and not only by credent
 Prose is not written here: this package emits briefs, the generator materializes them.
 """
 
-from leaveimpact.world import construction, org, scenario, slices, truth_facts, version, vocabulary
+from leaveimpact.world import (
+    construction,
+    modifiers,
+    org,
+    scenario,
+    slices,
+    structured,
+    truth_facts,
+    version,
+    vocabulary,
+)
 from leaveimpact.world.construction import (
     Amendment,
     ConflictingEffects,
@@ -32,6 +42,7 @@ from leaveimpact.world.construction import (
     ScenarioInvariantFailed,
     construct,
 )
+from leaveimpact.world.modifiers import AlreadyResolved
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams, OrgSpec, generate_org
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -55,6 +66,7 @@ from leaveimpact.world.slices import (
     place_now,
     stable_interval,
 )
+from leaveimpact.world.structured import StructuredDeadline
 from leaveimpact.world.truth_facts import (
     SYSTEM_OF,
     derive_org,
@@ -77,9 +89,11 @@ from leaveimpact.world.vocabulary import (
 
 __all__ = [
     "construction",
+    "modifiers",
     "org",
     "scenario",
     "slices",
+    "structured",
     "truth_facts",
     "version",
     "vocabulary",
@@ -92,6 +106,7 @@ __all__ = [
     "SKILLS",
     "SYSTEM_OF",
     "TEAM_NAMES",
+    "AlreadyResolved",
     "Amendment",
     "AuthoredVerdict",
     "City",
@@ -120,6 +135,7 @@ __all__ = [
     "ScenarioKey",
     "ScenarioSpec",
     "Skill",
+    "StructuredDeadline",
     "Tier",
     "VerdictOverride",
     "allocate_slices",

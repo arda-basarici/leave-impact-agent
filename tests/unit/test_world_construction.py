@@ -39,7 +39,9 @@ from leaveimpact.core import (
     event_ref,
     work_item_ref,
 )
+from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ComponentId, EmployeeId, employee_id, scenario_id, skill_id
+from leaveimpact.core.viability import assess_impact
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     AuthoredVerdict,
@@ -69,6 +71,7 @@ from leaveimpact.world.construction import (
     ScenarioInvariantFailed,
     construct,
 )
+from leaveimpact.world.truth_facts import truth_fact_base
 
 ORG = generate_org(7, DEFAULT_PARAMS)
 WORLD_START = date(2026, 1, 1)
@@ -386,8 +389,25 @@ def test_a_source_needed_only_to_prove_a_negative_is_required() -> None:
 def test_a_source_that_turns_an_absent_unknown_into_an_inaccessible_one_is_required() -> None:
     scenario = _construct(MeetingWithClause(blank_candidate=True))
     (expected,) = scenario.key.impacts
-    assert expected.must_assess[0].verdict is Verdict.UNKNOWN
+    (blank,) = expected.must_assess
+    assert blank.verdict is Verdict.UNKNOWN
     assert Source.JIRA in scenario.key.required_sources
+    # The counterfactual itself, through core's own assessment: with the tracker reachable
+    # the candidate's skill is unknown because the record is blank; with it unreachable the
+    # same candidate is unknown because a source of the skill's domain could not answer.
+    # One verdict, two conclusions — the difference the outage comparison must carry.
+    base = truth_fact_base(ORG, WORLD_START, [scenario.owned], scenario.authored_facts)
+    normal = RunCondition.all_reachable()
+    reasons = {}
+    for label, condition in (("normal", normal), ("outage", normal.without(Source.JIRA))):
+        (assessment,) = assess_impact(
+            base.at(scenario.spec.today, condition), expected.key, [blank.employee_id],
+            scenario.key.constraints, scenario.investigated_leave.span, TZ,
+        )
+        assert assessment.verdict is Verdict.UNKNOWN
+        reasons[label] = {(u.predicate, u.reason) for u in assessment.unresolved}
+    assert reasons["normal"] == {(PredicateName.HAS_SKILL, "absent")}
+    assert reasons["outage"] == {(PredicateName.HAS_SKILL, "inaccessible")}
 
 
 def test_a_draft_states_each_impact_once() -> None:
