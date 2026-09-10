@@ -7,6 +7,146 @@ decisions it feeds.
 
 ---
 
+## 2026-09-11 — The guarantee that would have deleted three test classes: why the organization promises shapes, never coverage
+
+*M1 step 6 of the build plan, the organization generator: the closed vocabulary with
+its version and digest, then seeded people, teams, skills, managers, components
+(commits `9050eb8`, `5139149` on 2026-09-11, two review follow-ups; 465 tests at the
+seal). Feeds: the M1 report's generator section — what the organization guarantees and
+what it deliberately leaves to the scenarios — and its evaluation-design section, on
+how the golden set's classes are plantable at all; the M1 post.*
+
+The plan for the organization generator carried, in its first draft, an invariant that
+read as plainly sensible: every skill in the vocabulary has at least two holders, so
+that finding cover is a search rather than a lookup. It was proposed in the opening
+plan of the session, before any code, as one of four structural invariants the org
+would enforce. It died within the hour, and the way it died is the story worth
+keeping.
+
+The external review, agreeing with the shape of the org record, added an aside that
+the retained skill vocabulary "permits unused-but-valid skills later". That remark
+prompted a check of the proposed invariant against the golden set as the design
+document defines it (the "first golden set" section of DESIGN). Tier 3 contains three
+`uncovered` scenarios, each needing a complete world in which nobody qualifies for the
+need — a skill with no holder at all, or none available. It also contains three
+`missing_information` scenarios, each wanting the only plausible candidate to have no
+skills record whatsoever, not an empty one. And the golden-set ruling of two days
+earlier says that org-level facts are static across the whole world: a scenario
+produces its class by choosing the leaver and the need so that the static facts yield
+the intended outcome, never by editing shared state for one slice. Put together, a
+generator that guaranteed two holders for every skill would have made six of the
+thirty scenarios impossible to plant. The invariant did not merely constrain the
+world; it deleted the hardest part of the evaluation.
+
+The turn that followed is the design the generator now implements. The organization
+guarantees *shapes* — the raw material scenarios select from — and never coverage. By
+construction there is at least one skill nobody holds, one skill exactly one person
+holds, one skill held by at least a third of the people who have a record, exactly the
+parameterized number of people whose skills record is absent, and every component
+drawn across at least two teams so that "same team" and "relevant component" can
+disagree. Coverage-as-a-search, the property the withdrawn invariant was reaching for,
+became the scenario's business: the class invariant that runs at construction and
+fails generation by name when the intended outcome does not emerge. The external
+review's follow-up sharpened the form of these guarantees, asking that they stay
+existence claims ("at least one zero-holder skill") rather than a locked histogram, so
+the scenario step keeps room to select.
+
+Two further rulings came out of looking at the generated thing rather than its
+tests. A readable print of the seed-7 organization under default parameters showed
+one team of ten and another of three out of twenty-eight people — independent random
+placement of the remaining seats after one lead and one member per team — and a
+three-person team leaves a scenario nothing to search inside it. Members are now dealt
+round-robin with at most two moves between teams, so sizes differ by a few. The same
+print showed one contractor where a fifteen-percent share over twenty-three non-leads
+had been expected to give about three, and a different seed could have given none,
+which would leave every contractor-scoped policy clause without scope anywhere in the
+world. The generator now guarantees one contractor whenever the share is above zero,
+the same reasoning as the skill anchors: a prerequisite a scenario class depends on is
+constructed, not left to probability. (Both figures from the seed-7 sample printed
+before the second commit; the team sizes after the change were 6, 6, 6, 5, 5.)
+
+The transferable lesson is uncomfortable because the withdrawn invariant sounded so
+reasonable. A generator guarantee that reads as obviously good can quietly remove the
+test cases the evaluation exists for, and the only defence is mechanical: every
+invariant the world enforces gets checked against the list of classes the golden set
+must plant, before it is built. The check took minutes; the invariant would have cost
+the adversarial tier.
+
+## 2026-09-11 — Provenance is not dependence: the sources a conclusion needs are found by taking them away
+
+*M1 step 7 of the build plan, the scenario framework: constructive selection, modifiers
+as declarative planters, the rules as verifier, the required-sources field of the key
+(commits `3f10da4`, `1b0f0b9` on 2026-09-11; regression tests in
+`tests/unit/test_world_construction.py`). Feeds: the M1 report's evaluation-design
+section — what a scenario key's required sources mean and how the tool-failure
+condition is defined — and the section on keeping the rules a verifier rather than an
+author of truth.*
+
+A scenario key records the systems a complete investigation must have read, so that a
+run which never touched one of them can be graded as incomplete rather than merely
+wrong. The framework's first version derived that list the obvious way: collect the
+sources of every evidence fact the viability rule cited while assessing the
+candidates, add the sources of the facts about the impact's artifact and the leave
+under investigation, and the union is what the investigation needed. It passed its
+tests and it was wrong in a way the external review put in one example.
+
+A candidate who does not hold Kafka is non-viable for a Kafka requirement. That
+conclusion cites no evidence fact at all — the evidence is the absence — yet under
+the closed-world rule it depends on every source in the skill predicate's declared
+domain having answered: the HR record and the tracker both, since a skill may be
+evidenced in a ticket comment. With the tracker unreachable the same question stops
+being a known negative and becomes an unknown, inaccessible. So the tracker was
+required, and a list built from positive evidence would never contain it. Provenance
+answers "which record established this?"; dependence asks "which sources had to be
+observable for this conclusion to stand?"; under closed-world reasoning the two are
+not the same set.
+
+Two repairs were considered and rejected. The domain's assessment record could be
+extended to report every predicate it consulted, positive or negative — a change in
+`core` for a consumer in `world`, and one more field to keep faithful as the rule
+grows. Or the framework could list the rule's reading order itself — which predicates
+viability touches for each criterion — which is a copy of the rule's internals kept in
+step by hand, exactly the coupling the constructive-selection ruling was written to
+avoid. The definition the reviewer had used to state the bug was itself the cheapest
+implementation: a source is required if taking it away changes anything the rules
+conclude. The framework now computes the normal conclusions, re-runs every assessment
+and outcome with each source in turn made unreachable, and marks a source required
+when any conclusion moves. It knows nothing about what the rules read, it uses the run
+condition the evaluator already defines for tool-failure runs, and it is by
+construction the tool-failure metric's own notion of dependence. The regression test
+is the reviewer's example verbatim: a release meeting under a Kafka clause, a
+candidate lacking Kafka, no tracker fact about the meeting — and the tracker comes out
+required through the negative alone.
+
+The second round found the comparison one level too coarse. The signature that decided
+whether "anything moved" carried each candidate's verdict and reason classes, and an
+unknown carries no reason class; so an unknown because the record is blank and an
+unknown because a source could not answer compared equal, and a source whose loss only
+changed *why* a candidate was unknown looked unrequired. The fix carries each
+assessment's unresolved questions — subject, predicate and the derived reason — into
+the signature. The honest part of this round: the regression the reviewer proposed
+(a blank-record candidate under the same clause, assert the tracker is required)
+passed before the fix as well as after. Over the whole organization, every other
+candidate with a normal skills record already flipped from known-negative to
+unknown-inaccessible when the tracker went away, so the tracker was required through
+them regardless of the blank candidate. The signature was still wrong as a definition,
+and would have surfaced with a small explicit universe or a predicate nobody holds
+negatively; it was fixed and recorded as a correction of the definition, not an
+observed miss, and the sharper test pins the counterfactual through the domain's own
+assessment call — the same candidate, unresolved for absence with the tracker
+reachable and for inaccessibility without it.
+
+The reviewer, checking the finished comparison for overreach, listed the cases it
+handles the way one would want: a source whose facts another source duplicates is not
+individually required; a source that flips a verdict or an outcome is; a source that
+only changes why something is unknown now is; a source that removes redundant evidence
+without moving a conclusion is ignored. That list is the sentence for the report:
+required sources are counterfactual, not archival.
+
+Figure: a small table for one scenario — rows the candidates and the outcome, columns
+the normal run and each single-source outage — with the cells that move highlighted;
+the tracker column moving for a candidate who cited no tracker fact is the picture.
+
 ## 2026-09-10 — A query is not a fact: the port that let the tracker answer "owned by" would have graded a missing record as a known negative
 
 *M1 step 5 of the build plan, the seam between the domain and the four systems: the

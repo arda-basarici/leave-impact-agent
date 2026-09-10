@@ -809,6 +809,68 @@ than the generator's intermediate objects on purpose, so the projection seam is
 under test too, and a shared generation bug cannot produce an evaluation that
 agrees with a wrong world.
 
+**The organization in code (ruled 2026-09-11, step 6 of the M1 build).** Semantic
+generation identifies an organization by three separate inputs — the seed is the
+stochastic realization, `OrgParams` the shape (every dial that can change the org lives
+there or does not exist), the generator version the algorithm — and the version is
+stamped by the code, never passed, because a version a caller could pass is provenance a
+caller could forge. The interpreter's minor version is recorded beside the generator
+version and checked by a test: Python guarantees only the raw `random()` stream across
+releases, and the higher-level draws the generator uses may change, so an upgrade fails
+the suite until the version is bumped and worlds re-cut. The vocabulary is curated,
+closed and versioned rather than drawn from a faker library — the tables are generator
+semantics and the namespace guard on prose needs a finite set of words — and a recorded
+digest makes an unbumped edit visible in the same diff, without proving the bump (the
+frozen bundle's hash for a reference seed will). One `random.Random` from the seed is
+passed to every helper; ids are minted after the seats are shuffled so an id reveals no
+structure. The organization guarantees *shapes*, never coverage: at least one unheld
+skill, one singleton, one broadly held; exactly the parameterized number of absent
+skills records; every component crossing team lines; one contractor when the share is
+above zero. A first draft promised every skill two holders "so coverage is a search",
+and would have made `uncovered` and `missing_information` unplantable, since both select
+static org facts that scenarios never mutate; coverage as a search is the scenario's
+class invariant. Members are dealt round-robin with at most two moves between teams,
+because independent placement gave ten against three at twenty-eight people. Runtime
+scalar types are the typed API's and the configuration boundary's, not the parameter
+record's; the record owns the generator's ranges and cross-field constraints.
+
+**The scenario framework in code (ruled 2026-09-11, step 7 of the M1 build).**
+Constructive selection, never rejection sampling. A scenario class states what it needs
+from the static organization as a query and returns every admissible construction in a
+canonical order; the RNG chooses among them; the chosen construction plants the owned
+entities and authors the expectations; `core`'s rules then run over the truth base as an
+independent check — every authored verdict must equal the rule's, every declared
+outcome the truth outcome over the whole organization — and a mismatch is a named
+construction error, never a retry and never a reclassification. The query is
+deliberately weaker than the rule: it filters affordances, the rule judges the planted
+scenario, and a query that mirrored the rule in reverse would make the invariant's
+independence a fiction. Modifiers are planters with a class's shape minus an outcome,
+composed by the framework after the class; a modifier may amend a candidate's verdict
+through a declarative effect and may never change the class's declared outcome, which
+is what makes "orthogonal" testable. A scenario plants only entities it owns; policies
+and procedures are world-owned and selected, runbooks and client notes scenario-owned.
+Slices are dealt in order with a random gap of up to three days; the leave starts on
+day six to nine so that `now`, two to four days before it, always has slice history
+behind it; the stable interval is derived from planted observability and never
+authored — the latest fact the key needs bounds it below, the earliest later
+answer-changing fact above, capped at the day before the leave — and construction stays
+independent of the rule implementation there too, the validator's two-instant check
+being the independent verification. Three records serve three audiences: the
+agent-visible spec, the evaluator-only key (an outcome per impact and never a reference
+plan, `must_assess` per impact, constraint keys, distractors unique by entity and never
+an expected impact's artifact, the stable interval, the required sources), and the
+construction record that binds them and refuses records that cannot describe one
+scenario. Truth is `core`'s derivation over every planted record from its planted date
+plus the facts only a world can plant, each stated once as the fact and once in the brief
+that will carry it, on purpose. Required sources are found by asking the rules under each
+single-source outage rather than from evidence provenance: a negative conclusion carries
+no evidence fact yet depends on every source of the predicate's domain, and an unknown
+for absence and an unknown for an unreachable source are different conclusions with one
+verdict. The first Tier 1 class, `structured_deadline`, and the first modifier,
+`already_resolved`, were built as the framework's proof: the cover is a fellow component
+member, the near-miss the leaver's own teammate outside the component, and the look-alike
+enters the world on its resolution date, never before.
+
 ---
 
 ## Package boundaries and the import law (2026-09-09)
