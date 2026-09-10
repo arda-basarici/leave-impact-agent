@@ -28,9 +28,12 @@ A requirement's count never enters here. Criteria assess a candidate; the count 
 a plan (the plan module), so one viable person against a two-person clause is a viable
 candidate and an invalid plan.
 
-The investigated leave's span is a run input, not a fact the rule establishes: a run
-whose HR system is unreachable still knows which leave it is investigating, and the
-window is the premise of every assessment, not a finding of one.
+The investigated leave's span is a parameter of the rule, not a fact the rule
+establishes: the window is the premise of every assessment, not a finding of one. Who
+supplies it differs — the evaluator reads it from the scenario spec, the investigator
+from the leave record it read through the people port; a run that cannot read that
+record has no window and does not call the rule as though it had one (the ports
+ruling in DESIGN).
 """
 
 from __future__ import annotations
@@ -123,8 +126,8 @@ def need_of(
     run's reference timezone — unreadable, and the need is unresolved, since no criterion
     has a window to ask about. A work item's component is read from the fact base and is
     ``None`` when the artifact is not a work item; unreadable, the need still stands with
-    the component unresolved, because the leave window is a run input and the other
-    criteria can answer.
+    the component unresolved, because the leave window is the caller's premise and the
+    other criteria can answer.
     """
     artifact = impact.artifact
     if artifact.kind is EntityKind.EVENT:

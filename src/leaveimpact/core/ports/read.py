@@ -7,8 +7,10 @@ never cross: the adapter keeps the identity map that translates a domain id to a
 vendor key, in both directions. A record that is not there is ``None`` or an empty
 tuple; a source that cannot answer raises ``SourceUnreachable`` (``errors``).
 
-A reader selects by identity or by a window, never by a relationship the domain
-derives. "What Alice owns" is not a query here but a filter over the facts derived
+A fact-bearing reader enumerates its domain, selects by identity, or narrows by a
+natural window; it never filters by a relationship the domain derives, and document
+search is content retrieval that derives no facts. "What Alice owns" is not a query
+here but a filter over the facts derived
 from every work item, because the registry declares a predicate's evidence domain
 closed and closure turns zero facts from a reachable source into known false; that
 declaration can be honoured only when the run read the universe to completion before

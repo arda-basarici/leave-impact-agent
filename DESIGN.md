@@ -898,9 +898,10 @@ memory an external system); hexagonal symmetry is not the reason. A writer adds 
 never finds — find-or-create is the projector's, reading by domain id and adding what
 is missing — and returns the record's locator in the source, an opaque receipt the
 world manifest records; vendor ids otherwise stay inside the adapter's identity map.
-A reader selects by identity or by a window — a leave or an event over a span, the
-queries the systems answer by range — and never by a relationship the domain
-derives (found at the step's review: the first cut let the tracker answer "owned
+A fact-bearing reader enumerates its domain, selects by identity, or narrows by a
+natural window — a leave or an event over a span, the queries the systems answer by
+range — and never filters by a relationship the domain derives; document search is
+content retrieval and derives no facts (found at the step's review: the first cut let the tracker answer "owned
 by" and "in component", two registered predicates). The registry declares a
 predicate's domain closed and closure turns zero facts from a reachable source into
 known false; that declaration can be honoured only when the run read the universe to
