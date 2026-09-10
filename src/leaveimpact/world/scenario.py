@@ -245,11 +245,23 @@ class ScenarioKey:
         for name, values in (
             ("modifiers", self.modifiers),
             ("constraints", self.constraints),
-            ("distractors", self.distractors),
             ("required_sources", self.required_sources),
         ):
             if len(set(values)) != len(values):
                 raise ValueError(f"{name} are listed once each, got {values}")
+        # A distractor is one entity with one planted reason: a false positive is graded
+        # into the bucket of that reason, and an entity in two buckets would count one
+        # mistake twice. An entity wrong for two reasons becomes a tuple of reasons on
+        # the record when a class needs it, never a second entry.
+        distracting = [distractor.entity for distractor in self.distractors]
+        if len(set(distracting)) != len(distracting):
+            raise ValueError(f"a distractor entity is listed once, got {distracting}")
+        artifacts = {expected.key.artifact for expected in self.impacts}
+        both = sorted(ref.id for ref in artifacts & set(distracting))
+        if both:
+            raise ValueError(
+                f"an expected impact's artifact is never also a near-miss, got {both} as both"
+            )
 
 
 @dataclass(frozen=True, slots=True)

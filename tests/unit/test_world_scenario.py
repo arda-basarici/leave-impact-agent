@@ -24,8 +24,10 @@ from leaveimpact.core import (
 from leaveimpact.core.ids import employee_id, leave_id, scenario_id, work_item_id
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
+    DistractorReason,
     ExpectedImpact,
     ModifierEffect,
+    NamedDistractor,
     OwnedEntities,
     Planted,
     Scenario,
@@ -100,6 +102,25 @@ def test_a_key_needs_an_impact_and_unique_keys_and_unique_tags() -> None:
     key = _key((expected,))
     with pytest.raises(ValueError, match="listed once"):
         replace(key, required_sources=(Source.JIRA, Source.JIRA))
+
+
+def test_a_distractor_entity_carries_one_planted_reason() -> None:
+    key = _key((ExpectedImpact(_impact(42), CoverageActionKind.ASSIGN, ()),))
+    ticket = work_item_ref(work_item_id(7))
+    twice = (
+        NamedDistractor(ticket, DistractorReason.WRONG_TEAM),
+        NamedDistractor(ticket, DistractorReason.OUTSIDE_WINDOW),
+    )
+    with pytest.raises(ValueError, match="distractor entity is listed once"):
+        replace(key, distractors=twice)
+    assert replace(key, distractors=twice[:1]).distractors == twice[:1]
+
+
+def test_an_expected_impact_s_artifact_is_never_also_a_near_miss() -> None:
+    key = _key((ExpectedImpact(_impact(42), CoverageActionKind.ASSIGN, ()),))
+    same = (NamedDistractor(work_item_ref(work_item_id(42)), DistractorReason.WRONG_TEAM),)
+    with pytest.raises(ValueError, match="never also a near-miss"):
+        replace(key, distractors=same)
 
 
 def test_a_scenario_binds_one_id_and_owns_the_leave_it_investigates() -> None:
