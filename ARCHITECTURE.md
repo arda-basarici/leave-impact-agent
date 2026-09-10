@@ -4,7 +4,7 @@ How it's built and why that structure — a narrative snapshot, edited in place.
 Decisions and their rationale live in DESIGN (cited here by name); the pitch in
 README.
 
-*Snapshot at the world milestone's build, step 5 · last updated 2026-09-10.*
+*Snapshot at the world milestone's build, step 6 · last updated 2026-09-11.*
 
 ## Design shape
 
@@ -119,6 +119,11 @@ property.
 - **The purity guard is a banned-import list, not an allowlist.** It catches the
   libraries this project actually uses for I/O and misses `open()`; the pure packages
   are also reviewed as pure. Revisit if the guard ever proves thin in review.
+- **The generator-version rule is enforced for the vocabulary, stated for the
+  algorithm.** A recorded digest of the vocabulary tables fails the suite when a table
+  changes without a version bump; an unbumped change to the drawing algorithm is caught
+  only in review until the frozen bundle exists, whose content hash for a reference seed
+  becomes the snapshot that catches both. Revisit at the bundle step.
 - **No ports beyond the four the generator and investigator share.** The prose
   renderer has one consumer and stays a seam inside its adapter. A port is added when a
   second consumer appears, not before. The write side of each port has one production

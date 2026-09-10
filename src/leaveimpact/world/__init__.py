@@ -17,7 +17,8 @@ is what keeps the answer key unreachable at source level and not only by credent
 Prose is not written here: this package emits briefs, the generator materializes them.
 """
 
-from leaveimpact.world import version, vocabulary
+from leaveimpact.world import org, version, vocabulary
+from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams, OrgSpec, generate_org
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
 from leaveimpact.world.vocabulary import (
     CITIES,
@@ -32,10 +33,12 @@ from leaveimpact.world.vocabulary import (
 )
 
 __all__ = [
+    "org",
     "version",
     "vocabulary",
     "CITIES",
     "COMPONENT_NAMES",
+    "DEFAULT_PARAMS",
     "FAMILY_NAMES",
     "GENERATOR_VERSION",
     "GIVEN_NAMES",
@@ -43,6 +46,9 @@ __all__ = [
     "TEAM_NAMES",
     "City",
     "GeneratorVersion",
+    "OrgParams",
+    "OrgSpec",
     "Skill",
+    "generate_org",
     "vocabulary_digest",
 ]
