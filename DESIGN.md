@@ -525,8 +525,9 @@ otherwise known false. Zero facts mean false only after the evidence domain has 
 fully observed, and a gap blocks that inference. Closure derives three unknown
 reasons and the claim vocabulary keeps five: `ambiguous` and `conflicting` are the
 agent's to emit, never the rule's. The entity's `None`-versus-empty distinction maps
-to gap-versus-no-facts when `world` builds the base, a per-field table there, and a
-ticket without a due date is an observed negative, not a gap. Viability evaluates
+to gap-versus-no-facts in `core`'s derivation (the ports ruling, below; step 4 had
+placed the per-field table in `world`), and a ticket without a due date is an
+observed negative, not a gap. Viability evaluates
 every criterion through closure and combines: any known false → non-viable with
 every failing reason, otherwise any unknown → unknown deriving from one unknown
 claim per unresolved fact, otherwise viable. The criteria and their sources of
@@ -875,7 +876,16 @@ observed domain entities — an entity with the source it was read from — and 
 facts: `core` derives facts and gaps from an observed entity in one deterministic
 derivation, so an adapter translates vendor shape and identity and never decides what
 is true, and the gap logic closure depends on lives beside closure rather than in four
-vendor modules. The wrapper carries only the source; the record's reference is
+vendor modules. The same derivation serves every consumer: the investigator's harness
+derives from live reads, and the world builds its truth base by deriving from the
+entities it generated and adding the facts only a world can plant — a skill evidenced
+in a comment, an owner a runbook asserts, what a clause requires — so the two bases
+agree on what every field means by construction. The per-field meaning of absence is
+therefore stated once: a missing skills field is a gap, an empty one is zero facts; a
+missing due date or manager is an observed negative; a requested leave, a comment, a
+team and a document derive nothing. When a fact became observable is the caller's
+knowledge and a parameter of the derivation, since the entities keep vendor
+timestamps out. The wrapper carries only the source; the record's reference is
 computed from the entity's own id, and the source is explicit rather than inferred
 from the type because the registry keys conflicts by source and a second system
 claiming the same kind of record is a designed-for case. The corpus is the exception

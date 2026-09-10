@@ -3,8 +3,9 @@
 Holds the types every other package speaks (employee, team, work item, calendar event,
 document, leave, and their ids), the predicate registry with each predicate's value
 spec, the claim vocabulary with its per-type grading keys, ``RunContext`` and world
-time, the fact base a run sees through a ``FactView`` under a ``RunCondition``, and
-the deterministic rules — closed-world evaluation per declared evidence domain, the
+time, the fact base a run sees through a ``FactView`` under a ``RunCondition``, the
+derivation that turns an observed record into facts and gaps, and the
+deterministic rules — closed-world evaluation per declared evidence domain, the
 system-of-record authority table that resolves conflicting observations, viability of
 a person for a need, constraint checks. The investigator's deterministic core and the
 evaluator call the same rule functions from here, which makes that sharing visible
@@ -31,6 +32,7 @@ from leaveimpact.core import (
     claims,
     claims_json,
     closure,
+    derivation,
     entities,
     enums,
     facts,
@@ -87,6 +89,15 @@ from leaveimpact.core.closure import (
     any_true,
     establish,
     establish_any,
+)
+from leaveimpact.core.derivation import (
+    Derived,
+    derive,
+    derive_component,
+    derive_employee,
+    derive_event,
+    derive_leave,
+    derive_work_item,
 )
 from leaveimpact.core.entities import (
     CalendarEvent,
@@ -195,6 +206,7 @@ __all__ = [
     "claims",
     "claims_json",
     "closure",
+    "derivation",
     "entities",
     "enums",
     "facts",
@@ -245,6 +257,7 @@ __all__ = [
     "CoverageActionKind",
     "Criterion",
     "DateSpan",
+    "Derived",
     "DerivedUnknownReason",
     "Document",
     "DocumentId",
@@ -325,6 +338,12 @@ __all__ = [
     "decode_claim",
     "decode_claims",
     "decode_value",
+    "derive",
+    "derive_component",
+    "derive_employee",
+    "derive_event",
+    "derive_leave",
+    "derive_work_item",
     "document_ref",
     "employee_ref",
     "encode_claim",
