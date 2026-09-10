@@ -6,27 +6,40 @@ effects, the two invariants, the named errors, and determinism over the whole re
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, timedelta
+from datetime import date, datetime, time, timedelta
 from random import Random
+from zoneinfo import ZoneInfo
 
 import pytest
 
 from leaveimpact.core import (
     AssessmentReason,
+    CalendarEvent,
+    ConstraintKey,
     CoverageActionKind,
     DateSpan,
+    Document,
+    DocumentKind,
+    DocumentSection,
+    EvidenceRef,
+    Fact,
     ImpactKey,
     ImpactSubtype,
     Leave,
     LeaveKind,
     LeaveStatus,
+    PredicateName,
+    Requirement,
+    SkillCriterion,
     Source,
     Verdict,
     WorkItem,
     WorkItemStatus,
+    clause_ref,
+    event_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import ComponentId, EmployeeId, scenario_id
+from leaveimpact.core.ids import ComponentId, EmployeeId, employee_id, scenario_id, skill_id
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     AuthoredVerdict,
@@ -73,6 +86,7 @@ class OneTicket:
 
     lie: bool = False
     wrong_outcome: bool = False
+    ghost: bool = False
     name = ScenarioClassName.STRUCTURED_DEADLINE
     tier = Tier.STRUCTURED
     affordance = "a component with at least three members"
@@ -83,6 +97,8 @@ class OneTicket:
             if len(component.member_ids) < 3:
                 continue
             leaver, candidate = component.member_ids[0], component.member_ids[1]
+            if self.ghost:
+                candidate = employee_id(999)
 
             def plant(
                 frame: Frame,
@@ -123,6 +139,65 @@ class OneTicket:
 
             constructions.append(plant)
         return tuple(constructions)
+
+
+@dataclass(frozen=True)
+class MeetingWithClause:
+    """A release meeting during the leave under a clause that needs Kafka; the candidate lacks it.
+
+    The negative skill verdict needs both the HR record and the tracker to have answered,
+    and no tracker fact is about the meeting — so the tracker is required only through
+    the negative, which is what the required-sources derivation must catch.
+    """
+
+    name = ScenarioClassName.STRUCTURED_MEETING
+    tier = Tier.FRAGMENTED
+    affordance = "a Kafka holder, plus a leaver and a candidate with skills records lacking it"
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        kafka = skill_id("kafka")
+        holders = {e.id for e in org.holders_of(kafka)}
+        others = [e.id for e in org.employees if e.skills is not None and e.id not in holders]
+        if not holders or len(others) < 2:
+            return ()
+        leaver, candidate = others[0], others[1]
+
+        def plant(frame: Frame, rng: Random) -> Draft:
+            visible = frame.window.start
+            leave = Leave(
+                frame.ids.leave(), leaver, frame.leave.start, frame.leave.end,
+                LeaveKind.ANNUAL, LeaveStatus.APPROVED,
+            )
+            zone = ZoneInfo(frame.reference_timezone)
+            start = datetime.combine(frame.leave.start, time(10, 0), tzinfo=zone)
+            event = CalendarEvent(
+                frame.ids.event(), "Kafka release", start, start + timedelta(hours=1), (leaver,)
+            )
+            clause = frame.ids.clause()
+            policy = Document(
+                frame.ids.document(), "Release policy", DocumentKind.POLICY, visible,
+                (DocumentSection(clause, "A release needs a Kafka engineer."),),
+            )
+            requires = Fact(
+                clause_ref(clause), PredicateName.REQUIRES,
+                Requirement(1, (SkillCriterion(kafka),)),
+                EvidenceRef(Source.CORPUS, clause_ref(clause)), visible,
+            )
+            impact = ImpactKey(leave.id, ImpactSubtype.MEETING, event_ref(event.id))
+            owned = OwnedEntities(
+                leaves=(Planted(leave, visible),),
+                events=(Planted(event, visible),),
+                documents=(Planted(policy, visible),),
+            )
+            lacking = AuthoredVerdict(candidate, Verdict.NON_VIABLE, (AssessmentReason.SKILL,))
+            expected = ExpectedImpact(impact, CoverageActionKind.ASSIGN, (lacking,))
+            return Draft(
+                owned, leave.id, (expected,),
+                constraints=(ConstraintKey(clause, event_ref(event.id)),),
+                authored_facts=(requires,),
+            )
+
+        return (plant,)
 
 
 @dataclass(frozen=True)
@@ -290,6 +365,32 @@ def test_a_modifier_without_its_structure_finds_no_amendment() -> None:
 
     with pytest.raises(MissingAffordance, match="already_resolved found no admissible"):
         _construct(NoTickets(), modifiers=(ResolvedDistractor(),))
+
+
+def test_a_source_needed_only_to_prove_a_negative_is_required() -> None:
+    scenario = _construct(MeetingWithClause())
+    (expected,) = scenario.key.impacts
+    assert expected.must_assess[0].verdict is Verdict.NON_VIABLE
+    assert Source.JIRA in scenario.key.required_sources
+    assert set(scenario.key.required_sources) >= {Source.FRAPPE, Source.CALENDAR, Source.CORPUS}
+
+
+def test_a_draft_states_each_impact_once() -> None:
+    (construction,) = OneTicket().admissible(ORG)[:1]
+    frame = Frame(
+        scenario_id(1), WINDOW, DateSpan(date(2026, 3, 6), date(2026, 3, 8)),
+        datetime(2026, 3, 3, 9, 0, tzinfo=ZoneInfo(TZ)), TZ, WORLD_START, Minting(),
+    )
+    draft = construction(frame, Random(1))
+    (expected,) = draft.impacts
+    twice = (expected, ExpectedImpact(expected.key, CoverageActionKind.UNCOVERED, ()))
+    with pytest.raises(ValueError, match="states each impact once"):
+        Draft(draft.owned, draft.investigated, twice)
+
+
+def test_a_candidate_authored_from_outside_the_organization_is_named() -> None:
+    with pytest.raises(ScenarioInvariantFailed, match="emp_999 is authored .* not in the org"):
+        _construct(OneTicket(ghost=True))
 
 
 def test_the_id_book_numbers_world_wide_across_scenarios() -> None:

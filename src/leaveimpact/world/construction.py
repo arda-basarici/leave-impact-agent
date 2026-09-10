@@ -37,7 +37,7 @@ from typing import Protocol
 from leaveimpact.core.claims import ConstraintKey, ImpactKey
 from leaveimpact.core.closure import Unresolved
 from leaveimpact.core.enums import EntityKind, Source
-from leaveimpact.core.facts import Fact, FactView, RunCondition
+from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
 from leaveimpact.core.ids import (
     ClauseId,
     CommentId,
@@ -189,6 +189,14 @@ class Draft:
     distractors: tuple[NamedDistractor, ...] = ()
     authored_facts: tuple[Fact, ...] = ()
 
+    def __post_init__(self) -> None:
+        # Refused here, before composition indexes impacts by key: a dict would keep the
+        # last of two expectations for one impact and the key's own check would never
+        # see the first — a silent normalization this module otherwise forbids.
+        keys = [expected.key for expected in self.impacts]
+        if len(set(keys)) != len(keys):
+            raise ValueError(f"a draft states each impact once, got {keys}")
+
     def extended(
         self,
         *,
@@ -308,8 +316,10 @@ def construct(
     ]
     spec = ScenarioSpec(scenario_id, draft.investigated, frame.now, reference_timezone, window)
     base = truth_fact_base(org, world_start, [draft.owned], draft.authored_facts)
-    view = base.at(spec.today, RunCondition.all_reachable())
-    problems, required = _verify(view, impacts, draft.constraints, frame, org, spec.leave_id)
+    problems = _verify(base, spec.today, impacts, draft.constraints, frame, org)
+    required = _required_sources(
+        base, spec.today, impacts, draft.constraints, frame, org, spec.leave_id
+    )
     key = ScenarioKey(
         scenario_id=scenario_id,
         tier=scenario_class.tier,
@@ -369,24 +379,22 @@ def _compose(
 
 
 def _verify(
-    view: FactView,
+    base: FactBase,
+    today: date,
     impacts: Sequence[ExpectedImpact],
     constraints: Sequence[ConstraintKey],
     frame: Frame,
     org: OrgSpec,
-    investigated: LeaveId,
-) -> tuple[list[str], set[Source]]:
-    """The rules' disagreements with the composed expectations, and the sources they read.
+) -> list[str]:
+    """The rules' disagreements with the composed expectations under the normal run condition.
 
     Verdicts are checked per authored candidate; the outcome is the truth outcome over the
-    whole organization, never over ``must_assess`` alone (the contract's rule). The
-    sources returned are those a complete investigation must have read: what establishes
-    the impact (facts about its artifact), the leave under investigation, and every fact
-    the rule read to assess the universe — provenance derived from what the rules
-    consulted, which is the one place the rules contribute to the key.
+    whole organization, never over ``must_assess`` alone (the contract's rule). A
+    candidate authored from outside the organization is a problem too, named rather
+    than a lookup failure.
     """
     problems: list[str] = []
-    sources: set[Source] = set()
+    view = base.at(today, RunCondition.all_reachable())
     universe = [employee.id for employee in org.employees]
     for expected in impacts:
         assessments = assess_impact(
@@ -394,7 +402,13 @@ def _verify(
         )
         by_employee = {assessment.employee_id: assessment for assessment in assessments}
         for authored in expected.must_assess:
-            actual = by_employee[authored.employee_id]
+            actual = by_employee.get(authored.employee_id)
+            if actual is None:
+                problems.append(
+                    f"{authored.employee_id} is authored for {expected.key.artifact.id} but is "
+                    "not in the organization"
+                )
+                continue
             if (actual.verdict, actual.reasons) != (authored.verdict, authored.reasons):
                 problems.append(
                     f"{authored.employee_id} for {expected.key.artifact.id}: authored "
@@ -411,15 +425,68 @@ def _verify(
                 f"{expected.key.artifact.id}: declared {expected.outcome.value}, the truth outcome "
                 f"is {outcome.value}"
             )
-        sources.update(fact.source for a in assessments for fact in a.evidence)
-        sources.update(fact.source for fact in view.facts if fact.subject == expected.key.artifact)
-    leaver_leaves = [
-        fact
-        for fact in view.facts_of(PredicateName.ON_LEAVE)
+    return problems
+
+
+def _required_sources(
+    base: FactBase,
+    today: date,
+    impacts: Sequence[ExpectedImpact],
+    constraints: Sequence[ConstraintKey],
+    frame: Frame,
+    org: OrgSpec,
+    investigated: LeaveId,
+) -> set[Source]:
+    """The sources a complete investigation must have read.
+
+    Two kinds. The sources that establish what the run is about — the facts about each
+    impact's artifact and the leave under investigation — read off the base. And the
+    sources the rules depend on, found by asking, for each source in turn, whether the
+    rules conclude anything different with that source unreachable: a verdict or an
+    outcome that moves means the source was required. Provenance alone under-counts
+    here, because a negative conclusion carries no evidence fact yet depends on every
+    source of the predicate's declared domain — a candidate known not to hold a skill
+    needs both the HR record and the tracker to have answered. Asking the rules under
+    each outage captures that without the framework knowing what the rules read, and it
+    is the tool-failure condition's own definition of dependence.
+    """
+    normal = base.at(today, RunCondition.all_reachable())
+    sources: set[Source] = set()
+    for expected in impacts:
+        sources.update(f.source for f in normal.facts if f.subject == expected.key.artifact)
+    sources.update(
+        fact.source
+        for fact in normal.facts_of(PredicateName.ON_LEAVE)
         if fact.evidence.target.id == investigated
-    ]
-    sources.update(fact.source for fact in leaver_leaves)
-    return problems, sources
+    )
+    baseline = _conclusions(normal, impacts, constraints, frame, org)
+    for source in Source:
+        outage = base.at(today, RunCondition.all_reachable().without(source))
+        if _conclusions(outage, impacts, constraints, frame, org) != baseline:
+            sources.add(source)
+    return sources
+
+
+def _conclusions(
+    view: FactView,
+    impacts: Sequence[ExpectedImpact],
+    constraints: Sequence[ConstraintKey],
+    frame: Frame,
+    org: OrgSpec,
+) -> tuple[object, ...]:
+    """Everything the rules conclude in ``view``: every verdict with its reasons, every outcome."""
+    universe = [employee.id for employee in org.employees]
+    concluded: list[object] = []
+    for expected in impacts:
+        assessments = assess_impact(
+            view, expected.key, universe, constraints, frame.leave, frame.reference_timezone
+        )
+        verdicts = tuple((a.employee_id, a.verdict, a.reasons) for a in assessments)
+        outcome = expected_action(
+            (a.verdict for a in assessments), _required(view, expected.key, constraints, frame)
+        )
+        concluded.append((verdicts, outcome))
+    return tuple(concluded)
 
 
 def _required(
