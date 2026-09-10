@@ -7,6 +7,140 @@ decisions it feeds.
 
 ---
 
+## 2026-09-10 — A query is not a fact: the port that let the tracker answer "owned by" would have graded a missing record as a known negative
+
+*M1 step 5 of the build plan, the seam between the domain and the four systems: the
+read and write ports, the observed-entity wrapper, the leave as a run input, the fault
+contract, and the derivation that turns a record into facts (commits `89c54a9`,
+`820d1b6`, with review follow-ups `acae3bb`, `d940436`, `c072818`; 246 tests including
+doctests at the seal). Feeds: the M1 report's architecture section — where the port
+boundary sits and why read-only is a property of the import graph — and its
+evaluation-design section — how the boundary protects closed-world grading; the M1
+post.*
+
+The step opened, as the previous ones had, with an interview of one question per
+exchange, each answer sent past an external low-context reviewer before it was ruled.
+Four rulings came out of it. The first decided what crosses a port: observed domain
+entities — an employee, a work item, an event, wrapped with the source it was read
+from — and never facts. The alternative, adapters returning facts directly, would have
+put the meaning of every field into four vendor modules where it could drift; keeping
+it in the domain means an adapter translates shape and identity and nothing else, and
+the gap logic that closure depends on lives beside closure. Documents are the
+deliberate exception, and the reviewer sharpened why: a document section is an id and
+text, so what a clause requires cannot be derived from it without parsing prose, and
+the design already said truth stays the structured brief. The requirement fact
+therefore enters the fact base from the world's brief, the investigator establishes
+which clause applies and cites it without transcribing its content, and the plan check
+resolves the citation to the truth's requirement. No extraction seam exists anywhere,
+in the world milestone or the investigator's, which is a smaller architecture than the
+one first sketched.
+
+The second ruling split reading from writing into two modules, and here the reviewer
+improved the proposal. The first version would have scanned the investigator's code
+for writer class names; the reviewer's version denies the write module by its import
+path, which the import-law test already knows how to read. Working that through
+exposed the one evasion a module rule alone would miss: a re-export of a writer from
+the domain package's own `__init__` would have laundered it behind an import the law
+reads as harmless. So the rule became an allowlist over every module that names the
+write module — only the adapters that implement it and the generator that projects
+through it — and the test proved itself against a planted re-export before the commit.
+The writers have a single production consumer, which the project's own rule about
+ports would normally forbid; they are a port anyway, for the least-privilege type and
+for the in-memory implementation both sides share under the tests, and the design
+says so rather than pretending to hexagonal symmetry.
+
+The third ruling put the leave under investigation on the run context as an id and
+nothing more, in the reviewer's phrasing: run inputs identify what to investigate,
+ports establish the facts about it. The leave record, its employee and its span are
+read through the people port, so they are evidence the run established and a scenario
+can contradict, never a truth the harness told it. The consequence for a run whose HR
+system is unreachable is that it has no interval at all — not merely an unknown leave
+fact but no way to scope which tickets and meetings matter — and the rule is that such
+a run continues degraded and surfaces the unknowns rather than inventing the span; how
+that grades is the evaluator's design. The fourth ruling kept three fault outcomes
+apart because closure treats them differently: a record that is not there is a plain
+`None` or an empty tuple, a source that cannot answer after the adapter's retries raises
+one typed exception, a record the adapter cannot translate raises another, and the two
+share no base so a single `except` cannot fold a defect into a legitimate unknown. The
+reviewer's triad is the sentence the report can carry — missing data is evidence,
+unavailable infrastructure is an epistemic limit, malformed data is a defect — and
+their small catch on the third case was real: a malformed record may have no domain
+identity yet, so it is reported with an opaque source-side locator, not an entity
+reference the adapter could not have built.
+
+The moment worth telling came at the review of the first commit. The work reader had
+been given two convenience queries, "work items owned by this person" and "work items
+in this component", written without a ruling because they read like ordinary tracker
+calls. The reviewer noticed that both filter on exactly the relationships the domain
+is supposed to derive as facts — ownership and component are registered predicates —
+while the people and calendar readers already followed the opposite principle: return
+the universe, filter by a fact you derived. The asymmetry was more than aesthetic. The
+predicate registry declares each fact's evidence domain closed, and closure turns
+"source reachable, zero facts" into a known negative. That declaration is honest only
+when the run actually read every record the source holds. A vendor-side filter can
+drop a record before the adapter ever translates it — a work item whose owner field is
+malformed simply fails to match the query — and the domain then grades "the query
+returned nothing" as "this person owns nothing", the very distinction the previous
+step had built the gap and the run condition to preserve. With an enumerating read the
+same record raises a malformed-record defect instead. The rule that came out is the
+reviewer's wording, more precise than "enumerate everything": a fact-bearing reader
+enumerates its domain, selects by identity, or narrows by a natural window such as a
+date span; it never filters by a relationship the domain derives; document search is
+content retrieval and derives no facts. The leave query lost its employee filter for
+the same reason and kept its span.
+
+The reviewer added a precision worth keeping. Enumerating readers make the
+closed-domain declaration possible to honour, not automatically true: closure has no
+notion of "the tracker was read to completion", only of facts, gaps and which sources
+were reachable. The fault ruling from earlier in the step closes most of the gap — the
+first unreachable fault marks the source unreachable for the rest of the run, so
+reachability at the end of a run means every enumeration the run attempted completed,
+and facts read before the fault stay facts because closure checks a positive fact
+before it checks reachability. What remains is the harness that never called the read
+at all, which is a lifecycle contract for the investigator milestone — every
+enumerating read runs to completion before the rules — and not a new completeness
+type; that type arrives only if reads ever become incremental. The cost is stated
+honestly: "what does this person own" becomes a filter over facts derived from the
+whole project rather than a server-side query, retrieval efficiency spent for the
+benchmark's evidence semantics, negligible at this world size, and pagination stays the
+adapter's without reintroducing a relationship filter, since "the next page of the
+universe" is not "only the records for which a fact is assumed true".
+
+The second commit built the derivation itself: one function per observable record,
+and the meaning of every field's absence stated in one place — a missing skills field
+is a gap, an empty one is zero facts; a missing due date or manager is an observed
+negative; a requested leave, a comment, a team and a document derive nothing. When a
+fact became observable is the caller's knowledge, passed as a parameter, because the
+entities keep vendor timestamps out on purpose. The main test rebuilt the four-person
+rule fixture from entities and checked that the derived base contains every
+hand-written fact but the four only a world can plant — the skill mentioned in a ticket
+comment, the owner a stale runbook asserts, the two clause requirements — so the
+fixture and the derivation stand as two independent sources for each other. Stated as
+a proposal for the steps that build the truth base: the world should derive its truth
+from the entities it generated through this same derivation and then add what only a
+world knows, so the truth base and the base a live harness derives agree on what every
+field means by construction rather than by a table kept in step.
+
+The last review round showed what "two independent sources" does and does not check.
+The event's schedule fact — a half-open span built from the event's start and its end
+— cited the `start` field as its evidence, and so did the fixture's hand-written
+helper, so the equivalence test passed while proving only that two copies of one
+assumption agreed. An evidence reference is a locator for re-verification, and
+re-reading a start time cannot re-establish an interval. The schedule now cites the
+whole event record, the same shape a leave's absence uses when it cites the leave
+record, and the fixture changed with it; a direct assertion on the provenance was
+added so the shared assumption cannot hide again. The transferable lesson is that a
+consistency test between two artifacts written by the same hand checks the hand's
+consistency, not its correctness; independence has to be argued per assumption, and
+provenance is one the fixture did not independently hold. The same round caught a
+fixture comment written without the bracketed prefix a translated comment must carry,
+and a fixture named five-person that has held four people since it was written.
+
+Figure: the boundary as a pipeline — port observation → complete enumeration or
+natural window → entity translation → fact derivation → relationship filtering →
+closure — beside the before/after of the work reader's surface (owned-by and
+in-component gone, one enumerating read in their place).
+
 ## 2026-09-10 — The rules are questions to the fact base: a verdict table caught the veto the code had hidden, and "uncovered, not unknown" turned out to be arithmetic
 
 *M1 step 4 of the build plan, the deterministic core in `core/`: value specs, the fact
