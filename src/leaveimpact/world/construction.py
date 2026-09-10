@@ -474,14 +474,19 @@ def _conclusions(
     frame: Frame,
     org: OrgSpec,
 ) -> tuple[object, ...]:
-    """Everything the rules conclude in ``view``: every verdict with its reasons, every outcome."""
+    """Everything the rules conclude in ``view``: verdicts, reasons, open questions, outcomes."""
     universe = [employee.id for employee in org.employees]
     concluded: list[object] = []
     for expected in impacts:
         assessments = assess_impact(
             view, expected.key, universe, constraints, frame.leave, frame.reference_timezone
         )
-        verdicts = tuple((a.employee_id, a.verdict, a.reasons) for a in assessments)
+        # The unresolved questions travel too: an unknown for absence and an unknown for
+        # an unreachable source are different conclusions with one verdict, and the
+        # source that separates them was required.
+        verdicts = tuple(
+            (a.employee_id, a.verdict, a.reasons, a.unresolved) for a in assessments
+        )
         outcome = expected_action(
             (a.verdict for a in assessments), _required(view, expected.key, constraints, frame)
         )

@@ -150,6 +150,7 @@ class MeetingWithClause:
     the negative, which is what the required-sources derivation must catch.
     """
 
+    blank_candidate: bool = False
     name = ScenarioClassName.STRUCTURED_MEETING
     tier = Tier.FRAGMENTED
     affordance = "a Kafka holder, plus a leaver and a candidate with skills records lacking it"
@@ -158,9 +159,12 @@ class MeetingWithClause:
         kafka = skill_id("kafka")
         holders = {e.id for e in org.holders_of(kafka)}
         others = [e.id for e in org.employees if e.skills is not None and e.id not in holders]
-        if not holders or len(others) < 2:
+        blank = [e.id for e in org.employees if e.skills is None]
+        if not holders or len(others) < 2 or not blank:
             return ()
         leaver, candidate = others[0], others[1]
+        if self.blank_candidate:
+            candidate = blank[0]
 
         def plant(frame: Frame, rng: Random) -> Draft:
             visible = frame.window.start
@@ -189,7 +193,11 @@ class MeetingWithClause:
                 events=(Planted(event, visible),),
                 documents=(Planted(policy, visible),),
             )
-            lacking = AuthoredVerdict(candidate, Verdict.NON_VIABLE, (AssessmentReason.SKILL,))
+            lacking = (
+                AuthoredVerdict(candidate, Verdict.UNKNOWN)
+                if self.blank_candidate
+                else AuthoredVerdict(candidate, Verdict.NON_VIABLE, (AssessmentReason.SKILL,))
+            )
             expected = ExpectedImpact(impact, CoverageActionKind.ASSIGN, (lacking,))
             return Draft(
                 owned, leave.id, (expected,),
@@ -373,6 +381,13 @@ def test_a_source_needed_only_to_prove_a_negative_is_required() -> None:
     assert expected.must_assess[0].verdict is Verdict.NON_VIABLE
     assert Source.JIRA in scenario.key.required_sources
     assert set(scenario.key.required_sources) >= {Source.FRAPPE, Source.CALENDAR, Source.CORPUS}
+
+
+def test_a_source_that_turns_an_absent_unknown_into_an_inaccessible_one_is_required() -> None:
+    scenario = _construct(MeetingWithClause(blank_candidate=True))
+    (expected,) = scenario.key.impacts
+    assert expected.must_assess[0].verdict is Verdict.UNKNOWN
+    assert Source.JIRA in scenario.key.required_sources
 
 
 def test_a_draft_states_each_impact_once() -> None:
