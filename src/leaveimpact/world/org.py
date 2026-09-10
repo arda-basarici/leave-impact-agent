@@ -86,8 +86,12 @@ class OrgParams:
     two dimensions policy clauses and timezone distractors turn on; a share above zero
     also guarantees one contractor, so a contractor clause can always find its scope.
 
-    Validation rejects a shape the generator cannot honour, at construction and by name,
-    rather than failing somewhere inside a draw.
+    Validation here owns the generator's ranges and cross-field constraints, rejected at
+    construction and by name rather than somewhere inside a draw; scalar types are the
+    typed API's, checked where raw configuration enters the system (the generator entry
+    point, when it exists), not defended again here. A count that must exclude ``bool``
+    is a semantic value's concern, as with a requirement's count in ``core``; a
+    generator parameter has no caller that produces one by accident.
 
     >>> OrgParams(org_size=3, team_count=2)
     Traceback (most recent call last):
