@@ -1,10 +1,10 @@
 """World time: the run's ``now``, and the two interval conventions every date in the world obeys.
 
 Time is world state, never the machine's clock (DESIGN, "Time is world state"). A run
-receives a ``RunContext`` — which scenario, which world version, and ``now`` as an
-aware instant with the timezone a human reading it would use — and that is the
-reproducibility boundary: same scenario, same world version, same ``now`` gives the
-same evidence on any machine, months later. Nothing in ``core`` reads a clock; the
+receives a ``RunContext`` — which scenario, which world version, which leave is under
+investigation, and ``now`` as an aware instant with the timezone a human reading it
+would use — and that is the reproducibility boundary: same context gives the same
+evidence on any machine, months later. Nothing in ``core`` reads a clock; the
 composition root reads it once and builds a context, and the import law checks that
 by scanning for clock reads.
 
@@ -26,7 +26,9 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from leaveimpact.core.ids import ScenarioId, WorldVersion
+from leaveimpact.core.enums import EntityKind
+from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion
+from leaveimpact.core.refs import require_id
 
 
 def require_aware(instant: datetime, what: str) -> datetime:
@@ -176,19 +178,29 @@ class InstantSpan:
 
 @dataclass(frozen=True, slots=True)
 class RunContext:
-    """What a run is: the scenario, the world version, and ``now`` — the reproducibility boundary.
+    """What a run is: the scenario, the world version, the leave under investigation, and ``now``.
 
-    ``now`` is an aware instant; ``reference_timezone`` is the IANA zone a human reads it
-    in — the organization's, unless a scenario says otherwise — and ``today`` is the
-    calendar day that reading gives. Run provenance (which harness commit, which model,
-    which truth digest) is a separate record the evaluator milestone owns; this context
-    holds only what changes the evidence.
+    The reproducibility boundary: same scenario, same world version, same leave, same
+    ``now`` gives the same evidence on any machine. ``now`` is an aware instant;
+    ``reference_timezone`` is the IANA zone a human reads it in — the organization's,
+    unless a scenario says otherwise — and ``today`` is the calendar day that reading
+    gives. Run provenance (which harness commit, which model, which truth digest) is a
+    separate record the evaluator milestone owns; this context holds only what changes
+    the evidence.
+
+    ``leave_id`` is an identifier and nothing more: run inputs identify what to
+    investigate, and ports establish the facts about it. The leave record, its
+    employee and its span are read through the people port, so they are evidence the
+    run established and a scenario can contradict, never a truth the harness told it.
+    The investigator may not learn the leave from ``world``, which is why it travels
+    here (ruled at step 5 of the world milestone's build).
 
     >>> from datetime import UTC
-    >>> from leaveimpact.core.ids import ScenarioId, WorldVersion
+    >>> from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion
     >>> context = RunContext(
     ...     ScenarioId("scenario_003"),
     ...     WorldVersion("4f2c"),
+    ...     LeaveId("leave_005"),
     ...     datetime(2026, 9, 14, 22, 30, tzinfo=UTC),
     ...     "Europe/Istanbul",
     ... )
@@ -198,10 +210,12 @@ class RunContext:
 
     scenario_id: ScenarioId
     world_version: WorldVersion
+    leave_id: LeaveId
     now: datetime
     reference_timezone: str
 
     def __post_init__(self) -> None:
+        require_id(EntityKind.LEAVE, self.leave_id)
         require_aware(self.now, "now")
         zone(self.reference_timezone)
 

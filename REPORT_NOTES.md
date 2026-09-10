@@ -7,6 +7,117 @@ decisions it feeds.
 
 ---
 
+## 2026-09-10 — The rules are questions to the fact base: a verdict table caught the veto the code had hidden, and "uncovered, not unknown" turned out to be arithmetic
+
+*M1 step 4 of the build plan, the deterministic core in `core/`: value specs, the fact
+base with gaps and the run condition, closure, the authority table, the viability
+rule, the plan side, the chain checks (commits `bc8582a`, `8cafa99`, `f30451d`, with
+review follow-ups `8d5a192`, `b8f3805`, `5b5fc4c`; 221 tests including doctests at
+the seal). Feeds: the M1 report's deterministic-core and evaluation-design sections
+— why the same rule functions serve the generator and the evaluator, and what
+"derived per run condition" costs in practice; the M1 post.*
+
+The step opened with a five-question interview, one ruling per exchange, and each
+answer went past an external low-context reviewer before it was ruled. That loop
+earned its keep in the first question. The proposal was that a fact's value shape is
+the predicate's to declare — a value spec on each registry row, validated at
+construction and mirrored as the JSON tag — with a single `Requirement(count,
+skill)` shape for what a clause asks. The reviewer wanted the requirement's criterion
+tagged on the wire so a sealed answer key survives a later grade or country
+criterion; the counter-argument was that a one-variant union is structure ahead of
+need. The compromise was to tag the wire and keep Python narrow. One question later
+the ruling on `hard_rule` — a policy criterion such as "an employee, not a
+contractor" living inside the same requirement — made the union real, and the wire
+shape was already right. The lesson the report can carry is about sealed artifacts:
+a format decision is cheap before the first world is sealed and expensive after,
+which is the one place where "you aren't going to need it" loses to a tag.
+
+Two rulings shaped everything downstream. Absence became a record of its own: a
+`Gap` says the record was observed and the field held no value, planted where a
+scenario class plants missing information, and never a failed read — a failed read
+is the run condition, a set of reachable sources passed beside the run context
+because one scenario runs under several. That split lets closure read in five steps:
+a positive fact is known true, a domain source unreachable in this run is unknown for
+inaccessibility, a gap is unknown for absence, an open domain is unknown for
+insufficiency, and only then is zero evidence false. The second ruling kept a
+requirement's count away from any individual: criteria assess a person, the count
+judges a plan, so one viable person against a two-person clause is a viable candidate
+and an invalid plan. `load` was pruned from the reasons a candidate can fail for —
+no first-set scenario names it, and a threshold would be either a constant the agent
+can only be told or a clause no scenario uses; it returns when a class gives it
+semantics.
+
+The build ran in three commits, reviewed as foundation first and dependents together.
+The moment worth telling is in part 2. Once the viability rule existed, the five-person
+test fixture was run under three conditions — every source reachable, the tracker
+down, the calendar down — and the verdicts printed as a table for Arda's read. One row
+was wrong on sight: with the tracker down, the ticket's component could not be read,
+and the code had marked the whole need unresolved, so the leaver herself showed as
+*unknown* although her leave was a known failure. The ruling said a known failure
+dominates an unresolved question; the code had let one unreadable fact veto every
+other criterion. The fix made an unreadable component one unresolved criterion and
+kept the leave window — a run input, not a fact the rule establishes, since a run
+whose HR system is down still knows which leave it investigates. A meeting whose
+schedule is unreachable stays an unresolved need for everyone, because without the
+window no criterion has anything to ask. The table caught what the tests had not,
+because the tests encoded the same assumption the code did.
+
+The same table produced the case the post should open with. The release meeting's
+clause asks for two Kafka engineers who are employees. With the tracker down, one
+candidate's Kafka lives only in a ticket comment and reads inaccessible; the other
+three are settled — on leave, in an overlapping meeting, a contractor. The expected
+outcome is *uncovered*, not *unknown*. That looks like a mistake until the rule is
+read: with `V` viable and `U` unknown against a required `n`, the outcome is assign
+when `V ≥ n`, uncovered when `V + U < n`, unknown otherwise. Here `V + U = 1 < 2`:
+even if the unknown resolved in the candidate's favour, one person cannot fill a
+two-person clause, so the epistemic gap does not change the answer. The formula
+reasons about what the unknowns could become, and "uncovered" here is a certain
+conclusion, not caution. That is the distinction the vocabulary was built to make
+measurable, showing up unprompted in a fixture.
+
+The two review rounds found five things, every one reproduced against the shipped
+code before it was adopted, which matters because the reviewer could not run the
+suite and worked from the pushed diffs. The one that would have bitten silently: the
+closure function validated the subject of a query but not the value, so asking
+whether someone holds `"Kafka"` where a lower-case slug is declared returned a known
+false rather than raising — a programming error turned into a statement about the
+world. The one I got wrong: the reviewer asked for a runtime check that a
+requirement's criteria are the criterion classes, and I left it out as "the type
+checker's job". The reviewer's follow-up showed the chain: the value spec admitted
+the object, and the codec's unreachable branch would have failed with an assertion
+instead of a `ValueError`. The codebase's own rule, that an object which exists is
+valid, applied, and the check went in shaped so the strict type checker does not flag
+it as redundant. The one that reached back: a source-conflict claim could describe a
+skill set or two sources agreeing, neither a disagreement — a hole from the
+claim-vocabulary step that only became observable once the chain checks trusted the
+claim. It is now refused at both levels, the claim constructor and the authority
+rule, because the two answer different questions: can a report represent this, and
+may the table resolve this.
+
+The last finding drew the boundary the evaluator will live on. The chain checks read
+a report alone and never ask the fact base; an unknown assessment must derive from
+unknown claims shaped as the rule emits them. A clause-shaped unknown originally
+passed for any clause, so an assessment could be justified by an unrelated policy.
+The tightening: the clause must be one the report's own constraint claims cite for
+something that could apply to the impact — the artifact itself, or a component when
+the artifact is a ticket. Whether the ticket really belongs to that component is
+truth, and stays the evaluator's; that the report has not justified an unknown with a
+stranger's clause is coherence, and the checker can say so from the report. Report-
+internal versus truth-dependent is the same line the uncovered check keeps: a report
+with no viable assessment passes the chain check even if it simply stopped assessing,
+and a separate completeness check that takes the candidate universe is where the
+world enters.
+
+[PRELIMINARY — the fixture is five people and two impacts; the first generated world
+at step 13 is where these rules meet thirty scenarios and the tool-failure runs, and
+where the "every non-skilled candidate turns unknown when the tracker is down"
+behaviour, correct under the closure rule, gets its first measured cost.]
+
+Figure: the fixture's verdict table — four people × two impacts × three run
+conditions, verdict and reason per cell, expected outcome per row (regenerable from
+`tests/unit/world_fixture.py` and `assess_impact`); the "uncovered with one unknown"
+cell annotated with the `V + U < n` arithmetic.
+
 ## 2026-09-09 — The gate had a name all along: the 5-series block is an account review, and the public threads never said so
 
 *M0's trailing thread, the Bedrock Support case (case 178776610200708; detail in

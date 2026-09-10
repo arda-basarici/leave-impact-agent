@@ -536,9 +536,10 @@ a domain rule (`component`); not on leave over the need's window, the investigat
 leave's span for a deadline or responsibility and the event's own span for a
 meeting, read in the run's reference timezone, and not attending another event
 overlapping a meeting (`availability`); the requirement's policy criteria
-(`hard_rule`). The investigated leave's span is a run input to the rule, never a
-fact it establishes: a run whose HR system is unreachable still knows which leave it
-investigates. An unreadable work-item component is one unresolved criterion, not an
+(`hard_rule`). The investigated leave's span is a parameter of the rule, never a fact the rule
+establishes; who supplies it differs — the evaluator from the scenario spec, the
+investigator from the leave record it read through the people port (the ports
+ruling, below). An unreadable work-item component is one unresolved criterion, not an
 unresolved need, so a known failure still settles a candidate; an unreadable meeting
 schedule leaves no window to ask about and is an unresolved need for everyone. `load` is pruned: no first-set
 class names it, and a threshold would be either a domain constant the agent can
@@ -868,6 +869,57 @@ checks (the `must_assess` invariant, the class invariant) are construction
 invariants in `world`, pure, run by the generator before sealing; the validator
 verifies that projection realized the declared world by reading the world spec
 and the live systems, and never reads truth.
+
+**The ports in code (ruled 2026-09-10, step 5 of the M1 build).** A port returns
+observed domain entities — an entity with the source it was read from — and never
+facts: `core` derives facts and gaps from an observed entity in one deterministic
+derivation, so an adapter translates vendor shape and identity and never decides what
+is true, and the gap logic closure depends on lives beside closure rather than in four
+vendor modules. The wrapper carries only the source; the record's reference is
+computed from the entity's own id, and the source is explicit rather than inferred
+from the type because the registry keys conflicts by source and a second system
+claiming the same kind of record is a designed-for case. The corpus is the exception
+and not a reason to return facts: a document section is an id and text, `requires` is
+a normative fact the world's structured brief supplies to the truth fact base, and the
+extraction check at generation time never becomes truth, so the document port searches
+and returns text and derives nothing; the investigator establishes which clause
+applies and cites it, never transcribing content, the plan check resolves the citation
+to the truth's `requires` fact, and no extraction seam exists anywhere. Reading and
+writing are two modules, `core/ports/read` and `core/ports/write`, so read-only is a
+property of the module graph: the import law lets only `adapters` and `generator`
+import `core.ports.write` — an allowlist over every module that names it, since a
+re-export from `core/__init__` would put a writer behind an import the law reads as
+`core` — and the validator and the investigator are readers by construction, the
+investigator milestone's role-scoped principle landing at the type level before the
+investigator exists. The writers have one production consumer and are a port anyway,
+for the least-privilege type and for the in-memory implementation of both sides that
+lives under `tests` as shared infrastructure (an `adapters/memory` package would call
+memory an external system); hexagonal symmetry is not the reason. A writer adds and
+never finds — find-or-create is the projector's, reading by domain id and adding what
+is missing — and returns the record's locator in the source, an opaque receipt the
+world manifest records; vendor ids otherwise stay inside the adapter's identity map.
+`RunContext` carries the leave under investigation as `leave_id` and nothing more:
+run inputs identify what to investigate, ports establish the facts about it, so the
+leave record, its employee and its span are read through the people port as evidence
+a scenario can contradict, and the investigator, which may not import `world`, learns
+the leave from the context. If the authoritative leave record cannot be read, the run
+continues degraded and surfaces the resulting unknowns rather than inventing the span
+— with no interval, everything downstream is unknown, not only `on_leave` — and how
+that grades is the evaluator's design. A port reports three outcomes three ways,
+because closure treats them differently: a record that is not there is a `None` or an
+empty tuple — missing data is evidence, what its absence means is closure's, and it is
+never a gap, which says an observed record lacked a field; a source that cannot answer
+after the adapter's retries raises `SourceUnreachable` — an epistemic limit the run
+condition records; a record the adapter cannot translate raises `MalformedRecord`,
+with an opaque source-side locator because translation can fail before a domain
+identity exists — a defect, never an unknown. The two exceptions share no base so one
+clause cannot catch both, a vendor exception never leaves its adapter, and the fault is
+per call: the first `SourceUnreachable` marks the source unreachable for the rest of
+the run and stops the calls, facts already read stay facts because closure checks a
+positive fact before reachability, and `RunCondition` describes the run as it ended.
+In the world milestone `MalformedRecord` crashes the generator and the validator,
+whose job catching a malformed projection is; whether the investigator degrades
+instead is its milestone's runtime policy.
 
 **Only the packages the world milestone needs are created at its scaffold** —
 `core`, `world`, `adapters`, `generator`, `validator`. The structural test carries

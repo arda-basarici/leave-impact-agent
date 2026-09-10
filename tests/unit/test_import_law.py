@@ -7,9 +7,10 @@ benchmark (``world``, ``generator``, ``validator``, ``evaluator``), so the answe
 is unreachable at source level and not only by credential. The rank-3 shells never
 import one another, so the validator's read-only role and the evaluator's independence
 from the generator are architectural rather than aspirational. Sibling adapters never
-import one another. The pure packages import no I/O library — a cheap guard, not a proof
-of purity. World time comes only from an explicit ``RunContext``: the wall clock is read
-at a composition root and nowhere else.
+import one another. The write ports are imported only by ``adapters`` and ``generator``,
+so the validator and the investigator are read-only at source level. The pure packages
+import no I/O library — a cheap guard, not a proof of purity. World time comes only from
+an explicit ``RunContext``: the wall clock is read at a composition root and nowhere else.
 
 The law refuses to fail open (the SteamLens precedent): every package under ``src`` must
 hold a rank before the build accepts it; relative imports — which the edge scan cannot
@@ -50,6 +51,11 @@ _DENIED_EDGES: dict[str, frozenset[str]] = {
     "agent": frozenset({"world", "generator", "validator", "evaluator"}),
     "app": frozenset({"world", "generator", "validator", "evaluator"}),
 }
+# The write ports are a capability, not a domain name: only the packages that realize a
+# world may import the module that declares them. An allowlist rather than a denied
+# edge, so a re-export from anywhere else (``core/__init__`` included) is caught too.
+_WRITE_PORTS = ("core", "ports", "write")
+_WRITE_PORT_IMPORTERS = frozenset({"adapters", "generator"})
 _PURE = frozenset({"core", "world"})
 # The top level is the package docstring and the composition root, nothing else: a module
 # here has no rank, so the edge scan could not see what it re-exports.
@@ -238,6 +244,26 @@ def test_denied_edges() -> None:
                     f"{'.'.join(parts)} ({src_pkg}) imports '{dst_pkg}' across a trust boundary"
                 )
     assert not violations, "denied-edge violations:\n" + "\n".join(violations)
+
+
+def test_write_ports_are_imported_only_by_the_packages_that_realize_a_world() -> None:
+    """Read-only is a property of the module graph: a writer is reachable by one module path.
+
+    The readers are re-exported from ``leaveimpact.core`` like every domain name; the
+    writers are not, and this test is why — a re-export would put a writer behind an
+    import the law reads as ``core``. So the rule is an allowlist over every module
+    that names ``core.ports.write``: the adapters that implement it and the generator
+    that projects through it, nothing else, ``core`` itself included.
+    """
+    violations: list[str] = []
+    for path, parts in _modules():
+        src_pkg = _package(parts)
+        for imported in _intra_imports(path):
+            if tuple(imported[1:4]) == _WRITE_PORTS and src_pkg not in _WRITE_PORT_IMPORTERS:
+                violations.append(f"{'.'.join(parts)} imports the write ports")
+    assert not violations, "write ports imported outside adapters and generator:\n" + "\n".join(
+        violations
+    )
 
 
 def test_sibling_adapters_do_not_import_one_another() -> None:

@@ -6,11 +6,12 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from leaveimpact.core.ids import ScenarioId, WorldVersion
+from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, leave_id
 from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_date
 
 SCENARIO = ScenarioId("scenario_003")
 WORLD = WorldVersion("4f2c")
+LEAVE = leave_id(5)
 
 
 def _utc(day: int, hour: int, minute: int = 0) -> datetime:
@@ -19,18 +20,24 @@ def _utc(day: int, hour: int, minute: int = 0) -> datetime:
 
 def test_a_naive_now_is_refused_by_name() -> None:
     with pytest.raises(ValueError, match="now must be timezone-aware"):
-        RunContext(SCENARIO, WORLD, datetime(2026, 9, 14, 9, 0), "Europe/Istanbul")
+        RunContext(SCENARIO, WORLD, LEAVE, datetime(2026, 9, 14, 9, 0), "Europe/Istanbul")
+
+
+def test_a_leave_id_outside_the_leave_namespace_is_refused() -> None:
+    with pytest.raises(ValueError, match="a leave id has the form leave_NNN"):
+        RunContext(SCENARIO, WORLD, LeaveId("emp_017"), _utc(14, 9), "Europe/Istanbul")
 
 
 def test_an_unknown_reference_zone_is_refused_by_name() -> None:
     with pytest.raises(ValueError, match="Mars/Olympus"):
-        RunContext(SCENARIO, WORLD, _utc(14, 9), "Mars/Olympus")
+        RunContext(SCENARIO, WORLD, LEAVE, _utc(14, 9), "Mars/Olympus")
 
 
 def test_today_is_read_in_the_reference_zone_not_utc() -> None:
     late_utc = _utc(14, 22, 30)
-    assert RunContext(SCENARIO, WORLD, late_utc, "Europe/Istanbul").today == date(2026, 9, 15)
-    assert RunContext(SCENARIO, WORLD, late_utc, "Europe/London").today == date(2026, 9, 14)
+    istanbul = RunContext(SCENARIO, WORLD, LEAVE, late_utc, "Europe/Istanbul")
+    london = RunContext(SCENARIO, WORLD, LEAVE, late_utc, "Europe/London")
+    assert (istanbul.today, london.today) == (date(2026, 9, 15), date(2026, 9, 14))
 
 
 def test_local_date_refuses_a_naive_instant() -> None:

@@ -19,7 +19,10 @@ world time arrives in ``RunContext``, and the wall clock is read only at a compo
 root. Populated step by step through the world milestone; the layout is the decision.
 
 Callers import the public names from the package (``from leaveimpact.core import
-Employee``); the module split is a navigation aid, not part of the contract.
+Employee``); the module split is a navigation aid, not part of the contract — with
+one exception: the write ports are imported only by their module path,
+``leaveimpact.core.ports.write``, and only by ``adapters`` and ``generator``, because
+the import law enforces read-only on that path and a re-export here would launder it.
 """
 
 from leaveimpact.core import (
@@ -34,6 +37,7 @@ from leaveimpact.core import (
     ids,
     jsonshape,
     plans,
+    ports,
     predicates,
     refs,
     values,
@@ -128,6 +132,14 @@ from leaveimpact.core.plans import (
     plan_violations,
     required_count,
 )
+from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.ports.observed import KIND_BY_ENTITY_TYPE, Entity, Observed
+from leaveimpact.core.ports.read import (
+    CalendarReader,
+    DocumentReader,
+    PeopleReader,
+    WorkReader,
+)
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
@@ -189,6 +201,7 @@ __all__ = [
     "ids",
     "jsonshape",
     "plans",
+    "ports",
     "predicates",
     "refs",
     "values",
@@ -201,6 +214,7 @@ __all__ = [
     "DATE_SPAN_VALUE",
     "DATE_VALUE",
     "INSTANT_SPAN_VALUE",
+    "KIND_BY_ENTITY_TYPE",
     "PREFIX_BY_KIND",
     "REGISTRY",
     "REQUIREMENT_VALUE",
@@ -212,6 +226,7 @@ __all__ = [
     "AssessmentReason",
     "AuthorityRule",
     "CalendarEvent",
+    "CalendarReader",
     "CandidateAssessment",
     "Claim",
     "ClaimId",
@@ -234,11 +249,13 @@ __all__ = [
     "Document",
     "DocumentId",
     "DocumentKind",
+    "DocumentReader",
     "DocumentSection",
     "Employee",
     "EmployeeId",
     "EmploymentType",
     "EmploymentTypeCriterion",
+    "Entity",
     "EntityKind",
     "EntityRef",
     "EventId",
@@ -261,8 +278,11 @@ __all__ = [
     "LeaveId",
     "LeaveKind",
     "LeaveStatus",
+    "MalformedRecord",
     "Need",
     "Observation",
+    "Observed",
+    "PeopleReader",
     "Predicate",
     "PredicateName",
     "Requirement",
@@ -275,6 +295,7 @@ __all__ = [
     "SkillId",
     "Source",
     "SourceConflict",
+    "SourceUnreachable",
     "Team",
     "TeamId",
     "Unknown",
@@ -289,6 +310,7 @@ __all__ = [
     "WorkItem",
     "WorkItemId",
     "WorkItemStatus",
+    "WorkReader",
     "WorldVersion",
     "any_true",
     "applicable_requirements",
