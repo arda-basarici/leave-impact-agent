@@ -6,8 +6,9 @@ two properties hold at once: the same seed yields the same organization, and the
 namespace guard on materialized prose (DESIGN, "The generator: pure specification,
 materialized prose, frozen world") has a finite, known set of words to check against.
 A change here that can alter a generated world therefore bumps ``GENERATOR_VERSION``;
-``vocabulary_digest`` beside the recorded value in ``world.version`` makes an unbumped
-edit fail a test rather than silently re-cut every world built from an old seed.
+``vocabulary_digest`` against the value recorded in ``world.version`` makes any edit fail
+a test until that file is touched, so the version bump is visible in the same diff
+instead of every world built from an old seed being silently re-cut.
 
 Curated tables replaced a faker library on purpose. The tables are a few dozen entries,
 a library's seeded output has changed across its releases (which would put the

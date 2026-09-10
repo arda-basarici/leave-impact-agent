@@ -119,11 +119,12 @@ property.
 - **The purity guard is a banned-import list, not an allowlist.** It catches the
   libraries this project actually uses for I/O and misses `open()`; the pure packages
   are also reviewed as pure. Revisit if the guard ever proves thin in review.
-- **The generator-version rule is enforced for the vocabulary, stated for the
-  algorithm.** A recorded digest of the vocabulary tables fails the suite when a table
-  changes without a version bump; an unbumped change to the drawing algorithm is caught
-  only in review until the frozen bundle exists, whose content hash for a reference seed
-  becomes the snapshot that catches both. Revisit at the bundle step.
+- **The generator-version rule is made visible, not proven.** A recorded digest of the
+  vocabulary tables and a recorded interpreter minor version fail the suite when either
+  changes, so the fix lands in the same file as the version and the diff shows whether
+  the version moved; whether it did is review's call, and an unbumped change to the
+  drawing algorithm is review's alone. The frozen bundle's content hash for a reference
+  seed becomes the snapshot that catches all three. Revisit at the bundle step.
 - **No ports beyond the four the generator and investigator share.** The prose
   renderer has one consumer and stays a seam inside its adapter. A port is added when a
   second consumer appears, not before. The write side of each port has one production

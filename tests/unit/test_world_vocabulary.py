@@ -5,6 +5,7 @@ the edit must travel with a generator-version bump; the recorded digest makes th
 fail until ``world.version`` is touched, and the diff then shows whether the version moved.
 """
 
+import sys
 from zoneinfo import ZoneInfo
 
 from leaveimpact.core.ids import SKILL_ID
@@ -17,7 +18,7 @@ from leaveimpact.world import (
     TEAM_NAMES,
     vocabulary_digest,
 )
-from leaveimpact.world.version import GENERATOR_VERSION, VOCABULARY_DIGEST
+from leaveimpact.world.version import GENERATOR_PYTHON, GENERATOR_VERSION, VOCABULARY_DIGEST
 
 
 def test_every_table_is_collision_free() -> None:
@@ -56,4 +57,13 @@ def test_the_vocabulary_matches_the_digest_recorded_for_this_generator_version()
     assert vocabulary_digest() == VOCABULARY_DIGEST, (
         f"the vocabulary changed under generator version {GENERATOR_VERSION}: bump "
         "GENERATOR_VERSION and re-record VOCABULARY_DIGEST in world/version.py"
+    )
+
+
+def test_the_interpreter_is_the_one_this_generator_version_was_recorded_under() -> None:
+    assert sys.version_info[:2] == GENERATOR_PYTHON, (
+        f"Python {sys.version_info[0]}.{sys.version_info[1]} is not the interpreter generator "
+        f"version {GENERATOR_VERSION} was recorded under; random's higher-level draws may "
+        "differ: inspect what the generator now produces, bump GENERATOR_VERSION, update "
+        "GENERATOR_PYTHON, re-cut the frozen worlds"
     )

@@ -147,6 +147,9 @@ def test_params_reject_shapes_the_generator_cannot_honour() -> None:
         OrgParams(team_count=1)
     with pytest.raises(ValueError, match="org_size"):
         OrgParams(org_size=9, team_count=5)
+    with pytest.raises(ValueError, match="distinct names"):
+        OrgParams(org_size=601)
+    assert len(generate_org(1, OrgParams(org_size=600)).employees) == 600
     with pytest.raises(ValueError, match="component_count"):
         OrgParams(component_count=0)
     with pytest.raises(ValueError, match="blank_skill_records"):

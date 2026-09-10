@@ -114,6 +114,12 @@ class OrgParams:
                 f"org_size must be at least {_COMPONENT_MEMBERS[1]} and at least twice "
                 f"team_count, got {self.org_size} for {self.team_count} teams"
             )
+        name_capacity = len(GIVEN_NAMES) * len(FAMILY_NAMES)
+        if self.org_size > name_capacity:
+            raise ValueError(
+                f"org_size must be at most {name_capacity} (the distinct names the vocabulary "
+                f"can form), got {self.org_size}"
+            )
         if not 1 <= self.component_count <= len(COMPONENT_NAMES):
             raise ValueError(
                 f"component_count must be between 1 and {len(COMPONENT_NAMES)} "
