@@ -871,6 +871,66 @@ verdict. The first Tier 1 class, `structured_deadline`, and the first modifier,
 member, the near-miss the leaver's own teammate outside the component, and the look-alike
 enters the world on its resolution date, never before.
 
+**The assembled world in code (ruled 2026-09-11, step 8 of the M1 build).** A scenario
+is correct locally against its key; a world is correct globally over the history
+observable at each scenario's `now`. The golden set is therefore valid only after every
+scenario has been re-verified against the complete assembled world, at its `now` and
+across its declared stable interval: the fact base is world-level and time-filtered, so a
+record one scenario plants can change a verdict in another slice months later, which
+per-scenario verification cannot see. The re-check is the same verification over the
+union of every planted record. Global contamination is a construction error that names
+the scenario, the verdict or outcome that changed, expected against actual, the foreign
+record with its owning scenario and its observable-from date — and never triggers a
+repair or a redraw, since a world that needs re-draws is a class whose affordance is
+under-specified. Attribution costs nothing because planted records are only ever added:
+a verdict can only flip toward more established facts, and the flipped verdict's own
+evidence names the foreign record. Preventing contamination by construction was rejected
+as rejection sampling by another name, and it cannot hold once a Tier 2 comment is meant
+to be admissible months after its slice. The world plan is data: a seeded table of tier,
+class and modifiers per scenario, recorded in the world manifest and produced by one
+compatibility-aware planner under a stated rule — the golden set's Tier 1 counts, every
+modifier on at least two scenarios, at most two modifiers on any scenario, at least two
+scenarios with none. Compatibility is a static class-by-modifier matrix declared in code
+and proven by the seed sweep, since no draft exists when the plan is made; a plan the
+rule cannot satisfy fails by name rather than relaxing a constraint. Independent draws
+per scenario were rejected because at ten rows a modifier can land zero times, and
+"measured on structured evidence" would then have no rows behind it. The clean rows are
+a baseline, not a causal isolation: ten rows on different scenarios compare low against
+higher distractor pressure and do not measure one modifier's effect. Two is the cap
+because the collision rules were tested on pairs and the composite classes own "several
+things at once". The same planner serves Tiers 2 and 3 with more rows; the plan rules
+are generator semantics and bump the version. The timezone affordance is guaranteed by
+the organization, on the contractor precedent: at least one employee whose zone differs
+from the reference zone by a fixed minimum of hours (a cheap dial) at every instant of a
+full calendar year — DST-aware and date-free, so the invariant is checkable by the org
+generator alone, which never knows what scenarios plan; the reference zone becomes an
+org parameter under the dial rule. The modifier chooses that far attendee independently
+of the leaver, who still attends: the far colleague makes the instant plausible working
+time, and the event sits at the leave's edge so that its instant is outside the leave in
+reference-zone truth and inside it under a wrong-zone or UTC reading. Offsets are
+computed at the planted instant, never as city constants. Truth stays exclusively
+reference-zone based. Leaving the affordance to seed luck was rejected as rejection
+sampling at world level; deferring the modifier to Tier 3 contradicts the golden set.
+
+**The world bundle and its version (ruled 2026-09-11, step 8 of the M1 build).**
+`WorldSpec` is the pure composed bundle: the organization, the plan, the scenarios, the
+world-level fact base derived after assembly, and the provenance (seed, org parameters,
+generator version, interpreter minor version, vocabulary digest). Three artifacts serve
+three readers. The world manifest — organization, plan, provenance, and the content
+hashes of the other two files, so a swapped file is visible — is read by the projectors
+and the validator. The scenario specs hold the agent-visible rows only. The truth
+manifest is evaluator-only: the keys, the construction and observability records the
+audit reads, and the dated fact base. Canonical serialization and digests are pure and
+live in `world`; writing, sealing and the assumed role belong to the generator entry
+point. The world version is the digest of the realized bundle — the three canonical byte
+sequences in a fixed order — never of the recipe, because the interpreter finding is
+exactly a case where the recipe holds and the realization drifts; the version is
+external metadata of the bundle and is never serialized into a hashed artifact, which
+would define it circularly. A reference seed's hash is recorded beside the generator
+version as a pair, so a changed hash with an unchanged version fails the suite, and
+re-cutting the pair is the deliberate act that accompanies a bump. The interpreter's
+minor version is part of realization identity; a patch release does not move the hash.
+
 ---
 
 ## Package boundaries and the import law (2026-09-09)

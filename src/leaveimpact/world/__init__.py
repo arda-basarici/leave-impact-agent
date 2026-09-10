@@ -66,7 +66,7 @@ from leaveimpact.world.slices import (
     place_now,
     stable_interval,
 )
-from leaveimpact.world.structured import StructuredDeadline
+from leaveimpact.world.structured import StructuredDeadline, StructuredMeeting, StructuredMixed
 from leaveimpact.world.truth_facts import (
     SYSTEM_OF,
     derive_org,
@@ -136,6 +136,8 @@ __all__ = [
     "ScenarioSpec",
     "Skill",
     "StructuredDeadline",
+    "StructuredMeeting",
+    "StructuredMixed",
     "Tier",
     "VerdictOverride",
     "allocate_slices",
