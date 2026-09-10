@@ -1,4 +1,4 @@
-"""Derivation: the five-person fixture rebuilt from entities derives exactly the facts and the gap
+"""Derivation: the four-person fixture rebuilt from entities derives exactly the facts and the gap
 the hand-written base holds for the same records — two independent sources agreeing — and each
 field's absence means what the module says: a gap for a missing skills field, zero facts for a
 missing due date or manager, nothing for a requested leave, a comment or a document."""
@@ -15,6 +15,7 @@ from leaveimpact.core import (
     DocumentSection,
     Employee,
     EmploymentType,
+    EvidenceRef,
     Fact,
     Gap,
     Grade,
@@ -28,6 +29,7 @@ from leaveimpact.core import (
     WorkItemStatus,
     derive,
     employee_ref,
+    event_ref,
 )
 from leaveimpact.core.entities import WorkItem
 from leaveimpact.core.ids import EmployeeId, clause_id, document_id, team_id
@@ -73,7 +75,15 @@ TICKET = Observed(
         opened_on=date(2026, 8, 20),
         resolved_on=None,
         due_on=date(2026, 9, 17),
-        comments=(Comment(w.DENIZ_COMMENT, w.COMMENT_DATE, w.DENIZ, "Deniz led the Kafka work."),),
+        # A translated comment keeps its bracketed prefix whole — the entity's contract.
+        comments=(
+            Comment(
+                w.DENIZ_COMMENT,
+                w.COMMENT_DATE,
+                w.DENIZ,
+                f"[{w.COMMENT_DATE.isoformat()}, {w.DENIZ} — Deniz] Deniz led the Kafka work.",
+            ),
+        ),
     ),
     Source.JIRA,
 )
@@ -174,6 +184,14 @@ def test_a_requested_leave_a_comment_a_team_and_a_document_derive_nothing() -> N
         (DocumentSection(clause_id(11), "One Kafka engineer covers."),),
     )
     assert derive(Observed(policy, Source.CORPUS), w.WORLD_START) == ()
+
+
+def test_a_schedule_cites_the_whole_event_record_because_its_span_needs_both_ends() -> None:
+    release = derive(RELEASE, w.WORLD_START)
+    scheduled = next(item for item in release if item.predicate is PredicateName.SCHEDULED_AT)
+    assert scheduled.evidence == EvidenceRef(Source.CALENDAR, event_ref(w.RELEASE))
+    attends = [item for item in release if item.predicate is PredicateName.ATTENDS_EVENT]
+    assert {item.evidence.field for item in attends} == {"attendee_ids"}
 
 
 def test_the_caller_dates_every_fact_and_the_source_is_the_observation_s() -> None:

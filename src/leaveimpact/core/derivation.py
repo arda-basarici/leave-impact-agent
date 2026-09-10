@@ -152,7 +152,13 @@ def derive_work_item(
 
 
 def derive_event(observed: Observed[CalendarEvent], observable_from: date) -> tuple[Derived, ...]:
-    """The schedule as one fact and attendance as one fact per attendee, about the event."""
+    """The schedule as one fact and attendance as one fact per attendee, about the event.
+
+    The schedule cites the whole event record, not a field: the span is synthesized
+    from ``start`` and ``end`` together, and an evidence reference is a locator for
+    re-verification, so naming one field could not re-establish the value (found at
+    the step-5 review). Same shape as a leave's absence citing the leave record.
+    """
     event = observed.value
     subject = observed.ref
     return (
@@ -160,7 +166,7 @@ def derive_event(observed: Observed[CalendarEvent], observable_from: date) -> tu
             subject,
             PredicateName.SCHEDULED_AT,
             event.span,
-            EvidenceRef(observed.source, subject, "start"),
+            EvidenceRef(observed.source, subject),
             observable_from,
         ),
         *(

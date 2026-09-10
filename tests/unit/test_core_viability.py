@@ -1,4 +1,4 @@
-"""The viability rule over the five-person world: each criterion fails for the right reason, a
+"""The viability rule over the four-person world: each criterion fails for the right reason, a
 known failure dominates an unresolved question, an unresolved question makes the verdict
 unknown with the fact it rests on, the count never enters, and the need itself is read
 from the fact base."""

@@ -1,4 +1,4 @@
-"""A five-person fact base the rule tests share: one story, read by the fact-base, closure,
+"""A four-person fact base the rule tests share: one story, read by the fact-base, closure,
 authority, viability and plan-check tests alike.
 
 Alice (``emp_017``) is on leave 15–19 September and owns a Kafka ticket due inside it;
@@ -131,7 +131,7 @@ def scheduled(event: EventId, span: InstantSpan) -> Fact:
         event_ref(event),
         PredicateName.SCHEDULED_AT,
         span,
-        EvidenceRef(Source.CALENDAR, event_ref(event), "start"),
+        EvidenceRef(Source.CALENDAR, event_ref(event)),
         WORLD_START,
     )
 
