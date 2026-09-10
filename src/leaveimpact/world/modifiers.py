@@ -40,18 +40,24 @@ class AlreadyResolved:
 
     The near-miss reads as an impact to anyone who filters by owner and due date without
     checking status, and the key names it with the reason so that false positive lands in
-    the already-resolved bucket. Admissible over every open ticket the draft owns, in
-    draft order; a draft without a ticket affords nothing.
+    the already-resolved bucket. Admissible over every open ticket the leaver owns in the
+    draft, in draft order — a ticket someone else owns is not the leaver's work and would
+    make a weak near-miss — so a draft without such a ticket affords nothing.
     """
 
     name = ModifierName.ALREADY_RESOLVED
-    affordance = "an open owned ticket to shadow"
+    affordance = "an open ticket owned by the leaver"
 
     def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
+        leaver = next(
+            planted.entity.employee_id
+            for planted in draft.owned.leaves
+            if planted.entity.id == draft.investigated
+        )
         return tuple(
             _amendment(planted.entity)
             for planted in draft.owned.work_items
-            if planted.entity.resolved_on is None
+            if planted.entity.resolved_on is None and planted.entity.owner_id == leaver
         )
 
 
@@ -77,7 +83,12 @@ def _amendment(open_ticket: WorkItem) -> Amendment:
             due_on=frame.leave.start + timedelta(days=rng.randrange(frame.leave.days)),
             comments=(),
         )
-        planted = OwnedEntities(work_items=(Planted(done, visible),))
+        # Observable from the day it was resolved, not from the slice start: derivation
+        # stamps every fact of a record, the status included, with the record's date, and
+        # a "done" visible before its own resolution would contradict the world. The
+        # earlier open state is not modelled — a state transition is more machinery than
+        # this near-miss needs — so the record enters the world already closed.
+        planted = OwnedEntities(work_items=(Planted(done, resolved_on),))
         near_miss = NamedDistractor(work_item_ref(done.id), DistractorReason.ALREADY_RESOLVED)
         return draft.extended(owned=planted), ModifierEffect(distractors=(near_miss,))
 

@@ -4,6 +4,7 @@ lands in the key with its reason and leaves the outcome alone, and the whole con
 equal for equal inputs."""
 
 from collections.abc import Sequence
+from dataclasses import replace
 from datetime import date, timedelta
 from random import Random
 
@@ -27,6 +28,7 @@ from leaveimpact.world import (
     ModifierName,
     OrgSpec,
     OwnedEntities,
+    Planted,
     Scenario,
     allocate_slices,
     construct,
@@ -117,13 +119,27 @@ def test_already_resolved_plants_a_named_look_alike_and_the_outcome_survives(see
     assert done.resolved_on < shadowed.spec.today
     assert done.owner_id == open_ticket.owner_id and done.component_id == open_ticket.component_id
     assert shadowed.investigated_leave.span.contains(done.due_on or date.min)
+    # The closed record enters the world on the day it was resolved, never before, and the
+    # stable interval cannot start before the world held it.
+    (_, done_planted) = shadowed.owned.work_items
+    assert done_planted.observable_from == done.resolved_on
+    assert shadowed.key.stable_interval.start >= done.resolved_on
 
 
-def test_a_draft_without_an_open_ticket_affords_no_resolved_look_alike() -> None:
+def test_only_an_open_ticket_the_leaver_owns_affords_a_resolved_look_alike() -> None:
     scenario = _scenario(1)
     only_the_leave = OwnedEntities(leaves=scenario.owned.leaves)
-    draft = Draft(only_the_leave, scenario.spec.leave_id, scenario.key.impacts)
-    assert AlreadyResolved().admissible(ORG, draft) == ()
+    no_ticket = Draft(only_the_leave, scenario.spec.leave_id, scenario.key.impacts)
+    assert AlreadyResolved().admissible(ORG, no_ticket) == ()
+    (planted,) = scenario.owned.work_items
+    someone_else = next(e.id for e in ORG.employees if e.id != planted.entity.owner_id)
+    theirs = Planted(replace(planted.entity, owner_id=someone_else), planted.observable_from)
+    other_owner = Draft(
+        OwnedEntities(leaves=scenario.owned.leaves, work_items=(theirs,)),
+        scenario.spec.leave_id,
+        scenario.key.impacts,
+    )
+    assert AlreadyResolved().admissible(ORG, other_owner) == ()
 
 
 def test_slices_keep_scenarios_apart_in_time() -> None:
