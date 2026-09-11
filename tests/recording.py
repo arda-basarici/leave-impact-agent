@@ -17,13 +17,21 @@ every request in a committed cassette must address a host on ``ALLOWED_CASSETTE_
 sites and a check that needed them would pass vacuously there (a review finding).
 
 **The secrets.** Authorization and cookie request headers are filtered by name; the
-form fields of a Google token refresh (the client secret, the refresh token) are filtered
-by name; a JSON response body has its secret-shaped keys — an access token, a refresh
-token, an identity token, a client secret, an API key or secret, an account email —
-replaced before the body is written; and a response's Set-Cookie header is dropped
-outright. The cassette-safety unit test walks every committed cassette and fails the
-build if a secret-shaped value survived: the scrub is the mechanism, the test is the
-gate, and neither rests on review alone.
+form fields of a Google token refresh (the client id and secret, the refresh token) are
+filtered by name; a JSON response body has its secret-shaped keys — an access token, a
+refresh token, an identity token, a client secret, an API key or secret, an account
+email (Google writes the principal's address as an event's creator and a calendar's
+data owner) — replaced before
+the body is written; and a response's Set-Cookie header is dropped outright. The Google
+principal is not a host but a directory of files, so it is named here beside the
+sandboxes: the credential the calendar test records with, and the identity value the
+file holds (the OAuth client id; the account field google-auth writes is empty) that the
+safety test proves absent from every cassette — the address itself is caught by
+signature there, as the first calendar recording showed it arriving under a key no
+list had named.
+That cassette-safety unit test walks every committed cassette and fails the build if a
+secret-shaped value survived: the scrub is the mechanism, the test is the gate, and
+neither rests on review alone.
 
 Network access is blocked for every test by default (``--block-network`` in the
 pytest options, the loopback and the Compose service name allowed for PostgreSQL), so
@@ -38,14 +46,17 @@ from __future__ import annotations
 import json
 import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, cast
 from urllib.parse import urlsplit
 
 REDACTED = "REDACTED"
 FILTERED_HEADERS = ("authorization", "cookie")
 # Request-body fields, form-encoded or JSON: the Google refresh grant, the Jira project lead.
-FILTERED_FORM_FIELDS = ("client_secret", "refresh_token", "leadAccountId")
-# Response-body keys at any depth: tokens, keys, and the Atlassian account behind the token.
+FILTERED_FORM_FIELDS = ("client_id", "client_secret", "refresh_token", "leadAccountId")
+# Response-body keys at any depth: tokens, keys, the Atlassian account behind the token,
+# and Google's sync cursor — never sent by the adapter, and high-entropy enough that
+# the commit hook's secret scan reads it as a key (found at the first calendar cassette).
 SECRET_JSON_KEYS = frozenset(
     {
         "access_token",
@@ -55,6 +66,9 @@ SECRET_JSON_KEYS = frozenset(
         "api_key",
         "api_secret",
         "emailAddress",
+        "email",
+        "dataOwner",
+        "nextSyncToken",
         "accountId",
         "displayName",
         "avatarUrls",
@@ -85,6 +99,29 @@ class Sandbox:
     @property
     def recording(self) -> bool:
         return self.real_base_url is not None
+
+
+# The Google principal: a directory holding the consent flow's token file (the probes
+# wrote it), named by an environment variable when recording and absent otherwise.
+GOOGLE_DIR_ENV = "LEAVE_IMPACT_GOOGLE_DIR"
+GOOGLE_TOKEN_FILE = "token-app-created+freebusy.json"
+
+
+def google_authorized_user_info() -> dict[str, Any] | None:
+    """The token file's JSON when the environment names the directory, else ``None``."""
+    directory = os.environ.get(GOOGLE_DIR_ENV, "").strip()
+    if not directory:
+        return None
+    text = Path(directory, GOOGLE_TOKEN_FILE).read_text(encoding="utf-8")
+    return cast(dict[str, Any], json.loads(text))
+
+
+def google_identity_values() -> list[str]:
+    """The principal's OAuth client id when the token file is known: never in a cassette."""
+    info = google_authorized_user_info()
+    if info is None:
+        return []
+    return [str(info["client_id"])] if info.get("client_id") else []
 
 
 FRAPPE = Sandbox("LEAVE_IMPACT_FRAPPE_W1_SITE", "https://frappe.sandbox.invalid")

@@ -6,9 +6,11 @@ enforce without knowing the real sites), no response header names a URL on any o
 host, every Authorization and Cookie request header reads as the placeholder, no
 response carries Set-Cookie, and every secret-shaped key in a JSON body reads as the
 placeholder. Textually: no token signature (an Atlassian
-API token, a Google access or refresh token, a Frappe token header) and, where the
-environment knows them, no real sandbox host survives anywhere in the file — the second
-net catches a secret that arrived somewhere the structural scrub did not look. With
+API token, a Google access or refresh token, a Frappe token header, an OAuth client id,
+a consumer mail address) and, where the environment knows them, no real sandbox host and
+no Google client id survives anywhere in the file — the second net catches a secret that
+arrived somewhere the structural scrub did not look, as the principal's address did at
+the first calendar recording, under a key no list had named. With
 no cassette committed yet the walk is empty and the test passes vacuously,
 the intended state until the first adapter lands.
 """
@@ -29,6 +31,7 @@ from tests.recording import (
     REDACTED,
     SANDBOXES,
     SECRET_JSON_KEYS,
+    google_identity_values,
 )
 
 TESTS = Path(__file__).resolve().parents[1]
@@ -40,6 +43,8 @@ _SIGNATURES = {
     "a Google access token": re.compile(r"ya29\."),
     "a Google refresh token": re.compile(r"\b1//0"),
     "a Frappe token header": re.compile(r"\btoken \w+:\w+"),
+    "a Google OAuth client id": re.compile(r"\.apps\.googleusercontent\.com"),
+    "a consumer mail address": re.compile(r"@(?:gmail|googlemail)\.com"),
 }
 
 
@@ -119,11 +124,11 @@ def test_cassettes_carry_no_secret() -> None:
 
 
 def test_cassettes_carry_no_token_signature_or_real_host() -> None:
-    real_hosts = [
+    known = [
         urlsplit(sandbox.real_base_url).hostname or ""
         for sandbox in SANDBOXES
         if sandbox.real_base_url
-    ]
+    ] + google_identity_values()
     problems: list[str] = []
     for path in CASSETTES:
         where = path.relative_to(TESTS).as_posix()
@@ -131,7 +136,7 @@ def test_cassettes_carry_no_token_signature_or_real_host() -> None:
         for what, signature in _SIGNATURES.items():
             if signature.search(text):
                 problems.append(f"{where}: carries {what}")
-        for host in real_hosts:
-            if host and host in text:
-                problems.append(f"{where}: names a real sandbox host")
+        for value in known:
+            if value and value in text:
+                problems.append(f"{where}: names a real sandbox host or the OAuth client")
     assert not problems, "\n".join(problems)

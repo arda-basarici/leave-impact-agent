@@ -1,0 +1,2188 @@
+interactions:
+- request:
+    body: grant_type=refresh_token&client_id=REDACTED&client_secret=REDACTED&refresh_token=REDACTED
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '279'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.34.2
+      x-goog-api-client:
+      - gl-python/3.13.5 auth/2.58.0 cred-type/u
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: '{"access_token": "REDACTED", "expires_in": 3599, "scope": "https://www.googleapis.com/auth/calendar.app.created
+        https://www.googleapis.com/auth/calendar.freebusy", "token_type": "Bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 11 Sep 2026 21:49:09 GMT
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '443'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"summary": "CAS Seda Aksoy", "timeZone": "Europe/Istanbul"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '57'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars
+  response:
+    body:
+      string: '{"kind": "calendar#calendar", "etag": "\"hAWlNNKOsuPYTakvuDPnyQV0gv0\"",
+        "id": "83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec@group.calendar.google.com",
+        "summary": "CAS Seda Aksoy", "timeZone": "Europe/Istanbul", "dataOwner": "REDACTED",
+        "conferenceProperties": {"allowedConferenceSolutionTypes": ["hangoutsMeet"]},
+        "labelProperties": {"eventLabels": [{"id": "1149ce53-0f7c-4bc8-af7d-e1a3aa53423f",
+        "backgroundColor": "#7cb342"}, {"id": "16d953ff-942a-43be-9047-96becf929086",
+        "backgroundColor": "#f6bf26"}, {"id": "27532cd3-826f-491d-b105-4b5f5cd37331",
+        "backgroundColor": "#039be5"}, {"id": "2e6ab90a-4d3a-4a39-a08f-f72b34ff4991",
+        "backgroundColor": "#a79b8e"}, {"id": "2f2aa017-d562-4cdb-b5f9-8de970514563",
+        "backgroundColor": "#0b8043"}, {"id": "2f8c5f85-cf44-44dd-aaa0-edd13116f0fd",
+        "backgroundColor": "#f4511e"}, {"id": "3191b208-b0c6-4131-bd6e-057575612ac7",
+        "backgroundColor": "#e67c73"}, {"id": "493d6163-4b0c-4986-88c8-d6c1762832e1",
+        "backgroundColor": "#009688"}, {"id": "53b11548-9bf6-4efa-9de1-9943c3f80137",
+        "backgroundColor": "#ef6c00"}, {"id": "5fbe1330-619f-415b-a988-534df92a0a30",
+        "backgroundColor": "#f09300"}, {"id": "65f872e3-b54c-4cca-a995-ca46492e1c97",
+        "backgroundColor": "#d81b60"}, {"id": "71fc785c-f0b1-417c-954c-4bea6661f62f",
+        "backgroundColor": "#33b679"}, {"id": "80d9719f-68f3-474b-89a5-6d851c352b75",
+        "backgroundColor": "#9e69af"}, {"id": "88b39aed-8890-4da3-9d07-efe474d36100",
+        "backgroundColor": "#b39ddb"}, {"id": "89f9f9b4-46a0-4d08-bdc9-9967f4a28153",
+        "backgroundColor": "#795548"}, {"id": "970d8599-10f7-4e8e-b964-f9ba8e60099d",
+        "backgroundColor": "#ad1457"}, {"id": "9c919a79-f544-43c1-883c-8b5aebbf74f2",
+        "backgroundColor": "#4285f4"}, {"id": "ace94c9f-3bc3-453b-9b12-d53b84b01f58",
+        "backgroundColor": "#3f51b5"}, {"id": "b8662cce-cb8f-4f8f-bfe5-6a7b6a32445c",
+        "backgroundColor": "#c0ca33"}, {"id": "bd77f294-be12-49c8-b88d-ea4cdc456485",
+        "backgroundColor": "#8e24aa"}, {"id": "ce4f5761-5056-4771-b478-09e84f43b678",
+        "backgroundColor": "#d50000"}, {"id": "dc845757-cec3-4dfa-9c13-c7c555059c89",
+        "backgroundColor": "#616161"}, {"id": "fd2edadf-5883-4d89-8c22-d4c4e4963ff6",
+        "backgroundColor": "#7986cb"}, {"id": "ffdd35d9-c835-444e-a749-d8367d8b169f",
+        "backgroundColor": "#e4c441"}]}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '2675'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:16 GMT
+      etag:
+      - '"hAWlNNKOsuPYTakvuDPnyQV0gv0"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"summary": "CAS Baran Demir", "timeZone": "Europe/Berlin"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '56'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars
+  response:
+    body:
+      string: '{"kind": "calendar#calendar", "etag": "\"_J0zemDAiS5wL_nmMcmPUBTStb0\"",
+        "id": "3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3@group.calendar.google.com",
+        "summary": "CAS Baran Demir", "timeZone": "Europe/Berlin", "dataOwner": "REDACTED",
+        "conferenceProperties": {"allowedConferenceSolutionTypes": ["hangoutsMeet"]},
+        "labelProperties": {"eventLabels": [{"id": "06a5f08f-bb3c-4cf3-a62d-fc2950e10b16",
+        "backgroundColor": "#616161"}, {"id": "0bd6fb83-3366-440f-9b75-1533118f625c",
+        "backgroundColor": "#009688"}, {"id": "16451c03-e15e-4162-b551-942005e4a7e5",
+        "backgroundColor": "#f6bf26"}, {"id": "1ad380cb-e8b8-42fc-8cde-e5f146966306",
+        "backgroundColor": "#e4c441"}, {"id": "2aaed0e3-8fd7-4c64-aefa-ef078741535b",
+        "backgroundColor": "#ef6c00"}, {"id": "2d473adf-37e9-4c20-b5f8-f96a18c83c33",
+        "backgroundColor": "#7986cb"}, {"id": "33faf417-3384-4079-8373-6b9511eff9bc",
+        "backgroundColor": "#039be5"}, {"id": "3cf8d4e9-1739-4c9b-905c-a0abcd08af1f",
+        "backgroundColor": "#ad1457"}, {"id": "48753c15-11d8-49a8-9eba-64086e3223eb",
+        "backgroundColor": "#d81b60"}, {"id": "5affeb30-befe-4b62-a661-2bd3c3fc9257",
+        "backgroundColor": "#7cb342"}, {"id": "5e79513f-a0cd-4e28-965a-8537da578856",
+        "backgroundColor": "#4285f4"}, {"id": "643d8752-4a2d-4c5c-9f9f-7919dc6b96d9",
+        "backgroundColor": "#33b679"}, {"id": "75064cb3-08e8-4a9a-9373-89bd530620cb",
+        "backgroundColor": "#f09300"}, {"id": "8c6bd13c-dfda-4c37-bc9e-284d2f658ee9",
+        "backgroundColor": "#b39ddb"}, {"id": "a227a981-5646-4b41-94c2-12788323cbf9",
+        "backgroundColor": "#0b8043"}, {"id": "a9848aad-c68b-4ae4-ba96-833671a7f770",
+        "backgroundColor": "#c0ca33"}, {"id": "af959407-0cbf-4986-9ec7-05a72fa1c6b3",
+        "backgroundColor": "#f4511e"}, {"id": "b40922dd-eb8b-4d91-a6a9-22417a3fb0c5",
+        "backgroundColor": "#e67c73"}, {"id": "b433090e-9519-48cc-9b74-ddabc44be86e",
+        "backgroundColor": "#d50000"}, {"id": "b4fe65f4-fd00-411f-b951-a736e8445a36",
+        "backgroundColor": "#9e69af"}, {"id": "c82a8278-484a-421c-af2f-1e3240837bf9",
+        "backgroundColor": "#795548"}, {"id": "d560f686-39da-49c3-8d97-9d56a43257ab",
+        "backgroundColor": "#8e24aa"}, {"id": "ddb5bb90-18b1-4366-9b6e-d5b27bcf60ca",
+        "backgroundColor": "#3f51b5"}, {"id": "e17ecfee-d87b-4c2e-a485-a2f546be34a1",
+        "backgroundColor": "#a79b8e"}]}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '2674'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:22 GMT
+      etag:
+      - '"_J0zemDAiS5wL_nmMcmPUBTStb0"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"summary": "CAS Deniz Y\u0131lmaz", "timeZone": "America/Los_Angeles"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '64'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars
+  response:
+    body:
+      string: '{"kind": "calendar#calendar", "etag": "\"dDKm5WNqqTvGDJwDv1_5h8r1e2c\"",
+        "id": "1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389@group.calendar.google.com",
+        "summary": "CAS Deniz Y\u0131lmaz", "timeZone": "America/Los_Angeles", "dataOwner":
+        "REDACTED", "conferenceProperties": {"allowedConferenceSolutionTypes": ["hangoutsMeet"]},
+        "labelProperties": {"eventLabels": [{"id": "05bb4861-7ed8-4c6c-b730-7169d32701f4",
+        "backgroundColor": "#c0ca33"}, {"id": "29392aff-240a-4f9f-aecc-8478f6f71e03",
+        "backgroundColor": "#ef6c00"}, {"id": "2fb075bb-e70a-46ab-8199-bce02d4e8d7e",
+        "backgroundColor": "#ad1457"}, {"id": "35204741-e979-4ced-a62e-2c7fec4344d3",
+        "backgroundColor": "#b39ddb"}, {"id": "366a4f2e-90ae-4523-8a6d-fe989e29e0df",
+        "backgroundColor": "#d50000"}, {"id": "3af31617-6547-49d6-99d2-ef3ee8402354",
+        "backgroundColor": "#f09300"}, {"id": "3ce83dfb-8156-4750-a49c-e4332ef16531",
+        "backgroundColor": "#0b8043"}, {"id": "4b0d167a-6b04-4214-a635-10bb09053e2f",
+        "backgroundColor": "#3f51b5"}, {"id": "58aeccde-d2bb-477b-8029-bc288620b2f9",
+        "backgroundColor": "#f4511e"}, {"id": "7354e0bd-5b68-42f8-8a5c-2c32b35e4748",
+        "backgroundColor": "#e67c73"}, {"id": "7b6ee11f-1426-4537-a4de-5dcca2abe061",
+        "backgroundColor": "#4285f4"}, {"id": "87256bf4-2003-47d6-9751-1c47a171484a",
+        "backgroundColor": "#616161"}, {"id": "90cdd85f-b41e-4d43-8eaa-21ab3b7eef7c",
+        "backgroundColor": "#7986cb"}, {"id": "9423da78-c01b-441b-816c-a355d2d7ea65",
+        "backgroundColor": "#d81b60"}, {"id": "9e55d0ef-4693-4a51-ad5e-51df6f783245",
+        "backgroundColor": "#009688"}, {"id": "c64053c1-e44a-4a64-82be-ab51d0bca519",
+        "backgroundColor": "#e4c441"}, {"id": "d66cc1dc-39cc-449e-8f85-92b2b6294dd8",
+        "backgroundColor": "#795548"}, {"id": "d82d8a2f-bb19-4ff6-8daf-eafbdfe0806e",
+        "backgroundColor": "#a79b8e"}, {"id": "e486d056-c53e-4a1e-9eed-fecbdfc7e2e4",
+        "backgroundColor": "#f6bf26"}, {"id": "e809002b-e8b4-479d-a53b-83759ec52b07",
+        "backgroundColor": "#039be5"}, {"id": "e8883517-7db5-4f72-acbb-8e2b34f1e777",
+        "backgroundColor": "#8e24aa"}, {"id": "ed12526c-51c1-476f-a928-7eb080b22ac8",
+        "backgroundColor": "#9e69af"}, {"id": "ee228e18-7bde-45f8-89f4-36f8508d69f5",
+        "backgroundColor": "#33b679"}, {"id": "f82ef563-fac7-4da1-a7a0-3da994d2702a",
+        "backgroundColor": "#7cb342"}]}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '2682'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:28 GMT
+      etag:
+      - '"dDKm5WNqqTvGDJwDv1_5h8r1e2c"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: grant_type=refresh_token&client_id=REDACTED&client_secret=REDACTED&refresh_token=REDACTED
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '279'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.34.2
+      x-goog-api-client:
+      - gl-python/3.13.5 auth/2.58.0 cred-type/u
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: '{"access_token": "REDACTED", "expires_in": 3599, "scope": "https://www.googleapis.com/auth/calendar.app.created
+        https://www.googleapis.com/auth/calendar.freebusy", "token_type": "Bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 11 Sep 2026 21:49:29 GMT
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '443'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "1521ce4802adb7dd0136af1400da238fd7181699", "summary": "Standup",
+      "start": {"dateTime": "2026-09-08T09:00:00+03:00"}, "end": {"dateTime": "2026-09-08T09:15:00+03:00"},
+      "extendedProperties": {"private": {"event_id": "event_901", "attendees": "emp_901;emp_902;emp_903"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326739483742\"", "id": "1521ce4802adb7dd0136af1400da238fd7181699",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MTUyMWNlNDgwMmFkYjdkZDAxMzZhZjE0MDBkYTIzOGZkNzE4MTY5OSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc",
+        "created": "2026-09-11T21:49:29.000Z", "updated": "2026-09-11T21:49:29.741Z",
+        "summary": "Standup", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T09:00:00+03:00", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T09:15:00+03:00", "timeZone": "Europe/Istanbul"}, "iCalUID": "1521ce4802adb7dd0136af1400da238fd7181699@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_901",
+        "attendees": "emp_901;emp_902;emp_903"}}, "reminders": {"useDefault": true},
+        "eventType": "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '1119'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:29 GMT
+      etag:
+      - '"3578326739483742"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "1521ce4802adb7dd0136af1400da238fd7181699", "summary": "Standup",
+      "start": {"dateTime": "2026-09-08T09:00:00+03:00"}, "end": {"dateTime": "2026-09-08T09:15:00+03:00"},
+      "extendedProperties": {"private": {"event_id": "event_901", "attendees": "emp_901;emp_902;emp_903"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326740487006\"", "id": "1521ce4802adb7dd0136af1400da238fd7181699",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MTUyMWNlNDgwMmFkYjdkZDAxMzZhZjE0MDBkYTIzOGZkNzE4MTY5OSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc",
+        "created": "2026-09-11T21:49:29.000Z", "updated": "2026-09-11T21:49:30.243Z",
+        "summary": "Standup", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T08:00:00+02:00", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T08:15:00+02:00", "timeZone": "Europe/Istanbul"}, "iCalUID": "1521ce4802adb7dd0136af1400da238fd7181699@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_901",
+        "attendees": "emp_901;emp_902;emp_903"}}, "reminders": {"useDefault": true},
+        "eventType": "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '1120'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:30 GMT
+      etag:
+      - '"3578326740487006"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "1521ce4802adb7dd0136af1400da238fd7181699", "summary": "Standup",
+      "start": {"dateTime": "2026-09-08T09:00:00+03:00"}, "end": {"dateTime": "2026-09-08T09:15:00+03:00"},
+      "extendedProperties": {"private": {"event_id": "event_901", "attendees": "emp_901;emp_902;emp_903"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326741330910\"", "id": "1521ce4802adb7dd0136af1400da238fd7181699",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MTUyMWNlNDgwMmFkYjdkZDAxMzZhZjE0MDBkYTIzOGZkNzE4MTY5OSAxY2NkZmMzZDcxNjA0MzcyOWVmYzNlMGEwMzFkNmIzYzI0YWUwNDQyNzMzOTQwZjY1NTA1N2IxYmI2NGM3Mzg5QGc",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.665Z",
+        "summary": "Standup", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-07T23:00:00-07:00", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-07T23:15:00-07:00", "timeZone": "Europe/Istanbul"}, "iCalUID": "1521ce4802adb7dd0136af1400da238fd7181699@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_901",
+        "attendees": "emp_901;emp_902;emp_903"}}, "reminders": {"useDefault": true},
+        "eventType": "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '1122'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:30 GMT
+      etag:
+      - '"3578326741330910"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "e52c013e22a264fa5fef1690c165ae0b3166354a", "summary": "Customer
+      review", "start": {"dateTime": "2026-09-08T13:00:00+03:00"}, "end": {"dateTime":
+      "2026-09-08T15:00:00+03:00"}, "extendedProperties": {"private": {"event_id":
+      "event_902", "attendees": "emp_901;emp_902"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326741941534\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.970Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T13:00:00+03:00", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T15:00:00+03:00", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '1119'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:31 GMT
+      etag:
+      - '"3578326741941534"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "e52c013e22a264fa5fef1690c165ae0b3166354a", "summary": "Customer
+      review", "start": {"dateTime": "2026-09-08T13:00:00+03:00"}, "end": {"dateTime":
+      "2026-09-08T15:00:00+03:00"}, "extendedProperties": {"private": {"event_id":
+      "event_902", "attendees": "emp_901;emp_902"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326742803614\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.401Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T12:00:00+02:00", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T14:00:00+02:00", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '1120'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:31 GMT
+      etag:
+      - '"3578326742803614"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "344ace414246a3637bf83e1a1aa315dbe077c4a1", "summary": "Vendor call",
+      "start": {"dateTime": "2026-09-09T18:00:00+03:00"}, "end": {"dateTime": "2026-09-09T19:00:00+03:00"},
+      "extendedProperties": {"private": {"event_id": "event_903", "attendees": "emp_903"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '249'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326743596382\"", "id": "344ace414246a3637bf83e1a1aa315dbe077c4a1",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MzQ0YWNlNDE0MjQ2YTM2MzdiZjgzZTFhMWFhMzE1ZGJlMDc3YzRhMSAxY2NkZmMzZDcxNjA0MzcyOWVmYzNlMGEwMzFkNmIzYzI0YWUwNDQyNzMzOTQwZjY1NTA1N2IxYmI2NGM3Mzg5QGc",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.798Z",
+        "summary": "Vendor call", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-09T08:00:00-07:00", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-09T09:00:00-07:00", "timeZone": "Europe/Istanbul"}, "iCalUID": "344ace414246a3637bf83e1a1aa315dbe077c4a1@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_903",
+        "attendees": "emp_903"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '1110'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:31 GMT
+      etag:
+      - '"3578326743596382"'
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "e52c013e22a264fa5fef1690c165ae0b3166354a", "summary": "Customer
+      review", "start": {"dateTime": "2026-09-08T13:00:00+03:00"}, "end": {"dateTime":
+      "2026-09-08T15:00:00+03:00"}, "extendedProperties": {"private": {"event_id":
+      "event_902", "attendees": "emp_901;emp_902"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"error": {"errors": [{"domain": "global", "reason": "duplicate", "message":
+        "The requested identifier already exists."}], "code": 409, "message": "The
+        requested identifier already exists."}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '228'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 409
+      message: Conflict
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events/e52c013e22a264fa5fef1690c165ae0b3166354a?timeZone=UTC
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326741941534\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.970Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '1117'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      etag:
+      - '"3578326741941534"'
+      expires:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"id": "e52c013e22a264fa5fef1690c165ae0b3166354a", "summary": "Customer
+      review", "start": {"dateTime": "2026-09-08T13:00:00+03:00"}, "end": {"dateTime":
+      "2026-09-08T15:00:00+03:00"}, "extendedProperties": {"private": {"event_id":
+      "event_902", "attendees": "emp_901;emp_902"}}}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '261'
+      content-type:
+      - application/json
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events
+  response:
+    body:
+      string: '{"error": {"errors": [{"domain": "global", "reason": "duplicate", "message":
+        "The requested identifier already exists."}], "code": 409, "message": "The
+        requested identifier already exists."}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '228'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 409
+      message: Conflict
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events/e52c013e22a264fa5fef1690c165ae0b3166354a?timeZone=UTC
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326742803614\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.401Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '1118'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      etag:
+      - '"3578326742803614"'
+      expires:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events?timeMin=2026-09-06T21%3A00%3A00%2B00%3A00&timeMax=2026-09-13T21%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p327tjenpo3jpc0o\"", "summary":
+        "CAS Seda Aksoy", "description": "", "updated": "2026-09-11T21:49:31.146Z",
+        "timeZone": "Europe/Istanbul", "accessRole": "owner", "defaultReminders":
+        [], "nextSyncToken": "REDACTED", "items": [{"kind": "calendar#event", "etag":
+        "\"3578326739483742\"", "id": "1521ce4802adb7dd0136af1400da238fd7181699",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MTUyMWNlNDgwMmFkYjdkZDAxMzZhZjE0MDBkYTIzOGZkNzE4MTY5OSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:29.000Z", "updated": "2026-09-11T21:49:29.741Z",
+        "summary": "Standup", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T06:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T06:15:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "1521ce4802adb7dd0136af1400da238fd7181699@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_901",
+        "attendees": "emp_901;emp_902;emp_903"}}, "reminders": {"useDefault": true},
+        "eventType": "default"}, {"kind": "calendar#event", "etag": "\"3578326741941534\"",
+        "id": "e52c013e22a264fa5fef1690c165ae0b3166354a", "status": "confirmed", "htmlLink":
+        "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.970Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}]}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '2704'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events?timeMin=2026-09-06T21%3A00%3A00%2B00%3A00&timeMax=2026-09-13T21%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p32nt51vqo3jpc0o\"", "summary":
+        "CAS Baran Demir", "description": "", "updated": "2026-09-11T21:49:32.407Z",
+        "timeZone": "Europe/Berlin", "accessRole": "owner", "defaultReminders": [],
+        "nextSyncToken": "REDACTED", "items": [{"kind": "calendar#event", "etag":
+        "\"3578326740487006\"", "id": "1521ce4802adb7dd0136af1400da238fd7181699",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MTUyMWNlNDgwMmFkYjdkZDAxMzZhZjE0MDBkYTIzOGZkNzE4MTY5OSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:29.000Z", "updated": "2026-09-11T21:49:30.243Z",
+        "summary": "Standup", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T06:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T06:15:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "1521ce4802adb7dd0136af1400da238fd7181699@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_901",
+        "attendees": "emp_901;emp_902;emp_903"}}, "reminders": {"useDefault": true},
+        "eventType": "default"}, {"kind": "calendar#event", "etag": "\"3578326742803614\"",
+        "id": "e52c013e22a264fa5fef1690c165ae0b3166354a", "status": "confirmed", "htmlLink":
+        "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.401Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}]}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '2705'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:32 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events?timeMin=2026-09-06T21%3A00%3A00%2B00%3A00&timeMax=2026-09-13T21%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p337sh57qo3jpc0o\"", "summary":
+        "CAS Deniz Y\u0131lmaz", "description": "", "updated": "2026-09-11T21:49:32.618Z",
+        "timeZone": "America/Los_Angeles", "accessRole": "owner", "defaultReminders":
+        [], "nextSyncToken": "REDACTED", "items": [{"kind": "calendar#event", "etag":
+        "\"3578326741330910\"", "id": "1521ce4802adb7dd0136af1400da238fd7181699",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=MTUyMWNlNDgwMmFkYjdkZDAxMzZhZjE0MDBkYTIzOGZkNzE4MTY5OSAxY2NkZmMzZDcxNjA0MzcyOWVmYzNlMGEwMzFkNmIzYzI0YWUwNDQyNzMzOTQwZjY1NTA1N2IxYmI2NGM3Mzg5QGc&ctz=UTC",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.665Z",
+        "summary": "Standup", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T06:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T06:15:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "1521ce4802adb7dd0136af1400da238fd7181699@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_901",
+        "attendees": "emp_901;emp_902;emp_903"}}, "reminders": {"useDefault": true},
+        "eventType": "default"}, {"kind": "calendar#event", "etag": "\"3578326743596382\"",
+        "id": "344ace414246a3637bf83e1a1aa315dbe077c4a1", "status": "confirmed", "htmlLink":
+        "https://www.google.com/calendar/event?eid=MzQ0YWNlNDE0MjQ2YTM2MzdiZjgzZTFhMWFhMzE1ZGJlMDc3YzRhMSAxY2NkZmMzZDcxNjA0MzcyOWVmYzNlMGEwMzFkNmIzYzI0YWUwNDQyNzMzOTQwZjY1NTA1N2IxYmI2NGM3Mzg5QGc&ctz=UTC",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.798Z",
+        "summary": "Vendor call", "creator": {"email": "REDACTED"}, "organizer": {"email":
+        "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-09T15:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-09T16:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "344ace414246a3637bf83e1a1aa315dbe077c4a1@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_903",
+        "attendees": "emp_903"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}]}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '2705'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events?timeMin=2026-09-08T11%3A00%3A00%2B00%3A00&timeMax=2026-09-08T15%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p327tjenpo3jpc0o\"", "summary":
+        "CAS Seda Aksoy", "description": "", "updated": "2026-09-11T21:49:31.146Z",
+        "timeZone": "Europe/Istanbul", "accessRole": "owner", "defaultReminders":
+        [], "nextSyncToken": "REDACTED", "items": [{"kind": "calendar#event", "etag":
+        "\"3578326741941534\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.970Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}]}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '1510'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events?timeMin=2026-09-08T11%3A00%3A00%2B00%3A00&timeMax=2026-09-08T15%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p32nt51vqo3jpc0o\"", "summary":
+        "CAS Baran Demir", "description": "", "updated": "2026-09-11T21:49:32.407Z",
+        "timeZone": "Europe/Berlin", "accessRole": "owner", "defaultReminders": [],
+        "nextSyncToken": "REDACTED", "items": [{"kind": "calendar#event", "etag":
+        "\"3578326742803614\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.401Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}]}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '1510'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events?timeMin=2026-09-08T11%3A00%3A00%2B00%3A00&timeMax=2026-09-08T15%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p337sh57qo3jpc0o\"", "summary":
+        "CAS Deniz Y\u0131lmaz", "description": "", "updated": "2026-09-11T21:49:32.618Z",
+        "timeZone": "America/Los_Angeles", "accessRole": "owner", "defaultReminders":
+        [], "nextSyncToken": "REDACTED", "items": []}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '322'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events?timeMin=2026-09-08T12%3A00%3A00%2B00%3A00&timeMax=2026-09-09T15%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p327tjenpo3jpc0o\"", "summary":
+        "CAS Seda Aksoy", "description": "", "updated": "2026-09-11T21:49:31.146Z",
+        "timeZone": "Europe/Istanbul", "accessRole": "owner", "defaultReminders":
+        [], "nextSyncToken": "REDACTED", "items": []}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '315'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events?timeMin=2026-09-08T12%3A00%3A00%2B00%3A00&timeMax=2026-09-09T15%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p32nt51vqo3jpc0o\"", "summary":
+        "CAS Baran Demir", "description": "", "updated": "2026-09-11T21:49:32.407Z",
+        "timeZone": "Europe/Berlin", "accessRole": "owner", "defaultReminders": [],
+        "nextSyncToken": "REDACTED", "items": []}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '314'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events?timeMin=2026-09-08T12%3A00%3A00%2B00%3A00&timeMax=2026-09-09T15%3A00%3A00%2B00%3A00&singleEvents=true&timeZone=UTC&maxResults=250
+  response:
+    body:
+      string: '{"kind": "calendar#events", "etag": "\"p337sh57qo3jpc0o\"", "summary":
+        "CAS Deniz Y\u0131lmaz", "description": "", "updated": "2026-09-11T21:49:32.618Z",
+        "timeZone": "America/Los_Angeles", "accessRole": "owner", "defaultReminders":
+        [], "nextSyncToken": "REDACTED", "items": []}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '322'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      expires:
+      - Fri, 11 Sep 2026 21:49:33 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events/e52c013e22a264fa5fef1690c165ae0b3166354a?timeZone=UTC
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326741941534\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSA4M2JkYjQzODAyM2NjMzRhNmZlNGQ3MWQ1NWQyODMzMGEzMzA4N2RjZGM1MmVmODkwMDAwMTMwMDg0OGU3YWVjQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:30.000Z", "updated": "2026-09-11T21:49:30.970Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '1117'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      etag:
+      - '"3578326741941534"'
+      expires:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events/e52c013e22a264fa5fef1690c165ae0b3166354a?timeZone=UTC
+  response:
+    body:
+      string: '{"kind": "calendar#event", "etag": "\"3578326742803614\"", "id": "e52c013e22a264fa5fef1690c165ae0b3166354a",
+        "status": "confirmed", "htmlLink": "https://www.google.com/calendar/event?eid=ZTUyYzAxM2UyMmEyNjRmYTVmZWYxNjkwYzE2NWFlMGIzMTY2MzU0YSAzZTBjOGNkZDQzZDFiZTI0MzU4M2E2NDIxMzcxZTU4YjVkMDRmMGM4Y2I4NWVlNWNmYWRhNWJiODhiZWM3MWMzQGc&ctz=UTC",
+        "created": "2026-09-11T21:49:31.000Z", "updated": "2026-09-11T21:49:31.401Z",
+        "summary": "Customer review", "creator": {"email": "REDACTED"}, "organizer":
+        {"email": "REDACTED", "displayName": "REDACTED", "self": true}, "start": {"dateTime":
+        "2026-09-08T10:00:00Z", "timeZone": "Europe/Istanbul"}, "end": {"dateTime":
+        "2026-09-08T12:00:00Z", "timeZone": "Europe/Istanbul"}, "iCalUID": "e52c013e22a264fa5fef1690c165ae0b3166354a@google.com",
+        "sequence": 0, "extendedProperties": {"private": {"event_id": "event_902",
+        "attendees": "emp_901;emp_902"}}, "reminders": {"useDefault": true}, "eventType":
+        "default"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - private, max-age=0, must-revalidate, no-transform
+      content-length:
+      - '1118'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      etag:
+      - '"3578326742803614"'
+      expires:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events/e52c013e22a264fa5fef1690c165ae0b3166354a?timeZone=UTC
+  response:
+    body:
+      string: '{"error": {"errors": [{"domain": "global", "reason": "notFound", "message":
+        "Not Found"}], "code": 404, "message": "Not Found"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '165'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com/events/ed5d9bc2e559a1fc78e3bfa40f6a5e2e9751f313?timeZone=UTC
+  response:
+    body:
+      string: '{"error": {"errors": [{"domain": "global", "reason": "notFound", "message":
+        "Not Found"}], "code": 404, "message": "Not Found"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '165'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com/events/ed5d9bc2e559a1fc78e3bfa40f6a5e2e9751f313?timeZone=UTC
+  response:
+    body:
+      string: '{"error": {"errors": [{"domain": "global", "reason": "notFound", "message":
+        "Not Found"}], "code": 404, "message": "Not Found"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '165'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com/events/ed5d9bc2e559a1fc78e3bfa40f6a5e2e9751f313?timeZone=UTC
+  response:
+    body:
+      string: '{"error": {"errors": [{"domain": "global", "reason": "notFound", "message":
+        "Not Found"}], "code": 404, "message": "Not Found"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '165'
+      content-type:
+      - application/json; charset=UTF-8
+      date:
+      - Fri, 11 Sep 2026 21:49:34 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      transfer-encoding:
+      - chunked
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 404
+      message: Not Found
+- request:
+    body: grant_type=refresh_token&client_id=REDACTED&client_secret=REDACTED&refresh_token=REDACTED
+    headers:
+      Accept:
+      - '*/*'
+      Accept-Encoding:
+      - gzip, deflate
+      Connection:
+      - keep-alive
+      Content-Length:
+      - '279'
+      Content-Type:
+      - application/x-www-form-urlencoded
+      User-Agent:
+      - python-requests/2.34.2
+      x-goog-api-client:
+      - gl-python/3.13.5 auth/2.58.0 cred-type/u
+    method: POST
+    uri: https://oauth2.googleapis.com/token
+  response:
+    body:
+      string: '{"access_token": "REDACTED", "expires_in": 3599, "scope": "https://www.googleapis.com/auth/calendar.app.created
+        https://www.googleapis.com/auth/calendar.freebusy", "token_type": "Bearer"}'
+    headers:
+      Alt-Svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      Cache-Control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      Content-Type:
+      - application/json; charset=utf-8
+      Date:
+      - Fri, 11 Sep 2026 21:49:35 GMT
+      Expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      Pragma:
+      - no-cache
+      Server:
+      - scaffolding on HTTPServer2
+      Transfer-Encoding:
+      - chunked
+      Vary:
+      - Origin
+      - X-Origin
+      - Referer
+      X-Content-Type-Options:
+      - nosniff
+      X-Frame-Options:
+      - SAMEORIGIN
+      X-XSS-Protection:
+      - '0'
+      content-length:
+      - '443'
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://www.googleapis.com/calendar/v3/calendars/83bdb438023cc34a6fe4d71d55d28330a33087dcdc52ef8900001300848e7aec%40group.calendar.google.com
+  response:
+    body:
+      string: ''
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '0'
+      content-type:
+      - text/html
+      date:
+      - Fri, 11 Sep 2026 21:49:36 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 204
+      message: No Content
+- request:
+    body: ''
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://www.googleapis.com/calendar/v3/calendars/3e0c8cdd43d1be243583a6421371e58b5d04f0c8cb85ee5cfada5bb88bec71c3%40group.calendar.google.com
+  response:
+    body:
+      string: ''
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '0'
+      content-type:
+      - text/html
+      date:
+      - Fri, 11 Sep 2026 21:49:38 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 204
+      message: No Content
+- request:
+    body: ''
+    headers:
+      accept:
+      - '*/*'
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      host:
+      - www.googleapis.com
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://www.googleapis.com/calendar/v3/calendars/1ccdfc3d716043729efc3e0a031d6b3c24ae0442733940f655057b1bb64c7389%40group.calendar.google.com
+  response:
+    body:
+      string: ''
+    headers:
+      alt-svc:
+      - h3=":443"; ma=2592000,h3-29=":443"; ma=2592000
+      cache-control:
+      - no-cache, no-store, max-age=0, must-revalidate
+      content-length:
+      - '0'
+      content-type:
+      - text/html
+      date:
+      - Fri, 11 Sep 2026 21:49:40 GMT
+      expires:
+      - Mon, 01 Jan 1990 00:00:00 GMT
+      pragma:
+      - no-cache
+      server:
+      - ESF
+      vary:
+      - Origin
+      - X-Origin
+      - Referer
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-l2-request-path:
+      - l2-managed-14
+      x-xss-protection:
+      - '0'
+    status:
+      code: 204
+      message: No Content
+version: 1
