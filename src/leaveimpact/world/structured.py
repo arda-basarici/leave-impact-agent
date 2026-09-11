@@ -16,10 +16,10 @@ names. For a meeting the rule asks no component question — anyone available on
 meeting's day can stand in — so the trap is availability: a teammate who attends another
 event overlapping the meeting is authored non-viable, beside a free teammate authored
 viable. Being on leave over that day is the concurrent-leave modifier's business, not a
-class's. The mixed class composes the two and authors one person both ways — non-viable
-for the ticket, viable for the meeting — which is the point of planting both on one
-leave: an assessment keys on the impact, and a grader that scored per person would miss
-it.
+class's. The mixed class composes the two and authors exactly one person both ways —
+non-viable for the ticket, viable for the meeting — which is the point of planting both
+on one leave: an assessment keys on the impact, and a grader that scored per person
+would miss it.
 
 Anything that makes the cover harder (a concurrent leave, a resolved look-alike, a
 meeting on a timezone boundary) is a modifier's business, so the classes stay orthogonal
@@ -133,19 +133,24 @@ class StructuredMeeting:
 class StructuredMixed:
     """A ticket falls due and a meeting falls during the same leave: two impacts, one leaver.
 
-    The deadline's roles are the deadline class's; the meeting's free cover is the
-    deadline's near-miss — the teammate outside the component, non-viable for the
-    ticket and viable for the meeting — and the busy near-miss is the first further
-    teammate. Canonical order is the deadline class's, so the organization affords the
-    class whenever it affords a deadline whose leaver has a second teammate besides the
-    outsider.
+    A two-impact scenario in which exactly one authored person is non-viable for one
+    impact and viable for the other, proving that an assessment is identified by the pair
+    of impact and employee. That person is the deadline's near-miss, the teammate outside
+    the component, who is the meeting's free cover; the deadline's roles are the deadline
+    class's and the busy near-miss is the first further teammate who is neither the
+    outsider nor the ticket's cover. Exactly one, not at least one: a cover who is also
+    the busy teammate would be a second cross-impact person, a composite interaction the
+    composite classes own, and with two mixed rows in Tier 1 the class must not acquire
+    it by incidental team topology (the step 8 part 1 review ruling). Canonical order is
+    the deadline class's, so the organization affords the class whenever it affords a
+    deadline whose leaver has a further teammate besides the outsider and the cover.
     """
 
     name = ScenarioClassName.STRUCTURED_MIXED
     tier = Tier.STRUCTURED
     affordance = (
         "a component with two members, one of whom has a teammate outside the component "
-        "and a second teammate"
+        "and a further teammate who is neither that outsider nor the cover"
     )
 
     def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
@@ -154,7 +159,7 @@ class StructuredMixed:
             further = [
                 teammate
                 for teammate in org.members_of(leaver.team_id)
-                if teammate.id not in (leaver.id, outsider.id)
+                if teammate.id not in (leaver.id, outsider.id, cover.id)
             ]
             if not further:
                 continue

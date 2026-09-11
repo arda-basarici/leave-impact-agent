@@ -172,6 +172,12 @@ def test_the_mixed_scenario_authors_one_teammate_both_ways(seed: int) -> None:
     busy = next(a for a in meeting.must_assess if a.verdict is Verdict.NON_VIABLE)
     assert busy.reasons == (AssessmentReason.AVAILABILITY,)
     assert overlap.attendee_ids == (busy.employee_id,)
+    # Exactly one authored person spans both impacts: the ticket's cover is never also the
+    # meeting's busy teammate, so the class carries one cross-impact trap, not two.
+    authored_for_both = {a.employee_id for a in deadline.must_assess} & {
+        a.employee_id for a in meeting.must_assess
+    }
+    assert authored_for_both == {outsider.employee_id}
     assert {Source.FRAPPE, Source.JIRA, Source.CALENDAR} <= set(scenario.key.required_sources)
     assert scenario.key.stable_interval.contains(scenario.spec.today)
 

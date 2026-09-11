@@ -929,7 +929,10 @@ external metadata of the bundle and is never serialized into a hashed artifact, 
 would define it circularly. A reference seed's hash is recorded beside the generator
 version as a pair, so a changed hash with an unchanged version fails the suite, and
 re-cutting the pair is the deliberate act that accompanies a bump. The interpreter's
-minor version is part of realization identity; a patch release does not move the hash.
+minor version is recorded as provenance; the patch version is not independently part of
+the identity recipe, and any runtime difference that changes the canonical realized
+bundle is reflected in the hash regardless — which is why the realization is hashed and
+not the recipe.
 
 ---
 
