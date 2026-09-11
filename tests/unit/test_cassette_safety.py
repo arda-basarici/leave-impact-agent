@@ -1,12 +1,14 @@
 """Every committed cassette is scrubbed — a gate, so the discipline never rests on review alone.
 
-Walks every cassette under ``tests`` and checks two things. Structurally: every
-Authorization and Cookie request header reads as the placeholder, no response carries
-Set-Cookie, and every secret-shaped key in a JSON body reads as the placeholder.
-Textually: no token signature (an Atlassian API token, a Google access or refresh
-token, a Frappe token header) and no real sandbox host survives anywhere in the file —
-the second net catches a secret that arrived somewhere the structural scrub did not
-look. With no cassette committed yet the walk is empty and the test passes vacuously,
+Walks every cassette under ``tests`` and checks two things. Structurally: every request
+addresses an allowed host (a placeholder or a public Google API host — a rule CI can
+enforce without knowing the real sites), every Authorization and Cookie request header
+reads as the placeholder, no response carries Set-Cookie, and every secret-shaped key
+in a JSON body reads as the placeholder. Textually: no token signature (an Atlassian
+API token, a Google access or refresh token, a Frappe token header) and, where the
+environment knows them, no real sandbox host survives anywhere in the file — the second
+net catches a secret that arrived somewhere the structural scrub did not look. With
+no cassette committed yet the walk is empty and the test passes vacuously,
 the intended state until the first adapter lands.
 """
 
@@ -20,7 +22,13 @@ from urllib.parse import urlsplit
 
 import yaml
 
-from tests.recording import FILTERED_HEADERS, REDACTED, SANDBOXES, SECRET_JSON_KEYS
+from tests.recording import (
+    ALLOWED_CASSETTE_HOSTS,
+    FILTERED_HEADERS,
+    REDACTED,
+    SANDBOXES,
+    SECRET_JSON_KEYS,
+)
 
 TESTS = Path(__file__).resolve().parents[1]
 CASSETTES = sorted(TESTS.rglob("cassettes/**/*.yaml"))
@@ -82,6 +90,9 @@ def test_cassettes_carry_no_secret() -> None:
         for number, interaction in enumerate(_interactions(path), start=1):
             request: dict[str, Any] = interaction.get("request", {})
             response: dict[str, Any] = interaction.get("response", {})
+            host = urlsplit(str(request.get("uri", ""))).hostname or ""
+            if host not in ALLOWED_CASSETTE_HOSTS:
+                problems.append(f"{where} #{number}: request addresses {host!r}, not a placeholder")
             for name in FILTERED_HEADERS:
                 for value in _header_values(request.get("headers", {}), name):
                     if value != REDACTED:

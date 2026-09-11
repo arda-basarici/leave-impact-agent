@@ -12,7 +12,8 @@ so a second arrival answers "already exists". The transport needs only that prop
 never the reason, so the declaration is a flag and the justification lives at the call
 site. A replayable request retries on every transport fault and on 429, 502, 503 and
 504. A non-replayable one retries only where the request provably never arrived — a
-connect error or a connect timeout, the two faults httpx names as such — and on 429,
+connect error, a connect timeout, or a timeout waiting for a pool connection, the three
+faults httpx raises before anything is sent — and on 429,
 which Jira and the Cloudflare edge in front of Frappe answer without acting (an adapter
 contract from observed behaviour, not an HTTP guarantee). Everything else after bytes
 went out is ambiguous and raises at once, because a Frappe or Jira create replayed after
@@ -32,8 +33,10 @@ acceptable raises the same, status and body excerpt in the reason: the run canno
 an answer from that source, and whether the cause is their outage or our request is a
 diagnosis for the log, not a third exception type — the port declares two. A 404 on a
 select-by-id is not a fault: the caller lists 404 as acceptable and maps the response to
-``None``. Client-side errors that are neither the vendor's nor the wire's (a malformed
-URL, a redirect loop) are defects and propagate untouched.
+``None``. Client-side errors that are neither the vendor's nor the wire's are defects
+and propagate untouched — including the two httpx files under its transport errors, a
+local protocol violation and an unsupported URL scheme, which are re-raised before the
+operational branch so a defect is never retried into a run condition (a review finding).
 """
 
 from __future__ import annotations
@@ -51,7 +54,8 @@ from leaveimpact.core.ports.errors import SourceUnreachable
 
 _REPLAYABLE_STATUSES = frozenset({429, 502, 503, 504})
 _NEVER_ACTED_STATUSES = frozenset({429})
-_CONNECT_PHASE = (httpx.ConnectError, httpx.ConnectTimeout)
+_CONNECT_PHASE = (httpx.ConnectError, httpx.ConnectTimeout, httpx.PoolTimeout)
+_DEFECTS = (httpx.LocalProtocolError, httpx.UnsupportedProtocol)
 _EXCERPT_CHARS = 200
 
 
@@ -148,6 +152,8 @@ class Transport:
             last = attempt == self._policy.attempts
             try:
                 response = self._client.request(method, path, **kwargs)
+            except _DEFECTS:
+                raise
             except httpx.TransportError as exc:
                 fault = type(exc).__name__
                 if not replayable and not isinstance(exc, _CONNECT_PHASE):

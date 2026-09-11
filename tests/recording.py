@@ -11,7 +11,10 @@ placeholder host otherwise. The request scrub rewrites the real host to the plac
 before a request is written or matched, so the committed cassette names no real site,
 and a replay — whose requests already carry the placeholder, because the test built the
 adapter without the variable — matches it. The sandbox sites are the stream's, not the
-repo's, the same rule the probes' captures followed.
+repo's, the same rule the probes' captures followed. The gate for this is structural:
+every request in a committed cassette must address a host on ``ALLOWED_CASSETTE_HOSTS``
+— the placeholders and Google's public API hosts — because CI does not know the real
+sites and a check that needed them would pass vacuously there (a review finding).
 
 **The secrets.** Authorization and cookie request headers are filtered by name; the
 form fields of a Google token refresh (the client secret, the refresh token) are filtered
@@ -36,6 +39,7 @@ import json
 import os
 from dataclasses import dataclass
 from typing import Any, cast
+from urllib.parse import urlsplit
 
 REDACTED = "REDACTED"
 FILTERED_HEADERS = ("authorization", "cookie")
@@ -81,6 +85,11 @@ class Sandbox:
 FRAPPE = Sandbox("LEAVE_IMPACT_FRAPPE_W1_SITE", "https://frappe.sandbox.invalid")
 JIRA = Sandbox("LEAVE_IMPACT_JIRA_SITE", "https://jira.sandbox.invalid")
 SANDBOXES = (FRAPPE, JIRA)
+# Google's endpoints are public and never rewritten; everything else must be a placeholder.
+PUBLIC_API_HOSTS = frozenset({"www.googleapis.com", "oauth2.googleapis.com"})
+ALLOWED_CASSETTE_HOSTS = PUBLIC_API_HOSTS | frozenset(
+    urlsplit(sandbox.placeholder).hostname or "" for sandbox in SANDBOXES
+)
 
 
 def scrub_request(request: Any) -> Any:

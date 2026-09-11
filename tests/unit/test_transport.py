@@ -80,6 +80,14 @@ def test_non_replayable_write_replays_a_connect_phase_fault() -> None:
     assert len(script.seen) == 2
 
 
+def test_non_replayable_write_replays_a_pool_timeout() -> None:
+    script = Scripted(httpx.PoolTimeout("no connection free"), response(201))
+    pauses: list[float] = []
+    got = transport(script, pauses).request("POST", "/things", replayable=False, ok=(201,))
+    assert got.status_code == 201, "a pool timeout happens before anything is sent"
+    assert len(script.seen) == 2
+
+
 def test_non_replayable_write_stops_at_once_after_bytes_were_sent() -> None:
     script = Scripted(httpx.ReadTimeout("stalled"), response(201))
     pauses: list[float] = []
@@ -176,6 +184,20 @@ def test_a_client_side_defect_propagates_untouched() -> None:
     with pytest.raises(TypeError):
         transport(script, pauses).request("POST", "/x", replayable=True, json={"a": object()})
     assert script.seen == [], "the defect is ours and never reaches the wire"
+
+
+@pytest.mark.parametrize(
+    "defect", [httpx.LocalProtocolError("ours"), httpx.UnsupportedProtocol("ours")]
+)
+@pytest.mark.parametrize("replayable", [True, False])
+def test_a_transport_level_defect_is_never_retried_into_a_run_condition(
+    defect: Exception, replayable: bool
+) -> None:
+    script = Scripted(defect, response(200))
+    pauses: list[float] = []
+    with pytest.raises(type(defect)):
+        transport(script, pauses).request("POST", "/x", replayable=replayable, ok=(200, 201))
+    assert len(script.seen) == 1 and pauses == []
 
 
 def test_a_single_attempt_policy_never_pauses() -> None:
