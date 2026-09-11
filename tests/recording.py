@@ -93,11 +93,19 @@ ALLOWED_CASSETTE_HOSTS = PUBLIC_API_HOSTS | frozenset(
 
 
 def scrub_request(request: Any) -> Any:
-    """Rewrite a real sandbox host to its placeholder; applied on record and on match alike."""
+    """Rewrite a real sandbox host to its placeholder; applied on record and on match alike.
+
+    The URI and the ``Host`` header both carry it — the header is where the first
+    recorded cassette leaked the site after the URI was clean, caught by the gate.
+    """
     for sandbox in SANDBOXES:
         real = sandbox.real_base_url
-        if real and request.uri.startswith(real):
-            request.uri = sandbox.placeholder + request.uri[len(real) :]
+        if not real or not request.uri.startswith(real):
+            continue
+        request.uri = sandbox.placeholder + request.uri[len(real) :]
+        placeholder_host = urlsplit(sandbox.placeholder).hostname or ""
+        for name in [name for name in request.headers if name.lower() == "host"]:
+            request.headers[name] = placeholder_host
     return request
 
 

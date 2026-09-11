@@ -93,6 +93,11 @@ def test_cassettes_carry_no_secret() -> None:
             host = urlsplit(str(request.get("uri", ""))).hostname or ""
             if host not in ALLOWED_CASSETTE_HOSTS:
                 problems.append(f"{where} #{number}: request addresses {host!r}, not a placeholder")
+            for header_host in _header_values(request.get("headers", {}), "host"):
+                if header_host not in ALLOWED_CASSETTE_HOSTS:
+                    problems.append(
+                        f"{where} #{number}: Host header {header_host!r}, not a placeholder"
+                    )
             for name in FILTERED_HEADERS:
                 for value in _header_values(request.get("headers", {}), name):
                     if value != REDACTED:
