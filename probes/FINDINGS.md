@@ -92,6 +92,12 @@ Facts established beyond the criterion:
   forced refresh of the 2026-08-24 production token (its access token 18 days expired)
   minted a new one and `calendars.get` read with it — the M1 calendar adapter can rely
   on the production refresh token.
+- **Proven at the adapter's first recording (2026-09-12):** `calendars.delete` is
+  permitted under `app.created` for calendars the app made (204); an `events.insert`
+  with a caller-supplied id answers 409 on the second arrival, and the copy read back
+  matches, so the insert is idempotent by id; the `calendars.insert` response carries
+  the principal's account address under `dataOwner` and every event's `creator.email`
+  — both scrubbed by key, the address also caught by signature in the cassette gate.
 - **OAuth client type: Desktop** — consent is a one-time local ceremony by the owner;
   what travels to the instance is the refresh token (SSM Parameter Store), never a
   consent flow. Client JSON + tokens live outside the repo under

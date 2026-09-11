@@ -7,7 +7,133 @@ decisions it feeds.
 
 ---
 
-## 2026-09-11 — The guarantee that would have deleted three test classes: why the organization promises shapes, never coverage
+## 2026-09-12 — Four leaks and a rollback: what the adapter tranche learned about trusting a gate, a vendor, and a transaction
+
+*M1 step 9 of the build plan, the four adapters that carry the synthetic world into
+Frappe HR, Jira, Google Calendar and the project's own PostgreSQL corpus (the calendar
+in `860c3f7`, the corpus in `2ecdcb8`, the end-of-adapter review fixes in `e9f04e6` and
+`3dc390a`, all 2026-09-12; 1495 unit tests and ten integration tests at the seal).
+Feeds: the M1 report's adapters and grounding section — translate, never launder, and
+what evidence discipline costs at the wire — its evaluation-design section, where the
+cassette gate stands as a measurement-integrity mechanism, and the M1 post.*
+
+The adapters are the part of the system a reader might skim: vendor JSON in, domain
+entities out, and a retry rule. What the tranche actually produced is three lessons
+about where trust breaks, and each of them arrived as a surprise rather than a plan.
+
+**The gate that was right, and then not enough.** The adapter integration tests run
+against recorded HTTP cassettes, and the cassettes are committed, so every recording
+against a real sandbox is a chance to commit a secret or a hostname. The day before the
+calendar work, the scrub had been made structural for a reason the CI pipeline forced:
+CI has no sandbox credentials, so a check that "the real host is absent" would pass
+there vacuously. The gate instead demands that every request host be a placeholder or
+a public API host, that every listed header be redacted, and that every secret-shaped
+JSON key read as the placeholder. Its record on the first two adapters was exact: the
+Frappe recording leaked the site in a request `Host` header after the URI was clean,
+and the Jira recording leaked it in a `Location` header on a create. Both caught on
+the gate's first real run, both fixed by widening the scrub.
+
+The calendar recording then produced the case the gate could not see. Google's
+response to creating a secondary calendar carries the owning account's e-mail address
+under a key called `dataOwner`, and every event carries it again under `creator.email`.
+Neither key was on the list. The identity net that should have caught the address by
+value was blind for a reason nobody had checked: google-auth writes the account into
+its token file as an empty string, so the net had nothing to look for. The leak was
+found by a manual scan of the cassette for the mail domain, not by the test. The
+repair is the point: both keys joined the list, and the gate gained a second net that
+does not depend on any list at all, a signature for a consumer mail address anywhere
+in the file, beside the existing signatures for token shapes. The gate was made to
+fail on the leaked cassette before the recording was redone, so the new net is known
+to bite. Minutes later the same cassette tripped the repository's commit-time secret
+scanner on `nextSyncToken`, Google's opaque sync cursor, which the adapter never
+sends; it was redacted by key rather than allowlisted, because an allowlist on a
+cassette would also hide a real token. The lesson generalises past this project: a
+key list is necessary and never sufficient, since a vendor will put a secret under a
+key nobody listed, and a gate needs a signature net beside the list.
+
+**A ruling deviated, with the reviewer's concurrence.** The design interview two days
+earlier had named Google's discovery client for the calendar. Reading the sealed
+Frappe and Jira adapters made the cost visible: the client ships no types, so under
+strict type checking every call would hide behind an `Any`; it brings a second HTTP
+stack with its own retry loop that sleeps on the wall clock outside the injected
+sleep, so a recorded rate limit would pause a cassette replay; and it would need a
+third wire-test style. The six calendar calls are plain paths under one base URL. So
+the calendar rides the shared transport, and google-auth keeps only the credential and
+its refresh. The external reviewer approved the deviation and refined three things,
+each adopted: the domain event id must be encoded into Google's alphabet (it was the
+plan, a digest, now doctested and later corrected to say what it always was, a SHA-1
+hex digest that happens to sit inside that alphabet); a 409 on an insert with a
+supplied id must mean "read the copy back and compare", never "written", so that an
+id collision or a cancelled event Google still remembers is a loud error; and every
+read should ask for one time zone so identical copies on calendars in different zones
+arrive in one form. The first recording proved the two claims the design rested on:
+Google answered 409 when the review meeting was added a second time and both copies
+verified equal, and the restricted scope the app runs under is allowed to delete the
+calendars it created.
+
+The representation that the recording exercised is one Google event per attendee's
+calendar, so each synthetic person's calendar shows their own busy time the way a
+free/busy query expects, and the reader makes one domain event of the copies. It
+treats any inconsistency as malformed rather than choosing a copy: copies that
+disagree, a copy on a non-attendee's calendar, an event present on fewer calendars
+than it names attendees. The reviewer's review of that commit found the one case it
+still laundered: two Google events on one calendar carrying the same planted id and
+identical fields collapsed into one. It was reproduced in the pure grouping function
+and closed the same day, and the reviewer's proposed invariant was adopted as a rule
+for all three vendor adapters at the end-of-tranche review: one semantic identity has
+exactly one vendor representation per place, and duplicates are malformed, never
+deduplicated. Frappe's enumerations, which had enforced exactly-one on a select but
+not on a listing, gained the same check.
+
+**The bug the projector would have met first.** The end-of-adapter review, run over
+the corpus commit with the deferred items from every earlier round, found the
+tranche's one genuine defect. The corpus adapter opened a default psycopg connection.
+On such a connection a plain `SELECT` opens a transaction that the driver never
+closes; a later explicit transaction block, entered while that transaction is open,
+creates only a savepoint; releasing the savepoint commits nothing; and closing the
+connection rolls the whole thing back. The projector's own sequence is exactly that
+shape, read by id, miss, add. Reproduced live on the development database before any
+fix: the same adapter read its own document back, its connection reported "in
+transaction" just before close, and a fresh adapter opened afterwards saw nothing
+(reproduced on the development database before any fix was written). Every
+projected document would have been lost, silently, on the first real run. The
+integration tests had passed because each of them wrote before it read, which is the
+convenient order and not the caller's. The fix is an autocommit connection with
+explicit transaction blocks kept around the document write and the schema bootstrap,
+and a regression test that replays the caller's order: a missed read, a write, a
+close, a fresh adapter that finds the document. The test was confirmed to fail on the
+old adapter and pass on the new (`e9f04e6`; reviewer approved). The transferable
+lesson is about test order: a lifecycle claim has to be reproduced in the sequence
+the real caller uses, not the one that is easy to write.
+
+**A design sentence that the code had quietly outgrown.** The reviewer also raised a
+cross-cutting mismatch: the design document said every scenario-owned entity carries
+the scenario id in each system, as a Jira label, a calendar property and a Frappe
+custom field, and no adapter plants one, nor do the writer ports carry one. The
+reviewer read it as an implementation drifting from its design. The diagnosis was
+refined in discussion: the scenario-framework step, days earlier, had already placed
+ownership in the sealed world specification's table of owned entities, so the design
+sentence was the stale party, not the code. The ruling went to that reading on
+2026-09-12, and the two design sentences were rewritten in `3dc390a`: a scenario's
+slice is enumerable from the specification, not from the vendors, and the projector's
+promise that a rerun adds nothing is now qualified by the one case it cannot keep, a
+secondary calendar whose id Google chooses and whose creation response was lost, which
+the restricted scope cannot rediscover. That qualification is a design check the
+projector step inherits: how the composition root persists the calendar map is what
+keeps the orphan case narrow.
+
+A field note from the same day, because it cost an hour of confusion: the integration
+recipe took 92 seconds for six corpus tests, and the cause was `localhost` resolving
+to IPv6 first on the development machine while the database container publishes on
+IPv4 only, so every connection waited out a ten-second timeout before falling back.
+Pointing the recipe at the loopback address brought the whole integration level to
+about five seconds (timed connects, 2026-09-12: 10.07 s by name, 0.04 s by address).
+
+Figure: a small table of the four cassette leaks across the tranche — where each
+arrived (request `Host` header, response `Location` header, `dataOwner` and
+`creator.email` keys, `nextSyncToken`), which net caught it (the structural gate, the
+structural gate, a manual scan, the commit-time scanner), and what the gate gained in
+response — would carry the "necessary, never sufficient" point in one glance.
 
 *M1 step 6 of the build plan, the organization generator: the closed vocabulary with
 its version and digest, then seeded people, teams, skills, managers, components
