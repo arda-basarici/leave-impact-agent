@@ -2,9 +2,10 @@
 
 Walks every cassette under ``tests`` and checks two things. Structurally: every request
 addresses an allowed host (a placeholder or a public Google API host — a rule CI can
-enforce without knowing the real sites), every Authorization and Cookie request header
-reads as the placeholder, no response carries Set-Cookie, and every secret-shaped key
-in a JSON body reads as the placeholder. Textually: no token signature (an Atlassian
+enforce without knowing the real sites), no response header names a URL on any other
+host, every Authorization and Cookie request header reads as the placeholder, no
+response carries Set-Cookie, and every secret-shaped key in a JSON body reads as the
+placeholder. Textually: no token signature (an Atlassian
 API token, a Google access or refresh token, a Frappe token header) and, where the
 environment knows them, no real sandbox host survives anywhere in the file — the second
 net catches a secret that arrived somewhere the structural scrub did not look. With
@@ -104,6 +105,12 @@ def test_cassettes_carry_no_secret() -> None:
                         problems.append(f"{where} #{number}: request header {name} not redacted")
             if _header_values(response.get("headers", {}), "set-cookie"):
                 problems.append(f"{where} #{number}: response carries Set-Cookie")
+            for name, value in response.get("headers", {}).items():
+                items: list[Any] = cast(list[Any], value) if isinstance(value, list) else [value]
+                for item in items:
+                    url_host = urlsplit(str(item)).hostname if "://" in str(item) else None
+                    if url_host and url_host not in ALLOWED_CASSETTE_HOSTS:
+                        problems.append(f"{where} #{number}: header {name} names {url_host!r}")
             for body in (request.get("body"), response.get("body")):
                 for key, value in _secret_values(_json_body(body)):
                     if value not in (None, REDACTED):

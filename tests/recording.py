@@ -43,7 +43,9 @@ from urllib.parse import urlsplit
 
 REDACTED = "REDACTED"
 FILTERED_HEADERS = ("authorization", "cookie")
-FILTERED_FORM_FIELDS = ("client_secret", "refresh_token")
+# Request-body fields, form-encoded or JSON: the Google refresh grant, the Jira project lead.
+FILTERED_FORM_FIELDS = ("client_secret", "refresh_token", "leadAccountId")
+# Response-body keys at any depth: tokens, keys, and the Atlassian account behind the token.
 SECRET_JSON_KEYS = frozenset(
     {
         "access_token",
@@ -53,6 +55,9 @@ SECRET_JSON_KEYS = frozenset(
         "api_key",
         "api_secret",
         "emailAddress",
+        "accountId",
+        "displayName",
+        "avatarUrls",
     }
 )
 
@@ -110,20 +115,45 @@ def scrub_request(request: Any) -> Any:
 
 
 def scrub_response(response: dict[str, Any]) -> dict[str, Any]:
-    """Drop Set-Cookie and redact secret-shaped keys in a JSON body before it is written."""
+    """Drop Set-Cookie, rewrite real hosts, redact secret-shaped keys in a JSON body.
+
+    Hosts appear inside bodies too — Jira's every record carries its own ``self`` URL,
+    Frappe's error messages link to the site — so the text substitution runs on the
+    whole body before the JSON redaction.
+    """
     headers: dict[str, Any] = response.get("headers", {})
     for name in [name for name in headers if name.lower() == "set-cookie"]:
         del headers[name]
+    for name, value in headers.items():
+        # A Location header on a create names the site (Jira, found at the second cassette).
+        values: list[Any] = cast(list[Any], value) if isinstance(value, list) else [value]
+        headers[name] = [_placeholder_hosts(str(item)) for item in values]
     body: dict[str, Any] = response.get("body", {})
     raw = body.get("string")
-    if isinstance(raw, bytes | str):
-        try:
-            parsed: Any = json.loads(raw)
-        except ValueError:
-            return response
-        redacted = json.dumps(redact(parsed))
-        body["string"] = redacted.encode() if isinstance(raw, bytes) else redacted
+    if not isinstance(raw, bytes | str):
+        return response
+    text = _placeholder_hosts(
+        raw.decode("utf-8", errors="replace") if isinstance(raw, bytes) else raw
+    )
+    try:
+        parsed: Any = json.loads(text)
+    except ValueError:
+        body["string"] = text.encode() if isinstance(raw, bytes) else text
+        return response
+    redacted = json.dumps(redact(parsed))
+    body["string"] = redacted.encode() if isinstance(raw, bytes) else redacted
     return response
+
+
+def _placeholder_hosts(text: str) -> str:
+    """``text`` with every real sandbox site replaced by its placeholder, escaped form too."""
+    for sandbox in SANDBOXES:
+        real = sandbox.real_base_url
+        if real:
+            text = text.replace(real, sandbox.placeholder)
+            escaped_real = real.replace("/", r"\/")
+            text = text.replace(escaped_real, sandbox.placeholder.replace("/", r"\/"))
+    return text
 
 
 def redact(value: Any) -> Any:
