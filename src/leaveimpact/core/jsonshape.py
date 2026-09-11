@@ -4,15 +4,36 @@ Shared by the claim codec and the value codec so that "a missing field", "a wron
 type" and "a surplus field" raise the same ``ValueError`` from one place. Meaning —
 whether the string is a valid id, whether the value fits the predicate — is the domain
 constructors' and is checked there, once.
+
+The one byte rule lives here too. Every artifact the project hashes or compares — the
+claims, the sealed world bundle, the world manifest — is canonical JSON in the same
+sense: one object built field by field in a fixed order, compact separators, UTF-8
+passed through, so the bytes are a property of the value and never of a serializer's
+defaults. Defined once so that three codecs cannot drift apart by one keyword argument.
 """
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import cast
 
 JsonObject = dict[str, object]
 """A JSON object as Python builds it: string keys, values already JSON-ready."""
+
+
+def canonical_json(value: object) -> str:
+    """``value`` as canonical JSON text: insertion order kept, compact separators, UTF-8 through.
+
+    >>> canonical_json({"b": 1, "a": ["ü", None]})
+    '{"b":1,"a":["ü",null]}'
+    """
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+def canonical_bytes(data: JsonObject) -> bytes:
+    """The UTF-8 bytes of ``canonical_json(data)`` — what gets hashed and what gets written."""
+    return canonical_json(data).encode("utf-8")
 
 
 def expect_fields(data: Mapping[str, object], fields: tuple[str, ...], what: str) -> None:

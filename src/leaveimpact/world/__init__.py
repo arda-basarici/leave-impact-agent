@@ -74,7 +74,14 @@ from leaveimpact.world.modifiers import (
     TimezoneBoundary,
     WrongTeam,
 )
-from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams, OrgSpec, generate_org
+from leaveimpact.world.org import (
+    DEFAULT_PARAMS,
+    OrgParams,
+    OrgSpec,
+    decode_org_params,
+    encode_org_params,
+    generate_org,
+)
 from leaveimpact.world.plan import (
     TIER_ONE_RULES,
     PlanInfeasible,
@@ -215,8 +222,10 @@ __all__ = [
     "canonical_bytes",
     "check_plan",
     "construct",
+    "decode_org_params",
     "derive_org",
     "derive_owned",
+    "encode_org_params",
     "gap_at",
     "gap_holds_all_year",
     "generate_org",

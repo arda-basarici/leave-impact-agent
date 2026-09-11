@@ -13,7 +13,8 @@ contract — adapter configuration, the identity map from semantic to vendor ids
 parameters, the world version and digests — is the projection's receipt, written after
 the vendors mint ids, application-readable, outside the hash, and holding no fact that
 can change an answer (the test: delete it after identity resolution and lose nothing
-answer-relevant). It arrives with the projectors. Nothing here writes a byte; canonical
+answer-relevant). It lives in ``adapters.manifest``, the lowest package that can type the
+adapter configuration it carries. Nothing here writes a byte; canonical
 serialization and hashing are pure, and persistence and sealing belong to the generator
 entry point.
 
@@ -26,9 +27,9 @@ record a reference seed's version beside the generator version as a pair: a chan
 hash with an unchanged generator version fails, and re-cutting the pair is the
 deliberate act that accompanies a bump.
 
-Canonical means what the claim codec means by it: one object built field by field in a
-fixed order, compact separators, UTF-8 passed through, so the bytes are a property of the
-world and not of a serializer's defaults. Fact values travel through the value codec,
+Canonical means what every codec here means by it — the one byte rule in ``core``'s
+JSON shape module, so the bytes are a property of the world and not of a serializer's
+defaults. Fact values travel through the value codec,
 tagged by their predicate's spec; instants carry their IANA zone beside the offset-bearing
 timestamp, because the zone is provenance for how a human read the time. Decoders arrive
 with their first consumer, the validator, which reads the manifest against the live
@@ -38,8 +39,7 @@ systems.
 from __future__ import annotations
 
 import hashlib
-import json
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import date, datetime
 
 from leaveimpact.core.claims import ConstraintKey, ImpactKey
@@ -55,12 +55,13 @@ from leaveimpact.core.entities import (
 )
 from leaveimpact.core.facts import Fact, FactBase, Gap
 from leaveimpact.core.ids import WorldVersion
-from leaveimpact.core.jsonshape import JsonObject
+from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.predicates import predicate
 from leaveimpact.core.refs import EvidenceRef
 from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.assembly import WorldSpec
+from leaveimpact.world.org import encode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -120,11 +121,6 @@ def world_version(artifacts: tuple[Artifact, ...]) -> WorldVersion:
     return WorldVersion(hasher.hexdigest())
 
 
-def canonical_bytes(data: JsonObject) -> bytes:
-    """``data`` as canonical JSON: insertion order kept, compact separators, UTF-8 through."""
-    return json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-
-
 def digest(content: bytes) -> str:
     return hashlib.sha256(content).hexdigest()
 
@@ -179,7 +175,7 @@ def _org(world: WorldSpec) -> JsonObject:
     org = world.org
     return {
         "seed": org.seed,
-        "params": asdict(org.params),
+        "params": encode_org_params(org.params),
         "generator_version": org.generator_version,
         "teams": [_team(team) for team in org.teams],
         "employees": [_employee(employee) for employee in org.employees],

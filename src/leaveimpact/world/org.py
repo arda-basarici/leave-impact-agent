@@ -25,8 +25,10 @@ from __future__ import annotations
 
 import math
 from collections import Counter
-from dataclasses import dataclass
+from collections.abc import Mapping
+from dataclasses import asdict, dataclass, fields
 from random import Random
+from typing import cast
 
 from leaveimpact.core.entities import Component, Employee, Team
 from leaveimpact.core.enums import EmploymentType, Grade
@@ -37,6 +39,14 @@ from leaveimpact.core.ids import (
     component_id,
     employee_id,
     team_id,
+)
+from leaveimpact.core.jsonshape import (
+    JsonObject,
+    array_field,
+    expect_fields,
+    field_of,
+    integer_field,
+    string_field,
 )
 from leaveimpact.core.worldtime import zone
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
@@ -179,6 +189,62 @@ def _far_cities(params: OrgParams) -> tuple[City, ...]:
 
 
 DEFAULT_PARAMS = OrgParams()
+
+
+def encode_org_params(params: OrgParams) -> JsonObject:
+    """``params`` as a JSON object, one field per dial in declaration order.
+
+    The sealed world spec and the world manifest both carry it, so the encoding lives with
+    the type: a dial added to ``OrgParams`` reaches every artifact through this one function.
+
+    >>> encode_org_params(OrgParams(org_size=8, team_count=2))["skills_per_person"]
+    [1, 4]
+    """
+    return {**asdict(params), "skills_per_person": list(params.skills_per_person)}
+
+
+def decode_org_params(data: Mapping[str, object]) -> OrgParams:
+    """The ``OrgParams`` that ``data`` encodes; the semantic ranges are the constructor's.
+
+    Exactly the declared fields, each of its declared scalar type — a JSON boolean is not a
+    count and a number is not a zone name — with the skills bounds back to a pair. A dial
+    added to the type reaches the encoder by itself and fails here until the decoder is
+    taught it, which is the loud failure a sealed artifact's reader wants.
+
+    >>> decode_org_params(encode_org_params(DEFAULT_PARAMS)) == DEFAULT_PARAMS
+    True
+    """
+    expect_fields(data, tuple(field.name for field in fields(OrgParams)), "org params")
+    return OrgParams(
+        org_size=integer_field(data, "org_size"),
+        team_count=integer_field(data, "team_count"),
+        component_count=integer_field(data, "component_count"),
+        blank_skill_records=integer_field(data, "blank_skill_records"),
+        skills_per_person=_integer_pair(data, "skills_per_person"),
+        contractor_share=_number_field(data, "contractor_share"),
+        remote_share=_number_field(data, "remote_share"),
+        reference_timezone=string_field(data, "reference_timezone"),
+        timezone_gap_hours=integer_field(data, "timezone_gap_hours"),
+    )
+
+
+def _integer_pair(data: Mapping[str, object], key: str) -> tuple[int, int]:
+    items = array_field(data, key)
+    if len(items) != 2 or any(not _is_integer(item) for item in items):
+        raise ValueError(f"{key} is a pair of integers, got {items!r}")
+    low, high = items
+    return int(cast(int, low)), int(cast(int, high))
+
+
+def _number_field(data: Mapping[str, object], key: str) -> float:
+    value = field_of(data, key)
+    if not isinstance(value, int | float) or isinstance(value, bool):
+        raise ValueError(f"{key} is a number, got {type(value).__name__}")
+    return float(value)
+
+
+def _is_integer(value: object) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
 
 
 @dataclass(frozen=True, slots=True)

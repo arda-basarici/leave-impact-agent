@@ -4,7 +4,7 @@ How it's built and why that structure — a narrative snapshot, edited in place.
 Decisions and their rationale live in DESIGN (cited here by name); the pitch in
 README.
 
-*Snapshot at the world milestone's build, step 8 · last updated 2026-09-11.*
+*Snapshot at the world milestone's build, step 8 · last updated 2026-09-12.*
 
 ## Design shape
 
@@ -64,9 +64,10 @@ plainly as its dotted path does. The rank table names `evaluator`,
     the sealed bundle: world spec · scenario specs · truth manifest
     world version = the hash of the three, in order
         ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar · corpus
-        │        └──► world manifest: the identity map (semantic id → vendor id),
-        │             adapter configuration, world version and digests — the
-        │             projection's receipt, written after vendors mint ids, never hashed
+        │        └──► world manifest (adapters/manifest): the resolved adapter
+        │             configuration, one locator per projected id, the world version
+        │             and digests — the projection's receipt and checkpoint, staged
+        │             preparing → projected, written after vendors mint ids, never hashed
         ├──► world bucket: world manifest, scenario specs, documents (app-readable)
         └──► truth bucket: world-spec/ (validator + evaluator) ·
         │                  truth-manifest/ (evaluator only); the app reads neither
@@ -89,7 +90,7 @@ the map.
 |---|---|
 | `core` | the domain, pure: types, ids, the predicate registry, the claim vocabulary with its grading keys, `RunContext`, the deterministic rules (viability, authority table, closure, constraint checks), the ports two consumers share — readers and writers in two modules, observed entities crossing, facts derived inside |
 | `world` | the benchmark, pure: the organization, the seeded plan, scenario classes and modifiers under the construction invariants, world assembly with the whole-world re-verification, truth facts with dated provenance, keys, the three artifacts in canonical bytes and the world version; briefs and templates when prose arrives |
-| `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact; `transport` beneath them carries timeouts, the retry rule and the fault seam |
+| `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact; `transport` beneath them carries timeouts, the retry rule and the fault seam; `manifest` beside them is the world manifest, the configuration-and-receipt contract every reader of a projected world decodes |
 | `generator` | the generation job: materializes prose under the containment gate, projects the frozen world idempotently, seals the artifacts |
 | `validator` | read-only verification that projection realized the declared world |
 | `evaluator` | reserved — grades runs against truth (investigator milestone) |

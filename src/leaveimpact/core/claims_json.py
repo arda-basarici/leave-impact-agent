@@ -48,6 +48,7 @@ from leaveimpact.core.jsonshape import (
     JsonObject,
     array_field,
     as_object,
+    canonical_json,
     expect_fields,
     object_field,
     optional_string_field,
@@ -69,9 +70,7 @@ def encode_claims(claims: Sequence[Claim]) -> str:
     '[]'
     """
     ordered = sorted(claims, key=lambda claim: claim.claim_id)
-    return json.dumps(
-        [encode_claim(claim) for claim in ordered], ensure_ascii=False, separators=(",", ":")
-    )
+    return canonical_json([encode_claim(claim) for claim in ordered])
 
 
 def encode_claim(claim: Claim) -> JsonObject:
