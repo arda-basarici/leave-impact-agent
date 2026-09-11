@@ -35,7 +35,7 @@ from leaveimpact.world import (
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
-    WORLD_MANIFEST,
+    WORLD_SPEC,
     Artifact,
     Bundle,
     bundle,
@@ -161,7 +161,7 @@ __all__ = [
     "TEAM_NAMES",
     "TIER_ONE_RULES",
     "TRUTH_MANIFEST",
-    "WORLD_MANIFEST",
+    "WORLD_SPEC",
     "AlreadyResolved",
     "Amendment",
     "Artifact",

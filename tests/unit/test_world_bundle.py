@@ -1,8 +1,8 @@
-"""The bundle of a world: three canonical artifacts whose digests the manifest cross-cites, a
-world version over their realized bytes, the agent-visible file free of key material — and the
-snapshot pair: a reference seed's world version recorded beside the generator version, so a
-changed realization with an unchanged version fails the suite and re-cutting the pair is the
-deliberate act that accompanies a bump."""
+"""The bundle of a world: three canonical artifacts whose digests the world spec cross-cites, a
+world version over their realized bytes, the agent-visible file carrying legitimate run inputs
+and no evaluator-only truth — and the snapshot pair: a reference seed's world version recorded
+beside the generator version, so a changed realization with an unchanged version fails the
+suite and re-cutting the pair is the deliberate act that accompanies a bump."""
 
 import json
 from datetime import date
@@ -14,7 +14,7 @@ from leaveimpact.world import (
     GENERATOR_VERSION,
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
-    WORLD_MANIFEST,
+    WORLD_SPEC,
     Bundle,
     GeneratorVersion,
     WorldSpec,
@@ -29,8 +29,8 @@ REFERENCE_SEED = 7
 
 # The snapshot pair. Re-cut both together, on purpose, after inspecting what the generator
 # now produces: bump GENERATOR_VERSION in world/version.py and record the new hash here.
-SNAPSHOT_VERSION = GeneratorVersion("2")
-SNAPSHOT_WORLD_VERSION = "180f514a48ad8a1e78283ac72ee94bdb3d7e1cfbfc8ed5dba5f837f4d69499bf"
+SNAPSHOT_VERSION = GeneratorVersion("3")
+SNAPSHOT_WORLD_VERSION = "0fbc9b09ef16f8b96614cb6838579b4d1a67e206754b647040bc1c6176aa86a9"
 
 
 @pytest.fixture(scope="module")
@@ -56,16 +56,16 @@ def test_the_reference_world_matches_the_snapshot_pair(sealed: Bundle) -> None:
     )
 
 
-def test_the_manifest_cites_the_other_two_files_by_digest(sealed: Bundle) -> None:
-    manifest = json.loads(sealed.world_manifest.content)
-    assert manifest["artifact"] == WORLD_MANIFEST
-    assert manifest["artifacts"] == {
+def test_the_world_spec_cites_the_other_two_files_by_digest(sealed: Bundle) -> None:
+    spec = json.loads(sealed.world_spec.content)
+    assert spec["artifact"] == WORLD_SPEC
+    assert spec["artifacts"] == {
         SCENARIO_SPECS: sealed.scenario_specs.digest,
         TRUTH_MANIFEST: sealed.truth_manifest.digest,
     }
-    assert manifest["provenance"]["generator_version"] == GENERATOR_VERSION
-    assert manifest["provenance"]["seed"] == REFERENCE_SEED
-    assert len(manifest["plan"]) == len(manifest["slices"]) == 10
+    assert spec["provenance"]["generator_version"] == GENERATOR_VERSION
+    assert spec["provenance"]["seed"] == REFERENCE_SEED
+    assert len(spec["plan"]) == len(spec["slices"]) == 10
 
 
 def test_the_version_names_the_realization_and_never_sits_inside_it(sealed: Bundle) -> None:
@@ -81,7 +81,7 @@ def test_the_version_names_the_realization_and_never_sits_inside_it(sealed: Bund
     assert world_version(tampered) != sealed.world_version
 
 
-def test_the_agent_visible_file_carries_no_key_material(sealed: Bundle) -> None:
+def test_the_agent_visible_file_carries_run_inputs_and_no_evaluator_truth(sealed: Bundle) -> None:
     specs = json.loads(sealed.scenario_specs.content)
     assert specs["artifact"] == SCENARIO_SPECS
     assert {tuple(sorted(row)) for row in specs["scenarios"]} == {

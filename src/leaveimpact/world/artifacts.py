@@ -1,11 +1,19 @@
-"""The three artifacts of a world, their canonical bytes and digests, and the world version.
+"""The three sealed artifacts of a world, their canonical bytes and digests, and the world version.
 
-Three readers, three files (the bundle ruling at step 8). The *world manifest* — the
-organization, the plan, the slices, the provenance, and the content digests of the other
-two files, so a swapped file is visible — is read by the projectors and the validator.
-The *scenario specs* hold the agent-visible rows only: what a run is asked. The *truth
-manifest* is evaluator-only: every key, the construction and observability records the
-audit reads, and the dated world-level fact base. Nothing here writes a byte; canonical
+Three readers, three files (the bundle ruling at step 8, the names settled at its
+review). The *world spec* — the organization, the plan, the slices, the provenance, and
+the content digests of the other two files, so a swapped file is visible — is the
+semantic realization: benchmark-private, read by the projectors and the validator, never
+by the application, since the plan alone names which traps were planted. The *scenario
+specs* hold the agent-visible rows only: what a run is asked, legitimate inputs and no
+evaluator-only truth. The *truth manifest* is evaluator-only: every key, the
+construction and observability records the audit reads, and the dated world-level fact
+base. A fourth file is deliberately not here: the *world manifest* of the earlier
+contract — adapter configuration, the identity map from semantic to vendor ids, org
+parameters, the world version and digests — is the projection's receipt, written after
+the vendors mint ids, application-readable, outside the hash, and holding no fact that
+can change an answer (the test: delete it after identity resolution and lose nothing
+answer-relevant). It arrives with the projectors. Nothing here writes a byte; canonical
 serialization and hashing are pure, and persistence and sealing belong to the generator
 entry point.
 
@@ -65,7 +73,7 @@ from leaveimpact.world.scenario import (
     ScenarioSpec,
 )
 
-WORLD_MANIFEST = "world-manifest.json"
+WORLD_SPEC = "world-spec.json"
 SCENARIO_SPECS = "scenario-specs.json"
 TRUTH_MANIFEST = "truth-manifest.json"
 
@@ -83,7 +91,7 @@ class Artifact:
 class Bundle:
     """The three artifacts and the world version that names their realization."""
 
-    world_manifest: Artifact
+    world_spec: Artifact
     scenario_specs: Artifact
     truth_manifest: Artifact
     world_version: WorldVersion
@@ -91,15 +99,15 @@ class Bundle:
     @property
     def artifacts(self) -> tuple[Artifact, ...]:
         """The files in the order the version hashes them."""
-        return (self.world_manifest, self.scenario_specs, self.truth_manifest)
+        return (self.world_spec, self.scenario_specs, self.truth_manifest)
 
 
 def bundle(world: WorldSpec) -> Bundle:
-    """The bundle of ``world``: specs and truth first, then the manifest citing their digests."""
+    """The bundle of ``world``: specs and truth first, then the world spec citing their digests."""
     specs = _artifact(SCENARIO_SPECS, encode_scenario_specs(world))
     truth = _artifact(TRUTH_MANIFEST, encode_truth_manifest(world))
-    manifest = _artifact(WORLD_MANIFEST, encode_world_manifest(world, specs, truth))
-    return Bundle(manifest, specs, truth, world_version((manifest, specs, truth)))
+    spec = _artifact(WORLD_SPEC, encode_world_spec(world, specs, truth))
+    return Bundle(spec, specs, truth, world_version((spec, specs, truth)))
 
 
 def world_version(artifacts: tuple[Artifact, ...]) -> WorldVersion:
@@ -129,10 +137,10 @@ def _artifact(name: str, data: JsonObject) -> Artifact:
 # --- The three documents ------------------------------------------------------------------
 
 
-def encode_world_manifest(world: WorldSpec, specs: Artifact, truth: Artifact) -> JsonObject:
+def encode_world_spec(world: WorldSpec, specs: Artifact, truth: Artifact) -> JsonObject:
     """Organization, plan, slices, provenance, and the digests of the other two files."""
     return {
-        "artifact": WORLD_MANIFEST,
+        "artifact": WORLD_SPEC,
         "provenance": {
             "seed": world.seed,
             "world_start": world.world_start.isoformat(),

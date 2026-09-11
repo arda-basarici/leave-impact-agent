@@ -317,8 +317,15 @@ def construct(
     spec = ScenarioSpec(scenario_id, draft.investigated, frame.now, reference_timezone, window)
     base = truth_fact_base(org, world_start, [draft.owned], draft.authored_facts)
     problems = _verify(base, spec.today, impacts, draft.constraints, frame, org)
-    required = _required_sources(
-        base, spec.today, impacts, draft.constraints, frame, org, spec.leave_id
+    required = required_sources_for(
+        base,
+        spec.today,
+        impacts,
+        draft.constraints,
+        frame.leave,
+        reference_timezone,
+        org,
+        spec.leave_id,
     )
     key = ScenarioKey(
         scenario_id=scenario_id,
@@ -428,16 +435,17 @@ def _verify(
     return problems
 
 
-def _required_sources(
+def required_sources_for(
     base: FactBase,
     today: date,
     impacts: Sequence[ExpectedImpact],
     constraints: Sequence[ConstraintKey],
-    frame: Frame,
+    leave_span: DateSpan,
+    reference_timezone: str,
     org: OrgSpec,
     investigated: LeaveId,
 ) -> set[Source]:
-    """The sources the key's rule-level conclusions depend on.
+    """The sources the key's rule-level conclusions depend on, in ``base`` as of ``today``.
 
     Two kinds, and nothing else — a source hosting a named distractor is not one, since
     losing it changes no conclusion and distractor rejection is graded on its own list.
@@ -451,6 +459,10 @@ def _required_sources(
     needs both the HR record and the tracker to have answered. Asking the rules under
     each outage captures that without the framework knowing what the rules read, and it
     is the tool-failure condition's own definition of dependence.
+
+    One rule, two callers: construction asks it over the scenario's own facts, world
+    assembly over the assembled world, so a foreign fact that changes dependence without
+    moving a verdict is caught as contamination rather than left as a stale key.
     """
     normal = base.at(today, RunCondition.all_reachable())
     sources: set[Source] = set()
@@ -461,10 +473,11 @@ def _required_sources(
         for fact in normal.facts_of(PredicateName.ON_LEAVE)
         if fact.evidence.target.id == investigated
     )
-    baseline = _conclusions(normal, impacts, constraints, frame, org)
+    baseline = _conclusions(normal, impacts, constraints, leave_span, reference_timezone, org)
     for source in Source:
         outage = base.at(today, RunCondition.all_reachable().without(source))
-        if _conclusions(outage, impacts, constraints, frame, org) != baseline:
+        concluded = _conclusions(outage, impacts, constraints, leave_span, reference_timezone, org)
+        if concluded != baseline:
             sources.add(source)
     return sources
 
@@ -473,7 +486,8 @@ def _conclusions(
     view: FactView,
     impacts: Sequence[ExpectedImpact],
     constraints: Sequence[ConstraintKey],
-    frame: Frame,
+    leave_span: DateSpan,
+    reference_timezone: str,
     org: OrgSpec,
 ) -> tuple[object, ...]:
     """Everything the rules conclude in ``view``: verdicts, reasons, open questions, outcomes."""
@@ -481,7 +495,7 @@ def _conclusions(
     concluded: list[object] = []
     for expected in impacts:
         assessments = assess_impact(
-            view, expected.key, universe, constraints, frame.leave, frame.reference_timezone
+            view, expected.key, universe, constraints, leave_span, reference_timezone
         )
         # The unresolved questions travel too: an unknown for absence and an unknown for
         # an unreachable source are different conclusions with one verdict, and the
@@ -489,9 +503,10 @@ def _conclusions(
         verdicts = tuple(
             (a.employee_id, a.verdict, a.reasons, a.unresolved) for a in assessments
         )
-        outcome = expected_action(
-            (a.verdict for a in assessments), _required(view, expected.key, constraints, frame)
+        required = required_count_for(
+            view, expected.key, constraints, leave_span, reference_timezone
         )
+        outcome = expected_action((a.verdict for a in assessments), required)
         concluded.append((verdicts, outcome))
     return tuple(concluded)
 

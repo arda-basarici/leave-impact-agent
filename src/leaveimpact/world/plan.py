@@ -12,11 +12,18 @@ a modifier can land zero times, and a distractor measured on no rows is not meas
 
 The planner is compatibility-aware by construction: it assigns a modifier only to a row
 whose class is declared to afford it (``COMPATIBLE_MODIFIERS``, proven over every
-admissible construction), because no draft exists when the plan is made. A rule the
-planner cannot satisfy fails by name — never a relaxed constraint — and every produced
-plan is re-checked against the rule before it is returned, so the check and the
-construction cannot disagree silently. Modifiers are assigned most-constrained first,
-so a modifier few classes afford is never crowded out by one every class affords.
+admissible construction), because no draft exists when the plan is made. It is a small
+deterministic backtracking search, not a greedy draw: the RNG orders the legal
+alternatives — which rows stay clean, which rows each modifier lands on — and the search
+takes the first complete assignment, so the same seed gives the same plan and
+randomness chooses among valid plans without deciding whether one exists. A greedy
+planner raised on thirty-seven of two hundred seeds for a rule every one of them could
+satisfy (the step 8 review), which made its failure mean "this path got stuck".
+``PlanInfeasible`` therefore means what it says: every legal assignment was exhausted
+and none satisfies the rule — never a relaxed constraint — and every produced plan is
+re-checked against the rule before it is returned, so the check and the search cannot
+disagree silently. Modifiers are placed most-constrained first, which keeps the search
+shallow; at thirty rows, five modifiers and two per row it is tiny either way.
 
 The clean rows are a baseline, not a causal isolation: ten rows on different scenarios
 compare low against higher distractor pressure and do not measure one modifier's effect.
@@ -26,6 +33,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from itertools import combinations
 from random import Random
 from types import MappingProxyType
 
@@ -38,7 +46,12 @@ _MODIFIER_ORDER = {name: index for index, name in enumerate(ModifierName)}
 
 
 class PlanInfeasible(Exception):
-    """The rule cannot be satisfied over the classes and compatibilities the plan has."""
+    """No assignment satisfies the rule over the classes and compatibilities the plan has.
+
+    Raised only after the search has exhausted every legal alternative, or when a
+    modifier has fewer compatible rows than appearances before any search — named
+    either way.
+    """
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,8 +123,8 @@ class PlanRow:
 def plan_world(rng: Random, rules: PlanRules) -> tuple[PlanRow, ...]:
     """The plan ``rules`` and ``rng`` produce: classes dealt over the rows, modifiers assigned.
 
-    Same rules, same RNG state, same plan. Raises ``PlanInfeasible`` when a constraint
-    cannot be met, naming it.
+    Same rules, same RNG state, same plan. Raises ``PlanInfeasible`` when no assignment
+    satisfies the rule, naming what could not be met.
     """
     classes = [name for name, count in rules.class_counts.items() for _ in range(count)]
     rng.shuffle(classes)
@@ -119,29 +132,78 @@ def plan_world(rng: Random, rules: PlanRules) -> tuple[PlanRow, ...]:
         raise PlanInfeasible(
             f"min_clean asks {rules.min_clean} clean rows of {len(classes)} rows in total"
         )
-    clean = set(rng.sample(range(len(classes)), rules.min_clean))
-    assigned: list[list[ModifierName]] = [[] for _ in classes]
-    for modifier in _most_constrained_first(classes):
-        eligible = [
-            index
-            for index, name in enumerate(classes)
-            if index not in clean
-            and modifier in COMPATIBLE_MODIFIERS[name]
-            and len(assigned[index]) < rules.max_modifiers
-        ]
-        if len(eligible) < rules.min_appearances:
+    for modifier in ModifierName:
+        compatible = sum(modifier in COMPATIBLE_MODIFIERS[name] for name in classes)
+        if compatible - rules.min_clean < rules.min_appearances:
             raise PlanInfeasible(
-                f"{modifier.value} needs {rules.min_appearances} rows and only "
-                f"{len(eligible)} compatible rows with room remain"
+                f"{modifier.value} needs {rules.min_appearances} rows and at most "
+                f"{max(compatible - rules.min_clean, 0)} compatible rows can be non-clean"
             )
-        for index in rng.sample(eligible, rules.min_appearances):
-            assigned[index].append(modifier)
+    assigned = _search(rng, classes, rules)
+    if assigned is None:
+        raise PlanInfeasible(
+            f"no assignment places every modifier {rules.min_appearances} times on "
+            f"{len(classes)} rows with {rules.min_clean} clean and at most "
+            f"{rules.max_modifiers} modifiers each"
+        )
     rows = tuple(
         PlanRow(scenario_id(index + 1), SCENARIO_CLASSES[name].tier, name, _canonical(modifiers))
         for index, (name, modifiers) in enumerate(zip(classes, assigned, strict=True))
     )
     check_plan(rows, rules)
     return rows
+
+
+def _search(
+    rng: Random, classes: list[ScenarioClassName], rules: PlanRules
+) -> list[list[ModifierName]] | None:
+    """The first complete assignment in RNG order: clean rows chosen, then each modifier placed.
+
+    Depth-first over the clean-row choice and then the modifiers most constrained
+    first; at each level the legal alternatives are shuffled once by the RNG and tried
+    in that order, so the seed decides which valid plan wins and nothing else.
+    """
+    order = _most_constrained_first(classes)
+    clean_choices = list(combinations(range(len(classes)), rules.min_clean))
+    rng.shuffle(clean_choices)
+    for clean in clean_choices:
+        assigned: list[list[ModifierName]] = [[] for _ in classes]
+        if _place(rng, classes, rules, set(clean), order, 0, assigned):
+            return assigned
+    return None
+
+
+def _place(
+    rng: Random,
+    classes: list[ScenarioClassName],
+    rules: PlanRules,
+    clean: set[int],
+    order: list[ModifierName],
+    depth: int,
+    assigned: list[list[ModifierName]],
+) -> bool:
+    if depth == len(order):
+        return True
+    modifier = order[depth]
+    eligible = [
+        index
+        for index, name in enumerate(classes)
+        if index not in clean
+        and modifier in COMPATIBLE_MODIFIERS[name]
+        and len(assigned[index]) < rules.max_modifiers
+    ]
+    if len(eligible) < rules.min_appearances:
+        return False
+    choices = list(combinations(eligible, rules.min_appearances))
+    rng.shuffle(choices)
+    for rows in choices:
+        for index in rows:
+            assigned[index].append(modifier)
+        if _place(rng, classes, rules, clean, order, depth + 1, assigned):
+            return True
+        for index in rows:
+            assigned[index].pop()
+    return False
 
 
 def check_plan(rows: tuple[PlanRow, ...], rules: PlanRules) -> None:

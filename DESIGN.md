@@ -878,7 +878,10 @@ scenario has been re-verified against the complete assembled world, at its `now`
 across its declared stable interval: the fact base is world-level and time-filtered, so a
 record one scenario plants can change a verdict in another slice months later, which
 per-scenario verification cannot see. The re-check is the same verification over the
-union of every planted record. Global contamination is a construction error that names
+union of every planted record — authored verdicts, declared outcomes, and the required
+sources through the one pure rule construction uses, since the interval promises the
+same key and the key includes them: a foreign fact can change what a conclusion
+depends on without moving it (review ruling). Global contamination is a construction error that names
 the scenario, the verdict or outcome that changed, expected against actual, the foreign
 record with its owning scenario and its observable-from date — and never triggers a
 repair or a redraw, since a world that needs re-draws is a class whose affordance is
@@ -891,8 +894,13 @@ class and modifiers per scenario, recorded in the world manifest and produced by
 compatibility-aware planner under a stated rule — the golden set's Tier 1 counts, every
 modifier on at least two scenarios, at most two modifiers on any scenario, at least two
 scenarios with none. Compatibility is a static class-by-modifier matrix declared in code
-and proven by the seed sweep, since no draft exists when the plan is made; a plan the
-rule cannot satisfy fails by name rather than relaxing a constraint. Independent draws
+and proven over every admissible construction, since no draft exists when the plan is
+made. The planner is a small deterministic backtracking search in which the RNG orders
+the legal alternatives and the first complete assignment wins — randomness chooses
+among valid plans and never decides whether one exists, the rule the organization's
+guarantees already follow; a greedy draw raised on thirty-seven of two hundred seeds
+for a rule every one could satisfy (review ruling). A plan the rule cannot satisfy
+therefore fails by name and means it, rather than relaxing a constraint. Independent draws
 per scenario were rejected because at ten rows a modifier can land zero times, and
 "measured on structured evidence" would then have no rows behind it. The clean rows are
 a baseline, not a causal isolation: ten rows on different scenarios compare low against
@@ -912,17 +920,30 @@ computed at the planted instant, never as city constants. Truth stays exclusivel
 reference-zone based. Leaving the affordance to seed luck was rejected as rejection
 sampling at world level; deferring the modifier to Tier 3 contradicts the golden set.
 
-**The world bundle and its version (ruled 2026-09-11, step 8 of the M1 build).**
-`WorldSpec` is the pure composed bundle: the organization, the plan, the scenarios, the
-world-level fact base derived after assembly, and the provenance (seed, org parameters,
-generator version, interpreter minor version, vocabulary digest). Three artifacts serve
-three readers. The world manifest — organization, plan, provenance, and the content
-hashes of the other two files, so a swapped file is visible — is read by the projectors
-and the validator. The scenario specs hold the agent-visible rows only. The truth
-manifest is evaluator-only: the keys, the construction and observability records the
-audit reads, and the dated fact base. Canonical serialization and digests are pure and
-live in `world`; writing, sealing and the assumed role belong to the generator entry
-point. The world version is the digest of the realized bundle — the three canonical byte
+**The world bundle and its version (ruled 2026-09-11, step 8 of the M1 build; the
+artifact names settled at the step's review).** `WorldSpec` is the pure composed bundle:
+the organization, the plan, the scenarios, the world-level fact base derived after
+assembly, and the provenance (seed, org parameters, generator version, interpreter minor
+version, vocabulary digest). Three sealed artifacts serve three readers. The *world
+spec* — organization, plan, slices, provenance, and the content hashes of the other two
+files, so a swapped file is visible — is benchmark-private: read by the projectors and
+the validator, never by the application, since the plan alone names which traps were
+planted. The *scenario specs* hold the agent-visible rows only, legitimate run inputs
+and no evaluator-only truth. The *truth manifest* is evaluator-only: the keys, the
+construction and observability records the audit reads, and the dated fact base. The
+*world manifest* of the benchmark-state ruling above is a fourth, different object: the
+projection's receipt — adapter configuration, the identity map from semantic to vendor
+ids, org parameters, the world version and digests — written after the vendors mint
+ids, application-readable, outside the hash, holding no fact that can change an answer;
+its test stays "delete it after identity resolution and lose nothing answer-relevant".
+The step's first cut reused its name for the world spec and put the organization and
+the plan in an application-readable file; the collision was caught at review and the
+identity-map write-back alone proves the two cannot be one file. Storage follows
+access, not names: the truth bucket holds the world spec and the truth manifest under
+separate prefixes, the validator's role reading the spec prefix only and the
+evaluator's both, the application's neither; the world bucket holds the scenario specs
+and the world manifest. Canonical serialization and digests are pure and live in
+`world`; writing, sealing and the assumed role belong to the generator entry point. The world version is the digest of the realized bundle — the three canonical byte
 sequences in a fixed order — never of the recipe, because the interpreter finding is
 exactly a case where the recipe holds and the realization drifts; the version is
 external metadata of the bundle and is never serialized into a hashed artifact, which

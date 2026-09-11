@@ -7,15 +7,25 @@ verdict in another slice months later, which the per-scenario verification insid
 ``construct`` cannot see. Assembly therefore builds every scenario, derives one fact base
 over the union of every planted record, and re-runs the verification for each scenario
 at every day of its stable interval — today included, since the interval contains it.
-A disagreement is ``WorldContamination``: the scenario, the day, the impact, the verdict
-or outcome that changed, expected against actual, and the foreign record responsible with
-its owning scenario and observable-from date. Never a repair or a redraw — a world that
-needs re-draws is a class whose affordance is under-specified.
+A disagreement is ``WorldContamination``: the scenario, the day, the impact, the verdict,
+outcome or required sources that changed, expected against actual, and the foreign
+records in that day's evidence with their owning scenario and observable-from date.
+Never a repair or a redraw — a world that needs re-draws is a class whose affordance is
+under-specified.
 
-Attribution costs nothing because planted records are only ever added: a verdict can only
-flip toward more established facts, and the flipped verdict's own evidence names the
-record. Any evidence entity that is neither the organization's nor this scenario's own
-is foreign, and the owner is read off the scenarios' owned entities.
+Required sources are re-checked too, through the same pure rule construction used,
+because the stable interval promises the same *key* for any ``now`` inside it and the
+key includes them: a foreign fact can change what a conclusion depends on without
+moving the conclusion — a comment establishing a skill the HR record already showed —
+and that is a stale key (the step 8 review ruling).
+
+Attribution is cheap for a verdict because planted records are only ever added: a
+verdict can only flip toward more established facts, and the flipped verdict's own
+evidence names the record. Any evidence entity that is neither the organization's nor
+this scenario's own is foreign, and the owner is read off the scenarios' owned entities.
+For a dependence drift the cause is counterfactual and may be several facts together, so
+the finding lists the foreign records visible in the scenario's evidence that day rather
+than claiming one culprit; expected against actual is the authoritative part.
 
 One seed identifies a world: the organization is generated from it, one ``Random`` from
 it deals the slices and the plan and hands each scenario its own generator, and one id
@@ -26,12 +36,13 @@ bundle the artifact step serializes and hashes.
 from __future__ import annotations
 
 import sys
-from collections.abc import Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
 from random import Random
 
-from leaveimpact.core.claims import CoverageActionKind, Verdict
+from leaveimpact.core.claims import Verdict
+from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import Fact, FactBase, RunCondition
 from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.plans import expected_action
@@ -42,6 +53,7 @@ from leaveimpact.world.construction import (
     Minting,
     construct,
     required_count_for,
+    required_sources_for,
 )
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
@@ -193,9 +205,10 @@ def verify_world(
 ) -> tuple[Contamination, ...]:
     """Every disagreement between a key and the rules over ``facts``, across each stable interval.
 
-    The same check ``construct`` ran locally — authored verdicts per candidate, the
-    outcome over the whole organization — now against the assembled world, at every day
-    of the scenario's stable interval. Empty means the world is valid.
+    The same checks ``construct`` ran locally — authored verdicts per candidate, the
+    outcome over the whole organization, the required sources — now against the
+    assembled world, at every day of the scenario's stable interval. Empty means the
+    world is valid.
     """
     owner_of = _owners(scenarios)
     universe = [employee.id for employee in org.employees]
@@ -205,11 +218,13 @@ def verify_world(
         timezone = scenario.spec.reference_timezone
         for day in _days(scenario.key.stable_interval):
             view = facts.at(day, RunCondition.all_reachable())
+            evidence_today: list[Fact] = []
             for expected in scenario.key.impacts:
                 assessments = assess_impact(
                     view, expected.key, universe, scenario.key.constraints, leave, timezone
                 )
                 by_employee = {a.employee_id: a for a in assessments}
+                evidence_today.extend(fact for a in assessments for fact in a.evidence)
                 for authored in expected.must_assess:
                     actual = by_employee[authored.employee_id]
                     if (actual.verdict, actual.reasons) == (authored.verdict, authored.reasons):
@@ -242,7 +257,33 @@ def verify_world(
                             _foreign(evidence, scenario, owner_of),
                         )
                     )
+            required = required_sources_for(
+                facts,
+                day,
+                scenario.key.impacts,
+                scenario.key.constraints,
+                leave,
+                timezone,
+                org,
+                scenario.spec.leave_id,
+            )
+            if required != set(scenario.key.required_sources):
+                findings.append(
+                    Contamination(
+                        scenario.key.scenario_id,
+                        day,
+                        "all impacts",
+                        "required_sources",
+                        _sources_text(scenario.key.required_sources),
+                        _sources_text(required),
+                        _foreign(evidence_today, scenario, owner_of),
+                    )
+                )
     return tuple(findings)
+
+
+def _sources_text(sources: Iterable[Source]) -> str:
+    return "[" + ", ".join(sorted(source.value for source in sources)) + "]"
 
 
 def _days(span: DateSpan) -> list[date]:
@@ -292,7 +333,6 @@ def _foreign(
 
 __all__ = [
     "Contamination",
-    "CoverageActionKind",
     "ForeignRecord",
     "WorldContamination",
     "WorldSpec",

@@ -59,16 +59,18 @@ plainly as its dotted path does. The rank table names `evaluator`,
         │  materialization (generator ← adapters/prose): templates, LLM prose,
         │  the containment gate; accepted text frozen, failures discarded
         ▼
-    the frozen bundle — world version = its content hash
+    the sealed bundle: world spec · scenario specs · truth manifest
+    world version = the hash of the three, in order
         ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar · corpus
-        │        └──► world manifest: the identity map (semantic id → vendor id)
-        │             projection writes back, the receipt of the world it realized
-        ├──► world bucket: world manifest, scenario specs, documents
-        └──► truth bucket: the truth manifest, digest recorded in the world
-        │
+        │        └──► world manifest: the identity map (semantic id → vendor id),
+        │             adapter configuration, world version and digests — the
+        │             projection's receipt, written after vendors mint ids, never hashed
+        ├──► world bucket: world manifest, scenario specs, documents (app-readable)
+        └──► truth bucket: world-spec/ (validator + evaluator) ·
+        │                  truth-manifest/ (evaluator only); the app reads neither
         ▼
     validator re-reads the live systems, re-derives structured expectations,
-    compares with the world spec — reads world and systems, never truth
+    compares with the world spec — reads the spec and the systems, never the keys
 
 The seed identifies the semantic specification; the frozen bundle identifies the
 realized world (DESIGN, "The generator: pure specification, materialized prose, frozen

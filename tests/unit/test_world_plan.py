@@ -50,14 +50,36 @@ def test_the_same_inputs_give_an_equal_plan_and_seeds_differ() -> None:
 def test_a_rule_that_cannot_be_met_fails_by_name() -> None:
     with pytest.raises(PlanInfeasible, match="min_clean asks 11 clean rows of 10"):
         plan_world(Random(1), PlanRules(TIER_ONE_RULES.class_counts, min_clean=11))
-    # Five appearances each for five modifiers need twenty-five slots; eight non-clean
-    # rows with room for one modifier each hold eight. Which modifier hits the wall
-    # depends on the draw; that the wall is named does not.
-    with pytest.raises(PlanInfeasible, match="needs 5 rows and only \\d compatible rows"):
+    # already_resolved fits six non-meeting rows; two of them must stay clean, so five
+    # appearances cannot fit — named before any search.
+    with pytest.raises(PlanInfeasible, match="already_resolved needs 5 rows and at most 4"):
         plan_world(
             Random(1),
             PlanRules(TIER_ONE_RULES.class_counts, min_appearances=5, max_modifiers=1),
         )
+    # Every modifier has enough compatible rows on its own, and no assignment fits them
+    # all: ten placements over one meeting and two mixed rows, six slots. Search exhausts.
+    tight = PlanRules(
+        {ScenarioClassName.STRUCTURED_MEETING: 1, ScenarioClassName.STRUCTURED_MIXED: 2},
+        min_clean=0,
+    )
+    with pytest.raises(PlanInfeasible, match="no assignment places every modifier 2 times"):
+        plan_world(Random(1), tight)
+
+
+@pytest.mark.parametrize("seed", range(1, 201))
+def test_a_feasible_rule_never_fails_on_the_seed(seed: int) -> None:
+    # The shape a greedy planner failed on thirty-seven times in two hundred: ten
+    # placements over exactly ten slots, where the order of irreversible draws decided.
+    rules = PlanRules(
+        {
+            ScenarioClassName.STRUCTURED_DEADLINE: 1,
+            ScenarioClassName.STRUCTURED_MEETING: 1,
+            ScenarioClassName.STRUCTURED_MIXED: 3,
+        },
+        min_clean=0,
+    )
+    check_plan(plan_world(Random(seed), rules), rules)
 
 
 def test_the_check_refuses_a_plan_that_breaks_the_declaration() -> None:
