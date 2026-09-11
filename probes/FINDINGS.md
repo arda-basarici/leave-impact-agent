@@ -88,7 +88,10 @@ Facts established beyond the criterion:
   documentation, expires refresh tokens after 7 days — not deployable. Pushed to *In
   production* (non-sensitive scopes → no verification review); the production refresh
   token is the one the deployed agent will hold. **Follow-up:** confirm it still
-  refreshes after 2026-08-30 before relying on it in M1.
+  refreshes after 2026-08-30 before relying on it in M1. Confirmed 2026-09-11: a
+  forced refresh of the 2026-08-24 production token (its access token 18 days expired)
+  minted a new one and `calendars.get` read with it — the M1 calendar adapter can rely
+  on the production refresh token.
 - **OAuth client type: Desktop** — consent is a one-time local ceremony by the owner;
   what travels to the instance is the refresh token (SSM Parameter Store), never a
   consent flow. Client JSON + tokens live outside the repo under

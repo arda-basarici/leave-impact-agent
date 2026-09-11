@@ -1111,15 +1111,19 @@ SteamLens did not — real external systems and a real PostgreSQL.
 |---|---|---|---|
 | unit | is the pure core right? | rules, constraint checks, evaluator arithmetic, parsers — doctests + pytest, no I/O | every push, default |
 | integration | do the seams hold against real dependencies? | the event-log/checkpoint store against a real PostgreSQL service (never a SQLite stand-in — the store is evaluated on the terms it runs on); tool adapters against recorded HTTP cassettes of Frappe / Jira / Calendar | every push, `-m integration` |
-| live contract | has an external API drifted from the cassettes? | the same adapter tests replayed against the real sandboxes; a pass re-records | gated by env, nightly or on demand |
+| live contract | has an external API drifted from the cassettes? | the same adapter tests re-run against the real sandboxes under a record mode (`just test-record`); a pass re-records. The `live` marker is narrower: a test that can only run live, with no cassette possible | gated by env, on demand |
 | agent smoke | does the loop's plumbing work end to end without model spend? | one scenario through the real loop with a scripted fake model (a fixed tool-call trace), cassettes, PostgreSQL; asserts the event log and the plan's shape | every push |
 | e2e | does the deployed thing work? | after deploy, through the public hostname: health, a replayed scenario, the audit trail rendering | the deploy job, post-approval |
 
 Mechanics: `tests/unit|integration|e2e/` with matching markers; the default run is
 the unit level; agent-smoke tests carry the `integration` marker (spend-free, but
 they write the real event log); `integration`, `live`, and `e2e` are selected
-deliberately; a `justfile` makes the local gate the CI gate by one command.
-Cassettes are the honest fake — real payload shapes — and the gated live replay is
+deliberately; a `justfile` makes the local gate the CI gate by one command. Network
+access is blocked for every test by default, so only a vcr-marked test under a record
+mode reaches a sandbox; a cassette is scrubbed by hook before it is written (hosts to
+placeholders, credentials and token bodies redacted) and a unit test walks every
+committed cassette for a surviving secret, so the discipline is a gate and not a review
+habit. Cassettes are the honest fake — real payload shapes — and the gated live replay is
 what keeps them from drifting silently; hand-written fakes were rejected because
 they drift without a signal. Coverage is measured, never gated: the number shows
 where the unit layer is thin, a threshold only invites theater. PostgreSQL runs as a

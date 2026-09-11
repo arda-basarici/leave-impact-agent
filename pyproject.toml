@@ -5,6 +5,9 @@ description = "Leave-impact investigation and coverage planning agent over real 
 license = "MIT"
 requires-python = ">=3.13"
 dependencies = [
+    "google-api-python-client>=2.200.0",
+    "google-auth>=2.58.0",
+    "httpx>=0.28,<1",
     "psycopg[binary]>=3.3.4",
 ]
 
@@ -15,7 +18,9 @@ dev = [
     "pyright",
     "pytest",
     "pytest-cov>=7.1.0",
+    "pytest-recording>=0.13.4",
     "ruff",
+    "vcrpy>=8.3.0",
 ]
 
 [build-system]
@@ -46,11 +51,13 @@ venv = ".venv"
 # (agent-smoke tests included — they write the real event log) needs the
 # PostgreSQL service, `live` and `e2e` need quota or a deployment. `just test-integration`
 # and `just test-all` select the rest. Coverage is a separate recipe, never a gate.
+# Network access is blocked for every test (tests/recording.py explains the guard);
+# only a vcr-marked test under a record mode reaches a sandbox (`just test-record`).
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --strict-markers -m 'not integration and not live and not e2e'"
+addopts = "--doctest-modules --strict-markers --block-network --allowed-hosts=localhost,127.0.0.1,postgres -m 'not integration and not live and not e2e'"
 testpaths = ["src", "tests"]
 markers = [
     "integration: needs real dependencies (the PostgreSQL service, recorded cassettes)",
-    "live: replays adapters against the real external sandboxes; spends quota",
+    "live: can only run against a real external sandbox (no cassette possible); the cassette re-record is a record mode, not this marker",
     "e2e: runs against a deployment through its public hostname",
 ]

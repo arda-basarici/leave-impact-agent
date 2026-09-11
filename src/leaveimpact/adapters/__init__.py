@@ -12,6 +12,7 @@ Two rules hold across the subpackages. A credential is supplied at composition a
 embodied — one ``JiraAdapter`` taking a credential, never a generator flavour beside an
 agent flavour — so the generator's principal and the investigator's read principal differ
 in authority and share transport. And siblings never import one another: cross-system
-orchestration lives above the adapters; a helper shared by all of them (the retry policy,
-say) lives at this level, not inside one sibling.
+orchestration lives above the adapters; a helper shared by all of them lives at this
+level, not inside one sibling — ``transport``, the HTTP session under the retry rule,
+where every request declares whether it is replayable.
 """

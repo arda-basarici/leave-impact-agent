@@ -34,6 +34,13 @@ test-integration:
 test-integration:
     DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@localhost:5432/leaveimpact" uv run pytest -q -m integration
 
+# Re-record the adapter cassettes against the real sandboxes (their sites and
+# credentials come from the user's environment; tests/recording.py names the
+# variables). The same integration tests, run under a record mode instead of replay;
+# a green run rewrites the cassettes, and the cassette-safety unit test gates them.
+test-record:
+    uv run pytest -q -m integration --record-mode=rewrite
+
 # The dev PostgreSQL on 127.0.0.1:5432 for the integration level. (CODE_VERSION
 # is interpolated by every compose command, build or not — the placeholder
 # satisfies the overlay's guard; nothing here builds the app image. Two forms

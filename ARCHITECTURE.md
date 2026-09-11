@@ -17,7 +17,8 @@ boundary the ranks alone would permit. One line per package, what it may import:
     evaluator  →  world, adapters, core            (investigator milestone; reserved)
     validator  →  world, adapters, core
     generator  →  world, adapters, core
-    adapters   →  core        frappe · jira · calendar · corpus · prose — siblings apart
+    adapters   →  core        frappe · jira · calendar · corpus · prose — siblings apart;
+                              transport (timeouts, the retry rule, the fault seam) beneath them
     world      →  core
     core       →  nothing inside the package
 
@@ -33,7 +34,8 @@ The rules, stated once:
 - **The domain does not know synthetic worlds exist.** `core` never imports `world`.
 - **Pure below the adapters.** `core` and `world` perform no I/O.
 - **One adapter, one external boundary.** Sibling adapters never import one another;
-  a helper shared by all sits at the `adapters` level.
+  a helper shared by all sits at the `adapters` level (`transport`: the HTTP session
+  under the retry rule, where a request declares whether it is replayable).
 - **Identity at composition.** An adapter takes a credential; it never embodies a
   principal.
 - **Read-only is a module path.** The write ports live in `core/ports/write`, imported
@@ -87,7 +89,7 @@ the map.
 |---|---|
 | `core` | the domain, pure: types, ids, the predicate registry, the claim vocabulary with its grading keys, `RunContext`, the deterministic rules (viability, authority table, closure, constraint checks), the ports two consumers share — readers and writers in two modules, observed entities crossing, facts derived inside |
 | `world` | the benchmark, pure: the organization, the seeded plan, scenario classes and modifiers under the construction invariants, world assembly with the whole-world re-verification, truth facts with dated provenance, keys, the three artifacts in canonical bytes and the world version; briefs and templates when prose arrives |
-| `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact |
+| `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact; `transport` beneath them carries timeouts, the retry rule and the fault seam |
 | `generator` | the generation job: materializes prose under the containment gate, projects the frozen world idempotently, seals the artifacts |
 | `validator` | read-only verification that projection realized the declared world |
 | `evaluator` | reserved — grades runs against truth (investigator milestone) |
