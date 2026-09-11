@@ -18,9 +18,11 @@ Prose is not written here: this package emits briefs, the generator materializes
 """
 
 from leaveimpact.world import (
+    assembly,
     construction,
     modifiers,
     org,
+    plan,
     scenario,
     slices,
     structured,
@@ -28,6 +30,15 @@ from leaveimpact.world import (
     version,
     vocabulary,
     zones,
+)
+from leaveimpact.world.assembly import (
+    Contamination,
+    ForeignRecord,
+    WorldContamination,
+    WorldSpec,
+    assemble_world,
+    verify_world,
+    world_fact_base,
 )
 from leaveimpact.world.construction import (
     Amendment,
@@ -53,6 +64,14 @@ from leaveimpact.world.modifiers import (
     WrongTeam,
 )
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams, OrgSpec, generate_org
+from leaveimpact.world.plan import (
+    TIER_ONE_RULES,
+    PlanInfeasible,
+    PlanRow,
+    PlanRules,
+    check_plan,
+    plan_world,
+)
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
     DistractorReason,
@@ -75,7 +94,12 @@ from leaveimpact.world.slices import (
     place_now,
     stable_interval,
 )
-from leaveimpact.world.structured import StructuredDeadline, StructuredMeeting, StructuredMixed
+from leaveimpact.world.structured import (
+    SCENARIO_CLASSES,
+    StructuredDeadline,
+    StructuredMeeting,
+    StructuredMixed,
+)
 from leaveimpact.world.truth_facts import (
     SYSTEM_OF,
     derive_org,
@@ -98,9 +122,11 @@ from leaveimpact.world.vocabulary import (
 from leaveimpact.world.zones import gap_at, gap_holds_all_year, offset_of
 
 __all__ = [
+    "assembly",
     "construction",
     "modifiers",
     "org",
+    "plan",
     "scenario",
     "slices",
     "structured",
@@ -116,9 +142,11 @@ __all__ = [
     "GENERATOR_VERSION",
     "GIVEN_NAMES",
     "MODIFIERS",
+    "SCENARIO_CLASSES",
     "SKILLS",
     "SYSTEM_OF",
     "TEAM_NAMES",
+    "TIER_ONE_RULES",
     "AlreadyResolved",
     "Amendment",
     "AuthoredVerdict",
@@ -127,9 +155,11 @@ __all__ = [
     "ConflictingEffects",
     "Construction",
     "ConstructionError",
+    "Contamination",
     "DistractorReason",
     "Draft",
     "ExpectedImpact",
+    "ForeignRecord",
     "Frame",
     "GeneratorVersion",
     "Minting",
@@ -142,6 +172,9 @@ __all__ = [
     "OrgSpec",
     "OutsideWindow",
     "OwnedEntities",
+    "PlanInfeasible",
+    "PlanRow",
+    "PlanRules",
     "Planted",
     "Scenario",
     "ScenarioClass",
@@ -156,8 +189,12 @@ __all__ = [
     "Tier",
     "TimezoneBoundary",
     "VerdictOverride",
+    "WorldContamination",
+    "WorldSpec",
     "WrongTeam",
     "allocate_slices",
+    "assemble_world",
+    "check_plan",
     "construct",
     "derive_org",
     "derive_owned",
@@ -168,7 +205,10 @@ __all__ = [
     "offset_of",
     "place_leave",
     "place_now",
+    "plan_world",
     "stable_interval",
     "truth_fact_base",
+    "verify_world",
     "vocabulary_digest",
+    "world_fact_base",
 ]

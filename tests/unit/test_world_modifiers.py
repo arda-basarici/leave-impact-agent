@@ -1,8 +1,9 @@
-"""The four Tier 1 modifiers over every Tier 1 class and a sweep of seeds: each plants what it
-promises and names it, leaves the class's outcome alone, changes exactly the verdicts it
-declares, fails by name when the affordance is missing; and the declared compatibility holds
-both ways — every compatible pair composes with its class, every declared incompatibility is
-an empty affordance — which is what the world plan relies on."""
+"""The five Tier 1 modifiers over every Tier 1 class: each plants what it promises and names
+it, leaves the class's outcome alone, changes exactly the verdicts it declares, fails by name
+when the affordance is missing; and the declared compatibility is proven exhaustively — every
+admissible construction of every class, drafted, affords each modifier declared compatible and
+none declared incompatible — with the seeded pair sweep as regression coverage over
+composition. That proof is what the world plan relies on."""
 
 from collections.abc import Sequence
 from dataclasses import replace
@@ -23,6 +24,7 @@ from leaveimpact.world import (
     ConcurrentLeave,
     DistractorReason,
     Draft,
+    Frame,
     Minting,
     MissingAffordance,
     Modifier,
@@ -40,6 +42,8 @@ from leaveimpact.world import (
     construct,
     gap_at,
     generate_org,
+    place_leave,
+    place_now,
 )
 
 ORG = generate_org(7, DEFAULT_PARAMS)
@@ -206,6 +210,39 @@ def test_timezone_boundary_fails_by_name_when_nobody_is_far() -> None:
     everyone_home = replace(ORG, employees=home)
     with pytest.raises(MissingAffordance, match="timezone_boundary"):
         _scenario(1, StructuredDeadline(), (TimezoneBoundary(),), org=everyone_home)
+
+
+@pytest.mark.parametrize("scenario_class", CLASSES, ids=lambda c: c.name.value)
+def test_every_admissible_construction_affords_exactly_the_declared_modifiers(
+    scenario_class: ScenarioClass,
+) -> None:
+    """The matrix's defining promise, checked over the admissible set rather than a sample:
+    the planner chooses class and modifiers before any draft exists, so every draft the
+    class can produce must afford what the declaration says, and nothing it excludes."""
+    compatible = COMPATIBLE_MODIFIERS[scenario_class.name]
+    constructions = scenario_class.admissible(ORG)
+    assert constructions
+    for index, construction in enumerate(constructions):
+        rng = Random(index)
+        window = SLICES[index % len(SLICES)]
+        leave = place_leave(rng, window)
+        frame = Frame(
+            scenario_id(index + 1),
+            window,
+            leave,
+            place_now(rng, leave, TZ),
+            TZ,
+            WORLD_START,
+            Minting(),
+        )
+        draft = construction(frame, rng)
+        for name, modifier in MODIFIERS.items():
+            afforded = modifier.admissible(ORG, draft) != ()
+            assert afforded == (name in compatible), (
+                f"{scenario_class.name.value} construction {index}: {name.value} "
+                f"{'afforded' if afforded else 'not afforded'}, declared "
+                f"{'compatible' if name in compatible else 'incompatible'}"
+            )
 
 
 def test_the_compatibility_declaration_covers_every_class_and_modifier() -> None:

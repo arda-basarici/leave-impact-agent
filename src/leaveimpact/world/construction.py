@@ -499,7 +499,19 @@ def _conclusions(
 def _required(
     view: FactView, impact: ImpactKey, constraints: Sequence[ConstraintKey], frame: Frame
 ) -> int:
-    need = need_of(view, impact, frame.leave, frame.reference_timezone)
+    return required_count_for(view, impact, constraints, frame.leave, frame.reference_timezone)
+
+
+def required_count_for(
+    view: FactView,
+    impact: ImpactKey,
+    constraints: Sequence[ConstraintKey],
+    leave_span: DateSpan,
+    reference_timezone: str,
+) -> int:
+    """How many viable candidates the outcome needs for ``impact`` in ``view``: one, or what the
+    resolved requirements ask; an unreadable need counts as one, since no clause can apply."""
+    need = need_of(view, impact, leave_span, reference_timezone)
     if isinstance(need, Unresolved):
         return 1
     resolved = [

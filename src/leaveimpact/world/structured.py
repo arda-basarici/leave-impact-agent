@@ -30,8 +30,10 @@ nothing is learned from paying a model for "Release planning — Payments API".
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import date, datetime, timedelta
 from random import Random
+from types import MappingProxyType
 
 from leaveimpact.core.claims import (
     AssessmentReason,
@@ -44,7 +46,7 @@ from leaveimpact.core.entities import CalendarEvent, Component, Employee, Leave,
 from leaveimpact.core.enums import LeaveKind, LeaveStatus, WorkItemStatus
 from leaveimpact.core.refs import event_ref, work_item_ref
 from leaveimpact.core.worldtime import zone
-from leaveimpact.world.construction import Construction, Draft, Frame
+from leaveimpact.world.construction import Construction, Draft, Frame, ScenarioClass
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -170,6 +172,16 @@ class StructuredMixed:
                 )
             )
         return tuple(constructions)
+
+
+SCENARIO_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
+    {
+        ScenarioClassName.STRUCTURED_DEADLINE: StructuredDeadline(),
+        ScenarioClassName.STRUCTURED_MEETING: StructuredMeeting(),
+        ScenarioClassName.STRUCTURED_MIXED: StructuredMixed(),
+    }
+)
+"""Every built class by name, the instances the world plan constructs from."""
 
 
 # --- Role selection: the queries over the static organization ---------------------------

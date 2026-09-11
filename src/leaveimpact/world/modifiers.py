@@ -25,10 +25,11 @@ fixed phrase and a name, never learned from a model.
 (the plan ruling at step 8): a modifier is compatible with a class when every draft the
 class produces affords it, and a pair is compatible when both members are — there is no
 pair-level table until a pair proves it needs one. The declaration is static because no
-draft exists when the plan is made; the seed sweep over every compatible pair and class
-is what makes it true, and a declared incompatibility is checked the other way, as an
-empty affordance. Today the one exclusion is ``already_resolved`` on the meeting class,
-which plants no ticket for the leaver to have closed.
+draft exists when the plan is made; what makes it true is the exhaustive check in the
+tests — every admissible construction of every class, drafted, affords each modifier
+declared compatible and none declared incompatible — with the seeded pair sweep as
+regression coverage over composition. Today the one exclusion is ``already_resolved``
+on the meeting class, which plants no ticket for the leaver to have closed.
 """
 
 from __future__ import annotations
