@@ -3,9 +3,9 @@
 The claims a cassette cannot make cheaply: the vendor id is in Google's alphabet and
 stable; a payload reads back as the entity it was made from, whichever zone the copy
 arrives in; and a set of copies is one event only when the copies agree and sit on
-exactly the attendees' calendars — disagreement, a stranger's calendar, a missing
-attendee's calendar and an attendee with no calendar are each malformed, never a
-silent pick.
+exactly the attendees' calendars, once each — disagreement, a stranger's calendar, a
+second copy on one calendar, a missing attendee's calendar and an attendee with no
+calendar are each malformed, never a silent pick.
 """
 
 from __future__ import annotations
@@ -52,6 +52,7 @@ def in_utc(event: CalendarEvent) -> dict[str, Any]:
 def test_the_vendor_id_is_in_googles_alphabet_and_stable() -> None:
     vendor = records.vendor_event_id(event_id(42))
     assert re.fullmatch(r"[a-v0-9]{5,1024}", vendor)
+    assert re.fullmatch(r"[0-9a-f]{40}", vendor), "the SHA-1 hex digest, as documented"
     assert vendor == records.vendor_event_id(EventId("event_042"))
     assert vendor != records.vendor_event_id(event_id(43))
 
@@ -117,6 +118,13 @@ def test_an_event_missing_from_an_attendees_calendar_is_half_written() -> None:
         MalformedRecord, match="on 1 of 2 attendees' calendars; missing for emp_002"
     ):
         records.events_from_copies([(CAL[SEDA], copy(REVIEW))], BY_CALENDAR)
+
+
+def test_two_copies_on_one_calendar_are_malformed_even_when_identical() -> None:
+    second = copy(REVIEW, id="another1d")
+    copies = [(CAL[SEDA], copy(REVIEW)), (CAL[SEDA], second), (CAL[BARAN], copy(REVIEW))]
+    with pytest.raises(MalformedRecord, match="twice on emp_001's calendar; one copy per place"):
+        records.events_from_copies(copies, BY_CALENDAR)
 
 
 def test_a_copy_on_a_non_attendees_calendar_is_malformed() -> None:

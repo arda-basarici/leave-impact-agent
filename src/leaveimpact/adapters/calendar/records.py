@@ -11,20 +11,24 @@ world fact (every write comes from one principal). The copies are identical: the
 is the summary, the span is ``start``/``end`` as aware instants, and the domain id and
 the attendee ids ride ``extendedProperties.private`` — the adapter's custom fields,
 which Google stores verbatim and returns with the event. Google's own event id is the
-domain id encoded into the alphabet Google accepts, base32hex over a SHA-1 of the
-domain id, so the vendor identity is derivable and never a second identity to persist;
-it is the same on every calendar because Google requires uniqueness per calendar only,
-which is what lets a read ask any calendar for an event by id.
+SHA-1 hex digest of the domain id — forty lower-case hex characters, inside the
+base32hex alphabet Google accepts — so the vendor identity is derivable and never a
+second identity to persist; it is the same on every calendar because Google requires
+uniqueness per calendar only, which is what lets a read ask any calendar for an event
+by id.
 
 **One event from its copies.** A read collects copies from every configured calendar
 and this module groups them by planted id. A group is one event when every copy
 translates to the same entity and the calendars it was found on are exactly its
-attendees' calendars. Copies that disagree, a copy on a calendar whose person is not an
-attendee, an attendee with no configured calendar, or an event present on fewer
-calendars than it names attendees — a write that stopped halfway — are each
-``MalformedRecord``, never a silent choice of one copy, because the reader's contract
-is one record per event with every attendee, and a half-written event would otherwise
-read as a smaller meeting.
+attendees' calendars, one copy each. Copies that disagree, a copy on a calendar whose
+person is not an attendee, two copies on one calendar (a second Google event carrying
+the same planted id — the derived id keeps the projector from making one, so it is
+corruption, and a domain id has exactly one vendor representation per place or the
+record is malformed, the rule the Frappe adapter applies to a select), an attendee
+with no configured calendar, or an event present on fewer calendars than it names
+attendees — a write that stopped halfway — are each ``MalformedRecord``, never a
+silent choice of one copy, because the reader's contract is one record per event with
+every attendee, and a half-written event would otherwise read as a smaller meeting.
 
 **Malformed means untranslatable.** An event without its planted id or attendees, a
 start or end that is a date rather than an instant, an instant without an offset, an
@@ -50,16 +54,18 @@ Record = dict[str, Any]
 EVENT_ID_PROPERTY = "event_id"
 ATTENDEES_PROPERTY = "attendees"
 ATTENDEE_SEPARATOR = ";"
-# Google's event id alphabet: base32hex, lower case, 5 to 1024 characters.
+# Google's event id alphabet: base32hex (0-9, a-v), lower case, 5 to 1024 characters;
+# a hex digest uses the first sixteen of those characters.
 _BASE32HEX = "0123456789abcdefghijklmnopqrstuv"
 CANCELLED = "cancelled"
 
 
 def vendor_event_id(id: EventId) -> str:
-    """Google's id for the event: base32hex over a SHA-1 of the domain id, forty characters.
+    """Google's id for the event: the SHA-1 hex digest of the domain id, forty characters.
 
     Deterministic, so a replayed insert meets its own earlier copy (409) instead of
-    minting a second one, and derivable, so nothing persists it.
+    minting a second one, and derivable, so nothing persists it. Hex is a subset of
+    Google's alphabet, so no further encoding is needed.
 
     >>> vendor_event_id(EventId("event_007"))
     'ec21fc62735787c36a3371aa5fb83bd0a819994e'
@@ -67,8 +73,7 @@ def vendor_event_id(id: EventId) -> str:
     ...     vendor_event_id(EventId("event_007")))
     (40, True)
     """
-    digest = hashlib.sha1(id.encode()).hexdigest()
-    return "".join(_BASE32HEX[int(char, 16)] for char in digest)
+    return hashlib.sha1(id.encode()).hexdigest()
 
 
 def locator(calendar_id: str, vendor_id: str) -> str:
@@ -195,6 +200,10 @@ def _one_event(
         if person not in event.attendee_ids:
             raise MalformedRecord(
                 Source.CALENDAR, where, f"found on {person}'s calendar, who does not attend"
+            )
+        if person in seen:
+            raise MalformedRecord(
+                Source.CALENDAR, where, f"twice on {person}'s calendar; one copy per place"
             )
         seen[person] = calendar_id
     missing = [person for person in event.attendee_ids if person not in seen]
