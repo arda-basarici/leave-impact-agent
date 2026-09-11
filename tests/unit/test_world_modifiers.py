@@ -1,7 +1,8 @@
 """The four Tier 1 modifiers over every Tier 1 class and a sweep of seeds: each plants what it
 promises and names it, leaves the class's outcome alone, changes exactly the verdicts it
-declares, fails by name when the affordance is missing, and every pair of modifiers composes
-with every class — the compatibility the world plan will rely on."""
+declares, fails by name when the affordance is missing; and the declared compatibility holds
+both ways — every compatible pair composes with its class, every declared incompatibility is
+an empty affordance — which is what the world plan relies on."""
 
 from collections.abc import Sequence
 from dataclasses import replace
@@ -15,7 +16,10 @@ from leaveimpact.core import AssessmentReason, EntityKind, LeaveKind, Verdict
 from leaveimpact.core.ids import scenario_id
 from leaveimpact.core.worldtime import local_date
 from leaveimpact.world import (
+    COMPATIBLE_MODIFIERS,
     DEFAULT_PARAMS,
+    MODIFIERS,
+    AlreadyResolved,
     ConcurrentLeave,
     DistractorReason,
     Draft,
@@ -44,13 +48,15 @@ SLICES = allocate_slices(Random(0), 30, WORLD_START)
 TZ = ORG.params.reference_timezone
 SEEDS = range(1, 21)
 CLASSES: tuple[ScenarioClass, ...] = (StructuredDeadline(), StructuredMeeting(), StructuredMixed())
-MODIFIERS: tuple[Modifier, ...] = (
-    OutsideWindow(),
-    WrongTeam(),
-    ConcurrentLeave(),
-    TimezoneBoundary(),
-)
 BY_ID = {employee.id: employee for employee in ORG.employees}
+COMPATIBLE_PAIRS = [
+    (scenario_class, MODIFIERS[first], MODIFIERS[second])
+    for scenario_class in CLASSES
+    for first, second in combinations(sorted(COMPATIBLE_MODIFIERS[scenario_class.name]), 2)
+]
+COMPATIBLE_PAIR_IDS = [
+    f"{c.name.value}:{a.name.value}+{b.name.value}" for c, a, b in COMPATIBLE_PAIRS
+]
 
 
 def _scenario(
@@ -202,15 +208,31 @@ def test_timezone_boundary_fails_by_name_when_nobody_is_far() -> None:
         _scenario(1, StructuredDeadline(), (TimezoneBoundary(),), org=everyone_home)
 
 
-@pytest.mark.parametrize("scenario_class", CLASSES, ids=lambda c: c.name.value)
+def test_the_compatibility_declaration_covers_every_class_and_modifier() -> None:
+    assert set(COMPATIBLE_MODIFIERS) == {scenario_class.name for scenario_class in CLASSES}
+    assert set(MODIFIERS) == set(ModifierName)
+    assert all(modifiers <= set(MODIFIERS) for modifiers in COMPATIBLE_MODIFIERS.values())
+
+
 @pytest.mark.parametrize(
-    "pair", list(combinations(MODIFIERS, 2)), ids=lambda p: f"{p[0].name.value}+{p[1].name.value}"
+    ("scenario_class", "first", "second"), COMPATIBLE_PAIRS, ids=COMPATIBLE_PAIR_IDS
 )
-def test_every_pair_of_modifiers_composes_with_every_class(
-    scenario_class: ScenarioClass, pair: tuple[Modifier, Modifier]
+def test_every_compatible_pair_composes_with_its_class(
+    scenario_class: ScenarioClass, first: Modifier, second: Modifier
 ) -> None:
+    pair = (first, second)
     for seed in range(1, 11):
         scenario = _scenario(seed, scenario_class, pair)
         assert scenario.key.modifiers == tuple(modifier.name for modifier in pair)
         distracting = sum(modifier.name is not ModifierName.CONCURRENT_LEAVE for modifier in pair)
         assert len(scenario.key.distractors) == distracting
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_a_declared_incompatibility_is_an_empty_affordance(seed: int) -> None:
+    # The one exclusion today: the meeting class plants no ticket for the leaver to have
+    # closed, so already_resolved is incompatible by design, never a failed composition.
+    assert ModifierName.ALREADY_RESOLVED not in COMPATIBLE_MODIFIERS[StructuredMeeting().name]
+    scenario = _scenario(seed, StructuredMeeting())
+    draft = Draft(scenario.owned, scenario.spec.leave_id, scenario.key.impacts)
+    assert AlreadyResolved().admissible(ORG, draft) == ()

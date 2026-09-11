@@ -222,8 +222,14 @@ class ModifierEffect:
 class ScenarioKey:
     """The evaluator's half: what truth expects of a run over this scenario.
 
-    ``required_sources`` are the systems a complete investigation must have read;
-    ``stable_interval`` is the run of days over which any ``now`` yields this same key.
+    ``required_sources`` are the sources the key's rule-level conclusions depend on: the
+    authoritative records that establish the investigated leave and each impact's
+    artifact, and every source whose outage changes what the rules conclude — the
+    tool-failure condition's own definition of dependence. A source is not a dependence
+    because it hosts a named distractor: distractor rejection is graded through the
+    distractor list, and impact discovery through the impacts, so neither borrows this
+    field (the step 8 part 2 review ruling). ``stable_interval`` is the run of days over
+    which any ``now`` yields this same key.
     """
 
     scenario_id: ScenarioId

@@ -20,13 +20,24 @@ days and declares the verdict it changes, on every impact that candidate is auth
 
 Look-alike titles are templates like the classes' own: structured-shaped text from a
 fixed phrase and a name, never learned from a model.
+
+``COMPATIBLE_MODIFIERS`` is the class-by-modifier compatibility the world plan reads
+(the plan ruling at step 8): a modifier is compatible with a class when every draft the
+class produces affords it, and a pair is compatible when both members are — there is no
+pair-level table until a pair proves it needs one. The declaration is static because no
+draft exists when the plan is made; the seed sweep over every compatible pair and class
+is what makes it true, and a declared incompatibility is checked the other way, as an
+empty affordance. Today the one exclusion is ``already_resolved`` on the meeting class,
+which plants no ticket for the leaver to have closed.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import date, datetime, time, timedelta
 from random import Random
+from types import MappingProxyType
 
 from leaveimpact.core.claims import AssessmentReason, Verdict
 from leaveimpact.core.entities import CalendarEvent, Employee, Leave, Team, WorkItem
@@ -34,7 +45,7 @@ from leaveimpact.core.enums import EntityKind, LeaveKind, LeaveStatus, WorkItemS
 from leaveimpact.core.ids import EmployeeId
 from leaveimpact.core.refs import event_ref, work_item_ref
 from leaveimpact.core.worldtime import local_date, zone
-from leaveimpact.world.construction import Amendment, Draft, Frame
+from leaveimpact.world.construction import Amendment, Draft, Frame, Modifier
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -45,6 +56,7 @@ from leaveimpact.world.scenario import (
     NamedDistractor,
     OwnedEntities,
     Planted,
+    ScenarioClassName,
     VerdictOverride,
 )
 from leaveimpact.world.zones import gap_at, offset_of
@@ -480,3 +492,29 @@ def _check_reading(instant: datetime, timezone: str, expected: date, who: str) -
             f"a boundary event must read as {expected} in {who}, {instant.isoformat()} reads "
             f"as {actual}"
         )
+
+
+# --- The declaration the plan and the pair sweep share ------------------------------------
+
+
+MODIFIERS: Mapping[ModifierName, Modifier] = MappingProxyType(
+    {
+        ModifierName.WRONG_TEAM: WrongTeam(),
+        ModifierName.ALREADY_RESOLVED: AlreadyResolved(),
+        ModifierName.OUTSIDE_WINDOW: OutsideWindow(),
+        ModifierName.TIMEZONE_BOUNDARY: TimezoneBoundary(),
+        ModifierName.CONCURRENT_LEAVE: ConcurrentLeave(),
+    }
+)
+"""Every modifier by name, the instances the plan composes."""
+
+_ALL = frozenset(MODIFIERS)
+
+COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = MappingProxyType(
+    {
+        ScenarioClassName.STRUCTURED_DEADLINE: _ALL,
+        ScenarioClassName.STRUCTURED_MEETING: _ALL - {ModifierName.ALREADY_RESOLVED},
+        ScenarioClassName.STRUCTURED_MIXED: _ALL,
+    }
+)
+"""The modifiers every draft of each class affords; a pair is compatible when both are."""

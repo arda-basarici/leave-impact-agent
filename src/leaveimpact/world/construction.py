@@ -437,9 +437,11 @@ def _required_sources(
     org: OrgSpec,
     investigated: LeaveId,
 ) -> set[Source]:
-    """The sources a complete investigation must have read.
+    """The sources the key's rule-level conclusions depend on.
 
-    Two kinds. The sources that establish what the run is about — the facts about each
+    Two kinds, and nothing else — a source hosting a named distractor is not one, since
+    losing it changes no conclusion and distractor rejection is graded on its own list.
+    The sources that establish what the run is about — the facts about each
     impact's artifact and the leave under investigation — read off the base. And the
     sources the rules depend on, found by asking, for each source in turn, whether the
     rules conclude anything different with that source unreachable: a verdict or an

@@ -44,6 +44,8 @@ from leaveimpact.world.construction import (
     construct,
 )
 from leaveimpact.world.modifiers import (
+    COMPATIBLE_MODIFIERS,
+    MODIFIERS,
     AlreadyResolved,
     ConcurrentLeave,
     OutsideWindow,
@@ -107,11 +109,13 @@ __all__ = [
     "vocabulary",
     "zones",
     "CITIES",
+    "COMPATIBLE_MODIFIERS",
     "COMPONENT_NAMES",
     "DEFAULT_PARAMS",
     "FAMILY_NAMES",
     "GENERATOR_VERSION",
     "GIVEN_NAMES",
+    "MODIFIERS",
     "SKILLS",
     "SYSTEM_OF",
     "TEAM_NAMES",
