@@ -114,7 +114,7 @@ def test_work_written_is_read_back() -> None:
     with Transport(base_url=JIRA.base_url, source=Source.JIRA, auth=cred.auth, sleep=pause) as raw:
         reset_project(raw, PROJECT_KEY)
     fields = site.ensure_fields(PROJECT_KEY)
-    site.ensure_owner_options(fields, PEOPLE)
+    site.ensure_owner_options(fields, PROJECT_KEY, PEOPLE)
     site.close()
 
     adapter = JiraAdapter(

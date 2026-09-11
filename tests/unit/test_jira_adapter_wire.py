@@ -65,7 +65,7 @@ def ok(payload: Any, status: int = 200) -> httpx.Response:
 
 
 COMPONENTS = ok([{"id": "10001", "name": "Payments", "description": "comp_003 · members: emp_001"}])
-CONTEXT = ok({"values": [{"id": "10200"}]})
+CONTEXT = ok({"values": [{"id": "10200", "name": "CAS owners"}], "isLast": True})
 OPTIONS = ok({"values": [{"value": "emp_004 — Deniz Yılmaz"}], "isLast": True})
 REMARK = comment_text(comment_id(5), date(2026, 9, 12), employee_id(4), "Deniz Yılmaz", "blocked")
 TICKET = WorkItem(
@@ -128,6 +128,52 @@ def test_a_work_item_is_written_in_order_and_its_id_lands_last() -> None:
     assert create["customfield_10042"] == {"value": "emp_004 — Deniz Yılmaz"}
     assert json.loads(script.seen[6].content) == {"transition": {"id": "21"}}
     assert json.loads(script.seen[7].content) == {"fields": {"customfield_10078": "ticket_007"}}
+
+
+def test_a_lost_marker_response_is_retried_because_setting_the_id_twice_is_one_world() -> None:
+    script = Scripted(
+        COMPONENTS,
+        CONTEXT,
+        OPTIONS,
+        ok({"id": "10002", "key": "CAS-2"}, 201),
+        httpx.ReadTimeout("marker response lost"),
+        httpx.Response(204),
+        ok({"issues": [{"key": "CAS-2", "fields": {}}], "isLast": True}),
+    )
+    backlog = WorkItem(
+        work_item_id(8),
+        "Small",
+        employee_id(4),
+        WorkItemStatus.TO_DO,
+        component_id(3),
+        date(2026, 8, 12),
+        None,
+        None,
+        (),
+    )
+    pauses: list[float] = []
+    assert adapter(script, pauses).add_work_item(backlog) == "CAS-2"
+    assert paths(script)[-3:] == [
+        "PUT /rest/api/3/issue/CAS-2",
+        "PUT /rest/api/3/issue/CAS-2",
+        "POST /rest/api/3/search/jql",
+    ]
+    assert pauses == [2.0], "the transport's backoff before the second marker attempt"
+
+
+def test_a_missing_owner_context_is_the_callers_ordering_bug() -> None:
+    no_context = ok(
+        {"values": [{"id": "10001", "name": "Default Configuration Scheme"}], "isLast": True}
+    )
+    with pytest.raises(LookupError, match="no owner context"):
+        adapter(Scripted(COMPONENTS, no_context)).add_work_item(TICKET)
+
+
+def test_an_insert_answering_without_its_key_is_malformed() -> None:
+    script = Scripted(COMPONENTS, CONTEXT, OPTIONS, ok({"self": "x"}, 201))
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(script).add_work_item(TICKET)
+    assert (caught.value.locator, caught.value.reason) == ("POST /issue", "no key")
 
 
 def test_a_fault_before_the_marker_leaves_no_readable_item_and_no_retry() -> None:

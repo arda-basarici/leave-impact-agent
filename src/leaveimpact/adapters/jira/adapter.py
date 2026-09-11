@@ -10,10 +10,14 @@ chicken and the egg: the adapter's configuration is the preparation's result.
 
 **Scope.** Every read is a JQL search inside the configured project and every write
 lands in it, so one site holds a project per world version and the cassette project
-beside them. The identity map is not configured: a work item carries its id in a
-custom field, a component in its description, an owner in an option value, so a link
-resolves by listing the project's components or the owner field's options when a call
-needs them. A domain id matches exactly one record or the record is malformed.
+beside them. The owner select's options live in a field context scoped to the project
+(``JiraSite.ensure_owner_options`` creates it), because employee ids restart at one in
+every generated world and a site-wide option list would hold ``emp_001`` twice with two
+names (a review finding). The identity map is not configured: a work item carries its
+id in a custom field, a component in its description, an owner in an option value of
+the project's context, so a link resolves by listing the project's components or
+options when a call needs them. A domain id matches exactly one record or the record
+is malformed.
 
 **Identity lands last.** Jira cannot create an issue in a status, and each comment is
 its own request, so a work item is several writes and a fault between them would leave
@@ -21,7 +25,12 @@ a half-written issue. The ticket id field is set in the final request: until the
 issue has no id, no read by id sees it, ``work_items`` excludes it, and the projector's
 restart — find by id, not found, add — creates the item whole a second time. The
 orphan stays in Jira without an id, invisible to the domain, and the cassette reset
-deletes it. Reads and the transition lookup are replayable; every write is not.
+deletes it. Reads and the transition lookup are replayable; every write is not, except
+the marker itself: setting a field to a value is the same world whether it lands once
+or twice, so the marker is declared replayable and a lost response retries it rather
+than raising with the id possibly committed and the index still blind to it (a review
+finding). A marker that exhausts the whole retry budget remains ambiguous; the
+projector's checkpoint of the key is the durable answer, and belongs to it.
 
 **Reading your own writes.** JQL search runs on an index that trails the database by
 moments, so a read straight after a write can miss the item or show its old status
@@ -146,8 +155,8 @@ class _Wire:
         response = self.transport.request("POST", path, replayable=replayable, ok=ok, **kwargs)
         return self._json(response, f"POST {path}")
 
-    def put(self, path: str, **kwargs: Any) -> None:
-        self.transport.request("PUT", path, replayable=False, ok=(204,), **kwargs)
+    def put(self, path: str, *, replayable: bool = False, **kwargs: Any) -> None:
+        self.transport.request("PUT", path, replayable=replayable, ok=(204,), **kwargs)
 
     def delete(self, path: str, *, ok: tuple[int, ...] = (204,)) -> None:
         self.transport.request("DELETE", path, replayable=False, ok=ok)
@@ -166,6 +175,17 @@ def _dict(value: Any, locator: str, what: str) -> Record:
     if not isinstance(value, dict):
         raise MalformedRecord(Source.JIRA, locator, f"{what} is not an object")
     return cast(Record, value)
+
+
+def _required(record: Record, key: str, locator: str) -> str:
+    """The id under ``key`` as text, or malformed: a locator is never the text 'None'.
+
+    Jira writes some ids as strings and some (screens, tabs) as integers; both are ids.
+    """
+    value = record.get(key)
+    if isinstance(value, bool) or not isinstance(value, str | int) or value == "":
+        raise MalformedRecord(Source.JIRA, locator, f"no {key}")
+    return str(value)
 
 
 def _list(value: Any, locator: str, what: str) -> list[Any]:
@@ -202,6 +222,7 @@ class JiraSite:
         if isinstance(existing, dict) and cast(Record, existing).get("key") == key:
             return
         me = _dict(self._wire.get("/myself"), "GET /myself", "account")
+        lead = _required(me, "accountId", "GET /myself")
         self._wire.post(
             "/project",
             json={
@@ -209,7 +230,7 @@ class JiraSite:
                 "name": name,
                 "projectTypeKey": "software",
                 "projectTemplateKey": _KANBAN_TEMPLATE,
-                "leadAccountId": me.get("accountId"),
+                "leadAccountId": lead,
                 "assigneeType": "UNASSIGNED",
             },
         )
@@ -240,7 +261,7 @@ class JiraSite:
                 "POST /field",
                 "field",
             )
-            ids[name] = str(made.get("id"))
+            ids[name] = _required(made, "id", "POST /field")
         self._place_on_screens(project_key, tuple(ids.values()))
         return JiraFields(
             ticket_id=ids[records.TICKET_ID_FIELD],
@@ -250,10 +271,31 @@ class JiraSite:
         )
 
     def ensure_owner_options(
-        self, fields: JiraFields, people: Iterable[tuple[EmployeeId, str]]
+        self, fields: JiraFields, project_key: str, people: Iterable[tuple[EmployeeId, str]]
     ) -> None:
-        """An option per person on the owner select, appended where missing; never removed."""
-        context_id = _owner_context(self._wire, fields.owner)
+        """An option per person on the owner select, in the project's own field context.
+
+        The context is created where missing, scoped to the project alone, so another
+        world's ``emp_001`` never shares a list with this one's; options are appended
+        where missing and never removed.
+        """
+        context_id = _find_owner_context(self._wire, fields.owner, project_key)
+        if context_id is None:
+            project = _dict(self._wire.get(f"/project/{project_key}"), "GET /project", "project")
+            made = _dict(
+                self._wire.post(
+                    f"/field/{fields.owner}/context",
+                    json={
+                        "name": _owner_context_name(project_key),
+                        "description": "The synthetic owners of one world, per project.",
+                        "projectIds": [_required(project, "id", "GET /project")],
+                        "issueTypeIds": [],
+                    },
+                ),
+                "POST context",
+                "context",
+            )
+            context_id = _required(made, "id", "POST context")
         existing = {
             option["value"] for option in _owner_options(self._wire, fields.owner, context_id)
         }
@@ -288,9 +330,9 @@ class JiraSite:
                 Source.JIRA, "GET /screens", f"no screen named '{project_key}: …'"
             )
         for screen in screens:
-            screen_id = screen["id"]
+            screen_id = _required(screen, "id", "GET /screens")
             tabs = _list(self._wire.get(f"/screens/{screen_id}/tabs"), "GET tabs", "tabs")
-            tab_id = _dict(tabs[0], "GET tabs", "tab")["id"]
+            tab_id = _required(_dict(tabs[0], "GET tabs", "tab"), "id", "GET tabs")
             on_tab = {
                 str(cast(Record, field).get("id"))
                 for field in _list(
@@ -309,13 +351,27 @@ class JiraSite:
                     )
 
 
-def _owner_context(wire: _Wire, owner_field: str) -> str:
+def _owner_context_name(project_key: str) -> str:
+    return f"{project_key} owners"
+
+
+def _find_owner_context(wire: _Wire, owner_field: str, project_key: str) -> str | None:
+    """The id of the project's owner context, or ``None`` when preparation has not made it."""
     path = f"/field/{owner_field}/context"
-    page = _dict(wire.get(path), f"GET {path}", "page")
-    contexts = _list(page.get("values"), f"GET {path}", "values")
-    if not contexts:
-        raise MalformedRecord(Source.JIRA, f"GET {path}", "the owner field has no context")
-    return str(_dict(contexts[0], f"GET {path}", "context")["id"])
+    start = 0
+    while True:
+        listed = wire.get(path, params={"startAt": start, "maxResults": _PAGE})
+        page = _dict(listed, f"GET {path}", "page")
+        contexts = [
+            _dict(value, f"GET {path}", "context")
+            for value in _list(page.get("values"), f"GET {path}", "values")
+        ]
+        for context in contexts:
+            if context.get("name") == _owner_context_name(project_key):
+                return _required(context, "id", f"GET {path}")
+        if page.get("isLast", True) or not contexts:
+            return None
+        start += len(contexts)
 
 
 def _owner_options(wire: _Wire, owner_field: str, context_id: str) -> list[Record]:
@@ -446,7 +502,7 @@ class JiraAdapter:
             "POST /component",
             "component",
         )
-        return str(made.get("id"))
+        return _required(made, "id", "POST /component")
 
     def add_work_item(self, work_item: WorkItem) -> str:
         """Create, comment, transition, then set the id: the marker that makes it readable."""
@@ -471,7 +527,7 @@ class JiraAdapter:
             "POST /issue",
             "issue",
         )
-        key = str(made.get("key"))
+        key = _required(made, "key", "POST /issue")
         self._remember(made.get("id"))
         for comment in work_item.comments:
             self._wire.post(
@@ -479,7 +535,10 @@ class JiraAdapter:
             )
         if work_item.status is not records.INITIAL_STATUS:
             self._transition(key, records.STATUS_NAME_BY_STATUS[work_item.status])
-        self._wire.put(f"/issue/{key}", json={"fields": {fields.ticket_id: work_item.id}})
+        # Replayable on purpose: setting the id to the same value twice is one world.
+        self._wire.put(
+            f"/issue/{key}", replayable=True, json={"fields": {fields.ticket_id: work_item.id}}
+        )
         self._await_indexed(key, work_item.id)
         return key
 
@@ -575,7 +634,8 @@ class JiraAdapter:
                 f"issue/{key}",
                 f"no single transition to {target_status!r}; the workflow offers {names}",
             )
-        self._wire.post(path, ok=(204,), json={"transition": {"id": matching[0]["id"]}})
+        transition_id = _required(matching[0], "id", f"GET {path}")
+        self._wire.post(path, ok=(204,), json={"transition": {"id": transition_id}})
 
     def _component_name(self, component_id: ComponentId) -> str:
         found = self.component(component_id)
@@ -589,10 +649,14 @@ class JiraAdapter:
     def _owner_option(self, employee_id: EmployeeId) -> str:
         if self._owner_options_cache is None:
             owner = self._config.fields.owner
-            values = [
-                str(option.get("value"))
-                for option in _owner_options(self._wire, owner, _owner_context(self._wire, owner))
-            ]
+            context_id = _find_owner_context(self._wire, owner, self._config.project_key)
+            if context_id is None:
+                raise LookupError(
+                    f"project {self._config.project_key} has no owner context in Jira; "
+                    "ensure the world's people first"
+                )
+            options = _owner_options(self._wire, owner, context_id)
+            values = [str(option.get("value")) for option in options]
             cache: dict[str, str] = {}
             for value in values:
                 head, separator, _ = value.partition(records.OWNER_SEPARATOR)
