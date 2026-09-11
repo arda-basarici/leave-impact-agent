@@ -29,8 +29,10 @@ deletes it. Reads and the transition lookup are replayable; every write is not, 
 the marker itself: setting a field to a value is the same world whether it lands once
 or twice, so the marker is declared replayable and a lost response retries it rather
 than raising with the id possibly committed and the index still blind to it (a review
-finding). A marker that exhausts the whole retry budget remains ambiguous; the
-projector's checkpoint of the key is the durable answer, and belongs to it.
+finding). When the whole budget is lost, the adapter still knows the key and asks the
+issue itself, a database read, whether the id landed, and returns the key if so; only
+a source down through both budgets is left ambiguous, by which time the index has had
+as long to catch up, and the projector's duplicate check names the rest.
 
 **Reading your own writes.** JQL search runs on an index that trails the database by
 moments, so a read straight after a write can miss the item or show its old status
@@ -242,7 +244,7 @@ class JiraSite:
         for entry in listed:
             field = _dict(entry, "GET /field", "field")
             if field.get("custom"):
-                by_name[str(field.get("name"))] = str(field.get("id"))
+                by_name[str(field.get("name"))] = _required(field, "id", "GET /field")
         ids: dict[str, str] = {}
         for name, field_type, searcher in _FIELD_SPECS:
             if name in by_name:
@@ -297,7 +299,8 @@ class JiraSite:
             )
             context_id = _required(made, "id", "POST context")
         existing = {
-            option["value"] for option in _owner_options(self._wire, fields.owner, context_id)
+            _required(option, "value", "GET option")
+            for option in _owner_options(self._wire, fields.owner, context_id)
         }
         missing = [
             records.owner_option(employee_id, name)
@@ -535,14 +538,33 @@ class JiraAdapter:
             )
         if work_item.status is not records.INITIAL_STATUS:
             self._transition(key, records.STATUS_NAME_BY_STATUS[work_item.status])
-        # Replayable on purpose: setting the id to the same value twice is one world.
-        self._wire.put(
-            f"/issue/{key}", replayable=True, json={"fields": {fields.ticket_id: work_item.id}}
-        )
+        self._mark(key, work_item.id)
         self._await_indexed(key, work_item.id)
         return key
 
     # --- the wire ---------------------------------------------------------------------
+
+    def _mark(self, key: str, id: WorkItemId) -> None:
+        """Set the ticket id on the issue; when every attempt loses its response, ask the issue.
+
+        Replayable on purpose — setting the id to the same value twice is one world — so a
+        lost response retries the write. When the whole budget is lost, the key is still
+        known here and the issue itself (a database read, not the index) says whether the
+        id landed: if it did, the write succeeded and the caller gets its key; otherwise
+        the fault stands. Only a source down through both budgets is left ambiguous.
+        """
+        ticket = self._config.fields.ticket_id
+        try:
+            self._wire.put(f"/issue/{key}", replayable=True, json={"fields": {ticket: id}})
+        except SourceUnreachable as fault:
+            issue = _dict(
+                self._wire.get(f"/issue/{key}", params={"fields": ticket}),
+                f"GET /issue/{key}",
+                "issue",
+            )
+            landed = _dict(issue.get("fields"), f"GET /issue/{key}", "fields").get(ticket) == id
+            if not landed:
+                raise fault
 
     def _await_indexed(self, key: str, id: WorkItemId) -> None:
         """Return once the search index answers the item's id with its key; raise if never."""

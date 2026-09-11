@@ -2,10 +2,11 @@
 
 The claims the cassette cannot make cheaply: a work item's id lands in the last
 request, after the create, the comments and the transition, so a fault anywhere before
-leaves an issue no read by id will see; a fault in the marker itself is an unknown
-outcome and nothing is retried; an owner option or a component held twice is
-malformed before anything is written; a successful response that is not JSON is
-malformed with the request as locator.
+leaves an issue no read by id will see; the marker itself is retried on a lost
+response, and when every attempt is lost the issue is asked directly whether the id
+landed; an owner option or a component held twice is malformed before anything is
+written; a successful response that is not JSON is malformed with the request as
+locator.
 """
 
 from __future__ import annotations
@@ -159,6 +160,59 @@ def test_a_lost_marker_response_is_retried_because_setting_the_id_twice_is_one_w
         "POST /rest/api/3/search/jql",
     ]
     assert pauses == [2.0], "the transport's backoff before the second marker attempt"
+
+
+def test_a_marker_lost_on_every_attempt_is_reconciled_by_asking_the_issue() -> None:
+    script = Scripted(
+        COMPONENTS,
+        CONTEXT,
+        OPTIONS,
+        ok({"id": "10002", "key": "CAS-2"}, 201),
+        httpx.ReadTimeout("lost"),
+        httpx.ReadTimeout("lost"),
+        httpx.ReadTimeout("lost"),
+        ok({"key": "CAS-2", "fields": {"customfield_10078": "ticket_008"}}),
+        ok({"issues": [{"key": "CAS-2", "fields": {}}], "isLast": True}),
+    )
+    backlog = WorkItem(
+        work_item_id(8),
+        "Small",
+        employee_id(4),
+        WorkItemStatus.TO_DO,
+        component_id(3),
+        date(2026, 8, 12),
+        None,
+        None,
+        (),
+    )
+    assert adapter(script, []).add_work_item(backlog) == "CAS-2"
+    assert paths(script)[-2:] == ["GET /rest/api/3/issue/CAS-2", "POST /rest/api/3/search/jql"]
+
+
+def test_a_marker_that_never_landed_keeps_the_fault() -> None:
+    script = Scripted(
+        COMPONENTS,
+        CONTEXT,
+        OPTIONS,
+        ok({"id": "10002", "key": "CAS-2"}, 201),
+        httpx.ReadTimeout("lost"),
+        httpx.ReadTimeout("lost"),
+        httpx.ReadTimeout("lost"),
+        ok({"key": "CAS-2", "fields": {"customfield_10078": None}}),
+    )
+    backlog = WorkItem(
+        work_item_id(8),
+        "Small",
+        employee_id(4),
+        WorkItemStatus.TO_DO,
+        component_id(3),
+        date(2026, 8, 12),
+        None,
+        None,
+        (),
+    )
+    with pytest.raises(SourceUnreachable, match="ReadTimeout on all 3 attempts"):
+        adapter(script, []).add_work_item(backlog)
 
 
 def test_a_missing_owner_context_is_the_callers_ordering_bug() -> None:
