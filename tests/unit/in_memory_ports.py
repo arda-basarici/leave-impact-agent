@@ -8,7 +8,9 @@ that memory is an external system.
 
 Each store is a mapping from domain id to record; ``add_*`` refuses a duplicate id,
 because find-or-create is the projector's and a second add for the same id is a
-projector bug the fake should expose, not absorb. ``reachable`` turned off makes
+projector bug the fake should expose, not absorb. The calendar is the one exception,
+as in production: its insert is the ensure, so an equal event is verified and a
+different one under the same id is ``IdentityConflict``. ``reachable`` turned off makes
 every read and write raise ``SourceUnreachable``, the way an adapter does after its
 retries, so a harness's handling of a dead source is testable without a network.
 """
@@ -25,6 +27,7 @@ from leaveimpact.core import (
     Document,
     Employee,
     Entity,
+    IdentityConflict,
     InstantSpan,
     Leave,
     Observed,
@@ -154,7 +157,17 @@ class InMemoryCalendar(_Store):
         return self._all(self.events, lambda event: event.span.overlaps(span))
 
     def add_event(self, event: CalendarEvent) -> str:
-        return self._add(self.events, event.id, event, "event")
+        self._reach()
+        existing = self.events.get(event.id)
+        if existing is None:
+            self.events[event.id] = event
+        elif existing != event:
+            raise IdentityConflict(
+                self.source,
+                f"event:{event.id}",
+                f"an existing event differs: {existing} is not {event}",
+            )
+        return f"{self.source.value}-fake:event:{event.id}"
 
 
 @dataclass

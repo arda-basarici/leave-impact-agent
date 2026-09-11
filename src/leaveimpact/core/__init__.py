@@ -144,7 +144,7 @@ from leaveimpact.core.plans import (
     plan_violations,
     required_count,
 )
-from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import KIND_BY_ENTITY_TYPE, Entity, Observed
 from leaveimpact.core.ports.read import (
     CalendarReader,
@@ -294,6 +294,7 @@ __all__ = [
     "LeaveId",
     "LeaveKind",
     "LeaveStatus",
+    "IdentityConflict",
     "MalformedRecord",
     "Need",
     "Observation",

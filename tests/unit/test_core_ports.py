@@ -1,7 +1,8 @@
 """The ports: an observed entity carries a source its kind can come from, the in-memory
 implementation conforms to both sides and behaves as the contract says — not found is a
-plain answer, a dead source raises, a duplicate add is a projector bug — and the two
-faults are distinct types with no common base."""
+plain answer, a dead source raises, a duplicate add is a projector bug except on the
+calendar, whose insert verifies an equal copy — and the three faults are distinct types with
+no common base."""
 
 from datetime import UTC, date, datetime
 
@@ -21,6 +22,7 @@ from leaveimpact.core import (
     EntityKind,
     EntityRef,
     Grade,
+    IdentityConflict,
     InstantSpan,
     Leave,
     LeaveKind,
@@ -256,10 +258,24 @@ def test_a_duplicate_add_is_a_projector_bug_not_an_upsert() -> None:
     assert seen is not None and seen.value.skills == (skill_id("kafka"),)
 
 
-def test_the_two_faults_share_no_base_so_one_clause_cannot_catch_both() -> None:
-    assert not issubclass(SourceUnreachable, MalformedRecord)
-    assert not issubclass(MalformedRecord, SourceUnreachable)
-    assert SourceUnreachable.__mro__[1:] == (Exception, BaseException, object)
+def test_a_calendar_add_verifies_an_equal_copy_and_refuses_a_different_one() -> None:
+    calendar = InMemoryCalendar()
+    release = _event(9, 16, 10, ALICE, BOB)
+    first = calendar.add_event(release)
+    assert calendar.add_event(release) == first, "an equal event is verified, not refused"
+    with pytest.raises(IdentityConflict, match="an existing event differs") as caught:
+        calendar.add_event(_event(9, 16, 11, ALICE, BOB))
+    assert caught.value.source is Source.CALENDAR
+    seen = calendar.event(release.id)
+    assert seen is not None and seen.value == release, "nothing overwritten"
+
+
+def test_the_three_faults_share_no_base_so_one_clause_cannot_catch_two() -> None:
+    faults = (SourceUnreachable, MalformedRecord, IdentityConflict)
+    for fault in faults:
+        assert fault.__mro__[1:] == (Exception, BaseException, object)
+    conflict = IdentityConflict(Source.FRAPPE, "emp_017", "an existing record differs")
+    assert str(conflict) == "frappe identity emp_017: an existing record differs"
     malformed = MalformedRecord(Source.JIRA, "LIA-42", "assignee has no world id")
     assert (malformed.source, malformed.locator) == (Source.JIRA, "LIA-42")
     assert str(malformed) == "jira record LIA-42: assignee has no world id"

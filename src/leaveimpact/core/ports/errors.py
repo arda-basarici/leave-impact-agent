@@ -1,4 +1,4 @@
-"""The two faults a port can raise, kept apart because the run treats them differently.
+"""The three faults a port can raise, kept apart because the run treats them differently.
 
 Missing data is evidence, unavailable infrastructure is an epistemic limit, malformed
 data is a defect (ruled at step 5 of the world milestone's build). The first never
@@ -7,6 +7,14 @@ absence means — closed-world false, or unknown behind a gap — is closure's t
 The other two are exceptions with no common base, on purpose: a harness that could
 catch "any port failure" in one clause would fold a defect into a legitimate unknown,
 and the whole point of the split is that it cannot.
+
+The third fault is the write side's alone. ``IdentityConflict`` says the source already
+holds the identity being written, with state other than the intended: the record
+translated fine, so it is not malformed, and the source answered, so it is not
+unreachable — the identity points at conflicting state. Writers and the generator's
+projectors raise it, readers never do, and no one adopts or overwrites the record it names
+(the find-or-create ruling at the projector step). It shares no base with the other two
+for the same reason they share none.
 
 A vendor's own exception never leaves its adapter. The adapter retries connection
 faults itself, and what it raises afterwards is one of these, with the vendor error
@@ -56,6 +64,25 @@ class MalformedRecord(Exception):
 
     def __init__(self, source: Source, locator: str, reason: str) -> None:
         super().__init__(f"{source.value} record {locator}: {reason}")
+        self.source = source
+        self.locator = locator
+        self.reason = reason
+
+
+class IdentityConflict(Exception):
+    """``source`` already holds the identity at ``locator``, with state other than the intended.
+
+    The locator names the record the way the source does, or the domain id when the caller
+    is a projector that never sees a vendor key; the reason says what differs.
+
+    >>> raise IdentityConflict(Source.FRAPPE, "emp_017", "the record differs")
+    Traceback (most recent call last):
+    ...
+    leaveimpact.core.ports.errors.IdentityConflict: frappe identity emp_017: the record differs
+    """
+
+    def __init__(self, source: Source, locator: str, reason: str) -> None:
+        super().__init__(f"{source.value} identity {locator}: {reason}")
         self.source = source
         self.locator = locator
         self.reason = reason

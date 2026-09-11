@@ -32,7 +32,7 @@ from leaveimpact.adapters.calendar.records import event_payload, vendor_event_id
 from leaveimpact.core.entities import CalendarEvent, Employee
 from leaveimpact.core.enums import EmploymentType, Grade
 from leaveimpact.core.ids import employee_id, event_id, team_id
-from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.read import CalendarReader
 from leaveimpact.core.ports.write import CalendarWriter
 from leaveimpact.core.worldtime import InstantSpan
@@ -172,15 +172,22 @@ def test_a_409_is_verified_by_reading_the_copy_back_and_the_write_goes_on() -> N
     assert script.seen[2].url.path == "/calendars/baran@cal/events"
 
 
+def test_a_409_whose_copy_differs_from_the_intended_event_is_an_identity_conflict() -> None:
+    script = Scripted(status(409), ok({**event_payload(REVIEW), "summary": "Vendor call"}))
+    with pytest.raises(IdentityConflict, match="an existing event differs") as caught:
+        adapter(script).add_event(REVIEW)
+    assert caught.value.locator == f"calendars/{CAL[SEDA]}/events/{VENDOR}"
+    assert len(script.seen) == 2, "no write to the next calendar"
+
+
 @pytest.mark.parametrize(
     ("existing", "reason"),
     [
-        (ok({**event_payload(REVIEW), "summary": "Vendor call"}), "an existing event differs"),
         (ok({**event_payload(REVIEW), "status": "cancelled"}), "held by a cancelled event"),
         (status(404), "answered 409 to the insert, then 404"),
     ],
 )
-def test_a_409_whose_copy_is_not_the_intended_event_is_malformed_and_stops_the_write(
+def test_a_409_whose_copy_cannot_be_read_as_the_event_is_malformed_and_stops_the_write(
     existing: httpx.Response, reason: str
 ) -> None:
     script = Scripted(status(409), existing)

@@ -64,7 +64,7 @@ from leaveimpact.adapters.transport import DEFAULT_POLICY, Transport, TransportP
 from leaveimpact.core.entities import CalendarEvent, Employee
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import EmployeeId, EventId
-from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import Observed
 from leaveimpact.core.worldtime import InstantSpan, as_utc
 
@@ -415,7 +415,8 @@ class CalendarAdapter:
             )
         found = records.event_from_record(existing, calendar_id)
         if found != intended:
-            raise MalformedRecord(
+            # Translated fine and answered: the identity holds other state, the third fault.
+            raise IdentityConflict(
                 Source.CALENDAR, where, f"an existing event differs: {found} is not {intended}"
             )
 

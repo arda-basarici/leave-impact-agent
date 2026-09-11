@@ -26,5 +26,7 @@ Faults keep three cases apart, because closure treats them differently (``errors
 a record that is not there is a plain ``None`` or an empty tuple — missing data is
 evidence; a source that cannot answer after the adapter's retries raises
 ``SourceUnreachable`` — an epistemic limit the run condition records; a record the
-adapter cannot translate raises ``MalformedRecord`` — a defect, never an unknown.
+adapter cannot translate raises ``MalformedRecord`` — a defect, never an unknown. The
+write side has a fourth: an identity the source already holds with other state raises
+``IdentityConflict``, and the projector stops rather than adopt or overwrite it.
 """

@@ -14,6 +14,14 @@ Every ``add_*`` returns the record's locator in the source, an opaque string the
 generator records in the world manifest as the receipt of the world it realized;
 ``core`` never interprets one. Vendor ids otherwise stay inside the adapter, which
 keeps the identity map from domain id to vendor key.
+
+What an add does when the source already holds the identity depends on what the
+system can promise. Where the vendor mints the key — Jira — or refuses a duplicate name —
+Frappe, the corpus — a second add of an existing identity is the projector's bug, and the
+projector finds before it adds. The calendar is the exception by construction: its vendor
+event id is derived from the domain id, so ``add_event`` is the ensure — an existing copy
+equal to the intended event is verified and its locator returned, one that differs raises
+``IdentityConflict`` (``errors``) — and the projector inserts without a find.
 """
 
 from __future__ import annotations
@@ -66,7 +74,11 @@ class CalendarWriter(Protocol):
     """Adds events to the calendar."""
 
     def add_event(self, event: CalendarEvent) -> str:
-        """Creates the event with its attendees; returns the locator."""
+        """One copy on each attendee's calendar, restartable on its own; returns the locator.
+
+        A copy that exists equal to ``event`` is verified, not rewritten; one that differs
+        raises ``IdentityConflict``. The locator is the derived vendor id every copy shares.
+        """
         ...
 
 
