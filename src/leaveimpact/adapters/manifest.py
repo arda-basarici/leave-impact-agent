@@ -80,7 +80,7 @@ from leaveimpact.core.jsonshape import (
     object_field,
     string_field,
 )
-from leaveimpact.world.artifacts import Bundle
+from leaveimpact.world.artifacts import SCENARIO_SPECS, TRUTH_MANIFEST, WORLD_SPEC
 from leaveimpact.world.org import OrgParams, decode_org_params, encode_org_params
 from leaveimpact.world.version import GeneratorVersion
 
@@ -89,7 +89,7 @@ MANIFEST_FORMAT = 1
 
 MANIFEST_FILE = "world-manifest.json"
 
-_SHA256_HEX = re.compile(r"^[0-9a-f]{64}$")
+_SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 
 
 class ManifestStage(StrEnum):
@@ -107,30 +107,37 @@ class ArtifactRole(StrEnum):
     TRUTH_MANIFEST = "truth_manifest"
 
 
+FILE_NAME_BY_ROLE: Mapping[ArtifactRole, str] = MappingProxyType(
+    {
+        ArtifactRole.WORLD_SPEC: WORLD_SPEC,
+        ArtifactRole.SCENARIO_SPECS: SCENARIO_SPECS,
+        ArtifactRole.TRUTH_MANIFEST: TRUTH_MANIFEST,
+    }
+)
+
+
 @dataclass(frozen=True, slots=True)
 class ArtifactDigest:
-    """One sealed artifact's SHA-256, keyed by its role, with the file name it was sealed under."""
+    """One sealed artifact's SHA-256, keyed by its role.
+
+    The file name is the role's, not a second field: the world version hashes each file
+    under its fixed name, so a receipt naming the truth manifest's digest under the world
+    spec's file would be a contradiction nothing downstream could resolve. The encoded
+    form carries the name beside the role for a human reading the file, and the decoder
+    refuses a name that is not the role's.
+    """
 
     role: ArtifactRole
-    file_name: str
     digest: str
 
     def __post_init__(self) -> None:
-        if not _SHA256_HEX.match(self.digest):
+        if not _SHA256_HEX.fullmatch(self.digest):
             raise ValueError(f"{self.role.value} digest is a SHA-256 hex, got {self.digest!r}")
 
-
-def artifact_digests(sealed: Bundle) -> tuple[ArtifactDigest, ...]:
-    """The three digests of a sealed bundle by role, with the names the files were sealed under."""
-    return (
-        ArtifactDigest(ArtifactRole.WORLD_SPEC, sealed.world_spec.name, sealed.world_spec.digest),
-        ArtifactDigest(
-            ArtifactRole.SCENARIO_SPECS, sealed.scenario_specs.name, sealed.scenario_specs.digest
-        ),
-        ArtifactDigest(
-            ArtifactRole.TRUTH_MANIFEST, sealed.truth_manifest.name, sealed.truth_manifest.digest
-        ),
-    )
+    @property
+    def file_name(self) -> str:
+        """The name the artifact is sealed under, fixed per role."""
+        return FILE_NAME_BY_ROLE[self.role]
 
 
 @dataclass(frozen=True, slots=True)
@@ -207,12 +214,14 @@ class Receipts:
 class WorldManifest:
     """The receipt of one projected world, at one stage of its life.
 
-    Construction refuses a digest set that is not exactly the three roles once each, and a
-    corpus configuration scoped to another world version than the manifest's own — the two
-    inconsistencies a hand-edited or mis-assembled manifest could carry that no field type
-    catches. The artifacts are kept in the world's hashing order whatever order they were
-    given in, so two manifests of one world compare equal. Completeness of the receipts is
-    the composition root's to assert, because only the world knows which ids exist.
+    Construction refuses a digest set that is not exactly the three roles once each, a
+    checkpoint that carries receipts — nothing has been projected while the manifest is
+    preparing, so a receipt there is a lifecycle contradiction — and a corpus configuration
+    scoped to another world version than the manifest's own: the inconsistencies a
+    hand-edited or mis-assembled manifest could carry that no field type catches. The
+    artifacts are kept in the world's hashing order whatever order they were given in, so
+    two manifests of one world compare equal. Completeness of the receipts is the
+    composition root's to assert, because only the world knows which ids exist.
     """
 
     stage: ManifestStage
@@ -225,7 +234,7 @@ class WorldManifest:
     observed_sites: Mapping[Source, str] = MappingProxyType({})
 
     def __post_init__(self) -> None:
-        if not _SHA256_HEX.match(self.world_version):
+        if not _SHA256_HEX.fullmatch(self.world_version):
             raise ValueError(f"world version is a SHA-256 hex, got {self.world_version!r}")
         roles = [artifact.role for artifact in self.artifacts]
         if sorted(roles) != sorted(ArtifactRole):
@@ -239,6 +248,10 @@ class WorldManifest:
             "artifacts",
             tuple(sorted(self.artifacts, key=lambda artifact: order.index(artifact.role))),
         )
+        if self.stage is ManifestStage.PREPARING and self.receipts != Receipts():
+            raise ValueError(
+                "a preparing manifest carries no receipts: nothing has been projected yet"
+            )
         if self.systems.corpus.world_version != self.world_version:
             raise ValueError(
                 f"the corpus configuration is scoped to {self.systems.corpus.world_version}, "
@@ -373,11 +386,13 @@ def decode_manifest(content: bytes | str, *, stage: ManifestStage | None) -> Wor
 def _artifact(item: object) -> ArtifactDigest:
     data = as_object(item, "an artifact digest")
     expect_fields(data, ("role", "file_name", "digest"), "an artifact digest")
-    return ArtifactDigest(
-        ArtifactRole(string_field(data, "role")),
-        string_field(data, "file_name"),
-        string_field(data, "digest"),
-    )
+    digest = ArtifactDigest(ArtifactRole(string_field(data, "role")), string_field(data, "digest"))
+    file_name = string_field(data, "file_name")
+    if file_name != digest.file_name:
+        raise ValueError(
+            f"the {digest.role.value} artifact is sealed as {digest.file_name}, got {file_name!r}"
+        )
+    return digest
 
 
 def _systems(data: Mapping[str, object]) -> SystemConfigs:

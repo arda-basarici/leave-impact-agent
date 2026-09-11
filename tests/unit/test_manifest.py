@@ -1,8 +1,9 @@
 """The world manifest: a projected manifest round-trips through canonical bytes that depend on
 its value and never on insertion order; a reader states the stage it can act on and a
 checkpoint is refused by name; the record refuses a digest set that is not the three roles
-once each and a corpus scope of another world; the seed, credentials and every entity, key
-and fact type are structurally absent; and a malformed file fails at decode, field by field."""
+once each, a checkpoint carrying receipts and a corpus scope of another world; the seed,
+credentials and every entity, key and fact type are structurally absent; and a malformed
+file fails at decode, field by field."""
 
 import ast
 import json
@@ -29,7 +30,6 @@ from leaveimpact.adapters.manifest import (
     SystemConfigs,
     WorkReceipts,
     WorldManifest,
-    artifact_digests,
     decode_manifest,
     encode_manifest,
     manifest_bytes,
@@ -78,9 +78,9 @@ RECEIPTS = Receipts(
 
 def digests() -> tuple[ArtifactDigest, ...]:
     return (
-        ArtifactDigest(ArtifactRole.WORLD_SPEC, "world-spec.json", "1" * 64),
-        ArtifactDigest(ArtifactRole.SCENARIO_SPECS, "scenario-specs.json", "2" * 64),
-        ArtifactDigest(ArtifactRole.TRUTH_MANIFEST, "truth-manifest.json", "3" * 64),
+        ArtifactDigest(ArtifactRole.WORLD_SPEC, "1" * 64),
+        ArtifactDigest(ArtifactRole.SCENARIO_SPECS, "2" * 64),
+        ArtifactDigest(ArtifactRole.TRUTH_MANIFEST, "3" * 64),
     )
 
 
@@ -182,7 +182,9 @@ def test_the_corpus_scope_must_be_the_manifest_s_own_world() -> None:
 
 def test_a_digest_and_a_world_version_are_sha256_hex() -> None:
     with pytest.raises(ValueError, match="SHA-256 hex"):
-        ArtifactDigest(ArtifactRole.WORLD_SPEC, "world-spec.json", "not-a-digest")
+        ArtifactDigest(ArtifactRole.WORLD_SPEC, "not-a-digest")
+    with pytest.raises(ValueError, match="SHA-256 hex"):
+        ArtifactDigest(ArtifactRole.WORLD_SPEC, "1" * 64 + "\n")
     with pytest.raises(ValueError, match="world version is a SHA-256 hex"):
         manifest(
             world_version=WorldVersion("v1"),
@@ -215,6 +217,15 @@ def test_no_seed_credential_or_truth_can_enter_the_manifest() -> None:
         "leaveimpact.world.assembly",
     }
     assert not imported & forbidden, imported & forbidden
+    lent_by_artifacts = {
+        alias.name
+        for node in ast.walk(ast.parse(source))
+        if isinstance(node, ast.ImportFrom) and node.module == "leaveimpact.world.artifacts"
+        for alias in node.names
+    }
+    assert lent_by_artifacts <= {"WORLD_SPEC", "SCENARIO_SPECS", "TRUTH_MANIFEST"}, (
+        "the sealed bundle must not become importable through the manifest module"
+    )
     assert not any(name.endswith("Credential") for name in dir(manifest_module))
 
 
@@ -261,18 +272,34 @@ def test_a_calendar_map_holding_two_people_on_one_calendar_fails_at_decode() -> 
 # --- From a sealed bundle -----------------------------------------------------------------
 
 
-def test_the_digests_of_a_sealed_bundle_name_its_three_files_by_role() -> None:
+def test_a_sealed_bundle_s_digests_record_under_their_roles_and_names() -> None:
     sealed = bundle(assemble_world(7, DEFAULT_PARAMS, date(2026, 1, 1)))
     recorded = manifest(
         world_version=sealed.world_version,
-        artifacts=artifact_digests(sealed),
+        artifacts=(
+            ArtifactDigest(ArtifactRole.TRUTH_MANIFEST, sealed.truth_manifest.digest),
+            ArtifactDigest(ArtifactRole.SCENARIO_SPECS, sealed.scenario_specs.digest),
+            ArtifactDigest(ArtifactRole.WORLD_SPEC, sealed.world_spec.digest),
+        ),
         systems=SystemConfigs(
             SYSTEMS.frappe, SYSTEMS.jira, SYSTEMS.calendar, CorpusConfig(sealed.world_version)
         ),
     )
     assert recorded.digest_of(ArtifactRole.WORLD_SPEC) == sealed.world_spec.digest
-    assert recorded.digest_of(ArtifactRole.TRUTH_MANIFEST) == sealed.truth_manifest.digest
     assert [artifact.file_name for artifact in recorded.artifacts] == [
         artifact.name for artifact in sealed.artifacts
     ]
     assert decode_manifest(manifest_bytes(recorded), stage=ManifestStage.PROJECTED) == recorded
+
+
+def test_a_preparing_manifest_refuses_receipts() -> None:
+    with pytest.raises(ValueError, match="preparing manifest carries no receipts"):
+        manifest(ManifestStage.PREPARING, receipts=RECEIPTS)
+
+
+def test_an_artifact_named_under_another_role_s_file_fails_at_decode() -> None:
+    encoded = encode_manifest(manifest())
+    artifacts = json.loads(json.dumps(encoded["artifacts"]))
+    artifacts[0]["file_name"] = "truth-manifest.json"
+    with pytest.raises(ValueError, match="world_spec artifact is sealed as world-spec.json"):
+        decode_manifest(json.dumps({**encoded, "artifacts": artifacts}), stage=None)
