@@ -97,3 +97,27 @@ def test_a_foreign_record_that_flips_a_verdict_is_named_with_its_owner(world: Wo
     assert culprit.observable_from == first.spec.window.start
     with pytest.raises(WorldContamination, match="leave_999 \\(owned by scenario_002"):
         raise WorldContamination(findings)
+
+
+def test_a_key_whose_required_sources_no_longer_hold_is_named_with_no_verdict_moved(
+    world: WorldSpec,
+) -> None:
+    # The whole-world check compares the key's required sources with the rule's answer
+    # over the assembled world on every stable day, separately from verdicts and outcomes.
+    # Under the structured tier's rules no foreign record can move dependence without
+    # moving a verdict — the HR record and the tracker are required by every deadline
+    # through the leave and the ticket themselves — so the mechanism is pinned on a key
+    # whose recorded sources are stale by one; the foreign-fact case joins with the first
+    # class whose dependence rests on a source no artifact of its own requires.
+    first = world.scenarios[0]
+    stale_key = replace(first.key, required_sources=first.key.required_sources[1:])
+    stale = replace(first, key=stale_key)
+    scenarios = (stale, *world.scenarios[1:])
+    findings = verify_world(world.facts, scenarios, world.org)
+    assert findings and all(f.subject == "required_sources" for f in findings)
+    assert len(findings) == first.key.stable_interval.days
+    finding = findings[0]
+    assert finding.scenario_id == first.key.scenario_id
+    assert finding.expected == "[" + ", ".join(s.value for s in stale_key.required_sources) + "]"
+    assert finding.actual == "[" + ", ".join(s.value for s in first.key.required_sources) + "]"
+    assert finding.foreign == ()

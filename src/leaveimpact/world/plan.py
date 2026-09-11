@@ -2,7 +2,7 @@
 
 The plan is data rather than thirty independent draws (the plan ruling at step 8): a
 table of tier, class and modifiers per scenario, produced by one planner under a stated
-rule and recorded in the world manifest, so the audit reads what was intended and the
+rule and recorded in the sealed world spec, so the audit reads what was intended and the
 evaluator's reporting axes have the rows behind them. The rule for the structured tier —
 the golden set's counts per class, every modifier on at least two scenarios, at most two
 modifiers on any scenario, at least two scenarios with none — lives in ``PlanRules``;
@@ -133,11 +133,16 @@ def plan_world(rng: Random, rules: PlanRules) -> tuple[PlanRow, ...]:
             f"min_clean asks {rules.min_clean} clean rows of {len(classes)} rows in total"
         )
     for modifier in ModifierName:
+        # A necessary condition only, and a true one: clean rows can be drawn from the
+        # rows this modifier cannot use, so the bound is the compatible rows or the
+        # non-clean rows, whichever is fewer — never compatible-minus-clean, which the
+        # review showed rejects a plan the search would find. Sufficiency is the search's.
         compatible = sum(modifier in COMPATIBLE_MODIFIERS[name] for name in classes)
-        if compatible - rules.min_clean < rules.min_appearances:
+        available = min(compatible, len(classes) - rules.min_clean)
+        if available < rules.min_appearances:
             raise PlanInfeasible(
                 f"{modifier.value} needs {rules.min_appearances} rows and at most "
-                f"{max(compatible - rules.min_clean, 0)} compatible rows can be non-clean"
+                f"{available} compatible rows can be non-clean"
             )
     assigned = _search(rng, classes, rules)
     if assigned is None:

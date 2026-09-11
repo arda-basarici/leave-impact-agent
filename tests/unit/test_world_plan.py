@@ -50,12 +50,12 @@ def test_the_same_inputs_give_an_equal_plan_and_seeds_differ() -> None:
 def test_a_rule_that_cannot_be_met_fails_by_name() -> None:
     with pytest.raises(PlanInfeasible, match="min_clean asks 11 clean rows of 10"):
         plan_world(Random(1), PlanRules(TIER_ONE_RULES.class_counts, min_clean=11))
-    # already_resolved fits six non-meeting rows; two of them must stay clean, so five
+    # already_resolved fits six non-meeting rows however the clean rows fall, so seven
     # appearances cannot fit — named before any search.
-    with pytest.raises(PlanInfeasible, match="already_resolved needs 5 rows and at most 4"):
+    with pytest.raises(PlanInfeasible, match="already_resolved needs 7 rows and at most 6"):
         plan_world(
             Random(1),
-            PlanRules(TIER_ONE_RULES.class_counts, min_appearances=5, max_modifiers=1),
+            PlanRules(TIER_ONE_RULES.class_counts, min_appearances=7, max_modifiers=7),
         )
     # Every modifier has enough compatible rows on its own, and no assignment fits them
     # all: ten placements over one meeting and two mixed rows, six slots. Search exhausts.
@@ -65,6 +65,19 @@ def test_a_rule_that_cannot_be_met_fails_by_name() -> None:
     )
     with pytest.raises(PlanInfeasible, match="no assignment places every modifier 2 times"):
         plan_world(Random(1), tight)
+
+
+@pytest.mark.parametrize("seed", range(1, 41))
+def test_clean_rows_come_from_the_rows_a_modifier_cannot_use(seed: int) -> None:
+    # Five already_resolved appearances on six compatible rows with two clean rows: the
+    # clean rows must be meeting rows, which the modifier could not use anyway. A bound
+    # of compatible-minus-clean rejected this before the search could find it (review).
+    rules = PlanRules(
+        TIER_ONE_RULES.class_counts, min_appearances=5, max_modifiers=4, min_clean=2
+    )
+    rows = plan_world(Random(seed), rules)
+    check_plan(rows, rules)
+    assert sum(ModifierName.ALREADY_RESOLVED in row.modifiers for row in rows) == 5
 
 
 @pytest.mark.parametrize("seed", range(1, 201))
