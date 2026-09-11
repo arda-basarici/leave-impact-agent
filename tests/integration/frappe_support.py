@@ -6,8 +6,8 @@ so the second run would leave two documents per person and every select-by-ident
 would find both. The reset deletes what a previous run left, in the order the links
 allow: the attendance hrms writes when a leave is submitted (it links the application
 and blocks its deletion — found at the first re-recording), leave applications
-(submitted ones cancelled first), skill maps, employees (later-created first, so a
-manager outlives the people who report to them), departments. It runs through the same
+(submitted ones cancelled first), skill maps, employees (a manager after everyone who
+reports to them, so no link is ever dangling), departments. It runs through the same
 transport, inside the cassette, so a replay replays it too and never touches the site.
 Test support, not adapter capability: the adapter never deletes.
 """
@@ -54,25 +54,35 @@ def _cancel(transport: Transport, doctype: str, name: str) -> None:
     )
 
 
-def _cancel_and_delete_all(
-    transport: Transport, doctype: str, filters: list[list[Any]]
-) -> None:
+def _cancel_and_delete_all(transport: Transport, doctype: str, filters: list[list[Any]]) -> None:
     for row in _names(transport, doctype, filters, ("docstatus",)):
         if row["docstatus"] == 1:
             _cancel(transport, doctype, row["name"])
         _delete(transport, doctype, row["name"])
 
 
+def _link_order(rows: list[dict[str, Any]]) -> list[str]:
+    """Employee names with every report before its manager, so each delete finds no link."""
+    remaining = {row["name"]: row.get("reports_to") or None for row in rows}
+    ordered: list[str] = []
+    while remaining:
+        referenced = {manager for manager in remaining.values() if manager in remaining}
+        free = sorted(name for name in remaining if name not in referenced)
+        assert free, "a reporting cycle: every remaining employee is someone's manager"
+        ordered.extend(free)
+        for name in free:
+            del remaining[name]
+    return ordered
+
+
 def reset_company(transport: Transport, company: str) -> None:
     """Delete every people record the cassette company holds; masters and the company stay."""
-    employees = sorted(
-        (row["name"] for row in _names(transport, "Employee", [["company", "=", company]])),
-        reverse=True,
-    )
+    rows = _names(transport, "Employee", [["company", "=", company]], ("reports_to",))
+    employees = [row["name"] for row in rows]
     if employees:
         _cancel_and_delete_all(transport, "Attendance", [["employee", "in", employees]])
     _cancel_and_delete_all(transport, "Leave Application", [["company", "=", company]])
-    for name in employees:
+    for name in _link_order(rows):
         _delete(transport, "Employee Skill Map", name)
         _delete(transport, "Employee", name)
     for department in _names(

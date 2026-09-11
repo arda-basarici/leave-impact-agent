@@ -7,23 +7,42 @@ Construction does no I/O: the credential, the configuration and the transport po
 are three frozen values, and the first request happens on the first call.
 
 **Scope.** Every read filters by the configured company and every write plants it, so
-a site can hold several worlds — and the cassette recordings — side by side without
-one reading another. The identity map (a domain id to Frappe's document name and back)
-is not configured: each document carries its domain id, so the adapter resolves a link
-by listing the company's departments or employees when a call needs them, a read and
-never a lookup at construction.
+a site can hold the world and the cassette recordings side by side without one reading
+the other. The identity map (a domain id to Frappe's document name and back) is not
+configured: each document carries its domain id, so the adapter resolves a link by
+listing the company's departments or employees when a call needs them, a read and never
+a lookup at construction. A domain id matches exactly one document or the record is
+malformed — Frappe enforces no uniqueness on an employee number or a custom field, so
+the adapter does, on every select and every link resolution alike, and never picks one
+of two.
+
+**One employee is one write.** An employee with a skill record is two Frappe documents,
+and two requests would open a window where the first landed and the second did not,
+which the projector's find-or-create could never repair: it would find the employee and
+skip them, and the reader would report the missing skill map as the blank record.
+So ``add_employee`` sends both documents in one ``insert_many`` call, which Frappe runs
+as one transaction — a failed second document leaves no first one (probed live at the
+step 9 review). The skill map has to name the employee before either exists, so the
+site schema sets HR Settings to name employees by their employee number; the document
+name is then the domain id. The consequence is that an employee number is unique per
+site, not per company, which fits the one-world-per-site hosting shape (``hr-w1``); the
+cassette company uses ids above 900 by convention.
 
 **Preparation is not writing.** ``ensure_site_schema``, ``ensure_company`` and
-``ensure_skills`` are the Frappe half of the projector's setup — the custom fields the
-records live in, the masters the Link fields point at, the company with its holiday
-list and its service approver — and they find before they create because a master
-that exists is not an error. They are called by the composition root, the way the
-corpus's DDL is, and are idempotent; the port writers below them add and never find.
+``ensure_skills`` are the Frappe half of the projector's setup — the naming rule, the
+custom fields the records live in, the masters the Link fields point at, the company
+with its holiday list and its service approver — and they find before they create
+because a master that exists is not an error. They are called by the composition root,
+the way the corpus's DDL is, and are idempotent; the port writers below them add and
+never find.
 
 **Faults.** The transport turns exhausted retries and undeclared statuses into
-``SourceUnreachable``; a document the translation cannot read raises
-``MalformedRecord`` (``records``). Every read is replayable; every insert is not, and
-the projector restarts find-or-create when an insert's outcome is unknown.
+``SourceUnreachable``. A document the translation cannot read raises
+``MalformedRecord`` (``records``), and so does a successful response whose envelope
+is not Frappe's — a body that is not JSON, no ``data``, an insert with no name — with
+the request as locator: the source answered, so the defect is the source's and belongs
+to validation, not to epistemic uncertainty. Every read is replayable; every insert is
+not, and the projector restarts find-or-create when an insert's outcome is unknown.
 """
 
 from __future__ import annotations
@@ -31,7 +50,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -46,6 +65,7 @@ from leaveimpact.core.worldtime import DateSpan
 
 _PAGE = 100
 Filters = list[list[Any]]
+Record = dict[str, Any]
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +115,8 @@ CUSTOM_FIELDS: tuple[tuple[str, str, str, str], ...] = (
     ("Department", "custom_team_id", "Team Id", "department_name"),
     ("Leave Application", "custom_leave_id", "Leave Id", "description"),
 )
+# Employees are named by their employee number, so the name is known before the insert.
+EMPLOYEE_NAMING = "Employee Number"
 # The holiday list spans every year a world can be dated in, with no holidays: every
 # day is a working day until holidays enter the truth model (deferred at step 8).
 HOLIDAY_SPAN = ("2020-01-01", "2035-12-31")
@@ -136,17 +158,11 @@ class FrappeAdapter:
     # --- the read side --------------------------------------------------------------
 
     def employee(self, id: EmployeeId) -> Observed[Employee] | None:
-        found = self._list(
+        record = self._one(
             "Employee", self._company_filter(["employee_number", "=", id]), records.EMPLOYEE_FIELDS
         )
-        if not found:
+        if record is None:
             return None
-        if len(found) > 1:
-            names = ", ".join(sorted(str(row.get("name")) for row in found))
-            raise MalformedRecord(
-                Source.FRAPPE, f"Employee/{names}", f"{id} is held by more than one document"
-            )
-        (record,) = found
         manager = record.get("reports_to") or None
         number_by_name = {record["name"]: id}
         if manager is not None:
@@ -166,25 +182,23 @@ class FrappeAdapter:
         return tuple(self._observed_employee(row, number_by_name, skills_by_name) for row in found)
 
     def team(self, id: TeamId) -> Observed[Team] | None:
-        found = self._list(
+        record = self._one(
             "Department",
             self._company_filter(["custom_team_id", "=", id]),
             records.DEPARTMENT_FIELDS,
         )
-        if not found:
+        if record is None:
             return None
-        (record,) = found
         return Observed(records.team_from_record(record), Source.FRAPPE)
 
     def leave(self, id: LeaveId) -> Observed[Leave] | None:
-        found = self._list(
+        record = self._one(
             "Leave Application",
             self._leave_filter(["custom_leave_id", "=", id]),
             records.LEAVE_FIELDS,
         )
-        if not found:
+        if record is None:
             return None
-        (record,) = found
         number_by_name = self._numbers_by_name([["name", "=", record.get("employee", "")]])
         return Observed(
             records.leave_from_record(record, number_by_name=number_by_name), Source.FRAPPE
@@ -194,7 +208,8 @@ class FrappeAdapter:
         found = self._list(
             "Leave Application",
             self._leave_filter(
-                ["from_date", "<=", span.end.isoformat()], ["to_date", ">=", span.start.isoformat()]
+                ["from_date", "<=", span.end.isoformat()],
+                ["to_date", ">=", span.start.isoformat()],
             ),
             records.LEAVE_FIELDS,
         )
@@ -212,24 +227,32 @@ class FrappeAdapter:
         return self._insert("Department", records.team_payload(team, self._config.company))
 
     def add_employee(self, employee: Employee) -> str:
+        """One request for the employee and their skill record, so neither lands alone."""
         department = self._department_name(employee.team_id)
         manager = (
             self._employee_name(employee.manager_id) if employee.manager_id is not None else None
         )
-        name = self._insert(
-            "Employee",
-            records.employee_payload(
-                employee,
-                company=self._config.company,
-                department_name=department,
-                manager_name=manager,
-                holiday_list=self._config.holiday_list,
-                approver_email=self._config.approver_email,
-            ),
-        )
+        documents: list[Record] = [
+            {
+                "doctype": "Employee",
+                **records.employee_payload(
+                    employee,
+                    company=self._config.company,
+                    department_name=department,
+                    manager_name=manager,
+                    holiday_list=self._config.holiday_list,
+                    approver_email=self._config.approver_email,
+                ),
+            }
+        ]
         if employee.skills is not None:
-            self._insert("Employee Skill Map", records.skill_map_payload(name, employee.skills))
-        return name
+            documents.append(
+                {
+                    "doctype": "Employee Skill Map",
+                    **records.skill_map_payload(employee.id, employee.skills),
+                }
+            )
+        return self._insert_many(documents)[0]
 
     def add_leave(self, leave: Leave) -> str:
         employee = self._employee_name(leave.employee_id)
@@ -243,7 +266,19 @@ class FrappeAdapter:
     # --- preparation: the site schema, the company, the skill masters ----------------
 
     def ensure_site_schema(self) -> None:
-        """The custom fields, grade masters and leave types every company on the site uses."""
+        """The naming rule, custom fields, grade masters and leave types every company uses."""
+        settings = self._get("/api/resource/HR Settings/HR Settings")
+        naming = (
+            cast(Record, settings).get("emp_created_by") if isinstance(settings, dict) else None
+        )
+        if naming != EMPLOYEE_NAMING:
+            self._call(
+                "frappe.client.set_value",
+                doctype="HR Settings",
+                name="HR Settings",
+                fieldname="emp_created_by",
+                value=EMPLOYEE_NAMING,
+            )
         for doctype, fieldname, label, insert_after in CUSTOM_FIELDS:
             self._ensure(
                 "Custom Field",
@@ -334,15 +369,14 @@ class FrappeAdapter:
             ["status", "in", ["Open", "Approved"]], ["docstatus", "in", [0, 1]], *extra
         )
 
-    def _list(
-        self, doctype: str, filters: Filters, fields: tuple[str, ...]
-    ) -> list[dict[str, Any]]:
+    def _list(self, doctype: str, filters: Filters, fields: tuple[str, ...]) -> list[Record]:
         """Every document matching ``filters``, paged to completion."""
-        rows: list[dict[str, Any]] = []
+        rows: list[Record] = []
         start = 0
+        path = f"/api/resource/{doctype}"
         while True:
             page = self._get(
-                f"/api/resource/{doctype}",
+                path,
                 params={
                     "filters": json.dumps(filters),
                     "fields": json.dumps(list(fields)),
@@ -350,21 +384,59 @@ class FrappeAdapter:
                     "limit_page_length": _PAGE,
                 },
             )
-            rows.extend(page)
-            if len(page) < _PAGE:
+            if not isinstance(page, list):
+                raise MalformedRecord(Source.FRAPPE, f"GET {path}", "data is not a list")
+            documents = cast(list[Record], page)
+            rows.extend(documents)
+            if len(documents) < _PAGE:
                 return rows
             start += _PAGE
 
+    def _one(self, doctype: str, filters: Filters, fields: tuple[str, ...]) -> Record | None:
+        """The one document a domain id names: ``None`` for none, malformed for more than one."""
+        found = self._list(doctype, filters, fields)
+        if not found:
+            return None
+        if len(found) > 1:
+            names = ", ".join(sorted(str(row.get("name")) for row in found))
+            raise MalformedRecord(
+                Source.FRAPPE,
+                f"{doctype}/{names}",
+                f"{json.dumps(filters[-1])} is held by more than one document",
+            )
+        return found[0]
+
     def _get(self, path: str, **kwargs: Any) -> Any:
-        return self._transport.request("GET", path, replayable=True, **kwargs).json()["data"]
+        response = self._transport.request("GET", path, replayable=True, **kwargs)
+        return _envelope(response, f"GET {path}")["data"]
 
-    def _insert(self, doctype: str, payload: dict[str, Any]) -> str:
-        response = self._transport.request(
-            "POST", f"/api/resource/{doctype}", replayable=False, json=payload
-        )
-        return str(response.json()["data"]["name"])
+    def _insert(self, doctype: str, payload: Record) -> str:
+        path = f"/api/resource/{doctype}"
+        response = self._transport.request("POST", path, replayable=False, json=payload)
+        data = _envelope(response, f"POST {path}")["data"]
+        name = cast(Record, data).get("name") if isinstance(data, dict) else None
+        if not isinstance(name, str):
+            raise MalformedRecord(Source.FRAPPE, f"POST {path}", "insert returned no name")
+        return name
 
-    def _ensure(self, doctype: str, filters: Filters, payload: dict[str, Any]) -> None:
+    def _insert_many(self, documents: list[Record]) -> list[str]:
+        answer = self._call("frappe.client.insert_many", docs=documents)
+        names = cast(list[Any], answer) if isinstance(answer, list) else []
+        if len(names) != len(documents) or not all(isinstance(name, str) for name in names):
+            raise MalformedRecord(
+                Source.FRAPPE,
+                "POST /api/method/frappe.client.insert_many",
+                f"expected {len(documents)} names, got {answer!r}",
+            )
+        return [str(name) for name in names]
+
+    def _call(self, method: str, **arguments: Any) -> Any:
+        """A whitelisted method; every one the adapter calls mutates, so none is replayable."""
+        path = f"/api/method/{method}"
+        response = self._transport.request("POST", path, replayable=False, json=arguments)
+        return _envelope(response, f"POST {path}", key="message")["message"]
+
+    def _ensure(self, doctype: str, filters: Filters, payload: Record) -> None:
         if not self._list(doctype, filters, ("name",)):
             self._insert(doctype, payload)
 
@@ -394,7 +466,7 @@ class FrappeAdapter:
 
     def _observed_employee(
         self,
-        record: dict[str, Any],
+        record: Record,
         number_by_name: dict[str, EmployeeId],
         skills_by_name: dict[str, tuple[SkillId, ...]],
     ) -> Observed[Employee]:
@@ -407,22 +479,33 @@ class FrappeAdapter:
         return Observed(employee, Source.FRAPPE)
 
     def _department_name(self, team_id: TeamId) -> str:
-        rows = self._list(
+        row = self._one(
             "Department", self._company_filter(["custom_team_id", "=", team_id]), ("name",)
         )
-        if not rows:
+        if row is None:
             raise LookupError(
                 f"team {team_id} is not in Frappe under {self._config.company}; add teams first"
             )
-        return str(rows[0]["name"])
+        return str(row["name"])
 
     def _employee_name(self, employee_id: EmployeeId) -> str:
-        rows = self._list(
+        row = self._one(
             "Employee", self._company_filter(["employee_number", "=", employee_id]), ("name",)
         )
-        if not rows:
+        if row is None:
             raise LookupError(
                 f"employee {employee_id} is not in Frappe under {self._config.company}; "
                 "add them first"
             )
-        return str(rows[0]["name"])
+        return str(row["name"])
+
+
+def _envelope(response: httpx.Response, locator: str, *, key: str = "data") -> dict[str, Any]:
+    """Frappe's envelope; ``MalformedRecord`` for a 200 that is not JSON or lacks ``key``."""
+    try:
+        body: Any = response.json()
+    except ValueError as exc:
+        raise MalformedRecord(Source.FRAPPE, locator, "response is not JSON") from exc
+    if not isinstance(body, dict) or key not in body:
+        raise MalformedRecord(Source.FRAPPE, locator, f"response carries no {key!r}")
+    return cast(dict[str, Any], body)

@@ -6,7 +6,10 @@ skills), two leaves (approved, requested), then everything read back through the
 reader's five questions — including the identities the site does not hold, which are
 ``None`` and not a fault. The claims are the port's: what the writer added, the reader
 returns as the same entity; the blank skill record stays blank; a span selects by
-overlap and any status; a select-by-identity outside the company is ``None``.
+overlap and any status; a select-by-identity outside the company is ``None``. One more
+is the server's: an employee whose skill record names a skill the site does not hold is
+refused whole — no employee lands without the skill map, the transaction the atomic
+write relies on, proven on the real site and replayed here.
 
 Recording (``just test-record``) needs the site and its credential in the
 environment; replay needs neither and the cassette host is a placeholder. The
@@ -16,6 +19,7 @@ company is the cassette scope, so the world that lands in step 10 never reads th
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -25,6 +29,7 @@ from leaveimpact.adapters.transport import Transport
 from leaveimpact.core.entities import Employee, Leave, Team
 from leaveimpact.core.enums import EmploymentType, Grade, LeaveKind, LeaveStatus, Source
 from leaveimpact.core.ids import employee_id, leave_id, skill_id, team_id
+from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.worldtime import DateSpan
 from tests.integration.frappe_support import reset_company
 from tests.recording import FRAPPE
@@ -116,6 +121,12 @@ def test_people_written_are_read_back() -> None:
     adapter.ensure_skills([skill_id("kafka"), skill_id("sql")])
 
     locators = [adapter.add_team(PLATFORM), adapter.add_team(DATA)]
+    unheld = replace(
+        SEDA, id=employee_id(904), name="Probe Atomic", skills=(skill_id("no_such_skill"),)
+    )
+    with pytest.raises(SourceUnreachable, match="417"):
+        adapter.add_employee(unheld)
+    assert adapter.employee(unheld.id) is None, "a refused batch leaves no employee behind"
     locators += [
         adapter.add_employee(SEDA),
         adapter.add_employee(BARAN),
