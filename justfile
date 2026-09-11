@@ -26,13 +26,15 @@ test-all:
     uv run pytest -q -m ""
 
 # Integration level alone, against the dev PostgreSQL (`just db-up` first).
+# The loopback address, not `localhost`: the name resolves to IPv6 first, the
+# container publishes on IPv4 only, and every connection would wait out the timeout.
 [windows]
 test-integration:
-    $env:DATABASE_URL = "postgresql://leaveimpact:$env:POSTGRES_PASSWORD@localhost:5432/leaveimpact"; uv run pytest -q -m integration
+    $env:DATABASE_URL = "postgresql://leaveimpact:$env:POSTGRES_PASSWORD@127.0.0.1:5432/leaveimpact"; uv run pytest -q -m integration
 
 [unix]
 test-integration:
-    DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@localhost:5432/leaveimpact" uv run pytest -q -m integration
+    DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@127.0.0.1:5432/leaveimpact" uv run pytest -q -m integration
 
 # Re-record the adapter cassettes against the real sandboxes (their sites and
 # credentials come from the user's environment; tests/recording.py names the
