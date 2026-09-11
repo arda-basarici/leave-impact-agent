@@ -19,6 +19,7 @@ from leaveimpact.world import (
     SKILLS,
     OrgParams,
     OrgSpec,
+    gap_holds_all_year,
     generate_org,
 )
 
@@ -101,6 +102,34 @@ def test_a_contractor_exists_whenever_the_share_is_above_zero(seed: int) -> None
 
 
 @pytest.mark.parametrize("seed", SEEDS)
+def test_a_far_zone_seat_exists_and_is_never_a_lead_moved_alone(seed: int) -> None:
+    spec = generate_org(seed, DEFAULT_PARAMS)
+    params = spec.params
+    far = [
+        e
+        for e in spec.employees
+        if gap_holds_all_year(e.timezone, params.reference_timezone, params.timezone_gap_hours)
+    ]
+    assert far
+    # A far seat is a real city of the vocabulary, consistent like every other seat.
+    assert all(any(e.timezone == c.timezone for c in CITIES) for e in far)
+
+
+def test_params_reject_a_reference_zone_the_vocabulary_cannot_serve() -> None:
+    with pytest.raises(ValueError, match="not an IANA timezone key"):
+        OrgParams(reference_timezone="Europe/Atlantis")
+    with pytest.raises(ValueError, match="no city in the vocabulary is 20 hours"):
+        OrgParams(timezone_gap_hours=20)
+    with pytest.raises(ValueError, match="timezone_gap_hours must be at least 1"):
+        OrgParams(timezone_gap_hours=0)
+    # Another reference zone the vocabulary does serve: Europe is six hours from Toronto.
+    toronto = generate_org(3, OrgParams(reference_timezone="America/Toronto"))
+    assert any(
+        gap_holds_all_year(e.timezone, "America/Toronto", 6) for e in toronto.employees
+    )
+
+
+@pytest.mark.parametrize("seed", SEEDS)
 def test_the_skill_distribution_holds_the_shapes_scenarios_select_on(seed: int) -> None:
     spec = generate_org(seed, DEFAULT_PARAMS)
     skilled = [e for e in spec.employees if e.skills is not None]
@@ -170,3 +199,7 @@ def test_a_small_organization_still_honours_every_shape() -> None:
         assert sum(e.skills is None for e in spec.employees) == 1
         (component,) = spec.components
         assert len({e.team_id for e in spec.employees if e.id in component.member_ids}) == 2
+        assert any(
+            gap_holds_all_year(e.timezone, params.reference_timezone, params.timezone_gap_hours)
+            for e in spec.employees
+        )

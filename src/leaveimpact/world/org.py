@@ -38,6 +38,7 @@ from leaveimpact.core.ids import (
     employee_id,
     team_id,
 )
+from leaveimpact.core.worldtime import zone
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
 from leaveimpact.world.vocabulary import (
     CITIES,
@@ -48,6 +49,7 @@ from leaveimpact.world.vocabulary import (
     TEAM_NAMES,
     City,
 )
+from leaveimpact.world.zones import gap_holds_all_year
 
 # The three skills every organization sets aside before the popularity draw: one nobody
 # holds, one exactly one person holds, one held by at least a third of the people who
@@ -85,6 +87,13 @@ class OrgParams:
     contractor and that a person sits in a city other than the team's home city, the
     two dimensions policy clauses and timezone distractors turn on; a share above zero
     also guarantees one contractor, so a contractor clause can always find its scope.
+    ``reference_timezone`` is the zone the world's truth is read in, an org parameter
+    because the organization guarantees one person at least ``timezone_gap_hours`` from
+    it at every hour of the rules year (the timezone affordance ruling at step 8): a
+    boundary event is only plausible working time for someone that far away, and the
+    golden set plans the modifier on several scenarios, so the shape is guaranteed the
+    way the contractor is rather than left to the city draw. Six hours is the least gap
+    at which a late-afternoon meeting crosses midnight in the other zone.
 
     Validation here owns the generator's ranges and cross-field constraints, rejected at
     construction and by name rather than somewhere inside a draw; scalar types are the
@@ -106,8 +115,21 @@ class OrgParams:
     skills_per_person: tuple[int, int] = (1, 4)
     contractor_share: float = 0.15
     remote_share: float = 0.25
+    reference_timezone: str = "Europe/Istanbul"
+    timezone_gap_hours: int = 6
 
     def __post_init__(self) -> None:
+        zone(self.reference_timezone)
+        if self.timezone_gap_hours < 1:
+            raise ValueError(
+                f"timezone_gap_hours must be at least 1, got {self.timezone_gap_hours}"
+            )
+        if not _far_cities(self):
+            raise ValueError(
+                f"no city in the vocabulary is {self.timezone_gap_hours} hours from "
+                f"{self.reference_timezone} all year, so the timezone affordance cannot be "
+                "guaranteed"
+            )
         if not 2 <= self.team_count <= len(TEAM_NAMES):
             raise ValueError(
                 f"team_count must be between 2 and {len(TEAM_NAMES)} (the team vocabulary), "
@@ -145,6 +167,15 @@ class OrgParams:
         for name, share in shares:
             if not 0.0 <= share <= 1.0:
                 raise ValueError(f"{name} is a probability, got {share}")
+
+
+def _far_cities(params: OrgParams) -> tuple[City, ...]:
+    """The vocabulary's cities at least the parameterized gap from the reference zone all year."""
+    return tuple(
+        city
+        for city in CITIES
+        if gap_holds_all_year(city.timezone, params.reference_timezone, params.timezone_gap_hours)
+    )
 
 
 DEFAULT_PARAMS = OrgParams()
@@ -198,8 +229,8 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     manager, who leads the first team; every other team led by a lead reporting to the
     root; every non-lead reporting to their own team's lead; leads are employees, never
     contractors, and at least one contractor exists when the share is above zero; a
-    person's location,
-    country and timezone belong to one city; names unique; exactly
+    person's location, country and timezone belong to one city, and at least one person
+    sits ``timezone_gap_hours`` or more from the reference zone all year; names unique; exactly
     ``blank_skill_records`` people with ``skills`` absent; among the vocabulary at least
     one skill with no holder, one with exactly one, one held by at least a third of the
     people with a record; every component's members drawn from at least two teams.
@@ -312,7 +343,12 @@ def _names(rng: Random, count: int) -> list[str]:
 
 
 def _cities(rng: Random, seats: list[_Seat], params: OrgParams) -> list[City]:
-    """Each team has a home city; a person sits there or, with ``remote_share``, elsewhere."""
+    """Each team has a home city; a person sits there or, with ``remote_share``, elsewhere.
+
+    One far seat is guaranteed the way the contractor is: when the draw leaves nobody at
+    the parameterized gap from the reference zone, one random non-lead moves to a far
+    city. Leads stay with their teams, so the guarantee never puts a lead alone abroad.
+    """
     home = [rng.choice(CITIES) for _ in range(params.team_count)]
     cities: list[City] = []
     for seat in seats:
@@ -320,6 +356,10 @@ def _cities(rng: Random, seats: list[_Seat], params: OrgParams) -> list[City]:
             cities.append(rng.choice([city for city in CITIES if city != home[seat.team_index]]))
         else:
             cities.append(home[seat.team_index])
+    far = _far_cities(params)
+    if not any(city in far for city in cities):
+        movers = [index for index, seat in enumerate(seats) if not seat.lead]
+        cities[rng.choice(movers)] = rng.choice(far)
     return cities
 
 

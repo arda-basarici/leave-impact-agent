@@ -27,6 +27,7 @@ from leaveimpact.world import (
     truth_facts,
     version,
     vocabulary,
+    zones,
 )
 from leaveimpact.world.construction import (
     Amendment,
@@ -42,7 +43,13 @@ from leaveimpact.world.construction import (
     ScenarioInvariantFailed,
     construct,
 )
-from leaveimpact.world.modifiers import AlreadyResolved
+from leaveimpact.world.modifiers import (
+    AlreadyResolved,
+    ConcurrentLeave,
+    OutsideWindow,
+    TimezoneBoundary,
+    WrongTeam,
+)
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams, OrgSpec, generate_org
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -86,6 +93,7 @@ from leaveimpact.world.vocabulary import (
     Skill,
     vocabulary_digest,
 )
+from leaveimpact.world.zones import gap_at, gap_holds_all_year, offset_of
 
 __all__ = [
     "construction",
@@ -97,6 +105,7 @@ __all__ = [
     "truth_facts",
     "version",
     "vocabulary",
+    "zones",
     "CITIES",
     "COMPONENT_NAMES",
     "DEFAULT_PARAMS",
@@ -110,6 +119,7 @@ __all__ = [
     "Amendment",
     "AuthoredVerdict",
     "City",
+    "ConcurrentLeave",
     "ConflictingEffects",
     "Construction",
     "ConstructionError",
@@ -126,6 +136,7 @@ __all__ = [
     "NamedDistractor",
     "OrgParams",
     "OrgSpec",
+    "OutsideWindow",
     "OwnedEntities",
     "Planted",
     "Scenario",
@@ -139,13 +150,18 @@ __all__ = [
     "StructuredMeeting",
     "StructuredMixed",
     "Tier",
+    "TimezoneBoundary",
     "VerdictOverride",
+    "WrongTeam",
     "allocate_slices",
     "construct",
     "derive_org",
     "derive_owned",
+    "gap_at",
+    "gap_holds_all_year",
     "generate_org",
     "observed",
+    "offset_of",
     "place_leave",
     "place_now",
     "stable_interval",

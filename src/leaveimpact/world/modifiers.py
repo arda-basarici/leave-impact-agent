@@ -8,31 +8,93 @@ its effect — distractors named with their reason, verdicts amended for a candi
 and never touches the class's declared outcome, which the framework re-checks after
 composition.
 
-This module holds ``already_resolved``, pulled forward with the first class as the
-proof that the modifier machinery composes; the others join at the Tier 1 step.
+Four distractors and one pressure. ``already_resolved`` shadows a ticket the leaver
+owns with a closed look-alike; ``outside_window`` shadows an impact's artifact with the
+same shape just outside the leave, the day before or after; ``wrong_team`` shadows it
+with an artifact that belongs to another team's person; ``timezone_boundary`` plants an
+event at the leave's edge whose calendar date differs between the reference zone, where
+truth is read, and an attendee's zone. Each is named in the key with its reason, so a
+false positive is graded into the bucket of the mistake that produced it. The one
+pressure, ``concurrent_leave``, sends an authored viable candidate on leave over the same
+days and declares the verdict it changes, on every impact that candidate is authored for.
+
+Look-alike titles are templates like the classes' own: structured-shaped text from a
+fixed phrase and a name, never learned from a model.
 """
 
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import date, datetime, time, timedelta
 from random import Random
 
-from leaveimpact.core.entities import WorkItem
-from leaveimpact.core.enums import WorkItemStatus
-from leaveimpact.core.refs import work_item_ref
+from leaveimpact.core.claims import AssessmentReason, Verdict
+from leaveimpact.core.entities import CalendarEvent, Employee, Leave, Team, WorkItem
+from leaveimpact.core.enums import EntityKind, LeaveKind, LeaveStatus, WorkItemStatus
+from leaveimpact.core.ids import EmployeeId
+from leaveimpact.core.refs import event_ref, work_item_ref
+from leaveimpact.core.worldtime import local_date, zone
 from leaveimpact.world.construction import Amendment, Draft, Frame
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import (
+    AuthoredVerdict,
     DistractorReason,
+    ExpectedImpact,
     ModifierEffect,
     ModifierName,
     NamedDistractor,
     OwnedEntities,
     Planted,
+    VerdictOverride,
 )
+from leaveimpact.world.zones import gap_at, offset_of
 
 RESOLVED_TITLE_SUFFIX = ", phase one"
+OUTSIDE_TICKET_SUFFIXES = {"before": ", groundwork", "after": ", follow-up"}
+OUTSIDE_MEETING_SUFFIXES = {"before": " (prep)", "after": " (debrief)"}
+WRONG_TEAM_TICKET_TITLES: tuple[str, ...] = (
+    "{component}: triage the backlog",
+    "{component}: refresh the dashboards",
+    "{component}: review the alert thresholds",
+)
+WRONG_TEAM_MEETING_TITLES: tuple[str, ...] = (
+    "{team}: weekly sync",
+    "{team}: design review",
+    "{team}: on-call handover",
+)
+BOUNDARY_EVENT_TITLE = "Cross-region sync"
+EARLIEST_WORKING_HOUR = time(9, 0)
+EVENT_LENGTH = timedelta(hours=1)
+MEETING_HOURS: tuple[int, ...] = (9, 10, 11, 13, 14, 15, 16)
+
+
+# --- Shared readings of a draft ---------------------------------------------------------
+
+
+def _investigated(draft: Draft) -> Leave:
+    return next(p.entity for p in draft.owned.leaves if p.entity.id == draft.investigated)
+
+
+def _ticket_of(draft: Draft, expected: ExpectedImpact) -> WorkItem | None:
+    if expected.key.artifact.kind is not EntityKind.WORK_ITEM:
+        return None
+    return next(p.entity for p in draft.owned.work_items if p.entity.id == expected.key.artifact.id)
+
+
+def _meeting_of(draft: Draft, expected: ExpectedImpact) -> CalendarEvent | None:
+    if expected.key.artifact.kind is not EntityKind.EVENT:
+        return None
+    return next(p.entity for p in draft.owned.events if p.entity.id == expected.key.artifact.id)
+
+
+def _on_day(event: CalendarEvent, day: date, timezone: str) -> CalendarEvent:
+    """``event`` moved to ``day`` at the same clock time in ``timezone``."""
+    local = event.start.astimezone(zone(timezone))
+    start = datetime.combine(day, local.time(), tzinfo=zone(timezone))
+    return replace(event, start=start, end=start + event.span.duration)
+
+
+# --- already_resolved -----------------------------------------------------------------
 
 
 class AlreadyResolved:
@@ -49,19 +111,15 @@ class AlreadyResolved:
     affordance = "an open ticket owned by the leaver"
 
     def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
-        leaver = next(
-            planted.entity.employee_id
-            for planted in draft.owned.leaves
-            if planted.entity.id == draft.investigated
-        )
+        leaver = _investigated(draft).employee_id
         return tuple(
-            _amendment(planted.entity)
+            _resolved_amendment(planted.entity)
             for planted in draft.owned.work_items
             if planted.entity.resolved_on is None and planted.entity.owner_id == leaver
         )
 
 
-def _amendment(open_ticket: WorkItem) -> Amendment:
+def _resolved_amendment(open_ticket: WorkItem) -> Amendment:
     def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
         visible = frame.window.start
         # Resolved before the run's day, so the status and the resolution date agree and
@@ -93,3 +151,332 @@ def _amendment(open_ticket: WorkItem) -> Amendment:
         return draft.extended(owned=planted), ModifierEffect(distractors=(near_miss,))
 
     return amend
+
+
+# --- outside_window ---------------------------------------------------------------------
+
+
+class OutsideWindow:
+    """A look-alike of an impact's artifact just outside the leave: the day before or after.
+
+    A ticket the leaver owns due the day before or after, or a meeting the leaver attends
+    the day before or after, with the same shape as the impact's own artifact. The
+    near-miss reads as an impact to anyone whose date filter is off by a day or who never
+    narrows to the leave at all, and the key names it with the outside-window reason.
+    Admissible over every impact of the draft, each edge in turn (before, then after), so
+    a draft with an impact always affords it; both edge days lie inside the slice by the
+    leave's placement, and the amendment fails by name if a frame ever breaks that.
+    """
+
+    name = ModifierName.OUTSIDE_WINDOW
+    affordance = "an impact whose artifact is a ticket or a meeting"
+
+    def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
+        return tuple(
+            _outside_amendment(expected, edge)
+            for expected in draft.impacts
+            for edge in ("before", "after")
+            if _ticket_of(draft, expected) is not None or _meeting_of(draft, expected) is not None
+        )
+
+
+def _edge_day(frame: Frame, edge: str) -> date:
+    day = (
+        frame.leave.start - timedelta(days=1)
+        if edge == "before"
+        else frame.leave.end + timedelta(days=1)
+    )
+    if not frame.window.contains(day):
+        raise ValueError(f"the {edge} edge {day} falls outside the slice {frame.window}")
+    return day
+
+
+def _outside_amendment(expected: ExpectedImpact, edge: str) -> Amendment:
+    def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
+        day = _edge_day(frame, edge)
+        visible = frame.window.start
+        ticket = _ticket_of(draft, expected)
+        if ticket is not None:
+            look_alike = replace(
+                ticket,
+                id=frame.ids.work_item(),
+                title=ticket.title + OUTSIDE_TICKET_SUFFIXES[edge],
+                due_on=day,
+                comments=(),
+            )
+            planted = OwnedEntities(work_items=(Planted(look_alike, visible),))
+            near_miss = NamedDistractor(
+                work_item_ref(look_alike.id), DistractorReason.OUTSIDE_WINDOW
+            )
+        else:
+            meeting = _meeting_of(draft, expected)
+            assert meeting is not None
+            moved = _on_day(meeting, day, frame.reference_timezone)
+            look_alike_event = replace(
+                moved, id=frame.ids.event(), title=meeting.title + OUTSIDE_MEETING_SUFFIXES[edge]
+            )
+            planted = OwnedEntities(events=(Planted(look_alike_event, visible),))
+            near_miss = NamedDistractor(
+                event_ref(look_alike_event.id), DistractorReason.OUTSIDE_WINDOW
+            )
+        return draft.extended(owned=planted), ModifierEffect(distractors=(near_miss,))
+
+    return amend
+
+
+# --- wrong_team -------------------------------------------------------------------------
+
+
+class WrongTeam:
+    """A look-alike of an impact's artifact that belongs to another team's person, not the leaver.
+
+    For a ticket: an open ticket in the same component, due during the leave, owned by a
+    component member from another team. For a meeting: a meeting on a leave day held
+    under another team's name, attended by that team and never by the leaver. The
+    near-miss reads as an impact to anyone who searches the component or the calendar
+    date instead of the leaver, and the key names it with the wrong-team reason.
+    Admissible over every impact whose look-alike has a holder: a component member from
+    another team, or any team other than the leaver's; the holder is drawn inside the
+    amendment.
+    """
+
+    name = ModifierName.WRONG_TEAM
+    affordance = (
+        "an impact artifact and a person on another team to hold its look-alike: a member "
+        "of the ticket's component from another team, or any other team for a meeting"
+    )
+
+    def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
+        by_id = {employee.id: employee for employee in org.employees}
+        leaver = by_id[_investigated(draft).employee_id]
+        amendments: list[Amendment] = []
+        for expected in draft.impacts:
+            ticket = _ticket_of(draft, expected)
+            if ticket is not None:
+                component = next(c for c in org.components if c.id == ticket.component_id)
+                holders = tuple(
+                    by_id[member]
+                    for member in component.member_ids
+                    if by_id[member].team_id != leaver.team_id
+                )
+                if holders:
+                    amendments.append(_wrong_team_ticket(ticket, component.name, holders))
+                continue
+            meeting = _meeting_of(draft, expected)
+            if meeting is not None:
+                other_teams = tuple(team for team in org.teams if team.id != leaver.team_id)
+                if other_teams:
+                    amendments.append(_wrong_team_meeting(org, other_teams))
+        return tuple(amendments)
+
+
+def _wrong_team_ticket(
+    ticket: WorkItem, component_name: str, holders: tuple[Employee, ...]
+) -> Amendment:
+    def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
+        holder = rng.choice(holders)
+        look_alike = WorkItem(
+            id=frame.ids.work_item(),
+            title=rng.choice(WRONG_TEAM_TICKET_TITLES).format(component=component_name),
+            owner_id=holder.id,
+            status=WorkItemStatus.IN_PROGRESS,
+            component_id=ticket.component_id,
+            opened_on=frame.window.start,
+            resolved_on=None,
+            due_on=frame.leave.start + timedelta(days=rng.randrange(frame.leave.days)),
+            comments=(),
+        )
+        planted = OwnedEntities(work_items=(Planted(look_alike, frame.window.start),))
+        near_miss = NamedDistractor(work_item_ref(look_alike.id), DistractorReason.WRONG_TEAM)
+        return draft.extended(owned=planted), ModifierEffect(distractors=(near_miss,))
+
+    return amend
+
+
+def _wrong_team_meeting(org: OrgSpec, other_teams: tuple[Team, ...]) -> Amendment:
+    def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
+        team = rng.choice(other_teams)
+        attendees = tuple(member.id for member in org.members_of(team.id))
+        day = frame.leave.start + timedelta(days=rng.randrange(frame.leave.days))
+        start = datetime.combine(
+            day, time(rng.choice(MEETING_HOURS), 0), tzinfo=zone(frame.reference_timezone)
+        )
+        look_alike = CalendarEvent(
+            id=frame.ids.event(),
+            title=rng.choice(WRONG_TEAM_MEETING_TITLES).format(team=team.name),
+            start=start,
+            end=start + EVENT_LENGTH,
+            attendee_ids=attendees,
+        )
+        planted = OwnedEntities(events=(Planted(look_alike, frame.window.start),))
+        near_miss = NamedDistractor(event_ref(look_alike.id), DistractorReason.WRONG_TEAM)
+        return draft.extended(owned=planted), ModifierEffect(distractors=(near_miss,))
+
+    return amend
+
+
+# --- concurrent_leave -------------------------------------------------------------------
+
+
+class ConcurrentLeave:
+    """An authored viable candidate is on leave over the same days: candidate pressure, not a
+    distractor.
+
+    The amendment plants an approved sick leave over the investigated leave's span and
+    declares the verdict it changes on every impact the candidate is authored for — the
+    reasons merged in the rules' order, so a teammate already non-viable for a ticket by
+    component becomes non-viable by availability and component. A modifier may never
+    change the class's declared outcome, so an amendment is admissible only when the
+    impact's structural pool still holds another person: for a ticket, a third member of
+    its component; for a meeting, anyone else in the organization. That is a query over
+    static structure and deliberately weaker than the rule, which verifies the outcome
+    after composition. Admissible per impact, per viable candidate in authored order.
+    """
+
+    name = ModifierName.CONCURRENT_LEAVE
+    affordance = "an authored viable candidate whose impact has another person to fall back on"
+
+    def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
+        leaver = _investigated(draft).employee_id
+        amendments: list[Amendment] = []
+        for expected in draft.impacts:
+            for authored in expected.must_assess:
+                if authored.verdict is not Verdict.VIABLE:
+                    continue
+                if _pool_without(org, draft, expected, leaver, authored.employee_id):
+                    amendments.append(_concurrent_amendment(authored.employee_id))
+        return tuple(amendments)
+
+
+def _pool_without(
+    org: OrgSpec, draft: Draft, expected: ExpectedImpact, leaver: EmployeeId, who: EmployeeId
+) -> bool:
+    ticket = _ticket_of(draft, expected)
+    if ticket is not None:
+        component = next(c for c in org.components if c.id == ticket.component_id)
+        return any(member not in (leaver, who) for member in component.member_ids)
+    return any(employee.id not in (leaver, who) for employee in org.employees)
+
+
+def _concurrent_amendment(who: EmployeeId) -> Amendment:
+    def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
+        leave = Leave(
+            frame.ids.leave(),
+            who,
+            frame.leave.start,
+            frame.leave.end,
+            LeaveKind.SICK,
+            LeaveStatus.APPROVED,
+        )
+        planted = OwnedEntities(leaves=(Planted(leave, frame.window.start),))
+        overrides = tuple(
+            VerdictOverride(expected.key, _away(authored))
+            for expected in draft.impacts
+            for authored in expected.must_assess
+            if authored.employee_id == who
+        )
+        return draft.extended(owned=planted), ModifierEffect(verdict_overrides=overrides)
+
+    return amend
+
+
+def _away(authored: AuthoredVerdict) -> AuthoredVerdict:
+    """``authored`` with availability added to its failing reasons, in the rules' order."""
+    reasons = sorted({*authored.reasons, AssessmentReason.AVAILABILITY}, key=lambda r: r.value)
+    return AuthoredVerdict(authored.employee_id, Verdict.NON_VIABLE, tuple(reasons))
+
+
+# --- timezone_boundary ------------------------------------------------------------------
+
+
+class TimezoneBoundary:
+    """An event at the leave's edge whose calendar date differs between the reference zone and an
+    attendee's zone.
+
+    Truth is read in the reference zone, where the event falls on the day before or the
+    day after the leave; in the far attendee's zone — and, for a zone behind the
+    reference, in UTC too — it falls inside the leave. An agent that dates calendar
+    instants in the wrong zone reports it as an impact, and the key names it with the
+    timezone reason. The far colleague makes the instant plausible working time: a
+    colleague behind the reference zone gets the after-edge in their late afternoon, a
+    colleague ahead the before-edge in the reference zone's late afternoon (the edge
+    arithmetic is in the tests; the amendment asserts both readings by name). The leaver
+    attends; the colleague is chosen independently of the class's roles (the timezone
+    affordance ruling at step 8). Admissible over every employee whose gap from the
+    reference zone at the edge is at least the organization's parameterized hours, in id
+    order, the leaver included: when the far person is the leaver, their own calendar
+    dates the event inside their leave and they attend alone. The organization
+    guarantees one far person exists, so a draft always affords this.
+    """
+
+    name = ModifierName.TIMEZONE_BOUNDARY
+    affordance = "an employee at least the parameterized hours from the reference zone at the edge"
+
+    def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
+        leave = _investigated(draft)
+        reference = org.params.reference_timezone
+        least = timedelta(hours=org.params.timezone_gap_hours)
+        amendments: list[Amendment] = []
+        for colleague in org.employees:
+            behind = _behind(colleague.timezone, reference, leave.end + timedelta(days=1))
+            edge = leave.end + timedelta(days=1) if behind else leave.start - timedelta(days=1)
+            probe = datetime.combine(edge, time(12, 0), tzinfo=zone(reference))
+            if gap_at(colleague.timezone, reference, probe) >= least:
+                amendments.append(_boundary_amendment(colleague, behind))
+        return tuple(amendments)
+
+
+def _behind(timezone: str, reference: str, day: date) -> bool:
+    probe = datetime.combine(day, time(12, 0), tzinfo=zone(reference))
+    return offset_of(timezone, probe) < offset_of(reference, probe)
+
+
+def _boundary_amendment(colleague: Employee, behind: bool) -> Amendment:
+    def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
+        leaver = _investigated(draft).employee_id
+        reference = frame.reference_timezone
+        if behind:
+            # The colleague's late afternoon on the leave's last day is already the next
+            # day in the reference zone.
+            outside_day = frame.leave.end + timedelta(days=1)
+            start = _late_afternoon(frame.leave.end, colleague.timezone, reference)
+            inside_day, inside_zone = frame.leave.end, colleague.timezone
+        else:
+            # The reference zone's late afternoon on the day before the leave is already
+            # the leave's first day for a colleague ahead.
+            outside_day = frame.leave.start - timedelta(days=1)
+            start = _late_afternoon(outside_day, reference, colleague.timezone)
+            inside_day, inside_zone = frame.leave.start, colleague.timezone
+        _check_reading(start, reference, outside_day, "the reference zone")
+        _check_reading(start, inside_zone, inside_day, f"{colleague.name}'s zone")
+        attendees = (leaver,) if colleague.id == leaver else (leaver, colleague.id)
+        event = CalendarEvent(
+            id=frame.ids.event(),
+            title=BOUNDARY_EVENT_TITLE,
+            start=start,
+            end=start + EVENT_LENGTH,
+            attendee_ids=attendees,
+        )
+        planted = OwnedEntities(events=(Planted(event, frame.window.start),))
+        near_miss = NamedDistractor(event_ref(event.id), DistractorReason.TIMEZONE_BOUNDARY)
+        return draft.extended(owned=planted), ModifierEffect(distractors=(near_miss,))
+
+    return amend
+
+
+def _late_afternoon(day: date, in_zone: str, other_zone: str) -> datetime:
+    """The earliest instant on ``day`` in ``in_zone`` that ``other_zone`` already dates as the
+    next day — midnight less the gap — floored at the earliest working hour."""
+    midnight = datetime.combine(day + timedelta(days=1), time(0, 0), tzinfo=zone(in_zone))
+    gap = gap_at(in_zone, other_zone, midnight)
+    earliest = datetime.combine(day, EARLIEST_WORKING_HOUR, tzinfo=zone(in_zone))
+    return max(earliest, midnight - gap)
+
+
+def _check_reading(instant: datetime, timezone: str, expected: date, who: str) -> None:
+    actual = local_date(instant, timezone)
+    if actual != expected:
+        raise ValueError(
+            f"a boundary event must read as {expected} in {who}, {instant.isoformat()} reads "
+            f"as {actual}"
+        )
