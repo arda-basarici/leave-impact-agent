@@ -18,6 +18,7 @@ Prose is not written here: this package emits briefs, the generator materializes
 """
 
 from leaveimpact.world import (
+    artifacts,
     assembly,
     construction,
     modifiers,
@@ -30,6 +31,16 @@ from leaveimpact.world import (
     version,
     vocabulary,
     zones,
+)
+from leaveimpact.world.artifacts import (
+    SCENARIO_SPECS,
+    TRUTH_MANIFEST,
+    WORLD_MANIFEST,
+    Artifact,
+    Bundle,
+    bundle,
+    canonical_bytes,
+    world_version,
 )
 from leaveimpact.world.assembly import (
     Contamination,
@@ -122,6 +133,7 @@ from leaveimpact.world.vocabulary import (
 from leaveimpact.world.zones import gap_at, gap_holds_all_year, offset_of
 
 __all__ = [
+    "artifacts",
     "assembly",
     "construction",
     "modifiers",
@@ -143,13 +155,18 @@ __all__ = [
     "GIVEN_NAMES",
     "MODIFIERS",
     "SCENARIO_CLASSES",
+    "SCENARIO_SPECS",
     "SKILLS",
     "SYSTEM_OF",
     "TEAM_NAMES",
     "TIER_ONE_RULES",
+    "TRUTH_MANIFEST",
+    "WORLD_MANIFEST",
     "AlreadyResolved",
     "Amendment",
+    "Artifact",
     "AuthoredVerdict",
+    "Bundle",
     "City",
     "ConcurrentLeave",
     "ConflictingEffects",
@@ -194,6 +211,8 @@ __all__ = [
     "WrongTeam",
     "allocate_slices",
     "assemble_world",
+    "bundle",
+    "canonical_bytes",
     "check_plan",
     "construct",
     "derive_org",
@@ -211,4 +230,5 @@ __all__ = [
     "verify_world",
     "vocabulary_digest",
     "world_fact_base",
+    "world_version",
 ]

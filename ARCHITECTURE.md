@@ -4,7 +4,7 @@ How it's built and why that structure — a narrative snapshot, edited in place.
 Decisions and their rationale live in DESIGN (cited here by name); the pitch in
 README.
 
-*Snapshot at the world milestone's build, step 7 · last updated 2026-09-11.*
+*Snapshot at the world milestone's build, step 8 · last updated 2026-09-11.*
 
 ## Design shape
 
@@ -84,7 +84,7 @@ the map.
 | package | single responsibility |
 |---|---|
 | `core` | the domain, pure: types, ids, the predicate registry, the claim vocabulary with its grading keys, `RunContext`, the deterministic rules (viability, authority table, closure, constraint checks), the ports two consumers share — readers and writers in two modules, observed entities crossing, facts derived inside |
-| `world` | the benchmark, pure: world spec, scenarios, truth facts with dated provenance, keys, briefs and templates, the semantic generator, the construction invariants |
+| `world` | the benchmark, pure: the organization, the seeded plan, scenario classes and modifiers under the construction invariants, world assembly with the whole-world re-verification, truth facts with dated provenance, keys, the three artifacts in canonical bytes and the world version; briefs and templates when prose arrives |
 | `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact |
 | `generator` | the generation job: materializes prose under the containment gate, projects the frozen world idempotently, seals the artifacts |
 | `validator` | read-only verification that projection realized the declared world |
@@ -119,12 +119,15 @@ property.
 - **The purity guard is a banned-import list, not an allowlist.** It catches the
   libraries this project actually uses for I/O and misses `open()`; the pure packages
   are also reviewed as pure. Revisit if the guard ever proves thin in review.
-- **The generator-version rule is made visible, not proven.** A recorded digest of the
-  vocabulary tables and a recorded interpreter minor version fail the suite when either
-  changes, so the fix lands in the same file as the version and the diff shows whether
-  the version moved; whether it did is review's call, and an unbumped change to the
-  drawing algorithm is review's alone. The frozen bundle's content hash for a reference
-  seed becomes the snapshot that catches all three. Revisit at the bundle step.
+- **The generator-version rule is enforced by a snapshot pair, not proven in general.**
+  A recorded digest of the vocabulary tables and a recorded interpreter minor version
+  fail the suite when either changes, so the fix lands in the same file as the version
+  and the diff shows whether the version moved. Since the bundle step, a reference
+  seed's world version is recorded beside the generator version as a pair in the tests:
+  a changed hash with an unchanged version fails, which catches an unbumped change to
+  the drawing algorithm too; re-cutting the pair is the deliberate act that accompanies
+  a bump. What no test can catch is a change that leaves the reference world's bytes
+  untouched — that stays with review.
 - **No ports beyond the four the generator and investigator share.** The prose
   renderer has one consumer and stays a seam inside its adapter. A port is added when a
   second consumer appears, not before. The write side of each port has one production
