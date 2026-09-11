@@ -1,14 +1,14 @@
 -- The corpus tables: documents in sections, one world version per row set.
 --
 -- Idempotent DDL, applied whole by the adapter's ensure_schema as bootstrap, never as
--- migration: a corpus is regenerated from the world bundle, so a schema change is a new
--- world version and a fresh set of rows, not an ALTER over old ones. Every key carries
--- the world version so two worlds hold the same document and clause ids side by side
--- without either reading the other; the section's foreign key is composite for the
--- same reason. The search column is generated from the section body under the English
--- configuration (the world writes English prose) and indexed with GIN; a section's
--- position keeps the document's order, which a tuple of sections carries and a table
--- would otherwise lose.
+-- migration: a corpus is regenerated from the world bundle, so a schema change is a
+-- rebuilt database, not an ALTER over old rows. Every key carries the world version so
+-- two worlds hold the same document and clause ids side by side without either reading
+-- the other (versions isolate rows, and share this DDL); the section's foreign key is
+-- composite for the same reason. The search column is generated from the section
+-- body under the English configuration (the world writes English prose) and indexed
+-- with GIN; a section's position keeps the document's order, which a tuple of sections
+-- carries and a table would otherwise lose.
 
 CREATE TABLE IF NOT EXISTS document (
     world_version   text NOT NULL,

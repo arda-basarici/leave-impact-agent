@@ -23,15 +23,22 @@ the investigator milestone's question, and this module is the one place that cha
 
 **Bootstrap, never migration.** ``ensure_schema`` applies the idempotent DDL beside
 this module (``schema.sql``) and is called by the composition root, the way the Frappe
-site schema and the Jira fields are; it never alters an existing table, because a
-corpus is regenerated from the world bundle and a schema change is a new world
-version.
+site schema and the Jira fields are; it never alters an existing table. World versions
+isolate rows, not DDL: every version shares the two tables, so a schema change is not
+a new world version but a rebuilt corpus database, dropped and bootstrapped again
+from the world bundle (a review finding).
 
-**One document is one write.** The document row and its section rows land in one
-transaction, so a document never exists without its sections; a duplicate id, of the
-document or of a clause, is a constraint violation raised loud as ``ValueError`` with
-the database error chained, the same rule the in-memory fake states — the writer adds
-and never finds, and a second add of one id is the caller's bug.
+**One document is one write, and a read leaves nothing open.** The connection runs in
+autocommit, so a select is complete when it returns, and the document row with its
+section rows land inside an explicit transaction block, so a document never exists
+without its sections. The two go together: on a default connection a select opens a
+transaction the driver never closes, a later transaction block inside it is only a
+savepoint, and closing the connection rolls the write back — the projector's own
+sequence, read by id, miss, add, lost every document at the first review of this
+module (reproduced live; the regression test replays the sequence). A duplicate id, of
+the document or of a clause, is a constraint violation raised loud as ``ValueError``
+with the database error chained, the same rule the in-memory fake states — the writer
+adds and never finds, and a second add of one id is the caller's bug.
 
 **Faults.** A connection that cannot be opened, or one that fails under a statement,
 is ``SourceUnreachable`` with the driver error chained and no retry on the wire: the
@@ -98,7 +105,8 @@ class CorpusConfig:
 
 
 def _connect(dsn: str) -> Connection:
-    return psycopg.connect(dsn, connect_timeout=_CONNECT_TIMEOUT_S)
+    # Autocommit: the module docstring says why a read must leave no transaction open.
+    return psycopg.connect(dsn, connect_timeout=_CONNECT_TIMEOUT_S, autocommit=True)
 
 
 class CorpusAdapter:

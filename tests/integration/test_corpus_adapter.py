@@ -1,7 +1,10 @@
 """The corpus adapter against PostgreSQL: the claims only the real database can make.
 
 What the writer added, the reader returns as the same document, sections in order,
-and an absent id is ``None``; search finds by content under the web-search grammar
+and an absent id is ``None``; a document added after a read missed it survives the
+adapter's close and is read by a fresh one — the projector's find-or-create sequence,
+which a default connection's open transaction lost at the first review; search finds
+by content under the web-search grammar
 (a word, a quoted phrase, an exclusion), ranks the better match first, breaks a tie
 by document id, honours the limit, and answers nothing for no match; two worlds
 holding the same document and clause ids never read each other; a duplicate id is
@@ -50,7 +53,9 @@ RUNBOOK = Document(
     date(2026, 3, 15),
     (
         DocumentSection(
-            clause_id(4), "The Kafka ingest is owned by the Platform team; Deniz holds the pager."
+            clause_id(4),
+            "The Kafka ingest is owned by the Platform team; Kafka alerts page Deniz, "
+            "who holds the pager.",
         ),
     ),
 )
@@ -98,6 +103,23 @@ def test_documents_written_are_read_back(adapter: CorpusAdapter) -> None:
     assert adapter.document(document_id(99)) is None
 
 
+def test_a_document_added_after_a_missed_read_survives_the_close(url: str) -> None:
+    world = fresh_world()
+    first = CorpusAdapter(dsn=url, config=CorpusConfig(world))
+    try:
+        first.ensure_schema()
+        assert first.document(POLICY.id) is None, "the projector's find"
+        first.add_document(POLICY)
+        first.close()
+        second = CorpusAdapter(dsn=url, config=CorpusConfig(world))
+        found = second.document(POLICY.id)
+        assert found is not None and found.value == POLICY, "the write outlived the connection"
+        second.close()
+    finally:
+        first.close()
+        drop_world(url, world)
+
+
 def test_search_finds_by_content_ranks_and_breaks_ties_by_id(adapter: CorpusAdapter) -> None:
     for doc in (POLICY, RUNBOOK, NOTE, PROCEDURE):
         adapter.add_document(doc)
@@ -108,7 +130,7 @@ def test_search_finds_by_content_ranks_and_breaks_ties_by_id(adapter: CorpusAdap
     assert ids("handover") == [POLICY.id, PROCEDURE.id]
     kafka = ids("kafka")
     assert set(kafka) == {RUNBOOK.id, NOTE.id}
-    assert kafka[0] == RUNBOOK.id, "two mentions and the title's document outranks one mention"
+    assert kafka[0] == RUNBOOK.id, "two mentions in a body outrank one; titles are not indexed"
     assert ids("pager") == [RUNBOOK.id, NOTE.id], "equal rank falls back to the document id"
     assert ids("pager", limit=1) == [RUNBOOK.id]
     assert ids('"named approver"') == [PROCEDURE.id]
