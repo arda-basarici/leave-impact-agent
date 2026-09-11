@@ -19,7 +19,13 @@ from typing import Any
 import httpx
 import pytest
 
-from leaveimpact.adapters.jira import JiraAdapter, JiraConfig, JiraCredential, JiraFields
+from leaveimpact.adapters.jira import (
+    JiraAdapter,
+    JiraConfig,
+    JiraCredential,
+    JiraFields,
+    JiraSite,
+)
 from leaveimpact.adapters.jira.adapter import INDEX_POLLS
 from leaveimpact.core.comments import comment_text
 from leaveimpact.core.entities import Comment, WorkItem
@@ -63,6 +69,24 @@ def adapter(script: Scripted, pauses: list[float] | None = None) -> JiraAdapter:
 
 def ok(payload: Any, status: int = 200) -> httpx.Response:
     return httpx.Response(status, json=payload)
+
+
+def site(script: Scripted) -> JiraSite:
+    return JiraSite(
+        base_url="https://jira.invalid",
+        credential=JiraCredential("e", "t"),
+        sleep=lambda _: None,
+        httpx_transport=httpx.MockTransport(script.handler),
+    )
+
+
+def custom_field(id: str, name: str, kind: str) -> dict[str, Any]:
+    return {
+        "id": id,
+        "name": name,
+        "custom": True,
+        "schema": {"custom": f"com.atlassian.jira.plugin.system.customfieldtypes:{kind}"},
+    }
 
 
 COMPONENTS = ok([{"id": "10001", "name": "Payments", "description": "comp_003 · members: emp_001"}])
@@ -213,6 +237,29 @@ def test_a_marker_that_never_landed_keeps_the_fault() -> None:
     )
     with pytest.raises(SourceUnreachable, match="ReadTimeout on all 3 attempts"):
         adapter(script, []).add_work_item(backlog)
+
+
+def test_a_field_name_held_twice_is_malformed_before_any_write() -> None:
+    listing = ok([custom_field("customfield_1", "Ticket Id", "textfield"),
+                  custom_field("customfield_2", "Ticket Id", "textfield")])
+    script = Scripted(listing)
+    with pytest.raises(MalformedRecord) as caught:
+        site(script).ensure_fields("CAS")
+    assert caught.value.locator == "GET /field"
+    assert "'Ticket Id' is held by 2 custom fields (customfield_1, customfield_2)" in (
+        caught.value.reason
+    )
+    assert len(script.seen) == 1
+
+
+def test_an_existing_field_of_another_type_is_malformed_not_adopted() -> None:
+    script = Scripted(ok([custom_field("customfield_9", "Ticket Id", "datepicker")]))
+    with pytest.raises(MalformedRecord) as caught:
+        site(script).ensure_fields("CAS")
+    assert caught.value.locator == "field/customfield_9"
+    assert "not a 'com.atlassian.jira.plugin.system.customfieldtypes:textfield'" in (
+        caught.value.reason
+    )
 
 
 def test_a_missing_owner_context_is_the_callers_ordering_bug() -> None:

@@ -201,7 +201,12 @@ class JiraSite:
 
     Find-or-create throughout, because a field or a project that exists is not an
     error; called by the composition root before the adapter is built, never by the
-    adapter. ``ensure_fields`` returns the ids the adapter's configuration needs.
+    adapter. ``ensure_fields`` returns the ids the adapter's configuration needs. A
+    custom field is found by name, and Jira allows two custom fields to share a name,
+    so the find is strict: one field of the expected type is adopted, a field of
+    another type or a name held twice is ``MalformedRecord`` — preparation never
+    chooses between two fields, because the adapter would then read a field the
+    world never wrote (the review at the close of the adapter step).
     """
 
     def __init__(
@@ -240,15 +245,16 @@ class JiraSite:
     def ensure_fields(self, project_key: str) -> JiraFields:
         """The four custom fields, created where missing and on every screen of the project."""
         listed = _list(self._wire.get("/field"), "GET /field", "fields")
-        by_name: dict[str, str] = {}
+        by_name: dict[str, list[Record]] = {}
         for entry in listed:
             field = _dict(entry, "GET /field", "field")
             if field.get("custom"):
-                by_name[str(field.get("name"))] = _required(field, "id", "GET /field")
+                by_name.setdefault(str(field.get("name")), []).append(field)
         ids: dict[str, str] = {}
         for name, field_type, searcher in _FIELD_SPECS:
-            if name in by_name:
-                ids[name] = by_name[name]
+            held = by_name.get(name, [])
+            if held:
+                ids[name] = _adopted_field(name, held, f"{_CUSTOM_FIELD_TYPES}:{field_type}")
                 continue
             made = _dict(
                 self._wire.post(
@@ -352,6 +358,27 @@ class JiraSite:
                         ok=(200, 201),
                         json={"fieldId": field_id},
                     )
+
+
+def _adopted_field(name: str, held: list[Record], wanted_type: str) -> str:
+    """The id of the one existing field named ``name`` if it is of ``wanted_type``."""
+    if len(held) > 1:
+        found = ", ".join(sorted(_required(field, "id", "GET /field") for field in held))
+        raise MalformedRecord(
+            Source.JIRA,
+            "GET /field",
+            f"{name!r} is held by {len(held)} custom fields ({found}); Jira allows the "
+            "collision and preparation will not choose",
+        )
+    field = held[0]
+    field_id = _required(field, "id", "GET /field")
+    schema = field.get("schema")
+    actual = cast(Record, schema).get("custom") if isinstance(schema, dict) else None
+    if actual != wanted_type:
+        raise MalformedRecord(
+            Source.JIRA, f"field/{field_id}", f"{name!r} is a {actual!r}, not a {wanted_type!r}"
+        )
+    return field_id
 
 
 def _owner_context_name(project_key: str) -> str:

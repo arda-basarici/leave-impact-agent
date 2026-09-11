@@ -13,8 +13,10 @@ configured: each document carries its domain id, so the adapter resolves a link 
 listing the company's departments or employees when a call needs them, a read and never
 a lookup at construction. A domain id matches exactly one document or the record is
 malformed — Frappe enforces no uniqueness on an employee number or a custom field, so
-the adapter does, on every select and every link resolution alike, and never picks one
-of two.
+the adapter does, on every select, every link resolution and every enumeration alike,
+and never picks one of two nor returns both: a domain id has exactly one vendor
+representation per place, the rule every adapter applies (the review at the close of
+the adapter step).
 
 **One employee is one write.** An employee with a skill record is two Frappe documents,
 and two requests would open a window where the first landed and the second did not,
@@ -173,6 +175,7 @@ class FrappeAdapter:
 
     def employees(self) -> tuple[Observed[Employee], ...]:
         found = self._list("Employee", self._company_filter(), records.EMPLOYEE_FIELDS)
+        _held_once(found, "employee_number", "Employee")
         number_by_name = {
             row["name"]: EmployeeId(row["employee_number"])
             for row in found
@@ -215,6 +218,7 @@ class FrappeAdapter:
         )
         if not found:
             return ()
+        _held_once(found, "custom_leave_id", "Leave Application")
         number_by_name = self._numbers_by_name([])
         return tuple(
             Observed(records.leave_from_record(row, number_by_name=number_by_name), Source.FRAPPE)
@@ -386,7 +390,13 @@ class FrappeAdapter:
             )
             if not isinstance(page, list):
                 raise MalformedRecord(Source.FRAPPE, f"GET {path}", "data is not a list")
-            documents = cast(list[Record], page)
+            documents: list[Record] = []
+            for member in cast(list[Any], page):
+                if not isinstance(member, dict):
+                    raise MalformedRecord(
+                        Source.FRAPPE, f"GET {path}", "a document in data is not an object"
+                    )
+                documents.append(cast(Record, member))
             rows.extend(documents)
             if len(documents) < _PAGE:
                 return rows
@@ -442,6 +452,7 @@ class FrappeAdapter:
 
     def _numbers_by_name(self, filters: Filters) -> dict[str, EmployeeId]:
         rows = self._list("Employee", self._company_filter(*filters), ("name", "employee_number"))
+        _held_once(rows, "employee_number", "Employee")
         return {
             row["name"]: EmployeeId(row["employee_number"])
             for row in rows
@@ -460,6 +471,7 @@ class FrappeAdapter:
 
     def _teams_by_department(self) -> dict[str, TeamId]:
         rows = self._list("Department", self._company_filter(), records.DEPARTMENT_FIELDS)
+        _held_once(rows, "custom_team_id", "Department")
         return {
             row["name"]: TeamId(row["custom_team_id"]) for row in rows if row.get("custom_team_id")
         }
@@ -498,6 +510,26 @@ class FrappeAdapter:
                 "add them first"
             )
         return str(row["name"])
+
+
+def _held_once(rows: list[Record], key: str, doctype: str) -> None:
+    """Every non-empty ``key`` value held by one document across ``rows``, or malformed.
+
+    The enumeration's form of the exactly-one rule: two documents carrying one domain
+    id are source corruption, and returning both would put one id on two entities.
+    """
+    names_by_value: dict[Any, list[str]] = {}
+    for row in rows:
+        value = row.get(key)
+        if value:
+            names_by_value.setdefault(value, []).append(str(row.get("name")))
+    for value, names in names_by_value.items():
+        if len(names) > 1:
+            raise MalformedRecord(
+                Source.FRAPPE,
+                f"{doctype}/{', '.join(sorted(names))}",
+                f"{key} {value!r} is held by more than one document",
+            )
 
 
 def _envelope(response: httpx.Response, locator: str, *, key: str = "data") -> dict[str, Any]:

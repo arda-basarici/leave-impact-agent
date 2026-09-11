@@ -10,7 +10,7 @@ retry rule copied into two adapters would drift apart at the first fix.
 repetition cannot change the world — a read, or a write whose identity the caller fixed
 so a second arrival answers "already exists". The transport needs only that property,
 never the reason, so the declaration is a flag and the justification lives at the call
-site. A replayable request retries on every transport fault and on 429, 502, 503 and
+site. A replayable request retries on every wire fault and on 429, 502, 503 and
 504. A non-replayable one retries only where the request provably never arrived — a
 connect error, a connect timeout, or a timeout waiting for a pool connection, the three
 faults httpx raises before anything is sent — and on 429,
@@ -34,9 +34,13 @@ an answer from that source, and whether the cause is their outage or our request
 diagnosis for the log, not a third exception type — the port declares two. A 404 on a
 select-by-id is not a fault: the caller lists 404 as acceptable and maps the response to
 ``None``. Client-side errors that are neither the vendor's nor the wire's are defects
-and propagate untouched — including the two httpx files under its transport errors, a
+and propagate untouched — including the two httpx failures under its transport errors, a
 local protocol violation and an unsupported URL scheme, which are re-raised before the
 operational branch so a defect is never retried into a run condition (a review finding).
+A response whose body cannot be decoded (a content-encoding header the bytes do not
+honour) is not a wire fault in httpx's taxonomy and not a defect of ours: the source
+answered and the answer is unreadable, which is ``MalformedRecord`` with the request as
+locator, the same class a body that is not JSON gets in the adapters.
 """
 
 from __future__ import annotations
@@ -50,7 +54,7 @@ from typing import Any, Self
 import httpx
 
 from leaveimpact.core.enums import Source
-from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
 
 _REPLAYABLE_STATUSES = frozenset({429, 502, 503, 504})
 _NEVER_ACTED_STATUSES = frozenset({429})
@@ -154,6 +158,10 @@ class Transport:
                 response = self._client.request(method, path, **kwargs)
             except _DEFECTS:
                 raise
+            except httpx.DecodingError as exc:
+                raise MalformedRecord(
+                    self._source, f"{method} {path}", f"response body could not be decoded: {exc}"
+                ) from exc
             except httpx.TransportError as exc:
                 fault = type(exc).__name__
                 if not replayable and not isinstance(exc, _CONNECT_PHASE):

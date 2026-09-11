@@ -23,6 +23,7 @@ from leaveimpact.core.entities import Employee, Leave, Team
 from leaveimpact.core.enums import EmploymentType, Grade, LeaveKind, LeaveStatus
 from leaveimpact.core.ids import employee_id, leave_id, skill_id, team_id
 from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.worldtime import DateSpan
 
 Outcome = httpx.Response | Exception
 
@@ -153,6 +154,19 @@ def test_a_domain_id_held_by_two_documents_is_malformed_on_select(
     assert caught.value.locator.endswith("/A, B")
 
 
+def test_a_domain_id_held_by_two_documents_is_malformed_on_enumeration() -> None:
+    twice = data([{"name": "emp_004", "employee_number": "emp_004"},
+                  {"name": "emp_004-1", "employee_number": "emp_004"}])
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(Scripted(twice)).employees()
+    assert caught.value.locator == "Employee/emp_004, emp_004-1"
+    assert caught.value.reason == "employee_number 'emp_004' is held by more than one document"
+    leaves = data([{"name": "HR-LAP-1", "custom_leave_id": "leave_001", "employee": "emp_004"},
+                   {"name": "HR-LAP-2", "custom_leave_id": "leave_001", "employee": "emp_004"}])
+    with pytest.raises(MalformedRecord, match="custom_leave_id 'leave_001' is held by more"):
+        adapter(Scripted(leaves)).leaves_within(DateSpan(date(2026, 9, 14), date(2026, 9, 18)))
+
+
 def test_a_domain_id_held_by_two_documents_is_malformed_on_link_resolution() -> None:
     script = Scripted(data([{"name": "Platform - CAS"}, {"name": "Platform 2 - CAS"}]))
     with pytest.raises(MalformedRecord):
@@ -181,6 +195,7 @@ def test_a_missing_link_target_is_the_callers_ordering_bug() -> None:
         (httpx.Response(200, text="<html>maintenance</html>"), "response is not JSON"),
         (httpx.Response(200, json={"message": "ok"}), "response carries no 'data'"),
         (httpx.Response(200, json={"data": {"rows": []}}), "data is not a list"),
+        (httpx.Response(200, json={"data": [None]}), "a document in data is not an object"),
     ],
 )
 def test_a_successful_response_outside_the_envelope_is_malformed(

@@ -19,7 +19,7 @@ import pytest
 
 from leaveimpact.adapters.transport import DEFAULT_POLICY, Transport, TransportPolicy
 from leaveimpact.core.enums import Source
-from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
 
 Outcome = httpx.Response | Exception
 
@@ -176,6 +176,21 @@ def test_the_session_carries_base_url_and_headers() -> None:
     (sent,) = script.seen
     assert str(sent.url) == "https://vendor.invalid/api/x?q=1"
     assert sent.headers["Authorization"] == "token sample"
+
+
+def test_a_body_that_cannot_be_decoded_is_malformed_content_not_a_wire_fault() -> None:
+    pauses: list[float] = []
+    # As a stream: a preset body would be decoded, and fail, in the constructor itself.
+    script = Scripted(
+        httpx.Response(
+            200, stream=httpx.ByteStream(b"not gzip"), headers={"content-encoding": "gzip"}
+        )
+    )
+    with pytest.raises(MalformedRecord) as caught:
+        transport(script, pauses).request("GET", "/x", replayable=True)
+    assert caught.value.locator == "GET /x"
+    assert "could not be decoded" in caught.value.reason
+    assert len(script.seen) == 1 and pauses == [], "the source answered; nothing to retry"
 
 
 def test_a_client_side_defect_propagates_untouched() -> None:

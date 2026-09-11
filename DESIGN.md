@@ -266,11 +266,13 @@ six-person sandbox cannot produce. Scenarios are slices of that org, not orgs of
 their own: each owns its mutable entities (the leave, its tickets, its events) and
 a time window, never writes into another scenario's entities, and carries its own
 sealed answer key, which the validator re-derives against the full live org so
-cross-scenario contamination is caught rather than assumed away. Every
-scenario-owned entity carries the scenario id in each system (Jira label, calendar
-`extendedProperties`, a Frappe custom field), so a slice is enumerable and can
-later be reset if anything ever writes to the world; the reset itself is not built
-until something does. Org-per-scenario was rejected: it simplifies ground truth by
+cross-scenario contamination is caught rather than assumed away. Which entities a
+scenario owns is recorded in the sealed world spec's owned-entities table, not
+planted in the systems: the adapters carry no scenario id (ruled at the close of
+the adapter step, replacing the earlier plan of a Jira label, a calendar property
+and a Frappe custom field, which nothing would have read), so a slice is
+enumerable from the spec and could be reset from it if anything ever writes to the
+world; the reset itself is not built until something does. Org-per-scenario was rejected: it simplifies ground truth by
 removing exactly the irrelevant-but-plausible evidence the evaluation exists to
 test, and multiplies the seed and validation runs for no gain.
 
@@ -795,8 +797,11 @@ behind it, so the agent's `search_policy` is an adapter like the other three and
 whether the table gets full-text search or pgvector stays the investigator
 milestone's question, while the documents' canonical form lives in the world
 bucket beside the manifest. Projectors are adapter-bound and find-or-create by
-the semantic key each system stores (the employee and scenario ids planted on
-every entity), so a rerun adds nothing (the seed spike's contract); they hold no
+the semantic key each system stores (the domain id planted on every entity), so a
+rerun adds nothing (the seed spike's contract; the one exception is a secondary
+calendar, whose id Google chooses and the app-created scope cannot rediscover, so
+a create whose response was lost leaves an empty orphan only a human sees — the
+composition root's persistence of the map is what keeps that narrow); they hold no
 scenario reasoning. The identity map — semantic id to vendor id — is what
 projection writes back, not what it reads: the frozen bundle is sealed before any
 vendor has minted an id, and the world manifest that carries the map is
