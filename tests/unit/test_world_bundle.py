@@ -29,8 +29,8 @@ REFERENCE_SEED = 7
 
 # The snapshot pair. Re-cut both together, on purpose, after inspecting what the generator
 # now produces: bump GENERATOR_VERSION in world/version.py and record the new hash here.
-SNAPSHOT_VERSION = GeneratorVersion("3")
-SNAPSHOT_WORLD_VERSION = "0fbc9b09ef16f8b96614cb6838579b4d1a67e206754b647040bc1c6176aa86a9"
+SNAPSHOT_VERSION = GeneratorVersion("4")
+SNAPSHOT_WORLD_VERSION = "c79ef68c964a1caaaea8bbd2ebf36381258139816cd7d25ad9028e49905f0944"
 
 
 @pytest.fixture(scope="module")
@@ -65,7 +65,23 @@ def test_the_world_spec_cites_the_other_two_files_by_digest(sealed: Bundle) -> N
     }
     assert spec["provenance"]["generator_version"] == GENERATOR_VERSION
     assert spec["provenance"]["seed"] == REFERENCE_SEED
-    assert len(spec["plan"]) == len(spec["slices"]) == 10
+    assert len(spec["plan"]) == len(spec["slices"]) == len(spec["scenarios"]) == 10
+
+
+def test_the_world_spec_carries_every_planting_dated_and_each_stable_interval(
+    sealed: Bundle, world: WorldSpec
+) -> None:
+    spec = json.loads(sealed.world_spec.content)
+    for row, scenario in zip(spec["scenarios"], world.scenarios, strict=True):
+        assert row["scenario_id"] == scenario.spec.id
+        assert row["stable_interval"] == {
+            "start": scenario.key.stable_interval.start.isoformat(),
+            "end": scenario.key.stable_interval.end.isoformat(),
+        }
+        assert len(row["owned"]["leaves"]) == len(scenario.owned.leaves)
+        assert all("observable_from" in planted for planted in row["owned"]["leaves"])
+    for word in (b"must_assess", b"outcome", b"distractor", b"required_sources", b"verdict"):
+        assert word not in sealed.world_spec.content
 
 
 def test_the_version_names_the_realization_and_never_sits_inside_it(sealed: Bundle) -> None:
@@ -91,17 +107,18 @@ def test_the_agent_visible_file_carries_run_inputs_and_no_evaluator_truth(sealed
         assert word not in sealed.scenario_specs.content
 
 
-def test_the_truth_manifest_holds_keys_constructions_and_the_dated_fact_base(
+def test_the_truth_manifest_holds_keys_authored_facts_and_the_dated_fact_base_and_no_planting(
     sealed: Bundle, world: WorldSpec
 ) -> None:
     truth = json.loads(sealed.truth_manifest.content)
     assert truth["artifact"] == TRUTH_MANIFEST
     assert len(truth["scenarios"]) == len(world.scenarios)
     for record, scenario in zip(truth["scenarios"], world.scenarios, strict=True):
+        assert set(record) == {"key", "authored_facts"}
         assert record["key"]["scenario_id"] == scenario.key.scenario_id
         assert len(record["key"]["impacts"]) == len(scenario.key.impacts)
-        assert len(record["owned"]["leaves"]) == len(scenario.owned.leaves)
-        assert all("observable_from" in planted for planted in record["owned"]["leaves"])
+        # One home per fact: the plantings and the stable interval are the world spec's.
+        assert "stable_interval" not in record["key"]
     assert len(truth["facts"]["facts"]) == len(world.facts.facts)
     assert all("observable_from" in fact for fact in truth["facts"]["facts"])
 

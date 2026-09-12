@@ -1,14 +1,21 @@
 """The three sealed artifacts of a world, their canonical bytes and digests, and the world version.
 
 Three readers, three files (the bundle ruling at step 8, the names settled at its
-review). The *world spec* — the organization, the plan, the slices, the provenance, and
-the content digests of the other two files, so a swapped file is visible — is the
-semantic realization: benchmark-private, read by the projectors and the validator, never
-by the application, since the plan alone names which traps were planted. The *scenario
-specs* hold the agent-visible rows only: what a run is asked, legitimate inputs and no
-evaluator-only truth. The *truth manifest* is evaluator-only: every key, the
-construction and observability records the audit reads, and the dated world-level fact
-base. A fourth file is deliberately not here: the *world manifest* of the earlier
+review, the content redrawn at the validator step). The *world spec* — the organization,
+the plan, the slices, what each scenario planted with the date it became observable, each
+scenario's stable interval, the provenance, and the content digests of the other two
+files, so a swapped file is visible — is the planted world: benchmark-private, read by
+the projectors and the validator, never by the application, since the plan alone names
+which traps were planted. It is what was supposed to be projected and holds nothing
+truth expects of it. The *scenario specs* hold the agent-visible rows only: what a run is
+asked, legitimate inputs and no evaluator-only truth. The *truth manifest* is
+evaluator-only: every key, the authored facts, and the dated world-level fact base — what
+the plantings are expected to imply. One home per fact across the three: the plantings
+and the stable intervals moved out of the truth manifest when the validator became the
+spec's first reader from bytes, because a validator whose role reads the spec alone could
+not otherwise know what was planted, and the evaluator joins the two files by scenario id.
+The serialized key is therefore narrower than the in-memory construction record on
+purpose. A fourth file is deliberately not here: the *world manifest* of the earlier
 contract — adapter configuration, the identity map from semantic to vendor ids, org
 parameters, the world version and digests — is the projection's receipt, written after
 the vendors mint ids, application-readable, outside the hash, and holding no fact that
@@ -31,14 +38,24 @@ Canonical means what every codec here means by it — the one byte rule in ``cor
 JSON shape module, so the bytes are a property of the world and not of a serializer's
 defaults. Fact values travel through the value codec,
 tagged by their predicate's spec; instants carry their IANA zone beside the offset-bearing
-timestamp, because the zone is provenance for how a human read the time. Decoders arrive
-with their first consumer, the validator, which reads the manifest against the live
-systems.
+timestamp, because the zone is provenance for how a human read the time.
+
+The world spec is encoded from ``PlantedWorldSpec``, a value that is exactly the file's
+content, projected from the assembled world by a pure function; the encoder chooses no
+fields of its own. That makes the codec a round trip over one value, three separately
+provable claims — the projection yields the expected value, decoding an encoding yields
+the value, encoding a decoding of the sealed bytes yields the bytes — instead of a codec
+over a type the file cannot rebuild. The decoders for the spec and the scenario specs
+live in the sibling ``decoders`` module; the truth manifest's waits for its first
+consumer, the evaluator, since a decoder the validator is forbidden to use has no place
+where the validator can reach it.
 """
 
 from __future__ import annotations
 
 import hashlib
+import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 
@@ -54,14 +71,14 @@ from leaveimpact.core.entities import (
     WorkItem,
 )
 from leaveimpact.core.facts import Fact, FactBase, Gap
-from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.predicates import predicate
 from leaveimpact.core.refs import EvidenceRef
 from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.assembly import WorldSpec
-from leaveimpact.world.org import encode_org_params
+from leaveimpact.world.org import OrgSpec, encode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -73,6 +90,7 @@ from leaveimpact.world.scenario import (
     ScenarioKey,
     ScenarioSpec,
 )
+from leaveimpact.world.version import GeneratorVersion
 
 WORLD_SPEC = "world-spec.json"
 SCENARIO_SPECS = "scenario-specs.json"
@@ -103,11 +121,100 @@ class Bundle:
         return (self.world_spec, self.scenario_specs, self.truth_manifest)
 
 
+SHA256_HEX = re.compile(r"[0-9a-f]{64}")
+"""The shape of every digest a sealed artifact cites."""
+
+
+@dataclass(frozen=True, slots=True)
+class ScenarioPlanting:
+    """One scenario's row of the world spec: what it planted, and when its answer is stable.
+
+    The stable interval sits here and not in the key because it is a property of the
+    plantings — derived from their observability — and the validator reads it to choose
+    the instants of its two-instant check without seeing what truth expects.
+    """
+
+    scenario_id: ScenarioId
+    owned: OwnedEntities
+    stable_interval: DateSpan
+
+
+@dataclass(frozen=True, slots=True)
+class PlantedWorldSpec:
+    """Exactly the content of the world spec file: the planted world, nothing truth expects.
+
+    The assembled world carries the keys and the fact base beside what it planted; this
+    is the projection of it the file holds, so a decoder of the file rebuilds this type
+    and structurally nothing more. The two digests are the other files' as sealed, cited
+    so a swapped file is visible; the world version is not here, since it hashes this
+    file and would define itself.
+    """
+
+    seed: int
+    world_start: date
+    generator_version: GeneratorVersion
+    interpreter: tuple[int, int]
+    vocabulary_digest: str
+    org: OrgSpec
+    slices: tuple[DateSpan, ...]
+    plan: tuple[PlanRow, ...]
+    scenarios: tuple[ScenarioPlanting, ...]
+    scenario_specs_digest: str
+    truth_manifest_digest: str
+
+    def __post_init__(self) -> None:
+        if not (len(self.slices) == len(self.plan) == len(self.scenarios)):
+            raise ValueError(
+                f"one slice, one plan row and one planting each, got {len(self.slices)}, "
+                f"{len(self.plan)} and {len(self.scenarios)}"
+            )
+        ids = [planting.scenario_id for planting in self.scenarios]
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"scenario ids are unique within a world, got {ids}")
+        for row, planting in zip(self.plan, self.scenarios, strict=True):
+            if row.scenario_id != planting.scenario_id:
+                raise ValueError(
+                    f"plan row {row.scenario_id} and planting {planting.scenario_id} disagree"
+                )
+        for name, value in (
+            ("vocabulary_digest", self.vocabulary_digest),
+            ("scenario_specs_digest", self.scenario_specs_digest),
+            ("truth_manifest_digest", self.truth_manifest_digest),
+        ):
+            if not SHA256_HEX.fullmatch(value):
+                raise ValueError(f"{name} is a SHA-256 hex, got {value!r}")
+
+
+def planted_world_spec(
+    world: WorldSpec, scenario_specs_digest: str, truth_manifest_digest: str
+) -> PlantedWorldSpec:
+    """The world spec's content for ``world``: every planting and interval, no key, no fact base."""
+    return PlantedWorldSpec(
+        seed=world.seed,
+        world_start=world.world_start,
+        generator_version=world.generator_version,
+        interpreter=world.interpreter,
+        vocabulary_digest=world.vocabulary_digest,
+        org=world.org,
+        slices=world.slices,
+        plan=world.plan,
+        scenarios=tuple(
+            ScenarioPlanting(scenario.spec.id, scenario.owned, scenario.key.stable_interval)
+            for scenario in world.scenarios
+        ),
+        scenario_specs_digest=scenario_specs_digest,
+        truth_manifest_digest=truth_manifest_digest,
+    )
+
+
 def bundle(world: WorldSpec) -> Bundle:
     """The bundle of ``world``: specs and truth first, then the world spec citing their digests."""
-    specs = _artifact(SCENARIO_SPECS, encode_scenario_specs(world))
+    specs = _artifact(
+        SCENARIO_SPECS, encode_scenario_specs([scenario.spec for scenario in world.scenarios])
+    )
     truth = _artifact(TRUTH_MANIFEST, encode_truth_manifest(world))
-    spec = _artifact(WORLD_SPEC, encode_world_spec(world, specs, truth))
+    planted = planted_world_spec(world, specs.digest, truth.digest)
+    spec = _artifact(WORLD_SPEC, encode_world_spec(planted))
     return Bundle(spec, specs, truth, world_version((spec, specs, truth)))
 
 
@@ -133,30 +240,31 @@ def _artifact(name: str, data: JsonObject) -> Artifact:
 # --- The three documents ------------------------------------------------------------------
 
 
-def encode_world_spec(world: WorldSpec, specs: Artifact, truth: Artifact) -> JsonObject:
-    """Organization, plan, slices, provenance, and the digests of the other two files."""
+def encode_world_spec(spec: PlantedWorldSpec) -> JsonObject:
+    """Provenance, organization, plan, slices, plantings, and the digests of the other two files."""
     return {
         "artifact": WORLD_SPEC,
         "provenance": {
-            "seed": world.seed,
-            "world_start": world.world_start.isoformat(),
-            "generator_version": world.generator_version,
-            "interpreter": list(world.interpreter),
-            "vocabulary_digest": world.vocabulary_digest,
+            "seed": spec.seed,
+            "world_start": spec.world_start.isoformat(),
+            "generator_version": spec.generator_version,
+            "interpreter": list(spec.interpreter),
+            "vocabulary_digest": spec.vocabulary_digest,
         },
-        "org": _org(world),
-        "plan": [_plan_row(row) for row in world.plan],
-        "slices": [_span(window) for window in world.slices],
-        "artifacts": {specs.name: specs.digest, truth.name: truth.digest},
+        "org": _org(spec.org),
+        "plan": [_plan_row(row) for row in spec.plan],
+        "slices": [_span(window) for window in spec.slices],
+        "scenarios": [_planting(planting) for planting in spec.scenarios],
+        "artifacts": {
+            SCENARIO_SPECS: spec.scenario_specs_digest,
+            TRUTH_MANIFEST: spec.truth_manifest_digest,
+        },
     }
 
 
-def encode_scenario_specs(world: WorldSpec) -> JsonObject:
+def encode_scenario_specs(specs: Sequence[ScenarioSpec]) -> JsonObject:
     """The agent-visible rows only: what each run is asked, nothing of what truth expects."""
-    return {
-        "artifact": SCENARIO_SPECS,
-        "scenarios": [_spec(scenario.spec) for scenario in world.scenarios],
-    }
+    return {"artifact": SCENARIO_SPECS, "scenarios": [_spec(spec) for spec in specs]}
 
 
 def encode_truth_manifest(world: WorldSpec) -> JsonObject:
@@ -171,8 +279,7 @@ def encode_truth_manifest(world: WorldSpec) -> JsonObject:
 # --- Organization and plan --------------------------------------------------------------
 
 
-def _org(world: WorldSpec) -> JsonObject:
-    org = world.org
+def _org(org: OrgSpec) -> JsonObject:
     return {
         "seed": org.seed,
         "params": encode_org_params(org.params),
@@ -229,15 +336,24 @@ def _spec(spec: ScenarioSpec) -> JsonObject:
     }
 
 
+def _planting(planting: ScenarioPlanting) -> JsonObject:
+    return {
+        "scenario_id": planting.scenario_id,
+        "stable_interval": _span(planting.stable_interval),
+        "owned": _owned(planting.owned),
+    }
+
+
 def _construction(scenario: Scenario) -> JsonObject:
+    """The key and the authored facts; the plantings are the world spec's row (one home)."""
     return {
         "key": _key(scenario.key),
-        "owned": _owned(scenario.owned),
         "authored_facts": [_fact(fact) for fact in scenario.authored_facts],
     }
 
 
 def _key(key: ScenarioKey) -> JsonObject:
+    """The key without its stable interval, which the world spec's row carries."""
     return {
         "scenario_id": key.scenario_id,
         "tier": key.tier.value,
@@ -246,7 +362,6 @@ def _key(key: ScenarioKey) -> JsonObject:
         "impacts": [_expected_impact(expected) for expected in key.impacts],
         "constraints": [_constraint(constraint) for constraint in key.constraints],
         "distractors": [_distractor(distractor) for distractor in key.distractors],
-        "stable_interval": _span(key.stable_interval),
         "required_sources": [source.value for source in key.required_sources],
     }
 
