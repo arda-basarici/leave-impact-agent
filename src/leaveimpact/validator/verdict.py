@@ -11,7 +11,10 @@ leave them unchanged while changing every receipt, so only the manifest's own di
 a verdict to a projection. ``validator_version`` names the logic that judged, since the
 same world and manifest can be approved by one version of these checks and refused by the
 next; no wall-clock timestamp, as the judged digests and the version are the provenance
-that means something.
+that means something. The manifest's stage is not repeated here, superseding that clause
+of the verdict ruling: the validator accepts a manifest at ``projected`` only, and the
+manifest bound by ``manifest_digest`` proves its own stage when decoded, so a copy would
+be a second home for the lifecycle state.
 
 Every finding is listed in full — missing and foreign identities by id, unequal records
 by id with the differing fields named, view disagreements by scenario with both

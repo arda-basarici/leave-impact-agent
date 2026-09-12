@@ -806,13 +806,20 @@ scenario reasoning. The identity map — semantic id to vendor id — is what
 projection writes back, not what it reads: the frozen bundle is sealed before any
 vendor has minted an id, and the world manifest that carries the map is
 projection's receipt, recording the world version it realized. The validator is a
-distinct module that
-only reads: it re-reads the live systems, re-derives each scenario's structured
-expectations (`answer(now)` grown up, at two instants inside the stable interval)
-and compares them with the manifest. It validates the projected systems rather
-than the generator's intermediate objects on purpose, so the projection seam is
-under test too, and a shared generation bug cannot produce an evaluation that
-agrees with a wrong world.
+distinct module that only reads: it re-reads the live systems the way the
+investigator reads them and compares what they hold with the sealed world spec,
+the manifest supplying configuration and provenance — every closed enumeration
+exact, every record equal to its planting, and each scenario's derived view, read
+once at its declared run day, equal to the plantings' under the runtime rule. One
+read per scenario, not two instants: a run's view does not change inside the
+stable interval, because the systems hold every projected record at once and the
+harness dates every returned record to the run's day, so the interval is the
+evaluator's alone and the assembly's whole-world re-verification proves the key
+across it under both the dated and the runtime views (the runtime-view ruling at
+the validator step). It validates the projected systems rather than the
+generator's intermediate objects on purpose, so the projection seam is under test
+too, and a shared generation bug cannot produce an evaluation that agrees with a
+wrong world.
 
 **The organization in code (ruled 2026-09-11, step 6 of the M1 build).** Semantic
 generation identifies an organization by three separate inputs — the seed is the
@@ -859,8 +866,9 @@ day six to nine so that `now`, two to four days before it, always has slice hist
 behind it; the stable interval is derived from planted observability and never
 authored — the latest fact the key needs bounds it below, the earliest later
 answer-changing fact above, capped at the day before the leave — and construction stays
-independent of the rule implementation there too, the validator's two-instant check
-being the independent verification. Three records serve three audiences: the
+independent of the rule implementation there too, the whole-world re-verification at
+assembly, every stable day under the dated and the runtime views, being the independent
+verification. Three records serve three audiences: the
 agent-visible spec, the evaluator-only key (an outcome per impact and never a reference
 plan, `must_assess` per impact, constraint keys, distractors unique by entity and never
 an expected impact's artifact, the stable interval, the required sources), and the

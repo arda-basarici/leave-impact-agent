@@ -171,6 +171,60 @@ def test_a_manifest_recording_another_truth_is_refused(
         )
 
 
+def test_a_manifest_recording_other_scenario_specs_is_refused_not_carried_into_the_verdict(
+    landed: tuple[WorldManifest, FakePreparation], sealed: Bundle
+) -> None:
+    # The scenario specs authenticate against the world spec, so the manifest's copy of
+    # their digest could be wrong and yet reach the verdict as provenance; it is compared.
+    manifest, fakes = landed
+    encoded = cast(JsonObject, json.loads(manifest_bytes(manifest)))
+    artifacts = cast(list[JsonObject], encoded["artifacts"])
+    specs = next(item for item in artifacts if item["role"] == "scenario_specs")
+    specs["digest"] = "0" * 64
+    with pytest.raises(IntegrityRefused, match="different scenario specs"):
+        validate(
+            canonical_bytes(encoded),
+            sealed.world_spec.content,
+            sealed.scenario_specs.content,
+            dead(fakes),
+        )
+
+
+def test_the_enumerations_are_read_once_and_the_windowed_kinds_per_scenario(
+    landed: tuple[WorldManifest, FakePreparation], sealed: Bundle, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    manifest, fakes = landed
+    calls: dict[str, int] = {}
+
+    def counted(store: object, name: str) -> None:
+        original = getattr(store, name)
+
+        def wrapped(*args: object, **kwargs: object) -> object:
+            calls[name] = calls.get(name, 0) + 1
+            return original(*args, **kwargs)
+
+        monkeypatch.setattr(store, name, wrapped)
+
+    for store, name in (
+        (fakes.people, "employees"),
+        (fakes.work, "components"),
+        (fakes.work, "work_items"),
+        (fakes.people, "leaves_within"),
+        (fakes.calendar, "events_within"),
+    ):
+        counted(store, name)
+    verdict = judged(manifest, sealed, fakes)
+    assert verdict.approval is Approval.APPROVED
+    scenarios = len(verdict.views)
+    assert calls == {
+        "employees": 1,
+        "components": 1,
+        "work_items": 1,
+        "leaves_within": 1 + scenarios,
+        "events_within": 1 + scenarios,
+    }
+
+
 def test_an_unmatched_scenario_between_the_two_files_is_refused(
     landed: tuple[WorldManifest, FakePreparation], sealed: Bundle
 ) -> None:
@@ -185,9 +239,9 @@ def test_an_unmatched_scenario_between_the_two_files_is_refused(
     spec_bytes = canonical_bytes(spec)
     encoded = cast(JsonObject, json.loads(manifest_bytes(manifest)))
     artifacts = cast(list[JsonObject], encoded["artifacts"])
-    next(item for item in artifacts if item["role"] == "world_spec")["digest"] = hashlib.sha256(
-        spec_bytes
-    ).hexdigest()
+    for role, content in (("world_spec", spec_bytes), ("scenario_specs", edited)):
+        row = next(item for item in artifacts if item["role"] == role)
+        row["digest"] = hashlib.sha256(content).hexdigest()
     with pytest.raises(
         IntegrityRefused, match="missing from the scenario specs \\['scenario_010'\\]"
     ):

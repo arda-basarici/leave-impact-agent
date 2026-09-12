@@ -19,8 +19,11 @@ every ``now`` from day four on, so the latest fact the key needs sets the interv
 lower bound, and the next fact whose arrival would change the answer sets its upper
 bound, capped at the day before the leave. The derivation reads the planted
 observability dates, not the rules: construction stays independent of the rule
-implementation, and the validator's two-instant check inside the interval is the
-independent verification (the stable-interval ruling at the scenario-framework step).
+implementation, and the whole-world re-verification at assembly, every stable day under
+the dated and the runtime views, is the independent check that the key holds across the
+interval (the stable-interval ruling at the scenario-framework step, its verification
+re-homed at the validator step: a run's view does not move inside the interval, so the
+validator reads once and the interval is the evaluator's).
 """
 
 from __future__ import annotations
