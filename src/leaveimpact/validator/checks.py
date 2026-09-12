@@ -1,4 +1,4 @@
-"""The validator's three checks as pure comparisons: identities, records, the view at an instant.
+"""The validator's three checks as pure comparisons: identities, records, the view of a run.
 
 Each check is a function over plain values — identity sets, records by id, derived facts —
 so it is proven against data and never against a system; the composition root reads the
@@ -9,41 +9,44 @@ named, since a missing record is a projection that did not land and a foreign on
 contamination the investigator would read as world. *Record fidelity*: each observed
 record equals its planted record field for field — plain equality, because the adapters'
 round trips are proven exact for every generator-controlled field, so a looser equivalence
-would name a looseness the record says does not exist. *View agreement*: at an instant,
-the facts a run could observe, derived through ``core``'s one derivation from what the
-readers return the way the investigator reads (leaves and events by window, the rest by
-enumeration), equal the facts derived from the plantings under the same window rule; this
-is the layer that exercises an adapter's window query and its timezone handling, which
-equality of records cannot.
+would name a looseness the record says does not exist. *View agreement*: the facts a run
+of a scenario derives from what the readers return, read the way the investigator reads
+(leaves and events by the scenario's window, the rest by enumeration), equal the facts the
+plantings yield under the same runtime rule; this is the layer that exercises an adapter's
+window query and its timezone handling, which equality of records cannot.
 
-A live record knows nothing of when the world made it observable — the entity types keep
-vendor timestamps out — so its facts are stamped with the planting's date, found by
-identity. That is why the layers are ordered: stamping a foreign record would invent a
-date, so the view runs only over a kind whose identities were exact, and a kind that
-failed exactness has its view recorded as not run, never silently skipped.
+Both sides of the view obey the runtime rule and nothing else (the runtime-view ruling at
+the validator step): a read returns what the system holds, and every returned record is
+observable on the run's day. The plantings' dates are benchmark-private and never enter
+here — a first cut stamped live records with them by identity and so produced a dated
+history the investigator cannot obtain, hiding what the runtime would see; ``world``
+states the runtime record set once and the expected side is built from it, so the
+validator and the pre-seal realizability proof agree on what a run sees by construction.
+Under that rule the observable facts do not depend on the instant inside the stable
+interval, so the two-instant check of the earlier design proved nothing a single read
+does not, and the view is taken once per scenario at its ``now``; the interval remains
+the evaluator's, a run anywhere in it grading against one key, proven before sealing.
 
-The instants are the two ends of a scenario's stable interval, at the wall-clock time of
-the scenario's ``now`` in its reference zone rather than midnight, because a boundary
-fact shows at an end first and the interval is stored as dates. Every planting's date
-bounds the interval by construction, so the observable facts are the same at both ends;
-the two views agreeing with each other is that property proven from the live side.
+The layers are ordered because a foreign record has no planting to compare against: the
+view runs only over a kind whose identities were exact, and a kind that failed exactness
+has its view recorded as not run, never silently skipped.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, fields
-from datetime import date, datetime, timedelta
+from datetime import date
 from enum import StrEnum
 
 from leaveimpact.core.derivation import Derived, derive
-from leaveimpact.core.entities import CalendarEvent, Leave
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.refs import EntityRef
-from leaveimpact.core.worldtime import DateSpan, InstantSpan, local_date, zone
-from leaveimpact.world.artifacts import ScenarioPlanting
-from leaveimpact.world.scenario import OwnedEntities, Planted, ScenarioSpec
+from leaveimpact.core.worldtime import DateSpan, InstantSpan
+from leaveimpact.world.artifacts import PlantedWorldSpec
+from leaveimpact.world.runtime_view import runtime_facts, runtime_records, window_instants
+from leaveimpact.world.scenario import ScenarioSpec
 from leaveimpact.world.truth_facts import observed
 
 
@@ -88,6 +91,22 @@ def compare_identities(
     return IdentityExactness(kind, tuple(sorted(planted - seen)), tuple(sorted(seen - planted)))
 
 
+def world_horizon(specs: Iterable[ScenarioSpec]) -> tuple[DateSpan, InstantSpan]:
+    """The bound of what any run can observe: every window's union, as days and as instants.
+
+    The scope of exactness for the windowed kinds. One bounding interval rather than the
+    exact union, so a foreign record in a gap between windows is inside the horizon and
+    fails exactness rather than hiding in the gap. Each window contributes its instants in
+    its own reference zone, since the scenarios need not share one.
+    """
+    rows = list(specs)
+    if not rows:
+        raise ValueError("the horizon of no scenarios is undefined")
+    days = DateSpan(min(s.window.start for s in rows), max(s.window.end for s in rows))
+    spans = [window_instants(s.window, s.reference_timezone) for s in rows]
+    return days, InstantSpan(min(span.start for span in spans), max(span.end for span in spans))
+
+
 # --- Record fidelity ----------------------------------------------------------------------
 
 
@@ -126,120 +145,38 @@ def compare_records[K: str, T: Entity](
 
 @dataclass(frozen=True, slots=True)
 class ViewDisagreement:
-    """The facts a live read yields at an instant against those the plantings yield; both gaps."""
+    """The facts a run's reads yield against those the plantings yield; both differences."""
 
     scenario_id: str
-    instant: datetime
+    run_day: date
     missing: tuple[Derived, ...]
     surplus: tuple[Derived, ...]
 
 
-def boundary_instants(planting: ScenarioPlanting, spec: ScenarioSpec) -> tuple[datetime, datetime]:
-    """The two ends of the stable interval at ``now``'s wall-clock time in the reference zone."""
-    at = spec.now.astimezone(zone(spec.reference_timezone)).timetz()
-    interval = planting.stable_interval
-    return (
-        datetime.combine(interval.start, at),
-        datetime.combine(interval.end, at),
-    )
+def derive_live[T: Entity](records: Iterable[Observed[T]], run_day: date) -> tuple[Derived, ...]:
+    """The facts and gaps of live ``records`` of one kind, every one observable on ``run_day``.
 
-
-def window_instants(window: DateSpan, reference_timezone: str) -> InstantSpan:
-    """``window`` as the half-open run of instants it covers in ``reference_timezone``.
-
-    The events an investigator reads for a window are those overlapping the days of the
-    window as a human in the reference zone reads them: from the first day's midnight to
-    the midnight after the last day.
+    One kind per call, as the readers return them; the caller concatenates. The date is
+    the run's and nothing else, the runtime rule for a live harness.
     """
-    tz = zone(reference_timezone)
-    return InstantSpan(
-        datetime.combine(window.start, datetime.min.time(), tzinfo=tz),
-        datetime.combine(window.end + timedelta(days=1), datetime.min.time(), tzinfo=tz),
-    )
+    return tuple(item for record in records for item in derive(record, run_day))
 
 
-def world_horizon(specs: Iterable[ScenarioSpec]) -> tuple[DateSpan, InstantSpan]:
-    """The bound of what any run can observe: every window's union, as days and as instants.
+def expected_view(planted: PlantedWorldSpec, spec: ScenarioSpec) -> frozenset[Derived]:
+    """What a run of ``spec`` should derive from a faithful projection of ``planted``.
 
-    One bounding interval rather than the exact union, so a foreign record in a gap
-    between windows is inside the horizon and fails exactness rather than hiding in the
-    gap. Each window contributes its instants in its own reference zone, since the
-    scenarios need not share one.
+    The runtime record set ``world`` states, dated to the scenario's ``today``: what the
+    pre-seal realizability proof verified the key under, and so what the live reads must
+    reproduce.
     """
-    rows = list(specs)
-    if not rows:
-        raise ValueError("the horizon of no scenarios is undefined")
-    days = DateSpan(min(s.window.start for s in rows), max(s.window.end for s in rows))
-    spans = [window_instants(s.window, s.reference_timezone) for s in rows]
-    return days, InstantSpan(min(span.start for span in spans), max(span.end for span in spans))
-
-
-def leaves_overlapping(
-    plantings: Iterable[Planted[Leave]], span: DateSpan
-) -> tuple[Planted[Leave], ...]:
-    """The planted leaves a ``leaves_within(span)`` read is expected to return: the port's rule."""
-    return tuple(
-        planted
-        for planted in plantings
-        if DateSpan(planted.entity.start, planted.entity.end).overlaps(span)
-    )
-
-
-def events_overlapping(
-    plantings: Iterable[Planted[CalendarEvent]], span: InstantSpan
-) -> tuple[Planted[CalendarEvent], ...]:
-    """The planted events an ``events_within(span)`` read is expected to return: the port's rule."""
-    return tuple(
-        planted
-        for planted in plantings
-        if InstantSpan(planted.entity.start, planted.entity.end).overlaps(span)
-    )
-
-
-def observable_dates(
-    org_refs: Iterable[EntityRef], world_start: date, owned: Iterable[OwnedEntities]
-) -> dict[EntityRef, date]:
-    """When the world made each record observable, by reference: the stamp a live record borrows.
-
-    The organization's static records from the world's start, each owned record from the
-    day it was planted — the same dates the truth base derives against.
-    """
-    dates = dict.fromkeys(org_refs, world_start)
-    for entities in owned:
-        for group in (entities.leaves, entities.work_items, entities.events, entities.documents):
-            for planted in group:
-                dates[observed(planted.entity).ref] = planted.observable_from
-    return dates
-
-
-def derive_stamped[T: Entity](
-    records: Iterable[Observed[T]], dates: Mapping[EntityRef, date]
-) -> tuple[Derived, ...]:
-    """The facts and gaps of live ``records`` of one kind, each dated as the world planted it.
-
-    One kind per call, as the readers return them; the caller concatenates. A record with
-    no planting date is a foreign one exactness should have refused; it is a
-    ``LookupError`` here rather than a guessed date.
-    """
-    derived: list[Derived] = []
-    for record in records:
-        if record.ref not in dates:
-            raise LookupError(f"{record.ref.id} has no planting to date its facts from")
-        derived.extend(derive(record, dates[record.ref]))
-    return tuple(derived)
-
-
-def view_at(
-    derived: Iterable[Derived], instant: datetime, reference_timezone: str
-) -> frozenset[Derived]:
-    """What a run at ``instant`` could observe: every fact and gap dated on or before its day."""
-    today = local_date(instant, reference_timezone)
-    return frozenset(item for item in derived if item.observable_from <= today)
+    owned = [row.owned for row in planted.scenarios]
+    base = runtime_facts(runtime_records(planted.org, owned, spec), spec.today)
+    return frozenset([*base.facts, *base.gaps])
 
 
 def compare_views(
     scenario_id: str,
-    instant: datetime,
+    run_day: date,
     expected: frozenset[Derived],
     live: frozenset[Derived],
 ) -> ViewDisagreement | None:
@@ -248,7 +185,7 @@ def compare_views(
         return None
     return ViewDisagreement(
         scenario_id,
-        instant,
+        run_day,
         missing=tuple(sorted(expected - live, key=repr)),
         surplus=tuple(sorted(live - expected, key=repr)),
     )

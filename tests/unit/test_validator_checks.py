@@ -1,13 +1,12 @@
 """The validator's three checks over the reference world: a faithful projection into the in-memory
-ports passes every layer, each layer names what a specific corruption breaks, the expected side's
-window rules are the ports' own, the boundary instants sit at ``now``'s wall-clock time on the
-interval's ends, and the horizon bounds every window with a gap inside it."""
+ports passes every layer, each layer names what a specific corruption breaks, exactness for the
+windowed kinds is scoped by the horizon through the ports' own window rule, the horizon holds the
+gaps between slices, and the view of a run is taken under the runtime rule on both sides — every
+fact dated to the run day, other slices' tickets visible, no planting date anywhere."""
 
-from collections.abc import Mapping
 from dataclasses import replace
 from datetime import date, timedelta
 from itertools import pairwise
-from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -15,33 +14,27 @@ from leaveimpact.core.derivation import Derived
 from leaveimpact.core.entities import Leave, WorkItem
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import leave_id, work_item_id
-from leaveimpact.core.refs import EntityRef
-from leaveimpact.core.worldtime import DateSpan, local_date
 from leaveimpact.validator.checks import (
     CheckStatus,
-    boundary_instants,
     compare_identities,
     compare_records,
     compare_views,
-    derive_stamped,
-    events_overlapping,
-    leaves_overlapping,
-    observable_dates,
-    view_at,
-    window_instants,
+    derive_live,
+    expected_view,
     world_horizon,
 )
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     PlantedWorldSpec,
-    ScenarioPlanting,
     ScenarioSpec,
     WorldSpec,
     assemble_world,
     bundle,
+    events_within,
+    leaves_within,
     planted_world_spec,
+    window_instants,
 )
-from leaveimpact.world.truth_facts import observed
 from tests.unit.in_memory_ports import InMemoryCalendar, InMemoryPeople, InMemoryWork
 
 WORLD_START = date(2026, 1, 1)
@@ -83,50 +76,20 @@ def projected(planted: PlantedWorldSpec) -> tuple[InMemoryPeople, InMemoryWork, 
     return people, work, calendar
 
 
-def dates(planted: PlantedWorldSpec) -> dict[EntityRef, date]:
-    org_refs = [
-        observed(record).ref
-        for record in (*planted.org.teams, *planted.org.employees, *planted.org.components)
-    ]
-    return observable_dates(org_refs, planted.world_start, (r.owned for r in planted.scenarios))
-
-
 def live_view(
-    spec: ScenarioSpec,
-    people: InMemoryPeople,
-    work: InMemoryWork,
-    calendar: InMemoryCalendar,
-    stamps: Mapping[EntityRef, date],
-) -> tuple[Derived, ...]:
-    """The facts the investigator's reads yield for one scenario's window, stamped by planting."""
+    spec: ScenarioSpec, people: InMemoryPeople, work: InMemoryWork, calendar: InMemoryCalendar
+) -> frozenset[Derived]:
+    """The facts the investigator's reads yield for one scenario, dated to its run day."""
+    today = spec.today
     instants = window_instants(spec.window, spec.reference_timezone)
-    return (
-        *derive_stamped(people.employees(), stamps),
-        *derive_stamped(work.components(), stamps),
-        *derive_stamped(work.work_items(), stamps),
-        *derive_stamped(people.leaves_within(spec.window), stamps),
-        *derive_stamped(calendar.events_within(instants), stamps),
-    )
-
-
-def expected_view(
-    planted: PlantedWorldSpec, spec: ScenarioSpec, stamps: Mapping[EntityRef, date]
-) -> tuple[Derived, ...]:
-    """The plantings' facts under the same window rule, as the systems would return them."""
-    leaves = [leave for row in planted.scenarios for leave in row.owned.leaves]
-    events = [event for row in planted.scenarios for event in row.owned.events]
-    items = [item for row in planted.scenarios for item in row.owned.work_items]
-    instants = window_instants(spec.window, spec.reference_timezone)
-    return (
-        *derive_stamped([observed(e) for e in planted.org.employees], stamps),
-        *derive_stamped([observed(c) for c in planted.org.components], stamps),
-        *derive_stamped([observed(p.entity) for p in items], stamps),
-        *derive_stamped(
-            [observed(p.entity) for p in leaves_overlapping(leaves, spec.window)], stamps
-        ),
-        *derive_stamped(
-            [observed(p.entity) for p in events_overlapping(events, instants)], stamps
-        ),
+    return frozenset(
+        [
+            *derive_live(people.employees(), today),
+            *derive_live(work.components(), today),
+            *derive_live(work.work_items(), today),
+            *derive_live(people.leaves_within(spec.window), today),
+            *derive_live(calendar.events_within(instants), today),
+        ]
     )
 
 
@@ -138,6 +101,8 @@ def test_a_faithful_projection_is_exact_in_every_enumerable_kind(
 ) -> None:
     people, work, calendar = projected(planted)
     days, instants = world_horizon(specs)
+    leaves = [p for r in planted.scenarios for p in r.owned.leaves]
+    events = [p for r in planted.scenarios for p in r.owned.events]
     checks = [
         compare_identities(
             EntityKind.EMPLOYEE,
@@ -154,19 +119,21 @@ def test_a_faithful_projection_is_exact_in_every_enumerable_kind(
             [p.entity.id for r in planted.scenarios for p in r.owned.work_items],
             [o.value.id for o in work.work_items()],
         ),
+        # The windowed kinds are scoped by the horizon on both sides, through the port's rule.
         compare_identities(
             EntityKind.LEAVE,
-            [p.entity.id for r in planted.scenarios for p in r.owned.leaves],
+            [leave.id for leave in leaves_within(leaves, days)],
             [o.value.id for o in people.leaves_within(days)],
         ),
         compare_identities(
             EntityKind.EVENT,
-            [p.entity.id for r in planted.scenarios for p in r.owned.events],
+            [event.id for event in events_within(events, instants)],
             [o.value.id for o in calendar.events_within(instants)],
         ),
     ]
     assert all(check.status is CheckStatus.PASSED for check in checks)
     assert sum(len(c.missing) + len(c.foreign) for c in checks) == 0
+    assert len(leaves_within(leaves, days)) == len(leaves), "every planting lies inside the horizon"
 
 
 def test_a_missing_and_a_foreign_identity_are_both_named_sorted(planted: PlantedWorldSpec) -> None:
@@ -181,6 +148,29 @@ def test_a_missing_and_a_foreign_identity_are_both_named_sorted(planted: Planted
     )
     assert check.status is CheckStatus.FAILED
     assert check.missing == (lost,) and check.foreign == ("leave_999",)
+
+
+def test_the_horizon_bounds_every_window_and_holds_the_gaps_between_them(
+    specs: tuple[ScenarioSpec, ...],
+) -> None:
+    days, instants = world_horizon(specs)
+    assert days.start == min(s.window.start for s in specs)
+    assert days.end == max(s.window.end for s in specs)
+    for spec in specs:
+        span = window_instants(spec.window, spec.reference_timezone)
+        assert instants.contains(span.start)
+        assert instants.overlaps(span)
+    ordered = sorted(specs, key=lambda s: s.window.start)
+    gaps = [
+        (a.window.end + timedelta(days=1), b.window.start - timedelta(days=1))
+        for a, b in pairwise(ordered)
+        if b.window.start - a.window.end > timedelta(days=1)
+    ]
+    assert gaps, "the reference world has a gap between two slices"
+    for start, end in gaps:
+        assert days.contains(start) and days.contains(end)
+    with pytest.raises(ValueError, match="no scenarios"):
+        world_horizon([])
 
 
 # --- Record fidelity ----------------------------------------------------------------------
@@ -207,131 +197,67 @@ def test_identities_on_one_side_only_are_not_repeated_as_mismatches() -> None:
     assert compare_records(planted_only, {}) == ()
 
 
-# --- The instants and the horizon ---------------------------------------------------------
-
-
-def test_the_boundary_instants_sit_on_the_interval_ends_at_nows_wall_clock(
-    planted: PlantedWorldSpec, specs: tuple[ScenarioSpec, ...]
-) -> None:
-    for row, spec in zip(planted.scenarios, specs, strict=True):
-        first, last = boundary_instants(row, spec)
-        zone = spec.reference_timezone
-        assert local_date(first, zone) == row.stable_interval.start
-        assert local_date(last, zone) == row.stable_interval.end
-        now_local = spec.now.astimezone(ZoneInfo(zone))
-        assert (first.hour, first.minute) == (now_local.hour, now_local.minute)
-        assert first.tzinfo is not None and first.tzinfo.utcoffset(first) is not None
-
-
-def test_the_horizon_bounds_every_window_and_holds_the_gaps_between_them(
-    specs: tuple[ScenarioSpec, ...],
-) -> None:
-    days, instants = world_horizon(specs)
-    assert days.start == min(s.window.start for s in specs)
-    assert days.end == max(s.window.end for s in specs)
-    for spec in specs:
-        span = window_instants(spec.window, spec.reference_timezone)
-        assert instants.contains(span.start)
-        assert instants.overlaps(span)
-    ordered = sorted(specs, key=lambda s: s.window.start)
-    gaps = [
-        (a.window.end + timedelta(days=1), b.window.start - timedelta(days=1))
-        for a, b in pairwise(ordered)
-        if b.window.start - a.window.end > timedelta(days=1)
-    ]
-    assert gaps, "the reference world has a gap between two slices"
-    for start, end in gaps:
-        assert days.contains(start) and days.contains(end)
-    with pytest.raises(ValueError, match="no scenarios"):
-        world_horizon([])
-
-
-def test_the_expected_window_rules_are_the_ports_own(
-    planted: PlantedWorldSpec, specs: tuple[ScenarioSpec, ...]
-) -> None:
-    people, _, calendar = projected(planted)
-    leaves = [leave for row in planted.scenarios for leave in row.owned.leaves]
-    events = [event for row in planted.scenarios for event in row.owned.events]
-    for spec in specs:
-        instants = window_instants(spec.window, spec.reference_timezone)
-        assert {p.entity.id for p in leaves_overlapping(leaves, spec.window)} == {
-            o.value.id for o in people.leaves_within(spec.window)
-        }
-        assert {p.entity.id for p in events_overlapping(events, instants)} == {
-            o.value.id for o in calendar.events_within(instants)
-        }
-    # A leave sharing one day with a span is within it; one ending the day before is not.
-    probe = planted.scenarios[0].owned.leaves[0]
-    touching = DateSpan(probe.entity.end, probe.entity.end + timedelta(days=3))
-    before = DateSpan(
-        probe.entity.start - timedelta(days=3), probe.entity.start - timedelta(days=1)
-    )
-    assert probe in leaves_overlapping([probe], touching)
-    assert probe not in leaves_overlapping([probe], before)
-
-
 # --- View agreement -----------------------------------------------------------------------
 
 
-def test_the_live_view_equals_the_planted_view_at_both_ends_and_the_ends_agree(
+def test_the_live_view_equals_the_expected_view_for_every_scenario(
     planted: PlantedWorldSpec, specs: tuple[ScenarioSpec, ...]
 ) -> None:
     people, work, calendar = projected(planted)
-    stamps = dates(planted)
-    for row, spec in zip(planted.scenarios, specs, strict=True):
-        live = live_view(spec, people, work, calendar, stamps)
-        expected = expected_view(planted, spec, stamps)
-        views: list[frozenset[Derived]] = []
-        for instant in boundary_instants(row, spec):
-            planted_view = view_at(expected, instant, spec.reference_timezone)
-            live_at = view_at(live, instant, spec.reference_timezone)
-            assert compare_views(spec.id, instant, planted_view, live_at) is None
-            views.append(live_at)
-        assert views[0] == views[1], f"{spec.id}: the observable facts moved inside the interval"
-        assert views[0], f"{spec.id}: a run at the boundary observes something"
+    for spec in specs:
+        live = live_view(spec, people, work, calendar)
+        assert compare_views(spec.id, spec.today, expected_view(planted, spec), live) is None
+        assert live, f"{spec.id}: a run observes something"
+
+
+def test_the_view_obeys_the_runtime_rule_on_both_sides(
+    planted: PlantedWorldSpec, specs: tuple[ScenarioSpec, ...]
+) -> None:
+    # Every fact is dated to the run day, and the tickets of other slices are in the view,
+    # because the tracker enumerates whole and the harness knows no planting date.
+    people, work, calendar = projected(planted)
+    first = specs[0]
+    live, expected = live_view(first, people, work, calendar), expected_view(planted, first)
+    assert {item.observable_from for item in live} == {first.today}
+    assert {item.observable_from for item in expected} == {first.today}
+    other_tickets = {p.entity.id for r in planted.scenarios[1:] for p in r.owned.work_items}
+    assert other_tickets & {item.evidence.target.id for item in live}
+    # The dated truth would have hidden them: the two rules really differ.
+    dated = {p.observable_from for r in planted.scenarios[1:] for p in r.owned.work_items}
+    assert all(day > first.today for day in dated)
 
 
 def test_a_leave_read_back_with_other_dates_is_a_disagreement_naming_both_sides(
     planted: PlantedWorldSpec, specs: tuple[ScenarioSpec, ...]
 ) -> None:
     people, work, calendar = projected(planted)
-    stamps = dates(planted)
     row, spec = planted.scenarios[0], specs[0]
     investigated: Leave = next(p.entity for p in row.owned.leaves if p.entity.id == spec.leave_id)
     people.leaves[investigated.id] = replace(investigated, end=investigated.end + timedelta(days=2))
-    instant = boundary_instants(row, spec)[0]
-    zone = spec.reference_timezone
-    live = view_at(live_view(spec, people, work, calendar, stamps), instant, zone)
-    expected = view_at(expected_view(planted, spec, stamps), instant, zone)
-    finding = compare_views(spec.id, instant, expected, live)
+    finding = compare_views(
+        spec.id, spec.today, expected_view(planted, spec), live_view(spec, people, work, calendar)
+    )
     assert finding is not None and finding.scenario_id == spec.id
     assert finding.missing and finding.surplus
     assert all(item.subject.id == investigated.employee_id for item in finding.missing)
     assert all(item.subject.id == investigated.employee_id for item in finding.surplus)
 
 
-def test_a_record_with_no_planting_cannot_be_dated_and_is_refused(
-    planted: PlantedWorldSpec,
-) -> None:
-    stray = replace(planted.scenarios[0].owned.leaves[0].entity, id=leave_id(999))
-    with pytest.raises(LookupError, match="leave_999 has no planting"):
-        derive_stamped([observed(stray)], dates(planted))
-
-
-def test_the_view_at_an_instant_hides_what_the_world_had_not_yet_shown(
+def test_an_event_read_back_an_hour_late_is_a_disagreement(
     planted: PlantedWorldSpec, specs: tuple[ScenarioSpec, ...]
 ) -> None:
-    row: ScenarioPlanting = planted.scenarios[0]
-    derived = expected_view(planted, specs[0], dates(planted))
-    earliest = min(p.observable_from for p in row.owned.leaves)
-    before = ZoneInfo(specs[0].reference_timezone)
-    day_before = view_at(
-        derived,
-        boundary_instants(row, specs[0])[0].replace(
-            year=earliest.year, month=earliest.month, day=earliest.day, tzinfo=before
-        )
-        - timedelta(days=1),
-        specs[0].reference_timezone,
+    # The layer that record equality cannot replace: a window read whose timezone handling
+    # shifted an instant changes the derived schedule and shows here.
+    people, work, calendar = projected(planted)
+    spec = next(s for s, r in zip(specs, planted.scenarios, strict=True) if r.owned.events)
+    row = next(r for r in planted.scenarios if r.scenario_id == spec.id)
+    event = row.owned.events[0].entity
+    shifted = replace(
+        event, start=event.start + timedelta(hours=1), end=event.end + timedelta(hours=1)
     )
-    on_the_day = view_at(derived, boundary_instants(row, specs[0])[0], specs[0].reference_timezone)
-    assert day_before < on_the_day
+    calendar.events[event.id] = shifted
+    finding = compare_views(
+        spec.id, spec.today, expected_view(planted, spec), live_view(spec, people, work, calendar)
+    )
+    assert finding is not None
+    assert {item.evidence.target.id for item in (*finding.missing, *finding.surplus)} == {event.id}

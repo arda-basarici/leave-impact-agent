@@ -4,15 +4,19 @@ Re-reads the live systems through the adapters built from the projected manifest
 proves, in three layered checks, that they realize the sealed world spec: every closed
 enumeration the investigator can see holds exactly the planted identities, missing and
 foreign both refused; every record read back equals its planting; and the facts a run
-could observe at the two ends of each scenario's stable interval, derived from reads
-made the way the investigator reads, equal the facts the plantings yield. It validates
-the projected systems rather than the generator's intermediate objects on purpose: the
-projection seam is under test too, and a shared generation bug cannot yield an
-evaluation that agrees with a wrong world. It reads the world spec, the scenario specs,
-the world manifest and the live systems, and never the truth manifest; what truth expects
-of the plantings was proven before sealing by the whole-world re-verification in
-``world``, so the two proofs compose: live systems realize the sealed spec, and the
-sealed spec implies the sealed truth, without the validator ever seeing a key.
+of each scenario derives from reads made the way the investigator reads, every returned
+record observable on the run's day, equal the facts the plantings yield under that same
+runtime rule. It validates the projected systems rather than the generator's
+intermediate objects on purpose: the projection seam is under test too, and a shared
+generation bug cannot yield an evaluation that agrees with a wrong world. It reads the
+world spec, the scenario specs, the world manifest and the live systems, and never the
+truth manifest; what truth expects of the plantings was proven before sealing by the
+whole-world re-verification in ``world`` — under the runtime view as well as the dated
+one — so the two proofs compose: live systems realize the sealed spec, and the sealed
+spec implies the sealed truth, without the validator ever seeing a key or a planting
+date. Three responsibilities stay apart: the generator proves the world realizable
+through the runtime rule, the validator proves the realized systems match it, the
+evaluator grades with the stable interval and the key.
 
 That chain is complete for the structured tier. The pre-seal verification runs over the
 truth base, which includes the facts only prose can carry; the view check here covers
@@ -33,16 +37,11 @@ from leaveimpact.validator.checks import (
     IdentityExactness,
     RecordMismatch,
     ViewDisagreement,
-    boundary_instants,
     compare_identities,
     compare_records,
     compare_views,
-    derive_stamped,
-    events_overlapping,
-    leaves_overlapping,
-    observable_dates,
-    view_at,
-    window_instants,
+    derive_live,
+    expected_view,
     world_horizon,
 )
 
@@ -52,15 +51,10 @@ __all__ = [
     "IdentityExactness",
     "RecordMismatch",
     "ViewDisagreement",
-    "boundary_instants",
     "compare_identities",
     "compare_records",
     "compare_views",
-    "derive_stamped",
-    "events_overlapping",
-    "leaves_overlapping",
-    "observable_dates",
-    "view_at",
-    "window_instants",
+    "derive_live",
+    "expected_view",
     "world_horizon",
 ]
