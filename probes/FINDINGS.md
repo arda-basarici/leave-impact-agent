@@ -483,3 +483,37 @@ Facts for the world milestone: Slack's new-app dialog offers "Blank app" (the ol
 seeded conversation can be read — a generator that seeds Slack writes at run time,
 not a dated backlog. Machine-side: a bare `bash` from PowerShell is WSL's
 (`system32\bash.exe`) and sees no Windows environment — Git Bash by full path.
+
+## benchmark-trust — PASS (2026-09-12)
+
+The second half of the platform handoff's acceptance (the benchmark buckets and
+roles, applied the same day): the `benchmark` environment's OIDC trust proven by a
+run, not by the policy text — the deploy role's own lesson, its subject shape having
+been learned live on 2026-08-26. A throwaway `workflow_dispatch` job under the
+environment (removed after this record; run 34719626730, 21:20 UTC, approved at the
+environment's reviewer gate):
+
+- **The subject** the token carries is
+  `repo:arda-basarici@133336041/leave-impact-agent@1342572683:environment:benchmark`,
+  audience `sts.amazonaws.com`, ref `refs/heads/main` — the environment form, pinned
+  by numeric ids, exactly what both trust policies match.
+- **Both roles assumed:** `assumed-role/leave-agent-generator/GitHubActions` and
+  `assumed-role/leave-agent-validator/GitHubActions`, each read back from
+  `get-caller-identity` before anything else ran under it.
+- **The generator's two models answer under its role:** Haiku 4.5 ("Hello") and
+  Nova Pro ("Hello!") through `bedrock-runtime converse` in eu-central-1 — the
+  split invoke policy holds, and the account-level access opened on 2026-08-26 is
+  reachable from the new role.
+- **The validator's boundary, positive control first:** a list of the world
+  bucket's `worlds/` succeeds under the validator role; then a list of the truth
+  bucket and a get of a `truth-manifest/` key are both refused with the
+  `AccessDenied` code specifically. Two calls, because a missing key reads as
+  AccessDenied only while list is also denied; a broken credential would have
+  failed the positive control instead.
+
+Facts for step 12: `aws-actions/configure-aws-credentials` re-invoked in one job with
+`unset-current-credentials: true` switches roles cleanly; a two-hour session is
+available to the workflows (`max_session_duration` 7200 on both roles) and a
+web-identity session is not role chaining, so the one-hour chaining cap does not
+apply. The instance role's own refusal on truth is not this probe's claim: it is the
+deploy job's post-deploy step, landing with step 12.
