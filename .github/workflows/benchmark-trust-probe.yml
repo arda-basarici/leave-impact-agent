@@ -1,0 +1,77 @@
+# Throwaway. Proves the `benchmark` environment's OIDC trust live, the second half of
+# the platform handoff's acceptance (2026-09-12): the subject the token really carries,
+# each role assumed, the generator's two models answering, the validator refused on the
+# truth bucket. Deleted once the run is recorded in probes/FINDINGS.md.
+name: benchmark trust probe
+on: workflow_dispatch
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: benchmark
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: eu-central-1
+      WORLD_BUCKET: leave-impact-world-445743457479
+      TRUTH_BUCKET: leave-impact-truth-445743457479
+    steps:
+      # The subject is what both trust policies match; logged before any assumption so
+      # a refusal can be compared against the policy (the deploy role's own lesson).
+      - name: Record the OIDC subject
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - name: Assume the generator role
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-generator
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Generator identity and the two model calls
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity --query Arn --output text | tee identity.txt
+          grep -q 'assumed-role/leave-agent-generator/' identity.txt
+          for model in eu.anthropic.claude-haiku-4-5-20251001-v1:0 eu.amazon.nova-pro-v1:0; do
+            answer=$(aws bedrock-runtime converse --model-id "$model" \
+              --messages '[{"role":"user","content":[{"text":"Reply with one word."}]}]' \
+              --inference-config '{"maxTokens":8}' \
+              --query 'output.message.content[0].text' --output text)
+            echo "$model answered: $answer"
+          done
+
+      - name: Assume the validator role
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-validator
+          aws-region: ${{ env.AWS_REGION }}
+          unset-current-credentials: true
+
+      # Positive control first, so a refusal below cannot be a broken credential; then
+      # both truth calls must fail with the AccessDenied code specifically (a missing
+      # key reads as AccessDenied only while list is also denied, hence two calls).
+      - name: Validator identity, the positive control, the two refusals
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity --query Arn --output text | tee identity.txt
+          grep -q 'assumed-role/leave-agent-validator/' identity.txt
+          aws s3api list-objects-v2 --bucket "$WORLD_BUCKET" --prefix worlds/ --max-keys 1 > /dev/null
+          echo "positive control: worlds/ listed under the validator role"
+          refused() {
+            if "$@" 2> err.txt; then
+              echo "NOT refused: $*"; exit 1
+            fi
+            grep -q 'AccessDenied' err.txt || { echo "refused for another reason:"; cat err.txt; exit 1; }
+            echo "refused with AccessDenied: $*"
+          }
+          refused aws s3api list-objects-v2 --bucket "$TRUTH_BUCKET" --max-keys 1
+          refused aws s3api get-object --bucket "$TRUTH_BUCKET" --key truth-manifest/probe.json /dev/null
