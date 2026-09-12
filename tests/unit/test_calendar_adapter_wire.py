@@ -315,7 +315,10 @@ def test_preparation_verifies_a_known_calendar_and_creates_an_unknown_one_in_its
         verify.method == "GET" and verify.url.path == "/calendars/seda@group.calendar.google.com"
     )
     assert create.method == "POST" and create.url.path == "/calendars"
-    assert json.loads(create.content) == {"summary": "CAS Baran Demir", "timeZone": "Europe/Berlin"}
+    assert json.loads(create.content) == {
+        "summary": f"CAS {BARAN} Baran Demir",
+        "timeZone": "Europe/Berlin",
+    }
 
 
 def test_a_known_calendar_the_principal_does_not_hold_is_malformed() -> None:

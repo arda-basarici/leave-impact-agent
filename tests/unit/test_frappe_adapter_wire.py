@@ -213,3 +213,37 @@ def test_an_insert_answering_without_a_name_is_malformed() -> None:
         adapter(script).add_team(Team(team_id(3), "Platform"))
     assert caught.value.locator == "POST /api/resource/Department"
     assert caught.value.reason == "insert returned no name"
+
+
+# --- The employee-number scope query --------------------------------------------------------
+
+
+def test_held_employee_numbers_looks_past_the_company_then_returns_what_it_holds() -> None:
+    script = Scripted(data([]), data([{"name": "emp_004", "employee_number": "emp_004"}]))
+    held = adapter(script).held_employee_numbers([employee_id(4), employee_id(5)])
+    assert held == {employee_id(4)}
+    foreign, own = script.seen
+    assert json.loads(foreign.url.params["filters"]) == [
+        ["employee_number", "in", ["emp_004", "emp_005"]],
+        ["company", "!=", "Cassette Org"],
+    ]
+    assert json.loads(own.url.params["filters"]) == [["company", "=", "Cassette Org"]]
+
+
+def test_a_world_number_held_by_another_company_refuses_before_the_company_is_read() -> None:
+    foreign = data([{"name": "emp_004", "employee_number": "emp_004", "company": "Other Co"}])
+    script = Scripted(foreign)
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(script).held_employee_numbers([employee_id(4)])
+    assert caught.value.locator == "Employee/emp_004"
+    assert caught.value.reason == (
+        "world employee numbers held by another company on the site: [\"emp_004 in 'Other Co'\"]"
+    )
+    assert len(script.seen) == 1
+
+
+def test_a_number_held_twice_in_the_company_is_malformed_on_the_scope_query() -> None:
+    twice = data([{"name": "emp_004", "employee_number": "emp_004"},
+                  {"name": "emp_004-1", "employee_number": "emp_004"}])
+    with pytest.raises(MalformedRecord, match="held by more than one document"):
+        adapter(Scripted(data([]), twice)).held_employee_numbers([employee_id(4)])

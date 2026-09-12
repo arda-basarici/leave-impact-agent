@@ -67,7 +67,7 @@ from leaveimpact.adapters.transport import DEFAULT_POLICY, Transport, TransportP
 from leaveimpact.core.entities import Component, WorkItem
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import ComponentId, EmployeeId, WorkItemId
-from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import Observed
 
 _PAGE = 100
@@ -157,8 +157,10 @@ class _Wire:
         response = self.transport.request("POST", path, replayable=replayable, ok=ok, **kwargs)
         return self._json(response, f"POST {path}")
 
-    def put(self, path: str, *, replayable: bool = False, **kwargs: Any) -> None:
-        self.transport.request("PUT", path, replayable=replayable, ok=(204,), **kwargs)
+    def put(
+        self, path: str, *, replayable: bool = False, ok: tuple[int, ...] = (204,), **kwargs: Any
+    ) -> None:
+        self.transport.request("PUT", path, replayable=replayable, ok=ok, **kwargs)
 
     def delete(self, path: str, *, ok: tuple[int, ...] = (204,)) -> None:
         self.transport.request("DELETE", path, replayable=False, ok=ok)
@@ -223,24 +225,93 @@ class JiraSite:
     def close(self) -> None:
         self._wire.transport.close()
 
-    def ensure_project(self, key: str, name: str) -> None:
-        """The world's own project on the kanban template; never assumes an empty site."""
+    def ensure_project(self, key: str, name: str, *, world_version: str = "") -> None:
+        """The world's own project on the kanban template; never assumes an empty site.
+
+        A project created here carries the world's mark in its description when a version
+        is given; a project found is left as it is, and ``mark_project`` is what proves it
+        belongs to this world — separate calls, so a recorded exchange from before the mark
+        existed replays unchanged.
+        """
         existing = self._wire.get(f"/project/{key}", ok=(200, 404))
         if isinstance(existing, dict) and cast(Record, existing).get("key") == key:
             return
         me = _dict(self._wire.get("/myself"), "GET /myself", "account")
         lead = _required(me, "accountId", "GET /myself")
-        self._wire.post(
-            "/project",
-            json={
-                "key": key,
-                "name": name,
-                "projectTypeKey": "software",
-                "projectTemplateKey": _KANBAN_TEMPLATE,
-                "leadAccountId": lead,
-                "assigneeType": "UNASSIGNED",
-            },
+        payload: Record = {
+            "key": key,
+            "name": name,
+            "projectTypeKey": "software",
+            "projectTemplateKey": _KANBAN_TEMPLATE,
+            "leadAccountId": lead,
+            "assigneeType": "UNASSIGNED",
+        }
+        if world_version:
+            payload["description"] = _project_mark(world_version)
+        self._wire.post("/project", json=payload)
+
+    def mark_project(self, key: str, world_version: str) -> None:
+        """The project's description names this world, or the call refuses.
+
+        Configuration verified by a read, the same shape as the calendar map's known-id
+        check: a description naming another version is ``IdentityConflict`` — the derived
+        key collided, or the operator pointed two worlds at one project — and an empty one
+        is completed now, because every world marks its project at creation, so an unmarked
+        project is a project from before the mark existed and not another world's. The debris
+        query that follows is what proves the issues inside are this world's.
+        """
+        project = _dict(self._wire.get(f"/project/{key}"), f"GET /project/{key}", "project")
+        mark = _project_mark(world_version)
+        held = str(project.get("description") or "")
+        if held == mark:
+            return
+        if held:
+            raise IdentityConflict(
+                Source.JIRA, f"project/{key}", f"marked {held!r}, this world is {mark!r}"
+            )
+        self._wire.put(
+            f"/project/{key}", replayable=True, ok=(200, 204), json={"description": mark}
         )
+
+    def held_markers(self, project_key: str, fields: JiraFields) -> frozenset[WorkItemId]:
+        """Every identity marker the project holds, one issue each, or the call refuses.
+
+        The site-level inspection the ordinary reader never does: the reader enumerates
+        only marked issues, so an issue without a marker — projection debris from a write
+        that died before its marker landed — is invisible to it and to the agent, which is
+        right for a fact base and wrong for a project about to be projected into. Here every
+        issue in the project is read, and an unmarked issue or a marker held twice refuses,
+        naming the keys for the operator to delete. The composition root compares what is
+        returned with the world's own ids, a subset before projection and the exact set
+        after it (the Jira marker ruling at the projector step). The search index can trail
+        a write, so the check before a run may miss an orphan created seconds earlier; the
+        check after the run has had the whole run for the index to catch up.
+        """
+        issues = _paged_search(
+            self._wire, f'project = "{project_key}"', [fields.ticket_id], reconcile=None
+        )
+        keys_by_marker: dict[str, list[str]] = {}
+        unmarked: list[str] = []
+        for issue in issues:
+            key = _required(issue, "key", "POST /search/jql")
+            marker = _dict(issue.get("fields"), key, "fields").get(fields.ticket_id)
+            if isinstance(marker, str) and records.NUMBERED_ID.match(marker):
+                keys_by_marker.setdefault(marker, []).append(key)
+            else:
+                unmarked.append(key)
+        problems: list[str] = []
+        if unmarked:
+            problems.append(f"unmarked issues {sorted(unmarked)}")
+        twice = {marker: keys for marker, keys in keys_by_marker.items() if len(keys) > 1}
+        if twice:
+            problems.append(f"markers held twice {twice}")
+        if problems:
+            raise MalformedRecord(
+                Source.JIRA,
+                f"project/{project_key}",
+                "; ".join(problems) + " — projection debris, delete before rerunning",
+            )
+        return frozenset(WorkItemId(marker) for marker in keys_by_marker)
 
     def ensure_fields(self, project_key: str) -> JiraFields:
         """The four custom fields, created where missing and on every screen of the project."""
@@ -611,26 +682,8 @@ class JiraAdapter:
             self._written = [*self._written, int(issue_id)][-_RECONCILE_LIMIT:]
 
     def _search(self, jql: str, fields: list[str]) -> list[Record]:
-        issues: list[Record] = []
-        token: str | None = None
-        while True:
-            body: Record = {"jql": jql, "fields": fields, "maxResults": _PAGE}
-            if self._written:
-                body["reconcileIssues"] = list(self._written)
-            if token:
-                body["nextPageToken"] = token
-            page = _dict(
-                self._wire.post("/search/jql", replayable=True, ok=(200,), json=body),
-                "POST /search/jql",
-                "page",
-            )
-            issues.extend(
-                _dict(issue, "POST /search/jql", "issue")
-                for issue in _list(page.get("issues"), "POST /search/jql", "issues")
-            )
-            token = page.get("nextPageToken")
-            if page.get("isLast", True) or not token:
-                return issues
+        reconcile = list(self._written) if self._written else None
+        return _paged_search(self._wire, jql, fields, reconcile=reconcile)
 
     def _all_comments(self, issue: Record) -> list[Record]:
         """The issue's comments to completion: the search embeds a page, the rest is fetched."""
@@ -726,6 +779,37 @@ class JiraAdapter:
                 f"employee {employee_id} has no owner option in Jira; "
                 "ensure the world's people first"
             ) from None
+
+
+def _paged_search(
+    wire: _Wire, jql: str, fields: list[str], *, reconcile: list[int] | None
+) -> list[Record]:
+    """Every issue ``jql`` matches, paged to completion; ``reconcile`` names issue ids whose
+    fields the index must return exact (the adapter's own writes), or nothing."""
+    issues: list[Record] = []
+    token: str | None = None
+    while True:
+        body: Record = {"jql": jql, "fields": fields, "maxResults": _PAGE}
+        if reconcile:
+            body["reconcileIssues"] = reconcile
+        if token:
+            body["nextPageToken"] = token
+        page = _dict(
+            wire.post("/search/jql", replayable=True, ok=(200,), json=body),
+            "POST /search/jql",
+            "page",
+        )
+        issues.extend(
+            _dict(issue, "POST /search/jql", "issue")
+            for issue in _list(page.get("issues"), "POST /search/jql", "issues")
+        )
+        token = page.get("nextPageToken")
+        if page.get("isLast", True) or not token:
+            return issues
+
+
+def _project_mark(world_version: str) -> str:
+    return f"world {world_version}"
 
 
 def _number(field_id: str) -> str:

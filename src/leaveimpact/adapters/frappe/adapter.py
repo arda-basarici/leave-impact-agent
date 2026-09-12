@@ -357,6 +357,42 @@ class FrappeAdapter:
             },
         )
 
+    def held_employee_numbers(self, world_ids: Iterable[EmployeeId]) -> frozenset[EmployeeId]:
+        """The employee numbers the company holds, or the call refuses; a site-level inspection.
+
+        Employee names are unique per site, not per company, and the world names employees
+        by their number, so a number this world plants that another company on the site
+        already holds would make the insert fail with a wrong diagnosis after the teams were
+        written. The first query looks past the company scope for exactly that and refuses
+        naming the documents; the ordinary reader stays company-scoped, since that scope is
+        the world's boundary on the site. The second returns what the company holds, each
+        number once, for the composition root to compare with the world: a subset before
+        projection, the exact set after it (the employee-number ruling at the projector step).
+        """
+        ids = sorted(world_ids)
+        foreign = self._list(
+            "Employee",
+            [["employee_number", "in", ids], ["company", "!=", self._config.company]],
+            ("name", "employee_number", "company"),
+        )
+        if foreign:
+            names = ", ".join(sorted(str(row.get("name")) for row in foreign))
+            held = sorted(
+                {f"{row.get('employee_number')} in {row.get('company')!r}" for row in foreign}
+            )
+            raise MalformedRecord(
+                Source.FRAPPE,
+                f"Employee/{names}",
+                f"world employee numbers held by another company on the site: {held}",
+            )
+        held_rows = self._list("Employee", self._company_filter(), ("name", "employee_number"))
+        _held_once(held_rows, "employee_number", "Employee")
+        return frozenset(
+            EmployeeId(str(row["employee_number"]))
+            for row in held_rows
+            if row.get("employee_number")
+        )
+
     def ensure_skills(self, skills: Iterable[SkillId]) -> None:
         """The Skill masters the employees' skill maps link to, named by the domain id."""
         for skill in skills:

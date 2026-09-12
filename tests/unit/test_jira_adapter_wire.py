@@ -31,7 +31,7 @@ from leaveimpact.core.comments import comment_text
 from leaveimpact.core.entities import Comment, WorkItem
 from leaveimpact.core.enums import WorkItemStatus
 from leaveimpact.core.ids import comment_id, component_id, employee_id, work_item_id
-from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
+from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
 
 Outcome = httpx.Response | Exception
 
@@ -445,3 +445,81 @@ def test_work_items_reads_the_project_by_id_field_and_pages_comments_to_completi
     search = json.loads(script.seen[1].content)
     assert search["jql"] == 'project = "CAS" AND cf[10078] is not EMPTY'
     assert paths(script)[-1] == "GET /rest/api/3/issue/CAS-1/comment"
+
+
+# --- The project mark and the debris query --------------------------------------------------
+
+VERSION = "a" * 64
+
+
+def project(description: str | None) -> httpx.Response:
+    return ok({"id": "10000", "key": "CAS", "description": description})
+
+
+def test_a_project_created_carries_the_world_s_mark() -> None:
+    script = Scripted(
+        ok({"errorMessages": ["No project"]}, 404), ok({"accountId": "me"}), ok({"key": "CAS"}, 201)
+    )
+    site(script).ensure_project("CAS", "Leave Impact world aaaaaaaa", world_version=VERSION)
+    created = script.seen[2]
+    assert json.loads(created.content)["description"] == f"world {VERSION}"
+
+
+def test_a_project_marked_for_this_world_needs_no_write() -> None:
+    script = Scripted(project(f"world {VERSION}"))
+    site(script).mark_project("CAS", VERSION)
+    assert paths(script) == ["GET /rest/api/3/project/CAS"]
+
+
+def test_an_unmarked_project_is_marked_now() -> None:
+    script = Scripted(project(""), ok({"key": "CAS"}, 200))
+    site(script).mark_project("CAS", VERSION)
+    assert paths(script) == ["GET /rest/api/3/project/CAS", "PUT /rest/api/3/project/CAS"]
+    assert json.loads(script.seen[1].content) == {"description": f"world {VERSION}"}
+    script = Scripted(project(None), ok(None, 204))
+    site(script).mark_project("CAS", VERSION)
+    assert len(script.seen) == 2
+
+
+def test_a_project_marked_for_another_world_is_an_identity_conflict() -> None:
+    script = Scripted(project("world " + "b" * 64))
+    with pytest.raises(IdentityConflict, match="this world is 'world aaaa") as caught:
+        site(script).mark_project("CAS", VERSION)
+    assert caught.value.locator == "project/CAS"
+    assert len(script.seen) == 1, "nothing written over another world's mark"
+
+
+def issue(key: str, marker: object) -> dict[str, Any]:
+    return {"key": key, "fields": {FIELDS.ticket_id: marker}}
+
+
+def test_held_markers_reads_every_issue_in_the_project_and_returns_the_markers() -> None:
+    page = ok(
+        {"issues": [issue("CAS-1", "ticket_007"), issue("CAS-2", "ticket_008")], "isLast": True}
+    )
+    script = Scripted(page)
+    held = site(script).held_markers("CAS", FIELDS)
+    assert held == {work_item_id(7), work_item_id(8)}
+    body = json.loads(script.seen[0].content)
+    assert body["jql"] == 'project = "CAS"' and body["fields"] == [FIELDS.ticket_id]
+    assert "reconcileIssues" not in body, "the site inspects, it reconciles nothing of its own"
+
+
+def test_an_unmarked_issue_or_a_marker_held_twice_is_projection_debris() -> None:
+    debris = ok(
+        {
+            "issues": [
+                issue("CAS-1", "ticket_007"),
+                issue("CAS-2", None),
+                issue("CAS-3", "ticket_007"),
+                issue("CAS-4", "LIA-42"),
+            ],
+            "isLast": True,
+        }
+    )
+    with pytest.raises(MalformedRecord) as caught:
+        site(Scripted(debris)).held_markers("CAS", FIELDS)
+    assert caught.value.locator == "project/CAS"
+    assert "unmarked issues ['CAS-2', 'CAS-4']" in caught.value.reason
+    assert "markers held twice {'ticket_007': ['CAS-1', 'CAS-3']}" in caught.value.reason
+    assert caught.value.reason.endswith("projection debris, delete before rerunning")

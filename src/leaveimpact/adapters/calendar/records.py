@@ -86,17 +86,20 @@ def locator(calendar_id: str, vendor_id: str) -> str:
 def calendar_payload(employee: Employee, naming: str) -> Record:
     """The secondary calendar for ``employee``: named under the world's prefix, in their zone.
 
-    The zone is display only — every instant written carries its offset — but a
-    calendar in its person's zone shows their day the way they would see it.
+    The summary carries the prefix, the employee id and the name so a human can tell one
+    world's calendars from another's and clean an orphan up by eye; it is never read back
+    for identity or rediscovery, which the app-created scope could not do anyway. The zone
+    is display only — every instant written carries its offset — but a calendar in its
+    person's zone shows their day the way they would see it.
 
     >>> from leaveimpact.core.enums import EmploymentType, Grade
     >>> from leaveimpact.core.ids import employee_id, team_id
     >>> deniz = Employee(employee_id(4), "Deniz Yılmaz", team_id(1), None, None, "Istanbul",
     ...                  "TR", "Europe/Istanbul", Grade.SENIOR, EmploymentType.EMPLOYEE)
     >>> calendar_payload(deniz, "W1")
-    {'summary': 'W1 Deniz Yılmaz', 'timeZone': 'Europe/Istanbul'}
+    {'summary': 'W1 emp_004 Deniz Yılmaz', 'timeZone': 'Europe/Istanbul'}
     """
-    return {"summary": f"{naming} {employee.name}", "timeZone": employee.timezone}
+    return {"summary": f"{naming} {employee.id} {employee.name}", "timeZone": employee.timezone}
 
 
 # --- events ----------------------------------------------------------------------------
