@@ -2,8 +2,9 @@
 receipt, proves the sites and the coverage, and promotes once; a run cut off during calendar
 preparation resumes with the known calendars verified and none re-created; a run cut off
 during projection resumes from its receipts and ends with every planted id receipted; a
-checkpoint of another world or of drifted site configuration is refused before any vendor
-call; debris in a site is refused before projection; the file store replaces atomically."""
+checkpoint of another world, of drifted site configuration, of a tampered header or with a
+foreign calendar is refused before any vendor call; debris in a site is refused before
+projection; the coverage proof is exact; the file store replaces atomically."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
@@ -14,10 +15,15 @@ import pytest
 
 from leaveimpact.adapters.calendar.adapter import CalendarConfig
 from leaveimpact.adapters.jira.adapter import JiraConfig, JiraFields
-from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
-from leaveimpact.core import Source, SourceUnreachable
+from leaveimpact.adapters.manifest import (
+    ManifestStage,
+    WorldManifest,
+    decode_manifest,
+    with_receipt,
+)
+from leaveimpact.core import Source, SourceUnreachable, work_item_ref
 from leaveimpact.core.entities import Employee, WorkItem
-from leaveimpact.core.ids import EmployeeId, WorkItemId, WorldVersion, work_item_id
+from leaveimpact.core.ids import EmployeeId, WorkItemId, WorldVersion, employee_id, work_item_id
 from leaveimpact.generator.manifest_store import FileManifestStore
 from leaveimpact.generator.projection import Systems, world_entities
 from leaveimpact.generator.realize import (
@@ -30,7 +36,14 @@ from leaveimpact.generator.realize import (
     realize,
     world_key,
 )
-from leaveimpact.world import DEFAULT_PARAMS, Bundle, WorldSpec, assemble_world, bundle
+from leaveimpact.world import (
+    DEFAULT_PARAMS,
+    Bundle,
+    GeneratorVersion,
+    WorldSpec,
+    assemble_world,
+    bundle,
+)
 from tests.unit.in_memory_ports import (
     InMemoryCalendar,
     InMemoryDocuments,
@@ -217,7 +230,7 @@ def test_a_checkpoint_of_another_world_or_of_drifted_configuration_is_refused_be
         prepared(sealed),
         jira=JiraConfig(world_key(sealed.world_version), replace(FIELDS, owner="customfield_9")),
     )
-    with pytest.raises(ProjectionRefused, match="configuration drifted since the checkpoint"):
+    with pytest.raises(ProjectionRefused, match=r"disagrees with this run on \['jira'\]"):
         realize(world, sealed, drifted, preparation, store)
     assert not preparation.created and not preparation.verified
 
@@ -277,3 +290,55 @@ def test_the_file_store_replaces_atomically_and_loads_any_stage(
     store.path.write_bytes(b"{not json")
     with pytest.raises(ValueError):
         store.load()
+
+
+def test_a_checkpoint_with_a_foreign_calendar_or_a_tampered_header_is_refused_before_any_call(
+    world: WorldSpec, sealed: Bundle
+) -> None:
+    store = MemoryStore()
+    realize(world, sealed, prepared(sealed), FakePreparation(), store)
+    accepted = store.current
+    assert accepted is not None
+    foreign = {**accepted.systems.calendar.calendar_by_employee, employee_id(999): "foreign@cal"}
+    store.current = replace(
+        accepted, systems=replace(accepted.systems, calendar=CalendarConfig(foreign))
+    )
+    preparation = FakePreparation()
+    with pytest.raises(
+        ProjectionRefused, match="the calendar map holds ids outside this world: \\['emp_999'\\]"
+    ):
+        realize(world, sealed, prepared(sealed), preparation, store)
+    assert not preparation.created and not preparation.verified, "refused before any calendar call"
+    store.current = replace(accepted, generator_version=GeneratorVersion("99"))
+    with pytest.raises(
+        ProjectionRefused, match="disagrees with this run on \\['generator_version'\\]"
+    ):
+        realize(world, sealed, prepared(sealed), preparation, store)
+    tampered = (
+        accepted.artifacts[0],
+        accepted.artifacts[1],
+        replace(accepted.artifacts[2], digest="f" * 64),
+    )
+    store.current = replace(
+        accepted, artifacts=tampered, org_params=replace(accepted.org_params, org_size=30)
+    )
+    with pytest.raises(ProjectionRefused, match="on \\['artifacts', 'org_params'\\]"):
+        realize(world, sealed, prepared(sealed), preparation, store)
+    assert not preparation.created and not preparation.verified
+
+
+def test_the_coverage_proof_is_exact_in_both_directions(world: WorldSpec, sealed: Bundle) -> None:
+    store = MemoryStore()
+    final = realize(world, sealed, prepared(sealed), FakePreparation(), store)
+    entities = world_entities(world)
+    check_coverage(final.receipts, entities)
+    with pytest.raises(
+        ProjectionRefused, match="receipts for ids this world never planted: \\['ticket_999'\\]"
+    ):
+        check_coverage(
+            with_receipt(final.receipts, work_item_ref(work_item_id(999)), "X-999"), entities
+        )
+    with pytest.raises(ProjectionRefused, match="no receipt for"):
+        check_coverage(
+            replace(final.receipts, work=replace(final.receipts.work, work_items={})), entities
+        )

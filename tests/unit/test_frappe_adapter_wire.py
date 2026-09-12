@@ -247,3 +247,12 @@ def test_a_number_held_twice_in_the_company_is_malformed_on_the_scope_query() ->
                   {"name": "emp_004-1", "employee_number": "emp_004"}])
     with pytest.raises(MalformedRecord, match="held by more than one document"):
         adapter(Scripted(data([]), twice)).held_employee_numbers([employee_id(4)])
+
+
+def test_a_company_employee_without_a_number_is_malformed_on_the_scope_query() -> None:
+    rows = data([{"name": "emp_004", "employee_number": "emp_004"},
+                 {"name": "HR-EMP-00099", "employee_number": None}])
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(Scripted(data([]), rows)).held_employee_numbers([employee_id(4)])
+    assert caught.value.locator == "Employee/HR-EMP-00099"
+    assert caught.value.reason == "employees of the company without an employee number"

@@ -42,7 +42,7 @@ duplicate abbreviation rather than caught here.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Iterable, Mapping
+from collections.abc import Collection, Iterable, Mapping
 from dataclasses import dataclass, replace
 from typing import Protocol
 
@@ -169,7 +169,12 @@ def realize(
     manifest = _starting_point(store.load(), world, sealed, prepared)
     store.save(manifest)
 
+    employee_ids = frozenset(employee.id for employee in entities.employees)
+    work_item_ids = frozenset(item.id for item in entities.work_items)
     calendars = dict(manifest.systems.calendar.calendar_by_employee)
+    # The map is configuration the calendar adapter reads every entry of, so a foreign entry
+    # would widen the application's read surface; it is scoped like a site, at both ends.
+    check_scope(calendars, employee_ids, complete=False, what="the calendar map")
     for employee in entities.employees:
         known = calendars.get(employee.id)
         calendar_id = preparation.ensure_calendar(employee, known)
@@ -177,9 +182,8 @@ def realize(
             calendars[employee.id] = calendar_id
             manifest = _with_calendars(manifest, calendars)
             store.save(manifest)
+    check_scope(calendars, employee_ids, complete=True, what="the calendar map")
 
-    employee_ids = frozenset(employee.id for employee in entities.employees)
-    work_item_ids = frozenset(item.id for item in entities.work_items)
     check_scope(
         preparation.held_employee_numbers(employee_ids),
         employee_ids,
@@ -215,36 +219,57 @@ def realize(
 def _starting_point(
     previous: WorldManifest | None, world: WorldSpec, sealed: Bundle, prepared: Prepared
 ) -> WorldManifest:
-    """The checkpoint to resume from, verified against this world and site, or a fresh one."""
+    """The checkpoint to resume from, verified against this world and site, or a fresh one.
+
+    A fresh manifest is built from the world, the bundle and the preparation every time; a
+    stored one contributes only what grew in it — the calendar map and the receipts — and
+    only when its header says the same thing the fresh one does, field by field. The root
+    holds every authoritative value, so a checkpoint hand-edited or assembled for another
+    realization is refused here rather than carried into a promoted manifest. The observed
+    hosts are the one field taken fresh without comparison: diagnostic, free to differ.
+    """
     version = sealed.world_version
+    fresh = WorldManifest(
+        stage=ManifestStage.PREPARING,
+        world_version=version,
+        artifacts=artifact_digests(sealed),
+        generator_version=world.generator_version,
+        org_params=world.org.params,
+        systems=SystemConfigs(
+            frappe=prepared.frappe,
+            jira=prepared.jira,
+            calendar=CalendarConfig({}),
+            corpus=CorpusConfig(version),
+        ),
+        receipts=Receipts(),
+        observed_sites=prepared.observed_sites,
+    )
     if previous is None:
-        return WorldManifest(
-            stage=ManifestStage.PREPARING,
-            world_version=version,
-            artifacts=artifact_digests(sealed),
-            generator_version=world.generator_version,
-            org_params=world.org.params,
-            systems=SystemConfigs(
-                frappe=prepared.frappe,
-                jira=prepared.jira,
-                calendar=CalendarConfig({}),
-                corpus=CorpusConfig(version),
-            ),
-            receipts=Receipts(),
-            observed_sites=prepared.observed_sites,
-        )
+        return fresh
     if previous.world_version != version:
         raise ProjectionRefused(
             f"the stored manifest realizes world {previous.world_version}, this run is "
             f"{version}: calendars and receipts belong to one world, give this one its own store"
         )
-    if previous.systems.frappe != prepared.frappe or previous.systems.jira != prepared.jira:
-        raise ProjectionRefused(
-            "the sites' configuration drifted since the checkpoint: the manifest describes "
-            f"{previous.systems.frappe} and {previous.systems.jira}, preparation resolved "
-            f"{prepared.frappe} and {prepared.jira}"
+    drifted = [
+        name
+        for name, stored, current in (
+            ("artifacts", previous.artifacts, fresh.artifacts),
+            ("generator_version", previous.generator_version, fresh.generator_version),
+            ("org_params", previous.org_params, fresh.org_params),
+            ("frappe", previous.systems.frappe, fresh.systems.frappe),
+            ("jira", previous.systems.jira, fresh.systems.jira),
+            ("corpus", previous.systems.corpus, fresh.systems.corpus),
         )
-    return replace(previous, stage=ManifestStage.PREPARING, observed_sites=prepared.observed_sites)
+        if stored != current
+    ]
+    if drifted:
+        raise ProjectionRefused(
+            f"the stored manifest disagrees with this run on {drifted}: the checkpoint is not "
+            "this realization's, or the sites' configuration drifted since it was written"
+        )
+    systems = replace(fresh.systems, calendar=previous.systems.calendar)
+    return replace(fresh, systems=systems, receipts=previous.receipts)
 
 
 def _with_calendars(manifest: WorldManifest, calendars: Mapping[EmployeeId, str]) -> WorldManifest:
@@ -279,7 +304,7 @@ def check_scope(
 
 
 def check_coverage(receipts: Receipts, entities: WorldEntities) -> None:
-    """Every planted id has a receipt, or refuse naming the ones without."""
+    """Exactly the planted ids have receipts, or refuse naming the ones missing or foreign."""
     receipted: set[str] = set()
     for held in (
         receipts.people.teams,
@@ -310,6 +335,9 @@ def check_coverage(receipts: Receipts, entities: WorldEntities) -> None:
             f"no receipt for {missing}: written and never checkpointed, or never written — "
             "delete the marked records and rerun"
         )
-
-
-Checkpoint = Callable[[EntityRef, str], None]
+    foreign = sorted(receipted - planted)
+    if foreign:
+        raise ProjectionRefused(
+            f"receipts for ids this world never planted: {foreign} — the checkpoint is not "
+            "this realization's"
+        )

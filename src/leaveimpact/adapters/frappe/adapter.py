@@ -368,6 +368,8 @@ class FrappeAdapter:
         the world's boundary on the site. The second returns what the company holds, each
         number once, for the composition root to compare with the world: a subset before
         projection, the exact set after it (the employee-number ruling at the projector step).
+        A company employee without a number refuses too, since the reader would fail on it and
+        an exact set that skipped it would not be exact.
         """
         ids = sorted(world_ids)
         foreign = self._list(
@@ -387,11 +389,17 @@ class FrappeAdapter:
             )
         held_rows = self._list("Employee", self._company_filter(), ("name", "employee_number"))
         _held_once(held_rows, "employee_number", "Employee")
-        return frozenset(
-            EmployeeId(str(row["employee_number"]))
-            for row in held_rows
-            if row.get("employee_number")
+        unnumbered = sorted(
+            str(row.get("name")) for row in held_rows if not row.get("employee_number")
         )
+        if unnumbered:
+            # The reader would try to translate such a row and fail; an exact set is exact.
+            raise MalformedRecord(
+                Source.FRAPPE,
+                f"Employee/{', '.join(unnumbered)}",
+                "employees of the company without an employee number",
+            )
+        return frozenset(EmployeeId(str(row["employee_number"])) for row in held_rows)
 
     def ensure_skills(self, skills: Iterable[SkillId]) -> None:
         """The Skill masters the employees' skill maps link to, named by the domain id."""
