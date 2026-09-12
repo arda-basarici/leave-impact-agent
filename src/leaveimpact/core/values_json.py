@@ -39,7 +39,7 @@ from leaveimpact.core.values import (
     ValueKind,
     ValueSpec,
 )
-from leaveimpact.core.worldtime import DateSpan, InstantSpan, instant_at
+from leaveimpact.core.worldtime import DateSpan, InstantSpan, date_at, instant_at
 
 
 def encode_ref(ref: EntityRef) -> JsonObject:
@@ -130,13 +130,13 @@ def _decode_payload(kind: ValueKind, data: Mapping[str, object]) -> FactValue:
         case ValueKind.TEXT | ValueKind.ENUM | ValueKind.SKILL:
             return string_field(data, "value")
         case ValueKind.DATE:
-            return date.fromisoformat(string_field(data, "value"))
+            return date_at(string_field(data, "value"), "a date")
         case ValueKind.DATE_SPAN:
             span = object_field(data, "value")
             expect_fields(span, ("start", "end"), "a date span")
             return DateSpan(
-                date.fromisoformat(string_field(span, "start")),
-                date.fromisoformat(string_field(span, "end")),
+                date_at(string_field(span, "start"), "start"),
+                date_at(string_field(span, "end"), "end"),
             )
         case ValueKind.INSTANT_SPAN:
             span = object_field(data, "value")

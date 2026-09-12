@@ -77,12 +77,18 @@ def zone(key: str) -> ZoneInfo:
 def instant_at(text: str, zone_key: str | None, what: str) -> datetime:
     """The aware instant ``text`` reads as, in the zone ``zone_key`` names when it names one.
 
-    The one rule for every codec that stores an instant as an offset-bearing timestamp
-    with its IANA zone beside it. The offset must be the zone's own at that instant: a
-    pair that disagrees was not written by an encoder of this project, and decoding it
-    by conversion would produce a value whose re-encoding differs from the bytes read,
-    so it is refused rather than normalized. A naive timestamp and an unknown zone key
-    are refused naming ``what``; without a zone the instant keeps its bare offset.
+    The one rule for every sealed codec that stores an instant as an offset-bearing
+    timestamp with its IANA zone beside it, in two halves. Semantic: the offset must be
+    the zone's own at that instant, since a pair that disagrees was not written by an
+    encoder of this project, and decoding it by conversion would yield a value whose
+    re-encoding differs from the bytes read. Lexical: the text must be the spelling
+    ``isoformat`` writes, because ``fromisoformat`` also accepts ``Z``, a zero fraction
+    and the basic format without separators, and accepting them would make the same
+    claim false one byte at a time. Both are refused rather than normalized, so the
+    encoding of a decoding reproduces the bytes for every instant this accepts. A naive
+    timestamp and an unknown zone key are refused naming ``what``; without a zone the
+    instant keeps its bare offset. Vendor adapters do not use this rule: a vendor's
+    spelling is the vendor's, and normalizing it is exactly an adapter's job.
 
     >>> instant_at("2026-10-25T01:30:00+00:00", "Europe/London", "start").fold
     1
@@ -92,6 +98,10 @@ def instant_at(text: str, zone_key: str | None, what: str) -> datetime:
     Traceback (most recent call last):
     ...
     ValueError: now reads '2026-01-05T09:00:00+03:00', which UTC writes as '2026-01-05T06:...'
+    >>> instant_at("2026-01-05T09:00:00Z", "UTC", "now")
+    Traceback (most recent call last):
+    ...
+    ValueError: now is spelled '2026-01-05T09:00:00Z', canonical is '2026-01-05T09:00:00+00:00'
     >>> instant_at("2026-01-05T09:00:00", None, "now")
     Traceback (most recent call last):
     ...
@@ -100,14 +110,37 @@ def instant_at(text: str, zone_key: str | None, what: str) -> datetime:
     instant = datetime.fromisoformat(text)
     if instant.tzinfo is None:
         raise ValueError(f"{what} carries its offset, got {text!r}")
-    if zone_key is None:
-        return instant
-    in_zone = instant.astimezone(zone(zone_key))
-    if in_zone.utcoffset() != instant.utcoffset():
-        raise ValueError(
-            f"{what} reads {text!r}, which {zone_key} writes as {in_zone.isoformat()!r}"
-        )
-    return in_zone
+    if zone_key is not None:
+        in_zone = instant.astimezone(zone(zone_key))
+        if in_zone.utcoffset() != instant.utcoffset():
+            raise ValueError(
+                f"{what} reads {text!r}, which {zone_key} writes as {in_zone.isoformat()!r}"
+            )
+        instant = in_zone
+    return _canonical(instant, text, what)
+
+
+def date_at(text: str, what: str) -> date:
+    """The calendar day ``text`` reads as, in the one spelling ``isoformat`` writes.
+
+    The date half of the sealed codecs' rule (see ``instant_at``): ``fromisoformat``
+    accepts the basic format without hyphens, and a decoder that took it would re-encode
+    to different bytes.
+
+    >>> date_at("2026-01-05", "start")
+    datetime.date(2026, 1, 5)
+    >>> date_at("20260105", "start")
+    Traceback (most recent call last):
+    ...
+    ValueError: start is spelled '20260105', canonical is '2026-01-05'
+    """
+    return _canonical(date.fromisoformat(text), text, what)
+
+
+def _canonical[T: date | datetime](value: T, text: str, what: str) -> T:
+    if value.isoformat() != text:
+        raise ValueError(f"{what} is spelled {text!r}, canonical is {value.isoformat()!r}")
+    return value
 
 
 def local_date(instant: datetime, timezone: str) -> date:

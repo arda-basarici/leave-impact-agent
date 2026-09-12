@@ -124,6 +124,18 @@ def test_an_instant_span_refuses_an_unknown_zone_and_an_offset_that_is_not_the_z
         decode_value(skewed, INSTANT_SPAN_VALUE)
 
 
+def test_a_spelling_the_encoder_never_writes_is_refused_for_instants_and_dates() -> None:
+    zulu = {
+        "kind": "instant_span",
+        "value": {"start": "2026-07-01T09:00:00Z", "end": "2026-07-01T10:00:00Z", "zone": None},
+    }
+    with pytest.raises(ValueError, match="spelled '2026-07-01T09:00:00Z', canonical is"):
+        decode_value(zulu, INSTANT_SPAN_VALUE)
+    basic = {"kind": "date", "value": "20260701"}
+    with pytest.raises(ValueError, match="a date is spelled '20260701', canonical is '2026-07-01'"):
+        decode_value(basic, DATE_VALUE)
+
+
 def test_a_tag_that_disagrees_with_the_spec_is_refused_before_the_payload() -> None:
     with pytest.raises(ValueError, match="tagged 'text' where a skill is declared"):
         decode_value({"kind": "text", "value": "kafka"}, SKILL_VALUE)

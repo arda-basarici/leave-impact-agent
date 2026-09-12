@@ -16,10 +16,12 @@ field, never a ``KeyError`` from deep inside. Unknown fields are refused too, be
 sealed artifact grows only through this codec, and a field the decoder does not know is a
 version the reader does not understand.
 
-Instants come back with their IANA zone when the file carried one, and a timestamp whose
-offset is not that zone's at that instant is refused rather than converted, so the
-encoding of a decoding reproduces the bytes for every instant the decoder accepts, not
-only for bytes this project's encoder wrote; a bare offset stays a bare offset.
+Instants come back with their IANA zone when the file carried one; a timestamp whose
+offset is not that zone's at that instant is refused rather than converted, and so is any
+date or instant spelled other than the way the encoder writes it (``core``'s one rule for
+sealed codecs), so the encoding of a decoding reproduces the bytes for every value the
+decoder accepts, not only for bytes this project's encoder wrote; a bare offset stays a
+bare offset.
 """
 
 from __future__ import annotations
@@ -74,7 +76,7 @@ from leaveimpact.core.jsonshape import (
     string_field,
     string_item,
 )
-from leaveimpact.core.worldtime import DateSpan, instant_at
+from leaveimpact.core.worldtime import DateSpan, date_at, instant_at
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
@@ -391,7 +393,7 @@ def _ids[K: str](
 
 
 def _date(text: str) -> date:
-    return date.fromisoformat(text)
+    return date_at(text, "a date")
 
 
 def _optional_date(data: Mapping[str, object], key: str) -> date | None:

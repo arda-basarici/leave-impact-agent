@@ -173,6 +173,23 @@ def test_an_offset_that_is_not_the_zones_is_refused_not_normalized(sealed: Bundl
         decode_scenario_specs(canonical_bytes(specs))
 
 
+def test_a_spelling_the_encoder_never_writes_is_refused_for_instants_and_dates(
+    sealed: Bundle,
+) -> None:
+    # Each is what fromisoformat accepts and isoformat does not write; taking either would
+    # decode to a value whose re-encoding is not these bytes.
+    specs = cast(JsonObject, json.loads(sealed.scenario_specs.content))
+    now = cast(JsonObject, cast(list[JsonObject], specs["scenarios"])[0]["now"])
+    now["at"] = "2026-01-05T06:00:00Z"
+    now["timezone"] = "UTC"
+    with pytest.raises(ValueError, match="now is spelled '2026-01-05T06:00:00Z', canonical is"):
+        decode_scenario_specs(canonical_bytes(specs))
+    data = spec_json(sealed)
+    cast(JsonObject, data["provenance"])["world_start"] = "20260101"
+    with pytest.raises(ValueError, match="a date is spelled '20260101', canonical is '2026-01-01'"):
+        decode_world_spec(canonical_bytes(data))
+
+
 def test_a_boolean_where_a_count_belongs_is_refused(sealed: Bundle) -> None:
     data = spec_json(sealed)
     cast(JsonObject, data["provenance"])["interpreter"] = [3, True]
