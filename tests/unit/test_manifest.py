@@ -168,6 +168,8 @@ def test_a_receipt_folds_in_one_at_a_time_and_one_identity_has_one_place() -> No
         ValueError, match="already receipted at 'WAAAAAAAAAA-7', got 'WAAAAAAAAAA-9'"
     ):
         with_receipt(folded, work_item_ref(work_item_id(42)), "WAAAAAAAAAA-9")
+    with pytest.raises(ValueError, match="locator of .* is a non-empty string, got ''"):
+        with_receipt(folded, event_ref(event_id(8)), "")
     with pytest.raises(ValueError, match="no system receipts a clause"):
         with_receipt(folded, clause_ref(clause_id(11)), "somewhere")
     assert (

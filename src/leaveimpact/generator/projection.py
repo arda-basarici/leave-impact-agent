@@ -30,16 +30,20 @@ the next external write, and the root checkpoints it into the manifest before re
 a later projection failure cannot lose the receipt of an earlier completed write (the
 manifest-lifecycle ruling at the projector step). On a rerun a found entity produces no
 receipt, and needs none, since the checkpoint holds it. The calendar re-reports its
-derived id every run, which the fold absorbs. What the sink does not cover is a process
-death in the window between an external write returning and its checkpoint: the recovery
-contract is restartability after the faults the transport reports, not after a kill at
-any instruction, and no callback placement spans a vendor and a local file. That window
-is loud, never silent — the restart finds the record and receipts nothing, the
-post-projection coverage check refuses to accept the manifest, and the operator deletes
-the marked record and reruns. Read-side locator recovery is the revisit if the window is
-ever hit in practice; only Jira lacks a predictable locator today. A source that cannot
-answer raises ``SourceUnreachable`` through, unhandled: a projection with a dead system
-has nothing to record.
+derived id every run, which the fold absorbs.
+
+What the sink does not cover is the window between an external write returning and its
+durable checkpoint: a process death there, or a checkpoint that itself fails to persist,
+loses the locator, because the recovery contract is restartability after the faults the
+transport reports, not after a kill at any instruction, and no callback placement spans a
+vendor and a local file. That window is loud, never silent — the restart finds the record
+and receipts nothing, the post-projection coverage check refuses to accept the manifest,
+and the operator deletes the marked record and reruns. Read-side locator recovery is the
+revisit if the window is ever hit in practice; the locators the readers cannot reconstruct
+today are the vendor-minted ones — Jira issue keys and component ids, Frappe's generated
+leave names — while employees, teams, events and documents carry derived ones. A source
+that cannot answer raises ``SourceUnreachable`` through, unhandled: a projection with a
+dead system has nothing to record.
 """
 
 from __future__ import annotations

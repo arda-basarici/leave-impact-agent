@@ -270,7 +270,9 @@ def with_receipt(receipts: Receipts, ref: EntityRef, locator: str) -> Receipts:
 
     The same pair again is a no-op, so the calendar re-reporting its derived id on every run
     costs nothing; a different locator for an id already held refuses, since one identity has
-    one place in a system. A kind no system receipts — a clause, a comment — is a caller's bug.
+    one place in a system. An empty locator refuses here, at the one seam every receipt
+    crosses, so the manifest can never hold a value its own decoder rejects. A kind no system
+    receipts — a clause, a comment — is a caller's bug.
 
     >>> from leaveimpact.core.refs import team_ref
     >>> from leaveimpact.core.ids import team_id
@@ -278,6 +280,8 @@ def with_receipt(receipts: Receipts, ref: EntityRef, locator: str) -> Receipts:
     >>> dict(folded.people.teams)
     {'team_001': 'Department/Platform - WA1'}
     """
+    if not locator:
+        raise ValueError(f"the locator of {ref} is a non-empty string, got {locator!r}")
     people, work, calendar, documents = (
         receipts.people,
         receipts.work,
