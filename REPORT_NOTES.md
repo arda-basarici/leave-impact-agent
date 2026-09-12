@@ -7,6 +7,147 @@ decisions it feeds.
 
 ---
 
+## 2026-09-12 — The receipt nobody could read back: how a manifest became a checkpoint, and why "projected" stopped meaning "approved"
+
+*M1 step 10 of the build plan, the projection of the synthetic world into the four
+systems: the world manifest (`1bbf44a`, review `c27e25a`), the projectors (`81ba24e`,
+reviews `d6452a6` and `871ebc0`), the site inspections (`73a0546`) and the composition
+root (`925feed`, reviews `985c4ec` and `a9d8718`), all 2026-09-12; the unit suite went
+from 1509 to 1546 tests across the step, every projector and root test against
+in-memory ports, no sandbox touched (the `just check` runs of the session). Feeds: the
+M1 report's projection and restart-safety section, and its evaluation-integrity story —
+what the manifest's "projected" stage does and does not claim, and which layer proves
+what.*
+
+Step 10 was designed before it was coded, in an interview with an external reviewer
+who saw each question cold: one ruling per exchange, the reviewer's feedback answered
+point by point, then Arda's call. Seven rulings came out of that, and the interesting
+part of the step is that two of them did not survive contact with the code. The
+record below keeps both the rulings and the reversals, because the reversals are the
+story.
+
+**Seven rulings, most of which held.** The world manifest — the projection's receipt:
+which Frappe company, which Jira project and field ids, which Google calendar belongs
+to whom, and one locator per entity the projection wrote — went to the adapters
+package, the lowest rank that can type adapter configuration and world provenance
+together, so the generator writes it and the validator and the application decode it
+without either importing the generator. The residual window in the Jira identity
+marker (an issue can exist before its planted id lands, and a restart against a lagging
+search index could then create a second) was closed not by a checkpoint file but by a
+preparation guard that reads every issue in the project, marker filter off, and refuses
+an unmarked issue or a marker held twice, naming the keys for a human to delete; it
+runs before projection, where index lag can blind it, and again after, where the run's
+own duration has let the index catch up. The calendar map is persisted after each
+obtained calendar id, because Google mints those ids and the restricted scope the app
+runs under cannot list them back, so an id whose response is lost is an empty orphan
+only a human sees; per-calendar persistence bounds that at one orphan per interrupted
+attempt. The projectors got a per-system restart strategy rather than one algorithm:
+Frappe, Jira and the corpus find by domain id, verify the found record equals the
+planted one, and add what is missing; the calendar inserts directly, since its vendor
+event id is derived from the domain id and the insert is itself the ensure — a missing
+copy created, an existing one verified by read-back, a half-written event completed —
+whereas finding one event by id would cost one read per calendar and turn a
+recoverable partial write into an error. An existing record that differs became a
+third port fault, `IdentityConflict`, on the reviewer's point that the existing
+"malformed" fault means "cannot translate" and this record translated fine: the
+identity points at other state, and nothing adopts or overwrites it. A Frappe site
+inspection looks past the company for a world employee number another company on the
+site already holds, since employee names are unique per site and the ordinary reader
+is company-scoped by design. And the names a world takes in the vendors derive from its
+version — a Jira project key of `W` and nine hex digits, a company named by the same
+key — with the project's description carrying the full version so a found project can
+be verified by a read before anything is written into it.
+
+**The receipt nobody could read back.** The projectors commit (`81ba24e`) collected
+each system's locators in a local dictionary and returned them when the batch
+finished. The reviewer's finding was exact: a reader returns a domain entity and never
+a vendor locator, on purpose, so that vendor ids stay inside the adapters. Jira's issue
+key therefore exists in exactly one place, the writer's return value. If the source
+died after the third issue, the batch raised, the three locators were gone, and a
+restart would find the three issues, correctly not re-create them, and have no way to
+learn their keys. The same held for Frappe's generated leave names. The fix I proposed
+before the commit, when the shape first showed, was a third manifest stage —
+"projecting", with receipts growing under it — to preserve an invariant the first
+review round had introduced: that a manifest still preparing carries no receipts. The
+reviewer's fix was better and I said so: keep two stages, let receipts grow under
+"preparing", and give the projector a sink it calls with each locator before the next
+external write, so the root can checkpoint it durably. A third stage would have
+encoded internal workflow progress that nothing consumes, since a restart re-runs
+preparation anyway. Then the reviewer withdrew their own earlier invariant as too
+strong, in writing. The regression test that landed with the fix (`d6452a6`) does what
+the review asked: two writes land and reach the checkpoint, the source dies before the
+third entity is touched, the checkpoint survives into the rerun, the found two are not
+re-reported, and the union covers every planted id.
+
+The guarantee that came out is narrower than "crash-safe receipts", and the narrowing
+was the reviewer's second contribution on the same thread. What the sink proves is that
+a later projection failure cannot lose the receipt of an earlier completed write. What
+it cannot prove is survival of a process death, or a failed checkpoint, in the window
+between an external write returning and its locator reaching the file — there is no
+transaction spanning Jira and a local file, and no callback placement closes that. The
+project's recovery contract is restartability after the faults the transport reports,
+not after a kill at any instruction, and the docstring says exactly that. What I added
+to the record: the window is loud, never silent. A restart finds the record, receipts
+nothing for it, and the post-projection coverage check refuses to promote the
+manifest; the operator's remedy is the same as for any debris, delete the marked record
+and rerun. The reviewer's list of unrecoverable locators named Jira issue keys and
+Frappe leave names; reading the writers showed a third, Jira component ids, which the
+docstring now lists beside them (`871ebc0`).
+
+**What the root proves, and what it must not pretend to.** The composition root
+(`925feed`) drives the sequence the rulings fixed: resume from the stored manifest or
+start fresh, one calendar per employee with a save after each new id, the site
+inspections as a preflight allowing a subset of the world, the projectors with every
+receipt checkpointed, the inspections again demanding the exact set, a coverage proof,
+then the promotion to "projected". Its first review (`985c4ec`) found four things I
+had left open, all reproduced before triage and all adopted: the remembered calendar
+map was never scope-checked, so a checkpoint carrying a stranger's calendar would have
+widened the application's read surface, since the calendar adapter reads every
+configured calendar; a resumed checkpoint's header — digests, generator version,
+organisation parameters — was trusted rather than compared against the fresh values
+the root held; the coverage proof allowed foreign receipts; and the Frappe inspection
+silently skipped a company employee without a number. The resume now builds the
+fresh manifest every time and takes from the checkpoint only what grew in it, the
+calendar map and the receipts, after every header field is compared.
+
+The second review round asked for more, and this is where I pushed back. The
+reviewer's finding was that the postflight proves exactness only for employees and
+Jira issues, while the readers also enumerate leaves, components, events and
+documents: a foreign record of any of those kinds, carrying a valid planted-style id,
+would survive promotion and enter the investigator's fact surface, where the
+closed-world enumeration contract grades absence as known false. True, and the root's
+docstring had claimed "this world and nothing outside it". My answer was that the
+root's inspections exist for one class of failure — its own interrupted writes leaving
+state its find-or-create cannot see, which only Jira issues can do, since every other
+kind lands with its identity in one write — plus the integrity of its own checkpoint
+and the namespaces projection depends on. A foreign leave is not projection debris; it
+is contamination from outside the generator, improbable under per-world naming, and
+the independent proof that the live systems hold exactly the declared world is the
+validator's, the next step, which already re-reads every enumerable kind. Proving full
+exactness in the root and again in the validator would be the same proof twice, in the
+layer not built to give independent evidence. The reviewer agreed, called their own
+earlier recommendation a conflation of two guarantees, and tightened two things I
+would have left loose: the manifest's "projected" stage now means the projection
+lifecycle completed with the generator's own invariants proven, not that the world was
+independently accepted — only a validator-approved world is served — and the step-11
+claim is written explicitly as set equality of observed and expected identities per
+closed enumeration, missing and foreign both refused, over the named surfaces
+(`a9d8718`; the claim is in the step-11 plan, not yet code —
+[PRELIMINARY — the validator does not exist yet]). The one immediate change from that
+round, a foreign receipt refused on load before any vendor call, landed in the same
+commit.
+
+The division that came out of the argument reads, in the reviewer's words, cleaner
+than either of us had it at the start: the generator proves that its projection
+procedure converged safely and that its checkpoints are internally consistent; the
+validator proves that the realized world equals the declared one. Those are different
+questions, and the manifest's stage answers only the first.
+
+Figure: the checkpoint trail of one fresh run as a timeline — one save at the start,
+one per calendar, one per receipt, one promotion — against the trail of a run cut off
+after two work-item writes and resumed, showing where the second run's saves begin.
+The numbers come straight from the root's tests, which count the saves.
+
 ## 2026-09-12 — Four leaks and a rollback: what the adapter tranche learned about trusting a gate, a vendor, and a transaction
 
 *M1 step 9 of the build plan, the four adapters that carry the synthetic world into
