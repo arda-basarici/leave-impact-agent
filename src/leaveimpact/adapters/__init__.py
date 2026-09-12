@@ -17,7 +17,9 @@ level, not inside one sibling — ``transport``, the HTTP session under the retr
 where every request declares whether it is replayable; ``manifest``, the world
 manifest that aggregates the four configurations with the projection's receipts, written
 by the generator and decoded by every reader that builds adapters for a projected world;
-and ``filestore``, the whole-or-nothing file replacement under every local artifact,
+``filestore``, the whole-or-nothing file replacement under every local artifact,
 typed as bytes so the generator's manifest and the validator's verdict share it without
-either importing the other.
+either importing the other; and ``object_store``, the bucket the sealed world lands in,
+as a read protocol every consumer holds and a write protocol the import law admits to
+the generator alone, one concrete store per backend (S3, a local directory).
 """
