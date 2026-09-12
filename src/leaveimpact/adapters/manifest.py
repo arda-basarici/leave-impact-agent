@@ -30,11 +30,14 @@ and has two stages. Under ``preparing`` configuration and receipts may both be p
 the calendar map grows one person at a time, persisted after each obtained id, so an
 interrupted attempt orphans at most one empty calendar; the receipts grow one write at a
 time, folded in as the projectors report each locator, so a later failure cannot lose an
-earlier write's receipt. A preparing manifest is never served. ``projected`` means the
-configuration is resolved, the receipts cover every entity the world plants, the
-post-projection guards passed, and the manifest may be served; the composition root
-asserts the coverage, because only the world knows which ids exist. A decoder states the
-stage its caller can accept: the generator's restart takes either, the validator and the
+earlier write's receipt. A preparing manifest is nobody's input but the generator's own
+restart. ``projected`` means the projection lifecycle completed: the configuration is
+resolved, the receipts cover exactly the entities the world plants, and the composition
+root's own invariants passed — projection safety and recoverability, proven by the
+generator about its own work. It does not mean the realized world was independently
+accepted: that is the validator's verdict, a different lifecycle recorded in its own
+artifact, and only a validator-approved world is served. A decoder states the stage its
+caller can accept: the generator's restart takes either, the validator and the
 application require ``projected`` and refuse a checkpoint by name. A manifest is keyed by
 the world version it realized, and a reader handed one of another version refuses before
 using any recorded id (the manifest-lifecycle ruling at the projector step).
@@ -98,7 +101,7 @@ _SHA256_HEX = re.compile(r"[0-9a-f]{64}")
 
 
 class ManifestStage(StrEnum):
-    """Where the manifest is in its life: a checkpoint of preparation, or an accepted projection."""
+    """Where the manifest is in its life: a checkpoint of preparation, or a completed projection."""
 
     PREPARING = "preparing"
     PROJECTED = "projected"
@@ -401,7 +404,7 @@ def decode_manifest(content: bytes | str, *, stage: ManifestStage | None) -> Wor
 
     ``stage`` is what the caller can act on: the validator and the application pass
     ``PROJECTED``, because a checkpoint of an unfinished projection is not a world to
-    verify or serve; the generator's own restart passes ``None`` and takes either. Every
+    verify or configure from; the generator's own restart passes ``None`` and takes either. Every
     field is checked for shape here and for meaning by the domain constructors, so a
     manifest that decodes is one an adapter can be built from.
     """

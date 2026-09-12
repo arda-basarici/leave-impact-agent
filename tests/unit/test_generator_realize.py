@@ -3,8 +3,8 @@ receipt, proves the sites and the coverage, and promotes once; a run cut off dur
 preparation resumes with the known calendars verified and none re-created; a run cut off
 during projection resumes from its receipts and ends with every planted id receipted; a
 checkpoint of another world, of drifted site configuration, of a tampered header or with a
-foreign calendar is refused before any vendor call; debris in a site is refused before
-projection; the coverage proof is exact; the file store replaces atomically."""
+foreign calendar or a foreign receipt is refused before any vendor call; debris in a site
+is refused before projection; the coverage proof is exact; the file store replaces atomically."""
 
 from collections.abc import Iterable
 from dataclasses import dataclass, field, replace
@@ -325,6 +325,13 @@ def test_a_checkpoint_with_a_foreign_calendar_or_a_tampered_header_is_refused_be
     with pytest.raises(ProjectionRefused, match="on \\['artifacts', 'org_params'\\]"):
         realize(world, sealed, prepared(sealed), preparation, store)
     assert not preparation.created and not preparation.verified
+    foreign_receipt = with_receipt(accepted.receipts, work_item_ref(work_item_id(999)), "X-999")
+    store.current = replace(accepted, receipts=foreign_receipt)
+    saves = len(store.saved)
+    with pytest.raises(ProjectionRefused, match="never planted: \\['ticket_999'\\]"):
+        realize(world, sealed, prepared(sealed), preparation, store)
+    assert not preparation.created and not preparation.verified, "refused before any vendor call"
+    assert len(store.saved) == saves, "nothing checkpointed from a foreign checkpoint"
 
 
 def test_the_coverage_proof_is_exact_in_both_directions(world: WorldSpec, sealed: Bundle) -> None:

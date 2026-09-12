@@ -12,8 +12,23 @@ orphans at most one empty calendar. Then the two site inspections run as a prefl
 Frappe company and the Jira project may hold a subset of this world's ids and nothing
 outside it. Then the projectors run, every receipt checkpointed into the manifest before
 the next external write. Then the same inspections run as a postflight, this time demanding
-the exact set, the receipts are proven to cover every planted id, and only then does the
-stage move to ``projected`` — the one write a validator or the application will accept.
+the exact set, the receipts are proven to cover exactly the planted ids, and only then does
+the stage move to ``projected``.
+
+What that stage proves is bounded on purpose. The root's external inspections exist to
+establish projection safety and recoverability — that an interrupted run of its own left no
+state its find-or-create cannot see, that a resumed checkpoint is this realization's and
+internally consistent, that the namespaces and configuration projection depends on are this
+world's — and not to certify the complete fact surface the investigator will read. A
+foreign leave, component, event or document carrying a valid id is contamination from
+outside the generator, not projection debris: every such kind lands with its identity in
+one write, so none can exist half-identified the way a Jira issue can before its marker
+lands. Proving that every closed enumeration the investigator sees holds exactly this
+world's identities, missing and foreign both refused, is the validator's claim, the
+independent reread at the next step; the generator certifying its own complete output
+would be that proof twice, in the layer not meant to give independent evidence. So
+``projected`` means the projection lifecycle completed, and a world is served only once
+the validator has approved it (the exactness ruling at the projector step).
 
 The root holds policy and sequence; the facts come from two seams. ``Preparation`` is what
 the root needs from the systems interleaved with its checkpoints: one calendar per call,
@@ -167,6 +182,7 @@ def realize(
     """Project ``world`` into the prepared systems, checkpointing into ``store``; the manifest."""
     entities = world_entities(world)
     manifest = _starting_point(store.load(), world, sealed, prepared)
+    check_receipts_planted(manifest.receipts, entities)
     store.save(manifest)
 
     employee_ids = frozenset(employee.id for employee in entities.employees)
@@ -303,9 +319,33 @@ def check_scope(
         raise ProjectionRefused(f"{what} lacks {missing} after projection")
 
 
+def check_receipts_planted(receipts: Receipts, entities: WorldEntities) -> None:
+    """No receipt names an id this world never planted, or refuse before any vendor call.
+
+    Receipts are the generator's own local state, so a foreign one means the checkpoint is
+    corrupt or another realization's — refused on load, never after external mutation.
+    """
+    foreign = sorted(_receipted(receipts) - _planted(entities))
+    if foreign:
+        raise ProjectionRefused(
+            f"receipts for ids this world never planted: {foreign} — the checkpoint is not "
+            "this realization's"
+        )
+
+
 def check_coverage(receipts: Receipts, entities: WorldEntities) -> None:
     """Exactly the planted ids have receipts, or refuse naming the ones missing or foreign."""
-    receipted: set[str] = set()
+    missing = sorted(_planted(entities) - _receipted(receipts))
+    if missing:
+        raise ProjectionRefused(
+            f"no receipt for {missing}: written and never checkpointed, or never written — "
+            "delete the marked records and rerun"
+        )
+    check_receipts_planted(receipts, entities)
+
+
+def _receipted(receipts: Receipts) -> set[str]:
+    ids: set[str] = set()
     for held in (
         receipts.people.teams,
         receipts.people.employees,
@@ -315,8 +355,12 @@ def check_coverage(receipts: Receipts, entities: WorldEntities) -> None:
         receipts.calendar.events,
         receipts.documents.documents,
     ):
-        receipted.update(held)
-    planted = {
+        ids.update(held)
+    return ids
+
+
+def _planted(entities: WorldEntities) -> set[str]:
+    return {
         entity.id
         for kind in (
             entities.teams,
@@ -329,15 +373,3 @@ def check_coverage(receipts: Receipts, entities: WorldEntities) -> None:
         )
         for entity in kind
     }
-    missing = sorted(planted - receipted)
-    if missing:
-        raise ProjectionRefused(
-            f"no receipt for {missing}: written and never checkpointed, or never written — "
-            "delete the marked records and rerun"
-        )
-    foreign = sorted(receipted - planted)
-    if foreign:
-        raise ProjectionRefused(
-            f"receipts for ids this world never planted: {foreign} — the checkpoint is not "
-            "this realization's"
-        )
