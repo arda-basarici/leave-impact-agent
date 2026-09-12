@@ -56,11 +56,16 @@ _DENIED_EDGES: dict[str, frozenset[str]] = {
 # that realize a world may import a module that declares one. An allowlist rather than a
 # denied edge, so a re-export from anywhere else (``core/__init__`` included) is caught
 # too; and no ``__init__`` may name a gated module at all, since a package that re-exported
-# the writer would put it behind an import the law reads as the package. Two gated
-# modules: the vendor write ports, and the object store's writer (step 12 ruling).
+# the writer would put it behind an import the law reads as the package. Gated: the
+# vendor write ports, the object store's writer protocol, and the concrete writers'
+# modules — a protocol gate alone left ``S3ObjectStore.overwrite`` nameable from the
+# validator (the step 12 part-1 review), so the concrete classes are split by capability
+# and the writing half of each backend is gated with the protocol.
 _GATED_WRITE_MODULES: dict[tuple[str, ...], frozenset[str]] = {
     ("core", "ports", "write"): frozenset({"adapters", "generator"}),
     ("adapters", "object_store", "write"): frozenset({"adapters", "generator"}),
+    ("adapters", "object_store", "s3_write"): frozenset({"adapters", "generator"}),
+    ("adapters", "object_store", "local_write"): frozenset({"adapters", "generator"}),
 }
 _PURE = frozenset({"core", "world"})
 # The top level is the package docstring and the composition root, nothing else: a module

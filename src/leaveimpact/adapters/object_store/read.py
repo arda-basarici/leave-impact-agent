@@ -8,13 +8,18 @@ contents, so an enumeration of a world's documents is cheap and a consumer fetch
 objects it decides to.
 
 Absence is a value, not a fault, as everywhere in the ports: a key that is not there is
-``None`` and an empty prefix is an empty tuple. The two faults here are the store's, not
-the vendor's — the vendor's own exception never leaves the concrete store — and they are
-kept apart because a caller treats them differently: ``AccessRefused`` means the
-principal is not allowed the operation, which for the validator on the truth bucket is
-the boundary working as designed and for the generator on its own bucket is a
-misconfiguration to fail loudly on; ``ObjectStoreUnreachable`` means the store did not
-answer, a run condition and never a fact about the world.
+``None`` and an empty prefix is an empty tuple. The faults are the store's, never the
+vendor's — a concrete store translates every exception its SDK raises, on the request
+and on the response body alike, and the vocabulary is closed at three so a caller can
+tell them apart without knowing what the store is backed by. ``AccessRefused``: the
+store answered that the principal may not perform the operation, which for the
+validator on the truth bucket is the boundary working as designed and for the generator
+on its own bucket is a misconfiguration to fail loudly on. ``ObjectStoreUnreachable``:
+the store did not answer, or its answer broke off, a run condition and never a fact
+about the world. ``ObjectStoreMisconfigured``: the store answered that the request
+itself is wrong or answered something the contract cannot use — a bucket that does not
+exist, an invalid argument, an unversioned bucket, no credentials in the environment
+at all — the operator's to fix, and never retried.
 """
 
 from __future__ import annotations
@@ -46,10 +51,19 @@ class AccessRefused(Exception):
 
 
 class ObjectStoreUnreachable(Exception):
-    """The store did not answer ``operation``; the vendor fault is the cause."""
+    """The store did not answer ``operation``, or its answer broke off; the cause is chained."""
 
     def __init__(self, operation: str, key: str) -> None:
         super().__init__(f"object store unreachable during {operation} on {key!r}")
+        self.operation = operation
+        self.key = key
+
+
+class ObjectStoreMisconfigured(Exception):
+    """The store answered ``operation`` with a rejection or an answer the contract cannot use."""
+
+    def __init__(self, operation: str, key: str, reason: str) -> None:
+        super().__init__(f"object store misconfigured for {operation} on {key!r}: {reason}")
         self.operation = operation
         self.key = key
 

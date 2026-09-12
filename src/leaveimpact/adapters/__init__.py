@@ -21,5 +21,6 @@ by the generator and decoded by every reader that builds adapters for a projecte
 typed as bytes so the generator's manifest and the validator's verdict share it without
 either importing the other; and ``object_store``, the bucket the sealed world lands in,
 as a read protocol every consumer holds and a write protocol the import law admits to
-the generator alone, one concrete store per backend (S3, a local directory).
+the generator alone, each backend (S3, a local directory) a reader class and a gated
+writer subclass so the boundary holds at runtime too.
 """

@@ -14,16 +14,22 @@ import io
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import boto3
 import pytest
 from botocore.response import StreamingBody
 from botocore.stub import Stubber
 
-from leaveimpact.adapters.object_store import AccessRefused, ObjectStoreUnreachable
-from leaveimpact.adapters.object_store.local import LocalObjectStore
-from leaveimpact.adapters.object_store.s3 import S3ObjectStore
+from leaveimpact.adapters.object_store import (
+    AccessRefused,
+    ObjectStoreMisconfigured,
+    ObjectStoreUnreachable,
+)
+from leaveimpact.adapters.object_store.local import LocalObjectReader
+from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
+from leaveimpact.adapters.object_store.s3 import S3ObjectReader
+from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
 from leaveimpact.adapters.object_store.write import ObjectConflict, ObjectWriter, PutOutcome
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 
@@ -39,7 +45,7 @@ def _sha256(content: bytes) -> str:
 def store(request: pytest.FixtureRequest, tmp_path: Path) -> ObjectWriter:
     if request.param == "memory":
         return InMemoryObjectStore()
-    return LocalObjectStore(tmp_path / "bucket")
+    return LocalObjectWriter(tmp_path / "bucket")
 
 
 def test_absent_is_none_and_an_empty_prefix_is_empty(store: ObjectWriter) -> None:
@@ -99,15 +105,27 @@ def test_listing_is_by_string_prefix_not_by_directory(store: ObjectWriter) -> No
     assert store.list_keys("worlds/abc/documents/doc_1") == ("worlds/abc/documents/doc_1.json",)
 
 
-def test_the_local_twin_refuses_a_path_escaping_key(tmp_path: Path) -> None:
-    local = LocalObjectStore(tmp_path / "bucket")
-    for key in ("", "worlds//x", "../x", "worlds/../x"):
+def test_the_local_twin_refuses_a_key_outside_the_grammar_on_every_platform(
+    tmp_path: Path,
+) -> None:
+    local = LocalObjectWriter(tmp_path / "bucket")
+    for key in ("", "worlds//x", "../x", "worlds/../x", "worlds\\..\\..\\x", "C:/x", "a b"):
         with pytest.raises(ValueError):
             local.put_if_absent(key, b"x")
+        with pytest.raises(ValueError):
+            local.get(key)
+    assert not (tmp_path / "bucket").exists(), "nothing was written anywhere"
+
+
+def test_the_readers_carry_no_write_method_at_runtime(tmp_path: Path) -> None:
+    local = LocalObjectReader(tmp_path / "bucket")
+    s3, _ = _stubbed_reader()
+    for reader in (local, s3):
+        assert not hasattr(reader, "put_if_absent") and not hasattr(reader, "overwrite")
 
 
 def test_the_local_twin_ignores_a_staged_temporary_in_listings(tmp_path: Path) -> None:
-    local = LocalObjectStore(tmp_path / "bucket")
+    local = LocalObjectWriter(tmp_path / "bucket")
     local.overwrite(MUTABLE, b"p")
     (tmp_path / "bucket" / "preparing" / "abc" / "world-manifest.json.tmp").write_bytes(b"half")
     assert local.list_keys("preparing/") == (MUTABLE,)
@@ -135,14 +153,23 @@ def _body(content: bytes) -> StreamingBody:
     return StreamingBody(io.BytesIO(content), len(content))
 
 
-def _stubbed() -> tuple[S3ObjectStore, Stubber]:
-    client = boto3.client(  # pyright: ignore[reportUnknownMemberType]
+def _client() -> Any:
+    return boto3.client(  # pyright: ignore[reportUnknownMemberType]
         "s3",
         region_name="eu-central-1",
         aws_access_key_id="stub",
         aws_secret_access_key="stub",
     )
-    return S3ObjectStore(client, BUCKET), Stubber(client)
+
+
+def _stubbed() -> tuple[S3ObjectWriter, Stubber]:
+    client = _client()
+    return S3ObjectWriter(client, BUCKET), Stubber(client)
+
+
+def _stubbed_reader() -> tuple[S3ObjectReader, Stubber]:
+    client = _client()
+    return S3ObjectReader(client, BUCKET), Stubber(client)
 
 
 def _get_response(content: bytes, version: str) -> dict[str, Any]:
@@ -257,13 +284,39 @@ def test_s3_an_empty_listing_has_no_contents_field_and_pages_are_joined() -> Non
     )
 
 
-def test_s3_a_put_without_a_version_id_is_a_fault_not_a_receipt() -> None:
+def test_s3_a_put_without_a_version_id_is_misconfiguration_not_a_receipt() -> None:
     store, stub = _stubbed()
     stub.add_response(
         "put_object", {"ETag": '"e"'}, {"Bucket": BUCKET, "Key": MUTABLE, "Body": CONTENT}
     )
-    with stub, pytest.raises(ValueError, match="not versioned"):
+    with stub, pytest.raises(ObjectStoreMisconfigured, match="not versioned"):
         store.overwrite(MUTABLE, CONTENT)
+
+
+def test_s3_an_unclassified_rejection_is_misconfiguration_never_the_vendor_class() -> None:
+    store, stub = _stubbed_reader()
+    stub.add_client_error(
+        "get_object",
+        service_error_code="InvalidRequest",
+        service_message="the request is not valid",
+        http_status_code=400,
+    )
+    with stub, pytest.raises(ObjectStoreMisconfigured, match="InvalidRequest") as raised:
+        store.get(FINAL)
+    assert raised.value.__cause__ is not None
+
+
+def test_s3_a_body_that_breaks_off_is_unreachable_not_a_builtin_error() -> None:
+    class Broken(io.RawIOBase):
+        def read(self, size: int = -1) -> bytes:
+            raise ConnectionResetError("reset mid-stream")
+
+    store, stub = _stubbed_reader()
+    response = _get_response(CONTENT, "v")
+    response["Body"] = StreamingBody(cast("Any", Broken()), len(CONTENT))
+    stub.add_response("get_object", response, {"Bucket": BUCKET, "Key": FINAL})
+    with stub, pytest.raises(ObjectStoreUnreachable):
+        store.get(FINAL)
 
 
 def test_s3_a_server_fault_is_unreachable_and_a_vendor_error_never_leaves() -> None:
