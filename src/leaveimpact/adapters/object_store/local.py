@@ -11,11 +11,15 @@ The writer is a subclass in ``local_write``, gated like the S3 writer's module.
 Keys are S3's, ``/``-separated, and this module fixes their grammar for the whole
 project rather than trusting the host's path rules: a key is one or more segments of
 letters, digits, ``.``, ``_`` and ``-``, none empty and none ``.`` or ``..``. That is
-what the generator's keys are made of (hex versions, ids, file names), and it is what
-keeps the twin inside its root on every platform — a backslash is a separator to
-Windows, and a segment like ``C:`` re-roots a joined path there, so both are refused by
-the grammar before a path is ever built, on POSIX too, so a key that would escape on
-one development platform is refused on all of them.
+what the generator's keys are made of (hex versions, ids, file names). The grammar
+refuses the separator and re-rooting forms a key must never carry — ``..``, an empty
+segment, a backslash (a separator to Windows), a segment like ``C:`` (which re-roots a
+joined path there) — before a path is ever built, on POSIX too, so a key that would
+escape on one development platform is refused on all of them. It does not model the
+rest of a host's file-name rules (Windows reserves bare names such as ``CON`` and
+normalizes a trailing dot); the project's keys, made of prefixed ids and fixed file
+names, never produce such a component, and the twin is a development convenience over
+generator-made keys, not a boundary against arbitrary input.
 """
 
 from __future__ import annotations

@@ -20,11 +20,17 @@ serve the immutability rule.
 
 The vendor's exceptions never leave, on the request or on the body: the SDK's own
 retries (the standard mode) run first, and what remains is translated by ``translated``
-into the closed vocabulary of ``read`` — ``AccessDenied`` to ``AccessRefused``; a
-connection or timeout fault, a 5xx, or a body that breaks off mid-stream to
-``ObjectStoreUnreachable``; every other rejection the store answers with (a 4xx that is
-not authorization, a bucket that does not exist, missing credentials) to
-``ObjectStoreMisconfigured`` — with the SDK's error chained as the cause for the log.
+into the closed vocabulary of ``read`` — ``AccessDenied`` to ``AccessRefused``; a 5xx
+to ``ObjectStoreUnreachable``; every other rejection the store answers with (a 4xx that
+is not authorization, a bucket that does not exist) to ``ObjectStoreMisconfigured`` —
+with the SDK's error chained as the cause for the log. Unreachable is an allowlist, not
+a fallback: the SDK's ``ConnectionError`` and ``HTTPClientError`` branches (endpoint,
+proxy, TLS and timeout faults, a closed connection, a streaming fault), its
+``IncompleteReadError`` (a body shorter than announced), and the interpreter's
+``OSError`` from a body stream that resets. Every other SDK fault is raised before a
+request leaves the process or names a broken setup — a parameter the SDK refuses, an
+unknown region, no credentials, a pagination error — and is ``ObjectStoreMisconfigured``,
+so a local defect is never mistaken for a transient run condition (the part-2 review).
 """
 
 from __future__ import annotations
@@ -33,7 +39,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError, NoCredentialsError
+from botocore.exceptions import BotoCoreError, ClientError, HTTPClientError, IncompleteReadError
+from botocore.exceptions import ConnectionError as TransportConnectionError
 
 from leaveimpact.adapters.object_store.read import (
     AccessRefused,
@@ -105,12 +112,12 @@ def translated[T](operation: str, key: str, call: Callable[[], T]) -> T:
         return call()
     except ClientError as error:
         raise _client_fault(operation, key, error) from error
-    except NoCredentialsError as error:
-        raise ObjectStoreMisconfigured(
-            operation, key, "no AWS credentials in the environment"
-        ) from error
-    except BotoCoreError as error:
+    except (TransportConnectionError, HTTPClientError, IncompleteReadError) as error:
         raise ObjectStoreUnreachable(operation, key) from error
+    except BotoCoreError as error:
+        raise ObjectStoreMisconfigured(
+            operation, key, f"{type(error).__name__}: {error}"
+        ) from error
     except OSError as error:
         # The body's stream is a socket under the SDK; a reset or a timeout while it is
         # consumed arrives as the interpreter's own error, not the SDK's.

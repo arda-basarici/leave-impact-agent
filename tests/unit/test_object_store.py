@@ -18,6 +18,7 @@ from typing import Any, cast
 
 import boto3
 import pytest
+from botocore.exceptions import EndpointConnectionError, IncompleteReadError, ParamValidationError
 from botocore.response import StreamingBody
 from botocore.stub import Stubber
 
@@ -28,7 +29,7 @@ from leaveimpact.adapters.object_store import (
 )
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
-from leaveimpact.adapters.object_store.s3 import S3ObjectReader
+from leaveimpact.adapters.object_store.s3 import S3ObjectReader, translated
 from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
 from leaveimpact.adapters.object_store.write import ObjectConflict, ObjectWriter, PutOutcome
 from tests.unit.in_memory_object_store import InMemoryObjectStore
@@ -304,6 +305,26 @@ def test_s3_an_unclassified_rejection_is_misconfiguration_never_the_vendor_class
     with stub, pytest.raises(ObjectStoreMisconfigured, match="InvalidRequest") as raised:
         store.get(FINAL)
     assert raised.value.__cause__ is not None
+
+
+def test_s3_unreachable_is_an_allowlist_and_a_local_sdk_fault_is_misconfiguration() -> None:
+    def raising(error: Exception) -> Callable[[], None]:
+        def call() -> None:
+            raise error
+
+        return call
+
+    for transport in (
+        EndpointConnectionError(endpoint_url="https://s3.eu-central-1.amazonaws.com"),
+        IncompleteReadError(actual_bytes=3, expected_bytes=7),
+    ):
+        with pytest.raises(ObjectStoreUnreachable) as raised:
+            translated("get", FINAL, raising(transport))
+        assert raised.value.__cause__ is transport
+    local = ParamValidationError(report="Invalid type for parameter Key")
+    with pytest.raises(ObjectStoreMisconfigured, match="ParamValidationError") as raised:
+        translated("get", FINAL, raising(local))
+    assert raised.value.__cause__ is local
 
 
 def test_s3_a_body_that_breaks_off_is_unreachable_not_a_builtin_error() -> None:
