@@ -1,20 +1,18 @@
-"""The manifest on disk: one file, replaced atomically, decoded at any stage.
+"""The manifest on disk: the composition root's checkpoint store, decoded at any stage.
 
-The store the composition root checkpoints into between and during runs. ``save`` writes
-the canonical bytes to a sibling temporary file, flushes them to the device, and renames
-over the manifest, so a reader — a restart, a validator — sees the whole previous manifest
-or the whole new one and never a truncated middle; the rename is atomic on one volume on
-both platforms the project runs on. ``load`` decodes without demanding a stage, because the
-root resumes from a checkpoint as readily as from an accepted projection; the validator and
-the application decode the same file themselves with ``projected`` required. The world
-bucket copy is the sealing step's, not this store's.
+The store the root checkpoints into between and during runs, riding the byte primitive in
+``adapters.filestore`` for the whole-or-nothing replacement a restart depends on; what is
+typed here is only the manifest's codec on both sides. ``load`` decodes without demanding a
+stage, because the root resumes from a checkpoint as readily as from an accepted projection;
+the validator and the application decode the same file themselves with ``projected``
+required. The world bucket copy is the sealing step's, not this store's.
 """
 
 from __future__ import annotations
 
-import os
 from pathlib import Path
 
+from leaveimpact.adapters.filestore import read_if_present, replace_atomically
 from leaveimpact.adapters.manifest import WorldManifest, decode_manifest, manifest_bytes
 
 
@@ -29,14 +27,8 @@ class FileManifestStore:
         return self._path
 
     def load(self) -> WorldManifest | None:
-        if not self._path.exists():
-            return None
-        return decode_manifest(self._path.read_bytes(), stage=None)
+        content = read_if_present(self._path)
+        return None if content is None else decode_manifest(content, stage=None)
 
     def save(self, manifest: WorldManifest) -> None:
-        staged = self._path.with_name(self._path.name + ".tmp")
-        with staged.open("wb") as handle:
-            handle.write(manifest_bytes(manifest))
-            handle.flush()
-            os.fsync(handle.fileno())
-        os.replace(staged, self._path)
+        replace_atomically(self._path, manifest_bytes(manifest))

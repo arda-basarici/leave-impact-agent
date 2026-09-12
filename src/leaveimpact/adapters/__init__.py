@@ -14,7 +14,10 @@ agent flavour — so the generator's principal and the investigator's read princ
 in authority and share transport. And siblings never import one another: cross-system
 orchestration lives above the adapters; a helper shared by all of them lives at this
 level, not inside one sibling — ``transport``, the HTTP session under the retry rule,
-where every request declares whether it is replayable, and ``manifest``, the world
+where every request declares whether it is replayable; ``manifest``, the world
 manifest that aggregates the four configurations with the projection's receipts, written
-by the generator and decoded by every reader that builds adapters for a projected world.
+by the generator and decoded by every reader that builds adapters for a projected world;
+and ``filestore``, the whole-or-nothing file replacement under every local artifact,
+typed as bytes so the generator's manifest and the validator's verdict share it without
+either importing the other.
 """
