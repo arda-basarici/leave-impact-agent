@@ -1,7 +1,7 @@
 """The world manifest: a projected manifest round-trips through canonical bytes that depend on
 its value and never on insertion order; a reader states the stage it can act on and a
 checkpoint is refused by name; the record refuses a digest set that is not the three roles
-once each, a checkpoint carrying receipts and a corpus scope of another world; the seed,
+once each and a corpus scope of another world; a receipt folds in one at a time; the seed,
 credentials and every entity, key and fact type are structurally absent; and a malformed
 file fails at decode, field by field."""
 
@@ -33,10 +33,12 @@ from leaveimpact.adapters.manifest import (
     decode_manifest,
     encode_manifest,
     manifest_bytes,
+    with_receipt,
 )
-from leaveimpact.core import Source
+from leaveimpact.core import EntityKind, EntityRef, Source, clause_ref, event_ref, work_item_ref
 from leaveimpact.core.ids import (
     WorldVersion,
+    clause_id,
     component_id,
     document_id,
     employee_id,
@@ -138,7 +140,7 @@ def test_the_bytes_depend_on_the_value_and_not_on_insertion_order() -> None:
     ]
 
 
-def test_a_preparing_manifest_carries_configuration_and_no_receipts() -> None:
+def test_a_preparing_manifest_may_carry_partial_configuration_and_partial_receipts() -> None:
     checkpoint = manifest(ManifestStage.PREPARING)
     encoded = encode_manifest(checkpoint)
     assert encoded["receipts"] == {
@@ -148,6 +150,30 @@ def test_a_preparing_manifest_carries_configuration_and_no_receipts() -> None:
         "documents": {"documents": {}},
     }
     assert decode_manifest(manifest_bytes(checkpoint), stage=None) == checkpoint
+    partial = manifest(
+        ManifestStage.PREPARING, receipts=with_receipt(Receipts(), event_ref(event_id(7)), "abc")
+    )
+    assert decode_manifest(manifest_bytes(partial), stage=None) == partial
+
+
+def test_a_receipt_folds_in_one_at_a_time_and_one_identity_has_one_place() -> None:
+    folded = with_receipt(Receipts(), work_item_ref(work_item_id(42)), "WAAAAAAAAAA-7")
+    folded = with_receipt(folded, event_ref(event_id(7)), "1f9a0b3c" * 5)
+    assert dict(folded.work.work_items) == {work_item_id(42): "WAAAAAAAAAA-7"}
+    assert dict(folded.calendar.events) == {event_id(7): "1f9a0b3c" * 5}
+    assert folded.people == PeopleReceipts() and folded.documents == DocumentReceipts()
+    again = with_receipt(folded, event_ref(event_id(7)), "1f9a0b3c" * 5)
+    assert again == folded, "the calendar re-reports its derived id every run"
+    with pytest.raises(
+        ValueError, match="already receipted at 'WAAAAAAAAAA-7', got 'WAAAAAAAAAA-9'"
+    ):
+        with_receipt(folded, work_item_ref(work_item_id(42)), "WAAAAAAAAAA-9")
+    with pytest.raises(ValueError, match="no system receipts a clause"):
+        with_receipt(folded, clause_ref(clause_id(11)), "somewhere")
+    assert (
+        with_receipt(RECEIPTS, EntityRef(EntityKind.TEAM, "team_002"), "Department/Data - WA1")
+        != RECEIPTS
+    )
 
 
 # --- The stage gate ----------------------------------------------------------------------
@@ -290,11 +316,6 @@ def test_a_sealed_bundle_s_digests_record_under_their_roles_and_names() -> None:
         artifact.name for artifact in sealed.artifacts
     ]
     assert decode_manifest(manifest_bytes(recorded), stage=ManifestStage.PROJECTED) == recorded
-
-
-def test_a_preparing_manifest_refuses_receipts() -> None:
-    with pytest.raises(ValueError, match="preparing manifest carries no receipts"):
-        manifest(ManifestStage.PREPARING, receipts=RECEIPTS)
 
 
 def test_an_artifact_named_under_another_role_s_file_fails_at_decode() -> None:

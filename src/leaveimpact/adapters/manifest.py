@@ -25,15 +25,19 @@ strings and provenance, so deleting the manifest after identity resolution loses
 that can change a scenario's answer (DESIGN, "Benchmark state is split by audience and
 authority").
 
-The manifest is also the projection's checkpoint, so its lifecycle is explicit. Under
-``preparing`` it holds the configuration as far as preparation has resolved it — the
-calendar map grows one person at a time, persisted after each obtained id, so an
-interrupted attempt orphans at most one empty calendar — and no receipts; the
-post-projection checks are what move it to ``projected``. A decoder states the stage its
-caller can accept: the generator's restart takes either, the validator and the application
-require ``projected`` and refuse a checkpoint by name. A manifest is keyed by the world
-version it realized, and a reader handed one of another version refuses before using any
-recorded id (the calendar-map persistence ruling).
+The manifest is also the projection's durable checkpoint, so its lifecycle is explicit
+and has two stages. Under ``preparing`` configuration and receipts may both be partial:
+the calendar map grows one person at a time, persisted after each obtained id, so an
+interrupted attempt orphans at most one empty calendar; the receipts grow one write at a
+time, folded in as the projectors report each locator, so a later failure cannot lose an
+earlier write's receipt. A preparing manifest is never served. ``projected`` means the
+configuration is resolved, the receipts cover every entity the world plants, the
+post-projection guards passed, and the manifest may be served; the composition root
+asserts the coverage, because only the world knows which ids exist. A decoder states the
+stage its caller can accept: the generator's restart takes either, the validator and the
+application require ``projected`` and refuse a checkpoint by name. A manifest is keyed by
+the world version it realized, and a reader handed one of another version refuses before
+using any recorded id (the manifest-lifecycle ruling at the projector step).
 
 Receipts are one locator per domain id per system, every entity kind alike, derived ids
 included: what was projected, in one place, whatever minted the id. The calendar's receipt
@@ -50,7 +54,7 @@ from __future__ import annotations
 import json
 import re
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from types import MappingProxyType
 
@@ -58,7 +62,7 @@ from leaveimpact.adapters.calendar.adapter import CalendarConfig
 from leaveimpact.adapters.corpus.adapter import CorpusConfig
 from leaveimpact.adapters.frappe.adapter import FrappeConfig
 from leaveimpact.adapters.jira.adapter import JiraConfig, JiraFields
-from leaveimpact.core.enums import Source
+from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.ids import (
     ComponentId,
     DocumentId,
@@ -80,6 +84,7 @@ from leaveimpact.core.jsonshape import (
     object_field,
     string_field,
 )
+from leaveimpact.core.refs import EntityRef
 from leaveimpact.world.artifacts import SCENARIO_SPECS, TRUTH_MANIFEST, WORLD_SPEC
 from leaveimpact.world.org import OrgParams, decode_org_params, encode_org_params
 from leaveimpact.world.version import GeneratorVersion
@@ -202,7 +207,7 @@ class DocumentReceipts:
 
 @dataclass(frozen=True, slots=True)
 class Receipts:
-    """What projection wrote, per system; empty while the manifest is still preparing."""
+    """What projection wrote, per system; grows one fold at a time while the manifest prepares."""
 
     people: PeopleReceipts = field(default_factory=PeopleReceipts)
     work: WorkReceipts = field(default_factory=WorkReceipts)
@@ -214,11 +219,10 @@ class Receipts:
 class WorldManifest:
     """The receipt of one projected world, at one stage of its life.
 
-    Construction refuses a digest set that is not exactly the three roles once each, a
-    checkpoint that carries receipts — nothing has been projected while the manifest is
-    preparing, so a receipt there is a lifecycle contradiction — and a corpus configuration
-    scoped to another world version than the manifest's own: the inconsistencies a
-    hand-edited or mis-assembled manifest could carry that no field type catches. The
+    Construction refuses a digest set that is not exactly the three roles once each and a
+    corpus configuration scoped to another world version than the manifest's own: the
+    inconsistencies a hand-edited or mis-assembled manifest could carry that no field type
+    catches. Partial receipts are legitimate at either stage as far as this record knows. The
     artifacts are kept in the world's hashing order whatever order they were given in, so
     two manifests of one world compare equal. Completeness of the receipts is the
     composition root's to assert, because only the world knows which ids exist.
@@ -248,10 +252,6 @@ class WorldManifest:
             "artifacts",
             tuple(sorted(self.artifacts, key=lambda artifact: order.index(artifact.role))),
         )
-        if self.stage is ManifestStage.PREPARING and self.receipts != Receipts():
-            raise ValueError(
-                "a preparing manifest carries no receipts: nothing has been projected yet"
-            )
         if self.systems.corpus.world_version != self.world_version:
             raise ValueError(
                 f"the corpus configuration is scoped to {self.systems.corpus.world_version}, "
@@ -263,6 +263,63 @@ class WorldManifest:
         """The recorded digest of the artifact in ``role``."""
         (found,) = (artifact for artifact in self.artifacts if artifact.role is role)
         return found.digest
+
+
+def with_receipt(receipts: Receipts, ref: EntityRef, locator: str) -> Receipts:
+    """``receipts`` with ``locator`` recorded for ``ref``; the fold the composition root persists.
+
+    The same pair again is a no-op, so the calendar re-reporting its derived id on every run
+    costs nothing; a different locator for an id already held refuses, since one identity has
+    one place in a system. A kind no system receipts — a clause, a comment — is a caller's bug.
+
+    >>> from leaveimpact.core.refs import team_ref
+    >>> from leaveimpact.core.ids import team_id
+    >>> folded = with_receipt(Receipts(), team_ref(team_id(1)), "Department/Platform - WA1")
+    >>> dict(folded.people.teams)
+    {'team_001': 'Department/Platform - WA1'}
+    """
+    people, work, calendar, documents = (
+        receipts.people,
+        receipts.work,
+        receipts.calendar,
+        receipts.documents,
+    )
+    match ref.kind:
+        case EntityKind.TEAM:
+            people = replace(people, teams=_held(people.teams, TeamId(ref.id), locator, ref))
+        case EntityKind.EMPLOYEE:
+            people = replace(
+                people, employees=_held(people.employees, EmployeeId(ref.id), locator, ref)
+            )
+        case EntityKind.LEAVE:
+            people = replace(people, leaves=_held(people.leaves, LeaveId(ref.id), locator, ref))
+        case EntityKind.COMPONENT:
+            work = replace(
+                work, components=_held(work.components, ComponentId(ref.id), locator, ref)
+            )
+        case EntityKind.WORK_ITEM:
+            work = replace(
+                work, work_items=_held(work.work_items, WorkItemId(ref.id), locator, ref)
+            )
+        case EntityKind.EVENT:
+            calendar = replace(
+                calendar, events=_held(calendar.events, EventId(ref.id), locator, ref)
+            )
+        case EntityKind.DOCUMENT:
+            documents = replace(
+                documents,
+                documents=_held(documents.documents, DocumentId(ref.id), locator, ref),
+            )
+        case _:
+            raise ValueError(f"no system receipts a {ref.kind.value}: {ref}")
+    return Receipts(people, work, calendar, documents)
+
+
+def _held[K: str](held: Mapping[K, str], id: K, locator: str, ref: EntityRef) -> dict[K, str]:
+    known = held.get(id)
+    if known is not None and known != locator:
+        raise ValueError(f"{ref} is already receipted at {known!r}, got {locator!r}")
+    return {**held, id: locator}
 
 
 # --- Encoding -------------------------------------------------------------------------
