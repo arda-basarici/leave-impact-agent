@@ -517,3 +517,49 @@ available to the workflows (`max_session_duration` 7200 on both roles) and a
 web-identity session is not role chaining, so the one-hour chaining cap does not
 apply. The instance role's own refusal on truth is not this probe's claim: it is the
 deploy job's post-deploy step, landing with step 12.
+
+**Correction, 2026-09-13 (the step 12 interview, found by the external reviewer):**
+the validator's get above proved nothing about `GetObject`. S3 answers a get of an
+absent key with AccessDenied whenever list is denied, precisely so the caller cannot
+learn whether the key exists — and the truth bucket was empty when the probe ran. The
+sentence "a missing key reads as AccessDenied only while list is also denied" is true
+and was read backwards: it makes the get ambiguous, not meaningful. The list refusal
+stands. A meaningful get needs a key known to exist; the platform stream holds the
+ticket for a canary object at `access-probe/read-denied-canary`, and both the
+deploy-time probe and the validator's refusal check target it once it exists.
+
+## objectstore — PASS (2026-09-13)
+
+The SDK shape of every conditional-write outcome, observed under the generator role
+before the S3 store took its form (`probes/objectstore/probe.py` states the criterion;
+run 34724172889, approved at the `benchmark` gate; the throwaway workflow removed
+after this record). World bucket only: `preparing/` expires in a day, the refused put
+on `worlds/` created nothing (listed empty afterwards), the truth bucket untouched.
+
+| step | call | observed |
+|---|---|---|
+| 1 | conditional put (`IfNoneMatch="*"`), absent key | 200; the response carries `VersionId` and `ETag` |
+| 2 | the same put again, same bytes | `botocore.exceptions.ClientError`, code `PreconditionFailed`, HTTP 412, `Error.Condition` = `If-None-Match` |
+| 3 | the same put, different bytes | identical to 2 — S3 does not compare bytes; present-and-equal is the store's own get-and-compare |
+| 4 | head, get by version id, plain put on `preparing/`, get latest | head and get return the version id and ETag; the plain put makes a new version; bytes read back equal on both |
+| 5 | plain put on a final prefix (`worlds/`) | exception class `AccessDenied` (a modeled subclass of `ClientError`), code `AccessDenied`, HTTP 403, message names the explicit deny in the resource-based policy |
+| 6 | get / head of a missing key | get: class `NoSuchKey`, HTTP 404 (list is granted on this bucket, so existence is not hidden); head: `ClientError` with code `"404"` and message `Not Found` |
+| 7 | list under the probe prefix / an empty prefix | `KeyCount` 1 with the key; `KeyCount` 0 and no `Contents` field at all |
+| 8 | list under the refused key's prefix | `KeyCount` 0 — a refused put leaves nothing |
+
+Consequences for the store: `put_if_absent` maps 412 to a read-back and byte
+comparison (equal → present-and-equal, unequal → refused with the digest mismatch
+named); 403 is refused outright; the type stubs mark `VersionId`, `ETag`, `Key` and
+`KeyCount` as not required, and the store treats their absence as a fault, since a
+versioned bucket always returns them. On a bucket that denies list (the truth bucket
+for the validator), a get of a missing key reads AccessDenied, not `NoSuchKey` — the
+correction above.
+
+**Also observed, for the trust-hardening note of 2026-09-13:** the token of a plain
+`workflow_dispatch` job carries `job_workflow_ref` equal to `workflow_ref`, both
+`arda-basarici/leave-impact-agent/.github/workflows/objectstore-probe.yml@refs/heads/main`,
+and `workflow` = the workflow's display name. The docs describe the claim for reusable
+workflows only; it is populated for every job. So a `job_workflow_ref` condition in
+each role's trust policy can bind the generator role to `generate-world.yml` and the
+validator role to `validate-world.yml` without a second environment and without
+reusable workflows. Recorded for the platform TODO; not a step 12 change.
