@@ -7,6 +7,183 @@ decisions it feeds.
 
 ---
 
+## 2026-09-12 — The checker that borrowed the answer key's calendar: how the validator exposed a world-side gap by exposing it in itself first
+
+*M1 step 11 of the build plan, the independent validator: the sealed artifacts redrawn
+and decoded (`5c8d765`, reviews `9971acc` and `482d104`), the byte-level file store
+(`b5eebf7`, review `fb67e44`), the three checks (`6b225d5`, reviews `8b05e5f` in
+`world` and `0aa2345` in the validator), the verdict and the composition (`69a0b71`,
+review `8823526`), all 2026-09-12; the unit suite went from 1546 to 1599 tests across
+the step, the composition tests driving the real projectors into in-memory ports and
+then judging what landed (the `just check` runs of the session). Feeds: the M1
+report's validation section — what "approved" claims, which layer proves what, and
+the chain from live systems to sealed truth that the validator completes without ever
+reading a key — and the M2 harness constraint the step produced: the harness observes
+everything the reads return, dated to the run's day.*
+
+The validator is the layer built to give independent evidence: it re-reads the four
+live systems and proves they hold exactly the declared world, so that a bug shared
+between generation and projection cannot yield an evaluation that agrees with a wrong
+world. The step's story is that the first cut of that layer was itself the shared bug.
+It passed for the wrong reason, the external reviewer saw why, and the correction ran
+one layer down into the world generator, where it belonged all along.
+
+**Four rulings, and the file that could not feed its reader.** Like the projection
+step, this one was designed before it was coded, one ruling per exchange with the
+external reviewer answering each cold. The first exchange did not get to its question.
+The validator runs under a role that reads one prefix of the truth bucket, the sealed
+world spec, and never the truth manifest with its answer keys; but the world spec as
+sealed at step 8 held the organisation, the plan, the slices and the provenance, and
+nothing of what each scenario had planted. The plantings and each scenario's stable
+interval lived inside the truth manifest's construction records. Step 10's projectors
+had never noticed, because they read the assembled world in memory, not the bytes. A
+validator reading the spec from bytes could not know what was supposed to be there.
+Three ways out were on the table: extend the spec, let the validator regenerate the
+world from its provenance and check the digests, or widen the role to both prefixes.
+Regeneration would have put the truth in the validator's memory and made "never reads
+the truth" a discipline instead of a boundary, and would have tied the validator's
+verdict to interpreter drift that has nothing to do with the live systems; the wider
+role breaks the access ruling. The spec was extended, with one home per fact: the
+plantings with their observable-from dates and the stable intervals moved into the
+world spec, the truth manifest narrowed to keys and authored facts, the serialized key
+deliberately narrower than the in-memory construction record, the generator version
+bumped to 4 and the reference world's snapshot re-cut (`5c8d765`). The reviewer's
+framing of the two files is the one the code now documents: the world spec is what
+was supposed to be projected, the truth manifest is what those plantings are expected
+to imply.
+
+The remaining rulings held with two push-backs. The validator's claim decomposed into
+three layers: identity exactness per closed enumeration, missing and foreign both
+named; record fidelity, each record read back equal to its planting; and the derived
+view of a run, the facts a scenario's reads yield compared with the facts the
+plantings yield. The reviewer proposed "projection equivalence" for the second layer,
+equality after vendor normalization, and I pushed back with the projector's own
+docstring: the adapters' round trips are proven exact for every generator-controlled
+field, so naming a looser equivalence would admit a looseness the record says does not
+exist; plain equality stayed. The reviewer also wanted exactness for calendar events
+over the whole of each world-exclusive calendar rather than the world's time horizon;
+the read port offers events by window only, on purpose, since the investigator never
+enumerates a calendar, so the scope became the horizon, one bounding interval over
+every scenario window so a foreign event in a gap between windows fails rather than
+hides, and debris outside every window went to the fix log as the composition root's
+hygiene concern. The decoders became a codec over one value: `PlantedWorldSpec` is
+exactly the file's content, a pure function projects the assembled world onto it, the
+encoder takes it, and three claims are proven separately (the projection equals the
+expected value, decoding an encoding yields the value, encoding a decoding of the
+sealed bytes yields the bytes). The verdict became its own artifact, never a stage on
+the manifest, approved exactly when every check passed, carrying the validator's
+version and the SHA-256 of the manifest bytes it judged. That last field was my
+addition to the reviewer's shape, for a reason worth keeping: the world version and
+the artifact digests identify the world, not the projection, and a re-projection of
+the same world onto other sites changes every receipt and the calendar map while
+leaving all of those digests untouched, so only the manifest's own digest ties a
+verdict to what it judged. The file store the manifest used moved out of the
+generator into the adapters package as a primitive over bytes and a path, knowing no
+record type, so the generator's manifest and the validator's verdict share it without
+either importing the other.
+
+**The checker that borrowed the calendar.** The third part landed the checks
+(`6b225d5`) and the reviewer's finding on it was the step's turn. A live record knows
+nothing of when the synthetic world "made it observable"; the entity types keep vendor
+timestamps out by design. My view layer therefore looked up each live record's
+planting date in the sealed spec by identity, stamped its facts with that date, and
+compared the result at two instants inside the stable interval with the truth's dated
+view. It passed. The reviewer's point was that the investigator will never possess
+those dates. The runtime rule already written in the derivation module says what a
+live harness does: it stamps every returned record with the run's day. Nothing the
+investigator reads is hidden by date. Leaves and events are narrowed by window, so
+other slices' plantings stay out of a run, but the work-item read enumerates the whole
+Jira project, so every scenario's tickets are visible in every run. The validator had
+produced a cleaner historical view than the runtime can obtain, borrowing
+benchmark-private chronology to do it, and so would have hidden exactly the mismatch
+it exists to expose.
+
+Before ruling, I probed the reference world for the two facts that decided the size
+of the problem. No planting in any of the ten scenarios is observable only after its
+scenario's `now`. And when every planted fact of every scenario is made visible at
+each scenario's today, the way the live systems actually present the world, not one
+verdict changes (a scratch probe over seed 7, 2026-09-12, before the world commit
+`8b05e5f`). The reviewer had opened a larger question, whether the runtime needed some
+mechanism to make the synthetic observability real, and the probe closed it: the
+runtime rule exists and is fine, the validator had simply used the wrong rule. What
+the probe also showed is the gap one layer down. The pre-seal verification proved each
+key under the truth's dated view, which hides later plantings; the live systems hide
+nothing; so the keys were realizable only if they also held under the all-visible
+view. They did, but nothing asserted it, and a future scenario class whose key depended
+on a future planting staying hidden would have sealed cleanly and failed live.
+
+Three rulings followed, adopted as written with one refinement each from the
+reviewer. The live side of the validator uses only the runtime rule; planting dates
+leave the validator entirely, and the helper that had made them available went with
+them so nothing tempts a later hand. The expected side is the record set the runtime
+ports would return, stated once in a new module of the world package: the
+organisation whole, every scenario's work items, the leaves and events overlapping the
+scenario's window under the ports' own overlap rules, every fact dated to the run day.
+The whole-world re-verification at assembly now runs every stable day of every
+scenario twice, under the dated truth and under that runtime view, and refuses a world
+whose key holds only while a later or foreign planting stays hidden. The test that
+pins it is the case the dated view cannot see: scenario 2 plants a leave for scenario
+1's viable cover over scenario 1's leave, dated after scenario 1's window; the dated
+view stays clean on every stable day, a run's windowed read returns the leave, the
+cover is away, and the finding names the cover under the runtime view (`8b05e5f`).
+The reviewer's refinement on this ruling was the wording: not "every planted fact
+visible", since leaves and events are still window-filtered at the wire, but "the
+complete record set the runtime ports would return, with no benchmark-only
+observable-from filtering". The refinement on the validator's side was a condition:
+the two-instant check could go only if the read requests themselves do not move with
+the candidate `now`. They do not; the window is a field of the scenario spec, a run
+input fixed per scenario, and the run context carries `now` and no window. So the
+two-instant check that had stood in the design since the scenario framework was
+dropped, with its reason recorded where someone might otherwise restore it: under the
+runtime rule a run's view does not change inside the stable interval, and a second
+read proves nothing the first did not (`0aa2345`). The interval is the evaluator's, a
+run anywhere in it grading against one key.
+
+The division that came out is the one the report should state, because it is cleaner
+than what either of us had at the start of the step: the generator proves the world is
+realizable through the runtime rule, the validator proves the realized systems match
+that realizable world, and the evaluator grades with the stable interval and the key.
+The validator's chain is complete for the structured tier: live systems realize the
+sealed spec, the sealed spec implies the sealed truth, and the validator never sees a
+key or a planting date. For the prose-carried facts of the later tiers, the ones only
+a runbook or a comment can plant, the proof runs through the materializer's
+containment gates and the corpus adapter's read fidelity, not through this validator;
+that is a Tier 2 obligation, stated in the package docstring, not an unfinished part
+of this step.
+
+**The smaller adoptions, one line each.** The world decoders leaked a `KeyError` on an
+unknown zone name and silently normalized a timestamp whose offset disagreed with its
+named zone; the fix became one instant rule in core, semantic half and lexical half,
+the second added when the reviewer showed that `fromisoformat` accepts spellings the
+encoder never writes, so the round-trip claim now holds for every value a sealed
+codec accepts, and the vendor adapters are deliberately outside it because normalizing
+a vendor's spelling is their job (`9971acc`, `482d104`). The file store's rename was
+atomic but not durable across a host crash without a sync of the parent directory;
+the reviewer filed it as a P2 against the receipt contract, I answered with the ruled
+contract, restartability after the faults the transport reports and a loud coverage
+refusal for the window between a write and its checkpoint, and the reviewer
+downgraded their own severity while tightening my phrasing (a rollback can land behind
+more than one external write); the barrier was taken anyway on the POSIX production
+path, the two guarantees stated apart, and the test of it ran inside a Linux container
+since the development platform cannot sync a directory through `os.open` (`fb67e44`).
+The corpus port offers documents by id and by search and no enumeration, so the
+foreign direction of document exactness needed an inspection outside the port, the
+same shape as Frappe's held employee numbers and Jira's held markers (`69a0b71`). And
+the closing review found a hole in the integrity chain I had drawn: the scenario specs
+are authenticated by the world spec's digest, so the manifest's own copy of that
+digest was never compared, and a manifest recording a false one was approved with the
+false digest carried into the verdict's provenance; reproduced by a scratch script
+against the pushed commit before the fix, cross-checked now, and the same commit made
+the "each enumeration read once" claim true in the code rather than only in the
+docstring, and paid the step's own documentation debt in DESIGN instead of deferring it
+(`8823526`).
+
+Figure: two views of one world side by side, dated against runtime, for scenario 1's
+stable days: the same records, the late-planted leave for the cover absent from the
+dated column and present in the runtime column, with the cover's verdict flipping
+beneath it. The records and the verdicts come from the realizability test in the
+runtime-view suite.
+
 ## 2026-09-12 — The receipt nobody could read back: how a manifest became a checkpoint, and why "projected" stopped meaning "approved"
 
 *M1 step 10 of the build plan, the projection of the synthetic world into the four
@@ -136,6 +313,10 @@ closed enumeration, missing and foreign both refused, over the named surfaces
 [PRELIMINARY — the validator does not exist yet]). The one immediate change from that
 round, a foreign receipt refused on load before any vendor call, landed in the same
 commit.
+
+> ⚠ REVISED by the step 11 entry above (2026-09-12) — the exactness claim is now code,
+> scoped by the world horizon for the windowed kinds and by an inspection outside the
+> port for corpus documents.
 
 The division that came out of the argument reads, in the reviewer's words, cleaner
 than either of us had it at the start: the generator proves that its projection
