@@ -7,11 +7,23 @@ verdict in another slice months later, which the per-scenario verification insid
 ``construct`` cannot see. Assembly therefore builds every scenario, derives one fact base
 over the union of every planted record, and re-runs the verification for each scenario
 at every day of its stable interval — today included, since the interval contains it.
-A disagreement is ``WorldContamination``: the scenario, the day, the impact, the verdict,
-outcome or required sources that changed, expected against actual, and the foreign
-records in that day's evidence with their owning scenario and observable-from date.
-Never a repair or a redraw — a world that needs re-draws is a class whose affordance is
-under-specified.
+A disagreement is ``WorldContamination``: the scenario, the view, the day, the impact,
+the verdict, outcome or required sources that changed, expected against actual, and the
+foreign records in that day's evidence with their owning scenario and observable-from
+date. Never a repair or a redraw — a world that needs re-draws is a class whose
+affordance is under-specified.
+
+The verification runs under two views because only one of them is real at run time
+(the runtime-view ruling at the validator step). The dated view is the truth base as the
+evaluator reads it, each fact from the day the world planted its record. The runtime
+view is what a run actually obtains: the read ports return what the systems hold — the
+whole organization, every scenario's work items, the leaves and events overlapping the
+scenario's window — and the harness dates every returned record to the run's day,
+knowing no planting date. A key that holds under the dated view because a later or a
+foreign planting stays hidden, and fails once the ports return it, is a world that would
+seal cleanly and grade the investigator wrong; it is refused here instead. The reference
+world passed both views on the day the second was added, so the runtime rule is a
+constraint construction already met, now enforced.
 
 Required sources are re-checked too, through the same pure rule construction used,
 because the stable interval promises the same *key* for any ``now`` inside it and the
@@ -44,7 +56,7 @@ from random import Random
 from leaveimpact.core.claims import Verdict
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import Fact, FactBase, RunCondition
-from leaveimpact.core.ids import ScenarioId
+from leaveimpact.core.ids import EmployeeId, ScenarioId
 from leaveimpact.core.plans import expected_action
 from leaveimpact.core.viability import assess_impact
 from leaveimpact.core.worldtime import DateSpan
@@ -58,6 +70,7 @@ from leaveimpact.world.construction import (
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
 from leaveimpact.world.plan import TIER_ONE_RULES, PlanRow, PlanRules, plan_world
+from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import Scenario
 from leaveimpact.world.slices import allocate_slices
 from leaveimpact.world.structured import SCENARIO_CLASSES
@@ -77,9 +90,14 @@ class ForeignRecord:
 
 @dataclass(frozen=True, slots=True)
 class Contamination:
-    """One disagreement between a scenario's key and the rules over the assembled world."""
+    """One disagreement between a scenario's key and the rules over the assembled world.
+
+    ``view`` names which reading of the world disagreed: the dated truth base, or the
+    runtime view in which every record the ports return is observable.
+    """
 
     scenario_id: ScenarioId
+    view: str
     day: date
     artifact_id: str
     subject: str
@@ -93,8 +111,9 @@ class Contamination:
             for f in self.foreign
         ) or "no foreign record in the evidence"
         return (
-            f"{self.scenario_id} on {self.day}, {self.artifact_id}: {self.subject} expected "
-            f"{self.expected}, the assembled world says {self.actual}; {culprits}"
+            f"{self.scenario_id} on {self.day} under the {self.view} view, {self.artifact_id}: "
+            f"{self.subject} expected {self.expected}, the assembled world says {self.actual}; "
+            f"{culprits}"
         )
 
 
@@ -203,83 +222,115 @@ def world_fact_base(org: OrgSpec, world_start: date, scenarios: Sequence[Scenari
 def verify_world(
     facts: FactBase, scenarios: Sequence[Scenario], org: OrgSpec
 ) -> tuple[Contamination, ...]:
-    """Every disagreement between a key and the rules over ``facts``, across each stable interval.
+    """Every disagreement between a key and the rules under both views, across each stable interval.
 
     The same checks ``construct`` ran locally — authored verdicts per candidate, the
     outcome over the whole organization, the required sources — now against the
-    assembled world, at every day of the scenario's stable interval. Empty means the
-    world is valid.
+    assembled world, at every day of the scenario's stable interval, twice: under the
+    dated truth base ``facts``, and under the runtime view, the records the read ports
+    return for the scenario's window with every one of them observable that day. Empty
+    means the world is valid and realizable.
     """
     owner_of = _owners(scenarios)
     universe = [employee.id for employee in org.employees]
+    owned = [scenario.owned for scenario in scenarios]
+    authored = [fact for scenario in scenarios for fact in scenario.authored_facts]
     findings: list[Contamination] = []
     for scenario in scenarios:
-        leave = scenario.investigated_leave.span
-        timezone = scenario.spec.reference_timezone
+        records = runtime_records(org, owned, scenario.spec)
         for day in _days(scenario.key.stable_interval):
-            view = facts.at(day, RunCondition.all_reachable())
-            evidence_today: list[Fact] = []
-            for expected in scenario.key.impacts:
-                assessments = assess_impact(
-                    view, expected.key, universe, scenario.key.constraints, leave, timezone
-                )
-                by_employee = {a.employee_id: a for a in assessments}
-                evidence_today.extend(fact for a in assessments for fact in a.evidence)
-                for authored in expected.must_assess:
-                    actual = by_employee[authored.employee_id]
-                    if (actual.verdict, actual.reasons) == (authored.verdict, authored.reasons):
-                        continue
-                    findings.append(
-                        Contamination(
-                            scenario.key.scenario_id,
-                            day,
-                            expected.key.artifact.id,
-                            authored.employee_id,
-                            _verdict_text(authored.verdict, authored.reasons),
-                            _verdict_text(actual.verdict, actual.reasons),
-                            _foreign(actual.evidence, scenario, owner_of),
-                        )
-                    )
-                required = required_count_for(
-                    view, expected.key, scenario.key.constraints, leave, timezone
-                )
-                outcome = expected_action((a.verdict for a in assessments), required)
-                if outcome is not expected.outcome:
-                    evidence = [fact for a in assessments for fact in a.evidence]
-                    findings.append(
-                        Contamination(
-                            scenario.key.scenario_id,
-                            day,
-                            expected.key.artifact.id,
-                            "outcome",
-                            expected.outcome.value,
-                            outcome.value,
-                            _foreign(evidence, scenario, owner_of),
-                        )
-                    )
-            required = required_sources_for(
-                facts,
-                day,
-                scenario.key.impacts,
-                scenario.key.constraints,
-                leave,
-                timezone,
-                org,
-                scenario.spec.leave_id,
+            findings.extend(_check_day(DATED_VIEW, facts, day, scenario, universe, org, owner_of))
+            runtime = runtime_facts(records, day, authored)
+            findings.extend(
+                _check_day(RUNTIME_VIEW, runtime, day, scenario, universe, org, owner_of)
             )
-            if required != set(scenario.key.required_sources):
-                findings.append(
-                    Contamination(
-                        scenario.key.scenario_id,
-                        day,
-                        "all impacts",
-                        "required_sources",
-                        _sources_text(scenario.key.required_sources),
-                        _sources_text(required),
-                        _foreign(evidence_today, scenario, owner_of),
-                    )
-                )
     return tuple(findings)
+
+
+DATED_VIEW = "dated"
+"""The truth base at a day: every fact the world had made observable by then."""
+
+RUNTIME_VIEW = "runtime"
+"""What a run that day obtains through the read ports, every returned record observable."""
+
+
+def _check_day(
+    view_name: str,
+    base: FactBase,
+    day: date,
+    scenario: Scenario,
+    universe: Sequence[EmployeeId],
+    org: OrgSpec,
+    owner_of: dict[str, tuple[ScenarioId, date]],
+) -> list[Contamination]:
+    """The key's three checks against ``base`` as seen on ``day``: verdicts, outcome, sources."""
+    leave = scenario.investigated_leave.span
+    timezone = scenario.spec.reference_timezone
+    view = base.at(day, RunCondition.all_reachable())
+    findings: list[Contamination] = []
+    evidence_today: list[Fact] = []
+    for expected in scenario.key.impacts:
+        assessments = assess_impact(
+            view, expected.key, universe, scenario.key.constraints, leave, timezone
+        )
+        by_employee = {a.employee_id: a for a in assessments}
+        evidence_today.extend(fact for a in assessments for fact in a.evidence)
+        for authored in expected.must_assess:
+            actual = by_employee[authored.employee_id]
+            if (actual.verdict, actual.reasons) == (authored.verdict, authored.reasons):
+                continue
+            findings.append(
+                Contamination(
+                    scenario.key.scenario_id,
+                    view_name,
+                    day,
+                    expected.key.artifact.id,
+                    authored.employee_id,
+                    _verdict_text(authored.verdict, authored.reasons),
+                    _verdict_text(actual.verdict, actual.reasons),
+                    _foreign(actual.evidence, scenario, owner_of),
+                )
+            )
+        required = required_count_for(view, expected.key, scenario.key.constraints, leave, timezone)
+        outcome = expected_action((a.verdict for a in assessments), required)
+        if outcome is not expected.outcome:
+            evidence = [fact for a in assessments for fact in a.evidence]
+            findings.append(
+                Contamination(
+                    scenario.key.scenario_id,
+                    view_name,
+                    day,
+                    expected.key.artifact.id,
+                    "outcome",
+                    expected.outcome.value,
+                    outcome.value,
+                    _foreign(evidence, scenario, owner_of),
+                )
+            )
+    required = required_sources_for(
+        base,
+        day,
+        scenario.key.impacts,
+        scenario.key.constraints,
+        leave,
+        timezone,
+        org,
+        scenario.spec.leave_id,
+    )
+    if required != set(scenario.key.required_sources):
+        findings.append(
+            Contamination(
+                scenario.key.scenario_id,
+                view_name,
+                day,
+                "all impacts",
+                "required_sources",
+                _sources_text(scenario.key.required_sources),
+                _sources_text(required),
+                _foreign(evidence_today, scenario, owner_of),
+            )
+        )
+    return findings
 
 
 def _sources_text(sources: Iterable[Source]) -> str:

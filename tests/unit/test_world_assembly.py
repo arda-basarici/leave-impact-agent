@@ -88,7 +88,10 @@ def test_a_foreign_record_that_flips_a_verdict_is_named_with_its_owner(world: Wo
     facts = world_fact_base(world.org, WORLD_START, scenarios)
     findings = verify_world(facts, scenarios, world.org)
     assert findings
+    # Observable from the window's start, the foreign leave contaminates both views.
+    assert {f.view for f in findings} == {"dated", "runtime"}
     finding = findings[0]
+    assert finding.view == "dated"
     assert finding.scenario_id == first.key.scenario_id
     assert finding.subject == cover and finding.expected == "viable"
     assert finding.actual.startswith("non_viable")
@@ -115,7 +118,9 @@ def test_a_key_whose_required_sources_no_longer_hold_is_named_with_no_verdict_mo
     scenarios = (stale, *world.scenarios[1:])
     findings = verify_world(world.facts, scenarios, world.org)
     assert findings and all(f.subject == "required_sources" for f in findings)
-    assert len(findings) == first.key.stable_interval.days
+    # Once per stable day under each of the two views.
+    assert len(findings) == 2 * first.key.stable_interval.days
+    assert {f.view for f in findings} == {"dated", "runtime"}
     finding = findings[0]
     assert finding.scenario_id == first.key.scenario_id
     assert finding.expected == "[" + ", ".join(s.value for s in stale_key.required_sources) + "]"
