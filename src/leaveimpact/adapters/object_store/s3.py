@@ -27,10 +27,15 @@ with the SDK's error chained as the cause for the log. Unreachable is an allowli
 a fallback: the SDK's ``ConnectionError`` and ``HTTPClientError`` branches (endpoint,
 proxy, TLS and timeout faults, a closed connection, a streaming fault), its
 ``IncompleteReadError`` (a body shorter than announced), and the interpreter's
-``OSError`` from a body stream that resets. Every other SDK fault is raised before a
-request leaves the process or names a broken setup — a parameter the SDK refuses, an
-unknown region, no credentials, a pagination error — and is ``ObjectStoreMisconfigured``,
-so a local defect is never mistaken for a transient run condition (the part-2 review).
+``OSError`` from a body stream that resets. Every other SDK fault is treated as
+``ObjectStoreMisconfigured`` unless a concrete transport or response-failure path is
+classified explicitly — a parameter the SDK refuses, an unknown region, no
+credentials, a pagination error all land there — so a local defect is never mistaken
+for a transient run condition (the part-2 review). One class needs its location to be
+read: the SDK raises ``FlexibleChecksumError`` both for an unsupported algorithm at
+request setup, which is misconfiguration, and from the body's ``read`` when the bytes
+received fail the response checksum, which is a corrupted answer; the body read maps
+the latter to unreachable itself, and the generic boundary keeps the former.
 """
 
 from __future__ import annotations
@@ -39,7 +44,13 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 import boto3
-from botocore.exceptions import BotoCoreError, ClientError, HTTPClientError, IncompleteReadError
+from botocore.exceptions import (
+    BotoCoreError,
+    ClientError,
+    FlexibleChecksumError,
+    HTTPClientError,
+    IncompleteReadError,
+)
 from botocore.exceptions import ConnectionError as TransportConnectionError
 
 from leaveimpact.adapters.object_store.read import (
@@ -50,6 +61,7 @@ from leaveimpact.adapters.object_store.read import (
 )
 
 if TYPE_CHECKING:
+    from botocore.response import StreamingBody
     from mypy_boto3_s3 import S3Client
 
 
@@ -79,7 +91,7 @@ class S3ObjectReader:
                 if code(error) == "NoSuchKey":
                     return None
                 raise
-            content = response["Body"].read()
+            content = _body_read(response["Body"], key)
             return StoredObject(key, content, version_id(response, "get", key))
 
         return translated("get", key, fetch)
@@ -99,6 +111,16 @@ class S3ObjectReader:
             return tuple(sorted(keys))
 
         return translated("list", prefix, enumerate_keys)
+
+
+def _body_read(body: StreamingBody, key: str) -> bytes:
+    # A checksum mismatch raised while consuming the body is a corrupted answer, not a
+    # setup fault; the same exception class means the opposite at request setup, so it is
+    # classified here, where only the response path can raise it.
+    try:
+        return body.read()
+    except FlexibleChecksumError as error:
+        raise ObjectStoreUnreachable("get", key) from error
 
 
 def translated[T](operation: str, key: str, call: Callable[[], T]) -> T:

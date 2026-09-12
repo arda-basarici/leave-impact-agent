@@ -18,7 +18,12 @@ from typing import Any, cast
 
 import boto3
 import pytest
-from botocore.exceptions import EndpointConnectionError, IncompleteReadError, ParamValidationError
+from botocore.exceptions import (
+    EndpointConnectionError,
+    FlexibleChecksumError,
+    IncompleteReadError,
+    ParamValidationError,
+)
 from botocore.response import StreamingBody
 from botocore.stub import Stubber
 
@@ -325,6 +330,26 @@ def test_s3_unreachable_is_an_allowlist_and_a_local_sdk_fault_is_misconfiguratio
     with pytest.raises(ObjectStoreMisconfigured, match="ParamValidationError") as raised:
         translated("get", FINAL, raising(local))
     assert raised.value.__cause__ is local
+
+
+def test_s3_a_checksum_mismatch_is_unreachable_at_the_body_and_misconfiguration_at_setup() -> None:
+    class Corrupt(io.RawIOBase):
+        def read(self, size: int = -1) -> bytes:
+            raise FlexibleChecksumError(error_msg="Expected checksum X did not match calculated Y")
+
+    store, stub = _stubbed_reader()
+    response = _get_response(CONTENT, "v")
+    response["Body"] = StreamingBody(cast("Any", Corrupt()), len(CONTENT))
+    stub.add_response("get_object", response, {"Bucket": BUCKET, "Key": FINAL})
+    with stub, pytest.raises(ObjectStoreUnreachable) as raised:
+        store.get(FINAL)
+    assert isinstance(raised.value.__cause__, FlexibleChecksumError)
+
+    def at_setup() -> None:
+        raise FlexibleChecksumError(error_msg="Unsupported checksum algorithm: crc64")
+
+    with pytest.raises(ObjectStoreMisconfigured, match="FlexibleChecksumError"):
+        translated("put_if_absent", FINAL, at_setup)
 
 
 def test_s3_a_body_that_breaks_off_is_unreachable_not_a_builtin_error() -> None:
