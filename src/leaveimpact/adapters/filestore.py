@@ -16,10 +16,12 @@ the rename is atomic on one volume and the temporary sits beside the target so b
 on that volume. *Crash durability*, on the POSIX production platform only: after the
 rename the parent directory is synced, because syncing the file persists its contents
 and not necessarily its directory entry, and without that step a host failure after a
-successful return could roll the file back to its previous content. Windows cannot open
-a directory for syncing, so the development platform has atomic visibility and no
-claimed durability barrier. A failing directory sync raises, since the caller must not
-be told the barrier completed when it did not; the rename itself may already be visible.
+successful return could roll the file back to its previous content. On Windows Python's
+``os.open`` refuses a directory (a Win32 handle with backup semantics could be flushed
+instead), and the development platform never relies on the barrier, so no such path is
+taken: there the primitive has atomic visibility and no claimed durability barrier. A
+failing directory sync raises, since the caller must not be told the barrier completed
+when it did not; the rename itself may already be visible.
 
 What a lost barrier would cost is bounded by the receipt contract above this module: the
 composition root may issue the next external write once a checkpoint returns, so a
@@ -66,7 +68,7 @@ def replace_atomically(path: Path, content: bytes) -> None:
 
 
 SYNCS_DIRECTORIES = os.name != "nt"
-"""Whether the platform can sync a directory entry: the durability barrier exists only there."""
+"""Whether the barrier is taken: only where ``os.open`` can hand a directory to ``fsync``."""
 
 
 def _sync_directory(directory: Path) -> None:
