@@ -16,8 +16,10 @@ field, never a ``KeyError`` from deep inside. Unknown fields are refused too, be
 sealed artifact grows only through this codec, and a field the decoder does not know is a
 version the reader does not understand.
 
-Instants come back with their IANA zone when the file carried one, so the encoding of a
-decoding reproduces the sealed bytes; a bare offset stays a bare offset.
+Instants come back with their IANA zone when the file carried one, and a timestamp whose
+offset is not that zone's at that instant is refused rather than converted, so the
+encoding of a decoding reproduces the bytes for every instant the decoder accepts, not
+only for bytes this project's encoder wrote; a bare offset stays a bare offset.
 """
 
 from __future__ import annotations
@@ -26,7 +28,6 @@ import json
 from collections.abc import Callable, Mapping
 from datetime import date, datetime
 from typing import TypeGuard
-from zoneinfo import ZoneInfo
 
 from leaveimpact.core.entities import (
     CalendarEvent,
@@ -73,7 +74,7 @@ from leaveimpact.core.jsonshape import (
     string_field,
     string_item,
 )
-from leaveimpact.core.worldtime import DateSpan
+from leaveimpact.core.worldtime import DateSpan, instant_at
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
@@ -405,14 +406,10 @@ def _span(item: object, what: str) -> DateSpan:
 
 
 def _instant(item: object, what: str) -> datetime:
-    """An aware instant, in its IANA zone when the file names one, else at its offset."""
+    """An aware instant in its IANA zone when the file names one; the one rule is ``core``'s."""
     data = as_object(item, what)
     expect_fields(data, ("at", "timezone"), what)
-    instant = datetime.fromisoformat(string_field(data, "at"))
-    if instant.tzinfo is None:
-        raise ValueError(f"{what} carries its offset, got {data['at']!r}")
-    zone = optional_string_field(data, "timezone")
-    return instant if zone is None else instant.astimezone(ZoneInfo(zone))
+    return instant_at(string_field(data, "at"), optional_string_field(data, "timezone"), what)
 
 
 def _interpreter(data: Mapping[str, object]) -> tuple[int, int]:

@@ -39,7 +39,7 @@ from leaveimpact.core.values import (
     ValueKind,
     ValueSpec,
 )
-from leaveimpact.core.worldtime import DateSpan, InstantSpan
+from leaveimpact.core.worldtime import DateSpan, InstantSpan, instant_at
 
 
 def encode_ref(ref: EntityRef) -> JsonObject:
@@ -160,20 +160,17 @@ def _decode_payload(kind: ValueKind, data: Mapping[str, object]) -> FactValue:
             assert_never(kind)
 
 
-def _zone(span: Mapping[str, object]) -> ZoneInfo | None:
+def _zone(span: Mapping[str, object]) -> str | None:
     zone = span["zone"]
     if zone is None:
         return None
     if not isinstance(zone, str):
         raise ValueError(f"zone is a string or null, got {type(zone).__name__}")
-    return ZoneInfo(zone)
+    return zone
 
 
-def _instant(text: str, zone: ZoneInfo | None) -> datetime:
-    instant = datetime.fromisoformat(text)
-    if instant.tzinfo is None:
-        raise ValueError(f"an instant carries its offset, got {text!r}")
-    return instant.astimezone(zone) if zone is not None else instant
+def _instant(text: str, zone: str | None) -> datetime:
+    return instant_at(text, zone, "an instant")
 
 
 def _decode_criterion(data: Mapping[str, object]) -> Criterion:

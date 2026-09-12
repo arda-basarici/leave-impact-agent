@@ -155,6 +155,24 @@ def test_an_instant_without_its_offset_is_refused(sealed: Bundle) -> None:
         decode_scenario_specs(canonical_bytes(specs))
 
 
+def test_an_unknown_zone_is_refused_naming_it_and_never_leaks_a_key_error(sealed: Bundle) -> None:
+    specs = cast(JsonObject, json.loads(sealed.scenario_specs.content))
+    now = cast(JsonObject, cast(list[JsonObject], specs["scenarios"])[0]["now"])
+    now["timezone"] = "Nowhere/Place"
+    with pytest.raises(ValueError, match="not an IANA timezone key: 'Nowhere/Place'"):
+        decode_scenario_specs(canonical_bytes(specs))
+
+
+def test_an_offset_that_is_not_the_zones_is_refused_not_normalized(sealed: Bundle) -> None:
+    specs = cast(JsonObject, json.loads(sealed.scenario_specs.content))
+    now = cast(JsonObject, cast(list[JsonObject], specs["scenarios"])[0]["now"])
+    at = cast(str, now["at"])
+    assert at.endswith("+03:00") and now["timezone"] == "Europe/Istanbul"
+    now["at"] = at[: -len("+03:00")] + "+00:00"
+    with pytest.raises(ValueError, match="now reads .*\\+00:00', which Europe/Istanbul writes as"):
+        decode_scenario_specs(canonical_bytes(specs))
+
+
 def test_a_boolean_where_a_count_belongs_is_refused(sealed: Bundle) -> None:
     data = spec_json(sealed)
     cast(JsonObject, data["provenance"])["interpreter"] = [3, True]

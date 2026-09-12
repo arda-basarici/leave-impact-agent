@@ -74,6 +74,42 @@ def zone(key: str) -> ZoneInfo:
         raise ValueError(f"not an IANA timezone key: {key!r}") from error
 
 
+def instant_at(text: str, zone_key: str | None, what: str) -> datetime:
+    """The aware instant ``text`` reads as, in the zone ``zone_key`` names when it names one.
+
+    The one rule for every codec that stores an instant as an offset-bearing timestamp
+    with its IANA zone beside it. The offset must be the zone's own at that instant: a
+    pair that disagrees was not written by an encoder of this project, and decoding it
+    by conversion would produce a value whose re-encoding differs from the bytes read,
+    so it is refused rather than normalized. A naive timestamp and an unknown zone key
+    are refused naming ``what``; without a zone the instant keeps its bare offset.
+
+    >>> instant_at("2026-10-25T01:30:00+00:00", "Europe/London", "start").fold
+    1
+    >>> instant_at("2026-01-05T09:00:00+00:00", "UTC", "now").isoformat()
+    '2026-01-05T09:00:00+00:00'
+    >>> instant_at("2026-01-05T09:00:00+03:00", "UTC", "now")  # doctest: +ELLIPSIS
+    Traceback (most recent call last):
+    ...
+    ValueError: now reads '2026-01-05T09:00:00+03:00', which UTC writes as '2026-01-05T06:...'
+    >>> instant_at("2026-01-05T09:00:00", None, "now")
+    Traceback (most recent call last):
+    ...
+    ValueError: now carries its offset, got '2026-01-05T09:00:00'
+    """
+    instant = datetime.fromisoformat(text)
+    if instant.tzinfo is None:
+        raise ValueError(f"{what} carries its offset, got {text!r}")
+    if zone_key is None:
+        return instant
+    in_zone = instant.astimezone(zone(zone_key))
+    if in_zone.utcoffset() != instant.utcoffset():
+        raise ValueError(
+            f"{what} reads {text!r}, which {zone_key} writes as {in_zone.isoformat()!r}"
+        )
+    return in_zone
+
+
 def local_date(instant: datetime, timezone: str) -> date:
     """The calendar day on which a human in ``timezone`` reads ``instant``.
 

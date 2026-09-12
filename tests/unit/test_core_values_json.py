@@ -98,6 +98,32 @@ def test_an_instant_span_keeps_its_zone_as_provenance() -> None:
         decode_value(naive, INSTANT_SPAN_VALUE)
 
 
+def test_an_instant_span_refuses_an_unknown_zone_and_an_offset_that_is_not_the_zones() -> None:
+    unknown = {
+        "kind": "instant_span",
+        "value": {
+            "start": "2026-10-25T00:30:00+01:00",
+            "end": "2026-10-25T01:30:00+01:00",
+            "zone": "Nowhere/Place",
+        },
+    }
+    with pytest.raises(ValueError, match="not an IANA timezone key: 'Nowhere/Place'"):
+        decode_value(unknown, INSTANT_SPAN_VALUE)
+    # Written at UTC, labelled London in summer: the encoder never produces the pair, and
+    # converting it would decode to a value whose re-encoding is not these bytes.
+    skewed = {
+        "kind": "instant_span",
+        "value": {
+            "start": "2026-07-01T09:00:00+00:00",
+            "end": "2026-07-01T10:00:00+00:00",
+            "zone": "Europe/London",
+        },
+    }
+    written_as = "which Europe/London writes as '2026-07-01T10:00:00\\+01:00'"
+    with pytest.raises(ValueError, match=written_as):
+        decode_value(skewed, INSTANT_SPAN_VALUE)
+
+
 def test_a_tag_that_disagrees_with_the_spec_is_refused_before_the_payload() -> None:
     with pytest.raises(ValueError, match="tagged 'text' where a skill is declared"):
         decode_value({"kind": "text", "value": "kafka"}, SKILL_VALUE)
