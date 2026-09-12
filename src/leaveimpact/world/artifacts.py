@@ -130,8 +130,9 @@ class ScenarioPlanting:
     """One scenario's row of the world spec: what it planted, and when its answer is stable.
 
     The stable interval sits here and not in the key because it is a property of the
-    plantings — derived from their observability — and the validator reads it to choose
-    the instants of its two-instant check without seeing what truth expects.
+    plantings, derived from their observability; the evaluator reads it from here, joined
+    by scenario id. The validator does not read it: under the runtime rule a run's view
+    does not move inside the interval, so its check is one read per scenario.
     """
 
     scenario_id: ScenarioId
@@ -348,7 +349,7 @@ def _construction(scenario: Scenario) -> JsonObject:
     """The key and the authored facts; the plantings are the world spec's row (one home)."""
     return {
         "key": _key(scenario.key),
-        "authored_facts": [_fact(fact) for fact in scenario.authored_facts],
+        "authored_facts": [encode_fact(fact) for fact in scenario.authored_facts],
     }
 
 
@@ -477,12 +478,12 @@ def _document(document: Document) -> JsonObject:
 
 def _fact_base(base: FactBase) -> JsonObject:
     return {
-        "facts": [_fact(fact) for fact in base.facts],
-        "gaps": [_gap(gap) for gap in base.gaps],
+        "facts": [encode_fact(fact) for fact in base.facts],
+        "gaps": [encode_gap(gap) for gap in base.gaps],
     }
 
 
-def _fact(fact: Fact) -> JsonObject:
+def encode_fact(fact: Fact) -> JsonObject:
     return {
         "subject": encode_ref(fact.subject),
         "predicate": fact.predicate.value,
@@ -492,7 +493,7 @@ def _fact(fact: Fact) -> JsonObject:
     }
 
 
-def _gap(gap: Gap) -> JsonObject:
+def encode_gap(gap: Gap) -> JsonObject:
     return {
         "subject": encode_ref(gap.subject),
         "predicate": gap.predicate.value,

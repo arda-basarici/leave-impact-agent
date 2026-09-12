@@ -141,6 +141,27 @@ def test_search_finds_by_content_ranks_and_breaks_ties_by_id(adapter: CorpusAdap
     assert len(found) == 1 and found[0].value == POLICY, "a hit returns the whole document"
 
 
+def test_the_held_ids_are_the_versions_own_documents_and_nothing_else(url: str) -> None:
+    # The inspection the validator's exactness claim rests on: the ids under this version,
+    # none of another version's, none before any write.
+    world_a, world_b = fresh_world(), fresh_world()
+    a = CorpusAdapter(dsn=url, config=CorpusConfig(world_a))
+    b = CorpusAdapter(dsn=url, config=CorpusConfig(world_b))
+    try:
+        a.ensure_schema()
+        assert a.held_document_ids() == frozenset()
+        a.add_document(POLICY)
+        a.add_document(RUNBOOK)
+        b.add_document(NOTE)
+        assert a.held_document_ids() == {POLICY.id, RUNBOOK.id}
+        assert b.held_document_ids() == {NOTE.id}
+    finally:
+        a.close()
+        b.close()
+        drop_world(url, world_a)
+        drop_world(url, world_b)
+
+
 def test_two_worlds_with_the_same_ids_never_read_each_other(url: str) -> None:
     world_a, world_b = fresh_world(), fresh_world()
     a = CorpusAdapter(dsn=url, config=CorpusConfig(world_a))

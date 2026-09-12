@@ -79,6 +79,10 @@ _SELECT_SECTIONS = """
     WHERE world_version = %s AND document_id = %s
     ORDER BY position
 """
+_SELECT_DOCUMENT_IDS = """
+    SELECT id FROM document
+    WHERE world_version = %s
+"""
 _SEARCH = f"""
     SELECT document_id, max(ts_rank(search, query)) AS rank
     FROM section, websearch_to_tsquery('{SEARCH_CONFIGURATION}', %s) AS query
@@ -152,6 +156,23 @@ class CorpusAdapter:
             assert observed is not None, "a ranked section's document exists by foreign key"
             found.append(observed)
         return tuple(found)
+
+    # --- inspection: what the version holds --------------------------------------------
+
+    def held_document_ids(self) -> frozenset[DocumentId]:
+        """Every document id stored under this world version.
+
+        Outside the read port on purpose: the investigator finds documents by id or by
+        search and never enumerates the corpus, so the port offers no enumeration, and
+        the validator's exactness claim for documents — nothing missing, nothing foreign
+        under the version — needs one. The same shape as Frappe's held employee numbers
+        and Jira's held markers, an inspection the composition roots call and the
+        application never sees.
+        """
+        world = self._config.world_version
+        with self._guarded() as conn:
+            rows = conn.execute(_SELECT_DOCUMENT_IDS, (world,)).fetchall()
+        return frozenset(DocumentId(str(row[0])) for row in rows)
 
     # --- the write side -------------------------------------------------------------
 

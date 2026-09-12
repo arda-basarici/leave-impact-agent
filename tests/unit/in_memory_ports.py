@@ -200,3 +200,8 @@ class InMemoryDocuments(_Store):
 
     def add_document(self, document: Document) -> str:
         return self._add(self.documents, document.id, document, "document")
+
+    def held_document_ids(self) -> frozenset[DocumentId]:
+        """The inspection outside the port, as the corpus adapter offers it to a validator."""
+        self._reach()
+        return frozenset(self.documents)

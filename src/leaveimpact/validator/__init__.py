@@ -31,7 +31,7 @@ Boundary: its own package so that read-only is enforceable by the import law —
 ``world``, ``adapters`` and ``core``; never ``generator``.
 """
 
-from leaveimpact.validator import checks
+from leaveimpact.validator import checks, verdict, verify
 from leaveimpact.validator.checks import (
     CheckStatus,
     IdentityExactness,
@@ -44,17 +44,41 @@ from leaveimpact.validator.checks import (
     expected_view,
     world_horizon,
 )
+from leaveimpact.validator.verdict import (
+    VALIDATOR_VERSION,
+    Approval,
+    ExactnessResult,
+    FidelityResult,
+    ValidationVerdict,
+    ViewResult,
+    encode_verdict,
+    verdict_bytes,
+)
+from leaveimpact.validator.verify import IntegrityRefused, LiveSystems, validate
 
 __all__ = [
     "checks",
+    "verdict",
+    "verify",
+    "VALIDATOR_VERSION",
+    "Approval",
     "CheckStatus",
+    "ExactnessResult",
+    "FidelityResult",
     "IdentityExactness",
+    "IntegrityRefused",
+    "LiveSystems",
     "RecordMismatch",
+    "ValidationVerdict",
     "ViewDisagreement",
+    "ViewResult",
     "compare_identities",
     "compare_records",
     "compare_views",
     "derive_live",
+    "encode_verdict",
     "expected_view",
+    "validate",
+    "verdict_bytes",
     "world_horizon",
 ]
