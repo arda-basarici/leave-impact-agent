@@ -98,11 +98,16 @@ class SealingPreparation:
     people: InMemoryPeople = field(default_factory=InMemoryPeople)
     work: InMemoryWork = field(default_factory=InMemoryWork)
     calendar: InMemoryCalendar = field(default_factory=InMemoryCalendar)
-    truth_objects_at_first_vendor_call: int | None = None
+    truth_objects_at_prepare: int | None = None
+    sealed: Bundle | None = None
+
+    def prepare(self) -> Prepared:
+        # The first vendor calls of a production run happen here, before the root runs.
+        self.truth_objects_at_prepare = len(self.truth.objects)
+        assert self.sealed is not None
+        return prepared(self.sealed)
 
     def ensure_calendar(self, employee: Employee, known: str | None) -> str:
-        if self.truth_objects_at_first_vendor_call is None:
-            self.truth_objects_at_first_vendor_call = len(self.truth.objects)
         return known or f"cal-{employee.id}@group.calendar"
 
     def systems(self, calendars: CalendarConfig) -> Systems:
@@ -122,9 +127,12 @@ def run(
     debris_markers: frozenset[WorkItemId] = frozenset(),
 ) -> tuple[SealedWorld, SealingPreparation]:
     preparation = SealingPreparation(
-        SealedDocumentWriter(buckets.world, sealed.world_version), buckets.truth, debris_markers
+        SealedDocumentWriter(buckets.world, sealed.world_version),
+        buckets.truth,
+        debris_markers,
+        sealed=sealed,
     )
-    result = seal_world(world, sealed, prepared(sealed), preparation, buckets.truth, buckets.world)
+    result = seal_world(world, sealed, preparation, buckets.truth, buckets.world)
     return result, preparation
 
 
@@ -135,7 +143,7 @@ def test_a_fresh_run_seals_in_the_ruled_order_and_the_manifest_vouches_for_every
     result, preparation = run(world, sealed, buckets)
     version = sealed.world_version
 
-    assert preparation.truth_objects_at_first_vendor_call == 2, "truth before any vendor call"
+    assert preparation.truth_objects_at_prepare == 2, "both truth objects before prepare()"
     assert buckets.truth.list_keys("") == (
         layout.truth_manifest_key(version),
         layout.world_spec_key(version),
@@ -222,6 +230,16 @@ def test_truth_that_changed_between_attempts_is_refused_before_any_vendor_call(
     with pytest.raises(ObjectConflict):
         run(world, sealed, buckets)
     assert buckets.world.objects == {}, "no vendor call and no world write"
+
+
+def test_a_bundle_that_is_not_the_world_s_is_refused_before_any_write(
+    world: WorldSpec, sealed: Bundle
+) -> None:
+    other = bundle(assemble_world(8, DEFAULT_PARAMS, date(2026, 1, 1)))
+    buckets = Buckets()
+    with pytest.raises(SealingRefused, match="not the bundle of the world"):
+        run(world, other, buckets)
+    assert buckets.truth.objects == {} and buckets.world.objects == {}
 
 
 def test_an_object_read_back_with_other_bytes_is_refused_before_the_manifest(
