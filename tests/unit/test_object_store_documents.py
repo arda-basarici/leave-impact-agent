@@ -69,9 +69,11 @@ def test_the_held_ids_are_the_keys_under_the_prefix_and_a_foreign_key_is_refused
     writer.add_document(POLICY)
     store.put_if_absent(layout.document_key(WorldVersion("cd" * 32), POLICY.id), b"{}")
     assert writer.held_document_ids() == frozenset({POLICY.id})
-    store.put_if_absent(layout.documents_prefix(VERSION) + "notes.txt", b"stray")
-    with pytest.raises(MalformedRecord, match="not a document key"):
-        writer.held_document_ids()
+    for stray in ("notes.txt", "emp_001.json", "foo.json"):
+        store.put_if_absent(layout.documents_prefix(VERSION) + stray, b"stray")
+        with pytest.raises(MalformedRecord, match="not a document key"):
+            writer.held_document_ids()
+        del store.objects[layout.documents_prefix(VERSION) + stray]
 
 
 def test_an_object_that_is_not_this_document_is_malformed_with_the_key_as_locator() -> None:
@@ -118,14 +120,23 @@ def test_the_layout_keeps_final_and_mutable_apart_and_every_key_names_the_versio
     assert layout.document_id_of(VERSION, layout.documents_prefix(VERSION) + "a/b.json") is None
 
 
-def test_the_object_checkpoint_store_round_trips_at_the_preparing_key() -> None:
-    store = InMemoryObjectStore()
-    checkpoint = ObjectManifestStore(store, VERSION)
-    assert checkpoint.load() is None
+def test_the_object_checkpoint_store_round_trips_at_the_preparing_key_of_its_own_world() -> None:
     first = manifest(ManifestStage.PREPARING)
+    store = InMemoryObjectStore()
+    checkpoint = ObjectManifestStore(store, first.world_version)
+    assert checkpoint.load() is None
     checkpoint.save(first)
     checkpoint.save(first)
     assert checkpoint.load() == first
-    assert checkpoint.key == layout.checkpoint_key(VERSION)
+    assert checkpoint.key == layout.checkpoint_key(first.world_version)
     assert store.list_keys("preparing/") == (checkpoint.key,)
     assert len(store.writes) == 2, "each save is a new version of the one mutable key"
+    foreign = ObjectManifestStore(store, VERSION)
+    with pytest.raises(ValueError, match="was given a manifest of world"):
+        foreign.save(first)
+    assert store.get(foreign.key) is None, "nothing was written under the other world's key"
+    held = store.get(checkpoint.key)
+    assert held is not None
+    store.overwrite(foreign.key, held.content)
+    with pytest.raises(ValueError, match="holds a manifest of world"):
+        foreign.load()

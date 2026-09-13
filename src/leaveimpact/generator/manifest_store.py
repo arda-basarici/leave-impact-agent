@@ -42,10 +42,16 @@ class FileManifestStore:
 
 
 class ObjectManifestStore:
-    """The manifest at the world's checkpoint key in ``store``, overwritten per save."""
+    """The manifest at the world's checkpoint key in ``store``, overwritten per save.
+
+    Bound to one world version: a manifest of another version is refused on save, and
+    one found under the key on load, so a miswired caller cannot poison the checkpoint
+    and the root's own version check never meets a checkpoint this store let through.
+    """
 
     def __init__(self, store: ObjectWriter, version: WorldVersion) -> None:
         self._store = store
+        self._version = version
         self._key = checkpoint_key(version)
 
     @property
@@ -54,7 +60,19 @@ class ObjectManifestStore:
 
     def load(self) -> WorldManifest | None:
         stored = self._store.get(self._key)
-        return None if stored is None else decode_manifest(stored.content, stage=None)
+        if stored is None:
+            return None
+        manifest = decode_manifest(stored.content, stage=None)
+        self._check(manifest, "holds")
+        return manifest
 
     def save(self, manifest: WorldManifest) -> None:
+        self._check(manifest, "was given")
         self._store.overwrite(self._key, manifest_bytes(manifest))
+
+    def _check(self, manifest: WorldManifest, how: str) -> None:
+        if manifest.world_version != self._version:
+            raise ValueError(
+                f"the checkpoint store of world {self._version} {how} a manifest of world "
+                f"{manifest.world_version}"
+            )

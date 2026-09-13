@@ -20,7 +20,7 @@ GitHub run id and attempt since a rerun shares the id.
 
 from __future__ import annotations
 
-from leaveimpact.core.ids import DocumentId, WorldVersion
+from leaveimpact.core.ids import DocumentId, WorldVersion, is_numbered_id
 from leaveimpact.world.artifacts import SCENARIO_SPECS, TRUTH_MANIFEST, WORLD_SPEC
 
 WORLD_MANIFEST = "world-manifest.json"
@@ -69,17 +69,23 @@ def document_key(version: WorldVersion, id: DocumentId) -> str:
 def document_id_of(version: WorldVersion, key: str) -> DocumentId | None:
     """The domain id a document key under ``version`` names, or ``None`` for any other key.
 
+    A key is a document's only when its stem is a document id in the domain's grammar —
+    ``doc_`` and a number — so an object named after another kind's id, or after nothing
+    the domain knows, is a malformed key to the reader and never a foreign document.
+
     >>> v = WorldVersion("ab" * 32)
     >>> document_id_of(v, document_key(v, DocumentId("doc_007")))
     'doc_007'
-    >>> document_id_of(v, documents_prefix(v) + "notes.txt") is None
-    True
+    >>> [document_id_of(v, documents_prefix(v) + name) for name in ("notes.txt", "emp_001.json")]
+    [None, None]
     """
     prefix, suffix = documents_prefix(version), ".json"
     if not (key.startswith(prefix) and key.endswith(suffix)):
         return None
-    inner = key[len(prefix) : -len(suffix)]
-    return DocumentId(inner) if inner and "/" not in inner else None
+    stem = key[len(prefix) : -len(suffix)]
+    if not (stem.startswith("doc_") and is_numbered_id(stem)):
+        return None
+    return DocumentId(stem)
 
 
 def checkpoint_key(version: WorldVersion) -> str:
