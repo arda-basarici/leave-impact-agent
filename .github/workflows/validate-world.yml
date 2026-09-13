@@ -1,0 +1,105 @@
+# The validation job: an independent reread of the live systems against the sealed world,
+# its verdict sealed under the world's verdict prefix, one immutable object per execution.
+# Runs only by hand, under the `benchmark` environment on the validator's OIDC-trusted
+# role — a role that reads the world bucket and the truth bucket's world spec and writes
+# nothing but verdicts (the step 12 rulings, 2026-09-13). Deliberately a separate
+# workflow from the generator's: a world is re-validated later without regenerating
+# anything, and a reader sees the independence rather than trusting the roles for it.
+#
+# Secrets are scoped to the one step that runs the entry point; the Google JSON is
+# written to a file on the runner's ephemeral disk and passed by path. The run is red
+# on a refused verdict, which is still published: a refusal is evidence too. Every action
+# is pinned by full commit SHA (the tag beside it), because `id-token: write` is a
+# job-level permission and a moved tag would be a moved trust boundary.
+name: validate world
+on:
+  workflow_dispatch:
+    inputs:
+      world_version:
+        description: the 64-hex world version to validate (the generate run's output)
+        required: true
+        type: string
+permissions: {}
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    environment: benchmark
+    timeout-minutes: 110
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      approval: ${{ steps.judge.outputs.approval }}
+      verdict_key: ${{ steps.judge.outputs.verdict_key }}
+    steps:
+      - name: Record the OIDC subject and the workflow claims
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            core.info(`workflow=${claims.workflow} workflow_ref=${claims.workflow_ref} job_workflow_ref=${claims.job_workflow_ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Assume the validator role
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-validator
+          aws-region: eu-central-1
+          role-duration-seconds: 7200
+
+      - name: Validate the world and publish the verdict
+        id: judge
+        env:
+          LEAVE_IMPACT_FRAPPE_BASE_URL: ${{ vars.LEAVE_IMPACT_FRAPPE_BASE_URL }}
+          LEAVE_IMPACT_FRAPPE_API_KEY: ${{ secrets.LEAVE_IMPACT_FRAPPE_API_KEY }}
+          LEAVE_IMPACT_FRAPPE_API_SECRET: ${{ secrets.LEAVE_IMPACT_FRAPPE_API_SECRET }}
+          LEAVE_IMPACT_JIRA_BASE_URL: ${{ vars.LEAVE_IMPACT_JIRA_BASE_URL }}
+          LEAVE_IMPACT_JIRA_EMAIL: ${{ vars.LEAVE_IMPACT_JIRA_EMAIL }}
+          LEAVE_IMPACT_JIRA_TOKEN: ${{ secrets.LEAVE_IMPACT_JIRA_TOKEN }}
+          LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${{ secrets.LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON }}
+          LEAVE_IMPACT_WORLD_BUCKET: leave-impact-world-445743457479
+          LEAVE_IMPACT_TRUTH_BUCKET: leave-impact-truth-445743457479
+          LEAVE_IMPACT_AWS_REGION: eu-central-1
+          INPUT_WORLD_VERSION: ${{ inputs.world_version }}
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity --query Arn --output text | tee identity.txt
+          grep -q 'assumed-role/leave-agent-validator/' identity.txt
+          umask 077
+          printf '%s' "$LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON" > "$RUNNER_TEMP/google-authorized-user.json"
+          export LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE="$RUNNER_TEMP/google-authorized-user.json"
+          unset LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+          status=0
+          uv run python -m leaveimpact.validator --world-version "$INPUT_WORLD_VERSION" | tee validate.log || status=$?
+          for name in approval verdict_key; do
+            value=$(grep "^${name}=" validate.log | tail -1 | cut -d= -f2-)
+            echo "${name}=${value}" >> "$GITHUB_OUTPUT"
+          done
+          {
+            echo "## Verdict"
+            echo
+            echo '```'
+            grep -E '^(world_version|approval|verdict_key|verdict_version_id)=' validate.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"

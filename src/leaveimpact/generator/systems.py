@@ -22,7 +22,6 @@ recorded; the hosts' names reach the manifest as ``observed_sites``, for diagnos
 from __future__ import annotations
 
 from collections.abc import Iterable
-from dataclasses import dataclass
 from types import TracebackType
 from typing import Self
 from urllib.parse import urlsplit
@@ -30,13 +29,13 @@ from urllib.parse import urlsplit
 from leaveimpact.adapters.calendar.adapter import (
     CalendarAdapter,
     CalendarConfig,
-    CalendarCredential,
     CalendarPrincipal,
 )
-from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
-from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraConfig, JiraCredential, JiraSite
+from leaveimpact.adapters.frappe.adapter import FrappeAdapter
+from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraConfig, JiraSite
 from leaveimpact.adapters.object_store.documents_write import SealedDocumentWriter
 from leaveimpact.adapters.object_store.write import ObjectWriter
+from leaveimpact.adapters.wiring import Hosts
 from leaveimpact.core.entities import Employee
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import EmployeeId, WorkItemId, WorldVersion
@@ -48,17 +47,6 @@ from leaveimpact.generator.realize import (
     world_key,
 )
 from leaveimpact.world.assembly import WorldSpec
-
-
-@dataclass(frozen=True, slots=True)
-class Hosts:
-    """Where the four systems are and how to enter them; the entry point builds it from env."""
-
-    frappe_base_url: str
-    frappe_credential: FrappeCredential
-    jira_base_url: str
-    jira_credential: JiraCredential
-    calendar_credential: CalendarCredential
 
 
 class AdapterPreparation:

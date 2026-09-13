@@ -15,9 +15,12 @@ there is no world to judge.
 
 Then the reads, as few as the claims need: each enumeration once, the windowed kinds once
 over the world horizon for exactness and once per scenario window for the view, teams and
-documents by id since neither port enumerates them, and the corpus's held ids through the
-adapter's inspection outside the port, the one enumeration the investigator never makes
-(the corpus ruling at the validator step). A source that cannot answer raises
+documents by id since neither port enumerates them, and the documents' held ids through
+the sealed-document reader's inspection outside the port, the one enumeration the
+investigator never makes (the corpus ruling at the validator step; since the step 12
+rulings the documents are read from the world bucket's sealed objects, not the
+application's corpus, so the seam here asks for a document by id and nothing wider — an
+object store has no search, and the validator never needed one). A source that cannot answer raises
 ``SourceUnreachable`` through, unhandled, as the projector does: a validation with a dead
 system has nothing to record.
 
@@ -35,6 +38,7 @@ from __future__ import annotations
 import hashlib
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
+from typing import Protocol
 
 from leaveimpact.adapters.manifest import (
     ArtifactRole,
@@ -42,13 +46,12 @@ from leaveimpact.adapters.manifest import (
     WorldManifest,
     decode_manifest,
 )
-from leaveimpact.core.entities import Component, Employee, WorkItem
+from leaveimpact.core.entities import Component, Document, Employee, WorkItem
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import DocumentId
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.ports.read import (
     CalendarReader,
-    DocumentReader,
     PeopleReader,
     WorkReader,
 )
@@ -78,6 +81,14 @@ class IntegrityRefused(ValueError):
     """The three inputs do not describe one sealed world; nothing was read."""
 
 
+class DocumentLookup(Protocol):
+    """A document by id, as the sealed objects or the corpus answer it; the validator's seam."""
+
+    def document(self, id: DocumentId) -> Observed[Document] | None:
+        """The document with its sections, or ``None``."""
+        ...
+
+
 @dataclass(frozen=True, slots=True)
 class LiveSystems:
     """The readers of one projected world, and the corpus's inspection outside its port."""
@@ -85,7 +96,7 @@ class LiveSystems:
     people: PeopleReader
     work: WorkReader
     calendar: CalendarReader
-    documents: DocumentReader
+    documents: DocumentLookup
     held_document_ids: Callable[[], frozenset[DocumentId]]
 
 
