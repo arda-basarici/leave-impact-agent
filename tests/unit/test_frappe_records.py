@@ -126,6 +126,25 @@ def test_skill_rows_group_by_employee_and_keep_the_empty_map() -> None:
     assert records.skills_by_employee(rows) == {"HR-EMP-1": ("kafka", "sql"), "HR-EMP-2": ()}
 
 
+def test_skill_rows_carry_the_sorted_tuple_whatever_order_the_join_returns() -> None:
+    rows = [
+        {"employee": "HR-EMP-1", "skill": "redis"},
+        {"employee": "HR-EMP-1", "skill": "spark"},
+        {"employee": "HR-EMP-1", "skill": "go"},
+        {"employee": "HR-EMP-1", "skill": "airflow"},
+    ]
+    assert records.skills_by_employee(rows) == {"HR-EMP-1": ("airflow", "go", "redis", "spark")}
+
+
+def test_a_skill_listed_twice_is_malformed_never_deduplicated() -> None:
+    rows = [
+        {"employee": "HR-EMP-1", "skill": "sql"},
+        {"employee": "HR-EMP-1", "skill": "sql"},
+    ]
+    with pytest.raises(MalformedRecord, match="Skill Map/HR-EMP-1: skill 'sql' listed twice"):
+        records.skills_by_employee(rows)
+
+
 @pytest.mark.parametrize(
     ("overrides", "reason"),
     [

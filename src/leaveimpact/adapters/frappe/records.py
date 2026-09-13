@@ -244,19 +244,39 @@ def skills_by_employee(rows: list[dict[str, Any]]) -> dict[str, tuple[SkillId, .
     and one row with a null skill for a map with no rows, so a person with an empty
     skill record still appears, with an empty tuple.
 
+    An employee's skills are set-valued; the domain carrier is a duplicate-free,
+    lexically sorted tuple, the order the construction fixes, so the vendor's order is
+    never observable. The stored rows keep their written index, but the order a list
+    call returns child rows in is the join's and unspecified: the first live world
+    (2026-09-13) came back with three of four skills out of place and the validator
+    read every such employee as a mismatch. A skill listed twice for one employee is
+    a second vendor representation of one identity — malformed, never deduplicated —
+    since no projector writes one, so it is refused with the employee named.
+
     >>> skills_by_employee([{"employee": "HR-EMP-1", "skill": "kafka"},
     ...                     {"employee": "HR-EMP-1", "skill": "sql"},
     ...                     {"employee": "HR-EMP-2", "skill": None}])
     {'HR-EMP-1': ('kafka', 'sql'), 'HR-EMP-2': ()}
+    >>> skills_by_employee([{"employee": "HR-EMP-1", "skill": "sql"},
+    ...                     {"employee": "HR-EMP-1", "skill": "kafka"}])
+    {'HR-EMP-1': ('kafka', 'sql')}
+    >>> skills_by_employee([{"employee": "HR-EMP-1", "skill": "sql"},
+    ...                     {"employee": "HR-EMP-1", "skill": "sql"}])
+    Traceback (most recent call last):
+    ...
+    leaveimpact.core.ports.errors.MalformedRecord: ...HR-EMP-1: skill 'sql' listed twice
     """
     grouped: dict[str, list[SkillId]] = {}
     for row in rows:
         locator = f"Employee Skill Map/{row.get('employee', '?')}"
         skills = grouped.setdefault(_field(row, "employee", locator), [])
         skill = row.get("skill")
-        if skill is not None:
-            skills.append(SkillId(skill))
-    return {name: tuple(skills) for name, skills in grouped.items()}
+        if skill is None:
+            continue
+        if skill in skills:
+            raise MalformedRecord(Source.FRAPPE, locator, f"skill {skill!r} listed twice")
+        skills.append(SkillId(skill))
+    return {name: tuple(sorted(skills)) for name, skills in grouped.items()}
 
 
 # --- leaves ----------------------------------------------------------------------------
