@@ -179,8 +179,13 @@ jobs:
             --filters Name=tag:Name,Values=leave-agent-app Name=instance-state-name,Values=running \
             --query 'Reservations[].Instances[].InstanceId' --output text)
           test -n "$IID" || { echo "no running leave-agent-app instance"; exit 1; }
+          # One command carries the deploy and, after it, the boundary probe: the truth
+          # bucket unreachable from the instance role, the public evidence of the sealed
+          # answer key (ruling 1 of the step 12 interview). A failed probe fails this
+          # step with no rollback — the app may be healthy while the boundary is not.
           jq -n --arg sha "$GITHUB_SHA" --rawfile script deploy/instance/deploy.sh \
-            '{commands: ["export DEPLOY_SHA=\($sha)", $script]}' > payload.json
+            --rawfile probe deploy/instance/assert-truth-unreachable.sh \
+            '{commands: ["export DEPLOY_SHA=\($sha)", $script, $probe]}' > payload.json
           CID=$(aws ssm send-command --instance-ids "$IID" --document-name AWS-RunShellScript \
             --comment "deploy $GITHUB_SHA" --parameters file://payload.json \
             --query Command.CommandId --output text)

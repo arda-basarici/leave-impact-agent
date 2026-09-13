@@ -25,6 +25,17 @@ repository's DESIGN tells the extraction story.
 | `infra/*.tf`, `user_data.sh.tftpl`, the provider lock | `terraform/stacks/leave-impact-prod/` |
 | the deploy role ARN, the instance `Name` tag, the `/leave-agent/` parameter prefix (as facts the workflow relied on) | `projects/leave-impact/README.md`, the contract table |
 
+## The boundary probe that follows the deploy
+
+`assert-truth-unreachable.sh` runs in the same SSM command, after `deploy.sh`, under
+the instance profile: a list of the world bucket's `worlds/` succeeds (the positive
+control), a list of the truth bucket and a get of its canary object are both refused
+with the `AccessDenied` code. It is the public evidence that the application cannot
+reach the answer key, taken on every deploy. A failure turns the run red and rolls
+nothing back: the app may be healthy while the boundary is not, and the fix is in the
+platform's IAM. The canary is a key known to exist, because S3 refuses a get of an
+absent key with AccessDenied whenever list is denied, whatever the get permission.
+
 ## The contract this script rides
 
 | Value | Owner | Used here |
