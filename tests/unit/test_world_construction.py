@@ -58,6 +58,7 @@ from leaveimpact.world import (
     VerdictOverride,
     generate_org,
 )
+from leaveimpact.world.briefs import ProseContractError, Register
 from leaveimpact.world.construction import (
     Amendment,
     ConflictingEffects,
@@ -71,7 +72,9 @@ from leaveimpact.world.construction import (
     ScenarioInvariantFailed,
     construct,
 )
+from leaveimpact.world.prose import FactRole
 from leaveimpact.world.truth_facts import truth_fact_base
+from tests.unit.prose_fixture import KAFKA, PYTHON, SkillInComment, pending_scenario
 
 ORG = generate_org(7, DEFAULT_PARAMS)
 WORLD_START = date(2026, 1, 1)
@@ -441,3 +444,33 @@ def test_the_id_book_numbers_world_wide_across_scenarios() -> None:
     )
     assert first.owned.work_items[0].entity.id != second.owned.work_items[0].entity.id
     assert first.spec.leave_id != second.spec.leave_id
+
+
+# --- Pending prose: the framework completes what a class leaves for a model ---------------
+
+
+def test_a_required_facts_role_is_derived_by_removing_it_from_the_base() -> None:
+    """The Kafka fact makes the candidate viable, so removing it moves the verdict; the Python
+    fact on the same comment moves nothing and is context."""
+    scenario = pending_scenario(SkillInComment(context=True))
+    [brief] = scenario.briefs
+    roles = {required.fact.value: required.role for required in brief.required}
+    assert roles == {KAFKA: FactRole.ANSWER_CHANGING, PYTHON: FactRole.CONTEXT}
+    assert brief.register is Register.TICKET_COMMENT
+    assert brief.namespace.form_of("skill", KAFKA) == "Kafka"
+    [planted] = scenario.owned.work_items
+    assert planted.entity.comments == ()  # pending until composed
+
+
+def test_a_fact_evidenced_by_a_part_nobody_planted_or_briefed_fails_construction_by_name() -> None:
+    carried_by_nothing = "neither a part the scenario planted nor a brief's target"
+    with pytest.raises(ProseContractError, match=carried_by_nothing):
+        pending_scenario(SkillInComment(orphan=True))
+
+
+def test_a_template_written_clause_carries_its_fact_with_no_brief() -> None:
+    scenario = pending_scenario()
+    [policy] = scenario.owned.documents
+    assert policy.entity.sections[0].text == "A release needs a Kafka engineer."
+    skill_facts = [f for f in scenario.authored_facts if f.predicate is PredicateName.HAS_SKILL]
+    assert [b.id for b in scenario.briefs] == [f.evidence.target.id for f in skill_facts]

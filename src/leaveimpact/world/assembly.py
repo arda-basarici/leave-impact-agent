@@ -41,8 +41,16 @@ than claiming one culprit; expected against actual is the authoritative part.
 
 One seed identifies a world: the organization is generated from it, one ``Random`` from
 it deals the slices and the plan and hands each scenario its own generator, and one id
-book numbers every record world-wide. The result is a ``WorldSpec``, the pure composed
-bundle the artifact step serializes and hashes.
+book numbers every record world-wide. The result is a ``SemanticWorld``: everything the
+seed determines, which since the prose step is not yet a world spec. The parts a model
+writes — a comment on a ticket, a section of a runbook — are absent from it and stand as
+briefs, typed pending targets with the facts each must carry; verification needs no text,
+so it runs here, on the semantic world, before any model is paid. ``WorldSpec`` is the
+semantic world with those parts composed in, plus the one thing only composition knows,
+the record of how each text was accepted; the composition module builds it, and its own
+invariant is that every brief's target is now present and every prose-authored fact
+resolves to a part. A world with no pending prose composes into the same entities it was
+assembled with and carries no record.
 """
 
 from __future__ import annotations
@@ -54,12 +62,13 @@ from datetime import date, timedelta
 from random import Random
 
 from leaveimpact.core.claims import Verdict
-from leaveimpact.core.enums import Source
+from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.facts import Fact, FactBase, RunCondition
 from leaveimpact.core.ids import EmployeeId, ScenarioId
 from leaveimpact.core.plans import expected_action
 from leaveimpact.core.viability import assess_impact
 from leaveimpact.core.worldtime import DateSpan
+from leaveimpact.world.briefs import parts_of
 from leaveimpact.world.construction import (
     ConstructionError,
     Minting,
@@ -70,6 +79,7 @@ from leaveimpact.world.construction import (
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
 from leaveimpact.world.plan import TIER_ONE_RULES, PlanRow, PlanRules, plan_world
+from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import Scenario
 from leaveimpact.world.slices import allocate_slices
@@ -126,12 +136,14 @@ class WorldContamination(ConstructionError):
 
 
 @dataclass(frozen=True, slots=True)
-class WorldSpec:
-    """The pure composed bundle: organization, plan, scenarios, world-level fact base, provenance.
+class SemanticWorld:
+    """Everything the seed determines: organization, plan, scenarios with their briefs, the
+    world-level fact base, provenance — the parts a model writes still pending.
 
     ``interpreter`` is the minor version the world was generated under and
     ``vocabulary_digest`` the tables' fingerprint; with the seed, the organization's
     parameters and the generator version they are the provenance the manifest records.
+    Two runs from one seed share this value whatever prose they go on to accept.
     """
 
     seed: int
@@ -158,15 +170,67 @@ class WorldSpec:
                 scenario.key.modifiers,
             ):
                 raise ValueError(f"plan row {row.scenario_id} and its scenario disagree")
+        ids = [brief.id for scenario in self.scenarios for brief in scenario.briefs]
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"a prose target is briefed once world-wide, got {ids}")
+
+    @property
+    def pending_ids(self) -> frozenset[str]:
+        """The ids of every part a model still owes this world."""
+        return frozenset(brief.id for scenario in self.scenarios for brief in scenario.briefs)
 
 
-def assemble_world(
+@dataclass(frozen=True, slots=True)
+class WorldSpec(SemanticWorld):
+    """A semantic world with its model-written parts composed in, and the record of how.
+
+    Built by the composition module and never by hand: ``materialization`` is the
+    provenance of every accepted text and is ``None`` exactly when the world had no
+    pending prose. The invariant a composed world adds is that every brief's target is now
+    a part of its parent and every prose-authored fact resolves to a part that exists.
+    """
+
+    materialization: MaterializationRecord | None
+
+    def __post_init__(self) -> None:
+        SemanticWorld.__post_init__(self)
+        pending = self.pending_ids
+        recorded: frozenset[str] = (
+            frozenset() if self.materialization is None else self.materialization.target_ids
+        )
+        if recorded != pending:
+            raise ValueError(
+                f"the materialization record covers {sorted(recorded)} and the briefs name "
+                f"{sorted(pending)}"
+            )
+        for scenario in self.scenarios:
+            present = parts_of(
+                [p.entity for p in scenario.owned.work_items],
+                [p.entity for p in scenario.owned.documents],
+            )
+            missing = sorted(brief.id for brief in scenario.briefs if brief.id not in present)
+            if missing:
+                raise ValueError(f"{scenario.spec.id}: briefed parts not composed: {missing}")
+            unresolved = sorted(
+                fact.evidence.target.id
+                for fact in scenario.authored_facts
+                if fact.evidence.target.kind in (EntityKind.COMMENT, EntityKind.CLAUSE)
+                and fact.evidence.target.id not in present
+            )
+            if unresolved:
+                raise ValueError(
+                    f"{scenario.spec.id}: authored facts evidenced by parts that do not exist: "
+                    f"{unresolved}"
+                )
+
+
+def assemble_semantic_world(
     seed: int,
     params: OrgParams,
     world_start: date,
     rules: PlanRules = TIER_ONE_RULES,
-) -> WorldSpec:
-    """The world ``seed`` produces under ``params`` and ``rules``, re-verified as a whole.
+) -> SemanticWorld:
+    """The semantic world ``seed`` produces under ``params`` and ``rules``, re-verified as a whole.
 
     Raises ``PlanInfeasible`` when the rule cannot be met, a construction error when a
     scenario cannot be built as planned, ``WorldContamination`` when the assembled world
@@ -195,7 +259,7 @@ def assemble_world(
     findings = verify_world(facts, scenarios, org)
     if findings:
         raise WorldContamination(findings)
-    return WorldSpec(
+    return SemanticWorld(
         seed=seed,
         world_start=world_start,
         org=org,
@@ -385,9 +449,10 @@ def _foreign(
 __all__ = [
     "Contamination",
     "ForeignRecord",
+    "SemanticWorld",
     "WorldContamination",
     "WorldSpec",
-    "assemble_world",
+    "assemble_semantic_world",
     "verify_world",
     "world_fact_base",
 ]

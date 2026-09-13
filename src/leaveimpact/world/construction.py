@@ -63,7 +63,16 @@ from leaveimpact.core.viability import (
     need_of,
 )
 from leaveimpact.core.worldtime import DateSpan, local_date
+from leaveimpact.world.briefs import (
+    Brief,
+    PendingProse,
+    brief_for,
+    check_allowed,
+    check_pending,
+    lexicon_of,
+)
 from leaveimpact.world.org import OrgSpec
+from leaveimpact.world.prose import FactRole
 from leaveimpact.world.scenario import (
     ExpectedImpact,
     ModifierEffect,
@@ -177,9 +186,11 @@ class Draft:
 
     ``investigated`` names the owned leave the run is about — the class says which, since
     a modifier may plant another leave over the same days. ``impacts`` carry the class's
-    authored verdicts and declared outcomes; modifiers add to ``owned``, ``distractors``
-    and ``authored_facts`` through ``extended`` and declare verdict changes through their
-    effect, never by editing ``impacts`` in place.
+    authored verdicts and declared outcomes; modifiers add to ``owned``, ``distractors``,
+    ``authored_facts`` and ``pending`` through ``extended`` and declare verdict changes
+    through their effect, never by editing ``impacts`` in place. ``pending`` is the prose
+    the class leaves for a model: a target and the facts it must and may carry, which the
+    framework completes into briefs.
     """
 
     owned: OwnedEntities
@@ -188,6 +199,7 @@ class Draft:
     constraints: tuple[ConstraintKey, ...] = ()
     distractors: tuple[NamedDistractor, ...] = ()
     authored_facts: tuple[Fact, ...] = ()
+    pending: tuple[PendingProse, ...] = ()
 
     def __post_init__(self) -> None:
         # Refused here, before composition indexes impacts by key: a dict would keep the
@@ -203,8 +215,9 @@ class Draft:
         owned: OwnedEntities | None = None,
         distractors: tuple[NamedDistractor, ...] = (),
         authored_facts: tuple[Fact, ...] = (),
+        pending: tuple[PendingProse, ...] = (),
     ) -> Draft:
-        """This draft with more planted: owned entities merged, distractors and facts appended."""
+        """This draft with more planted: owned entities merged, the other tuples appended."""
         merged = self.owned
         if owned is not None:
             merged = OwnedEntities(
@@ -218,6 +231,7 @@ class Draft:
             owned=merged,
             distractors=self.distractors + distractors,
             authored_facts=self.authored_facts + authored_facts,
+            pending=self.pending + pending,
         )
 
 
@@ -338,10 +352,60 @@ def construct(
         stable_interval=stable_interval(window, leave, frame.today, observability),
         required_sources=tuple(sorted(required, key=lambda source: source.value)),
     )
-    scenario = Scenario(spec, key, draft.owned, draft.authored_facts)
+    briefs = _briefs_for(draft, impacts, base, spec.today, frame, org)
+    scenario = Scenario(spec, key, draft.owned, draft.authored_facts, briefs)
     if problems:
         raise ScenarioInvariantFailed(scenario_id, problems)
     return scenario
+
+
+def _briefs_for(
+    draft: Draft,
+    impacts: Sequence[ExpectedImpact],
+    base: FactBase,
+    today: date,
+    frame: Frame,
+    org: OrgSpec,
+) -> tuple[Brief, ...]:
+    """The scenario's briefs, completed from the class's pending prose, under the contract.
+
+    A required fact's role is found by asking the rules with that one fact removed from
+    the base: a conclusion that moves — a verdict, its reasons, an open question, an
+    outcome — makes the fact answer-changing, nothing moving makes it context. The same
+    conclusions the required-sources derivation compares, so "answer-changing" means
+    what "required" means there. The contract runs even with no pending prose, because
+    it is also what refuses an authored fact evidenced by a part nobody planted.
+    """
+    normal = RunCondition.all_reachable()
+
+    def concluded(facts: FactBase) -> tuple[object, ...]:
+        return _conclusions(
+            facts.at(today, normal),
+            impacts,
+            draft.constraints,
+            frame.leave,
+            frame.reference_timezone,
+            org,
+        )
+
+    baseline = concluded(base)
+    roles: dict[Fact, FactRole] = {}
+    for pending in draft.pending:
+        for fact in pending.required:
+            remaining = tuple(f for f in draft.authored_facts if f != fact)
+            without = truth_fact_base(org, frame.world_start, [draft.owned], remaining)
+            moved = concluded(without) != baseline
+            roles[fact] = FactRole.ANSWER_CHANGING if moved else FactRole.CONTEXT
+    work_items = [planted.entity for planted in draft.owned.work_items]
+    documents = [planted.entity for planted in draft.owned.documents]
+    events = [planted.entity for planted in draft.owned.events]
+    lexicon = lexicon_of(org, work_items, documents, events)
+    briefs = tuple(
+        brief_for(pending, work_items, documents, lexicon, roles) for pending in draft.pending
+    )
+    check_pending(work_items, documents, briefs, draft.authored_facts)
+    check_allowed(briefs, base)
+    return briefs
 
 
 def _choose[T](options: tuple[T, ...], who: ScenarioClass | Modifier, rng: Random) -> T:

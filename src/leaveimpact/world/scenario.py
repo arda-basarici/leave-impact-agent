@@ -46,6 +46,7 @@ from leaveimpact.core.ids import EmployeeId, LeaveId, ScenarioId
 from leaveimpact.core.ports.observed import Entity
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.worldtime import DateSpan, local_date, require_aware
+from leaveimpact.world.briefs import Brief
 
 
 class Tier(StrEnum):
@@ -286,17 +287,22 @@ class OwnedEntities:
 
 @dataclass(frozen=True, slots=True)
 class Scenario:
-    """The construction record: spec and key together, the owned entities, the authored facts.
+    """The construction record: spec and key, the owned entities, the authored facts, the briefs.
 
     ``authored_facts`` are the facts only a world can plant — a skill evidenced in a
     comment, an owner a runbook asserts, what a clause requires — stated as facts beside
     the prose that will carry them; the prose is a rendering of the fact, never its source.
+    ``briefs`` are the model-written parts the scenario still owes, one per pending
+    comment or section; a part the class wrote itself needs none. Before composition the
+    owned entities lack those parts; after it they hold them, and the briefs stay as the
+    record of what each was asked to carry.
     """
 
     spec: ScenarioSpec
     key: ScenarioKey
     owned: OwnedEntities
     authored_facts: tuple[Fact, ...] = ()
+    briefs: tuple[Brief, ...] = ()
 
     def __post_init__(self) -> None:
         """Refuse three records that cannot describe one scenario.
