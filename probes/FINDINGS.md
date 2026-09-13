@@ -581,3 +581,63 @@ of commit `ff9038d`, approved at the production gate, 01:07 UTC:
 The step's claim is now evidenced on every deploy rather than stated: the application's
 principal cannot list or read the answer key, and a red deploy run that names this probe
 is a boundary failure to fix in the platform's IAM, never an application rollback.
+
+## first-world — PASS (2026-09-13, approved 21:53 UTC)
+
+The first world generated, projected and validated through the two `benchmark`
+workflows: seed 1, world start 2026-01-05, the default 28 people in 5 teams, Tier 1's
+ten scenarios. World version `d674d5763715549f49e82c251977cfe5093b6bf09099c165b5d7c94d7de33046`.
+
+- **Generation, attempt 1 (run 34780738512, 20:26 UTC): red at the first vendor call.**
+  The truth artifacts sealed first as designed (world spec 20:26:23, truth manifest
+  20:26:24), then Frappe's `HR Settings` GET answered 403 with Cloudflare's challenge
+  page. The zone's free-plan Bot Fight Mode challenges cloud-network clients on their
+  first request, proven from three networks the same evening:
+
+  | client | `/api/method/ping` on `hr-w1` |
+  |---|---|
+  | GitHub-hosted runner, `python-httpx/0.28.1` | 403 challenge (the run) |
+  | AWS app instance 3.68.138.190, curl's UA and the httpx UA | 403, `cf-mitigated: challenge`, ray `a3aa0592fcad7a40-DUS` |
+  | workstation, both UAs | 200 |
+
+  Cloudflare's docs: Bot Fight Mode runs outside the ruleset engine and cannot be
+  skipped by any rule, zone-wide only; Super Bot Fight Mode (Pro) can be skipped by a
+  custom rule; the ordering against an Access service token is undocumented. The
+  2026-08-30 "machine clients pass" observation rested on UptimeRobot, a verified bot
+  Bot Fight Mode exempts, so it said nothing about unverified cloud clients; this run
+  was the first such client ever to reach the Frappe hostnames. Ruled in the platform
+  stream (its commit `b894ac6`): Bot Fight Mode off, the paid-plan trigger re-cut, the
+  service-to-service connectivity row (a private tunnel network) re-opened for M2 entry.
+- **Attempt 2 (same run id, 21:25–21:32 UTC): green in 375.6 s.** The truth objects
+  kept attempt 1's timestamps — the content-addressed restart hit the equal case on
+  both, live, on its first try. Entry-point numbers: `checkpoint_count=106`,
+  `checkpoint_p50_seconds=0.295`, `checkpoint_p95_seconds=0.623`,
+  `checkpoint_total_seconds=40.021`, `checkpoint_bytes_written=491265`,
+  `checkpoint_share_of_run=0.107`, `conditional_puts=2`. Per-record checkpointing
+  costs a tenth of the run; no cadence change on this evidence. Projected: 28
+  employees, 12 leave applications, 18 departments under Frappe company
+  `World WD674D5763`; 9 issues in Jira project `WD674D5763`; calendars per person;
+  no documents (Tier 1 plants none). The OIDC subject and `job_workflow_ref` claims
+  logged as at the objectstore probe.
+- **Validation, run 34784309718 (verdict `…/verdicts/34784309718-1.json`): refused.**
+  One failed check: employee fidelity on `skills`, 18 of 28 employees; every
+  exactness kind, every other fidelity kind and all ten scenario views passed. Cause:
+  Frappe's list call over the skill child table returns rows in the join's
+  unspecified order (`emp_002` live: redis, spark, go, airflow at idx 3, 4, 2, 1 —
+  the projector had written sorted order faithfully); the reader kept that order,
+  the sealed side carries a lexically sorted tuple, and fidelity is field equality.
+  All 16 employees with three or more skills failed and 2 of the 5 with exactly two.
+  A cassette holds one recorded order, so the suite could not have caught it. Fixed
+  in `c9823a7` at the reader boundary (sorted, duplicate-free, a repeated skill
+  refused as malformed); nothing regenerated or reprojected.
+- **Validation, run 34785009950 (verdict `…/verdicts/34785009950-1.json`, 1 min
+  38 s): approved.** Every check passed; the verdict's manifest digest
+  `92576aa3…` equals the live world manifest's; both verdicts stand side by side
+  under the version. The serving rule's three conditions hold for this world.
+
+Not demonstrated, still open: the validator role's `GetObject` denial on
+`truth-manifest/<version>.json` now that a real key exists (an IAM simulation from the
+workstation was inconclusive; the honest proof is a negative probe step inside the
+validate workflow, the deploy probe's shape), and the validator role's write surface
+beyond the verdict key. The `benchmark` gate refusing a wrong subject: ruled not worth
+demonstrating (the trust policy was read back 2026-09-12).

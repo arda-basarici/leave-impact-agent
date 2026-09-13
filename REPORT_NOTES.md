@@ -7,6 +7,134 @@ decisions it feeds.
 
 ---
 
+## 2026-09-13 — The validator earned its keep on the first world: two boundary faults, no world fault
+
+*M1 step 13 of the build plan, the first world live: the `generate world` workflow run
+34780738512 (attempt 1 red, attempt 2 green), the validator runs 34784309718 (refused)
+and 34785009950 (approved), the reader fix `c9823a7`, the platform's Bot Fight Mode
+ruling in its commit `b894ac6` (session 22, 2026-09-13/14). Feeds: the M1 milestone
+post; the final report's evaluation section under "ground truth by construction" —
+what an independent re-read of the live systems is worth, shown on the day it caught
+something; and the operations section on the edge, where the first cloud-network client
+of a proxied hostname met the free plan's bot heuristic at the exact moment of the
+first real run.*
+
+The first world took two attempts to generate and two to validate, and neither fault
+was in the world. Both were boundaries: an edge heuristic turned against the project's
+own clients, and a vendor's read order leaking into a field the design had declared
+canonical. The second one is the reason the validator exists, and it found it on the
+first world it ever read.
+
+**The edge that had never met a machine.** The generator's first attempt sealed the
+truth artifacts, the world spec and the truth manifest of version `d674d576…`, at 20:26
+UTC, then made its first call to the Frappe site and got a 403 whose body was
+Cloudflare's "Just a moment…" page, with `cf-mitigated: challenge` in the headers.
+Frappe never saw the request. The sealing order had paid off in the smallest way
+possible: truth first, so a truth-only orphan and nothing else. Pinning the cause took
+one table with three rows: the GitHub-hosted runner, 403; the AWS application instance,
+403 with curl's own user agent and with the httpx one alike; the workstation, 200 with
+both. So the discriminator was the network, not the client. Cloud address space is
+what the zone's free-plan Bot Fight Mode scores as automated, and it challenges on the
+first request. Cloudflare's own documentation, checked that evening, closed the door
+on a scoped fix: Bot Fight Mode runs outside the ruleset engine, so no custom rule,
+page rule or skip action can exempt a request from it, and it is zone-wide only; the
+first tier with an exception is Super Bot Fight Mode on the Pro plan (about $25 a
+month, a figure corroborated by secondary sources rather than quoted from the docs),
+and whether an Access service token would itself be challenged is stated nowhere
+official.
+
+Two things in the platform's own record made this less of a surprise and more of a
+lesson. The Terraform file that imported Bot Fight Mode on 2026-08-28 carried a comment
+saying it "can challenge a legitimate client (an API caller, a monitor)", and the
+platform design held a trigger row for "a paid Cloudflare plan" that fired on exactly
+this event. And the observation of 2026-08-30 that machine clients pass, taken as
+reassurance at the time, turned out to rest on one client, the UptimeRobot monitor,
+which is on Cloudflare's verified-bot list and therefore exempt by design. Every
+machine client had passed because the only one that had ever knocked was a verified
+bot; no unverified client from a cloud network had ever reached these hostnames
+before the first real run. The ruling was taken in the platform stream the same night:
+Bot Fight Mode off, the paid-plan trigger re-cut, the hollow monitor observation
+corrected in the docs. Arda raised the wider frame himself, a private Cloudflare Tunnel
+network between the AWS host and the netcup box with no inbound port on either side;
+that closes the M2 path, the agent on the instance talking to Frappe, but not the
+generator's, since a GitHub runner sits in neither network and has no fixed address.
+It lands as the platform's service-to-service connectivity step at M2 entry, with a
+five-minute probe on the service-token question the docs leave open.
+
+**The rerun that wrote nothing.** Attempt 2, same run id, went green in 375.6 seconds
+(the entry point's `run_seconds` line). The truth objects kept attempt 1's timestamps:
+the reassembled bytes were identical and both conditional puts landed in the equal
+case, the content-addressed restart proven live on its first try. The checkpoint
+numbers the design had deferred to this step came out of the same log: 106 checkpoint
+writes, p50 0.295 s and p95 0.623 s per write, 40.0 s in total, 491,265 bytes, 10.7 %
+of the run. That is the cost of the one-write crash window kept from step 10, and it is
+small enough that the cadence stays at one checkpoint per record. On the sites: 28
+employees, 12 leave applications and 18 departments in the Frappe company
+`World WD674D5763`, 9 issues in the Jira project of the same name, no documents because
+no Tier 1 class plants one (counts read back over the vendor APIs after the run).
+
+**Eighteen mismatches, all in one field.** The validator refused the world (run
+34784309718, verdict `worlds/<v>/verdicts/34784309718-1.json`). Every exactness kind
+passed, every scenario view passed, six of seven fidelity kinds passed; the seventh,
+employee fidelity, listed 18 of 28 employees differing in `skills` and nothing else.
+The live rows told the story at once: for employee 002 the sealed skills were `airflow,
+go, redis, spark` and Frappe returned `redis, spark, go, airflow`, with row indexes 3,
+4, 2, 1. The projector had written the sorted order faithfully and the stored record
+still held it; what Frappe leaves unspecified is the order in which a list call over a
+child table returns its join. The reader kept whatever order came back, the sealed
+employee holds a lexically sorted tuple (the construction's own `tuple(sorted(...))`),
+and the fidelity check is field equality, so any reordering was a mismatch. The
+pattern fit exactly: all sixteen employees with three or more skills failed, and two of
+the five with exactly two did, as the join order happened to fall. The cassette tests
+could not have caught this, structurally: a recorded response has one order. The world
+was right and the observation boundary was wrong, which is the failure mode an
+independent re-read is built to expose, and the design's phrase for it held: validate
+the projected systems, not the generator's intermediate objects, so a bug in the
+shared reading code cannot produce an evaluation that agrees with a wrong world.
+
+**Where to fix it, and what not to schedule.** The first proposal was to sort at the
+reader and to note a `frozenset` as the type-honest eventual form for the field. The
+external reviewer, reading the proposal relayed by Arda, pushed back on the second
+half and was right: a frozenset gives order-independent equality but every
+serialization boundary then has to impose an order again, so it moves the
+canonicalization rather than removing it, and for a system that cares about
+deterministic bytes and snapshot equality a sorted, duplicate-free tuple is a
+legitimate domain carrier, not a compromise. The bug was narrower than the type: the
+sealed construction produced the canonical tuple, the vendor stored the rows, and only
+the reader let the vendor's order through. Fix the reader boundary, keep the
+representation, and record no refactor debt that no consumer has asked for. One more
+ruling came with it, on duplicates: if Frappe ever returned the same skill twice for
+one employee, sorting must not quietly yield `python, python, sql`, and a
+`sorted(set(...))` must not quietly hide it either. Different ordering is normalized;
+duplicate membership fails loud, which is the reviewer's own invariant from
+2026-09-12, one semantic identity has exactly one vendor representation per place.
+Commit `c9823a7` did exactly that: the reader returns the sorted tuple, a skill listed
+twice is a `MalformedRecord` naming the employee, and the doctests carry a reversed
+example and a duplicated one. No cassette was re-recorded, because no request or
+payload changed. Nothing was regenerated and nothing reprojected: same sealed world,
+same vendor state, a corrected reader.
+
+**Approved, with the first verdict kept beside it.** The revalidation (run 34785009950,
+1 minute 38 seconds) approved the world: every check passed, and the verdict's manifest
+digest equals the live world manifest's (`92576aa3…`), which is the serving rule's
+condition met for the first time. The refused verdict stays under its own run key
+next to the approved one; a refusal is evidence, and the pair is the record of what the
+validator caught. That is half of M1's exit, the first world live with its golden set
+beside it.
+
+Two things are still claims rather than evidence, and are recorded as such. The
+validator role's denial on the real `truth-manifest/<version>.json` key is not yet
+demonstrated (the canary proves no bucket-wide read; an IAM policy simulation attempted
+this session was inconclusive and is not counted). And the `benchmark` environment
+refusing a wrong subject was ruled not worth a demonstration, since the trust policy
+was read back on 2026-09-12 and a negative demo would cost a trust edit to prove what
+the read-back shows.
+
+Figure: the three-network table (GitHub runner 403, AWS instance 403, workstation 200)
+as the one picture of the edge fault. Figure: the two verdicts side by side, 18
+employee mismatches in one field, then zero, same world version and same manifest
+digest.
+
 ## 2026-09-13 — Four times the claim was stronger than the mechanism: how step 12 turned every boundary sentence into a check
 
 *M1 step 12 of the build plan, the generator's entry point and the sealing of a world
