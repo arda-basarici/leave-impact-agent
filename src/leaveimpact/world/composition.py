@@ -30,6 +30,7 @@ from datetime import date
 
 from leaveimpact.core.comments import comment_text
 from leaveimpact.core.entities import Comment, Document, DocumentSection, WorkItem
+from leaveimpact.world.artifacts import semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec, assemble_semantic_world
 from leaveimpact.world.briefs import (
     Brief,
@@ -76,6 +77,7 @@ def compose(
         generator_version=semantic.generator_version,
         interpreter=semantic.interpreter,
         vocabulary_digest=semantic.vocabulary_digest,
+        semantic_digest=semantic_digest(semantic),
         materialization=materialization,
     )
 

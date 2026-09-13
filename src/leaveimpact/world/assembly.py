@@ -55,6 +55,7 @@ assembled with and carries no record.
 
 from __future__ import annotations
 
+import re
 import sys
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
@@ -182,18 +183,24 @@ class SemanticWorld:
 
 @dataclass(frozen=True, slots=True)
 class WorldSpec(SemanticWorld):
-    """A semantic world with its model-written parts composed in, and the record of how.
+    """A semantic world with its model-written parts composed in, and the two things only
+    composition knows: the semantic digest and the record of how each text was accepted.
 
-    Built by the composition module and never by hand: ``materialization`` is the
-    provenance of every accepted text and is ``None`` exactly when the world had no
-    pending prose. The invariant a composed world adds is that every brief's target is now
-    a part of its parent and every prose-authored fact resolves to a part that exists.
+    Built by the composition module and never by hand: ``semantic_digest`` is the hash of
+    the semantic world this was composed from, computed there so no caller passes one, and
+    ``materialization`` is the provenance of every accepted text, ``None`` exactly when
+    the world had no pending prose. The invariant a composed world adds is that every
+    brief's target is now a part of its parent and every prose-authored fact resolves to a
+    part that exists.
     """
 
+    semantic_digest: str
     materialization: MaterializationRecord | None
 
     def __post_init__(self) -> None:
         SemanticWorld.__post_init__(self)
+        if not re.fullmatch(r"[0-9a-f]{64}", self.semantic_digest):
+            raise ValueError(f"semantic_digest is a SHA-256 hex, got {self.semantic_digest!r}")
         pending = self.pending_ids
         recorded: frozenset[str] = (
             frozenset() if self.materialization is None else self.materialization.target_ids

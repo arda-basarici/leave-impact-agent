@@ -22,9 +22,11 @@ The vocabulary half of the rule has the same visibility. ``VOCABULARY_DIGEST`` i
 fingerprint of the tables at the current version; a test recomputes it, so editing a
 name or a city fails the suite until this file is touched, and the diff then shows
 whether the version moved with the digest. Neither check can prove a bump happened —
-that stays with review until the frozen bundle exists, whose content hash for a
-reference seed becomes the recorded snapshot that catches an unbumped change of any
-kind.
+that stays with review, backed by the snapshot pair: a reference seed's *semantic digest*
+recorded beside the generator version, which catches an unbumped change of any kind to
+what the seed determines. The realized bundle's hash is not the pinned value, since the
+prose step made it non-deterministic by design; the semantic digest is what two runs of
+one seed share (the step 14 rulings).
 """
 
 from __future__ import annotations
@@ -33,7 +35,7 @@ from typing import NewType
 
 GeneratorVersion = NewType("GeneratorVersion", str)
 
-GENERATOR_VERSION = GeneratorVersion("4")
+GENERATOR_VERSION = GeneratorVersion("5")
 
 GENERATOR_PYTHON = (3, 13)
 

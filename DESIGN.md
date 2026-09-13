@@ -1085,15 +1085,20 @@ regression oracle is the pair (generator version, the reference seed's semantic
 digest); the world version stays recorded provenance that no test expects to reproduce
 from a seed, since prose is non-deterministic on purpose.
 
-**The record, the restart, the guards.** The materialization record is a typed section
-of the world spec's provenance, benchmark-private and part of the realized identity:
-writer and checker configuration, the inference configuration serialized whole so a
+**The record, the restart, the guards.** The materialization record seals in the truth
+manifest beside each scenario's key, authored facts and briefs — evaluator-only, and
+part of the realized identity (corrected 2026-09-14 at the first artifact commit: the
+interview had put it in the world spec's provenance, but storage follows access, the
+world spec is readable by the validator's role and holds nothing truth expects, and a
+brief's required facts and a checker's reading of a text are exactly that). It carries
+the writer and checker configuration, the inference configuration serialized whole so a
 parameter added later joins it unasked, the digests of the prompt assets, the attempt
 cap; per target the attempts, each refusal by guard, the rendered request's digest, the
 accepted body's digest (`accepted_body_digest`, the model's output — the composed text
 has its own place in the world's digests) and the accepted attempt's extracted
-propositions, which are what the hand audit is measured against. The strict decoder
-decodes the section and no check reads it. Rejected text is discarded whole and exists
+propositions, which are what the hand audit is measured against. The truth manifest has
+no decoder until the evaluator arrives, so nothing the validator can reach decodes the
+record; a resume takes the sealed truth bytes as they are. Rejected text is discarded whole and exists
 nowhere: the repository is public and its job logs are world-readable, so a log
 carrying a rejected sentence or a quoted unsupported proposition would be a third
 benchmark-private surface with no access policy; logs and refusal messages carry target

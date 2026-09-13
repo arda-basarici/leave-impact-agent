@@ -9,15 +9,20 @@ the projectors and the validator, never by the application, since the plan alone
 which traps were planted. It is what was supposed to be projected and holds nothing
 truth expects of it. The *scenario specs* hold the agent-visible rows only: what a run is
 asked, legitimate inputs and no evaluator-only truth. The *truth manifest* is
-evaluator-only: every key, the authored facts, and the dated world-level fact base — what
-the plantings are expected to imply. One home per fact across the three: the plantings
-and the stable intervals moved out of the truth manifest when the validator became the
-spec's first reader from bytes, because a validator whose role reads the spec alone could
-not otherwise know what was planted, and the evaluator joins the two files by scenario id.
-The serialized key is therefore narrower than the in-memory construction record on
-purpose. A fourth file is deliberately not here: the *world manifest* of the earlier
-contract — adapter configuration, the identity map from semantic to vendor ids, org
-parameters, the world version and digests — is the projection's receipt, written after
+evaluator-only: every key, the authored facts, each scenario's briefs, the dated
+world-level fact base — what the plantings are expected to imply — and, since the prose
+step, the materialization record, the provenance of every model-written text. The briefs
+and the record live here and not in the world spec because storage follows access: the
+world spec is readable by the validator's role and holds nothing truth expects, and a
+brief's required facts and a checker's reading of a text are exactly that. One home per
+fact across the three: the plantings and the stable intervals moved out of the truth
+manifest when the validator became the spec's first reader from bytes, because a
+validator whose role reads the spec alone could not otherwise know what was planted, and
+the evaluator joins the two files by scenario id. The serialized key is therefore
+narrower than the in-memory construction record on purpose. A fourth file is
+deliberately not here: the *world manifest* of the earlier contract — adapter
+configuration, the identity map from semantic to vendor ids, org parameters, the world
+version and digests — is the projection's receipt, written after
 the vendors mint ids, application-readable, outside the hash, and holding no fact that
 can change an answer (the test: delete it after identity resolution and lose nothing
 answer-relevant). It lives in ``adapters.manifest``, the lowest package that can type the
@@ -29,10 +34,16 @@ The world version is the digest of the realized bundle — the three canonical b
 sequences hashed in a fixed order, each prefixed by its file name — never of the recipe,
 because the interpreter finding at the organization step is exactly a case where the
 recipe holds and the realization drifts. It is external metadata of the bundle and is
-never serialized into a hashed artifact, which would define it circularly. The tests
-record a reference seed's version beside the generator version as a pair: a changed
-hash with an unchanged generator version fails, and re-cutting the pair is the
-deliberate act that accompanies a bump.
+never serialized into a hashed artifact, which would define it circularly. Since the
+prose step a second identity sits beside it, recorded in the world spec's provenance: the
+*semantic digest*, the hash of the semantic world's canonical encoding — organization,
+plan, slices, every scenario's spec, plantings, key, authored facts and briefs, the fact
+base — before any model-written part exists. Two runs from one seed share it whatever
+prose they accept, so it is what the tests pin beside the generator version as the
+snapshot pair: a changed digest with an unchanged generator version fails, and re-cutting
+the pair is the deliberate act that accompanies a bump. The world version is recorded
+for every generated world and pinned by no test, since prose is non-deterministic on
+purpose.
 
 Canonical means what every codec here means by it — the one byte rule in ``core``'s
 JSON shape module, so the bytes are a property of the world and not of a serializer's
@@ -77,9 +88,18 @@ from leaveimpact.core.predicates import predicate
 from leaveimpact.core.refs import EvidenceRef
 from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
-from leaveimpact.world.assembly import WorldSpec
+from leaveimpact.world.assembly import SemanticWorld, WorldSpec
+from leaveimpact.world.briefs import Brief, CommentTarget, ProseTarget, SectionTarget
 from leaveimpact.world.org import OrgSpec, encode_org_params
 from leaveimpact.world.plan import PlanRow
+from leaveimpact.world.prose import (
+    MaterializationRecord,
+    ModelConfiguration,
+    Namespace,
+    Proposition,
+    Refusal,
+    TargetRecord,
+)
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
     ExpectedImpact,
@@ -95,6 +115,8 @@ from leaveimpact.world.version import GeneratorVersion
 WORLD_SPEC = "world-spec.json"
 SCENARIO_SPECS = "scenario-specs.json"
 TRUTH_MANIFEST = "truth-manifest.json"
+SEMANTIC_WORLD = "semantic-world"
+"""The discriminator of the semantic encoding, which is hashed and never written."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +178,7 @@ class PlantedWorldSpec:
     generator_version: GeneratorVersion
     interpreter: tuple[int, int]
     vocabulary_digest: str
+    semantic_digest: str
     org: OrgSpec
     slices: tuple[DateSpan, ...]
     plan: tuple[PlanRow, ...]
@@ -179,6 +202,7 @@ class PlantedWorldSpec:
                 )
         for name, value in (
             ("vocabulary_digest", self.vocabulary_digest),
+            ("semantic_digest", self.semantic_digest),
             ("scenario_specs_digest", self.scenario_specs_digest),
             ("truth_manifest_digest", self.truth_manifest_digest),
         ):
@@ -196,6 +220,7 @@ def planted_world_spec(
         generator_version=world.generator_version,
         interpreter=world.interpreter,
         vocabulary_digest=world.vocabulary_digest,
+        semantic_digest=world.semantic_digest,
         org=world.org,
         slices=world.slices,
         plan=world.plan,
@@ -206,6 +231,39 @@ def planted_world_spec(
         scenario_specs_digest=scenario_specs_digest,
         truth_manifest_digest=truth_manifest_digest,
     )
+
+
+def semantic_digest(semantic: SemanticWorld) -> str:
+    """The SHA-256 of the semantic world's canonical encoding: the identity of what a seed means.
+
+    Hashed and never written: every artifact's content minus the model-written parts and
+    the record of them, plus the briefs, so two runs from one seed agree here and differ
+    only in the version. The encoding reuses the artifacts' own encoders, so a change that
+    moves any sealed byte moves this digest too.
+    """
+    return digest(canonical_bytes(encode_semantic_world(semantic)))
+
+
+def encode_semantic_world(semantic: SemanticWorld) -> JsonObject:
+    """Everything the seed determines, in one object: provenance, organization, plan, slices,
+    per scenario its spec, plantings, key, authored facts and briefs, and the fact base."""
+    return {
+        "artifact": SEMANTIC_WORLD,
+        "provenance": _provenance(semantic),
+        "org": _org(semantic.org),
+        "plan": [_plan_row(row) for row in semantic.plan],
+        "slices": [_span(window) for window in semantic.slices],
+        "scenarios": [
+            {
+                "spec": _spec(scenario.spec),
+                "stable_interval": _span(scenario.key.stable_interval),
+                "owned": _owned(scenario.owned),
+                **_construction(scenario),
+            }
+            for scenario in semantic.scenarios
+        ],
+        "facts": _fact_base(semantic.facts),
+    }
 
 
 def bundle(world: WorldSpec) -> Bundle:
@@ -245,13 +303,7 @@ def encode_world_spec(spec: PlantedWorldSpec) -> JsonObject:
     """Provenance, organization, plan, slices, plantings, and the digests of the other two files."""
     return {
         "artifact": WORLD_SPEC,
-        "provenance": {
-            "seed": spec.seed,
-            "world_start": spec.world_start.isoformat(),
-            "generator_version": spec.generator_version,
-            "interpreter": list(spec.interpreter),
-            "vocabulary_digest": spec.vocabulary_digest,
-        },
+        "provenance": {**_provenance(spec), "semantic_digest": spec.semantic_digest},
         "org": _org(spec.org),
         "plan": [_plan_row(row) for row in spec.plan],
         "slices": [_span(window) for window in spec.slices],
@@ -269,11 +321,26 @@ def encode_scenario_specs(specs: Sequence[ScenarioSpec]) -> JsonObject:
 
 
 def encode_truth_manifest(world: WorldSpec) -> JsonObject:
-    """Evaluator-only: every key, the construction records, the dated world-level fact base."""
+    """Evaluator-only: every key, authored facts and briefs, the dated fact base, the record."""
     return {
         "artifact": TRUTH_MANIFEST,
         "scenarios": [_construction(scenario) for scenario in world.scenarios],
         "facts": _fact_base(world.facts),
+        "materialization": (
+            None if world.materialization is None else encode_materialization(world.materialization)
+        ),
+    }
+
+
+def _provenance(world: SemanticWorld | PlantedWorldSpec) -> JsonObject:
+    """The provenance every encoding of a world opens with; the semantic digest joins it in the
+    world spec alone, since the semantic encoding is what that digest is of."""
+    return {
+        "seed": world.seed,
+        "world_start": world.world_start.isoformat(),
+        "generator_version": world.generator_version,
+        "interpreter": list(world.interpreter),
+        "vocabulary_digest": world.vocabulary_digest,
     }
 
 
@@ -346,10 +413,105 @@ def _planting(planting: ScenarioPlanting) -> JsonObject:
 
 
 def _construction(scenario: Scenario) -> JsonObject:
-    """The key and the authored facts; the plantings are the world spec's row (one home)."""
+    """The key, the authored facts and the briefs; the plantings are the world spec's row."""
     return {
         "key": _key(scenario.key),
         "authored_facts": [encode_fact(fact) for fact in scenario.authored_facts],
+        "briefs": [_brief(brief) for brief in scenario.briefs],
+    }
+
+
+# --- Briefs and the materialization record ------------------------------------------------
+
+
+def _brief(brief: Brief) -> JsonObject:
+    return {
+        "target": _target(brief.target),
+        "register": brief.register.value,
+        "required": [
+            {"fact": encode_fact(required.fact), "role": required.role.value}
+            for required in brief.required
+        ],
+        "allowed": [encode_fact(fact) for fact in brief.allowed],
+        "namespace": _namespace(brief.namespace),
+    }
+
+
+def _target(target: ProseTarget) -> JsonObject:
+    match target:
+        case CommentTarget():
+            return {
+                "kind": "comment",
+                "id": target.id,
+                "work_item_id": target.work_item_id,
+                "position": target.position,
+                "world_date": target.world_date.isoformat(),
+                "author_id": target.author_id,
+            }
+        case SectionTarget():
+            return {
+                "kind": "section",
+                "id": target.id,
+                "document_id": target.document_id,
+                "position": target.position,
+            }
+
+
+def _namespace(namespace: Namespace) -> JsonObject:
+    return {
+        "forms": [
+            {"kind": form.kind, "id": form.id, "form": form.form} for form in namespace.forms
+        ],
+        "dates": [day.isoformat() for day in namespace.dates],
+        "numbers": list(namespace.numbers),
+    }
+
+
+def encode_materialization(record: MaterializationRecord) -> JsonObject:
+    """The record of every model-written text: models, prompt digests, cap, one row per target."""
+    return {
+        "writer": _model_configuration(record.writer),
+        "checker": _model_configuration(record.checker),
+        "prompt_digests": [
+            {"name": name, "digest": value} for name, value in record.prompt_digests
+        ],
+        "attempt_cap": record.attempt_cap,
+        "targets": [_target_record(target) for target in record.targets],
+    }
+
+
+def _model_configuration(configured: ModelConfiguration) -> JsonObject:
+    return {
+        "model_id": configured.model_id,
+        "settings": [
+            {"name": setting.name, "value": setting.value} for setting in configured.settings
+        ],
+    }
+
+
+def _target_record(target: TargetRecord) -> JsonObject:
+    return {
+        "target_id": target.target_id,
+        "attempts": target.attempts,
+        "refusals": [_refusal(refusal) for refusal in target.refusals],
+        "request_digest": target.request_digest,
+        "accepted_body_digest": target.accepted_body_digest,
+        "propositions": [encode_proposition(read) for read in target.propositions],
+    }
+
+
+def _refusal(refusal: Refusal) -> JsonObject:
+    return {"attempt": refusal.attempt, "guard": refusal.guard.value, "count": refusal.count}
+
+
+def encode_proposition(read: Proposition) -> JsonObject:
+    """A checker's reading of a text, its value tagged by the predicate's spec like a fact's."""
+    return {
+        "subject": None if read.subject is None else encode_ref(read.subject),
+        "predicate": read.predicate.value,
+        "value": encode_value(read.value, predicate(read.predicate).value_spec),
+        "polarity": read.polarity.value,
+        "assertion_mode": read.assertion_mode.value,
     }
 
 

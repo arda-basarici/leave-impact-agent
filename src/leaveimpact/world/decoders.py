@@ -112,7 +112,14 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
     provenance = object_field(data, "provenance")
     expect_fields(
         provenance,
-        ("seed", "world_start", "generator_version", "interpreter", "vocabulary_digest"),
+        (
+            "seed",
+            "world_start",
+            "generator_version",
+            "interpreter",
+            "vocabulary_digest",
+            "semantic_digest",
+        ),
         "provenance",
     )
     cited = object_field(data, "artifacts")
@@ -123,6 +130,7 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
         generator_version=GeneratorVersion(string_field(provenance, "generator_version")),
         interpreter=_interpreter(provenance),
         vocabulary_digest=string_field(provenance, "vocabulary_digest"),
+        semantic_digest=string_field(provenance, "semantic_digest"),
         org=_org(object_field(data, "org")),
         slices=tuple(_span(item, "a slice") for item in array_field(data, "slices")),
         plan=tuple(_plan_row(item) for item in array_field(data, "plan")),

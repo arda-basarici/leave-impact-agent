@@ -100,6 +100,7 @@ def test_a_composed_world_holds_every_briefed_part_however_it_was_built() -> Non
             generator_version=composed.generator_version,
             interpreter=composed.interpreter,
             vocabulary_digest=composed.vocabulary_digest,
+            semantic_digest=composed.semantic_digest,
             materialization=composed.materialization,
         )
 
