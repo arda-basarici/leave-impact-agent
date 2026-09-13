@@ -2,9 +2,11 @@
 URL required to carry its scheme, the Google credential read from the file the variable names
 and refused when absent or not the authorized-user JSON, the local twin and the buckets
 exclusive, the credential values absent from every repr; the stores opened as readers only;
-the four readers built from a manifest's resolved configuration with no write method among
-them; and the verdict publisher writing exactly its one key under the verdicts prefix, a
-second execution a new object and the same execution again the equal case."""
+the four readers built from a manifest's resolved configuration, the object-store ones with
+no write method at runtime and the vendor ones typed at their read ports; no writer class
+nameable through the wiring module; and the verdict publisher writing exactly its one key
+under the verdicts prefix, a second execution a new object and the same execution again
+the equal case."""
 
 from __future__ import annotations
 
@@ -113,7 +115,14 @@ def test_the_local_twin_and_the_buckets_are_exclusive_and_the_stores_are_readers
         assert not hasattr(store, "put_if_absent") and not hasattr(store, "overwrite")
 
 
-def test_the_readers_are_built_from_the_manifest_and_carry_no_write_method(
+def test_no_writer_class_is_nameable_through_the_wiring_module() -> None:
+    import leaveimpact.adapters.wiring as wiring
+
+    for name in ("S3ObjectWriter", "LocalObjectWriter", "SealedDocumentWriter"):
+        assert not hasattr(wiring, name), f"{name} is reachable through the wiring"
+
+
+def test_the_readers_are_built_from_the_manifest_and_the_object_store_ones_cannot_write(
     tmp_path: Path,
 ) -> None:
     deployment = deployment_from_env(local_environment(tmp_path))

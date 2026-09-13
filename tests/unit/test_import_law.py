@@ -68,6 +68,19 @@ _GATED_WRITE_MODULES: dict[tuple[str, ...], frozenset[str]] = {
     ("adapters", "object_store", "local_write"): frozenset({"adapters", "generator"}),
     ("adapters", "object_store", "documents_write"): frozenset({"adapters", "generator"}),
 }
+# A module-scope import makes the imported names attributes of the importing module, so a
+# non-gated ``adapters`` module that imported an object-store writer at module scope would
+# hand the writer to every package allowed to import ``adapters`` — the wiring did exactly
+# that (the step 12 part-5 review). Inside ``adapters``, only a gated module imports these
+# at module scope; a shared helper that needs a writer builds it inside a function, where
+# the name is local to the call. The generator is exempt: no shell may import it at all.
+# The writer *protocol* is not in this set: a protocol is a type an annotation names and
+# writes nothing without an instance, and the concrete classes are what the rule keeps out.
+_OBJECT_STORE_WRITERS = frozenset(
+    gated
+    for gated in _GATED_WRITE_MODULES
+    if gated[:2] == ("adapters", "object_store") and gated[2] != "write"
+)
 _PURE = frozenset({"core", "world"})
 # The top level is the package docstring and the composition root, nothing else: a module
 # here has no rank, so the edge scan could not see what it re-exports.
@@ -154,6 +167,27 @@ def _imports(path: Path) -> list[list[str]]:
 def _intra_imports(path: Path) -> list[list[str]]:
     """The subset of ``_imports`` that stays inside this package."""
     return [parts for parts in _imports(path) if parts[0] == PKG]
+
+
+def _module_scope_intra_imports(path: Path) -> list[list[str]]:
+    """Like ``_intra_imports`` but only the imports in the module's own body, not nested ones.
+
+    >>> import tempfile
+    >>> src = "import leaveimpact.core\\ndef f():\\n    import leaveimpact.world\\n"
+    >>> with tempfile.TemporaryDirectory() as d:
+    ...     probe = Path(d) / "probe.py"
+    ...     _ = probe.write_text(src, encoding="utf-8")
+    ...     _module_scope_intra_imports(probe)
+    [['leaveimpact', 'core']]
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    found: list[list[str]] = []
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            found.extend([*node.module.split("."), alias.name] for alias in node.names)
+        elif isinstance(node, ast.Import):
+            found.extend(alias.name.split(".") for alias in node.names)
+    return [parts for parts in found if parts[0] == PKG]
 
 
 def test_every_package_is_ranked() -> None:
@@ -283,6 +317,27 @@ def test_write_capabilities_are_imported_only_by_the_packages_that_realize_a_wor
     )
 
 
+def test_an_object_store_writer_is_a_module_attribute_of_gated_modules_only() -> None:
+    """Within ``adapters``, a writer's name lives at module scope in gated modules alone.
+
+    The allowlist above says who may import a writer; this says how a non-gated module
+    of ``adapters`` may: inside a function, so the class never becomes an attribute a
+    validator can reach through ``from leaveimpact.adapters.wiring import …``.
+    """
+    violations: list[str] = []
+    for path, parts in _modules():
+        if _package(parts) != "adapters" or tuple(parts[1:4]) in _GATED_WRITE_MODULES:
+            continue
+        for imported in _module_scope_intra_imports(path):
+            if tuple(imported[1:4]) in _OBJECT_STORE_WRITERS:
+                violations.append(
+                    f"{'.'.join(parts)} names {'.'.join(imported[1:4])} at module scope"
+                )
+    assert not violations, "object-store writers exposed as module attributes:\n" + "\n".join(
+        violations
+    )
+
+
 def test_sibling_adapters_do_not_import_one_another() -> None:
     """Each adapter translates one external boundary; orchestration across systems lives above them.
 
@@ -304,9 +359,7 @@ def test_sibling_adapters_do_not_import_one_another() -> None:
                 and imported[2] in _ADAPTER_SUBPACKAGES
                 and imported[2] != own
             ):
-                violations.append(
-                    f"{'.'.join(parts)} imports sibling adapter '{imported[2]}'"
-                )
+                violations.append(f"{'.'.join(parts)} imports sibling adapter '{imported[2]}'")
     assert not violations, "sibling-adapter imports:\n" + "\n".join(violations)
 
 
@@ -335,6 +388,4 @@ def test_wall_clock_only_at_composition_roots() -> None:
         for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
             if _CLOCK_READ.search(line):
                 violations.append(f"{'.'.join(parts)}:{lineno}: {line.strip()}")
-    assert not violations, "wall-clock reads outside a composition root:\n" + "\n".join(
-        violations
-    )
+    assert not violations, "wall-clock reads outside a composition root:\n" + "\n".join(violations)

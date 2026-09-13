@@ -5,11 +5,15 @@ resolved configuration — the Frappe company, the Jira project and its field id
 calendar map, the world's documents in the bucket — and the rank-3 shells never import
 one another, so the construction lives here, at the adapters' own level, once (ruling 4
 of the step 12 interview, the reviewer's shape). Two boundaries hold on purpose. This
-module builds read capabilities only: it hands out readers, the object store's reader
-classes, and one narrow publication callable; never an object with a write method on
-it, so a validator that imports it gains nothing the import law denies it by name. And
-it aggregates the sibling adapters' constructors at the top level the way ``manifest``
-does, while the siblings themselves keep not importing one another.
+module builds read capabilities only: it hands out the object store's reader classes,
+which carry no write method at runtime, the vendor adapters typed at their read ports —
+those are the combined reader-writer classes settled at the adapter step, whose
+capability is the type they are handed as, and the validator's read-only role for them
+rests on the import law's gate over the write ports and on the credential's authority —
+and one narrow publication callable. No writer class is named at module scope here, so a
+validator that imports the wiring gains nothing the import law denies it by name; the law
+checks that too. And it aggregates the sibling adapters' constructors at the top level
+the way ``manifest`` does, while the siblings themselves keep not importing one another.
 
 The environment's half of the configuration is parsed here too, since both jobs read the
 same names for the same values: the vendor hosts and their credentials, and either the
@@ -56,10 +60,9 @@ from leaveimpact.adapters.manifest import WorldManifest
 from leaveimpact.adapters.object_store.documents import SealedDocumentReader
 from leaveimpact.adapters.object_store.layout import verdict_key
 from leaveimpact.adapters.object_store.local import LocalObjectReader
-from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.adapters.object_store.read import ObjectReader
 from leaveimpact.adapters.object_store.s3 import S3ObjectReader, s3_client
-from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
+from leaveimpact.adapters.object_store.write import ObjectWriter
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.ports.read import CalendarReader, PeopleReader, WorkReader
 
@@ -175,6 +178,13 @@ def verdict_publisher(deployment: Deployment) -> VerdictPublisher:
     here from the version and the run's identifiers, so a rerun's verdict is a new
     immutable object and the caller cannot write anywhere else.
     """
+    # Imported here and not at module scope on purpose: a module-scope import would make
+    # the writer classes attributes of this module, nameable by any package allowed to
+    # import the wiring, and the import law checks exactly that (the part-5 review).
+    from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
+    from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
+
+    writer: ObjectWriter
     if deployment.local_root is not None:
         writer = LocalObjectWriter(deployment.local_root / "world")
     else:
