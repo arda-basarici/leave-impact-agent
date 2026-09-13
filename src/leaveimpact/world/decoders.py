@@ -352,6 +352,11 @@ def _event(data: Mapping[str, object]) -> CalendarEvent:
     )
 
 
+def decode_document(content: bytes | str) -> Document:
+    """The document one sealed object encodes; ``ValueError`` names what is malformed."""
+    return _document(as_object(json.loads(content), "a document"))
+
+
 def _document(data: Mapping[str, object]) -> Document:
     expect_fields(data, ("id", "title", "kind", "effective_from", "sections"), "a document")
     return Document(

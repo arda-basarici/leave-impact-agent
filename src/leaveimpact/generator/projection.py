@@ -62,18 +62,16 @@ from leaveimpact.core.entities import (
     WorkItem,
 )
 from leaveimpact.core.enums import Source
-from leaveimpact.core.ids import EmployeeId
+from leaveimpact.core.ids import DocumentId, EmployeeId
 from leaveimpact.core.ports.errors import IdentityConflict
 from leaveimpact.core.ports.observed import KIND_BY_ENTITY_TYPE, Entity, Observed
 from leaveimpact.core.ports.read import (
     CalendarReader,
-    DocumentReader,
     PeopleReader,
     WorkReader,
 )
 from leaveimpact.core.ports.write import (
     CalendarWriter,
-    DocumentWriter,
     PeopleWriter,
     WorkWriter,
 )
@@ -96,8 +94,24 @@ class CalendarSystem(CalendarReader, CalendarWriter, Protocol):
     """The calendar, both sides."""
 
 
-class DocumentSystem(DocumentReader, DocumentWriter, Protocol):
-    """The corpus, both sides."""
+class DocumentSystem(Protocol):
+    """The sealed documents, find and add: what the projector needs and nothing wider.
+
+    Narrower than the domain's document ports on purpose (the corpus ruling of the step
+    12 interview): the documents are projected into the world bucket as canonical
+    objects, one per document, and the application's corpus is a cache filled from them
+    later; an object store has a document by id and no search, so the projector's seam
+    names only the find and the add it makes, and the sealed-document writer over the
+    object store satisfies it.
+    """
+
+    def document(self, id: DocumentId) -> Observed[Document] | None:
+        """The document with its sections, or ``None``."""
+        ...
+
+    def add_document(self, document: Document) -> str:
+        """Creates the document with its sections; returns the locator."""
+        ...
 
 
 @dataclass(frozen=True, slots=True)

@@ -406,7 +406,9 @@ def _owned(owned: OwnedEntities) -> JsonObject:
             _planted(planted, _work_item(planted.entity)) for planted in owned.work_items
         ],
         "events": [_planted(planted, _event(planted.entity)) for planted in owned.events],
-        "documents": [_planted(planted, _document(planted.entity)) for planted in owned.documents],
+        "documents": [
+            _planted(planted, encode_document(planted.entity)) for planted in owned.documents
+        ],
     }
 
 
@@ -463,7 +465,17 @@ def _event(event: CalendarEvent) -> JsonObject:
     }
 
 
-def _document(document: Document) -> JsonObject:
+def document_bytes(document: Document) -> bytes:
+    """The canonical bytes of one document, what the world bucket holds per document.
+
+    The same encoding the world spec embeds per planting, sealed on its own so the
+    sealed documents are content-addressed objects a reader decodes one at a time.
+    """
+    return canonical_bytes(encode_document(document))
+
+
+def encode_document(document: Document) -> JsonObject:
+    """The JSON object of one document: id, title, kind, effective date, sections in order."""
     return {
         "id": document.id,
         "title": document.title,

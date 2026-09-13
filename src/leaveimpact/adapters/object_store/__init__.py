@@ -30,6 +30,9 @@ runtime and not only in their type, so what the wiring hands a validator cannot 
 even through a cast; ``s3_write`` and ``local_write`` hold the writers as subclasses, in
 the gated modules. The in-memory double under ``tests`` emulates the bucket policy. The
 byte primitive for local files stays in ``adapters.filestore``; ``local_write`` rides it.
+``layout`` holds the key of every sealed object, so no key is a literal anywhere else;
+``documents`` and ``documents_write`` are the sealed documents over the store, read by
+id and enumerated for the validator's exactness, written by the generator's projector.
 """
 
 from leaveimpact.adapters.object_store.read import (

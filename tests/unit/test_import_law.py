@@ -66,6 +66,7 @@ _GATED_WRITE_MODULES: dict[tuple[str, ...], frozenset[str]] = {
     ("adapters", "object_store", "write"): frozenset({"adapters", "generator"}),
     ("adapters", "object_store", "s3_write"): frozenset({"adapters", "generator"}),
     ("adapters", "object_store", "local_write"): frozenset({"adapters", "generator"}),
+    ("adapters", "object_store", "documents_write"): frozenset({"adapters", "generator"}),
 }
 _PURE = frozenset({"core", "world"})
 # The top level is the package docstring and the composition root, nothing else: a module

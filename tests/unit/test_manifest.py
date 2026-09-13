@@ -126,7 +126,7 @@ def test_the_bytes_depend_on_the_value_and_not_on_insertion_order() -> None:
     )
     assert manifest_bytes(manifest(receipts=reordered)) == manifest_bytes(manifest())
     text = manifest_bytes(manifest()).decode("utf-8")
-    assert text.startswith('{"format":1,"stage":"projected","world_version":"')
+    assert text.startswith('{"format":2,"stage":"projected","world_version":"')
     assert list(json.loads(text)) == [
         "format",
         "stage",
@@ -137,7 +137,25 @@ def test_the_bytes_depend_on_the_value_and_not_on_insertion_order() -> None:
         "systems",
         "receipts",
         "observed_sites",
+        "object_versions",
     ]
+
+
+def test_the_object_versions_round_trip_and_refuse_an_empty_key_or_id() -> None:
+    versions = {
+        "world-spec/" + VERSION + ".json": "UmWirysPVeviZc6FY0Y41c_kixvCw9CP",
+        "worlds/" + VERSION + "/documents/doc_001.json": "m137C_ERcuw.F6fIYqIjCHccqchpszUT",
+    }
+    sealed = manifest(object_versions=versions)
+    decoded = decode_manifest(manifest_bytes(sealed), stage=ManifestStage.PROJECTED)
+    assert dict(decoded.object_versions) == versions
+    assert decoded == sealed
+    for bad in ({"": "v"}, {"worlds/x": ""}):
+        with pytest.raises(ValueError, match="non-empty"):
+            manifest(object_versions=bad)
+    encoded = encode_manifest(sealed)
+    with pytest.raises(ValueError, match="non-empty"):
+        decode_manifest(json.dumps({**encoded, "object_versions": {"k": 7}}), stage=None)
 
 
 def test_a_preparing_manifest_may_carry_partial_configuration_and_partial_receipts() -> None:
@@ -262,8 +280,8 @@ def test_no_seed_credential_or_truth_can_enter_the_manifest() -> None:
 
 def test_a_manifest_of_another_format_or_shape_fails_at_decode() -> None:
     encoded = encode_manifest(manifest())
-    with pytest.raises(ValueError, match=f"format {MANIFEST_FORMAT}, got 2"):
-        decode_manifest(json.dumps({**encoded, "format": 2}), stage=None)
+    with pytest.raises(ValueError, match=f"format {MANIFEST_FORMAT}, got 1"):
+        decode_manifest(json.dumps({**encoded, "format": 1}), stage=None)
     with pytest.raises(ValueError, match="surplus \\['seed'\\]"):
         decode_manifest(json.dumps({**encoded, "seed": 7}), stage=None)
     with pytest.raises(ValueError, match="missing \\['receipts'\\]"):

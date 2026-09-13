@@ -92,7 +92,7 @@ from leaveimpact.world.artifacts import SCENARIO_SPECS, TRUTH_MANIFEST, WORLD_SP
 from leaveimpact.world.org import OrgParams, decode_org_params, encode_org_params
 from leaveimpact.world.version import GeneratorVersion
 
-MANIFEST_FORMAT = 1
+MANIFEST_FORMAT = 2
 """The manifest's own schema version; a reader refuses any other."""
 
 MANIFEST_FILE = "world-manifest.json"
@@ -239,8 +239,20 @@ class WorldManifest:
     systems: SystemConfigs
     receipts: Receipts = field(default_factory=Receipts)
     observed_sites: Mapping[Source, str] = MappingProxyType({})
+    object_versions: Mapping[str, str] = MappingProxyType({})
+    """The store's version id of every object sealed before this manifest, by key.
+
+    The manifest is written last (the sealing order of the step 12 rulings), so it can
+    vouch for the exact version of the two truth objects, the scenario specs and every
+    document; a reader comparing the bucket against the manifest names what it read by
+    the same id. Empty until sealing folds them in; a local-twin world records the
+    content digests its twin mints as versions.
+    """
 
     def __post_init__(self) -> None:
+        object.__setattr__(self, "object_versions", MappingProxyType(dict(self.object_versions)))
+        if any(not key or not version for key, version in self.object_versions.items()):
+            raise ValueError("an object version is a non-empty key and a non-empty version id")
         if not _SHA256_HEX.fullmatch(self.world_version):
             raise ValueError(f"world version is a SHA-256 hex, got {self.world_version!r}")
         roles = [artifact.role for artifact in self.artifacts]
@@ -384,6 +396,7 @@ def encode_manifest(manifest: WorldManifest) -> JsonObject:
             source.value: host
             for source, host in sorted(manifest.observed_sites.items(), key=lambda item: item[0])
         },
+        "object_versions": _sorted(manifest.object_versions),
     }
 
 
@@ -421,6 +434,7 @@ def decode_manifest(content: bytes | str, *, stage: ManifestStage | None) -> Wor
             "systems",
             "receipts",
             "observed_sites",
+            "object_versions",
         ),
         "the world manifest",
     )
@@ -444,6 +458,7 @@ def decode_manifest(content: bytes | str, *, stage: ManifestStage | None) -> Wor
         systems=_systems(systems),
         receipts=_receipts(receipts),
         observed_sites=_sites(object_field(data, "observed_sites")),
+        object_versions=_versions(object_field(data, "object_versions")),
     )
 
 
@@ -516,6 +531,16 @@ def _receipts(data: Mapping[str, object]) -> Receipts:
             documents=_ids(object_field(documents, "documents"), "doc", DocumentId)
         ),
     )
+
+
+def _versions(data: Mapping[str, object]) -> dict[str, str]:
+    """A mapping from object key to the store's version id, both non-empty strings."""
+    result: dict[str, str] = {}
+    for key, value in data.items():
+        if not key or not isinstance(value, str) or not value:
+            raise ValueError(f"an object version is a non-empty key and id, got {key!r}: {value!r}")
+        result[key] = value
+    return result
 
 
 def _ids[K: str](data: Mapping[str, object], prefix: str, kind: Callable[[str], K]) -> dict[K, str]:
