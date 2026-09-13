@@ -19,8 +19,10 @@ projection stops rather than adopt or overwrite it. The projector's comparison p
 the projection's identity integrity; the validator, separately, proves the assembled world
 still yields the expected truth. Order follows what each system needs to exist first:
 teams before employees, managers before their reports, employees before leaves;
-components before work items; calendars are prepared before events; the corpus schema
-before documents.
+components before work items; calendars are prepared before events. The documents are
+not in the vendor sequence: they seal into the world bucket's final prefix, and the
+sealing order of the step 12 rulings puts them after the vendor postflight, so the
+composition root calls ``project_documents`` on its own once the sites have passed.
 
 A receipt is the writer's return, one locator per domain id, and a reader returns an
 entity and no locator by design, so a locator that is not persisted before the next
@@ -214,12 +216,11 @@ def project_documents(entities: WorldEntities, system: DocumentSystem, sink: Rec
     _ensure(entities.documents, system.document, system.add_document, Source.CORPUS, sink)
 
 
-def project_world(entities: WorldEntities, systems: Systems, sink: ReceiptSink) -> None:
-    """All four projectors in system order, every receipt reported to ``sink`` as it lands."""
+def project_vendor_systems(entities: WorldEntities, systems: Systems, sink: ReceiptSink) -> None:
+    """People, work and calendar in the order the systems need; the documents are the root's."""
     project_people(entities, systems.people, sink)
     project_work(entities, systems.work, sink)
     project_calendar(entities, systems.calendar, sink)
-    project_documents(entities, systems.documents, sink)
 
 
 def _ensure[T: Entity, K: str](

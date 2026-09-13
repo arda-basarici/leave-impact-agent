@@ -1,13 +1,17 @@
 """The wiring of the composition root to the real adapters: hosts in, prepared systems out.
 
-``AdapterPreparation`` is the production ``Preparation``: it opens the four adapters on the
-hosts it is given, runs the site preparation that needs no checkpoint — Frappe's naming
-rule, custom fields, company and skill masters; Jira's project, its mark, the four fields
-and the owner options; the corpus schema — and hands the root the configuration that came
-out of it. What the root then drives through it is the interleaved part: one calendar per
-call against the principal, the four systems on the final calendar map, and the two site
-inspections. Every name a world takes here is derived from its version by the root's own
-rules, so the entry point supplies hosts and credentials and nothing else.
+``AdapterPreparation`` is the production ``Preparation``: it opens the three vendor
+adapters on the hosts it is given and the sealed-document writer on the world bucket's
+store, runs the site preparation that needs no checkpoint — Frappe's naming rule, custom
+fields, company and skill masters; Jira's project, its mark, the four fields and the
+owner options — and hands the root the configuration that came out of it. The corpus
+has no place here since the step 12 rulings: the documents seal into the world bucket
+and the application's PostgreSQL is a cache the instance fills from them, so the runner
+holds no database credential at all. What the root then drives through it is the
+interleaved part: one calendar per call against the principal, the four systems on the
+final calendar map, and the two site inspections. Every name a world takes here is
+derived from its version by the root's own rules, so the entry point supplies hosts,
+credentials and the store and nothing else.
 
 This module is exercised live, at the first world's projection, and not by unit tests: it
 composes adapter calls the wire tests already cover, in the order their docstrings state,
@@ -29,9 +33,10 @@ from leaveimpact.adapters.calendar.adapter import (
     CalendarCredential,
     CalendarPrincipal,
 )
-from leaveimpact.adapters.corpus.adapter import CorpusAdapter, CorpusConfig
 from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
 from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraConfig, JiraCredential, JiraSite
+from leaveimpact.adapters.object_store.documents_write import SealedDocumentWriter
+from leaveimpact.adapters.object_store.write import ObjectWriter
 from leaveimpact.core.entities import Employee
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import EmployeeId, WorkItemId, WorldVersion
@@ -54,13 +59,14 @@ class Hosts:
     jira_base_url: str
     jira_credential: JiraCredential
     calendar_credential: CalendarCredential
-    corpus_dsn: str
 
 
 class AdapterPreparation:
     """The production preparation: real adapters on real hosts, closed when the run ends."""
 
-    def __init__(self, hosts: Hosts, world: WorldSpec, version: WorldVersion) -> None:
+    def __init__(
+        self, hosts: Hosts, world_store: ObjectWriter, world: WorldSpec, version: WorldVersion
+    ) -> None:
         self._hosts = hosts
         self._world = world
         self._version = version
@@ -72,7 +78,7 @@ class AdapterPreparation:
         )
         self._site = JiraSite(base_url=hosts.jira_base_url, credential=hosts.jira_credential)
         self._principal = CalendarPrincipal(credential=hosts.calendar_credential)
-        self._corpus = CorpusAdapter(dsn=hosts.corpus_dsn, config=CorpusConfig(version))
+        self._documents = SealedDocumentWriter(world_store, version)
         self._jira: JiraAdapter | None = None
         self._calendar: CalendarAdapter | None = None
 
@@ -92,7 +98,6 @@ class AdapterPreparation:
             self._frappe,
             self._site,
             self._principal,
-            self._corpus,
             self._jira,
             self._calendar,
         ):
@@ -118,7 +123,6 @@ class AdapterPreparation:
         self._jira = JiraAdapter(
             base_url=self._hosts.jira_base_url, credential=self._hosts.jira_credential, config=jira
         )
-        self._corpus.ensure_schema()
         return Prepared(
             frappe=self._frappe.config,
             jira=jira,
@@ -139,7 +143,7 @@ class AdapterPreparation:
         self._calendar = CalendarAdapter(
             credential=self._hosts.calendar_credential, config=calendars
         )
-        return Systems(self._frappe, self._jira, self._calendar, self._corpus)
+        return Systems(self._frappe, self._jira, self._calendar, self._documents)
 
     def held_employee_numbers(self, world_ids: Iterable[EmployeeId]) -> frozenset[EmployeeId]:
         return self._frappe.held_employee_numbers(world_ids)

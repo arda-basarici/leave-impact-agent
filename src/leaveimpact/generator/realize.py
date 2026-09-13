@@ -10,10 +10,13 @@ the site is no longer the one the receipts describe. Then, one employee at a tim
 calendar is verified or created and the manifest saved, so an interrupted preparation
 orphans at most one empty calendar. Then the two site inspections run as a preflight: the
 Frappe company and the Jira project may hold a subset of this world's ids and nothing
-outside it. Then the projectors run, every receipt checkpointed into the manifest before
-the next external write. Then the same inspections run as a postflight, this time demanding
-the exact set, the receipts are proven to cover exactly the planted ids, and only then does
-the stage move to ``projected``.
+outside it. Then the vendor projectors run, every receipt checkpointed into the manifest
+before the next external write. Then the same inspections run as a postflight, this time
+demanding the exact set. Only then do the documents seal into the world bucket's final
+prefix — the sealing order of the step 12 rulings, so a postflight refusal leaves nothing
+under a prefix no writer of this project can delete from — and their receipts checkpoint
+the same way. Then the receipts are proven to cover exactly the planted ids, and only
+then does the stage move to ``projected``.
 
 What that stage proves is bounded on purpose. The root's external inspections exist to
 establish projection safety and recoverability — that an interrupted run of its own left no
@@ -81,7 +84,8 @@ from leaveimpact.core.refs import EntityRef
 from leaveimpact.generator.projection import (
     Systems,
     WorldEntities,
-    project_world,
+    project_documents,
+    project_vendor_systems,
     world_entities,
 )
 from leaveimpact.world.artifacts import Bundle
@@ -217,7 +221,7 @@ def realize(
             manifest = replace(manifest, receipts=folded)
             store.save(manifest)
 
-    project_world(entities, systems, checkpoint)
+    project_vendor_systems(entities, systems, checkpoint)
 
     check_scope(
         preparation.held_employee_numbers(employee_ids),
@@ -226,6 +230,7 @@ def realize(
         what="the Frappe company",
     )
     check_scope(preparation.held_markers(), work_item_ids, complete=True, what="the Jira project")
+    project_documents(entities, systems.documents, checkpoint)
     check_coverage(manifest.receipts, entities)
     manifest = replace(manifest, stage=ManifestStage.PROJECTED)
     store.save(manifest)

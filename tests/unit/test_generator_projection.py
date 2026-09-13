@@ -19,11 +19,13 @@ from leaveimpact.adapters.manifest import (
 )
 from leaveimpact.core import EntityRef, IdentityConflict, Source, SourceUnreachable
 from leaveimpact.generator.projection import (
+    ReceiptSink,
     Systems,
     WorldEntities,
     managers_first,
+    project_documents,
     project_people,
-    project_world,
+    project_vendor_systems,
     world_entities,
 )
 from leaveimpact.world import DEFAULT_PARAMS, assemble_world
@@ -96,6 +98,12 @@ def planted_ids(entities: WorldEntities) -> set[str]:
         )
         for entity in kind
     }
+
+
+def project_world(entities: WorldEntities, systems: Systems, sink: ReceiptSink) -> None:
+    """The four projectors as the root sequences them, the documents after the vendors."""
+    project_vendor_systems(entities, systems, sink)
+    project_documents(entities, systems.documents, sink)
 
 
 def test_a_fresh_projection_writes_every_entity_and_reports_every_id(
