@@ -26,8 +26,9 @@ is not authorization, a bucket that does not exist) to ``ObjectStoreMisconfigure
 with the SDK's error chained as the cause for the log. Unreachable is an allowlist, not
 a fallback: the SDK's ``ConnectionError`` and ``HTTPClientError`` branches (endpoint,
 proxy, TLS and timeout faults, a closed connection, a streaming fault), its
-``IncompleteReadError`` (a body shorter than announced), and the interpreter's
-``OSError`` from a body stream that resets. Every other SDK fault is treated as
+``IncompleteReadError`` (a body shorter than announced), and — at the body read alone,
+where a socket is the only thing that can raise it — the interpreter's ``OSError`` from
+a stream that resets. Every other SDK fault is treated as
 ``ObjectStoreMisconfigured`` unless a concrete transport or response-failure path is
 classified explicitly — a parameter the SDK refuses, an unknown region, no
 credentials, a pagination error all land there — so a local defect is never mistaken
@@ -121,6 +122,10 @@ def _body_read(body: StreamingBody, key: str) -> bytes:
         return body.read()
     except FlexibleChecksumError as error:
         raise ObjectStoreUnreachable("get", key) from error
+    except OSError as error:
+        # The body's stream is a socket under the SDK; a reset or a timeout while it is
+        # consumed arrives as the interpreter's own error, not the SDK's.
+        raise ObjectStoreUnreachable("get", key) from error
 
 
 def translated[T](operation: str, key: str, call: Callable[[], T]) -> T:
@@ -140,10 +145,6 @@ def translated[T](operation: str, key: str, call: Callable[[], T]) -> T:
         raise ObjectStoreMisconfigured(
             operation, key, f"{type(error).__name__}: {error}"
         ) from error
-    except OSError as error:
-        # The body's stream is a socket under the SDK; a reset or a timeout while it is
-        # consumed arrives as the interpreter's own error, not the SDK's.
-        raise ObjectStoreUnreachable(operation, key) from error
 
 
 def code(error: ClientError) -> str:

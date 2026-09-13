@@ -7,9 +7,11 @@ what the deployment names, the production preparation is wired on the hosts, and
 sealing sequence runs. What the job prints is what a reader of the Actions log needs and
 nothing that must not be there: the run's checkpoint numbers, one per line, and the world
 version as the last line in the form ``world_version=<hex>`` for the workflow to lift into
-its summary and output — never a credential, a host or a manifest. A configuration fault
-exits with status 2 and its message; every other failure propagates as the loud stop it
-is, with its traceback.
+its summary and output — never a credential, a host or a manifest. A fault in the raw
+configuration — a flag or variable missing or malformed, as the boundary parses them —
+exits with status 2 and its message; once the typed configuration is built, everything
+after it, a bucket that turns out not to exist included, propagates as the loud
+operational failure it is, with its traceback and the store's own fault taxonomy.
 """
 
 from __future__ import annotations

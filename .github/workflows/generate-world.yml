@@ -13,7 +13,10 @@
 # are environment variables. Dispatch inputs reach the shell through the environment,
 # never interpolated into the script, so an input cannot become a command. The timeout
 # stays under the two-hour role session on purpose — the exported credentials are
-# static, so the session is a hard wall and the run must end before it does.
+# static, so the session is a hard wall and the run must end before it does. Every action
+# is pinned by full commit SHA (the tag beside it), because `id-token: write` is a
+# job-level permission: any action in this job could mint the OIDC token the generator
+# role trusts, so a moved tag would be a moved trust boundary (the part-4 review).
 name: generate world
 on:
   workflow_dispatch:
@@ -59,7 +62,7 @@ jobs:
       # refusal can be compared against the policy. The three workflow claims are logged
       # for the trust-hardening note of 2026-09-13.
       - name: Record the OIDC subject and the workflow claims
-        uses: actions/github-script@v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const token = await core.getIDToken('sts.amazonaws.com');
@@ -69,10 +72,10 @@ jobs:
             core.info(`workflow=${claims.workflow} workflow_ref=${claims.workflow_ref} job_workflow_ref=${claims.job_workflow_ref}`);
             await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
 
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
         with:
           version: "0.11.26"
           python-version: "3.13"
@@ -82,7 +85,7 @@ jobs:
         run: uv sync --locked
 
       - name: Assume the generator role
-        uses: aws-actions/configure-aws-credentials@v6.2.3
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: arn:aws:iam::445743457479:role/leave-agent-generator
           aws-region: eu-central-1

@@ -142,18 +142,20 @@ jobs:
     needs: image
     runs-on: ubuntu-latest
     environment: production
+    # The three actions below are pinned by full commit SHA: `id-token: write` is
+    # job-level, so any action here could mint the token the deploy role trusts.
     permissions:
       contents: read
       id-token: write
     env:
       AWS_REGION: eu-central-1
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Probe evidence (`oidc-deploy`): the subject the token really carries is
       # what the role's trust condition must match. Logged, never assumed.
       - name: Record the OIDC subject
-        uses: actions/github-script@v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const token = await core.getIDToken('sts.amazonaws.com');
@@ -162,7 +164,7 @@ jobs:
             core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
             await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
 
-      - uses: aws-actions/configure-aws-credentials@v6.2.3
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
         with:
           role-to-assume: arn:aws:iam::445743457479:role/leave-agent-deploy
           aws-region: ${{ env.AWS_REGION }}
