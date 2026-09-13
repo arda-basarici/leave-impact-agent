@@ -1,0 +1,130 @@
+# The generation job: a world assembled from its recipe and sealed into the benchmark's
+# two buckets, projected into the Frappe site, the Jira project and the calendars. Runs
+# only by hand, under the `benchmark` environment (the single privileged operator plane,
+# reviewer-gated, `main` only) on the generator's OIDC-trusted role; the instance role
+# assumes nothing and holds no such right (the step 12 rulings, 2026-09-13). The world
+# version the run produced is the sole input the validator's dispatch needs, so it lands
+# in the step summary and as a job output.
+#
+# Secrets are scoped to the one step that runs the entry point and never job-wide; the
+# Google authorized-user JSON is multi-line, so it is written to a file on the runner's
+# ephemeral disk and passed by path. Non-secret configuration is public contract, not a
+# credential: the buckets and the region are literal here, the sites and the Jira account
+# are environment variables. Dispatch inputs reach the shell through the environment,
+# never interpolated into the script, so an input cannot become a command. The timeout
+# stays under the two-hour role session on purpose — the exported credentials are
+# static, so the session is a hard wall and the run must end before it does.
+name: generate world
+on:
+  workflow_dispatch:
+    inputs:
+      seed:
+        description: the generation seed
+        required: true
+        type: number
+      world_start:
+        description: "the world's first day, ISO 8601 (2026-01-05)"
+        required: true
+        type: string
+      org_size:
+        description: people in the organization (default 28)
+        required: false
+        type: number
+        default: 28
+      team_count:
+        description: teams (default 5)
+        required: false
+        type: number
+        default: 5
+permissions: {}
+
+# One privileged job at a time against the shared sites; a queued run waits, never
+# cancels a run that is mid-projection.
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    environment: benchmark
+    timeout-minutes: 110
+    permissions:
+      id-token: write
+      contents: read
+    outputs:
+      world_version: ${{ steps.seal.outputs.world_version }}
+    steps:
+      # The subject is what the trust policy matches; logged before the assumption so a
+      # refusal can be compared against the policy. The three workflow claims are logged
+      # for the trust-hardening note of 2026-09-13.
+      - name: Record the OIDC subject and the workflow claims
+        uses: actions/github-script@v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            core.info(`workflow=${claims.workflow} workflow_ref=${claims.workflow_ref} job_workflow_ref=${claims.job_workflow_ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: actions/checkout@v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Assume the generator role
+        uses: aws-actions/configure-aws-credentials@v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-generator
+          aws-region: eu-central-1
+          role-duration-seconds: 7200
+
+      - name: Generate and seal the world
+        id: seal
+        env:
+          LEAVE_IMPACT_FRAPPE_BASE_URL: ${{ vars.LEAVE_IMPACT_FRAPPE_BASE_URL }}
+          LEAVE_IMPACT_FRAPPE_API_KEY: ${{ secrets.LEAVE_IMPACT_FRAPPE_API_KEY }}
+          LEAVE_IMPACT_FRAPPE_API_SECRET: ${{ secrets.LEAVE_IMPACT_FRAPPE_API_SECRET }}
+          LEAVE_IMPACT_JIRA_BASE_URL: ${{ vars.LEAVE_IMPACT_JIRA_BASE_URL }}
+          LEAVE_IMPACT_JIRA_EMAIL: ${{ vars.LEAVE_IMPACT_JIRA_EMAIL }}
+          LEAVE_IMPACT_JIRA_TOKEN: ${{ secrets.LEAVE_IMPACT_JIRA_TOKEN }}
+          LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${{ secrets.LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON }}
+          LEAVE_IMPACT_WORLD_BUCKET: leave-impact-world-445743457479
+          LEAVE_IMPACT_TRUTH_BUCKET: leave-impact-truth-445743457479
+          LEAVE_IMPACT_AWS_REGION: eu-central-1
+          INPUT_SEED: ${{ inputs.seed }}
+          INPUT_WORLD_START: ${{ inputs.world_start }}
+          INPUT_ORG_SIZE: ${{ inputs.org_size }}
+          INPUT_TEAM_COUNT: ${{ inputs.team_count }}
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity --query Arn --output text | tee identity.txt
+          grep -q 'assumed-role/leave-agent-generator/' identity.txt
+          umask 077
+          printf '%s' "$LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON" > "$RUNNER_TEMP/google-authorized-user.json"
+          export LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE="$RUNNER_TEMP/google-authorized-user.json"
+          unset LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+          uv run python -m leaveimpact.generator \
+            --seed "$INPUT_SEED" --world-start "$INPUT_WORLD_START" \
+            --org-size "$INPUT_ORG_SIZE" --team-count "$INPUT_TEAM_COUNT" \
+            | tee generate.log
+          version=$(grep '^world_version=' generate.log | tail -1 | cut -d= -f2)
+          test -n "$version" || { echo "no world_version line in the output"; exit 1; }
+          echo "world_version=$version" >> "$GITHUB_OUTPUT"
+          {
+            echo "## World sealed"
+            echo
+            echo '```'
+            echo "world_version=$version"
+            grep -E '^(checkpoint_|conditional_puts|run_seconds|manifest_key)' generate.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
