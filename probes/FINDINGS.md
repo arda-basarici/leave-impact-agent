@@ -563,3 +563,21 @@ workflows only; it is populated for every job. So a `job_workflow_ref` condition
 each role's trust policy can bind the generator role to `generate-world.yml` and the
 validator role to `validate-world.yml` without a second environment and without
 reusable workflows. Recorded for the platform TODO; not a step 12 change.
+
+## deploy-boundary — PASS (2026-09-13)
+
+The instance role's own refusal on the truth bucket, proven on the host on every deploy
+(ruling 1 of the step 12 interview; the script `deploy/instance/assert-truth-unreachable.sh`
+in the same SSM command as the deploy). First live run: CI run 34729636594, the deploy
+of commit `ff9038d`, approved at the production gate, 01:07 UTC:
+
+- **Identity:** `assumed-role/leave-agent-instance/i-03f6f59aec7e9716c`, the real instance
+  profile, asserted before any conclusion.
+- **Positive control:** a list of the world bucket's `worlds/` succeeded under it.
+- **Refused with `AccessDenied`, both:** a list of the truth bucket, and a get of the
+  platform's canary `access-probe/read-denied-canary` — a key known to exist, which is
+  what makes the get meaningful (the correction recorded under the trust probe).
+
+The step's claim is now evidenced on every deploy rather than stated: the application's
+principal cannot list or read the answer key, and a red deploy run that names this probe
+is a boundary failure to fix in the platform's IAM, never an application rollback.
