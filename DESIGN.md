@@ -5,7 +5,7 @@ snapshot of the current design. Edited in place; the journey lives in the sessio
 log. Wins over VISION.md (the frozen founding snapshot) on disagreement. How it's
 built → ARCHITECTURE (born with the scaffold); pitch → README.
 
-*Design phase · last updated 2026-09-13.*
+*Design phase · last updated 2026-09-14.*
 
 ## Objective
 
@@ -1029,7 +1029,9 @@ artifact, immutable per execution at
 id, with the run's identifiers in the key and not in the artifact so byte-equal
 verdicts across attempts prove the live systems held. Once sealing begins no artifact byte is regenerated: a restart reassembles and
 must hit the equal case at every key or refuses, and a rerun of a sealed world writes
-nothing but the checkpoint and ends in the equal case everywhere. The serving rule
+nothing but the checkpoint and ends in the equal case everywhere — under `--resume`
+since the step 14 rulings below, because model-written prose made reassembly from
+the seed insufficient to reproduce the bytes. The serving rule
 follows: a world is served when its manifest is projected and at least one approved
 verdict exists whose judged manifest digest equals the current manifest's — never
 "whatever verdict file exists"; a newest-approved choice, if ever needed, is a listing
@@ -1039,12 +1041,124 @@ exactly a case where the recipe holds and the realization drifts; the version is
 external metadata of the bundle and is never serialized into a hashed artifact, which
 would define it circularly. A reference seed's hash is recorded beside the generator
 version as a pair, so a changed hash with an unchanged version fails the suite, and
-re-cutting the pair is the deliberate act that accompanies a bump. The interpreter's
+re-cutting the pair is the deliberate act that accompanies a bump; since the step 14
+rulings the hash in that pair is the reference seed's *semantic digest* and not the
+realized bundle's, which prose made non-deterministic on purpose. The interpreter's
 minor version is recorded as provenance; the patch version is not independently part of
 the identity recipe, and any runtime difference that changes the canonical realized
 bundle is reflected in the hash regardless — which is why the realization is hashed and
 not the recipe.
 
+
+**Materialization under the step 14 rulings (2026-09-14).** The pure assembly's result
+is a *semantic world*, not yet a world spec: the structured entities complete, the
+parents of model-written prose present without those parts (a runbook with no sections
+yet, a work item whose comment list holds only its template comments), one *brief* per
+pending target, the authored facts, and provenance. A brief is the target's definition
+and the model's whole instruction: the target's construction fields (for a comment its
+parent work item, ordering key, world date and author; for a section its parent
+document and ordering key), the required facts as positive `Fact` records, the allowed
+context facts, the surface namespace derived from those facts' entities through the
+closed vocabulary rather than authored by the class — a class cannot forget a name or
+leak one — and a register. Each required fact's role, answer-changing or context, is
+derived and never tagged: the rules run once with that fact removed from the base, and
+a changed verdict or outcome makes it answer-changing; the hand audit reads every
+artifact carrying one, and a tag wrong in either direction would misdirect that pass
+silently. Nothing forbidden is listed on a brief: under containment an extra owner or
+cardinality is refused because no allowed proposition matches it, and a second list
+would be a second source of truth. Negative requirements do not exist: facts are
+positive observations and absence is closure's derivation, so "the text must say X is
+not the case" would introduce a second logical model; the checker preserves polarity
+and a negated planted fact fails as an added proposition. The pre-compose contract:
+every prose-targeted evidence reference resolves to exactly one brief and every brief
+carries what its part needs; it ranges over the whole bundle, world-owned policy
+clauses included, so the first world-owned clause cannot arrive without its brief.
+Materialization is the one non-deterministic stage and runs whole before any byte is
+fixed: assemble, verify truth, materialize, compose (pure — the parts appended, a
+comment's prefix rendered from the target's metadata and joined to the body the model
+wrote), verify the composition (target, prose result and composed part in bijection,
+parents and ids equal, order deterministic, nothing unconsumed), freeze bytes and
+version, seal. Two identities result and both are recorded: the *semantic digest*, a
+canonical hash of the semantic world with its briefs, which two runs from one seed
+share whatever prose they accepted; and the world version, the realized bundle's. The
+regression oracle is the pair (generator version, the reference seed's semantic
+digest); the world version stays recorded provenance that no test expects to reproduce
+from a seed, since prose is non-deterministic on purpose.
+
+**The record, the restart, the guards.** The materialization record is a typed section
+of the world spec's provenance, benchmark-private and part of the realized identity:
+writer and checker configuration, the inference configuration serialized whole so a
+parameter added later joins it unasked, the digests of the prompt assets, the attempt
+cap; per target the attempts, each refusal by guard, the rendered request's digest, the
+accepted body's digest (`accepted_body_digest`, the model's output — the composed text
+has its own place in the world's digests) and the accepted attempt's extracted
+propositions, which are what the hand audit is measured against. The strict decoder
+decodes the section and no check reads it. Rejected text is discarded whole and exists
+nowhere: the repository is public and its job logs are world-readable, so a log
+carrying a rejected sentence or a quoted unsupported proposition would be a third
+benchmark-private surface with no access policy; logs and refusal messages carry target
+ids, attempt numbers, guard names and counts. Attempt history is in the record and so
+in the version; two runs that accept identical prose through different refusals differ
+in version and share a semantic digest, which is the coherent reading. Before sealing a
+restart regenerates; after sealing it resumes the named realization, because
+reassembly from the seed no longer reproduces the bytes. `--resume <version>` reads the
+sealed world spec, gates on an equal generator version (resume is not migration),
+reassembles the semantic world and refuses unless the semantic digests are equal,
+extracts the prose set and the record from the decoded spec, runs the same compose and
+the same bundle as a fresh run and refuses unless the version equals the one named —
+the whole-bundle identity through the normal function, which implies the codec
+round-trips, proven separately by a byte-equality test on the reference seed — and
+continues at the site preparation with the checkpoint. No prose is checkpointed: every
+model call precedes every external write, so a failed stage leaves nothing behind. The
+version is printed before the first side effect. A fresh run is a new materialization
+attempt not entitled to reuse the previous realization; landing on the same bytes, the
+immutable writes hit the equal case. Unfinished vendor state refuses a fresh run by
+name, as before. Four guards in order, the paid one last. A namespace scanner over the
+world's surface forms — longest match at word boundaries, case-insensitive — refuses
+any world name outside the brief's allowed set and any date or digit sequence outside
+the allowed spans (one date spelling, ISO; other spellings refused as unlisted); it
+does not guess invented proper nouns from capitalization, which false-positives on
+sentence starts, and leaves number words to the extractor as the cardinality claims
+they are. A required-fact check through predicate-owned lexical anchors, in
+`world/prose`, refuses a fact that vanished before the checker is paid. The extraction
+check hands a different model family the text, the brief's entity dictionary and a
+tool schema generated from the predicate registry — never the brief's facts, which is
+the independence claim — and receives propositions: subject id or unknown, predicate,
+value parsed through the value specs an agent's claim passes, polarity, assertion mode
+(the text's modality, never the checker's confidence), and an `other_claims` bucket for
+asserted world propositions the schema cannot represent, kept provisionally and judged
+by its refusal rate on the first world. Containment: E the affirmed, asserted,
+registered propositions; required ⊆ E ⊆ required ∪ allowed; any negated, hedged,
+unknown-subject or other-claim entry refuses. `Proposition` lives in `world` because
+the sealed record holds it.
+
+**Attempts, prompts, tests.** Each attempt is a fresh sample from the same configuration
+and an identical prompt with no refusal fed back — the orchestration creates no
+dependence between attempts, which is the property claimed, not statistical
+independence — under a cap of four, a command-line value recorded in the record and
+revisited only on the first world's measurements (first-attempt pass, eventual pass,
+cap exhausted, refusals by guard, checker retries, checker unusable). Targets run
+sequentially; cap failures aggregate across targets so a doomed run reports every
+failed target once; a checker unusable after its bounded retries aborts the stage as
+infrastructure, since further writer calls could never be accepted. Templates never
+enter the loop, stay with the class that owns them, and their titles are surface forms
+the scanner knows. Prompt policy is the generator's: the assets as package data under
+`generator/prose` with a pure render from brief to request; the adapter owns Converse
+translation only, over a request-shaped seam whose types are its contract, so it never
+learns what a runbook or a guard is. Model ids come from the environment and their
+absence fails startup; inference parameters are code; no credential exists anywhere.
+Prompt assets are pinned by digest beside the vocabulary digest: an identity-bearing
+prompt change updates the reference provenance deliberately, and a generator bump for
+another reason leaves them alone. The unit level tests the loop, the guards and the
+record with scripted fakes, and the adapter's wire translation against botocore's
+stub with the request pinned whole; `live` tests are structural, skip when no
+credentials exist and fail on `AccessDenied`; the authoritative evidence is a manually
+dispatched probe workflow under the generator role, the only principal granted the
+pair, reporting model ids, outcome, latency and token counts and never text; the
+workstation identity is not widened for a test's convenience. Cassettes were rejected:
+SigV4 scrubbing and a recorded model output prove nothing the stub and the probe do
+not. Generator version 5; the first world stays as it is with its verdicts, a
+version-5 realization of the same seed being a world beside it.
 ---
 
 ## Package boundaries and the import law (2026-09-09)
@@ -1058,9 +1172,9 @@ answer-key design depends on, left to convention. So the law has two parts.
 | Rank | Package | Purity | Holds |
 |---|---|---|---|
 | 0 | `core` | pure | domain types (employee, work item, event, document, leave), the predicate registry, the claim vocabulary, `RunContext` and world time, the pure rules (viability, the authority table, closure, constraint checks), and vendor-neutral ports where two consumers need one |
-| 1 | `world` | pure | the benchmark: world spec, scenarios, truth facts, keys, briefs, templates, the semantic generator, the construction invariants |
-| 2 | `adapters` | shell | `frappe`, `jira`, `calendar`, `corpus`, `prose` — one external boundary each: vendor shape and identity translated to `core` types and back; credentials, HTTP, pagination, connection-fault retries; `object_store`, the bucket the sealed world lands in, as a read protocol every shell holds and gated writer modules; `wiring`, the read side both shells share and the one verdict-publication callable |
-| 3 | `generator` | shell | prose materialization and its guards, the projectors, sealing, the generation entry point |
+| 1 | `world` | pure | the benchmark: world spec, scenarios, truth facts, keys, briefs, propositions and the materialization record, templates, the semantic world and its composition, the semantic generator, the construction invariants |
+| 2 | `adapters` | shell | `frappe`, `jira`, `calendar`, `corpus`, `prose` — one external boundary each: vendor shape and identity translated to `core` types and back; credentials, HTTP, pagination, connection-fault retries — `prose` being the Converse translation for the writer and the checker over a request-shaped seam, holding no prompt policy; `object_store`, the bucket the sealed world lands in, as a read protocol every shell holds and gated writer modules; `wiring`, the read side both shells share and the one verdict-publication callable |
+| 3 | `generator` | shell | prose materialization — the prompt assets, the brief-to-request render, the guards, the attempt loop and its record — the projectors, sealing, the generation entry point |
 | 3 | `validator` | shell | read-only verification of the live systems against the declared world |
 | 3 | `evaluator`, `agent` | shell | the investigator milestone's; named now so the law has their place |
 | 4 | `app` | shell | the demo milestone's surface |
