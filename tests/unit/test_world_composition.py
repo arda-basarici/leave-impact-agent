@@ -66,6 +66,17 @@ def test_prose_is_composed_for_exactly_the_pending_targets() -> None:
         compose(semantic, {brief.id: "   "}, record_for({brief.id: BODY}))
 
 
+def test_a_composed_body_is_the_bytes_its_record_accepted() -> None:
+    scenario = pending_scenario()
+    semantic = semantic_world_of(scenario)
+    [brief] = scenario.briefs
+    on_record = record_for({brief.id: BODY})
+    with pytest.raises(
+        ProseContractError, match=f"accepted body on record differs .* \\['{brief.id}'\\]"
+    ):
+        compose(semantic, {brief.id: BODY + " Or so they say."}, on_record)
+
+
 def test_the_record_names_exactly_the_pending_targets() -> None:
     scenario = pending_scenario()
     semantic = semantic_world_of(scenario)

@@ -433,8 +433,10 @@ SHA256_HEX = r"[0-9a-f]{64}"
 class TargetRecord:
     """How one target's text was accepted: the attempts, the refusals, the digests, the reading.
 
-    ``attempts`` counts every attempt including the accepted last one, so each refusal's
-    attempt number is below it. ``request_digest`` is of the rendered model request and
+    ``attempts`` counts every attempt including the accepted last one, and the refusals
+    are a possible history: exactly one for each attempt before it, in order, since the
+    first guard that refuses ends an attempt (a namespace refusal means the checker never
+    ran on that draft). ``request_digest`` is of the rendered model request and
     ``accepted_body_digest`` of the body the model wrote — the composed text, prefix and
     all, has its own place in the world's digests. ``propositions`` are the checker's
     reading of the accepted body, kept because the hand audit is measured against them.
@@ -450,12 +452,13 @@ class TargetRecord:
     def __post_init__(self) -> None:
         if self.attempts < 1:
             raise ValueError(f"{self.target_id}: an accepted target took at least one attempt")
-        for refusal in self.refusals:
-            if refusal.attempt >= self.attempts:
-                raise ValueError(
-                    f"{self.target_id}: refusal on attempt {refusal.attempt} but the text was "
-                    f"accepted on attempt {self.attempts}"
-                )
+        refused = [refusal.attempt for refusal in self.refusals]
+        if refused != list(range(1, self.attempts)):
+            raise ValueError(
+                f"{self.target_id}: accepted on attempt {self.attempts}, so attempts "
+                f"1..{self.attempts - 1} were each refused once in order, got refusals on "
+                f"{refused}"
+            )
         for name, value in (
             ("request_digest", self.request_digest),
             ("accepted_body_digest", self.accepted_body_digest),
@@ -468,8 +471,9 @@ class TargetRecord:
 class MaterializationRecord:
     """The provenance of every model-written text in a world, sealed with the truth.
 
-    ``prompt_digests`` name each prompt asset and its digest; the rendered per-target
-    request is digested on its target's record instead, since it varies by design.
+    ``prompt_digests`` name each prompt asset and its digest, held in name order so equal
+    provenance is equal in bytes; the rendered per-target request is digested on its
+    target's record instead, since it varies by design.
     """
 
     writer: ModelConfiguration
@@ -484,6 +488,7 @@ class MaterializationRecord:
         names = [name for name, _ in self.prompt_digests]
         if len(set(names)) != len(names):
             raise ValueError(f"a prompt asset is digested once, got {names}")
+        object.__setattr__(self, "prompt_digests", tuple(sorted(self.prompt_digests)))
         for name, value in self.prompt_digests:
             if not fullmatch(SHA256_HEX, value):
                 raise ValueError(f"prompt {name}: a SHA-256 hex, got {value!r}")

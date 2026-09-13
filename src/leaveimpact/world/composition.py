@@ -12,9 +12,12 @@ lands at its target's position in the parent's order, the parts the class wrote 
 filling the other slots in their order. The model never writes an id, a date or an author,
 so none of those can become a prose failure.
 
-The contract this stage owns is the bijection between brief, prose result and composed
-part: a body for every brief and a brief for every body, nothing unconsumed, no blank
-text, and the record naming exactly the targets that were pending. The stronger invariant
+The contract this stage owns is the bijection between brief, prose result, record and
+composed part: a body for every brief and a brief for every body, nothing unconsumed, no
+blank text, every body the very bytes its target's record accepted, and the record naming
+exactly the targets that were pending. The digest binding is checked here because this is
+the one boundary where the body and the record meet; what the record says the checker
+read into that body is the materialization gate's claim, not composition's. The stronger invariant
 — every target now present under its parent, every prose-authored fact resolving to a part
 — is the composed world's own and holds for any ``WorldSpec`` however built. A world with
 no pending prose composes with an empty prose set and no record, into the same entities it
@@ -30,7 +33,7 @@ from datetime import date
 
 from leaveimpact.core.comments import comment_text
 from leaveimpact.core.entities import Comment, Document, DocumentSection, WorkItem
-from leaveimpact.world.artifacts import semantic_digest
+from leaveimpact.world.artifacts import digest, semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec, assemble_semantic_world
 from leaveimpact.world.briefs import (
     Brief,
@@ -53,7 +56,8 @@ def compose(
     """``semantic`` with every pending part written from ``prose``, keyed by target id.
 
     Raises ``ProseContractError`` when a brief has no body, a body has no brief, a body
-    is blank, or the record names other targets than the briefs do.
+    is blank, a body's digest differs from the one its record accepted, or the record
+    names other targets than the briefs do.
     """
     pending = semantic.pending_ids
     given = frozenset(prose)
@@ -65,6 +69,19 @@ def compose(
     blank = sorted(target for target, body in prose.items() if not body.strip())
     if blank:
         raise ProseContractError(f"a composed body is not blank, got blank for {blank}")
+    if materialization is not None:
+        # The record's accepted body and the body composed here are the same bytes, or the
+        # sealed provenance would describe a text the world does not contain.
+        on_record = {t.target_id: t.accepted_body_digest for t in materialization.targets}
+        differing = sorted(
+            target
+            for target, body in prose.items()
+            if target in on_record and digest(body.encode("utf-8")) != on_record[target]
+        )
+        if differing:
+            raise ProseContractError(
+                f"the accepted body on record differs from the composed body for {differing}"
+            )
     names: dict[str, str] = {employee.id: employee.name for employee in semantic.org.employees}
     return WorldSpec(
         seed=semantic.seed,

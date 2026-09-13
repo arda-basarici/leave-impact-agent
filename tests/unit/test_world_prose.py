@@ -1,8 +1,9 @@
 """The prose vocabulary: a proposition validated against the registry like a fact; a namespace
 derived from facts through the closed vocabulary, with the dates and numbers they carry; the
 lexical anchors a fact's text cannot avoid, refused for a predicate prose cannot carry; and the
-materialization record's own invariants — refusals before the accepted attempt, attempts under
-the cap, digests of SHA-256 shape, each target and setting once."""
+materialization record's own invariants — one refusal per failed attempt before the accepted
+one, attempts under the cap, digests of SHA-256 shape, each target and setting once, prompt
+digests in name order."""
 
 from datetime import date
 
@@ -197,7 +198,7 @@ def test_a_refusal_is_numbered_from_one_and_counts_at_least_one_finding() -> Non
         Refusal(1, GuardName.NAMESPACE, 0)
 
 
-def test_a_target_record_places_every_refusal_before_the_accepted_attempt() -> None:
+def test_a_target_record_is_a_possible_history_one_refusal_per_failed_attempt() -> None:
     TargetRecord(
         "comment_005",
         3,
@@ -206,10 +207,15 @@ def test_a_target_record_places_every_refusal_before_the_accepted_attempt() -> N
         SHA,
         (),
     )
-    with pytest.raises(
-        ValueError, match="refusal on attempt 3 but the text was accepted on attempt 3"
-    ):
-        TargetRecord("comment_005", 3, (Refusal(3, GuardName.NAMESPACE, 2),), SHA, SHA, ())
+    impossible = (
+        (3, (Refusal(3, GuardName.NAMESPACE, 2),)),  # refused on the accepted attempt
+        (4, ()),  # three silent failures
+        (3, (Refusal(1, GuardName.NAMESPACE, 1), Refusal(1, GuardName.EXTRACTION, 1))),
+        (4, (Refusal(2, GuardName.NAMESPACE, 1),)),  # attempt 1 unaccounted for
+    )
+    for attempts, refusals in impossible:
+        with pytest.raises(ValueError, match="were each refused once in order"):
+            TargetRecord("comment_005", attempts, refusals, SHA, SHA, ())
     with pytest.raises(ValueError, match="accepted_body_digest is a SHA-256 hex"):
         TargetRecord("comment_005", 1, (), SHA, "deadbeef", ())
 
@@ -226,9 +232,13 @@ def test_a_model_configuration_orders_its_settings_and_names_each_once() -> None
 def test_the_record_keeps_attempts_under_the_cap_and_each_target_once() -> None:
     writer = ModelConfiguration("writer", ())
     checker = ModelConfiguration("checker", ())
-    accepted = TargetRecord("comment_005", 4, (), SHA, SHA, ())
-    record = MaterializationRecord(writer, checker, (("writer-system", SHA),), 4, (accepted,))
+    refused = tuple(Refusal(n, GuardName.EXTRACTION, 1) for n in (1, 2, 3))
+    accepted = TargetRecord("comment_005", 4, refused, SHA, SHA, ())
+    record = MaterializationRecord(
+        writer, checker, (("writer", SHA), ("checker", SHA)), 4, (accepted,)
+    )
     assert record.target_ids == {"comment_005"}
+    assert [name for name, _ in record.prompt_digests] == ["checker", "writer"]  # name order
     with pytest.raises(ValueError, match="4 attempts over a cap of 3"):
         MaterializationRecord(writer, checker, (), 3, (accepted,))
     with pytest.raises(ValueError, match="a target is recorded once"):
