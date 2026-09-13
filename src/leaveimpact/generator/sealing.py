@@ -12,8 +12,11 @@ next attempt can resume from and the application can never serve:
    means before ``prepare``, not only before the root's interleaved calls (the part-3
    review's finding). A restart re-seals the same bytes and takes the equal case; bytes
    that differ are ``ObjectConflict``, since the frozen world is never regenerated once
-   sealing begins and every final encoding, the documents' included, is a deterministic
-   projection of it computed here before the first write. Truth-only orphans are
+   sealing begins and every world-content encoding — the three artifacts and every
+   document — is a deterministic projection of it computed here before the first
+   write; the final manifest alone is derived later, on purpose, from those fixed bytes
+   and the version ids observed on read-back, since a commit record cannot exist before
+   the receipts it records. Truth-only orphans are
    harmless: with no manifest beside them there is no projected world, and the serving
    rule needs both a manifest and an approved verdict. The reverse order would leave
    live vendor state whose answer key is not yet sealed, which is the state the whole

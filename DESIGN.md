@@ -1006,7 +1006,9 @@ evaluator's both, the application's neither; the world bucket holds the scenario
 and the world manifest. Canonical serialization and digests are pure and live in
 `world`; the sealing sequence belongs to the generator (ruled 2026-09-13, step 12 of
 the M1 build), and its order is what keeps a half-finished run harmless: the pure
-assembly fixes every byte, digest and the version before anything is written, and the
+assembly fixes every world-content byte, digest and the version before anything is
+written — the manifest alone is derived at the end from those fixed bytes and the
+version ids read back, a commit record existing only after its receipts — and the
 sequence proves the bundle it is handed is the world's by reassembling it; the two
 truth objects go first, by conditional create, before the site preparation makes its
 first vendor call — the Frappe company and the Jira project are vendor state too, so

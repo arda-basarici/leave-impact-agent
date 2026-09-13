@@ -88,9 +88,12 @@ of the composition root's calls and false of the run's. Sealing now owns the cal
 prepare, through an outer seam that is the root's interleaved protocol plus that one
 call, and the test's fake records the truth bucket's contents inside prepare itself.
 Two smaller hardenings landed with it: the sequence reassembles the bundle from the
-world it is handed and refuses before any write when they differ, and every final
-encoding, the documents' included, is computed before the first write, so the
-frozen-bytes sentence is literally true.
+world it is handed and refuses before any write when they differ, and every
+world-content encoding, the documents' included, is computed before the first write,
+so the frozen-bytes sentence is literally true — the final manifest being the one
+deliberate exception, derived afterwards from those fixed bytes and the version ids
+observed on read-back, since a commit record cannot precede the receipts it records
+(the closing review's precision).
 
 **The write boundary, porous twice.** The object store was designed as two protocols
 in two modules, the writer's gated by the import law to the adapters and the
@@ -284,8 +287,11 @@ than what either of us had at the start of the step: the generator proves the wo
 realizable through the runtime rule, the validator proves the realized systems match
 that realizable world, and the evaluator grades with the stable interval and the key.
 The validator's chain is complete for the structured tier: live systems realize the
-sealed spec, the sealed spec implies the sealed truth, and the validator never sees a
-key or a planting date. For the prose-carried facts of the later tiers, the ones only
+sealed spec, the sealed spec implies the sealed truth, and the validator never reads a
+key and never uses a planting date to build the live view — it reads the plantings'
+dates in the spec, since the spec serializes them, and constructs the runtime view
+without them (the wording sharpened at the step 12 closing review). For the
+prose-carried facts of the later tiers, the ones only
 a runbook or a comment can plant, the proof runs through the materializer's
 containment gates and the corpus adapter's read fidelity, not through this validator;
 that is a Tier 2 obligation, stated in the package docstring, not an unfinished part

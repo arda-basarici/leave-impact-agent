@@ -4,19 +4,20 @@ One function, ``realize``, drives a world into the four systems and returns the 
 that says it did. Its shape is the manifest-lifecycle ruling at the projector step made
 executable. A previous manifest, when the store holds one, is the checkpoint the run resumes
 from: it must realize the same world version and describe the same Frappe company and Jira
-project the sites were just prepared with, or the run refuses before touching a vendor —
-calendars belong to one world, and a configuration that drifted since the checkpoint means
-the site is no longer the one the receipts describe. Then, one employee at a time, a
-calendar is verified or created and the manifest saved, so an interrupted preparation
-orphans at most one empty calendar. Then the two site inspections run as a preflight: the
-Frappe company and the Jira project may hold a subset of this world's ids and nothing
-outside it. Then the vendor projectors run, every receipt checkpointed into the manifest
-before the next external write. Then the same inspections run as a postflight, this time
-demanding the exact set. Only then do the documents seal into the world bucket's final
+project the sites were just prepared with, or the run refuses before the root's own vendor
+activity begins — the site preparation has already run by then, owned by the sealing
+sequence — calendars belong to one world, and a configuration that drifted since the
+checkpoint means the site is no longer the one the receipts describe. Then, one employee at
+a time, a calendar is verified or created and the manifest saved, so an interrupted
+preparation orphans at most one empty calendar. Then the two site inspections run as a
+preflight: the Frappe company and the Jira project may hold a subset of this world's ids and
+nothing outside it. Then the vendor projectors run, every receipt checkpointed into the
+manifest before the next external write. Then the same inspections run as a postflight, this
+time demanding the exact set. Only then do the documents seal into the world bucket's final
 prefix — the sealing order of the step 12 rulings, so a postflight refusal leaves nothing
-under a prefix no writer of this project can delete from — and their receipts checkpoint
-the same way. Then the receipts are proven to cover exactly the planted ids, and only
-then does the stage move to ``projected``.
+under a prefix no writer of this project can delete from — and their receipts checkpoint the
+same way. Then the receipts are proven to cover exactly the planted ids, and only then does
+the stage move to ``projected``.
 
 What that stage proves is bounded on purpose. The root's external inspections exist to
 establish projection safety and recoverability — that an interrupted run of its own left no
@@ -37,9 +38,12 @@ The root holds policy and sequence; the facts come from two seams. ``Preparation
 the root needs from the systems interleaved with its checkpoints: one calendar per call,
 the four systems built from the final calendar map, and the two inspections. Everything
 else preparation does — the site schema, the company, the skills, the project and its
-mark, the field ids, the owner options, the corpus schema — happens before the root runs
-and is idempotent on its own, so it needs no checkpoint and no interleaving; the wiring
-in ``systems`` does it and hands the root the configuration it resolved. ``ManifestStore``
+mark, the field ids, the owner options — happens before the root runs and is idempotent
+on its own, so it needs no checkpoint and no interleaving; the wiring in ``systems``
+does it when the sealing sequence calls ``prepare``, after the truth is sealed and
+before this root runs, and hands the root the configuration it resolved (the documents
+need no preparation: they seal into the world bucket, and the corpus is the
+application's cache, filled elsewhere). ``ManifestStore``
 is durability: ``save`` returns only once the manifest would survive the process, which is
 what makes "checkpointed before the next write" a true sentence.
 

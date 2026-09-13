@@ -13,8 +13,10 @@ world spec, the scenario specs, the world manifest and the live systems, and nev
 truth manifest; what truth expects of the plantings was proven before sealing by the
 whole-world re-verification in ``world`` — under the runtime view as well as the dated
 one — so the two proofs compose: live systems realize the sealed spec, and the sealed
-spec implies the sealed truth, without the validator ever seeing a key or a planting
-date. Three responsibilities stay apart: the generator proves the world realizable
+spec implies the sealed truth, without the validator ever reading a key or using a
+planting date to build the live view (it reads the dates the spec serializes, and the
+runtime view is constructed without them). Three responsibilities stay apart: the
+generator proves the world realizable
 through the runtime rule, the validator proves the realized systems match it, the
 evaluator grades with the stable interval and the key.
 
