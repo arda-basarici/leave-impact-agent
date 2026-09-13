@@ -5,7 +5,7 @@ snapshot of the current design. Edited in place; the journey lives in the sessio
 log. Wins over VISION.md (the frozen founding snapshot) on disagreement. How it's
 built → ARCHITECTURE (born with the scaffold); pitch → README.
 
-*Design phase · last updated 2026-09-10.*
+*Design phase · last updated 2026-09-13.*
 
 ## Objective
 
@@ -371,21 +371,51 @@ stable-now interval, scoring facts. Distractors carry their reasons so grading
 can separate final-answer correctness, evidence correctness, constraint coverage
 and distractor rejection, and so a failure reads as a sentence ("found the skill
 match, never retrieved the release meeting") rather than a zero. World and truth
-live in separate S3 buckets; the application's IAM role can read world and
-scenario artifacts and has no read capability over truth; the evaluator runs
-under its own role; a CI test assumes the application role, attempts a read on
-the truth bucket and passes only on `AccessDenied` — that public test and its log
-are the evidence a reader can check, since the policy itself cannot be verified
-from outside. The generator knows both halves, so it is never part of the
-deployed runtime: it runs as a separate job under a generator role obtained
-through STS assume-role (an EC2 instance profile is one role, so "the generator
-runs from the instance" means a short-lived role the application process never
-holds), writes its artifacts and terminates. Integrity is the guarantee
-underneath secrecy: the truth artifact is serialized once, hashed as exact bytes,
-versioned in S3, and every world records its truth digest; every evaluation run
-records world version, scenario id, seed, truth digest and S3 version id, harness
-commit and model, recorded before grading — so a result months later is the same
-question about the same world against the same key. Hand auditing produces a
+live in separate S3 buckets; the application's instance role can read the world
+bucket's `worlds/` prefix and has no capability over truth at all — not a read,
+not an assume. The evidence a reader can check is taken on the host itself, on
+every deploy, under the real instance profile: the deploy job's SSM command runs
+the boundary probe after the deploy script, a list of `worlds/` succeeding as the
+positive control, then a list of the truth bucket and a get of a key known to
+exist there both refused with the `AccessDenied` code specifically, and anything
+else turning the deploy run red with no rollback, since a broken boundary is the
+platform's fault and not an image's. The key must exist because S3 answers a get
+of an absent key with `AccessDenied` whenever list is denied, whatever the get
+permission says; the first probes proved only the list denial that way, and a
+platform-owned canary object outside the final prefixes closed the gap (ruled
+2026-09-13). The generator knows both halves, so it is never part of the deployed
+runtime, and it never runs from the instance either: the earlier design had it
+assume a generator role from the instance profile through STS, and that was a
+process distinction, not an IAM one — a role the instance role may assume is a
+role the application can obtain, so the boundary was a promise. Superseded
+2026-09-12: the generator and the validator are `workflow_dispatch` jobs under one
+GitHub environment, `benchmark`, the single privileged operator plane,
+reviewer-gated and `main`-only, separate from the `production` environment the
+deploy job uses so the deploy job cannot write truth; each job assumes its own
+OIDC-trusted role — `leave-agent-generator` writes the truth and the world,
+`leave-agent-validator` reads the world and the truth's spec and writes nothing
+but verdicts — through the web-identity exchange, no long-lived AWS secret
+anywhere, the session under two hours and the workflow's timeout under the
+session since the exported credentials are static. The instance role assumes
+nothing. The generator and validator split lives in the two roles' policies, not
+in a second environment,
+which would guard against the project's own committed workflow code at the cost
+of duplicating the vendor secrets; binding each role to its workflow file through
+the token's `job_workflow_ref` claim is the later hardening now that the claim is
+observed on a plain dispatched job. The runner's vendor credentials are GitHub
+environment secrets on `benchmark`, scoped to the one step that runs the entry
+point, the workflow being their sole consumer — and one credential per consumer
+from M2 on, so no secret ever lives in two stores. The evaluator's role waits for
+M2 entry, when its execution boundary is known; a guessed trust frozen now would
+be a hole in the sealing claim. Integrity is the guarantee underneath secrecy:
+every final object is written once, by a conditional create the bucket policy
+enforces on the final prefixes (a plain put refused, a second create refused, and
+a refusal accepted only when the bytes already there are the bytes being sealed),
+versioned in S3 with no delete grant to any job, its version id recorded; every
+world records its truth digest; every evaluation run records world version,
+scenario id, seed, truth digest and S3 version id, harness commit and model,
+recorded before grading — so a result months later is the same question about
+the same world against the same key. Hand auditing produces a
 separately versioned provenance artifact; held-out truth and its audit notes stay
 in the truth bucket, never in the public repository; the repository publishes the
 audit methodology and fully released example scenarios, and a retired evaluation
@@ -791,18 +821,36 @@ uses a fake renderer and the real one runs under the `live` marker. At thirty
 scenarios the whole stage costs well under a dollar per world.
 
 **Projection is the effectful, idempotent shell; the validator is separate and
-read-only.** One projector per system — Frappe, Jira, Calendar, and the corpus,
-which is the fourth target: the project's own document system with PostgreSQL
-behind it, so the agent's `search_policy` is an adapter like the other three and
-whether the table gets full-text search or pgvector stays the investigator
-milestone's question, while the documents' canonical form lives in the world
-bucket beside the manifest. Projectors are adapter-bound and find-or-create by
+read-only.** One projector per system — Frappe, Jira, Calendar, and the documents,
+which since the step 12 rulings (2026-09-13) are projected into the world bucket as
+canonical objects, one per document under `worlds/<version>/documents/`, and not into
+a database: the generator and validator run on a GitHub runner that cannot reach the
+instance's PostgreSQL and holds no database credential, and the sealed objects are
+the documents' source of truth in any case. The application's corpus — the project's
+own document system with PostgreSQL behind it, so the agent's `search_policy` is an
+adapter like the other three and whether the table gets full-text search or pgvector
+stays the investigator milestone's question — becomes a cache the instance fills from
+those objects: the application discovers worlds by listing `worlds/` under its own
+role, ingests only a world that satisfies the serving rule, loads the documents into
+the version's namespace, verifies exact ids and byte digests against the manifest,
+and marks the version ready in one atomic step, retrieval reading ready worlds only;
+ingestion is cache materialization and not world authorship, so it goes through a
+narrow loader that takes sealed records and a version and never through the gated
+document writer (its build waits for the first consumer, at M2 entry). The validator
+reads the documents where they are sealed, by id, and enumerates the held ids for its
+exactness claim; an object store has no search and the validator never needed one.
+Projectors are adapter-bound and find-or-create by
 the semantic key each system stores (the domain id planted on every entity), so a
 rerun adds nothing (the seed spike's contract; the one exception is a secondary
 calendar, whose id Google chooses and the app-created scope cannot rediscover, so
 a create whose response was lost leaves an empty orphan only a human sees — the
 composition root's persistence of the map is what keeps that narrow); they hold no
-scenario reasoning. The identity map — semantic id to vendor id — is what
+scenario reasoning. Every receipt is checkpointed into the manifest before the next
+external write, one overwrite per projected record, the one-write crash window of
+the projector step kept on purpose at step 12; the first live world measures what
+that costs — count, latency, bytes, share of the run, from a timing wrapper at the
+shell and never in the manifest — and the cadence widens only on that evidence, the
+contract reworded to "at most N uncheckpointed writes" if it ever does. The identity map — semantic id to vendor id — is what
 projection writes back, not what it reads: the frozen bundle is sealed before any
 vendor has minted an id, and the world manifest that carries the map is
 projection's receipt, recording the world version it realized. The validator is a
@@ -956,7 +1004,34 @@ access, not names: the truth bucket holds the world spec and the truth manifest 
 separate prefixes, the validator's role reading the spec prefix only and the
 evaluator's both, the application's neither; the world bucket holds the scenario specs
 and the world manifest. Canonical serialization and digests are pure and live in
-`world`; writing, sealing and the assumed role belong to the generator entry point. The world version is the digest of the realized bundle — the three canonical byte
+`world`; the sealing sequence belongs to the generator (ruled 2026-09-13, step 12 of
+the M1 build), and its order is what keeps a half-finished run harmless: the pure
+assembly fixes every byte, digest and the version before anything is written, and the
+sequence proves the bundle it is handed is the world's by reassembling it; the two
+truth objects go first, by conditional create, before the site preparation makes its
+first vendor call — the Frappe company and the Jira project are vendor state too, so
+live vendor state never exists without its sealed answer key, while truth-only orphans
+are harmless because nothing serves without a manifest; then the vendor projection
+through the composition root, its checkpoint under the world bucket's mutable
+`preparing/<version>/` prefix, never served, expiring after a day; then, after the
+root's postflight and only then, the documents into the final prefix, one object per
+document, so a refused site leaves nothing under a prefix no job can delete from; then
+the scenario specs; then every sealed object read back, its bytes compared with what
+was sealed and its version id taken from the read; and the world manifest last,
+carrying the version id of every object before it under its key — exactly the two
+truth keys, the scenario specs and one key per planted document — so an object under
+`worlds/` with a manifest beside it is a completed projection by construction. The
+manifest is the projection's commit record; approval is the validator's separate
+artifact, immutable per execution at
+`worlds/<version>/verdicts/<run-id>-<run-attempt>.json`, since a rerun shares the run
+id, with the run's identifiers in the key and not in the artifact so byte-equal
+verdicts across attempts prove the live systems held. Once sealing begins no artifact byte is regenerated: a restart reassembles and
+must hit the equal case at every key or refuses, and a rerun of a sealed world writes
+nothing but the checkpoint and ends in the equal case everywhere. The serving rule
+follows: a world is served when its manifest is projected and at least one approved
+verdict exists whose judged manifest digest equals the current manifest's — never
+"whatever verdict file exists"; a newest-approved choice, if ever needed, is a listing
+of the prefix and not a mutable pointer. The world version is the digest of the realized bundle — the three canonical byte
 sequences in a fixed order — never of the recipe, because the interpreter finding is
 exactly a case where the recipe holds and the realization drifts; the version is
 external metadata of the bundle and is never serialized into a hashed artifact, which
@@ -982,7 +1057,7 @@ answer-key design depends on, left to convention. So the law has two parts.
 |---|---|---|---|
 | 0 | `core` | pure | domain types (employee, work item, event, document, leave), the predicate registry, the claim vocabulary, `RunContext` and world time, the pure rules (viability, the authority table, closure, constraint checks), and vendor-neutral ports where two consumers need one |
 | 1 | `world` | pure | the benchmark: world spec, scenarios, truth facts, keys, briefs, templates, the semantic generator, the construction invariants |
-| 2 | `adapters` | shell | `frappe`, `jira`, `calendar`, `corpus`, `prose` — one external boundary each: vendor shape and identity translated to `core` types and back; credentials, HTTP, pagination, connection-fault retries |
+| 2 | `adapters` | shell | `frappe`, `jira`, `calendar`, `corpus`, `prose` — one external boundary each: vendor shape and identity translated to `core` types and back; credentials, HTTP, pagination, connection-fault retries; `object_store`, the bucket the sealed world lands in, as a read protocol every shell holds and gated writer modules; `wiring`, the read side both shells share and the one verdict-publication callable |
 | 3 | `generator` | shell | prose materialization and its guards, the projectors, sealing, the generation entry point |
 | 3 | `validator` | shell | read-only verification of the live systems against the declared world |
 | 3 | `evaluator`, `agent` | shell | the investigator milestone's; named now so the law has their place |
@@ -1056,11 +1131,26 @@ applies and cites it, never transcribing content, the plan check resolves the ci
 to the truth's `requires` fact, and no extraction seam exists anywhere. Reading and
 writing are two modules, `core/ports/read` and `core/ports/write`, so read-only is a
 property of the module graph: the import law lets only `adapters` and `generator`
-import `core.ports.write` — an allowlist over every module that names it, since a
-re-export from `core/__init__` would put a writer behind an import the law reads as
-`core` — and the validator and the investigator are readers by construction, the
-investigator milestone's role-scoped principle landing at the type level before the
-investigator exists. The writers have one production consumer and are a port anyway,
+import a gated write module — an allowlist over every module that names one, since a
+re-export from a package `__init__` would put a writer behind an import the law reads
+as the package, so no `__init__` may name one at all — and the validator and the
+investigator are readers by construction, the investigator milestone's role-scoped
+principle landing at the type level before the investigator exists. The object store
+under the sealed world (step 12) is gated the same way and taught the law two more
+rules, each from a review that found the boundary porous: the writer protocol and
+the concrete writer classes live in their own modules, since a protocol gate alone
+left a combined store class with write methods nameable from the validator, so each
+backend is a reader class with no write method on it at runtime and a gated writer
+subclass; and within `adapters` only a gated module may name a writer module at
+module scope, since a module-scope import makes the class an attribute of any module
+a shell may import — the shared read wiring did exactly that — so a helper that needs
+a writer builds it inside a function. The validator's one write, its verdict, crosses
+the wiring as a callable that seals exactly one key computed from the version and the
+run's identifiers, the writer closed over and never exposed. The vendor adapters stay
+the combined reader-writer classes of the adapter step, typed at the port they are
+handed as; for them the read-only role rests on the write-port gate and on the
+credential's authority, which is the layer IAM is for. None of this is a sandbox: the
+law makes an accidental violation fail CI, and IAM remains the runtime boundary. The writers have one production consumer and are a port anyway,
 for the least-privilege type and for the in-memory implementation of both sides that
 lives under `tests` as shared infrastructure (an `adapters/memory` package would call
 memory an external system); hexagonal symmetry is not the reason. A writer adds and

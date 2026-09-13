@@ -7,6 +7,146 @@ decisions it feeds.
 
 ---
 
+## 2026-09-13 — Four times the claim was stronger than the mechanism: how step 12 turned every boundary sentence into a check
+
+*M1 step 12 of the build plan, the generator's entry point and the sealing of a world
+into the two buckets: nine design rulings first, one question per exchange with the
+external reviewer answering each cold (session 21, 2026-09-13), then six builds each
+pushed and reviewed — the object store (`26ae48d`, reviews `73617d2`, `5c47f8f` and the
+checksum fix), the key layout and the sealed documents (`48b7584`), the sealing sequence
+(`272b033`), the generator's entry point (`4020df7`), the shared wiring and the
+validator's entry point (`531a440`), the deploy-time probe (`ff9038d`); the unit suite
+went from 1622 to 1673 tests across the step (the suite runs of the session). Feeds: the
+M1 report's sealing and boundary section — what "sealed" is enforced by, layer by
+layer: the bucket policy, IAM, the import law, the probe on the host — and the
+methodology section on external review, whose pattern this step shows four times over:
+a claim, a reviewer reading it literally, and a probe or a law rule that makes it true.*
+
+The step's story is not any one of its rulings. It is that four times a sentence in the
+design or the code claimed a boundary stronger than the mechanism under it, and four
+times the correction was a structural check rather than a stronger sentence. The
+external reviewer found all four, reading the text literally and asking what actually
+enforced it; the project's answer each time was to make the enforcement something that
+runs.
+
+**The seal that was a promise.** The founding design had the generator "run from the
+instance under a short-lived role the application process never holds", a role assumed
+through STS from the instance profile. On 2026-09-12, while the platform ask for the
+buckets and roles was being ruled, the reviewer pointed at what that sentence really
+said: an EC2 instance profile is one role, and a role that role may assume is a role
+the application process can obtain, because the application runs under the same
+profile. The distinction was between processes, not between principals, and the
+answer key's secrecy rested on discipline. The ruling that replaced it moved the
+privileged jobs off the instance entirely: the generator and the validator are
+`workflow_dispatch` jobs under one GitHub environment, `benchmark`, reviewer-gated and
+`main`-only, each assuming its own OIDC-trusted role through the web-identity
+exchange, and the instance role assumes nothing. The platform stream built and applied
+it the same evening (its commit `529c998`), and the trust was proven by a throwaway
+workflow run rather than by policy text (run 34719626730 in this repository's
+findings): both roles assumed, the generator's two models answering under it, the
+validator refused on the truth bucket. One reviewer suggestion was pushed back and
+held — two environments to split generator from validator structurally — because the
+threat it closes is the project's own committed workflow code under a gate the owner
+approves by hand, and the cost would have been every vendor secret duplicated.
+
+**The probe that proved less than it said.** The refusal check that closed the platform
+ask made two calls under the validator role: a list of the truth bucket, refused, and a
+get of a truth key, refused, "two calls, because a missing key reads as AccessDenied
+only while list is also denied". At the step 12 interview the reviewer read that
+sentence the other way round, which is the right way: S3 answers a get of an absent
+key with AccessDenied precisely when list is denied, so that a caller cannot learn
+whether the key exists — whatever the get permission says. The truth bucket had been
+empty when the probe ran. The get had proven nothing about GetObject; the list denial
+made it ambiguous, not meaningful. The project's own record carried the backwards
+reasoning in two places, the session log and the findings, and both received a dated
+correction rather than a rewrite. The fix needed a key known to exist: the platform
+stream added a canary object at `access-probe/read-denied-canary` (its commit
+`57ec6df`), placed outside the create-only prefixes because Terraform's S3 object
+resource cannot send the conditional-create header the bucket policy demands there —
+which means, for the validator, the canary proves no bucket-wide read and the
+`truth-manifest/` denial itself is proven against a real key once a world exists.
+For the application the canary is the meaningful get, and it is taken on every deploy:
+a probe script runs on the host, in the same SSM command as the deploy, under the real
+instance profile — the identity asserted first, a list of the world bucket's `worlds/`
+succeeding as the positive control, then the truth list and the canary get both
+refused with the `AccessDenied` code specifically, anything else turning the deploy
+run red with no rollback, since a broken boundary is the platform's fault and not an
+image's. Its first live run was the deploy of its own commit (CI run 34729636594 on
+`ff9038d`): identity `assumed-role/leave-agent-instance`, positive control passed,
+both refusals with the pinned code.
+
+**Truth first, except in production.** The sealing sequence was written to the order
+the interview had ruled: the two truth objects sealed by conditional create before any
+vendor call, so that live vendor state never exists without its answer key, while
+truth-only orphans are harmless because nothing serves without a manifest. The code
+did that, and the unit test proved it — and the reviewer noticed that the function
+took a `Prepared` record as an argument, and that in production the only way to
+obtain one is the site preparation, which creates the Frappe company and the Jira
+project before it returns. The test had manufactured `Prepared` directly and so
+observed the first vendor call one stage too late; "before any vendor call" was true
+of the composition root's calls and false of the run's. Sealing now owns the call to
+prepare, through an outer seam that is the root's interleaved protocol plus that one
+call, and the test's fake records the truth bucket's contents inside prepare itself.
+Two smaller hardenings landed with it: the sequence reassembles the bundle from the
+world it is handed and refuses before any write when they differ, and every final
+encoding, the documents' included, is computed before the first write, so the
+frozen-bytes sentence is literally true.
+
+**The write boundary, porous twice.** The object store was designed as two protocols
+in two modules, the writer's gated by the import law to the adapters and the
+generator, so that a validator which cannot name the writer cannot call it. The
+reviewer's reading of the first commit: the concrete store class implemented both
+protocols and lived in a module the validator could import, so the validator could
+name the class and call its write methods without ever naming the gated module. The
+fix split every backend into a reader class with no write method on it at runtime and
+a gated writer subclass, and the law gained the concrete writer modules and a rule
+that no package `__init__` may name a gated module. Four commits later the shared
+read wiring, built so the generator and the validator construct the same readers from
+the same manifest, imported the writer classes at module scope to build the verdict
+publisher — and `from leaveimpact.adapters.wiring import S3ObjectWriter` worked. The
+reviewer caught that one too. The imports moved inside the publisher function, and
+the law gained the rule that makes the fix a property: within the adapters package,
+only a gated module may name an object-store writer at module scope, since a
+module-scope import makes the class an attribute of any module a shell may import.
+Both rules were proven by negative probes, a module that should fail the law made to
+fail it. The verdict itself crosses the wiring as one callable that seals exactly one
+key computed from the version and the run's identifiers, the writer closed over and
+never exposed; the validator package names no writer and chooses no key. The honest
+limit is written into the design with it: the law is not a sandbox, it makes an
+accidental violation fail CI, and IAM remains the runtime boundary.
+
+Three things ride beside the four arcs. The object store's SDK mapping was observed
+before it was written, by a throwaway workflow under the generator role (run
+34724172889, commit `e499060`): the 412 on a present key is a `PreconditionFailed`
+whatever the bytes, so equality is the store's own read-back; the 403 under a final
+prefix arrives as a modelled `AccessDenied`; and, as a side observation, a plain
+dispatched workflow's token carries `job_workflow_ref` naming its own file, which
+disproved the reviewer's docs-based reading that the claim is reusable-only and put
+the per-workflow trust binding on the platform's list as a later option. The store's
+fault vocabulary was closed at three classes after the reviewer's own finding that a
+broad SDK-error fallback had made local defects look transient: "unreachable" is now
+an allowlist of the SDK's transport branches, everything else is misconfiguration, and
+the one exception class the SDK raises both for a bad request and for a corrupted
+response body is classified at the body read, where its location decides its meaning.
+And the documents left PostgreSQL: they seal into the world bucket as canonical
+objects, one per document, after the vendor postflight so a refused site leaves
+nothing under a prefix no job can delete from, and the application's corpus becomes
+a cache the instance fills under the serving rule, with an atomic ready mark so a
+half-loaded world is never queryable.
+
+What the M1 report should take from the step is the layering rather than the count.
+"Sealed" is enforced by the bucket policy (conditional create on the final prefixes,
+no delete grant), by IAM (two OIDC roles, an instance role that assumes nothing), by
+the import law (gated writer modules, reader classes without write methods, no
+module-scope laundering), and by the probe on the host that turns the application's
+refusal into a line in every deploy's log. Each layer exists because a sentence
+claiming it was found insufficient by someone reading the sentence literally.
+
+Figure: a four-row table — the claim as first written, the mechanism that was missing,
+and what made it structural (OIDC jobs and the trust probe; the canary and the deploy
+probe; sealing owning the site preparation; the two law rules with their negative
+probes).
+
 ## 2026-09-12 — The checker that borrowed the answer key's calendar: how the validator exposed a world-side gap by exposing it in itself first
 
 *M1 step 11 of the build plan, the independent validator: the sealed artifacts redrawn
