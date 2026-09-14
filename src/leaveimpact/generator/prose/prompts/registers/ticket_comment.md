@@ -1,0 +1,1 @@
+A comment on a ticket in the issue tracker, written by the named author in the first person about the named ticket: informal, direct, one to three sentences, the kind of remark an engineer leaves for teammates.

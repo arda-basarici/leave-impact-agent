@@ -204,6 +204,12 @@ class Lexicon:
                 raise ValueError(f"{form.kind} {form.id} has two display forms")
             self._forms[key] = form.form
 
+    def forms(self) -> tuple[SurfaceForm, ...]:
+        """Every form held, in (kind, id) order — the scanner's list of what a world can name."""
+        return tuple(
+            SurfaceForm(kind, id, form) for (kind, id), form in sorted(self._forms.items())
+        )
+
     def form_of(self, ref: EntityRef) -> SurfaceForm:
         return self._surface(ref.kind.value, ref.id)
 

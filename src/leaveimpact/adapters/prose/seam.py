@@ -129,13 +129,22 @@ class ToolCall:
 
 
 class ProseWriter(Protocol):
-    """Turns a rendered request into text; the fake at unit level, Bedrock under ``live``."""
+    """Turns a rendered request into text; the fake at unit level, Bedrock under ``live``.
+
+    ``model_id`` names what the record says wrote the text; a fake names itself.
+    """
+
+    @property
+    def model_id(self) -> str: ...
 
     def write(self, request: WriterRequest) -> WrittenText: ...
 
 
 class ProseChecker(Protocol):
     """Makes the model fill the forced tool over a rendered request; returns the input as is."""
+
+    @property
+    def model_id(self) -> str: ...
 
     def extract(self, request: CheckerRequest) -> ToolCall: ...
 
