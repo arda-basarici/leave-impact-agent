@@ -7,6 +7,136 @@ decisions it feeds.
 
 ---
 
+## 2026-09-14 — Prose entered the world through a gate, and the gate was rebuilt five times before any model wrote a word
+
+*M1 step 14 of the build plan: the design interview of session 23 (ten questions, an
+external reviewer's read on each, Arda's ruling on each), then five commits — the
+semantic world and composition, the artifacts, the Bedrock seam, the materializer, the
+wiring — each reviewed after its push, with the review fixes as their own commits
+(2026-09-14). Feeds: the M1 milestone post; the final report's evaluation section under
+"ground truth by construction" — how model-written text joins a benchmark whose answer
+key is fixed before the model is paid; the architecture section on the two identities
+of a world; and the process section on reviewing a design against a low-context
+reader.*
+
+Until this step every byte of a world was a function of its seed. The moment a
+language model writes a runbook paragraph, that stops being true, and the whole step is
+the consequence of one sentence in the founding design: the seed identifies the
+semantic specification, the frozen bundle identifies the realized world, and the two are
+not the same thing. Everything else followed from taking that sentence literally.
+
+**Ten questions, one reviewer, one ruler.** The step opened with a design interview,
+one question per exchange, and Arda relayed each proposal to a second chat with almost
+no context and brought its verdict back. That reviewer's closing "my ruling" was, by
+Arda's own instruction that morning, the reviewer's verdict and never his; the ruling
+stayed with him. The shape that came out: the pure assembly no longer produces a world
+but a *semantic world*, complete in every structured record and holding, where a model
+must write, a typed pending target instead of text — a brief that says which comment or
+section, under which parent, at which position, carrying which facts, in which
+register. A pure `compose` places the accepted text afterward. Two identities are
+recorded: a semantic digest, the hash of everything the seed determines, which two runs
+from one seed share whatever prose they accept, and the world version, the hash of the
+realized bundle, which they do not. The reviewer's sharpest early contribution was to
+move the regression oracle: the suite had pinned a reference seed's world version, and
+that pin could not survive non-deterministic prose, so the pair became generator
+version plus reference semantic digest, and the realized version became provenance no
+test expects to reproduce. Two of Claude's own additions were adopted the same way: a
+required fact's role — answer-changing or context — is derived by running the rules
+once with the fact removed rather than tagged by the class author, because the hand
+audit at step 16 reads every artifact carrying an answer-changing fact and a wrong tag
+would misdirect it silently; and the surface namespace a text may use is derived from
+the brief's facts through the closed vocabulary, so a class cannot forget a name or
+leak one.
+
+The rest of the interview fixed the machinery the reviewer and Claude then mostly agreed
+on. The record of how each text was accepted seals with the world and is part of its
+identity; rejected text exists nowhere, not even in the job log, because the repository
+is public and its Actions logs are world-readable, so a quoted rejected sentence would
+be a third benchmark-private surface with no access policy. A restart before sealing
+regenerates; after sealing it resumes a version the operator names, proven six ways,
+and auto-discovering an unfinished version by listing the mutable prefix was rejected
+as guessing. Four guards run in order, the paid one last: a namespace scanner, a
+lexical required-fact check, an extraction by a second model family that never sees the
+brief's facts and returns propositions with polarity and an assertion mode — the text's
+modality, never the checker's confidence, so "Deniz might know Kafka" is affirmed and
+hedged whatever the checker believes — and the human pass. Containment is the required
+statements contained in the affirmed, asserted ones, and those contained in the
+required plus the allowed; anything negated, hedged, about an unlisted subject, or
+expressible by no predicate refuses. Attempts are fresh samples from one prompt with
+nothing fed back, under a cap of four recorded in provenance, and the reviewer's
+arithmetic was worth keeping: at a 70 % per-attempt pass rate that cap gives about 61 %
+whole-world success over sixty targets, at 80 % about 91 %, so four is a diagnostic cap
+that assumes a good prompt, to be revisited on the first world's numbers and not
+before. And the one push-back taken whole: prompt policy belongs above the adapter.
+The Bedrock layer sends a request it is handed and returns text or a filled tool; what
+a runbook, a guard or a required fact is never reaches it.
+
+**One check the interview missed, caught against the project's own rule.** The
+interview had put the materialization record in the world spec's provenance. While
+building the artifacts Claude read the record's contents against the standing storage
+rule — storage follows who may know a thing — and they contradicted: the world spec is
+readable by the validator's role and holds nothing truth expects, and a brief's
+required facts and a checker's reading of a text are exactly what truth expects. The
+record and the briefs moved to the evaluator-only truth manifest before a line of
+encoder was written, on Arda's ruling. That choice had a price paid later in the
+wiring: a resume needs the record to re-compose the world, and the truth manifest has
+no decoder by design, so the generator got a private decoder of that one section,
+unreachable by the validator under the import law — a narrower thing than "the
+generator can read truth anyway".
+
+**Five reviews, and what each moved.** The post-push review found something real each
+time, and reproducing every finding before triage (the method since step 9) confirmed
+all of them. On composition: nothing bound a composed body to the digest its record
+claimed to have accepted, so a sealed record could describe a text the world did not
+contain; `compose` now refuses a body whose digest is not its record's. On the same
+types: a target record could hold impossible histories — four attempts and no
+refusals — and now demands exactly one refusal per failed attempt, since the first guard
+that refuses ends an attempt. On the seam: the "closed fault vocabulary" was
+mechanically false on the success path, because a response without usage silently
+became zero tokens and a malformed count leaked a raw `ValueError`; usage is now read
+strictly and any defect is the seam's own protocol fault. On the materializer: the
+scanner had left a foreign world name in another case to the extraction check, which
+deliberately ignores mentions that make no claim — "thanks selin" would have passed
+every guard while naming an identity the brief did not admit. The fix was a ruling on
+an asymmetry: a false refusal costs one attempt, a missed identity costs the benchmark,
+so every world name is refused in any case, employees by given name as well as full
+name, with one exception for forms of three characters or fewer matched in exact
+spelling, because "go" is in most sentences and the skill Go would otherwise refuse
+them all. The reviewer then found the two-pass version of that scanner still wrong —
+an allowed short form masked first erased the longer foreign form it sat inside, "Deniz"
+hiding "Deniz Kowalski" — and one global longest-first pass over allowed and foreign
+forms together replaced it. On the wiring: the job printed the world version before
+sealing as the operator's resume handle, but stdout under the workflow's pipe is
+block-buffered, so a hard kill mid-sealing could lose the one line the recovery
+protocol depends on; the line is flushed now, and the wording "before the first side
+effect" became "before the first persistent world or vendor mutation", since the paid
+model calls precede it and create no resumable state. And the probe workflow could exit
+green while its own diagnostic line said the tool was not filled; its exit now depends on
+that condition.
+
+**What is verified live, and what is not.** Both models answered from the workstation
+under the administrator profile — the two structural live tests, under four seconds
+for the pair — and the manual probe workflow was green under the generator role on
+2026-09-14, so the production principal holds its invoke grant and the forced tool
+choice `any` over a single tool is honoured by both families on the shortlist, which
+had been a documented assumption until then. A side finding worth its line: the
+test suite's network guard matches the resolved IP a socket connects to, not the
+hostname, so an endpoint cannot be allow-listed by name and the live level now runs
+without the block, which is what "live" means. The suite grew from 1677 to 1754 tests
+across the step (the pytest runs of session 23), 77 of them the gate's own.
+
+[PRELIMINARY — no prose has been materialized for a real world yet. Tier 1 has no
+briefs; the first Tier 2 world at step 15 gives the first-attempt pass rate, the
+refusal distribution by guard and the cost per world that the design predicts (DESIGN
+estimates well under a dollar per world at thirty scenarios; the per-token prices are in
+the Bedrock probe of 2026-08-26, `probes/captures/bedrock/models.md`). The cap of
+four, the other-claims bucket and the absence of refusal feedback are all to be judged
+on those numbers and on nothing else.]
+
+Figure: the pipeline as one diagram — semantic world → materialize → compose → freeze
+the two identities → print the resume handle → seal — with the resume path rejoining at
+the seal after its proofs; the two identities labelled where they are born.
+
 ## 2026-09-13 — The validator earned its keep on the first world: two boundary faults, no world fault
 
 *M1 step 13 of the build plan, the first world live: the `generate world` workflow run
