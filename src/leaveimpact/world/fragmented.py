@@ -43,7 +43,15 @@ from leaveimpact.core.enums import DocumentKind, Source
 from leaveimpact.core.facts import Fact
 from leaveimpact.core.ids import SkillId
 from leaveimpact.core.predicates import PredicateName
-from leaveimpact.core.refs import EvidenceRef, clause_ref, comment_ref, employee_ref, event_ref
+from leaveimpact.core.refs import (
+    EvidenceRef,
+    clause_ref,
+    comment_ref,
+    component_ref,
+    employee_ref,
+    event_ref,
+    work_item_ref,
+)
 from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.world.briefs import CommentTarget, PendingProse
 from leaveimpact.world.construction import Construction, Draft, Frame, ScenarioClass
@@ -169,6 +177,25 @@ def _qualification_construction(
             EvidenceRef(Source.JIRA, comment_ref(comment)),
             visible,
         )
+        # The ticket is the author's own, and a comment on one's own ticket says so: allowed,
+        # so the checker's reading of "my ticket" matches a fact of the world (the third
+        # measurement world refused every attempt on exactly that reading, 2026-09-14).
+        owns = Fact(
+            work_item_ref(ticket.entity.id),
+            PredicateName.OWNS_WORK_ITEM,
+            employee_ref(cover.id),
+            EvidenceRef(Source.JIRA, work_item_ref(ticket.entity.id), "owner_id"),
+            visible,
+        )
+        # The ticket's component, so the remark has something true to be about besides the
+        # required skill (the fourth measurement world padded with offers, 2026-09-14).
+        in_component = Fact(
+            work_item_ref(ticket.entity.id),
+            PredicateName.IN_COMPONENT,
+            component_ref(component.id),
+            EvidenceRef(Source.JIRA, work_item_ref(ticket.entity.id), "component_id"),
+            visible,
+        )
         impact = ImpactKey(leave.entity.id, ImpactSubtype.MEETING, event_ref(meeting.entity.id))
         expected = ExpectedImpact(
             impact,
@@ -192,7 +219,9 @@ def _qualification_construction(
             authored_facts=(requires, evidenced),
             pending=(
                 PendingProse(
-                    CommentTarget(comment, ticket.entity.id, 0, visible, cover.id), (evidenced,)
+                    CommentTarget(comment, ticket.entity.id, 0, visible, cover.id),
+                    (evidenced,),
+                    allowed=(owns, in_component),
                 ),
             ),
         )

@@ -5,9 +5,21 @@ keeps a digit inside an allowed title; the required-fact check refuses a text th
 anchor; the containment check refuses an unknown subject, a negation, a hedge, an unsupported
 statement, a required statement not read as asserted, and any other claim."""
 
+from dataclasses import replace
+from datetime import date
+
 import pytest
 
-from leaveimpact.core import PredicateName, employee_ref
+from leaveimpact.core import (
+    EvidenceRef,
+    Fact,
+    PredicateName,
+    Source,
+    component_ref,
+    employee_ref,
+    work_item_ref,
+)
+from leaveimpact.core.ids import component_id
 from leaveimpact.generator.guards import (
     containment_findings,
     namespace_findings,
@@ -187,3 +199,28 @@ def test_an_untyped_proposition_refuses_the_attempt(brief: Brief) -> None:
     extraction = Extraction((), (), (PredicateName.OWNS_WORK_ITEM,))
     findings = containment_findings(brief, extraction)
     assert "owns_work_item: a proposition the checker could not type" in findings
+
+
+def test_a_hedged_mention_of_allowed_context_is_not_a_violation(brief: Brief) -> None:
+    """Nothing rests on allowed context; a hedged required fact is still a weakened fact."""
+    who = brief.required[0].fact.subject
+    hedged_required = Proposition(
+        who, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.HEDGED
+    )
+    findings = containment_findings(brief, Extraction((hedged_required,), ()))
+    assert any("hedged" in finding for finding in findings)
+    assert isinstance(brief.target, CommentTarget)
+    ticket = work_item_ref(brief.target.work_item_id)
+    context = Fact(
+        ticket,
+        PredicateName.IN_COMPONENT,
+        component_ref(component_id(1)),
+        EvidenceRef(Source.JIRA, ticket, "component_id"),
+        date(2026, 3, 1),
+    )
+    with_context = replace(brief, allowed=(context,))
+    hedged_allowed = Proposition(
+        ticket, PredicateName.IN_COMPONENT, context.value, Polarity.AFFIRMED, AssertionMode.HEDGED
+    )
+    findings = containment_findings(with_context, Extraction((hedged_allowed,), ()))
+    assert not any("hedged" in finding for finding in findings)

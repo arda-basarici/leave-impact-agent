@@ -39,7 +39,7 @@ from leaveimpact.core.jsonshape import (
     integer_field,
     string_item,
 )
-from leaveimpact.core.predicates import ROWS, PredicateName, predicate
+from leaveimpact.core.predicates import ROWS, Predicate, PredicateName, predicate
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.values import (
     EmploymentTypeCriterion,
@@ -115,7 +115,8 @@ def value_forms() -> tuple[str, ...]:
     lines: list[str] = []
     for row in ROWS:
         lines.append(
-            f"- {row.name.value}: about {row.subject.value}; value is {_form(row.value_spec)}"
+            f"- {row.name.value}: the subject is the {row.subject.value.replace('_', ' ')}; "
+            f"the value is {_form(row.value_spec)}"
         )
     return tuple(lines)
 
@@ -192,16 +193,41 @@ def _proposition(
     except ValueError as problem:
         raise ExtractionMalformed(f"a proposition: {problem}") from None
     row = predicate(name)
+    subject_id, raw_value = _canonical_pair(row, subject_id, fields["value"], known)
     subject: EntityRef | None = None
     if row.subject in CARRIER_KINDS:
         subject = target if target.kind is row.subject else None
     elif subject_id != UNKNOWN_SUBJECT and (row.subject.value, subject_id) in known:
         subject = EntityRef(row.subject, subject_id)
     try:
-        value = _value(fields["value"], row.value_spec)
+        value = _value(raw_value, row.value_spec)
         return Proposition(subject, name, value, polarity, mode)
     except ValueError:
         return name
+
+
+def _canonical_pair(
+    row: Predicate, subject_id: str, raw_value: object, known: set[tuple[str, str]]
+) -> tuple[str, object]:
+    """The (subject, value) pair with a reversed entity pair put the registry's way round.
+
+    The third measurement world's checker wrote ownership as the person owning the ticket
+    — subject and value swapped — in three of three samples (2026-09-14). When the value
+    is an entity, the subject given is a listed entity of the value's kind and the value
+    given is a listed entity of the subject's kind, the pair is unambiguous and the
+    proposition's content is the same; anything short of that is left for the untyped
+    rule, never guessed.
+    """
+    spec = row.value_spec
+    if spec.kind is not ValueKind.ENTITY_REF or not isinstance(raw_value, str):
+        return subject_id, raw_value
+    assert spec.entity_kind is not None
+    reversed_pair = (
+        (spec.entity_kind.value, subject_id) in known
+        and (row.subject.value, raw_value) in known
+        and (row.subject.value, subject_id) not in known
+    )
+    return (raw_value, subject_id) if reversed_pair else (subject_id, raw_value)
 
 
 def _value(raw: object, spec: ValueSpec) -> FactValue:

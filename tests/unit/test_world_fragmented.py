@@ -11,6 +11,7 @@ import pytest
 from leaveimpact.core import (
     AssessmentReason,
     DocumentKind,
+    EntityRef,
     ImpactSubtype,
     PredicateName,
     Source,
@@ -83,6 +84,11 @@ def test_the_scenario_has_the_shape_the_class_promises(seed: int) -> None:
     assert required.role is FactRole.ANSWER_CHANGING
     [ticket] = scenario.owned.work_items
     assert ticket.entity.owner_id == viable.employee_id
+    owns, in_component = brief.allowed
+    assert owns.predicate is PredicateName.OWNS_WORK_ITEM
+    assert in_component.predicate is PredicateName.IN_COMPONENT
+    assert owns.subject.id == ticket.entity.id
+    assert isinstance(owns.value, EntityRef) and owns.value.id == viable.employee_id
     assert {Source.CALENDAR, Source.FRAPPE, Source.JIRA, Source.CORPUS} <= set(
         scenario.key.required_sources
     )

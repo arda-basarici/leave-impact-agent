@@ -6,5 +6,6 @@ Rules you must follow:
 - Mention nothing beyond the required facts and the allowed context about anyone's skills, experience, responsibilities, ownership, team, location, availability, leave, deadlines, or about what an activity requires or how many people it needs. Everyday remarks that make no such claim are fine.
 - Use only the names listed, spelled as listed. Do not invent people, teams, components, systems, tickets, clients, documents or skills, and do not refer to unlisted ones indirectly.
 - Write dates only as YYYY-MM-DD and only the dates listed. Write no other numbers than those listed; if a listed number is a count of people you may write it as a word.
+- Do not offer, volunteer or promise to take on, handle, start, cover or help with any work, do not say what you or anyone will do next, and do not ask to be assigned anything: state the facts as things that are so, then stop.
 - Write only the body of the text: no heading, no greeting, no signature, no timestamp, no identifier, no preamble, no quotation marks around the whole.
 - Keep to the requested length.

@@ -7,7 +7,14 @@ the checker's protocol failure."""
 
 import pytest
 
-from leaveimpact.core import EntityRef, PredicateName, Requirement, clause_ref
+from leaveimpact.core import (
+    EntityRef,
+    PredicateName,
+    Requirement,
+    clause_ref,
+    employee_ref,
+    work_item_ref,
+)
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.predicates import ROWS
 from leaveimpact.generator.prose import (
@@ -69,7 +76,7 @@ def test_the_checker_sees_the_entity_list_and_value_forms_and_never_the_facts(br
     assert "- kafka: Kafka (skill)" in request.message
     assert "- unknown: any person or thing the text names that is not listed" in request.message
     assert (
-        "- has_skill: about employee; value is the skill's id from the entity list"
+        "- has_skill: the subject is the employee; the value is the skill's id from the entity list"
         in request.message
     )
     assert "has experience with" not in request.message  # no fact phrase reaches the checker
@@ -238,3 +245,28 @@ def test_a_value_in_the_wrong_form_is_untyped_and_never_a_protocol_failure(brief
     assert extraction.untyped == (PredicateName.OWNS_WORK_ITEM,)
     [read] = extraction.propositions
     assert read.predicate is PredicateName.HAS_SKILL
+
+
+def test_a_reversed_entity_pair_is_put_the_registrys_way_round(brief: Brief) -> None:
+    """The checker wrote the person as subject and the ticket as value for ownership; both are
+    listed, the kinds fit exactly swapped, and the proposition means the same thing."""
+    assert isinstance(brief.target, CommentTarget)
+    author, ticket = brief.target.author_id, brief.target.work_item_id
+    filled: JsonObject = {
+        "propositions": [
+            {
+                "subject": author,
+                "predicate": "owns_work_item",
+                "value": ticket,
+                "polarity": "affirmed",
+                "mode": "asserted",
+            }
+        ],
+        "other_claims": [],
+    }
+    [read] = parse_extraction(filled, brief.namespace, target_ref(brief.target)).propositions
+    assert read.subject == work_item_ref(ticket) and read.value == employee_ref(author)
+    # A pair that is not exactly the swap stays untyped rather than guessed.
+    filled["propositions"][0]["value"] = "ticket_999"  # type: ignore[index]
+    extraction = parse_extraction(filled, brief.namespace, target_ref(brief.target))
+    assert extraction.untyped == (PredicateName.OWNS_WORK_ITEM,)

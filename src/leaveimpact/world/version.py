@@ -49,8 +49,8 @@ _PROMPT_DIGESTS = {
     "register_policy": "da31a905c3e09788d68c317082d03161ccaa1fbe29fb666eb1c1048128f07367",
     "register_procedure": "0393d97754189a1edeba0430662bb33e0b29d3575debabb210336994cb48b1ed",
     "register_runbook": "a5b63408d2804cd8af514d685de7bdbe20ce1309bffde005ca3e0066df28a4e8",
-    "register_ticket_comment": "7a96a63d0320c238c61a519a259324eba7c00023bded910f904458d2077e6c1f",
-    "writer_system": "82a29a3b8db4d0d70623433ee98f6a1d24d0cee43ae4f7c59d38212b0fdc0196",
+    "register_ticket_comment": "a15d72b71c4b8c557bed5508cf4d8e7ed3536bb658f8ae3f4c5cd7480ea52a53",
+    "writer_system": "3a5c9b811b16703b0e1f0a9f00cf00334a3877bdcc4b7678aad922b344ce1c0d",
 }
 
 PROMPT_DIGESTS: Mapping[str, str] = MappingProxyType(_PROMPT_DIGESTS)

@@ -137,7 +137,10 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...
         elif read.polarity is Polarity.NEGATED:
             findings.append(f"{read.predicate.value} of {statement[0].id}: negated")
         elif read.assertion_mode is AssertionMode.HEDGED:
-            findings.append(f"{read.predicate.value} of {statement[0].id}: hedged")
+            # A hedged mention of allowed context creates no false claim and nothing rests on
+            # it; a hedged required fact is a weakened fact and is refused below.
+            if statement not in permitted or statement in required:
+                findings.append(f"{read.predicate.value} of {statement[0].id}: hedged")
         elif statement not in permitted:
             findings.append(
                 f"{read.predicate.value} of {statement[0].id}: not a required or allowed fact"
