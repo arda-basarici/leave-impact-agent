@@ -1296,8 +1296,9 @@ fact with the asked value was known true from any source, so "does the previous 
 own this ticket" would have been true — unread until now, and the grounding rule would
 have read it. The raw fact base stays unresolved, since the conflict derivation needs
 every source's value; the semantic reads of a single-valued predicate resolve through
-the authority table and return the resolved value with every source's facts as evidence,
-so the rules and the future harness see one world. When the system of record is
+the authority table and return the resolved value with the facts that agree with it as
+evidence — a contradicted fact establishes nothing and appears in the conflict finding
+instead — so the rules and the future harness see one world. When the system of record is
 unreachable, lower-authority evidence is not promoted: the answer is unknown, reason
 inaccessible (review ruling); multi-valued predicates keep the current rule, a skill in
 a comment being evidence whether or not HR answered. The record reachable and silent

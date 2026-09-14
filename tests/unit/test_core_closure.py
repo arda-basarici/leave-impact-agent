@@ -1,7 +1,9 @@
 """Closure follows the five-step order — positive fact, unreachable domain source, gap, open
 domain, false — with inaccessible ahead of absent ahead of insufficient, derives exactly
 three unknown reasons, and answers subject-free questions keyed to the entity they are
-about."""
+about. A single-valued predicate is read through the authority table: the record's value
+stands, a lower-authority fact is never promoted when the record is unreachable, and
+multi-valued predicates keep the plain order."""
 
 from dataclasses import replace
 from datetime import date
@@ -32,6 +34,8 @@ BOB = employee_ref(w.BOB)
 DENIZ = employee_ref(w.DENIZ)
 CAN = employee_ref(w.CAN)
 RELEASE = event_ref(w.RELEASE)
+TICKET = work_item_ref(w.TICKET)
+OWNS = PredicateName.OWNS_WORK_ITEM
 NORMAL = RunCondition.all_reachable()
 VIEW = w.WORLD.at(w.NOW, NORMAL)
 
@@ -133,4 +137,46 @@ def test_any_true_is_true_over_unresolved_over_false_and_false_when_nothing_was_
     assert any_true((unresolved, KnownFalse(), established)) == established
     assert any_true((established, established)) == KnownTrue(
         (w.DENIZ_KAFKA_IN_COMMENT, w.DENIZ_KAFKA_IN_COMMENT)
+    )
+
+
+def test_a_single_valued_predicate_is_read_through_the_authority_table() -> None:
+    # The tracker says Alice and a runbook says Bob: the record's value stands, carrying
+    # only the facts that agree with it; the stale value is not known true merely because
+    # a positive fact states it.
+    assert establish(VIEW, TICKET, OWNS, ALICE) == KnownTrue((w.LIVE_OWNER,))
+    assert establish(VIEW, TICKET, OWNS) == KnownTrue((w.LIVE_OWNER,))
+    assert establish(VIEW, TICKET, OWNS, BOB) == KnownFalse()
+
+
+def test_a_lower_authority_fact_is_not_promoted_when_the_record_is_unreachable() -> None:
+    no_tracker = w.WORLD.at(w.NOW, NORMAL.without(Source.JIRA))
+    for asked in (ALICE, BOB, None):
+        assert establish(no_tracker, TICKET, OWNS, asked) == Unresolved(
+            TICKET, OWNS, UnknownReason.INACCESSIBLE
+        )
+
+
+def test_the_record_alone_settles_a_single_valued_question() -> None:
+    no_corpus = w.WORLD.at(w.NOW, NORMAL.without(Source.CORPUS))
+    assert establish(no_corpus, TICKET, OWNS, ALICE) == KnownTrue((w.LIVE_OWNER,))
+    assert establish(no_corpus, TICKET, OWNS, BOB) == KnownFalse()
+
+
+def test_a_multi_valued_predicate_keeps_the_plain_order() -> None:
+    # Deniz's Kafka lives only in a ticket comment; with HR unreachable it is still evidence.
+    no_hr = w.WORLD.at(w.NOW, NORMAL.without(Source.FRAPPE))
+    assert establish(no_hr, DENIZ, PredicateName.HAS_SKILL, w.KAFKA) == KnownTrue(
+        (w.DENIZ_KAFKA_IN_COMMENT,)
+    )
+
+
+def test_a_subject_free_question_over_a_single_valued_predicate_resolves_per_subject() -> None:
+    assert establish_any(VIEW, OWNS, lambda f: f.value == ALICE, TICKET) == KnownTrue(
+        (w.LIVE_OWNER,)
+    )
+    assert establish_any(VIEW, OWNS, lambda f: f.value == BOB, TICKET) == KnownFalse()
+    no_tracker = w.WORLD.at(w.NOW, NORMAL.without(Source.JIRA))
+    assert establish_any(no_tracker, OWNS, lambda f: f.value == BOB, TICKET) == Unresolved(
+        TICKET, OWNS, UnknownReason.INACCESSIBLE
     )

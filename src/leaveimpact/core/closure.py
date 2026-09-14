@@ -21,6 +21,18 @@ answered. Closure derives these three reasons and no other; ``ambiguous`` and
 ``conflicting`` are the agent's to emit, never the rule's, and the result type says so
 in its signature rather than in a second enum.
 
+A single-valued predicate is read through the authority table (the step 15 rulings in
+DESIGN, "The stale conflict sits on a real impact, and reads resolve"). The raw base
+keeps every source's value, since the conflict derivation needs them all; a read
+resolves them first, so a rule sees the system of record's value and the facts that
+agree with it, and a lower-authority fact never answers "known true" for a value the
+record contradicts. When the record itself is unreachable, a positive fact from
+another source is not promoted to truth: the answer is unknown, *inaccessible*, ahead
+of the positive-fact step. Multi-valued predicates keep the plain order — a skill
+evidenced in a comment is evidence whether or not the HR record answered — which is
+what the fragmented tier relies on. The record reachable and silent while another
+source holds a value is known true: answered is the line, not answered positively.
+
 Two entry points share the rule. ``establish`` asks about one subject — "does this
 employee hold this skill" — and gaps apply. ``establish_any`` asks a subject-free
 question over every visible fact of a predicate — "which events does this employee
@@ -35,11 +47,12 @@ from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from typing import Literal
 
+from leaveimpact.core.authority import resolve
 from leaveimpact.core.claims import UnknownReason
 from leaveimpact.core.facts import Fact, FactView
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName
 from leaveimpact.core.refs import EntityRef, with_article
-from leaveimpact.core.values import FactValue
+from leaveimpact.core.values import FactValue, Observation
 
 DerivedUnknownReason = Literal[
     UnknownReason.INACCESSIBLE, UnknownReason.ABSENT, UnknownReason.INSUFFICIENT
@@ -105,11 +118,15 @@ def establish(
             row.value_spec.check(value)
         except ValueError as problem:
             raise ValueError(f"{row.name.value}: {problem}") from None
-    facts = tuple(
-        fact for fact in view.facts_about(subject, name) if value is None or fact.value == value
-    )
+    standing = _standing(view, row, subject, view.facts_about(subject, name), registry=registry)
+    if isinstance(standing, Unresolved):
+        return standing
+    facts = tuple(fact for fact in standing if value is None or fact.value == value)
     if facts:
         return KnownTrue(facts)
+    if standing and not row.multi_valued:
+        # The record answered with another value, and a single-valued predicate holds one.
+        return KnownFalse()
     return _absence(view, row, subject, gapped=bool(view.gaps_about(subject, name)))
 
 
@@ -125,9 +142,18 @@ def establish_any(
     answer and must be a subject the predicate accepts."""
     row = registry[name]
     _require_subject(row, about)
-    facts = tuple(fact for fact in view.facts_of(name) if matches(fact))
+    if not row.multi_valued and row.system_of_record not in view.condition.reachable:
+        return Unresolved(about, row.name, UnknownReason.INACCESSIBLE)
+    by_subject: dict[EntityRef, list[Fact]] = {}
+    for fact in view.facts_of(name):
+        by_subject.setdefault(fact.subject, []).append(fact)
+    facts: list[Fact] = []
+    for subject, group in by_subject.items():
+        standing = _standing(view, row, subject, tuple(group), registry=registry)
+        assert not isinstance(standing, Unresolved)  # the record's reachability was checked above
+        facts.extend(fact for fact in standing if matches(fact))
     if facts:
-        return KnownTrue(facts)
+        return KnownTrue(tuple(facts))
     return _absence(view, row, about, gapped=False)
 
 
@@ -147,6 +173,30 @@ def any_true(closures: Iterable[Closure]) -> Closure:
     if established:
         return KnownTrue(tuple(established))
     return unresolved or KnownFalse()
+
+
+def _standing(
+    view: FactView,
+    row: Predicate,
+    subject: EntityRef,
+    facts: tuple[Fact, ...],
+    *,
+    registry: Mapping[PredicateName, Predicate],
+) -> tuple[Fact, ...] | Unresolved:
+    """The facts of ``subject`` a rule may read: all of them for a multi-valued predicate; for
+    a single-valued one, those agreeing with the authority table's value — or unresolved,
+    *inaccessible*, when another source answered while the record could not."""
+    if row.multi_valued or not facts:
+        return facts
+    if row.system_of_record not in view.condition.reachable:
+        return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE)
+    if len({fact.value for fact in facts}) == 1:
+        return facts
+    # One observation per source: the base refuses a source holding two values.
+    by_source = {fact.source: fact.value for fact in facts}
+    observations = tuple(Observation(source, value) for source, value in by_source.items())
+    resolution = resolve(row.name, observations, registry=registry)
+    return tuple(fact for fact in facts if fact.value == resolution.value)
 
 
 def _absence(view: FactView, row: Predicate, subject: EntityRef, *, gapped: bool) -> Closure:
