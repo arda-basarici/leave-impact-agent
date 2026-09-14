@@ -170,19 +170,16 @@ def test_a_malformed_entry_is_the_checkers_protocol_failure(brief: Brief) -> Non
             {"propositions": [{k: v for k, v in good.items() if k != "mode"}], "other_claims": []},
             "mode is missing",
         ),
-        (
-            {"propositions": [{**good, "value": "Kafka"}], "other_claims": []},
-            "has_skill: a skill id is a lower-case vocabulary key",
-        ),
-        (
-            {"propositions": [{**good, "value": 3}], "other_claims": []},
-            "has_skill: expected a string",
-        ),
         ({"propositions": [], "other_claims": [3]}, "an item of other_claims is a string"),
     ]
     for broken, reason in cases:
         with pytest.raises(ExtractionMalformed, match=reason):
             parse_extraction(broken, brief.namespace, target_ref(brief.target))
+    # A value in the wrong form is the checker's misreading, kept untyped and never fatal.
+    for wrong in ("Kafka", 3):
+        misread: JsonObject = {"propositions": [{**good, "value": wrong}], "other_claims": []}
+        extraction = parse_extraction(misread, brief.namespace, target_ref(brief.target))
+        assert extraction.propositions == () and extraction.untyped == (PredicateName.HAS_SKILL,)
 
 
 def test_a_carrier_subject_proposition_is_bound_to_the_target_by_construction() -> None:
@@ -213,3 +210,31 @@ def test_a_carrier_subject_proposition_is_bound_to_the_target_by_construction() 
     comment = target_ref(comment_brief.target)
     [misread] = parse_extraction(filled, comment_brief.namespace, comment).propositions
     assert misread.subject is None
+
+
+def test_a_value_in_the_wrong_form_is_untyped_and_never_a_protocol_failure(brief: Brief) -> None:
+    """The checker read the author owning the ticket with subject and value reversed: the entry
+    is kept by predicate for the extraction guard, the well-formed entries still parse."""
+    filled: JsonObject = {
+        "propositions": [
+            {
+                "subject": "emp_026",
+                "predicate": "owns_work_item",
+                "value": "ticket_002",
+                "polarity": "affirmed",
+                "mode": "asserted",
+            },
+            {
+                "subject": "unknown",
+                "predicate": "has_skill",
+                "value": KAFKA,
+                "polarity": "affirmed",
+                "mode": "asserted",
+            },
+        ],
+        "other_claims": [],
+    }
+    extraction = parse_extraction(filled, brief.namespace, target_ref(brief.target))
+    assert extraction.untyped == (PredicateName.OWNS_WORK_ITEM,)
+    [read] = extraction.propositions
+    assert read.predicate is PredicateName.HAS_SKILL

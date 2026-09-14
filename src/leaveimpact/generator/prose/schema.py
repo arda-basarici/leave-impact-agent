@@ -10,12 +10,17 @@ schema cannot express (the step 14 rulings in DESIGN, "Materialization"). Genera
 hand-written, so a predicate added to the registry reaches the checker with no edit here.
 
 The parse is strict and belongs to the generator because the generator wrote the schema: an
-entry missing a field, naming a predicate the registry lacks, or carrying a value the spec
-refuses is ``ExtractionMalformed`` — the checker's protocol failure, retried and then fatal,
-never a writer's refusal. A subject id outside the brief's namespace is an unknown subject
-by definition, since the namespace is the whole list the checker was given. Values pass
-through the same specs a fact's do, so a malformed value from the checker is refused where
-a malformed claim would be and no second parser exists.
+entry missing a field, naming a predicate the registry lacks, or carrying a polarity or
+mode outside the enums is ``ExtractionMalformed`` — the checker's protocol failure, retried
+and then fatal, never a writer's refusal. A value the predicate's spec refuses is not: the
+schema fixes the tool's shape and only the message describes each value's form, so a
+value in the wrong form is the checker misreading the text — the second measurement world
+read "let me take a look" as the author owning the ticket, subject and value reversed,
+and three retries at temperature zero repeated it (2026-09-14). Such a proposition is
+kept as *untyped*, named by its predicate only, and the extraction guard refuses the
+attempt so the writer is resampled. A subject id outside the brief's namespace is an
+unknown subject by definition, since the namespace is the whole list the checker was
+given. Values pass through the same specs a fact's do, so no second parser exists.
 """
 
 from __future__ import annotations
@@ -57,11 +62,13 @@ class ExtractionMalformed(Exception):
 
 @dataclass(frozen=True, slots=True)
 class Extraction:
-    """What the checker read: the propositions, how many named a subject outside the list, and
-    the claims it could not express."""
+    """What the checker read: the propositions, how many named a subject outside the list, the
+    claims it could not express, and the predicates of the propositions it could not type
+    (a value in the wrong form — the checker's misreading, never the text's content)."""
 
     propositions: tuple[Proposition, ...]
     other_claims: tuple[str, ...]
+    untyped: tuple[PredicateName, ...] = ()
 
     @property
     def unknown_subjects(self) -> int:
@@ -157,12 +164,21 @@ def parse_extraction(filled: JsonObject, namespace: Namespace, target: EntityRef
     except ValueError as problem:
         raise ExtractionMalformed(f"the tool input: {problem}") from None
     known = {(form.kind, form.id) for form in namespace.forms}
-    return Extraction(
-        tuple(_proposition(entry, known, target) for entry in entries), tuple(others)
-    )
+    propositions: list[Proposition] = []
+    untyped: list[PredicateName] = []
+    for entry in entries:
+        match _proposition(entry, known, target):
+            case Proposition() as read:
+                propositions.append(read)
+            case PredicateName() as name:
+                untyped.append(name)
+    return Extraction(tuple(propositions), tuple(others), tuple(untyped))
 
 
-def _proposition(entry: object, known: set[tuple[str, str]], target: EntityRef) -> Proposition:
+def _proposition(
+    entry: object, known: set[tuple[str, str]], target: EntityRef
+) -> Proposition | PredicateName:
+    """The entry as a proposition, or its predicate alone when its value could not be typed."""
     try:
         item = as_object(entry, "a proposition")
         fields = {
@@ -184,8 +200,8 @@ def _proposition(entry: object, known: set[tuple[str, str]], target: EntityRef) 
     try:
         value = _value(fields["value"], row.value_spec)
         return Proposition(subject, name, value, polarity, mode)
-    except ValueError as problem:
-        raise ExtractionMalformed(f"{name.value}: {problem}") from None
+    except ValueError:
+        return name
 
 
 def _value(raw: object, spec: ValueSpec) -> FactValue:

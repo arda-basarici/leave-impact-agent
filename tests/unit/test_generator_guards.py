@@ -181,3 +181,9 @@ def test_containment_accepts_exactly_the_required_read_as_affirmed_and_asserted(
     ):
         findings = containment_findings(brief, extraction)
         assert any(finding in f for f in findings), (finding, findings)
+
+
+def test_an_untyped_proposition_refuses_the_attempt(brief: Brief) -> None:
+    extraction = Extraction((), (), (PredicateName.OWNS_WORK_ITEM,))
+    findings = containment_findings(brief, extraction)
+    assert "owns_work_item: a proposition the checker could not type" in findings

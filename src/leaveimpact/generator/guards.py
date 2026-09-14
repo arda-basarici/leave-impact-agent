@@ -147,6 +147,9 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...
     for subject, name, _ in sorted(required - eligible, key=lambda s: (s[1].value, s[0].id)):
         findings.append(f"{name.value} of {subject.id}: required and not read as asserted")
     findings.extend(f"other claim: {claim}" for claim in extraction.other_claims)
+    findings.extend(
+        f"{name.value}: a proposition the checker could not type" for name in extraction.untyped
+    )
     return tuple(findings)
 
 
