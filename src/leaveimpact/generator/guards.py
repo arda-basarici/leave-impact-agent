@@ -9,9 +9,14 @@ finding can quote what the text should not have said.
 The *namespace scanner* is deterministic and free. One pass over the world's surface forms,
 longest match first at word boundaries, records the spans of the forms the brief allows —
 case-insensitively, so "kafka" for Kafka costs no retry — and refuses every other world name
-found in exact spelling outside those spans; a disallowed name in another case is left to
-the extraction check, where an invented or unallowed skill or person becomes an unsupported
-proposition. Dates and digit sequences are then checked outside the recognized spans, so a
+found outside those spans, case-insensitively too, since a mention that makes no claim
+("thanks selin") is invisible to the extraction check and the scanner is the guard that must
+see it. The one exception is a form of three characters or fewer, matched in exact spelling:
+"go" is in most sentences and the skill Go would otherwise refuse them all, and a false
+refusal costs an attempt while a missed identity costs the benchmark, so the cut sits where
+the cost flips. Employees are matched by full name and by given name alike, so a colleague
+named in passing is seen. Dates and digit sequences are then checked outside the recognized
+spans, so a
 permitted title such as "Release 2" keeps its digit: an ISO date must be one the brief
 lists, any other date spelling is refused as unlisted, and a digit sequence must be a listed
 number. Number words are left to the extraction check, since "three engineers" is a
@@ -73,7 +78,7 @@ def namespace_findings(
     for form in _longest_first(world_forms):
         if (form.kind, form.id) in allowed or form.form.casefold() in allowed_spellings:
             continue
-        pattern = _word(form.form, 0)
+        pattern = _word(form.form, _disallowed_flags(form.form))
         hits = len(pattern.findall(masked))
         if hits:
             findings.append(f"names {form.kind} {form.id} outside the brief ({hits})")
@@ -131,6 +136,14 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...
         findings.append(f"{name.value} of {subject.id}: required and not read as asserted")
     findings.extend(f"other claim: {claim}" for claim in extraction.other_claims)
     return tuple(findings)
+
+
+SHORT_FORM = 3
+"""Forms this short ("Go", "AWS") match only in exact spelling: common words in another case."""
+
+
+def _disallowed_flags(spelling: str) -> int:
+    return 0 if len(spelling) <= SHORT_FORM else re.IGNORECASE
 
 
 def _longest_first(forms: Sequence[SurfaceForm]) -> list[SurfaceForm]:

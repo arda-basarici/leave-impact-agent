@@ -45,6 +45,7 @@ from leaveimpact.core.ids import ClauseId, CommentId, DocumentId, EmployeeId, Wo
 from leaveimpact.core.refs import EntityRef, clause_ref, comment_ref, employee_ref
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.prose import (
+    GIVEN_NAME_KIND,
     PROSE_CAPABLE,
     SKILL_KIND,
     FactRole,
@@ -218,6 +219,7 @@ def lexicon_of(
     """Every display form ``org`` and the planted records afford: names, skills, titles."""
     forms: list[SurfaceForm] = [
         *(SurfaceForm(EntityKind.EMPLOYEE.value, e.id, e.name) for e in org.employees),
+        *(SurfaceForm(GIVEN_NAME_KIND, e.id, e.name.split()[0]) for e in org.employees),
         *(SurfaceForm(EntityKind.TEAM.value, t.id, t.name) for t in org.teams),
         *(SurfaceForm(EntityKind.COMPONENT.value, c.id, c.name) for c in org.components),
         *(SurfaceForm(SKILL_KIND, s.id, s.name) for s in SKILLS if s.id in org.skills),

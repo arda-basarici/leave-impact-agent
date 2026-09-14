@@ -59,13 +59,28 @@ def test_allowed_names_pass_in_any_case_and_a_digit_inside_an_allowed_title_pass
     assert namespace_findings(titled, brief, world_forms) == ()
 
 
-def test_another_world_name_in_exact_spelling_is_refused_and_in_another_case_left_to_extraction(
+def test_another_world_name_is_refused_in_any_case_by_full_or_given_name(
     brief: Brief, world_forms: tuple[SurfaceForm, ...]
 ) -> None:
     other = stranger(brief)
     refused = namespace_findings(f"{other} and I ran the Kafka side.", brief, world_forms)
     assert len(refused) == 1 and "names employee" in refused[0]
-    assert namespace_findings(f"{other.lower()} helped with Kafka.", brief, world_forms) == ()
+    lowered_text = f"thanks {other.lower()}. I ran the Kafka side."
+    [lowered] = namespace_findings(lowered_text, brief, world_forms)
+    assert "names employee" in lowered
+    [given] = namespace_findings(f"thanks {other.split()[0]}, Kafka is done.", brief, world_forms)
+    assert "names given_name" in given
+    mine = author_of(brief).split()[0]
+    assert namespace_findings(f"{mine} here, Kafka is done.", brief, world_forms) == ()
+
+
+def test_a_short_world_form_matches_only_in_exact_spelling(
+    brief: Brief, world_forms: tuple[SurfaceForm, ...]
+) -> None:
+    assert any(form.form == "Go" for form in world_forms)  # the skill, not in this brief
+    assert namespace_findings("We go live with Kafka tomorrow.", brief, world_forms) == ()
+    [refused] = namespace_findings("Kafka and Go are both mine.", brief, world_forms)
+    assert "names skill go" in refused
 
 
 def test_dates_and_numbers_outside_the_brief_are_refused(

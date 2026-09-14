@@ -16,8 +16,11 @@ reported together in ``MaterializationFailed``, so a doomed run yields the whole
 and not the first miss. A model that cannot be used — the writer or the checker unreachable
 after the bounded retries, or a checker whose answers keep breaking the tool's contract — is
 *infrastructure*: the stage aborts at once in ``MaterializationAborted``, since further
-writer calls could never be accepted. A checker fault therefore never counts as a refusal,
-and the record distinguishes the two.
+writer calls could never be accepted. A refused grant or a rejected request aborts without
+a retry, since neither is a condition a retry changes; the adapter's fault stays chained as
+the cause. A checker fault therefore never counts as a refusal, and the record distinguishes
+the two. A retry is counted only when another call follows it: four failed calls under a
+budget of three are three retries and one terminal failure.
 
 What leaves this module is plain data: the accepted bodies by target, the materialization
 record with each target's attempts and refusals by guard, and the run's metrics — the ten
@@ -31,9 +34,11 @@ function and is dropped.
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 from leaveimpact.adapters.prose.seam import (
+    ModelAccessRefused,
+    ModelMisconfigured,
     ModelProtocolFault,
     ModelUnreachable,
     ProseChecker,
@@ -96,7 +101,7 @@ class ProseMetrics:
 
     def lines(self) -> tuple[str, ...]:
         """The metrics as the run prints them, one number per line."""
-        return tuple(f"prose_{name}={value}" for name, value in vars(self).items())
+        return tuple(f"prose_{f.name}={getattr(self, f.name)}" for f in fields(self))
 
 
 @dataclass(frozen=True, slots=True)
@@ -264,12 +269,18 @@ def _gate(
 
 def _write(loop: _Loop, target: str, request: WriterRequest) -> WrittenText:
     """One writer call, retried on a transient fault; unusable after the retries aborts."""
-    for retry in range(CALL_RETRIES + 1):
+    for call in range(CALL_RETRIES + 1):
         try:
             written = loop.writer.write(request)
+        except (ModelAccessRefused, ModelMisconfigured) as fault:
+            loop.log(f"{target}: writer unusable ({type(fault).__name__})")
+            raise MaterializationAborted("writer", target, loop.metrics) from fault
         except (ModelUnreachable, ModelProtocolFault) as fault:
+            if call == CALL_RETRIES:
+                loop.log(f"{target}: writer call failed ({type(fault).__name__}), giving up")
+                raise MaterializationAborted("writer", target, loop.metrics) from fault
             loop.metrics.writer_retries += 1
-            loop.log(f"{target}: writer call failed ({type(fault).__name__}), retry {retry + 1}")
+            loop.log(f"{target}: writer call failed ({type(fault).__name__}), retry {call + 1}")
             continue
         loop.metrics.writer_input_tokens += written.usage.input_tokens
         loop.metrics.writer_output_tokens += written.usage.output_tokens
@@ -281,19 +292,28 @@ def _write(loop: _Loop, target: str, request: WriterRequest) -> WrittenText:
 def _check(loop: _Loop, brief: Brief, body: str) -> Extraction:
     """One checker call parsed, retried on a transient or protocol fault; unusable aborts."""
     request = checker_request(body, brief, loop.assets)
-    for retry in range(CALL_RETRIES + 1):
+    for attempt in range(CALL_RETRIES + 1):
         try:
             call: ToolCall = loop.checker.extract(request)
             extraction = parse_extraction(call.input, brief.namespace)
+        except (ModelAccessRefused, ModelMisconfigured) as fault:
+            loop.metrics.checker_unusable += 1
+            loop.log(f"{brief.id}: checker unusable ({type(fault).__name__})")
+            raise MaterializationAborted("checker", brief.id, loop.metrics) from fault
         except (ModelUnreachable, ModelProtocolFault, ExtractionMalformed) as fault:
+            if attempt == CALL_RETRIES:
+                loop.metrics.checker_unusable += 1
+                loop.log(f"{brief.id}: checker call failed ({type(fault).__name__}), giving up")
+                raise MaterializationAborted("checker", brief.id, loop.metrics) from fault
             loop.metrics.checker_retries += 1
-            loop.log(f"{brief.id}: checker call failed ({type(fault).__name__}), retry {retry + 1}")
+            loop.log(
+                f"{brief.id}: checker call failed ({type(fault).__name__}), retry {attempt + 1}"
+            )
             continue
         loop.metrics.checker_input_tokens += call.usage.input_tokens
         loop.metrics.checker_output_tokens += call.usage.output_tokens
         loop.metrics.checker_latency_ms += call.usage.latency_ms
         return extraction
-    loop.metrics.checker_unusable += 1
     raise MaterializationAborted("checker", brief.id, loop.metrics)
 
 

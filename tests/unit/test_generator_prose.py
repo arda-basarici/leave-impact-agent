@@ -54,6 +54,7 @@ def test_the_writer_is_told_the_brief_and_nothing_the_guards_will_not_enforce(br
     assert f"{author} has experience with Kafka" in request.message
     assert f"{author} has experience with Python" in request.message
     assert "Event Ingestion: migrate the retry queue (work item)" in request.message
+    assert f"- {author.split()[0]} (given name)" in request.message
     assert "Dates you may write (as YYYY-MM-DD): none" in request.message
     assert "Numbers you may write: none" in request.message
     assert "Length: one to three sentences." in request.message

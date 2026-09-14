@@ -185,6 +185,10 @@ class Namespace:
 SKILL_KIND = "skill"
 """The surface-form kind of a skill, which is a vocabulary term and not an entity."""
 
+GIVEN_NAME_KIND = "given_name"
+"""The surface-form kind of an employee's given name alone, keyed by the employee's id: a text
+names a colleague by first name, and a guard that knew only full names would not see it."""
+
 CARRIER_KINDS: frozenset[EntityKind] = frozenset({EntityKind.COMMENT, EntityKind.CLAUSE})
 """The kinds of thing prose is written into; they have no display form and name nothing."""
 
@@ -213,6 +217,11 @@ class Lexicon:
     def form_of(self, ref: EntityRef) -> SurfaceForm:
         return self._surface(ref.kind.value, ref.id)
 
+    def alias(self, kind: str, id: str) -> SurfaceForm | None:
+        """The form of ``kind`` for ``id`` when the world has one (a given name); else ``None``."""
+        form = self._forms.get((kind, id))
+        return None if form is None else SurfaceForm(kind, id, form)
+
     def skill(self, skill: SkillId) -> SurfaceForm:
         return self._surface(SKILL_KIND, skill_id(skill))
 
@@ -237,6 +246,10 @@ def derive_namespace(
 
     def add(form: SurfaceForm) -> None:
         forms.setdefault((form.kind, form.id), form)
+        if form.kind == EntityKind.EMPLOYEE.value:
+            given = lexicon.alias(GIVEN_NAME_KIND, form.id)
+            if given is not None:
+                forms.setdefault((given.kind, given.id), given)
 
     for form in extra:
         add(form)
@@ -518,6 +531,7 @@ class MaterializationRecord:
 
 __all__ = [
     "EMPLOYMENT_FORMS",
+    "GIVEN_NAME_KIND",
     "NUMBER_WORDS",
     "PROSE_CAPABLE",
     "SKILL_KIND",

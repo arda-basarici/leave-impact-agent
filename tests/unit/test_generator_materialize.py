@@ -13,6 +13,7 @@ import pytest
 
 from leaveimpact.adapters.prose import (
     CheckerRequest,
+    ModelAccessRefused,
     ModelProtocolFault,
     ModelUnreachable,
     ToolCall,
@@ -139,6 +140,7 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
         metrics.targets_eventual_pass,
     ) == (1, 1, 1)
     assert metrics.writer_input_tokens == 100 and metrics.checker_latency_ms == 500
+    assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 16
     # The checker never saw the brief's facts, only the text and the entity list.
     assert "has experience with" not in checker.requests[0].message
     # The output composes and seals.
@@ -213,6 +215,7 @@ def test_a_checker_that_keeps_breaking_the_contract_aborts_the_stage_as_infrastr
         sum("checker call failed (ModelProtocolFault)" in line for line in lines)
         == CALL_RETRIES + 1
     )
+    assert lines[-1].endswith("giving up")
 
 
 def test_an_unreachable_writer_is_retried_then_aborts() -> None:
@@ -220,7 +223,18 @@ def test_an_unreachable_writer_is_retried_then_aborts() -> None:
     go, _ = run(writer, ScriptedChecker([]))
     with pytest.raises(MaterializationAborted, match="writer unusable") as aborted:
         go()
-    assert aborted.value.metrics.writer_retries == CALL_RETRIES + 1
+    assert aborted.value.metrics.writer_retries == CALL_RETRIES  # the last failure is no retry
+    assert isinstance(aborted.value.__cause__, ModelUnreachable)
+
+
+def test_a_refused_grant_aborts_at_once_without_a_retry() -> None:
+    writer = ScriptedWriter([ModelAccessRefused("fake-writer", "no invoke grant")])
+    go, lines = run(writer, ScriptedChecker([]))
+    with pytest.raises(MaterializationAborted, match="writer unusable") as aborted:
+        go()
+    assert isinstance(aborted.value.__cause__, ModelAccessRefused)
+    assert aborted.value.metrics.writer_retries == 0 and len(writer.requests) == 1
+    assert lines == [f"{brief_of().id}: writer unusable (ModelAccessRefused)"]
 
 
 def test_a_world_with_no_briefs_calls_no_model_and_records_nothing() -> None:
