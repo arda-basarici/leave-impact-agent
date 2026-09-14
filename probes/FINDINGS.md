@@ -641,3 +641,46 @@ workstation was inconclusive; the honest proof is a negative probe step inside t
 validate workflow, the deploy probe's shape), and the validator role's write surface
 beyond the verdict key. The `benchmark` gate refusing a wrong subject: ruled not worth
 demonstrating (the trust policy was read back 2026-09-12).
+
+## measurement-world — PROSE PASS, projection BLOCKED by a calendar-creation quota (2026-09-14)
+
+The step 15 measurement world (plan `tier1-plus-qualification`, seed 1, start 2026-01-05,
+cap 4) under generator version 6, run 34803999468 at commit `8e17a65`. Four dispatches
+before it were red inside the prose stage, each on a mechanism the unit level could not
+see and a local probe (one writer call, one checker call, the raw tool input printed)
+decided in minutes:
+
+1. run 34802507979: 12 of 12 attempts refused by the required-fact anchor — the writer
+   writes in the first person and never its own name; a fact about the comment's author
+   is now anchored on its value alone.
+2. run 34802945370: the checker's tool input "malformed" three times on one text — a
+   value in the wrong form (subject and value of ownership reversed) was a protocol
+   failure that aborted the stage; now an extraction finding that resamples the writer,
+   and the checker is told what the text is (a comment by whom on which ticket).
+3. run 34803388159: 12 of 12 refused by extraction — every sample offered to take the
+   ticket ("I can take this on"), read as ownership; the writer prompt forbids offers,
+   the brief allows the author's own ticket, a reversed entity pair is canonicalized.
+4. probe only: readiness padding ("I'm ready to dig into this") read as hedged
+   ownership and as availability claims; the ticket-comment register now asks for a
+   remark about the work as it stands, a hedged mention of allowed context is no
+   violation, the brief allows the ticket's component.
+
+Then the prose stage passed: comment_001 accepted at attempt 3 (two extraction
+refusals, 1 and 2 findings), comment_002 and comment_003 at attempt 1. The world sealed
+as `785bc4cdd43d2718a61bf670f352f29ede43b4f7e37f3140fb7255c9cb65dce1` before its first
+vendor write (truth manifest and world spec in the truth bucket, the materialization
+record inside). Token counts and latencies are in that sealed record, not in the log:
+the summary lines print only after projection.
+
+Projection stopped at the calendar: `POST /calendars` → 403 `usageLimits /
+quotaExceeded`, "Calendar usage limits exceeded". A world is one secondary calendar per
+employee (28) under one consumer OAuth principal; the first world's 28 exist, and this
+run's creations hit Google's creation quota partway. The quota is a rate on calendar
+creation, documented only as "usage limits" with no number or window; the checkpoint
+under `preparing/` holds the calendars made, so the run continues with
+`--resume 785bc4cd…` once the quota lifts — the resume proves the sealed provenance and
+adds only what is missing (find-verify-add). Not yet known: the window, and how many
+calendars this run made before the refusal (the checkpoint says). Structural note for
+the remaining M1 worlds: every world costs 28 calendar creations against that quota;
+a rate-aware projection (spacing creations, or a calendar budget per run) or a
+Workspace tenant are the candidates if a resume alone does not carry the golden world.
