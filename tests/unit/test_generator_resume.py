@@ -38,7 +38,7 @@ def sealed_world() -> tuple[WorldSpec, Bundle]:
     return world, bundle(world)
 
 
-def fixture_assembly(seed: int, params: object, start: object) -> SemanticWorld:
+def fixture_assembly(seed: int, params: object, start: object, plan: object) -> SemanticWorld:
     """The stand-in reassembly: the fixture world is one no seed produces on its own."""
     return semantic_world_of(pending_scenario(SkillInComment()))
 

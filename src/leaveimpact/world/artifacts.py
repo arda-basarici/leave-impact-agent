@@ -182,6 +182,7 @@ class PlantedWorldSpec:
     org: OrgSpec
     slices: tuple[DateSpan, ...]
     plan: tuple[PlanRow, ...]
+    plan_name: str
     scenarios: tuple[ScenarioPlanting, ...]
     scenario_specs_digest: str
     truth_manifest_digest: str
@@ -224,6 +225,7 @@ def planted_world_spec(
         org=world.org,
         slices=world.slices,
         plan=world.plan,
+        plan_name=world.plan_name,
         scenarios=tuple(
             ScenarioPlanting(scenario.spec.id, scenario.owned, scenario.key.stable_interval)
             for scenario in world.scenarios
@@ -338,6 +340,7 @@ def _provenance(world: SemanticWorld | PlantedWorldSpec) -> JsonObject:
     return {
         "seed": world.seed,
         "world_start": world.world_start.isoformat(),
+        "plan_name": world.plan_name,
         "generator_version": world.generator_version,
         "interpreter": list(world.interpreter),
         "vocabulary_digest": world.vocabulary_digest,

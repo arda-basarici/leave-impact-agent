@@ -25,6 +25,7 @@ from leaveimpact.world import (
     DistractorReason,
     Draft,
     Frame,
+    FreeTextQualification,
     Minting,
     MissingAffordance,
     Modifier,
@@ -51,7 +52,12 @@ WORLD_START = date(2026, 1, 1)
 SLICES = allocate_slices(Random(0), 30, WORLD_START)
 TZ = ORG.params.reference_timezone
 SEEDS = range(1, 21)
-CLASSES: tuple[ScenarioClass, ...] = (StructuredDeadline(), StructuredMeeting(), StructuredMixed())
+CLASSES: tuple[ScenarioClass, ...] = (
+    StructuredDeadline(),
+    StructuredMeeting(),
+    StructuredMixed(),
+    FreeTextQualification(),
+)
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [
     (scenario_class, MODIFIERS[first], MODIFIERS[second])

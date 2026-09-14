@@ -24,6 +24,7 @@ from leaveimpact.world import (
     world_fact_base,
 )
 from tests.unit.in_memory_ports import InMemoryCalendar, InMemoryPeople
+from tests.unit.prose_fixture import ORG, ContactInNote, pending_scenario
 
 WORLD_START = date(2026, 1, 1)
 
@@ -113,3 +114,20 @@ def test_a_key_that_holds_only_because_a_later_planting_stays_hidden_is_refused(
     assert {f.scenario_id for f in findings} == {first.key.scenario_id}
     assert any(f.subject == cover and f.expected == "viable" for f in findings)
     assert "under the runtime view" in str(findings[0])
+
+
+def test_a_fact_prose_carries_reaches_the_run_only_through_its_carrier() -> None:
+    """The section naming the leaver is pending under a brief: with the briefs the run reads it,
+    dated to the run day; without them the section does not exist and neither does the fact."""
+    scenario = pending_scenario(ContactInNote())
+    [names] = scenario.authored_facts
+    run_day = scenario.spec.today
+    promised = runtime_records(ORG, [scenario.owned], scenario.spec, scenario.briefs)
+    assert names.evidence.target.id in promised.parts
+    read = runtime_facts(promised, run_day, [names]).facts
+    carried = [f for f in read if f.predicate is names.predicate]
+    assert carried == [replace(names, observable_from=run_day)]
+    absent = runtime_records(ORG, [scenario.owned], scenario.spec)
+    assert names.evidence.target.id not in absent.parts
+    unread = runtime_facts(absent, run_day, [names]).facts
+    assert not [f for f in unread if f.predicate is names.predicate]

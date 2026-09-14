@@ -516,6 +516,8 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         ScenarioClassName.STRUCTURED_DEADLINE: _ALL,
         ScenarioClassName.STRUCTURED_MEETING: _ALL - {ModifierName.ALREADY_RESOLVED},
         ScenarioClassName.STRUCTURED_MIXED: _ALL,
+        # The cover's ticket is the cover's, not the leaver's: no resolved look-alike.
+        ScenarioClassName.FREE_TEXT_QUALIFICATION: _ALL - {ModifierName.ALREADY_RESOLVED},
     }
 )
 """The modifiers every draft of each class affords; a pair is compatible when both are."""

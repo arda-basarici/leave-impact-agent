@@ -27,6 +27,7 @@ def test_a_recipe_defaults_every_dial_and_takes_the_ones_given() -> None:
     recipe = parse_recipe(["--seed", "7", "--world-start", "2026-01-05"])
     assert (recipe.seed, recipe.world_start) == (7, date(2026, 1, 5))
     assert recipe.params == DEFAULT_PARAMS
+    assert recipe.plan_name == "tier1"
     dialed = parse_recipe(
         [
             "--seed",
@@ -42,8 +43,11 @@ def test_a_recipe_defaults_every_dial_and_takes_the_ones_given() -> None:
             "3",
             "--contractor-share",
             "0.2",
+            "--plan",
+            "tier1-plus-qualification",
         ]
     )
+    assert dialed.plan_name == "tier1-plus-qualification"
     assert (dialed.params.org_size, dialed.params.team_count) == (12, 3)
     assert dialed.params.skills_per_person == (2, 3)
     assert dialed.params.contractor_share == 0.2
@@ -55,6 +59,7 @@ def test_a_recipe_defaults_every_dial_and_takes_the_ones_given() -> None:
         (["--world-start", "2026-01-05"], "--seed"),
         (["--seed", "x", "--world-start", "2026-01-05"], "--seed"),
         (["--seed", "7", "--world-start", "5 Jan 2026"], "--world-start"),
+        (["--seed", "7", "--world-start", "2026-01-05", "--plan", "golden"], "--plan"),
         (
             ["--seed", "7", "--world-start", "2026-01-05", "--reference-timezone", "Europe/Berlin"],
             "not consistent",

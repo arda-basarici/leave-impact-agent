@@ -106,6 +106,7 @@ def test_a_composed_world_holds_every_briefed_part_however_it_was_built() -> Non
             org=composed.org,
             slices=composed.slices,
             plan=composed.plan,
+            plan_name=composed.plan_name,
             scenarios=(replace(composed.scenarios[0], owned=owned),),
             facts=composed.facts,
             generator_version=composed.generator_version,

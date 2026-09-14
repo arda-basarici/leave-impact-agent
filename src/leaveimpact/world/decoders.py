@@ -115,6 +115,7 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
         (
             "seed",
             "world_start",
+            "plan_name",
             "generator_version",
             "interpreter",
             "vocabulary_digest",
@@ -127,6 +128,7 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
     return PlantedWorldSpec(
         seed=integer_field(provenance, "seed"),
         world_start=_date(string_field(provenance, "world_start")),
+        plan_name=string_field(provenance, "plan_name"),
         generator_version=GeneratorVersion(string_field(provenance, "generator_version")),
         interpreter=_interpreter(provenance),
         vocabulary_digest=string_field(provenance, "vocabulary_digest"),

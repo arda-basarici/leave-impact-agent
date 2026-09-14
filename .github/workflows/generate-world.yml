@@ -29,6 +29,14 @@ on:
         description: "the world's first day, ISO 8601 (2026-01-05)"
         required: true
         type: string
+      plan:
+        description: the plan the world is drawn under (the step 15 rulings)
+        required: false
+        type: choice
+        options:
+          - tier1
+          - tier1-plus-qualification
+        default: tier1
       org_size:
         description: people in the organization (default 28)
         required: false
@@ -122,6 +130,7 @@ jobs:
           LEAVE_IMPACT_BEDROCK_REGION: eu-central-1
           INPUT_SEED: ${{ inputs.seed }}
           INPUT_WORLD_START: ${{ inputs.world_start }}
+          INPUT_PLAN: ${{ inputs.plan }}
           INPUT_ORG_SIZE: ${{ inputs.org_size }}
           INPUT_TEAM_COUNT: ${{ inputs.team_count }}
           INPUT_ATTEMPT_CAP: ${{ inputs.attempt_cap }}
@@ -134,7 +143,7 @@ jobs:
           printf '%s' "$LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON" > "$RUNNER_TEMP/google-authorized-user.json"
           export LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE="$RUNNER_TEMP/google-authorized-user.json"
           unset LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
-          args=(--seed "$INPUT_SEED" --world-start "$INPUT_WORLD_START"
+          args=(--seed "$INPUT_SEED" --world-start "$INPUT_WORLD_START" --plan "$INPUT_PLAN"
                 --org-size "$INPUT_ORG_SIZE" --team-count "$INPUT_TEAM_COUNT"
                 --attempt-cap "$INPUT_ATTEMPT_CAP")
           if [ -n "$INPUT_RESUME" ]; then args+=(--resume "$INPUT_RESUME"); fi

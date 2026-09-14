@@ -333,6 +333,7 @@ def semantic_world_of(scenario: Scenario) -> SemanticWorld:
         org=ORG,
         slices=(scenario.spec.window,),
         plan=(PlanRow(key.scenario_id, key.tier, key.scenario_class, key.modifiers),),
+        plan_name="tier1",
         scenarios=(scenario,),
         facts=world_fact_base(ORG, WORLD_START, [scenario]),
         generator_version=GENERATOR_VERSION,

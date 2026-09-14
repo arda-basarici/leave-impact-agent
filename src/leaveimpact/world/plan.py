@@ -38,9 +38,9 @@ from random import Random
 from types import MappingProxyType
 
 from leaveimpact.core.ids import ScenarioId, scenario_id
+from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.modifiers import COMPATIBLE_MODIFIERS
 from leaveimpact.world.scenario import ModifierName, ScenarioClassName, Tier
-from leaveimpact.world.structured import SCENARIO_CLASSES
 
 _MODIFIER_ORDER = {name: index for index, name in enumerate(ModifierName)}
 
@@ -102,6 +102,20 @@ TIER_ONE_RULES = PlanRules(
     }
 )
 """The golden set's structured tier: four deadline, four meeting, two mixed."""
+
+MEASUREMENT_RULES = PlanRules(
+    {**TIER_ONE_RULES.class_counts, ScenarioClassName.FREE_TEXT_QUALIFICATION: 3}
+)
+"""The measurement world of the step 15 rulings: the structured tier plus three qualification
+rows — the first real materialization, sealed as an ordinary version and never one of the
+thirty."""
+
+PLANS: Mapping[str, PlanRules] = MappingProxyType(
+    {"tier1": TIER_ONE_RULES, "tier1-plus-qualification": MEASUREMENT_RULES}
+)
+"""The plans a world can be generated under, by the name the recipe records: a semantic
+input on the world-defining side of the boundary, unlike a model id, so a sealed world
+names the rule it was planned under and a resume reassembles under the same one."""
 
 
 @dataclass(frozen=True, slots=True)

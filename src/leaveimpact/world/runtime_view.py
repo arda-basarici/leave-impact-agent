@@ -21,9 +21,17 @@ are the read ports' own: a leave sharing a day with the window, an event overlap
 window's instants in the reference zone; the in-memory ports and the adapters implement
 the same rule, and the validator's tests hold the two equal.
 
-Documents are not here because they derive no fact; what a clause requires enters the
-runtime through prose, and the authored facts that stand for it are re-dated to the run
-day by the caller that includes them.
+Documents derive no fact, and are here for one reason: what prose carries — a clause's
+requirement, a qualification in a comment, the person a section names — enters the
+runtime as an authored fact the caller includes, re-dated to the run day, and such a fact
+reaches a run only through its carrier. The record set therefore states which parts a
+run can read: every comment and section present in the records, plus the parts the
+briefs promise — a semantic world is verified before its prose exists — and the runtime
+base admits an authored fact only when its carrier is among them (the part 0 review of
+step 15). The pre-compose contract refuses a fact with no carrier at construction; this
+is the same rule stated where the run's view is built, so the proof does not rest on
+the contract having run. Whether a reader extracts the fact from the text is what the
+benchmark measures, never what the world assumes.
 """
 
 from __future__ import annotations
@@ -33,9 +41,19 @@ from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 
 from leaveimpact.core.derivation import Derived, derive
-from leaveimpact.core.entities import CalendarEvent, Component, Employee, Leave, Team, WorkItem
+from leaveimpact.core.entities import (
+    CalendarEvent,
+    Component,
+    Document,
+    Employee,
+    Leave,
+    Team,
+    WorkItem,
+)
+from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact, FactBase, Gap
 from leaveimpact.core.worldtime import DateSpan, InstantSpan, zone
+from leaveimpact.world.briefs import Brief, parts_of
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import OwnedEntities, Planted, ScenarioSpec
 from leaveimpact.world.truth_facts import observed
@@ -69,7 +87,11 @@ def events_within(
 
 @dataclass(frozen=True, slots=True)
 class RuntimeRecords:
-    """What the read ports return for one scenario's window, before any fact is derived."""
+    """What the read ports return for one scenario's window, before any fact is derived.
+
+    ``parts`` are the comment and section ids a run can read: present in the records, or
+    promised by a brief when the view is built before the prose exists.
+    """
 
     teams: tuple[Team, ...]
     employees: tuple[Employee, ...]
@@ -77,27 +99,41 @@ class RuntimeRecords:
     work_items: tuple[WorkItem, ...]
     leaves: tuple[Leave, ...]
     events: tuple[CalendarEvent, ...]
+    documents: tuple[Document, ...]
+    parts: frozenset[str]
 
 
 def runtime_records(
-    org: OrgSpec, owned: Iterable[OwnedEntities], spec: ScenarioSpec
+    org: OrgSpec,
+    owned: Iterable[OwnedEntities],
+    spec: ScenarioSpec,
+    briefs: Iterable[Brief] = (),
 ) -> RuntimeRecords:
     """The record set a run of ``spec`` obtains from a world holding every planting in ``owned``.
 
-    The organization whole, every scenario's work items, and the leaves and events that
-    overlap the scenario's window; the plantings' dates play no part.
+    The organization whole, every scenario's work items and documents, and the leaves and
+    events that overlap the scenario's window; the plantings' dates play no part.
+    ``briefs`` are the pending parts of the whole world, whose ids join the readable parts.
     """
     rows = list(owned)
     leaves = [p for entities in rows for p in entities.leaves]
     events = [p for entities in rows for p in entities.events]
+    work_items = tuple(p.entity for entities in rows for p in entities.work_items)
+    documents = tuple(p.entity for entities in rows for p in entities.documents)
+    parts = frozenset(parts_of(work_items, documents)) | {brief.id for brief in briefs}
     return RuntimeRecords(
         teams=org.teams,
         employees=org.employees,
         components=org.components,
-        work_items=tuple(p.entity for entities in rows for p in entities.work_items),
+        work_items=work_items,
         leaves=leaves_within(leaves, spec.window),
         events=events_within(events, window_instants(spec.window, spec.reference_timezone)),
+        documents=documents,
+        parts=parts,
     )
+
+
+_CARRIERS = frozenset({EntityKind.COMMENT, EntityKind.CLAUSE})
 
 
 def runtime_facts(
@@ -105,8 +141,9 @@ def runtime_facts(
 ) -> FactBase:
     """The base a run on ``run_day`` derives from ``records``: every fact observable that day.
 
-    ``authored`` are the facts prose carries into the run; they are re-dated to the run
-    day like everything else the run obtains.
+    ``authored`` are the facts prose carries into the run, re-dated to the run day like
+    everything else the run obtains — and admitted only when the comment or section that
+    carries one is among the records' readable parts.
     """
     derived: list[Derived] = []
     for group in (
@@ -121,5 +158,9 @@ def runtime_facts(
             derived.extend(derive(observed(record), run_day))
     facts = [item for item in derived if isinstance(item, Fact)]
     gaps = [item for item in derived if isinstance(item, Gap)]
-    carried = [replace(fact, observable_from=run_day) for fact in authored]
+    carried = [
+        replace(fact, observable_from=run_day)
+        for fact in authored
+        if fact.evidence.target.kind not in _CARRIERS or fact.evidence.target.id in records.parts
+    ]
     return FactBase(tuple([*facts, *carried]), tuple(gaps))

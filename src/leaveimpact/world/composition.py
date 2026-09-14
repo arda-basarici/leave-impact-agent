@@ -43,7 +43,6 @@ from leaveimpact.world.briefs import (
     parent_id,
 )
 from leaveimpact.world.org import OrgParams
-from leaveimpact.world.plan import TIER_ONE_RULES, PlanRules
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.scenario import Planted, Scenario
 
@@ -89,6 +88,7 @@ def compose(
         org=semantic.org,
         slices=semantic.slices,
         plan=semantic.plan,
+        plan_name=semantic.plan_name,
         scenarios=tuple(_composed(scenario, prose, names) for scenario in semantic.scenarios),
         facts=semantic.facts,
         generator_version=semantic.generator_version,
@@ -103,7 +103,7 @@ def assemble_world(
     seed: int,
     params: OrgParams,
     world_start: date,
-    rules: PlanRules = TIER_ONE_RULES,
+    plan_name: str = "tier1",
 ) -> WorldSpec:
     """The composed world of a seed that needs no model: assembled, then composed with no prose.
 
@@ -111,7 +111,7 @@ def assemble_world(
     world left a part pending — a world with briefs is composed from materialized prose,
     never from nothing.
     """
-    return compose(assemble_semantic_world(seed, params, world_start, rules), {}, None)
+    return compose(assemble_semantic_world(seed, params, world_start, plan_name), {}, None)
 
 
 def _composed(scenario: Scenario, prose: Mapping[str, str], names: Mapping[str, str]) -> Scenario:

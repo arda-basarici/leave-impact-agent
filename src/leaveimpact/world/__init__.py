@@ -21,9 +21,11 @@ from leaveimpact.world import (
     artifacts,
     assembly,
     briefs,
+    classes,
     composition,
     construction,
     decoders,
+    fragmented,
     modifiers,
     org,
     plan,
@@ -82,6 +84,7 @@ from leaveimpact.world.briefs import (
     lexicon_of,
     target_ref,
 )
+from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.composition import assemble_world, compose
 from leaveimpact.world.construction import (
     Amendment,
@@ -98,6 +101,7 @@ from leaveimpact.world.construction import (
     construct,
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.fragmented import FRAGMENTED_CLASSES, FreeTextQualification
 from leaveimpact.world.modifiers import (
     COMPATIBLE_MODIFIERS,
     MODIFIERS,
@@ -116,6 +120,8 @@ from leaveimpact.world.org import (
     generate_org,
 )
 from leaveimpact.world.plan import (
+    MEASUREMENT_RULES,
+    PLANS,
     TIER_ONE_RULES,
     PlanInfeasible,
     PlanRow,
@@ -173,7 +179,7 @@ from leaveimpact.world.slices import (
     stable_interval,
 )
 from leaveimpact.world.structured import (
-    SCENARIO_CLASSES,
+    STRUCTURED_CLASSES,
     StructuredDeadline,
     StructuredMeeting,
     StructuredMixed,
@@ -213,6 +219,8 @@ __all__ = [
     "runtime_view",
     "scenario",
     "slices",
+    "classes",
+    "fragmented",
     "structured",
     "truth_facts",
     "version",
@@ -227,7 +235,11 @@ __all__ = [
     "GIVEN_NAMES",
     "MODIFIERS",
     "PROSE_CAPABLE",
+    "FRAGMENTED_CLASSES",
+    "MEASUREMENT_RULES",
+    "PLANS",
     "SCENARIO_CLASSES",
+    "STRUCTURED_CLASSES",
     "SCENARIO_SPECS",
     "SEMANTIC_WORLD",
     "SKILLS",
@@ -299,6 +311,7 @@ __all__ = [
     "Skill",
     "StructuredDeadline",
     "StructuredMeeting",
+    "FreeTextQualification",
     "StructuredMixed",
     "SurfaceForm",
     "TargetRecord",

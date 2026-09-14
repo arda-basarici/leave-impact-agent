@@ -9,6 +9,8 @@ import pytest
 from leaveimpact.core.ids import scenario_id
 from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
+    MEASUREMENT_RULES,
+    PLANS,
     TIER_ONE_RULES,
     ModifierName,
     PlanInfeasible,
@@ -126,3 +128,23 @@ def test_a_row_lists_modifiers_once_and_in_canonical_order() -> None:
 def test_rules_refuse_what_no_class_can_honour() -> None:
     with pytest.raises(ValueError, match="not a built scenario class"):
         PlanRules({ScenarioClassName.UNCOVERED: 1})
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_measurement_plan_is_the_structured_tier_plus_three_qualification_rows(
+    seed: int,
+) -> None:
+    plan = plan_world(Random(seed), MEASUREMENT_RULES)
+    check_plan(plan, MEASUREMENT_RULES)
+    assert len(plan) == 13
+    qualification = [
+        row for row in plan if row.scenario_class is ScenarioClassName.FREE_TEXT_QUALIFICATION
+    ]
+    assert len(qualification) == 3 and all(row.tier is Tier.FRAGMENTED for row in qualification)
+    assert not any(ModifierName.ALREADY_RESOLVED in row.modifiers for row in qualification)
+
+
+def test_the_named_plans_are_the_ones_a_recipe_may_ask_for() -> None:
+    assert set(PLANS) == {"tier1", "tier1-plus-qualification"}
+    assert PLANS["tier1"] is TIER_ONE_RULES
+    assert PLANS["tier1-plus-qualification"] is MEASUREMENT_RULES

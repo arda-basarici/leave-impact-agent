@@ -39,6 +39,7 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.worldtime import date_at
 from leaveimpact.world.artifacts import SHA256_HEX
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams
+from leaveimpact.world.plan import PLANS
 
 __all__ = [
     "ConfigurationError",
@@ -60,7 +61,9 @@ DEFAULT_ATTEMPT_CAP = 4
 class WorldRecipe:
     """What defines the world, plus the two run controls of the prose stage.
 
-    ``attempt_cap`` bounds the materializer and is recorded in the world's provenance;
+    ``plan_name`` is the rule the world is planned under, a semantic input recorded in
+    the world's provenance (the step 15 rulings); ``attempt_cap`` bounds the materializer
+    and is recorded in the world's provenance;
     ``resume`` names a sealed realization to continue instead of generating a fresh one
     (the step 14 rulings: before sealing a restart regenerates, after it resumes).
     """
@@ -70,6 +73,7 @@ class WorldRecipe:
     world_start: date
     attempt_cap: int = DEFAULT_ATTEMPT_CAP
     resume: WorldVersion | None = None
+    plan_name: str = "tier1"
 
 
 def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
@@ -80,6 +84,12 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         exit_on_error=False,
     )
     parser.add_argument("--seed", type=int, required=True, help="the generation seed")
+    parser.add_argument(
+        "--plan",
+        choices=sorted(PLANS),
+        default="tier1",
+        help="the plan the world is drawn under (default tier1)",
+    )
     parser.add_argument(
         "--world-start", required=True, help="the world's first day, ISO 8601 (2026-01-05)"
     )
@@ -140,7 +150,7 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         )
     except ValueError as error:
         raise ConfigurationError(f"the organization dials are not consistent: {error}") from error
-    return WorldRecipe(parsed.seed, params, world_start, parsed.attempt_cap, resume)
+    return WorldRecipe(parsed.seed, params, world_start, parsed.attempt_cap, resume, parsed.plan)
 
 
 @dataclass(frozen=True, slots=True)

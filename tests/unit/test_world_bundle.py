@@ -39,7 +39,7 @@ REFERENCE_SEED = 7
 # The semantic digest and not the world version, since the prose step: two runs of one seed
 # share the former and differ in the latter by design.
 SNAPSHOT_VERSION = GeneratorVersion("6")
-SNAPSHOT_SEMANTIC_DIGEST = "9108a3ed0cf0a6c6b28fe26faa348032ccc5b698b3a3ecfb29c95eec212b8fe2"
+SNAPSHOT_SEMANTIC_DIGEST = "0ddd907ecb33db50d09c943bccf6f3f5f22ea9ed309e0849f148c08436986632"
 
 
 @pytest.fixture(scope="module")
@@ -76,6 +76,7 @@ def test_the_world_spec_cites_the_other_two_files_by_digest(sealed: Bundle) -> N
     }
     assert spec["provenance"]["generator_version"] == GENERATOR_VERSION
     assert spec["provenance"]["seed"] == REFERENCE_SEED
+    assert spec["provenance"]["plan_name"] == "tier1"
     assert spec["provenance"]["semantic_digest"] == SNAPSHOT_SEMANTIC_DIGEST
     assert len(spec["plan"]) == len(spec["slices"]) == len(spec["scenarios"]) == 10
 

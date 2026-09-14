@@ -174,14 +174,14 @@ class StructuredMixed:
         return tuple(constructions)
 
 
-SCENARIO_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
+STRUCTURED_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
     {
         ScenarioClassName.STRUCTURED_DEADLINE: StructuredDeadline(),
         ScenarioClassName.STRUCTURED_MEETING: StructuredMeeting(),
         ScenarioClassName.STRUCTURED_MIXED: StructuredMixed(),
     }
 )
-"""Every built class by name, the instances the world plan constructs from."""
+"""The structured classes by name; ``classes.SCENARIO_CLASSES`` joins every tier."""
 
 
 # --- Role selection: the queries over the static organization ---------------------------
@@ -240,8 +240,8 @@ def _deadline_construction(
     component: Component, leaver: Employee, cover: Employee, outsider: Employee
 ) -> Construction:
     def plant(frame: Frame, rng: Random) -> Draft:
-        leave = _plant_leave(frame, leaver)
-        ticket = _plant_ticket(frame, rng, component, leaver)
+        leave = plant_leave(frame, leaver)
+        ticket = plant_ticket(frame, rng, component, leaver)
         owned = OwnedEntities(leaves=(leave,), work_items=(ticket,))
         return Draft(owned, leave.entity.id, (_deadline_impact(leave, ticket, cover, outsider),))
 
@@ -252,9 +252,9 @@ def _meeting_construction(
     team: Team, leaver: Employee, cover: Employee, busy: Employee, outside: tuple[Employee, ...]
 ) -> Construction:
     def plant(frame: Frame, rng: Random) -> Draft:
-        leave = _plant_leave(frame, leaver)
-        meeting = _plant_meeting(frame, rng, team, leaver, outside)
-        overlap = _plant_overlap(frame, rng, meeting, busy)
+        leave = plant_leave(frame, leaver)
+        meeting = plant_meeting(frame, rng, team, leaver, outside)
+        overlap = plant_overlap(frame, rng, meeting, busy)
         owned = OwnedEntities(leaves=(leave,), events=(meeting, overlap))
         return Draft(owned, leave.entity.id, (_meeting_impact(leave, meeting, cover, busy),))
 
@@ -271,10 +271,10 @@ def _mixed_construction(
     outside: tuple[Employee, ...],
 ) -> Construction:
     def plant(frame: Frame, rng: Random) -> Draft:
-        leave = _plant_leave(frame, leaver)
-        ticket = _plant_ticket(frame, rng, component, leaver)
-        meeting = _plant_meeting(frame, rng, team, leaver, outside)
-        overlap = _plant_overlap(frame, rng, meeting, busy)
+        leave = plant_leave(frame, leaver)
+        ticket = plant_ticket(frame, rng, component, leaver)
+        meeting = plant_meeting(frame, rng, team, leaver, outside)
+        overlap = plant_overlap(frame, rng, meeting, busy)
         owned = OwnedEntities(leaves=(leave,), work_items=(ticket,), events=(meeting, overlap))
         impacts = (
             _deadline_impact(leave, ticket, cover, outsider),
@@ -285,10 +285,10 @@ def _mixed_construction(
     return plant
 
 
-# --- Planting helpers: one record each, visible from the slice start ---------------------
+# --- Planting helpers: one record each, visible from the slice start; shared by the tiers --
 
 
-def _plant_leave(frame: Frame, leaver: Employee) -> Planted[Leave]:
+def plant_leave(frame: Frame, leaver: Employee) -> Planted[Leave]:
     leave = Leave(
         frame.ids.leave(),
         leaver.id,
@@ -300,7 +300,7 @@ def _plant_leave(frame: Frame, leaver: Employee) -> Planted[Leave]:
     return Planted(leave, frame.window.start)
 
 
-def _plant_ticket(
+def plant_ticket(
     frame: Frame, rng: Random, component: Component, leaver: Employee
 ) -> Planted[WorkItem]:
     ticket = WorkItem(
@@ -311,18 +311,18 @@ def _plant_ticket(
         component_id=component.id,
         opened_on=frame.window.start,
         resolved_on=None,
-        due_on=_day_in_leave(frame, rng),
+        due_on=day_in_leave(frame, rng),
         comments=(),
     )
     return Planted(ticket, frame.window.start)
 
 
-def _plant_meeting(
+def plant_meeting(
     frame: Frame, rng: Random, team: Team, leaver: Employee, outside: tuple[Employee, ...]
 ) -> Planted[CalendarEvent]:
     """A one-hour meeting on a working hour of a leave day, read in the reference zone."""
     start = datetime.combine(
-        _day_in_leave(frame, rng),
+        day_in_leave(frame, rng),
         datetime.min.time().replace(hour=rng.choice(MEETING_HOURS)),
         tzinfo=zone(frame.reference_timezone),
     )
@@ -337,7 +337,7 @@ def _plant_meeting(
     return Planted(meeting, frame.window.start)
 
 
-def _plant_overlap(
+def plant_overlap(
     frame: Frame, rng: Random, meeting: Planted[CalendarEvent], busy: Employee
 ) -> Planted[CalendarEvent]:
     """The event that makes ``busy`` unavailable: half an hour into the meeting, one hour long."""
@@ -352,7 +352,7 @@ def _plant_overlap(
     return Planted(overlap, frame.window.start)
 
 
-def _day_in_leave(frame: Frame, rng: Random) -> date:
+def day_in_leave(frame: Frame, rng: Random) -> date:
     return frame.leave.start + timedelta(days=rng.randrange(frame.leave.days))
 
 

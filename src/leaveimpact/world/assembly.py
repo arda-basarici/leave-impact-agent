@@ -71,6 +71,7 @@ from leaveimpact.core.plans import expected_action
 from leaveimpact.core.viability import assess_impact
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.briefs import parts_of
+from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.construction import (
     ConstructionError,
     Minting,
@@ -81,12 +82,11 @@ from leaveimpact.world.construction import (
 )
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
-from leaveimpact.world.plan import TIER_ONE_RULES, PlanRow, PlanRules, plan_world
+from leaveimpact.world.plan import PLANS, PlanRow, plan_world
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import Scenario
 from leaveimpact.world.slices import allocate_slices
-from leaveimpact.world.structured import SCENARIO_CLASSES
 from leaveimpact.world.truth_facts import truth_fact_base
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
 from leaveimpact.world.vocabulary import vocabulary_digest
@@ -143,7 +143,9 @@ class SemanticWorld:
     """Everything the seed determines: organization, plan, scenarios with their briefs, the
     world-level fact base, provenance — the parts a model writes still pending.
 
-    ``interpreter`` is the minor version the world was generated under and
+    ``plan_name`` names the rule the plan was drawn under (``PLANS``), an input a
+    regeneration needs beside the seed and the parameters. ``interpreter`` is the minor
+    version the world was generated under and
     ``vocabulary_digest`` the tables' fingerprint; with the seed, the organization's
     parameters and the generator version they are the provenance the manifest records.
     Two runs from one seed share this value whatever prose they go on to accept.
@@ -154,6 +156,7 @@ class SemanticWorld:
     org: OrgSpec
     slices: tuple[DateSpan, ...]
     plan: tuple[PlanRow, ...]
+    plan_name: str
     scenarios: tuple[Scenario, ...]
     facts: FactBase
     generator_version: GeneratorVersion
@@ -237,17 +240,21 @@ def assemble_semantic_world(
     seed: int,
     params: OrgParams,
     world_start: date,
-    rules: PlanRules = TIER_ONE_RULES,
+    plan_name: str = "tier1",
 ) -> SemanticWorld:
-    """The semantic world ``seed`` produces under ``params`` and ``rules``, re-verified as a whole.
+    """The semantic world ``seed`` produces under ``params`` and the named plan, re-verified as a
+    whole.
 
+    ``plan_name`` is a key of ``PLANS``; an unknown name is a ``ValueError`` before any draw.
     Raises ``PlanInfeasible`` when the rule cannot be met, a construction error when a
     scenario cannot be built as planned, ``WorldContamination`` when the assembled world
     disagrees with a key. Same inputs, same world.
     """
+    if plan_name not in PLANS:
+        raise ValueError(f"no plan named {plan_name!r}; the plans are {sorted(PLANS)}")
     org = generate_org(seed, params)
     rng = Random(seed)
-    plan = plan_world(rng, rules)
+    plan = plan_world(rng, PLANS[plan_name])
     slices = allocate_slices(rng, len(plan), world_start)
     ids = Minting()
     scenarios = tuple(
@@ -274,6 +281,7 @@ def assemble_semantic_world(
         org=org,
         slices=slices,
         plan=plan,
+        plan_name=plan_name,
         scenarios=scenarios,
         facts=facts,
         generator_version=GENERATOR_VERSION,
@@ -308,9 +316,10 @@ def verify_world(
     universe = [employee.id for employee in org.employees]
     owned = [scenario.owned for scenario in scenarios]
     authored = [fact for scenario in scenarios for fact in scenario.authored_facts]
+    briefs = [brief for scenario in scenarios for brief in scenario.briefs]
     findings: list[Contamination] = []
     for scenario in scenarios:
-        records = runtime_records(org, owned, scenario.spec)
+        records = runtime_records(org, owned, scenario.spec, briefs)
         for day in _days(scenario.key.stable_interval):
             findings.extend(_check_day(DATED_VIEW, facts, day, scenario, universe, org, owner_of))
             runtime = runtime_facts(records, day, authored)

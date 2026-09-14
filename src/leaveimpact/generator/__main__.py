@@ -89,7 +89,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _fresh(recipe: WorldRecipe, models: ProseModels) -> tuple[WorldSpec, Bundle, ProseMetrics]:
     """Assemble, materialize, compose: the pure world with its prose, before any external write."""
-    semantic = assemble_semantic_world(recipe.seed, recipe.params, recipe.world_start)
+    semantic = assemble_semantic_world(
+        recipe.seed, recipe.params, recipe.world_start, recipe.plan_name
+    )
     writer, checker = prose_models_for(models)
     materialized = materialize(
         semantic, writer, checker, load_prompt_assets(), recipe.attempt_cap, print
