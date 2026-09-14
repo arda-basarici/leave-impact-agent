@@ -907,8 +907,10 @@ scenario, and a query that mirrored the rule in reverse would make the invariant
 independence a fiction. Modifiers are planters with a class's shape minus an outcome,
 composed by the framework after the class; a modifier may amend a candidate's verdict
 through a declarative effect and may never change the class's declared outcome, which
-is what makes "orthogonal" testable. A scenario plants only entities it owns; policies
-and procedures are world-owned and selected, runbooks and client notes scenario-owned.
+is what makes "orthogonal" testable. A scenario plants only entities it owns — runbooks,
+client notes and, in M1, the policy or procedure that carries its constraint, scoped by
+its text to the exact scenario artifact; world-owned policies wait on an applicability
+model (the step 15 rulings).
 Slices are dealt in order with a random gap of up to three days; the leave starts on
 day six to nine so that `now`, two to four days before it, always has slice history
 behind it; the stable interval is derived from planted observability and never
@@ -1176,6 +1178,162 @@ workstation identity is not widened for a test's convenience. Cassettes were rej
 SigV4 scrubbing and a recorded model output prove nothing the stub and the probe do
 not. Generator version 5; the first world stays as it is with its verdicts, a
 version-5 realization of the same seed being a world beside it.
+
+**The hard tiers under the step 15 rulings (2026-09-14).** The classes that leave the
+structured tier — a qualification in a comment, a responsibility in a document, the
+cardinality clause, the conflict, the missing fact, the complete world nobody covers,
+and the two composites — rest on nine rulings, most of which extend `core` before any
+class exists, since each was found by asking what the rules would conclude about a
+scenario the class plants.
+
+*The responsibility fact.* A responsibility that exists only in a document is carried by
+a new registry row, `names_responsible`: subject the document section, value the
+employee, the corpus its record and sole evidence, closed, multi-valued (a section may
+name two contacts). The impact's artifact is the section itself, so the section is both
+the obligation and its provenance, and discovery is the subject-free question closure
+already answers for events. The alternative — a runbook giving an owner to a ticket the
+tracker shows unassigned, through the existing ownership row — was rejected as the
+primitive: it attributes a known ticket rather than discovering an obligation with no
+structured trace, and it blurs into the conflict class's setup. The lexical anchor is
+the named employee alone, since a carrier never names itself; the checker's parse binds
+a carrier-subject proposition to the brief's target rather than the prompt naming the
+target — nothing for a model to extract, no identity reaching it — which also repairs a
+latent step 14 gap: the checker's entity list never held a carrier, so no clause-subject
+fact, `requires` included, could have passed the extraction guard. The prompt line that
+sent responsibilities to the other-claims bucket goes with it.
+
+*Impact grounding is a conclusion.* Impacts were authored and never derived: the rules
+concluded verdicts and outcomes for an expected impact and nothing asked whether the
+impact was entailed by the fact base, so a fact whose only role is to make an impact
+exist was invisible to the role derivation by ablation and to the required-sources
+derivation by outage — harmless while every impact rested on planted records, fatal for
+a class whose one prose fact is the impact's ground. A grounding rule in `core` asks,
+per exact impact key, whether the leaver holds the obligation — an open work item the
+leaver owns due inside the leave, an event the leaver attends scheduled inside it, a
+section naming the leaver, an open work item the leaver owns — and answers grounded,
+ungrounded or unknown with closure's reason; an enumerator over the leaver's facts
+applies the same predicate, so discovery and grounding are one derivation that cannot
+drift apart, and the M2 harness's deterministic impact detection is that enumerator over
+live-derived facts. Groundings enter the conclusions beside verdicts, reasons, open
+questions and outcomes; construction requires the expected impacts to equal the derived
+ones under the normal run condition, in both directions, so a distractor that lands
+inside the leave unannounced is a construction error. The exact-artifact form keeps a
+missing fact for one section from being masked by an obligation elsewhere (review
+ruling). The subtype windows are read from the classes that plant them, the first
+world's ten scenarios regenerating unchanged being the regression.
+
+*A section-artifact impact narrows its candidates by a clause.* With no component to ask
+about, every available employee would be viable for a responsibility and its assessments
+would carry no signal. The responsibility class therefore pairs the model-written
+client-note section with a template-written procedure clause whose constraint applies to
+that exact section — "the named contact holds skill X" — so one authored candidate is
+viable and another fails by skill through the rule that already exists. The two
+fragmented primitives are then symmetric: the qualification class is a structured
+impact, a template requirement and the qualification in prose; the responsibility class
+is the obligation in prose, a template requirement and structured qualifications; the
+one thing that moves between them is which fact a model wrote, and a score gap localizes
+to it. The requirement stays deterministic on purpose — a model-written clause would be
+a third prose mechanism the set never asked for. Registers get one job each: the client
+note carries the contact, the runbook is reserved for the stale owner, the policy and
+the procedure carry requirements.
+
+*Constraint-bearing documents are scenario-owned in M1.* The scenario framework had
+ruled policies and procedures world-owned and selected, and nothing implemented it. A
+world-owned clause is not storage ownership but an applicability rule — a scope over
+components or releases from which the impacts it constrains derive — and with
+constraints declared per scenario, a world-owned policy would either change Tier 1 keys
+wherever its scope landed or leave those keys contradicting the text. So an M1
+constraint is carried by a scenario-owned policy or procedure whose text names the exact
+scenario artifact — the release, the client — and the constraint's target and the text's
+scope agree by construction; whole-world verification stays isolated without planner
+involvement (an exclusive-component reservation was rejected as debt disguised as
+planning). World-owned policies are deferred as a named capability — a scope model,
+applicability derivation across scenarios, cross-scenario constraint discovery, and the
+whole-world verification of those effects — rather than left as an implied current
+feature. The framework sentence is revised accordingly.
+
+*The cardinality class carries both consequences in every row.* One shape: a release
+ticket the leaver owns, due inside the leave, and a scenario-owned policy requiring two
+people each holding skill X and employed as an employee. Authored: two employees with X
+viable, a contractor with X non-viable by `hard_rule`, an employee without X non-viable
+by `skill`; the outcome assign; a valid plan assigns at least two — the requirement is a
+minimum and the two-person plan is an example, never truth. A seeded variant would have
+given each mechanism one of the two rows; both rows exercising both effects repeats them
+while the effects stay separately graded (the contractor's reason, the plan's
+cardinality). The universe holds exactly two viable candidates so the count is visibly
+load-bearing — an org guarantee, a skill held by exactly two employees and by the
+contractor, beside the singleton skill, since leaving an affordance to the seed is the
+rejection sampling the timezone ruling refused.
+
+*Missing information and uncovered differ in one placement.* Both plant the same
+deadline shape with a scenario-owned clause requiring the unheld skill, so every
+employee with a skills record fails by skill; the verdict rule lets any known failure
+dominate an open question, so a blank-record employee is unknown only when every other
+criterion passes. The missing-information class puts its release in a component holding
+a blank-record member — that member is unknown, reason absent: the HR record's skills
+field is the gap, and the reason is absent rather than inaccessible because the tracker,
+the other source in the predicate's domain, answered — and the outcome is unknown. The
+uncovered class puts its release in a component holding none, so the blank-record people
+fail by component, everyone else by skill, nobody is unknown, and the outcome is
+uncovered over the full universe. Two org guarantees make both plantable: at least one
+component with a blank-record member, at least one without. A meeting artifact for the
+first class would have needed one guarantee fewer and made the pair differ in two ways
+at once. A modifier that could remove the only unknown (a concurrent leave on that
+member) is excluded for the class by the compatibility matrix, under the existing rule
+that a modifier never changes a declared outcome. Under a tracker outage both classes
+become unknown, reason inaccessible — the run-condition metric's own axis.
+
+*The stale conflict sits on a real impact, and reads resolve.* The tracker says the
+leaver owns the release ticket; the runbook's model-written section names the previous
+owner. The impact stands, grounded on the tracker; a conflict resolved to the tracker is
+expected; the failure caught is an agent that believes the document, drops the impact or
+hands cover to the named owner unassessed. The reverse — a document giving the leaver a
+ticket the tracker gives to someone else — is a false-positive trap, the "stale
+document" distractor reason class the ontology already names, parked as a future
+modifier rather than built into a class whose row would then have no impact of its own.
+Two `core` gaps surfaced with the direction. Closure did not apply authority: a positive
+fact with the asked value was known true from any source, so "does the previous owner
+own this ticket" would have been true — unread until now, and the grounding rule would
+have read it. The raw fact base stays unresolved, since the conflict derivation needs
+every source's value; the semantic reads of a single-valued predicate resolve through
+the authority table and return the resolved value with every source's facts as evidence,
+so the rules and the future harness see one world. When the system of record is
+unreachable, lower-authority evidence is not promoted: the answer is unknown, reason
+inaccessible (review ruling); multi-valued predicates keep the current rule, a skill in
+a comment being evidence whether or not HR answered. The record reachable and silent
+with the corpus positive is known true — answered is the line, not answered positively.
+And conflicts were not conclusions: the role and outage derivations compared verdicts
+and outcomes, so the stale-owner fact would have been labeled context and skipped at the
+hand pass. Derived conflicts enter the conclusions.
+
+*Composites are fixed pairings.* The fragmented composite is the responsibility in prose
+with the viable candidate's qualification also in prose under one template requirement;
+both Tier 2 combination rows carry it. The adversarial composite is the stale conflict
+on the impact with the missing-information candidates around it: resolve what obligation
+exists, then conclude unknown rather than uncovered under incomplete candidate
+information. A seeded combination among the tier's primitives would have given breadth
+without replication. Each constituent stays independently observable: every prose fact
+of a composite must derive as answer-changing, a context role being a construction error
+for the class; structured constituents are asserted present in the conclusions — the
+conflict derived, the impact grounded on the resolved owner, the outcome as declared —
+observation rather than ablation, since ablation over structured facts would be new
+machinery for one row. The compatibility matrix excludes from a composite any modifier
+that could erase a constituent.
+
+*One measurement world before the remaining prose classes.* After the qualification
+class lands, one world — the structured table plus three qualification rows — is
+generated under the real pipeline, sealed as an ordinary immutable version, validated,
+and never counted among the thirty. It gives the numbers the materialization design
+predicted and never measured: first-attempt and eventual pass, refusals by guard,
+other-claims frequency, attempts and tokens per accepted target; checker reliability is
+a hand sample of accepted texts. The responsibility class does not start until those
+numbers are reviewed and every guard or prompt change they suggest is adopted or
+rejected on record. The plan is a semantic workflow input — the structured table, that
+table plus qualification, the golden set — since which world is generated belongs on the
+world-defining side of the boundary, unlike a model id. The rules are three tier tables
+and their union; foundation lands first under generator version 6 with the snapshot pair
+re-cut once, a second bump at the step's close only if a construction semantic changed
+after the measurement world.
 ---
 
 ## Package boundaries and the import law (2026-09-09)
