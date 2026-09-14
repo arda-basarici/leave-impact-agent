@@ -25,6 +25,14 @@ test:
 test-all:
     uv run pytest -q -m ""
 
+# The live level alone: the two prose models reached for real. The ini's addopts are
+# replaced, not extended, because the network block cannot admit an endpoint by name —
+# the guard sees the resolved IP the socket connects to (found 2026-09-14) — and a level
+# defined by reaching the network runs without the block. Needs AWS credentials in the
+# shell (`$env:AWS_PROFILE`), skips itself without; the probe workflow is authoritative.
+test-live:
+    uv run pytest -q -o addopts="" --doctest-modules --strict-markers -m live
+
 # Integration level alone, against the dev PostgreSQL (`just db-up` first).
 # The loopback address, not `localhost`: the name resolves to IPv6 first, the
 # container publishes on IPv4 only, and every connection would wait out the timeout.
