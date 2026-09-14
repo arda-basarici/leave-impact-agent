@@ -68,3 +68,15 @@ def parse_comment(text: str) -> Comment:
     except ValueError as exc:
         raise ValueError(f"comment prefix date {match['date']!r} is not a date") from exc
     return Comment(CommentId(match["id"]), world_date, EmployeeId(match["author"]), text)
+
+
+def comment_body(text: str) -> str:
+    """The remark after the prefix: what a writer wrote, the prefix being the world's.
+
+    >>> comment_body("[comment_005, 2026-09-12, emp_023 — Bob Kaya] blocked on the vendor")
+    'blocked on the vendor'
+    """
+    match = _PREFIX.match(text)
+    if match is None:
+        raise ValueError(f"no comment prefix: {text[:60]!r}")
+    return text[match.end() :]

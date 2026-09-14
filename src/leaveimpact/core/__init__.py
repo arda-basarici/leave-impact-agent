@@ -90,7 +90,7 @@ from leaveimpact.core.closure import (
     establish,
     establish_any,
 )
-from leaveimpact.core.comments import comment_text, parse_comment
+from leaveimpact.core.comments import comment_body, comment_text, parse_comment
 from leaveimpact.core.derivation import (
     Derived,
     derive,
@@ -249,6 +249,7 @@ __all__ = [
     "Comment",
     "CommentId",
     "comment_text",
+    "comment_body",
     "parse_comment",
     "Component",
     "ComponentId",

@@ -41,6 +41,21 @@ The same world re-sealed produces the same bytes at every key, the version ids r
 are the existing ones, and the final manifest's bytes are therefore equal too: a rerun of
 a sealed world writes nothing and ends in the equal case everywhere, which is the proof
 that the run before it completed.
+
+Since the prose step that proof holds under *resume*, because a fresh run of one seed is a
+new materialization attempt and not entitled to reuse the previous realization (the step 14
+rulings). The job has two paths and this function is the same in both::
+
+    FRESH    assemble → verify the truth → materialize → compose → freeze bytes and version
+             → print the version → seal the truth → prepare and project with the checkpoint
+             → documents → scenario specs → read back → manifest
+    RESUME   read the sealed world spec and truth manifest → gate the generator version
+             → reassemble and match the semantic digest → decode the record, lift the bodies
+             → the same compose and bundle → match the named version → continue here
+
+A fresh run that lands on the same bytes hits the equal case; a fresh run while another
+version's unfinished vendor state holds the site is refused by the site inspection, by
+name, and the message says to resume or to clean.
 """
 
 from __future__ import annotations

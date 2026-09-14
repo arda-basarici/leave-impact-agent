@@ -16,6 +16,7 @@ from leaveimpact.generator.entrypoint import (
     ConfigurationError,
     deployment_from_env,
     parse_recipe,
+    prose_models_from_env,
     stores_for,
 )
 from leaveimpact.world.org import DEFAULT_PARAMS
@@ -70,3 +71,31 @@ def test_the_writers_open_under_the_local_root_the_deployment_names(tmp_path: Pa
     truth, world = stores_for(deployment)
     assert isinstance(truth, LocalObjectWriter) and isinstance(world, LocalObjectWriter)
     assert (truth.root, world.root) == (tmp_path / "store" / "truth", tmp_path / "store" / "world")
+
+
+def test_the_prose_controls_default_and_are_validated() -> None:
+    base = ["--seed", "7", "--world-start", "2026-01-05"]
+    assert (parse_recipe(base).attempt_cap, parse_recipe(base).resume) == (4, None)
+    named = parse_recipe([*base, "--attempt-cap", "2", "--resume", "a" * 64])
+    assert (named.attempt_cap, named.resume) == (2, "a" * 64)
+    with pytest.raises(ConfigurationError, match="--attempt-cap is at least one"):
+        parse_recipe([*base, "--attempt-cap", "0"])
+    with pytest.raises(ConfigurationError, match="--resume is a 64-hex world version"):
+        parse_recipe([*base, "--resume", "not-a-version"])
+
+
+def test_the_prose_models_come_from_the_environment_and_are_never_defaulted() -> None:
+    env = {
+        "LEAVE_IMPACT_PROSE_WRITER_MODEL": "eu.writer",
+        "LEAVE_IMPACT_PROSE_CHECKER_MODEL": "eu.checker",
+        "LEAVE_IMPACT_BEDROCK_REGION": "eu-central-1",
+    }
+    models = prose_models_from_env(env)
+    assert (models.writer, models.checker, models.region) == (
+        "eu.writer",
+        "eu.checker",
+        "eu-central-1",
+    )
+    for missing in env:
+        with pytest.raises(ConfigurationError, match=f"{missing} is not set and the prose stage"):
+            prose_models_from_env({k: v for k, v in env.items() if k != missing})

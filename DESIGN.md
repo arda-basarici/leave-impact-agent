@@ -1109,7 +1109,10 @@ restart regenerates; after sealing it resumes the named realization, because
 reassembly from the seed no longer reproduces the bytes. `--resume <version>` reads the
 sealed world spec, gates on an equal generator version (resume is not migration),
 reassembles the semantic world and refuses unless the semantic digests are equal,
-extracts the prose set and the record from the decoded spec, runs the same compose and
+lifts the accepted bodies from the decoded spec's plantings and decodes the record from
+the sealed truth manifest through the generator's own decoder — the one reader that
+file has before the evaluator, unreachable by the validator under the import law — after
+checking the manifest's digest is the one the spec cites, runs the same compose and
 the same bundle as a fresh run and refuses unless the version equals the one named —
 the whole-bundle identity through the normal function, which implies the codec
 round-trips, proven separately by a byte-equality test on the reference seed — and
@@ -1124,7 +1127,13 @@ any world name outside the brief's allowed set and any date or digit sequence ou
 the allowed spans (one date spelling, ISO; other spellings refused as unlisted); it
 does not guess invented proper nouns from capitalization, which false-positives on
 sentence starts, and leaves number words to the extractor as the cardinality claims
-they are. A required-fact check through predicate-owned lexical anchors, in
+they are. The scanner owns *mentions* (the materializer review, 2026-09-14): a name
+that makes no claim ("thanks selin") is invisible to the extraction check, so every
+world name is refused in any case, employees by given name as well as full name, with
+one exception — a form of three characters or fewer matches in exact spelling, since
+"go" is in most sentences and the skill Go would otherwise refuse them all; a false
+refusal costs an attempt and a missed identity costs the benchmark, so the cut sits
+where the cost flips. A required-fact check through predicate-owned lexical anchors, in
 `world/prose`, refuses a fact that vanished before the checker is paid. The extraction
 check hands a different model family the text, the brief's entity dictionary and a
 tool schema generated from the predicate registry — never the brief's facts, which is

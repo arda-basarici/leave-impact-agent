@@ -29,9 +29,10 @@ if TYPE_CHECKING:
 
 pytestmark = pytest.mark.live
 
-REGION = os.environ.get("AWS_REGION", "eu-central-1")
-WRITER_MODEL = os.environ.get("PROSE_WRITER_MODEL", "eu.anthropic.claude-haiku-4-5-20251001-v1:0")
-CHECKER_MODEL = os.environ.get("PROSE_CHECKER_MODEL", "eu.amazon.nova-pro-v1:0")
+REGION = os.environ.get("LEAVE_IMPACT_BEDROCK_REGION", "eu-central-1")
+HAIKU = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+WRITER_MODEL = os.environ.get("LEAVE_IMPACT_PROSE_WRITER_MODEL", HAIKU)
+CHECKER_MODEL = os.environ.get("LEAVE_IMPACT_PROSE_CHECKER_MODEL", "eu.amazon.nova-pro-v1:0")
 
 
 @pytest.fixture(scope="module")

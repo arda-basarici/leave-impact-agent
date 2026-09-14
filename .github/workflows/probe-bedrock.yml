@@ -1,0 +1,69 @@
+# The Bedrock probe: one call to each prose model under the generator role, reported by
+# numbers. The authoritative evidence that the production principal can invoke the pair the
+# platform stack granted it (`bedrock_generator_models`) and that each family honours the
+# seam — the writer answering with text, the checker filling a forced tool — comes from
+# this runner, on the role the generation job runs on, and not from a workstation identity
+# (the step 13 lesson: probe from the production client's network). Manual, cheap, and not
+# part of any generation; the generation job exercises the same path in earnest afterward.
+#
+# The output carries model ids, outcomes, latencies and token counts and never a generated
+# text or an extracted proposition: the job log is public. Pinned actions, `id-token:
+# write` job-scoped, the `benchmark` environment's reviewer gate — as the generation job.
+name: probe bedrock
+on:
+  workflow_dispatch:
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: benchmark
+    timeout-minutes: 15
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Record the OIDC subject
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Assume the generator role
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-generator
+          aws-region: eu-central-1
+
+      - name: Call each prose model once
+        env:
+          LEAVE_IMPACT_PROSE_WRITER_MODEL: eu.anthropic.claude-haiku-4-5-20251001-v1:0
+          LEAVE_IMPACT_PROSE_CHECKER_MODEL: eu.amazon.nova-pro-v1:0
+          LEAVE_IMPACT_BEDROCK_REGION: eu-central-1
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity --query Arn --output text | tee identity.txt
+          grep -q 'assumed-role/leave-agent-generator/' identity.txt
+          uv run python -m leaveimpact.generator.probe | tee probe.log
+          {
+            echo "## Bedrock probe"
+            echo
+            echo '```'
+            cat probe.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
