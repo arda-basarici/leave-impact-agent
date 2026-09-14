@@ -86,7 +86,18 @@ def test_the_multi_valued_predicates_are_exactly_the_set_facts() -> None:
         PredicateName.MEMBER_OF_COMPONENT,
         PredicateName.ATTENDS_EVENT,
         PredicateName.ON_LEAVE,
+        PredicateName.NAMES_RESPONSIBLE,
     }
+
+
+def test_a_documented_responsibility_is_a_fact_about_the_section_with_the_corpus_alone() -> None:
+    # The section is the impact's artifact as well as the provenance (the step 15 rulings).
+    row = predicate(PredicateName.NAMES_RESPONSIBLE)
+    assert row.subject is EntityKind.CLAUSE
+    assert row.value_spec.entity_kind is EntityKind.EMPLOYEE
+    assert row.system_of_record is Source.CORPUS
+    assert row.evidence_domain == {Source.CORPUS}
+    assert row.closed and row.multi_valued
 
 
 def test_enum_valued_rows_name_a_vocabulary_core_owns() -> None:

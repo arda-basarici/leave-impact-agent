@@ -34,10 +34,12 @@ from datetime import date, datetime
 from random import Random
 from typing import Protocol
 
+from leaveimpact.core.authority import conflicts_in
 from leaveimpact.core.claims import ConstraintKey, ImpactKey
 from leaveimpact.core.closure import Unresolved
 from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
+from leaveimpact.core.grounding import Grounded, Grounding, derive_impacts, ground_impact
 from leaveimpact.core.ids import (
     ClauseId,
     CommentId,
@@ -330,7 +332,8 @@ def construct(
     ]
     spec = ScenarioSpec(scenario_id, draft.investigated, frame.now, reference_timezone, window)
     base = truth_fact_base(org, world_start, [draft.owned], draft.authored_facts)
-    problems = _verify(base, spec.today, impacts, draft.constraints, frame, org)
+    leaver = _leaver_of(draft)
+    problems = _verify(base, spec.today, impacts, draft.constraints, frame, org, leaver)
     required = required_sources_for(
         base,
         spec.today,
@@ -340,6 +343,7 @@ def construct(
         reference_timezone,
         org,
         spec.leave_id,
+        leaver,
     )
     key = ScenarioKey(
         scenario_id=scenario_id,
@@ -370,19 +374,23 @@ def _briefs_for(
     """The scenario's briefs, completed from the class's pending prose, under the contract.
 
     A required fact's role is found by asking the rules with that one fact removed from
-    the base: a conclusion that moves — a verdict, its reasons, an open question, an
-    outcome — makes the fact answer-changing, nothing moving makes it context. The same
+    the base: a conclusion that moves — an impact's grounding, a verdict, its reasons, an
+    open question, an outcome, a planted conflict — makes the fact answer-changing,
+    nothing moving makes it context. The same
     conclusions the required-sources derivation compares, so "answer-changing" means
     what "required" means there. The contract runs even with no pending prose, because
     it is also what refuses an authored fact evidenced by a part nobody planted.
     """
     normal = RunCondition.all_reachable()
+    leaver = _leaver_of(draft)
 
     def concluded(facts: FactBase) -> tuple[object, ...]:
         return _conclusions(
             facts.at(today, normal),
             impacts,
             draft.constraints,
+            draft.investigated,
+            leaver,
             frame.leave,
             frame.reference_timezone,
             org,
@@ -456,17 +464,22 @@ def _verify(
     constraints: Sequence[ConstraintKey],
     frame: Frame,
     org: OrgSpec,
+    leaver: EmployeeId,
 ) -> list[str]:
     """The rules' disagreements with the composed expectations under the normal run condition.
 
-    Verdicts are checked per authored candidate; the outcome is the truth outcome over the
-    whole organization, never over ``must_assess`` alone (the contract's rule). A
-    candidate authored from outside the organization is a problem too, named rather
-    than a lookup failure.
+    Every expected impact must ground — the leaver holds it in the fact base — and the
+    impacts the truth grounds for the leaver must be exactly the declared ones, so a
+    distractor that lands inside the leave unannounced is a construction error (the step
+    15 rulings). Verdicts are checked per authored candidate; the outcome is the truth
+    outcome over the whole organization, never over ``must_assess`` alone (the
+    contract's rule). A candidate authored from outside the organization is a problem
+    too, named rather than a lookup failure.
     """
     problems: list[str] = []
     view = base.at(today, RunCondition.all_reachable())
     universe = [employee.id for employee in org.employees]
+    problems.extend(_grounding_problems(view, impacts, frame, leaver))
     for expected in impacts:
         assessments = assess_impact(
             view, expected.key, universe, constraints, frame.leave, frame.reference_timezone
@@ -508,6 +521,7 @@ def required_sources_for(
     reference_timezone: str,
     org: OrgSpec,
     investigated: LeaveId,
+    leaver: EmployeeId,
 ) -> set[Source]:
     """The sources the key's rule-level conclusions depend on, in ``base`` as of ``today``.
 
@@ -516,8 +530,9 @@ def required_sources_for(
     The sources that establish what the run is about — the facts about each
     impact's artifact and the leave under investigation — read off the base. And the
     sources the rules depend on, found by asking, for each source in turn, whether the
-    rules conclude anything different with that source unreachable: a verdict or an
-    outcome that moves means the source was required. Provenance alone under-counts
+    rules conclude anything different with that source unreachable: a grounding, a
+    verdict, an outcome or a conflict that moves means the source was required.
+    Provenance alone under-counts
     here, because a negative conclusion carries no evidence fact yet depends on every
     source of the predicate's declared domain — a candidate known not to hold a skill
     needs both the HR record and the tracker to have answered. Asking the rules under
@@ -537,27 +552,96 @@ def required_sources_for(
         for fact in normal.facts_of(PredicateName.ON_LEAVE)
         if fact.evidence.target.id == investigated
     )
-    baseline = _conclusions(normal, impacts, constraints, leave_span, reference_timezone, org)
+    baseline = _conclusions(
+        normal, impacts, constraints, investigated, leaver, leave_span, reference_timezone, org
+    )
     for source in Source:
         outage = base.at(today, RunCondition.all_reachable().without(source))
-        concluded = _conclusions(outage, impacts, constraints, leave_span, reference_timezone, org)
+        concluded = _conclusions(
+            outage, impacts, constraints, investigated, leaver, leave_span, reference_timezone, org
+        )
         if concluded != baseline:
             sources.add(source)
     return sources
+
+
+def _leaver_of(draft: Draft) -> EmployeeId:
+    for planted in draft.owned.leaves:
+        if planted.entity.id == draft.investigated:
+            return planted.entity.employee_id
+    raise ValueError(f"the investigated leave {draft.investigated} is not one the draft owns")
+
+
+def _grounding_problems(
+    view: FactView, impacts: Sequence[ExpectedImpact], frame: Frame, leaver: EmployeeId
+) -> list[str]:
+    """Declared impacts the truth does not ground, and grounded impacts the key does not declare."""
+    problems: list[str] = []
+    for expected in impacts:
+        grounding = ground_impact(
+            view, expected.key, leaver, frame.leave, frame.reference_timezone
+        )
+        if not isinstance(grounding, Grounded):
+            problems.append(
+                f"{expected.key.artifact.id}: the declared {expected.key.subtype.value} impact "
+                f"{grounding_text(grounding)}"
+            )
+    declared = {expected.key for expected in impacts}
+    derived = derive_impacts(
+        view, frame_leave_id(impacts), leaver, frame.leave, frame.reference_timezone
+    )
+    for key in derived.grounded:
+        if key not in declared:
+            problems.append(
+                f"{key.artifact.id}: the truth grounds a {key.subtype.value} impact of the leaver "
+                "that the key does not declare"
+            )
+    for key, open_question in derived.unresolved:
+        problems.append(
+            f"{key.artifact.id}: whether the leaver holds a {key.subtype.value} impact is "
+            f"{grounding_text(open_question)}"
+        )
+    return problems
+
+
+def frame_leave_id(impacts: Sequence[ExpectedImpact]) -> LeaveId:
+    """The investigated leave every expected impact keys on; the draft refused a mix."""
+    return impacts[0].key.leave_id
+
+
+def grounding_text(grounding: Grounding) -> str:
+    """A grounding that is not ``Grounded``, as a problem reads it."""
+    match grounding:
+        case Grounded():
+            return "is grounded"
+        case Unresolved(subject=subject, predicate=predicate, reason=reason):
+            return f"unresolved: {reason.value} on {predicate.value} of {subject.id}"
+        case _:
+            return "is not the leaver's in the fact base"
 
 
 def _conclusions(
     view: FactView,
     impacts: Sequence[ExpectedImpact],
     constraints: Sequence[ConstraintKey],
+    leave_id: LeaveId,
+    leaver: EmployeeId,
     leave_span: DateSpan,
     reference_timezone: str,
     org: OrgSpec,
 ) -> tuple[object, ...]:
-    """Everything the rules conclude in ``view``: verdicts, reasons, open questions, outcomes."""
+    """Everything the rules conclude in ``view``: each impact's grounding, verdicts, reasons,
+    open questions and outcome; the impacts the leaver holds; the conflicts the sources
+    plant.
+
+    Grounding and conflicts joined the tuple at step 15: a fact whose only role is to make
+    an impact exist, or to contradict the record, moves no verdict, and both the role
+    derivation and the required-sources derivation would have called it context.
+    """
     universe = [employee.id for employee in org.employees]
     concluded: list[object] = []
     for expected in impacts:
+        grounding = ground_impact(view, expected.key, leaver, leave_span, reference_timezone)
         assessments = assess_impact(
             view, expected.key, universe, constraints, leave_span, reference_timezone
         )
@@ -571,7 +655,9 @@ def _conclusions(
             view, expected.key, constraints, leave_span, reference_timezone
         )
         outcome = expected_action((a.verdict for a in assessments), required)
-        concluded.append((verdicts, outcome))
+        concluded.append((grounding, verdicts, outcome))
+    concluded.append(derive_impacts(view, leave_id, leaver, leave_span, reference_timezone))
+    concluded.append(conflicts_in(view))
     return tuple(concluded)
 
 

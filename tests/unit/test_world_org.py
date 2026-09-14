@@ -141,7 +141,7 @@ def test_the_skill_distribution_holds_the_shapes_scenarios_select_on(seed: int) 
     low, high = DEFAULT_PARAMS.skills_per_person
     for employee in skilled:
         assert employee.skills is not None
-        assert low <= len(employee.skills) <= high + 2  # the draw plus at most two anchors
+        assert low <= len(employee.skills) <= high + 3  # the draw plus at most three anchors
         assert len(set(employee.skills)) == len(employee.skills)
 
 
@@ -199,7 +199,43 @@ def test_a_small_organization_still_honours_every_shape() -> None:
         assert sum(e.skills is None for e in spec.employees) == 1
         (component,) = spec.components
         assert len({e.team_id for e in spec.employees if e.id in component.member_ids}) == 2
+        # One component: the blank-record guarantee holds, the blank-free one cannot.
+        assert any(e.skills is None for e in spec.employees if e.id in component.member_ids)
         assert any(
             gap_holds_all_year(e.timezone, params.reference_timezone, params.timezone_gap_hours)
             for e in spec.employees
         )
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_a_skill_is_held_by_exactly_two_employees_and_a_contractor(seed: int) -> None:
+    """The cardinality class's affordance: two viable employees and a contractor who fails
+    the employment rule, the count of two visibly load-bearing."""
+    spec = generate_org(seed, DEFAULT_PARAMS)
+    by_type = {
+        skill: Counter(e.employment_type for e in spec.holders_of(skill)) for skill in spec.skills
+    }
+    paired = [
+        skill
+        for skill, holders in by_type.items()
+        if holders[EmploymentType.EMPLOYEE] == 2 and holders[EmploymentType.CONTRACTOR] >= 1
+    ]
+    assert paired, "no skill held by exactly two employees and a contractor"
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_a_contractor_always_carries_a_skills_record(seed: int) -> None:
+    spec = generate_org(seed, DEFAULT_PARAMS)
+    contractors = [e for e in spec.employees if e.employment_type is EmploymentType.CONTRACTOR]
+    assert contractors and all(e.skills is not None for e in contractors)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_components_place_blank_records_both_ways(seed: int) -> None:
+    """The missing-information and uncovered classes differ in one placement, so both must be
+    plantable: a component with a blank-record member, and one without."""
+    spec = generate_org(seed, DEFAULT_PARAMS)
+    blank = {e.id for e in spec.employees if e.skills is None}
+    with_blank = [c for c in spec.components if blank & set(c.member_ids)]
+    without = [c for c in spec.components if not blank & set(c.member_ids)]
+    assert with_blank and without

@@ -45,7 +45,7 @@ from leaveimpact.core.values import (
     ValueSpec,
 )
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
-from leaveimpact.world.prose import AssertionMode, Namespace, Polarity, Proposition
+from leaveimpact.world.prose import CARRIER_KINDS, AssertionMode, Namespace, Polarity, Proposition
 
 TOOL_NAME = "record_propositions"
 UNKNOWN_SUBJECT = "unknown"
@@ -138,8 +138,17 @@ def _form(spec: ValueSpec) -> str:
             )
 
 
-def parse_extraction(filled: JsonObject, namespace: Namespace) -> Extraction:
-    """The propositions and other claims in the checker's tool input, or ``ExtractionMalformed``."""
+def parse_extraction(filled: JsonObject, namespace: Namespace, target: EntityRef) -> Extraction:
+    """The propositions and other claims in the checker's tool input, or ``ExtractionMalformed``.
+
+    ``target`` is the text's own carrier — the comment or the section being checked. A
+    predicate whose subject is a carrier (a clause's requirement, the person a section
+    names) is about the text itself, which a text never names and the entity list never
+    holds; its subject is bound here to the target when the kinds agree, and left
+    unknown when they do not — a comment cannot state a requirement of itself (the
+    step 15 rulings). The checker still reads the relation, value, polarity and mode;
+    only the subject a model could never extract is supplied by construction.
+    """
     try:
         entries = array_field(filled, "propositions")
         others = [
@@ -148,10 +157,12 @@ def parse_extraction(filled: JsonObject, namespace: Namespace) -> Extraction:
     except ValueError as problem:
         raise ExtractionMalformed(f"the tool input: {problem}") from None
     known = {(form.kind, form.id) for form in namespace.forms}
-    return Extraction(tuple(_proposition(entry, known) for entry in entries), tuple(others))
+    return Extraction(
+        tuple(_proposition(entry, known, target) for entry in entries), tuple(others)
+    )
 
 
-def _proposition(entry: object, known: set[tuple[str, str]]) -> Proposition:
+def _proposition(entry: object, known: set[tuple[str, str]], target: EntityRef) -> Proposition:
     try:
         item = as_object(entry, "a proposition")
         fields = {
@@ -166,7 +177,9 @@ def _proposition(entry: object, known: set[tuple[str, str]]) -> Proposition:
         raise ExtractionMalformed(f"a proposition: {problem}") from None
     row = predicate(name)
     subject: EntityRef | None = None
-    if subject_id != UNKNOWN_SUBJECT and (row.subject.value, subject_id) in known:
+    if row.subject in CARRIER_KINDS:
+        subject = target if target.kind is row.subject else None
+    elif subject_id != UNKNOWN_SUBJECT and (row.subject.value, subject_id) in known:
         subject = EntityRef(row.subject, subject_id)
     try:
         value = _value(fields["value"], row.value_spec)

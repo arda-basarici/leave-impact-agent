@@ -10,7 +10,7 @@ import pytest
 
 from leaveimpact.core import LeaveKind, LeaveStatus, Verdict
 from leaveimpact.core.entities import Leave
-from leaveimpact.core.ids import leave_id
+from leaveimpact.core.ids import leave_id, work_item_id
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     GENERATOR_VERSION,
@@ -126,3 +126,28 @@ def test_a_key_whose_required_sources_no_longer_hold_is_named_with_no_verdict_mo
     assert finding.expected == "[" + ", ".join(s.value for s in stale_key.required_sources) + "]"
     assert finding.actual == "[" + ", ".join(s.value for s in first.key.required_sources) + "]"
     assert finding.foreign == ()
+
+
+def test_a_foreign_undated_ticket_of_the_leaver_is_named_as_an_undeclared_impact(
+    world: WorldSpec,
+) -> None:
+    # Scenario 2 plants an open, undated ticket owned by scenario 1's leaver: no verdict moves,
+    # but the assembled world now grounds a responsibility scenario 1's key never declared.
+    first, second = world.scenarios[0], world.scenarios[1]
+    owned_ticket = first.owned.work_items[0].entity
+    assert owned_ticket.owner_id == first.investigated_leave.employee_id
+    foreign = replace(owned_ticket, id=work_item_id(999), due_on=None, comments=())
+    planted = Planted(foreign, first.spec.window.start)
+    tampered = replace(
+        second, owned=replace(second.owned, work_items=(*second.owned.work_items, planted))
+    )
+    scenarios = (first, tampered, *world.scenarios[2:])
+    facts = world_fact_base(world.org, WORLD_START, scenarios)
+    findings = [f for f in verify_world(facts, scenarios, world.org) if f.subject == "impacts"]
+    assert findings
+    finding = findings[0]
+    assert finding.scenario_id == first.key.scenario_id
+    assert finding.artifact_id == "ticket_999" and finding.expected == "not declared"
+    assert finding.actual == "a grounded responsibility impact of the leaver"
+    (culprit,) = finding.foreign
+    assert culprit.entity_id == "ticket_999" and culprit.owner == second.key.scenario_id

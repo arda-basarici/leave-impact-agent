@@ -74,7 +74,14 @@ from leaveimpact.world.construction import (
 )
 from leaveimpact.world.prose import FactRole
 from leaveimpact.world.truth_facts import truth_fact_base
-from tests.unit.prose_fixture import KAFKA, PYTHON, SkillInComment, pending_scenario
+from tests.unit.prose_fixture import (
+    KAFKA,
+    PYTHON,
+    ContactInNote,
+    SkillInComment,
+    StaleOwnerInRunbook,
+    pending_scenario,
+)
 
 ORG = generate_org(7, DEFAULT_PARAMS)
 WORLD_START = date(2026, 1, 1)
@@ -87,12 +94,14 @@ class OneTicket:
     """A leaver in a component owns a ticket due inside the leave; a fellow member is the candidate.
 
     ``lie`` authors the candidate the wrong way round; ``wrong_outcome`` declares uncovered
-    where the org has cover. Both exist so the invariants have something to catch.
+    where the org has cover; ``unowned`` gives the ticket to the candidate so the declared
+    impact has no ground. All exist so the invariants have something to catch.
     """
 
     lie: bool = False
     wrong_outcome: bool = False
     ghost: bool = False
+    unowned: bool = False
     name = ScenarioClassName.STRUCTURED_DEADLINE
     tier = Tier.STRUCTURED
     affordance = "a component with at least three members"
@@ -120,7 +129,7 @@ class OneTicket:
                 ticket = WorkItem(
                     id=frame.ids.work_item(),
                     title="Kafka upgrade",
-                    owner_id=leaver,
+                    owner_id=candidate if self.unowned else leaver,
                     status=WorkItemStatus.IN_PROGRESS,
                     component_id=component_id,
                     opened_on=frame.window.start,
@@ -286,6 +295,33 @@ class ResolvedDistractor:
 
 
 ONE_TICKET = OneTicket()
+
+
+class UndatedTicket:
+    """A modifier double that plants an open, undated ticket the leaver owns and declares
+    nothing — an obligation the key does not know about."""
+
+    name = ModifierName.ALREADY_RESOLVED
+    affordance = "a ticket the leaver owns"
+
+    def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
+        def amend(draft: Draft, frame: Frame, rng: Random) -> tuple[Draft, ModifierEffect]:
+            owned_ticket = draft.owned.work_items[0].entity
+            undated = WorkItem(
+                id=frame.ids.work_item(),
+                title="Ledger cleanup",
+                owner_id=owned_ticket.owner_id,
+                status=WorkItemStatus.IN_PROGRESS,
+                component_id=owned_ticket.component_id,
+                opened_on=frame.window.start,
+                resolved_on=None,
+                due_on=None,
+                comments=(),
+            )
+            planted = OwnedEntities(work_items=(Planted(undated, frame.window.start),))
+            return draft.extended(owned=planted), ModifierEffect()
+
+        return (amend,) if draft.owned.work_items else ()
 
 
 def _construct(
@@ -474,3 +510,40 @@ def test_a_template_written_clause_carries_its_fact_with_no_brief() -> None:
     assert policy.entity.sections[0].text == "A release needs a Kafka engineer."
     skill_facts = [f for f in scenario.authored_facts if f.predicate is PredicateName.HAS_SKILL]
     assert [b.id for b in scenario.briefs] == [f.evidence.target.id for f in skill_facts]
+
+
+# --- Grounding: the truth entails the declared impacts, and nothing more --------------------
+
+
+def test_a_declared_impact_the_truth_does_not_ground_fails_construction_by_name() -> None:
+    with pytest.raises(ScenarioInvariantFailed, match="declared deadline impact is not the leaver"):
+        _construct(OneTicket(unowned=True))
+
+
+def test_an_obligation_of_the_leaver_the_key_does_not_declare_fails_construction_by_name() -> None:
+    undeclared = "grounds a responsibility impact of the leaver that the key does not declare"
+    with pytest.raises(ScenarioInvariantFailed, match=undeclared):
+        _construct(modifiers=[UndatedTicket()])
+
+
+def test_a_documented_responsibility_is_answer_changing_through_its_grounding() -> None:
+    """The section's fact moves no verdict and no outcome; removing it ungrounds the impact."""
+    scenario = pending_scenario(ContactInNote())
+    [brief] = scenario.briefs
+    [required] = brief.required
+    assert required.fact.predicate is PredicateName.NAMES_RESPONSIBLE
+    assert required.role is FactRole.ANSWER_CHANGING
+    assert brief.register is Register.CLIENT_NOTE
+    assert "clause" not in {form.kind for form in brief.namespace.forms}
+    assert Source.CORPUS in scenario.key.required_sources
+
+
+def test_a_stale_owner_in_a_runbook_is_answer_changing_through_the_conflict() -> None:
+    """The runbook's fact moves no verdict and no outcome; removing it removes the conflict."""
+    scenario = pending_scenario(StaleOwnerInRunbook())
+    [brief] = scenario.briefs
+    [required] = brief.required
+    assert required.fact.predicate is PredicateName.OWNS_WORK_ITEM
+    assert required.role is FactRole.ANSWER_CHANGING
+    assert brief.register is Register.RUNBOOK
+    assert Source.CORPUS in scenario.key.required_sources

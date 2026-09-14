@@ -63,7 +63,7 @@ from leaveimpact.generator.prose.render import (
 from leaveimpact.generator.prose.schema import Extraction, ExtractionMalformed, parse_extraction
 from leaveimpact.world.artifacts import digest
 from leaveimpact.world.assembly import SemanticWorld
-from leaveimpact.world.briefs import Brief, lexicon_of
+from leaveimpact.world.briefs import Brief, lexicon_of, target_ref
 from leaveimpact.world.prose import (
     GuardName,
     Lexicon,
@@ -295,7 +295,7 @@ def _check(loop: _Loop, brief: Brief, body: str) -> Extraction:
     for attempt in range(CALL_RETRIES + 1):
         try:
             call: ToolCall = loop.checker.extract(request)
-            extraction = parse_extraction(call.input, brief.namespace)
+            extraction = parse_extraction(call.input, brief.namespace, target_ref(brief.target))
         except (ModelAccessRefused, ModelMisconfigured) as fault:
             loop.metrics.checker_unusable += 1
             loop.log(f"{brief.id}: checker unusable ({type(fault).__name__})")

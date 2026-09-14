@@ -64,7 +64,8 @@ from random import Random
 
 from leaveimpact.core.claims import Verdict
 from leaveimpact.core.enums import EntityKind, Source
-from leaveimpact.core.facts import Fact, FactBase, RunCondition
+from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
+from leaveimpact.core.grounding import Grounded, derive_impacts, ground_impact
 from leaveimpact.core.ids import EmployeeId, ScenarioId
 from leaveimpact.core.plans import expected_action
 from leaveimpact.core.viability import assess_impact
@@ -74,6 +75,7 @@ from leaveimpact.world.construction import (
     ConstructionError,
     Minting,
     construct,
+    grounding_text,
     required_count_for,
     required_sources_for,
 )
@@ -334,8 +336,10 @@ def _check_day(
     org: OrgSpec,
     owner_of: dict[str, tuple[ScenarioId, date]],
 ) -> list[Contamination]:
-    """The key's three checks against ``base`` as seen on ``day``: verdicts, outcome, sources."""
+    """The key's checks against ``base`` as seen on ``day``: each impact grounded and no other
+    grounded for the leaver, verdicts, outcome, sources."""
     leave = scenario.investigated_leave.span
+    leaver = scenario.investigated_leave.employee_id
     timezone = scenario.spec.reference_timezone
     view = base.at(day, RunCondition.all_reachable())
     findings: list[Contamination] = []
@@ -378,6 +382,7 @@ def _check_day(
                     _foreign(evidence, scenario, owner_of),
                 )
             )
+    findings.extend(_grounding_findings(view_name, view, day, scenario, leaver, owner_of))
     required = required_sources_for(
         base,
         day,
@@ -387,6 +392,7 @@ def _check_day(
         timezone,
         org,
         scenario.spec.leave_id,
+        leaver,
     )
     if required != set(scenario.key.required_sources):
         findings.append(
@@ -399,6 +405,57 @@ def _check_day(
                 _sources_text(scenario.key.required_sources),
                 _sources_text(required),
                 _foreign(evidence_today, scenario, owner_of),
+            )
+        )
+    return findings
+
+
+def _grounding_findings(
+    view_name: str,
+    view: FactView,
+    day: date,
+    scenario: Scenario,
+    leaver: EmployeeId,
+    owner_of: dict[str, tuple[ScenarioId, date]],
+) -> list[Contamination]:
+    """A declared impact the assembled world no longer grounds, or an obligation of the leaver a
+    foreign record created — an undated open ticket from another slice, say."""
+    leave = scenario.investigated_leave.span
+    timezone = scenario.spec.reference_timezone
+    findings: list[Contamination] = []
+    declared = {expected.key for expected in scenario.key.impacts}
+    for key in declared:
+        grounding = ground_impact(view, key, leaver, leave, timezone)
+        if isinstance(grounding, Grounded):
+            continue
+        findings.append(
+            Contamination(
+                scenario.key.scenario_id,
+                view_name,
+                day,
+                key.artifact.id,
+                "grounding",
+                "grounded",
+                grounding_text(grounding),
+                (),
+            )
+        )
+    derived = derive_impacts(view, scenario.spec.leave_id, leaver, leave, timezone)
+    for key in derived.grounded:
+        if key in declared:
+            continue
+        grounding = ground_impact(view, key, leaver, leave, timezone)
+        assert isinstance(grounding, Grounded)
+        findings.append(
+            Contamination(
+                scenario.key.scenario_id,
+                view_name,
+                day,
+                key.artifact.id,
+                "impacts",
+                "not declared",
+                f"a grounded {key.subtype.value} impact of the leaver",
+                _foreign(grounding.facts, scenario, owner_of),
             )
         )
     return findings

@@ -361,6 +361,12 @@ def _subject_and_skill(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
     return ((lexicon.form_of(fact.subject).form,), (lexicon.skill(SkillId(fact.value)).form,))
 
 
+def _named_entity(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
+    """A fact whose subject is the carrier itself: the named entity is the only anchor."""
+    assert isinstance(fact.value, EntityRef)
+    return ((lexicon.form_of(fact.value).form,),)
+
+
 def _requirement(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
     """A clause's requirement: its count in either spelling and every criterion's form."""
     assert isinstance(fact.value, Requirement)
@@ -381,6 +387,7 @@ _ANCHOR_ROWS: Mapping[PredicateName, Callable[[Fact, Lexicon], tuple[Anchor, ...
     PredicateName.MEMBER_OF_COMPONENT: _subject_and_entity,
     PredicateName.OWNS_WORK_ITEM: _subject_and_entity,
     PredicateName.REQUIRES: _requirement,
+    PredicateName.NAMES_RESPONSIBLE: _named_entity,
 }
 
 PROSE_CAPABLE: frozenset[PredicateName] = frozenset(_ANCHOR_ROWS)

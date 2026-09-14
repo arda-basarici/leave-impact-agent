@@ -7,7 +7,7 @@ the checker's protocol failure."""
 
 import pytest
 
-from leaveimpact.core import PredicateName, Requirement
+from leaveimpact.core import EntityRef, PredicateName, Requirement, clause_ref
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.predicates import ROWS
 from leaveimpact.generator.prose import (
@@ -19,10 +19,11 @@ from leaveimpact.generator.prose import (
     tool_schema,
     writer_request,
 )
-from leaveimpact.world import Brief, CommentTarget, Register, lexicon_of
-from leaveimpact.world.prose import AssertionMode, Polarity
+from leaveimpact.world import Brief, CommentTarget, Register, SectionTarget, lexicon_of
+from leaveimpact.world.briefs import target_ref
+from leaveimpact.world.prose import AssertionMode, Polarity, statement_of
 from leaveimpact.world.version import PROMPT_DIGESTS
-from tests.unit.prose_fixture import KAFKA, ORG, SkillInComment, pending_scenario
+from tests.unit.prose_fixture import KAFKA, ORG, ContactInNote, SkillInComment, pending_scenario
 
 ASSETS = load_prompt_assets()
 
@@ -115,7 +116,7 @@ def test_a_filled_tool_parses_into_propositions_with_unlisted_subjects_unknown(
         ],
         "other_claims": ["the release needs sign-off from legal"],
     }
-    extraction = parse_extraction(filled, brief.namespace)
+    extraction = parse_extraction(filled, brief.namespace, target_ref(brief.target))
     first, second, third = extraction.propositions
     assert first.subject is not None and first.subject.id == who
     assert first.statement is not None and first.predicate is PredicateName.HAS_SKILL
@@ -138,7 +139,7 @@ def test_a_requirement_value_parses_through_the_same_spec_a_fact_uses(brief: Bri
         ],
         "other_claims": [],
     }
-    [read] = parse_extraction(filled, brief.namespace).propositions
+    [read] = parse_extraction(filled, brief.namespace, target_ref(brief.target)).propositions
     assert read.predicate is PredicateName.REQUIRES
     assert isinstance(read.value, Requirement) and read.value.count == 2
 
@@ -170,4 +171,34 @@ def test_a_malformed_entry_is_the_checkers_protocol_failure(brief: Brief) -> Non
     ]
     for broken, reason in cases:
         with pytest.raises(ExtractionMalformed, match=reason):
-            parse_extraction(broken, brief.namespace)
+            parse_extraction(broken, brief.namespace, target_ref(brief.target))
+
+
+def test_a_carrier_subject_proposition_is_bound_to_the_target_by_construction() -> None:
+    """The section names the leaver: the model cannot name the section it is reading, so the
+    parser binds the subject to the target; read from a comment, the kinds disagree and the
+    subject stays unknown."""
+    [section_brief] = pending_scenario(ContactInNote()).briefs
+    assert isinstance(section_brief.target, SectionTarget)
+    leaver = section_brief.required[0].fact.value
+    assert isinstance(leaver, EntityRef)
+    filled: JsonObject = {
+        "propositions": [
+            {
+                "subject": "unknown",
+                "predicate": "names_responsible",
+                "value": leaver.id,
+                "polarity": "affirmed",
+                "mode": "asserted",
+            }
+        ],
+        "other_claims": [],
+    }
+    section = target_ref(section_brief.target)
+    [read] = parse_extraction(filled, section_brief.namespace, section).propositions
+    assert read.subject == clause_ref(section_brief.target.id)
+    assert read.statement in {statement_of(f) for f in section_brief.required_facts}
+    [comment_brief] = pending_scenario(SkillInComment()).briefs
+    comment = target_ref(comment_brief.target)
+    [misread] = parse_extraction(filled, comment_brief.namespace, comment).propositions
+    assert misread.subject is None

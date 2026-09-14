@@ -130,6 +130,9 @@ def describe_fact(fact: Fact, lexicon: Lexicon) -> str:
         case PredicateName.REQUIRES:
             assert isinstance(value, Requirement)
             return f"the activity requires {_requirement(value, lexicon)}"
+        case PredicateName.NAMES_RESPONSIBLE:
+            assert isinstance(value, EntityRef)
+            return f"{_name(value, lexicon)} is the responsible contact this text names"
         case PredicateName.MEMBER_OF_TEAM:
             assert isinstance(value, EntityRef)
             return f"{subject} is on the {_name(value, lexicon)} team"

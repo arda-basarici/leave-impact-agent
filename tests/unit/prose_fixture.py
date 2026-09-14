@@ -42,8 +42,9 @@ from leaveimpact.core import (
     comment_ref,
     employee_ref,
     event_ref,
+    work_item_ref,
 )
-from leaveimpact.core.ids import comment_id, scenario_id, skill_id
+from leaveimpact.core.ids import ComponentId, EmployeeId, comment_id, scenario_id, skill_id
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     GENERATOR_VERSION,
@@ -63,6 +64,7 @@ from leaveimpact.world import (
     Planted,
     Scenario,
     ScenarioClassName,
+    SectionTarget,
     SemanticWorld,
     Setting,
     TargetRecord,
@@ -168,7 +170,146 @@ class SkillInComment:
         return (plant,)
 
 
-def pending_scenario(scenario_class: SkillInComment | None = None) -> Scenario:
+
+
+@dataclass(frozen=True)
+class ContactInNote:
+    """The responsibility class's shape: a client note's model-written section names the leaver
+    as a client's contact, the section itself is the impact's artifact, and with no clause
+    applying to it every other employee could cover it. The one prose fact is the impact's
+    ground, which only the grounding conclusion can see."""
+
+    name = ScenarioClassName.FREE_TEXT_RESPONSIBILITY
+    tier = Tier.FRAGMENTED
+    affordance = "two employees"
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        if len(org.employees) < 2:
+            return ()
+        leaver, candidate = org.employees[0], org.employees[1]
+
+        def plant(frame: Frame, rng: Random) -> Draft:
+            visible = frame.window.start
+            leave = Leave(
+                frame.ids.leave(),
+                leaver.id,
+                frame.leave.start,
+                frame.leave.end,
+                LeaveKind.ANNUAL,
+                LeaveStatus.APPROVED,
+            )
+            clause = frame.ids.clause()
+            note = Document(
+                frame.ids.document(), "Acme account notes", DocumentKind.CLIENT_NOTE, visible, ()
+            )
+            names = Fact(
+                clause_ref(clause),
+                PredicateName.NAMES_RESPONSIBLE,
+                employee_ref(leaver.id),
+                EvidenceRef(Source.CORPUS, clause_ref(clause)),
+                visible,
+            )
+            impact = ImpactKey(leave.id, ImpactSubtype.RESPONSIBILITY, clause_ref(clause))
+            owned = OwnedEntities(
+                leaves=(Planted(leave, visible),), documents=(Planted(note, visible),)
+            )
+            expected = ExpectedImpact(
+                impact, CoverageActionKind.ASSIGN, (AuthoredVerdict(candidate.id, Verdict.VIABLE),)
+            )
+            return Draft(
+                owned,
+                leave.id,
+                (expected,),
+                authored_facts=(names,),
+                pending=(PendingProse(SectionTarget(clause, note.id, 0), (names,)),),
+            )
+
+        return (plant,)
+
+
+@dataclass(frozen=True)
+class StaleOwnerInRunbook:
+    """The conflict class's shape: the tracker gives the leaver a ticket due inside the leave, and a
+    runbook's model-written section names the previous owner. The prose fact moves no verdict
+    and no outcome; only the conflict conclusion sees it."""
+
+    name = ScenarioClassName.STALE_SOURCE_CONFLICT
+    tier = Tier.ADVERSARIAL
+    affordance = "a component with three members"
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        for component in org.components:
+            if len(component.member_ids) < 3:
+                continue
+            leaver, candidate, previous = component.member_ids[:3]
+
+            def plant(
+                frame: Frame,
+                rng: Random,
+                component_id: ComponentId = component.id,
+                leaver: EmployeeId = leaver,
+                candidate: EmployeeId = candidate,
+                previous: EmployeeId = previous,
+            ) -> Draft:
+                visible = frame.window.start
+                leave = Leave(
+                    frame.ids.leave(),
+                    leaver,
+                    frame.leave.start,
+                    frame.leave.end,
+                    LeaveKind.ANNUAL,
+                    LeaveStatus.APPROVED,
+                )
+                ticket = WorkItem(
+                    id=frame.ids.work_item(),
+                    title="Ledger migration",
+                    owner_id=leaver,
+                    status=WorkItemStatus.IN_PROGRESS,
+                    component_id=component_id,
+                    opened_on=visible,
+                    resolved_on=None,
+                    due_on=frame.leave.start + timedelta(days=1),
+                    comments=(),
+                )
+                clause = frame.ids.clause()
+                runbook = Document(
+                    frame.ids.document(),
+                    "Ledger migration runbook",
+                    DocumentKind.RUNBOOK,
+                    visible,
+                    (),
+                )
+                stale = Fact(
+                    work_item_ref(ticket.id),
+                    PredicateName.OWNS_WORK_ITEM,
+                    employee_ref(previous),
+                    EvidenceRef(Source.CORPUS, clause_ref(clause)),
+                    visible,
+                )
+                impact = ImpactKey(leave.id, ImpactSubtype.DEADLINE, work_item_ref(ticket.id))
+                owned = OwnedEntities(
+                    leaves=(Planted(leave, visible),),
+                    work_items=(Planted(ticket, visible),),
+                    documents=(Planted(runbook, visible),),
+                )
+                expected = ExpectedImpact(
+                    impact, CoverageActionKind.ASSIGN, (AuthoredVerdict(candidate, Verdict.VIABLE),)
+                )
+                return Draft(
+                    owned,
+                    leave.id,
+                    (expected,),
+                    authored_facts=(stale,),
+                    pending=(PendingProse(SectionTarget(clause, runbook.id, 0), (stale,)),),
+                )
+
+            return (plant,)
+        return ()
+
+
+def pending_scenario(
+    scenario_class: SkillInComment | ContactInNote | StaleOwnerInRunbook | None = None,
+) -> Scenario:
     """One scenario of ``scenario_class`` under the shared organization, deterministic."""
     return construct(
         scenario_class or SkillInComment(),

@@ -33,7 +33,6 @@ from typing import cast
 from leaveimpact.core.entities import Component, Employee, Team
 from leaveimpact.core.enums import EmploymentType, Grade
 from leaveimpact.core.ids import (
-    EmployeeId,
     SkillId,
     TeamId,
     component_id,
@@ -64,7 +63,7 @@ from leaveimpact.world.zones import gap_holds_all_year
 # The three skills every organization sets aside before the popularity draw: one nobody
 # holds, one exactly one person holds, one held by at least a third of the people who
 # have a skills record. Which skill plays which part is the seed's to decide.
-_ANCHOR_SKILLS = 3
+_ANCHOR_SKILLS = 4
 _BROAD_HOLDER_SHARE = 1 / 3
 
 # A component is a handful of people, enough to cross two teams and still be a group a
@@ -170,7 +169,7 @@ class OrgParams:
         if not 1 <= low <= high <= len(SKILLS) - _ANCHOR_SKILLS:
             raise ValueError(
                 "skills_per_person must satisfy 1 <= low <= high <= "
-                f"{len(SKILLS) - _ANCHOR_SKILLS} (the vocabulary minus the three anchors), "
+                f"{len(SKILLS) - _ANCHOR_SKILLS} (the vocabulary minus the four anchors), "
                 f"got {self.skills_per_person}"
             )
         shares = (("contractor_share", self.contractor_share), ("remote_share", self.remote_share))
@@ -297,9 +296,11 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     contractors, and at least one contractor exists when the share is above zero; a
     person's location, country and timezone belong to one city, and at least one person
     sits ``timezone_gap_hours`` or more from the reference zone all year; names unique; exactly
-    ``blank_skill_records`` people with ``skills`` absent; among the vocabulary at least
-    one skill with no holder, one with exactly one, one held by at least a third of the
-    people with a record; every component's members drawn from at least two teams.
+    ``blank_skill_records`` people with ``skills`` absent, none of them a contractor; among
+    the vocabulary at least one skill with no holder, one with exactly one, one held by
+    at least a third of the people with a record, one held by exactly two employees and
+    by a contractor when one exists; every component's members drawn from at least two
+    teams, the first component holding a blank-record member and the second none.
 
     >>> generate_org(7, DEFAULT_PARAMS) == generate_org(7, DEFAULT_PARAMS)
     True
@@ -313,8 +314,8 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     root_seat = lead_seat_by_team[0]
     names = _names(rng, params.org_size)
     cities = _cities(rng, seats, params)
-    skills = _skills(rng, params)
     contractors = _contractors(rng, seats, params)
+    skills = _skills(rng, params, contractors)
 
     employees: list[Employee] = []
     for index, seat in enumerate(seats):
@@ -389,13 +390,20 @@ def _contractors(rng: Random, seats: list[_Seat], params: OrgParams) -> set[int]
     A contractor-scoped policy clause can only become relevant in a world that has a
     contractor, and a share of fifteen percent over twenty-odd people leaves that to
     chance — the same reasoning as the skill anchors. A share of zero means none, and
-    then nothing is guaranteed: the parameter stays honest.
+    then nothing is guaranteed: the parameter stays honest. The draw is capped so that
+    the blank records and two employees with a record still fit among the employee
+    seats, which the paired skill needs; the guaranteed contractor is never the one
+    dropped.
     """
     candidates = [index for index, seat in enumerate(seats) if not seat.lead]
     if params.contractor_share == 0.0:
         return set()
     contractors = {index for index in candidates if rng.random() < params.contractor_share}
-    contractors.add(rng.choice(candidates))
+    guaranteed = rng.choice(candidates)
+    contractors.add(guaranteed)
+    room = params.org_size - params.blank_skill_records - 2
+    while len(contractors) > room:
+        contractors.remove(rng.choice(sorted(contractors - {guaranteed})))
     return contractors
 
 
@@ -429,22 +437,31 @@ def _cities(rng: Random, seats: list[_Seat], params: OrgParams) -> list[City]:
     return cities
 
 
-def _skills(rng: Random, params: OrgParams) -> list[tuple[SkillId, ...] | None]:
+def _skills(
+    rng: Random, params: OrgParams, contractors: set[int]
+) -> list[tuple[SkillId, ...] | None]:
     """A skills record per seat: ``None`` for the blank records, a sorted tuple for the rest.
 
-    The vocabulary is shuffled into a seed-specific popularity order; the first three
-    entries become the anchors (unheld, singleton, broad) and the remainder the pool the
-    popularity draw runs over, with a rank-based weight so a few skills are common and
-    the tail is rare — the shape that makes one candidate obvious and another a search.
+    The vocabulary is shuffled into a seed-specific popularity order; the first four
+    entries become the anchors (unheld, singleton, broad, paired) and the remainder the
+    pool the popularity draw runs over, with a rank-based weight so a few skills are
+    common and the tail is rare — the shape that makes one candidate obvious and another
+    a search. The paired skill is held by exactly two employees and by a contractor (the
+    cardinality class of the step 15 rulings: two viable, one failing the employment
+    rule, the count visibly load-bearing), so blank records are drawn from the employee
+    seats and a contractor always carries a record — a contractor is hired for a named
+    skill, and the guarantee needs one to hold it.
     """
     order = rng.sample([skill.id for skill in SKILLS], len(SKILLS))
-    unheld, singleton, broad = order[:_ANCHOR_SKILLS]
+    unheld, singleton, broad, paired = order[:_ANCHOR_SKILLS]
     pool = order[_ANCHOR_SKILLS:]
     weights = [1.0 / (rank + 1) for rank in range(len(pool))]
     del unheld  # set aside on purpose: it is in the vocabulary and on nobody's record
 
-    blank = set(rng.sample(range(params.org_size), params.blank_skill_records))
+    employee_seats = [index for index in range(params.org_size) if index not in contractors]
+    blank = set(rng.sample(employee_seats, params.blank_skill_records))
     skilled = [index for index in range(params.org_size) if index not in blank]
+    skilled_employees = [index for index in employee_seats if index not in blank]
     low, high = params.skills_per_person
     drawn = {
         index: _weighted_sample(rng, pool, weights, rng.randint(low, high)) for index in skilled
@@ -452,6 +469,10 @@ def _skills(rng: Random, params: OrgParams) -> list[tuple[SkillId, ...] | None]:
     for index in rng.sample(skilled, math.ceil(len(skilled) * _BROAD_HOLDER_SHARE)):
         drawn[index].append(broad)
     drawn[rng.choice(skilled)].append(singleton)
+    for index in rng.sample(skilled_employees, 2):
+        drawn[index].append(paired)
+    if contractors:
+        drawn[rng.choice(sorted(contractors))].append(paired)
     return [
         None if index in blank else tuple(sorted(drawn[index])) for index in range(params.org_size)
     ]
@@ -460,21 +481,50 @@ def _skills(rng: Random, params: OrgParams) -> list[tuple[SkillId, ...] | None]:
 def _components(
     rng: Random, params: OrgParams, teams: tuple[Team, ...], employees: tuple[Employee, ...]
 ) -> tuple[Component, ...]:
-    """Components anchored on two people from two different teams, then filled from anyone."""
+    """Components anchored on two people from two different teams, then filled from anyone —
+    except that the first component holds a blank-record member and the second holds none.
+
+    The missing-information and uncovered classes differ in exactly that placement (the
+    step 15 rulings): a blank-record member inside the impact's component is an unknown
+    candidate, none inside makes the world complete about everyone. Both are guaranteed
+    the way the contractor is, since a component is filled from anyone and the seed alone
+    would otherwise decide whether either class is plantable. With a single component
+    only the first guarantee can hold; with no blank records both hold trivially.
+    """
     by_team = {
         team.id: [employee for employee in employees if employee.team_id == team.id]
         for team in teams
     }
+    blank = [employee for employee in employees if employee.skills is None]
+    recorded = [employee for employee in employees if employee.skills is not None]
     names = rng.sample(COMPONENT_NAMES, params.component_count)
     components: list[Component] = []
     for number, name in enumerate(names, start=1):
-        first, second = rng.sample(teams, 2)
-        anchors = [rng.choice(by_team[first.id]), rng.choice(by_team[second.id])]
         size = rng.randint(*_COMPONENT_MEMBERS)
-        rest = [employee for employee in employees if employee not in anchors]
-        members: list[EmployeeId] = [e.id for e in anchors + rng.sample(rest, size - 2)]
+        if number == 2 and blank:
+            # Anchors from teams that have a recorded member, fill from recorded people only.
+            eligible = [
+                team for team in teams if any(e.skills is not None for e in by_team[team.id])
+            ]
+            first, second = rng.sample(eligible, 2)
+            anchors = [
+                rng.choice([e for e in by_team[first.id] if e.skills is not None]),
+                rng.choice([e for e in by_team[second.id] if e.skills is not None]),
+            ]
+            rest = [employee for employee in recorded if employee not in anchors]
+            members = anchors + rng.sample(rest, size - 2)
+        else:
+            first, second = rng.sample(teams, 2)
+            anchors = [rng.choice(by_team[first.id]), rng.choice(by_team[second.id])]
+            rest = [employee for employee in employees if employee not in anchors]
+            members = anchors + rng.sample(rest, size - 2)
+            if number == 1 and blank and not any(e.skills is None for e in members):
+                # A blank-record person takes the last filler's seat.
+                members[-1] = rng.choice(blank)
         components.append(
-            Component(id=component_id(number), name=name, member_ids=tuple(sorted(members)))
+            Component(
+                id=component_id(number), name=name, member_ids=tuple(sorted(e.id for e in members))
+            )
         )
     return tuple(components)
 

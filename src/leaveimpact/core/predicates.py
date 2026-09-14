@@ -75,6 +75,7 @@ class PredicateName(StrEnum):
     ATTENDS_EVENT = "attends_event"
     SCHEDULED_AT = "scheduled_at"
     REQUIRES = "requires"
+    NAMES_RESPONSIBLE = "names_responsible"
 
 
 @dataclass(frozen=True, slots=True)
@@ -202,6 +203,16 @@ ROWS: tuple[Predicate, ...] = (
     # What a procedure requires is stated by its clause; the corpus is the record here
     # because the fact is normative, not a fact about a person or a ticket.
     _row(PredicateName.REQUIRES, EntityKind.CLAUSE, REQUIREMENT_VALUE, Source.CORPUS),
+    # A responsibility that exists only in a document: the section names the person, and
+    # the section is the impact's artifact as well as the fact's provenance (the step 15
+    # rulings). The corpus is the record and the sole evidence; a section may name two.
+    _row(
+        PredicateName.NAMES_RESPONSIBLE,
+        EntityKind.CLAUSE,
+        entity_value(EntityKind.EMPLOYEE),
+        Source.CORPUS,
+        multi_valued=True,
+    ),
 )
 """The rows in declaration order — the table as authored; ``REGISTRY`` is its index."""
 
