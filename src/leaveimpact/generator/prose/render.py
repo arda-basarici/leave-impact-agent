@@ -40,7 +40,7 @@ from leaveimpact.generator.prose.schema import (
     tool_schema,
     value_forms,
 )
-from leaveimpact.world.briefs import Brief, CommentTarget, Register
+from leaveimpact.world.briefs import Brief, CommentTarget, Register, SectionTarget
 from leaveimpact.world.prose import CARRIER_KINDS, Lexicon
 
 WRITER_INFERENCE = InferenceConfiguration(temperature=0.7, max_tokens=400)
@@ -91,8 +91,15 @@ def writer_request(brief: Brief, lexicon: Lexicon, assets: PromptAssets) -> Writ
 
 
 def checker_request(text: str, brief: Brief, assets: PromptAssets) -> CheckerRequest:
-    """The checker's request over ``text``: the entity list and the value forms, never the facts."""
-    lines = ["Entity list (id: display form, kind):"]
+    """The checker's request over ``text``: what the text is, the entity list and the value forms,
+    never the facts.
+
+    What the text is — a comment by a named person on a ticket, a section of a named
+    document — is the carrier's identity and not the brief's facts: without it a first-person
+    comment has no subject the checker can name (the first measurement world, 2026-09-14).
+    """
+    lines = [_carrier_line(brief), ""]
+    lines.append("Entity list (id: display form, kind):")
     lines.extend(
         f"- {form.id}: {form.form} ({form.kind.replace('_', ' ')})"
         for form in brief.namespace.forms
@@ -111,6 +118,21 @@ def checker_request(text: str, brief: Brief, assets: PromptAssets) -> CheckerReq
         tool_schema(),
     )
     return CheckerRequest(assets.text(CHECKER_SYSTEM), "\n".join(lines), tool, CHECKER_INFERENCE)
+
+
+def _carrier_line(brief: Brief) -> str:
+    namespace = brief.namespace
+    match brief.target:
+        case CommentTarget(author_id=author_id, work_item_id=work_item_id):
+            author = namespace.form_of("employee", author_id)
+            ticket = namespace.form_of("work_item", work_item_id)
+            return (
+                f"The text is a comment written by {author} ({author_id}) on the ticket "
+                f'"{ticket}"; a first-person statement in it is about {author}.'
+            )
+        case SectionTarget(document_id=document_id):
+            title = namespace.form_of("document", document_id)
+            return f'The text is a section of the document "{title}".'
 
 
 def describe_fact(fact: Fact, lexicon: Lexicon) -> str:

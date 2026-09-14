@@ -74,6 +74,17 @@ def test_the_checker_sees_the_entity_list_and_value_forms_and_never_the_facts(br
     )
     assert "has experience with" not in request.message  # no fact phrase reaches the checker
     assert request.message.endswith("The text:\nSome text.")
+    assert isinstance(brief.target, CommentTarget)
+    author = brief.namespace.form_of("employee", brief.target.author_id)
+    assert request.message.startswith(
+        f"The text is a comment written by {author} ({brief.target.author_id}) on the ticket"
+    )
+    assert f"a first-person statement in it is about {author}." in request.message
+    [section_brief] = pending_scenario(ContactInNote()).briefs
+    sectioned = checker_request("Some text.", section_brief, ASSETS)
+    assert sectioned.message.startswith(
+        'The text is a section of the document "Acme account notes".'
+    )
     assert request.tool.name == TOOL_NAME
     assert request.inference.temperature == 0
 

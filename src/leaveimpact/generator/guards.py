@@ -27,7 +27,8 @@ nouns; that heuristic false-positives on sentence starts.
 
 The *required-fact check* is lexical: every anchor group of every required fact must appear,
 one of its spellings, case-insensitively at word boundaries. It proves no relation and exists
-so a fact that vanished in the writing fails before a checker is paid.
+so a fact that vanished in the writing fails before a checker is paid. A comment's author is
+its first person, so a fact about the author is anchored on its value alone.
 
 The *containment check* compares the checker's reading with the brief on canonical statements
 — subject, predicate, value; evidence and date ignored. The eligible set is the affirmed,
@@ -41,8 +42,9 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 
+from leaveimpact.core.refs import employee_ref
 from leaveimpact.generator.prose.schema import Extraction
-from leaveimpact.world.briefs import Brief
+from leaveimpact.world.briefs import Brief, CommentTarget
 from leaveimpact.world.prose import (
     AssertionMode,
     Lexicon,
@@ -107,8 +109,13 @@ def namespace_findings(
 def required_fact_findings(text: str, brief: Brief, lexicon: Lexicon) -> tuple[str, ...]:
     """Every anchor group of a required fact that no spelling of appears in ``text``."""
     findings: list[str] = []
+    speaker = (
+        employee_ref(brief.target.author_id)
+        if isinstance(brief.target, CommentTarget)
+        else None
+    )
     for required in brief.required:
-        for group in lexical_anchors(required.fact, lexicon):
+        for group in lexical_anchors(required.fact, lexicon, first_person=speaker):
             if not any(_word(spelling, re.IGNORECASE).search(text) for spelling in group):
                 findings.append(
                     f"{required.fact.predicate.value} of {required.fact.subject.id}: "

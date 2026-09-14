@@ -128,6 +128,17 @@ def test_a_text_that_dropped_an_anchor_is_refused_before_the_checker_is_paid(
     assert "has_skill" in finding and "Kafka" in finding
 
 
+def test_a_comments_author_is_its_first_person_and_never_an_anchor(
+    brief: Brief, lexicon: Lexicon
+) -> None:
+    """The first measurement world refused every attempt for the author's missing name: a
+    fact about the author is anchored on its value alone."""
+    spoken = "I've run Kafka in production for two years."
+    assert required_fact_findings(spoken, brief, lexicon) == ()
+    [finding] = required_fact_findings("I've run the streaming stack.", brief, lexicon)
+    assert "Kafka" in finding
+
+
 # --- The containment check ------------------------------------------------------------------
 
 

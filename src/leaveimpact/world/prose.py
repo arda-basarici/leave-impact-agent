@@ -326,12 +326,19 @@ EMPLOYMENT_FORMS: Mapping[EmploymentType, Anchor] = {
 }
 
 
-def lexical_anchors(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
+def lexical_anchors(
+    fact: Fact, lexicon: Lexicon, *, first_person: EntityRef | None = None
+) -> tuple[Anchor, ...]:
     """The anchors a text carrying ``fact`` must contain, one alternative group per named thing.
 
     Lexical only: presence proves no relation ("Deniz has never worked with Kafka" carries
     both anchors), which is the extraction check's job; absence proves the fact vanished
-    in the writing, which is worth catching before a checker is paid.
+    in the writing, which is worth catching before a checker is paid. ``first_person``
+    is the text's author when it has one — a comment's — and a fact about the author
+    drops the subject's group, since the author writes "I" and never their own name:
+    the first measurement world refused twelve of twelve attempts on exactly that anchor
+    (2026-09-14). The subject is the target's author by construction, the way a
+    carrier-subject fact's subject is the target itself.
 
     >>> from datetime import date
     >>> from leaveimpact.core.enums import Source
@@ -348,7 +355,10 @@ def lexical_anchors(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
     row = _ANCHOR_ROWS.get(fact.predicate)
     if row is None:
         raise ValueError(f"{fact.predicate.value} cannot be carried by prose: no anchor row")
-    return row(fact, lexicon)
+    anchors = row(fact, lexicon)
+    if first_person is not None and fact.subject == first_person:
+        return anchors[1:]
+    return anchors
 
 
 def _subject_and_entity(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
