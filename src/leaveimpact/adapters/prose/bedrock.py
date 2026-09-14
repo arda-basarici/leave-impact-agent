@@ -99,7 +99,7 @@ class BedrockWriter:
         text = "".join(_text_blocks(response))
         if not text.strip():
             raise ModelProtocolFault(self._model_id, "the answer carries no text")
-        return WrittenText(text, _usage(response))
+        return WrittenText(text, usage_of(response, self._model_id))
 
 
 class BedrockChecker:
@@ -137,7 +137,7 @@ class BedrockChecker:
         payload = call.get("input")
         if not isinstance(payload, dict):
             raise ModelProtocolFault(self._model_id, "the tool input is not a JSON object")
-        return ToolCall(cast(JsonObject, payload), _usage(response))
+        return ToolCall(cast(JsonObject, payload), usage_of(response, self._model_id))
 
 
 # --- The one translation --------------------------------------------------------------------
@@ -228,14 +228,29 @@ def _text_blocks(response: dict[str, Any]) -> list[str]:
     return [str(block["text"]) for block in blocks if isinstance(block.get("text"), str)]
 
 
-def _usage(response: dict[str, Any]) -> Usage:
+def usage_of(response: dict[str, Any], model_id: str) -> Usage:
+    """The call's usage from the response's own fields, each a non-negative integer or a fault.
+
+    A successful answer without them is malformed and not free: the API defines both
+    elements, and a zero invented here would enter the run's metrics as a measurement.
+    """
     usage = _object(response, "usage")
     metrics = _object(response, "metrics")
     return Usage(
-        int(usage.get("inputTokens", 0)),
-        int(usage.get("outputTokens", 0)),
-        int(metrics.get("latencyMs", 0)),
+        _count(usage, "usage.inputTokens", model_id),
+        _count(usage, "usage.outputTokens", model_id),
+        _count(metrics, "metrics.latencyMs", model_id),
     )
 
 
-__all__ = ["UNREACHABLE_CODES", "BedrockChecker", "BedrockWriter", "bedrock_client"]
+def _count(data: dict[str, Any], field: str, model_id: str) -> int:
+    value = data.get(field.split(".")[1])
+    # bool is an int in Python; a token count is neither a flag nor a fraction nor negative.
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ModelProtocolFault(
+            model_id, f"the answer's {field} is not a non-negative integer: {value!r}"
+        )
+    return value
+
+
+__all__ = ["UNREACHABLE_CODES", "BedrockChecker", "BedrockWriter", "bedrock_client", "usage_of"]

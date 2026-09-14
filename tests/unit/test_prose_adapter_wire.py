@@ -24,6 +24,7 @@ from leaveimpact.adapters.prose import (
     ToolSpec,
     WriterRequest,
 )
+from leaveimpact.adapters.prose.bedrock import usage_of
 from leaveimpact.world.prose import Setting
 
 WRITER_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -220,3 +221,25 @@ def test_a_request_is_not_blank_and_the_settings_are_bounded() -> None:
         InferenceConfiguration(1.5, 10)
     with pytest.raises(ValueError, match="max_tokens is at least one"):
         InferenceConfiguration(0.5, 0)
+
+
+def test_a_successful_answer_without_sound_usage_is_a_protocol_fault_not_a_zero() -> None:
+    # Staged directly: botocore's stub validates answers against the service model, where
+    # usage and metrics are required, but the SDK itself validates no answer at runtime.
+    sound = _answer([{"text": "ok"}], "end_turn")
+    unsound: list[tuple[dict[str, Any], str]] = [
+        ({**sound, "usage": {}}, "usage.inputTokens is not a non-negative integer: None"),
+        (
+            {**sound, "usage": {**USAGE, "outputTokens": "many"}},
+            "usage.outputTokens is not a non-negative integer: 'many'",
+        ),
+        (
+            {**sound, "metrics": {"latencyMs": True}},
+            "metrics.latencyMs is not a non-negative integer: True",
+        ),
+        ({k: v for k, v in sound.items() if k != "usage"}, "usage.inputTokens is not"),
+    ]
+    for answer, reason in unsound:
+        with pytest.raises(ModelProtocolFault, match=reason):
+            usage_of(answer, WRITER_MODEL)
+    assert usage_of(sound, WRITER_MODEL).latency_ms == 812

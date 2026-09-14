@@ -473,7 +473,10 @@ class MaterializationRecord:
 
     ``prompt_digests`` name each prompt asset and its digest, held in name order so equal
     provenance is equal in bytes; the rendered per-target request is digested on its
-    target's record instead, since it varies by design.
+    target's record instead, since it varies by design. ``targets`` are in the order the
+    materializer ran them, which is execution provenance and not a collection: the stage
+    runs targets sequentially, so the order is a fact of the run, and the realized
+    identity includes it on purpose.
     """
 
     writer: ModelConfiguration
