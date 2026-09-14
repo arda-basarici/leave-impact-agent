@@ -16,6 +16,7 @@ from __future__ import annotations
 import os
 import sys
 from collections.abc import Callable
+from typing import cast
 
 from leaveimpact.adapters.prose.seam import (
     CheckerRequest,
@@ -60,7 +61,8 @@ CHECKER_PROBE = CheckerRequest(
 
 
 def probe(writer: ProseWriter, checker: ProseChecker, out: Callable[[str], None]) -> bool:
-    """One call per model, reported as lines of ``name=value``; ``True`` when both answered."""
+    """One call per model, reported as lines of ``name=value``; ``True`` when both answered
+    and the checker filled the tool as its schema asks, since that is what the probe is for."""
     ok = True
     out(f"writer_model={writer.model_id}")
     try:
@@ -84,7 +86,12 @@ def probe(writer: ProseWriter, checker: ProseChecker, out: Callable[[str], None]
         out(f"checker_latency_ms={call.usage.latency_ms}")
         out(f"checker_input_tokens={call.usage.input_tokens}")
         out(f"checker_output_tokens={call.usage.output_tokens}")
-        out(f"checker_tool_filled={'words' in call.input}")
+        words = call.input.get("words")
+        filled = isinstance(words, list) and all(
+            isinstance(word, str) for word in cast(list[object], words)
+        )
+        out(f"checker_tool_filled={filled}")
+        ok = ok and filled
     return ok
 
 

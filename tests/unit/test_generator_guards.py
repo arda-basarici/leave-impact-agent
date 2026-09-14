@@ -74,6 +74,17 @@ def test_another_world_name_is_refused_in_any_case_by_full_or_given_name(
     assert namespace_findings(f"{mine} here, Kafka is done.", brief, world_forms) == ()
 
 
+def test_an_allowed_short_form_cannot_erase_a_longer_foreign_form_it_sits_inside(
+    brief: Brief, world_forms: tuple[SurfaceForm, ...]
+) -> None:
+    given = author_of(brief).split()[0]
+    foreign = SurfaceForm("employee", "emp_999", f"{given} Kowalski")
+    text = f"thanks {given} Kowalski, Kafka is in."
+    [refused] = namespace_findings(text, brief, (*world_forms, foreign))
+    assert "names employee emp_999" in refused
+    assert namespace_findings(f"thanks {given}, Kafka is in.", brief, (*world_forms, foreign)) == ()
+
+
 def test_a_short_world_form_matches_only_in_exact_spelling(
     brief: Brief, world_forms: tuple[SurfaceForm, ...]
 ) -> None:

@@ -1118,7 +1118,10 @@ the whole-bundle identity through the normal function, which implies the codec
 round-trips, proven separately by a byte-equality test on the reference seed — and
 continues at the site preparation with the checkpoint. No prose is checkpointed: every
 model call precedes every external write, so a failed stage leaves nothing behind. The
-version is printed before the first side effect. A fresh run is a new materialization
+version is printed, flushed, before the first persistent world or vendor mutation (the
+wiring review, 2026-09-14: stdout is a pipe under the workflow, and a hard kill must not
+lose the resume handle in a block buffer; the paid model calls precede it and create no
+resumable state). A fresh run is a new materialization
 attempt not entitled to reuse the previous realization; landing on the same bytes, the
 immutable writes hit the equal case. Unfinished vendor state refuses a fresh run by
 name, as before. Four guards in order, the paid one last. A namespace scanner over the

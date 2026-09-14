@@ -3,8 +3,8 @@
 Before sealing a restart regenerates; after sealing it resumes the named realization,
 because model-written prose means reassembly from the seed no longer reproduces the bytes
 (the step 14 rulings in DESIGN, "Materialization"). The operator names the version — the
-job prints it before its first side effect for exactly this — and the code proves it two
-ways before a byte is touched:
+job prints it, flushed, before its first persistent mutation for exactly this — and the
+code proves it before a byte is touched:
 
 1. the sealed world spec is read from the truth bucket and strictly decoded, and its
    generator version must equal the running one, since a resume is not a migration;

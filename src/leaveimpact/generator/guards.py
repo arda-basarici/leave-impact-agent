@@ -7,9 +7,11 @@ length is what a log line and a refusal may carry and whose text stays private, 
 finding can quote what the text should not have said.
 
 The *namespace scanner* is deterministic and free. One pass over the world's surface forms,
-longest match first at word boundaries, records the spans of the forms the brief allows —
-case-insensitively, so "kafka" for Kafka costs no retry — and refuses every other world name
-found outside those spans, case-insensitively too, since a mention that makes no claim
+longest match first at word boundaries, matches allowed and foreign forms together in one
+longest-first pass, so the winner at any span is the longest form that fits there and an
+allowed short form cannot erase a longer foreign one it sits inside; an allowed form matches
+case-insensitively, so "kafka" for Kafka costs no retry, and every other world name is
+refused, case-insensitively too, since a mention that makes no claim
 ("thanks selin") is invisible to the extraction check and the scanner is the guard that must
 see it. The one exception is a form of three characters or fewer, matched in exact spelling:
 "go" is in most sentences and the skill Go would otherwise refuse them all, and a false
@@ -73,16 +75,19 @@ def namespace_findings(
     allowed_spellings = {form.form.casefold() for form in brief.namespace.forms}
     findings: list[str] = []
     masked = text
-    for form in _longest_first(brief.namespace.forms):
-        masked = _mask(masked, _word(form.form, re.IGNORECASE))
-    for form in _longest_first(world_forms):
-        if (form.kind, form.id) in allowed or form.form.casefold() in allowed_spellings:
-            continue
-        pattern = _word(form.form, _disallowed_flags(form.form))
+    # One global pass, longest form first, allowed and foreign together: the winning match
+    # at a span is the longest form that fits there, and allow or deny is decided on that
+    # winner. Two passes would let a short allowed form ("Deniz") erase the longer foreign
+    # one it sits inside ("Deniz Kowalski") before the foreign form could match.
+    for form in _longest_first(tuple(brief.namespace.forms) + tuple(world_forms)):
+        admitted = (form.kind, form.id) in allowed or form.form.casefold() in allowed_spellings
+        pattern = _word(form.form, re.IGNORECASE if admitted else _disallowed_flags(form.form))
         hits = len(pattern.findall(masked))
-        if hits:
+        if not hits:
+            continue
+        if not admitted:
             findings.append(f"names {form.kind} {form.id} outside the brief ({hits})")
-            masked = _mask(masked, pattern)
+        masked = _mask(masked, pattern)
     listed_dates = {day.isoformat() for day in brief.namespace.dates}
     for found in ISO_DATE.findall(masked):
         if found not in listed_dates:

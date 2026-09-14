@@ -47,7 +47,8 @@ new materialization attempt and not entitled to reuse the previous realization (
 rulings). The job has two paths and this function is the same in both::
 
     FRESH    assemble → verify the truth → materialize → compose → freeze bytes and version
-             → print the version → seal the truth → prepare and project with the checkpoint
+             → print the version, flushed → seal the truth → prepare and project with the
+             checkpoint
              → documents → scenario specs → read back → manifest
     RESUME   read the sealed world spec and truth manifest → gate the generator version
              → reassemble and match the semantic digest → decode the record, lift the bodies

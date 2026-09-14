@@ -27,8 +27,12 @@ class Writer:
 class Checker:
     model_id = "checker-model"
 
+    def __init__(self, filled: object = ["The", "Deniz"]) -> None:
+        self.filled = filled
+
     def extract(self, request: CheckerRequest) -> ToolCall:
-        return ToolCall({"words": ["The", "Deniz"]}, Usage(80, 12, 410))
+        payload: dict[str, object] = {} if self.filled is None else {"words": self.filled}
+        return ToolCall(payload, Usage(80, 12, 410))
 
 
 def test_both_models_answering_is_reported_by_numbers_and_never_by_text() -> None:
@@ -55,3 +59,10 @@ def test_a_faulting_model_is_reported_by_its_fault_and_fails_the_probe() -> None
     assert not probe(Writer(fail=True), Checker(), lines.append)
     assert "writer_outcome=ModelAccessRefused" in lines
     assert "checker_outcome=ok" in lines
+
+
+def test_a_checker_that_answers_without_filling_the_tool_fails_the_probe() -> None:
+    for unfilled in (None, "not a list", [1, 2]):
+        lines: list[str] = []
+        assert not probe(Writer(), Checker(filled=unfilled), lines.append)
+        assert "checker_outcome=ok" in lines and "checker_tool_filled=False" in lines

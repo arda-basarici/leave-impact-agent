@@ -4,10 +4,12 @@ The composition of the whole run, and nothing of its logic. FRESH: the configura
 boundary turns the command line and the environment into typed records; the pure assembly
 turns the recipe into the semantic world; the materializer writes every pending brief under
 the gates and its cap; composition places the accepted prose and fixes the bundle; the
-version is printed before the first side effect, so the operator of a crashed run has the
-value a resume needs; then the stores are opened, the production preparation is wired on
-the hosts, and the sealing sequence runs. RESUME (``--resume <version>``): the sealed
-realization is rebuilt and proven from the truth bucket instead of generated, and the same
+version is printed, flushed, before the first persistent world or vendor mutation — the
+model calls have happened by then, paid and creating no resumable state — so the operator
+of a crashed run has the value a resume needs; then the stores are opened, the production
+preparation is wired on the hosts, and the sealing sequence runs. RESUME (``--resume
+<version>``): the sealed realization is rebuilt and proven from the truth bucket instead of
+generated, and the same
 sealing sequence continues from wherever the checkpoint left it (the step 14 rulings in
 DESIGN, "Materialization").
 
@@ -65,7 +67,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         world, sealed = resume_world(recipe.resume, truth)
     else:
         world, sealed, prose_metrics = _fresh(recipe, models)
-    print(f"world_version={sealed.world_version}")
+    # Flushed: this line is the resume handle, and stdout is a pipe under the workflow, so
+    # a hard kill mid-sealing must not lose it in a block buffer.
+    print(f"world_version={sealed.world_version}", flush=True)
 
     timed = TimedObjectWriter(world_store)
     with AdapterPreparation(deployment.hosts, timed, world, sealed.world_version) as preparation:
