@@ -1,0 +1,116 @@
+
+=== construction 1: 'Northwind account notes' / contact Deniz Haddad
+    procedure clause: The contact named in the Northwind account notes needs Terraform experience.
+--- text (1399 ms):
+Deniz Haddad is the contact responsible for the Northwind account.
+--- checker raw tool input (767 ms):
+{
+  "other_claims": [],
+  "propositions": [
+    {
+      "subject": "unknown",
+      "predicate": "names_responsible",
+      "value": "emp_001",
+      "polarity": "affirmed",
+      "mode": "asserted"
+    }
+  ]
+}
+--- ACCEPTED
+
+=== construction 2: 'Contoso account notes' / contact Kerem Muller
+    procedure clause: The contact named in the Contoso account notes needs AWS experience.
+--- text (646 ms):
+Kerem Muller is the contact responsible for the Contoso account.
+--- checker raw tool input (764 ms):
+{
+  "other_claims": [],
+  "propositions": [
+    {
+      "subject": "unknown",
+      "predicate": "names_responsible",
+      "value": "emp_017",
+      "polarity": "affirmed",
+      "mode": "asserted"
+    }
+  ]
+}
+--- ACCEPTED
+
+=== construction 3: 'Fabrikam account notes' / contact Felix Sharma
+    procedure clause: The contact named in the Fabrikam account notes needs Python experience.
+--- text (594 ms):
+Felix Sharma is the contact responsible for the Fabrikam account.
+--- checker raw tool input (658 ms):
+{
+  "other_claims": [],
+  "propositions": [
+    {
+      "subject": "unknown",
+      "predicate": "names_responsible",
+      "value": "emp_007",
+      "polarity": "affirmed",
+      "mode": "asserted"
+    }
+  ]
+}
+--- ACCEPTED
+
+=== construction 4: 'Tailwind account notes' / contact Ravi Rossi
+    procedure clause: The contact named in the Tailwind account notes needs Elasticsearch experience.
+--- text (664 ms):
+Ravi Rossi is the contact responsible for the Tailwind account.
+--- checker raw tool input (726 ms):
+{
+  "other_claims": [],
+  "propositions": [
+    {
+      "subject": "unknown",
+      "predicate": "names_responsible",
+      "value": "emp_016",
+      "polarity": "affirmed",
+      "mode": "asserted"
+    }
+  ]
+}
+--- ACCEPTED
+
+=== construction 5: 'Lakeshore account notes' / contact Nadia Jansen
+    procedure clause: The contact named in the Lakeshore account notes needs Spark experience.
+--- text (605 ms):
+Nadia Jansen is the contact responsible for the Lakeshore account.
+--- checker raw tool input (701 ms):
+{
+  "other_claims": [],
+  "propositions": [
+    {
+      "subject": "unknown",
+      "predicate": "names_responsible",
+      "value": "emp_013",
+      "polarity": "affirmed",
+      "mode": "asserted"
+    }
+  ]
+}
+--- ACCEPTED
+
+=== construction 6: 'Bluecrest account notes' / contact Mert Kowalski
+    procedure clause: The contact named in the Bluecrest account notes needs Kafka experience.
+--- text (555 ms):
+Mert Kowalski is the contact responsible for the Bluecrest account.
+--- checker raw tool input (720 ms):
+{
+  "other_claims": [],
+  "propositions": [
+    {
+      "subject": "unknown",
+      "predicate": "names_responsible",
+      "value": "emp_015",
+      "polarity": "affirmed",
+      "mode": "asserted"
+    }
+  ]
+}
+--- ACCEPTED
+
+=== totals: {'writer_in': 3353, 'writer_out': 122, 'checker_in': 9005, 'checker_out': 384, 'passed': 6}
