@@ -27,7 +27,8 @@ from leaveimpact.core import (
 from leaveimpact.core.ids import comment_id, scenario_id
 from leaveimpact.core.claims import AssessmentReason
 from leaveimpact.world import (AuthoredVerdict, Draft, ExpectedImpact, Frame, Minting, OrgSpec,
-    OwnedEntities, PendingProse, Planted, ScenarioClassName, SectionTarget, Tier, construct)
+    OwnedEntities, PendingProse, Planted, ReleaseCardinalityConstraint, ScenarioClassName, SectionTarget,
+    Tier, construct)
 from leaveimpact.world.construction import required_sources_for
 from leaveimpact.world.truth_facts import truth_fact_base
 
@@ -105,3 +106,21 @@ print("required_sources:", required(r, (foreign_v,)))
 print("\n-- foreign Jira comment giving the NON-VIABLE candidate Kafka --")
 foreign_o = Fact(employee_ref(other_id), PredicateName.HAS_SKILL, KAFKA, EvidenceRef(Source.JIRA, comment_ref(comment_id(998))), visible)
 print("required_sources:", required(r, (foreign_o,)))
+
+print("\n== cardinality class (15.3): a release ticket, a two-person clause with skill and employment ==")
+c = build(ReleaseCardinalityConstraint())
+print("required_sources:", [s.value for s in c.key.required_sources])
+for i in c.key.impacts:
+    print("impact:", i.key.subtype.value, i.key.artifact.id, "outcome:", i.outcome.value)
+    for v in i.must_assess:
+        print("  ", v.employee_id, v.verdict.value, [x.value for x in v.reasons])
+skill = [crit.skill for f in c.authored_facts for crit in f.value.criteria if hasattr(crit, "skill")][0]
+holder = [v.employee_id for i in c.key.impacts for v in i.must_assess if v.verdict is Verdict.VIABLE][0]
+lacking = [v.employee_id for i in c.key.impacts for v in i.must_assess
+           if v.verdict is Verdict.NON_VIABLE and AssessmentReason.SKILL in v.reasons][0]
+print("-- foreign Jira comment restating a viable holder's skill --")
+print("required_sources:", required(c, (Fact(employee_ref(holder), PredicateName.HAS_SKILL, skill,
+      EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), WINDOW.start),)))
+print("-- foreign Jira comment giving the skill-failing candidate the skill (a verdict moves) --")
+print("required_sources:", required(c, (Fact(employee_ref(lacking), PredicateName.HAS_SKILL, skill,
+      EvidenceRef(Source.JIRA, comment_ref(comment_id(998))), WINDOW.start),)))

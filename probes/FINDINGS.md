@@ -868,6 +868,23 @@ over the tracker and the corpus is single-valued and the corpus is never promote
 a tracker outage. The conclusion and its re-arm conditions are DESIGN's (the 15.2
 interview's second ruling).
 
+**The cardinality class, probed at 15.3 (2026-09-15, the same two scripts).** The class
+plants a ticket, so the tracker is required by provenance as well as by the known-negative
+of the skill-failing candidate; the corpus by the policy, the HR record by the leave and the
+employment type. On the fixture organization (seed 7 under generator version 10):
+
+| construction | required sources | verdicts |
+|---|---|---|
+| the release, the two-person clause with skill and employment | corpus, frappe, jira | two viable, one non-viable by hard rule, one by skill |
+| the same + a foreign tracker comment restating a viable holder's skill | unchanged | unchanged |
+| the same + a foreign tracker comment giving the skill-failing candidate the skill | unchanged | the verdict moves |
+| the same + a foreign tracker ticket a viable holder owns, due in the leave | unchanged | unchanged |
+
+No silent drift: the one foreign fact that changes anything changes a verdict, and the
+required set never moves. The employment rule is out of any foreign fact's reach, since the
+predicate's evidence domain is the HR record alone, which is the reading the 15.2 argument
+predicted for a class whose clause adds a criterion without adding a source.
+
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
 The workstation probe the 15.2 rulings asked for before the class's first sealed world:

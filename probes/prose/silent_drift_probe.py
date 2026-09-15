@@ -23,7 +23,11 @@ from leaveimpact.core import (DateSpan, EvidenceRef, Fact, PredicateName, Source
     employee_ref, comment_ref, work_item_ref)
 from leaveimpact.core.ids import comment_id, work_item_id
 from leaveimpact.core.facts import RunCondition
-from leaveimpact.world import OwnedEntities, Planted
+from leaveimpact.world import Minting, OwnedEntities, Planted, ReleaseCardinalityConstraint, construct
+from leaveimpact.core.ids import scenario_id
+from leaveimpact.core import Verdict
+from random import Random
+from prose_fixture import WINDOW
 from leaveimpact.world.construction import required_sources_for, _conclusions
 from leaveimpact.world.truth_facts import truth_fact_base
 
@@ -48,3 +52,25 @@ for cls, name in [(SkillInComment(), "qualification (skill only in a Jira commen
     ticket = WorkItem(work_item_id(999), "Foreign ticket", cand, WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
     c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket, visible),)),))
     print(f"   + foreign Jira ticket owned by the candidate, due in the leave: conclusions same={c2==c0}, required {r2}")
+
+
+# The cardinality class (15.3): the failing candidate's skill is the fact a foreign tracker
+# comment can move, and moving it moves a verdict, so nothing here is silent by construction;
+# the holders' skills restated change nothing, and a foreign ticket on a holder is outside
+# the key's reading (a candidate's own workload is not a criterion).
+scn = construct(ReleaseCardinalityConstraint(), [], ORG, scenario_id=scenario_id(1), window=WINDOW,
+                world_start=WORLD_START, reference_timezone=TZ, ids=Minting(), rng=Random(1))
+skill = [c.skill for f in scn.authored_facts for c in f.value.criteria if hasattr(c, "skill")][0]
+[expected] = scn.key.impacts
+viable = [v.employee_id for v in expected.must_assess if v.verdict is Verdict.VIABLE]
+failing = [v.employee_id for v in expected.must_assess if v.verdict is Verdict.NON_VIABLE and "skill" in [r.value for r in v.reasons]][0]
+visible = scn.spec.window.start
+c0, r0 = study(scn, "base")
+print(f"== cardinality (ticket + two-person clause): required {r0}")
+for who, label in ((viable[0], "a viable holder"), (failing, "the skill-failing candidate")):
+    fj = Fact(employee_ref(who), PredicateName.HAS_SKILL, skill, EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), visible)
+    c1, r1 = study(scn, "x", (fj,))
+    print(f"   + foreign Jira comment, {label} has the skill: conclusions same={c1==c0}, required {r1}")
+ticket = WorkItem(work_item_id(999), "Foreign ticket", viable[0], WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
+c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket, visible),)),))
+print(f"   + foreign Jira ticket owned by a viable holder, due in the leave: conclusions same={c2==c0}, required {r2}")
