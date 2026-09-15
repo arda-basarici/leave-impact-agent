@@ -116,6 +116,7 @@ def test_people_written_are_read_back() -> None:
     adapter = FrappeAdapter(
         base_url=FRAPPE.base_url, credential=cred, config=CONFIG, sleep=lambda _: None
     )
+    adapter.ensure_site_ready()
     adapter.ensure_site_schema()
     adapter.ensure_company()
     adapter.ensure_skills([skill_id("kafka"), skill_id("sql")])

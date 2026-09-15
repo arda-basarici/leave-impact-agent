@@ -215,6 +215,36 @@ def test_an_insert_answering_without_a_name_is_malformed() -> None:
     assert caught.value.reason == "insert returned no name"
 
 
+# --- The site's bootstrap ---------------------------------------------------------------------
+
+
+def test_a_fresh_site_has_its_setup_wizard_completed_and_the_flag_read_back() -> None:
+    script = Scripted(data({"setup_complete": 0}), message(None), data({"setup_complete": 1}))
+    adapter(script).ensure_site_ready()
+    flag, wizard, again = script.seen
+    assert flag.url.path == "/api/resource/System Settings/System Settings"
+    assert wizard.url.path == (
+        "/api/method/frappe.desk.page.setup_wizard.setup_wizard.setup_complete"
+    )
+    arguments = json.loads(wizard.content)["args"]
+    assert arguments["company_name"] == "Site Setup" and arguments["currency"] == "TRY"
+    assert again.url.path == flag.url.path
+
+
+def test_a_site_already_set_up_is_one_read_and_no_wizard_call() -> None:
+    script = Scripted(data({"setup_complete": 1}))
+    adapter(script).ensure_site_ready()
+    assert len(script.seen) == 1
+
+
+def test_a_wizard_call_that_leaves_the_flag_unset_is_malformed_not_trusted() -> None:
+    script = Scripted(data({"setup_complete": 0}), message(None), data({"setup_complete": 0}))
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(script).ensure_site_ready()
+    assert caught.value.locator == "System Settings/System Settings"
+    assert caught.value.reason == "setup_complete still unset after the setup wizard call"
+
+
 # --- The employee-number scope query --------------------------------------------------------
 
 

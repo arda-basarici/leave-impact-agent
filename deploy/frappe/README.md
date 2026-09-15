@@ -83,6 +83,12 @@ drop-and-recreate, ~2 min. Per new world `<name>` (e.g. `hr-w1`):
 # 3. The site (scheduler is disabled on a fresh site — enable it):
 ssh box 'cd /srv/frappe && set -a && . ./.env && set +a &&   docker compose exec backend bench new-site <name>.ardabasarici.dev     --mariadb-user-host-login-scope="%" --db-root-username root     --db-root-password "$DB_PASSWORD"     --admin-password "<choose; env ceremony, never here>"     --install-app erpnext --install-app hrms'
 ssh box 'cd /srv/frappe && docker compose exec backend   bench --site <name>.ardabasarici.dev enable-scheduler'
+# 4. The API key pair on the site's Administrator (bench execute generate_keys, in
+#    your own terminal; the pair goes to the benchmark environment's secrets).
+# That is the whole recipe: a blank, usable site. ERPNext's setup wizard is NOT a
+# step here — the generator's preparation checks the site is setup-complete and
+# completes the wizard itself when it is not (the first truly fresh world site,
+# hr-w2, refused the world's company until it did; 2026-09-15).
 # Teardown: bench drop-site + remove the Caddy stanza + the DNS record.
 ```
 

@@ -95,6 +95,7 @@ class AdapterPreparation:
     def prepare(self) -> Prepared:
         """The site preparation that needs no checkpoint, in the order each system needs."""
         org = self._world.org
+        self._frappe.ensure_site_ready()
         self._frappe.ensure_site_schema()
         self._frappe.ensure_company()
         self._frappe.ensure_skills(org.skills)

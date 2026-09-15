@@ -30,13 +30,16 @@ name is then the domain id. The consequence is that an employee number is unique
 site, not per company, which fits the one-world-per-site hosting shape (``hr-w1``); the
 cassette company uses ids above 900 by convention.
 
-**Preparation is not writing.** ``ensure_site_schema``, ``ensure_company`` and
-``ensure_skills`` are the Frappe half of the projector's setup — the naming rule, the
-custom fields the records live in, the masters the Link fields point at, the company
-with its holiday list and its service approver — and they find before they create
-because a master that exists is not an error. They are called by the composition root,
-the way the corpus's DDL is, and are idempotent; the port writers below them add and
-never find.
+**Preparation is not writing.** ``ensure_site_ready``, ``ensure_site_schema``,
+``ensure_company`` and ``ensure_skills`` are the Frappe half of the projector's setup —
+the site's own bootstrap first, then the naming rule, the custom fields the records live
+in, the masters the Link fields point at, the company with its holiday list and its
+service approver — and they find before they create because a master that exists is not
+an error. They are called by the composition root, the way the corpus's DDL is, and are
+idempotent; the port writers below them add and never find. The first step is the seam
+between the operator's recipe (a blank site: new-site, the scheduler, the key pair) and
+the benchmark's preparation: the generator checks the site is bootstrapped rather than
+assuming the recipe left it so.
 
 **Faults.** The transport turns exhausted retries and undeclared statuses into
 ``SourceUnreachable``. A document the translation cannot read raises
@@ -122,6 +125,31 @@ EMPLOYEE_NAMING = "Employee Number"
 # The holiday list spans every year a world can be dated in, with no holidays: every
 # day is a working day until holidays enter the truth model (deferred at step 8).
 HOLIDAY_SPAN = ("2020-01-01", "2035-12-31")
+# ERPNext's setup wizard, completed over REST on a fresh site. Site bootstrap values,
+# not world semantics: none enters a sealed artifact or the world version, and none is
+# an operator input. The company the wizard demands is scaffolding outside the fact
+# surface (the world's company is always ``ensure_company``'s); ``hr-w1`` carries the
+# M0 probe's "Probe Org" in the same role. Two values could reach a record the adapter
+# later reads, the site timezone and the fiscal year: every M1 world is dated in 2026
+# in Europe/Istanbul, and a world outside those is where a regression test on this
+# seam is owed (ruled 2026-09-15), not before.
+SETUP_COMPANY = "Site Setup"
+SETUP_COMPANY_ABBR = "SETUP"
+SETUP_WIZARD_ARGUMENTS: dict[str, str] = {
+    "language": "en",
+    "country": "Türkiye",
+    "timezone": "Europe/Istanbul",
+    "currency": "TRY",
+    "company_name": SETUP_COMPANY,
+    "company_abbr": SETUP_COMPANY_ABBR,
+    "chart_of_accounts": "Standard",
+    "fy_start_date": "2026-01-01",
+    "fy_end_date": "2026-12-31",
+    "full_name": "Administrator",
+    "email": "admin@leave-impact.invalid",
+}
+_SYSTEM_SETTINGS = "/api/resource/System Settings/System Settings"
+_SETUP_WIZARD = "frappe.desk.page.setup_wizard.setup_wizard.setup_complete"
 
 
 class FrappeAdapter:
@@ -267,7 +295,37 @@ class FrappeAdapter:
             ),
         )
 
-    # --- preparation: the site schema, the company, the skill masters ----------------
+    # --- preparation: the site's bootstrap, the schema, the company, the skill masters --
+
+    def ensure_site_ready(self) -> None:
+        """The site's own bootstrap complete, before any benchmark-specific preparation.
+
+        Preparation verifies that the site is setup-complete and completes ERPNext's setup
+        wizard idempotently when it is not, before the schema, the company or the masters
+        are touched. The wizard installs the fixtures every Company insert links to, so a
+        site that skipped it refuses the world's company at its first write with a
+        Warehouse Type it cannot find; the M0 probe had completed the wizard on the first
+        world site, which is why the generator never met the refusal until the first
+        truly fresh one (2026-09-15). Naming the prerequisite as its own step is the
+        point: a hidden one hides again. The call's return is not trusted: the flag is
+        read back, and a site still unset afterwards is malformed, loud here rather than
+        a later refusal with the wrong diagnosis. On a restart the flag reads set and the
+        step is a no-op.
+        """
+        if self._setup_complete():
+            return
+        self._call(_SETUP_WIZARD, args=SETUP_WIZARD_ARGUMENTS)
+        if not self._setup_complete():
+            raise MalformedRecord(
+                Source.FRAPPE,
+                "System Settings/System Settings",
+                "setup_complete still unset after the setup wizard call",
+            )
+
+    def _setup_complete(self) -> bool:
+        settings = self._get(_SYSTEM_SETTINGS)
+        flag = cast(Record, settings).get("setup_complete") if isinstance(settings, dict) else None
+        return bool(flag)
 
     def ensure_site_schema(self) -> None:
         """The naming rule, custom fields, grade masters and leave types every company uses."""

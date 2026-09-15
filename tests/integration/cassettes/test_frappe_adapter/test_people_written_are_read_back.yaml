@@ -18,8 +18,8 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Employee?filters=%5B%5B%22company%22%2C+%22%3D%22%2C+%22Cassette+Org%22%5D%5D&fields=%5B%22name%22%2C+%22reports_to%22%5D&limit_page_length=100
   response:
     body:
-      string: '{"data": [{"name": "HR-EMP-00006", "reports_to": null}, {"name": "HR-EMP-00007",
-        "reports_to": "HR-EMP-00006"}, {"name": "HR-EMP-00008", "reports_to": "HR-EMP-00006"}]}'
+      string: '{"data": [{"name": "emp_901", "reports_to": null}, {"name": "emp_902",
+        "reports_to": "emp_901"}, {"name": "emp_903", "reports_to": "emp_901"}]}'
     headers:
       alt-svc:
       - h3=":443"; ma=86400
@@ -28,25 +28,25 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a6f59f23a11-DUS
+      - a3b756a33a9bee71-MXP
       connection:
       - keep-alive
       content-length:
-      - '156'
+      - '131'
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:16:58 GMT
+      - Tue, 15 Sep 2026 11:37:16 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CCZ1gzrSOMz%2FEG2YkozsyskZQ8LO8ro8ghFT40aNjor5XYRpIqtz9%2BM6aJyqJXXJutaRLUBRw5s%2BxLWUyyfJyvpFkqBM5viZAWNthyo5m2k%2BxmR3Ta43%2F326BJezDK5HuxfiQZFMU7mp"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=QU2nLkfO1ZbU%2BYfRf%2BeT%2FTS9fbSBZF50xznOlOIUXaqhy7N0upW2d4Q2lO2Rm5fau0nVkxqA4bvK6kb7JucmL8G56RjTPnTroR5iZ0jLEo3sA%2FSK%2FzyyCLxia365dMxaqrcEl3hWwy03"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -78,12 +78,12 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: GET
-    uri: https://frappe.sandbox.invalid/api/resource/Attendance?filters=%5B%5B%22employee%22%2C+%22in%22%2C+%5B%22HR-EMP-00006%22%2C+%22HR-EMP-00007%22%2C+%22HR-EMP-00008%22%5D%5D%5D&fields=%5B%22name%22%2C+%22docstatus%22%5D&limit_page_length=100
+    uri: https://frappe.sandbox.invalid/api/resource/Attendance?filters=%5B%5B%22employee%22%2C+%22in%22%2C+%5B%22emp_901%22%2C+%22emp_902%22%2C+%22emp_903%22%5D%5D%5D&fields=%5B%22name%22%2C+%22docstatus%22%5D&limit_page_length=100
   response:
     body:
-      string: '{"data": [{"name": "HR-ATT-2026-00011", "docstatus": 1}, {"name": "HR-ATT-2026-00012",
-        "docstatus": 1}, {"name": "HR-ATT-2026-00013", "docstatus": 1}, {"name": "HR-ATT-2026-00014",
-        "docstatus": 1}, {"name": "HR-ATT-2026-00015", "docstatus": 1}]}'
+      string: '{"data": [{"name": "HR-ATT-2026-00015", "docstatus": 1}, {"name": "HR-ATT-2026-00016",
+        "docstatus": 1}, {"name": "HR-ATT-2026-00017", "docstatus": 1}, {"name": "HR-ATT-2026-00018",
+        "docstatus": 1}, {"name": "HR-ATT-2026-00019", "docstatus": 1}]}'
     headers:
       alt-svc:
       - h3=":443"; ma=86400
@@ -92,7 +92,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a701bf53a11-DUS
+      - a3b756a45ddcee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -100,17 +100,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:16:58 GMT
+      - Tue, 15 Sep 2026 11:37:16 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=VLetmLjIYZM8CD5ySdKBZB4fjrFWFI2pQsoHQlu3nDFaToVk7mdlF5YuwBChnOlVwWEHi%2BXFetnlru11NP2%2BkfoY5w1aTp4QUp6zqsjoPL29mn%2BzSOfHWggmQPfgrvnomSy5Atfs3Tga"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=giRNfXbVlQTSTzlhuI54YvsDh8Keq5Iyv%2FjUytPcRCti04Ab96qLzS6OuSTLlcBcu8lJ%2BJfg8ZuszzIh%2BekeDfedU4rTuTtNqsK4GhIQkprnocAb5d8DGJqYWjCLlfXyUOAqa81ndsly"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -124,558 +124,6 @@ interactions:
     status:
       code: 200
       message: OK
-- request:
-    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00011"}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '51'
-      content-type:
-      - application/json
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: POST
-    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
-  response:
-    body:
-      string: '{"message": {"name": "HR-ATT-2026-00011", "owner": "Administrator",
-        "creation": "2026-09-11 23:04:46.660565", "modified": "2026-09-11 23:16:59.011701",
-        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
-        "HR-ATT-.YYYY.-", "employee": "HR-EMP-00008", "employee_name": "Deniz Y\u0131lmaz",
-        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
-        "HR-LAP-2026-00004", "attendance_date": "2026-09-14", "company": "Cassette
-        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
-        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
-        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
-        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
-        "Attendance"}}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a70bd763a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '749'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=kqz7DXQefLWacuLFS2Cb2%2B17cQtUYBTKqvFNjHx4GWpeQWjmK%2FAiCvfhjggnOjeHRitus3elKy6UDBQSz4Fy8pskGrvz4fv4hs%2B5Rjyh77vQzFXbHs1oX7aZZX7CO5spyN9hiFXJ%2BL8E"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      transfer-encoding:
-      - chunked
-      vary:
-      - Accept-Encoding
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 200
-      message: OK
-- request:
-    body: ''
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00011
-  response:
-    body:
-      string: '{"data": "ok"}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a71b81c3a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '13'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=xKLCzxT0vCJ80tUZlMfgwjWNyF0qWKiza0aWwMluY7C2uUY7bIk6QuqooecutNGrZuWL0SwrRAHFQmyTcgB3HanY%2BdMhfmuFxnSiPjgC6bbDbPx2E9r6602ozW0HVaoouAFxqpRlNDUn"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 202
-      message: Accepted
-- request:
-    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00012"}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '51'
-      content-type:
-      - application/json
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: POST
-    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
-  response:
-    body:
-      string: '{"message": {"name": "HR-ATT-2026-00012", "owner": "Administrator",
-        "creation": "2026-09-11 23:04:46.685565", "modified": "2026-09-11 23:16:59.337545",
-        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
-        "HR-ATT-.YYYY.-", "employee": "HR-EMP-00008", "employee_name": "Deniz Y\u0131lmaz",
-        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
-        "HR-LAP-2026-00004", "attendance_date": "2026-09-15", "company": "Cassette
-        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
-        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
-        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
-        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
-        "Attendance"}}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a72ba873a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '749'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=X%2FYeusGUZOjwqDeMJ83mAlgPyIN%2B1wFSU0MyfbdwKUVXL7gSdbLYPF9H3CJ%2FS%2FNHTHpZaANK4okaaxTpQKSJ9T6SfBpbosbwVLA0EL993ADPAuzCGoLhwzDuQnIeJmpRWQvdurI8cPXD"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      transfer-encoding:
-      - chunked
-      vary:
-      - Accept-Encoding
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 200
-      message: OK
-- request:
-    body: ''
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00012
-  response:
-    body:
-      string: '{"data": "ok"}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a739c5b3a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '13'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=T4ym%2Fnx%2FoK5ByI%2F1ggH%2BNdYpGSvadgLQVBi0H1XB5pwkrA73MfWweut%2F3h5sUBHCdx8bX0qkSXaYIEeW4mMn0ZK%2BvxHrjueuai0YemSHKGFuPEwpRnvGXMOWolW9nWQSODuaaiev62HZ"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 202
-      message: Accepted
-- request:
-    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00013"}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '51'
-      content-type:
-      - application/json
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: POST
-    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
-  response:
-    body:
-      string: '{"message": {"name": "HR-ATT-2026-00013", "owner": "Administrator",
-        "creation": "2026-09-11 23:04:46.695793", "modified": "2026-09-11 23:16:59.626941",
-        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
-        "HR-ATT-.YYYY.-", "employee": "HR-EMP-00008", "employee_name": "Deniz Y\u0131lmaz",
-        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
-        "HR-LAP-2026-00004", "attendance_date": "2026-09-16", "company": "Cassette
-        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
-        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
-        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
-        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
-        "Attendance"}}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a748eb93a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '749'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=C1W5abqc5oR8P6b1bTERT4qBRvZg9bOBs3myDGJ8nlVWBk358sZ3cNnHGACrIq9tv8dwmutrgPkJtBO8H8jzR8kU%2B2eZ%2B56vGlBqksamLblI9BGFaJ9nyHi96Rd6J1b%2F7NzB7lindNkz"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      transfer-encoding:
-      - chunked
-      vary:
-      - Accept-Encoding
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 200
-      message: OK
-- request:
-    body: ''
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00013
-  response:
-    body:
-      string: '{"data": "ok"}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a7578fc3a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '13'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Wn9BiC%2F95%2By4jPtH3JywYYXhWQVO0%2B9T2YqQd8rsrVkuUb8N5wIerUhv%2F9zn08QDCpHrV8ZemCDVAnm%2FH4YLFY9b93rxLC3n0hRgTeHGNb86hIoKUCs9S07CBp1J2lZ5pEPUJX4vNkE1"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 202
-      message: Accepted
-- request:
-    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00014"}'
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      content-length:
-      - '51'
-      content-type:
-      - application/json
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: POST
-    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
-  response:
-    body:
-      string: '{"message": {"name": "HR-ATT-2026-00014", "owner": "Administrator",
-        "creation": "2026-09-11 23:04:46.711740", "modified": "2026-09-11 23:16:59.923481",
-        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
-        "HR-ATT-.YYYY.-", "employee": "HR-EMP-00008", "employee_name": "Deniz Y\u0131lmaz",
-        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
-        "HR-LAP-2026-00004", "attendance_date": "2026-09-17", "company": "Cassette
-        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
-        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
-        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
-        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
-        "Attendance"}}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a766bc33a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '749'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:16:59 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=mxIaGVl6vvWEx7fEYXJWZ9lj6kOstM2DUsvla3Je%2Fyya7VJRKFUufaqVEzNCGHP7hMpckvTHkFwuWsi03eeFpydwbBfxqHFczJd%2F6D5hSZtRXdwqoTLg7IYjI7ZGFfSCzerjRxiKBGK0"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      transfer-encoding:
-      - chunked
-      vary:
-      - Accept-Encoding
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 200
-      message: OK
-- request:
-    body: ''
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00014
-  response:
-    body:
-      string: '{"data": "ok"}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a775e4c3a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '13'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:17:00 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=X83F9rSPI7HTaZqRsbRfr3aL0U7eGfadR4fu1on%2Bdv7D%2BuK0yybZhI2DLM3dmpVz3EdtOkvrx77mRkQTK%2F8TPAU9NZYgIHhO%2BAk%2FYCEayjGw%2BcWMVC91ddmGFNWLFy5WdtPvHRTbThVg"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 202
-      message: Accepted
 - request:
     body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00015"}'
     headers:
@@ -702,11 +150,11 @@ interactions:
   response:
     body:
       string: '{"message": {"name": "HR-ATT-2026-00015", "owner": "Administrator",
-        "creation": "2026-09-11 23:04:46.725484", "modified": "2026-09-11 23:17:00.254690",
+        "creation": "2026-09-11 23:17:10.228858", "modified": "2026-09-15 14:37:16.436037",
         "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
-        "HR-ATT-.YYYY.-", "employee": "HR-EMP-00008", "employee_name": "Deniz Y\u0131lmaz",
+        "HR-ATT-.YYYY.-", "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz",
         "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
-        "HR-LAP-2026-00004", "attendance_date": "2026-09-18", "company": "Cassette
+        "HR-LAP-2026-00005", "attendance_date": "2026-09-14", "company": "Cassette
         Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
         null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
         0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
@@ -720,25 +168,25 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a78796c3a11-DUS
+      - a3b756a59927ee71-MXP
       connection:
       - keep-alive
       content-length:
-      - '749'
+      - '744'
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:00 GMT
+      - Tue, 15 Sep 2026 11:37:18 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CAwCRmSti9957JavzkPQ9JsCVJGHCwnR%2ByscdWpI8ckLDrazRjmFSYEMltIf4YV3RqfxiOOzBH7y%2F%2Faf5uluBucWxqbyeqh0YRmHbHTd7AySoODm2JE%2F%2F0t9MyhOgNlq4Gxa%2F6OoMmjh"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=w%2B1t8FQdBnm3GvGPdn%2FilN5rp1pZQoKyizMxi4g3sWN88tRYITeN8xqXajuzJyT5IUNPM6DysFf%2BZj9dY2Cc4lynzzwojv32eXQejyOD8Bt4W2OOFFfYof9GT8kroaB6VcQSJ%2BJdaCWO"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -784,7 +232,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a798c0d3a11-DUS
+      - a3b756b1cb6dee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -792,17 +240,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:00 GMT
+      - Tue, 15 Sep 2026 11:37:18 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tJQe9Z8ttlcDCYpCnYnvOa2ueBp%2F92pZgLRfTiNy4UQxzh4re%2BS94ike%2BlLoRIJ2Q3rJcfXecboQb2Yc2IctTRwmcImoRqyFxPr2%2BfthmkFxXLEJaBr4iP9n1b%2BtvffRdm7sx%2F2%2Bz8T5"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=8oq2MeAvqjcRK%2Fc7tsTs4JB2ZrXub1AKjZDlhFFKrXp%2BT68DdLizpl0cdcAocWhcjWElp70nyLDiaqS82yGFj5tVAg%2BfmPSNxRYfrQLmRjYQbW9AFHDSBEgSwieeWMCTgM6H7qQxEwX1"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -815,70 +263,7 @@ interactions:
       code: 202
       message: Accepted
 - request:
-    body: ''
-    headers:
-      accept:
-      - application/json
-      accept-encoding:
-      - gzip, deflate
-      authorization:
-      - REDACTED
-      connection:
-      - keep-alive
-      cookie:
-      - REDACTED
-      host:
-      - frappe.sandbox.invalid
-      user-agent:
-      - python-httpx/0.28.1
-    method: GET
-    uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application?filters=%5B%5B%22company%22%2C+%22%3D%22%2C+%22Cassette+Org%22%5D%5D&fields=%5B%22name%22%2C+%22docstatus%22%5D&limit_page_length=100
-  response:
-    body:
-      string: '{"data": [{"name": "HR-LAP-2026-00004", "docstatus": 1}, {"name": "HR-LAP-2026-00005",
-        "docstatus": 0}]}'
-    headers:
-      alt-svc:
-      - h3=":443"; ma=86400
-      cache-control:
-      - no-store,no-cache,must-revalidate,max-age=0
-      cf-cache-status:
-      - DYNAMIC
-      cf-ray:
-      - a3995a7a8e633a11-DUS
-      connection:
-      - keep-alive
-      content-length:
-      - '96'
-      content-type:
-      - application/json
-      date:
-      - Fri, 11 Sep 2026 20:17:00 GMT
-      nel:
-      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
-      referrer-policy:
-      - same-origin, strict-origin-when-cross-origin
-      report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gW8t7Pu6yeN0jpA7g0xJdYKomDEhLu%2FhGUUpuVMEyilK1RsGnPHI0b0LyDjv1n5hNHk2HEFlzC8ERdG7KKFRumofwjHpIISQHjBbIU1sVBFxO1Q%2Bvq3b4Wq1g8bA8wu82haO96sPX9r8"}]}'
-      server:
-      - cloudflare
-      strict-transport-security:
-      - max-age=86400
-      transfer-encoding:
-      - chunked
-      via:
-      - 1.1 Caddy
-      x-content-type-options:
-      - nosniff
-      x-frame-options:
-      - SAMEORIGIN
-      x-xss-protection:
-      - 1; mode=block
-    status:
-      code: 200
-      message: OK
-- request:
-    body: '{"doctype": "Leave Application", "name": "HR-LAP-2026-00004"}'
+    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00016"}'
     headers:
       accept:
       - application/json
@@ -889,7 +274,7 @@ interactions:
       connection:
       - keep-alive
       content-length:
-      - '58'
+      - '51'
       content-type:
       - application/json
       cookie:
@@ -902,17 +287,17 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
   response:
     body:
-      string: '{"message": {"name": "HR-LAP-2026-00004", "owner": "Administrator",
-        "creation": "2026-09-11 23:04:46.426425", "modified": "2026-09-11 23:17:00.682783",
+      string: '{"message": {"name": "HR-ATT-2026-00016", "owner": "Administrator",
+        "creation": "2026-09-11 23:17:10.256915", "modified": "2026-09-15 14:37:18.705039",
         "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
-        "HR-LAP-.YYYY.-", "employee": "HR-EMP-00008", "employee_name": "Deniz Y\u0131lmaz",
-        "leave_type": "Annual", "company": "Cassette Org", "department": "Platform
-        - CAS", "from_date": "2026-09-14", "to_date": "2026-09-18", "half_day": 0,
-        "half_day_date": null, "total_leave_days": 5.0, "description": null, "custom_leave_id":
-        "leave_901", "leave_balance": 0.0, "leave_approver": "approver@cas.leave-impact.invalid",
-        "leave_approver_name": "CAS Approver", "follow_via_email": 1, "posting_date":
-        "2026-09-14", "status": "Cancelled", "salary_slip": null, "color": null, "letter_head":
-        "Company Letterhead - Grey", "amended_from": null, "doctype": "Leave Application"}}'
+        "HR-ATT-.YYYY.-", "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz",
+        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
+        "HR-LAP-2026-00005", "attendance_date": "2026-09-15", "company": "Cassette
+        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
+        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
+        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
+        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
+        "Attendance"}}'
     headers:
       alt-svc:
       - h3=":443"; ma=86400
@@ -921,25 +306,25 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a7b280a3a11-DUS
+      - a3b756b3c88dee71-MXP
       connection:
       - keep-alive
       content-length:
-      - '822'
+      - '744'
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:00 GMT
+      - Tue, 15 Sep 2026 11:37:18 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RkZBkIijPvL%2BJy019pI%2BxUGeoR%2BhmS67xNN6eNo7ZUvcVM1ObvcXolSGruIGbs2kWKCcgY8%2FPZRyQHBLsqQKUrjisNYkJiSHE9x0DPhXzoItAVlD8RBObbs4wl70rKPaxfNi29ETW2uH"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=FrVq0SOS9D3FybQ9PZ%2FYmPAzy4pHseIRMPuro0q8VNsblBI%2BXUORp9oTamaHn9GsR3lZL%2FJVs4nG1PmtwKPiOSDzMVusbMR4G1AjS6o7W5p87RcA6aMoo9BbcVTbMq%2FqUtnD7TjLSaJq"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -973,7 +358,7 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application/HR-LAP-2026-00004
+    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00016
   response:
     body:
       string: '{"data": "ok"}'
@@ -985,7 +370,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a7c4aa43a11-DUS
+      - a3b756b4db72ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -993,17 +378,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:00 GMT
+      - Tue, 15 Sep 2026 11:37:18 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=eJIO2K7Yl8wkuyEkxeIBe0L6G2rOSkqn%2BuO1YmIipTBfYGgYo1Kd7FV%2BrFPOoC8z0%2BDLS%2F78444ZKr8IzXpkgWehBB72x4E5o0Tq2M4y7p0Wk9yQUt94K3b5TdRJoGOigtL5gQsgDf%2BR"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Bf%2FscTp7BCvuYidPC%2FE4Q4%2F5cnFVYBdF53S5%2BeiQW%2BuqJVkBmPKg52WwRiBMnpgfVSq5Ez2Mjjt%2FxVga2dFf474Lryh%2Bm%2BIIm1o%2FnXpcggimkP%2BfxIqnpC2U5PLVJ0yop4neKl0b0Otl"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1015,6 +400,561 @@ interactions:
     status:
       code: 202
       message: Accepted
+- request:
+    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00017"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '51'
+      content-type:
+      - application/json
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
+  response:
+    body:
+      string: '{"message": {"name": "HR-ATT-2026-00017", "owner": "Administrator",
+        "creation": "2026-09-11 23:17:10.268437", "modified": "2026-09-15 14:37:19.066999",
+        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
+        "HR-ATT-.YYYY.-", "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz",
+        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
+        "HR-LAP-2026-00005", "attendance_date": "2026-09-16", "company": "Cassette
+        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
+        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
+        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
+        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
+        "Attendance"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756b5ff46ee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '744'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:19 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=oNqx5DagKDl6%2Bo%2B15pF9xbbgRPioU1SUK97VSkq7jeCMjmbMvIxP5NP4IREFyCzo8qQWg23gsn8dOJjImQYQjT60aO%2F8JlE7nQlF6H4c7Y8ISCtS1fBFOyFtqtvKf1FqrViYRzcF6Zmn"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      transfer-encoding:
+      - chunked
+      vary:
+      - Accept-Encoding
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00017
+  response:
+    body:
+      string: '{"data": "ok"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756b72a38ee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '13'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:19 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=YPpAkoZDwrptlTd%2F9a2uKk3PeSon9YiBWUe6AsoLlAJHyh1NsmSBN%2Fb%2FT6LzN2z0Q7aD69pRycvQ1Sm0J4pRUocAiQxqmH3qjGhV3GJUbU9AXerXjgCbBKdBmnijTX%2Fh8w2GYWrWsY1I"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00018"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '51'
+      content-type:
+      - application/json
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
+  response:
+    body:
+      string: '{"message": {"name": "HR-ATT-2026-00018", "owner": "Administrator",
+        "creation": "2026-09-11 23:17:10.279210", "modified": "2026-09-15 14:37:19.425596",
+        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
+        "HR-ATT-.YYYY.-", "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz",
+        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
+        "HR-LAP-2026-00005", "attendance_date": "2026-09-17", "company": "Cassette
+        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
+        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
+        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
+        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
+        "Attendance"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756b84d99ee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '744'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:19 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=M4kCoxMRV9QM7YYm1oM9N6%2BYV%2B6wab%2FA6WIuo1DjuZGV2FoN0HHpdCbG2EbDh%2FAKXTCucpkMz7z8Gecv9SCSMvekmtmxX73IKOGM0%2B6SKqvA%2FaZAFZbfnVWLT8VCMd%2FvOCume%2B85Z7fx"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      transfer-encoding:
+      - chunked
+      vary:
+      - Accept-Encoding
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00018
+  response:
+    body:
+      string: '{"data": "ok"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756b958caee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '13'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:19 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=jKHYgaoOoj8rK9xUEhrP%2Bg4Cj0PkLY65HSLI8VRTuQ4TBT%2Bx4%2B%2BKEMOZidV%2B8jhS4u6iZWVqXSJkmdLGCO9LI5j8Y53288xkSVApVcF6Da0kQ2plgiDwDoiNdjZO2aTm%2FASf0%2FyvSOCz"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: '{"doctype": "Attendance", "name": "HR-ATT-2026-00019"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '51'
+      content-type:
+      - application/json
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
+  response:
+    body:
+      string: '{"message": {"name": "HR-ATT-2026-00019", "owner": "Administrator",
+        "creation": "2026-09-11 23:17:10.287733", "modified": "2026-09-15 14:37:19.819382",
+        "modified_by": "Administrator", "docstatus": 2, "idx": 0, "naming_series":
+        "HR-ATT-.YYYY.-", "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz",
+        "working_hours": 0.0, "status": "On Leave", "leave_type": "Annual", "leave_application":
+        "HR-LAP-2026-00005", "attendance_date": "2026-09-18", "company": "Cassette
+        Org", "department": "Platform - CAS", "attendance_request": null, "half_day_status":
+        null, "shift": null, "in_time": null, "out_time": null, "late_entry": 0, "early_exit":
+        0, "amended_from": null, "modify_half_day_status": 0, "overtime_type": null,
+        "actual_overtime_duration": 0.0, "standard_working_hours": 0.0, "doctype":
+        "Attendance"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756baccdcee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '744'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:19 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=gTy14CMpU77q5oxA4QkrrwwOHYNE%2FVAIesx434t%2BBU9b%2FSqQB9oufsunadHevdBVxufgaF129joMpH2IUpqQgnkwAoyAlm%2F0qu2RFARxCrkF1TOQZfpmLKt%2BJJiN139KWQ%2BZ44frxnEy"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      transfer-encoding:
+      - chunked
+      vary:
+      - Accept-Encoding
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://frappe.sandbox.invalid/api/resource/Attendance/HR-ATT-2026-00019
+  response:
+    body:
+      string: '{"data": "ok"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756bc183fee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '13'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:20 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=4MiP%2FVDg3wY9jjAd%2By2RPVavIkvzaI0WmwJC2kvAkzxLCuMHustJYScf9CoGKLouHT%2Bpbeh9klhnoWH%2BY%2FEltd%2FXkMZtt0iNU3455dzreY8mCxvAEvEHHVpG0tl7yxnvT7AhGc7d1EMg"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application?filters=%5B%5B%22company%22%2C+%22%3D%22%2C+%22Cassette+Org%22%5D%5D&fields=%5B%22name%22%2C+%22docstatus%22%5D&limit_page_length=100
+  response:
+    body:
+      string: '{"data": [{"name": "HR-LAP-2026-00005", "docstatus": 1}, {"name": "HR-LAP-2026-00006",
+        "docstatus": 0}]}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756bd7bf8ee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '96'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:20 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=o%2B9mLsdJVmtBr%2BEb9cydVcTY%2F5sArvqU6hdk2CaONJ7A3U9hWwdJdcWyz89YFKx3NTurVXTpSpINrOgk9Bn%2FApvTca86RYlhbbn5rXwjjOnylnQkYheR%2B4Ziuforqclr29C7jWid0OYd"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      transfer-encoding:
+      - chunked
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: '{"doctype": "Leave Application", "name": "HR-LAP-2026-00005"}'
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      content-length:
+      - '58'
+      content-type:
+      - application/json
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: POST
+    uri: https://frappe.sandbox.invalid/api/method/frappe.client.cancel
+  response:
+    body:
+      string: '{"message": {"name": "HR-LAP-2026-00005", "owner": "Administrator",
+        "creation": "2026-09-11 23:17:09.993791", "modified": "2026-09-15 14:37:20.404732",
+        "modified_by": "Administrator", "docstatus": 2, "idx": 1, "naming_series":
+        "HR-LAP-.YYYY.-", "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz",
+        "leave_type": "Annual", "company": "Cassette Org", "department": "Platform
+        - CAS", "from_date": "2026-09-14", "to_date": "2026-09-18", "half_day": 0,
+        "half_day_date": null, "total_leave_days": 5.0, "description": null, "custom_leave_id":
+        "leave_901", "leave_balance": 0.0, "leave_approver": "approver@cas.leave-impact.invalid",
+        "leave_approver_name": "CAS Approver", "follow_via_email": 1, "posting_date":
+        "2026-09-14", "status": "Cancelled", "salary_slip": null, "color": null, "letter_head":
+        "Company Letterhead - Grey", "amended_from": null, "doctype": "Leave Application"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756be6e5fee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '817'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:20 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=A2tIoFYV2gLM1AhqDW%2B0lJ2PzJgiBd6dSdRv%2BEqGYrPC4BIDvgVm5pj7Z2BLDH2ioB94IIuvT%2B168nVohiusQ72n8i6pZJTQRr%2FxmlTG9VnqVJoT%2F7Pe%2BZGbf52w6jief15t%2Bd7O4SsL"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      transfer-encoding:
+      - chunked
+      vary:
+      - Accept-Encoding
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
 - request:
     body: ''
     headers:
@@ -1045,7 +985,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a7d4d453a11-DUS
+      - a3b756bfca4bee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1053,17 +993,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:01 GMT
+      - Tue, 15 Sep 2026 11:37:20 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=LMGuT54968Us0Ow0RNoG4hOwOW8W1dErsP9TDqj24JET9ddYffhPBIPMf6vNRt1RuNgTWeI1%2FDYHuqjJU6h0dXEREbkItvYWW4mIAouAnEEYbIDPPNsxk%2B%2BQxloJWJSAlorZMvKrRjQl"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tzolx3%2BNtd3eVkh%2BQOVzAqvJQEC3ErRu50qcevri8iaDkRS8mvew5coC54M%2F0Qq3rC9DFwe1c%2B0msJAOqLjUgOpzV%2Bj7txvl9FjudkCR3twwnSp6BODTeQNCtxUomCJJOnzmEf4H5Qpu"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1093,7 +1033,67 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map/HR-EMP-00007
+    uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application/HR-LAP-2026-00006
+  response:
+    body:
+      string: '{"data": "ok"}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756c0fdceee71-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '13'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:20 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uVAOCaXtIi05by9RKmblCARx%2BlVSVimkaRioyL2y5RynF5zp9RoSIiOvmALXjlFe5PFyR51bbcDPvDTQNXn2iMwYsUUuf5p17p3dVD3sr%2Fo4Ze8L8VLHkG7aVm%2B6dZBleSLJFjhV431Z"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 202
+      message: Accepted
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      cookie:
+      - REDACTED
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: DELETE
+    uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map/emp_902
   response:
     body:
       string: '{"exc_type": "DoesNotExistError"}'
@@ -1105,7 +1105,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a7e48d13a11-DUS
+      - a3b756c22905ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1113,17 +1113,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:01 GMT
+      - Tue, 15 Sep 2026 11:37:21 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=TCYMNaxy0UfnYGEJXgCvd%2F%2Fy7WDJnbaZrX11iBd4OMwyZmvW%2FusUkhaMuimV5Dj9CyJAxz47ImZ5bP4NrayehSJtOWkjmlcy0yRaFxvIySG%2Fhs5nAmnQYLxO2JL526DgIEgnuMULf6n2"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=DFwBhm1%2FpZpWzTSlkNUFY4HGigmqxCFPQbfmpQt3HOThhDb8u8n4ZMbn3ZUa2j7EnFnSrnqn%2BPb4iF4kblUQa4AL9uNIWRCd0oDtBx%2FMeocSh0vHZqWhhCho%2FjKKZEcnxs%2Bkho9obU4A"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1153,7 +1153,7 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Employee/HR-EMP-00007
+    uri: https://frappe.sandbox.invalid/api/resource/Employee/emp_902
   response:
     body:
       string: '{"data": "ok"}'
@@ -1165,7 +1165,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a7eea5d3a11-DUS
+      - a3b756c30b64ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1173,17 +1173,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:01 GMT
+      - Tue, 15 Sep 2026 11:37:22 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=dYdw0souwBU0%2BMue0%2FTegStN9uFTKlRWSqZ%2B%2FY7IO5X4T2obmIThEr9tsve0tVVBMgGOM%2FjhA9QYM7D8upYdyE%2FxnNK88EfZ730G3gQahgRB5htjH%2B%2BdroRMyKINLP0CqUGQ33Z1eu3I"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=LT7aMJVPh01TQTL2v%2BepuaBGwue9Mtdkrb6YvmKdxhH6xe5DnCqiy9k9vM7%2Bb8qPYEg2E0YjdAOp3YrOA3LEtRTkV1Xyour1V8TK%2Bup6S8AdBDuFjJemy0tQSXtkkIuLa7AlA3B0Ljf2"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1213,7 +1213,7 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map/HR-EMP-00008
+    uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map/emp_903
   response:
     body:
       string: '{"data": "ok"}'
@@ -1225,7 +1225,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a808e363a11-DUS
+      - a3b756ce39f2ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1233,17 +1233,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:01 GMT
+      - Tue, 15 Sep 2026 11:37:23 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=tA4nsSAEhBiLdLRxGn%2BQHY8PKapYzXwlWASQfgyFNEFyrWx9zACP04kDxBXN%2BihiN3%2BXgYAy8GQJO7qJL6YDuva%2Fj2H66V%2FnMNM5Zh3YipRl14rUlFTnvFy3fveZ%2BbldJV8UvARRB0Zb"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Co%2FXh16na1nj6Jpp5ogxmCtjDSnUFAsXqcwffrM6BgTHGvz4%2BZRRGRl1dIwH33tiRRA6nevY6NopJ0JnwWOdEFGzLvozdsq0T5AjMxn7Gla3xk2%2FZ2Od16YCGToC2X0G%2FbicOiH4KvQc"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1273,7 +1273,7 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Employee/HR-EMP-00008
+    uri: https://frappe.sandbox.invalid/api/resource/Employee/emp_903
   response:
     body:
       string: '{"data": "ok"}'
@@ -1285,7 +1285,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8188f23a11-DUS
+      - a3b756cfae24ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1293,17 +1293,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:01 GMT
+      - Tue, 15 Sep 2026 11:37:23 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ODizVCEPWCH6BnTSvHq57RrBEcqJEr5eNMf3zQ%2F%2FsxndO%2B8A13TfAxfwa8%2FwsXl2xqoKolZjB2Bf3ZZNOyzUf%2BQ1H1G2Iui%2B4WMHqKHND7tTCZxZ79Sa8%2BpzdpOJugdBlLO9wr657V75"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=j%2BGRoSD5gAUeNLqMbewk0tHx3zhKVFEDfIAAzCNFxfCKRtGF%2Bn7vJxn%2BMow3ArrzBYzwWNTeRzo6GBF2xx5lXbbpe6l%2BhhKAncM7w5mj3hTsGIOVlJXa%2Bp2PjJEuzeELQpLj9%2BTgFCi2"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1333,7 +1333,7 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map/HR-EMP-00006
+    uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map/emp_901
   response:
     body:
       string: '{"data": "ok"}'
@@ -1345,7 +1345,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a836e283a11-DUS
+      - a3b756d22cfbee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1353,17 +1353,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:02 GMT
+      - Tue, 15 Sep 2026 11:37:23 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=w8pFiWm6g0vg6%2F8DSIpYCzFJKnzBI4ee%2FqL70SptnUKdFUJHu4XP60M2j7HPyZBBoeXx%2BnztN%2ByCNLUwH0Lk25ri%2BGXRkbBuCD0UxV2JjrbwKnBNgMhQ4Pq5Yb%2FsWOeZolelMCIl%2BZz3"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=T0Q6lC7rih5RW3%2B1wcTQbPfpONg3I7OxRY%2FeExLiAKyKKkAbxYMiNG%2FRX12Ps3bUbcvLRSeZa%2ByRgAc0IutXyq5E1kQK5YHEL6%2F2lPa%2BIuDmYpJdGCxA6UbK1PqJ5jI5n7vhLGL%2FLLsY"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1393,7 +1393,7 @@ interactions:
       user-agent:
       - python-httpx/0.28.1
     method: DELETE
-    uri: https://frappe.sandbox.invalid/api/resource/Employee/HR-EMP-00006
+    uri: https://frappe.sandbox.invalid/api/resource/Employee/emp_901
   response:
     body:
       string: '{"data": "ok"}'
@@ -1405,7 +1405,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8458553a11-DUS
+      - a3b756d378c5ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1413,17 +1413,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:02 GMT
+      - Tue, 15 Sep 2026 11:37:23 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=HKkRV5UmSp48InUUM0xU%2F3xWeqDGzMY7J%2BuMUz0zctMZol4btF4E0SNI5vzcUNqwjWEnWc%2F1qGgo1BjF%2BFtHQOvyNPsLyxldbtcjS3dK0WiPq1OTFuFfYSPTW5p2SsaqFodTRMIsqGtT"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=N%2FHd61k0LGu9z%2FTLXihgI7D0%2BrhfDVaxNqaZyiz6Q3gCKI%2BixfUxI1UoES12GmbAfnHZIYqZxkSkFI7F5mP4%2F%2BY4tCEZked3Q6ZD51PgeoQ6ui%2BbCA2hxzr1C3AYJlYy37g1UvP58IL5"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1465,7 +1465,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a85bb963a11-DUS
+      - a3b756d52cf8ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1473,17 +1473,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:02 GMT
+      - Tue, 15 Sep 2026 11:37:24 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Ltt4ZASlLsxlogRFh0FL%2B3iTcMt4ideyXgTKEA2eBgoyk6bfO%2Ff9zF3LGra73orQrdM9DGywSkFMZM9zNEqJUQ0wsE%2BuQF4r%2FcKDczf5HNPzVpp0RXXse5mJBhqPlBR%2BStRbw7%2F2JQZi"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2Fz8qkNVC93wTe50A49p1tiExTplBdULcvqnd4tVDHbZ05ZPUkzMXC6h%2FwWHIHVlxHCakIXHOzI%2FJ6UW9xvVfGyUq2%2BX9V2sh%2F3dZtV0HioRMbdaAnvvVwaQbRrrs50DSl3aU0HH0qMwO"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -1527,7 +1527,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a865d4e3a11-DUS
+      - a3b756d60faaee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1535,17 +1535,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:02 GMT
+      - Tue, 15 Sep 2026 11:37:24 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=OgxNG%2FqgpJVARZlhfdr0j9IyEHPZLWL2ulmNHRk6RGzE2a5SN5SloEQSysppqkS316j6V9w7XH2pzum%2BuhMXlkBj6B3e2LwkDrAQ8HOJxl%2Bg2yeqoaLWVHLkVXD0SXCDMuCe9DSPXasm"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=GyYrc81TFAfoaxfpjhWg2Djh9o2t8K%2BFRrxchxZ4KiCFYVYoot0lRG3SW4k%2Fb9j2iCSabZPJ7WLkqC85qZnMFORAXx57yyYITdcZVjtnTmpu2cUYFToAteWg39PWKGImpexpPJGPIHt2"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1587,7 +1587,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a890c203a11-DUS
+      - a3b756d94891ee71-MXP
       connection:
       - keep-alive
       content-length:
@@ -1595,17 +1595,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:03 GMT
+      - Tue, 15 Sep 2026 11:37:24 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=kvO%2FHOTdv1Xp1whmXTg8pYz7HI3jdeyUyjbqwSsOsVwjEoZpD2CRRPUX5Y6QCTHZ%2BuBTohdXTRkKngch5zKbrqUOgHD0RmKMf%2FZr2PzgK0%2BeH2wsNli1QxoUkezFHmXGJ9kQ4k3w2Fhx"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2BUaIVG0YH00gc9dmwn23H9fsynWjbEI7EIGDicnHaEbHEVQoALzuUhmAySU5D2n5wHNbESLrwOtSIZROggh5oJ%2FMQ08prHq4FYzqsYWRxaeGRUcQK4Hw2AoleHu3gBe9%2FL2OvjPq87ZF"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1628,6 +1628,99 @@ interactions:
       - REDACTED
       connection:
       - keep-alive
+      host:
+      - frappe.sandbox.invalid
+      user-agent:
+      - python-httpx/0.28.1
+    method: GET
+    uri: https://frappe.sandbox.invalid/api/resource/System%20Settings/System%20Settings
+  response:
+    body:
+      string: '{"data": {"name": "System Settings", "owner": "Administrator", "modified":
+        "2026-08-24 15:37:47.938883", "modified_by": "admin@leave-impact.invalid",
+        "docstatus": 0, "idx": "0", "app_name": "ERPNext", "country": "T\u00fcrkiye",
+        "language": "en", "time_zone": "Europe/Istanbul", "currency": "TRY", "enable_onboarding":
+        1, "setup_complete": 1, "disable_document_sharing": 0, "date_format": "dd-mm-yyyy",
+        "time_format": "HH:mm:ss", "number_format": "#.###,##", "use_number_format_from_currency":
+        0, "first_day_of_the_week": "Sunday", "float_precision": "3", "currency_precision":
+        "", "rounding_method": "Banker''s Rounding", "show_absolute_datetime_in_timeline":
+        0, "apply_strict_user_permissions": 0, "show_external_link_warning": "Never",
+        "session_expiry": "170:00", "document_share_key_expiry": 30, "deny_multiple_sessions":
+        0, "disable_user_pass_login": 0, "max_signups_allowed_per_hour": 300, "allow_login_using_mobile_number":
+        0, "allow_login_using_user_name": 0, "login_with_email_link": 1, "login_with_email_link_expiry":
+        10, "rate_limit_email_link_login": 0, "allow_consecutive_login_attempts":
+        10, "allow_login_after_fail": 60, "enable_two_factor_auth": 0, "bypass_2fa_for_retricted_ip_users":
+        0, "bypass_restrict_ip_check_if_2fa_enabled": 0, "two_factor_method": "OTP
+        App", "lifespan_qrcode_image": 0, "otp_issuer_name": "Frappe Framework", "logout_on_password_reset":
+        1, "force_user_to_reset_password": 0, "reset_password_link_expiry_duration":
+        "1200", "password_reset_limit": 3, "enable_password_policy": 1, "minimum_password_score":
+        "2", "email_retry_limit": 3, "disable_standard_email_footer": 0, "hide_footer_in_auto_email_reports":
+        0, "attach_view_link": 1, "store_attached_pdf_document": 1, "max_file_size":
+        0, "max_zip_extract_size": 0, "allow_guests_to_upload_files": 0, "force_web_capture_mode_for_uploads":
+        0, "strip_exif_metadata_from_uploaded_images": 1, "only_allow_system_managers_to_upload_public_files":
+        0, "delete_background_exported_reports_after": 48, "disable_system_update_notification":
+        0, "disable_change_log_notification": 0, "hide_empty_read_only_fields": 1,
+        "disable_product_suggestion": 0, "backup_limit": 3, "encrypt_backup": 0, "max_auto_email_report_per_user":
+        20, "max_report_rows": 100000, "enable_snapshot_reports": 0, "sync_in_batch":
+        1, "frequency": "Daily", "sync_timeout": 0, "enable_scheduler": 1, "dormant_days":
+        4, "allow_error_traceback": 1, "enable_telemetry": 0, "link_field_results_limit":
+        10, "allow_clearing_link_fields": 0, "log_api_requests": 0, "doctype": "System
+        Settings"}}'
+    headers:
+      alt-svc:
+      - h3=":443"; ma=86400
+      cache-control:
+      - no-store,no-cache,must-revalidate,max-age=0
+      cf-cache-status:
+      - DYNAMIC
+      cf-ray:
+      - a3b756dcee450e63-MXP
+      connection:
+      - keep-alive
+      content-length:
+      - '2366'
+      content-type:
+      - application/json
+      date:
+      - Tue, 15 Sep 2026 11:37:25 GMT
+      nel:
+      - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
+      referrer-policy:
+      - same-origin, strict-origin-when-cross-origin
+      report-to:
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=GNKvYBN1MHxIa6jre%2BIYYRi5WgHSSkUZlawmrnIiv418aOSo7OfLsloH%2FTNPzJ3%2F7Zt5lJ7nx8wjfwy2K%2B%2FRmzzWtnuuksAVojLjWmDvWpCKnXJpQs%2F2PL3Ir6RfBivzB1ALIqUB%2FPc6"}]}'
+      server:
+      - cloudflare
+      strict-transport-security:
+      - max-age=15552000
+      transfer-encoding:
+      - chunked
+      vary:
+      - Accept-Encoding
+      via:
+      - 1.1 Caddy
+      x-content-type-options:
+      - nosniff
+      x-frame-options:
+      - SAMEORIGIN
+      x-xss-protection:
+      - 1; mode=block
+    status:
+      code: 200
+      message: OK
+- request:
+    body: ''
+    headers:
+      accept:
+      - application/json
+      accept-encoding:
+      - gzip, deflate
+      authorization:
+      - REDACTED
+      connection:
+      - keep-alive
+      cookie:
+      - REDACTED
       host:
       - frappe.sandbox.invalid
       user-agent:
@@ -1656,7 +1749,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8c5e562443-AMS
+      - a3b756ddff070e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -1664,17 +1757,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:03 GMT
+      - Tue, 15 Sep 2026 11:37:25 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=zaaW9EoIAXzG1yLby4M%2FlkC9rxEaEOYcA24A%2BIacJ0xsTrv8tdMIneDi0AjOUOpMehd6h1s3%2BcaLz70hheGRIwNaSU5x5Jfw4iO36ORQeIF83gTBYXbTxFzAg8l%2BUbYM3Hn6cCMR0m7F"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=4Va2b3Q4l6Z8JBHcRksMQw9bqjiXefO6r7NLfd0YSW8m3nRyOw8da2LPjLk5g3PmScmm74LTBzLKPWVXLwGtoRYfOY%2Bld6Iq%2FLAJLPH9NceGhe2guuBwYe5sxTmfXiscMTadG8%2FgfieX"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -1720,7 +1813,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8d393b2443-AMS
+      - a3b756df0fe10e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -1728,17 +1821,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:03 GMT
+      - Tue, 15 Sep 2026 11:37:25 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Rndch8SShdSJyTBdQRYewnNGCSqfzUhDeKaAa40dWpOR7YLNzA5hc%2FrrByRetlc2P4wcp5P6vFTy1iHjebJleekzQXTdC8VO2u4Ept3FdS9qSxVh5JNh9FQEz1uSujK5zBWqhSCIy8zE"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0s5%2BMApWZxmRUhTfUIPgXctWP8X9yJ2Bw7U9OCrXyphm1NqIBHxlXqDXfPT8ozoPTRsLtU7VAmUlFS0%2BLh8txTAH4SPyya7alBHLWyp%2BF1HoAN%2FdVGjLYRaSBDnd%2FT67mdDCJK3XOb6Z"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1780,7 +1873,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8e2cc02443-AMS
+      - a3b756dfb8500e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -1788,17 +1881,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:03 GMT
+      - Tue, 15 Sep 2026 11:37:25 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=SBUI4W5L0YiAjXdZQHZYs935A5HDmsHOMonGwP8oc6SaYn8QTnKzsJgVnSqbQLKnWrfzfHGspQIH7b7ak62HKQ7R5PH33inVhJI1U99hDNYL1PPrxejsBWl4oBAZdHVDp3HFn%2Fvle42j"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=A3tR4b2%2Bhr6ljkbgdJp88wIgYmIC7va2HTrMHsbLhhYYC3gIHfvF2d%2FRzCSSt00n99Nzs2%2FBUKMmwUfxl7svLNPKd%2FCQOCszhrmwTZS7WcH8VEfhKEBiKaTuYyw1UZsIvJlK3MOjlTRf"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1840,7 +1933,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8ebefd2443-AMS
+      - a3b756e078ec0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -1848,17 +1941,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:03 GMT
+      - Tue, 15 Sep 2026 11:37:25 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=xbkNbUiyUfp9fZtBhRTABCmQMqLD3vHHgsO0XpBXm7qam12tQYzcUH%2BYckUt3cPGmAtsl2omesCHfPNqhzLRhWxPnxjg0SBa1TXcsgFTs%2B172aSmfcxFpBY5Zw53a4zSCmXk5gIHLGGQ"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=oivLI6iqLenHEirqfdH8jBs0G6rih%2F7zioIb375D%2B%2Bymw7iNOdONLRZn2H3Zm007li0GkkqFl5V1kCoHWrIL8VxxxHOZ%2BfTDcaRos0dzg7m2DsJRHy%2Bs9GZTnfooR13hEpAkE30jCn3t"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1900,7 +1993,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8f595d2443-AMS
+      - a3b756e1497d0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -1908,17 +2001,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:03 GMT
+      - Tue, 15 Sep 2026 11:37:25 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Ev5ML0l6rCZCVRfYkXWQyzPnKB6g92sG%2BupxJbZ0CZD43HUYpb5XYLNzs%2BHd0NckQ56MZlGcM8xji%2FnKRgVzE0%2FEEbpxnr%2FaUPeXNmuswr88Gkcb8JIQEtpEIwANayFL9P78gtKd2Azz"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ainGgv0lwjDczj8DL7F9n6GMRqtBYjs59xU1kvXfAQnIiVwcXCKTBrKw0eE83huA9nlc5%2FXhOb55N%2FmOijpeIeTFBZBjMZlqhvzgMp6rZnXxzSC8kx8YIWF8xGWeHgnTm%2BVQW2iY87uX"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -1960,7 +2053,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a8ffb402443-AMS
+      - a3b756e21a560e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -1968,17 +2061,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=FNB7ML5dVasHEe9j8S1sNAhV0CQNb92jaS9NbNMOdx3jsUkrrp7PuN5v9pLYo08TaXfui7C3sKVlXINHVUVYDj9RFikXldgbuotx9OdKvV9osBp5m50AACJfSW1iMnlkSd%2Bx%2Bpt0n%2FOq"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=5wz1icc3HTY2qKGKhCuuhpe7ue8dN%2B8B8BblX0jKXujXHOu%2Bd12unJI5bvl0hOpxsk6kyYfW3fCsFGFjK3fz2w3mtyvaWMbKSPVtldkKI3ujl0%2F7qjVLeY%2FMNz1U8pkWt89cDzl3tqKW"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -2022,7 +2115,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a912f932443-AMS
+      - a3b756e2fb100e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2030,17 +2123,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=UrJL%2BUEWmp2lmT9Bpi2K0vJX0lqvVbu0KaSA2ifJW6l8E8HrQPcVNSZMdnvi3QNx9pSmBg4IYZTNLNeWelKFsA%2BDer0SPluPGCp9uvvVc6vUxkWIC8u5BxlyMu6H1nL2va0dbzQhM08j"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Lt9MTQHqIFT%2BEcqWjN01uNrRRv71EH90LljnSY1w7DYLbUFpRuIES3lulqCBEoEyTld8gMdWl2lG0mOLi%2Fps8hBdlWNlapkGJkdA2K5jck97tP2ctbInjl1yITyc0WcYl5m66hryvbFu"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2082,7 +2175,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a91b98c2443-AMS
+      - a3b756e3eba50e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2090,17 +2183,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=A8tXs4xv2%2FseAecIjf3E1DD9TBIL7wqLF23OPkqv62d8tKf7rIdgOlBsqXnEaqJRU4QstLSp1%2FeQ1Xhqe4MNuw9XqR%2FabOruD6PTfpY7369RuO%2FdAQ5LT9D2DJDrCIgyv4604c2ILkgZ"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2BBtNCSleupJOGX%2FaWN91X%2FwrFjffk9FJubxCnTQKgsA465CTjJTufHNnBNHduQImRA6zH5Yml6aiJ%2FmlpQboArykTwoZDQcEl5nUaIPW4%2B5cxtHpFkmBr1mAdReI8%2BTMLxc6xSDsN6np"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2142,7 +2235,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a925b982443-AMS
+      - a3b756e4bc600e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2150,17 +2243,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Fv22AtNqEoLVE34VebZggnKPAB%2F8rXfAAn3teH7vza9WA8UUUnvUv2CD2xPlimroKGwqPAxUicB6P7Ez%2B%2FZ3XLvaBZpX%2FL1jiCAPJVmslqBVLE2IklXp4b%2FssRu9UsuBNnVtsPUFayh8"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2BPNnZecZLdLUX%2FSTJdahcodiigjaswCz35qfAavI35R4jOXHijKss13XDYnsLo%2Bvfql3ns7JYv6u7%2Fx6rT3BCoriz%2FDB6qMSMSRq0vVHh6jPKctUh3lRMJsR7Tm8UzKagfXehlhzGoM5"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2202,7 +2295,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a92dd872443-AMS
+      - a3b756e56d120e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2210,17 +2303,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=AFQHVmJtnpn6FSRXpulWUvutiSVlvodfGWj7x00DKQ5g52KFI8SRrQls3uuXX2lCFtAhf8lbEWmixIrnvYjfgg%2FrvdQFUMqzZfqSAIonPX0JJF6t2GdDjhfTKyKawAgnBQibwAQaPy53"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=wQu%2Fq6qpXbvddBs5tyDh0EAUyX%2BUz%2B3S4%2BejTuNIEaGggrtdCrORXxoOjFA8ujPrggA%2Fw3RnKvx%2Fpw3Iea4EkwcI%2FlRQtkzP1F1vPR8NEt73ahv2i0WDHGTgSGoodF8xQDp2zi9T%2BYhj"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2262,7 +2355,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a937f722443-AMS
+      - a3b756e62dc00e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2270,17 +2363,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=7G60s5JflbiYrjNtCma87iz3xsKSujog5KImr3VKQyDfVf%2FuAc86YUl0yBBAQiecciFDr1RUC5D9kXvMEOFS06e%2BX%2F22AZJYwVRxGY6zcINm7G1WIb8K2%2FItTim%2FBm6ti0L0CNMQwHOl"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Csy6p3km6OdYJUfP9r4ut3WO9mSXiGlSKWIYJFos0EQ5gkGiKz2%2B8ADpUoizHC2dDfVeG56kJHw7wRdvfD76aO2dqGKRK%2BGBUr0LPvRLvCGONhv7SIXLsxstqEMTC9CZgt7GKB2Hmjw%2F"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2322,7 +2415,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a93f96e2443-AMS
+      - a3b756e6ee760e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2330,17 +2423,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:26 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=vsL9frWqB%2Fsa0VFNGwF7KyX6C5qsUeE5K52pWGiUDu%2BG8XeaoPNgtln44IYbuXUTAvPvoeAEt6%2BgcwYRlJ0BM3GL81CFEeDp5XOOc8oHbFKf2PbPXyZ0x4s109mYIkPHQsU63Z4TqM7N"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CgsIcgUraRhiN5zHkoIUoPxJzPxW9Zl4MzBHEWGvw3kS%2Bjz88f0BqOyjJygMgJZKnmfZO5gJd9zYzDpUUrSGHi3C0r6b1FozA3y3Fx%2F18kqeQVF3NMD1ozmX%2FFcKZTQCvDTrVNQ02lIS"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2382,7 +2475,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a949bb42443-AMS
+      - a3b756e7af500e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2390,17 +2483,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uyQaOcXCDu8jEkJXf8XdhO%2FqXQGw7FEafvmDhTugs4e%2BwdLz8Qv41mbuVIFsAYAKqrNOf1%2BPNJ8HhQXhlx6YYNUryHHhjvLH9OTX6Mwn2VZ7t8YAdTPmnLvTgfHKLGu8%2Fh8Ztlt8f28m"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Gf6E9LosSwTGp%2BGZ1mzt6%2BBuib9N9a%2FN0%2BpXRtTe27AGFyKAp9njXJnH%2BlY%2FGi%2BaGQt6DIU9%2FOQIUmF7v07D6VJjr8o0ehLKRXihP%2F%2FLQHNhEH0XNVwGwl9Jv1tcbTyRLNrYl3gwqdPs"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2442,7 +2535,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a952dea2443-AMS
+      - a3b756e8681c0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2450,17 +2543,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ZQ01JzxZfWR%2FkrwJWYf3x4HejtUfaP0paa7yRVXdcNL8BUOvb7PQaJvIMRgfWYzHXjCdwUmLW7S1Fk96rO1VwvxhmVt7b1AB%2F4xuoyP9VBr9FByDFu%2Bpc0jMIbH%2BK%2FC4R906i5LvKNIO"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=G4o%2BNGDYl%2BC6cwCpPdoOHIoto9ep28CNtHgy1fUNryXB6afXvT0XPMphPB5ylNGvAHgiPkCqTc4A3Q0SEFNdX2OGOy3UP3uI4xD38aymB7pFG6uZX8oxOzLTxHsF5z33nPXOx0%2FrbhgE"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2502,7 +2595,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a95c8992443-AMS
+      - a3b756e918c60e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2510,17 +2603,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:04 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=O38NbHbYghhhprFiCew4qHqCpFxEEHI3kH1Z6yDvBkhkXJdw5VzjLj%2FlDMr7S19jOaszXFT6v6dh8W9Ly1Aa1VUJDCWchjOmnRdj98b90XzNAEytKeWipa7lSBzQrdgYLKrSvzV1EV3i"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uC4Wcimu7VFyhM6F3uy%2FW7sepRa3v8gmAw9dBk8Sz5M2cQ%2Fa7RX7i6STq6F8C%2F531qe0srVLUVvleIF%2Fy0SJ2kGOYbeobkna1cFVwlr%2FXBksT9ZYPgVny5YAxNoAq6QAjTJX2pBRP08R"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2562,7 +2655,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a969ba82443-AMS
+      - a3b756e9f9aa0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2570,17 +2663,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RFPiYbgLwUlGlQ1cwYGe8tKTp8XYlmwkauLNJQrGDmOqOGsBMXbey6a%2BZzMni0ZbZfLHrruf%2BtpJcS1Xlos%2B%2BN1b4xF838EQZ0Lh4yhzgTZMco%2BWrRYfVXA9EPpLq97RTO2%2FbqKmaLr%2B"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0VO%2BNeni90KMPuXt8Lw8OUhXHmBSMg%2BA1UnXSxWBmXuxbJNuR0xA5PdntKVCYxKf27i3oDn8B%2BmtgQyDts5p6UlcUkOhp5EHIieoP9%2F%2FuZnGEiMevXWtLxkH7TUXQhSXc9n3Rw%2Bf%2BAQb"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2622,7 +2715,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a973e1c2443-AMS
+      - a3b756eaca3a0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2630,17 +2723,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=T%2FDT407L9HTr8IyaeVuW0ly1eH3xRJ994gE38DzGU8%2Fynd5n6nNxWv075W5L%2B55Gd78lVY3bxmmmNvcM%2BvGErhLwXjjiPtyTMvd7AjIIDIHmdRu1FAgGpDCo4%2ByRUk0ad5g9YT%2Bd9mq4"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=6pXGkPELBXXm0n5vL%2BTit6AXvKBHqDDZvSYDA802FMu9xk0QKjqcGnRAu9M597MFCzXvEHvENgCj8F4sbPZMTSq6eOb8B0lJFzKgwrfhmAdAHfxCM%2B8u8usKE3Q932nkRogKrBBlUSd5"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2682,7 +2775,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a97c8502443-AMS
+      - a3b756eb9ac70e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2690,17 +2783,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=w0qyXFMp3OzHRumBqALu9ldqr5FDZkhD7daeGF11JiE8IzxdChswU0UJ%2FLkMTa5docZ0QpePs1CKnCLhwT59s46JuugT%2BLmA904SPNQfpqfNF5SSBZzXKPcUUilWQaSiELJ4noWSIlvK"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Y2k87tIwgoiNUj1NidK4knw%2BSbYr%2BKDPmfViQeH%2FQtaNjmhRuFLSIQM08R5SLsmOMy90Q6ik6yoQVbQ8OeXeGYi%2BT7w%2FwCA0PbW2H%2BsHCO7s6cgYdzHeeU4C68FESG4pMRLvs%2F1AORM5"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -2744,7 +2837,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a985a2c2443-AMS
+      - a3b756ec3b650e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2752,17 +2845,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=CwmDR7euG4vK6PGck4kyCGlfNfxkbDxXoQBkKH%2BHfWlrUMWV2i2Kh3QojLWY6BzfIduE4oJTlLHbq8EjAOwgWUJggKllNb6X5OURH1jZ2TFELkyOh%2F%2F5M7e9JGGlo7%2BStv696ZN7R%2BrN"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=cwW9uFzB6OiBOMIq5Hho6Kyz5UYDvQEFE7EUiN6%2FSkJHrNyCOaFmNPCqruI%2FSxxg8wFNCGZ1pfXfz%2FGHVwin2W5M2lLz21lRxtzNhA6uJIwu4GFm9BT18kDKG%2BSSAPeHcvKIU61QALHe"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2804,7 +2897,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a98ec712443-AMS
+      - a3b756ecfc140e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2812,17 +2905,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:27 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ZFql2JTtbl9wf%2FNWKjWQsedkQC0%2FdKM%2FtK0QKpz1O3YxoitioyfKEZuFVQbwH6sAZwOXuY2eEQ47dU%2B27G5gd7d4qMK7%2BaacA2Nu9TohEcGZ1TZgkn6lcDTXo0QOkIFOkMzcuHm5V4Z8"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Md4DGoJaWMp84ih8IoghgS8mQgN%2Be71XsFnDtGxyhYceRNpmrqZGOtZA1mZ4e%2BlLfemn5nsZY1nkPFD7nFvelBkryG04ZjjH520PBCVE9Qlr7lWhBfS3Kwx8W%2BGEP9%2B%2BreUdbPYer50d"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -2861,10 +2954,10 @@ interactions:
   response:
     body:
       string: '{"data": {"name": "Platform - CAS", "owner": "Administrator", "creation":
-        "2026-09-11 23:17:05.533645", "modified": "2026-09-11 23:17:05.533645", "modified_by":
+        "2026-09-15 14:37:28.031868", "modified": "2026-09-15 14:37:28.031868", "modified_by":
         "Administrator", "docstatus": 0, "idx": 0, "department_name": "Platform",
         "custom_team_id": "team_901", "parent_department": "All Departments", "company":
-        "Cassette Org", "is_group": 0, "disabled": 0, "lft": 54, "rgt": 55, "old_parent":
+        "Cassette Org", "is_group": 0, "disabled": 0, "lft": 90, "rgt": 91, "old_parent":
         "All Departments", "doctype": "Department", "leave_approvers": [], "expense_approvers":
         [], "shift_request_approver": []}}'
     headers:
@@ -2875,7 +2968,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a997e992443-AMS
+      - a3b756ee1ccb0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2883,17 +2976,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:28 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=FeSD1kZZ0q5IRHuVfPUlrxx4e8HJ9v3lg6PQ%2BEasIdmQNwRzBXdQA%2FOZk7YPMoPAsfiSZKI3%2FFW4RkHsiT0bV5fiAJgIyN9Cv8iwvIfO44C7%2FTgjWqku9wcoV1dXRERxl7RWsbQpTCMX"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2BQSlXsAckkVjCCd3r3nQXhRWGd9CztPVqvrsPclalyz8GymmiWXazAN3iKRZDZwcaK%2BW84ZIqDIyTYyt3zv%2B0tQfUHJA1h0cO1Os1FWxEgbvyr4lWK5IX%2BRki21cB6T9Qi9u4t307hxZ"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -2936,10 +3029,10 @@ interactions:
   response:
     body:
       string: '{"data": {"name": "Data - CAS", "owner": "Administrator", "creation":
-        "2026-09-11 23:17:05.653828", "modified": "2026-09-11 23:17:05.653828", "modified_by":
+        "2026-09-15 14:37:28.183991", "modified": "2026-09-15 14:37:28.183991", "modified_by":
         "Administrator", "docstatus": 0, "idx": 0, "department_name": "Data", "custom_team_id":
         "team_902", "parent_department": "All Departments", "company": "Cassette Org",
-        "is_group": 0, "disabled": 0, "lft": 56, "rgt": 57, "old_parent": "All Departments",
+        "is_group": 0, "disabled": 0, "lft": 92, "rgt": 93, "old_parent": "All Departments",
         "doctype": "Department", "leave_approvers": [], "expense_approvers": [], "shift_request_approver":
         []}}'
     headers:
@@ -2950,7 +3043,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a9a39882443-AMS
+      - a3b756ef0d7d0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -2958,17 +3051,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:28 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Qso09CjYeE3G81zrvjwgcZ5i1pVx4kJ4EcPzkkP2jopbFEeFuX3jNe%2B1bhCtXai3OwzpW3qV%2BRkA6G9d%2FgrvqBhCij%2FkgjG8mMDa5C4h7ejxle0T89QDBKtbWc2LVvUrkM4G6ZUb4Tz1"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Hh9nkDdJkDXkGR1cXeRdTa84NjG2ASIsD0y%2B4UwEp%2BdgZab9RjYHX2UTJkDsa5aOsE%2BCStrN4OmRFq6KR%2FhdsPBngk8HoPpgzQcsg1BWVa4RPXRyTDEsm%2FA1Oy1h8W1xC0hN2SOqPiDA"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -3014,7 +3107,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a9adc202443-AMS
+      - a3b756efee0e0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3022,17 +3115,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:05 GMT
+      - Tue, 15 Sep 2026 11:37:28 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=uNLAHyb9NxFZ5Yo%2Bqo0YkcnmIxfzZFBXm1B6WnatSGSpRaOw8YK%2Bsjtoccc3muPSJWeLFmWPOVvOPeDqn%2BDvcgZBribA7a9LnKWRKosl2T0ofYQEzJ559gdl7Sb75GI%2F%2FK5gk2pjqSnm"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=IUS9WN3FluijFH%2BVrSXAUH9keKm083v5J4LdA2PbjclWQxlIicVKRuENku%2FIILKk0w8m5S%2FeEyJgfOKCrlH2eBhpSJnY8BBihTrlP8mEb%2B9ftd0bbQxvYFctBaFfujtTrTtZXTLfPe8S"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3100,7 +3193,7 @@ interactions:
         \\\"apps/frappe/frappe/utils/messages.py\\\", line 59, in _raise_exception\\n    raise
         exc\\nfrappe.exceptions.LinkValidationError: Could not find Row #1: Skill:
         no_such_skill\\n\"]", "_server_messages": "[\"{\\\"message\\\":\\\"Could not
-        find Row #1: Skill: no_such_skill\\\",\\\"as_table\\\":false,\\\"title\\\":\\\"Message\\\",\\\"indicator\\\":\\\"red\\\",\\\"raise_exception\\\":1,\\\"__frappe_exc_id\\\":\\\"3092fbe33c98accf8f99514a392e3992d0ad2fa49de099bb175b7692\\\"}\"]"}'
+        find Row #1: Skill: no_such_skill\\\",\\\"as_table\\\":false,\\\"title\\\":\\\"Message\\\",\\\"indicator\\\":\\\"red\\\",\\\"raise_exception\\\":1,\\\"__frappe_exc_id\\\":\\\"9a861ab56ab6968f39ab409eda6d26303befb5849c75cf75e1964cad\\\"}\"]"}'
     headers:
       alt-svc:
       - h3=":443"; ma=86400
@@ -3109,7 +3202,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995a9b6e562443-AMS
+      - a3b756f0be9e0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3117,17 +3210,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:06 GMT
+      - Tue, 15 Sep 2026 11:37:29 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=3wm%2Bcm7oac4Hhw8IbJ6%2FKdCzYdd0tnuiFWz3j23wHGXkXdnIsXR1mzsIBCMmtb7cCFtmwwrxXnxPwREXBN2BvclLS5yesOv%2F1t6TEvVwh5KFgBgeqfg%2Fd7%2BePKkE%2B6ob0RNdrH2Zd05J"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Xmxs4ihgmBrtzNHYB0dM2Tge6c7Nsh9FMSjCPZ96QgvSmev2BZ%2FXoirdKpFSVpNfLIFRJ8uTeg73Cvc1IkSyrob9xLxkTBjdyqC56OCga9Lh9%2F0JDgVv7qo0lF%2FPh3OuVIudyIhMA3eC"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3169,7 +3262,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aa098b32443-AMS
+      - a3b756f74b860e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3177,17 +3270,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:06 GMT
+      - Tue, 15 Sep 2026 11:37:29 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ADNwIL2RqTUpThA%2BeM%2BkAuIol9%2FAzZNx5KIs%2FtXgGJhmmFlCTYOTuhAs0xc618LwlVS0XeplaGir0bFS0ANKEMYdhiKP7jqA9mr3m9E3H10Pquvr%2FZmE%2FoPqXryPWNFEr0VVlfPVAw%2BD"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Z9VP9XQuy%2Fzl5%2F4CibbvSEvrZOfr7Rezp7pwXGoi8KVORAFcnQt4PI4g7nVoI8WiETNOyMQ9tAp84oA2AVeFtBQvxXo%2BitLPGHjUW8Cm2PQS6Q0LQGH9hfZe1rankKasl2BsUkIMlxDM"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3229,7 +3322,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aa14b1b2443-AMS
+      - a3b756f83c630e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3237,17 +3330,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:06 GMT
+      - Tue, 15 Sep 2026 11:37:29 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=aH9rhwIZ0LpYCb9m22taU2FVF2zy6TTKqZPFWoE09VuFJMva6VEYWGNacu07ou79QDaIrI913VqKIPpWGcWPiLSooZ42wLrJSiOiRWU2gM422XSd%2B8NckNUNuS5iEjDRj%2FiCopxGaUaW"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=lH3%2BySRzkVKeofxBZazAA4VdnEo3uZ0jR5x0fkDaLPUKMOaraqFFWVymO%2BWL%2B73iMKYEbhx3oPtJmrm2jTP1ELVa%2Fob7W%2FjZbm6pvZoiY4ntyIhRvpxuscrDXVhjrtnnW6KERXrWQBE%2B"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3300,7 +3393,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aa1ed5c2443-AMS
+      - a3b756f93cf10e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3308,17 +3401,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:07 GMT
+      - Tue, 15 Sep 2026 11:37:30 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=oN3BnCgLTfRKdlXdoMKSvpKhsaJ1Vt%2BVq8wNTtBBlZjQu1%2FvCp4ZOPYlGX6RIdZfvnKWMiQYPWZEBP4kzu7m86Pc2ntSqN7FvrbzpJT6heqW1ZN4VmGXtXVZi%2B7yWc9p6XsNRaOwpL0%2B"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=EDupwaqB559bY2dtpdI%2FLYhqhKpnZBJgqeKC003ijc20MgQo8nXaHObLPrmkOJTR0MAupAwj0iOaHe2DIf26u0eAnVuiqYZKqD3408UF0NvyjUHdZf0CIZyY60tXtTYw8VH9ij8QccsN"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3360,7 +3453,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aa7da672443-AMS
+      - a3b757011ad00e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3368,17 +3461,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:07 GMT
+      - Tue, 15 Sep 2026 11:37:31 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=nUDgKzjteWP5NyrBiM7kgHIihXMTYig5STQPaQ2IMo184F%2BnGHA6CmDFRDn%2Bj%2BbO8IaaXSkIRKUVn4ijDVMjE6Wgp%2BN5L2qf%2FXL01phpd5PZEQC%2FepJIvo64kUp6tDmnrGjsiNusEIJd"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=b8P%2BaRsrbuiP5hnSEIWwLa4%2BYZDigZILflpcBpAE%2F7GG5VyNZ3xWkn9PV2Kq4QhzOdUXaJjARYWhx709mMeramoaW0rBuy3E63qvFY0tTYk%2FYIPzVWLk%2BMqHC2JcnUdoo7F5EoSOPPuG"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3420,7 +3513,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aa8ad072443-AMS
+      - a3b757025bb20e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3428,17 +3521,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:07 GMT
+      - Tue, 15 Sep 2026 11:37:31 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=PdmsYQXEl6KPj7lFU5IxpCT9IU6TgutWChaycpm5gnU7CevAQu9Kv1rskU3uRRo3ebsWGSpZEqYAwPfaKjfbIRedr5aTQiLbjO9PaT0C4X%2FklilA8p6jB%2F4edd5OlM6v%2BkCu110BDyn7"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Er5EN8uW4b2Z8a9lM6PIrUHKJi3AMHZt99lSet17bOTSiflVPvpuoy27Eye%2Bp4vCFlzEEeNWLwZS1fdlAVyxl%2BCrngHVZIV6oeQ3DRSQq7C2qWzZQT0XV3lS7eksEIoWclnOz0FAcVqK"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3490,7 +3583,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aa92f232443-AMS
+      - a3b757031c360e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3498,17 +3591,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:08 GMT
+      - Tue, 15 Sep 2026 11:37:32 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Aci7M7Gcv3ZeeBixAqI2erQ47OcCsR%2FpJy9cMo4ylpMkbOcYnPp6%2FvdCj6VIJDcsxEvI8ZIx%2FYw%2Bj5OZOmEVMF6FlK7QYnIfycRO3fIHrErF9NY0H0PkXvVOTdad7Iswr0LnApc5kqBs"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=HUwij4J0QhBA6FCzwsq7Io6o3ygxs51KV30wau0yyItPSfqu9W80r7SFVdsWhYQ%2FJHAKvuS0MXSwAL5MvcDPQv3LlMpwQUhsOklXQX9kIhw%2BGJGbeo5LvM9EwG%2BwdQ3LK8rTbCgWsN%2FG"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3550,7 +3643,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aae1a232443-AMS
+      - a3b7570a09af0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3558,17 +3651,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:08 GMT
+      - Tue, 15 Sep 2026 11:37:32 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=3T9bUyxrS1amYxB90E7jkL1QcDchusTmHHHvw258UUvHtMaNZlh%2FDyZTSGOPfjMDQa06TsZ9IcHF31%2BfXauJv92zzd3xYVRslA6JcjfV9ctXJM7n%2Bg9AS2SHCprjHSB5GhNPV7VUi%2FwL"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=PULO45sFaMddxAYpIXlM4p1uXEggLqi1Z6Ob0bc4wGqkgDIF6Mjx8ZCVGSChhSyRe%2FX4thMvqBwHZv4OavPPs4uCo6f1yy0VaUjDlxv11RjfcO2a1NMZP5ciqxBUanLgzDBOooP56UeE"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3610,7 +3703,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aaedd0b2443-AMS
+      - a3b7570afa610e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3618,17 +3711,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:08 GMT
+      - Tue, 15 Sep 2026 11:37:32 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=GUWkAACMM%2B5MYRUBELNLofvo%2Fwp73hgTxKEKln5a2%2Be%2FyH4qTSPk%2BFZGKWEED7or%2BbDIw2F0j65LNv2ZnGrwKDwpH9QyY9eZRl2M7iPfaXh7OWaW3t1Njt5KzFlWjMS7wEzSQ7f%2FKhla"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Nlly73BkQtX3%2FzH9GfBILShu0KuuaBpGimZ%2Fu4K99nGsXw7iKRs3fTwh9gzdyNIl8rPfz0HWkw6d6kZZlFTB7C79RiN1mbIabCW%2BLwGfXhGhQj8fZJm5v9e%2BM%2B3gt62jBD%2FI%2BM7bNlFW"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3682,7 +3775,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995aaf7f552443-AMS
+      - a3b7570bbad70e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3690,17 +3783,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:09 GMT
+      - Tue, 15 Sep 2026 11:37:33 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=wvCfSORkQngVlHiuRfMCzziqw%2Fwb2QlBFMjfhcTCjrjA3o2VzmXszbw5dSdLFy3D9sfG%2Bt7p57Xez6HfryIhZtzd5YA5M4orIiaU%2FXGvgVLHESzTFEOUt6RAtDeea3lpWgArW7NRwTil"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=mVZotqcN5dJuQNQKxv9TZpTfE%2B%2FP27FTL6SsoTKWsIxRTiyc7oAvWF6DtySKStNrX%2BQ7YbGYmRgw6gqKoy3KTzejxJQvCl0MZzm8C%2FLSIul22XWS7DJvxlfb9TbnpblfcmUSQl74rvKK"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3742,7 +3835,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ab459d52443-AMS
+      - a3b7571389120e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3750,17 +3843,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:09 GMT
+      - Tue, 15 Sep 2026 11:37:34 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=HgQqj%2FEM%2BVEjcjjKKd%2BuaGnf0kaJRHi6cPUWOmM89A0My7p6D4BqWBKYouxkV3Dzhh3YUnWdmgJXiilOpDYLkc0c5Jqx2Uh59huzlaVD1fAKB8nvZunhOr7gig8QKY8kR%2BDPJXlyoknc"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=mAGAfewmi7Fl665Og9%2B184TO3hXN580cjBTyIvLQL2rccNmIfa9oc76O%2Bz6lIaJ9luV5vrEkI6l9fuMdsLGHa1SB9pQqCdmwpDfxzo8zcm9DiFemMZyqystxQYdoWv%2FGWMOc%2B6%2FTotwy"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3799,8 +3892,8 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application
   response:
     body:
-      string: '{"data": {"name": "HR-LAP-2026-00005", "owner": "Administrator", "creation":
-        "2026-09-11 23:17:09.993791", "modified": "2026-09-11 23:17:09.993791", "modified_by":
+      string: '{"data": {"name": "HR-LAP-2026-00019", "owner": "Administrator", "creation":
+        "2026-09-15 14:37:34.306611", "modified": "2026-09-15 14:37:34.306611", "modified_by":
         "Administrator", "docstatus": 1, "idx": 0, "naming_series": "HR-LAP-.YYYY.-",
         "employee": "emp_903", "employee_name": "Deniz Y\u0131lmaz", "leave_type":
         "Annual", "company": "Cassette Org", "department": "Platform - CAS", "from_date":
@@ -3817,7 +3910,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ab4fc0a2443-AMS
+      - a3b7571499d00e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3825,17 +3918,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:10 GMT
+      - Tue, 15 Sep 2026 11:37:34 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=s5kMpUQFwGeXZp8EHRYZrUHrIDA9H1L2VgYwCKPZOQotpoRJWbPf3EuQB2XEaQjedbIy1C53DHOuq9fJ0NN0M2vAnmEyv9xF%2BKLf7XRfhUwHwuLkqA2tZ6yjF2yITLbgP8CvBKGlaTZE"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RNlwpGUkZgHW5BYbl%2FTLXbMFrPCiMdRHiGlWQgEoGCbe5gCLcuXVOwvdqEmFmuSoGcaU3Zmp3AR7drdrTueFCMv8EuRKlcBr9jpH3ogBLy%2F9l72JhjryAShXgzqdkbgjQ56IP%2FN1iwlL"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -3881,7 +3974,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ab85fc92443-AMS
+      - a3b7571aaec70e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3889,17 +3982,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:10 GMT
+      - Tue, 15 Sep 2026 11:37:35 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=nZDLHwS5EYFzgaj%2BVcL3qdmUIu7IzSWT4xCOssvtIg2cueVzBGssjK%2Fhghoa31ejKBUnezWJ7vK6ZuDerioFxLcdqAqa1lJrBUx7%2Fed9fVPEAMrEj6hwUofx%2BuuwUErmLWScVSuP9I9N"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=DNEQgzOzPb9Qo2C9cQxI3XaqbqQ95eY0fdNeyjCU9qHrpWPTt8WfP4iL6xe2SyFDkXCFVvordL71dJJmR9Ev1E2FV1v0nCvuDVhJie5lt%2B0VUdmgrw%2B9GxUKMe6ej0CCjfLMz707WCZI"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -3938,8 +4031,8 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application
   response:
     body:
-      string: '{"data": {"name": "HR-LAP-2026-00006", "owner": "Administrator", "creation":
-        "2026-09-11 23:17:10.566864", "modified": "2026-09-11 23:17:10.566864", "modified_by":
+      string: '{"data": {"name": "HR-LAP-2026-00020", "owner": "Administrator", "creation":
+        "2026-09-15 14:37:35.427133", "modified": "2026-09-15 14:37:35.427133", "modified_by":
         "Administrator", "docstatus": 0, "idx": 0, "naming_series": "HR-LAP-.YYYY.-",
         "employee": "emp_902", "employee_name": "Baran Demir", "leave_type": "Sick",
         "company": "Cassette Org", "department": "Data - CAS", "from_date": "2026-09-17",
@@ -3957,7 +4050,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ab8e9cb2443-AMS
+      - a3b7571c382b0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -3965,17 +4058,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:10 GMT
+      - Tue, 15 Sep 2026 11:37:35 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Oj5zhhs8uCf1IhocTAO%2B8uEohPfCCTxcJDI8DNBZfgjDCxNZ7kvOppYuaoeVbnAskb0sXm11BTBI8jH59Y5T2F4CGVtJv51WvaRlegfiHkJbQMP%2F6u%2BndJ7hTd0z4IXhO67GtcaK3bZf"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Lr8KDo3jIZfa0z5CWrLGM5XK5%2BCXzpbh8%2FAOSPsb7O5%2BJAnnoEbKwzIFL8UEY1v0yX8w%2BbOGgE7lvBWKnJy%2F6NOIeqy0pCH2QNnrYu69xkp0ftflfi%2BkUlspxl6p1IxL%2FfYL3Dxhv1gg"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -4031,7 +4124,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ab9fd522443-AMS
+      - a3b7571dd99f0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4039,17 +4132,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:10 GMT
+      - Tue, 15 Sep 2026 11:37:35 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=g5g9mQT3XNygNWZOBsoMJNDLGC0ixlbQbgRnfKwoMKUz5nQlY01v99vVrOQFSWVxwA7rckiOkC7SycoeVj5BUGWht6mMn8vaeOBS7VsLzLXuxdIyDaYsd2p7cpz7q%2BRR1pjeDN1Tj6FU"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=3YlTSdvz0%2B4k4ZvFoDQhem%2BQDjs30Ksq6SIsMsJDxaYvmUgxEI4QyMWbO0uxkcnFFnSyufja4jbQqj1P9QDjEewJD%2FuByXogQxXJ1VHhHmmNhSJ0kzSd46USK9xa8LxLrWT7dAtAFVu%2F"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -4087,7 +4180,7 @@ interactions:
   response:
     body:
       string: '{"data": [{"employee": "emp_901", "skill": "kafka"}, {"employee": "emp_903",
-        "skill": "kafka"}, {"employee": "emp_903", "skill": "sql"}]}'
+        "skill": "sql"}, {"employee": "emp_903", "skill": "kafka"}]}'
     headers:
       alt-svc:
       - h3=":443"; ma=86400
@@ -4096,7 +4189,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abaf9202443-AMS
+      - a3b7571eca7e0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4104,17 +4197,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:10 GMT
+      - Tue, 15 Sep 2026 11:37:35 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=mYfVyfUpe3xDpinyLve%2Btbo79N2bClKmPzSB8WffLH5i%2Fngh6OMGegIZsQ7YK%2Bf4I82b3zyFFuh2p7A%2BVWFicn6ZatODqYhbZmzGuXB09PZkJHXaKd3AQe2KRqcrdIAMSQeBDbLf%2BnMz"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RJSgjVJvGVln2d7mQq342UCQfLIqFz78im2NSUZoJuMeGgkFapQVPJchpExB0wdVVc5r9jUOunS6cjqKk6arVi9W%2B3cPr03wocOUKFT1O9BZMFfczgtZiWmrTgtts%2BUcMe6DDABl26PD"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4160,7 +4253,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abb9b8f2443-AMS
+      - a3b7571fab330e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4168,17 +4261,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:35 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=7imkg3f%2BR7MjJs4lAZQHmGjEiydLOtED9d4DSqSMuItGDAObc1FKIhykUx927vSUyKK6lHbExT7LRDRcAshqQzCYKSJtGuYfqCf5O1xdzAMgNK3Kb0RBDhITNM7LgNp3kx0FQVIZUgHs"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=jc%2FiEHHToSmec1wAwOei1aRmoqG0IpdnMJc1K9Z3Yy3QYLhi0zwzosPGmu7zwE5LqeDVr76Q3ckBXoibbNTr8t1h7Wh%2B4hFJFcE7HzvVLbBBmO8tm0iuN3aXemiNzqFzZLOIiSHtf1ZS"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4224,7 +4317,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abc3dc22443-AMS
+      - a3b757205bc50e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4232,17 +4325,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RTg9fLOqEo4n%2FcIQbdrMXFT857kreWIrN9L3laR%2BrXTFLy7hjeEuP1BjeiH7%2BRwvEjvRjhdk1E5Bbkng%2FRf8hCfW48jSC%2Fox9m1yKsXzZuVogIcSEKzBjrv5d4PQUY60yeU5Q8DFUqxk"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1BgWgcwaucpaafe07Q9ifbeGyDMr6742IVHnTpY3qwa8Ba3yM8h6pzOka3zB%2BkWXH%2BZm5Gjed%2BzaNJGcjEZHjsh2DD8sjiaksXU9NMH82I4Cn9LJ1Tk2mr%2BxHAb8lf6ealrd%2BtDp%2FW4x"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4288,7 +4381,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abccfde2443-AMS
+      - a3b757211c550e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4296,17 +4389,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=OUGzyHG6u%2BNcHiGRToQI7LsJuF009DsPdA8sn4AOmN9ZidoQewdx55EsRUhaDPbvMb96%2FDEu5r3ca2hVlY7dDd8a0rz%2Fz85hUvyWxcu%2FMpGevqKFEm6x6Zg%2Fl964sUTyWHwvDZmIGSt3"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=ODJpgu7MRDgrNIY3fmL%2BEmaxIGktEX2QAeMP%2BE95d%2FNgx9EpL55o726uMKV7gxuTnX7JFUChbeGXO0R%2BT4qhtzt5tP9wMywltgeD%2FXm8QUvHcKtbV0OaTwpdRtk57sxb%2FD0KPhuBHAl0"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4353,7 +4446,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abd69f72443-AMS
+      - a3b75721dceb0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4361,17 +4454,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=aV1aeh7Q74Gi7iUTa3Hmswrd7guKhQj9GDingcABvDXjkJk0Iz67%2Bepe9jw6OuBtX85FB8K0L3cdHDd1HYl6kXvrYkrWaOfkvY1PSGduT2x8fb9tzZEwv2JA5PWwBF4mrLfjjHsknkMf"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=k3gPOdJWDpz22UIl8f%2BPcLY0AD22GCDlJi1m9qzJcaXyse5XCSRTxSK2hCeL5JZs27%2Fxn5BiQLi7vhaBn2ccGz%2BUgnZuYqEw3caq55BygBkgWNaRdqoywy4MfY3ZGsXWH2cofgMqapyq"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -4417,7 +4510,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abdfc262443-AMS
+      - a3b757229d740e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4425,17 +4518,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=p4q8gzI9JI7%2FB5VzdrDF5hJxi2MJOR1GIakvIWw1OuoAdSpW4i4GCIsbHACw6%2FYgO%2BlQUv1lN6wdsiRPh1DCJ5rwjA90YQuo40eKEhZbKHt9yTZUjxq32nbtul7oNHMsp2MkY8LIYa9k"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=lAF3j2ajblL7IIDBmyQ7cxr9Rw26qo5kgeYjZ2YnpiJ7Eo4PHANa9BiSi%2B8%2BkfSKnBn3KhKR1N%2B2Is1iZlWY1hpbdlZUKnlZvDzDFRDTzm%2BCgq%2BIiiN7mwdKkICXSdsEy5F7rw%2FePr%2FI"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4470,8 +4563,8 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Employee%20Skill%20Map?filters=%5B%5B%22employee%22%2C+%22in%22%2C+%5B%22emp_903%22%5D%5D%5D&fields=%5B%22employee%22%2C+%22employee_skills.skill%22%5D&limit_start=0&limit_page_length=100
   response:
     body:
-      string: '{"data": [{"employee": "emp_903", "skill": "kafka"}, {"employee": "emp_903",
-        "skill": "sql"}]}'
+      string: '{"data": [{"employee": "emp_903", "skill": "sql"}, {"employee": "emp_903",
+        "skill": "kafka"}]}'
     headers:
       alt-svc:
       - h3=":443"; ma=86400
@@ -4480,7 +4573,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abe7df12443-AMS
+      - a3b757236e190e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4488,17 +4581,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=xMwd%2FZSvHWAoOzE9eKF8IvqjW6mgrLlsTkYcKkmrvr0rihXPw%2F%2FREdwTDftoXyMZx9jF9MNGW9vg0ySGyLfq9eDiexGrJff5OFH%2F0%2FJBMh2%2BlLSbOzTbN4ADtEfBWExbGfyoFNMbteuS"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=%2Fl5yJngjFqIASxdSacaVmBBluXKSS57MvgJ%2Fg1%2B1sFLh%2FG4Dts4QM7nLgN2kkICACx7VvFpj3gsqw5UQMYMyitnrqhugsNdsURsJjM%2F1efaoHxzPkM7j1WDGDNQqGh8c2UIQWF39J1a7"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4544,7 +4637,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abf0ffa2443-AMS
+      - a3b757244edf0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4552,17 +4645,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=I1c1eIAhjzeaZ1nCAHY72qlPMba93iI2sXnDR5YSub2GRKheuUiXVH0Zh9HiOo%2Bmvkv7SswU423zsgDGNnTSnh539QeFTOX%2FJruLO28EpvV22P%2Buz%2BPBHMM24eO22rJ0Z6mQldQYWXui"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=wQx2raRWSsVtSqdki399OtGajoSRa3bVex9ZFxams90zortRWf%2F71o%2FfSdJ%2FncyCNHXcjoERCkynIhTBnkR0KfBP5APmjlsSwVB3j5xoXLnu%2FWzJX2xeOqW6ehg%2BaYcnIWaXhraOamZ3"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4609,7 +4702,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995abf99bc2443-AMS
+      - a3b757250f910e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4617,17 +4710,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=v%2FLCKp4%2FHfAVtIus%2F2jWPxgg6blBAB%2F20t0P%2BV57YkBMxBslyotlbhP%2FUuxvDVLmwHSMUOwjQK4fQ2QLqxXot6ka493ib5LQgiqNS4fz0thQu6vTdSzRf7q%2FesnJJr3briMlDdIF74WG"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=m%2B%2BX5AVEgmh7HDs%2BinKzqEB2Tto7f1hwjkay4OunDgM1LZH64VHlUcbmPz0dUfxHfvRhev3r6v2UM%2BT3Evr5MsCrAepnNFbxx2INV5Fhv1QBWxqyfCPZfqMwxQAN1inwGl%2FG%2FvSDyrfS"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -4673,7 +4766,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac03bcc2443-AMS
+      - a3b75725e8440e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4681,17 +4774,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:36 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=hPqy5ibyGa2aV7XDL3UmtuxLJH6nhBTgSaNfdAVEHMTNa%2FwTgO32xQFQ579HB9ZzLOqrXXTMC5n3jZh54KsznswxVyAuWazQAFgs9nKYIklc5BMnxNhWZsEHxrgVQyvtqyiawKDnhfrg"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=qiaFPc3lHAI8D0HAtNrZTXVrLVbrcwqi%2Fv0nc%2FMcZEJZ71xYDPoRL0CFv43OGU8Oa%2BkErg%2FklUD7zkeRRjeVETol5mv6tEmmrdukbMUJeSy5jbZlRuAxEBkAtDZW4%2Bloz5TpAyrAesDP"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4735,7 +4828,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac0ce142443-AMS
+      - a3b75726f9310e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4743,17 +4836,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=P5HuNiGEwp6IlB8P0FDlFj2Zzllw3qUJXZ3HXxUruMY47JkYUq4Gq4%2Fu39Q8TvrvRAF10%2F2Fv7%2FN6AJQl9Evxzh8y3im%2BWck3DWj1OcMW41jAsdXk%2B2JA8WOikBbCNhObQkBW6cmurv4"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=1kN3WL%2FhGzjXeuy2FY4tvbaaMbdMa7f8QE6MM0sl3cAzlwlgzSqC9QkoQOlbEdaZXZ3lGSMxKdGWFTAAVLQTUAsIlJReGiynyhfg3Sc8Ko%2FoTCMsASo54YXbdXZGD9s96ebPTrh9SLGx"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -4797,7 +4890,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac158202443-AMS
+      - a3b75727d9e50e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4805,17 +4898,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:11 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=BpbG3VTM9wecfS%2BZF7yesDYALvKm%2Bmd9Vxv0aHi3kKgF2UhD95t2%2BhSAhUmNRvhv6AfBMaVo93ArqJG%2B7WQ68agyQCmq98BfP70PDWR0%2BDoGKoGTkzZtW%2BlqU1C1b3E%2BWQsuNyBhBFF7"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=jPiaFt7vf4unbAmdeoGmukAe2WhZ2vUuEaElyirGYMrfE2c6L%2BO1RifuxDlFNLfLlNPSw8ugva4D%2FuJOvSsoui1wTZjcKbCmoZkX%2FOiKCk6USPisxRnoYw9r9uCx%2F9Qxajs0o42nIrf%2F"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4859,7 +4952,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac1fa532443-AMS
+      - a3b75728dacd0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4867,17 +4960,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=FXdyYKsbJUnVPv%2BWEYeGd%2ByKAbbTzbyyRa8GjJdkzCI11LXD8tdO%2BRgXBYQsgJ22WspBudnGmZHOMrPVzrzKhjtIA9AH8uDEpnxNLzEnowFSpTVtFkTxUSrTxQiJ3Q59kvaexHq5KUmC"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=6SlsMTziwlVLX%2F%2FSNfIde%2ByLttpnIUdpKzclY0gh2yRs4TAaHCC57R4kkPq3ME0AkOTzNR7odEF8VCQ7ewwjNmn71qP6D9yLZbJ5Y%2FQ9iqbE6Vs80XRsgqi9shz6JhhGW0ZmR%2B7%2FBRBq"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -4920,7 +5013,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac28cb32443-AMS
+      - a3b75729cbac0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4928,17 +5021,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=RM2ygHSFFR0TCKynmNhsEFW3MfWb8ZGT0juSrRxiKver%2Btwou2LnIiy%2FpdsqUJYG8VTL%2Be%2FCbKe0LyyhiRaBsJ749O823DHAZhBF5RTEp7L2o7%2BphahDM75v9akjuTEsvLjENl3VtfPY"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=iARZxTXYzOGPLWbPwjSBMVpugT23X%2FI9wqms4iZnq%2FPqGryY1MVhWrDM11qhKp9z%2BdDs0hgiqnvxnq2g%2Fg%2BhbYoUscMPzAvH%2BMtK%2FTqkkt0EHjTh30juAjxHyvb7PEOI7YUgnloxoI%2F2"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -4982,7 +5075,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac32efd2443-AMS
+      - a3b7572a7c300e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -4990,17 +5083,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0CD03HQ02TsaYdxQQ%2Foy6daIwqvhztqV%2BkChwq4qoNKmOulHsxj61E2cTFoPEXgQsrxJbWPOzZ9xKfPSab%2FnL30IWwABno0VtRJi8kSjr9re8myzfww%2Bhp7VwWFJ3ziWaH44lEuJDJWR"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rOLFlOxc0%2FgpnqLD8LKQbHuMrEKn1HDOGMxHsoJMTJqEQ%2FoDgyUknmEo9lfsFC5S18fEn6XOqgu9apYiCCXgmi%2B68XOPcUK1TsAbdHz0UYdrRsmLa6%2F3QnHp43s1kUeZtzieyR52AO%2BX"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -5033,7 +5126,7 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application?filters=%5B%5B%22company%22%2C+%22%3D%22%2C+%22Cassette+Org%22%5D%2C+%5B%22status%22%2C+%22in%22%2C+%5B%22Open%22%2C+%22Approved%22%5D%5D%2C+%5B%22docstatus%22%2C+%22in%22%2C+%5B0%2C+1%5D%5D%2C+%5B%22custom_leave_id%22%2C+%22%3D%22%2C+%22leave_901%22%5D%5D&fields=%5B%22name%22%2C+%22custom_leave_id%22%2C+%22employee%22%2C+%22leave_type%22%2C+%22from_date%22%2C+%22to_date%22%2C+%22status%22%2C+%22docstatus%22%5D&limit_start=0&limit_page_length=100
   response:
     body:
-      string: '{"data": [{"name": "HR-LAP-2026-00005", "custom_leave_id": "leave_901",
+      string: '{"data": [{"name": "HR-LAP-2026-00019", "custom_leave_id": "leave_901",
         "employee": "emp_903", "leave_type": "Annual", "from_date": "2026-09-14",
         "to_date": "2026-09-18", "status": "Approved", "docstatus": 1}]}'
     headers:
@@ -5044,7 +5137,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac3e9772443-AMS
+      - a3b7572b2cb60e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5052,17 +5145,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=yhDhnPt6K9yWDdAhEcNHnhfV4GAcGcFqD3FVMUxTOjIEW4y%2FrQdVV%2FmTnDGeUWamh%2B6k3qv9ZII4pWxIkZu667Mg%2FnYhibzgRsF5%2Fsv2XvEBNB9AeSLxEpt7S%2BnBJM0ZKhpukZgekqVf"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0tJ2TuI7Eh2AMRDrFi%2F6od3Zdy3%2B1M49gwwptlZJPQLj1%2FBh%2FzPJWPlahCz8uK5x4RO9QfGFuK8i52x%2B2DZbFJJq%2BrUxZ3xePDXgRDZh23Zdwa50iYSWgpWfx5mnAoPN11rrRZCsIiIf"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -5106,7 +5199,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac47b392443-AMS
+      - a3b7572c1d5e0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5114,17 +5207,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:37 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=0%2FWPr35LbZqTbpCE8QblpfXtImr8eccEzCbVUtAVKw4QmzYsLeMjynt%2B2V6oMBltX%2FKAKfB08s09yP8hTvpfWI5VSmNrWySHISg4S%2BebGUbN4e67WNlKA3wxyLmylEEwsGx1YSsPcAge"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=sQo0z4Gz3C4WAHp74zcWmE%2BT5wgsUry%2BE8EgkOY6WUtRjnew1tpSCvx%2FgNRWG8JZwCKC1TaCROhKsFLwFLPCNSAT4nk%2BYuNj%2BGUAGEMobgPWx4chp4y4KwuodXb1D%2BS16KiUqmJU5KAW"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -5168,7 +5261,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac4fd242443-AMS
+      - a3b7572ccddd0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5176,17 +5269,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:38 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=Y3STbtEfNF5I%2Bbj6SihQVbTBj2vqSJvQvVCeuZrR%2BWCC%2B0JHMlm8sYtnFDbRWMF2KRvt%2BNRRL9NLaV91LdL5YstdcKHjqqSVlerlB0C9RudnKMJsGPl0NYjP2qenDlymhG2cZ3sMqWTg"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=cdh4jgf3IQ5rT2j3XIQrUhx8MJ5cGUT7dNyLJrdjPCfme5ZUX1AQDCDJakAebPUwZ07llX%2F9AEGOsg3P1ffH%2FvoKX4omNEj%2Bnv0fyFCD%2FJLygKVs3uaful1QTgfwarbDGyAXqVDwqwCX"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:
@@ -5219,9 +5312,9 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application?filters=%5B%5B%22company%22%2C+%22%3D%22%2C+%22Cassette+Org%22%5D%2C+%5B%22status%22%2C+%22in%22%2C+%5B%22Open%22%2C+%22Approved%22%5D%5D%2C+%5B%22docstatus%22%2C+%22in%22%2C+%5B0%2C+1%5D%5D%2C+%5B%22from_date%22%2C+%22%3C%3D%22%2C+%222026-09-18%22%5D%2C+%5B%22to_date%22%2C+%22%3E%3D%22%2C+%222026-09-14%22%5D%5D&fields=%5B%22name%22%2C+%22custom_leave_id%22%2C+%22employee%22%2C+%22leave_type%22%2C+%22from_date%22%2C+%22to_date%22%2C+%22status%22%2C+%22docstatus%22%5D&limit_start=0&limit_page_length=100
   response:
     body:
-      string: '{"data": [{"name": "HR-LAP-2026-00006", "custom_leave_id": "leave_902",
+      string: '{"data": [{"name": "HR-LAP-2026-00020", "custom_leave_id": "leave_902",
         "employee": "emp_902", "leave_type": "Sick", "from_date": "2026-09-17", "to_date":
-        "2026-09-17", "status": "Open", "docstatus": 0}, {"name": "HR-LAP-2026-00005",
+        "2026-09-17", "status": "Open", "docstatus": 0}, {"name": "HR-LAP-2026-00019",
         "custom_leave_id": "leave_901", "employee": "emp_903", "leave_type": "Annual",
         "from_date": "2026-09-14", "to_date": "2026-09-18", "status": "Approved",
         "docstatus": 1}]}'
@@ -5233,7 +5326,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac59f502443-AMS
+      - a3b7572d8e7e0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5241,17 +5334,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:38 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=f7OzClEuQ8x0JVdyKxphaDbwGss8hjuGzHG2G4l%2B0%2FqDG6dNAVekzMBp6OiWSwsYWNeSmAKXdHOg2jRLUDmgTvd4WqdRb%2B3C2eitJtJuKMtDJCiGIqupC6beotXxpU7Cdr%2Fosek4Sp3v"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=lTQoT1Ymjl%2BZa8OM8p0iC7yVdNPz3QY6TR2bAOT4s51vVR1w8OPnTMM6yXVEFY%2FQbLSMG1JVgm7CScuU8Terzca5squfkwmax48vcu7fdAvQ%2FoaavrVKmYBZrBuZSL4T%2Fn0igH6eoeTj"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -5299,7 +5392,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac6297e2443-AMS
+      - a3b7572e4ef70e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5307,17 +5400,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:38 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=GXmN4QE3M4oCtFJJofKbWORVE2MeWvSMEeYKQ1yRji5suI90me76VwlTpDQSoxCBusXEnC5bskRxYDI3RGvljmORQqJy3ph1WiBAs18XHWbKJ8VUBU7MiovxvH%2BCQ9uWFEIPBCWl2Uha"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=z6H9TK%2BcIMMrNfpOLoImmgtZSyMr3YBSevkzeZHbF%2F0Nfs9Xh2p1pWBTKEp6y%2FryJb%2BFEzIvBuABhVphRLrR5lmhfl1cf8jIXfDKw0mQ8be0momBXBoSbrAYhYD6npwr99va1IwQrzrk"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -5352,9 +5445,9 @@ interactions:
     uri: https://frappe.sandbox.invalid/api/resource/Leave%20Application?filters=%5B%5B%22company%22%2C+%22%3D%22%2C+%22Cassette+Org%22%5D%2C+%5B%22status%22%2C+%22in%22%2C+%5B%22Open%22%2C+%22Approved%22%5D%5D%2C+%5B%22docstatus%22%2C+%22in%22%2C+%5B0%2C+1%5D%5D%2C+%5B%22from_date%22%2C+%22%3C%3D%22%2C+%222026-09-17%22%5D%2C+%5B%22to_date%22%2C+%22%3E%3D%22%2C+%222026-09-17%22%5D%5D&fields=%5B%22name%22%2C+%22custom_leave_id%22%2C+%22employee%22%2C+%22leave_type%22%2C+%22from_date%22%2C+%22to_date%22%2C+%22status%22%2C+%22docstatus%22%5D&limit_start=0&limit_page_length=100
   response:
     body:
-      string: '{"data": [{"name": "HR-LAP-2026-00006", "custom_leave_id": "leave_902",
+      string: '{"data": [{"name": "HR-LAP-2026-00020", "custom_leave_id": "leave_902",
         "employee": "emp_902", "leave_type": "Sick", "from_date": "2026-09-17", "to_date":
-        "2026-09-17", "status": "Open", "docstatus": 0}, {"name": "HR-LAP-2026-00005",
+        "2026-09-17", "status": "Open", "docstatus": 0}, {"name": "HR-LAP-2026-00019",
         "custom_leave_id": "leave_901", "employee": "emp_903", "leave_type": "Annual",
         "from_date": "2026-09-14", "to_date": "2026-09-18", "status": "Approved",
         "docstatus": 1}]}'
@@ -5366,7 +5459,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac6bbe92443-AMS
+      - a3b7572f1f810e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5374,17 +5467,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:38 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=w3HIbpOEmlTc83b6WgDMY6TAsIBL8eHfi49I40gFspxPmDeWcgWLnJqHyKY2L9MHWe%2BGNDYSwEofowSq%2B1jP7qEleOJv9QYOuRuwH2NCcYhiL31NrITPpkDJGn67lK5BdkoXYrSineyF"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=kQelxMi99Eh55t8FN96WD2J5lRwF0B%2B6AfIy%2FFxYeFSXhyQ71oqzFIpF%2BldfSh4K9z0PAgo5i7FCPU15gCHKGHR5n6M0cG2LLTK46nA6H2QVWP78BD1hyj9319PcoTsKfgsuQkGhBY7%2B"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       vary:
@@ -5432,7 +5525,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac73dd12443-AMS
+      - a3b7572fbffb0e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5440,17 +5533,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:38 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=l0fTWSNlwRb3sgx6Kvg6avhA3vRVRrwqmLkxVunBRu6L9ilAQIZUxTgojOgeBysXayOE9GpTaLNT9NfPArcL3eGtnH4FZLHQ10WxlQevj1c0gi6cf3mkmzHYal%2FBW58Xre6MWxv5RDen"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=e8bc1b439Ht%2BYPI%2BQf6nyejaaa242doV5YAgAyqyFCdJftifexwJTtlSsPxWW1mhrOXu2qQOGZ96UfitYWPRS45v8Znp0jvK0ET5i9bhMPT%2F9bE%2Br%2F88Cuiu4%2FqblzlRD7JMe6oKTarD"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       transfer-encoding:
       - chunked
       via:
@@ -5494,7 +5587,7 @@ interactions:
       cf-cache-status:
       - DYNAMIC
       cf-ray:
-      - a3995ac7dfda2443-AMS
+      - a3b7573088c30e63-MXP
       connection:
       - keep-alive
       content-length:
@@ -5502,17 +5595,17 @@ interactions:
       content-type:
       - application/json
       date:
-      - Fri, 11 Sep 2026 20:17:12 GMT
+      - Tue, 15 Sep 2026 11:37:38 GMT
       nel:
       - '{"report_to":"cf-nel","success_fraction":0.0,"max_age":604800}'
       referrer-policy:
       - same-origin, strict-origin-when-cross-origin
       report-to:
-      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=rA6Ht%2Bb6um5%2FW451wmYfMGoyHARomKdeXUThdTCGTg7Y4gm4Ko9g%2BJw7vMuT5O6yZVlmG462DUHsIh5W%2Bd1S0%2FozTDfsD65%2FVELZUkiPLlSJsGvaNis1MIq4EnQu7dAxJu6g7j3KfkCJ"}]}'
+      - '{"group":"cf-nel","max_age":604800,"endpoints":[{"url":"https://a.nel.cloudflare.com/report/v4?s=7%2BQi0gr%2B5I44TZ9lUtD%2Bt%2B61lB2ONuA%2BecNA0z5f4EkNJW3anoszBTYPBx%2FEuZb4Tfv%2FO%2BSHMcCLtGCyIjdL7YwB8qXvFqqQKSB9%2BdC1wyKjd069gWqmocaqv9NHkmFyj%2BPYw8LVfvsu"}]}'
       server:
       - cloudflare
       strict-transport-security:
-      - max-age=86400
+      - max-age=15552000
       via:
       - 1.1 Caddy
       x-content-type-options:

@@ -708,3 +708,27 @@ environment's Frappe URL and key pair move to it; the same resume command runs a
 Box headroom measured the same day: 13.9 GB of 16 GB available, the Frappe stack about
 1.2 GB used of its 5.4 GB cap, a site's database about 120 MB on disk; the scheduler
 container (162 MB of 256 MB) is the one that scales with sites.
+
+**Seventh run, the resume on `hr-w2` (2026-09-15, run 34961862557).** The platform
+side landed the site the same day (record, stanza, `bench new-site`, scheduler; the key
+pair and the `benchmark` environment's Frappe values swapped by the owner). The runner
+reached the new hostname with no edge challenge, so acceptance 2's platform half
+passed; the generator's first write was refused by ERPNext itself: `POST
+/api/resource/Company` → 417, `LinkValidationError: Could not find Warehouse Type:
+Transit`. A fresh site whose setup wizard never ran lacks the fixtures a Company links
+to. The M0 Frappe probe completes that wizard over REST as its step 0 (`probes/frappe/
+probe.py`, `ensure_setup`) and had done so on `hr-w1` on 2026-08-23, so the generator's
+preparation, which took over every other piece of site setup (naming rule, custom
+fields, grades, leave types, company, holiday list, approver, skills), never took this
+one and never met the refusal until the first truly fresh site. The answer given to the
+platform ticket that morning ("nothing per site beyond the recipe") was wrong by
+exactly this step. Ruled the same day (option 1 of three, with an external reviewer's
+notes adopted): preparation gains an explicit, idempotent base-site readiness step
+before any benchmark-specific preparation — read `setup_complete`, complete the wizard
+with fixed non-semantic bootstrap values when unset, read the flag back and refuse
+loudly if still unset (the call's return is not trusted); the wizard's company is
+scaffolding outside the fact surface; the recipe stays new-site, scheduler, key pair.
+The site timezone and the fiscal year are the two bootstrap values that could reach a
+record later read; a regression test on that seam is owed when a world outside 2026 /
+Europe/Istanbul exists, not before. The Frappe cassette was re-recorded on `hr-w1`
+(the no-op branch, 87 requests); the fresh branch's live proof is the eighth run.
