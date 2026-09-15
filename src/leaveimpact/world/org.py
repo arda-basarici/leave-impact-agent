@@ -160,9 +160,10 @@ class OrgParams:
                 f"component_count must be between 1 and {len(COMPONENT_NAMES)} "
                 f"(the component vocabulary), got {self.component_count}"
             )
-        if not 0 <= self.blank_skill_records <= self.org_size - 2:
+        if not 0 <= self.blank_skill_records <= self.org_size - 5:
             raise ValueError(
-                "blank_skill_records must leave at least two people with a skills record, "
+                "blank_skill_records must leave at least five people with a skills record (the "
+                "paired skill's cast: its three holders and two recorded employees lacking it), "
                 f"got {self.blank_skill_records} of {self.org_size}"
             )
         low, high = self.skills_per_person
@@ -300,7 +301,9 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     the vocabulary at least one skill with no holder, one with exactly one, one held by
     at least a third of the people with a record, one held by exactly two employees and
     by a contractor when one exists; every component's members drawn from at least two
-    teams, the first component holding a blank-record member and the second none.
+    teams, the first component holding a blank-record member and the second being exactly
+    the paired skill's cast: its holders and two recorded employees lacking it, so it
+    holds no blank record.
 
     >>> generate_org(7, DEFAULT_PARAMS) == generate_org(7, DEFAULT_PARAMS)
     True
@@ -315,7 +318,7 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     names = _names(rng, params.org_size)
     cities = _cities(rng, seats, params)
     contractors = _contractors(rng, seats, params)
-    skills = _skills(rng, params, contractors)
+    skills, paired = _skills(rng, params, contractors)
 
     employees: list[Employee] = []
     for index, seat in enumerate(seats):
@@ -348,7 +351,7 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
         generator_version=GENERATOR_VERSION,
         teams=teams,
         employees=tuple(employees),
-        components=_components(rng, params, teams, tuple(employees)),
+        components=_components(rng, params, teams, tuple(employees), paired),
         skills=tuple(skill.id for skill in SKILLS),
     )
 
@@ -391,9 +394,9 @@ def _contractors(rng: Random, seats: list[_Seat], params: OrgParams) -> set[int]
     contractor, and a share of fifteen percent over twenty-odd people leaves that to
     chance — the same reasoning as the skill anchors. A share of zero means none, and
     then nothing is guaranteed: the parameter stays honest. The draw is capped so that
-    the blank records and two employees with a record still fit among the employee
-    seats, which the paired skill needs; the guaranteed contractor is never the one
-    dropped.
+    the blank records and four employees with a record still fit among the employee
+    seats, which the paired skill's cast needs (two holders, two recorded non-holders);
+    the guaranteed contractor is never the one dropped.
     """
     candidates = [index for index, seat in enumerate(seats) if not seat.lead]
     if params.contractor_share == 0.0:
@@ -401,7 +404,7 @@ def _contractors(rng: Random, seats: list[_Seat], params: OrgParams) -> set[int]
     contractors = {index for index in candidates if rng.random() < params.contractor_share}
     guaranteed = rng.choice(candidates)
     contractors.add(guaranteed)
-    room = params.org_size - params.blank_skill_records - 2
+    room = params.org_size - params.blank_skill_records - 4
     while len(contractors) > room:
         contractors.remove(rng.choice(sorted(contractors - {guaranteed})))
     return contractors
@@ -439,8 +442,9 @@ def _cities(rng: Random, seats: list[_Seat], params: OrgParams) -> list[City]:
 
 def _skills(
     rng: Random, params: OrgParams, contractors: set[int]
-) -> list[tuple[SkillId, ...] | None]:
-    """A skills record per seat: ``None`` for the blank records, a sorted tuple for the rest.
+) -> tuple[list[tuple[SkillId, ...] | None], SkillId]:
+    """A skills record per seat, ``None`` for the blank records and a sorted tuple for the rest,
+    and the paired skill, which the component draw needs to seat its cast together.
 
     The vocabulary is shuffled into a seed-specific popularity order; the first four
     entries become the anchors (unheld, singleton, broad, paired) and the remainder the
@@ -473,47 +477,50 @@ def _skills(
         drawn[index].append(paired)
     if contractors:
         drawn[rng.choice(sorted(contractors))].append(paired)
-    return [
+    records = [
         None if index in blank else tuple(sorted(drawn[index])) for index in range(params.org_size)
     ]
+    return records, paired
 
 
 def _components(
-    rng: Random, params: OrgParams, teams: tuple[Team, ...], employees: tuple[Employee, ...]
+    rng: Random,
+    params: OrgParams,
+    teams: tuple[Team, ...],
+    employees: tuple[Employee, ...],
+    paired: SkillId,
 ) -> tuple[Component, ...]:
     """Components anchored on two people from two different teams, then filled from anyone —
-    except that the first component holds a blank-record member and the second holds none.
+    except that the first component holds a blank-record member and the second is exactly
+    the paired skill's cast.
 
-    The missing-information and uncovered classes differ in exactly that placement (the
-    step 15 rulings): a blank-record member inside the impact's component is an unknown
-    candidate, none inside makes the world complete about everyone. Both are guaranteed
-    the way the contractor is, since a component is filled from anyone and the seed alone
-    would otherwise decide whether either class is plantable. With a single component
-    only the first guarantee can hold; with no blank records both hold trivially.
+    The missing-information and uncovered classes differ in one placement (the step 15
+    rulings): a blank-record member inside the impact's component is an unknown
+    candidate, none inside makes the world complete about everyone. The cardinality class
+    needs more than a blank-free component (the 15.3 ruling): the viability rule asks
+    every candidate for a work item to belong to its component, so the two employees and
+    the contractor holding the paired skill must sit in one component with the leaver
+    and the skill-failing candidate, or the class's four verdicts are not the ones it
+    authors. The second component is that cast and nothing else — the holders plus two
+    recorded employees lacking the skill, five people with a contractor, four without —
+    so a reader of the world spec can verify the universe of viable people by eye, and
+    it holds no blank record by construction, which keeps the uncovered class's
+    placement. All three are guaranteed the way the contractor is, since a component
+    filled from anyone would leave each to the seed. With a single component only the
+    first guarantee can hold.
     """
     by_team = {
         team.id: [employee for employee in employees if employee.team_id == team.id]
         for team in teams
     }
     blank = [employee for employee in employees if employee.skills is None]
-    recorded = [employee for employee in employees if employee.skills is not None]
     names = rng.sample(COMPONENT_NAMES, params.component_count)
     components: list[Component] = []
     for number, name in enumerate(names, start=1):
-        size = rng.randint(*_COMPONENT_MEMBERS)
-        if number == 2 and blank:
-            # Anchors from teams that have a recorded member, fill from recorded people only.
-            eligible = [
-                team for team in teams if any(e.skills is not None for e in by_team[team.id])
-            ]
-            first, second = rng.sample(eligible, 2)
-            anchors = [
-                rng.choice([e for e in by_team[first.id] if e.skills is not None]),
-                rng.choice([e for e in by_team[second.id] if e.skills is not None]),
-            ]
-            rest = [employee for employee in recorded if employee not in anchors]
-            members = anchors + rng.sample(rest, size - 2)
+        if number == 2:
+            members = _paired_cast(rng, employees, paired)
         else:
+            size = rng.randint(*_COMPONENT_MEMBERS)
             first, second = rng.sample(teams, 2)
             anchors = [rng.choice(by_team[first.id]), rng.choice(by_team[second.id])]
             rest = [employee for employee in employees if employee not in anchors]
@@ -527,6 +534,36 @@ def _components(
             )
         )
     return tuple(components)
+
+
+def _paired_cast(rng: Random, employees: tuple[Employee, ...], paired: SkillId) -> list[Employee]:
+    """The paired skill's holders and two recorded employees lacking it, spanning two teams.
+
+    The holders were seated by the skill draw with no regard for teams, so when they share
+    one team the first filler comes from another, which is what keeps the component
+    crossing team lines like every other; the second filler is anyone recorded, employed
+    and lacking the skill. Contractors never fill: the cast's contractor is the holder,
+    and the class draws its leaver and its skill-failing candidate from the fillers.
+    """
+    holders = [e for e in employees if e.skills is not None and paired in e.skills]
+    pool = [
+        e
+        for e in employees
+        if e.skills is not None
+        and paired not in e.skills
+        and e.employment_type is EmploymentType.EMPLOYEE
+    ]
+    if len({holder.team_id for holder in holders}) >= 2:
+        return holders + rng.sample(pool, 2)
+    (team,) = {holder.team_id for holder in holders}
+    outside = [e for e in pool if e.team_id != team]
+    if not outside:
+        raise ValueError(
+            f"no recorded employee outside team {team} to seat with the paired skill's holders"
+        )
+    first = rng.choice(outside)
+    second = rng.choice([e for e in pool if e.id != first.id])
+    return holders + [first, second]
 
 
 def _weighted_choice[T](rng: Random, weighted: tuple[tuple[T, int], ...]) -> T:

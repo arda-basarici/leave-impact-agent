@@ -208,19 +208,38 @@ def test_a_small_organization_still_honours_every_shape() -> None:
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_a_skill_is_held_by_exactly_two_employees_and_a_contractor(seed: int) -> None:
-    """The cardinality class's affordance: two viable employees and a contractor who fails
-    the employment rule, the count of two visibly load-bearing."""
+def test_the_paired_skill_s_cast_is_exactly_the_second_component(seed: int) -> None:
+    """The cardinality class's affordance (the 15.3 ruling): a skill held by exactly two
+    employees and a contractor, the three seated in one component with exactly two recorded
+    employees lacking the skill, so the universe of viable people for a ticket in that
+    component is the two employees, the contractor fails the employment rule alone, and
+    the fillers supply the leaver and the skill-failing candidate. No blank record inside,
+    which is the uncovered class's placement kept; team lines crossed like every component."""
     spec = generate_org(seed, DEFAULT_PARAMS)
+    by_id = {e.id: e for e in spec.employees}
     by_type = {
         skill: Counter(e.employment_type for e in spec.holders_of(skill)) for skill in spec.skills
     }
     paired = [
         skill
         for skill, holders in by_type.items()
-        if holders[EmploymentType.EMPLOYEE] == 2 and holders[EmploymentType.CONTRACTOR] >= 1
+        if holders[EmploymentType.EMPLOYEE] == 2 and holders[EmploymentType.CONTRACTOR] == 1
     ]
-    assert paired, "no skill held by exactly two employees and a contractor"
+    assert paired, "no skill held by exactly two employees and one contractor"
+    cast = spec.components[1]
+    members = [by_id[member] for member in cast.member_ids]
+    assert len(members) == 5
+    seated = [
+        skill for skill in paired if {e.id for e in spec.holders_of(skill)} <= set(cast.member_ids)
+    ]
+    assert len(seated) == 1, f"the second component seats {len(seated)} paired skills' holders"
+    (skill,) = seated
+    fillers = [e for e in members if skill not in (e.skills or ())]
+    assert len(fillers) == 2
+    assert all(
+        e.skills is not None and e.employment_type is EmploymentType.EMPLOYEE for e in fillers
+    )
+    assert len({e.team_id for e in members}) >= 2
 
 
 @pytest.mark.parametrize("seed", SEEDS)

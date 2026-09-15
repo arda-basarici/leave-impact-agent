@@ -15,6 +15,7 @@ from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import (
     COUNTER_NAMES,
     DEFAULT_PARAMS,
+    GENERATOR_VERSION,
     Bundle,
     GuardName,
     MaterializationMetrics,
@@ -179,9 +180,9 @@ def test_resume_refuses_by_name_when_a_proof_fails(sealed_world: tuple[WorldSpec
 def test_resume_is_not_a_migration(sealed_world: tuple[WorldSpec, Bundle]) -> None:
     _, sealed = sealed_world
     version = sealed.world_version
-    older = sealed.world_spec.content.replace(
-        b'"generator_version":"7"', b'"generator_version":"6"', 1
-    )
+    # The current version's literal, so a bump cannot turn this test into a no-op replace.
+    current = f'"generator_version":"{GENERATOR_VERSION}"'.encode()
+    older = sealed.world_spec.content.replace(current, b'"generator_version":"0"', 1)
     assert older != sealed.world_spec.content
     store = InMemoryObjectStore()
     store.put_if_absent(world_spec_key(version), older)
