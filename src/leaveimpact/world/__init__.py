@@ -101,7 +101,11 @@ from leaveimpact.world.construction import (
     construct,
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
-from leaveimpact.world.fragmented import FRAGMENTED_CLASSES, FreeTextQualification
+from leaveimpact.world.fragmented import (
+    FRAGMENTED_CLASSES,
+    FreeTextQualification,
+    FreeTextResponsibility,
+)
 from leaveimpact.world.modifiers import (
     COMPATIBLE_MODIFIERS,
     MODIFIERS,
@@ -320,6 +324,7 @@ __all__ = [
     "StructuredDeadline",
     "StructuredMeeting",
     "FreeTextQualification",
+    "FreeTextResponsibility",
     "StructuredMixed",
     "SurfaceForm",
     "TargetRecord",

@@ -37,11 +37,11 @@ from typing import NewType
 
 GeneratorVersion = NewType("GeneratorVersion", str)
 
-GENERATOR_VERSION = GeneratorVersion("6")
+GENERATOR_VERSION = GeneratorVersion("7")
 
 GENERATOR_PYTHON = (3, 13)
 
-VOCABULARY_DIGEST = "68b08d9999816b391fc0bb809facd30d4201bf0bb17844b5026c9ad5da9e4cff"
+VOCABULARY_DIGEST = "0bf2fb10cdf523b051d233a3642d42fc8bb118ad6280dc7fc12285bbe29b8b96"
 
 _PROMPT_DIGESTS = {
     "checker_system": "b0c45176fae66c3191660250ac8d79a75c7bb83722e8f29ef89ea417868a4046",

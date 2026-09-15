@@ -518,6 +518,13 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         ScenarioClassName.STRUCTURED_MIXED: _ALL,
         # The cover's ticket is the cover's, not the leaver's: no resolved look-alike.
         ScenarioClassName.FREE_TEXT_QUALIFICATION: _ALL - {ModifierName.ALREADY_RESOLVED},
+        # A section artifact owns no ticket or meeting for a look-alike (wrong team, outside
+        # window) and no ticket of the leaver to resolve; the parked stale-document modifier
+        # is what would give a section one. The fallback holder the class provisions is what
+        # keeps a concurrent leave from moving the declared outcome (the 15.2 rulings).
+        ScenarioClassName.FREE_TEXT_RESPONSIBILITY: frozenset(
+            {ModifierName.CONCURRENT_LEAVE, ModifierName.TIMEZONE_BOUNDARY}
+        ),
     }
 )
 """The modifiers every draft of each class affords; a pair is compatible when both are."""

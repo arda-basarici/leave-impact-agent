@@ -26,6 +26,7 @@ from leaveimpact.world import (
     Draft,
     Frame,
     FreeTextQualification,
+    FreeTextResponsibility,
     Minting,
     MissingAffordance,
     Modifier,
@@ -57,6 +58,7 @@ CLASSES: tuple[ScenarioClass, ...] = (
     StructuredMeeting(),
     StructuredMixed(),
     FreeTextQualification(),
+    FreeTextResponsibility(),
 )
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [
@@ -85,15 +87,31 @@ def _scenario(
     )
 
 
-def _class_and_seed() -> list[tuple[ScenarioClass, int]]:
-    return [(scenario_class, seed) for scenario_class in CLASSES for seed in SEEDS]
+def _class_and_seed(modifier: ModifierName | None = None) -> list[tuple[ScenarioClass, int]]:
+    """Every class and seed, or only the classes whose compatibility row declares ``modifier``:
+    a per-modifier sweep asserts the modifier's behaviour where the matrix admits it, and
+    the affordance test below is what proves the exclusions."""
+    return [
+        (scenario_class, seed)
+        for scenario_class in CLASSES
+        if modifier is None or modifier in COMPATIBLE_MODIFIERS[scenario_class.name]
+        for seed in SEEDS
+    ]
+
+
+def _ids(pairs: list[tuple[ScenarioClass, int]]) -> list[str]:
+    return [f"{c.name.value}-{seed}" for c, seed in pairs]
 
 
 CLASS_AND_SEED = _class_and_seed()
-CLASS_AND_SEED_IDS = [f"{c.name.value}-{seed}" for c, seed in CLASS_AND_SEED]
+CLASS_AND_SEED_IDS = _ids(CLASS_AND_SEED)
+OUTSIDE_WINDOW_CLASSES = _class_and_seed(ModifierName.OUTSIDE_WINDOW)
+WRONG_TEAM_CLASSES = _class_and_seed(ModifierName.WRONG_TEAM)
 
 
-@pytest.mark.parametrize(("scenario_class", "seed"), CLASS_AND_SEED, ids=CLASS_AND_SEED_IDS)
+@pytest.mark.parametrize(
+    ("scenario_class", "seed"), OUTSIDE_WINDOW_CLASSES, ids=_ids(OUTSIDE_WINDOW_CLASSES)
+)
 def test_outside_window_shadows_the_artifact_a_day_outside_the_leave(
     scenario_class: ScenarioClass, seed: int
 ) -> None:
@@ -117,7 +135,9 @@ def test_outside_window_shadows_the_artifact_a_day_outside_the_leave(
         assert local_date(event.start, TZ) in edges
 
 
-@pytest.mark.parametrize(("scenario_class", "seed"), CLASS_AND_SEED, ids=CLASS_AND_SEED_IDS)
+@pytest.mark.parametrize(
+    ("scenario_class", "seed"), WRONG_TEAM_CLASSES, ids=_ids(WRONG_TEAM_CLASSES)
+)
 def test_wrong_team_shadows_the_artifact_with_another_teams(
     scenario_class: ScenarioClass, seed: int
 ) -> None:

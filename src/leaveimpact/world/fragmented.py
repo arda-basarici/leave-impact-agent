@@ -13,15 +13,31 @@ policy stays template-written and names the meeting it applies to, so the constr
 target and the text's scope agree by construction and no other scenario's artifact falls
 inside it (constraint-bearing documents are scenario-owned in M1).
 
-The shape is symmetric with the responsibility class to come: there the obligation is in
-prose and the qualifications structured, here the impact is structured and the
-qualification in prose, so a score gap between the two localizes to which fact a model
-wrote. The roles are a query over the static organization in canonical order: a skill some
-record holds, a cover whose record lacks it and who belongs to a component (their ticket
-lives there), the first other record-holder lacking it, and the first leaver outside the
-skill's holders and the two candidates, so a concurrent leave on the cover still leaves
-the outcome assign. Titles and the clause are templates over the vocabulary's forms, which
-the scanner knows; only the comment is paid for.
+``free_text_responsibility`` is its mirror (the 15.2 rulings, 2026-09-15): the obligation
+is in prose and the qualifications structured. A client note's model-written section names
+the leaver as the account's contact; the section is the impact's artifact and its sole
+evidence, so the one prose fact is the impact's ground, which only the grounding
+conclusion sees. With no component to ask about, every employee would be viable and the
+assessments would carry no signal, so a template-written procedure clause requires a
+skill of the contact and applies to that exact section: the note's title is the clause's
+scope in prose and the section id its scope in truth, and the two coincide because the
+note is that one section. One candidate holds the skill on the HR record and is viable,
+one record-holder lacks it and fails by skill; the leaver holds it too, since a designated
+contact lacking what the handover procedure demands would be a world contradiction. The
+class plants no tracker artifact and its key requires the tracker anyway, through the
+known-negatives of everyone lacking the skill (required-source derivation is semantic,
+not provenance-based; DESIGN's second 15.2 ruling, pinned by a test).
+
+The qualification roles are a query over the static organization in canonical order: a
+skill some record holds, a cover whose record lacks it and who belongs to a component
+(their ticket lives there), the first other record-holder lacking it, and the first leaver
+outside the skill's holders and the two candidates, so a concurrent leave on the cover
+still leaves the outcome assign. The responsibility roles: a skill with at least three
+holders, each holder in turn the leaver, the next holder the viable candidate, the rest the
+fallback that keeps a concurrent leave on the viable one from moving the outcome, and the
+first record-holder lacking the skill the failing candidate. Titles and the clauses are
+templates over the vocabulary's forms, which the scanner knows; only the comment and the
+section are paid for.
 """
 
 from __future__ import annotations
@@ -53,7 +69,7 @@ from leaveimpact.core.refs import (
     work_item_ref,
 )
 from leaveimpact.core.values import Requirement, SkillCriterion
-from leaveimpact.world.briefs import CommentTarget, PendingProse
+from leaveimpact.world.briefs import CommentTarget, PendingProse, SectionTarget
 from leaveimpact.world.construction import Construction, Draft, Frame, ScenarioClass
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import (
@@ -65,13 +81,20 @@ from leaveimpact.world.scenario import (
     Tier,
 )
 from leaveimpact.world.structured import plant_leave, plant_meeting, plant_ticket
-from leaveimpact.world.vocabulary import SKILLS
+from leaveimpact.world.vocabulary import CLIENT_NAMES, SKILLS
 
 POLICY_TITLE = "Release policy: {meeting}"
 POLICY_CLAUSE = "The {meeting} needs an engineer with {skill} experience."
 """The scenario-owned clause, template-written: it names the meeting it applies to."""
 
 SKILL_NAMES: Mapping[SkillId, str] = MappingProxyType({skill.id: skill.name for skill in SKILLS})
+
+NOTE_TITLE = "{client} account notes"
+"""The client note's title: the client's only representation, and the procedure's scope."""
+
+PROCEDURE_TITLE = "Account handover procedure: {client}"
+PROCEDURE_CLAUSE = "The contact named in the {client} account notes needs {skill} experience."
+"""The scenario-owned clause, template-written: it names the note it applies to by title."""
 
 
 class FreeTextQualification:
@@ -90,8 +113,28 @@ class FreeTextQualification:
         )
 
 
+class FreeTextResponsibility:
+    """A client note's section names the leaver as the contact, under a procedure clause requiring
+    a skill of the contact; the section is the impact and its only evidence."""
+
+    name = ScenarioClassName.FREE_TEXT_RESPONSIBILITY
+    tier = Tier.FRAGMENTED
+    affordance = (
+        "a skill with three holders (the leaver, the viable candidate, a fallback) and a "
+        "record-holder lacking it"
+    )
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        return tuple(
+            _responsibility_construction(*roles) for roles in _responsibility_roles(org)
+        )
+
+
 FRAGMENTED_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
-    {ScenarioClassName.FREE_TEXT_QUALIFICATION: FreeTextQualification()}
+    {
+        ScenarioClassName.FREE_TEXT_QUALIFICATION: FreeTextQualification(),
+        ScenarioClassName.FREE_TEXT_RESPONSIBILITY: FreeTextResponsibility(),
+    }
 )
 """The fragmented classes built so far, by name."""
 
@@ -229,9 +272,117 @@ def _qualification_construction(
     return plant
 
 
+def _responsibility_roles(org: OrgSpec) -> list[tuple[SkillId, Employee, Employee, Employee]]:
+    """(skill, leaver, viable candidate, failing candidate), in canonical order: each holder of a
+    skill held by at least three is the leaver in turn, the next holder in record order is
+    viable, and the remaining holder is the fallback a concurrent leave needs."""
+    roles: list[tuple[SkillId, Employee, Employee, Employee]] = []
+    for skill in org.skills:
+        holders = list(org.holders_of(skill))
+        if len(holders) < 3:
+            continue
+        holder_ids = {holder.id for holder in holders}
+        lacking = next(
+            (e for e in org.employees if e.skills is not None and e.id not in holder_ids), None
+        )
+        if lacking is None:
+            continue
+        for index, leaver in enumerate(holders):
+            viable = holders[(index + 1) % len(holders)]
+            roles.append((skill, leaver, viable, lacking))
+    return roles
+
+
+def client_of(scenario_id: str) -> str:
+    """The client a scenario's note is about: the table entry at the scenario's number, so two
+    notes in one world share a title only when the world holds more scenarios than the
+    table has names — the golden set's thirty fit, and a larger plan is a table edit.
+
+    >>> client_of("scenario_001"), client_of("scenario_030")
+    ('Northwind', 'Yellowtail')
+    """
+    number = int(scenario_id.rsplit("_", 1)[1])
+    return CLIENT_NAMES[(number - 1) % len(CLIENT_NAMES)]
+
+
+def _responsibility_construction(
+    skill: SkillId, leaver: Employee, viable: Employee, other: Employee
+) -> Construction:
+    def plant(frame: Frame, rng: Random) -> Draft:
+        visible = frame.window.start
+        client = client_of(frame.scenario_id)
+        leave = plant_leave(frame, leaver)
+        section = frame.ids.clause()
+        # The note's sections are empty here: the section is the model's, filled in at
+        # materialization at the pending target's position.
+        note = Document(
+            frame.ids.document(),
+            NOTE_TITLE.format(client=client),
+            DocumentKind.CLIENT_NOTE,
+            visible,
+            (),
+        )
+        names = Fact(
+            clause_ref(section),
+            PredicateName.NAMES_RESPONSIBLE,
+            employee_ref(leaver.id),
+            EvidenceRef(Source.CORPUS, clause_ref(section)),
+            visible,
+        )
+        clause = frame.ids.clause()
+        procedure = Document(
+            frame.ids.document(),
+            PROCEDURE_TITLE.format(client=client),
+            DocumentKind.PROCEDURE,
+            visible,
+            (
+                DocumentSection(
+                    clause, PROCEDURE_CLAUSE.format(client=client, skill=SKILL_NAMES[skill])
+                ),
+            ),
+        )
+        requires = Fact(
+            clause_ref(clause),
+            PredicateName.REQUIRES,
+            Requirement(1, (SkillCriterion(skill),)),
+            EvidenceRef(Source.CORPUS, clause_ref(clause)),
+            visible,
+        )
+        impact = ImpactKey(leave.entity.id, ImpactSubtype.RESPONSIBILITY, clause_ref(section))
+        expected = ExpectedImpact(
+            impact,
+            CoverageActionKind.ASSIGN,
+            (
+                AuthoredVerdict(viable.id, Verdict.VIABLE),
+                AuthoredVerdict(other.id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,)),
+            ),
+        )
+        owned = OwnedEntities(
+            leaves=(leave,),
+            documents=(Planted(note, visible), Planted(procedure, visible)),
+        )
+        # No allowed context: a section has no structured record of its own source, so
+        # every fact it states is required and every hedge refuses (the 15.2 rulings).
+        return Draft(
+            owned,
+            leave.entity.id,
+            (expected,),
+            constraints=(ConstraintKey(clause, clause_ref(section)),),
+            authored_facts=(requires, names),
+            pending=(PendingProse(SectionTarget(section, note.id, 0), (names,)),),
+        )
+
+    return plant
+
+
 __all__ = [
     "FRAGMENTED_CLASSES",
+    "NOTE_TITLE",
     "POLICY_CLAUSE",
     "POLICY_TITLE",
+    "PROCEDURE_CLAUSE",
+    "PROCEDURE_TITLE",
     "FreeTextQualification",
+    "FreeTextResponsibility",
+    "client_of",
 ]

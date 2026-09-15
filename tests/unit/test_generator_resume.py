@@ -180,7 +180,7 @@ def test_resume_is_not_a_migration(sealed_world: tuple[WorldSpec, Bundle]) -> No
     _, sealed = sealed_world
     version = sealed.world_version
     older = sealed.world_spec.content.replace(
-        b'"generator_version":"6"', b'"generator_version":"5"', 1
+        b'"generator_version":"7"', b'"generator_version":"6"', 1
     )
     assert older != sealed.world_spec.content
     store = InMemoryObjectStore()

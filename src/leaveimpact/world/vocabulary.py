@@ -111,6 +111,43 @@ COMPONENT_NAMES: tuple[str, ...] = (
     "Mobile Release",
 )
 
+# A client is a name and nothing more: the responsibility class titles a client note by it
+# and its procedure clause names that title, so the constraint's scope and the text's agree
+# without a client entity (the 15.2 rulings). One name per scenario number, sized to the
+# golden set's thirty, so no two notes in a golden world share a title.
+CLIENT_NAMES: tuple[str, ...] = (
+    "Northwind",
+    "Contoso",
+    "Fabrikam",
+    "Tailwind",
+    "Lakeshore",
+    "Bluecrest",
+    "Ironvale",
+    "Meridian",
+    "Harborline",
+    "Stonebridge",
+    "Copperfield",
+    "Ashgrove",
+    "Redfern",
+    "Silverpine",
+    "Oakhaven",
+    "Brightwater",
+    "Greystone",
+    "Kestrel",
+    "Larkspur",
+    "Maplecroft",
+    "Northgate",
+    "Pinnacle",
+    "Quarry Hill",
+    "Riverbend",
+    "Saltmarsh",
+    "Thornfield",
+    "Umberline",
+    "Vantage",
+    "Westbrook",
+    "Yellowtail",
+)
+
 
 def vocabulary_digest() -> str:
     """The SHA-256 of every table above in canonical JSON — the fingerprint ``version`` records.
@@ -129,6 +166,7 @@ def vocabulary_digest() -> str:
         "skills": [[skill.id, skill.name] for skill in SKILLS],
         "team_names": list(TEAM_NAMES),
         "component_names": list(COMPONENT_NAMES),
+        "client_names": list(CLIENT_NAMES),
     }
     canonical = json.dumps(tables, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

@@ -1,7 +1,15 @@
-"""The fragmented tier's qualification class over a sweep of seeds: the shape the class promises —
-a meeting under a scenario-owned skill clause, the viable cover's skill carried only by a
-comment brief that derives as answer-changing, a second candidate failing the skill — plus the
-canonical affordance order and determinism."""
+"""The fragmented tier's two primitives over a sweep of seeds: the shape each class promises,
+the canonical affordance order and determinism.
+
+The qualification class: a meeting under a scenario-owned skill clause, the viable cover's
+skill carried only by a comment brief that derives as answer-changing, a second candidate
+failing the skill. The responsibility class: a client note's section, left to a model,
+naming the leaver as the contact under a procedure clause requiring a skill of the contact,
+one candidate viable on the HR record and one failing by skill; its key requires the tracker
+with no tracker artifact, because required-source derivation is semantic rather than
+provenance-based (DESIGN, the 15.2 interview's second ruling, where the probe and the
+argument for why no silent-drift test exists are recorded).
+"""
 
 from datetime import date
 from random import Random
@@ -19,19 +27,29 @@ from leaveimpact.core import (
     clause_ref,
     event_ref,
 )
-from leaveimpact.core.ids import scenario_id
+from leaveimpact.core.ids import SkillId, scenario_id
+from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     FreeTextQualification,
+    FreeTextResponsibility,
     Minting,
     Register,
     Scenario,
+    SectionTarget,
     allocate_slices,
     construct,
     generate_org,
 )
-from leaveimpact.world.fragmented import POLICY_CLAUSE
+from leaveimpact.world.fragmented import (
+    NOTE_TITLE,
+    POLICY_CLAUSE,
+    PROCEDURE_CLAUSE,
+    SKILL_NAMES,
+    client_of,
+)
 from leaveimpact.world.prose import FactRole
+from leaveimpact.world.vocabulary import CLIENT_NAMES
 
 ORG = generate_org(7, DEFAULT_PARAMS)
 WORLD_START = date(2026, 1, 1)
@@ -39,11 +57,16 @@ SLICES = allocate_slices(Random(0), 30, WORLD_START)
 TZ = ORG.params.reference_timezone
 SEEDS = range(1, 21)
 QUALIFICATION = FreeTextQualification()
+RESPONSIBILITY = FreeTextResponsibility()
+BY_ID = {employee.id: employee for employee in ORG.employees}
 
 
-def _scenario(seed: int) -> Scenario:
+FragmentedClass = FreeTextQualification | FreeTextResponsibility
+
+
+def _scenario(seed: int, scenario_class: FragmentedClass = QUALIFICATION) -> Scenario:
     return construct(
-        QUALIFICATION,
+        scenario_class,
         (),
         ORG,
         scenario_id=scenario_id(seed),
@@ -104,3 +127,87 @@ def test_the_clause_names_the_meeting_it_applies_to() -> None:
     [policy] = scenario.owned.documents
     [constraint] = scenario.key.constraints
     assert clause_ref(policy.entity.sections[0].id) == clause_ref(constraint.clause_id)
+
+
+# --- The responsibility class -----------------------------------------------------------
+
+
+def test_the_org_affords_the_responsibility_class_in_a_canonical_order() -> None:
+    first, second = RESPONSIBILITY.admissible(ORG), RESPONSIBILITY.admissible(ORG)
+    assert first and len(first) == len(second)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_responsibility_scenario_has_the_shape_the_class_promises(seed: int) -> None:
+    scenario = _scenario(seed, RESPONSIBILITY)
+    [expected] = scenario.key.impacts
+    assert expected.key.subtype is ImpactSubtype.RESPONSIBILITY
+    [brief] = scenario.briefs
+    assert isinstance(brief.target, SectionTarget) and brief.register is Register.CLIENT_NOTE
+    section = clause_ref(brief.target.id)
+    assert expected.key.artifact == section
+    [constraint] = scenario.key.constraints
+    assert constraint.applies_to == section
+    note, procedure = scenario.owned.documents
+    assert note.entity.kind is DocumentKind.CLIENT_NOTE and note.entity.sections == ()
+    assert brief.target.document_id == note.entity.id and brief.target.position == 0
+    assert procedure.entity.kind is DocumentKind.PROCEDURE
+    [clause] = procedure.entity.sections
+    assert clause.id == constraint.clause_id and note.entity.title in clause.text
+    viable, failing = expected.must_assess
+    assert viable.verdict is Verdict.VIABLE
+    assert failing.verdict is Verdict.NON_VIABLE and failing.reasons == (AssessmentReason.SKILL,)
+    [required] = brief.required
+    assert required.fact.predicate is PredicateName.NAMES_RESPONSIBLE
+    assert required.fact.subject == section
+    leaver = scenario.owned.leaves[0].entity.employee_id
+    assert isinstance(required.fact.value, EntityRef) and required.fact.value.id == leaver
+    assert required.role is FactRole.ANSWER_CHANGING
+    assert brief.allowed == ()
+    # The skill is structured on every side: the leaver and the viable candidate hold it on
+    # the record, the failing candidate's record lacks it, and no skill word reaches the
+    # writer, whose namespace is the note's title and the contact's name.
+    skill = _required_skill(scenario)
+    assert skill in (BY_ID[leaver].skills or ())
+    assert skill in (BY_ID[viable.employee_id].skills or ())
+    assert skill not in (BY_ID[failing.employee_id].skills or ())
+    assert SKILL_NAMES[skill] in clause.text
+    assert {form.form for form in brief.namespace.forms} == {
+        note.entity.title,
+        BY_ID[leaver].name,
+        BY_ID[leaver].name.split()[0],
+    }
+
+
+def _required_skill(scenario: Scenario) -> SkillId:
+    [requires] = [f for f in scenario.authored_facts if f.predicate is PredicateName.REQUIRES]
+    assert isinstance(requires.value, Requirement)
+    [criterion] = requires.value.criteria
+    assert isinstance(criterion, SkillCriterion)
+    return criterion.skill
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_key_requires_the_tracker_the_scenario_plants_nothing_in(seed: int) -> None:
+    # Required-source derivation is semantic, not provenance-based: the failing candidate is
+    # known not to hold the skill only because the tracker answered, a skill in a comment
+    # being in the predicate's domain, so the tracker is required by a scenario that owns
+    # no ticket and no comment. An implementation that read required sources off owned
+    # artifacts would drop it (DESIGN, the 15.2 interview's second ruling).
+    scenario = _scenario(seed, RESPONSIBILITY)
+    assert scenario.owned.work_items == () and scenario.owned.events == ()
+    assert set(scenario.key.required_sources) == {Source.CORPUS, Source.FRAPPE, Source.JIRA}
+
+
+def test_the_same_responsibility_inputs_give_an_equal_scenario() -> None:
+    assert _scenario(3, RESPONSIBILITY) == _scenario(3, RESPONSIBILITY)
+
+
+def test_the_client_is_one_name_per_scenario_number_across_a_golden_world() -> None:
+    assert "{client}" in NOTE_TITLE and "{client}" in PROCEDURE_CLAUSE
+    assert len(set(CLIENT_NAMES)) == len(CLIENT_NAMES) >= 30
+    assert client_of(scenario_id(1)) == CLIENT_NAMES[0]
+    assert client_of(scenario_id(len(CLIENT_NAMES))) == CLIENT_NAMES[-1]
+    assert client_of(scenario_id(len(CLIENT_NAMES) + 1)) == CLIENT_NAMES[0]
+    titles = {_scenario(seed, RESPONSIBILITY).owned.documents[0].entity.title for seed in SEEDS}
+    assert len(titles) == len(SEEDS)

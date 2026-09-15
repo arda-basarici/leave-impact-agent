@@ -1501,6 +1501,15 @@ probe behind the second is recorded in `probes/FINDINGS.md` (`source-dependence`
   state, and 15.5 makes the accumulated version decision before the next sealed world.
   The interval is structurally closed, since no plan the workflow offers draws the class
   until the Tier 2 table is declared; the rule is operational, not code.
+  **Corrected the same day, at the build:** the semantic digest carries the vocabulary
+  fingerprint and the generator version as fields, so a vocabulary addition moves the
+  reference seed's digest by construction even when nothing drawn changes (verified: with
+  the old fingerprint substituted the digest equals the snapshot). "The reference digest
+  checked unchanged" was never attainable, and the batching decision rested on it; the
+  snapshot test's own rule, the pair re-cut together and never the digest alone, decides
+  instead. Generator version 7 with the class, the pair re-cut; 15.5 bumps again if its
+  semantics change. The sealed measurement world stays a version 6 world; the interval
+  rule is moot.
 - *The three-character exact-spelling cut (retained as a heuristic).* The world
   exercised only the allowed-"Go" path, so the cut is neither validated nor falsified;
   both sides of its trade are pinned in tests. A miss is of a foreign surface mention:
