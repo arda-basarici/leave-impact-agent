@@ -15,11 +15,12 @@ from leaveimpact.core import (
     Fact,
     PredicateName,
     Source,
+    comment_ref,
     component_ref,
     employee_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import component_id
+from leaveimpact.core.ids import comment_id, component_id
 from leaveimpact.generator.guards import (
     containment_findings,
     namespace_findings,
@@ -100,9 +101,16 @@ def test_an_allowed_short_form_cannot_erase_a_longer_foreign_form_it_sits_inside
 def test_a_short_world_form_matches_only_in_exact_spelling(
     brief: Brief, world_forms: tuple[SurfaceForm, ...]
 ) -> None:
+    """The trade the three-character cut makes, both sides pinned: a foreign short form in
+    another case is missed on purpose, and one in exact spelling refuses even where it is
+    a sentence-start word — a false refusal costs an attempt, a missed identity costs the
+    benchmark. Retained for M1 on the first measurement world, which exercised neither
+    side (2026-09-15)."""
     assert any(form.form == "Go" for form in world_forms)  # the skill, not in this brief
     assert namespace_findings("We go live with Kafka tomorrow.", brief, world_forms) == ()
     [refused] = namespace_findings("Kafka and Go are both mine.", brief, world_forms)
+    assert "names skill go" in refused
+    [refused] = namespace_findings("Go ahead with the Kafka work.", brief, world_forms)
     assert "names skill go" in refused
 
 
@@ -201,8 +209,9 @@ def test_an_untyped_proposition_refuses_the_attempt(brief: Brief) -> None:
     assert "owns_work_item: a proposition the checker could not type" in findings
 
 
-def test_a_hedged_mention_of_allowed_context_is_not_a_violation(brief: Brief) -> None:
-    """Nothing rests on allowed context; a hedged required fact is still a weakened fact."""
+def test_a_hedged_mention_of_structured_allowed_context_is_not_a_violation(brief: Brief) -> None:
+    """A structured record establishes the fact, so nothing rests on the hedge; a hedged
+    required fact is still a weakened fact."""
     who = brief.required[0].fact.subject
     hedged_required = Proposition(
         who, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.HEDGED
@@ -224,3 +233,28 @@ def test_a_hedged_mention_of_allowed_context_is_not_a_violation(brief: Brief) ->
     )
     findings = containment_findings(with_context, Extraction((hedged_allowed,), ()))
     assert not any("hedged" in finding for finding in findings)
+
+
+def test_a_hedged_allowed_fact_that_only_other_prose_establishes_is_refused(brief: Brief) -> None:
+    """The hedge would soften a fact whose truth lives in another text — a conflict the world
+    did not plant — so it refuses like a hedged required fact."""
+    who = brief.required[0].fact.subject
+    someone_else = next(employee_ref(e.id) for e in ORG.employees if employee_ref(e.id) != who)
+    context = Fact(
+        someone_else,
+        PredicateName.HAS_SKILL,
+        KAFKA,
+        EvidenceRef(Source.JIRA, comment_ref(comment_id(9))),
+        date(2026, 3, 1),
+    )
+    with_context = replace(brief, allowed=(context,))
+    hedged = Proposition(
+        someone_else, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.HEDGED
+    )
+    findings = containment_findings(with_context, Extraction((hedged,), ()))
+    assert any("hedged" in finding for finding in findings)
+    required = Proposition(
+        who, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.ASSERTED
+    )
+    asserted = replace(hedged, assertion_mode=AssertionMode.ASSERTED)
+    assert not containment_findings(with_context, Extraction((required, asserted), ()))

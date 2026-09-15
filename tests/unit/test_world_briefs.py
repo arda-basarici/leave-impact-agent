@@ -4,6 +4,7 @@ pre-compose contract: one carrier per prose-authored fact, a brief's required fa
 authored facts naming its target, a pending target absent from the records under a parent the
 scenario owns at a position the order can hold, an allowed fact a fact of the world."""
 
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -122,8 +123,17 @@ def test_a_required_fact_names_its_target_as_evidence_and_uses_a_prose_capable_p
 
 def test_an_allowed_fact_never_restates_a_required_one() -> None:
     fact = carried_by(COMMENT)
+    on_the_profile = replace(
+        fact, evidence=EvidenceRef(Source.FRAPPE, employee_ref(CANDIDATE.id), "skills")
+    )
     with pytest.raises(ProseContractError, match="never restates a required one"):
-        PendingProse(COMMENT, (fact,), (fact,))
+        PendingProse(COMMENT, (fact,), (on_the_profile,))
+
+
+def test_an_allowed_fact_is_never_evidenced_by_the_briefs_own_target() -> None:
+    """A fact this text evidences is one it must carry: required, never context."""
+    with pytest.raises(ProseContractError, match="a fact this target evidences is required"):
+        PendingProse(COMMENT, (carried_by(COMMENT),), (carried_by(COMMENT, "go"),))
 
 
 # --- The framework's completion -----------------------------------------------------------

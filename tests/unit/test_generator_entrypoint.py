@@ -80,7 +80,7 @@ def test_the_writers_open_under_the_local_root_the_deployment_names(tmp_path: Pa
 
 def test_the_prose_controls_default_and_are_validated() -> None:
     base = ["--seed", "7", "--world-start", "2026-01-05"]
-    assert (parse_recipe(base).attempt_cap, parse_recipe(base).resume) == (4, None)
+    assert (parse_recipe(base).attempt_cap, parse_recipe(base).resume) == (8, None)
     named = parse_recipe([*base, "--attempt-cap", "2", "--resume", "a" * 64])
     assert (named.attempt_cap, named.resume) == (2, "a" * 64)
     with pytest.raises(ConfigurationError, match="--attempt-cap is at least one"):

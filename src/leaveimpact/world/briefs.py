@@ -195,6 +195,14 @@ def _check_facts(target: ProseTarget, required: Sequence[Fact], allowed: Sequenc
             raise ProseContractError(
                 f"{target.id}: {fact.predicate.value} cannot be carried by prose"
             )
+    for fact in allowed:
+        # A fact this text evidences is one the text must carry, which makes it required;
+        # allowing it instead would let a hedge or an omission pass as context.
+        if fact.evidence.target == ref:
+            raise ProseContractError(
+                f"{target.id}: an allowed fact is evidenced elsewhere, a fact this target "
+                f"evidences is required, got {fact.predicate.value} of {fact.subject.id}"
+            )
     if len(set(required)) != len(required):
         raise ProseContractError(f"{target.id}: a required fact is stated once")
     if len(set(allowed)) != len(allowed):

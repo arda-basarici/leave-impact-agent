@@ -33,8 +33,11 @@ its first person, so a fact about the author is anchored on its value alone.
 The *containment check* compares the checker's reading with the brief on canonical statements
 — subject, predicate, value; evidence and date ignored. The eligible set is the affirmed,
 asserted propositions with a known subject; it must contain every required statement and
-nothing outside the required and allowed ones; any negated, hedged or unknown-subject
-proposition and any other claim refuses on its own.
+nothing outside the required and allowed ones; any negated or unknown-subject proposition
+and any other claim refuses on its own. A hedged proposition refuses too, with one
+tolerance: a hedge on allowed context whose fact a structured record establishes, since
+benchmark truth does not depend on that prose realization. A hedge on a fact that only
+other prose establishes is a softened conflict the world did not plant, and refuses.
 """
 
 from __future__ import annotations
@@ -46,6 +49,7 @@ from leaveimpact.core.refs import employee_ref
 from leaveimpact.generator.prose.schema import Extraction
 from leaveimpact.world.briefs import Brief, CommentTarget
 from leaveimpact.world.prose import (
+    PROSE_RECORD_KINDS,
     AssertionMode,
     Lexicon,
     Polarity,
@@ -128,6 +132,15 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...
     """Every way the checker's reading of a text departs from the brief's containment."""
     required = {statement_of(fact) for fact in brief.required_facts}
     permitted = required | {statement_of(fact) for fact in brief.allowed}
+    # A hedge on allowed context is tolerated only when benchmark truth does not depend on
+    # this prose realization: the same fact is established by a structured record (the
+    # measurement world's hedged ownership, evidenced on the ticket's owner field,
+    # 2026-09-15). Allowed never restates required, so a hedged required fact stays refused.
+    tolerated_hedges = {
+        statement_of(fact)
+        for fact in brief.allowed
+        if fact.evidence.target.kind not in PROSE_RECORD_KINDS
+    }
     findings: list[str] = []
     eligible: set[Statement] = set()
     for read in extraction.propositions:
@@ -137,9 +150,7 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...
         elif read.polarity is Polarity.NEGATED:
             findings.append(f"{read.predicate.value} of {statement[0].id}: negated")
         elif read.assertion_mode is AssertionMode.HEDGED:
-            # A hedged mention of allowed context creates no false claim and nothing rests on
-            # it; a hedged required fact is a weakened fact and is refused below.
-            if statement not in permitted or statement in required:
+            if statement not in tolerated_hedges:
                 findings.append(f"{read.predicate.value} of {statement[0].id}: hedged")
         elif statement not in permitted:
             findings.append(

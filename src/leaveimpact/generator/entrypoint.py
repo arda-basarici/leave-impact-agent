@@ -53,8 +53,12 @@ __all__ = [
     "stores_for",
 ]
 
-DEFAULT_ATTEMPT_CAP = 4
-"""Fresh attempts per target before the target fails; revisited on the first world's numbers."""
+DEFAULT_ATTEMPT_CAP = 8
+"""Fresh attempts per target before the target fails. Four until the first measurement
+world (2026-09-15): its hardest target passed on attempt three, which justifies no cap,
+since exhaustion compounds across a world's targets while an exhausted run costs only a
+re-dispatch of sealing, before any vendor write. Eight is a robustness margin, not a
+measured need; a target accepted above attempt four is read as a struggling brief."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,7 +117,7 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         "--attempt-cap",
         type=int,
         default=DEFAULT_ATTEMPT_CAP,
-        help="fresh attempts per prose target before the target fails (default 4)",
+        help="fresh attempts per prose target before the target fails (default 8)",
     )
     parser.add_argument(
         "--resume",

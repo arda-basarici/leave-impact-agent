@@ -124,6 +124,11 @@ def statement_of(fact: Fact) -> Statement:
     return (fact.subject, fact.predicate, fact.value)
 
 
+PROSE_RECORD_KINDS: frozenset[EntityKind] = frozenset({EntityKind.COMMENT, EntityKind.CLAUSE})
+"""The record kinds a prose target realizes. A fact evidenced by one is established by text
+alone; every other evidence record is a structured field a reader checks without reading."""
+
+
 # --- Roles and surface forms ----------------------------------------------------------------
 
 
@@ -334,11 +339,15 @@ def lexical_anchors(
     Lexical only: presence proves no relation ("Deniz has never worked with Kafka" carries
     both anchors), which is the extraction check's job; absence proves the fact vanished
     in the writing, which is worth catching before a checker is paid. ``first_person``
-    is the text's author when it has one — a comment's — and a fact about the author
-    drops the subject's group, since the author writes "I" and never their own name:
+    is the text's author when it has one — a comment's. When a required fact's subject
+    is that author, the target supplies the subject's identity and the anchors are the
+    fact's value-side groups only, since the author writes "I" and never their own name:
     the first measurement world refused twelve of twelve attempts on exactly that anchor
-    (2026-09-14). The subject is the target's author by construction, the way a
-    carrier-subject fact's subject is the target itself.
+    (2026-09-14). The exemption is that narrow on purpose: a fact about anyone else keeps
+    its subject anchor, and a row whose subject is a clause or the carrier never matches
+    an author. The drop is positional, so every row with an employee subject puts the
+    subject's group first; a row that broke that order would drop a value anchor
+    unnoticed.
 
     >>> from datetime import date
     >>> from leaveimpact.core.enums import Source

@@ -768,3 +768,61 @@ line); the passing run's share, proportional to tokens, about $0.015 for three
 comments. Ruled 2026-09-15: the counters are printed before sealing begins and sealed
 into the materialization record (`metrics`, absent from records sealed before, the
 decoder accepting either), so they travel with the world they measured.
+
+**The gate on those numbers (2026-09-15, session 26).** Six questions, one per
+exchange, an external low-context reviewer's read on each and Arda's ruling; the
+outcome block sits under DESIGN's "The hard tiers under the step 15 rulings". The
+evidence: the sealed record (attempts 3, 1, 1; two extraction refusals on
+`comment_001`, 1 and 2 findings, bodies discarded by design), the three texts (in the
+benchmark-private world spec, `world-spec/<version>.json` in the truth bucket — the
+handoff had pointed at `scenario-specs.json`, which holds only the slices), the table
+above, and the code of the four fixes (`a011245`, `adacec1`, `8e17a65` — the last
+carries fixes 3 and 4 and the reversed-pair canonicalization, which the handoff had
+credited to `adacec1`).
+
+- **Fix 1, adopted;** the docstring tightened to the mechanism: the target supplies the
+  first-person subject, only the subject's anchor group drops, positionally, so every
+  employee-subject row puts the subject first. Residual: a third-person claim about a
+  listed employee inside a comment still needs the name in the body; no brief exercises
+  it; unplanned.
+- **Fix 2 and the canonical pair, adopted.** Residuals: the swap's no-guess branch has no
+  live case (no prose predicate pairs equal subject and value kinds); protocol retries
+  at temperature zero protect only against provider-side variation — run 2 spent three
+  on an identical failure — no change, the narrowed class rare. An untyped refusal is
+  charged to the writer's attempts and was indistinguishable from a content refusal in
+  the record until the reason counts below.
+- **Fix 3, adopted,** credited to suppressing offers, which are coverage signals the class
+  does not own. The allowed ownership is legitimate context that holds only where
+  ownership is true; `comment_001`'s pass, in which the checker typed "something I can
+  work through" as hedged ownership, is not credited to it. The two refusal bodies are
+  unknowable (log and record hold counts). Cost, observed not estimated: about $0.003 per
+  attempt (the passing run's Cost Explorer share over five attempts), about $0.012 per
+  target at the old cap, about $0.036 for three capped targets.
+- **Fix 4, adopted, the hedge tolerance narrowed in code** (this session's records
+  commit): tolerated only when a structured record establishes the allowed fact, refused
+  when only other prose does; an allowed fact never evidenced by its own target, checked
+  at construction. No digest moved, no version bump; the measurement world's hedged
+  ownership is evidenced on the ticket's owner field and stays tolerated.
+- **The cap, raised to eight.** The sensitivity arithmetic, on the one target's
+  three-attempt pass read as a one-in-three per-attempt rate (a point estimate on one
+  target, not a measurement): exhaustion at cap four about 20% per such target, at
+  eight about 4%; five such targets in a world, about 67% and 18% that at least one
+  exhausts. What the world showed is that "maximum observed three" justifies no cap;
+  eight is a margin. An exhausted run re-dispatches sealing only. Attempts above four
+  are read as a struggling brief at the audit; no new field.
+- **Refusal feedback, rejected for M1** (DESIGN's outcome block has the reasons and the
+  trigger).
+- **Sealed refusal reasons and a canonicalized-pair counter, adopted;** the next commit,
+  before the responsibility class's first measured world; old records decode the reasons
+  as unavailable, never zero.
+- **The three-character cut, retained** as a heuristic without contrary evidence; the
+  sentence-start false refusal added to the existing test that pins both sides.
+- **The hand sample, Arda's read:** `comment_002` and `comment_003` state exactly the
+  planted skill, read correctly and completely; `comment_001`'s skill read correctly,
+  its hedged ownership not in the text — checker overreach, the request's carrier line
+  (the ticket's name beside the author) the only ownership cue, a hypothesis on one
+  sample; the text a mild register slip (capability with a shade of willingness), not
+  an offer. Three of three required facts right, one of three texts over-extracted, a
+  sample of three that supports no rate. The three texts share one sentence frame
+  ("I've worked with X before, so …") at temperature 0.7; the golden audit looks for
+  the shape.

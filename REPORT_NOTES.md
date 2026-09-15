@@ -7,6 +7,159 @@ decisions it feeds.
 
 ---
 
+## 2026-09-15 — The first world the models wrote took five runs, and the gate on its numbers changed the cap it was meant to confirm
+
+*M1 step 15 of the build plan: the measurement world the step 14 design demanded before
+the remaining prose classes — the qualification rows generated under the real
+pipeline, sealed, projected, approved — and then the gate that the design tied to it:
+one session (session 26, 2026-09-15) reviewing every fix the five runs forced and every
+item on the revisit list, one question per exchange, an external low-context reviewer's
+read on each relayed by Arda, Arda's ruling on each. Feeds: the M1 milestone post; the
+final report's evaluation section, on measuring a generator before trusting it and on
+what a sample of three can and cannot say; and its process section, on interview mode
+with an external reviewer and on letting a probe decide before the argument starts.*
+
+The design of the day before had said, in one sentence, that no more prose classes
+would be built until one world had been generated for real and its numbers read. This
+entry is what that sentence bought. The world was three ticket comments, each planted
+to carry one skill fact, and the pipeline that had passed every unit test refused to
+produce them four dispatches in a row. Each failure was on a mechanism the unit level
+could not see, and each was decided in minutes by the same move: one writer call, one
+checker call, the raw tool input printed, and the shape of the fault visible before
+anyone argued about it.
+
+**Four runs, four faults, one probe each.** The first run (34802507979) made twelve
+writer calls and never reached the checker: the namespace scanner demanded the
+author's own name in the body, and a person writing a comment says "I", never "Ines
+Yilmaz", so every draft died on a lexical anchor for a name the text could not
+naturally contain (fix in `a011245`). The second run (34802945370) made one writer
+call and then spent the checker's whole retry budget on one text: the checker had
+written the ownership relation backwards, the person owning the ticket instead of the
+ticket owned by the person, the value spec refused the wrong type, and the code
+treated that as the checker's protocol failing, retried three times at temperature
+zero, got the same reading three times, and aborted the stage (fix in `adacec1`). The
+third run (34803388159, twelve writer and twelve checker calls) reached
+the checker every time and was refused every time: told not to name herself, the
+writer padded each comment with "I can take this on", the checker read the offer as
+ownership, and ownership was outside the brief. The fourth fault never made a run;
+a local probe between runs found the writer, now forbidden to offer, padding with
+readiness instead ("I'm ready to dig into this"), which the checker read as hedged
+ownership and as an availability claim no predicate can express. Both were fixed in
+one commit (`8e17a65`): the ticket-comment register now asks for a remark about the
+work as it stands, in the past or present tense, never an offer, plan, request or
+promise; the brief allows the author's own ticket and its component as true context;
+a reversed entity pair is put the registry's way round when the ids and their kinds
+prove the swap. The fifth dispatch (34803999468) passed: the hardest comment on its third attempt,
+the other two on their first. Two more refusals then came from outside the prose
+stage, a calendar quota and a Frappe site that already held a world, and are the
+previous session's story (`dc1a7a9`).
+
+**The numbers, recovered from the wrong place.** The stage's counters were printed
+only after sealing returned, and the passing run sealed and then died in the calendar
+loop, so the tokens and latencies died with it. Bedrock's CloudWatch metrics carried
+them, per model at one-minute resolution, attributed to each run by its time window,
+and the hour's sums reconciled exactly (`probes/FINDINGS.md`, the measurement-world
+entry). The passing run was five writer calls and five checker calls for three
+comments: about 640 tokens in and 27 out per writer call at 0.8 s, about 1,490 in and
+104 out per checker call at 1.0 s, about $0.015 by Cost Explorer's share; the whole
+night of 71 calls cost $0.093. The counters now print before sealing and seal into the
+record (`1256d37`), so the next world's numbers travel with it.
+
+**The gate, and where the reviewer moved the answer.** Six questions were put in
+order, each with the evidence beside it, and on four of them the reviewer's relayed
+read either matched the recommendation or sharpened its wording. The first-person
+exemption was adopted but stated narrowly, as the target supplying the subject of a
+first-person statement rather than as a general relaxation of subject anchoring, and
+the docstring now says the drop is positional and names the convention it relies on.
+The untyped rule and the canonical pair were adopted with two honest residuals: the
+swap's no-guess branch has no live predicate, since none pairs equal subject and value
+kinds, and retrying a temperature-zero checker on a protocol failure can only help
+against provider-side variation, which run 2 demonstrated by spending three retries on
+an identical answer. The prohibition on offers was adopted and credited for the pass,
+with a distinction the reviewer insisted on: an offer is a coverage signal the
+qualification class does not own, so forbidding it is containment expressed upstream;
+the allowed ownership fact is legitimate context because it is true, and it holds only
+where it is true; but a text that passed because the checker read "something I can
+work through" as hedged ownership is not a success of the allowance, it is a checker
+residual.
+
+Two rulings went further than Claude's recommendation because the reviewer pushed.
+The hedge tolerance from the fourth fix, which let a hedged mention of allowed context
+pass, had been justified in code as "nothing rests on it". Claude identified the
+condition under which that is true, that the allowed fact is established by a
+structured record the agent under test reads directly, and recommended recording the
+condition and enforcing it at the next class. The reviewer's answer was that knowingly
+introducing a rule that becomes unsafe as soon as the next class lands is the wrong
+order: encode the invariant now, let the next class test the boundary. It was encoded
+the same hour, in a different place than proposed. A brief's construction now refuses
+an allowed fact evidenced by the brief's own target, since a fact this text evidences
+is one the text must carry, and the guard tolerates a hedge on allowed context only
+when a structured record establishes the fact, refusing a hedge on a fact that only
+other prose establishes as a softened conflict the world never planted. The other
+push was on the cap. The baton had framed the cap of four as confirmed by a maximum of
+three attempts observed. Claude's arithmetic said otherwise: attempts are fresh
+samples, so a brief that passes one attempt in three exhausts a cap of four about one
+time in five, and five such briefs in a world fail the generation about two runs in
+three; at a cap of eight the same figures are about one in twenty-five and one in
+five [PRELIMINARY — a per-attempt rate read from one target's three-attempt pass, a
+point estimate that supports no prediction]. The reviewer agreed the inference from
+the maximum was unsound, agreed eight should be the default rather than a golden-run
+knob, and added what Claude had left out: the earlier entry in these notes had called
+four a diagnostic cap that assumes a good prompt, and raising it should not abandon
+that. So attempts above four are now read as a struggling brief, from the sealed
+attempt count and with no new field, and the cost of an exhausted run is stated
+plainly as a re-dispatch of sealing before any vendor write. (The design document
+itself had recorded only that the cap would be revisited; the diagnostic reason lived
+in these notes, and the record now says which is which.)
+
+**What was refused, and why the worst run argued for it.** Feeding a refusal back into
+the writer's next attempt was rejected for this milestone, and the strongest argument
+against it was the run that most seemed to call for it. Run 3's twelve refusals of
+twelve exposed a wrong register prompt, fixed once for every future world; with
+feedback, the same defect would have looked like one refusal followed by a corrected
+pass, and the prompt would still be wrong. Attempts stay identical writer requests, so
+retry depth remains a measure of one fixed configuration's difficulty, and if feedback
+is ever introduced it will be a new strategy with its own digest and attempts marked
+base or corrected.
+
+**The record learns to say why.** The gate could not answer two of its own questions:
+what the two refused drafts of the hardest comment had been refused for, and how often
+the checker produced claims no predicate expresses. Refused text is discarded by
+design, because the repository's job logs are public, and a refusal was sealed as a
+guard name and a count. The ruling adopts a closed vocabulary of reasons on each sealed
+refusal, seven names and no content, plus one run-level counter for pairs the checker
+wrote backwards and the code put right, which is a normalization and not a refusal.
+The reviewer's caveat is the honest one: a reason says which check refused, not whether
+the writer or the checker was at fault, and only the hand audit separates a checker
+misreading a clean text from a checker reasonably failing on a confused one. Records
+sealed before the change will decode with the reasons unavailable, never as zero. The
+three-character exact-spelling cut in the scanner was kept as a heuristic without
+contrary evidence, the world having exercised only the path it was designed for, and
+one wording was corrected on the way: a miss there is of a foreign surface mention,
+which the checker still catches when the mention makes a claim; only a mention that
+makes no claim has the scanner as its sole layer.
+
+**A sample of three.** Arda read the three accepted texts against their sealed
+propositions. Two say exactly the skill they were planted to carry and nothing else,
+and the checker read them exactly. The third, "I've got experience with Go, so the
+retry queue migration is something I can work through", was read as the skill, which
+is right, and as hedged ownership of the ticket, which the sentence never says; the
+only ownership cue in the checker's request is the opening line naming the ticket
+beside the author, which is the hypothesis, on one sample, for where the proposition
+came from. It passed harmlessly because ownership is on the ticket's own field, which
+is precisely the condition the hedge tolerance now enforces. Three of three required
+facts read correctly and one of three texts over-read is what the sample says, and a
+sample of three supports no rate. What it also shows, and what the golden world's
+audit will look for, is that all three texts share one sentence frame at temperature
+0.7: "I've worked with X before, so ...". A benchmark whose qualification comments all
+sound alike is a shape an agent could learn. Two corrections to the handoff that
+started the session belong here so the next reader does not repeat them: the comment
+bodies live in the benchmark-private world spec, not in the scenario specs, and the
+pair canonicalization landed in the fourth fix's commit, not the second's.
+
+Figure: the four-run table of writer and checker calls (12/0, 1/4, 12/12, 5/5) as a
+before-and-after bar, one bar pair per fault.
+
 ## 2026-09-14 — Prose entered the world through a gate, and the gate was rebuilt five times before any model wrote a word
 
 *M1 step 14 of the build plan: the design interview of session 23 (ten questions, an

@@ -1159,9 +1159,10 @@ the sealed record holds it.
 **Attempts, prompts, tests.** Each attempt is a fresh sample from the same configuration
 and an identical prompt with no refusal fed back — the orchestration creates no
 dependence between attempts, which is the property claimed, not statistical
-independence — under a cap of four, a command-line value recorded in the record and
-revisited only on the first world's measurements (first-attempt pass, eventual pass,
-cap exhausted, refusals by guard, checker retries, checker unusable). Targets run
+independence — under a cap, a command-line value recorded in the record: four until
+the measurement world's review, eight since (the review's outcome below), revisited
+only on measurements (first-attempt pass, eventual pass, cap exhausted, refusals by
+guard, checker retries, checker unusable). Targets run
 sequentially; cap failures aggregate across targets so a doomed run reports every
 failed target once; a checker unusable after its bounded retries aborts the stage as
 infrastructure, since further writer calls could never be accepted. Templates never
@@ -1340,6 +1341,81 @@ world-defining side of the boundary, unlike a model id. The rules are three tier
 and their union; foundation lands first under generator version 6 with the snapshot pair
 re-cut once, a second bump at the step's close only if a construction semantic changed
 after the measurement world.
+
+*The measurement world's numbers, reviewed (2026-09-15).* The world
+`785bc4cd…` (three qualification rows, sealed 2026-09-14, projected and approved
+2026-09-15) passed its prose stage on the fifth dispatch, after four fixes each decided
+by a local probe; the gate reviewed the four fixes, the step 14 revisit list and a hand
+sample, one question per exchange, and ruled as follows. The passing run: five writer
+and five checker calls for three comments, about 640 tokens in and 27 out per writer
+call at 0.8 s, about 1,490 in and 104 out per checker call at 1.0 s, about $0.015
+(Bedrock's CloudWatch metrics and Cost Explorer, since the counters were not yet
+sealed); first-attempt pass two of three, eventual pass three of three, no cap
+exhausted, two extraction refusals on one target; the other-claims frequency was not
+measurable, no counter existing. The hand sample of three: every required fact read
+correctly; one text given a proposition it does not state (a hedged ownership, drawn
+from the request's carrier line rather than the prose — a hypothesis on one sample);
+three of three texts converge on one sentence frame, which the golden world's audit
+watches for. A sample of three supports no rate.
+
+- *First person (adopted).* A comment's target supplies its author as the subject of a
+  first-person statement, so a required fact about the author anchors on its value-side
+  groups only; a fact about anyone else keeps its subject anchor, and a row whose
+  subject is a clause or the carrier never matches an author. The drop is positional,
+  so every employee-subject anchor row puts the subject's group first. A third-person
+  claim inside a comment is unexercised and unplanned.
+- *Untyped propositions and the canonical pair (adopted).* A protocol failure is a
+  reading that cannot be a proposition at all; a proposition whose value the spec
+  refuses is a reading fault that refuses the attempt. A reversed entity pair is put the
+  registry's way round only when both ids are listed and their kinds prove the
+  orientation; the no-guess branch has no live predicate, since none pairs equal
+  subject and value kinds. Protocol retries at temperature zero protect only against
+  provider-side variation and stay, the narrowed class being rare.
+- *Offers forbidden (adopted).* An offer to take work is a coverage signal the
+  qualification class does not own, so the writer is forbidden to make one; the
+  improvement is credited to that. The brief's allowed ownership is true context, and
+  holds only where ownership is true; a pass in which the checker typed willingness as
+  ownership is not credited to the allowance but recorded as a checker residual.
+- *The register, the hedge tolerance, the component (adopted, the tolerance
+  narrowed).* A hedge on allowed context is tolerated only when benchmark truth does
+  not depend on that prose realization, because a structured record establishes the
+  same fact; a hedge on a fact that only other prose establishes is a softened conflict
+  the world did not plant, and refuses; an allowed fact is never evidenced by the
+  brief's own target, since a fact this text evidences is one it must carry. The
+  invariant is checked in code, not left to the classes.
+- *The cap (raised, four to eight).* The measurement world estimates no per-attempt pass
+  probability, but a cap chosen from the maximum observed attempt count is unsafe once
+  exhaustion compounds across a world's prose targets, while an exhausted run costs only
+  a re-dispatch of sealing, before any vendor write. Eight is a robustness margin, not a
+  measured need. A target accepted above attempt four is read as a struggling brief;
+  the attempt count is sealed per target, so this needs no field. The cap is recorded
+  realization configuration, not benchmark truth: no generator version bump.
+- *Refusal feedback into the writer (rejected for M1).* Attempts stay fresh samples of
+  one identical writer request, so retry depth remains a measure of one fixed
+  configuration's difficulty and a systematic fault stays visible: the third run's
+  twelve refusals of twelve exposed the register prompt, which feedback would have
+  hidden behind a second-attempt pass. Revisited only if the golden world's audit shows
+  a class persistently accepted on attempts five to eight, or unpassable, after the
+  shared prompt itself is fixed; if ever introduced, a new strategy with its own digest
+  and attempts marked base or corrected.
+- *Sealed refusal reasons (adopted, its own commit before the next measured world).*
+  A sealed refusal gains counts by reason under a closed vocabulary (unknown subject,
+  negated, disallowed hedge, not a permitted fact, required not asserted, other claim,
+  untyped) and the run's counters gain canonicalized pairs, the one checker event that
+  is not a refusal; aggregates are derived from the rows, never stored twice. The
+  reasons are failure-path attribution, never proof of writer or checker blame, which
+  the hand audit supplies. A record sealed before decodes with the reasons unavailable,
+  never zero, the counters' own convention; no generator version bump.
+- *The three-character exact-spelling cut (retained as a heuristic).* The world
+  exercised only the allowed-"Go" path, so the cut is neither validated nor falsified;
+  both sides of its trade are pinned in tests. A miss is of a foreign surface mention:
+  a claim-bearing one the checker still catches, a no-claim one only the scanner sees.
+  Reassessed only on the golden audit; a vocabulary-level surface policy is the
+  successor if length proves a poor proxy.
+
+Carried to the responsibility class's prompt touch, ruled by the golden audit: the
+checker told that propositions come from the text alone and the carrier line asserts
+nothing.
 ---
 
 ## Package boundaries and the import law (2026-09-09)
