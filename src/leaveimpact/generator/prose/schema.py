@@ -114,20 +114,32 @@ def tool_schema() -> JsonObject:
 
 
 def value_forms() -> tuple[str, ...]:
-    """One line per predicate saying what value form it takes, for the checker's message."""
+    """One line per predicate saying what value form it takes, for the checker's message.
+
+    A carrier-subject predicate (a clause's requirement, the contact a section names) is
+    about the text being read, which is never in the entity list: the line says to write
+    the subject as unknown and puts the named person on the value side, because a checker
+    told only "the subject is the clause" read the person as the subject and the client
+    as the value on six of six section probes (2026-09-15); the parser binds the subject
+    to the target either way, so only the value's side needed saying.
+    """
     lines: list[str] = []
     for row in ROWS:
-        lines.append(
-            f"- {row.name.value}: the subject is the {row.subject.value.replace('_', ' ')}; "
-            f"the value is {_form(row.value_spec)}"
-        )
+        if row.subject in CARRIER_KINDS:
+            subject = f"the text itself (write {UNKNOWN_SUBJECT})"
+        else:
+            subject = f"the {row.subject.value.replace('_', ' ')}"
+        value = _form(row.value_spec, row.name)
+        lines.append(f"- {row.name.value}: the subject is {subject}; the value is {value}")
     return tuple(lines)
 
 
-def _form(spec: ValueSpec) -> str:
+def _form(spec: ValueSpec, name: PredicateName) -> str:
     match spec.kind:
         case ValueKind.ENTITY_REF:
             assert spec.entity_kind is not None
+            if name is PredicateName.NAMES_RESPONSIBLE:
+                return "the id of the employee the text names as the responsible contact"
             return f"the id of {spec.entity_kind.value} from the entity list"
         case ValueKind.SKILL:
             return "the skill's id from the entity list"

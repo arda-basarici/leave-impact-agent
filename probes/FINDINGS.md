@@ -867,3 +867,38 @@ record and the tracker (a corpus fact of it is refused at construction); ticket 
 over the tracker and the corpus is single-valued and the corpus is never promoted under
 a tracker outage. The conclusion and its re-arm conditions are DESIGN's (the 15.2
 interview's second ruling).
+
+## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
+
+The workstation probe the 15.2 rulings asked for before the class's first sealed world:
+six constructions of the responsibility class over the fixture organization (six
+clients, six contacts, six skills), each through one writer call, the two free guards,
+one checker call and the containment guard, the text and the raw tool input read by
+hand. Development probing under the SSO profile from the workstation, nothing sealed, no
+rate claimed; Haiku 4.5 writing, Nova Pro checking, about three cents for the three runs.
+Three runs, one change each, so every effect is attributable:
+
+| run | change | accepted | dominant refusal |
+|---|---|---|---|
+| 1 | as committed (`8f8b5a9`) | 0 of 6 | the checker put the person as the subject and the client as the value of the responsibility, untyped on every text |
+| 2 | the carrier rows' value-form line: the subject is the text itself (written as unknown), the value the employee the text names | 1 of 6 | other claims on the padding sentences (5 of 6, twice the required sentence itself filed beside its own proposition), a requirement hallucinated from "should be directed to" (2), the client read as a team value (2) |
+| 3 | the client-note length one or two sentences; a statement recorded as a proposition, or one restating it, is never an other claim | 6 of 6 | none |
+
+What the raw extractions showed. Told only "the subject is the clause", a checker with
+no clause in its entity list read "Deniz is the contact responsible for the Northwind
+account" as Deniz names-responsible Northwind; the parser binds a carrier row's subject to
+the target whatever the checker wrote, so only the value's side needed saying. With one
+fact, no allowed context and a length of two to four sentences, every extra sentence was
+a paraphrase of the fact, and the checker filed it as an other claim about half the time
+and turned it into a requirement twice; the length was the padding's source. The client
+stayed in the checker's entity list (it is the scope guard of the review P2), since its
+one symptom vanished with the padding.
+
+The hand read of the six accepted texts, against the ruled checklist: the employee named
+explicitly, six of six; the relation bound to the section with no author identity, six of
+six; no invented claim, no first person, no hedge, no other claim, six of six. The
+finding to carry: the six texts are one sentence with the names swapped, the brief's fact
+line echoed, the sentence-frame convergence the gate flagged at its limit. The cause is
+structural: the section has one fact and no context, and every elaboration was refused,
+so the accepted shape is the fact restated. Accepted for M1 on record (the 15.2 addendum
+in DESIGN); the golden audit reads the frame across the class.

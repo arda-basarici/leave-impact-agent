@@ -52,7 +52,9 @@ CHECKER_INFERENCE = InferenceConfiguration(temperature=0.0, max_tokens=1200)
 LENGTH_BY_REGISTER: dict[Register, str] = {
     Register.TICKET_COMMENT: "one to three sentences",
     Register.RUNBOOK: "one short paragraph of two to four sentences",
-    Register.CLIENT_NOTE: "one short paragraph of two to four sentences",
+    # One fact and no allowed context: a longer note is padding the checker files as other
+    # claims (five of six section probes, 2026-09-15).
+    Register.CLIENT_NOTE: "one or two sentences",
     Register.PROCEDURE: "one or two sentences",
     Register.POLICY: "one or two sentences",
 }

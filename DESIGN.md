@@ -1510,6 +1510,20 @@ probe behind the second is recorded in `probes/FINDINGS.md` (`source-dependence`
   instead. Generator version 7 with the class, the pair re-cut; 15.5 bumps again if its
   semantics change. The sealed measurement world stays a version 6 world; the interval
   rule is moot.
+- *The section probe, the same day (adopted at the probe; FINDINGS `section-probe`).* Six
+  unsealed constructions: zero of six accepted as committed, the checker reading the
+  person as the subject and the client as the value; one of six after the carrier rows'
+  value-form line says the subject is the text itself and the value the named employee;
+  six of six after the client note is one or two sentences and the checker is told a
+  statement recorded as a proposition, or one restating it, is never an other claim. Two
+  more prompt facts on record: a one-fact section with no allowed context cannot fill a
+  paragraph without paraphrase, and paraphrase is what the checker files as other
+  claims; the client stays in the checker's entity list as the scope guard. The accepted
+  texts converge on the brief's own sentence with the names swapped, the sentence-frame
+  concern at its limit, accepted for M1 because the section's job is one obligation and
+  its discovery and the lever that would vary it, allowed context on a section, is what
+  the construction ruling excludes; revisited at 15.4's composite, where the note gains a
+  second fact, and read across the class at the step 16 audit.
 - *The three-character exact-spelling cut (retained as a heuristic).* The world
   exercised only the allowed-"Go" path, so the cut is neither validated nor falsified;
   both sides of its trade are pinned in tests. A miss is of a foreign surface mention:

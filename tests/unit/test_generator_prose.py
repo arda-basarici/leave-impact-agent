@@ -82,7 +82,7 @@ def test_a_sections_writer_is_told_its_document_and_never_the_contact() -> None:
     contact = brief.namespace.form_of("employee", brief.required[0].fact.value.id)  # type: ignore[union-attr]
     assert f"- {contact} is the contact responsible for the account this note covers" in lines
     assert "third person" in ASSETS.register(Register.CLIENT_NOTE)
-    assert "Length: one short paragraph of two to four sentences." in request.message
+    assert "Length: one or two sentences." in request.message
 
 
 def test_the_checker_is_told_the_carrier_description_asserts_nothing() -> None:
@@ -92,6 +92,7 @@ def test_the_checker_is_told_the_carrier_description_asserts_nothing() -> None:
     system = ASSETS.text("checker_system")
     assert "asserts nothing about the world" in system
     assert "record only what the text itself says" in system
+    assert "is never an other claim" in system
 
 
 def test_the_checker_sees_the_entity_list_and_value_forms_and_never_the_facts(brief: Brief) -> None:
@@ -104,6 +105,15 @@ def test_the_checker_sees_the_entity_list_and_value_forms_and_never_the_facts(br
         in request.message
     )
     assert "has experience with" not in request.message  # no fact phrase reaches the checker
+    # A carrier-subject row names the text itself as the subject and the person as the
+    # value: told only "the subject is the clause", the checker put the person first and the
+    # client second on six of six section probes (2026-09-15).
+    assert (
+        "- names_responsible: the subject is the text itself (write unknown); the value is "
+        "the id of the employee the text names as the responsible contact"
+    ) in request.message
+    requires = "- requires: the subject is the text itself (write unknown); the value is"
+    assert requires in request.message
     assert request.message.endswith("The text:\nSome text.")
     assert isinstance(brief.target, CommentTarget)
     author = brief.namespace.form_of("employee", brief.target.author_id)
