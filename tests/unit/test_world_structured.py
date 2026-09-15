@@ -41,11 +41,16 @@ from leaveimpact.world import (
 from leaveimpact.world.modifiers import AlreadyResolved
 from leaveimpact.world.structured import (
     MEETING_HOURS,
-    MEETING_TITLES,
-    TICKET_TITLES,
     StructuredDeadline,
     StructuredMeeting,
     StructuredMixed,
+)
+from leaveimpact.world.vocabulary import (
+    MEETING_PHRASES,
+    MEETING_QUALIFIERS,
+    TICKET_PHRASES,
+    TICKET_QUALIFIERS,
+    titles,
 )
 
 ORG = generate_org(7, DEFAULT_PARAMS)
@@ -99,7 +104,7 @@ def test_the_deadline_scenario_has_the_shape_the_class_promises(seed: int) -> No
     assert {Source.FRAPPE, Source.JIRA} <= set(scenario.key.required_sources)
     assert scenario.key.stable_interval.contains(scenario.spec.today)
     component = next(c for c in ORG.components if c.id == ticket.component_id)
-    assert ticket.title in {template.format(component=component.name) for template in TICKET_TITLES}
+    assert ticket.title in titles(component.name, TICKET_PHRASES, TICKET_QUALIFIERS)
 
 
 def test_the_deadline_near_miss_is_a_teammate_outside_the_component() -> None:
@@ -140,7 +145,7 @@ def test_the_meeting_scenario_has_the_shape_the_class_promises(seed: int) -> Non
     assert leaver.id in meeting.attendee_ids
     assert all(by_id[a].team_id != leaver.team_id for a in meeting.attendee_ids if a != leaver.id)
     team = next(t for t in ORG.teams if t.id == leaver.team_id)
-    assert meeting.title in {template.format(team=team.name) for template in MEETING_TITLES}
+    assert meeting.title in titles(team.name, MEETING_PHRASES, MEETING_QUALIFIERS)
     # The busy teammate attends the overlapping event and nothing else makes them busy;
     # the free teammate attends neither.
     busy, cover = verdicts[Verdict.NON_VIABLE].employee_id, verdicts[Verdict.VIABLE].employee_id
@@ -249,3 +254,45 @@ def test_slices_keep_scenarios_apart_in_time() -> None:
     first, second = _scenario(1), _scenario(2)
     gap = second.spec.window.start - first.spec.window.end
     assert gap >= timedelta(days=1)
+
+
+# --- The title book ------------------------------------------------------------------------
+
+
+def test_the_title_book_hands_out_each_title_once_per_context_and_fails_loud_when_spent() -> None:
+    """Two scenarios preferring the same title in one component get distinct ones (the 15.3
+    rulings: a policy scopes itself by the title it names), the supply is the vocabulary's
+    product, and the title past it is a generator invariant, not a retry."""
+    ids = Minting()
+    first, second = (ids.ticket_title(Random(5), "Auth") for _ in range(2))
+    assert first != second
+    minted = {first, second} | {ids.ticket_title(Random(i), "Auth") for i in range(34)}
+    assert len(minted) == 36 and minted == set(titles("Auth", TICKET_PHRASES, TICKET_QUALIFIERS))
+    with pytest.raises(ValueError, match="exhausted after 36 titles"):
+        ids.ticket_title(Random(0), "Auth")
+    # Another context and another book are untouched.
+    assert ids.ticket_title(Random(0), "Billing") in titles(
+        "Billing", TICKET_PHRASES, TICKET_QUALIFIERS
+    )
+    assert ids.look_alike_ticket_title(Random(0), "Auth").startswith("Auth: ")
+
+
+def test_two_scenarios_in_one_component_never_share_a_ticket_title() -> None:
+    ids = Minting()
+    scenarios = [
+        construct(
+            StructuredDeadline(),
+            (),
+            ORG,
+            scenario_id=scenario_id(number),
+            window=SLICES[number],
+            world_start=WORLD_START,
+            reference_timezone=TZ,
+            ids=ids,
+            rng=Random(1),
+        )
+        for number in (1, 2)
+    ]
+    tickets = [s.owned.work_items[0].entity for s in scenarios]
+    assert tickets[0].component_id == tickets[1].component_id, "the fixture picks one component"
+    assert tickets[0].title != tickets[1].title

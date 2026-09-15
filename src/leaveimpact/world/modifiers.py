@@ -19,7 +19,8 @@ pressure, ``concurrent_leave``, sends an authored viable candidate on leave over
 days and declares the verdict it changes, on every impact that candidate is authored for.
 
 Look-alike titles are templates like the classes' own: structured-shaped text from a
-fixed phrase and a name, never learned from a model.
+fixed phrase and a name, never learned from a model, minted by the world's title book from
+phrases disjoint from the real artifacts' so a distractor never shares a real title.
 
 ``COMPATIBLE_MODIFIERS`` is the class-by-modifier compatibility the world plan reads
 (the plan ruling at step 8): a modifier is compatible with a class when every draft the
@@ -70,16 +71,6 @@ from leaveimpact.world.zones import gap_at, offset_of
 RESOLVED_TITLE_SUFFIX = ", phase one"
 OUTSIDE_TICKET_SUFFIXES = {"before": ", groundwork", "after": ", follow-up"}
 OUTSIDE_MEETING_SUFFIXES = {"before": " (prep)", "after": " (debrief)"}
-WRONG_TEAM_TICKET_TITLES: tuple[str, ...] = (
-    "{component}: triage the backlog",
-    "{component}: refresh the dashboards",
-    "{component}: review the alert thresholds",
-)
-WRONG_TEAM_MEETING_TITLES: tuple[str, ...] = (
-    "{team}: weekly sync",
-    "{team}: design review",
-    "{team}: on-call handover",
-)
 BOUNDARY_EVENT_TITLE = "Cross-region sync"
 EARLIEST_WORKING_HOUR = time(9, 0)
 EVENT_LENGTH = timedelta(hours=1)
@@ -295,7 +286,7 @@ def _wrong_team_ticket(
         holder = rng.choice(holders)
         look_alike = WorkItem(
             id=frame.ids.work_item(),
-            title=rng.choice(WRONG_TEAM_TICKET_TITLES).format(component=component_name),
+            title=frame.ids.look_alike_ticket_title(rng, component_name),
             owner_id=holder.id,
             status=WorkItemStatus.IN_PROGRESS,
             component_id=ticket.component_id,
@@ -321,7 +312,7 @@ def _wrong_team_meeting(org: OrgSpec, other_teams: tuple[Team, ...]) -> Amendmen
         )
         look_alike = CalendarEvent(
             id=frame.ids.event(),
-            title=rng.choice(WRONG_TEAM_MEETING_TITLES).format(team=team.name),
+            title=frame.ids.look_alike_meeting_title(rng, team.name),
             start=start,
             end=start + EVENT_LENGTH,
             attendee_ids=attendees,

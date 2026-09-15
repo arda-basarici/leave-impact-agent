@@ -89,6 +89,15 @@ from leaveimpact.world.scenario import (
 )
 from leaveimpact.world.slices import place_leave, place_now, stable_interval
 from leaveimpact.world.truth_facts import truth_fact_base
+from leaveimpact.world.vocabulary import (
+    LOOK_ALIKE_MEETING_PHRASES,
+    LOOK_ALIKE_TICKET_PHRASES,
+    MEETING_PHRASES,
+    MEETING_QUALIFIERS,
+    TICKET_PHRASES,
+    TICKET_QUALIFIERS,
+    titles,
+)
 
 # --- Errors ---------------------------------------------------------------------------
 
@@ -123,20 +132,73 @@ class ScenarioInvariantFailed(ConstructionError):
 
 
 class Minting:
-    """The world's id book: world-wide numbering for the records scenarios plant.
+    """The world's id and title book: world-wide numbering for the records scenarios plant, and
+    the titles a component's tickets and a team's meetings carry, each handed out once.
 
     Ids are world-wide (``ticket_042`` names one ticket in every system), so one book
-    serves every scenario of a world and is threaded through each frame. Deterministic
-    because construction is sequential and draws nothing.
+    serves every scenario of a world and is threaded through each frame; numbering is
+    deterministic because construction is sequential and draws nothing. Titles are minted
+    here too, without replacement per context (the 15.3 rulings): a policy scopes itself by
+    the title of the artifact it names, so a title naming two tickets or two meetings is a
+    scope the prose cannot resolve even while the structured constraint stays exact. The
+    supply for a context is the vocabulary's product of phrases and qualifiers, drawn from
+    what remains with the scenario's own generator, so the choice is seeded and the
+    capacity is finite and stated; an exhausted context is a generator invariant failing
+    loud, never a retry. Look-alike titles are minted from their own phrases, disjoint from
+    the real ones, so a distractor never shares a real artifact's title.
     """
 
     def __init__(self) -> None:
         self._next: dict[EntityKind, int] = {}
+        self._remaining: dict[tuple[str, str], list[str]] = {}
 
     def _take(self, kind: EntityKind) -> int:
         number = self._next.get(kind, 1)
         self._next[kind] = number + 1
         return number
+
+    def _mint_title(
+        self,
+        rng: Random,
+        book: str,
+        context: str,
+        phrases: tuple[str, ...],
+        qualifiers: tuple[str, ...],
+    ) -> str:
+        key = (book, context)
+        if key not in self._remaining:
+            self._remaining[key] = list(titles(context, phrases, qualifiers))
+        remaining = self._remaining[key]
+        if not remaining:
+            raise ValueError(
+                f"the {book} title supply for {context!r} is exhausted after "
+                f"{len(phrases) * len(qualifiers)} titles"
+            )
+        title = rng.choice(remaining)
+        remaining.remove(title)
+        return title
+
+    def ticket_title(self, rng: Random, component: str) -> str:
+        """A title no other ticket of ``component`` carries in this world."""
+        return self._mint_title(rng, "ticket", component, TICKET_PHRASES, TICKET_QUALIFIERS)
+
+    def meeting_title(self, rng: Random, team: str) -> str:
+        """A title no other meeting of ``team`` carries in this world."""
+        return self._mint_title(rng, "meeting", team, MEETING_PHRASES, MEETING_QUALIFIERS)
+
+    def look_alike_ticket_title(self, rng: Random, component: str) -> str:
+        """A distractor ticket's title, unique among ``component``'s look-alikes and never a
+        real ticket's."""
+        return self._mint_title(
+            rng, "look-alike ticket", component, LOOK_ALIKE_TICKET_PHRASES, TICKET_QUALIFIERS
+        )
+
+    def look_alike_meeting_title(self, rng: Random, team: str) -> str:
+        """A distractor meeting's title, unique among ``team``'s look-alikes and never a real
+        meeting's."""
+        return self._mint_title(
+            rng, "look-alike meeting", team, LOOK_ALIKE_MEETING_PHRASES, MEETING_QUALIFIERS
+        )
 
     def leave(self) -> LeaveId:
         return leave_id(self._take(EntityKind.LEAVE))

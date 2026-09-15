@@ -60,12 +60,14 @@ from leaveimpact.world.artifacts import (
     world_version,
 )
 from leaveimpact.world.assembly import (
+    AmbiguousScopeHandle,
     Contamination,
     ForeignRecord,
     SemanticWorld,
     WorldContamination,
     WorldSpec,
     assemble_semantic_world,
+    scope_handle_problems,
     verify_world,
     world_fact_base,
 )
@@ -333,6 +335,7 @@ __all__ = [
     "Tier",
     "TimezoneBoundary",
     "VerdictOverride",
+    "AmbiguousScopeHandle",
     "WorldContamination",
     "WorldSpec",
     "WrongTeam",
@@ -379,6 +382,7 @@ __all__ = [
     "statement_of",
     "target_ref",
     "truth_fact_base",
+    "scope_handle_problems",
     "verify_world",
     "vocabulary_digest",
     "window_instants",

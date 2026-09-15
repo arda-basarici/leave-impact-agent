@@ -14,13 +14,31 @@ from leaveimpact.core.ids import leave_id, work_item_id
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     GENERATOR_VERSION,
+    Minting,
     Planted,
+    ReleaseCardinalityConstraint,
     WorldContamination,
     WorldSpec,
+    allocate_slices,
+    assemble_semantic_world,
     assemble_world,
+    construct,
+    scope_handle_problems,
     verify_world,
     vocabulary_digest,
     world_fact_base,
+)
+from leaveimpact.world.plan import GOLDEN_SET_ROWS
+from leaveimpact.world.vocabulary import (
+    COMPONENT_NAMES,
+    LOOK_ALIKE_MEETING_PHRASES,
+    LOOK_ALIKE_TICKET_PHRASES,
+    MEETING_PHRASES,
+    MEETING_QUALIFIERS,
+    TEAM_NAMES,
+    TICKET_PHRASES,
+    TICKET_QUALIFIERS,
+    titles,
 )
 
 WORLD_START = date(2026, 1, 1)
@@ -151,3 +169,82 @@ def test_a_foreign_undated_ticket_of_the_leaver_is_named_as_an_undeclared_impact
     assert finding.actual == "a grounded responsibility impact of the leaver"
     (culprit,) = finding.foreign
     assert culprit.entity_id == "ticket_999" and culprit.owner == second.key.scenario_id
+
+
+# --- Scope handles: a policy names its artifact by title, so the title names one artifact ---
+
+
+def test_assembly_refuses_a_scope_handle_that_names_two_artifacts_of_its_kind() -> None:
+    """The defence behind the title book: a class or helper that titled an artifact past the
+    book and collided with a constraint's target is refused by name, whatever the rules say."""
+    from random import Random
+
+    from leaveimpact.core.ids import scenario_id
+
+    org = assemble_world(7, DEFAULT_PARAMS, WORLD_START).org
+    ids = Minting()
+    slices = allocate_slices(Random(0), 2, WORLD_START)
+    first, second = (
+        construct(
+            ReleaseCardinalityConstraint(),
+            (),
+            org,
+            scenario_id=scenario_id(number),
+            window=slices[number - 1],
+            world_start=WORLD_START,
+            reference_timezone=org.params.reference_timezone,
+            ids=ids,
+            rng=Random(number),
+        )
+        for number in (1, 2)
+    )
+    assert scope_handle_problems([first, second]) == []
+    stolen = first.owned.work_items[0].entity.title
+    [planted] = second.owned.work_items
+    collided = replace(
+        second,
+        owned=replace(
+            second.owned,
+            work_items=(replace(planted, entity=replace(planted.entity, title=stolen)),),
+        ),
+    )
+    # Both constraints now scope themselves by a title naming two tickets: one problem each.
+    problems = scope_handle_problems([first, collided])
+    assert [p[: len("scenario_00N")] for p in problems] == ["scenario_001", "scenario_002"]
+    assert all(repr(stolen) in p and "names 2 tickets" in p for p in problems)
+
+
+def test_every_title_supply_covers_the_golden_set_in_one_context() -> None:
+    """Capacity as a tested relationship: a row plants at most one scope-handle artifact of a
+    kind, so a context needs at most the golden set's row count of titles."""
+    for phrases, qualifiers in (
+        (TICKET_PHRASES, TICKET_QUALIFIERS),
+        (MEETING_PHRASES, MEETING_QUALIFIERS),
+        (LOOK_ALIKE_TICKET_PHRASES, TICKET_QUALIFIERS),
+        (LOOK_ALIKE_MEETING_PHRASES, MEETING_QUALIFIERS),
+    ):
+        supply = titles("x", phrases, qualifiers)
+        assert len(supply) == len(set(supply)) >= GOLDEN_SET_ROWS
+
+
+def test_unique_per_kind_is_the_whole_resolver_contract() -> None:
+    """Ticket titles carry a component name and meeting titles a team name from disjoint
+    tables, real and look-alike phrases are disjoint, and no qualifier begins with the comma
+    the modifiers' derived suffixes begin with: so a title names one artifact across kinds
+    and across distractors once it names one within its kind."""
+    assert not set(TEAM_NAMES) & set(COMPONENT_NAMES)
+    assert not set(TICKET_PHRASES) & set(LOOK_ALIKE_TICKET_PHRASES)
+    assert not set(MEETING_PHRASES) & set(LOOK_ALIKE_MEETING_PHRASES)
+    assert all(not q.startswith(",") for q in TICKET_QUALIFIERS + MEETING_QUALIFIERS)
+    assert "" in TICKET_QUALIFIERS and "" in MEETING_QUALIFIERS
+
+
+def test_the_measurement_plan_seeds_that_collided_now_mint_distinct_scope_handles() -> None:
+    """The regression behind the 15.3 finding: twenty seeds of the plan with the qualification
+    class carried twenty-seven scope handles naming two or three meetings; assembly of every
+    one of them now succeeds with no handle naming more than one artifact of its kind."""
+    for seed in range(1, 21):
+        world = assemble_semantic_world(
+            seed, DEFAULT_PARAMS, WORLD_START, "tier1-plus-qualification"
+        )
+        assert scope_handle_problems(world.scenarios) == []

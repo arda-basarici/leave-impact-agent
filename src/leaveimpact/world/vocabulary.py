@@ -149,6 +149,79 @@ CLIENT_NAMES: tuple[str, ...] = (
 )
 
 
+# --- Artifact titles: the scope handles a policy names an artifact by ----------------------
+#
+# A ticket title is a component name, a phrase and a qualifier; a meeting title a team name,
+# a phrase and a qualifier. The product of phrases and qualifiers is the supply one context
+# (a component, a team) can mint without replacement, and it must cover the largest plan's
+# row count, since a policy scopes itself by the title it names and a title naming two
+# artifacts of one kind is a scope the prose cannot resolve (the 15.3 rulings). Look-alike
+# titles use their own phrases, disjoint from these, so a distractor never shares a real
+# artifact's title. Qualifiers never begin with a comma: the modifiers' suffixes do, and
+# a derived title (", phase one", ", groundwork", ", follow-up") stays distinct by that.
+
+TICKET_PHRASES: tuple[str, ...] = (
+    "upgrade the client library",
+    "rotate the signing keys",
+    "migrate the retry queue",
+    "close the audit findings",
+    "cut over to the new gateway",
+    "retire the legacy endpoint",
+)
+TICKET_QUALIFIERS: tuple[str, ...] = (
+    "",
+    " for the EU region",
+    " ahead of the freeze",
+    " for the mobile clients",
+    " behind the flag",
+    " for the new tenant",
+)
+MEETING_PHRASES: tuple[str, ...] = (
+    "release go/no-go",
+    "sprint review",
+    "customer escalation sync",
+    "quarterly planning",
+    "incident retrospective",
+    "roadmap check-in",
+)
+MEETING_QUALIFIERS: tuple[str, ...] = (
+    "",
+    " with product",
+    " with the platform leads",
+    " for the next release",
+    " (deep dive)",
+    " (part two)",
+)
+LOOK_ALIKE_TICKET_PHRASES: tuple[str, ...] = (
+    "triage the backlog",
+    "refresh the dashboards",
+    "review the alert thresholds",
+    "tune the autoscaling",
+    "document the runbook",
+    "clean up stale branches",
+)
+LOOK_ALIKE_MEETING_PHRASES: tuple[str, ...] = (
+    "weekly sync",
+    "design review",
+    "on-call handover",
+    "stand-up",
+    "estimation session",
+    "demo prep",
+)
+
+
+def titles(context: str, phrases: tuple[str, ...], qualifiers: tuple[str, ...]) -> tuple[str, ...]:
+    """Every title a context can carry from ``phrases`` by ``qualifiers``, in canonical order:
+    plain phrases first, then each qualifier over the phrases.
+
+    >>> titles("Auth", ("rotate keys", "add a key"), ("", " (EU)"))
+    ('Auth: rotate keys', 'Auth: add a key', 'Auth: rotate keys (EU)', 'Auth: add a key (EU)')
+    """
+    return tuple(
+        f"{context}: {phrase}{qualifier}" for qualifier in qualifiers for phrase in phrases
+    )
+
+
 def vocabulary_digest() -> str:
     """The SHA-256 of every table above in canonical JSON — the fingerprint ``version`` records.
 
@@ -167,6 +240,12 @@ def vocabulary_digest() -> str:
         "team_names": list(TEAM_NAMES),
         "component_names": list(COMPONENT_NAMES),
         "client_names": list(CLIENT_NAMES),
+        "ticket_phrases": list(TICKET_PHRASES),
+        "ticket_qualifiers": list(TICKET_QUALIFIERS),
+        "meeting_phrases": list(MEETING_PHRASES),
+        "meeting_qualifiers": list(MEETING_QUALIFIERS),
+        "look_alike_ticket_phrases": list(LOOK_ALIKE_TICKET_PHRASES),
+        "look_alike_meeting_phrases": list(LOOK_ALIKE_MEETING_PHRASES),
     }
     canonical = json.dumps(tables, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()

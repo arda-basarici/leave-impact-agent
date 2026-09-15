@@ -57,6 +57,7 @@ from __future__ import annotations
 
 import re
 import sys
+from collections import Counter
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
@@ -70,7 +71,7 @@ from leaveimpact.core.ids import EmployeeId, ScenarioId
 from leaveimpact.core.plans import expected_action
 from leaveimpact.core.viability import assess_impact
 from leaveimpact.core.worldtime import DateSpan
-from leaveimpact.world.briefs import parts_of
+from leaveimpact.world.briefs import SectionTarget, parts_of
 from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.construction import (
     ConstructionError,
@@ -136,6 +137,65 @@ class WorldContamination(ConstructionError):
     def __init__(self, findings: Sequence[Contamination]) -> None:
         super().__init__("; ".join(str(finding) for finding in findings))
         self.findings = tuple(findings)
+
+
+class AmbiguousScopeHandle(ConstructionError):
+    """A constraint's artifact shares its title with another artifact of its kind, so the
+    policy text that names it by title denotes two things while the constraint names one."""
+
+    def __init__(self, problems: Sequence[str]) -> None:
+        super().__init__("; ".join(problems))
+        self.problems = tuple(problems)
+
+
+def scope_handle_problems(scenarios: Sequence[Scenario]) -> list[str]:
+    """Every constraint target whose title names more than one artifact of its kind across
+    ``scenarios``: a ticket's or meeting's own title, a section's document title.
+
+    The title book mints without replacement, so this never fires for a world the
+    framework built; it is the assembly's defence against a class or helper that titles an
+    artifact past the book (the 15.3 rulings). Unique per kind is the resolver contract in
+    full because ticket titles carry a component name and meeting titles a team name, from
+    disjoint tables, and a section is named through its document's title.
+    """
+    tickets = Counter(p.entity.title for s in scenarios for p in s.owned.work_items)
+    events = Counter(p.entity.title for s in scenarios for p in s.owned.events)
+    documents = Counter(p.entity.title for s in scenarios for p in s.owned.documents)
+    problems: list[str] = []
+    for scenario in scenarios:
+        for constraint in scenario.key.constraints:
+            target = constraint.applies_to
+            match target.kind:
+                case EntityKind.WORK_ITEM:
+                    tickets_here = scenario.owned.work_items
+                    title = next(p.entity.title for p in tickets_here if p.entity.id == target.id)
+                    kind, count = "ticket", tickets[title]
+                case EntityKind.EVENT:
+                    title = next(
+                        p.entity.title for p in scenario.owned.events if p.entity.id == target.id
+                    )
+                    kind, count = "meeting", events[title]
+                case EntityKind.CLAUSE:
+                    title = next(
+                        p.entity.title
+                        for p in scenario.owned.documents
+                        if any(section.id == target.id for section in p.entity.sections)
+                        or any(
+                            pending.target.document_id == p.entity.id
+                            for pending in scenario.briefs
+                            if isinstance(pending.target, SectionTarget)
+                            and pending.target.id == target.id
+                        )
+                    )
+                    kind, count = "document", documents[title]
+                case _:
+                    continue
+            if count > 1:
+                problems.append(
+                    f"{scenario.spec.id}: {constraint.clause_id} scopes itself by the {kind} "
+                    f"title {title!r}, which names {count} {kind}s in this world"
+                )
+    return problems
 
 
 @dataclass(frozen=True, slots=True)
@@ -271,6 +331,9 @@ def assemble_semantic_world(
         )
         for row, window in zip(plan, slices, strict=True)
     )
+    ambiguous = scope_handle_problems(scenarios)
+    if ambiguous:
+        raise AmbiguousScopeHandle(ambiguous)
     facts = world_fact_base(org, world_start, scenarios)
     findings = verify_world(facts, scenarios, org)
     if findings:

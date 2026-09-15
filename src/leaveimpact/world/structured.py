@@ -57,22 +57,6 @@ from leaveimpact.world.scenario import (
     Tier,
 )
 
-TICKET_TITLES: tuple[str, ...] = (
-    "{component}: upgrade the client library",
-    "{component}: rotate the signing keys",
-    "{component}: migrate the retry queue",
-    "{component}: close the audit findings",
-    "{component}: cut over to the new gateway",
-)
-
-MEETING_TITLES: tuple[str, ...] = (
-    "{team}: release go/no-go",
-    "{team}: sprint review",
-    "{team}: customer escalation sync",
-    "{team}: quarterly planning",
-    "{team}: incident retrospective",
-)
-
 OVERLAP_TITLES: tuple[str, ...] = (
     "Vendor security review",
     "Hiring panel",
@@ -305,7 +289,7 @@ def plant_ticket(
 ) -> Planted[WorkItem]:
     ticket = WorkItem(
         id=frame.ids.work_item(),
-        title=rng.choice(TICKET_TITLES).format(component=component.name),
+        title=frame.ids.ticket_title(rng, component.name),
         owner_id=leaver.id,
         status=WorkItemStatus.IN_PROGRESS,
         component_id=component.id,
@@ -329,7 +313,7 @@ def plant_meeting(
     attendees = (leaver.id, rng.choice(outside).id) if outside else (leaver.id,)
     meeting = CalendarEvent(
         id=frame.ids.event(),
-        title=rng.choice(MEETING_TITLES).format(team=team.name),
+        title=frame.ids.meeting_title(rng, team.name),
         start=start,
         end=start + MEETING_LENGTH,
         attendee_ids=attendees,
