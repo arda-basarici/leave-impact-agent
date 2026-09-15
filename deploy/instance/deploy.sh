@@ -37,9 +37,11 @@ docker compose run --rm app
 # deploys in a week filled the 12 GB root and the pull itself failed (2026-09-15,
 # 134 images, 8.6 GB reclaimed by hand). A rollback pulls its sha again, so only
 # the deployed image stays; the id is what is removed, since one id may carry
-# several tags.
+# several tags. awk, not grep -v: nothing to prune is the steady state, and
+# grep's no-match exit is a failure under pipefail (the first deploy of this
+# block failed exactly there, 2026-09-15).
 KEEP_ID=$(docker images -q "ghcr.io/$REPO:$DEPLOY_SHA")
-docker images "ghcr.io/$REPO" --format '{{.ID}}' | sort -u | grep -vx "$KEEP_ID" \
+docker images "ghcr.io/$REPO" --format '{{.ID}}' | sort -u | awk -v keep="$KEEP_ID" '$1 != keep' \
   | xargs -r docker image rm -f
 docker image prune -f
 
