@@ -504,6 +504,42 @@ class TargetRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class MaterializationMetrics:
+    """The stage's aggregate counters, sealed as provenance of the run that wrote the texts.
+
+    Attempts and passes by target, refusals by guard, retries and unusable checkers, tokens
+    in and out and the summed latency per model. Run measurements, not world semantics:
+    the semantic digest never covers them, and a resume neither needs nor checks them.
+    They are sealed because the log used to be their only carrier and a run that sealed
+    its truth and then failed in projection took them with it (the measurement world,
+    2026-09-15); the ruling that adopts or rejects a prose fix reads these numbers, so
+    they travel with the world they measured.
+    """
+
+    writer_attempts: int
+    targets_first_attempt_pass: int
+    targets_eventual_pass: int
+    targets_cap_exhausted: int
+    namespace_refusals: int
+    required_fact_refusals: int
+    extraction_refusals: int
+    checker_retries: int
+    checker_unusable: int
+    writer_retries: int
+    writer_input_tokens: int
+    writer_output_tokens: int
+    checker_input_tokens: int
+    checker_output_tokens: int
+    writer_latency_ms: int
+    checker_latency_ms: int
+
+    def __post_init__(self) -> None:
+        for name in self.__slots__:
+            if getattr(self, name) < 0:
+                raise ValueError(f"{name}: a counter is never negative, got {getattr(self, name)}")
+
+
+@dataclass(frozen=True, slots=True)
 class MaterializationRecord:
     """The provenance of every model-written text in a world, sealed with the truth.
 
@@ -512,7 +548,9 @@ class MaterializationRecord:
     target's record instead, since it varies by design. ``targets`` are in the order the
     materializer ran them, which is execution provenance and not a collection: the stage
     runs targets sequentially, so the order is a fact of the run, and the realized
-    identity includes it on purpose.
+    identity includes it on purpose. ``metrics`` are the stage's counters, ``None`` for
+    a record sealed before they were carried (the measurement world's is one), and the
+    sealed bytes of such a record hold no field for them.
     """
 
     writer: ModelConfiguration
@@ -520,6 +558,7 @@ class MaterializationRecord:
     prompt_digests: tuple[tuple[str, str], ...]
     attempt_cap: int
     targets: tuple[TargetRecord, ...]
+    metrics: MaterializationMetrics | None = None
 
     def __post_init__(self) -> None:
         if self.attempt_cap < 1:

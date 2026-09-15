@@ -7,7 +7,7 @@ briefs calling no model; the log carrying ids, attempts, guard names and counts 
 
 import json
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, fields
 
 import pytest
 
@@ -26,6 +26,7 @@ from leaveimpact.generator.materialize import (
     MaterializationAborted,
     MaterializationFailed,
     Materialized,
+    ProseMetrics,
     materialize,
 )
 from leaveimpact.generator.prose import load_prompt_assets
@@ -34,6 +35,7 @@ from leaveimpact.world import (
     Brief,
     CommentTarget,
     GuardName,
+    MaterializationMetrics,
     assemble_semantic_world,
     bundle,
     compose,
@@ -141,6 +143,9 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
     ) == (1, 1, 1)
     assert metrics.writer_input_tokens == 100 and metrics.checker_latency_ms == 500
     assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 16
+    # The same counters are sealed into the record, so a run that dies after sealing keeps them.
+    assert materialized.record.metrics == metrics.sealed()
+    assert metrics.sealed().writer_input_tokens == 100
     # The checker never saw the brief's facts, only the text and the entity list.
     assert "has experience with" not in checker.requests[0].message
     # The output composes and seals.
@@ -150,6 +155,10 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
         materialized.record,
     )
     assert bundle(composed).world_version
+
+
+def test_the_loops_counters_and_the_sealed_counters_share_every_field() -> None:
+    assert {f.name for f in fields(ProseMetrics)} == set(MaterializationMetrics.__slots__)
 
 
 def test_each_guard_refuses_in_turn_and_the_fresh_attempt_after_them_is_accepted() -> None:

@@ -37,6 +37,7 @@ from leaveimpact.world import (
     AssertionMode,
     GuardName,
     Lexicon,
+    MaterializationMetrics,
     MaterializationRecord,
     ModelConfiguration,
     Namespace,
@@ -245,3 +246,14 @@ def test_the_record_keeps_attempts_under_the_cap_and_each_target_once() -> None:
         MaterializationRecord(writer, checker, (), 4, (accepted, accepted))
     with pytest.raises(ValueError, match="a prompt asset is digested once"):
         MaterializationRecord(writer, checker, (("a", SHA), ("a", SHA)), 4, ())
+
+
+def test_the_records_counters_are_optional_and_never_negative() -> None:
+    writer = ModelConfiguration("writer", ())
+    checker = ModelConfiguration("checker", ())
+    assert MaterializationRecord(writer, checker, (), 4, ()).metrics is None
+    zeros = dict.fromkeys(MaterializationMetrics.__slots__, 0)
+    counted = MaterializationMetrics(**{**zeros, "writer_input_tokens": 3209})
+    assert MaterializationRecord(writer, checker, (), 4, (), counted).metrics == counted
+    with pytest.raises(ValueError, match="checker_latency_ms: a counter is never negative"):
+        MaterializationMetrics(**{**zeros, "checker_latency_ms": -1})

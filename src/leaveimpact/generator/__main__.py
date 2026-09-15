@@ -61,12 +61,16 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     started = time.perf_counter()
     truth, world_store = stores_for(deployment)
-    prose_metrics: ProseMetrics | None = None
     if recipe.resume is not None:
         print(f"resuming={recipe.resume}")
         world, sealed = resume_world(recipe.resume, truth)
     else:
         world, sealed, prose_metrics = _fresh(recipe, models)
+        # Printed before sealing begins: the prose stage is over, and a run that seals and
+        # then fails in projection must not take the stage's numbers with it (the
+        # measurement world's did, 2026-09-15; the record now seals them too).
+        for line in prose_metrics.lines():
+            print(line)
     # Flushed: this line is the resume handle, and stdout is a pipe under the workflow, so
     # a hard kill mid-sealing must not lose it in a block buffer.
     print(f"world_version={sealed.world_version}", flush=True)
@@ -76,9 +80,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         result = seal_world(world, sealed, preparation, truth, timed)
     elapsed = time.perf_counter() - started
 
-    if prose_metrics is not None:
-        for line in prose_metrics.lines():
-            print(line)
     for line in timed.summary(elapsed).lines():
         print(line)
     print(f"run_seconds={elapsed:.1f}")

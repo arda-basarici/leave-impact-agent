@@ -732,3 +732,39 @@ The site timezone and the fiscal year are the two bootstrap values that could re
 record later read; a regression test on that seam is owed when a world outside 2026 /
 Europe/Istanbul exists, not before. The Frappe cassette was re-recorded on `hr-w1`
 (the no-op branch, 87 requests); the fresh branch's live proof is the eighth run.
+
+**Eighth run, PASS (2026-09-15, run 34964654568, 248 s, 90 checkpoints), validated
+and approved (run 34965191151, validator version 1, seven exactness checks, seven
+fidelity checks, thirteen scenario views; verdict `verdicts/34965191151-1.json`).**
+The readiness step completed the wizard on the fresh `hr-w2` and the projection ran
+from the checkpoint's 28 calendars. The measurement world is live.
+
+**The prose numbers, recovered.** The stage's counters (tokens, latency, retries) were
+printed only after sealing returned in the same process; the fifth run sealed and then
+died in the calendar loop, so they died with it, and the resume had no prose stage. The
+sealed record holds attempts, refusals by guard, digests and the accepted propositions
+only (session 24's log had claimed tokens and latencies were in it; they were not).
+Bedrock's CloudWatch metrics (`AWS/Bedrock`, per model id, one-minute resolution)
+carried them, attributed to each dispatch by its time window; the hour's sums (40
+writer calls, 31 checker calls) reconcile exactly, the ten calls in no run window being
+the local probes between runs 3 and 5. Writer Haiku 4.5, checker Nova Pro; latency the
+per-call average:
+
+| run | writer calls | writer in / out | checker calls | checker in / out | latency w / c |
+|---|---|---|---|---|---|
+| 1 (author's name demanded) | 12 | 5,848 / 406 | 0 | — | 936 ms / — |
+| 2 (reversed pair aborted the stage) | 1 | 493 / 32 | 4 | 5,704 / 456 | 810 / 1,109 ms |
+| 3 (offers read as ownership) | 12 | 5,848 / 414 | 12 | 17,091 / 1,421 | 869 / 1,038 ms |
+| 5 (prose passed) | 5 | 3,209 / 133 | 5 | 7,431 / 522 | 827 / 953 ms |
+
+Each failure's shape is legible in the calls alone: run 1 never reached the checker
+(3 targets × the cap of 4, every draft refused by the scanner); run 2 is one writer
+call and the checker's retry budget spent on the protocol failure; run 3 is twelve and
+twelve. The passing run is five and five: about 640 tokens in and 27 out per writer
+call at 0.8 s, about 1,490 in and 104 out per checker call at 1.0 s. Cost Explorer for
+2026-09-14: $0.093 for the night's 71 calls (Nova Pro $0.063 under "Amazon Bedrock",
+Haiku $0.030 under "Claude Haiku 4.5 (Amazon Bedrock Edition)", a separate service
+line); the passing run's share, proportional to tokens, about $0.015 for three
+comments. Ruled 2026-09-15: the counters are printed before sealing begins and sealed
+into the materialization record (`metrics`, absent from records sealed before, the
+decoder accepting either), so they travel with the world they measured.

@@ -34,6 +34,7 @@ from leaveimpact.world.artifacts import TRUTH_MANIFEST
 from leaveimpact.world.prose import (
     AssertionMode,
     GuardName,
+    MaterializationMetrics,
     MaterializationRecord,
     ModelConfiguration,
     Polarity,
@@ -56,9 +57,13 @@ def decode_materialization(content: bytes | str) -> MaterializationRecord | None
 
 
 def _record(data: Mapping[str, object]) -> MaterializationRecord:
+    # The counters joined the record after the first prose worlds were sealed, so their
+    # field is the one the decoder allows to be absent; present, it is read whole.
+    counted = "metrics" in data
     expect_fields(
         data,
-        ("writer", "checker", "prompt_digests", "attempt_cap", "targets"),
+        ("writer", "checker", "prompt_digests", "attempt_cap", "targets")
+        + (("metrics",) if counted else ()),
         "the materialization record",
     )
     return MaterializationRecord(
@@ -67,7 +72,14 @@ def _record(data: Mapping[str, object]) -> MaterializationRecord:
         prompt_digests=tuple(_prompt(item) for item in array_field(data, "prompt_digests")),
         attempt_cap=integer_field(data, "attempt_cap"),
         targets=tuple(_target(item) for item in array_field(data, "targets")),
+        metrics=_metrics(object_field(data, "metrics")) if counted else None,
     )
+
+
+def _metrics(data: Mapping[str, object]) -> MaterializationMetrics:
+    names = tuple(MaterializationMetrics.__slots__)
+    expect_fields(data, names, "the materialization metrics")
+    return MaterializationMetrics(**{name: integer_field(data, name) for name in names})
 
 
 def _model(data: Mapping[str, object]) -> ModelConfiguration:

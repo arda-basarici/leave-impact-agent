@@ -471,8 +471,13 @@ def _namespace(namespace: Namespace) -> JsonObject:
 
 
 def encode_materialization(record: MaterializationRecord) -> JsonObject:
-    """The record of every model-written text: models, prompt digests, cap, one row per target."""
-    return {
+    """The record of every model-written text: models, prompt digests, cap, one row per target.
+
+    The stage's counters are written under ``metrics`` only when the record carries them:
+    a record sealed before they existed re-encodes to the bytes it was sealed as, which is
+    what a resume's proof of the sealed provenance compares.
+    """
+    encoded: JsonObject = {
         "writer": _model_configuration(record.writer),
         "checker": _model_configuration(record.checker),
         "prompt_digests": [
@@ -481,6 +486,11 @@ def encode_materialization(record: MaterializationRecord) -> JsonObject:
         "attempt_cap": record.attempt_cap,
         "targets": [_target_record(target) for target in record.targets],
     }
+    if record.metrics is not None:
+        encoded["metrics"] = {
+            name: getattr(record.metrics, name) for name in record.metrics.__slots__
+        }
+    return encoded
 
 
 def _model_configuration(configured: ModelConfiguration) -> JsonObject:

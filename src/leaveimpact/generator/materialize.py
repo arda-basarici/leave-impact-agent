@@ -67,6 +67,7 @@ from leaveimpact.world.briefs import Brief, lexicon_of, target_ref
 from leaveimpact.world.prose import (
     GuardName,
     Lexicon,
+    MaterializationMetrics,
     MaterializationRecord,
     ModelConfiguration,
     Refusal,
@@ -102,6 +103,10 @@ class ProseMetrics:
     def lines(self) -> tuple[str, ...]:
         """The metrics as the run prints them, one number per line."""
         return tuple(f"prose_{f.name}={getattr(self, f.name)}" for f in fields(self))
+
+    def sealed(self) -> MaterializationMetrics:
+        """The counters frozen for the record; the two types share every field by name."""
+        return MaterializationMetrics(**{f.name: getattr(self, f.name) for f in fields(self)})
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +195,7 @@ def materialize(
         prompt_digests=assets.digests(),
         attempt_cap=attempt_cap,
         targets=tuple(targets),
+        metrics=loop.metrics.sealed(),
     )
     return Materialized(prose, record, loop.metrics)
 

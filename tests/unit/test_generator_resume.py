@@ -3,6 +3,9 @@ were sealed, through the same compose and bundle; the record round-trips through
 own decoder; and every proof refuses by name — no object, another generator version, a truth
 manifest the spec does not cite, a version the rebuilt realization does not match."""
 
+import json
+from dataclasses import replace
+
 import pytest
 
 from leaveimpact.adapters.object_store.layout import truth_manifest_key, world_spec_key
@@ -12,6 +15,7 @@ from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     Bundle,
+    MaterializationMetrics,
     SemanticWorld,
     WorldSpec,
     assemble_world,
@@ -55,6 +59,25 @@ def test_the_record_round_trips_through_the_generators_decoder(
 ) -> None:
     world, sealed = sealed_world
     assert decode_materialization(sealed.truth_manifest.content) == world.materialization
+    # The fixture's record carries no counters, the shape of every record sealed before
+    # they existed: its bytes hold no field for them, so a resume re-derives the same bytes.
+    assert "metrics" not in json.loads(sealed.truth_manifest.content)["materialization"]
+
+
+def test_the_records_counters_round_trip_when_sealed() -> None:
+    scenario = pending_scenario(SkillInComment())
+    [brief] = scenario.briefs
+    counters = MaterializationMetrics(
+        **{**dict.fromkeys(MaterializationMetrics.__slots__, 0), "writer_attempts": 5}
+    )
+    record = replace(record_for({brief.id: BODY}), metrics=counters)
+    world = compose(semantic_world_of(scenario), {brief.id: BODY}, record)
+    sealed = bundle(world)
+    assert json.loads(sealed.truth_manifest.content)["materialization"]["metrics"] == {
+        **dict.fromkeys(MaterializationMetrics.__slots__, 0),
+        "writer_attempts": 5,
+    }
+    assert decode_materialization(sealed.truth_manifest.content) == record
 
 
 def test_a_world_without_prose_resumes_from_its_seed_alone() -> None:

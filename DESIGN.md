@@ -1095,7 +1095,12 @@ world spec is readable by the validator's role and holds nothing truth expects, 
 brief's required facts and a checker's reading of a text are exactly that). It carries
 the writer and checker configuration, the inference configuration serialized whole so a
 parameter added later joins it unasked, the digests of the prompt assets, the attempt
-cap; per target the attempts, each refusal by guard, the rendered request's digest, the
+cap, and since 2026-09-15 the stage's aggregate counters (attempts and passes by target,
+refusals by guard, retries, tokens and latency per model) — run measurements outside the
+semantic digest, sealed because the log had been their only carrier and the measurement
+world's run sealed its truth and then failed in projection, taking them with it (the
+numbers were recovered from Bedrock's CloudWatch metrics); a record sealed before that
+date holds no field for them; per target the attempts, each refusal by guard, the rendered request's digest, the
 accepted body's digest (`accepted_body_digest`, the model's output — the composed text
 has its own place in the world's digests) and the accepted attempt's extracted
 propositions, which are what the hand audit is measured against. The truth manifest has
