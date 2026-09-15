@@ -33,5 +33,15 @@ docker compose up -d --wait postgres
 # probe's "response"). Flips to `up -d app` with the first service entry point.
 docker compose run --rm app
 
+# Every deploy pulls a new image and nothing ever removed the old ones: about 130
+# deploys in a week filled the 12 GB root and the pull itself failed (2026-09-15,
+# 134 images, 8.6 GB reclaimed by hand). A rollback pulls its sha again, so only
+# the deployed image stays; the id is what is removed, since one id may carry
+# several tags.
+KEEP_ID=$(docker images -q "ghcr.io/$REPO:$DEPLOY_SHA")
+docker images "ghcr.io/$REPO" --format '{{.ID}}' | sort -u | grep -vx "$KEEP_ID" \
+  | xargs -r docker image rm -f
+docker image prune -f
+
 echo "$DEPLOY_SHA" > "$APP_DIR/DEPLOYED"
 echo "deployed $DEPLOY_SHA at $(date -u +%FT%TZ)"
