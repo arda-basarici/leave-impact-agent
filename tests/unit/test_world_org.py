@@ -207,6 +207,39 @@ def test_a_small_organization_still_honours_every_shape() -> None:
         )
 
 
+def _assert_the_cast_is_the_second_component(spec: OrgSpec) -> None:
+    by_id = {e.id: e for e in spec.employees}
+    contractors = (
+        1 if any(e.employment_type is EmploymentType.CONTRACTOR for e in spec.employees) else 0
+    )
+    by_type = {
+        skill: Counter(e.employment_type for e in spec.holders_of(skill)) for skill in spec.skills
+    }
+    paired = [
+        skill
+        for skill, holders in by_type.items()
+        if holders[EmploymentType.EMPLOYEE] == 2
+        and holders[EmploymentType.CONTRACTOR] == contractors
+    ]
+    assert paired, "no skill held by exactly two employees and the contractor guarantee"
+    cast = spec.components[1]
+    members = [by_id[member] for member in cast.member_ids]
+    assert len(members) == 4 + contractors
+    seated = [
+        skill for skill in paired if {e.id for e in spec.holders_of(skill)} <= set(cast.member_ids)
+    ]
+    # At least one: in a tiny organization a pool skill can land on two employees who both
+    # sit in the cast, which only hands the class a second construction.
+    assert seated, "the second component seats no paired skill's holders"
+    for skill in seated:
+        fillers = [e for e in members if skill not in (e.skills or ())]
+        assert len(fillers) == 2
+        assert all(
+            e.skills is not None and e.employment_type is EmploymentType.EMPLOYEE for e in fillers
+        )
+    assert len({e.team_id for e in members}) >= 2
+
+
 @pytest.mark.parametrize("seed", SEEDS)
 def test_the_paired_skill_s_cast_is_exactly_the_second_component(seed: int) -> None:
     """The cardinality class's affordance (the 15.3 ruling): a skill held by exactly two
@@ -215,31 +248,34 @@ def test_the_paired_skill_s_cast_is_exactly_the_second_component(seed: int) -> N
     component is the two employees, the contractor fails the employment rule alone, and
     the fillers supply the leaver and the skill-failing candidate. No blank record inside,
     which is the uncovered class's placement kept; team lines crossed like every component."""
-    spec = generate_org(seed, DEFAULT_PARAMS)
-    by_id = {e.id: e for e in spec.employees}
-    by_type = {
-        skill: Counter(e.employment_type for e in spec.holders_of(skill)) for skill in spec.skills
-    }
-    paired = [
-        skill
-        for skill, holders in by_type.items()
-        if holders[EmploymentType.EMPLOYEE] == 2 and holders[EmploymentType.CONTRACTOR] == 1
-    ]
-    assert paired, "no skill held by exactly two employees and one contractor"
-    cast = spec.components[1]
-    members = [by_id[member] for member in cast.member_ids]
-    assert len(members) == 5
-    seated = [
-        skill for skill in paired if {e.id for e in spec.holders_of(skill)} <= set(cast.member_ids)
-    ]
-    assert len(seated) == 1, f"the second component seats {len(seated)} paired skills' holders"
-    (skill,) = seated
-    fillers = [e for e in members if skill not in (e.skills or ())]
-    assert len(fillers) == 2
-    assert all(
-        e.skills is not None and e.employment_type is EmploymentType.EMPLOYEE for e in fillers
+    _assert_the_cast_is_the_second_component(generate_org(seed, DEFAULT_PARAMS))
+
+
+SMALL_SHAPES = [
+    OrgParams(
+        org_size=size,
+        team_count=teams,
+        blank_skill_records=blank,
+        contractor_share=share,
+        component_count=2,
     )
-    assert len({e.team_id for e in members}) >= 2
+    for size in (6, 7, 8, 10)
+    for teams in (2, 3)
+    for blank in (0, 1, 2)
+    for share in (0.0, 0.15, 0.5)
+    if blank <= size - 5 and size >= 2 * teams
+]
+
+
+@pytest.mark.parametrize("params", SMALL_SHAPES, ids=str)
+def test_every_accepted_shape_seats_the_cast_on_every_seed(params: OrgParams) -> None:
+    """The parameter contract: a shape validation accepts is a shape every seed realizes. The
+    first cut seated the cast after independent draws of blanks, contractors and holders and
+    raised when no recorded employee was left outside the holders' team (the 15.3 review, 58
+    of 168 small shapes on some seed); the cast is now chosen as one cross-team selection
+    before the other draws, and the size moves stop when no team can donate."""
+    for seed in SEEDS:
+        _assert_the_cast_is_the_second_component(generate_org(seed, params))
 
 
 @pytest.mark.parametrize("seed", SEEDS)

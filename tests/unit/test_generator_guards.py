@@ -82,9 +82,16 @@ def author_of(brief: Brief) -> str:
 
 
 def stranger(brief: Brief) -> str:
-    """The display name of an employee the brief does not admit."""
+    """The display name of an employee the brief does not admit, whose given name no admitted
+    employee shares: the fixture organization repeats given names, and a shared one is an
+    allowed form, so the stranger's given name alone must be foreign for the test to claim."""
     allowed = {form.id for form in brief.namespace.forms if form.kind == "employee"}
-    return next(e.name for e in ORG.employees if e.id not in allowed)
+    admitted_given = {e.name.split()[0] for e in ORG.employees if e.id in allowed}
+    return next(
+        e.name
+        for e in ORG.employees
+        if e.id not in allowed and e.name.split()[0] not in admitted_given
+    )
 
 
 # --- The namespace scanner ----------------------------------------------------------------
