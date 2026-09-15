@@ -832,7 +832,7 @@ credited to `adacec1`).
 ## source-dependence — the step 8 carry probed at the responsibility class (2026-09-15)
 
 A design-time probe, run on the unit fixtures at the 15.2 interview's second question
-(scratch scripts, not committed; the construction test that pins the first finding is).
+(the scripts committed as tooling under `probes/prose/` at `61b3f14`, the construction test that pins the first finding in the suite).
 The carry from step 8: the foreign-fact required-sources drift test lands with the first
 class whose dependence rests on a source none of its own artifacts require.
 

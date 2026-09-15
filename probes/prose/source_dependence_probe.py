@@ -1,4 +1,19 @@
-"""Q2 probe: the responsibility class's required sources, with and without a foreign fact."""
+"""The source-dependence probe: which sources does a class's key require, and does the set
+rest on a source none of the class's own artifacts plant? Each remaining Tier 2 and 3
+class runs it before the step 8 carry closes at 15.5 (DESIGN, "The responsibility class,
+ruled", the second ruling; `probes/FINDINGS.md`, `source-dependence`).
+
+It constructs the class's shape on the unit fixture organization and prints the sealed
+key's required sources and verdicts, then re-derives the required set with a foreign
+tracker fact added to the truth base, once restating a viable candidate's skill and once
+granting the skill to the non-viable one. The responsibility class showed the tracker
+required with no tracker artifact planted: a known-negative on a skill needs the HR
+record and the tracker both to have answered, so derivation is semantic and not
+provenance-based. A foreign fact that moves a verdict is assembly's refusal to seal, not
+this script's reading; the required set is. Runs offline, no credentials; a new class
+replaces or joins the probe class below with a `plant` that mirrors its production
+construction.
+"""
 import sys
 sys.path.insert(0, "tests/unit")
 from dataclasses import dataclass
@@ -90,6 +105,3 @@ print("required_sources:", required(r, (foreign_v,)))
 print("\n-- foreign Jira comment giving the NON-VIABLE candidate Kafka --")
 foreign_o = Fact(employee_ref(other_id), PredicateName.HAS_SKILL, KAFKA, EvidenceRef(Source.JIRA, comment_ref(comment_id(998))), visible)
 print("required_sources:", required(r, (foreign_o,)))
-from leaveimpact.world.construction import _verify
-base = truth_fact_base(ORG, WORLD_START, [r.owned], (*r.authored_facts, foreign_o))
-print("(a verdict moves? checked separately by assembly; see problems below)")

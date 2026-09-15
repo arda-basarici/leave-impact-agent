@@ -1,4 +1,20 @@
-"""Q2c: addition shape — a class with no clause, foreign Jira facts around its candidate."""
+"""The silent-drift probe: can a foreign fact change a class's required-source set while
+every ordinary conclusion stays the same? Each remaining Tier 2 and 3 class runs it before
+the step 8 carry closes at 15.5 (DESIGN, "The responsibility class, ruled", the second
+ruling; `probes/FINDINGS.md`, `source-dependence`).
+
+For each fixture class it builds the pending scenario, derives the conclusions tuple
+(groundings, assessments, open questions, outcomes, conflicts) and the required-source
+set under every source reachable, then adds one foreign fact at a time around the
+candidate, a tracker comment restating a skill and a tracker ticket the candidate owns
+due inside the leave, and prints whether the conclusions moved and what the required
+set became. Drift is a required set that changed with the conclusions unchanged; the
+argument that no current class can produce it rests on provenance pinning every
+artifact's source and on the tracker entering only through a moved verdict, which is why
+a run on a new class is evidence and not a proof. Runs offline on the unit fixtures
+(`tests/unit/prose_fixture.py`), no credentials; a new class is added to the list at the
+bottom with a construction that plants its shape.
+"""
 import sys
 sys.path.insert(0, "tests/unit")
 from datetime import timedelta
