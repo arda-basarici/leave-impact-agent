@@ -957,3 +957,33 @@ reads the sealed checker retry counts. The sentence frame: six of six two-senten
 sentence the brief's own fact description with the client's name in place of "the account
 this note covers", the second fact varying nothing about the first's frame. Recorded, not
 tuned, per the composite's second ruling; the human audit reads the realized texts.
+
+## reservation-book — the twenty-row plan under the world's reservation book, swept (2026-09-16)
+
+The first plan seating the responsibility class beside other rows, twenty rows of two tiers,
+was refused by the whole-world re-verification on twenty of twenty seeds on two cross-row
+interactions no per-scenario test can see: a person one scenario's note names responsible
+being another scenario's leaver (nineteen of twenty; the note is a standing document every
+run reads, so the other leave acquires a responsibility impact its key never declared), and
+a person one scenario's prose gives a skill being another's candidate authored non-viable by
+that skill (one of twenty; both classes take the first recorded non-holder). The 15.4 ruling
+on the reservation book: the world records what each admitted scenario binds, in construction
+terms (a leave subject, the standing contacts, the (person, skill) pairs provided in prose,
+the (person, skill) pairs assumed absent), refuses a later candidate crossing an earlier one
+in both directions, tries the class's constructions in the seed's order and unplants a
+refused one; every candidate refused is a named error listing the rules; the re-verification
+stays the oracle. Assembly of `tier1-plus-tier2` over seeds 1 to 200 (about 2.7 s a world,
+verification included):
+
+| outcome | seeds |
+|---|---|
+| admitted and verified | 196 |
+| contaminated by the re-verification | 0 |
+| reservation book exhausted | 1 (seed 10: the cardinality class's two leavers, the cast's fillers, both named contacts by three earlier prose rows; the error names both rules and the holding scenarios) |
+| a scenario's own invariant failed | 3 (seeds 21, 61, 187: the qualification class under the `wrong_team` + `outside_window` pair, an availability verdict on the meeting; reproduced standalone with fresh books, so a pre-existing defect of that pair, FIXLOG) |
+
+Zero contaminations is the book's claim held: the two rules are the two interactions. The
+exhaustion rate and the pair defect are measured, not fixed, at this step (FIXLOG, both with
+their options); the thirty-row golden plan is swept the same way at 15.5 before it is
+declared. Determinism: same seed, same world, is the suite's existing claim and the book
+changes nothing a seed draws until it refuses something.

@@ -27,12 +27,22 @@ shallow; at thirty rows, five modifiers and two per row it is tiny either way.
 
 The clean rows are a baseline, not a causal isolation: ten rows on different scenarios
 compare low against higher distractor pressure and do not measure one modifier's effect.
+
+A named plan is a sequence of tables, one per tier, each planned and checked on its own
+with the ids continuing (the 15.4 rulings): the coverage minima, the clean-row floor and
+the per-row ceiling are tier-local, because the structured tier alone already meets every
+minimum and a rule over the union would let every fragmented row stay clean and prove
+nothing about that tier. A single-table plan is the planner's own output, so the sealed
+worlds' plans reproduce unchanged. Feasibility of the fragmented table was shown by probe
+before the ruling, two hundred seeds and none infeasible, with one consequence accepted
+on record: only the cardinality rows afford the resolved look-alike, so both always carry
+it and the tier has no clean cardinality row.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from itertools import combinations
 from random import Random
 from types import MappingProxyType
@@ -115,12 +125,31 @@ MEASUREMENT_RULES = PlanRules(
 rows — the first real materialization, sealed as an ordinary version and never one of the
 thirty."""
 
-PLANS: Mapping[str, PlanRules] = MappingProxyType(
-    {"tier1": TIER_ONE_RULES, "tier1-plus-qualification": MEASUREMENT_RULES}
+TIER_TWO_RULES = PlanRules(
+    {
+        ScenarioClassName.FREE_TEXT_QUALIFICATION: 3,
+        ScenarioClassName.FREE_TEXT_RESPONSIBILITY: 3,
+        ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT: 2,
+        ScenarioClassName.FRAGMENTED_COMPOSITE: 2,
+    }
+)
+"""The golden set's fragmented tier (the 15.4 rulings): three qualification, three
+responsibility, two cardinality, two composite. Cardinality's two is the construction's own
+count, one row per holder of the paired skill as the leaver; the composite's two is DESIGN's
+sentence; the six between the prose primitives split evenly, repetition for both."""
+
+PLANS: Mapping[str, tuple[PlanRules, ...]] = MappingProxyType(
+    {
+        "tier1": (TIER_ONE_RULES,),
+        "tier1-plus-qualification": (MEASUREMENT_RULES,),
+        "tier1-plus-tier2": (TIER_ONE_RULES, TIER_TWO_RULES),
+    }
 )
 """The plans a world can be generated under, by the name the recipe records: a semantic
 input on the world-defining side of the boundary, unlike a model id, so a sealed world
-names the rule it was planned under and a resume reassembles under the same one."""
+names the rule it was planned under and a resume reassembles under the same one. A plan
+is one table per tier, planned in order (``plan_tiers``); the two single-table names are
+the sealed worlds' and stay single tables."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -176,6 +205,24 @@ def plan_world(rng: Random, rules: PlanRules) -> tuple[PlanRow, ...]:
     )
     check_plan(rows, rules)
     return rows
+
+
+def plan_tiers(rng: Random, tiers: Sequence[PlanRules]) -> tuple[PlanRow, ...]:
+    """The plan ``tiers`` and ``rng`` produce: each table planned and checked on its own in
+    order, the rows concatenated with the scenario ids continuing.
+
+    One table is exactly ``plan_world`` on it, so a single-table plan reproduces what the
+    sealed worlds were planned under. Raises ``PlanInfeasible`` from the first table that
+    cannot meet its rule.
+    """
+    rows: list[PlanRow] = []
+    for rules in tiers:
+        offset = len(rows)
+        rows.extend(
+            replace(row, scenario_id=scenario_id(offset + index + 1))
+            for index, row in enumerate(plan_world(rng, rules))
+        )
+    return tuple(rows)
 
 
 def _search(

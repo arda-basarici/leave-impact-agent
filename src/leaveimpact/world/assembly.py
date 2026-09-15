@@ -76,6 +76,7 @@ from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.construction import (
     ConstructionError,
     Minting,
+    Reservations,
     construct,
     grounding_text,
     required_count_for,
@@ -83,7 +84,7 @@ from leaveimpact.world.construction import (
 )
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
-from leaveimpact.world.plan import PLANS, PlanRow, plan_world
+from leaveimpact.world.plan import PLANS, PlanRow, plan_tiers
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import Scenario
@@ -314,9 +315,10 @@ def assemble_semantic_world(
         raise ValueError(f"no plan named {plan_name!r}; the plans are {sorted(PLANS)}")
     org = generate_org(seed, params)
     rng = Random(seed)
-    plan = plan_world(rng, PLANS[plan_name])
+    plan = plan_tiers(rng, PLANS[plan_name])
     slices = allocate_slices(rng, len(plan), world_start)
     ids = Minting()
+    book = Reservations()
     scenarios = tuple(
         construct(
             SCENARIO_CLASSES[row.scenario_class],
@@ -328,6 +330,7 @@ def assemble_semantic_world(
             reference_timezone=params.reference_timezone,
             ids=ids,
             rng=Random(rng.getrandbits(64)),
+            reservations=book,
         )
         for row, window in zip(plan, slices, strict=True)
     )

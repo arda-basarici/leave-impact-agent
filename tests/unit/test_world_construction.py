@@ -61,6 +61,7 @@ from leaveimpact.world import (
 from leaveimpact.world.briefs import ProseContractError, Register
 from leaveimpact.world.construction import (
     Amendment,
+    Claims,
     ConflictingEffects,
     Construction,
     Draft,
@@ -68,8 +69,11 @@ from leaveimpact.world.construction import (
     Minting,
     MissingAffordance,
     Modifier,
+    ReservationExhausted,
+    Reservations,
     ScenarioClass,
     ScenarioInvariantFailed,
+    claims_of,
     construct,
 )
 from leaveimpact.world.prose import FactRole
@@ -325,7 +329,11 @@ class UndatedTicket:
 
 
 def _construct(
-    scenario_class: ScenarioClass = ONE_TICKET, modifiers: Sequence[Modifier] = (), seed: int = 1
+    scenario_class: ScenarioClass = ONE_TICKET,
+    modifiers: Sequence[Modifier] = (),
+    seed: int = 1,
+    reservations: Reservations | None = None,
+    ids: Minting | None = None,
 ):
     return construct(
         scenario_class,
@@ -335,9 +343,16 @@ def _construct(
         window=WINDOW,
         world_start=WORLD_START,
         reference_timezone=TZ,
-        ids=Minting(),
+        ids=Minting() if ids is None else ids,
         rng=Random(seed),
+        reservations=reservations,
     )
+
+
+def _draft(scenario_class: ScenarioClass, index: int = 0) -> Draft:
+    now = datetime(2026, 3, 3, 9, tzinfo=ZoneInfo(TZ))
+    frame = Frame(scenario_id(1), WINDOW, WINDOW, now, TZ, WORLD_START, Minting())
+    return scenario_class.admissible(ORG)[index](frame, Random(1))
 
 
 def test_a_class_selects_plants_and_the_rules_agree_with_what_it_authored() -> None:
@@ -547,3 +562,95 @@ def test_a_stale_owner_in_a_runbook_is_answer_changing_through_the_conflict() ->
     assert required.role is FactRole.ANSWER_CHANGING
     assert brief.register is Register.RUNBOOK
     assert Source.CORPUS in scenario.key.required_sources
+
+
+# --- The reservation book -------------------------------------------------------------
+
+
+def test_claims_are_read_off_the_draft_never_declared() -> None:
+    """Each fixture binds exactly what its standing facts and absence-based verdicts imply:
+    a ticket class only its leave subject; a skill clause with a candidate failing it the
+    (person, skill) assumed absent; a skill in a comment the (person, skill) provided; a
+    contact in a note the person named."""
+    ticket = claims_of(_draft(ONE_TICKET), ORG)
+    leaver = ORG.components[0].member_ids[0]
+    assert ticket == Claims(leaver)
+    clause = claims_of(_draft(MeetingWithClause()), ORG)
+    [(person, skill)] = clause.skills_required_absent
+    record = next(e for e in ORG.employees if e.id == person)
+    assert skill == KAFKA and skill not in (record.skills or ())
+    assert clause.standing_contacts == frozenset() and clause.skills_provided == frozenset()
+    comment = claims_of(_draft(SkillInComment()), ORG)
+    [(candidate, provided)] = comment.skills_provided
+    assert provided == KAFKA and candidate != comment.leave_subject
+    note = claims_of(_draft(ContactInNote()), ORG)
+    assert note.standing_contacts == frozenset({note.leave_subject})
+
+
+def test_a_standing_contact_and_a_leave_subject_exclude_each_other_in_both_orders() -> None:
+    # Construction order never decides correctness: whichever is reserved first, the
+    # other is refused, and the refusal names the scenario holding the reservation.
+    person, other = employee_id(1), employee_id(2)
+    named = Claims(person, standing_contacts=frozenset({person}))
+    leave = Claims(person)
+    book = Reservations()
+    book.reserve(scenario_id(3), named)
+    assert book.conflicts(leave) == (
+        f"leave subject {person} is a standing contact of scenario_003",
+    )
+    assert book.conflicts(Claims(other)) == ()
+    book = Reservations()
+    book.reserve(scenario_id(4), leave)
+    assert book.conflicts(named) == (
+        f"standing contact {person} is a leave subject of scenario_004",
+    )
+    # A scenario's own contact being its own leaver is its own key's business, no conflict.
+    assert Reservations().conflicts(named) == ()
+
+
+def test_a_prose_skill_and_an_assumed_absent_skill_exclude_each_other_in_both_orders() -> None:
+    person = employee_id(5)
+    provided = Claims(employee_id(1), skills_provided=frozenset({(person, KAFKA)}))
+    assumed = Claims(employee_id(2), skills_required_absent=frozenset({(person, KAFKA)}))
+    elsewhere = Claims(employee_id(2), skills_required_absent=frozenset({(person, PYTHON)}))
+    book = Reservations()
+    book.reserve(scenario_id(1), provided)
+    assert book.conflicts(assumed) == (
+        f"kafka assumed absent of {person} is provided by scenario_001",
+    )
+    assert book.conflicts(elsewhere) == ()
+    book = Reservations()
+    book.reserve(scenario_id(2), assumed)
+    assert book.conflicts(provided) == (
+        f"kafka provided to {person} is assumed absent by scenario_002",
+    )
+
+
+def test_the_first_admitted_candidate_is_planted_and_a_refused_one_is_unplanted() -> None:
+    """The book refuses the candidate the seed would have chosen, so the next in the seed's
+    order is planted; the refused candidate's ids and titles go back to the book, so the
+    admitted scenario numbers as if the refused one never was. The unfiltered choice is
+    the same draw, so a world the book never refuses anything in is the world it was
+    before the book existed."""
+    refused = _construct(seed=1).owned.leaves[0].entity.employee_id
+    book = Reservations()
+    book.reserve(scenario_id(9), Claims(refused, standing_contacts=frozenset({refused})))
+    ids = Minting()
+    scenario = _construct(seed=1, reservations=book, ids=ids)
+    assert scenario.owned.leaves[0].entity.employee_id != refused
+    assert scenario.owned.leaves[0].entity.id == "leave_001"
+    assert scenario.owned.work_items[0].entity.id == "ticket_001"
+    assert ids.leave() == "leave_002"
+
+
+def test_every_candidate_refused_is_named_with_the_rule_and_the_count() -> None:
+    book = Reservations()
+    for index in range(len(ONE_TICKET.admissible(ORG))):
+        who = claims_of(_draft(ONE_TICKET, index), ORG).leave_subject
+        book.reserve(scenario_id(index + 10), Claims(who, standing_contacts=frozenset({who})))
+    with pytest.raises(ReservationExhausted, match="the reservation book admits none") as caught:
+        _construct(reservations=book)
+    assert caught.value.universe == len(ONE_TICKET.admissible(ORG))
+    assert sum(caught.value.eliminated.values()) == caught.value.universe
+    assert all(rule.startswith("leave subject ") for rule in caught.value.eliminated)
+

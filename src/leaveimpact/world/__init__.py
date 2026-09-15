@@ -90,6 +90,7 @@ from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.composition import assemble_world, compose
 from leaveimpact.world.construction import (
     Amendment,
+    Claims,
     ConflictingEffects,
     Construction,
     ConstructionError,
@@ -98,8 +99,11 @@ from leaveimpact.world.construction import (
     Minting,
     MissingAffordance,
     Modifier,
+    ReservationExhausted,
+    Reservations,
     ScenarioClass,
     ScenarioInvariantFailed,
+    claims_of,
     construct,
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
@@ -131,10 +135,12 @@ from leaveimpact.world.plan import (
     MEASUREMENT_RULES,
     PLANS,
     TIER_ONE_RULES,
+    TIER_TWO_RULES,
     PlanInfeasible,
     PlanRow,
     PlanRules,
     check_plan,
+    plan_tiers,
     plan_world,
 )
 from leaveimpact.world.prose import (
@@ -258,6 +264,7 @@ __all__ = [
     "SYSTEM_OF",
     "TEAM_NAMES",
     "TIER_ONE_RULES",
+    "TIER_TWO_RULES",
     "TRUTH_MANIFEST",
     "WORLD_SPEC",
     "AlreadyResolved",
@@ -270,6 +277,7 @@ __all__ = [
     "City",
     "CommentTarget",
     "ConcurrentLeave",
+    "Claims",
     "ConflictingEffects",
     "Construction",
     "ConstructionError",
@@ -331,6 +339,8 @@ __all__ = [
     "FreeTextQualification",
     "FreeTextResponsibility",
     "ReleaseCardinalityConstraint",
+    "ReservationExhausted",
+    "Reservations",
     "StructuredMixed",
     "SurfaceForm",
     "TargetRecord",
@@ -350,6 +360,7 @@ __all__ = [
     "check_allowed",
     "check_pending",
     "check_plan",
+    "claims_of",
     "compose",
     "construct",
     "decode_org_params",
@@ -375,6 +386,7 @@ __all__ = [
     "offset_of",
     "place_leave",
     "place_now",
+    "plan_tiers",
     "plan_world",
     "planted_world_spec",
     "runtime_facts",

@@ -1,6 +1,7 @@
 """The world plan over a sweep of seeds: every plan satisfies the rule and the compatibility
 declaration, is equal for equal inputs, and a rule that cannot be met fails by name instead
-of relaxing a constraint."""
+of relaxing a constraint. A named plan is one table per tier, each meeting the rule on its
+own slice (the 15.4 rulings), and a single-table plan is the planner's own output."""
 
 from random import Random
 
@@ -12,6 +13,7 @@ from leaveimpact.world import (
     MEASUREMENT_RULES,
     PLANS,
     TIER_ONE_RULES,
+    TIER_TWO_RULES,
     ModifierName,
     PlanInfeasible,
     PlanRow,
@@ -19,6 +21,7 @@ from leaveimpact.world import (
     ScenarioClassName,
     Tier,
     check_plan,
+    plan_tiers,
     plan_world,
 )
 
@@ -145,6 +148,44 @@ def test_the_measurement_plan_is_the_structured_tier_plus_three_qualification_ro
 
 
 def test_the_named_plans_are_the_ones_a_recipe_may_ask_for() -> None:
-    assert set(PLANS) == {"tier1", "tier1-plus-qualification"}
-    assert PLANS["tier1"] is TIER_ONE_RULES
-    assert PLANS["tier1-plus-qualification"] is MEASUREMENT_RULES
+    assert set(PLANS) == {"tier1", "tier1-plus-qualification", "tier1-plus-tier2"}
+    assert PLANS["tier1"] == (TIER_ONE_RULES,)
+    assert PLANS["tier1-plus-qualification"] == (MEASUREMENT_RULES,)
+    assert PLANS["tier1-plus-tier2"] == (TIER_ONE_RULES, TIER_TWO_RULES)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_twenty_row_plan_is_two_tables_each_meeting_the_rule_on_its_own(seed: int) -> None:
+    """Coverage minima are tier-local (the 15.4 rulings): the structured tier alone already
+    meets every minimum, so a rule over the union would let every fragmented row stay clean;
+    each table is checked on its own slice, the ids continue across them."""
+    rows = plan_tiers(Random(seed), PLANS["tier1-plus-tier2"])
+    assert [row.scenario_id for row in rows] == [scenario_id(n) for n in range(1, 21)]
+    structured, fragmented = rows[:10], rows[10:]
+    assert all(row.tier is Tier.STRUCTURED for row in structured)
+    assert all(row.tier is Tier.FRAGMENTED for row in fragmented)
+    check_plan(structured, TIER_ONE_RULES)
+    check_plan(fragmented, TIER_TWO_RULES)
+
+
+def test_a_single_table_plan_is_the_planner_s_own_output() -> None:
+    # The sealed worlds' plans reproduce unchanged under the tiered planner.
+    for name in ("tier1", "tier1-plus-qualification"):
+        [rules] = PLANS[name]
+        assert plan_tiers(Random(5), PLANS[name]) == plan_world(Random(5), rules)
+
+
+@pytest.mark.parametrize("seed", range(1, 201))
+def test_the_fragmented_table_is_feasible_on_every_seed(seed: int) -> None:
+    # The probe behind the tier-local ruling, two hundred seeds and none infeasible, with
+    # the consequence accepted beside it: only the cardinality rows afford the resolved
+    # look-alike, so both always carry it and the tier has no clean cardinality row.
+    rows = plan_world(Random(seed), TIER_TWO_RULES)
+    check_plan(rows, TIER_TWO_RULES)
+    cardinality = [
+        row
+        for row in rows
+        if row.scenario_class is ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT
+    ]
+    assert len(cardinality) == 2
+    assert all(ModifierName.ALREADY_RESOLVED in row.modifiers for row in cardinality)

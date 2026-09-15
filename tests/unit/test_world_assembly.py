@@ -8,7 +8,17 @@ from datetime import date
 
 import pytest
 
-from leaveimpact.core import LeaveKind, LeaveStatus, Verdict
+from leaveimpact.core import (
+    AssessmentReason,
+    EntityRef,
+    LeaveKind,
+    LeaveStatus,
+    PredicateName,
+    Requirement,
+    SkillCriterion,
+    Verdict,
+    clause_ref,
+)
 from leaveimpact.core.entities import Leave
 from leaveimpact.core.ids import leave_id, work_item_id
 from leaveimpact.world import (
@@ -239,12 +249,47 @@ def test_unique_per_kind_is_the_whole_resolver_contract() -> None:
     assert "" in TICKET_QUALIFIERS and "" in MEETING_QUALIFIERS
 
 
-def test_the_measurement_plan_seeds_that_collided_now_mint_distinct_scope_handles() -> None:
-    """The regression behind the 15.3 finding: twenty seeds of the plan with the qualification
-    class carried twenty-seven scope handles naming two or three meetings; assembly of every
-    one of them now succeeds with no handle naming more than one artifact of its kind."""
-    for seed in range(1, 21):
-        world = assemble_semantic_world(
-            seed, DEFAULT_PARAMS, WORLD_START, "tier1-plus-qualification"
-        )
-        assert scope_handle_problems(world.scenarios) == []
+@pytest.mark.parametrize("seed", range(1, 9))
+def test_the_twenty_row_plan_assembles_under_the_reservation_book(seed: int) -> None:
+    """The world the golden set's two tiers make: every prose class beside every other row,
+    the reservation book admitting a construction for every row and the whole-world
+    re-verification passing behind it, with no scope handle naming two artifacts of its
+    kind (the 15.3 regression, re-pointed here). Eight seeds in the suite at about three
+    seconds each; the two-hundred-seed sweep is recorded in FINDINGS (`reservation-book`)."""
+    world = assemble_semantic_world(seed, DEFAULT_PARAMS, WORLD_START, "tier1-plus-tier2")
+    assert len(world.scenarios) == 20
+    assert scope_handle_problems(world.scenarios) == []
+    # The book's two rules, read back off the assembled world: no person one scenario names
+    # responsible is the leave subject of another, and no (person, skill) one scenario
+    # evidences in prose is assumed absent by another's verdict.
+    contacts: dict[str, str] = {}
+    provided: set[tuple[str, str]] = set()
+    assumed_absent: set[tuple[str, str]] = set()
+    for scenario in world.scenarios:
+        stated = {
+            fact.subject: fact.value
+            for fact in scenario.authored_facts
+            if fact.predicate is PredicateName.REQUIRES and isinstance(fact.value, Requirement)
+        }
+        for fact in scenario.authored_facts:
+            names = fact.predicate is PredicateName.NAMES_RESPONSIBLE
+            if names and isinstance(fact.value, EntityRef):
+                contacts.setdefault(fact.value.id, scenario.spec.id)
+            elif fact.predicate is PredicateName.HAS_SKILL and isinstance(fact.value, str):
+                provided.add((fact.subject.id, fact.value))
+        for expected in scenario.key.impacts:
+            skills = [
+                criterion.skill
+                for constraint in scenario.key.constraints
+                if constraint.applies_to == expected.key.artifact
+                for criterion in stated[clause_ref(constraint.clause_id)].criteria
+                if isinstance(criterion, SkillCriterion)
+            ]
+            for authored in expected.must_assess:
+                failing = authored.verdict is Verdict.NON_VIABLE
+                if failing and AssessmentReason.SKILL in authored.reasons:
+                    assumed_absent.update((authored.employee_id, skill) for skill in skills)
+    for scenario in world.scenarios:
+        leaver = scenario.owned.leaves[0].entity.employee_id
+        assert contacts.get(leaver) in (None, scenario.spec.id)
+    assert provided.isdisjoint(assumed_absent)

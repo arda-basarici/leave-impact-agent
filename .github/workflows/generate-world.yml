@@ -36,6 +36,7 @@ on:
         options:
           - tier1
           - tier1-plus-qualification
+          - tier1-plus-tier2
         default: tier1
       org_size:
         description: people in the organization (default 28)

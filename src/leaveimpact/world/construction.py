@@ -24,18 +24,30 @@ grew to mirror the rule in reverse would make the invariant's independence a fic
 A modifier may amend a candidate's verdict and may not change the class's declared
 outcome; that is the definition of "orthogonal" made testable, and the outcome check
 after composition is where it fails.
+
+Scenarios compose into one world, and a standing fact composes further than its own
+key: a note naming a person responsible is read by every run in the world, a prose fact
+giving a person a skill is evidence every run reads. The world's reservation book
+(``Reservations``) records what each admitted scenario binds and refuses a later
+candidate whose claims cross it, in both directions; the class's candidates are tried in
+the seed's order and the first the book admits is planted, a refused one unplanted, so
+the choice is still constructive selection over the class's enumerated constructions and
+a class whose every construction crosses the book fails by name. The claims are derived
+from the planted draft, never declared by the class, the briefs' discipline: a value a
+class could get wrong is not a value the class writes.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections import Counter
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from random import Random
 from typing import Protocol
 
 from leaveimpact.core.authority import conflicts_in
-from leaveimpact.core.claims import ConstraintKey, ImpactKey
+from leaveimpact.core.claims import AssessmentReason, ConstraintKey, ImpactKey, Verdict
 from leaveimpact.core.closure import Unresolved
 from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
@@ -48,6 +60,7 @@ from leaveimpact.core.ids import (
     EventId,
     LeaveId,
     ScenarioId,
+    SkillId,
     WorkItemId,
     clause_id,
     comment_id,
@@ -58,6 +71,8 @@ from leaveimpact.core.ids import (
 )
 from leaveimpact.core.plans import expected_action, required_count
 from leaveimpact.core.predicates import PredicateName
+from leaveimpact.core.refs import EntityRef, clause_ref, component_ref
+from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.core.viability import (
     ResolvedRequirement,
     applicable_requirements,
@@ -131,6 +146,10 @@ class ScenarioInvariantFailed(ConstructionError):
 # --- The frame a construction plants into ---------------------------------------------
 
 
+MintingCheckpoint = tuple[dict[EntityKind, int], dict[tuple[str, str], list[str]]]
+"""A copy of the id and title book's state, taken before a candidate plants."""
+
+
 class Minting:
     """The world's id and title book: world-wide numbering for the records scenarios plant, and
     the titles a component's tickets and a team's meetings carry, each handed out once.
@@ -177,6 +196,20 @@ class Minting:
         title = rng.choice(remaining)
         remaining.remove(title)
         return title
+
+    def checkpoint(self) -> MintingCheckpoint:
+        """The book's state, to rewind to when a planted candidate is refused by the world's
+        reservation book: what the candidate took goes back, so the admitted one numbers
+        and titles as if the refused one never was."""
+        return (
+            dict(self._next),
+            {key: list(remaining) for key, remaining in self._remaining.items()},
+        )
+
+    def rewind(self, checkpoint: MintingCheckpoint) -> None:
+        taken, remaining = checkpoint
+        self._next = dict(taken)
+        self._remaining = {key: list(titles) for key, titles in remaining.items()}
 
     def ticket_title(self, rng: Random, component: str) -> str:
         """A title no other ticket of ``component`` carries in this world."""
@@ -347,6 +380,153 @@ class Modifier(Protocol):
     def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]: ...
 
 
+# --- The reservation book: what a scenario binds in the world beyond its own key -------
+
+
+@dataclass(frozen=True, slots=True)
+class Claims:
+    """What a planted draft binds in the world beyond its own key: the standing facts and the
+    absence-based conclusions another scenario's construction could contradict.
+
+    Read off the draft, never declared (the 15.4 ruling on the reservation book).
+    ``leave_subject`` is the investigated leave's person. ``standing_contacts`` are the
+    people an authored fact names responsible: a document every run in the world reads,
+    so any other leave of that person acquires a responsibility impact its key never
+    declared. ``skills_provided`` are the (person, skill) pairs an authored fact evidences
+    positive, prose every run reads. ``skills_required_absent`` are the (person, skill)
+    pairs an authored non-viable verdict assumes known false: the skills the applicable
+    requirements ask for that the person's record lacks, which a positive fact elsewhere
+    would turn true and move the verdict. The names are the construction's terms, not any
+    class's; what a class may share with another, a candidate, a viable person, is not
+    here, since it contradicts nothing.
+    """
+
+    leave_subject: EmployeeId
+    standing_contacts: frozenset[EmployeeId] = frozenset()
+    skills_provided: frozenset[tuple[EmployeeId, SkillId]] = frozenset()
+    skills_required_absent: frozenset[tuple[EmployeeId, SkillId]] = frozenset()
+
+
+def claims_of(draft: Draft, org: OrgSpec) -> Claims:
+    """The claims ``draft`` makes on the world, read off what it planted and authored."""
+    by_id = {employee.id: employee for employee in org.employees}
+    contacts: set[EmployeeId] = set()
+    provided: set[tuple[EmployeeId, SkillId]] = set()
+    absent: set[tuple[EmployeeId, SkillId]] = set()
+    for fact in draft.authored_facts:
+        if fact.predicate is PredicateName.NAMES_RESPONSIBLE and isinstance(fact.value, EntityRef):
+            contacts.add(EmployeeId(fact.value.id))
+        elif fact.predicate is PredicateName.HAS_SKILL and isinstance(fact.value, str):
+            provided.add((EmployeeId(fact.subject.id), SkillId(fact.value)))
+    for expected in draft.impacts:
+        skills = _required_skills(draft, expected.key.artifact)
+        for authored in expected.must_assess:
+            if authored.verdict is not Verdict.NON_VIABLE:
+                continue
+            if AssessmentReason.SKILL not in authored.reasons:
+                continue
+            held = by_id[authored.employee_id].skills or ()
+            absent.update((authored.employee_id, skill) for skill in skills if skill not in held)
+    return Claims(_leaver_of(draft), frozenset(contacts), frozenset(provided), frozenset(absent))
+
+
+def _required_skills(draft: Draft, artifact: EntityRef) -> tuple[SkillId, ...]:
+    """The skills the draft's own clauses require of ``artifact``, or of a ticket's component."""
+    targets = {artifact}
+    for planted in draft.owned.work_items:
+        if planted.entity.id == artifact.id:
+            targets.add(component_ref(planted.entity.component_id))
+    stated = {
+        fact.subject: fact.value
+        for fact in draft.authored_facts
+        if fact.predicate is PredicateName.REQUIRES and isinstance(fact.value, Requirement)
+    }
+    skills: list[SkillId] = []
+    for constraint in draft.constraints:
+        if constraint.applies_to not in targets:
+            continue
+        requirement = stated.get(clause_ref(constraint.clause_id))
+        if requirement is None:
+            continue
+        skills.extend(c.skill for c in requirement.criteria if isinstance(c, SkillCriterion))
+    return tuple(skills)
+
+
+class Reservations:
+    """The world's reservation book: what earlier scenarios bound, and the two rules a later
+    scenario's claims must not cross (the 15.4 ruling on the reservation book).
+
+    Standing facts compose across scenarios. A note naming a person responsible is a
+    document every run in the world reads, so a leave of that person in any other
+    scenario acquires a responsibility impact its key never declared; a prose fact giving
+    a person a skill is evidence every run reads, so a verdict elsewhere that assumes the
+    person known to lack that skill moves. The whole-world re-verification refused twenty
+    of twenty seeds of the first plan that seated the responsibility class beside other
+    rows, on exactly those two interactions. The book is the constructive side: each
+    admitted scenario's claims are recorded, and a later candidate whose claims cross an
+    earlier one's is refused in both directions, so construction order never decides
+    correctness. It encodes the interactions proven so far and nothing more: candidates
+    shared between scenarios, the same person viable twice, are harmless and not
+    reserved. The re-verification stays the oracle for any interaction the book does not
+    know; a new one is evidence for a new rule, never for the oracle being wrong.
+    """
+
+    def __init__(self) -> None:
+        self._leave_subjects: dict[EmployeeId, ScenarioId] = {}
+        self._standing_contacts: dict[EmployeeId, ScenarioId] = {}
+        self._skills_provided: dict[tuple[EmployeeId, SkillId], ScenarioId] = {}
+        self._skills_required_absent: dict[tuple[EmployeeId, SkillId], ScenarioId] = {}
+
+    def conflicts(self, claims: Claims) -> tuple[str, ...]:
+        """Every rule ``claims`` would cross, each naming the scenario holding the reservation;
+        empty when the book admits them."""
+        found: list[str] = []
+        holder = self._standing_contacts.get(claims.leave_subject)
+        if holder is not None:
+            found.append(f"leave subject {claims.leave_subject} is a standing contact of {holder}")
+        for person in sorted(claims.standing_contacts):
+            holder = self._leave_subjects.get(person)
+            if holder is not None:
+                found.append(f"standing contact {person} is a leave subject of {holder}")
+        for person, skill in sorted(claims.skills_provided):
+            holder = self._skills_required_absent.get((person, skill))
+            if holder is not None:
+                found.append(f"{skill} provided to {person} is assumed absent by {holder}")
+        for person, skill in sorted(claims.skills_required_absent):
+            holder = self._skills_provided.get((person, skill))
+            if holder is not None:
+                found.append(f"{skill} assumed absent of {person} is provided by {holder}")
+        return tuple(found)
+
+    def reserve(self, scenario_id: ScenarioId, claims: Claims) -> None:
+        """Record ``claims`` as ``scenario_id``'s; the first holder of a term keeps its name."""
+        self._leave_subjects.setdefault(claims.leave_subject, scenario_id)
+        for person in claims.standing_contacts:
+            self._standing_contacts.setdefault(person, scenario_id)
+        for pair in claims.skills_provided:
+            self._skills_provided.setdefault(pair, scenario_id)
+        for pair in claims.skills_required_absent:
+            self._skills_required_absent.setdefault(pair, scenario_id)
+
+
+class ReservationExhausted(ConstructionError):
+    """Every construction the organization affords crosses the world's reservation book: the
+    class, how many candidates it had, and how many each rule refused, by name."""
+
+    def __init__(
+        self, scenario_id: ScenarioId, who: str, universe: int, eliminated: Mapping[str, int]
+    ) -> None:
+        rules = "; ".join(f"{count} by: {rule}" for rule, count in eliminated.items())
+        super().__init__(
+            f"{scenario_id}: {who} affords {universe} constructions and the reservation book "
+            f"admits none — {rules}"
+        )
+        self.scenario_id = scenario_id
+        self.who = who
+        self.universe = universe
+        self.eliminated = dict(eliminated)
+
+
 # --- Construction ---------------------------------------------------------------------
 
 
@@ -361,10 +541,14 @@ def construct(
     reference_timezone: str,
     ids: Minting,
     rng: Random,
+    reservations: Reservations | None = None,
 ) -> Scenario:
     """One scenario of ``scenario_class`` with ``modifiers`` applied, verified against the rules.
 
+    ``reservations`` is the world's book, shared by every scenario of a world the way
+    ``ids`` is; a scenario constructed alone gets a fresh one, which admits everything.
     Raises ``MissingAffordance`` when the class or a modifier admits nothing,
+    ``ReservationExhausted`` when every construction of the class crosses the book,
     ``ConflictingEffects`` when declared effects collide, ``ScenarioInvariantFailed``
     when an authored verdict or a declared outcome disagrees with the rules over the
     planted world. Same org, same inputs, same RNG state give an equal scenario.
@@ -379,7 +563,9 @@ def construct(
         world_start,
         ids,
     )
-    draft = _choose(scenario_class.admissible(org), scenario_class, rng)(frame, rng)
+    book = Reservations() if reservations is None else reservations
+    draft, claims = _admit(scenario_class, org, frame, rng, book)
+    book.reserve(scenario_id, claims)
     effects: list[ModifierEffect] = []
     for modifier in modifiers:
         amendment = _choose(modifier.admissible(org, draft), modifier, rng)
@@ -476,6 +662,36 @@ def _briefs_for(
     check_pending(work_items, documents, briefs, draft.authored_facts)
     check_allowed(briefs, base)
     return briefs
+
+
+def _admit(
+    scenario_class: ScenarioClass, org: OrgSpec, frame: Frame, rng: Random, book: Reservations
+) -> tuple[Draft, Claims]:
+    """The first construction in the seed's order whose planted draft the book admits.
+
+    Each candidate is chosen by the RNG among those left, planted, its claims read off the
+    draft and checked; a refused candidate is unplanted by rewinding the id and title
+    book and dropped from the choice. The first choice is the same draw the unfiltered
+    selection makes, so a world the book never refuses anything in is the world it was
+    before the book existed.
+    """
+    options = list(scenario_class.admissible(org))
+    if not options:
+        raise MissingAffordance(scenario_class.name.value, scenario_class.affordance)
+    universe = len(options)
+    eliminated: Counter[str] = Counter()
+    while options:
+        index = rng.randrange(len(options))
+        checkpoint = frame.ids.checkpoint()
+        draft = options[index](frame, rng)
+        claims = claims_of(draft, org)
+        crossed = book.conflicts(claims)
+        if not crossed:
+            return draft, claims
+        frame.ids.rewind(checkpoint)
+        eliminated.update(crossed)
+        del options[index]
+    raise ReservationExhausted(frame.scenario_id, scenario_class.name.value, universe, eliminated)
 
 
 def _choose[T](options: tuple[T, ...], who: ScenarioClass | Modifier, rng: Random) -> T:
