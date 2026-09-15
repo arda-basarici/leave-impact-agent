@@ -19,27 +19,35 @@ import pytest
 from leaveimpact.core import (
     AssessmentReason,
     DocumentKind,
+    EmploymentType,
     EntityRef,
     ImpactSubtype,
     PredicateName,
+    RunCondition,
     Source,
     Verdict,
+    assess_impact,
     clause_ref,
     event_ref,
+    work_item_ref,
 )
 from leaveimpact.core.ids import SkillId, scenario_id
-from leaveimpact.core.values import Requirement, SkillCriterion
+from leaveimpact.core.values import EmploymentTypeCriterion, Requirement, SkillCriterion
 from leaveimpact.world import (
     DEFAULT_PARAMS,
+    Frame,
     FreeTextQualification,
     FreeTextResponsibility,
     Minting,
     Register,
+    ReleaseCardinalityConstraint,
     Scenario,
     SectionTarget,
     allocate_slices,
     construct,
     generate_org,
+    place_leave,
+    place_now,
 )
 from leaveimpact.world.fragmented import (
     NOTE_TITLE,
@@ -49,6 +57,7 @@ from leaveimpact.world.fragmented import (
     client_of,
 )
 from leaveimpact.world.prose import FactRole
+from leaveimpact.world.truth_facts import truth_fact_base
 from leaveimpact.world.vocabulary import CLIENT_NAMES
 
 ORG = generate_org(7, DEFAULT_PARAMS)
@@ -58,10 +67,11 @@ TZ = ORG.params.reference_timezone
 SEEDS = range(1, 21)
 QUALIFICATION = FreeTextQualification()
 RESPONSIBILITY = FreeTextResponsibility()
+CARDINALITY = ReleaseCardinalityConstraint()
 BY_ID = {employee.id: employee for employee in ORG.employees}
 
 
-FragmentedClass = FreeTextQualification | FreeTextResponsibility
+FragmentedClass = FreeTextQualification | FreeTextResponsibility | ReleaseCardinalityConstraint
 
 
 def _scenario(seed: int, scenario_class: FragmentedClass = QUALIFICATION) -> Scenario:
@@ -183,8 +193,7 @@ def test_the_responsibility_scenario_has_the_shape_the_class_promises(seed: int)
 def _required_skill(scenario: Scenario) -> SkillId:
     [requires] = [f for f in scenario.authored_facts if f.predicate is PredicateName.REQUIRES]
     assert isinstance(requires.value, Requirement)
-    [criterion] = requires.value.criteria
-    assert isinstance(criterion, SkillCriterion)
+    [criterion] = [c for c in requires.value.criteria if isinstance(c, SkillCriterion)]
     return criterion.skill
 
 
@@ -202,6 +211,100 @@ def test_the_key_requires_the_tracker_the_scenario_plants_nothing_in(seed: int) 
 
 def test_the_same_responsibility_inputs_give_an_equal_scenario() -> None:
     assert _scenario(3, RESPONSIBILITY) == _scenario(3, RESPONSIBILITY)
+
+
+# --- release_cardinality_constraint ------------------------------------------------------
+
+
+def test_the_org_affords_the_cardinality_class_in_a_canonical_order() -> None:
+    first, second = CARDINALITY.admissible(ORG), CARDINALITY.admissible(ORG)
+    # Two constructions per seated paired skill: each filler the leaver in turn.
+    assert first and len(first) % 2 == 0 and len(first) == len(second)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_cardinality_scenario_has_the_shape_the_class_promises(seed: int) -> None:
+    scenario = _scenario(seed, CARDINALITY)
+    [expected] = scenario.key.impacts
+    [ticket] = scenario.owned.work_items
+    assert expected.key.subtype is ImpactSubtype.DEADLINE
+    assert expected.key.artifact == work_item_ref(ticket.entity.id)
+    leaver = scenario.owned.leaves[0].entity.employee_id
+    assert ticket.entity.owner_id == leaver
+    assert ticket.entity.due_on is not None
+    assert scenario.owned.leaves[0].entity.span.contains(ticket.entity.due_on)
+    [constraint] = scenario.key.constraints
+    assert constraint.applies_to == work_item_ref(ticket.entity.id)
+    [policy] = scenario.owned.documents
+    assert policy.entity.kind is DocumentKind.POLICY
+    [clause] = policy.entity.sections
+    assert clause.id == constraint.clause_id
+    assert ticket.entity.title in policy.entity.title and ticket.entity.title in clause.text
+    [requires] = scenario.authored_facts
+    assert isinstance(requires.value, Requirement) and requires.value.count == 2
+    skill = _required_skill(scenario)
+    assert EmploymentTypeCriterion(EmploymentType.EMPLOYEE) in requires.value.criteria
+    assert SKILL_NAMES[skill] in clause.text and "two" in clause.text
+    first, second, contractor, failing = expected.must_assess
+    assert (first.verdict, second.verdict) == (Verdict.VIABLE, Verdict.VIABLE)
+    assert contractor.verdict is Verdict.NON_VIABLE
+    assert contractor.reasons == (AssessmentReason.HARD_RULE,)
+    assert failing.verdict is Verdict.NON_VIABLE and failing.reasons == (AssessmentReason.SKILL,)
+    assert BY_ID[contractor.employee_id].employment_type is EmploymentType.CONTRACTOR
+    for holder in (first, second, contractor):
+        assert skill in (BY_ID[holder.employee_id].skills or ())
+    for lacking in (failing.employee_id, leaver):
+        assert BY_ID[lacking].skills is not None and skill not in (BY_ID[lacking].skills or ())
+        assert BY_ID[lacking].employment_type is EmploymentType.EMPLOYEE
+    component = next(c for c in ORG.components if c.id == ticket.entity.component_id)
+    cast = {leaver, *(authored.employee_id for authored in expected.must_assess)}
+    assert set(component.member_ids) == cast
+    assert scenario.briefs == ()
+    assert expected.outcome.value == "assign"
+
+
+def test_every_cardinality_construction_has_exactly_two_viable_people() -> None:
+    """The count is visibly load-bearing (the 15.3 ruling): over every admissible
+    construction the rules find exactly the two employee holders viable for the release,
+    which the outcome check alone does not pin (assign holds with three as well)."""
+    for index, construction in enumerate(CARDINALITY.admissible(ORG)):
+        rng = Random(index)
+        window = SLICES[index % len(SLICES)]
+        leave = place_leave(rng, window)
+        frame = Frame(
+            scenario_id(index + 1),
+            window,
+            leave,
+            place_now(rng, leave, TZ),
+            TZ,
+            WORLD_START,
+            Minting(),
+        )
+        draft = construction(frame, rng)
+        [expected] = draft.impacts
+        base = truth_fact_base(ORG, WORLD_START, [draft.owned], draft.authored_facts)
+        view = base.at(frame.now.date(), RunCondition.all_reachable())
+        universe = [employee.id for employee in ORG.employees]
+        assessments = assess_impact(
+            view, expected.key, universe, draft.constraints, frame.leave, TZ
+        )
+        viable = {a.employee_id for a in assessments if a.verdict is Verdict.VIABLE}
+        authored_viable = {
+            a.employee_id for a in expected.must_assess if a.verdict is Verdict.VIABLE
+        }
+        assert viable == authored_viable and len(viable) == 2
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_cardinality_key_requires_the_three_sources_its_artifacts_and_rules_read(
+    seed: int,
+) -> None:
+    scenario = _scenario(seed, CARDINALITY)
+    assert set(scenario.key.required_sources) == {Source.CORPUS, Source.FRAPPE, Source.JIRA}
+
+
+def test_the_same_cardinality_inputs_give_an_equal_scenario() -> None:
+    assert _scenario(3, CARDINALITY) == _scenario(3, CARDINALITY)
 
 
 def test_the_client_is_one_name_per_scenario_number_across_a_golden_world() -> None:

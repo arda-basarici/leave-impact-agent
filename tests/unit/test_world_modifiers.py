@@ -47,6 +47,7 @@ from leaveimpact.world import (
     ModifierName,
     OrgSpec,
     OutsideWindow,
+    ReleaseCardinalityConstraint,
     Scenario,
     ScenarioClass,
     StructuredDeadline,
@@ -73,6 +74,7 @@ CLASSES: tuple[ScenarioClass, ...] = (
     StructuredMixed(),
     FreeTextQualification(),
     FreeTextResponsibility(),
+    ReleaseCardinalityConstraint(),
 )
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [
@@ -121,6 +123,7 @@ CLASS_AND_SEED = _class_and_seed()
 CLASS_AND_SEED_IDS = _ids(CLASS_AND_SEED)
 OUTSIDE_WINDOW_CLASSES = _class_and_seed(ModifierName.OUTSIDE_WINDOW)
 WRONG_TEAM_CLASSES = _class_and_seed(ModifierName.WRONG_TEAM)
+CONCURRENT_LEAVE_CLASSES = _class_and_seed(ModifierName.CONCURRENT_LEAVE)
 
 
 @pytest.mark.parametrize(
@@ -177,7 +180,9 @@ def test_wrong_team_shadows_the_artifact_with_another_teams(
         assert leave.span.contains(local_date(event.start, TZ))
 
 
-@pytest.mark.parametrize(("scenario_class", "seed"), CLASS_AND_SEED, ids=CLASS_AND_SEED_IDS)
+@pytest.mark.parametrize(
+    ("scenario_class", "seed"), CONCURRENT_LEAVE_CLASSES, ids=_ids(CONCURRENT_LEAVE_CLASSES)
+)
 def test_concurrent_leave_sends_a_viable_candidate_away_and_declares_every_verdict_it_changes(
     scenario_class: ScenarioClass, seed: int
 ) -> None:

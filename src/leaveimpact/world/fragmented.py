@@ -28,6 +28,23 @@ class plants no tracker artifact and its key requires the tracker anyway, throug
 known-negatives of everyone lacking the skill (required-source derivation is semantic,
 not provenance-based; DESIGN's second 15.2 ruling, pinned by a test).
 
+``release_cardinality_constraint`` carries both of the tier's remaining consequences in
+every row (the 15.3 rulings, 2026-09-15): a release ticket the leaver owns, due inside the
+leave, under a scenario-owned policy clause requiring two people each holding a skill and
+employed as an employee. The organization guarantees the cast as its second component,
+exactly: the paired skill's two employee holders, its contractor holder and two recorded
+employees lacking it, because the viability rule asks every candidate for a work item to
+belong to its component, and a holder outside it would fail by component instead of the
+authored reason. Four verdicts, each with one reason: the two employee holders viable, the
+contractor non-viable by ``hard_rule`` alone, a filler non-viable by ``skill`` alone; the
+other filler is the leaver. The universe of viable people is those two, so the count of two
+is visibly load-bearing: a plan naming one is an invalid plan against two viable candidates,
+which the plan rules grade and the key never states. No prose: the policy is template-written
+and names the release by its title, so the clause's scope in text and the constraint's target
+in truth coincide. Concurrent leave is the one modifier the class does not afford: sending
+either holder away leaves one against a count of two, which the coverage-aware admissibility
+proves in the compatibility sweep.
+
 The qualification roles are a query over the static organization in canonical order: a
 skill some record holds, a cover whose record lacks it and who belongs to a component
 (their ticket lives there), the first other record-holder lacking it, and the first leaver
@@ -35,9 +52,12 @@ outside the skill's holders and the two candidates, so a concurrent leave on the
 still leaves the outcome assign. The responsibility roles: a skill with at least three
 holders, each holder in turn the leaver, the next holder the viable candidate, the rest the
 fallback that keeps a concurrent leave on the viable one from moving the outcome, and the
-first record-holder lacking the skill the failing candidate. Titles and the clauses are
-templates over the vocabulary's forms, which the scanner knows; only the comment and the
-section are paid for.
+first record-holder lacking the skill the failing candidate. The cardinality roles: for each
+skill held by exactly two employees and one contractor, the component seating all three with
+exactly two more members, both recorded employees lacking the skill, each of the two the
+leaver in turn and the other the failing candidate. Titles and the clauses are templates
+over the vocabulary's forms, which the scanner knows; only the comment and the section are
+paid for.
 """
 
 from __future__ import annotations
@@ -55,7 +75,7 @@ from leaveimpact.core.claims import (
     Verdict,
 )
 from leaveimpact.core.entities import Component, Document, DocumentSection, Employee, Team
-from leaveimpact.core.enums import DocumentKind, Source
+from leaveimpact.core.enums import DocumentKind, EmploymentType, Source
 from leaveimpact.core.facts import Fact
 from leaveimpact.core.ids import SkillId
 from leaveimpact.core.predicates import PredicateName
@@ -68,7 +88,7 @@ from leaveimpact.core.refs import (
     event_ref,
     work_item_ref,
 )
-from leaveimpact.core.values import Requirement, SkillCriterion
+from leaveimpact.core.values import EmploymentTypeCriterion, Requirement, SkillCriterion
 from leaveimpact.world.briefs import CommentTarget, PendingProse, SectionTarget
 from leaveimpact.world.construction import Construction, Draft, Frame, ScenarioClass
 from leaveimpact.world.org import OrgSpec
@@ -88,6 +108,14 @@ POLICY_CLAUSE = "The {meeting} needs an engineer with {skill} experience."
 """The scenario-owned clause, template-written: it names the meeting it applies to."""
 
 SKILL_NAMES: Mapping[SkillId, str] = MappingProxyType({skill.id: skill.name for skill in SKILLS})
+
+RELEASE_POLICY_TITLE = "Release policy: {release}"
+RELEASE_POLICY_CLAUSE = (
+    "The {release} release needs two engineers with {skill} experience, each an employee of "
+    "the company."
+)
+"""The cardinality class's scenario-owned clause, template-written: it names the release
+ticket it applies to by title, the count and both criteria in one sentence."""
 
 NOTE_TITLE = "{client} account notes"
 """The client note's title: the client's only representation, and the procedure's scope."""
@@ -130,10 +158,27 @@ class FreeTextResponsibility:
         )
 
 
+class ReleaseCardinalityConstraint:
+    """A release ticket the leaver owns falls due inside the leave under a policy clause requiring
+    two employees with a skill exactly two employees and a contractor hold; both consequences,
+    the employment rule and the count, in every row."""
+
+    name = ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT
+    tier = Tier.FRAGMENTED
+    affordance = (
+        "a skill held by exactly two employees and one contractor, the three seated in a "
+        "component with exactly two recorded employees lacking it"
+    )
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        return tuple(_cardinality_construction(*roles) for roles in _cardinality_roles(org))
+
+
 FRAGMENTED_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
     {
         ScenarioClassName.FREE_TEXT_QUALIFICATION: FreeTextQualification(),
         ScenarioClassName.FREE_TEXT_RESPONSIBILITY: FreeTextResponsibility(),
+        ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT: ReleaseCardinalityConstraint(),
     }
 )
 """The fragmented classes built so far, by name."""
@@ -293,6 +338,107 @@ def _responsibility_roles(org: OrgSpec) -> list[tuple[SkillId, Employee, Employe
     return roles
 
 
+def _cardinality_roles(
+    org: OrgSpec,
+) -> list[tuple[SkillId, Component, Employee, Employee, Employee, Employee, Employee]]:
+    """(skill, component, leaver, first holder, second holder, contractor holder, failing
+    candidate), in canonical order: the component seating a paired skill's three holders with
+    exactly two recorded employees lacking it, each of the two the leaver in turn.
+
+    A query, not a lookup of the organization's second component: the guarantee is what
+    makes the query non-empty, and a second skill of the same shape seated the same way
+    only yields more constructions.
+    """
+    by_id = {employee.id: employee for employee in org.employees}
+    roles: list[tuple[SkillId, Component, Employee, Employee, Employee, Employee, Employee]] = []
+    for skill in org.skills:
+        holders = org.holders_of(skill)
+        employed = [h for h in holders if h.employment_type is EmploymentType.EMPLOYEE]
+        contracted = [h for h in holders if h.employment_type is EmploymentType.CONTRACTOR]
+        if len(employed) != 2 or len(contracted) != 1:
+            continue
+        holder_ids = {holder.id for holder in holders}
+        for component in org.components:
+            if not holder_ids <= set(component.member_ids):
+                continue
+            fillers = [by_id[member] for member in component.member_ids if member not in holder_ids]
+            if len(fillers) != 2 or any(
+                f.skills is None or f.employment_type is not EmploymentType.EMPLOYEE
+                for f in fillers
+            ):
+                continue
+            for leaver, failing in ((fillers[0], fillers[1]), (fillers[1], fillers[0])):
+                roles.append(
+                    (skill, component, leaver, employed[0], employed[1], contracted[0], failing)
+                )
+    return roles
+
+
+def _cardinality_construction(
+    skill: SkillId,
+    component: Component,
+    leaver: Employee,
+    first: Employee,
+    second: Employee,
+    contractor: Employee,
+    failing: Employee,
+) -> Construction:
+    def plant(frame: Frame, rng: Random) -> Draft:
+        visible = frame.window.start
+        leave = plant_leave(frame, leaver)
+        ticket = plant_ticket(frame, rng, component, leaver)
+        clause = frame.ids.clause()
+        policy = Document(
+            frame.ids.document(),
+            RELEASE_POLICY_TITLE.format(release=ticket.entity.title),
+            DocumentKind.POLICY,
+            visible,
+            (
+                DocumentSection(
+                    clause,
+                    RELEASE_POLICY_CLAUSE.format(
+                        release=ticket.entity.title, skill=SKILL_NAMES[skill]
+                    ),
+                ),
+            ),
+        )
+        requires = Fact(
+            clause_ref(clause),
+            PredicateName.REQUIRES,
+            Requirement(
+                2, (SkillCriterion(skill), EmploymentTypeCriterion(EmploymentType.EMPLOYEE))
+            ),
+            EvidenceRef(Source.CORPUS, clause_ref(clause)),
+            visible,
+        )
+        impact = ImpactKey(leave.entity.id, ImpactSubtype.DEADLINE, work_item_ref(ticket.entity.id))
+        # A ticket candidate meets four criteria: the component, the leave overlap, the
+        # skill and the employment type; each authored reason is the one criterion that
+        # person fails, which the verifier proves exactly (the 15.3 rulings).
+        expected = ExpectedImpact(
+            impact,
+            CoverageActionKind.ASSIGN,
+            (
+                AuthoredVerdict(first.id, Verdict.VIABLE),
+                AuthoredVerdict(second.id, Verdict.VIABLE),
+                AuthoredVerdict(contractor.id, Verdict.NON_VIABLE, (AssessmentReason.HARD_RULE,)),
+                AuthoredVerdict(failing.id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,)),
+            ),
+        )
+        owned = OwnedEntities(
+            leaves=(leave,), work_items=(ticket,), documents=(Planted(policy, visible),)
+        )
+        return Draft(
+            owned,
+            leave.entity.id,
+            (expected,),
+            constraints=(ConstraintKey(clause, work_item_ref(ticket.entity.id)),),
+            authored_facts=(requires,),
+        )
+
+    return plant
+
+
 def client_of(scenario_id: str) -> str:
     """The client a scenario's note is about: the table entry at the scenario's number, so two
     notes in one world share a title only when the world holds more scenarios than the
@@ -382,7 +528,10 @@ __all__ = [
     "POLICY_TITLE",
     "PROCEDURE_CLAUSE",
     "PROCEDURE_TITLE",
+    "RELEASE_POLICY_CLAUSE",
+    "RELEASE_POLICY_TITLE",
     "FreeTextQualification",
     "FreeTextResponsibility",
+    "ReleaseCardinalityConstraint",
     "client_of",
 ]

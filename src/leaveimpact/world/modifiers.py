@@ -583,6 +583,10 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         ScenarioClassName.FREE_TEXT_RESPONSIBILITY: frozenset(
             {ModifierName.CONCURRENT_LEAVE, ModifierName.TIMEZONE_BOUNDARY}
         ),
+        # The release affords every look-alike and a resolved twin; a concurrent leave on
+        # either of exactly two viable holders leaves one against a count of two, which
+        # coverage-aware admissibility proves and the row declares (the 15.3 rulings).
+        ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT: _ALL - {ModifierName.CONCURRENT_LEAVE},
     }
 )
 """The modifiers every draft of each class affords; a pair is compatible when both are."""

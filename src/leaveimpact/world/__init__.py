@@ -105,6 +105,7 @@ from leaveimpact.world.fragmented import (
     FRAGMENTED_CLASSES,
     FreeTextQualification,
     FreeTextResponsibility,
+    ReleaseCardinalityConstraint,
 )
 from leaveimpact.world.modifiers import (
     COMPATIBLE_MODIFIERS,
@@ -325,6 +326,7 @@ __all__ = [
     "StructuredMeeting",
     "FreeTextQualification",
     "FreeTextResponsibility",
+    "ReleaseCardinalityConstraint",
     "StructuredMixed",
     "SurfaceForm",
     "TargetRecord",
