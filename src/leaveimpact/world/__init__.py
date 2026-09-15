@@ -130,6 +130,7 @@ from leaveimpact.world.plan import (
     plan_world,
 )
 from leaveimpact.world.prose import (
+    COUNTER_NAMES,
     PROSE_CAPABLE,
     AssertionMode,
     FactRole,
@@ -276,6 +277,7 @@ __all__ = [
     "ReasonCount",
     "RefusalReason",
     "Lexicon",
+    "COUNTER_NAMES",
     "MaterializationMetrics",
     "MaterializationRecord",
     "Minting",

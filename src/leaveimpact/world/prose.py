@@ -560,41 +560,75 @@ class TargetRecord:
                 raise ValueError(f"{self.target_id}: {name} is a SHA-256 hex, got {value!r}")
 
 
+COUNTER_NAMES: tuple[str, ...] = (
+    "writer_attempts",
+    "targets_first_attempt_pass",
+    "targets_eventual_pass",
+    "targets_cap_exhausted",
+    "namespace_refusals",
+    "required_fact_refusals",
+    "extraction_refusals",
+    "checker_retries",
+    "checker_unusable",
+    "writer_retries",
+    "writer_input_tokens",
+    "writer_output_tokens",
+    "checker_input_tokens",
+    "checker_output_tokens",
+    "writer_latency_ms",
+    "checker_latency_ms",
+    "canonicalized_pairs",
+)
+"""Every counter the stage has sealed, in the order it seals them: append-only, so a record
+sealed with fewer holds a prefix of this order. A counter the loop gains is appended here,
+a test holds the loop to this list, and no decoder or encoder learns of it — a record
+sealed before it was counted is missing the name, which reads back as unavailable."""
+
+
 @dataclass(frozen=True, slots=True)
 class MaterializationMetrics:
     """The stage's aggregate counters, sealed as provenance of the run that wrote the texts.
 
     Attempts and passes by target, refusals by guard, retries and unusable checkers, tokens
-    in and out and the summed latency per model. Run measurements, not world semantics:
-    the semantic digest never covers them, and a resume neither needs nor checks them.
-    They are sealed because the log used to be their only carrier and a run that sealed
-    its truth and then failed in projection took them with it (the measurement world,
-    2026-09-15); the ruling that adopts or rejects a prose fix reads these numbers, so
-    they travel with the world they measured.
+    in and out and the summed latency per model, and the checker's canonicalized pairs.
+    Run measurements, not world semantics: the semantic digest never covers them, and a
+    resume neither needs nor checks them. They are sealed because the log used to be
+    their only carrier and a run that sealed its truth and then failed in projection took
+    them with it (the measurement world, 2026-09-15); the ruling that adopts or rejects a
+    prose fix reads these numbers, so they travel with the world they measured.
+
+    ``counters`` are exactly the names the record was sealed with, in the declared order,
+    which is what makes a decoded record encode back to its sealed bytes: a counter added
+    to the stage later is absent here, and ``value`` returns ``None`` for it, unavailable
+    and never zero (the review of 2026-09-15, which found the decoder had required
+    today's names of every record).
+
+    >>> counted = MaterializationMetrics((("writer_attempts", 5), ("targets_eventual_pass", 3)))
+    >>> counted.value("writer_attempts"), counted.value("canonicalized_pairs")
+    (5, None)
     """
 
-    writer_attempts: int
-    targets_first_attempt_pass: int
-    targets_eventual_pass: int
-    targets_cap_exhausted: int
-    namespace_refusals: int
-    required_fact_refusals: int
-    extraction_refusals: int
-    checker_retries: int
-    checker_unusable: int
-    writer_retries: int
-    writer_input_tokens: int
-    writer_output_tokens: int
-    checker_input_tokens: int
-    checker_output_tokens: int
-    writer_latency_ms: int
-    checker_latency_ms: int
-    canonicalized_pairs: int
+    counters: tuple[tuple[str, int], ...]
 
     def __post_init__(self) -> None:
-        for name in self.__slots__:
-            if getattr(self, name) < 0:
-                raise ValueError(f"{name}: a counter is never negative, got {getattr(self, name)}")
+        names = [name for name, _ in self.counters]
+        unknown = [name for name in names if name not in COUNTER_NAMES]
+        if unknown:
+            raise ValueError(f"not a counter the stage seals: {', '.join(unknown)}")
+        if len(set(names)) != len(names):
+            raise ValueError("a counter is sealed once")
+        declared = [name for name in COUNTER_NAMES if name in names]
+        if names != declared:
+            raise ValueError(f"counters are sealed in the declared order, got {names}")
+        for name, value in self.counters:
+            if value < 0:
+                raise ValueError(f"{name}: a counter is never negative, got {value}")
+
+    def value(self, name: str) -> int | None:
+        """The counter's value, or ``None`` when the record was sealed without it."""
+        if name not in COUNTER_NAMES:
+            raise ValueError(f"not a counter the stage seals: {name}")
+        return dict(self.counters).get(name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -608,7 +642,8 @@ class MaterializationRecord:
     runs targets sequentially, so the order is a fact of the run, and the realized
     identity includes it on purpose. ``metrics`` are the stage's counters, ``None`` for
     a record sealed before they were carried (the measurement world's is one), and the
-    sealed bytes of such a record hold no field for them.
+    sealed bytes of such a record hold no field for them; present, they are the counters
+    the run had, so a counter added to the stage later is simply absent.
     """
 
     writer: ModelConfiguration

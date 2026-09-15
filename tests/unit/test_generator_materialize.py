@@ -31,11 +31,11 @@ from leaveimpact.generator.materialize import (
 )
 from leaveimpact.generator.prose import load_prompt_assets
 from leaveimpact.world import (
+    COUNTER_NAMES,
     DEFAULT_PARAMS,
     Brief,
     CommentTarget,
     GuardName,
-    MaterializationMetrics,
     Refusal,
     RefusalReason,
     assemble_semantic_world,
@@ -147,7 +147,7 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
     assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 17
     # The same counters are sealed into the record, so a run that dies after sealing keeps them.
     assert materialized.record.metrics == metrics.sealed()
-    assert metrics.sealed().writer_input_tokens == 100
+    assert metrics.sealed().value("writer_input_tokens") == 100
     # The checker never saw the brief's facts, only the text and the entity list.
     assert "has experience with" not in checker.requests[0].message
     # The output composes and seals.
@@ -159,8 +159,9 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
     assert bundle(composed).world_version
 
 
-def test_the_loops_counters_and_the_sealed_counters_share_every_field() -> None:
-    assert {f.name for f in fields(ProseMetrics)} == set(MaterializationMetrics.__slots__)
+def test_the_loops_counters_are_the_declared_counters_in_their_order() -> None:
+    """A counter the loop gains is appended to the declared list, never inserted."""
+    assert [f.name for f in fields(ProseMetrics)] == list(COUNTER_NAMES)
 
 
 def test_each_guard_refuses_in_turn_and_the_fresh_attempt_after_them_is_accepted() -> None:

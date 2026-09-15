@@ -13,6 +13,7 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.generator.resume import ResumeRefused, resume_world
 from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import (
+    COUNTER_NAMES,
     DEFAULT_PARAMS,
     Bundle,
     GuardName,
@@ -71,16 +72,35 @@ def test_the_records_counters_round_trip_when_sealed() -> None:
     scenario = pending_scenario(SkillInComment())
     [brief] = scenario.briefs
     counters = MaterializationMetrics(
-        **{**dict.fromkeys(MaterializationMetrics.__slots__, 0), "writer_attempts": 5}
+        tuple((name, 5 if name == "writer_attempts" else 0) for name in COUNTER_NAMES)
     )
     record = replace(record_for({brief.id: BODY}), metrics=counters)
     world = compose(semantic_world_of(scenario), {brief.id: BODY}, record)
     sealed = bundle(world)
     assert json.loads(sealed.truth_manifest.content)["materialization"]["metrics"] == {
-        **dict.fromkeys(MaterializationMetrics.__slots__, 0),
+        **dict.fromkeys(COUNTER_NAMES, 0),
         "writer_attempts": 5,
     }
     assert decode_materialization(sealed.truth_manifest.content) == record
+
+
+def test_a_record_sealed_before_a_counter_existed_decodes_and_re_encodes_to_its_bytes() -> None:
+    """The metrics shape of a record sealed between the counters' arrival and the
+    canonicalized-pair counter (no such record was sealed, the shape was real in code):
+    the missing counter is unavailable, and the bytes come back exactly."""
+    scenario = pending_scenario(SkillInComment())
+    [brief] = scenario.briefs
+    earlier = MaterializationMetrics(tuple((name, 0) for name in COUNTER_NAMES[:16]))
+    record = replace(record_for({brief.id: BODY}), metrics=earlier)
+    sealed = bundle(compose(semantic_world_of(scenario), {brief.id: BODY}, record))
+    content = sealed.truth_manifest.content
+    block = json.loads(content)["materialization"]["metrics"]
+    assert "canonicalized_pairs" not in block and len(block) == 16
+    decoded = decode_materialization(content)
+    assert decoded is not None and decoded.metrics is not None
+    assert decoded.metrics.value("canonicalized_pairs") is None
+    resealed = bundle(compose(semantic_world_of(scenario), {brief.id: BODY}, decoded))
+    assert resealed.truth_manifest.content == content
 
 
 def test_a_refusals_reasons_round_trip_and_an_older_row_decodes_them_as_unavailable() -> None:

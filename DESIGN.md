@@ -1100,7 +1100,9 @@ refusals by guard, retries, tokens and latency per model) — run measurements o
 semantic digest, sealed because the log had been their only carrier and the measurement
 world's run sealed its truth and then failed in projection, taking them with it (the
 numbers were recovered from Bedrock's CloudWatch metrics); a record sealed before that
-date holds no field for them; per target the attempts, each refusal by guard with its
+date holds no field for them, and a record holds exactly the counters its run had, in a
+declared append-only order, so a counter added later is absent from earlier records and
+reads back as unavailable, never zero; per target the attempts, each refusal by guard with its
 findings counted by reason under a closed vocabulary (the guards' failure paths, never
 a verdict on writer or checker; absent on a refusal sealed before 2026-09-15 and read
 back as unavailable, never as none), the rendered request's digest, the

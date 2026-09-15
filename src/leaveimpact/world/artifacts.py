@@ -487,9 +487,7 @@ def encode_materialization(record: MaterializationRecord) -> JsonObject:
         "targets": [_target_record(target) for target in record.targets],
     }
     if record.metrics is not None:
-        encoded["metrics"] = {
-            name: getattr(record.metrics, name) for name in record.metrics.__slots__
-        }
+        encoded["metrics"] = dict(record.metrics.counters)
     return encoded
 
 

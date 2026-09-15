@@ -108,8 +108,8 @@ class ProseMetrics:
         return tuple(f"prose_{f.name}={getattr(self, f.name)}" for f in fields(self))
 
     def sealed(self) -> MaterializationMetrics:
-        """The counters frozen for the record; the two types share every field by name."""
-        return MaterializationMetrics(**{f.name: getattr(self, f.name) for f in fields(self)})
+        """The counters frozen for the record, every field in its declared order."""
+        return MaterializationMetrics(tuple((f.name, getattr(self, f.name)) for f in fields(self)))
 
 
 @dataclass(frozen=True, slots=True)

@@ -79,9 +79,10 @@ def _record(data: Mapping[str, object]) -> MaterializationRecord:
 
 
 def _metrics(data: Mapping[str, object]) -> MaterializationMetrics:
-    names = tuple(MaterializationMetrics.__slots__)
-    expect_fields(data, names, "the materialization metrics")
-    return MaterializationMetrics(**{name: integer_field(data, name) for name in names})
+    # The counters a record holds are the ones its run had: the type refuses an unknown
+    # name, a repeat or a departure from the declared order, and asks nothing of a name
+    # a later stage added.
+    return MaterializationMetrics(tuple((name, integer_field(data, name)) for name in data))
 
 
 def _model(data: Mapping[str, object]) -> ModelConfiguration:

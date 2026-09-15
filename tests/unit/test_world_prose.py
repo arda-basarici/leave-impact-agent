@@ -33,6 +33,7 @@ from leaveimpact.core.ids import (
     work_item_id,
 )
 from leaveimpact.world import (
+    COUNTER_NAMES,
     PROSE_CAPABLE,
     AssertionMode,
     GuardName,
@@ -279,8 +280,23 @@ def test_the_records_counters_are_optional_and_never_negative() -> None:
     writer = ModelConfiguration("writer", ())
     checker = ModelConfiguration("checker", ())
     assert MaterializationRecord(writer, checker, (), 4, ()).metrics is None
-    zeros = dict.fromkeys(MaterializationMetrics.__slots__, 0)
-    counted = MaterializationMetrics(**{**zeros, "writer_input_tokens": 3209})
+    counted = MaterializationMetrics(tuple((name, 0) for name in COUNTER_NAMES))
     assert MaterializationRecord(writer, checker, (), 4, (), counted).metrics == counted
     with pytest.raises(ValueError, match="checker_latency_ms: a counter is never negative"):
-        MaterializationMetrics(**{**zeros, "checker_latency_ms": -1})
+        MaterializationMetrics((("checker_latency_ms", -1),))
+
+
+def test_the_sealed_counters_are_the_ones_the_run_had_in_the_declared_order() -> None:
+    """A counter added to the stage later is absent from an earlier record and reads as
+    unavailable, never zero; the order is fixed so decoded bytes encode back the same."""
+    earlier = MaterializationMetrics(tuple((name, 1) for name in COUNTER_NAMES[:16]))
+    assert earlier.value("checker_latency_ms") == 1
+    assert earlier.value("canonicalized_pairs") is None
+    with pytest.raises(ValueError, match="not a counter the stage seals: tokens"):
+        MaterializationMetrics((("tokens", 1),))
+    with pytest.raises(ValueError, match="not a counter the stage seals"):
+        earlier.value("tokens")
+    with pytest.raises(ValueError, match="sealed once"):
+        MaterializationMetrics((("writer_attempts", 1), ("writer_attempts", 1)))
+    with pytest.raises(ValueError, match="declared order"):
+        MaterializationMetrics((("targets_eventual_pass", 1), ("writer_attempts", 1)))
