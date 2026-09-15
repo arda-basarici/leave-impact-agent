@@ -1613,7 +1613,114 @@ measured evidence. The probes behind the class are in `probes/FINDINGS.md`
   the policy; no silent drift, the one foreign fact that changes anything moves a verdict,
   and the employment rule is beyond any foreign fact's reach since its predicate's evidence
   domain is the HR record alone. The Tier 2 split stays ruled at 15.4; the reviewer's
-  stricter retrieval gate for the responsibility class stays on their ledger, unchanged.
+  stricter retrieval gate for the responsibility class stayed on their ledger until the
+  15.4 review of the registry commit (2026-09-16), where they dropped it: retrieval is
+  the M2 evidence-coverage measurement the 15.2 ruling made it, not a world invariant.
+
+*The composite class, ruled (2026-09-15 and 16, the 15.4 interview).* Five questions, one
+per exchange, an external reviewer's read on each before the ruling, two of them closed
+into probes rather than argued; one design finding raised by the build itself and ruled
+the same way. The probes behind the class are in `probes/FINDINGS.md` (`source-dependence`,
+the two 15.4 paragraphs; `section-probe`, the composite paragraph; `reservation-book`).
+
+- *One section carries both facts, and the skill predicate admits the corpus (adopted).*
+  The composite is the responsibility class's note and procedure clause with the section
+  carrying a second fact: the cover has the required skill, which their HR record lacks,
+  so the section is the impact's only ground and the cover's only qualification, two
+  facts of different subject shape (the section itself, then the cover) one text must
+  carry and one checker must extract, each answer-changing on its own. Two carriers (the
+  skill in a comment on the cover's own ticket, the qualification class's shape) and two
+  sections were rejected: neither makes one text synthesize two facts, which is what the
+  composite exists to test. The skill predicate's evidence domain gains the corpus as a
+  global change and not the class's: a skill is a set, so a second positive source adds
+  evidence and never a conflict (the authority table refuses to resolve a multi-valued
+  predicate at all), and the cost falls on the negative side, since a known-negative
+  needs every source in the domain reachable: under a corpus outage nobody is found to
+  lack a skill, a runtime rule the investigator inherits. The change moved no current
+  class's required-source set (the structured tier authors no skill reason, every
+  fragmented class already requires the corpus through its clause), verified by the two
+  source probes run before and after the row change, byte-identical. The section probe
+  gated the class commit: six constructions, four of six on the first run with both
+  facts extracted correctly on every text and the two refusals a checker-format fault
+  (the empty `other_claims` omitted, a schema-required field whose absence re-checks the
+  same text at temperature zero until the retries run out), six of six after one
+  sentence in the checker's system prompt, the digest re-pinned. The cast: the leaver a
+  record-holder of the skill, the cover and the failing candidate recorded non-holders,
+  every other record-holder the reserve a concurrent leave on the cover relies on.
+- *The sentence-frame revisit closes into the probe (adopted).* With the second fact the
+  section gains the only lever 15.2 lacked, so there is nothing left to rule by argument:
+  the probe reads the frames, a convergence is recorded rather than tuned in M1, and the
+  step 16 audit reads the realized texts. Read: six of six two-sentence texts, each
+  sentence the brief's own fact description with the client's name substituted, the
+  second fact varying nothing about the first's frame. The 15.2 carry closes here.
+- *The Tier 2 split and the tiered plan (adopted; the version amended at the review).*
+  Three qualification, three responsibility, two cardinality, two composite: cardinality's
+  two is the construction's own count (one cast component, one row per filler as the
+  leaver), the composite's two is the golden set's sentence, the six between the prose
+  primitives split evenly for repetition. A named plan is one table per tier, each
+  planned and checked on its own slice with the ids continuing; the coverage minima, the
+  clean-row floor and the per-row ceiling are tier-local, because the structured tier
+  alone already meets every minimum and a rule over the union would let every fragmented
+  row stay clean and prove nothing about that tier; feasibility shown by probe before the
+  ruling, two hundred seeds and none infeasible over the three built classes alone, with
+  one consequence accepted on record: only the cardinality rows afford the resolved
+  look-alike, so both always carry it and the tier has no clean cardinality row. The
+  twenty-row plan is offered at 15.4, the golden thirty as the union at 15.5. The first
+  ruling batched the version to 15.5 on the reading that a new named plan changes
+  nothing an existing seed produces; the review reopened it, since the plan became an
+  operational generator input the moment the workflow offered it, and the plan module's
+  own rule says plan rules bump the version: generator version 11 at 15.4, the pair
+  re-cut, only the version field moved (the reference digest with the constant at 10 is
+  the pinned one exactly).
+- *The composite's row is the parents' intersection, no pair table (adopted).* Concurrent
+  leave and the timezone boundary; wrong team, outside window and already resolved have
+  no ticket or meeting to attach to. A prose skill fact stays answer-changing beside a
+  reserve on the record because a moved verdict suffices, so the composite holds itself
+  to its parents' standard and not a stricter one. No pair-compatibility table until a
+  reusable incompatibility is discovered; the existing pair sweep composes every
+  compatible pair of every class through the verifier, so the composite's pair is
+  exercised the moment its row is declared.
+- *The reservation book (raised by the build, ruled with the reviewer, 2026-09-16).* The
+  first plan seating the responsibility class beside other rows was refused by the
+  whole-world re-verification on twenty of twenty seeds, on two interactions no
+  per-scenario test can see: a person one scenario's note names responsible being
+  another scenario's leaver (nineteen of twenty; the note is a standing document under
+  the runtime view, so the other leave acquires a responsibility impact its key never
+  declared), and a person one scenario's prose gives a skill being another's candidate
+  authored non-viable by that skill (one of twenty). Ruled: the world records what each
+  admitted scenario binds, in construction terms and not class names (the leave subject,
+  the standing contacts, the (person, skill) pairs provided in prose, the pairs an
+  authored verdict assumes absent), and refuses a later candidate crossing an earlier one
+  in both directions, so construction order never decides correctness; the class's
+  constructions are tried in the seed's order, a refused one unplanted by rewinding the
+  id and title book, every candidate refused a named error counting the rules; the claims
+  are derived from the planted draft and never declared, the briefs' discipline, so the
+  class contract is untouched; the first draw equals the unfiltered one, so a world the
+  book refuses nothing in is the world it was. Not every graded candidate is reserved:
+  a candidate shared between scenarios contradicts nothing, and reserving it would burn
+  identities for no protection. The re-verification stays the oracle for interactions
+  the book does not know; a new one is evidence for a new rule. Deriving the other rows'
+  keys from the whole world was rejected (it turns structured rows into prose-graded
+  ones and makes the audit read prose written for another scenario), as was a retry on
+  collision (rejection sampling at world level). Swept over two hundred seeds of the
+  twenty-row plan: 196 admitted and verified, none contaminated, one refused by the book
+  (the cardinality class's two leavers both named contacts by earlier rows, a loud
+  refusal at half a percent), three refused by a scenario's own invariant (the
+  qualification class under the wrong-team and outside-window pair, a pre-existing
+  defect of that pair reproduced with fresh books). Both residuals are parked with their
+  rates and measured again on the thirty-row plan at 15.5 before it is declared. To
+  watch, not built: a class depending on a blank skills record reading unknown would
+  need the positive-against-absence rule generalized beyond known false.
+- *Versions and the probes.* Generator version 11 at the tiered plan, the pair re-cut;
+  the registry change, the class, the compatibility row, the section probe's prompt
+  sentence and the reservation book bumped nothing on their own (the digest re-pinned
+  for the prompt, as at 15.2). The two source probes on the class: the corpus required by
+  the section and the clause, the record by the leave, the tracker and now the corpus
+  both through the failing candidate's known-negative with no tracker artifact; no
+  silent drift over the tracker route or the corpus route the class opened, the only
+  foreign facts that change anything change a verdict. The 15.5 sweep of the thirty-row
+  plan is the next gate; the version bumps again there only if a construction semantic
+  changes.
 
 ---
 
