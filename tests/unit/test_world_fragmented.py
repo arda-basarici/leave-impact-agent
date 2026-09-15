@@ -166,7 +166,7 @@ def test_the_responsibility_scenario_has_the_shape_the_class_promises(seed: int)
     assert brief.allowed == ()
     # The skill is structured on every side: the leaver and the viable candidate hold it on
     # the record, the failing candidate's record lacks it, and no skill word reaches the
-    # writer, whose namespace is the note's title and the contact's name.
+    # writer, whose namespace is the note's title, its client and the contact's name.
     skill = _required_skill(scenario)
     assert skill in (BY_ID[leaver].skills or ())
     assert skill in (BY_ID[viable.employee_id].skills or ())
@@ -174,6 +174,7 @@ def test_the_responsibility_scenario_has_the_shape_the_class_promises(seed: int)
     assert SKILL_NAMES[skill] in clause.text
     assert {form.form for form in brief.namespace.forms} == {
         note.entity.title,
+        client_of(scenario_id(seed)),
         BY_ID[leaver].name,
         BY_ID[leaver].name.split()[0],
     }

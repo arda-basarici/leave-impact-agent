@@ -7,6 +7,7 @@ statement, a required statement not read as asserted, and any other claim."""
 
 from dataclasses import replace
 from datetime import date
+from random import Random
 
 import pytest
 
@@ -20,7 +21,7 @@ from leaveimpact.core import (
     employee_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import comment_id, component_id
+from leaveimpact.core.ids import comment_id, component_id, scenario_id
 from leaveimpact.generator.guards import (
     containment_findings,
     namespace_findings,
@@ -28,8 +29,17 @@ from leaveimpact.generator.guards import (
     required_fact_findings,
 )
 from leaveimpact.generator.prose import Extraction
-from leaveimpact.world import Brief, CommentTarget, lexicon_of
+from leaveimpact.world import (
+    Brief,
+    CommentTarget,
+    FreeTextResponsibility,
+    Minting,
+    construct,
+    lexicon_of,
+)
+from leaveimpact.world.briefs import client_id, clients_named_by
 from leaveimpact.world.prose import (
+    CLIENT_KIND,
     AssertionMode,
     Lexicon,
     Polarity,
@@ -37,7 +47,16 @@ from leaveimpact.world.prose import (
     RefusalReason,
     SurfaceForm,
 )
-from tests.unit.prose_fixture import KAFKA, ORG, SkillInComment, pending_scenario
+from leaveimpact.world.vocabulary import CLIENT_NAMES
+from tests.unit.prose_fixture import (
+    KAFKA,
+    ORG,
+    TZ,
+    WINDOW,
+    WORLD_START,
+    SkillInComment,
+    pending_scenario,
+)
 
 
 @pytest.fixture(scope="module")
@@ -105,6 +124,36 @@ def test_an_allowed_short_form_cannot_erase_a_longer_foreign_form_it_sits_inside
     [refused] = namespace_findings(text, brief, (*world_forms, foreign))
     assert "names employee emp_999" in refused.message
     assert namespace_findings(f"thanks {given}, Kafka is in.", brief, (*world_forms, foreign)) == ()
+
+
+def test_a_section_may_name_its_own_client_and_no_other() -> None:
+    """The review P2 on the responsibility class (2026-09-15): client names were vocabulary
+    the scanner could not see, so a foreign client in an accepted section would have
+    changed its scope for a reader with no deterministic refusal. Every client is a world
+    form now, and the brief admits the one its title names."""
+    scenario = construct(
+        FreeTextResponsibility(),
+        (),
+        ORG,
+        scenario_id=scenario_id(1),
+        window=WINDOW,
+        world_start=WORLD_START,
+        reference_timezone=TZ,
+        ids=Minting(),
+        rng=Random(1),
+    )
+    [brief] = scenario.briefs
+    lexicon = lexicon_of(ORG, documents=[p.entity for p in scenario.owned.documents])
+    world_forms = lexicon.forms()
+    note, _procedure = scenario.owned.documents
+    client = clients_named_by(note.entity.title, lexicon)[0].form
+    assert brief.namespace.form_of(CLIENT_KIND, client_id(client)) == client
+    contact = brief.namespace.form_of("employee", scenario.owned.leaves[0].entity.employee_id)
+    assert namespace_findings(f"{client}'s primary contact is {contact}.", brief, world_forms) == ()
+    other = next(name for name in CLIENT_NAMES if name != client)
+    [refused] = namespace_findings(f"{other}'s primary contact is {contact}.", brief, world_forms)
+    assert refused.reason is RefusalReason.FOREIGN_NAME
+    assert f"names client {client_id(other)}" in refused.message
 
 
 def test_a_short_world_form_matches_only_in_exact_spelling(

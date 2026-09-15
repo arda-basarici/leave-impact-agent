@@ -33,6 +33,7 @@ brief, prose result and composed part once the text exists.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date
@@ -51,6 +52,7 @@ from leaveimpact.core.refs import (
 )
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.prose import (
+    CLIENT_KIND,
     GIVEN_NAME_KIND,
     PROSE_CAPABLE,
     SKILL_KIND,
@@ -61,7 +63,7 @@ from leaveimpact.world.prose import (
     derive_namespace,
     statement_of,
 )
-from leaveimpact.world.vocabulary import SKILLS
+from leaveimpact.world.vocabulary import CLIENT_NAMES, SKILLS
 
 # The planted records a scenario owns arrive as plain tuples rather than as the scenario
 # module's ``OwnedEntities``: that module holds the scenario record, which carries briefs,
@@ -245,8 +247,15 @@ def lexicon_of(
     documents: Iterable[Document] = (),
     events: Iterable[CalendarEvent] = (),
 ) -> Lexicon:
-    """Every display form ``org`` and the planted records afford: names, skills, titles."""
+    """Every display form ``org`` and the planted records afford: names, skills, titles, and
+    every client of the vocabulary.
+
+    The clients are the whole table and not a world's own list, because a world has no
+    client list: a client exists only as a note's title. The scanner can police a name only
+    if it is a form, so the closed table is what makes a foreign client refusable.
+    """
     forms: list[SurfaceForm] = [
+        *(SurfaceForm(CLIENT_KIND, client_id(name), name) for name in CLIENT_NAMES),
         *(SurfaceForm(EntityKind.EMPLOYEE.value, e.id, e.name) for e in org.employees),
         *(SurfaceForm(GIVEN_NAME_KIND, e.id, e.name.split()[0]) for e in org.employees),
         *(SurfaceForm(EntityKind.TEAM.value, t.id, t.name) for t in org.teams),
@@ -257,6 +266,30 @@ def lexicon_of(
         *(SurfaceForm(EntityKind.EVENT.value, e.id, e.title) for e in events),
     ]
     return Lexicon(forms)
+
+
+def client_id(name: str) -> str:
+    """The lexicon id of a client, from its one representation: the name, lowered, spaces joined.
+
+    >>> client_id("Quarry Hill")
+    'quarry_hill'
+    """
+    return name.casefold().replace(" ", "_")
+
+
+def clients_named_by(title: str, lexicon: Lexicon) -> tuple[SurfaceForm, ...]:
+    """The client forms ``title`` names at word boundaries, in the lexicon's order.
+
+    A client's only representation is a note's title, so a section's brief learns its
+    client from the title and nowhere else; the match is by whole word so no client's
+    name is found inside another's.
+    """
+    return tuple(
+        form
+        for form in lexicon.forms()
+        if form.kind == CLIENT_KIND
+        and re.search(rf"(?<!\w){re.escape(form.form)}(?!\w)", title) is not None
+    )
 
 
 def brief_for(
@@ -270,7 +303,9 @@ def brief_for(
 
     ``roles`` must name every required fact; the parent must be among the records given.
     The namespace also admits the parent's title and, for a comment, the author's name,
-    which no fact mentions and a text naturally does.
+    which no fact mentions and a text naturally does; a section's admits the client its
+    document's title names, so a client note may say which client it is about while every
+    other client stays a foreign name.
     """
     parent = _parent(pending.target, work_items, documents)
     extra = [lexicon.form_of(EntityRef(_parent_kind(pending.target), parent.id))]
@@ -281,6 +316,7 @@ def brief_for(
         case SectionTarget():
             assert isinstance(parent, Document)
             register = Register(parent.kind.value)
+            extra.extend(clients_named_by(parent.title, lexicon))
     missing = [f for f in pending.required if f not in roles]
     if missing:
         raise ProseContractError(
@@ -406,6 +442,8 @@ def _names(facts: Iterable[Fact]) -> list[str]:
 __all__ = [
     "Brief",
     "CommentTarget",
+    "client_id",
+    "clients_named_by",
     "PendingProse",
     "ProseContractError",
     "ProseTarget",

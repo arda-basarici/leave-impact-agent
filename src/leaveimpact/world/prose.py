@@ -193,6 +193,12 @@ SKILL_KIND = "skill"
 """The surface-form kind of a skill, which is a vocabulary term and not an entity."""
 
 GIVEN_NAME_KIND = "given_name"
+
+CLIENT_KIND = "client"
+"""A client is a name and nothing more: the responsibility class's note is titled by it and
+its procedure clause names that title. Every client name is a world form, so a text naming
+another client is refused by the namespace scanner rather than left to the checker (the
+15.2 review); a section's brief admits the one client its own document's title names."""
 """The surface-form kind of an employee's given name alone, keyed by the employee's id: a text
 names a colleague by first name, and a guard that knew only full names would not see it."""
 
@@ -680,6 +686,7 @@ class MaterializationRecord:
 
 __all__ = [
     "EMPLOYMENT_FORMS",
+    "CLIENT_KIND",
     "GIVEN_NAME_KIND",
     "NUMBER_WORDS",
     "PROSE_CAPABLE",
