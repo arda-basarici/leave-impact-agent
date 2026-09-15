@@ -65,8 +65,14 @@ def test_the_registry_is_read_only() -> None:
         REGISTRY[PredicateName.HAS_SKILL] = predicate(PredicateName.REPORTS_TO)  # type: ignore[index]
 
 
-def test_the_fragmented_tier_cases_declare_their_second_source() -> None:
-    assert predicate(PredicateName.HAS_SKILL).evidence_domain == {Source.FRAPPE, Source.JIRA}
+def test_the_fragmented_tier_cases_declare_their_prose_sources() -> None:
+    # The comment carrier (qualification) and the section carrier (the composite) both
+    # evidence a skill beside the HR record.
+    assert predicate(PredicateName.HAS_SKILL).evidence_domain == {
+        Source.FRAPPE,
+        Source.JIRA,
+        Source.CORPUS,
+    }
     assert predicate(PredicateName.OWNS_WORK_ITEM).evidence_domain == {Source.JIRA, Source.CORPUS}
 
 

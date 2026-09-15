@@ -150,15 +150,19 @@ ROWS: tuple[Predicate, ...] = (
         Source.FRAPPE,
         multi_valued=True,
     ),
-    # A qualification may be evidenced in a ticket comment as well as the HR record — the
-    # fragmented tier's case — so the tracker is in the domain and the HR system stays
-    # the record.
+    # A qualification may be evidenced in a ticket comment or in a client note's section
+    # as well as the HR record — the fragmented tier's cases — so the tracker and the
+    # corpus are in the domain and the HR system stays the record. A skill is a set, so a
+    # second source adds evidence and never a conflict; the cost falls on the negative
+    # side: nobody is known to lack a skill until every source in the domain has answered
+    # (the composite's ruling, 2026-09-15).
     _row(
         PredicateName.HAS_SKILL,
         EntityKind.EMPLOYEE,
         SKILL_VALUE,
         Source.FRAPPE,
         Source.JIRA,
+        Source.CORPUS,
         multi_valued=True,
     ),
     # Component membership is the other atomic qualification fact ("component experience
@@ -237,7 +241,7 @@ def predicate(name: PredicateName) -> Predicate:
     >>> predicate(PredicateName.HAS_SKILL).system_of_record
     <Source.FRAPPE: 'frappe'>
     >>> sorted(predicate(PredicateName.HAS_SKILL).evidence_domain)
-    [<Source.FRAPPE: 'frappe'>, <Source.JIRA: 'jira'>]
+    [<Source.CORPUS: 'corpus'>, <Source.FRAPPE: 'frappe'>, <Source.JIRA: 'jira'>]
     >>> predicate(PredicateName.DUE_ON).value_spec.kind
     <ValueKind.DATE: 'date'>
     """

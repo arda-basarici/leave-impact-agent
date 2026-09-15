@@ -47,11 +47,11 @@ def test_a_fact_is_validated_against_its_registry_row() -> None:
 def test_a_gap_is_validated_like_a_fact_and_never_carries_a_value() -> None:
     with pytest.raises(ValueError, match="due_on is a fact about a work_item, got an employee"):
         Gap(ALICE, PredicateName.DUE_ON, EvidenceRef(Source.FRAPPE, ALICE, "due"), w.NOW)
-    with pytest.raises(ValueError, match="corpus is outside the evidence domain of has_skill"):
+    with pytest.raises(ValueError, match="calendar is outside the evidence domain of has_skill"):
         Gap(
             ALICE,
             PredicateName.HAS_SKILL,
-            EvidenceRef(Source.CORPUS, clause_ref(w.KAFKA_CLAUSE)),
+            EvidenceRef(Source.CALENDAR, event_ref(w.RELEASE), "description"),
             w.NOW,
         )
 

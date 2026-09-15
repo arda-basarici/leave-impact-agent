@@ -863,7 +863,8 @@ the truth base and the conclusions tuple compared with the required set:
 | contact-in-note, no clause | a Jira ticket the candidate owns, due in the leave | unchanged | unchanged |
 
 Registry facts the argument rests on: the skill predicate's evidence domain is the HR
-record and the tracker (a corpus fact of it is refused at construction); ticket ownership
+record and the tracker (a corpus fact of it is refused at construction; the composite's
+ruling widened it to the corpus on 2026-09-15, re-probed below); ticket ownership
 over the tracker and the corpus is single-valued and the corpus is never promoted under
 a tracker outage. The conclusion and its re-arm conditions are DESIGN's (the 15.2
 interview's second ruling).
@@ -884,6 +885,18 @@ No silent drift: the one foreign fact that changes anything changes a verdict, a
 required set never moves. The employment rule is out of any foreign fact's reach, since the
 predicate's evidence domain is the HR record alone, which is the reading the 15.2 argument
 predicted for a class whose clause adds a criterion without adding a source.
+
+**The skill predicate admits the corpus, re-probed at 15.4 (2026-09-15, the same two
+scripts).** The composite's first ruling adds the corpus to the skill predicate's evidence
+domain so a client note's section can evidence a candidate's skill. The change is global,
+not the class's: a skill is a set, so a second positive source adds evidence and never a
+conflict, and a known-negative on a skill now needs the HR record, the tracker and the
+corpus to have answered. Both scripts run before and after the row change, the outputs
+byte-identical: every clause-bearing construction already required the corpus through its
+clause, the clause-free contact-in-note fixture has no skill known-negative, and the
+structured tier authors no skill reason. What the change moves is the runtime rule the
+investigator inherits: under a corpus outage nobody is found to lack a skill (DESIGN's 15.4
+block).
 
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
