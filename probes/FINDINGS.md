@@ -642,7 +642,7 @@ validate workflow, the deploy probe's shape), and the validator role's write sur
 beyond the verdict key. The `benchmark` gate refusing a wrong subject: ruled not worth
 demonstrating (the trust policy was read back 2026-09-12).
 
-## measurement-world — PROSE PASS, projection BLOCKED by a calendar-creation quota (2026-09-14)
+## measurement-world — PROSE PASS, calendars complete on resume, projection BLOCKED by a Frappe site collision (2026-09-14/15)
 
 The step 15 measurement world (plan `tier1-plus-qualification`, seed 1, start 2026-01-05,
 cap 4) under generator version 6, run 34803999468 at commit `8e17a65`. Four dispatches
@@ -689,3 +689,22 @@ calendars this run made before the refusal (the checkpoint says). Structural not
 the remaining M1 worlds: every world costs 28 calendar creations against that quota;
 a rate-aware projection (spacing creations, or a calendar budget per run) or a
 Workspace tenant are the candidates if a resume alone does not carry the golden world.
+
+**Sixth run, the resume (2026-09-15, run 34954239073, 30 hours after the refusal).**
+The quota had lifted: the calendar loop completed and the checkpoint holds 28 of 28
+calendars. Then the Frappe site inspection refused before any write: the 28 employee
+numbers are held by company `World WD674D5763`, the first world, on `hr-w1`. Employee
+document names are site-unique and the world names employees by number, which is why a
+site holds one world (`deploy/frappe/README.md`, ruled 2026-08-24) and the platform
+contract says "one hostname per world version". The measurement world had been
+dispatched onto the first world's site, and the earlier runs never reached the
+inspection because the calendar loop runs first. The inspection did its job: the
+refusal names the site and the holder, and nothing was written to Frappe or Jira.
+Resume stays possible on a new site: the checkpoint compares the Frappe config (the
+company, derived from the version) and takes the observed host fresh, "diagnostic,
+free to differ". Ruled 2026-09-15 (Arda): a second world site `hr-w2`, the ticket in
+the platform stream (`handoffs/2026-09-15-world-site-hr-w2.md`); the `benchmark`
+environment's Frappe URL and key pair move to it; the same resume command runs again.
+Box headroom measured the same day: 13.9 GB of 16 GB available, the Frappe stack about
+1.2 GB used of its 5.4 GB cap, a site's database about 120 MB on disk; the scheduler
+container (162 MB of 256 MB) is the one that scales with sites.
