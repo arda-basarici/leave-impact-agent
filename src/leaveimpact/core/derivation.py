@@ -32,7 +32,9 @@ to completion, before the rules ran; reachability is not completeness (the read 
 
 # No deferred annotations here: pdoc resolves a PEP 695 type parameter only when the
 # signature evaluates it, and nothing in this module needs a forward reference.
+from collections.abc import Iterable
 from datetime import date
+from typing import assert_never
 
 from leaveimpact.core.entities import CalendarEvent, Component, Employee, Leave, WorkItem
 from leaveimpact.core.enums import LeaveStatus
@@ -40,7 +42,12 @@ from leaveimpact.core.facts import Fact, Gap
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import EvidenceRef, component_ref, employee_ref, team_ref
-from leaveimpact.core.values import FactValue
+from leaveimpact.core.values import (
+    Criterion,
+    EmploymentTypeCriterion,
+    FactValue,
+    SkillCriterion,
+)
 
 Derived = Fact | Gap
 """What derivation emits: facts, and gaps where a field held no value."""
@@ -108,6 +115,50 @@ def derive_employee(observed: Observed[Employee], observable_from: date) -> tupl
     else:
         derived.extend(fact(PredicateName.HAS_SKILL, skill, "skills") for skill in person.skills)
     return tuple(derived)
+
+
+def record_meets(employee: Employee, criteria: Iterable[Criterion]) -> bool:
+    """Whether the HR record alone satisfies every criterion: the skill listed on the record,
+    the employment type equal; a blank skills record satisfies no skill criterion.
+
+    The static reading of a requirement, for construction-time queries that must not run
+    the rules (a scenario class asking whom the organization affords, a modifier proving
+    that coverage survives an amendment). It agrees with viability's reading by
+    construction, since the facts viability establishes for a record are the ones
+    ``derive_employee`` makes from these same fields; it is conservative, because it
+    knows nothing a record does not say — a skill evidenced only in a comment, a leave, a
+    busy hour. The match is exhaustive over the closed criterion union, so a criterion
+    kind added without a static reading is a type error at that commit and a raise at
+    runtime, never a person silently counted as qualified.
+
+    >>> from leaveimpact.core.entities import Employee
+    >>> from leaveimpact.core.enums import EmploymentType, Grade
+    >>> from leaveimpact.core.ids import EmployeeId, SkillId, TeamId
+    >>> from leaveimpact.core.values import EmploymentTypeCriterion, SkillCriterion
+    >>> def person(skills, employment):
+    ...     return Employee(EmployeeId("emp_001"), "Deniz Haddad", TeamId("team_001"), None,
+    ...                     skills, "Istanbul", "TR", "Europe/Istanbul", Grade.SENIOR, employment)
+    >>> kafka, employee = SkillCriterion(SkillId("kafka")), EmploymentTypeCriterion("employee")
+    >>> record_meets(person(("kafka",), EmploymentType.EMPLOYEE), (kafka, employee))
+    True
+    >>> record_meets(person(("kafka",), EmploymentType.CONTRACTOR), (kafka, employee))
+    False
+    >>> record_meets(person(None, EmploymentType.EMPLOYEE), (kafka,))
+    False
+    >>> record_meets(person(None, EmploymentType.EMPLOYEE), ())
+    True
+    """
+    for criterion in criteria:
+        match criterion:
+            case SkillCriterion(skill=skill):
+                if employee.skills is None or skill not in employee.skills:
+                    return False
+            case EmploymentTypeCriterion(employment_type=employment_type):
+                if employee.employment_type is not employment_type:
+                    return False
+            case _:
+                assert_never(criterion)
+    return True
 
 
 def derive_component(

@@ -13,8 +13,22 @@ from random import Random
 
 import pytest
 
-from leaveimpact.core import AssessmentReason, EntityKind, LeaveKind, Verdict
-from leaveimpact.core.ids import scenario_id
+from leaveimpact.core import (
+    AssessmentReason,
+    ConstraintKey,
+    EntityKind,
+    EvidenceRef,
+    Fact,
+    LeaveKind,
+    PredicateName,
+    Requirement,
+    SkillCriterion,
+    Source,
+    Verdict,
+    clause_ref,
+    work_item_ref,
+)
+from leaveimpact.core.ids import ClauseId, SkillId, scenario_id
 from leaveimpact.core.worldtime import local_date
 from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
@@ -205,6 +219,81 @@ def test_concurrent_leave_needs_a_fallback_in_the_tickets_component() -> None:
     thin = replace(ORG, components=two_members)
     draft = Draft(scenario.owned, scenario.spec.leave_id, scenario.key.impacts)
     assert ConcurrentLeave().admissible(thin, draft) == ()
+
+
+def _constrained_deadline(
+    count: int, holders: int
+) -> tuple[OrgSpec, Draft, tuple[Draft, tuple[ConstraintKey, ...]]]:
+    """A deadline scenario whose ticket carries a clause requiring the unheld skill of
+    ``count`` people, the skill granted on the record to ``holders`` component members, the
+    cover first and then spare members (never the leaver), since the cover is the one the
+    amendment sends away; the organization so amended, the draft with the clause, and the
+    same draft with the clause but no requirement fact."""
+    scenario = _scenario(1, StructuredDeadline())
+    ticket = scenario.owned.work_items[0].entity
+    (expected,) = scenario.key.impacts
+    leaver = scenario.investigated_leave.employee_id
+    cover = next(a.employee_id for a in expected.must_assess if a.verdict is Verdict.VIABLE)
+    unheld = next(skill for skill in ORG.skills if not ORG.holders_of(skill))
+    component = next(c for c in ORG.components if c.id == ticket.component_id)
+    spare = [m for m in component.member_ids if m not in (leaver, cover)]
+    granted = [cover, *spare][:holders]
+    assert len(granted) == holders
+    amended = replace(
+        ORG,
+        employees=tuple(
+            replace(e, skills=(*(e.skills or ()), unheld)) if e.id in granted else e
+            for e in ORG.employees
+        ),
+    )
+    clause = ClauseId("clause_900")
+    constraints = (ConstraintKey(clause, work_item_ref(ticket.id)),)
+    requires = Fact(
+        clause_ref(clause),
+        PredicateName.REQUIRES,
+        Requirement(count, (SkillCriterion(SkillId(unheld)),)),
+        EvidenceRef(Source.CORPUS, clause_ref(clause)),
+        scenario.spec.window.start,
+    )
+    stated = Draft(
+        scenario.owned,
+        scenario.spec.leave_id,
+        scenario.key.impacts,
+        constraints=constraints,
+        authored_facts=(requires,),
+    )
+    unstated = Draft(
+        scenario.owned, scenario.spec.leave_id, scenario.key.impacts, constraints=constraints
+    )
+    return amended, stated, (unstated, constraints)
+
+
+def test_concurrent_leave_counts_coverage_on_the_record_not_spare_bodies() -> None:
+    """The 15.3 ruling: under a clause a fallback must meet its criteria on the HR record.
+    The same spare members that afford the amendment without a clause afford nothing once
+    the clause asks for a skill only the cover holds, and afford it again when one of them
+    holds it too."""
+    cover_only, draft, _ = _constrained_deadline(count=1, holders=1)
+    assert ConcurrentLeave().admissible(cover_only, draft) == ()
+    one_spare, draft, _ = _constrained_deadline(count=1, holders=2)
+    assert len(ConcurrentLeave().admissible(one_spare, draft)) == 1
+
+
+def test_concurrent_leave_affords_nothing_when_a_clause_needs_two_of_exactly_two() -> None:
+    """The cardinality class's shape: a two-person clause over exactly two qualifying people,
+    the cover one of them, survives the cover's leave with one, below two; a third holder
+    restores it."""
+    two, draft, _ = _constrained_deadline(count=2, holders=2)
+    assert ConcurrentLeave().admissible(two, draft) == ()
+    three, draft, _ = _constrained_deadline(count=2, holders=3)
+    assert len(ConcurrentLeave().admissible(three, draft)) == 1
+
+
+def test_concurrent_leave_fails_closed_on_a_constraint_with_no_stated_requirement() -> None:
+    """A constraint the draft states no requirement for proves nothing: no amendment,
+    rather than a spare body counted as coverage of an unknown clause."""
+    org, _, (unstated, _) = _constrained_deadline(count=1, holders=3)
+    assert ConcurrentLeave().admissible(org, unstated) == ()
 
 
 @pytest.mark.parametrize(("scenario_class", "seed"), CLASS_AND_SEED, ids=CLASS_AND_SEED_IDS)

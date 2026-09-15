@@ -100,6 +100,7 @@ from leaveimpact.core.derivation import (
     derive_event,
     derive_leave,
     derive_work_item,
+    record_meets,
 )
 from leaveimpact.core.entities import (
     CalendarEvent,
@@ -365,6 +366,7 @@ __all__ = [
     "derive_event",
     "derive_leave",
     "derive_work_item",
+    "record_meets",
     "document_ref",
     "employee_ref",
     "encode_claim",

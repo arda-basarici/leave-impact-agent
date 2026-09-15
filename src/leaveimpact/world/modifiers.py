@@ -41,10 +41,15 @@ from random import Random
 from types import MappingProxyType
 
 from leaveimpact.core.claims import AssessmentReason, Verdict
+from leaveimpact.core.derivation import record_meets
 from leaveimpact.core.entities import CalendarEvent, Employee, Leave, Team, WorkItem
 from leaveimpact.core.enums import EntityKind, LeaveKind, LeaveStatus, WorkItemStatus
+from leaveimpact.core.facts import PredicateName
 from leaveimpact.core.ids import EmployeeId
-from leaveimpact.core.refs import event_ref, work_item_ref
+from leaveimpact.core.plans import required_count
+from leaveimpact.core.refs import EntityRef, clause_ref, component_ref, event_ref, work_item_ref
+from leaveimpact.core.values import Requirement
+from leaveimpact.core.viability import ResolvedRequirement
 from leaveimpact.core.worldtime import local_date, zone
 from leaveimpact.world.construction import Amendment, Draft, Frame, Modifier
 from leaveimpact.world.org import OrgSpec
@@ -339,15 +344,32 @@ class ConcurrentLeave:
     declares the verdict it changes on every impact the candidate is authored for — the
     reasons merged in the rules' order, so a teammate already non-viable for a ticket by
     component becomes non-viable by availability and component. A modifier may never
-    change the class's declared outcome, so an amendment is admissible only when the
-    impact's structural pool still holds another person: for a ticket, a third member of
-    its component; for a meeting, anyone else in the organization. That is a query over
-    static structure and deliberately weaker than the rule, which verifies the outcome
-    after composition. Admissible per impact, per viable candidate in authored order.
+    change the class's declared outcome, so an amendment is admissible only when coverage
+    survives it (the 15.3 ruling): the impact's structural pool — the other members of a
+    ticket's component, anyone else for a meeting or a section — less the leaver and the
+    candidate sent away, kept to those whose HR record meets every requirement applying
+    to the artifact or its component, still numbers the required count, one when no
+    clause applies. A spare body is not spare coverage: the qualification class's
+    fallback must hold the skill on record, and a class whose clause asks for two of
+    exactly two viable people affords no amendment at all. The pool is the whole
+    organization's static record and never the authored verdicts, which are the graded
+    probes and not the universe (the deadline class's fallback is a member its key never
+    lists). It reads the record and the draft's own requirement facts, never a fact base,
+    closure, availability or run condition, so it is a conservative proof and not the
+    rule: it can under-afford where only a comment or a rule would find someone viable,
+    which the compatibility sweep exposes, and over-afford where a record holder proves
+    unavailable, which the verifier refuses after composition. A constraint the draft
+    states no requirement for proves nothing and affords nothing. The table declares that
+    no valid draft of a class affords the modifier; this query proves the declaration in
+    the sweep instead of contradicting it. Admissible per impact, per viable candidate in
+    authored order.
     """
 
     name = ModifierName.CONCURRENT_LEAVE
-    affordance = "an authored viable candidate whose impact has another person to fall back on"
+    affordance = (
+        "an authored viable candidate whose impact keeps its required coverage on the "
+        "record without them"
+    )
 
     def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
         leaver = _investigated(draft).employee_id
@@ -356,19 +378,55 @@ class ConcurrentLeave:
             for authored in expected.must_assess:
                 if authored.verdict is not Verdict.VIABLE:
                     continue
-                if _pool_without(org, draft, expected, leaver, authored.employee_id):
+                if _coverage_survives(org, draft, expected, leaver, authored.employee_id):
                     amendments.append(_concurrent_amendment(authored.employee_id))
         return tuple(amendments)
 
 
-def _pool_without(
+def _coverage_survives(
     org: OrgSpec, draft: Draft, expected: ExpectedImpact, leaver: EmployeeId, who: EmployeeId
 ) -> bool:
     ticket = _ticket_of(draft, expected)
     if ticket is not None:
         component = next(c for c in org.components if c.id == ticket.component_id)
-        return any(member not in (leaver, who) for member in component.member_ids)
-    return any(employee.id not in (leaver, who) for employee in org.employees)
+        pool = [e for e in org.employees if e.id in component.member_ids]
+        targets = {expected.key.artifact, component_ref(component.id)}
+    else:
+        pool = list(org.employees)
+        targets = {expected.key.artifact}
+    requirements = _stated_requirements(draft, targets)
+    if requirements is None:
+        return False
+    survivors = [
+        e
+        for e in pool
+        if e.id not in (leaver, who)
+        and all(record_meets(e, resolved.requirement.criteria) for resolved in requirements)
+    ]
+    return len(survivors) >= required_count(requirements)
+
+
+def _stated_requirements(
+    draft: Draft, targets: set[EntityRef]
+) -> tuple[ResolvedRequirement, ...] | None:
+    """The requirements the draft's constraints on ``targets`` state through their own
+    ``requires`` facts, in the rules' resolved shape so the threshold is the rules' own;
+    ``None`` when a constraint's requirement is not among the authored facts."""
+    stated = {
+        fact.subject: fact
+        for fact in draft.authored_facts
+        if fact.predicate is PredicateName.REQUIRES and isinstance(fact.value, Requirement)
+    }
+    resolved: list[ResolvedRequirement] = []
+    for constraint in draft.constraints:
+        if constraint.applies_to not in targets:
+            continue
+        fact = stated.get(clause_ref(constraint.clause_id))
+        if fact is None:
+            return None
+        assert isinstance(fact.value, Requirement)
+        resolved.append(ResolvedRequirement(constraint.clause_id, fact.value, fact))
+    return tuple(resolved)
 
 
 def _concurrent_amendment(who: EmployeeId) -> Amendment:
