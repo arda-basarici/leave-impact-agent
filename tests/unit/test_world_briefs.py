@@ -25,8 +25,8 @@ from leaveimpact.core import (
     WorkItemStatus,
     clause_ref,
     comment_ref,
+    component_ref,
     employee_ref,
-    team_ref,
     work_item_ref,
 )
 from leaveimpact.core.ids import clause_id, comment_id, document_id, skill_id, work_item_id
@@ -123,11 +123,27 @@ def test_a_required_fact_names_its_target_as_evidence_and_uses_a_prose_capable_p
 
 def test_an_allowed_fact_never_restates_a_required_one() -> None:
     fact = carried_by(COMMENT)
-    on_the_profile = replace(
-        fact, evidence=EvidenceRef(Source.FRAPPE, employee_ref(CANDIDATE.id), "skills")
+    in_another_comment = replace(
+        fact, evidence=EvidenceRef(Source.JIRA, comment_ref(comment_id(2)))
     )
     with pytest.raises(ProseContractError, match="never restates a required one"):
-        PendingProse(COMMENT, (fact,), (on_the_profile,))
+        PendingProse(COMMENT, (fact,), (in_another_comment,))
+
+
+def test_an_allowed_fact_shares_the_targets_source() -> None:
+    """A fact of another source restated as context would survive that source's outage in
+    the text alone, an evidence path the base does not model; it is required or absent."""
+    on_the_profile = Fact(
+        employee_ref(CANDIDATE.id),
+        PredicateName.HAS_SKILL,
+        "go",
+        EvidenceRef(Source.FRAPPE, employee_ref(CANDIDATE.id), "skills"),
+        DAY,
+    )
+    with pytest.raises(ProseContractError, match="shares the target's source jira"):
+        PendingProse(COMMENT, (carried_by(COMMENT),), (on_the_profile,))
+    with pytest.raises(ProseContractError, match="shares the target's source corpus"):
+        PendingProse(SECTION, (carried_by(SECTION),), (on_the_profile,))
 
 
 def test_an_allowed_fact_is_never_evidenced_by_the_briefs_own_target() -> None:
@@ -247,10 +263,10 @@ def test_pending_positions_fit_the_parents_final_order() -> None:
 def test_an_allowed_fact_is_a_fact_of_the_world() -> None:
     fact = carried_by(COMMENT)
     context = Fact(
-        employee_ref(CANDIDATE.id),
-        PredicateName.MEMBER_OF_TEAM,
-        team_ref(CANDIDATE.team_id),
-        EvidenceRef(Source.FRAPPE, employee_ref(CANDIDATE.id), "team_id"),
+        work_item_ref(TICKET.id),
+        PredicateName.IN_COMPONENT,
+        component_ref(TICKET.component_id),
+        EvidenceRef(Source.JIRA, work_item_ref(TICKET.id), "component_id"),
         DAY,
     )
     brief = brief_for(

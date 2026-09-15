@@ -35,9 +35,11 @@ The *containment check* compares the checker's reading with the brief on canonic
 asserted propositions with a known subject; it must contain every required statement and
 nothing outside the required and allowed ones; any negated or unknown-subject proposition
 and any other claim refuses on its own. A hedged proposition refuses too, with one
-tolerance: a hedge on allowed context whose fact a structured record establishes, since
-benchmark truth does not depend on that prose realization. A hedge on a fact that only
-other prose establishes is a softened conflict the world did not plant, and refuses.
+tolerance: a hedge on allowed context whose fact a structured record of the carrier's
+own source establishes (the brief's construction admits no other allowed source), since
+benchmark truth does not depend on that prose realization under any run condition. A
+hedge on a fact that only other prose establishes is a softened conflict the world did
+not plant, and refuses.
 """
 
 from __future__ import annotations

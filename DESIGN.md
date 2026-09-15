@@ -1382,7 +1382,14 @@ watches for. A sample of three supports no rate.
   same fact; a hedge on a fact that only other prose establishes is a softened conflict
   the world did not plant, and refuses; an allowed fact is never evidenced by the
   brief's own target, since a fact this text evidences is one it must carry. The
-  invariant is checked in code, not left to the classes.
+  invariant is checked in code, not left to the classes. The post-push review added
+  its missing half (2026-09-15): allowed context shares the carrier's source. Required
+  sources are derived under each single source's outage, and a fact of the carrier's
+  own source vanishes with the carrier in that outage, while a fact of another source
+  restated as context would survive its source's outage in the text alone, readable by
+  the agent and absent from the base — the mismatch the runtime rule exists to exclude.
+  A cross-source fact a text states is required, never allowed. The measurement world
+  already conformed: Jira ticket fields in a Jira comment.
 - *The cap (raised, four to eight).* The measurement world estimates no per-attempt pass
   probability, but a cap chosen from the maximum observed attempt count is unsafe once
   exhaustion compounds across a world's prose targets, while an exhausted run costs only

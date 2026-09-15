@@ -64,6 +64,12 @@ TARGET_KINDS_BY_SOURCE: Mapping[Source, frozenset[EntityKind]] = MappingProxyTyp
 )
 """Which kinds of record each source holds — the records an evidence reference can name there."""
 
+SOURCE_BY_TARGET_KIND: Mapping[EntityKind, Source] = MappingProxyType(
+    {kind: source for source, kinds in TARGET_KINDS_BY_SOURCE.items() for kind in kinds}
+)
+"""The one source holding each kind of record — the table above read the other way, which is
+well-defined because no kind is held by two sources."""
+
 
 def with_article(noun: str) -> str:
     """``noun`` with its indefinite article, for messages that name a kind or a member."""

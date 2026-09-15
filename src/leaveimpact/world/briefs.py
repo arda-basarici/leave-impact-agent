@@ -42,7 +42,13 @@ from leaveimpact.core.entities import CalendarEvent, Document, WorkItem
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact, FactBase
 from leaveimpact.core.ids import ClauseId, CommentId, DocumentId, EmployeeId, WorkItemId
-from leaveimpact.core.refs import EntityRef, clause_ref, comment_ref, employee_ref
+from leaveimpact.core.refs import (
+    SOURCE_BY_TARGET_KIND,
+    EntityRef,
+    clause_ref,
+    comment_ref,
+    employee_ref,
+)
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.prose import (
     GIVEN_NAME_KIND,
@@ -195,6 +201,7 @@ def _check_facts(target: ProseTarget, required: Sequence[Fact], allowed: Sequenc
             raise ProseContractError(
                 f"{target.id}: {fact.predicate.value} cannot be carried by prose"
             )
+    carrier_source = SOURCE_BY_TARGET_KIND[ref.kind]
     for fact in allowed:
         # A fact this text evidences is one the text must carry, which makes it required;
         # allowing it instead would let a hedge or an omission pass as context.
@@ -202,6 +209,20 @@ def _check_facts(target: ProseTarget, required: Sequence[Fact], allowed: Sequenc
             raise ProseContractError(
                 f"{target.id}: an allowed fact is evidenced elsewhere, a fact this target "
                 f"evidences is required, got {fact.predicate.value} of {fact.subject.id}"
+            )
+        # Allowed context is harmless only while restating it in prose opens no evidence
+        # path the fact base does not model. Required sources are derived by asking the
+        # rules under each single source's outage; a fact of the carrier's own source
+        # vanishes with its carrier in that outage, but a fact of another source restated
+        # here would survive that source's outage in this text alone, readable by the
+        # agent and absent from the base (the review of 2026-09-15). Such a fact is
+        # required, so the base carries its second evidence record, or stays out of the
+        # text.
+        if fact.evidence.source is not carrier_source:
+            raise ProseContractError(
+                f"{target.id}: an allowed fact shares the target's source "
+                f"{carrier_source.value}, got {fact.predicate.value} of {fact.subject.id} "
+                f"evidenced by {fact.evidence.source.value}"
             )
     if len(set(required)) != len(required):
         raise ProseContractError(f"{target.id}: a required fact is stated once")

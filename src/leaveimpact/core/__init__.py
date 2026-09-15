@@ -164,6 +164,7 @@ from leaveimpact.core.ports.read import (
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
+    SOURCE_BY_TARGET_KIND,
     TARGET_KINDS_BY_SOURCE,
     EntityRef,
     EvidenceRef,
@@ -242,6 +243,7 @@ __all__ = [
     "REGISTRY",
     "REQUIREMENT_VALUE",
     "SKILL_VALUE",
+    "SOURCE_BY_TARGET_KIND",
     "TARGET_KINDS_BY_SOURCE",
     "TEXT_VALUE",
     "Assessment",
