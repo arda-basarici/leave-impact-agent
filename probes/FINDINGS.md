@@ -676,7 +676,12 @@ Projection stopped at the calendar: `POST /calendars` → 403 `usageLimits /
 quotaExceeded`, "Calendar usage limits exceeded". A world is one secondary calendar per
 employee (28) under one consumer OAuth principal; the first world's 28 exist, and this
 run's creations hit Google's creation quota partway. The quota is a rate on calendar
-creation, documented only as "usage limits" with no number or window; the checkpoint
+creation. Google's Workspace Help ("Avoid Calendar use limits", verified 2026-09-14):
+"Do not create more than 60 calendars in a short period", time to replenish "possibly
+several hours" — the period and the reset undefined, consumer accounts not addressed;
+community reports put the block at 4–24 hours. The first world's 28 creations were 6.5
+hours before this run's, so the window likely spans both: 56 plus the probe's three,
+at the threshold. Practical rule: one world's projection per day. The checkpoint
 under `preparing/` holds the calendars made, so the run continues with
 `--resume 785bc4cd…` once the quota lifts — the resume proves the sealed provenance and
 adds only what is missing (find-verify-add). Not yet known: the window, and how many
