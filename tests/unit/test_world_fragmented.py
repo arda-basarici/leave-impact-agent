@@ -1,5 +1,5 @@
-"""The fragmented tier's two primitives over a sweep of seeds: the shape each class promises,
-the canonical affordance order and determinism.
+"""The fragmented tier's classes over a sweep of seeds: the shape each class promises, the
+canonical affordance order and determinism.
 
 The qualification class: a meeting under a scenario-owned skill clause, the viable cover's
 skill carried only by a comment brief that derives as answer-changing, a second candidate
@@ -8,7 +8,10 @@ naming the leaver as the contact under a procedure clause requiring a skill of t
 one candidate viable on the HR record and one failing by skill; its key requires the tracker
 with no tracker artifact, because required-source derivation is semantic rather than
 provenance-based (DESIGN, the 15.2 interview's second ruling, where the probe and the
-argument for why no silent-drift test exists are recorded).
+argument for why no silent-drift test exists are recorded). The composite: the responsibility
+class's note and clause with the section carrying a second fact, the cover's skill, which
+their HR record lacks; both facts answer-changing on their own, the key requiring the same
+three sources (the 15.4 rulings).
 """
 
 from datetime import date
@@ -31,10 +34,14 @@ from leaveimpact.core import (
     event_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import SkillId, scenario_id
+from leaveimpact.core.facts import Fact
+from leaveimpact.core.ids import EmployeeId, SkillId, scenario_id
 from leaveimpact.core.values import EmploymentTypeCriterion, Requirement, SkillCriterion
+from leaveimpact.core.viability import Assessment
 from leaveimpact.world import (
     DEFAULT_PARAMS,
+    Draft,
+    FragmentedComposite,
     Frame,
     FreeTextQualification,
     FreeTextResponsibility,
@@ -68,10 +75,16 @@ SEEDS = range(1, 21)
 QUALIFICATION = FreeTextQualification()
 RESPONSIBILITY = FreeTextResponsibility()
 CARDINALITY = ReleaseCardinalityConstraint()
+COMPOSITE = FragmentedComposite()
 BY_ID = {employee.id: employee for employee in ORG.employees}
 
 
-FragmentedClass = FreeTextQualification | FreeTextResponsibility | ReleaseCardinalityConstraint
+FragmentedClass = (
+    FreeTextQualification
+    | FreeTextResponsibility
+    | ReleaseCardinalityConstraint
+    | FragmentedComposite
+)
 
 
 def _scenario(seed: int, scenario_class: FragmentedClass = QUALIFICATION) -> Scenario:
@@ -305,6 +318,134 @@ def test_the_cardinality_key_requires_the_three_sources_its_artifacts_and_rules_
 
 def test_the_same_cardinality_inputs_give_an_equal_scenario() -> None:
     assert _scenario(3, CARDINALITY) == _scenario(3, CARDINALITY)
+
+
+# --- fragmented_composite ----------------------------------------------------------------
+
+
+def test_the_org_affords_the_composite_class_in_a_canonical_order() -> None:
+    first, second = COMPOSITE.admissible(ORG), COMPOSITE.admissible(ORG)
+    assert first and len(first) == len(second)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_every_organization_affords_the_composite(seed: int) -> None:
+    # The roles are a query the organization's broad skill answers on every seed: a skill
+    # with two record-holders and two recorded employees lacking it.
+    assert COMPOSITE.admissible(generate_org(seed, DEFAULT_PARAMS))
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_composite_scenario_has_the_shape_the_class_promises(seed: int) -> None:
+    scenario = _scenario(seed, COMPOSITE)
+    [expected] = scenario.key.impacts
+    assert expected.key.subtype is ImpactSubtype.RESPONSIBILITY
+    [brief] = scenario.briefs
+    assert isinstance(brief.target, SectionTarget) and brief.register is Register.CLIENT_NOTE
+    section = clause_ref(brief.target.id)
+    assert expected.key.artifact == section
+    [constraint] = scenario.key.constraints
+    assert constraint.applies_to == section
+    note, procedure = scenario.owned.documents
+    assert note.entity.kind is DocumentKind.CLIENT_NOTE and note.entity.sections == ()
+    assert brief.target.document_id == note.entity.id and brief.target.position == 0
+    [clause] = procedure.entity.sections
+    assert clause.id == constraint.clause_id and note.entity.title in clause.text
+    cover, failing = expected.must_assess
+    assert cover.verdict is Verdict.VIABLE
+    assert failing.verdict is Verdict.NON_VIABLE and failing.reasons == (AssessmentReason.SKILL,)
+    # Two required facts of different subject shape, the section itself and then the cover,
+    # each answer-changing on its own; no allowed context on a section.
+    names, evidenced = brief.required
+    leaver = scenario.owned.leaves[0].entity.employee_id
+    assert names.fact.predicate is PredicateName.NAMES_RESPONSIBLE
+    assert names.fact.subject == section
+    assert isinstance(names.fact.value, EntityRef) and names.fact.value.id == leaver
+    assert evidenced.fact.predicate is PredicateName.HAS_SKILL
+    assert evidenced.fact.subject.id == cover.employee_id
+    assert evidenced.fact.evidence.source is Source.CORPUS
+    assert evidenced.fact.evidence.target == section
+    assert names.role is FactRole.ANSWER_CHANGING
+    assert evidenced.role is FactRole.ANSWER_CHANGING
+    assert brief.allowed == ()
+    # The skill is on the leaver's record and on neither candidate's, so the note is the
+    # cover's only evidence and the failing candidate's known-negative is the contrast.
+    skill = _required_skill(scenario)
+    assert evidenced.fact.value == skill
+    assert skill in (BY_ID[leaver].skills or ())
+    assert skill not in (BY_ID[cover.employee_id].skills or ())
+    assert skill not in (BY_ID[failing.employee_id].skills or ())
+    assert SKILL_NAMES[skill] in clause.text
+    # The writer's namespace gains the cover and the skill beside the note's own names.
+    assert {form.form for form in brief.namespace.forms} == {
+        note.entity.title,
+        client_of(scenario_id(seed)),
+        BY_ID[leaver].name,
+        BY_ID[leaver].name.split()[0],
+        BY_ID[cover.employee_id].name,
+        BY_ID[cover.employee_id].name.split()[0],
+        SKILL_NAMES[skill],
+    }
+
+
+def test_the_cover_is_viable_through_the_note_alone_while_the_reserve_holds() -> None:
+    """The prose skill is load-bearing for the graded verdict and not for the outcome: without
+    the section's skill fact the cover fails by skill, and the other record-holders stay
+    viable, the reserve a concurrent leave on the cover relies on (the 15.4 rulings)."""
+    for index, construction in enumerate(COMPOSITE.admissible(ORG)):
+        rng = Random(index)
+        window = SLICES[index % len(SLICES)]
+        leave = place_leave(rng, window)
+        frame = Frame(
+            scenario_id(index + 1),
+            window,
+            leave,
+            place_now(rng, leave, TZ),
+            TZ,
+            WORLD_START,
+            Minting(),
+        )
+        draft = construction(frame, rng)
+        [expected] = draft.impacts
+        cover, _ = expected.must_assess
+        [evidenced] = [f for f in draft.authored_facts if f.predicate is PredicateName.HAS_SKILL]
+        with_note = _assessments(draft, frame, draft.authored_facts)
+        without = _assessments(
+            draft, frame, tuple(f for f in draft.authored_facts if f != evidenced)
+        )
+        assert with_note[cover.employee_id].verdict is Verdict.VIABLE
+        assert without[cover.employee_id].verdict is Verdict.NON_VIABLE
+        assert AssessmentReason.SKILL in without[cover.employee_id].reasons
+        reserve = {who for who, a in without.items() if a.verdict is Verdict.VIABLE}
+        assert reserve and cover.employee_id not in reserve
+
+
+def _assessments(
+    draft: Draft, frame: Frame, facts: tuple[Fact, ...]
+) -> dict[EmployeeId, Assessment]:
+    """The rules' verdict per employee on the draft's one impact, over ``facts`` as the
+    authored facts, everyone in the organization assessed."""
+    [expected] = draft.impacts
+    base = truth_fact_base(ORG, WORLD_START, [draft.owned], facts)
+    view = base.at(frame.now.date(), RunCondition.all_reachable())
+    universe = [employee.id for employee in ORG.employees]
+    assessments = assess_impact(view, expected.key, universe, draft.constraints, frame.leave, TZ)
+    return {assessment.employee_id: assessment for assessment in assessments}
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_composite_key_requires_the_three_sources_with_no_tracker_artifact(seed: int) -> None:
+    # The responsibility parent's reading: the tracker through the failing candidate's
+    # known-negative, the corpus through the section and the clause, the record through
+    # the leave; and since the skill predicate's domain holds the corpus, the corpus is also
+    # required through the known-negative, which the set cannot show twice.
+    scenario = _scenario(seed, COMPOSITE)
+    assert scenario.owned.work_items == () and scenario.owned.events == ()
+    assert set(scenario.key.required_sources) == {Source.CORPUS, Source.FRAPPE, Source.JIRA}
+
+
+def test_the_same_composite_inputs_give_an_equal_scenario() -> None:
+    assert _scenario(3, COMPOSITE) == _scenario(3, COMPOSITE)
 
 
 def test_the_client_is_one_name_per_scenario_number_across_a_golden_world() -> None:

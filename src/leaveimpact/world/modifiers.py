@@ -578,6 +578,12 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         # either of exactly two viable holders leaves one against a count of two, which
         # coverage-aware admissibility proves and the row declares (the 15.3 rulings).
         ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT: _ALL - {ModifierName.CONCURRENT_LEAVE},
+        # The composite owns the responsibility class's artifacts, a section and a clause,
+        # so it affords what a section affords; the reserve holders its roles provision keep
+        # the outcome at assign when the cover is sent away (the 15.4 rulings).
+        ScenarioClassName.FRAGMENTED_COMPOSITE: frozenset(
+            {ModifierName.CONCURRENT_LEAVE, ModifierName.TIMEZONE_BOUNDARY}
+        ),
     }
 )
 """The modifiers every draft of each class affords; a pair is compatible when both are."""

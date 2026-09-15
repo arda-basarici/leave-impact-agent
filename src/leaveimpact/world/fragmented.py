@@ -45,6 +45,21 @@ in truth coincide. Concurrent leave is the one modifier the class does not affor
 either holder away leaves one against a count of two, which the coverage-aware admissibility
 proves in the compatibility sweep.
 
+``fragmented_composite`` is the tier's fixed pairing (the 15.4 rulings, 2026-09-15): the
+responsibility in prose with the viable candidate's qualification also in prose, in one
+client note's section under one template-written procedure clause. The section names the
+leaver as the account's contact and states that the cover has worked with the required
+skill; the cover's HR record lacks it, so the section is both the impact's only ground and
+the cover's only qualification, two facts of different subject shape (the section itself,
+then the cover) that one text must carry and one checker must extract, each answer-changing
+on its own: without the naming there is no impact, without the skill the cover fails by
+skill. A client note evidencing a skill is what the skill predicate's corpus evidence
+admits, ruled globally at this class (a skill is a set, so a second source adds evidence
+and never a conflict; a known-negative needs the corpus answered too). The leaver holds the
+skill on the record, the failing candidate's record lacks it, and every other record-holder
+is the reserve that keeps a concurrent leave on the cover from moving the outcome, the
+responsibility parent's semantics. Only the section is paid for.
+
 The qualification roles are a query over the static organization in canonical order: a
 skill some record holds, a cover whose record lacks it and who belongs to a component
 (their ticket lives there), the first other record-holder lacking it, and the first leaver
@@ -55,7 +70,10 @@ fallback that keeps a concurrent leave on the viable one from moving the outcome
 first record-holder lacking the skill the failing candidate. The cardinality roles: for each
 skill held by exactly two employees and one contractor, the component seating all three with
 exactly two more members, both recorded employees lacking the skill, each of the two the
-leaver in turn and the other the failing candidate. Titles and the clauses are templates
+leaver in turn and the other the failing candidate. The composite roles: a skill with at least
+two record-holders and at least two recorded non-holders, each holder in turn the leaver, the
+other holders the reserve, the first two non-holders in record order the cover and the failing
+candidate. Titles and the clauses are templates
 over the vocabulary's forms, which the scanner knows; only the comment and the section are
 paid for.
 """
@@ -63,6 +81,7 @@ paid for.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from random import Random
 from types import MappingProxyType
 
@@ -74,10 +93,10 @@ from leaveimpact.core.claims import (
     ImpactSubtype,
     Verdict,
 )
-from leaveimpact.core.entities import Component, Document, DocumentSection, Employee, Team
+from leaveimpact.core.entities import Component, Document, DocumentSection, Employee, Leave, Team
 from leaveimpact.core.enums import DocumentKind, EmploymentType, Source
 from leaveimpact.core.facts import Fact
-from leaveimpact.core.ids import SkillId
+from leaveimpact.core.ids import ClauseId, SkillId
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import (
     EvidenceRef,
@@ -174,11 +193,28 @@ class ReleaseCardinalityConstraint:
         return tuple(_cardinality_construction(*roles) for roles in _cardinality_roles(org))
 
 
+class FragmentedComposite:
+    """One client note's section names the leaver as the contact and states the cover's skill,
+    under a procedure clause requiring that skill of the contact: the responsibility and the
+    qualification in prose together, each answer-changing on its own."""
+
+    name = ScenarioClassName.FRAGMENTED_COMPOSITE
+    tier = Tier.FRAGMENTED
+    affordance = (
+        "a skill with at least two record-holders (the leaver and a reserve) and at least two "
+        "recorded employees lacking it (the cover and the failing candidate)"
+    )
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        return tuple(_composite_construction(*roles) for roles in _composite_roles(org))
+
+
 FRAGMENTED_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
     {
         ScenarioClassName.FREE_TEXT_QUALIFICATION: FreeTextQualification(),
         ScenarioClassName.FREE_TEXT_RESPONSIBILITY: FreeTextResponsibility(),
         ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT: ReleaseCardinalityConstraint(),
+        ScenarioClassName.FRAGMENTED_COMPOSITE: FragmentedComposite(),
     }
 )
 """The fragmented classes built so far, by name."""
@@ -374,6 +410,25 @@ def _cardinality_roles(
     return roles
 
 
+def _composite_roles(org: OrgSpec) -> list[tuple[SkillId, Employee, Employee, Employee]]:
+    """(skill, leaver, cover, failing candidate), in canonical order: each holder of a skill held
+    by at least two is the leaver in turn, the other holders the reserve a concurrent leave
+    needs, and the first two recorded employees lacking the skill are the cover, who gains it
+    only in the note, and the failing candidate."""
+    roles: list[tuple[SkillId, Employee, Employee, Employee]] = []
+    for skill in org.skills:
+        holders = org.holders_of(skill)
+        if len(holders) < 2:
+            continue
+        holder_ids = {holder.id for holder in holders}
+        lacking = [e for e in org.employees if e.skills is not None and e.id not in holder_ids]
+        if len(lacking) < 2:
+            continue
+        cover, failing = lacking[0], lacking[1]
+        roles.extend((skill, leaver, cover, failing) for leaver in holders)
+    return roles
+
+
 def _cardinality_construction(
     skill: SkillId,
     component: Component,
@@ -451,71 +506,127 @@ def client_of(scenario_id: str) -> str:
     return CLIENT_NAMES[(number - 1) % len(CLIENT_NAMES)]
 
 
+@dataclass(frozen=True, slots=True)
+class _AccountDocuments:
+    """A client's note with its one pending section and the procedure clause scoped to the note:
+    the artifacts the responsibility class and the composite share, planted for a leaver."""
+
+    note: Document
+    section: ClauseId
+    names: Fact
+    procedure: Document
+    clause: ClauseId
+    requires: Fact
+
+
+def _account_documents(frame: Frame, skill: SkillId, leaver: Employee) -> _AccountDocuments:
+    visible = frame.window.start
+    client = client_of(frame.scenario_id)
+    section = frame.ids.clause()
+    # The note's sections are empty here: the section is the model's, filled in at
+    # materialization at the pending target's position.
+    note = Document(
+        frame.ids.document(),
+        NOTE_TITLE.format(client=client),
+        DocumentKind.CLIENT_NOTE,
+        visible,
+        (),
+    )
+    names = Fact(
+        clause_ref(section),
+        PredicateName.NAMES_RESPONSIBLE,
+        employee_ref(leaver.id),
+        EvidenceRef(Source.CORPUS, clause_ref(section)),
+        visible,
+    )
+    clause = frame.ids.clause()
+    procedure = Document(
+        frame.ids.document(),
+        PROCEDURE_TITLE.format(client=client),
+        DocumentKind.PROCEDURE,
+        visible,
+        (
+            DocumentSection(
+                clause, PROCEDURE_CLAUSE.format(client=client, skill=SKILL_NAMES[skill])
+            ),
+        ),
+    )
+    requires = Fact(
+        clause_ref(clause),
+        PredicateName.REQUIRES,
+        Requirement(1, (SkillCriterion(skill),)),
+        EvidenceRef(Source.CORPUS, clause_ref(clause)),
+        visible,
+    )
+    return _AccountDocuments(note, section, names, procedure, clause, requires)
+
+
+def _account_draft(
+    frame: Frame,
+    docs: _AccountDocuments,
+    leave: Planted[Leave],
+    viable: Employee,
+    failing: Employee,
+    *,
+    section_facts: tuple[Fact, ...],
+) -> Draft:
+    """The draft both account classes end in: the responsibility impact on the note's section,
+    one viable and one skill-failing candidate, the clause scoped to the section, and the
+    section pending with ``section_facts`` as its required facts. No allowed context: a
+    section has no structured record of its own source, so every fact it states is required
+    and every hedge refuses (the 15.2 rulings)."""
+    visible = frame.window.start
+    impact = ImpactKey(leave.entity.id, ImpactSubtype.RESPONSIBILITY, clause_ref(docs.section))
+    expected = ExpectedImpact(
+        impact,
+        CoverageActionKind.ASSIGN,
+        (
+            AuthoredVerdict(viable.id, Verdict.VIABLE),
+            AuthoredVerdict(failing.id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,)),
+        ),
+    )
+    owned = OwnedEntities(
+        leaves=(leave,),
+        documents=(Planted(docs.note, visible), Planted(docs.procedure, visible)),
+    )
+    return Draft(
+        owned,
+        leave.entity.id,
+        (expected,),
+        constraints=(ConstraintKey(docs.clause, clause_ref(docs.section)),),
+        authored_facts=(docs.requires, *section_facts),
+        pending=(PendingProse(SectionTarget(docs.section, docs.note.id, 0), section_facts),),
+    )
+
+
 def _responsibility_construction(
     skill: SkillId, leaver: Employee, viable: Employee, other: Employee
 ) -> Construction:
     def plant(frame: Frame, rng: Random) -> Draft:
-        visible = frame.window.start
-        client = client_of(frame.scenario_id)
         leave = plant_leave(frame, leaver)
-        section = frame.ids.clause()
-        # The note's sections are empty here: the section is the model's, filled in at
-        # materialization at the pending target's position.
-        note = Document(
-            frame.ids.document(),
-            NOTE_TITLE.format(client=client),
-            DocumentKind.CLIENT_NOTE,
-            visible,
-            (),
+        docs = _account_documents(frame, skill, leaver)
+        return _account_draft(frame, docs, leave, viable, other, section_facts=(docs.names,))
+
+    return plant
+
+
+def _composite_construction(
+    skill: SkillId, leaver: Employee, cover: Employee, failing: Employee
+) -> Construction:
+    def plant(frame: Frame, rng: Random) -> Draft:
+        leave = plant_leave(frame, leaver)
+        docs = _account_documents(frame, skill, leaver)
+        # The section's second fact: the cover's record lacks the skill, so the note is its
+        # only evidence, which the skill predicate's corpus domain admits (the 15.4 rulings).
+        evidenced = Fact(
+            employee_ref(cover.id),
+            PredicateName.HAS_SKILL,
+            skill,
+            EvidenceRef(Source.CORPUS, clause_ref(docs.section)),
+            frame.window.start,
         )
-        names = Fact(
-            clause_ref(section),
-            PredicateName.NAMES_RESPONSIBLE,
-            employee_ref(leaver.id),
-            EvidenceRef(Source.CORPUS, clause_ref(section)),
-            visible,
-        )
-        clause = frame.ids.clause()
-        procedure = Document(
-            frame.ids.document(),
-            PROCEDURE_TITLE.format(client=client),
-            DocumentKind.PROCEDURE,
-            visible,
-            (
-                DocumentSection(
-                    clause, PROCEDURE_CLAUSE.format(client=client, skill=SKILL_NAMES[skill])
-                ),
-            ),
-        )
-        requires = Fact(
-            clause_ref(clause),
-            PredicateName.REQUIRES,
-            Requirement(1, (SkillCriterion(skill),)),
-            EvidenceRef(Source.CORPUS, clause_ref(clause)),
-            visible,
-        )
-        impact = ImpactKey(leave.entity.id, ImpactSubtype.RESPONSIBILITY, clause_ref(section))
-        expected = ExpectedImpact(
-            impact,
-            CoverageActionKind.ASSIGN,
-            (
-                AuthoredVerdict(viable.id, Verdict.VIABLE),
-                AuthoredVerdict(other.id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,)),
-            ),
-        )
-        owned = OwnedEntities(
-            leaves=(leave,),
-            documents=(Planted(note, visible), Planted(procedure, visible)),
-        )
-        # No allowed context: a section has no structured record of its own source, so
-        # every fact it states is required and every hedge refuses (the 15.2 rulings).
-        return Draft(
-            owned,
-            leave.entity.id,
-            (expected,),
-            constraints=(ConstraintKey(clause, clause_ref(section)),),
-            authored_facts=(requires, names),
-            pending=(PendingProse(SectionTarget(section, note.id, 0), (names,)),),
+        return _account_draft(
+            frame, docs, leave, cover, failing, section_facts=(docs.names, evidenced)
         )
 
     return plant
@@ -530,6 +641,7 @@ __all__ = [
     "PROCEDURE_TITLE",
     "RELEASE_POLICY_CLAUSE",
     "RELEASE_POLICY_TITLE",
+    "FragmentedComposite",
     "FreeTextQualification",
     "FreeTextResponsibility",
     "ReleaseCardinalityConstraint",

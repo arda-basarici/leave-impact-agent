@@ -1,8 +1,11 @@
-"""The 15.2 workstation probe: several responsibility briefs through writer and checker, once
+"""The section probe: several briefs of one section class through writer and checker, once
 each, with the guards' verdicts, for human inspection. Development probing, nothing sealed.
 
-Run with the SSO profile logged in and the three prose variables set; prints the text,
-the checker's raw tool input and the guard result per construction, then totals.
+Run with the SSO profile logged in and the three prose variables set; prints the brief's
+required facts, the text, the checker's raw tool input and the guard result per
+construction, then totals. ``PROBE_CLASS`` picks the class (the responsibility class at
+15.2, the composite at 15.4, whose section carries two facts of different subject shape),
+``PROBE_COUNT`` the number of constructions.
 """
 
 import json
@@ -22,11 +25,26 @@ from leaveimpact.generator.guards import (  # noqa: E402
     required_fact_findings,
 )
 from leaveimpact.generator.prose.assets import load_prompt_assets  # noqa: E402
-from leaveimpact.generator.prose.render import checker_request, writer_request  # noqa: E402
+from leaveimpact.generator.prose.render import (  # noqa: E402
+    checker_request,
+    describe_fact,
+    writer_request,
+)
 from leaveimpact.generator.prose.schema import ExtractionMalformed, parse_extraction  # noqa: E402
-from leaveimpact.world import FreeTextResponsibility, Minting, allocate_slices, construct  # noqa: E402
+from leaveimpact.world import (  # noqa: E402
+    FragmentedComposite,
+    FreeTextResponsibility,
+    Minting,
+    allocate_slices,
+    construct,
+)
 from leaveimpact.world.briefs import lexicon_of, target_ref  # noqa: E402
 
+CLASSES = {
+    FreeTextResponsibility.name.value: FreeTextResponsibility(),
+    FragmentedComposite.name.value: FragmentedComposite(),
+}
+PROBE_CLASS = CLASSES[os.environ.get("PROBE_CLASS", FragmentedComposite.name.value)]
 COUNT = int(os.environ.get("PROBE_COUNT", "6"))
 SLICES = allocate_slices(Random(0), 30, WORLD_START)
 
@@ -37,7 +55,7 @@ def main() -> int:
     totals = {"writer_in": 0, "writer_out": 0, "checker_in": 0, "checker_out": 0, "passed": 0}
     for number in range(1, COUNT + 1):
         scenario = construct(
-            FreeTextResponsibility(),
+            PROBE_CLASS,
             (),
             ORG,
             scenario_id=scenario_id(number),
@@ -51,9 +69,10 @@ def main() -> int:
         lexicon = lexicon_of(ORG, documents=[p.entity for p in scenario.owned.documents])
         world_forms = lexicon.forms()
         note, procedure = scenario.owned.documents
-        contact = brief.namespace.form_of("employee", scenario.owned.leaves[0].entity.employee_id)
-        print(f"\n=== construction {number}: {note.entity.title!r} / contact {contact}")
+        print(f"\n=== construction {number}: {note.entity.title!r}")
         print(f"    procedure clause: {procedure.entity.sections[0].text}")
+        for required in brief.required:
+            print(f"    required: {describe_fact(required.fact, lexicon)}")
         request = writer_request(brief, lexicon, assets)
         written = writer.write(request)
         totals["writer_in"] += written.usage.input_tokens

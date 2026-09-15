@@ -105,6 +105,7 @@ from leaveimpact.world.construction import (
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.fragmented import (
     FRAGMENTED_CLASSES,
+    FragmentedComposite,
     FreeTextQualification,
     FreeTextResponsibility,
     ReleaseCardinalityConstraint,
@@ -326,6 +327,7 @@ __all__ = [
     "Skill",
     "StructuredDeadline",
     "StructuredMeeting",
+    "FragmentedComposite",
     "FreeTextQualification",
     "FreeTextResponsibility",
     "ReleaseCardinalityConstraint",

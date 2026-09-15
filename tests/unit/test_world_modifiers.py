@@ -38,6 +38,7 @@ from leaveimpact.world import (
     ConcurrentLeave,
     DistractorReason,
     Draft,
+    FragmentedComposite,
     Frame,
     FreeTextQualification,
     FreeTextResponsibility,
@@ -75,6 +76,7 @@ CLASSES: tuple[ScenarioClass, ...] = (
     FreeTextQualification(),
     FreeTextResponsibility(),
     ReleaseCardinalityConstraint(),
+    FragmentedComposite(),
 )
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [

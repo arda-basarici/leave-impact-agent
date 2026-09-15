@@ -932,3 +932,28 @@ line echoed, the sentence-frame convergence the gate flagged at its limit. The c
 structural: the section has one fact and no context, and every elaboration was refused,
 so the accepted shape is the fact restated. Accepted for M1 on record (the 15.2 addendum
 in DESIGN); the golden audit reads the frame across the class.
+
+**The composite's section, two facts of different subject shape (2026-09-15, 15.4; the
+probe script takes the class by `PROBE_CLASS`).** The gate the composite's first ruling set
+before its class commit: one section carrying the contact naming (subject the section
+itself) and the cover's skill (subject the cover), the checker extracting both with the
+right subjects and no extra proposition. Six constructions over the fixture organization,
+the same models, two runs of one change each:
+
+| run | change | accepted | refusal |
+|---|---|---|---|
+| 1 | as built | 4 of 6 | the checker's tool input without `other_claims` at all (twice), a schema field it marks required; every text carried both facts with the right subjects |
+| 2 | the checker's system prompt: fill `other_claims` on every call, an empty list when there is nothing of that kind | 6 of 6 | none; the six texts identical to run 1's |
+
+What the raw extractions showed. Both facts extracted on all twelve texts: the skill as a
+proposition on the cover's id with the skill's vocabulary key, the naming as a proposition
+the checker anchors on the person (subject and value the contact's id), which the carrier
+rule accepts since a fact whose subject is the carrier anchors on its value alone. The
+omission of an empty `other_claims` is a checker-format fault, not a text fault, and it
+costs more than one attempt: the attempt loop re-checks the same text on a malformed
+extraction, at temperature zero, so a repeatable omission exhausts the checker's retries and
+aborts the target. Six of six after the sentence is a sample, not a rate; the audit at step 16
+reads the sealed checker retry counts. The sentence frame: six of six two-sentence texts, each
+sentence the brief's own fact description with the client's name in place of "the account
+this note covers", the second fact varying nothing about the first's frame. Recorded, not
+tuned, per the composite's second ruling; the human audit reads the realized texts.
