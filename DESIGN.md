@@ -1211,7 +1211,10 @@ a carrier-subject proposition to the brief's target rather than the prompt namin
 target — nothing for a model to extract, no identity reaching it — which also repairs a
 latent step 14 gap: the checker's entity list never held a carrier, so no clause-subject
 fact, `requires` included, could have passed the extraction guard. The prompt line that
-sent responsibilities to the other-claims bucket goes with it.
+sent responsibilities to the other-claims bucket goes with it. For a prose-carried fact M1 proves artifact fidelity (the validator, against the sealed
+document) and cache containment (the materializer's gate at the corpus load); whether the
+investigator's retrieval strategy surfaces a section is measured separately as evidence
+coverage in M2 and is not a world-validity invariant (the 15.2 interview, 2026-09-15).
 
 *Impact grounding is a conclusion.* Impacts were authored and never derived: the rules
 concluded verdicts and outcomes for an expected impact and nothing asked whether the
@@ -1418,6 +1421,86 @@ watches for. A sample of three supports no rate.
   reasons are failure-path attribution, never proof of writer or checker blame, which
   the hand audit supplies. A record sealed before decodes with the reasons unavailable,
   never zero, the counters' own convention; no generator version bump.
+
+*The responsibility class, ruled (2026-09-15, the 15.2 interview).* Six questions, one
+per exchange, an external low-context reviewer's read on each and Arda's ruling; the
+probe behind the second is recorded in `probes/FINDINGS.md` (`source-dependence`).
+
+- *Readability is two proven properties and one deferred measurement (adopted).* The
+  validator proves artifact fidelity against the sealed document, the corpus load proves
+  cache containment; retrievability by the harness's query is M2's evidence-coverage axis.
+  No validator query of the live corpus, which would reinstate a system step 12 demoted
+  to the application's cache, for a property that has no definition without the query.
+- *The step 8 carry, resolved into a test and a conditional risk (adopted).* The class
+  plants no tracker artifact and its key requires the tracker anyway, through the
+  known-negatives of everyone lacking the required skill (assessments run over the whole
+  organization and a skill in a comment is in the predicate's domain): required-source
+  derivation is semantic, not provenance-based, and a construction test pins it. The
+  other half of the carry, a foreign fact that changes the derived required-source set
+  while every ordinary conclusion (groundings, assessments, open questions, outcomes,
+  conflicts) stays unchanged, no current class can produce: provenance pins the HR
+  record (the leave) and each artifact's source and a foreign fact cannot unpin them;
+  the tracker is the only source that enters by outage alone, cannot leave without a
+  foreign fact moving a verdict first, and cannot enter a clause-free scenario since
+  constraints are scenario-scoped and nothing else reads it by outage; the corpus is
+  outside the skill predicate's domain and is never promoted under a tracker outage for
+  ownership. A test built to exhibit the shape would need semantics production lacks and
+  would test the fixture, so none is written. The carry is a conditional risk whose
+  preconditions do not exist: each remaining class runs the probe; at 15.5 it closes on
+  the probe evidence, the registry and authority argument and an explicit re-arm list, a
+  documented claim about the current system and not a general proof. Re-arm whenever a
+  rule or registry change creates a new way for source outage sensitivity to vary
+  independently of ordinary conclusions: a predicate gaining another plantable evidence
+  source, a change of authority or fallback, a rule reading workload or another unused
+  domain, applicability derivation introducing a source, or a change to the derivation
+  itself.
+- *The construction (adopted).* The client is the note's canonical title and nothing
+  else, no client entity; the procedure clause names the note by that title and the
+  structured constraint applies to the section id, the two scopes coinciding because the
+  note is that one section. The leaver holds the required skill (a designated contact
+  lacking what the handover procedure demands would be a world contradiction); one
+  candidate viable by holding it on the HR record, one record-holder lacking it
+  non-viable by skill; the class chooses enough non-leaver holders that every compatible
+  modifier preserves its declared assign outcome. One contact in one section; no allowed
+  context, so every extracted benchmark-relevant proposition is the required
+  responsibility fact and, with no structured record of the section's source, every
+  hedge refuses. The existing viability rule applied a clause to a section artifact
+  unchanged (the probe).
+- *The prompt touch (adopted).* The checker is told that the carrier description
+  identifies the text and asserts nothing about the world, a hypothesis fix for the
+  hedged-ownership reading of the measurement world, judged by the step 16 audit and not
+  a proven root cause. A section's writer request gains the structural carrier line the
+  checker already has (the document's title, never the contact), and the client-note
+  register is third person, written by a colleague, naming people by name, because a
+  section has no author for a first-person statement to bind to and every fresh attempt
+  would refuse identically. The writer reads the responsibility fact as domain content
+  ("the contact responsible for the account this note covers"). The two changed assets
+  re-pin their digests; the rendering changes are generator code.
+- *No second measured world (adopted).* The measurement world was a one-time design
+  checkpoint and its purpose is paid; repeating the projection lifecycle per new register
+  would make it a standing ritual, and a seal-only mode would be permanent machinery for
+  a temporary exercise. Before 15.2 closes, several unsealed writer-to-checker passes
+  across representative responsibility briefs (different constructions: names, skill,
+  title) receive human inspection of the text, the raw extraction and the guard verdict,
+  for the employee named explicitly, the relation bound to the section without an author,
+  no invented claims, no first-person ambiguity, no persistent other claims, no
+  systematic hedge over-extraction; development probing, nothing sealed, no rate
+  reported. The golden world is the first sealed responsibility realization;
+  materialization fails before any external projection, and a defect found only at the
+  step 16 audit costs a new golden realization. The golden world's site is ticketed at
+  step 16's opening.
+- *Compatibility, plan, vocabulary, version (adopted).* Compatible modifiers:
+  concurrent leave and the timezone boundary; wrong team, outside window and already
+  resolved need a ticket or meeting affordance a section-artifact class does not own
+  (the parked stale-document modifier is what would give a section a look-alike). The
+  Tier 2 split across its three primitives is ruled at 15.4 when all three exist, once.
+  Client names join the vocabulary with the digest re-pinned and the reference seed's
+  semantic digest checked unchanged. No generator version bump at 15.2 as a batching
+  decision, not because the class and the names are semantically invisible (they alter a
+  world once a plan selects the class): no world is sealed from the intermediate step 15
+  state, and 15.5 makes the accumulated version decision before the next sealed world.
+  The interval is structurally closed, since no plan the workflow offers draws the class
+  until the Tier 2 table is declared; the rule is operational, not code.
 - *The three-character exact-spelling cut (retained as a heuristic).* The world
   exercised only the allowed-"Go" path, so the cut is neither validated nor falsified;
   both sides of its trade are pinned in tests. A miss is of a foreign surface mention:

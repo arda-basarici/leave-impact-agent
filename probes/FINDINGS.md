@@ -826,3 +826,44 @@ credited to `adacec1`).
   sample of three that supports no rate. The three texts share one sentence frame
   ("I've worked with X before, so …") at temperature 0.7; the golden audit looks for
   the shape.
+
+**Torn down 2026-09-15 (session 27).** The site `hr-w2` dropped on the box (`bench drop-site --no-backup --force`; database and user gone, the site folder archived in the bench); the platform's trigger row notes it fired, the edge stanza and record are platform's removal. Everything the gate ruled on survives the site: the sealed bundle and the verdict `verdicts/34965191151-1.json` in S3, the numbers above, the prose in the benchmark-private world spec. The world is no longer live anywhere; a re-read of its live shape would be a regeneration under the current generator, a new version.
+
+## source-dependence — the step 8 carry probed at the responsibility class (2026-09-15)
+
+A design-time probe, run on the unit fixtures at the 15.2 interview's second question
+(scratch scripts, not committed; the construction test that pins the first finding is).
+The carry from step 8: the foreign-fact required-sources drift test lands with the first
+class whose dependence rests on a source none of its own artifacts require.
+
+**The class requires the tracker with no tracker artifact.** The responsibility shape as
+DESIGN rules it, built on the fixture organization (seed 7) with `construct` and the
+required-sources rule:
+
+| construction | required sources | verdicts |
+|---|---|---|
+| section naming the leaver, no clause | corpus, frappe | one viable |
+| section + a procedure clause requiring Kafka applied to the section | corpus, frappe, jira | one viable, one non-viable by skill |
+| the same + a foreign Jira comment restating the viable one's Kafka | corpus, frappe, jira | unchanged |
+| the same + a foreign Jira comment giving the non-viable one Kafka | corpus, frappe, jira | the verdict moves |
+
+The tracker enters through the known-negative: a candidate known not to hold a skill
+needs both the HR record and the tracker to have answered, and assessments run over the
+whole organization. The constraint on a section artifact was accepted by the existing
+viability rule and construction verified clean, no `core` change.
+
+**No current class produces silent drift.** Two more fixtures, foreign facts added to
+the truth base and the conclusions tuple compared with the required set:
+
+| class | foreign fact | conclusions | required set |
+|---|---|---|---|
+| qualification (skill only in a Jira comment) | a Jira comment restating the skill | unchanged | unchanged (calendar, corpus, frappe, jira) |
+| qualification | a Jira ticket the candidate owns, due in the leave | unchanged | unchanged |
+| contact-in-note, no clause | a Jira comment giving the candidate a skill | unchanged | unchanged (corpus, frappe) |
+| contact-in-note, no clause | a Jira ticket the candidate owns, due in the leave | unchanged | unchanged |
+
+Registry facts the argument rests on: the skill predicate's evidence domain is the HR
+record and the tracker (a corpus fact of it is refused at construction); ticket ownership
+over the tracker and the corpus is single-valued and the corpus is never promoted under
+a tracker outage. The conclusion and its re-arm conditions are DESIGN's (the 15.2
+interview's second ruling).
