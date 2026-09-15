@@ -70,6 +70,30 @@ def test_the_writer_is_told_the_brief_and_nothing_the_guards_will_not_enforce(br
     assert request.inference.temperature > 0
 
 
+def test_a_sections_writer_is_told_its_document_and_never_the_contact() -> None:
+    """The section's carrier line is structural (the 15.2 rulings): the document's title,
+    never the contact the section must name, which reaches the writer only as the fact;
+    and the register keeps a section in the third person, since it has no author."""
+    [brief] = pending_scenario(ContactInNote()).briefs
+    request = writer_request(brief, lexicon_of(ORG, documents=[]), ASSETS)
+    lines = request.message.splitlines()
+    assert lines[1] == 'The text is a section of the document "Acme account notes".'
+    assert "You are" not in request.message
+    contact = brief.namespace.form_of("employee", brief.required[0].fact.value.id)  # type: ignore[union-attr]
+    assert f"- {contact} is the contact responsible for the account this note covers" in lines
+    assert "third person" in ASSETS.register(Register.CLIENT_NOTE)
+    assert "Length: one short paragraph of two to four sentences." in request.message
+
+
+def test_the_checker_is_told_the_carrier_description_asserts_nothing() -> None:
+    # The hedged-ownership reading of the measurement world was drawn from the request's
+    # carrier line, a hypothesis on one sample; the sentence closes that path at its
+    # cheapest point and the step 16 audit judges it (the 15.2 rulings).
+    system = ASSETS.text("checker_system")
+    assert "asserts nothing about the world" in system
+    assert "record only what the text itself says" in system
+
+
 def test_the_checker_sees_the_entity_list_and_value_forms_and_never_the_facts(brief: Brief) -> None:
     request = checker_request("Some text.", brief, ASSETS)
     assert request.system == ASSETS.text("checker_system")

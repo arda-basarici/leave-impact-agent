@@ -1,1 +1,1 @@
-A note about a client account kept for colleagues: plain and factual, one short paragraph, the kind of context an account owner writes down for whoever picks the account up next.
+A note about a client account kept for colleagues: plain and factual, one short paragraph, written in the third person by a colleague for whoever picks the account up next. It names people by their names and never speaks as one of them: no "I", no "we", no signature.

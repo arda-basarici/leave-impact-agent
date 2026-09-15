@@ -44,8 +44,8 @@ GENERATOR_PYTHON = (3, 13)
 VOCABULARY_DIGEST = "0bf2fb10cdf523b051d233a3642d42fc8bb118ad6280dc7fc12285bbe29b8b96"
 
 _PROMPT_DIGESTS = {
-    "checker_system": "b0c45176fae66c3191660250ac8d79a75c7bb83722e8f29ef89ea417868a4046",
-    "register_client_note": "68526a6a012e822668d839ea35d3f6d25950f5ff9cca680ffbe4ba1ed2b51a52",
+    "checker_system": "e3b3392376984416aac033c36625bdb440f35cac8edef34f8655044127672637",
+    "register_client_note": "14b9b3bbb37d839bcebafe42daff4994a96826a0e5f22630d89cbb91a554e6ce",
     "register_policy": "da31a905c3e09788d68c317082d03161ccaa1fbe29fb666eb1c1048128f07367",
     "register_procedure": "0393d97754189a1edeba0430662bb33e0b29d3575debabb210336994cb48b1ed",
     "register_runbook": "a5b63408d2804cd8af514d685de7bdbe20ce1309bffde005ca3e0066df28a4e8",

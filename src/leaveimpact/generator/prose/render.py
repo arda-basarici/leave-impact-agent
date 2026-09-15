@@ -59,13 +59,23 @@ LENGTH_BY_REGISTER: dict[Register, str] = {
 
 
 def writer_request(brief: Brief, lexicon: Lexicon, assets: PromptAssets) -> WriterRequest:
-    """The writer's request for ``brief``: the system text and the brief laid out as a message."""
+    """The writer's request for ``brief``: the system text and the brief laid out as a message.
+
+    A comment's writer is told who they are and on which ticket; a section's writer is
+    told which document the section belongs to, the same structural line the checker
+    gets, and nothing about the facts: a section has no author for a first-person
+    statement to bind to, so the register and this line keep the text in the third
+    person (the 15.2 rulings).
+    """
     namespace = brief.namespace
     lines = [f"Kind of text: {assets.register(brief.register).strip()}"]
-    if isinstance(brief.target, CommentTarget):
-        author = namespace.form_of("employee", brief.target.author_id)
-        ticket = namespace.form_of("work_item", brief.target.work_item_id)
-        lines.append(f'You are {author}, commenting on the ticket "{ticket}".')
+    match brief.target:
+        case CommentTarget(author_id=author_id, work_item_id=work_item_id):
+            author = namespace.form_of("employee", author_id)
+            ticket = namespace.form_of("work_item", work_item_id)
+            lines.append(f'You are {author}, commenting on the ticket "{ticket}".')
+        case SectionTarget():
+            lines.append(_carrier_line(brief))
     lines.append("")
     lines.append("Facts the text must state:")
     lines.extend(f"- {describe_fact(required.fact, lexicon)}" for required in brief.required)
@@ -154,7 +164,9 @@ def describe_fact(fact: Fact, lexicon: Lexicon) -> str:
             return f"the activity requires {_requirement(value, lexicon)}"
         case PredicateName.NAMES_RESPONSIBLE:
             assert isinstance(value, EntityRef)
-            return f"{_name(value, lexicon)} is the responsible contact this text names"
+            # Domain content the writer can realize, not the benchmark's view of the fact.
+            contact = _name(value, lexicon)
+            return f"{contact} is the contact responsible for the account this note covers"
         case PredicateName.MEMBER_OF_TEAM:
             assert isinstance(value, EntityRef)
             return f"{subject} is on the {_name(value, lexicon)} team"
