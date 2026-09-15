@@ -514,7 +514,18 @@ def _target_record(target: TargetRecord) -> JsonObject:
 
 
 def _refusal(refusal: Refusal) -> JsonObject:
-    return {"attempt": refusal.attempt, "guard": refusal.guard.value, "count": refusal.count}
+    encoded: JsonObject = {
+        "attempt": refusal.attempt,
+        "guard": refusal.guard.value,
+        "count": refusal.count,
+    }
+    # Absent, never empty, on a refusal recorded before reasons were: the decoder reads the
+    # difference back, and the bytes of records sealed before stay what they were.
+    if refusal.reasons is not None:
+        encoded["reasons"] = [
+            {"reason": reason.value, "count": count} for reason, count in refusal.reasons
+        ]
+    return encoded
 
 
 def encode_proposition(read: Proposition) -> JsonObject:

@@ -39,7 +39,9 @@ from leaveimpact.world.prose import (
     ModelConfiguration,
     Polarity,
     Proposition,
+    ReasonCount,
     Refusal,
+    RefusalReason,
     Setting,
     TargetRecord,
 )
@@ -131,12 +133,24 @@ def _target(item: object) -> TargetRecord:
 
 def _refusal(item: object) -> Refusal:
     data = as_object(item, "a refusal")
-    expect_fields(data, ("attempt", "guard", "count"), "a refusal")
+    # Reasons joined the refusal after the measurement world was sealed; their field is the
+    # one allowed to be absent, and absent decodes as unavailable, never as no reasons.
+    reasoned = "reasons" in data
+    expect_fields(
+        data, ("attempt", "guard", "count") + (("reasons",) if reasoned else ()), "a refusal"
+    )
     return Refusal(
         integer_field(data, "attempt"),
         GuardName(string_field(data, "guard")),
         integer_field(data, "count"),
+        tuple(_reason(entry) for entry in array_field(data, "reasons")) if reasoned else None,
     )
+
+
+def _reason(item: object) -> ReasonCount:
+    data = as_object(item, "a reason count")
+    expect_fields(data, ("reason", "count"), "a reason count")
+    return (RefusalReason(string_field(data, "reason")), integer_field(data, "count"))
 
 
 def _proposition(item: object) -> Proposition:

@@ -1100,7 +1100,10 @@ refusals by guard, retries, tokens and latency per model) — run measurements o
 semantic digest, sealed because the log had been their only carrier and the measurement
 world's run sealed its truth and then failed in projection, taking them with it (the
 numbers were recovered from Bedrock's CloudWatch metrics); a record sealed before that
-date holds no field for them; per target the attempts, each refusal by guard, the rendered request's digest, the
+date holds no field for them; per target the attempts, each refusal by guard with its
+findings counted by reason under a closed vocabulary (the guards' failure paths, never
+a verdict on writer or checker; absent on a refusal sealed before 2026-09-15 and read
+back as unavailable, never as none), the rendered request's digest, the
 accepted body's digest (`accepted_body_digest`, the model's output — the composed text
 has its own place in the world's digests) and the accepted attempt's extracted
 propositions, which are what the hand audit is measured against. The truth manifest has
@@ -1405,7 +1408,7 @@ watches for. A sample of three supports no rate.
   a class persistently accepted on attempts five to eight, or unpassable, after the
   shared prompt itself is fixed; if ever introduced, a new strategy with its own digest
   and attempts marked base or corrected.
-- *Sealed refusal reasons (adopted, its own commit before the next measured world).*
+- *Sealed refusal reasons (adopted; landed the same day as its own commit).*
   A sealed refusal gains counts by reason under a closed vocabulary (unknown subject,
   negated, disallowed hedge, not a permitted fact, required not asserted, other claim,
   untyped) and the run's counters gain canonicalized pairs, the one checker event that

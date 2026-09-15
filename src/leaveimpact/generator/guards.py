@@ -45,7 +45,9 @@ not plant, and refuses.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from collections.abc import Sequence
+from dataclasses import dataclass
 
 from leaveimpact.core.refs import employee_ref
 from leaveimpact.generator.prose.schema import Extraction
@@ -55,11 +57,28 @@ from leaveimpact.world.prose import (
     AssertionMode,
     Lexicon,
     Polarity,
+    ReasonCount,
+    RefusalReason,
     Statement,
     SurfaceForm,
     lexical_anchors,
     statement_of,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class Finding:
+    """One way a draft failed a guard: the reason, sealed and logged, and the message, which
+    names what the reason does not and stays in the process that made it."""
+
+    reason: RefusalReason
+    message: str
+
+
+def reason_counts(findings: Sequence[Finding]) -> tuple[ReasonCount, ...]:
+    """The findings counted by reason, in reason order — the shape the sealed refusal holds."""
+    counts = Counter(finding.reason for finding in findings)
+    return tuple(sorted(counts.items(), key=lambda item: item[0].value))
 
 ISO_DATE = re.compile(r"(?<!\d)\d{4}-\d{2}-\d{2}(?!\d)")
 
@@ -77,11 +96,11 @@ DIGITS = re.compile(r"(?<![\w.])\d+(?![\w.]|\.\d)")
 
 def namespace_findings(
     text: str, brief: Brief, world_forms: Sequence[SurfaceForm]
-) -> tuple[str, ...]:
+) -> tuple[Finding, ...]:
     """Every name, date or number in ``text`` that the brief's namespace does not admit."""
     allowed = {(form.kind, form.id) for form in brief.namespace.forms}
     allowed_spellings = {form.form.casefold() for form in brief.namespace.forms}
-    findings: list[str] = []
+    findings: list[Finding] = []
     masked = text
     # One global pass, longest form first, allowed and foreign together: the winning match
     # at a span is the longest form that fits there, and allow or deny is decided on that
@@ -94,27 +113,36 @@ def namespace_findings(
         if not hits:
             continue
         if not admitted:
-            findings.append(f"names {form.kind} {form.id} outside the brief ({hits})")
+            findings.append(
+                Finding(
+                    RefusalReason.FOREIGN_NAME,
+                    f"names {form.kind} {form.id} outside the brief ({hits})",
+                )
+            )
         masked = _mask(masked, pattern)
     listed_dates = {day.isoformat() for day in brief.namespace.dates}
     for found in ISO_DATE.findall(masked):
         if found not in listed_dates:
-            findings.append(f"date {found} not listed")
+            findings.append(Finding(RefusalReason.UNLISTED_DATE, f"date {found} not listed"))
     masked = _mask(masked, ISO_DATE)
     for spelling in OTHER_DATE_SPELLINGS:
         for found in spelling.findall(masked):
-            findings.append(f"date spelled other than YYYY-MM-DD: {found}")
+            findings.append(
+                Finding(
+                    RefusalReason.UNLISTED_DATE, f"date spelled other than YYYY-MM-DD: {found}"
+                )
+            )
         masked = _mask(masked, spelling)
     listed_numbers = set(brief.namespace.numbers)
     for found in DIGITS.findall(masked):
         if int(found) not in listed_numbers:
-            findings.append(f"number {found} not listed")
+            findings.append(Finding(RefusalReason.UNLISTED_NUMBER, f"number {found} not listed"))
     return tuple(findings)
 
 
-def required_fact_findings(text: str, brief: Brief, lexicon: Lexicon) -> tuple[str, ...]:
+def required_fact_findings(text: str, brief: Brief, lexicon: Lexicon) -> tuple[Finding, ...]:
     """Every anchor group of a required fact that no spelling of appears in ``text``."""
-    findings: list[str] = []
+    findings: list[Finding] = []
     speaker = (
         employee_ref(brief.target.author_id)
         if isinstance(brief.target, CommentTarget)
@@ -124,13 +152,16 @@ def required_fact_findings(text: str, brief: Brief, lexicon: Lexicon) -> tuple[s
         for group in lexical_anchors(required.fact, lexicon, first_person=speaker):
             if not any(_word(spelling, re.IGNORECASE).search(text) for spelling in group):
                 findings.append(
-                    f"{required.fact.predicate.value} of {required.fact.subject.id}: "
-                    f"none of {group} appears"
+                    Finding(
+                        RefusalReason.MISSING_ANCHOR,
+                        f"{required.fact.predicate.value} of {required.fact.subject.id}: "
+                        f"none of {group} appears",
+                    )
                 )
     return tuple(findings)
 
 
-def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...]:
+def containment_findings(brief: Brief, extraction: Extraction) -> tuple[Finding, ...]:
     """Every way the checker's reading of a text departs from the brief's containment."""
     required = {statement_of(fact) for fact in brief.required_facts}
     permitted = required | {statement_of(fact) for fact in brief.allowed}
@@ -143,28 +174,58 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[str, ...
         for fact in brief.allowed
         if fact.evidence.target.kind not in PROSE_RECORD_KINDS
     }
-    findings: list[str] = []
+    findings: list[Finding] = []
     eligible: set[Statement] = set()
     for read in extraction.propositions:
         statement = read.statement
         if statement is None:
-            findings.append(f"{read.predicate.value}: subject not in the entity list")
+            findings.append(
+                Finding(
+                    RefusalReason.UNKNOWN_SUBJECT,
+                    f"{read.predicate.value}: subject not in the entity list",
+                )
+            )
         elif read.polarity is Polarity.NEGATED:
-            findings.append(f"{read.predicate.value} of {statement[0].id}: negated")
+            findings.append(
+                Finding(
+                    RefusalReason.NEGATED_PROPOSITION,
+                    f"{read.predicate.value} of {statement[0].id}: negated",
+                )
+            )
         elif read.assertion_mode is AssertionMode.HEDGED:
             if statement not in tolerated_hedges:
-                findings.append(f"{read.predicate.value} of {statement[0].id}: hedged")
+                findings.append(
+                    Finding(
+                        RefusalReason.DISALLOWED_HEDGE,
+                        f"{read.predicate.value} of {statement[0].id}: hedged",
+                    )
+                )
         elif statement not in permitted:
             findings.append(
-                f"{read.predicate.value} of {statement[0].id}: not a required or allowed fact"
+                Finding(
+                    RefusalReason.NOT_PERMITTED_FACT,
+                    f"{read.predicate.value} of {statement[0].id}: not a required or allowed fact",
+                )
             )
         else:
             eligible.add(statement)
     for subject, name, _ in sorted(required - eligible, key=lambda s: (s[1].value, s[0].id)):
-        findings.append(f"{name.value} of {subject.id}: required and not read as asserted")
-    findings.extend(f"other claim: {claim}" for claim in extraction.other_claims)
+        findings.append(
+            Finding(
+                RefusalReason.REQUIRED_NOT_ASSERTED,
+                f"{name.value} of {subject.id}: required and not read as asserted",
+            )
+        )
     findings.extend(
-        f"{name.value}: a proposition the checker could not type" for name in extraction.untyped
+        Finding(RefusalReason.OTHER_CLAIM, f"other claim: {claim}")
+        for claim in extraction.other_claims
+    )
+    findings.extend(
+        Finding(
+            RefusalReason.UNTYPED_PROPOSITION,
+            f"{name.value}: a proposition the checker could not type",
+        )
+        for name in extraction.untyped
     )
     return tuple(findings)
 
@@ -190,4 +251,10 @@ def _mask(text: str, pattern: re.Pattern[str]) -> str:
     return pattern.sub(lambda match: " " * len(match.group(0)), text)
 
 
-__all__ = ["containment_findings", "namespace_findings", "required_fact_findings"]
+__all__ = [
+    "Finding",
+    "containment_findings",
+    "namespace_findings",
+    "reason_counts",
+    "required_fact_findings",
+]

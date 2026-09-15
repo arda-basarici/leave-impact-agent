@@ -69,6 +69,9 @@ class Extraction:
     propositions: tuple[Proposition, ...]
     other_claims: tuple[str, ...]
     untyped: tuple[PredicateName, ...] = ()
+    canonicalized: int = 0
+    """How many propositions arrived with subject and value reversed and were put the
+    registry's way round — the checker's normalization, counted as a signal of its reading."""
 
     @property
     def unknown_subjects(self) -> int:
@@ -167,19 +170,23 @@ def parse_extraction(filled: JsonObject, namespace: Namespace, target: EntityRef
     known = {(form.kind, form.id) for form in namespace.forms}
     propositions: list[Proposition] = []
     untyped: list[PredicateName] = []
+    canonicalized = 0
     for entry in entries:
-        match _proposition(entry, known, target):
-            case Proposition() as read:
+        read, swapped = _proposition(entry, known, target)
+        canonicalized += swapped
+        match read:
+            case Proposition():
                 propositions.append(read)
-            case PredicateName() as name:
-                untyped.append(name)
-    return Extraction(tuple(propositions), tuple(others), tuple(untyped))
+            case PredicateName():
+                untyped.append(read)
+    return Extraction(tuple(propositions), tuple(others), tuple(untyped), canonicalized)
 
 
 def _proposition(
     entry: object, known: set[tuple[str, str]], target: EntityRef
-) -> Proposition | PredicateName:
-    """The entry as a proposition, or its predicate alone when its value could not be typed."""
+) -> tuple[Proposition | PredicateName, bool]:
+    """The entry as a proposition, or its predicate alone when its value could not be typed;
+    and whether its entity pair arrived reversed."""
     try:
         item = as_object(entry, "a proposition")
         fields = {
@@ -193,7 +200,7 @@ def _proposition(
     except ValueError as problem:
         raise ExtractionMalformed(f"a proposition: {problem}") from None
     row = predicate(name)
-    subject_id, raw_value = _canonical_pair(row, subject_id, fields["value"], known)
+    subject_id, raw_value, swapped = _canonical_pair(row, subject_id, fields["value"], known)
     subject: EntityRef | None = None
     if row.subject in CARRIER_KINDS:
         subject = target if target.kind is row.subject else None
@@ -201,15 +208,16 @@ def _proposition(
         subject = EntityRef(row.subject, subject_id)
     try:
         value = _value(raw_value, row.value_spec)
-        return Proposition(subject, name, value, polarity, mode)
+        return Proposition(subject, name, value, polarity, mode), swapped
     except ValueError:
-        return name
+        return name, swapped
 
 
 def _canonical_pair(
     row: Predicate, subject_id: str, raw_value: object, known: set[tuple[str, str]]
-) -> tuple[str, object]:
-    """The (subject, value) pair with a reversed entity pair put the registry's way round.
+) -> tuple[str, object, bool]:
+    """The (subject, value) pair with a reversed entity pair put the registry's way round,
+    and whether it was.
 
     The third measurement world's checker wrote ownership as the person owning the ticket
     — subject and value swapped — in three of three samples (2026-09-14). When the value
@@ -220,14 +228,14 @@ def _canonical_pair(
     """
     spec = row.value_spec
     if spec.kind is not ValueKind.ENTITY_REF or not isinstance(raw_value, str):
-        return subject_id, raw_value
+        return subject_id, raw_value, False
     assert spec.entity_kind is not None
     reversed_pair = (
         (spec.entity_kind.value, subject_id) in known
         and (row.subject.value, raw_value) in known
         and (row.subject.value, subject_id) not in known
     )
-    return (raw_value, subject_id) if reversed_pair else (subject_id, raw_value)
+    return (raw_value, subject_id, True) if reversed_pair else (subject_id, raw_value, False)
 
 
 def _value(raw: object, spec: ValueSpec) -> FactValue:

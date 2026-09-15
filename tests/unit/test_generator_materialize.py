@@ -36,6 +36,8 @@ from leaveimpact.world import (
     CommentTarget,
     GuardName,
     MaterializationMetrics,
+    Refusal,
+    RefusalReason,
     assemble_semantic_world,
     bundle,
     compose,
@@ -142,7 +144,7 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
         metrics.targets_eventual_pass,
     ) == (1, 1, 1)
     assert metrics.writer_input_tokens == 100 and metrics.checker_latency_ms == 500
-    assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 16
+    assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 17
     # The same counters are sealed into the record, so a run that dies after sealing keeps them.
     assert materialized.record.metrics == metrics.sealed()
     assert metrics.sealed().writer_input_tokens == 100
@@ -183,10 +185,16 @@ def test_each_guard_refuses_in_turn_and_the_fresh_attempt_after_them_is_accepted
         (3, GuardName.EXTRACTION),
     ]
     assert lines == [
-        f"{brief.id} attempt 1: refused by namespace (1 findings)",
-        f"{brief.id} attempt 2: refused by required_fact (1 findings)",
-        f"{brief.id} attempt 3: refused by extraction (2 findings)",  # hedged, and so not asserted
+        f"{brief.id} attempt 1: refused by namespace (1 findings: 1 foreign_name)",
+        f"{brief.id} attempt 2: refused by required_fact (1 findings: 1 missing_anchor)",
+        f"{brief.id} attempt 3: refused by extraction "
+        "(2 findings: 1 disallowed_hedge, 1 required_not_asserted)",
         f"{brief.id}: accepted on attempt 4",
+    ]
+    assert [r.reasons for r in target.refusals] == [
+        ((RefusalReason.FOREIGN_NAME, 1),),
+        ((RefusalReason.MISSING_ANCHOR, 1),),
+        ((RefusalReason.DISALLOWED_HEDGE, 1), (RefusalReason.REQUIRED_NOT_ASSERTED, 1)),
     ]
     assert stranger not in "\n".join(lines)  # no body, no name, ever in the log
     assert len({r.message for r in writer.requests}) == 1  # the same prompt every attempt
@@ -263,3 +271,39 @@ def test_the_request_digest_is_of_the_rendered_request() -> None:
     [request] = writer.requests
     assert json.dumps(request.message)  # the request is plain text the digest is over
     assert len(target.request_digest) == 64
+
+
+def test_a_reversed_pair_the_checker_wrote_is_counted_once_it_is_put_the_right_way_round() -> None:
+    """The swap is the checker's normalization, not a refusal, so it has its own counter; here
+    the righted ownership is outside the brief and refuses as a fact not permitted."""
+    brief = brief_of()
+    assert isinstance(brief.target, CommentTarget)
+    reversed_ownership: dict[str, object] = {
+        "propositions": [
+            {
+                "subject": brief.target.author_id,
+                "predicate": "has_skill",
+                "value": KAFKA,
+                "polarity": "affirmed",
+                "mode": "asserted",
+            },
+            {
+                "subject": brief.target.author_id,
+                "predicate": "owns_work_item",
+                "value": brief.target.work_item_id,
+                "polarity": "affirmed",
+                "mode": "asserted",
+            },
+        ],
+        "other_claims": [],
+    }
+    writer = ScriptedWriter([good_body(brief), good_body(brief)])
+    checker = ScriptedChecker([reversed_ownership, reading(brief)])
+    go, lines = run(writer, checker)
+    materialized = go()
+    [target] = materialized.record.targets
+    assert target.refusals == (
+        Refusal(1, GuardName.EXTRACTION, 1, ((RefusalReason.NOT_PERMITTED_FACT, 1),)),
+    )
+    assert materialized.metrics.canonicalized_pairs == 1
+    assert lines[0].endswith("(1 findings: 1 not_permitted_fact)")

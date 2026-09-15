@@ -24,8 +24,10 @@ a brief that requires one is refused at construction rather than at the first li
 
 The *materialization record* is the provenance of every accepted text: the writer and the
 checker with their inference settings serialized whole, the digests of the prompt assets,
-the attempt cap, and per target the attempts, each refusal by guard, the rendered request's
-digest, the accepted body's digest and the accepted attempt's extracted propositions —
+the attempt cap, and per target the attempts, each refusal by guard with its findings
+counted by reason under a closed vocabulary (never the finding itself), the rendered
+request's digest, the accepted body's digest and the accepted attempt's extracted
+propositions —
 which the hand audit of the first golden set is measured against. It carries what truth
 expects of the prose, so it seals beside the keys in the evaluator-only truth manifest, and
 the types are ``world``'s because that file is. Rejected text is nowhere in it on purpose: a
@@ -424,23 +426,69 @@ class GuardName(StrEnum):
     EXTRACTION = "extraction"
 
 
+class RefusalReason(StrEnum):
+    """Why a guard refused, as a closed vocabulary — the one thing about a finding the sealed
+    record and the public log may carry, since a reason names no entity, value or text.
+
+    The reasons are the guards' failure paths, never a verdict on who was at fault: an
+    untyped proposition may be the checker misreading a clean text or a confused text the
+    checker could not type, and only the hand audit separates the two (the measurement
+    world's review, 2026-09-15). The namespace guard's three, the required-fact guard's
+    one, then the containment check's seven, in the order each guard reports them.
+    """
+
+    FOREIGN_NAME = "foreign_name"
+    UNLISTED_DATE = "unlisted_date"
+    UNLISTED_NUMBER = "unlisted_number"
+    MISSING_ANCHOR = "missing_anchor"
+    UNKNOWN_SUBJECT = "unknown_subject"
+    NEGATED_PROPOSITION = "negated_proposition"
+    DISALLOWED_HEDGE = "disallowed_hedge"
+    NOT_PERMITTED_FACT = "not_permitted_fact"
+    REQUIRED_NOT_ASSERTED = "required_not_asserted"
+    OTHER_CLAIM = "other_claim"
+    UNTYPED_PROPOSITION = "untyped_proposition"
+
+
+ReasonCount = tuple[RefusalReason, int]
+"""One reason and how many of a refusal's findings gave it."""
+
+
 @dataclass(frozen=True, slots=True)
 class Refusal:
-    """One attempt refused by one guard: which attempt, which guard, how many findings.
+    """One attempt refused by one guard: which attempt, which guard, how many findings, and
+    the findings counted by reason.
 
-    A count and never the finding itself: the record is sealed, but the same value is
-    what a log line may carry, and a log is public.
+    Counts and never the finding itself: the record is sealed, but the same values are
+    what a log line may carry, and a log is public. ``reasons`` is ``None`` on a record
+    sealed before reasons were recorded (the measurement world's), which is a different
+    statement from an empty count and is kept distinct; present, the counts sum to
+    ``count`` and are held in reason order so the sealed bytes are canonical.
     """
 
     attempt: int
     guard: GuardName
     count: int
+    reasons: tuple[ReasonCount, ...] | None = None
 
     def __post_init__(self) -> None:
         if self.attempt < 1:
             raise ValueError(f"attempts are numbered from one, got {self.attempt}")
         if self.count < 1:
             raise ValueError(f"a refusal counts at least one finding, got {self.count}")
+        if self.reasons is None:
+            return
+        names = [reason for reason, _ in self.reasons]
+        if len(set(names)) != len(names):
+            raise ValueError("a refusal counts each reason once")
+        if any(n < 1 for _, n in self.reasons):
+            raise ValueError("a reason counts at least one finding")
+        if sum(n for _, n in self.reasons) != self.count:
+            raise ValueError(
+                f"the reasons account for every finding: {self.count} findings, "
+                f"{sum(n for _, n in self.reasons)} by reason"
+            )
+        object.__setattr__(self, "reasons", tuple(sorted(self.reasons, key=lambda r: r[0].value)))
 
 
 @dataclass(frozen=True, slots=True)
@@ -541,6 +589,7 @@ class MaterializationMetrics:
     checker_output_tokens: int
     writer_latency_ms: int
     checker_latency_ms: int
+    canonicalized_pairs: int
 
     def __post_init__(self) -> None:
         for name in self.__slots__:

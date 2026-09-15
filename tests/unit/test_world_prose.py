@@ -44,6 +44,7 @@ from leaveimpact.world import (
     Polarity,
     Proposition,
     Refusal,
+    RefusalReason,
     Setting,
     SurfaceForm,
     TargetRecord,
@@ -197,6 +198,32 @@ def test_a_refusal_is_numbered_from_one_and_counts_at_least_one_finding() -> Non
         Refusal(0, GuardName.NAMESPACE, 1)
     with pytest.raises(ValueError, match="at least one finding"):
         Refusal(1, GuardName.NAMESPACE, 0)
+
+
+def test_a_refusals_reasons_account_for_every_finding_once_in_reason_order() -> None:
+    """``None`` is a refusal sealed before reasons were recorded, distinct from any count."""
+    assert Refusal(1, GuardName.EXTRACTION, 2).reasons is None
+    ordered = Refusal(
+        1,
+        GuardName.EXTRACTION,
+        3,
+        ((RefusalReason.UNTYPED_PROPOSITION, 2), (RefusalReason.OTHER_CLAIM, 1)),
+    )
+    assert ordered.reasons == (
+        (RefusalReason.OTHER_CLAIM, 1),
+        (RefusalReason.UNTYPED_PROPOSITION, 2),
+    )
+    with pytest.raises(ValueError, match="account for every finding"):
+        Refusal(1, GuardName.EXTRACTION, 3, ((RefusalReason.OTHER_CLAIM, 1),))
+    with pytest.raises(ValueError, match="each reason once"):
+        Refusal(
+            1,
+            GuardName.EXTRACTION,
+            2,
+            ((RefusalReason.OTHER_CLAIM, 1), (RefusalReason.OTHER_CLAIM, 1)),
+        )
+    with pytest.raises(ValueError, match="at least one finding"):
+        Refusal(1, GuardName.EXTRACTION, 1, ((RefusalReason.OTHER_CLAIM, 0),))
 
 
 def test_a_target_record_is_a_possible_history_one_refusal_per_failed_attempt() -> None:

@@ -15,7 +15,10 @@ from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     Bundle,
+    GuardName,
     MaterializationMetrics,
+    Refusal,
+    RefusalReason,
     SemanticWorld,
     WorldSpec,
     assemble_world,
@@ -78,6 +81,36 @@ def test_the_records_counters_round_trip_when_sealed() -> None:
         "writer_attempts": 5,
     }
     assert decode_materialization(sealed.truth_manifest.content) == record
+
+
+def test_a_refusals_reasons_round_trip_and_an_older_row_decodes_them_as_unavailable() -> None:
+    scenario = pending_scenario(SkillInComment())
+    [brief] = scenario.briefs
+    refused = Refusal(
+        1,
+        GuardName.EXTRACTION,
+        2,
+        ((RefusalReason.OTHER_CLAIM, 1), (RefusalReason.UNTYPED_PROPOSITION, 1)),
+    )
+    base = record_for({brief.id: BODY})
+    [accepted] = base.targets
+    record = replace(base, targets=(replace(accepted, attempts=2, refusals=(refused,)),))
+    world = compose(semantic_world_of(scenario), {brief.id: BODY}, record)
+    content = bundle(world).truth_manifest.content
+    [row] = json.loads(content)["materialization"]["targets"][0]["refusals"]
+    assert row["reasons"] == [
+        {"reason": "other_claim", "count": 1},
+        {"reason": "untyped_proposition", "count": 1},
+    ]
+    assert decode_materialization(content) == record
+    # The measurement world's rows: attempt, guard, count and nothing else.
+    older = json.loads(content)
+    del older["materialization"]["targets"][0]["refusals"][0]["reasons"]
+    decoded = decode_materialization(json.dumps(older))
+    assert decoded is not None
+    [target] = decoded.targets
+    assert target.refusals == (Refusal(1, GuardName.EXTRACTION, 2),)
+    assert target.refusals[0].reasons is None
 
 
 def test_a_world_without_prose_resumes_from_its_seed_alone() -> None:

@@ -24,11 +24,19 @@ from leaveimpact.core.ids import comment_id, component_id
 from leaveimpact.generator.guards import (
     containment_findings,
     namespace_findings,
+    reason_counts,
     required_fact_findings,
 )
 from leaveimpact.generator.prose import Extraction
 from leaveimpact.world import Brief, CommentTarget, lexicon_of
-from leaveimpact.world.prose import AssertionMode, Lexicon, Polarity, Proposition, SurfaceForm
+from leaveimpact.world.prose import (
+    AssertionMode,
+    Lexicon,
+    Polarity,
+    Proposition,
+    RefusalReason,
+    SurfaceForm,
+)
 from tests.unit.prose_fixture import KAFKA, ORG, SkillInComment, pending_scenario
 
 
@@ -77,12 +85,13 @@ def test_another_world_name_is_refused_in_any_case_by_full_or_given_name(
 ) -> None:
     other = stranger(brief)
     refused = namespace_findings(f"{other} and I ran the Kafka side.", brief, world_forms)
-    assert len(refused) == 1 and "names employee" in refused[0]
+    assert len(refused) == 1 and "names employee" in refused[0].message
+    assert refused[0].reason is RefusalReason.FOREIGN_NAME
     lowered_text = f"thanks {other.lower()}. I ran the Kafka side."
     [lowered] = namespace_findings(lowered_text, brief, world_forms)
-    assert "names employee" in lowered
+    assert "names employee" in lowered.message
     [given] = namespace_findings(f"thanks {other.split()[0]}, Kafka is done.", brief, world_forms)
-    assert "names given_name" in given
+    assert "names given_name" in given.message
     mine = author_of(brief).split()[0]
     assert namespace_findings(f"{mine} here, Kafka is done.", brief, world_forms) == ()
 
@@ -94,7 +103,7 @@ def test_an_allowed_short_form_cannot_erase_a_longer_foreign_form_it_sits_inside
     foreign = SurfaceForm("employee", "emp_999", f"{given} Kowalski")
     text = f"thanks {given} Kowalski, Kafka is in."
     [refused] = namespace_findings(text, brief, (*world_forms, foreign))
-    assert "names employee emp_999" in refused
+    assert "names employee emp_999" in refused.message
     assert namespace_findings(f"thanks {given}, Kafka is in.", brief, (*world_forms, foreign)) == ()
 
 
@@ -109,9 +118,9 @@ def test_a_short_world_form_matches_only_in_exact_spelling(
     assert any(form.form == "Go" for form in world_forms)  # the skill, not in this brief
     assert namespace_findings("We go live with Kafka tomorrow.", brief, world_forms) == ()
     [refused] = namespace_findings("Kafka and Go are both mine.", brief, world_forms)
-    assert "names skill go" in refused
+    assert "names skill go" in refused.message
     [refused] = namespace_findings("Go ahead with the Kafka work.", brief, world_forms)
-    assert "names skill go" in refused
+    assert "names skill go" in refused.message
 
 
 def test_dates_and_numbers_outside_the_brief_are_refused(
@@ -125,7 +134,7 @@ def test_dates_and_numbers_outside_the_brief_are_refused(
         ("Kafka needs 3 people.", "number 3 not listed"),
     ):
         findings = namespace_findings(text, brief, world_forms)
-        assert len(findings) == 1 and finding in findings[0], text
+        assert len(findings) == 1 and finding in findings[0].message, text
     assert (
         namespace_findings("Kafka needs three people.", brief, world_forms) == ()
     )  # the extractor's
@@ -145,7 +154,8 @@ def test_a_text_that_dropped_an_anchor_is_refused_before_the_checker_is_paid(
     [finding] = required_fact_findings(
         f"{author} here: I have run the streaming stack.", brief, lexicon
     )
-    assert "has_skill" in finding and "Kafka" in finding
+    assert "has_skill" in finding.message and "Kafka" in finding.message
+    assert finding.reason is RefusalReason.MISSING_ANCHOR
 
 
 def test_a_comments_author_is_its_first_person_and_never_an_anchor(
@@ -156,7 +166,7 @@ def test_a_comments_author_is_its_first_person_and_never_an_anchor(
     spoken = "I've run Kafka in production for two years."
     assert required_fact_findings(spoken, brief, lexicon) == ()
     [finding] = required_fact_findings("I've run the streaming stack.", brief, lexicon)
-    assert "Kafka" in finding
+    assert "Kafka" in finding.message
 
 
 # --- The containment check ------------------------------------------------------------------
@@ -200,13 +210,14 @@ def test_containment_accepts_exactly_the_required_read_as_affirmed_and_asserted(
         ),
     ):
         findings = containment_findings(brief, extraction)
-        assert any(finding in f for f in findings), (finding, findings)
+        assert any(finding in f.message for f in findings), (finding, findings)
 
 
 def test_an_untyped_proposition_refuses_the_attempt(brief: Brief) -> None:
     extraction = Extraction((), (), (PredicateName.OWNS_WORK_ITEM,))
     findings = containment_findings(brief, extraction)
-    assert "owns_work_item: a proposition the checker could not type" in findings
+    [untyped] = [f for f in findings if f.reason is RefusalReason.UNTYPED_PROPOSITION]
+    assert untyped.message == "owns_work_item: a proposition the checker could not type"
 
 
 def test_a_hedged_mention_of_structured_allowed_context_is_not_a_violation(brief: Brief) -> None:
@@ -217,7 +228,7 @@ def test_a_hedged_mention_of_structured_allowed_context_is_not_a_violation(brief
         who, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.HEDGED
     )
     findings = containment_findings(brief, Extraction((hedged_required,), ()))
-    assert any("hedged" in finding for finding in findings)
+    assert any(f.reason is RefusalReason.DISALLOWED_HEDGE for f in findings)
     assert isinstance(brief.target, CommentTarget)
     ticket = work_item_ref(brief.target.work_item_id)
     context = Fact(
@@ -232,7 +243,7 @@ def test_a_hedged_mention_of_structured_allowed_context_is_not_a_violation(brief
         ticket, PredicateName.IN_COMPONENT, context.value, Polarity.AFFIRMED, AssertionMode.HEDGED
     )
     findings = containment_findings(with_context, Extraction((hedged_allowed,), ()))
-    assert not any("hedged" in finding for finding in findings)
+    assert not any(f.reason is RefusalReason.DISALLOWED_HEDGE for f in findings)
 
 
 def test_a_hedged_allowed_fact_that_only_other_prose_establishes_is_refused(brief: Brief) -> None:
@@ -252,9 +263,29 @@ def test_a_hedged_allowed_fact_that_only_other_prose_establishes_is_refused(brie
         someone_else, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.HEDGED
     )
     findings = containment_findings(with_context, Extraction((hedged,), ()))
-    assert any("hedged" in finding for finding in findings)
+    assert any(f.reason is RefusalReason.DISALLOWED_HEDGE for f in findings)
     required = Proposition(
         who, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.ASSERTED
     )
     asserted = replace(hedged, assertion_mode=AssertionMode.ASSERTED)
     assert not containment_findings(with_context, Extraction((required, asserted), ()))
+
+
+def test_reason_counts_are_the_findings_by_reason_in_reason_order(brief: Brief) -> None:
+    who = brief.required[0].fact.subject
+    extraction = Extraction(
+        (
+            Proposition(
+                who, PredicateName.HAS_SKILL, KAFKA, Polarity.AFFIRMED, AssertionMode.HEDGED
+            ),
+        ),
+        ("someone is on call",),
+        (PredicateName.OWNS_WORK_ITEM, PredicateName.OWNS_WORK_ITEM),
+    )
+    counts = reason_counts(containment_findings(brief, extraction))
+    assert counts == (
+        (RefusalReason.DISALLOWED_HEDGE, 1),
+        (RefusalReason.OTHER_CLAIM, 1),
+        (RefusalReason.REQUIRED_NOT_ASSERTED, 1),
+        (RefusalReason.UNTYPED_PROPOSITION, 2),
+    )

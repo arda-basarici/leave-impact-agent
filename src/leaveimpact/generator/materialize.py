@@ -33,7 +33,7 @@ function and is dropped.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, fields
 
 from leaveimpact.adapters.prose.seam import (
@@ -49,8 +49,10 @@ from leaveimpact.adapters.prose.seam import (
 )
 from leaveimpact.core.jsonshape import canonical_bytes
 from leaveimpact.generator.guards import (
+    Finding,
     containment_findings,
     namespace_findings,
+    reason_counts,
     required_fact_findings,
 )
 from leaveimpact.generator.prose.assets import PromptAssets
@@ -99,6 +101,7 @@ class ProseMetrics:
     checker_output_tokens: int = 0
     writer_latency_ms: int = 0
     checker_latency_ms: int = 0
+    canonicalized_pairs: int = 0
 
     def lines(self) -> tuple[str, ...]:
         """The metrics as the run prints them, one number per line."""
@@ -227,20 +230,18 @@ def _materialize_one(
         body = written.text.strip()
         refused = _gate(loop, brief, body, lexicon, world_forms)
         if refused is not None:
-            guard, count = refused
-            refusals.append(Refusal(attempt, guard, count))
+            guard, findings = refused
+            refusals.append(_refusal(attempt, guard, findings))
             _count_refusal(loop.metrics, guard)
-            loop.log(f"{brief.id} attempt {attempt}: refused by {guard.value} ({count} findings)")
+            loop.log(_refused_line(brief.id, attempt, guard, findings))
             continue
         extraction = _check(loop, brief, body)
+        loop.metrics.canonicalized_pairs += extraction.canonicalized
         findings = containment_findings(brief, extraction)
         if findings:
-            refusals.append(Refusal(attempt, GuardName.EXTRACTION, len(findings)))
+            refusals.append(_refusal(attempt, GuardName.EXTRACTION, findings))
             loop.metrics.extraction_refusals += 1
-            loop.log(
-                f"{brief.id} attempt {attempt}: refused by {GuardName.EXTRACTION.value} "
-                f"({len(findings)} findings)"
-            )
+            loop.log(_refused_line(brief.id, attempt, GuardName.EXTRACTION, findings))
             continue
         loop.metrics.targets_eventual_pass += 1
         if attempt == 1:
@@ -262,15 +263,28 @@ def _materialize_one(
 
 def _gate(
     loop: _Loop, brief: Brief, body: str, lexicon: Lexicon, world_forms: tuple[SurfaceForm, ...]
-) -> tuple[GuardName, int] | None:
-    """The two free guards in order; the first that finds anything names itself and its count."""
+) -> tuple[GuardName, tuple[Finding, ...]] | None:
+    """The two free guards in order; the first that finds anything names itself and its findings."""
     findings = namespace_findings(body, brief, world_forms)
     if findings:
-        return (GuardName.NAMESPACE, len(findings))
+        return (GuardName.NAMESPACE, findings)
     findings = required_fact_findings(body, brief, lexicon)
     if findings:
-        return (GuardName.REQUIRED_FACT, len(findings))
+        return (GuardName.REQUIRED_FACT, findings)
     return None
+
+
+def _refusal(attempt: int, guard: GuardName, findings: Sequence[Finding]) -> Refusal:
+    return Refusal(attempt, guard, len(findings), reason_counts(findings))
+
+
+def _refused_line(target: str, attempt: int, guard: GuardName, findings: Sequence[Finding]) -> str:
+    """The log line of a refusal: counts by reason and nothing a finding's message names."""
+    by_reason = ", ".join(f"{count} {reason.value}" for reason, count in reason_counts(findings))
+    return (
+        f"{target} attempt {attempt}: refused by {guard.value} "
+        f"({len(findings)} findings: {by_reason})"
+    )
 
 
 def _write(loop: _Loop, target: str, request: WriterRequest) -> WrittenText:
