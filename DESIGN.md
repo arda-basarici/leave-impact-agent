@@ -1534,6 +1534,87 @@ probe behind the second is recorded in `probes/FINDINGS.md` (`source-dependence`
 Carried to the responsibility class's prompt touch, ruled by the golden audit: the
 checker told that propositions come from the text alone and the carrier line asserts
 nothing.
+
+*The cardinality class, ruled (2026-09-15, the 15.3 interview).* Three questions, one per
+exchange, an external low-context reviewer's read on each before the ruling; one ruling
+reopened at the build on a code reading, one pulled forward from its parked trigger on
+measured evidence. The probes behind the class are in `probes/FINDINGS.md`
+(`source-dependence`, the cardinality paragraph).
+
+- *The component rule fixes the universe, so the organization seats the cast (adopted).*
+  The viability rule asks every candidate for a work item to belong to its component, and
+  the reasons a verdict carries are the set of every failing criterion, so a paired-skill
+  holder outside the release's component reads `component, hard_rule` and not the authored
+  reason; the paired skill drawn by seat put its holders in three components on the
+  fixture organization, and the class as first written was not affordable on any seed. The
+  organization's second component is now exactly the cast: the paired skill's two employee
+  holders and its contractor holder, with two recorded employees lacking the skill, one the
+  leaver and one the skill-failing candidate, no blank record, team lines crossed; five
+  people with a contractor, four without. A ticket candidate meets four criteria (the
+  component, the leave overlap, the skill, the employment type) and each authored reason is
+  the one that person fails, which the construction verifier proves exactly against the
+  authored tuple; a class test pins that the rules find exactly two people viable for the
+  release over every admissible construction, since the outcome check alone holds with
+  three. Weakening the class (the contractor outside the component) and exempting it from
+  the component rule were rejected: the first stops the employment rule being load-bearing,
+  the second changes a domain rule for one fixture. The first cut seated the cast on the
+  component side after independent draws of blanks, contractors and holders and could raise
+  on accepted parameters (58 of 168 small shapes on some seed, the review's finding); the
+  cast is now chosen with the skills as one cross-team selection of four employee seats,
+  blanks drawn from the seats outside it, so every accepted shape seats it on every seed,
+  and the seat moves stop when no team can donate (an older raise of the same contract
+  class, fixed in passing). The plan side needs no build: the requirement's count is a
+  minimum the core's plan rules already grade per clause, and the key holds no plan.
+- *Concurrent leave is coverage-aware, over the record and not the authored verdicts
+  (adopted, reopened once).* The compatibility sweep turns the row into a mechanism
+  question: admissibility was structural (any third component member), which affords the
+  modifier on a class whose clause needs two of exactly two viable people, and a modifier
+  may never move the declared outcome. The first ruling counted authored viable candidates
+  against the required count; the build reopened it, because `must_assess` is the graded
+  probe set and not the coverage universe: the deadline class keeps its outcome under a
+  concurrent leave through a component member its key never lists, the qualification class
+  through HR-record holders it never lists. Admissibility now keeps the structural pool,
+  less the leaver and the candidate sent away, to those whose HR record meets every
+  requirement applying to the artifact or its component, and compares the survivors with
+  the rules' own `required_count`; the record's static reading of a criterion lives in the
+  core beside the derivation, shared rather than reimplemented, exhaustive over the closed
+  criterion union so a kind added without a static reading fails the type check. It reads
+  the record and the draft's own requirement facts and never a fact base, closure,
+  availability or run condition: a conservative proof that can under-afford (the sweep
+  exposes it) or over-afford (the verifier refuses the composition), both loud. The table
+  declares that no valid draft of a class affords the modifier and admissibility proves the
+  declaration in the sweep. The row: everything but concurrent leave.
+- *The policy scopes itself by the release's title, exact reference in truth (adopted); a
+  duplicated title is a scope-ambiguity defect, fixed by construction now (pulled forward).*
+  The clause names the ticket by its title and the constraint applies to the work-item
+  reference, the qualification class's shape; a component-scoped constraint was rejected as
+  the cross-scenario applicability the world-owned-policies capability defers. Titles were
+  drawn per scenario from five templates per component or team with no uniqueness anywhere,
+  so a policy's prose could name two artifacts while the constraint named one, a mismatch
+  no verifier read. First ruled parked to the step's close as a rare seed; measured at the
+  reviewer's re-raise, twenty seeds of the measurement plan carried twenty-seven colliding
+  scope handles in sixteen seeds, the ordinary state of every plan with a prose class, and
+  the ruling moved: the world's book now mints ticket and meeting titles without replacement
+  per component and team from a phrase-by-qualifier vocabulary of thirty-six, look-alikes
+  from disjoint phrases, an exhausted context a loud generator invariant and never a retry;
+  assembly refuses a constraint whose title names two artifacts of its kind, the defence
+  against a helper titling past the book; capacity is a tested relationship (a row plants at
+  most one scope-handle artifact of a kind, so a context needs at most the golden set's
+  thirty), and unique per kind is the whole resolver contract because team and component
+  names, real and look-alike phrases are disjoint tables and no qualifier begins with the
+  modifiers' comma. Landing it before 15.4 rather than at 15.5 because the composite
+  inherits the meeting handle and would otherwise be built on a defective primitive; the
+  version-batching argument no longer carried enough weight to defer.
+- *Versions and the probes.* Generator version 8 with the org guarantee, 9 with its review
+  fix, 10 with the title book, each a change to what a seed produces and each re-cutting
+  the snapshot pair, the vocabulary digest with the third; the class and the modifier change
+  bumped nothing, since no offered plan draws the class. The two source probes on the class:
+  the tracker required by the ticket's provenance and by the known-negative, the corpus by
+  the policy; no silent drift, the one foreign fact that changes anything moves a verdict,
+  and the employment rule is beyond any foreign fact's reach since its predicate's evidence
+  domain is the HR record alone. The Tier 2 split stays ruled at 15.4; the reviewer's
+  stricter retrieval gate for the responsibility class stays on their ledger, unchanged.
+
 ---
 
 ## Package boundaries and the import law (2026-09-09)
