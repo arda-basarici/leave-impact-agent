@@ -237,6 +237,24 @@ def test_a_site_already_set_up_is_one_read_and_no_wizard_call() -> None:
     assert len(script.seen) == 1
 
 
+@pytest.mark.parametrize(
+    ("settings", "reason"),
+    [
+        ({"time_zone": "Europe/Istanbul"}, "System Settings carries no setup_complete"),
+        ({"setup_complete": "0"}, "setup_complete is '0', not 0 or 1"),
+        ({"setup_complete": True}, "setup_complete is True, not 0 or 1"),
+        ([], "System Settings carries no setup_complete"),
+    ],
+)
+def test_a_malformed_flag_is_refused_before_any_wizard_call(settings: Any, reason: str) -> None:
+    script = Scripted(data(settings), message(None))
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(script).ensure_site_ready()
+    assert caught.value.locator == "System Settings/System Settings"
+    assert caught.value.reason == reason
+    assert len(script.seen) == 1, "a malformed read never reaches the wizard"
+
+
 def test_a_wizard_call_that_leaves_the_flag_unset_is_malformed_not_trusted() -> None:
     script = Scripted(data({"setup_complete": 0}), message(None), data({"setup_complete": 0}))
     with pytest.raises(MalformedRecord) as caught:

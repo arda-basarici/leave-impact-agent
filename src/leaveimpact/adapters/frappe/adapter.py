@@ -323,9 +323,23 @@ class FrappeAdapter:
             )
 
     def _setup_complete(self) -> bool:
+        """The flag as the site serializes it, 0 or 1; anything else is malformed, not a state.
+
+        A permissive read would turn a malformed answer into "not set up" and run the
+        wizard on it, or into "set up" and skip it: the one read that gates a mutation is
+        read strictly (the review of the readiness step, 2026-09-15).
+        """
         settings = self._get(_SYSTEM_SETTINGS)
-        flag = cast(Record, settings).get("setup_complete") if isinstance(settings, dict) else None
-        return bool(flag)
+        locator = "System Settings/System Settings"
+        if not isinstance(settings, dict) or "setup_complete" not in settings:
+            raise MalformedRecord(
+                Source.FRAPPE, locator, "System Settings carries no setup_complete"
+            )
+        flag: object = cast(Record, settings)["setup_complete"]
+        # bool is an int in Python; the site writes the check field as 0 or 1, never True.
+        if isinstance(flag, bool) or not isinstance(flag, int) or flag not in (0, 1):
+            raise MalformedRecord(Source.FRAPPE, locator, f"setup_complete is {flag!r}, not 0 or 1")
+        return flag == 1
 
     def ensure_site_schema(self) -> None:
         """The naming rule, custom fields, grade masters and leave types every company uses."""
