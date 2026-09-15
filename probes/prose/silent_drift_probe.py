@@ -74,3 +74,32 @@ for who, label in ((viable[0], "a viable holder"), (failing, "the skill-failing 
 ticket = WorkItem(work_item_id(999), "Foreign ticket", viable[0], WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
 c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket, visible),)),))
 print(f"   + foreign Jira ticket owned by a viable holder, due in the leave: conclusions same={c2==c0}, required {r2}")
+
+
+# The composite (15.4): the section carries the contact naming and the cover's skill, so a
+# corpus outage removes the impact and the cover's qualification together; the failing
+# candidate's known-negative is the one fact a foreign positive can move, and moving it
+# moves a verdict, over the tracker route and over the corpus route the class opened.
+from leaveimpact.world import FragmentedComposite
+from leaveimpact.core import clause_ref
+from leaveimpact.core.ids import clause_id
+scn = construct(FragmentedComposite(), [], ORG, scenario_id=scenario_id(1), window=WINDOW,
+                world_start=WORLD_START, reference_timezone=TZ, ids=Minting(), rng=Random(1))
+skill = [c.skill for f in scn.authored_facts for c in getattr(f.value, "criteria", ()) if hasattr(c, "skill")][0]
+[expected] = scn.key.impacts
+cover = [v.employee_id for v in expected.must_assess if v.verdict is Verdict.VIABLE][0]
+failing = [v.employee_id for v in expected.must_assess if v.verdict is Verdict.NON_VIABLE and "skill" in [r.value for r in v.reasons]][0]
+visible = scn.spec.window.start
+c0, r0 = study(scn, "base")
+print(f"== composite (section: contact + the cover's skill; procedure clause): required {r0}")
+for who, label, source, ref in (
+    (cover, "the cover", Source.JIRA, comment_ref(comment_id(999))),
+    (failing, "the failing candidate", Source.JIRA, comment_ref(comment_id(998))),
+    (failing, "the failing candidate", Source.CORPUS, clause_ref(clause_id(999))),
+):
+    fj = Fact(employee_ref(who), PredicateName.HAS_SKILL, skill, EvidenceRef(source, ref), visible)
+    c1, r1 = study(scn, "x", (fj,))
+    print(f"   + foreign {source.value} fact, {label} has the skill: conclusions same={c1==c0}, required {r1}")
+ticket = WorkItem(work_item_id(999), "Foreign ticket", cover, WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
+c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket, visible),)),))
+print(f"   + foreign Jira ticket owned by the cover, due in the leave: conclusions same={c2==c0}, required {r2}")

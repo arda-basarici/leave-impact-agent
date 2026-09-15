@@ -124,3 +124,26 @@ print("required_sources:", required(c, (Fact(employee_ref(holder), PredicateName
 print("-- foreign Jira comment giving the skill-failing candidate the skill (a verdict moves) --")
 print("required_sources:", required(c, (Fact(employee_ref(lacking), PredicateName.HAS_SKILL, skill,
       EvidenceRef(Source.JIRA, comment_ref(comment_id(998))), WINDOW.start),)))
+
+print("\n== composite class (15.4): the note's section names the contact and provides the cover's skill ==")
+from leaveimpact.world import FragmentedComposite
+from leaveimpact.core.ids import clause_id
+f = build(FragmentedComposite())
+print("required_sources:", [s.value for s in f.key.required_sources])
+for i in f.key.impacts:
+    print("impact:", i.key.subtype.value, i.key.artifact.id, "outcome:", i.outcome.value)
+    for v in i.must_assess:
+        print("  ", v.employee_id, v.verdict.value, [x.value for x in v.reasons])
+skill = [crit.skill for x in f.authored_facts for crit in getattr(x.value, "criteria", ()) if hasattr(crit, "skill")][0]
+cover = [v.employee_id for i in f.key.impacts for v in i.must_assess if v.verdict is Verdict.VIABLE][0]
+failing = [v.employee_id for i in f.key.impacts for v in i.must_assess
+           if v.verdict is Verdict.NON_VIABLE and AssessmentReason.SKILL in v.reasons][0]
+print("-- foreign Jira comment restating the cover's skill (the note already provides it) --")
+print("required_sources:", required(f, (Fact(employee_ref(cover), PredicateName.HAS_SKILL, skill,
+      EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), WINDOW.start),)))
+print("-- foreign Jira comment giving the failing candidate the skill (a verdict moves) --")
+print("required_sources:", required(f, (Fact(employee_ref(failing), PredicateName.HAS_SKILL, skill,
+      EvidenceRef(Source.JIRA, comment_ref(comment_id(998))), WINDOW.start),)))
+print("-- foreign corpus section giving the failing candidate the skill, the route the composite opened (a verdict moves) --")
+print("required_sources:", required(f, (Fact(employee_ref(failing), PredicateName.HAS_SKILL, skill,
+      EvidenceRef(Source.CORPUS, clause_ref(clause_id(999))), WINDOW.start),)))

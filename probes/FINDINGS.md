@@ -898,6 +898,25 @@ structured tier authors no skill reason. What the change moves is the runtime ru
 investigator inherits: under a corpus outage nobody is found to lack a skill (DESIGN's 15.4
 block).
 
+**The composite class, probed at 15.4 (2026-09-16, the same two scripts, the class through
+``construct`` on the fixture organization).** The section carries the contact naming and the
+cover's skill, so a corpus outage removes the impact and the cover's qualification together;
+the procedure clause is the corpus's second reason, the record the HR system's, the tracker
+enters through the failing candidate's known-negative with no tracker artifact, and the
+corpus enters through that known-negative as well, which the set cannot show twice.
+
+| construction | required sources | verdicts |
+|---|---|---|
+| the note's section (contact + the cover's skill), the procedure clause | corpus, frappe, jira | the cover viable, the failing candidate non-viable by skill |
+| the same + a foreign tracker comment restating the cover's skill | unchanged | unchanged |
+| the same + a foreign tracker comment giving the failing candidate the skill | unchanged | the verdict moves |
+| the same + a foreign corpus section giving the failing candidate the skill, the route the class opened | unchanged | the verdict moves |
+| the same + a foreign tracker ticket the cover owns, due in the leave | unchanged | unchanged |
+
+No silent drift: the only foreign facts that change anything change a verdict, over the
+tracker route and over the corpus route alike, and the required set never moves. The reading
+the fifth ruling predicted and left to measurement.
+
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
 The workstation probe the 15.2 rulings asked for before the class's first sealed world:
