@@ -138,18 +138,34 @@ responsibility, two cardinality, two composite. Cardinality's two is the constru
 count, one row per holder of the paired skill as the leaver; the composite's two is DESIGN's
 sentence; the six between the prose primitives split evenly, repetition for both."""
 
+TIER_THREE_RULES = PlanRules(
+    {
+        ScenarioClassName.STALE_SOURCE_CONFLICT: 3,
+        ScenarioClassName.MISSING_INFORMATION: 3,
+        ScenarioClassName.UNCOVERED: 3,
+        ScenarioClassName.ADVERSARIAL_COMPOSITE: 1,
+    }
+)
+"""The golden set's adversarial tier (DESIGN's counts, the 15.5 rulings): three conflict, three
+missing information, three uncovered, one controlled composite. Tier-local like the others;
+the concurrent leave lands only on conflict rows, so two of the three carry it, which the
+feasibility test over two hundred seeds shows the rule can always seat."""
+
 PLANS: Mapping[str, tuple[PlanRules, ...]] = MappingProxyType(
     {
         "tier1": (TIER_ONE_RULES,),
         "tier1-plus-qualification": (MEASUREMENT_RULES,),
         "tier1-plus-tier2": (TIER_ONE_RULES, TIER_TWO_RULES),
+        "golden": (TIER_ONE_RULES, TIER_TWO_RULES, TIER_THREE_RULES),
     }
 )
 """The plans a world can be generated under, by the name the recipe records: a semantic
 input on the world-defining side of the boundary, unlike a model id, so a sealed world
 names the rule it was planned under and a resume reassembles under the same one. A plan
 is one table per tier, planned in order (``plan_tiers``); the two single-table names are
-the sealed worlds' and stay single tables."""
+the sealed worlds' and stay single tables. ``golden`` is the union of the three tier tables,
+the thirty rows of DESIGN's first golden set, offered once its two-hundred-seed sweep under
+the reservation book was read (`probes/FINDINGS.md`, `reservation-book`)."""
 
 
 @dataclass(frozen=True, slots=True)

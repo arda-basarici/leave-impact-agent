@@ -409,7 +409,13 @@ class Claims:
     ``leave_subject`` is the investigated leave's person. ``standing_contacts`` are the
     people an authored fact names responsible: a document every run in the world reads,
     so any other leave of that person acquires a responsibility impact its key never
-    declared. ``skills_provided`` are the (person, skill) pairs an authored fact evidences
+    declared. ``standing_owners`` are the people a document names as a work item's owner
+    against the tracker (the stale runbook, found by the golden sweep at 15.5): under the
+    normal run condition the authority table resolves the claim away, but under a tracker
+    outage nothing resolves it, so any other leave of that person acquires an unresolved
+    impact question and its key's required sources move; seventy-three of two hundred
+    thirty-row worlds refused on it before the rule. ``skills_provided`` are the (person,
+    skill) pairs an authored fact evidences
     positive, prose every run reads. ``skills_required_absent`` are the (person, skill)
     pairs a conclusion assumes no positive fact exists for: an authored non-viable verdict
     by skill, where the record lacks the skills the applicable requirements ask, and a
@@ -424,6 +430,7 @@ class Claims:
     standing_contacts: frozenset[EmployeeId] = frozenset()
     skills_provided: frozenset[tuple[EmployeeId, SkillId]] = frozenset()
     skills_required_absent: frozenset[tuple[EmployeeId, SkillId]] = frozenset()
+    standing_owners: frozenset[EmployeeId] = frozenset()
 
 
 def claims_of(
@@ -433,6 +440,7 @@ def claims_of(
     (person, skill) pairs its derived unknowns assume no positive fact for."""
     by_id = {employee.id: employee for employee in org.employees}
     contacts: set[EmployeeId] = set()
+    owners: set[EmployeeId] = set()
     provided: set[tuple[EmployeeId, SkillId]] = set()
     absent: set[tuple[EmployeeId, SkillId]] = set()
     for fact in draft.authored_facts:
@@ -440,6 +448,12 @@ def claims_of(
             contacts.add(EmployeeId(fact.value.id))
         elif fact.predicate is PredicateName.HAS_SKILL and isinstance(fact.value, str):
             provided.add((EmployeeId(fact.subject.id), SkillId(fact.value)))
+        elif (
+            fact.predicate is PredicateName.OWNS_WORK_ITEM
+            and fact.evidence.source is Source.CORPUS
+            and isinstance(fact.value, EntityRef)
+        ):
+            owners.add(EmployeeId(fact.value.id))
     for expected in draft.impacts:
         skills = _required_skills(draft, expected.key.artifact)
         for authored in expected.must_assess:
@@ -450,7 +464,13 @@ def claims_of(
             held = by_id[authored.employee_id].skills or ()
             absent.update((authored.employee_id, skill) for skill in skills if skill not in held)
     absent.update(unknown_skills)
-    return Claims(_leaver_of(draft), frozenset(contacts), frozenset(provided), frozenset(absent))
+    return Claims(
+        _leaver_of(draft),
+        frozenset(contacts),
+        frozenset(provided),
+        frozenset(absent),
+        frozenset(owners),
+    )
 
 
 def unknown_skill_pairs(
@@ -502,16 +522,21 @@ def _required_skills(draft: Draft, artifact: EntityRef) -> tuple[SkillId, ...]:
 
 
 class Reservations:
-    """The world's reservation book: what earlier scenarios bound, and the two rules a later
-    scenario's claims must not cross (the 15.4 ruling on the reservation book).
+    """The world's reservation book: what earlier scenarios bound, and the three rules a later
+    scenario's claims must not cross (the 15.4 ruling on the reservation book; the third
+    rule at 15.5).
 
     Standing facts compose across scenarios. A note naming a person responsible is a
     document every run in the world reads, so a leave of that person in any other
     scenario acquires a responsibility impact its key never declared; a prose fact giving
     a person a skill is evidence every run reads, so a verdict elsewhere that assumes the
-    person known to lack that skill moves. The whole-world re-verification refused twenty
-    of twenty seeds of the first plan that seated the responsibility class beside other
-    rows, on exactly those two interactions. The book is the constructive side: each
+    person known to lack that skill moves; a runbook naming a stale owner is a document
+    every run reads, and under a tracker outage a leave of that person elsewhere holds an
+    unresolved impact question its key never declared, moving its required sources. The
+    whole-world re-verification refused twenty of twenty seeds of the first plan that
+    seated the responsibility class beside other rows, on the first two interactions, and
+    seventy-three of two hundred seeds of the golden plan on the third. The book is the
+    constructive side: each
     admitted scenario's claims are recorded, and a later candidate whose claims cross an
     earlier one's is refused in both directions, so construction order never decides
     correctness. It encodes the interactions proven so far and nothing more: candidates
@@ -523,6 +548,7 @@ class Reservations:
     def __init__(self) -> None:
         self._leave_subjects: dict[EmployeeId, ScenarioId] = {}
         self._standing_contacts: dict[EmployeeId, ScenarioId] = {}
+        self._standing_owners: dict[EmployeeId, ScenarioId] = {}
         self._skills_provided: dict[tuple[EmployeeId, SkillId], ScenarioId] = {}
         self._skills_required_absent: dict[tuple[EmployeeId, SkillId], ScenarioId] = {}
 
@@ -537,6 +563,13 @@ class Reservations:
             holder = self._leave_subjects.get(person)
             if holder is not None:
                 found.append(f"standing contact {person} is a leave subject of {holder}")
+        holder = self._standing_owners.get(claims.leave_subject)
+        if holder is not None:
+            found.append(f"leave subject {claims.leave_subject} is a standing owner of {holder}")
+        for person in sorted(claims.standing_owners):
+            holder = self._leave_subjects.get(person)
+            if holder is not None:
+                found.append(f"standing owner {person} is a leave subject of {holder}")
         for person, skill in sorted(claims.skills_provided):
             holder = self._skills_required_absent.get((person, skill))
             if holder is not None:
@@ -552,6 +585,8 @@ class Reservations:
         self._leave_subjects.setdefault(claims.leave_subject, scenario_id)
         for person in claims.standing_contacts:
             self._standing_contacts.setdefault(person, scenario_id)
+        for person in claims.standing_owners:
+            self._standing_owners.setdefault(person, scenario_id)
         for pair in claims.skills_provided:
             self._skills_provided.setdefault(pair, scenario_id)
         for pair in claims.skills_required_absent:

@@ -29,11 +29,14 @@ document not promoted (the authority ruling).
 
 The runbook is titled by the release ticket it is about, a title the world's book mints once
 per component, so two conflict rows in one component never share a runbook title and the
-checker's entity list holds one document per name. No reservation-book rule is added for the
-stale owner: the ticket is due inside this slice, its resolved owner is the leaver, and the
-evidence scope of expected conflicts keeps the standing runbook off other rows' keys; the
-two-hundred-seed sweep is the oracle for any interaction the book does not know (the 15.4
-ruling's own sentence).
+checker's entity list holds one document per name. The stale owner is a standing fact the
+reservation book reserves (``Claims.standing_owners``): the interview read no rule was needed,
+since the resolved owner is the leaver and the evidence scope keeps the conflict off other
+rows' keys, and the golden sweep refused seventy-three of two hundred worlds on the path the
+reading missed, a tracker outage during another leave of the named person, under which the
+document's claim cannot be resolved away and that key's required sources move. The sweep is
+the oracle for any interaction the book does not know, and a new one is a new rule (the 15.4
+ruling's own sentence, applied).
 
 ``missing_information`` and ``uncovered`` are one shape a single placement apart. Both plant
 the release ticket the leaver owns, due inside the leave, under a scenario-owned policy
@@ -71,7 +74,7 @@ every conclusion exactly, the conflict resolved to the tracker, the impact groun
 unresolved skill reason, the three verdicts and the outcome, so the composite is a conjunction
 of the proven primitives and never a looser row that ends at the same label. The cast is
 distinct and record-clean by construction, the outsider outside the component with a record,
-the blank member inside, so each graded person carries exactly one mechanism. The section is
+the blank member inside, so each graded person carries one role and no two share it. The section is
 the conflict class's section with a different ticket title, so the runbook register probe
 covers it, one composite realization included as a no-interaction check with the clause-bearing
 world. Modifiers are the parents' intersection, no concurrent leave; the claims are the
@@ -150,7 +153,13 @@ class StaleSourceConflict:
     affordance = StructuredDeadline.affordance
 
     def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
-        return tuple(_conflict_construction(*roles) for roles in deadline_roles(org))
+        # The deadline cast with every teammate outside the component as the stale owner in
+        # turn, not the first alone: the owner is a reservation the book may refuse, and a
+        # class offering one owner per leaver exhausted on a golden seed (the 15.5 sweep).
+        return tuple(
+            _conflict_construction(component, leaver, cover, outsider)
+            for component, leaver, cover, outsider in deadline_roles(org, every_outsider=True)
+        )
 
 
 def _conflict_construction(
@@ -428,25 +437,22 @@ class AdversarialComposite:
             member_ids = {e.id for e in members}
             for leaver in recorded:
                 failing = next(e for e in recorded if e.id != leaver.id)
-                outsider = _recorded_teammate_outside(org, leaver, member_ids)
-                if outsider is None:
-                    continue
-                constructions.append(
-                    _composite_construction(component, leaver, failing, outsider, blank[0], skill)
-                )
+                # Every recorded teammate outside as the stale owner in turn (see the conflict
+                # class): the owner is what the reservation book may refuse.
+                for outsider in _recorded_teammates_outside(org, leaver, member_ids):
+                    constructions.append(
+                        _composite_construction(
+                            component, leaver, failing, outsider, blank[0], skill
+                        )
+                    )
         return tuple(constructions)
 
 
-def _recorded_teammate_outside(
+def _recorded_teammates_outside(
     org: OrgSpec, leaver: Employee, member_ids: set[EmployeeId]
-) -> Employee | None:
-    return next(
-        (
-            e
-            for e in org.members_of(leaver.team_id)
-            if e.id not in member_ids and e.skills is not None
-        ),
-        None,
+) -> tuple[Employee, ...]:
+    return tuple(
+        e for e in org.members_of(leaver.team_id) if e.id not in member_ids and e.skills is not None
     )
 
 

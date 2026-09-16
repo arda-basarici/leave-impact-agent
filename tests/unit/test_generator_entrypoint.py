@@ -59,7 +59,7 @@ def test_a_recipe_defaults_every_dial_and_takes_the_ones_given() -> None:
         (["--world-start", "2026-01-05"], "--seed"),
         (["--seed", "x", "--world-start", "2026-01-05"], "--seed"),
         (["--seed", "7", "--world-start", "5 Jan 2026"], "--world-start"),
-        (["--seed", "7", "--world-start", "2026-01-05", "--plan", "golden"], "--plan"),
+        (["--seed", "7", "--world-start", "2026-01-05", "--plan", "tier4"], "--plan"),
         (
             ["--seed", "7", "--world-start", "2026-01-05", "--reference-timezone", "Europe/Berlin"],
             "not consistent",

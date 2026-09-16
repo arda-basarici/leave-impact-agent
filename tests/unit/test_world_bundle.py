@@ -38,8 +38,8 @@ REFERENCE_SEED = 7
 # now produces: bump GENERATOR_VERSION in world/version.py and record the new digest here.
 # The semantic digest and not the world version, since the prose step: two runs of one seed
 # share the former and differ in the latter by design.
-SNAPSHOT_VERSION = GeneratorVersion("13")
-SNAPSHOT_SEMANTIC_DIGEST = "eb1e4652b5bba75ca7cb993c16547295910f2f9ad387521c6ce2ebcd286df23f"
+SNAPSHOT_VERSION = GeneratorVersion("14")
+SNAPSHOT_SEMANTIC_DIGEST = "2c2020b29bee37c9cae7861997d8564942e1cc17c8d5ec7dca4a63acd75232a9"
 
 
 @pytest.fixture(scope="module")

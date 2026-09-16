@@ -678,6 +678,23 @@ def test_claims_are_read_off_the_draft_never_declared() -> None:
     assert provided == KAFKA and candidate != comment.leave_subject
     note = claims_of(_draft(ContactInNote()), ORG)
     assert note.standing_contacts == frozenset({note.leave_subject})
+    stale = claims_of(_draft(StaleOwnerInRunbook()), ORG)
+    [owner] = stale.standing_owners
+    assert owner != stale.leave_subject and stale.standing_contacts == frozenset()
+
+
+def test_a_standing_owner_and_a_leave_subject_exclude_each_other_in_both_orders() -> None:
+    # The third rule (15.5): a runbook's stale owner is a standing fact like a note's contact,
+    # and the interaction it makes is with the named person's own leave elsewhere.
+    person, other = employee_id(1), employee_id(2)
+    named = Claims(other, standing_owners=frozenset({person}))
+    leave = Claims(person)
+    book = Reservations()
+    book.reserve(scenario_id(3), named)
+    assert book.conflicts(leave) == (f"leave subject {person} is a standing owner of scenario_003",)
+    book = Reservations()
+    book.reserve(scenario_id(4), leave)
+    assert book.conflicts(named) == (f"standing owner {person} is a leave subject of scenario_004",)
 
 
 def test_a_standing_contact_and_a_leave_subject_exclude_each_other_in_both_orders() -> None:

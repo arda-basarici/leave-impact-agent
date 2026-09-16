@@ -171,11 +171,16 @@ STRUCTURED_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType
 # --- Role selection: the queries over the static organization ---------------------------
 
 
-def deadline_roles(org: OrgSpec) -> list[tuple[Component, Employee, Employee, Employee]]:
+def deadline_roles(
+    org: OrgSpec, *, every_outsider: bool = False
+) -> list[tuple[Component, Employee, Employee, Employee]]:
     """(component, leaver, viable cover, teammate outside the component), canonical order.
 
-    Public because the stale-conflict class reuses the cast unchanged (the 15.5 rulings): the
-    outsider, non-viable by component, is the owner the stale runbook names.
+    Public because the stale-conflict class reuses the cast (the 15.5 rulings): the outsider,
+    non-viable by component, is the owner the stale runbook names. The deadline class takes
+    the first teammate outside, since the outsider is graded and nothing more; the conflict
+    class asks for every one in turn (``every_outsider``), since the owner it names is a
+    reservation on the world's book and a second candidate is what an admission needs.
     """
     by_id = {employee.id: employee for employee in org.employees}
     roles: list[tuple[Component, Employee, Employee, Employee]] = []
@@ -190,9 +195,12 @@ def deadline_roles(org: OrgSpec) -> list[tuple[Component, Employee, Employee, Em
             ]
             if not outsiders:
                 continue
+            chosen = outsiders if every_outsider else outsiders[:1]
             for cover_id in component.member_ids:
                 if cover_id != leaver_id:
-                    roles.append((component, leaver, by_id[cover_id], outsiders[0]))
+                    roles.extend(
+                        (component, leaver, by_id[cover_id], outsider) for outsider in chosen
+                    )
     return roles
 
 

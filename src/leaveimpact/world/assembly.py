@@ -311,6 +311,15 @@ def assemble_semantic_world(
     Raises ``PlanInfeasible`` when the rule cannot be met, a construction error when a
     scenario cannot be built as planned, ``WorldContamination`` when the assembled world
     disagrees with a key. Same inputs, same world.
+
+    Rows are constructed scarcest class first (the 15.5 rulings): the reservation book admits
+    a candidate only where nothing earlier reserved it, so a class with few constructions on
+    this organization, the composite with its one component and its handful of stale owners,
+    seated after twenty-odd leaves had been taken, found every owner it could name reserved
+    (thirty-four of two hundred golden worlds). Each row's random seed is drawn in plan order
+    before any construction, so the order changes no draw; a world the book refuses nothing
+    in is the world plan-order construction makes, up to the ids the minting book hands out
+    in construction order. Ties keep plan order.
     """
     if plan_name not in PLANS:
         raise ValueError(f"no plan named {plan_name!r}; the plans are {sorted(PLANS)}")
@@ -318,23 +327,25 @@ def assemble_semantic_world(
     rng = Random(seed)
     plan = plan_tiers(rng, PLANS[plan_name])
     slices = allocate_slices(rng, len(plan), world_start)
+    row_seeds = [rng.getrandbits(64) for _ in plan]
     ids = Minting()
     book = Reservations()
-    scenarios = tuple(
-        construct(
+    built: dict[int, Scenario] = {}
+    for index in construction_order(org, plan):
+        row = plan[index]
+        built[index] = construct(
             SCENARIO_CLASSES[row.scenario_class],
             [MODIFIERS[name] for name in row.modifiers],
             org,
             scenario_id=row.scenario_id,
-            window=window,
+            window=slices[index],
             world_start=world_start,
             reference_timezone=params.reference_timezone,
             ids=ids,
-            rng=Random(rng.getrandbits(64)),
+            rng=Random(row_seeds[index]),
             reservations=book,
         )
-        for row, window in zip(plan, slices, strict=True)
-    )
+    scenarios = tuple(built[index] for index in range(len(plan)))
     ambiguous = scope_handle_problems(scenarios)
     if ambiguous:
         raise AmbiguousScopeHandle(ambiguous)
@@ -354,6 +365,18 @@ def assemble_semantic_world(
         generator_version=GENERATOR_VERSION,
         interpreter=(sys.version_info.major, sys.version_info.minor),
         vocabulary_digest=vocabulary_digest(),
+    )
+
+
+def construction_order(org: OrgSpec, plan: Sequence[PlanRow]) -> tuple[int, ...]:
+    """The plan's row indices, scarcest class first: fewest admissible constructions on ``org``,
+    ties in plan order. Deterministic in the organization, so the same seed orders the same."""
+    scarcity = {
+        name: len(SCENARIO_CLASSES[name].admissible(org))
+        for name in {row.scenario_class for row in plan}
+    }
+    return tuple(
+        sorted(range(len(plan)), key=lambda index: (scarcity[plan[index].scenario_class], index))
     )
 
 

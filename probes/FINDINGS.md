@@ -1099,3 +1099,32 @@ fix), 0 contaminated. Of 3,980 rows, 1,591 seal expected unknowns, 3,102 in all,
 a blank-record employee asked a clause's skill, reason absent; no row seals a conflict, the
 conflict class not yet existing. The wider relation added no exhaustion at twenty rows;
 the thirty-row plan is where the pressure is measured for the ruling. About 1.6 s a world.
+
+*The golden plan swept, 2026-09-16 (15.5, generator version 14): three runs, two rules of the
+build.* The thirty-row union over seeds 1 to 200 under the book, whole-world verification
+included, feasibility evidence and not proof of collision freedom.
+
+| run | admitted | contaminated | exhausted |
+|---|---|---|---|
+| 1, the book as at 15.4 | 124 | 73 | 3 (missing information 2, cardinality 1; all standing-contact) |
+| 2, the standing-owner rule | 161 | 0 | 39 (composite 34, missing information 2, conflict 2, cardinality 1) |
+| 3, scarcest class first | 199 | 0 | 1 (seed 138, a qualification row, 140 constructions all refused) |
+
+Run one's seventy-three contaminations had one shape, a Tier 1 meeting row whose required
+sources gained the tracker under the runtime view: the row's leaver was the stale owner a
+Tier 3 runbook named (six of six sampled), and under a tracker outage the document's claim
+cannot be resolved away, so the leave holds an unresolved impact question its key never
+declared. The interview had read no rule as needed, the resolved owner being the leaver;
+the outage path was the miss, and the sweep the oracle. The third claim on the book (a
+document's stale owner against a leave subject, both directions) removed every
+contamination and moved the pressure to the composite, the scarcest class, constructed last
+when most people were already leave subjects. Run three constructs rows scarcest class first
+(fewest admissible constructions on the organization, ties in plan order) with each row's
+seed drawn in plan order beforehand, so the order changes no draw; the composite and the
+conflict class offer every teammate outside as the stale owner in turn rather than the
+first. Reservation pressure on run three: 5,970 rows, 2,388 sealing expected unknowns, 3,880
+absence-dependent pairs reserved (3,084 in the fragmented tier, 796 in the adversarial), 796
+expected conflicts; the one exhaustion crosses three rules at once. The cardinality
+exhaustion parked at 15.4 (1 of 200 at twenty rows, 1 of 200 at thirty on run one) is 0 of
+200 under the scarcity order; the FIXLOG's first option, taken on the measured rate, without
+the renumbering it feared. About 2.5 s a world.

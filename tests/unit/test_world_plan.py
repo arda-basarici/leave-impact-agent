@@ -14,6 +14,7 @@ from leaveimpact.world import (
     PLANS,
     SCENARIO_CLASSES,
     TIER_ONE_RULES,
+    TIER_THREE_RULES,
     TIER_TWO_RULES,
     ModifierName,
     PlanInfeasible,
@@ -25,6 +26,7 @@ from leaveimpact.world import (
     plan_tiers,
     plan_world,
 )
+from leaveimpact.world.plan import GOLDEN_SET_ROWS
 
 SEEDS = range(1, 41)
 
@@ -157,10 +159,11 @@ def test_the_measurement_plan_is_the_structured_tier_plus_three_qualification_ro
 
 
 def test_the_named_plans_are_the_ones_a_recipe_may_ask_for() -> None:
-    assert set(PLANS) == {"tier1", "tier1-plus-qualification", "tier1-plus-tier2"}
+    assert set(PLANS) == {"tier1", "tier1-plus-qualification", "tier1-plus-tier2", "golden"}
     assert PLANS["tier1"] == (TIER_ONE_RULES,)
     assert PLANS["tier1-plus-qualification"] == (MEASUREMENT_RULES,)
     assert PLANS["tier1-plus-tier2"] == (TIER_ONE_RULES, TIER_TWO_RULES)
+    assert PLANS["golden"] == (TIER_ONE_RULES, TIER_TWO_RULES, TIER_THREE_RULES)
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -209,13 +212,33 @@ def test_a_class_outside_every_offered_plan_has_no_route_to_a_world() -> None:
     assert set(SCENARIO_CLASSES) - offered == UNOFFERED_CLASSES
 
 
-UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset(
-    {
-        ScenarioClassName.STALE_SOURCE_CONFLICT,
-        ScenarioClassName.MISSING_INFORMATION,
-        ScenarioClassName.UNCOVERED,
-        ScenarioClassName.ADVERSARIAL_COMPOSITE,
-    }
-)
-"""The built classes no offered plan names: each Tier 3 class joins as it lands and the set
-empties when the golden plan is offered."""
+UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset()
+"""The built classes no offered plan names: each Tier 3 class joined as it landed and the set
+emptied when the golden plan was offered (the 15.5 rulings). A class built ahead of its plan
+rejoins it."""
+
+
+@pytest.mark.parametrize("seed", range(1, 201))
+def test_the_adversarial_table_is_feasible_on_every_seed(seed: int) -> None:
+    # The probe behind the 3/3/3/1 ruling under the tier-local defaults: the concurrent leave
+    # can land only on the three conflict rows, so two of them always carry it.
+    rows = plan_world(Random(seed), TIER_THREE_RULES)
+    check_plan(rows, TIER_THREE_RULES)
+    carrying = [
+        row
+        for row in rows
+        if ModifierName.CONCURRENT_LEAVE in row.modifiers
+    ]
+    assert len(carrying) >= 2
+    assert all(row.scenario_class is ScenarioClassName.STALE_SOURCE_CONFLICT for row in carrying)
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_golden_plan_is_three_tables_and_thirty_rows(seed: int) -> None:
+    rows = plan_tiers(Random(seed), PLANS["golden"])
+    assert len(rows) == GOLDEN_SET_ROWS
+    by_tier = {tier: [row for row in rows if row.tier is tier] for tier in Tier}
+    assert [len(by_tier[tier]) for tier in Tier] == [10, 10, 10]
+    for tier, rules in zip(Tier, PLANS["golden"], strict=True):
+        check_plan(tuple(by_tier[tier]), rules)
+    assert [row.scenario_id for row in rows] == [scenario_id(n) for n in range(1, 31)]

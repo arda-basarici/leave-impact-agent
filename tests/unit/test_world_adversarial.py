@@ -85,10 +85,10 @@ def _scenario(
 # --- stale_source_conflict --------------------------------------------------------------
 
 
-def test_the_conflict_class_affords_exactly_the_deadline_cast() -> None:
-    # The same constructions in the same canonical order: the class adds a section to the
-    # deadline shape and changes nothing about who is cast.
-    assert len(CONFLICT.admissible(ORG)) == len(StructuredDeadline().admissible(ORG))
+def test_the_conflict_class_affords_the_deadline_cast_with_every_outsider() -> None:
+    # The deadline cast, with every teammate outside the component as the stale owner in
+    # turn: at least as many constructions as the deadline class, never fewer.
+    assert len(CONFLICT.admissible(ORG)) >= len(StructuredDeadline().admissible(ORG))
     assert CONFLICT.affordance == StructuredDeadline.affordance
 
 
