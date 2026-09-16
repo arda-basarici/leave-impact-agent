@@ -1220,3 +1220,47 @@ exploit the phrasing.
 
 Spend: about thirty writer calls and sixty checker calls over the afternoon, cents by the
 per-call sizes above (writer about 680 in and 30 out, checker about 1,600 in and 120 out).
+
+## golden-world — PASS (2026-09-16, approved 15:54 UTC)
+
+The golden world generated, sealed, projected onto `hr-w3` and validated in one dispatch
+each: seed 16, world start 2026-01-05, 28 people in 5 teams, `plan: golden`, cap 8 (the
+workflow default corrected the same afternoon), generator version 14. World version
+`7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4`; the first dispatch of
+the day (run 35111247215, cap 4) is the `comment-probe` entry above, red in the prose
+stage before any seal.
+
+- **Generation (run 35116054908, 654 s, 190 checkpoints).** The realized plan is the
+  offered tier table exactly: structured 4 meeting, 4 deadline, 2 mixed; fragmented 3
+  qualification, 3 responsibility, 2 cardinality, 2 composite; adversarial 3 missing
+  information, 3 conflict, 3 uncovered, 1 composite; each modifier on six rows. The key
+  seals twenty expected unknowns over twelve rows and one expected conflict on each of
+  the four rows that plant one. The prose stage: twelve model-written targets (five
+  client notes, four runbook sections, three ticket comments), fourteen writer attempts,
+  ten first-attempt passes, two extraction refusals (a disallowed hedge on
+  `comment_001`, an untyped proposition on `clause_007`), both accepted on attempt two,
+  no other-claim refusal, no target above attempt two, no cap exhausted; writer 8,661 in
+  and 365 out, checker 21,842 in and 1,195 out, two canonicalized pairs. The counters
+  are sealed in the record this time (the measurement world's had died with its run).
+  The checkpoint share of the run 10 %, p50 0.30 s, p95 0.62 s, 1.18 MB written.
+- **Validation (run 35117728927, 6 m 22 s), approved.** Validator version 1, the three
+  artifacts' digests read back, seven exactness checks passed (employee, team,
+  component, work item, leave, event, document; nothing missing, nothing foreign), seven
+  fidelity checks passed, thirty scenario views passed under the runtime rule on run
+  days from 2026-01-07 to 2027-04-03. Verdict `verdicts/35117728927-1.json`, bound to
+  manifest digest `aed4f67d…`; the serving rule's condition holds.
+- **The audit's first readings, off the sealed record and the realized texts** (the
+  sheet rendered from the truth manifest and the world spec, benchmark-private, in the
+  session's scratchpad): no struggling brief; every client note reads "X is the contact
+  responsible for the Y account" (the composites add "Z has experience with W."), every
+  runbook section "X owns the ticket Y.", the comments two "I have experience with X"
+  and one "I own this ticket", the convergence recorded at 15.4, 15.5 and the
+  `comment-probe` entry reproduced on the golden realization; the target that failed
+  ten of ten in the morning accepted at attempt one. The acceptance pass on thirty and
+  the deep audit on ten are the human half, not started here.
+- **Acceptance 2 of the `hr-w3` ticket** (the dispatched golden run projecting onto the
+  site) passed with no edge challenge; the platform's half was already recorded.
+
+Spend for the world: the fourteen writer and twelve checker calls above, about a cent
+and a half by the measurement world's per-call cost; the calendar budget one world's
+twenty-eight creations, the day's only projection.
