@@ -18,6 +18,7 @@ Prose is not written here: this package emits briefs, the generator materializes
 """
 
 from leaveimpact.world import (
+    adversarial,
     artifacts,
     assembly,
     briefs,
@@ -39,6 +40,7 @@ from leaveimpact.world import (
     vocabulary,
     zones,
 )
+from leaveimpact.world.adversarial import ADVERSARIAL_CLASSES, StaleSourceConflict
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     SEMANTIC_WORLD,
@@ -228,6 +230,7 @@ from leaveimpact.world.vocabulary import (
 from leaveimpact.world.zones import gap_at, gap_holds_all_year, offset_of
 
 __all__ = [
+    "adversarial",
     "artifacts",
     "assembly",
     "briefs",
@@ -257,6 +260,7 @@ __all__ = [
     "GIVEN_NAMES",
     "MODIFIERS",
     "PROSE_CAPABLE",
+    "ADVERSARIAL_CLASSES",
     "FRAGMENTED_CLASSES",
     "MEASUREMENT_RULES",
     "PLANS",
@@ -342,6 +346,7 @@ __all__ = [
     "StructuredDeadline",
     "StructuredMeeting",
     "FragmentedComposite",
+    "StaleSourceConflict",
     "FreeTextQualification",
     "FreeTextResponsibility",
     "ReleaseCardinalityConstraint",

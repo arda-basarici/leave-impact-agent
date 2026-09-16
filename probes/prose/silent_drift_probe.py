@@ -103,3 +103,25 @@ for who, label, source, ref in (
 ticket = WorkItem(work_item_id(999), "Foreign ticket", cover, WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
 c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket, visible),)),))
 print(f"   + foreign Jira ticket owned by the cover, due in the leave: conclusions same={c2==c0}, required {r2}")
+
+
+# The stale conflict class (15.5): the runbook's ownership fact is the one the conclusions see
+# only through the expected conflict. A second document naming any owner for the ticket is not
+# a world the fact base admits (one value per source and key), so no foreign fact can touch the
+# conflict; what can be added around the graded people changes nothing they are asked.
+from leaveimpact.world import StaleSourceConflict
+scn = construct(StaleSourceConflict(), [], ORG, scenario_id=scenario_id(1), window=WINDOW,
+                world_start=WORLD_START, reference_timezone=TZ, ids=Minting(), rng=Random(1))
+[expected] = scn.key.impacts
+outsider = [v.employee_id for v in expected.must_assess if v.verdict is Verdict.NON_VIABLE][0]
+cover = [v.employee_id for v in expected.must_assess if v.verdict is Verdict.VIABLE][0]
+visible = scn.spec.window.start
+c0, r0 = study(scn, "base")
+print(f"== stale conflict (deadline cast + runbook naming the outsider): required {r0}")
+for who, label in ((outsider, "the outsider"), (cover, "the cover")):
+    fj = Fact(employee_ref(who), PredicateName.HAS_SKILL, KAFKA, EvidenceRef(Source.JIRA, comment_ref(comment_id(997))), visible)
+    c1, r1 = study(scn, "x", (fj,))
+    print(f"   + foreign Jira comment, {label} has Kafka (no clause asks): conclusions same={c1==c0}, required {r1}")
+ticket_f = WorkItem(work_item_id(999), "Foreign ticket", outsider, WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
+c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket_f, visible),)),))
+print(f"   + foreign Jira ticket owned by the outsider, due in the leave: conclusions same={c2==c0}, required {r2}")

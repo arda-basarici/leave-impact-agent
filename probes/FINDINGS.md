@@ -917,6 +917,20 @@ No silent drift: the only foreign facts that change anything change a verdict, o
 tracker route and over the corpus route alike, and the required set never moves. The reading
 the fifth ruling predicted and left to measurement.
 
+*The stale conflict class, 2026-09-16 (15.5).* The deadline cast with a runbook section
+naming the outsider as the ticket's owner, on the fixture organization. Required sources
+`corpus, frappe, jira`: the record for the leave, the tracker for the impact, the corpus
+through the expected conflict, which vanishes under a corpus outage; verdicts the deadline
+class's (the cover viable, the outsider non-viable by component), outcome assign, one
+expected conflict on the ticket's owner resolved to the leaver under the system-of-record
+rule. Source dependence: a foreign tracker comment giving the outsider or the cover a
+skill leaves the set unchanged, no clause asking one. Silent drift: the same two comments
+and a foreign tracker ticket the outsider owns due inside the leave leave every conclusion
+and the required set unchanged. One perturbation the probes cannot make: a second document
+naming any owner for the ticket, agreeing or not, is not a world the fact base admits (one
+value per source and key), so the conflict cannot be touched by a foreign fact at all; the
+only route to the conflict is the class's own section.
+
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
 The workstation probe the 15.2 rulings asked for before the class's first sealed world:
@@ -976,6 +990,26 @@ reads the sealed checker retry counts. The sentence frame: six of six two-senten
 sentence the brief's own fact description with the client's name in place of "the account
 this note covers", the second fact varying nothing about the first's frame. Recorded, not
 tuned, per the composite's second ruling; the human audit reads the realized texts.
+
+*The stale conflict class through the runbook register, 2026-09-16 (15.5), three runs of six
+constructions, writer Haiku 4.5, checker Nova Pro, under the workstation profile.* The brief:
+one required fact, the outsider owns the release ticket, no allowed context. Run one, zero of
+six: every text stated the fact and then told the on-call reader whom to reach ("reach out to
+Deniz", "Emre is the point of contact"), which the checker typed as the section naming a
+responsible contact, bound to the section by the carrier rule and refused as not permitted;
+the checker read the texts correctly, the register asked for it ("one short paragraph naming
+who does what", "for a colleague on call"). Run two, after the register said nothing about
+whom to contact, zero of six: the writer filled the paragraph with a second sentence instead,
+four restating ownership as responsibility (refused the same way), two "this work is tracked
+in the runbook" (typed as a component claim the checker could not place, refused as untyped),
+the padding the measurement world showed with offers when one fact must fill a length. Run
+three, the register aligned to the client note's length (one or two sentences, third person,
+adding nothing about the owner's responsibilities or whom to contact): five of six accepted,
+the five texts one identical frame, "X owns the ticket Y." and nothing after; the sixth
+added "Emre is responsible for the completion and quality of this work" and was refused by
+containment, the guard's job before the writer's retry. Totals for run three: 3,553 writer
+tokens in and 152 out, 9,368 checker in and 465 out, about a second a call. The register's
+digest re-pinned twice; the two intermediate texts are the record above, not tuned further.
 
 ## reservation-book — the twenty-row plan under the world's reservation book, swept (2026-09-16)
 

@@ -147,3 +147,25 @@ print("required_sources:", required(f, (Fact(employee_ref(failing), PredicateNam
 print("-- foreign corpus section giving the failing candidate the skill, the route the composite opened (a verdict moves) --")
 print("required_sources:", required(f, (Fact(employee_ref(failing), PredicateName.HAS_SKILL, skill,
       EvidenceRef(Source.CORPUS, clause_ref(clause_id(999))), WINDOW.start),)))
+
+print("\n== stale conflict class (15.5): the deadline cast, a runbook section naming the outsider as owner ==")
+# A second document naming any owner for the same ticket is not a world the fact base admits
+# (one value per source and key), so that class of foreign fact is excluded by construction;
+# the perturbations left are facts of other predicates around the graded people.
+from leaveimpact.world import StaleSourceConflict
+from leaveimpact.core import work_item_ref
+k = build(StaleSourceConflict())
+print("required_sources:", [s.value for s in k.key.required_sources])
+for i in k.key.impacts:
+    print("impact:", i.key.subtype.value, i.key.artifact.id, "outcome:", i.outcome.value)
+    for v in i.must_assess:
+        print("  ", v.employee_id, v.verdict.value, [x.value for x in v.reasons])
+print("expected_conflicts:", [(c.entity.id, c.predicate.value, c.resolved_value.id, c.authority_rule.value) for c in k.key.expected_conflicts])
+outsider_id = [v.employee_id for i in k.key.impacts for v in i.must_assess if v.verdict is Verdict.NON_VIABLE][0]
+print("-- foreign Jira comment giving the outsider a skill (no clause asks one) --")
+print("required_sources:", required(k, (Fact(employee_ref(outsider_id), PredicateName.HAS_SKILL, KAFKA,
+      EvidenceRef(Source.JIRA, comment_ref(comment_id(997))), WINDOW.start),)))
+print("-- foreign Jira comment giving the cover a skill (no clause asks one) --")
+cover_id = [v.employee_id for i in k.key.impacts for v in i.must_assess if v.verdict is Verdict.VIABLE][0]
+print("required_sources:", required(k, (Fact(employee_ref(cover_id), PredicateName.HAS_SKILL, KAFKA,
+      EvidenceRef(Source.JIRA, comment_ref(comment_id(996))), WINDOW.start),)))

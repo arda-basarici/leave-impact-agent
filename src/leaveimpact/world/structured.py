@@ -90,7 +90,7 @@ class StructuredDeadline:
     affordance = "a component with two members, one of whom has a teammate outside the component"
 
     def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
-        return tuple(_deadline_construction(*roles) for roles in _deadline_roles(org))
+        return tuple(_deadline_construction(*roles) for roles in deadline_roles(org))
 
 
 class StructuredMeeting:
@@ -141,7 +141,7 @@ class StructuredMixed:
 
     def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
         constructions: list[Construction] = []
-        for component, leaver, cover, outsider in _deadline_roles(org):
+        for component, leaver, cover, outsider in deadline_roles(org):
             further = [
                 teammate
                 for teammate in org.members_of(leaver.team_id)
@@ -171,8 +171,12 @@ STRUCTURED_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType
 # --- Role selection: the queries over the static organization ---------------------------
 
 
-def _deadline_roles(org: OrgSpec) -> list[tuple[Component, Employee, Employee, Employee]]:
-    """(component, leaver, viable cover, teammate outside the component), canonical order."""
+def deadline_roles(org: OrgSpec) -> list[tuple[Component, Employee, Employee, Employee]]:
+    """(component, leaver, viable cover, teammate outside the component), canonical order.
+
+    Public because the stale-conflict class reuses the cast unchanged (the 15.5 rulings): the
+    outsider, non-viable by component, is the owner the stale runbook names.
+    """
     by_id = {employee.id: employee for employee in org.employees}
     roles: list[tuple[Component, Employee, Employee, Employee]] = []
     for component in org.components:
@@ -227,7 +231,7 @@ def _deadline_construction(
         leave = plant_leave(frame, leaver)
         ticket = plant_ticket(frame, rng, component, leaver)
         owned = OwnedEntities(leaves=(leave,), work_items=(ticket,))
-        return Draft(owned, leave.entity.id, (_deadline_impact(leave, ticket, cover, outsider),))
+        return Draft(owned, leave.entity.id, (deadline_impact(leave, ticket, cover, outsider),))
 
     return plant
 
@@ -261,7 +265,7 @@ def _mixed_construction(
         overlap = plant_overlap(frame, rng, meeting, busy)
         owned = OwnedEntities(leaves=(leave,), work_items=(ticket,), events=(meeting, overlap))
         impacts = (
-            _deadline_impact(leave, ticket, cover, outsider),
+            deadline_impact(leave, ticket, cover, outsider),
             _meeting_impact(leave, meeting, outsider, busy),
         )
         return Draft(owned, leave.entity.id, impacts)
@@ -343,9 +347,11 @@ def day_in_leave(frame: Frame, rng: Random) -> date:
 # --- Expectations: what the key authors for each impact ---------------------------------
 
 
-def _deadline_impact(
+def deadline_impact(
     leave: Planted[Leave], ticket: Planted[WorkItem], cover: Employee, outsider: Employee
 ) -> ExpectedImpact:
+    """The deadline impact with its two authored verdicts: the cover viable, the outsider
+    non-viable by component; the outcome assign. Shared with the stale-conflict class."""
     impact = ImpactKey(leave.entity.id, ImpactSubtype.DEADLINE, work_item_ref(ticket.entity.id))
     must_assess = (
         AuthoredVerdict(cover.id, Verdict.VIABLE),

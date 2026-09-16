@@ -51,6 +51,7 @@ from leaveimpact.world import (
     ReleaseCardinalityConstraint,
     Scenario,
     ScenarioClass,
+    StaleSourceConflict,
     StructuredDeadline,
     StructuredMeeting,
     StructuredMixed,
@@ -77,6 +78,7 @@ CLASSES: tuple[ScenarioClass, ...] = (
     FreeTextResponsibility(),
     ReleaseCardinalityConstraint(),
     FragmentedComposite(),
+    StaleSourceConflict(),
 )
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [

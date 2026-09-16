@@ -201,6 +201,8 @@ def test_a_class_outside_every_offered_plan_has_no_route_to_a_world() -> None:
     assert set(SCENARIO_CLASSES) - offered == UNOFFERED_CLASSES
 
 
-UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset()
+UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset(
+    {ScenarioClassName.STALE_SOURCE_CONFLICT}
+)
 """The built classes no offered plan names: each Tier 3 class joins as it lands and the set
 empties when the golden plan is offered."""

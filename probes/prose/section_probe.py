@@ -35,6 +35,7 @@ from leaveimpact.world import (  # noqa: E402
     FragmentedComposite,
     FreeTextResponsibility,
     Minting,
+    StaleSourceConflict,
     allocate_slices,
     construct,
 )
@@ -43,6 +44,7 @@ from leaveimpact.world.briefs import lexicon_of, target_ref  # noqa: E402
 CLASSES = {
     FreeTextResponsibility.name.value: FreeTextResponsibility(),
     FragmentedComposite.name.value: FragmentedComposite(),
+    StaleSourceConflict.name.value: StaleSourceConflict(),
 }
 PROBE_CLASS = CLASSES[os.environ.get("PROBE_CLASS", FragmentedComposite.name.value)]
 COUNT = int(os.environ.get("PROBE_COUNT", "6"))
@@ -66,11 +68,20 @@ def main() -> int:
             rng=Random(number),
         )
         [brief] = scenario.briefs
-        lexicon = lexicon_of(ORG, documents=[p.entity for p in scenario.owned.documents])
+        # The ticket titles join the lexicon: the runbook register names the release by title.
+        lexicon = lexicon_of(
+            ORG,
+            work_items=[p.entity for p in scenario.owned.work_items],
+            documents=[p.entity for p in scenario.owned.documents],
+        )
         world_forms = lexicon.forms()
-        note, procedure = scenario.owned.documents
-        print(f"\n=== construction {number}: {note.entity.title!r}")
-        print(f"    procedure clause: {procedure.entity.sections[0].text}")
+        carrier = next(
+            p for p in scenario.owned.documents if p.entity.id == brief.target.document_id
+        )
+        print(f"\n=== construction {number}: {carrier.entity.title!r}")
+        for planted in scenario.owned.documents:
+            for section in planted.entity.sections:
+                print(f"    clause ({planted.entity.title}): {section.text}")
         for required in brief.required:
             print(f"    required: {describe_fact(required.fact, lexicon)}")
         request = writer_request(brief, lexicon, assets)

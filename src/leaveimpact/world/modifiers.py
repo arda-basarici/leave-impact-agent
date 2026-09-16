@@ -595,6 +595,12 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         # either of exactly two viable holders leaves one against a count of two, which
         # coverage-aware admissibility proves and the row declares (the 15.3 rulings).
         ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT: _ALL - {ModifierName.CONCURRENT_LEAVE},
+        # The deadline cast with a runbook beside it: every look-alike and the resolved twin
+        # attach to the ticket, a concurrent leave on the cover leaves the component's other
+        # members, and none erases the section or the tracker fact the conflict rests on;
+        # the class's own test holds the expected conflict under every admissible pair
+        # (the 15.5 rulings).
+        ScenarioClassName.STALE_SOURCE_CONFLICT: _ALL,
         # The composite owns the responsibility class's artifacts, a section and a clause,
         # so it affords what a section affords; the reserve holders its roles provision keep
         # the outcome at assign when the cover is sent away (the 15.4 rulings).

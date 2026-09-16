@@ -1,1 +1,1 @@
-A section of an engineering runbook: operational and matter-of-fact, written for a colleague on call, one short paragraph naming who does what.
+A section of an engineering runbook kept for colleagues on call: operational and matter-of-fact, one or two sentences, in the third person. It states who owns the work it names and adds nothing about that person's responsibilities, and nothing about whom to contact or escalate to.

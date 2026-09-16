@@ -48,7 +48,7 @@ _PROMPT_DIGESTS = {
     "register_client_note": "66ef3af484b61a0bec980bff783e7db6323fb2a53e74195f24ad1684b8bfcf03",
     "register_policy": "da31a905c3e09788d68c317082d03161ccaa1fbe29fb666eb1c1048128f07367",
     "register_procedure": "0393d97754189a1edeba0430662bb33e0b29d3575debabb210336994cb48b1ed",
-    "register_runbook": "a5b63408d2804cd8af514d685de7bdbe20ce1309bffde005ca3e0066df28a4e8",
+    "register_runbook": "8994f0f00d13515264097cf0b3970eb17ff0227e66e7c8d2bf86e61080ca5e9f",
     "register_ticket_comment": "a15d72b71c4b8c557bed5508cf4d8e7ed3536bb658f8ae3f4c5cd7480ea52a53",
     "writer_system": "3a5c9b811b16703b0e1f0a9f00cf00334a3877bdcc4b7678aad922b344ce1c0d",
 }
