@@ -50,10 +50,10 @@ on:
         type: number
         default: 5
       attempt_cap:
-        description: fresh attempts per prose target before the target fails (default 4)
+        description: fresh attempts per prose target before the target fails (default 8, the entry point's own)
         required: false
         type: number
-        default: 4
+        default: 8
       resume:
         description: "a sealed 64-hex world version to continue instead of generating (empty for a fresh run)"
         required: false

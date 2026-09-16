@@ -1537,6 +1537,55 @@ Carried to the responsibility class's prompt touch, ruled by the golden audit: t
 checker told that propositions come from the text alone and the carrier line asserts
 nothing.
 
+*The ticket-comment register at the golden dispatch, ruled (2026-09-16, step 16).* The
+golden plan's first dispatch exhausted the cap on one comment, other claims on every
+attempt, before any seal or vendor write; the comment probe (`probes/FINDINGS.md`,
+`comment-probe`) replayed the brief and found the failure systematic and two-faced. The
+register asked for "a remark about the work as it stands", and the checker's contract
+records every statement about work as an other claim, a collision by construction that
+the ticket's title ("ahead of the freeze") triggered every time; and Nova Pro reads a
+component named as the work's context as the author's membership.
+- *The register, rewritten on the writer's side (adopted).* A factual remark about what
+  the author knows or has done, no assessment of the work (difficulty, state, progress,
+  timing, urgency, likelihood), the ticket referred to by its title or as this ticket and
+  no component or team named, the offer and readiness prohibitions kept. Zero of six to
+  six of six on the failing target, eleven of fourteen over the three comment briefs, the
+  section probe six of six under the untouched checker prompt; the register's digest
+  re-pinned, no generator version bump (a prompt policy correction changes the
+  realization, not the semantic world). The clause against naming the component is
+  obeyed in about half the texts and reshaped the rest toward ownership of this ticket;
+  recorded as measured.
+- *The checker-side rule, probed in two placements and dropped (rejected).* A sentence in
+  the system prompt against inferring membership from work context, then the same rule
+  in the request's predicate line, the placement that fixed the carrier-subject misread
+  at 15.2: identical readings under both, the same three of five phrasings inferring
+  membership. An instruction the probe shows doing nothing is a control the record could
+  not support; the checker prompt and its digest stand as before. The residual readings
+  are checker false positives that cause safe retries: containment turns them into
+  attempts spent, never into an accepted claim. No exhaustion probability is estimated
+  from fourteen attempts over three unlike briefs; at the cap of eight the failure mode
+  is no longer systematic, which is the claim.
+- *The cap's workflow default (corrected).* The step 14 ruling raised the cap to eight and
+  the entry point's default followed; the dispatch input defaulted to four and is passed
+  explicitly, so every dispatch to date ran at four. The input's default is eight. Ten of
+  ten refusals would have exhausted eight as surely as four: the finding is that the
+  prompt needed repair, not the cap.
+- *The checker model, kept (Nova Pro).* Haiku 4.5 as the checker inferred no membership on
+  four of five negatives and caught both positives, but recorded the writer's "experience
+  with queue migrations" and "worked through the migration" as other claims, which Nova
+  Pro records as nothing. The pair's different families are part of the independence
+  claim above, and a substitution on five sentences would be a different materialization
+  design with its own ruling. The disagreement is the finding: the automated containment
+  gate is limited by the checker's proposition recall, and whether the stricter reading is
+  recall or over-extraction is a step 16 audit question the human pass adjudicates. For
+  the first golden set the coverage is the three layers together, the lexical guards, the
+  extraction containment and the human acceptance of every answer-changing generated
+  text, which is what the step 16 pass is for.
+- *Frame convergence (recorded as a limitation).* Every accepted qualification comment,
+  twenty probe attempts and the measurement world's three, opens "I have" or "I've got X
+  experience": a realism limitation of the first benchmark's qualification comments, not
+  tuned before the golden run unless the agent is found to exploit the phrasing.
+
 *The cardinality class, ruled (2026-09-15, the 15.3 interview).* Three questions, one per
 exchange, an external low-context reviewer's read on each before the ruling; one ruling
 reopened at the build on a code reading, one pulled forward from its parked trigger on

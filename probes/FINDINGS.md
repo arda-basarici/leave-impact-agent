@@ -1134,3 +1134,89 @@ expected conflicts; the one exhaustion crosses three rules at once. The cardinal
 exhaustion parked at 15.4 (1 of 200 at twenty rows, 1 of 200 at thirty on run one) is 0 of
 200 under the scarcity order; the FIXLOG's first option, taken on the measured rate, without
 the renumbering it feared. About 2.5 s a world.
+
+## comment-probe — the golden dispatch refused on the ticket-comment register, fixed on the writer's side (2026-09-16)
+
+The golden plan's first dispatch (run 35111247215: seed 16, start 2026-01-05, `golden`,
+cap 4 by the workflow's default) went red in the prose stage, before any seal or vendor
+write, so no calendar was made and no quota spent. Twelve model-written targets: nine
+sections, every one accepted at attempt one; three ticket comments, `comment_001` accepted
+at one, `comment_003` at three (a foreign name, then an other claim and an unknown
+subject), `comment_002` exhausted, other claims on all four attempts (3, 2, 2, 2 findings).
+The log carries counts and never a sentence, by design, so `probes/prose/comment_probe.py`
+replays the job's own brief: the semantic world from the recipe, the materializer's
+lexicon, the byte-identical writer request, six fresh attempts through the two free guards,
+the checker and containment, the texts and the raw extraction printed.
+
+**Zero of six, and two faces.** The brief is structurally the same as the two that passed
+(one required has-skill fact, the ticket's owner and component allowed, five names); what
+differs is the title, "Mobile Release: migrate the retry queue ahead of the freeze". Face A,
+three of six: the writer wrote a clean comment (the skill, the ticket's component, nothing
+else) and the checker recorded "Selin is a member of Mobile Release" from "the retry queue
+work in Mobile Release". Face B, three of six: the writer assessed the work ("the migration
+approach is clear", "the freeze is coming up", "the timing is tight"), which the register
+asked for ("a remark about the work as it stands, something observed, done or known") and
+the checker's contract records as an other claim; the two instructions collide by
+construction, and the title hands the writer a deadline. Every text opened "I've got" or
+"I have Python experience".
+
+**The fix, measured in three rounds, writer, checker, then the pair.** (1) The register
+rewritten to what the author knows or has done, no assessment of the work (difficulty,
+state, progress, timing, urgency, likelihood), plus a sentence in the checker's system
+prompt against inferring membership from a component named as work context: two of six.
+Face B thinned (one activity remark, one restatement the checker counted anyway, one
+"similar queue migrations" read as an unlisted skill); face A unmoved, three of seven checker
+calls, the fixed negative case included. (2) The membership rule moved into the request's
+predicate line, the placement that fixed the carrier-subject misread on six of six at 15.2,
+A/B over seven phrasings, checker only: identical readings under both placements, the same
+three of five negatives inferring membership (Nova Pro at temperature zero reads the same
+text the same way). The checker-side rule was dropped, the prompt and its digest restored:
+an instruction the probe shows doing nothing would be a control the record could not
+support. (3) The register also told to refer to the ticket by its title or as this ticket
+and name no component or team: six of six on `comment_002`, then `comment_001` two of four
+and `comment_003` three of four, the section probe six of six under the untouched checker
+prompt, no drift. The writer still names the component in about half the texts, so the
+clause reshaped the framing (ownership of this ticket in the component, an allowed fact,
+read correctly) rather than removing the name; recorded as measured, not tuned further.
+
+| target | before | after the register fix |
+|---|---|---|
+| `comment_002`, six attempts | 0 of 6 (plus 0 of 4 in the job) | 6 of 6 |
+| `comment_001`, four attempts | accepted at one in the job | 2 of 4 |
+| `comment_003`, four attempts | accepted at three in the job | 3 of 4 |
+| section probe, composite, six | 6 of 6 at 15.4 | 6 of 6 |
+
+Eleven of fourteen comment attempts pass, six of six on the target that failed
+systematically; at the cap of eight the observed failure mode is no longer systematic.
+No exhaustion probability is estimated from fourteen attempts over three unlike briefs.
+The three residual refusals (two membership readings, one `requires` with an unknown
+subject) are checker false positives that cause safe retries: containment turns them into
+attempts spent, never into an accepted claim.
+
+**The cap.** DESIGN raised the cap from four to eight at step 14 and the entry point's
+default is eight; the workflow's dispatch input defaulted to four and is passed explicitly,
+so every dispatch to date, the measurement world included, ran at four. Corrected to eight
+in the same commit. It would not have saved `comment_002`: ten of ten refusals is a
+systematic fault, and more retries would have hidden nothing and fixed nothing.
+
+**Haiku 4.5 as the checker, the same A/B, not adopted.** No membership inferred on four of
+five negatives (five of five under the qualified line), both positives caught; but "has
+experience with queue migrations", "has worked through the retry queue migration for Mobile
+Release" and "has done groundwork for the Mobile Release migration" recorded as other
+claims, which Nova Pro records as nothing. Haiku is the writer's family, and the pair's
+different families are part of DESIGN's independence claim; substituting it on five probe
+sentences would be a different materialization design deserving its own ruling. What the
+disagreement shows is that the automated containment gate is limited by the checker's
+proposition recall, and whether Haiku's extra claims are recall or over-extraction is a
+step 16 audit question the human pass adjudicates: for the first golden set the coverage
+is the lexical guards, Nova's extraction containment and the human acceptance of every
+answer-changing generated text together.
+
+**Frame convergence, now a limitation and not an anecdote.** Every accepted qualification
+comment across the probe's twenty attempts and the measurement world's three opens with
+"I have" or "I've got X experience": a realism limitation of the first benchmark's
+qualification comments, not tuned before the golden run unless the agent is found to
+exploit the phrasing.
+
+Spend: about thirty writer calls and sixty checker calls over the afternoon, cents by the
+per-call sizes above (writer about 680 in and 30 out, checker about 1,600 in and 120 out).
