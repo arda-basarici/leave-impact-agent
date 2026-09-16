@@ -38,8 +38,8 @@ REFERENCE_SEED = 7
 # now produces: bump GENERATOR_VERSION in world/version.py and record the new digest here.
 # The semantic digest and not the world version, since the prose step: two runs of one seed
 # share the former and differ in the latter by design.
-SNAPSHOT_VERSION = GeneratorVersion("12")
-SNAPSHOT_SEMANTIC_DIGEST = "92e313b9b5b123a4872d17a22713419cad4770a822e5e71b611efe2ccec6a098"
+SNAPSHOT_VERSION = GeneratorVersion("13")
+SNAPSHOT_SEMANTIC_DIGEST = "eb1e4652b5bba75ca7cb993c16547295910f2f9ad387521c6ce2ebcd286df23f"
 
 
 @pytest.fixture(scope="module")
@@ -130,6 +130,9 @@ def test_the_truth_manifest_holds_keys_authored_facts_and_the_dated_fact_base_an
         assert set(record) == {"key", "authored_facts", "briefs"}
         assert record["key"]["scenario_id"] == scenario.key.scenario_id
         assert len(record["key"]["impacts"]) == len(scenario.key.impacts)
+        # Sealed as lists even when empty: absent means a key from before the fields.
+        assert record["key"]["expected_conflicts"] == []
+        assert record["key"]["expected_unknowns"] == []
         assert record["briefs"] == []  # the structured tier writes no prose
         # One home per fact: the plantings and the stable interval are the world spec's.
         assert "stable_interval" not in record["key"]

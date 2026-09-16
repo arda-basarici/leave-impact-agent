@@ -105,6 +105,8 @@ from leaveimpact.world.construction import (
     ScenarioInvariantFailed,
     claims_of,
     construct,
+    derive_expectations,
+    unknown_skill_pairs,
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.fragmented import (
@@ -177,7 +179,9 @@ from leaveimpact.world.runtime_view import (
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
     DistractorReason,
+    ExpectedConflict,
     ExpectedImpact,
+    ExpectedUnknown,
     ModifierEffect,
     ModifierName,
     NamedDistractor,
@@ -284,7 +288,9 @@ __all__ = [
     "Contamination",
     "DistractorReason",
     "Draft",
+    "ExpectedConflict",
     "ExpectedImpact",
+    "ExpectedUnknown",
     "FactRole",
     "ForeignRecord",
     "Frame",
@@ -361,8 +367,10 @@ __all__ = [
     "check_pending",
     "check_plan",
     "claims_of",
+    "unknown_skill_pairs",
     "compose",
     "construct",
+    "derive_expectations",
     "decode_org_params",
     "decode_scenario_specs",
     "decode_world_spec",

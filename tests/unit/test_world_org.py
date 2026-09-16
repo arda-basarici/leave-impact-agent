@@ -288,9 +288,10 @@ def test_a_contractor_always_carries_a_skills_record(seed: int) -> None:
 @pytest.mark.parametrize("seed", SEEDS)
 def test_components_place_blank_records_both_ways(seed: int) -> None:
     """The missing-information and uncovered classes differ in one placement, so both must be
-    plantable: a component with a blank-record member, and one without."""
+    plantable: a component with exactly one blank-record member, and one without."""
     spec = generate_org(seed, DEFAULT_PARAMS)
     blank = {e.id for e in spec.employees if e.skills is None}
-    with_blank = [c for c in spec.components if blank & set(c.member_ids)]
+    exactly_one = [c for c in spec.components if len(blank & set(c.member_ids)) == 1]
     without = [c for c in spec.components if not blank & set(c.member_ids)]
-    assert with_blank and without
+    assert exactly_one and without
+    assert len(blank & set(spec.components[0].member_ids)) == 1

@@ -102,7 +102,9 @@ from leaveimpact.world.prose import (
 )
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
+    ExpectedConflict,
     ExpectedImpact,
+    ExpectedUnknown,
     NamedDistractor,
     OwnedEntities,
     Planted,
@@ -548,6 +550,28 @@ def _key(key: ScenarioKey) -> JsonObject:
         "constraints": [_constraint(constraint) for constraint in key.constraints],
         "distractors": [_distractor(distractor) for distractor in key.distractors],
         "required_sources": [source.value for source in key.required_sources],
+        "expected_conflicts": [_expected_conflict(c) for c in key.expected_conflicts],
+        "expected_unknowns": [_expected_unknown(u) for u in key.expected_unknowns],
+    }
+
+
+def _expected_conflict(conflict: ExpectedConflict) -> JsonObject:
+    return {
+        "entity": encode_ref(conflict.entity),
+        "predicate": conflict.predicate.value,
+        "resolved_value": encode_value(
+            conflict.resolved_value, predicate(conflict.predicate).value_spec
+        ),
+        "authority_rule": conflict.authority_rule.value,
+    }
+
+
+def _expected_unknown(unknown: ExpectedUnknown) -> JsonObject:
+    return {
+        "employee_id": unknown.employee_id,
+        "subject": encode_ref(unknown.subject),
+        "required_fact": unknown.required_fact.value,
+        "reason": unknown.reason.value,
     }
 
 

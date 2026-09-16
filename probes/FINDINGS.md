@@ -1021,3 +1021,14 @@ the key grades"); seeds 21, 61 and 187 assemble, four hundred standalone seeds p
 each modifier set, and generator version 12, since the filtered draw moves the worlds of
 seeds carrying the pairing (seeds 2 to 5 of the twenty-row plan moved; the two sealed
 worlds and the reference seed did not).
+
+*Re-swept at the 15.5 foundation, 2026-09-16 (generator version 13).* The same two hundred
+seeds after the key gained its derived expected conflicts and expected unknowns, world
+assembly its two checks of them in both views across every stable day, and the reservation
+book every absence-dependent (person, skill) pair a derived unknown rests on: 199 admitted
+and verified, 1 exhausted (seed 10, the cardinality residual, refused by the same two
+standing-contact rules as before), 0 refused by a scenario's own invariant (the wrong-team
+fix), 0 contaminated. Of 3,980 rows, 1,591 seal expected unknowns, 3,102 in all, every one
+a blank-record employee asked a clause's skill, reason absent; no row seals a conflict, the
+conflict class not yet existing. The wider relation added no exhaustion at twenty rows;
+the thirty-row plan is where the pressure is measured for the ruling. About 1.6 s a world.

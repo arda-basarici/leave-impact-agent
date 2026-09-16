@@ -34,9 +34,11 @@ from enum import StrEnum
 
 from leaveimpact.core.claims import (
     AssessmentReason,
+    AuthorityRule,
     ConstraintKey,
     CoverageActionKind,
     ImpactKey,
+    UnknownReason,
     Verdict,
 )
 from leaveimpact.core.entities import CalendarEvent, Document, Leave, WorkItem
@@ -44,7 +46,9 @@ from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import Fact
 from leaveimpact.core.ids import EmployeeId, LeaveId, ScenarioId
 from leaveimpact.core.ports.observed import Entity
+from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import EntityRef
+from leaveimpact.core.values import FactValue
 from leaveimpact.core.worldtime import DateSpan, local_date, require_aware
 from leaveimpact.world.briefs import Brief
 
@@ -220,6 +224,40 @@ class ModifierEffect:
 
 
 @dataclass(frozen=True, slots=True)
+class ExpectedConflict:
+    """A source conflict the key expects a run to report: the claim's grading key and the
+    resolution the authority table gives it.
+
+    The observations stay out: the grader already checks a reported conflict's observations
+    against the world's authority table, and the key says what is expected rather than
+    restating the world (the 15.5 rulings). Derived by the rules from the facts the
+    investigation read, never authored by a class.
+    """
+
+    entity: EntityRef
+    predicate: PredicateName
+    resolved_value: FactValue
+    authority_rule: AuthorityRule
+
+
+@dataclass(frozen=True, slots=True)
+class ExpectedUnknown:
+    """An unknown claim the key expects a run to make: the candidate whose assessment it
+    seeds, the fact that could not be settled, and why, under the normal run condition.
+
+    Mirrors the unknown claim (subject, required fact, reason) beside the candidate it
+    belongs to, so the grader reads it the way it reads a report. Derived by the rules over
+    the candidate universe, never authored: a Tier 2 row whose clause asks a blank-record
+    employee for a skill carries the unknown its truth already concludes (the 15.5 rulings).
+    """
+
+    employee_id: EmployeeId
+    subject: EntityRef
+    required_fact: PredicateName
+    reason: UnknownReason
+
+
+@dataclass(frozen=True, slots=True)
 class ScenarioKey:
     """The evaluator's half: what truth expects of a run over this scenario.
 
@@ -231,6 +269,14 @@ class ScenarioKey:
     distractor list, and impact discovery through the impacts, so neither borrows this
     field (the step 8 part 2 review ruling). ``stable_interval`` is the run of days over
     which any ``now`` yields this same key.
+
+    ``expected_conflicts`` and ``expected_unknowns`` are the conclusions of the third kind
+    the grader requires (the 15.5 rulings): every conflict on a fact the investigation read,
+    every unresolved fact of a candidate's assessment, both derived under the normal run
+    condition and sealed as the complete set. A conflict the report lacks is a miss; a
+    reported conflict outside the set is a relevance error, since a world's documents stand
+    for every run and another scenario's stale runbook is visible here without being read.
+    Both are append-only fields: a key sealed before them decodes them as none.
     """
 
     scenario_id: ScenarioId
@@ -242,6 +288,8 @@ class ScenarioKey:
     distractors: tuple[NamedDistractor, ...]
     stable_interval: DateSpan
     required_sources: tuple[Source, ...]
+    expected_conflicts: tuple[ExpectedConflict, ...] = ()
+    expected_unknowns: tuple[ExpectedUnknown, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.impacts:
@@ -253,6 +301,8 @@ class ScenarioKey:
             ("modifiers", self.modifiers),
             ("constraints", self.constraints),
             ("required_sources", self.required_sources),
+            ("expected_conflicts", self.expected_conflicts),
+            ("expected_unknowns", self.expected_unknowns),
         ):
             if len(set(values)) != len(values):
                 raise ValueError(f"{name} are listed once each, got {values}")

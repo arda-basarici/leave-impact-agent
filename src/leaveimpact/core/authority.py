@@ -16,11 +16,19 @@ from the fact base itself, so a stale runbook naming an outdated owner is an exp
 list it. ``resolve`` is the shared judgement: the same function tells the generator
 what the resolved value is and tells the chain check whether an agent's conflict claim
 resolved to the right one.
+
+``conflicts_on`` is the scope an investigation's key uses (the 15.5 rulings). A world's
+documents stand for every run in it, so a stale runbook one scenario plants is visible
+to every later investigation, and "every conflict in the view" would attach it to all
+of them. The conflicts an investigation is expected to report are the ones on facts it
+read: the evidence the impact grounding and the candidate assessments already return.
+The scope is taken from that evidence and never derived a second time, so the expected
+conflicts cannot drift from what the rules consulted.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 
 from leaveimpact.core.claims import AuthorityRule
@@ -101,6 +109,27 @@ class ConflictFinding:
     facts: tuple[Fact, ...]
     observations: tuple[Observation, ...]
     resolution: Resolution
+
+
+def conflicts_on(
+    view: FactView,
+    evidence: Iterable[Fact],
+    *,
+    registry: Mapping[PredicateName, Predicate] = REGISTRY,
+) -> tuple[ConflictFinding, ...]:
+    """The conflicts of ``view`` on a subject and predicate some fact of ``evidence`` carries,
+    in ``conflicts_in``'s order.
+
+    Matched by fact key and not by fact identity: the resolved read returns the agreeing
+    facts as evidence and leaves the contradicted one to the conflict finding, so the
+    tracker's ownership fact in the evidence is what brings the runbook's conflict in.
+    """
+    read = {fact.key for fact in evidence}
+    return tuple(
+        finding
+        for finding in conflicts_in(view, registry=registry)
+        if (finding.subject, finding.predicate) in read
+    )
 
 
 def conflicts_in(

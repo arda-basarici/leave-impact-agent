@@ -44,6 +44,7 @@ from leaveimpact.core import (
     event_ref,
     work_item_ref,
 )
+from leaveimpact.core.claims import AuthorityRule
 from leaveimpact.core.ids import ComponentId, EmployeeId, comment_id, scenario_id, skill_id
 from leaveimpact.world import (
     DEFAULT_PARAMS,
@@ -52,6 +53,7 @@ from leaveimpact.world import (
     CommentTarget,
     Construction,
     Draft,
+    ExpectedConflict,
     ExpectedImpact,
     Frame,
     MaterializationRecord,
@@ -63,6 +65,7 @@ from leaveimpact.world import (
     PlanRow,
     Planted,
     Scenario,
+    ScenarioClass,
     ScenarioClassName,
     SectionTarget,
     SemanticWorld,
@@ -301,6 +304,15 @@ class StaleOwnerInRunbook:
                     (expected,),
                     authored_facts=(stale,),
                     pending=(PendingProse(SectionTarget(clause, runbook.id, 0), (stale,)),),
+                    # The class asserts the conflict it plants; the key seals what derives.
+                    required_conflicts=(
+                        ExpectedConflict(
+                            work_item_ref(ticket.id),
+                            PredicateName.OWNS_WORK_ITEM,
+                            employee_ref(leaver),
+                            AuthorityRule.SYSTEM_OF_RECORD_WINS,
+                        ),
+                    ),
                 )
 
             return (plant,)
@@ -308,7 +320,7 @@ class StaleOwnerInRunbook:
 
 
 def pending_scenario(
-    scenario_class: SkillInComment | ContactInNote | StaleOwnerInRunbook | None = None,
+    scenario_class: ScenarioClass | None = None,
 ) -> Scenario:
     """One scenario of ``scenario_class`` under the shared organization, deterministic."""
     return construct(

@@ -78,6 +78,7 @@ from leaveimpact.world.construction import (
     Minting,
     Reservations,
     construct,
+    derive_expectations,
     grounding_text,
     required_count_for,
     required_sources_for,
@@ -87,7 +88,7 @@ from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
 from leaveimpact.world.plan import PLANS, PlanRow, plan_tiers
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
-from leaveimpact.world.scenario import Scenario
+from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Scenario
 from leaveimpact.world.slices import allocate_slices
 from leaveimpact.world.truth_facts import truth_fact_base
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
@@ -458,6 +459,9 @@ def _check_day(
                 )
             )
     findings.extend(_grounding_findings(view_name, view, day, scenario, leaver, owner_of))
+    findings.extend(
+        _expectation_findings(view_name, view, day, scenario, leaver, universe, owner_of)
+    )
     required = required_sources_for(
         base,
         day,
@@ -534,6 +538,76 @@ def _grounding_findings(
             )
         )
     return findings
+
+
+def _expectation_findings(
+    view_name: str,
+    view: FactView,
+    day: date,
+    scenario: Scenario,
+    leaver: EmployeeId,
+    universe: Sequence[EmployeeId],
+    owner_of: dict[str, tuple[ScenarioId, date]],
+) -> list[Contamination]:
+    """The key's expected conflicts and unknowns against the assembled world: a standing
+    document of another slice that this investigation happens to read, or a foreign fact that
+    settles a question the key left unknown, moves one of the two sets (the 15.5 rulings)."""
+    expectations = derive_expectations(
+        view,
+        scenario.key.impacts,
+        scenario.key.constraints,
+        leaver,
+        scenario.investigated_leave.span,
+        scenario.spec.reference_timezone,
+        universe,
+    )
+    findings: list[Contamination] = []
+    if expectations.conflicts != scenario.key.expected_conflicts:
+        findings.append(
+            Contamination(
+                scenario.key.scenario_id,
+                view_name,
+                day,
+                "all impacts",
+                "expected_conflicts",
+                _conflicts_text(scenario.key.expected_conflicts),
+                _conflicts_text(expectations.conflicts),
+                _foreign(_conflict_facts(view, expectations.conflicts), scenario, owner_of),
+            )
+        )
+    if expectations.unknowns != scenario.key.expected_unknowns:
+        findings.append(
+            Contamination(
+                scenario.key.scenario_id,
+                view_name,
+                day,
+                "all impacts",
+                "expected_unknowns",
+                _unknowns_text(scenario.key.expected_unknowns),
+                _unknowns_text(expectations.unknowns),
+                (),
+            )
+        )
+    return findings
+
+
+def _conflict_facts(view: FactView, conflicts: Iterable[ExpectedConflict]) -> list[Fact]:
+    keys = {(conflict.entity, conflict.predicate) for conflict in conflicts}
+    return [fact for fact in view.facts if (fact.subject, fact.predicate) in keys]
+
+
+def _conflicts_text(conflicts: Iterable[ExpectedConflict]) -> str:
+    return "[" + ", ".join(f"{c.predicate.value} of {c.entity.id}" for c in conflicts) + "]"
+
+
+def _unknowns_text(unknowns: Iterable[ExpectedUnknown]) -> str:
+    return (
+        "["
+        + ", ".join(
+            f"{u.employee_id} on {u.required_fact.value} ({u.reason.value})" for u in unknowns
+        )
+        + "]"
+    )
 
 
 def _sources_text(sources: Iterable[Source]) -> str:

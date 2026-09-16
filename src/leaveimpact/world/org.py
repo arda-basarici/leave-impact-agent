@@ -301,9 +301,9 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     the vocabulary at least one skill with no holder, one with exactly one, one held by
     at least a third of the people with a record, one held by exactly two employees and
     by a contractor when one exists; every component's members drawn from at least two
-    teams, the first component holding a blank-record member and the second being exactly
-    the paired skill's cast: its holders and two recorded employees lacking it, so it
-    holds no blank record.
+    teams, the first component holding exactly one blank-record member and the second
+    being exactly the paired skill's cast: its holders and two recorded employees lacking
+    it, so it holds no blank record.
 
     >>> generate_org(7, DEFAULT_PARAMS) == generate_org(7, DEFAULT_PARAMS)
     True
@@ -534,12 +534,14 @@ def _components(
     cast: _PairedCast,
 ) -> tuple[Component, ...]:
     """Components anchored on two people from two different teams, then filled from anyone —
-    except that the first component holds a blank-record member and the second is exactly
-    the paired skill's cast.
+    except that the first component holds exactly one blank-record member and the second
+    is exactly the paired skill's cast.
 
     The missing-information and uncovered classes differ in one placement (the step 15
     rulings): a blank-record member inside the impact's component is an unknown
-    candidate, none inside makes the world complete about everyone. The cardinality class
+    candidate, none inside makes the world complete about everyone. Exactly one, so the
+    class's unknown is one graded person and not a count the seed decides (the 15.5
+    rulings; four seeds in two hundred seated both blank records there). The cardinality class
     needs more than a blank-free component (the 15.3 ruling): the viability rule asks
     every candidate for a work item to belong to its component, so the two employees and
     the contractor holding the paired skill must sit in one component with the leaver
@@ -569,15 +571,30 @@ def _components(
             anchors = [rng.choice(by_team[first.id]), rng.choice(by_team[second.id])]
             rest = [employee for employee in employees if employee not in anchors]
             members = anchors + rng.sample(rest, size - 2)
-            if number == 1 and blank and not any(e.skills is None for e in members):
-                # A blank-record person takes the last filler's seat.
-                members[-1] = rng.choice(blank)
+            if number == 1 and blank:
+                members = _with_one_blank_record(rng, members, employees, blank)
         components.append(
             Component(
                 id=component_id(number), name=name, member_ids=tuple(sorted(e.id for e in members))
             )
         )
     return tuple(components)
+
+
+def _with_one_blank_record(
+    rng: Random, members: list[Employee], employees: tuple[Employee, ...], blank: list[Employee]
+) -> list[Employee]:
+    """``members`` with exactly one blank-record person among them: none seated, a blank-record
+    person takes the last filler's seat; more than one, each after the first gives its seat
+    to a recorded person not yet seated. Draws from ``rng`` only when a seat changes, so a
+    component already holding one is the component it was."""
+    seated = [e for e in members if e.skills is None]
+    if not seated:
+        return members[:-1] + [rng.choice(blank)]
+    for extra in seated[1:]:
+        recorded = [e for e in employees if e.skills is not None and e not in members]
+        members[members.index(extra)] = rng.choice(recorded)
+    return members
 
 
 def _weighted_choice[T](rng: Random, weighted: tuple[tuple[T, int], ...]) -> T:

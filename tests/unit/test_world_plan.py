@@ -12,6 +12,7 @@ from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
     MEASUREMENT_RULES,
     PLANS,
+    SCENARIO_CLASSES,
     TIER_ONE_RULES,
     TIER_TWO_RULES,
     ModifierName,
@@ -189,3 +190,17 @@ def test_the_fragmented_table_is_feasible_on_every_seed(seed: int) -> None:
     ]
     assert len(cardinality) == 2
     assert all(ModifierName.ALREADY_RESOLVED in row.modifiers for row in cardinality)
+
+
+def test_a_class_outside_every_offered_plan_has_no_route_to_a_world() -> None:
+    # The plan is the only way a class reaches construction: the entry point takes a plan
+    # name from ``PLANS`` and assembly refuses any other, so a built class no offered plan
+    # names cannot be sealed under the current generator version. The Tier 3 classes are
+    # exactly that set until the golden plan is offered (the 15.5 rulings).
+    offered = {name for rules in PLANS.values() for rule in rules for name in rule.class_counts}
+    assert set(SCENARIO_CLASSES) - offered == UNOFFERED_CLASSES
+
+
+UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset()
+"""The built classes no offered plan names: each Tier 3 class joins as it lands and the set
+empties when the golden plan is offered."""

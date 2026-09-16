@@ -5,7 +5,7 @@ one framework behaviour: selection among admissible constructions, composition o
 effects, the two invariants, the named errors, and determinism over the whole result."""
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, time, timedelta
 from random import Random
 from zoneinfo import ZoneInfo
@@ -36,9 +36,11 @@ from leaveimpact.core import (
     WorkItem,
     WorkItemStatus,
     clause_ref,
+    employee_ref,
     event_ref,
     work_item_ref,
 )
+from leaveimpact.core.claims import AuthorityRule, UnknownReason
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ComponentId, EmployeeId, employee_id, scenario_id, skill_id
 from leaveimpact.core.viability import assess_impact
@@ -47,6 +49,7 @@ from leaveimpact.world import (
     AuthoredVerdict,
     DistractorReason,
     ExpectedImpact,
+    ExpectedUnknown,
     ModifierEffect,
     ModifierName,
     NamedDistractor,
@@ -75,6 +78,7 @@ from leaveimpact.world.construction import (
     ScenarioInvariantFailed,
     claims_of,
     construct,
+    unknown_skill_pairs,
 )
 from leaveimpact.world.prose import FactRole
 from leaveimpact.world.truth_facts import truth_fact_base
@@ -562,6 +566,95 @@ def test_a_stale_owner_in_a_runbook_is_answer_changing_through_the_conflict() ->
     assert required.role is FactRole.ANSWER_CHANGING
     assert brief.register is Register.RUNBOOK
     assert Source.CORPUS in scenario.key.required_sources
+
+
+# --- The key's expected conflicts and unknowns (the 15.5 rulings) -----------------------
+
+
+def test_the_key_seals_the_conflict_the_rules_derive_resolved_to_the_record() -> None:
+    scenario = pending_scenario(StaleOwnerInRunbook())
+    [conflict] = scenario.key.expected_conflicts
+    [ticket] = scenario.owned.work_items
+    assert conflict.entity == work_item_ref(ticket.entity.id)
+    assert conflict.predicate is PredicateName.OWNS_WORK_ITEM
+    assert conflict.resolved_value == employee_ref(scenario.investigated_leave.employee_id)
+    assert conflict.authority_rule is AuthorityRule.SYSTEM_OF_RECORD_WINS
+    assert scenario.key.expected_unknowns == ()
+
+
+class _Undeclared:
+    """The stale-owner stub with its declaration stripped: the conflict still derives."""
+
+    name = StaleOwnerInRunbook.name
+    tier = StaleOwnerInRunbook.tier
+    affordance = StaleOwnerInRunbook.affordance
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        def stripped(plant: Construction) -> Construction:
+            return lambda frame, rng: replace(plant(frame, rng), required_conflicts=())
+
+        return tuple(stripped(plant) for plant in StaleOwnerInRunbook().admissible(org))
+
+
+def test_a_derived_conflict_no_class_declares_is_a_construction_error() -> None:
+    # Only a class that plants a conflict declares one, so the two sets are equal, not a
+    # superset: a conflict arriving from anywhere else is a fault in the world.
+    with pytest.raises(ScenarioInvariantFailed, match="that the class does not declare"):
+        pending_scenario(_Undeclared())
+
+
+def test_a_clause_asking_a_blank_record_seals_the_unknowns_the_truth_derives() -> None:
+    """A Tier 2 shape already concludes unknowns: every blank-record employee the clause asks
+    is unknown by absence, sealed as the complete set the class never authored, and each is
+    an absence-dependent claim on the reservation book."""
+    scenario = _construct(MeetingWithClause())
+    blank = {e.id for e in ORG.employees if e.skills is None}
+    assert scenario.key.expected_unknowns
+    for unknown in scenario.key.expected_unknowns:
+        assert unknown.employee_id in blank
+        assert unknown.subject == employee_ref(unknown.employee_id)
+        assert unknown.required_fact is PredicateName.HAS_SKILL
+        assert unknown.reason is UnknownReason.ABSENT
+    assert scenario.key.expected_conflicts == ()
+    draft = _draft(MeetingWithClause())
+    now = datetime(2026, 3, 3, 9, tzinfo=ZoneInfo(TZ))
+    frame = Frame(scenario_id(1), WINDOW, WINDOW, now, TZ, WORLD_START, Minting())
+    pairs = unknown_skill_pairs(draft, ORG, WORLD_START, frame)
+    assert pairs == {(u.employee_id, KAFKA) for u in scenario.key.expected_unknowns}
+    assert pairs <= claims_of(draft, ORG, pairs).skills_required_absent
+
+
+def test_a_structured_shape_seals_no_conflict_and_no_unknown() -> None:
+    scenario = _construct()
+    assert scenario.key.expected_conflicts == ()
+    assert scenario.key.expected_unknowns == ()
+
+
+class _DemandsAnUnknown:
+    """A ticket class asserting an unknown its world never derives."""
+
+    name = OneTicket.name
+    tier = OneTicket.tier
+    affordance = OneTicket.affordance
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        def demanding(plant: Construction) -> Construction:
+            def planted(frame: Frame, rng: Random) -> Draft:
+                draft = plant(frame, rng)
+                leaver = ORG.employees[0].id
+                unknown = ExpectedUnknown(
+                    leaver, employee_ref(leaver), PredicateName.HAS_SKILL, UnknownReason.ABSENT
+                )
+                return replace(draft, required_unknowns=(unknown,))
+
+            return planted
+
+        return tuple(demanding(plant) for plant in ONE_TICKET.admissible(org))
+
+
+def test_a_required_unknown_the_rules_do_not_derive_is_a_construction_error() -> None:
+    with pytest.raises(ScenarioInvariantFailed, match="the rules do not derive it"):
+        _construct(_DemandsAnUnknown())
 
 
 # --- The reservation book -------------------------------------------------------------

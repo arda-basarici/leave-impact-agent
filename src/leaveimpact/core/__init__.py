@@ -48,7 +48,13 @@ from leaveimpact.core import (
     viability,
     worldtime,
 )
-from leaveimpact.core.authority import ConflictFinding, Resolution, conflicts_in, resolve
+from leaveimpact.core.authority import (
+    ConflictFinding,
+    Resolution,
+    conflicts_in,
+    conflicts_on,
+    resolve,
+)
 from leaveimpact.core.checks import (
     ABOUT_THE_ARTIFACT,
     ABOUT_THE_CANDIDATE,
@@ -357,6 +363,7 @@ __all__ = [
     "completeness_problems",
     "component_ref",
     "conflicts_in",
+    "conflicts_on",
     "decode_claim",
     "decode_claims",
     "decode_value",

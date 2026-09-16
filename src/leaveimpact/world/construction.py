@@ -21,6 +21,14 @@ with each other by construction. And a query is weaker than the rule on purpose 
 filters static affordances, the rule judges the planted scenario — because a query that
 grew to mirror the rule in reverse would make the invariant's independence a fiction.
 
+Two conclusions the key seals are derived rather than authored (the 15.5 rulings): the
+conflicts on the facts the investigation read and the unknowns its assessments seed. A
+class does not write those lists, since a blank record asked a skill is unknown under any
+clause and a stale document is visible to every run; it asserts the constituents its
+construction exists to produce (``Draft.required_conflicts``, ``required_unknowns``), and
+construction refuses a scenario whose rules do not derive them, so the independence
+above holds for what the class claims while the sealed set stays complete.
+
 A modifier may amend a candidate's verdict and may not change the class's declared
 outcome; that is the definition of "orthogonal" made testable, and the outcome check
 after composition is where it fails.
@@ -40,13 +48,13 @@ class could get wrong is not a value the class writes.
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable, Mapping, Sequence
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime
 from random import Random
 from typing import Protocol
 
-from leaveimpact.core.authority import conflicts_in
+from leaveimpact.core.authority import conflicts_on
 from leaveimpact.core.claims import AssessmentReason, ConstraintKey, ImpactKey, Verdict
 from leaveimpact.core.closure import Unresolved
 from leaveimpact.core.enums import EntityKind, Source
@@ -74,6 +82,7 @@ from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import EntityRef, clause_ref, component_ref
 from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.core.viability import (
+    Assessment,
     ResolvedRequirement,
     applicable_requirements,
     assess_impact,
@@ -91,7 +100,9 @@ from leaveimpact.world.briefs import (
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.prose import FactRole
 from leaveimpact.world.scenario import (
+    ExpectedConflict,
     ExpectedImpact,
+    ExpectedUnknown,
     ModifierEffect,
     ModifierName,
     NamedDistractor,
@@ -287,7 +298,11 @@ class Draft:
     ``authored_facts`` and ``pending`` through ``extended`` and declare verdict changes
     through their effect, never by editing ``impacts`` in place. ``pending`` is the prose
     the class leaves for a model: a target and the facts it must and may carry, which the
-    framework completes into briefs.
+    framework completes into briefs. ``required_conflicts`` and ``required_unknowns`` are
+    the constituents a class asserts its construction derives (the 15.5 rulings): the
+    conflicts must be exactly these, since only a class that plants one declares it; the
+    unknowns must include these, since a blank record asked a skill is unknown under any
+    clause. The key seals what the rules derive, never these declarations.
     """
 
     owned: OwnedEntities
@@ -297,6 +312,8 @@ class Draft:
     distractors: tuple[NamedDistractor, ...] = ()
     authored_facts: tuple[Fact, ...] = ()
     pending: tuple[PendingProse, ...] = ()
+    required_conflicts: tuple[ExpectedConflict, ...] = ()
+    required_unknowns: tuple[ExpectedUnknown, ...] = ()
 
     def __post_init__(self) -> None:
         # Refused here, before composition indexes impacts by key: a dict would keep the
@@ -394,11 +411,13 @@ class Claims:
     so any other leave of that person acquires a responsibility impact its key never
     declared. ``skills_provided`` are the (person, skill) pairs an authored fact evidences
     positive, prose every run reads. ``skills_required_absent`` are the (person, skill)
-    pairs an authored non-viable verdict assumes known false: the skills the applicable
-    requirements ask for that the person's record lacks, which a positive fact elsewhere
-    would turn true and move the verdict. The names are the construction's terms, not any
-    class's; what a class may share with another, a candidate, a viable person, is not
-    here, since it contradicts nothing.
+    pairs a conclusion assumes no positive fact exists for: an authored non-viable verdict
+    by skill, where the record lacks the skills the applicable requirements ask, and a
+    derived unknown by absence, where the record is blank (the 15.5 rulings); a positive
+    fact elsewhere would turn either into a known true and move the verdict, and the sealed
+    key with it. The names are the construction's terms, not any class's; what a class may
+    share with another, a candidate, a viable person, is not here, since it contradicts
+    nothing.
     """
 
     leave_subject: EmployeeId
@@ -407,8 +426,11 @@ class Claims:
     skills_required_absent: frozenset[tuple[EmployeeId, SkillId]] = frozenset()
 
 
-def claims_of(draft: Draft, org: OrgSpec) -> Claims:
-    """The claims ``draft`` makes on the world, read off what it planted and authored."""
+def claims_of(
+    draft: Draft, org: OrgSpec, unknown_skills: Iterable[tuple[EmployeeId, SkillId]] = ()
+) -> Claims:
+    """The claims ``draft`` makes on the world, read off what it planted and authored, plus the
+    (person, skill) pairs its derived unknowns assume no positive fact for."""
     by_id = {employee.id: employee for employee in org.employees}
     contacts: set[EmployeeId] = set()
     provided: set[tuple[EmployeeId, SkillId]] = set()
@@ -427,7 +449,34 @@ def claims_of(draft: Draft, org: OrgSpec) -> Claims:
                 continue
             held = by_id[authored.employee_id].skills or ()
             absent.update((authored.employee_id, skill) for skill in skills if skill not in held)
+    absent.update(unknown_skills)
     return Claims(_leaver_of(draft), frozenset(contacts), frozenset(provided), frozenset(absent))
+
+
+def unknown_skill_pairs(
+    draft: Draft, org: OrgSpec, world_start: date, frame: Frame
+) -> frozenset[tuple[EmployeeId, SkillId]]:
+    """The (person, skill) pairs the draft's derived unknowns rest on: every candidate the rules
+    leave unknown on a skill question, paired with each skill the impact's requirements ask.
+
+    Read off the planted draft before any modifier, as the other claims are; the sealed key
+    derives its unknowns after the modifiers, so a pair reserved here for an unknown a
+    modifier later turns into a known failure is a reservation with nothing to protect,
+    never a missing one.
+    """
+    base = truth_fact_base(org, world_start, [draft.owned], draft.authored_facts)
+    view = base.at(frame.today, RunCondition.all_reachable())
+    universe = [employee.id for employee in org.employees]
+    pairs: set[tuple[EmployeeId, SkillId]] = set()
+    for expected in draft.impacts:
+        skills = _required_skills(draft, expected.key.artifact)
+        assessments = assess_impact(
+            view, expected.key, universe, draft.constraints, frame.leave, frame.reference_timezone
+        )
+        for assessment in assessments:
+            if any(u.predicate is PredicateName.HAS_SKILL for u in assessment.unresolved):
+                pairs.update((assessment.employee_id, skill) for skill in skills)
+    return frozenset(pairs)
 
 
 def _required_skills(draft: Draft, artifact: EntityRef) -> tuple[SkillId, ...]:
@@ -582,6 +631,16 @@ def construct(
     base = truth_fact_base(org, world_start, [draft.owned], draft.authored_facts)
     leaver = _leaver_of(draft)
     problems = _verify(base, spec.today, impacts, draft.constraints, frame, org, leaver)
+    expectations = derive_expectations(
+        base.at(spec.today, RunCondition.all_reachable()),
+        impacts,
+        draft.constraints,
+        leaver,
+        frame.leave,
+        reference_timezone,
+        [employee.id for employee in org.employees],
+    )
+    problems.extend(_expectation_problems(expectations, draft))
     required = required_sources_for(
         base,
         spec.today,
@@ -603,6 +662,8 @@ def construct(
         distractors=distractors,
         stable_interval=stable_interval(window, leave, frame.today, observability),
         required_sources=tuple(sorted(required, key=lambda source: source.value)),
+        expected_conflicts=expectations.conflicts,
+        expected_unknowns=expectations.unknowns,
     )
     briefs = _briefs_for(draft, impacts, base, spec.today, frame, org)
     scenario = Scenario(spec, key, draft.owned, draft.authored_facts, briefs)
@@ -684,7 +745,7 @@ def _admit(
         index = rng.randrange(len(options))
         checkpoint = frame.ids.checkpoint()
         draft = options[index](frame, rng)
-        claims = claims_of(draft, org)
+        claims = claims_of(draft, org, unknown_skill_pairs(draft, org, frame.world_start, frame))
         crossed = book.conflicts(claims)
         if not crossed:
             return draft, claims
@@ -898,6 +959,128 @@ def grounding_text(grounding: Grounding) -> str:
             return "is not the leaver's in the fact base"
 
 
+@dataclass(frozen=True, slots=True)
+class Expectations:
+    """What the rules conclude of the third kind for one investigation: the conflicts on the
+    facts it read and the unknowns its assessments seed, in the key's order."""
+
+    conflicts: tuple[ExpectedConflict, ...]
+    unknowns: tuple[ExpectedUnknown, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class _Reading:
+    grounding: Grounding
+    assessments: tuple[Assessment, ...]
+
+
+def _read(
+    view: FactView,
+    impacts: Sequence[ExpectedImpact],
+    constraints: Sequence[ConstraintKey],
+    leaver: EmployeeId,
+    leave_span: DateSpan,
+    reference_timezone: str,
+    universe: Sequence[EmployeeId],
+) -> tuple[_Reading, ...]:
+    """Each impact's grounding and its assessments over ``universe``, the one pass every
+    derivation below shares, so no consumer reads the rules a second way."""
+    return tuple(
+        _Reading(
+            ground_impact(view, expected.key, leaver, leave_span, reference_timezone),
+            assess_impact(
+                view, expected.key, universe, constraints, leave_span, reference_timezone
+            ),
+        )
+        for expected in impacts
+    )
+
+
+def _evidence(readings: Sequence[_Reading]) -> list[Fact]:
+    facts: list[Fact] = []
+    for reading in readings:
+        if isinstance(reading.grounding, Grounded):
+            facts.extend(reading.grounding.facts)
+        facts.extend(fact for a in reading.assessments for fact in a.evidence)
+    return facts
+
+
+def derive_expectations(
+    view: FactView,
+    impacts: Sequence[ExpectedImpact],
+    constraints: Sequence[ConstraintKey],
+    leaver: EmployeeId,
+    leave_span: DateSpan,
+    reference_timezone: str,
+    universe: Sequence[EmployeeId],
+) -> Expectations:
+    """The expected conflicts and unknowns of an investigation in ``view`` (the 15.5 rulings).
+
+    Conflicts are the view's conflicts on a fact the groundings or the assessments returned
+    as evidence, so a standing document another scenario planted is expected here only if
+    this investigation read the fact it contradicts. Unknowns are the unresolved entries of
+    every assessment over ``universe``, one per candidate, subject, fact and reason. Both in
+    a stable order. Construction seals them into the key and world assembly re-derives them
+    against every key, the same pass both times.
+    """
+    readings = _read(view, impacts, constraints, leaver, leave_span, reference_timezone, universe)
+    conflicts = tuple(
+        ExpectedConflict(
+            finding.subject, finding.predicate, finding.resolution.value, finding.resolution.rule
+        )
+        for finding in conflicts_on(view, _evidence(readings))
+    )
+    unknowns = {
+        ExpectedUnknown(a.employee_id, u.subject, u.predicate, u.reason)
+        for reading in readings
+        for a in reading.assessments
+        for u in a.unresolved
+    }
+    return Expectations(
+        conflicts,
+        tuple(
+            sorted(
+                unknowns,
+                key=lambda u: (
+                    u.employee_id,
+                    u.subject.kind,
+                    u.subject.id,
+                    u.required_fact,
+                    u.reason,
+                ),
+            )
+        ),
+    )
+
+
+def _expectation_problems(expectations: Expectations, draft: Draft) -> list[str]:
+    """A required conflict or unknown the rules do not derive, and a derived conflict no class
+    declared: conflicts are exact, unknowns a superset (the draft's docstring says why)."""
+    problems: list[str] = []
+    derived_conflicts = set(expectations.conflicts)
+    for required in draft.required_conflicts:
+        if required not in derived_conflicts:
+            problems.append(
+                f"the class requires a conflict on {required.predicate.value} of "
+                f"{required.entity.id} that the rules do not derive"
+            )
+    for derived in expectations.conflicts:
+        if derived not in set(draft.required_conflicts):
+            problems.append(
+                f"the rules derive a conflict on {derived.predicate.value} of {derived.entity.id} "
+                "that the class does not declare"
+            )
+    derived_unknowns = set(expectations.unknowns)
+    for required in draft.required_unknowns:
+        if required not in derived_unknowns:
+            problems.append(
+                f"the class requires {required.employee_id} unknown on "
+                f"{required.required_fact.value} ({required.reason.value}) and the rules do not "
+                "derive it"
+            )
+    return problems
+
+
 def _conclusions(
     view: FactView,
     impacts: Sequence[ExpectedImpact],
@@ -909,33 +1092,33 @@ def _conclusions(
     org: OrgSpec,
 ) -> tuple[object, ...]:
     """Everything the rules conclude in ``view``: each impact's grounding, verdicts, reasons,
-    open questions and outcome; the impacts the leaver holds; the conflicts the sources
-    plant.
+    open questions and outcome; the impacts the leaver holds; the conflicts on the facts
+    the investigation read.
 
     Grounding and conflicts joined the tuple at step 15: a fact whose only role is to make
     an impact exist, or to contradict the record, moves no verdict, and both the role
-    derivation and the required-sources derivation would have called it context.
+    derivation and the required-sources derivation would have called it context. The
+    conflicts are scoped to the evidence the groundings and assessments returned (the 15.5
+    rulings): a world's documents stand for every run, so an unscoped derivation would
+    conclude another scenario's stale runbook here.
     """
     universe = [employee.id for employee in org.employees]
     concluded: list[object] = []
-    for expected in impacts:
-        grounding = ground_impact(view, expected.key, leaver, leave_span, reference_timezone)
-        assessments = assess_impact(
-            view, expected.key, universe, constraints, leave_span, reference_timezone
-        )
+    readings = _read(view, impacts, constraints, leaver, leave_span, reference_timezone, universe)
+    for expected, reading in zip(impacts, readings, strict=True):
         # The unresolved questions travel too: an unknown for absence and an unknown for
         # an unreachable source are different conclusions with one verdict, and the
         # source that separates them was required.
         verdicts = tuple(
-            (a.employee_id, a.verdict, a.reasons, a.unresolved) for a in assessments
+            (a.employee_id, a.verdict, a.reasons, a.unresolved) for a in reading.assessments
         )
         required = required_count_for(
             view, expected.key, constraints, leave_span, reference_timezone
         )
-        outcome = expected_action((a.verdict for a in assessments), required)
-        concluded.append((grounding, verdicts, outcome))
+        outcome = expected_action((a.verdict for a in reading.assessments), required)
+        concluded.append((reading.grounding, verdicts, outcome))
     concluded.append(derive_impacts(view, leave_id, leaver, leave_span, reference_timezone))
-    concluded.append(conflicts_in(view))
+    concluded.append(conflicts_on(view, _evidence(readings)))
     return tuple(concluded)
 
 
