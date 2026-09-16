@@ -931,6 +931,20 @@ naming any owner for the ticket, agreeing or not, is not a world the fact base a
 value per source and key), so the conflict cannot be touched by a foreign fact at all; the
 only route to the conflict is the class's own section.
 
+*Missing information and uncovered, 2026-09-16 (15.5).* The release ticket under a template
+clause requiring the skill nobody holds, on the fixture organization. Both keys require
+`corpus, frappe, jira`, a skill known false needing every source in the domain answered.
+Missing information: the blank-record member unknown by absence, sealed as the one expected
+unknown, a recorded member non-viable by skill, outcome unknown. Uncovered: a recorded member
+non-viable by skill, the recorded teammate outside the component non-viable by component and
+skill (both criteria answered), the blank-record outsider non-viable by component alone (the
+skill question dominated), outcome uncovered, no unknown sealed. Source dependence: a foreign
+tracker comment giving any graded person the unheld skill leaves the set unchanged. Silent
+drift: the same comment moves a verdict on every graded person whose skill is asked (the
+unknown to viable, the skill-failing to viable, both moving the outcome), and changes nothing
+on the blank outsider, whose component failure dominates; a foreign ticket a graded person
+owns changes nothing. No perturbation moves the required set with the conclusions unchanged.
+
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
 The workstation probe the 15.2 rulings asked for before the class's first sealed world:

@@ -125,3 +125,26 @@ for who, label in ((outsider, "the outsider"), (cover, "the cover")):
 ticket_f = WorkItem(work_item_id(999), "Foreign ticket", outsider, WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
 c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket_f, visible),)),))
 print(f"   + foreign Jira ticket owned by the outsider, due in the leave: conclusions same={c2==c0}, required {r2}")
+
+
+# The pair (15.5): a foreign positive on the unheld skill moves a verdict (unknown to viable, or
+# skill-failing to viable) and with it the outcome, never the required set alone; a foreign
+# ticket on a graded person is outside the key's reading.
+from leaveimpact.world import MissingInformation, Uncovered
+from leaveimpact.world.adversarial import unheld_skill
+unheld = unheld_skill(ORG)
+for cls, label in ((MissingInformation(), "missing information"), (Uncovered(), "uncovered")):
+    scn = construct(cls, [], ORG, scenario_id=scenario_id(1), window=WINDOW,
+                    world_start=WORLD_START, reference_timezone=TZ, ids=Minting(), rng=Random(1))
+    [expected] = scn.key.impacts
+    graded = [v.employee_id for v in expected.must_assess]
+    visible = scn.spec.window.start
+    c0, r0 = study(scn, "base")
+    print(f"== {label} (ticket + clause on the unheld skill): required {r0}, outcome {expected.outcome.value}")
+    for who in graded:
+        fj = Fact(employee_ref(who), PredicateName.HAS_SKILL, unheld, EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), visible)
+        c1, r1 = study(scn, "x", (fj,))
+        print(f"   + foreign Jira comment, {who} has the unheld skill: conclusions same={c1==c0}, required {r1}")
+    ticket_f = WorkItem(work_item_id(999), "Foreign ticket", graded[0], WorkItemStatus.IN_PROGRESS, ORG.components[0].id, visible, None, scn.owned.leaves[0].entity.start + timedelta(days=1), ())
+    c2, r2 = study(scn, "y", (), (OwnedEntities(work_items=(Planted(ticket_f, visible),)),))
+    print(f"   + foreign Jira ticket owned by {graded[0]}, due in the leave: conclusions same={c2==c0}, required {r2}")

@@ -601,6 +601,12 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         # the class's own test holds the expected conflict under every admissible pair
         # (the 15.5 rulings).
         ScenarioClassName.STALE_SOURCE_CONFLICT: _ALL,
+        # Neither class authors a viable candidate, so a concurrent leave has nothing to send
+        # away: excluded by declaration, and the affordance test proves it empty. The ticket
+        # affords every look-alike and the resolved twin; the timezone boundary's colleague
+        # draw is what the sweep watches (the 15.5 rulings).
+        ScenarioClassName.MISSING_INFORMATION: _ALL - {ModifierName.CONCURRENT_LEAVE},
+        ScenarioClassName.UNCOVERED: _ALL - {ModifierName.CONCURRENT_LEAVE},
         # The composite owns the responsibility class's artifacts, a section and a clause,
         # so it affords what a section affords; the reserve holders its roles provision keep
         # the outcome at assign when the cover is sent away (the 15.4 rulings).

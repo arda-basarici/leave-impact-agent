@@ -169,3 +169,20 @@ print("-- foreign Jira comment giving the cover a skill (no clause asks one) --"
 cover_id = [v.employee_id for i in k.key.impacts for v in i.must_assess if v.verdict is Verdict.VIABLE][0]
 print("required_sources:", required(k, (Fact(employee_ref(cover_id), PredicateName.HAS_SKILL, KAFKA,
       EvidenceRef(Source.JIRA, comment_ref(comment_id(996))), WINDOW.start),)))
+
+print(chr(10) + "== missing information and uncovered (15.5): the release under a clause requiring the unheld skill ==")
+from leaveimpact.world import MissingInformation, Uncovered
+from leaveimpact.world.adversarial import unheld_skill
+unheld = unheld_skill(ORG)
+for cls, label in ((MissingInformation(), "missing information"), (Uncovered(), "uncovered")):
+    u = build(cls)
+    print(f"-- {label}: required_sources:", [s.value for s in u.key.required_sources])
+    for i in u.key.impacts:
+        print("impact:", i.key.subtype.value, i.key.artifact.id, "outcome:", i.outcome.value)
+        for v in i.must_assess:
+            print("  ", v.employee_id, v.verdict.value, [x.value for x in v.reasons])
+    print("expected_unknowns:", [(x.employee_id, x.required_fact.value, x.reason.value) for x in u.key.expected_unknowns])
+    graded = [v.employee_id for i in u.key.impacts for v in i.must_assess]
+    print("   + foreign Jira comment giving the first graded person the unheld skill (a verdict moves):",
+          required(u, (Fact(employee_ref(graded[0]), PredicateName.HAS_SKILL, unheld,
+                        EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), WINDOW.start),)))

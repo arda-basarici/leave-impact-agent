@@ -44,6 +44,7 @@ from leaveimpact.world import (
     FreeTextResponsibility,
     Minting,
     MissingAffordance,
+    MissingInformation,
     Modifier,
     ModifierName,
     OrgSpec,
@@ -56,6 +57,7 @@ from leaveimpact.world import (
     StructuredMeeting,
     StructuredMixed,
     TimezoneBoundary,
+    Uncovered,
     WrongTeam,
     allocate_slices,
     construct,
@@ -79,6 +81,8 @@ CLASSES: tuple[ScenarioClass, ...] = (
     ReleaseCardinalityConstraint(),
     FragmentedComposite(),
     StaleSourceConflict(),
+    MissingInformation(),
+    Uncovered(),
 )
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [

@@ -131,7 +131,7 @@ def test_a_row_lists_modifiers_once_and_in_canonical_order() -> None:
 
 def test_rules_refuse_what_no_class_can_honour() -> None:
     with pytest.raises(ValueError, match="not a built scenario class"):
-        PlanRules({ScenarioClassName.UNCOVERED: 1})
+        PlanRules({ScenarioClassName.ADVERSARIAL_COMPOSITE: 1})
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -202,7 +202,11 @@ def test_a_class_outside_every_offered_plan_has_no_route_to_a_world() -> None:
 
 
 UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset(
-    {ScenarioClassName.STALE_SOURCE_CONFLICT}
+    {
+        ScenarioClassName.STALE_SOURCE_CONFLICT,
+        ScenarioClassName.MISSING_INFORMATION,
+        ScenarioClassName.UNCOVERED,
+    }
 )
 """The built classes no offered plan names: each Tier 3 class joins as it lands and the set
 empties when the golden plan is offered."""

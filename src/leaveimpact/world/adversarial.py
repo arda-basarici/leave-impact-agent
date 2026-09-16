@@ -34,6 +34,31 @@ stale owner: the ticket is due inside this slice, its resolved owner is the leav
 evidence scope of expected conflicts keeps the standing runbook off other rows' keys; the
 two-hundred-seed sweep is the oracle for any interaction the book does not know (the 15.4
 ruling's own sentence).
+
+``missing_information`` and ``uncovered`` are one shape a single placement apart. Both plant
+the release ticket the leaver owns, due inside the leave, under a scenario-owned policy
+clause requiring the skill nobody in the organization holds (the vocabulary sets one aside on
+every seed), template-written, no prose. Every recorded employee then fails the skill
+criterion; a blank-record employee is asked the skill and cannot answer, and the verdict rule
+lets any known failure dominate that open question. The missing-information class puts the
+release in the component holding exactly one blank-record member (an org guarantee, so the
+unknown is one graded person and never a count the seed decides): that member passes the
+component criterion, is available, and derives unknown with reason absent, since every
+source in the skill predicate's domain answered and none holds the fact; the outcome is
+unknown. The uncovered class puts the release in a component holding no blank-record
+member: every member fails by skill, everyone outside by component, and two outsiders are
+authored on purpose: the leaver's recorded teammate outside the component fails by component
+and by skill, both criteria answered, while a blank-record employee outside fails by component
+alone, since the known failure dominates the skill question their record cannot answer. That
+one-reason difference is the dominance rule made visible, so the pair is a one-variable
+experiment and not two rows that happen to end at different labels. The leaver is a recorded
+member either way, since the leaver's own verdict is a known availability failure and a blank
+leaver would leave no unknown. Both keys require the record, the tracker and the corpus: a
+skill known false needs every source in the domain answered, and under a tracker or corpus
+outage both become unknown by inaccessibility, the run-condition axis and not the key's. The
+missing-information class asserts its one unknown (``Draft.required_unknowns``), and the sealed
+key holds every unknown the rules derive, which here is exactly that one: the other blank
+records fail by component.
 """
 
 from __future__ import annotations
@@ -42,17 +67,32 @@ from collections.abc import Mapping
 from random import Random
 from types import MappingProxyType
 
-from leaveimpact.core.claims import AuthorityRule
-from leaveimpact.core.entities import Component, Document, Employee
+from leaveimpact.core.claims import (
+    AssessmentReason,
+    AuthorityRule,
+    ConstraintKey,
+    CoverageActionKind,
+    ImpactKey,
+    ImpactSubtype,
+    UnknownReason,
+    Verdict,
+)
+from leaveimpact.core.entities import Component, Document, DocumentSection, Employee
 from leaveimpact.core.enums import DocumentKind, Source
 from leaveimpact.core.facts import Fact
+from leaveimpact.core.ids import ClauseId, SkillId
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import EvidenceRef, clause_ref, employee_ref, work_item_ref
+from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.world.briefs import PendingProse, SectionTarget
 from leaveimpact.world.construction import Construction, Draft, Frame, ScenarioClass
+from leaveimpact.world.fragmented import RELEASE_POLICY_TITLE, SKILL_NAMES
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import (
+    AuthoredVerdict,
     ExpectedConflict,
+    ExpectedImpact,
+    ExpectedUnknown,
     OwnedEntities,
     Planted,
     ScenarioClassName,
@@ -68,6 +108,13 @@ from leaveimpact.world.structured import (
 
 RUNBOOK_TITLE = "Release runbook: {release}"
 """The stale runbook's title, scoped to the release ticket it names an owner for."""
+
+RELEASE_SKILL_CLAUSE = "The {release} release needs an engineer with {skill} experience."
+"""The pair's scenario-owned clause, template-written: one engineer with the unheld skill, so
+every recorded employee fails it and only a blank record is left to ask."""
+
+
+# --- stale_source_conflict ---------------------------------------------------------------
 
 
 class StaleSourceConflict:
@@ -87,12 +134,6 @@ class StaleSourceConflict:
 
     def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
         return tuple(_conflict_construction(*roles) for roles in deadline_roles(org))
-
-
-ADVERSARIAL_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
-    {ScenarioClassName.STALE_SOURCE_CONFLICT: StaleSourceConflict()}
-)
-"""The adversarial classes built so far, by name; ``classes.SCENARIO_CLASSES`` joins every tier."""
 
 
 def _conflict_construction(
@@ -141,4 +182,219 @@ def _conflict_construction(
     return plant
 
 
-__all__ = ["ADVERSARIAL_CLASSES", "RUNBOOK_TITLE", "StaleSourceConflict"]
+# --- missing_information and uncovered -----------------------------------------------------
+
+
+class MissingInformation:
+    """The release sits in the component holding exactly one blank-record member, under a clause
+    requiring the unheld skill: that member is unknown by absence, the outcome unknown.
+
+    Authored: the blank-record member unknown, one recorded member non-viable by skill; the
+    class asserts the unknown and the key seals it as the only one, since every other blank
+    record fails by component. Admissible for every recorded member of every such component
+    as the leaver, in canonical order.
+    """
+
+    name = ScenarioClassName.MISSING_INFORMATION
+    tier = Tier.ADVERSARIAL
+    affordance = (
+        "a component holding exactly one blank-record member and at least two recorded members"
+    )
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        skill = unheld_skill(org)
+        constructions: list[Construction] = []
+        for component, members in _components_by_record(org):
+            blank = [e for e in members if e.skills is None]
+            recorded = [e for e in members if e.skills is not None]
+            if len(blank) != 1 or len(recorded) < 2:
+                continue
+            for leaver in recorded:
+                failing = next(e for e in recorded if e.id != leaver.id)
+                constructions.append(
+                    _missing_construction(component, leaver, failing, blank[0], skill)
+                )
+        return tuple(constructions)
+
+
+class Uncovered:
+    """The release sits in a component holding no blank-record member, under a clause requiring
+    the unheld skill: everyone fails for a known reason, the outcome uncovered.
+
+    Authored: one recorded member non-viable by skill, the leaver's recorded teammate outside
+    the component non-viable by component and by skill, and a blank-record employee outside
+    the component non-viable by component alone, the known failure dominating the open skill
+    question. Admissible
+    for every member of every such component whose team has a recorded member outside it.
+    """
+
+    name = ScenarioClassName.UNCOVERED
+    tier = Tier.ADVERSARIAL
+    affordance = (
+        "a component with no blank-record member and two members, one with a recorded teammate "
+        "outside the component, and a blank-record employee in the organization"
+    )
+
+    def admissible(self, org: OrgSpec) -> tuple[Construction, ...]:
+        skill = unheld_skill(org)
+        blank_outsiders = [e for e in org.employees if e.skills is None]
+        if not blank_outsiders:
+            return ()
+        constructions: list[Construction] = []
+        for component, members in _components_by_record(org):
+            if any(e.skills is None for e in members) or len(members) < 2:
+                continue
+            member_ids = {e.id for e in members}
+            for leaver in members:
+                failing = next(e for e in members if e.id != leaver.id)
+                outsider = next(
+                    (
+                        e
+                        for e in org.members_of(leaver.team_id)
+                        if e.id not in member_ids and e.skills is not None
+                    ),
+                    None,
+                )
+                if outsider is None:
+                    continue
+                constructions.append(
+                    _uncovered_construction(
+                        component, leaver, failing, outsider, blank_outsiders[0], skill
+                    )
+                )
+        return tuple(constructions)
+
+
+def unheld_skill(org: OrgSpec) -> SkillId:
+    """The skill no employee's record lists, which the organization sets aside on every seed."""
+    for skill in org.skills:
+        if not org.holders_of(skill):
+            return skill
+    raise ValueError("the organization holds every skill in its vocabulary; one is set aside")
+
+
+def _components_by_record(org: OrgSpec) -> list[tuple[Component, list[Employee]]]:
+    by_id = {employee.id: employee for employee in org.employees}
+    return [
+        (component, [by_id[member] for member in component.member_ids])
+        for component in org.components
+    ]
+
+
+def _release_clause(
+    frame: Frame, ticket_title: str, skill: SkillId
+) -> tuple[Planted[Document], Fact, ClauseId]:
+    """The pair's policy, its requirement fact and the clause id, scoped to the release by title."""
+    visible = frame.window.start
+    clause = frame.ids.clause()
+    policy = Document(
+        frame.ids.document(),
+        RELEASE_POLICY_TITLE.format(release=ticket_title),
+        DocumentKind.POLICY,
+        visible,
+        (
+            DocumentSection(
+                clause, RELEASE_SKILL_CLAUSE.format(release=ticket_title, skill=SKILL_NAMES[skill])
+            ),
+        ),
+    )
+    requires = Fact(
+        clause_ref(clause),
+        PredicateName.REQUIRES,
+        Requirement(1, (SkillCriterion(skill),)),
+        EvidenceRef(Source.CORPUS, clause_ref(clause)),
+        visible,
+    )
+    return Planted(policy, visible), requires, clause
+
+
+def _missing_construction(
+    component: Component, leaver: Employee, failing: Employee, blank: Employee, skill: SkillId
+) -> Construction:
+    def plant(frame: Frame, rng: Random) -> Draft:
+        leave = plant_leave(frame, leaver)
+        ticket = plant_ticket(frame, rng, component, leaver)
+        policy, requires, clause = _release_clause(frame, ticket.entity.title, skill)
+        impact = ImpactKey(leave.entity.id, ImpactSubtype.DEADLINE, work_item_ref(ticket.entity.id))
+        expected = ExpectedImpact(
+            impact,
+            CoverageActionKind.UNKNOWN,
+            (
+                AuthoredVerdict(blank.id, Verdict.UNKNOWN),
+                AuthoredVerdict(failing.id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,)),
+            ),
+        )
+        return Draft(
+            OwnedEntities(leaves=(leave,), work_items=(ticket,), documents=(policy,)),
+            leave.entity.id,
+            (expected,),
+            constraints=(ConstraintKey(clause, work_item_ref(ticket.entity.id)),),
+            authored_facts=(requires,),
+            required_unknowns=(
+                ExpectedUnknown(
+                    blank.id, employee_ref(blank.id), PredicateName.HAS_SKILL, UnknownReason.ABSENT
+                ),
+            ),
+        )
+
+    return plant
+
+
+def _uncovered_construction(
+    component: Component,
+    leaver: Employee,
+    failing: Employee,
+    outsider: Employee,
+    blank_outsider: Employee,
+    skill: SkillId,
+) -> Construction:
+    def plant(frame: Frame, rng: Random) -> Draft:
+        leave = plant_leave(frame, leaver)
+        ticket = plant_ticket(frame, rng, component, leaver)
+        policy, requires, clause = _release_clause(frame, ticket.entity.title, skill)
+        impact = ImpactKey(leave.entity.id, ImpactSubtype.DEADLINE, work_item_ref(ticket.entity.id))
+        expected = ExpectedImpact(
+            impact,
+            CoverageActionKind.UNCOVERED,
+            (
+                AuthoredVerdict(failing.id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,)),
+                AuthoredVerdict(
+                    outsider.id,
+                    Verdict.NON_VIABLE,
+                    (AssessmentReason.COMPONENT, AssessmentReason.SKILL),
+                ),
+                AuthoredVerdict(
+                    blank_outsider.id, Verdict.NON_VIABLE, (AssessmentReason.COMPONENT,)
+                ),
+            ),
+        )
+        return Draft(
+            OwnedEntities(leaves=(leave,), work_items=(ticket,), documents=(policy,)),
+            leave.entity.id,
+            (expected,),
+            constraints=(ConstraintKey(clause, work_item_ref(ticket.entity.id)),),
+            authored_facts=(requires,),
+        )
+
+    return plant
+
+
+ADVERSARIAL_CLASSES: Mapping[ScenarioClassName, ScenarioClass] = MappingProxyType(
+    {
+        ScenarioClassName.STALE_SOURCE_CONFLICT: StaleSourceConflict(),
+        ScenarioClassName.MISSING_INFORMATION: MissingInformation(),
+        ScenarioClassName.UNCOVERED: Uncovered(),
+    }
+)
+"""The adversarial classes built so far, by name; ``classes.SCENARIO_CLASSES`` joins every tier."""
+
+
+__all__ = [
+    "ADVERSARIAL_CLASSES",
+    "RELEASE_SKILL_CLAUSE",
+    "RUNBOOK_TITLE",
+    "MissingInformation",
+    "StaleSourceConflict",
+    "Uncovered",
+    "unheld_skill",
+]

@@ -40,7 +40,12 @@ from leaveimpact.world import (
     vocabulary,
     zones,
 )
-from leaveimpact.world.adversarial import ADVERSARIAL_CLASSES, StaleSourceConflict
+from leaveimpact.world.adversarial import (
+    ADVERSARIAL_CLASSES,
+    MissingInformation,
+    StaleSourceConflict,
+    Uncovered,
+)
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     SEMANTIC_WORLD,
@@ -346,7 +351,9 @@ __all__ = [
     "StructuredDeadline",
     "StructuredMeeting",
     "FragmentedComposite",
+    "MissingInformation",
     "StaleSourceConflict",
+    "Uncovered",
     "FreeTextQualification",
     "FreeTextResponsibility",
     "ReleaseCardinalityConstraint",
