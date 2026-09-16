@@ -705,9 +705,11 @@ stratification (counts cheap to change, the rule lasting): Tier 1 — four deadl
 four meeting, two mixed; Tier 2 — three free-text qualification, three free-text
 responsibility, two release-cardinality, two combinations; Tier 3 — three source
 conflict, three missing information, three uncovered, one controlled composite.
-Three clean `unknown` cases and three clean `uncovered` cases are worth more than
-six in which both occur, because the distinction the vocabulary encodes is only
-measurable when the cases are separate. The set is sized for engineering
+Three unknown-outcome cases and three uncovered cases are worth more than six in
+which both occur, because the distinction the vocabulary encodes is only measurable
+when the cases are separate (an unknown assessment is not an unknown outcome: a Tier 2
+clause asking a blank record already concludes one, and the Tier 3 class is where the
+unresolved evidence decides the action, the 15.5 rulings). The set is sized for engineering
 evaluation and failure localization, not fine-grained model ranking: at ten
 scenarios per tier a score of eight in ten carries a Wilson interval near 49–94 %,
 so two tiers a few points apart are not distinguishable, while the failure classes
@@ -1706,9 +1708,10 @@ the two 15.4 paragraphs; `section-probe`, the composite paragraph; `reservation-
   twenty-row plan: 196 admitted and verified, none contaminated, one refused by the book
   (the cardinality class's two leavers both named contacts by earlier rows, a loud
   refusal at half a percent), three refused by a scenario's own invariant (the
-  qualification class under the wrong-team and outside-window pair, a pre-existing
-  defect of that pair reproduced with fresh books). Both residuals are parked with their
-  rates and measured again on the thirty-row plan at 15.5 before it is declared. To
+  qualification class under the wrong-team and outside-window pair, read then as a
+  defect of that pair; the 15.5 opening measured the wrong-team modifier alone at the same
+  rate and fixed it at the modifier). Both residuals are parked with their rates and
+  measured again on the thirty-row plan at 15.5 before it is declared. To
   watch, not built: a class depending on a blank skills record reading unknown would
   need the positive-against-absence rule generalized beyond known false.
 - *Versions and the probes.* Generator version 11 at the tiered plan, the pair re-cut;
@@ -1721,6 +1724,126 @@ the two 15.4 paragraphs; `section-probe`, the composite paragraph; `reservation-
   foreign facts that change anything change a verdict. The 15.5 sweep of the thirty-row
   plan is the next gate; the version bumps again there only if a construction semantic
   changes.
+
+*The adversarial tier, ruled (2026-09-16, the 15.5 interview).* Five questions, one per
+exchange, an external reader's view on each before the ruling and a reviewer on every push,
+one amendment ruled by measurement, and two rules found by the build and taken on the sweep's
+evidence. The step opened on the twenty-row sweep's parked refusals: the three attributed to
+the wrong-team and outside-window pair were the wrong-team meeting alone, seating a whole
+other team at the real meeting's day and hour with a graded candidate among them (eight of
+four hundred standalone seeds, the pair the same, outside-window alone none); the meeting's
+team pool now excludes every team holding a graded candidate, generator version 12. The
+probes behind the tier are in `probes/FINDINGS.md` (`source-dependence`, `section-probe`,
+`reservation-book`).
+
+- *The key seals two derived conclusions, the conflicts and the unknowns (adopted; the
+  scope and the grading tightened by the external reader).* The sealed key held impacts,
+  constraints, distractors and required sources, and nothing that said a conflict was
+  expected, so the class built to catch an agent who believes a stale document was gradable
+  only through side effects. Two append-only fields: the expected conflicts, each the claim's
+  grading key with its resolution (entity, predicate, resolved value, authority rule, the
+  observations left to the grader's check against the world), and the expected unknowns,
+  each mirroring the unknown claim beside the candidate it seeds. Both derived by one shared
+  reading pass over the groundings and assessments, never authored: a class asserts the
+  constituents its construction exists to produce, conflicts exact and unknowns a superset,
+  and construction refuses what the rules do not derive. Scoped to the evidence the rules
+  returned, because a world's documents stand for every run and an unscoped derivation would
+  attach one scenario's stale runbook to every later investigation; world assembly re-derives
+  both against every key in both views across every stable day. Grading: an expected
+  conflict the report lacks is a miss, a reported conflict outside the set a relevance error,
+  every reported conflict still checked against the authority table. A key sealed before the
+  fields decodes them as none, the absent-versus-empty distinction kept, and the evaluator's
+  decoder owes it (an M2-entry note). The version bumps at the commit that moves the digest,
+  not at the step's end, since the workflow can run from any pushed commit: 13 at the
+  foundation.
+- *Expected unknowns are the complete derived set, a Tier 2 fact the key never stated
+  (ruled A on the measurement).* Every clause-bearing Tier 2 row already concluded unknowns:
+  the qualification and responsibility clauses attach to a meeting or a section with no
+  component, so every available employee is asked the skill and a blank record answers
+  unknown by absence, the outcome staying assign because a viable candidate dominates (all
+  160 of 160 prose rows over nineteen twenty-row worlds, 310 unknowns). The key carries
+  every unknown the assessments derive; a class declares the ones it must have, never the
+  sealed set. Each is an absence-dependent claim on the reservation book, the same relation
+  the known-false skills hold, semantic dependency and never the blank-record category (the
+  uncovered row's blank outsider fails by component and reserves nothing). The twenty-row
+  plan re-swept identically under the wider relation.
+- *The conflict class is the deadline cast plus one runbook section naming the outsider
+  (adopted).* The structured deadline's component, leaver, viable cover and teammate outside
+  the component, unchanged, with a model-written runbook section stating the outsider owns
+  the release ticket; the tracker says the leaver. The outsider and not a component member,
+  so handing cover to the named owner is a graded error by the component rule and every
+  constituent stays observable: the conflict claim, the grounding on the resolved owner, the
+  outsider's verdict. The section's fact is answer-changing through the expected conflict
+  alone, which is why the key's field had to come first; allowed context empty. The runbook
+  register was rewritten twice on the probe's evidence: the first run refused all six texts
+  for telling the on-call reader whom to reach, a contact the checker rightly typed, the
+  second all six for padding one fact into a paragraph, the third accepted five of six on
+  one frame ("X owns the ticket Y."), the sixth a padded restatement the guard refused
+  before the writer's retry; accepted at five of six and not tuned further. Required sources
+  the record, the tracker and the corpus. The org guarantee tightened to exactly one blank
+  record in the first component (four of two hundred seeds seated both).
+- *Missing information and uncovered are one shape a placement apart (adopted; the pair's
+  build found the outsider's two reasons).* The release under a template clause requiring
+  the skill nobody holds, no prose. The blank-record member inside the component is unknown
+  by absence and the outcome unknown; with none inside everyone fails for a known reason and
+  the outcome is uncovered, with a blank-record outsider authored non-viable by component
+  alone so the dominance rule is graded rather than argued. The recorded teammate outside
+  fails by component and by skill, reasons being the set of every failing criterion; the
+  one-reason difference between the two outsiders is the rule made visible. The leaver a
+  recorded member, the blank member's unknown asserted, the concurrent leave excluded by
+  declaration and proven an empty affordance, the timezone boundary watched.
+- *The composite is the conflict row seated in the missing-information component
+  (adopted).* The runbook naming the outsider, the release under the unheld-skill clause;
+  the outsider non-viable by component and skill, the blank member unknown, a recorded
+  member non-viable by skill, the outcome unknown; both constituents asserted, every
+  conclusion verified exactly, the cast distinct and record-clean. Modifiers the parents'
+  intersection; one realization through the runbook register accepted first attempt as a
+  no-interaction check.
+- *The golden plan and the sequence (adopted).* The adversarial tier three conflict, three
+  missing information, three uncovered, one composite, under the tier-local defaults, the
+  concurrent leave landing on two conflict rows every seed of two hundred; `golden` the union
+  of the three tables, thirty rows, offered in the workflow at version 14 after its sweep.
+  Foundation first at 13, the classes without a bump since no offered plan drew them (a test
+  pins the unoffered set), the offering at 14; no entry point reaches an unoffered class.
+- *The stale owner is a standing fact, the book's third claim (raised by the golden sweep).*
+  The interview read no reservation as needed, the resolved owner being the leaver and the
+  evidence scope keeping the conflict off other rows' keys; the first golden sweep refused
+  seventy-three of two hundred worlds, every one a Tier 1 meeting row whose leaver a Tier 3
+  runbook named as stale owner (six of six sampled): under a tracker outage the document's
+  claim cannot be resolved away, so that leave holds an unresolved impact question its key
+  never declared and its required sources move. A document's stale owner against a leave
+  subject, both directions, read off the planted draft like the other claims: no
+  contamination remains.
+- *Rows are constructed scarcest class first (raised by the sweep; the FIXLOG's first
+  option, taken on its rate).* With the third rule thirty-nine of two hundred worlds
+  exhausted, thirty-four on the composite, which has a handful of constructions and was
+  seated last when most people were already leave subjects. Assembly orders construction by
+  the fewest admissible constructions on the organization, ties in plan order, with each
+  row's seed drawn in plan order beforehand so the order changes no draw; the conflict class
+  and the composite offer every teammate outside as the stale owner in turn. The final sweep:
+  199 admitted and verified, none contaminated, one exhausted (a qualification row crossing
+  three rules at once, loud); the cardinality exhaustion parked at 15.4 is none of two
+  hundred; 3,880 absence-dependent pairs and 796 standing owners reserved over 5,970 rows.
+  Feasibility evidence, not proof of collision freedom; whole-world verification stays the
+  oracle. The renumbering the option feared does not occur, ids following construction order
+  under the bump the offering carried anyway. Two notes from the review: scarcity is measured
+  per class and not per row with its modifiers, so the order cannot guarantee no exhaustion,
+  and a row-level key is a generalization to take when a loud refusal warrants it; and the
+  one exhaustion is a refusal under the present contract, which promises no world for every
+  seed and names the rules that refused, so it is constructibility pressure and not a
+  correctness finding, re-promoted the day a ruling says the golden plan must construct for
+  every supported seed.
+- *The step 8 carry closes.* Every class ran the two source probes; the earlier classes'
+  tables re-run at the close read line for line as recorded, so the scoped conflicts and
+  the key's fields moved no class's dependence; the 15.2 block's re-arm list stands, its
+  sentence that the corpus is outside the skill predicate's domain superseded at 15.4, and
+  one perturbation the probes cannot make is on record: a second document naming any owner
+  for a ticket is not a world the fact base admits, one value per source and key. Closed as a
+  documented claim about the current system, re-armed by the list.
+- *Versions and the probes.* 12 at the opening fix, 13 at the foundation, 14 at the offering
+  (the golden union, the standing-owner rule, the scarcity order in one commit, the pair
+  re-cut twice within it); the runbook register's digest re-pinned twice. The golden world
+  is step 16's, one projection per day.
 
 ---
 

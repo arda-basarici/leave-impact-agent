@@ -956,6 +956,12 @@ reason, the unknown to viable, the skill-failing to viable), a foreign ticket th
 changes nothing; the conflict cannot be touched, one value per source. No perturbation moves
 the required set with the conclusions unchanged.
 
+*Re-run at the step's close, 2026-09-16.* Both scripts run whole after the key's expected
+conflicts and unknowns, the scoped conflict derivation and the reservation book's third claim
+landed: every earlier class's required set and every "conclusions same" reading identical to
+the tables above, so none of the step's rule changes moved a class's source dependence. The
+step 8 carry closes on this record and the 15.2 re-arm list.
+
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
 The workstation probe the 15.2 rulings asked for before the class's first sealed world:
