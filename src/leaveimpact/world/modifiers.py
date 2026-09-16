@@ -241,12 +241,21 @@ class WrongTeam:
 
     For a ticket: an open ticket in the same component, due during the leave, owned by a
     component member from another team. For a meeting: a meeting on a leave day held
-    under another team's name, attended by that team and never by the leaver. The
+    under another team's name, attended by that team and by nobody the key grades. The
     near-miss reads as an impact to anyone who searches the component or the calendar
     date instead of the leaver, and the key names it with the wrong-team reason.
     Admissible over every impact whose look-alike has a holder: a component member from
-    another team, or any team other than the leaver's; the holder is drawn inside the
-    amendment.
+    another team, or a team other than the leaver's holding no graded candidate; the
+    holder is drawn inside the amendment.
+
+    The meeting's team excludes the graded candidates because the look-alike may land on
+    the meeting's own day and hour (both drawn from the same small sets), and a candidate
+    attending it is then busy under the availability rule, which no authored verdict
+    accounts for. The structured classes never met this: they grade the leaver's own
+    teammates, whom another team's meeting cannot seat. The qualification class grades by
+    skill across teams, and about two percent of its wrong-team draws seated a candidate
+    at the meeting's instant (eight of four hundred seeds, 2026-09-16, first seen on the
+    twenty-row plan sweep and misattributed there to the outside-window pair).
     """
 
     name = ModifierName.WRONG_TEAM
@@ -258,6 +267,9 @@ class WrongTeam:
     def admissible(self, org: OrgSpec, draft: Draft) -> tuple[Amendment, ...]:
         by_id = {employee.id: employee for employee in org.employees}
         leaver = by_id[_investigated(draft).employee_id]
+        graded = {
+            authored.employee_id for expected in draft.impacts for authored in expected.must_assess
+        }
         amendments: list[Amendment] = []
         for expected in draft.impacts:
             ticket = _ticket_of(draft, expected)
@@ -273,7 +285,12 @@ class WrongTeam:
                 continue
             meeting = _meeting_of(draft, expected)
             if meeting is not None:
-                other_teams = tuple(team for team in org.teams if team.id != leaver.team_id)
+                other_teams = tuple(
+                    team
+                    for team in org.teams
+                    if team.id != leaver.team_id
+                    and not any(member.id in graded for member in org.members_of(team.id))
+                )
                 if other_teams:
                     amendments.append(_wrong_team_meeting(org, other_teams))
         return tuple(amendments)

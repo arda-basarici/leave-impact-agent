@@ -1006,3 +1006,18 @@ exhaustion rate and the pair defect are measured, not fixed, at this step (FIXLO
 their options); the thirty-row golden plan is swept the same way at 15.5 before it is
 declared. Determinism: same seed, same world, is the suite's existing claim and the book
 changes nothing a seed draws until it refuses something.
+
+*Correction, 2026-09-16 (the 15.5 opening).* The third row's attribution to the pair was
+wrong: the wrong-team modifier alone fails the qualification class at the same rate (eight
+of four hundred standalone seeds; outside-window alone, and no modifier, zero of four
+hundred), and the pair only rode along on the three plan seeds. The wrong-team look-alike
+meeting seats a whole other team on a leave day and hour drawn from the same small sets as
+the real meeting, so on a coinciding draw a graded candidate of that team attends an
+overlapping event and is non-viable by availability, which no authored verdict accounts for.
+The structured classes never met it because they grade the leaver's teammates; the
+qualification class grades by skill across teams. Fixed at the modifier: the meeting's team
+pool excludes every team holding a graded candidate ("attended by that team and by nobody
+the key grades"); seeds 21, 61 and 187 assemble, four hundred standalone seeds pass under
+each modifier set, and generator version 12, since the filtered draw moves the worlds of
+seeds carrying the pairing (seeds 2 to 5 of the twenty-row plan moved; the two sealed
+worlds and the reference seed did not).

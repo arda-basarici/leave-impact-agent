@@ -28,7 +28,7 @@ from leaveimpact.core import (
     clause_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import ClauseId, SkillId, scenario_id
+from leaveimpact.core.ids import ClauseId, EmployeeId, SkillId, scenario_id
 from leaveimpact.core.worldtime import local_date
 from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
@@ -180,6 +180,42 @@ def test_wrong_team_shadows_the_artifact_with_another_teams(
         assert leave.employee_id not in event.attendee_ids
         assert leaver.team_id not in {BY_ID[a].team_id for a in event.attendee_ids}
         assert leave.span.contains(local_date(event.start, TZ))
+        assert _graded(shadowed).isdisjoint(event.attendee_ids)
+
+
+def _graded(scenario: Scenario) -> set[EmployeeId]:
+    return {
+        authored.employee_id
+        for expected in scenario.key.impacts
+        for authored in expected.must_assess
+    }
+
+
+# The seeds on which the wrong-team meeting seated a graded candidate at the meeting's own
+# instant before the team pool excluded them (eight of four hundred, 2026-09-16); the
+# fixture organization's twenty seeds never drew the collision.
+COLLIDING_WRONG_TEAM_SEEDS = (58, 66, 111, 113, 142, 229, 301, 302)
+
+
+@pytest.mark.parametrize("seed", COLLIDING_WRONG_TEAM_SEEDS)
+def test_the_wrong_team_meeting_never_seats_a_graded_candidate(seed: int) -> None:
+    org = generate_org(seed, DEFAULT_PARAMS)
+    rng = Random(seed)
+    [window] = allocate_slices(rng, 1, WORLD_START)
+    scenario = construct(
+        FreeTextQualification(),
+        (WrongTeam(),),
+        org,
+        scenario_id=scenario_id(1),
+        window=window,
+        world_start=WORLD_START,
+        reference_timezone=org.params.reference_timezone,
+        ids=Minting(),
+        rng=Random(rng.getrandbits(64)),
+    )
+    (distractor,) = scenario.key.distractors
+    event = next(p.entity for p in scenario.owned.events if p.entity.id == distractor.entity.id)
+    assert _graded(scenario).isdisjoint(event.attendee_ids)
 
 
 @pytest.mark.parametrize(
