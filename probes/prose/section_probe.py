@@ -32,6 +32,7 @@ from leaveimpact.generator.prose.render import (  # noqa: E402
 )
 from leaveimpact.generator.prose.schema import ExtractionMalformed, parse_extraction  # noqa: E402
 from leaveimpact.world import (  # noqa: E402
+    AdversarialComposite,
     FragmentedComposite,
     FreeTextResponsibility,
     Minting,
@@ -45,6 +46,7 @@ CLASSES = {
     FreeTextResponsibility.name.value: FreeTextResponsibility(),
     FragmentedComposite.name.value: FragmentedComposite(),
     StaleSourceConflict.name.value: StaleSourceConflict(),
+    AdversarialComposite.name.value: AdversarialComposite(),
 }
 PROBE_CLASS = CLASSES[os.environ.get("PROBE_CLASS", FragmentedComposite.name.value)]
 COUNT = int(os.environ.get("PROBE_COUNT", "6"))

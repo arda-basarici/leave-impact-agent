@@ -945,6 +945,17 @@ unknown to viable, the skill-failing to viable, both moving the outcome), and ch
 on the blank outsider, whose component failure dominates; a foreign ticket a graded person
 owns changes nothing. No perturbation moves the required set with the conclusions unchanged.
 
+*The adversarial composite, 2026-09-16 (15.5).* The conflict class's runbook section in the
+missing-information component under the unheld-skill clause, on the fixture organization.
+Required sources `corpus, frappe, jira`; the stale outsider non-viable by component and skill,
+the blank-record member unknown by absence, a recorded member non-viable by skill, outcome
+unknown; one expected conflict on the ticket's owner resolved to the leaver, one expected
+unknown. Source dependence: a foreign tracker comment giving any of the three the unheld skill
+leaves the set unchanged. Silent drift: each such comment moves a verdict (the outsider's skill
+reason, the unknown to viable, the skill-failing to viable), a foreign ticket the outsider owns
+changes nothing; the conflict cannot be touched, one value per source. No perturbation moves
+the required set with the conclusions unchanged.
+
 ## section-probe — the responsibility register through writer and checker, unsealed (2026-09-15)
 
 The workstation probe the 15.2 rulings asked for before the class's first sealed world:
@@ -1024,6 +1035,14 @@ added "Emre is responsible for the completion and quality of this work" and was 
 containment, the guard's job before the writer's retry. Totals for run three: 3,553 writer
 tokens in and 152 out, 9,368 checker in and 465 out, about a second a call. The register's
 digest re-pinned twice; the two intermediate texts are the record above, not tuned further.
+
+*One composite realization through the runbook register, 2026-09-16 (15.5).* The composite's
+section is the conflict class's with the clause-bearing world around it, run once as a
+no-interaction check and not as a mechanism of its own: accepted on the first attempt, the text
+"Nadia Jansen owns the ticket Auth: rotate the signing keys for the new tenant." and nothing
+after, the frame the conflict class's five accepted texts share; 591 writer tokens in and 23
+out, 1,558 checker in and 71 out. The clause beside the runbook changed nothing about what the
+writer wrote or the checker read.
 
 ## reservation-book — the twenty-row plan under the world's reservation book, swept (2026-09-16)
 

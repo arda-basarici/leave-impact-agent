@@ -186,3 +186,19 @@ for cls, label in ((MissingInformation(), "missing information"), (Uncovered(), 
     print("   + foreign Jira comment giving the first graded person the unheld skill (a verdict moves):",
           required(u, (Fact(employee_ref(graded[0]), PredicateName.HAS_SKILL, unheld,
                         EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), WINDOW.start),)))
+
+print(chr(10) + "== adversarial composite (15.5): the conflict's runbook in the missing-information component under the clause ==")
+from leaveimpact.world import AdversarialComposite
+a = build(AdversarialComposite())
+print("required_sources:", [s.value for s in a.key.required_sources])
+for i in a.key.impacts:
+    print("impact:", i.key.subtype.value, i.key.artifact.id, "outcome:", i.outcome.value)
+    for v in i.must_assess:
+        print("  ", v.employee_id, v.verdict.value, [x.value for x in v.reasons])
+print("expected_conflicts:", [(c.entity.id, c.predicate.value, c.resolved_value.id) for c in a.key.expected_conflicts])
+print("expected_unknowns:", [(x.employee_id, x.required_fact.value, x.reason.value) for x in a.key.expected_unknowns])
+graded = [v.employee_id for i in a.key.impacts for v in i.must_assess]
+for who in graded:
+    print(f"   + foreign Jira comment giving {who} the unheld skill:",
+          required(a, (Fact(employee_ref(who), PredicateName.HAS_SKILL, unheld,
+                        EvidenceRef(Source.JIRA, comment_ref(comment_id(999))), WINDOW.start),)))

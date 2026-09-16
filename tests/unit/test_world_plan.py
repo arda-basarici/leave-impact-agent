@@ -129,9 +129,17 @@ def test_a_row_lists_modifiers_once_and_in_canonical_order() -> None:
         )
 
 
-def test_rules_refuse_what_no_class_can_honour() -> None:
+def test_rules_refuse_what_no_class_can_honour(monkeypatch: pytest.MonkeyPatch) -> None:
+    # Every class in the vocabulary is built now, so the guard is exercised on a registry with
+    # one taken out: a plan never promises a scenario nothing can construct.
+    built = {
+        name: cls
+        for name, cls in SCENARIO_CLASSES.items()
+        if name is not ScenarioClassName.UNCOVERED
+    }
+    monkeypatch.setattr("leaveimpact.world.plan.SCENARIO_CLASSES", built)
     with pytest.raises(ValueError, match="not a built scenario class"):
-        PlanRules({ScenarioClassName.ADVERSARIAL_COMPOSITE: 1})
+        PlanRules({ScenarioClassName.UNCOVERED: 1})
 
 
 @pytest.mark.parametrize("seed", SEEDS)
@@ -206,6 +214,7 @@ UNOFFERED_CLASSES: frozenset[ScenarioClassName] = frozenset(
         ScenarioClassName.STALE_SOURCE_CONFLICT,
         ScenarioClassName.MISSING_INFORMATION,
         ScenarioClassName.UNCOVERED,
+        ScenarioClassName.ADVERSARIAL_COMPOSITE,
     }
 )
 """The built classes no offered plan names: each Tier 3 class joins as it lands and the set

@@ -34,6 +34,7 @@ from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
     DEFAULT_PARAMS,
     MODIFIERS,
+    AdversarialComposite,
     AlreadyResolved,
     ConcurrentLeave,
     DistractorReason,
@@ -83,6 +84,7 @@ CLASSES: tuple[ScenarioClass, ...] = (
     StaleSourceConflict(),
     MissingInformation(),
     Uncovered(),
+    AdversarialComposite(),
 )
 BY_ID = {employee.id: employee for employee in ORG.employees}
 COMPATIBLE_PAIRS = [

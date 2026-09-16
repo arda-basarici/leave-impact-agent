@@ -42,6 +42,7 @@ from leaveimpact.world import (
 )
 from leaveimpact.world.adversarial import (
     ADVERSARIAL_CLASSES,
+    AdversarialComposite,
     MissingInformation,
     StaleSourceConflict,
     Uncovered,
@@ -284,6 +285,7 @@ __all__ = [
     "Amendment",
     "Artifact",
     "AssertionMode",
+    "AdversarialComposite",
     "AuthoredVerdict",
     "Brief",
     "Bundle",

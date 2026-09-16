@@ -607,6 +607,9 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         # draw is what the sweep watches (the 15.5 rulings).
         ScenarioClassName.MISSING_INFORMATION: _ALL - {ModifierName.CONCURRENT_LEAVE},
         ScenarioClassName.UNCOVERED: _ALL - {ModifierName.CONCURRENT_LEAVE},
+        # The parents' intersection: the conflict row admits all five, the missing-information
+        # row excludes the concurrent leave (the 15.5 rulings).
+        ScenarioClassName.ADVERSARIAL_COMPOSITE: _ALL - {ModifierName.CONCURRENT_LEAVE},
         # The composite owns the responsibility class's artifacts, a section and a clause,
         # so it affords what a section affords; the reserve holders its roles provision keep
         # the outcome at assign when the cover is sent away (the 15.4 rulings).

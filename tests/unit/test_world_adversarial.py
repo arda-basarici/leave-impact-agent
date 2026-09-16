@@ -29,6 +29,7 @@ from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
     DEFAULT_PARAMS,
     MODIFIERS,
+    AdversarialComposite,
     ConcurrentLeave,
     Draft,
     Frame,
@@ -60,6 +61,7 @@ SEEDS = range(1, 21)
 CONFLICT = StaleSourceConflict()
 MISSING = MissingInformation()
 UNCOVERED = Uncovered()
+COMPOSITE = AdversarialComposite()
 BLANK = {e.id for e in ORG.employees if e.skills is None}
 BY_ID = {employee.id: employee for employee in ORG.employees}
 
@@ -196,8 +198,7 @@ def test_every_admissible_pair_preserves_the_expected_conflict(
 
 
 def _clause_fact(scenario: Scenario) -> Fact:
-    [requires] = scenario.authored_facts
-    assert requires.predicate is PredicateName.REQUIRES
+    [requires] = [f for f in scenario.authored_facts if f.predicate is PredicateName.REQUIRES]
     return requires
 
 
@@ -339,5 +340,95 @@ def test_every_admissible_pair_keeps_the_one_unknown_and_the_unknown_outcome(
 ) -> None:
     for seed in range(1, 11):
         scenario = _scenario(seed, (first, second), MISSING)
+        assert len(scenario.key.expected_unknowns) == 1
+        assert scenario.key.impacts[0].outcome is CoverageActionKind.UNKNOWN
+
+
+# --- adversarial_composite ----------------------------------------------------------------
+
+
+@pytest.mark.parametrize("seed", range(1, 41))
+def test_every_organization_affords_the_adversarial_composite(seed: int) -> None:
+    assert COMPOSITE.admissible(generate_org(seed, DEFAULT_PARAMS))
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_adversarial_composite_has_the_shape_of_both_parents(seed: int) -> None:
+    scenario = _scenario(seed, scenario_class=COMPOSITE)
+    leave = scenario.investigated_leave
+    [ticket] = scenario.owned.work_items
+    policy, runbook = scenario.owned.documents
+    assert policy.entity.kind is DocumentKind.POLICY
+    (expected,) = scenario.key.impacts
+    assert expected.outcome is CoverageActionKind.UNKNOWN
+    component = next(c for c in ORG.components if c.id == ticket.entity.component_id)
+    assert len(BLANK & set(component.member_ids)) == 1
+    outsider, unknown, failing = expected.must_assess
+    # The cast distinct and record-clean: each graded person carries one mechanism.
+    assert len({outsider.employee_id, unknown.employee_id, failing.employee_id}) == 3
+    assert outsider.reasons == (AssessmentReason.COMPONENT, AssessmentReason.SKILL)
+    assert outsider.employee_id not in component.member_ids and outsider.employee_id not in BLANK
+    assert BY_ID[outsider.employee_id].team_id == BY_ID[leave.employee_id].team_id
+    assert unknown.verdict is Verdict.UNKNOWN and unknown.employee_id in BLANK
+    assert unknown.employee_id in component.member_ids
+    assert failing.reasons == (AssessmentReason.SKILL,) and failing.employee_id not in BLANK
+    # The conflict parent's section names the outsider as owner; the pair's clause applies.
+    assert runbook.entity.kind is DocumentKind.RUNBOOK and runbook.entity.sections == ()
+    assert runbook.entity.title == RUNBOOK_TITLE.format(release=ticket.entity.title)
+    requires, stale = scenario.authored_facts
+    assert requires.predicate is PredicateName.REQUIRES
+    assert stale.predicate is PredicateName.OWNS_WORK_ITEM
+    assert stale.value == employee_ref(outsider.employee_id)
+    assert _required_skill(scenario) == unheld_skill(ORG)
+    [brief] = scenario.briefs
+    assert brief.register is Register.RUNBOOK and brief.allowed == ()
+    [required] = brief.required
+    assert required.role is FactRole.ANSWER_CHANGING
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_the_composite_key_seals_the_conflict_and_the_unknown_exactly(seed: int) -> None:
+    scenario = _scenario(seed, scenario_class=COMPOSITE)
+    [ticket] = scenario.owned.work_items
+    (expected,) = scenario.key.impacts
+    _, unknown, _ = expected.must_assess
+    [conflict] = scenario.key.expected_conflicts
+    assert conflict.entity == work_item_ref(ticket.entity.id)
+    assert conflict.resolved_value == employee_ref(scenario.investigated_leave.employee_id)
+    assert conflict.authority_rule is AuthorityRule.SYSTEM_OF_RECORD_WINS
+    [sealed] = scenario.key.expected_unknowns
+    assert sealed.employee_id == unknown.employee_id
+    assert sealed.required_fact is PredicateName.HAS_SKILL
+    assert sealed.reason is UnknownReason.ABSENT
+    assert set(scenario.key.required_sources) == {Source.FRAPPE, Source.JIRA, Source.CORPUS}
+
+
+def test_the_same_composite_inputs_give_an_equal_scenario() -> None:
+    assert _scenario(3, scenario_class=COMPOSITE) == _scenario(3, scenario_class=COMPOSITE)
+
+
+def test_the_composite_row_is_the_parents_intersection() -> None:
+    assert COMPATIBLE_MODIFIERS[COMPOSITE.name] == (
+        COMPATIBLE_MODIFIERS[CONFLICT.name] & COMPATIBLE_MODIFIERS[MISSING.name]
+    )
+
+
+COMPOSITE_PAIRS = [
+    (MODIFIERS[first], MODIFIERS[second])
+    for first, second in combinations(sorted(COMPATIBLE_MODIFIERS[COMPOSITE.name]), 2)
+]
+
+
+@pytest.mark.parametrize(
+    ("first", "second"),
+    COMPOSITE_PAIRS,
+    ids=[f"{a.name.value}+{b.name.value}" for a, b in COMPOSITE_PAIRS],
+)
+def test_every_admissible_pair_keeps_both_constituents_of_the_composite(
+    first: Modifier, second: Modifier
+) -> None:
+    for seed in range(1, 11):
+        scenario = _scenario(seed, (first, second), COMPOSITE)
+        assert len(scenario.key.expected_conflicts) == 1
         assert len(scenario.key.expected_unknowns) == 1
         assert scenario.key.impacts[0].outcome is CoverageActionKind.UNKNOWN
