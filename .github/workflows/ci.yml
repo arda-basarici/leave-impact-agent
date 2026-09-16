@@ -64,6 +64,11 @@ jobs:
         uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITLEAKS_ENABLE_SUMMARY: "false"
+          # The action looks the repo owner up to decide whether a license applies;
+          # without a token that call is unauthenticated from the runner's shared IP
+          # and, rate-limited, fails closed as "missing license" (2026-09-16). The
+          # workflow token is read-only here and authenticates only that lookup.
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Ruff (lint)
         run: uv run ruff check
