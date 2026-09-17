@@ -12,14 +12,28 @@ their rulings cite one digest.
 
 Per scenario the sheet gives the spec row (the leave under investigation, ``now``, the
 window), the key (impacts with their authored verdicts, constraints, distractors, required
-sources, expected conflicts and unknowns), the plantings with dates (leaves, work items
-with their comments, events, documents with their sections), the scenario's authored
-facts, the fact-base entries whose subject or evidence the scenario cites (the deep
-audit's trace material, each with its evidence and observable-from date), and the prose
-targets with their briefs, attempts, refusals and the checker's propositions beside the
-accepted text. Before the scenarios, a header (versions, models, prompt digests, sealed
-counters) and the rollups the audit items read off (attempts per register, refusals by
-guard and by reason, targets above attempt four, opening frames per register).
+sources, expected conflicts and unknowns), the outcome witness, the plantings with dates
+(leaves, work items with their comments, events, documents with their sections), the
+scenario's authored facts, the fact-base entries whose subject or evidence the scenario
+cites (the deep audit's trace material, each with its evidence and observable-from date),
+and the prose targets with their briefs, attempts, refusals and the checker's propositions
+beside the accepted text. Before the scenarios, a header (versions, the organization's
+parameters, models, prompt digests, sealed counters) and the rollups the audit items read
+off (attempts per register, refusals by guard and by reason, targets above attempt four,
+opening frames per register).
+
+The outcome witness exists because the key's outcome is a claim over the whole candidate
+universe while ``must_assess`` names only the authored subset, so a reader cannot recompute
+the outcome from the key alone (the first acceptance pass found this on its first
+scenario). The witness is the generator's own result, never a second implementation of
+the rule: the semantic world is rebuilt from the sealed provenance (seed, parameters,
+start, plan) with the generator's own assembly, its semantic digest is required to equal
+the sealed one so the rebuilt objects are the sealed world's, and per impact the three
+calls the whole-world verification makes (assess every employee, count the requirement,
+derive the action) are rendered at the scenario's ``now`` under the dated view. The
+verification proves every day of the stable interval under both views; the witness shows
+the one day the run is asked about, and says so. A witness that disagrees with its key is
+a defect of the generator's verification, reported in the sheet and never smoothed over.
 
 Reads only. The rendered sheet holds benchmark truth: it is written under ``data/audit/``,
 which the repository ignores, and is never committed; the provenance artifact the audit
@@ -35,6 +49,7 @@ import os
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
+from datetime import date
 from pathlib import Path
 from typing import Any
 
@@ -45,8 +60,19 @@ from leaveimpact.adapters.object_store.layout import (
     truth_manifest_key,
     world_spec_key,
 )
+from leaveimpact.core.facts import FactBase, RunCondition
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.plans import expected_action
+from leaveimpact.core.predicates import predicate
+from leaveimpact.core.values import FactValue
+from leaveimpact.core.values_json import encode_value
+from leaveimpact.core.viability import Assessment, assess_impact
 from leaveimpact.generator.truth_record import decode_materialization
+from leaveimpact.world.artifacts import semantic_digest
+from leaveimpact.world.assembly import SemanticWorld, assemble_semantic_world
+from leaveimpact.world.construction import required_count_for
+from leaveimpact.world.org import OrgSpec, decode_org_params
+from leaveimpact.world.scenario import Scenario
 
 TRUTH_BUCKET = os.environ.get("LEAVE_IMPACT_TRUTH_BUCKET", "leave-impact-truth-445743457479")
 WORLD_BUCKET = os.environ.get("LEAVE_IMPACT_WORLD_BUCKET", "leave-impact-world-445743457479")
@@ -61,6 +87,31 @@ Json = Mapping[str, Any]
 
 def fetch(s3: Any, bucket: str, key: str) -> bytes:
     return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+
+
+def rebuild(spec: Json) -> SemanticWorld:
+    """The sealed world's semantic objects, rebuilt from its provenance by the generator's own
+    assembly and admitted only when the semantic digest equals the sealed one.
+
+    A digest that differs means the interpreter, the generator version or the code has
+    moved since sealing, and a witness rendered from it would be of some other world;
+    the mismatch is reported with both digests and nothing is rendered.
+    """
+    prov = spec["provenance"]
+    semantic = assemble_semantic_world(
+        prov["seed"],
+        decode_org_params(spec["org"]["params"]),
+        date.fromisoformat(prov["world_start"]),
+        prov["plan_name"],
+    )
+    rebuilt, sealed = semantic_digest(semantic), prov["semantic_digest"]
+    if rebuilt != sealed:
+        raise RuntimeError(
+            f"the rebuilt world is not the sealed one: semantic digest {rebuilt} rebuilt "
+            f"under generator version {semantic.generator_version}, {sealed} sealed under "
+            f"version {prov['generator_version']}"
+        )
+    return semantic
 
 
 class Names:
@@ -107,6 +158,21 @@ def value(data: Json | None, names: Names) -> str:
     if names.knows(payload):
         return names(payload)
     return str(payload)
+
+
+def typed_value(payload: FactValue, predicate_name: Any, names: Names) -> str:
+    """A run-time fact value rendered as the sheet renders the sealed one: through the same
+    encoder the artifacts use, so an entity reads by name and a span by its dates."""
+    return value(encode_value(payload, predicate(predicate_name).value_spec), names)
+
+
+def fact_text(item: Any, names: Names) -> str:
+    """A run-time ``Fact`` as ``subject predicate = value <- source``, the sealed rendering's
+    shape without the date, which the witness's one-day view already fixes."""
+    return (
+        f"{item.subject.kind.value}:{names(item.subject.id)} {item.predicate.value} = "
+        f"{typed_value(item.value, item.predicate, names)} <- {item.evidence.source.value}"
+    )
 
 
 def fact(data: Json, names: Names) -> str:
@@ -165,6 +231,13 @@ def header(version: str, spec: Json, truth: Json, record: Any) -> list[str]:
         f"plan {prov.get('plan_name')}, "
         f"generator version {prov.get('generator_version')}, semantic digest "
         f"`{str(prov.get('semantic_digest'))[:12]}…`"
+    )
+    params = spec.get("org", {}).get("params", {})
+    out.append("- org parameters: " + ", ".join(f"{name}={val}" for name, val in params.items()))
+    out.append(
+        "- outcome witness: the semantic world rebuilt from this provenance by the generator's "
+        "assembly, semantic digest verified equal; per impact the generator's own assessment "
+        "at the scenario's `now` under the dated view"
     )
     for role, configured in (("writer", record.writer), ("checker", record.checker)):
         settings = [(s.name, s.value) for s in configured.settings]
@@ -257,6 +330,95 @@ def key_section(key: Json, stable_interval: Json | None, names: Names) -> list[s
             f"- expected unknown for {names(unknown.get('employee_id'))}: "
             f"{unknown.get('required_fact')} of {ref(unknown.get('subject'), names)} "
             f"({unknown.get('reason')})"
+        )
+    out.append("")
+    return out
+
+
+def witness_section(scenario: Scenario, org: OrgSpec, facts: FactBase, names: Names) -> list[str]:
+    """The generator's own outcome per impact at the scenario's ``now`` under the dated view:
+    the three calls the whole-world verification makes, rendered, with every non-viable and
+    unknown candidate named and its agreement with the key stated.
+
+    The facts every candidate's assessment read are the need's own (the event's schedule,
+    the ticket's component, the clause's requirement) and are rendered once per impact; a
+    non-viable candidate is listed with the rule's reasons and every fact beyond those,
+    whatever its subject, since the excluding fact is as often another entity's (a clashing
+    meeting's schedule, a leave record) as the person's. A candidate with no fact beyond the
+    need's failed by absence: no fact of theirs met the criterion. An unknown candidate is
+    listed with each unresolved question. ``must_assess`` is compared verdict by verdict
+    too, so the sheet says in its own words whether the sealed key is what the rules derive
+    today.
+    """
+    today = scenario.spec.today
+    view = facts.at(today, RunCondition.all_reachable())
+    universe = [employee.id for employee in org.employees]
+    leave = scenario.investigated_leave.span
+    timezone = scenario.spec.reference_timezone
+    out = [
+        f"#### Outcome witness (dated view at {today}, the generator's own assessment "
+        "over every employee)",
+        "",
+    ]
+    for expected in scenario.key.impacts:
+        assessments = assess_impact(
+            view, expected.key, universe, scenario.key.constraints, leave, timezone
+        )
+        required = required_count_for(view, expected.key, scenario.key.constraints, leave, timezone)
+        outcome = expected_action((a.verdict for a in assessments), required)
+        by_verdict: dict[str, list[Assessment]] = defaultdict(list)
+        for assessment in assessments:
+            by_verdict[assessment.verdict.value].append(assessment)
+        viable = by_verdict.get("viable", [])
+        unknown = by_verdict.get("unknown", [])
+        non_viable = by_verdict.get("non_viable", [])
+        agreement = (
+            "agrees with the key"
+            if outcome is expected.outcome
+            else f"**DISAGREES WITH THE KEY ({expected.outcome.value})**"
+        )
+        out.append(
+            f"- impact {expected.key.subtype.value} on {names(expected.key.artifact.id)}: "
+            f"required {required}; viable {len(viable)}, unknown {len(unknown)}, "
+            f"non-viable {len(non_viable)} -> **{outcome.value}**, {agreement}"
+        )
+        shared = set.intersection(*(set(a.evidence) for a in assessments))
+        for need_fact in sorted(shared, key=lambda f: (f.subject.id, f.predicate.value)):
+            out.append(f"    - need: {fact_text(need_fact, names)}")
+        out.append("    - viable: " + (", ".join(names(a.employee_id) for a in viable) or "none"))
+        for assessment in unknown:
+            questions = "; ".join(
+                f"{u.predicate.value} of {names(u.subject.id)} ({u.reason.value})"
+                for u in assessment.unresolved
+            )
+            out.append(f"    - {names(assessment.employee_id)}: unknown, {questions}")
+        for assessment in non_viable:
+            reasons = ", ".join(reason.value for reason in assessment.reasons)
+            beyond = [fact_text(f, names) for f in assessment.evidence if f not in shared]
+            out.append(
+                f"    - {names(assessment.employee_id)}: non-viable, {reasons} "
+                f"({'; '.join(beyond) or 'no fact beyond the need, failed by absence'})"
+            )
+        by_employee = {a.employee_id: a for a in assessments}
+        mismatched = [
+            f"{names(authored.employee_id)} authored {authored.verdict.value} "
+            f"{[r.value for r in authored.reasons]}, derived "
+            f"{by_employee[authored.employee_id].verdict.value} "
+            f"{[r.value for r in by_employee[authored.employee_id].reasons]}"
+            for authored in expected.must_assess
+            if (
+                by_employee[authored.employee_id].verdict,
+                by_employee[authored.employee_id].reasons,
+            )
+            != (authored.verdict, authored.reasons)
+        ]
+        out.append(
+            "    - must-assess verdicts: "
+            + (
+                "every authored verdict derived"
+                if not mismatched
+                else "**MISMATCH** " + "; ".join(mismatched)
+            )
         )
     out.append("")
     return out
@@ -380,7 +542,8 @@ def target_section(target: Any, brief: Json, text: str, names: Names) -> list[st
     out.append(
         "- propositions read: "
         + "; ".join(
-            f"{names(p.subject.id) if p.subject else 'text'} {p.predicate.value} {p.value} "
+            f"{names(p.subject.id) if p.subject else 'text'} {p.predicate.value} "
+            f"{typed_value(p.value, p.predicate, names)} "
             f"[{p.polarity.value}/{p.assertion_mode.value}]"
             for p in target.propositions
         )
@@ -399,6 +562,7 @@ def scenario_section(
     record_targets: Mapping[str, Any],
     texts: Mapping[str, str],
     names: Names,
+    witness: list[str],
 ) -> list[str]:
     key = construction.get("key", {})
     owned = planting.get("owned", {})
@@ -413,6 +577,7 @@ def scenario_section(
         "",
     ]
     out += key_section(key, planting.get("stable_interval"), names)
+    out += witness
     out += plantings_section(owned, names)
     authored = construction.get("authored_facts", [])
     if authored:
@@ -458,7 +623,14 @@ def by_id(rows: Iterable[Json], field: str) -> dict[str, Json]:
     return {row[field]: row for row in rows}
 
 
-def render(version: str, spec: Json, truth: Json, specs: Sequence[Json], record: Any) -> str:
+def render(
+    version: str,
+    spec: Json,
+    truth: Json,
+    specs: Sequence[Json],
+    record: Any,
+    semantic: SemanticWorld,
+) -> str:
     names = Names(spec.get("org", {}))
     texts: dict[str, str] = {}
     walk_texts(spec, texts)
@@ -467,6 +639,7 @@ def render(version: str, spec: Json, truth: Json, specs: Sequence[Json], record:
     plantings = by_id(spec.get("scenarios", []), "scenario_id")
     briefs = {b["target"]["id"]: b for c in truth.get("scenarios", []) for b in c.get("briefs", [])}
     record_targets = {t.target_id: t for t in record.targets}
+    scenarios = {scenario.spec.id: scenario for scenario in semantic.scenarios}
 
     out = header(version, spec, truth, record)
     out += rollups(record, briefs, texts)
@@ -482,6 +655,7 @@ def render(version: str, spec: Json, truth: Json, specs: Sequence[Json], record:
             record_targets,
             texts,
             names,
+            witness_section(scenarios[sid], semantic.org, semantic.facts, names),
         )
     return "\n".join(out)
 
@@ -495,8 +669,9 @@ def main() -> int:
     truth = json.loads(truth_bytes)
     record = decode_materialization(truth_bytes)
     assert record is not None, "no materialization record sealed"
+    semantic = rebuild(spec)
 
-    sheet = render(version, spec, truth, specs, record)
+    sheet = render(version, spec, truth, specs, record, semantic)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     path = OUT_DIR / f"audit_sheet_{version[:8]}.md"
     path.write_text(sheet, encoding="utf-8")
