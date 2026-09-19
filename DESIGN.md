@@ -518,7 +518,9 @@ scenario. No golden scenario is released before the first evaluation has run ove
 the whole set: the example a reader values is the key beside an agent's run on it,
 and retirement before any evaluation would be a promise with nothing to enforce it.
 Until then a throwaway-seed world, never sealed or scored, illustrates the sheet in
-the public tree.
+the public tree (`docs/examples/audit_sheet_throwaway.md`, rendered 2026-09-19 by the
+sheet script's throwaway mode through the generator's fresh stage; its rows observable
+after `now` kept, since that world has nothing to protect).
 
 **History is planted only where it can be planted honestly; qualification is
 derived from atomic facts, never stored as a conclusion.** Jira's REST API cannot

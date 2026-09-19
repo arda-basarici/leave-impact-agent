@@ -18,7 +18,7 @@ scenario's authored facts, the fact-base entries whose subject or evidence the s
 cites (the deep audit's trace material, each with its evidence and observable-from date),
 and the prose targets with their briefs, attempts, refusals and the checker's propositions
 beside the accepted text. Before the scenarios, a header (versions, the organization's
-parameters, models, prompt digests, sealed counters) and the rollups the audit items read
+parameters, models, prompt digests, the record's counters) and the rollups the audit items read
 off (attempts per register, refusals by guard and by reason, targets above attempt four,
 opening frames per register).
 
@@ -51,13 +51,31 @@ The cited fact-base entries are each cited entity's whole record, so they carry 
 dated after the scenario's ``now`` that belong to other scenarios' plantings; the sheet
 lists those apart, under their own heading, so a reader neither counts them into the
 dated view nor mistakes them for a rendering fault. They stay in the private sheet and
-never enter a released example.
+never enter a released golden scenario; the throwaway example keeps them, and its header
+says why.
 
 Reads only. The rendered sheet holds benchmark truth: it is written under ``data/audit/``,
 which the repository ignores, and is never committed; the provenance artifact the audit
 produces from it is versioned into the truth bucket beside the world.
 
-Usage: ``python scripts/audit_sheet.py <world_version>`` with ``AWS_PROFILE`` set.
+The throwaway mode is the one exception, and it commits no truth: the world it renders is
+generated here, on the workstation, from the generator's own recipe flags through the same
+fresh stage the job runs (assemble, materialize, compose, bundle), and it stops there. The
+bundle is never written to a bucket, never projected into a vendor, never scored; the
+version in its header is the bundle's content hash and names nothing anywhere. That is
+what lets the sheet be illustrated in the public tree before any golden scenario is
+retired (DESIGN's per-scenario retirement ruling): the example at
+``docs/examples/audit_sheet_throwaway.md`` shows the sheet's shape, prose beside its
+brief included, on a world nobody will ever be evaluated against. The sections of rows
+observable only after a scenario's ``now`` stay in that example, since the leak they would
+carry, other scenarios' plantings, is of a world with nothing to protect; the header says
+so. The prose stage spends a few model calls under the ambient credentials, the generator's
+three model variables naming the writer, the checker and their region.
+
+Usage: ``python scripts/audit_sheet.py <world_version>`` with ``AWS_PROFILE`` set renders a
+sealed world; ``python scripts/audit_sheet.py --throwaway --seed N --world-start DATE
+--plan golden …`` takes the generator's recipe flags after ``--throwaway`` and renders the
+example.
 """
 
 from __future__ import annotations
@@ -88,8 +106,15 @@ from leaveimpact.core.values import FactValue
 from leaveimpact.core.values_json import encode_value
 from leaveimpact.core.viability import Assessment, assess_impact
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
+from leaveimpact.generator.entrypoint import (
+    ConfigurationError,
+    parse_recipe,
+    prose_models_for,
+    prose_models_from_env,
+)
+from leaveimpact.generator.fresh import fresh_world
 from leaveimpact.generator.truth_record import decode_materialization
-from leaveimpact.world.artifacts import semantic_digest
+from leaveimpact.world.artifacts import Bundle, semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, assemble_semantic_world
 from leaveimpact.world.construction import required_count_for
 from leaveimpact.world.org import OrgSpec, decode_org_params
@@ -99,6 +124,21 @@ TRUTH_BUCKET = os.environ.get("LEAVE_IMPACT_TRUTH_BUCKET", "leave-impact-truth-4
 WORLD_BUCKET = os.environ.get("LEAVE_IMPACT_WORLD_BUCKET", "leave-impact-world-445743457479")
 REGION = os.environ.get("LEAVE_IMPACT_AWS_REGION", "eu-central-1")
 OUT_DIR = Path(__file__).resolve().parent.parent / "data" / "audit"
+EXAMPLE_PATH = (
+    Path(__file__).resolve().parent.parent / "docs" / "examples" / "audit_sheet_throwaway.md"
+)
+
+THROWAWAY_NOTES = (
+    "throwaway world: generated on a workstation from the recipe above by the generator's "
+    "own fresh stage (assemble, materialize, compose, bundle) and left there; never sealed, "
+    "never projected into a vendor, never scored; the version is the bundle's content hash "
+    "and names nothing in any bucket",
+    "the sections of rows observable only after a scenario's `now` are kept in this sheet: "
+    "the per-scenario retirement ruling excludes them from a released golden scenario "
+    "because they leak other scenarios' plantings, and a throwaway world has nothing to "
+    "protect",
+)
+"""What the example's header says that a sealed world's does not."""
 
 Json = Mapping[str, Any]
 
@@ -108,6 +148,17 @@ Json = Mapping[str, Any]
 
 def fetch(s3: Any, bucket: str, key: str) -> bytes:
     return s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+
+
+def throwaway_bundle(argv: Sequence[str]) -> Bundle:
+    """A world generated here from the generator's recipe flags, its prose written by the
+    models the environment names, and left unsealed: the bundle is the whole of it."""
+    recipe = parse_recipe(argv)
+    writer, checker = prose_models_for(prose_models_from_env(os.environ))
+    fresh = fresh_world(recipe, writer, checker, print)
+    for line in fresh.metrics.lines():
+        print(line)
+    return fresh.bundle
 
 
 def rebuild(spec: Json) -> SemanticWorld:
@@ -242,7 +293,9 @@ def quoted(text: str) -> list[str]:
 # --- Sections -----------------------------------------------------------------------------
 
 
-def header(version: str, spec: Json, truth: Json, record: Any) -> list[str]:
+def header(
+    version: str, spec: Json, truth: Json, record: Any, notes: Sequence[str] = ()
+) -> list[str]:
     prov = spec.get("provenance", {})
     facts = truth.get("facts", {})
     out = [f"# Audit sheet, world `{version[:12]}…`", ""]
@@ -271,8 +324,9 @@ def header(version: str, spec: Json, truth: Json, record: Any) -> list[str]:
     )
     if record.metrics is not None:
         out.append(
-            "- sealed counters: " + ", ".join(f"{n}={v}" for n, v in record.metrics.counters)
+            "- record counters: " + ", ".join(f"{n}={v}" for n, v in record.metrics.counters)
         )
+    out += [f"- {note}" for note in notes]
     out.append("")
     return out
 
@@ -682,7 +736,8 @@ def fact_base_section(facts: Json, ids: set[str], names: Names, today: str) -> l
     if later:
         out += [
             "#### Fact base, cited entries observable only after now (other scenarios' "
-            "plantings; not in this dated view, never in a released example)",
+            "plantings; not in this dated view; excluded from a released golden scenario, "
+            "kept in a throwaway example)",
             "",
         ]
         out += [f"- {row}" for row in later]
@@ -810,6 +865,7 @@ def render(
     specs: Sequence[Json],
     record: Any,
     semantic: SemanticWorld,
+    notes: Sequence[str] = (),
 ) -> str:
     names = Names(spec.get("org", {}))
     texts: dict[str, str] = {}
@@ -822,7 +878,7 @@ def render(
     scenarios = {scenario.spec.id: scenario for scenario in semantic.scenarios}
     world_start = date.fromisoformat(spec["provenance"]["world_start"])
 
-    out = header(version, spec, truth, record)
+    out = header(version, spec, truth, record, notes)
     out += rollups(record, briefs, texts)
     out += ["## Scenarios, in the plan's order", ""]
     for row in spec.get("plan", []):
@@ -845,19 +901,33 @@ def render(
 
 
 def main() -> int:
-    version = WorldVersion(sys.argv[1])
-    s3 = boto3.Session(region_name=REGION).client("s3")
-    truth_bytes = fetch(s3, TRUTH_BUCKET, truth_manifest_key(version))
-    spec = json.loads(fetch(s3, TRUTH_BUCKET, world_spec_key(version)))
-    specs = json.loads(fetch(s3, WORLD_BUCKET, scenario_specs_key(version))).get("scenarios", [])
+    if sys.argv[1:2] == ["--throwaway"]:
+        try:
+            sealed = throwaway_bundle(sys.argv[2:])
+        except ConfigurationError as error:
+            print(f"audit_sheet --throwaway: {error}", file=sys.stderr)
+            return 2
+        version = sealed.world_version
+        spec_bytes, specs_bytes, truth_bytes = (a.content for a in sealed.artifacts)
+        notes: Sequence[str] = THROWAWAY_NOTES
+        path = EXAMPLE_PATH
+    else:
+        version = WorldVersion(sys.argv[1])
+        s3 = boto3.Session(region_name=REGION).client("s3")
+        spec_bytes = fetch(s3, TRUTH_BUCKET, world_spec_key(version))
+        specs_bytes = fetch(s3, WORLD_BUCKET, scenario_specs_key(version))
+        truth_bytes = fetch(s3, TRUTH_BUCKET, truth_manifest_key(version))
+        notes = ()
+        path = OUT_DIR / f"audit_sheet_{version[:8]}.md"
+    spec = json.loads(spec_bytes)
+    specs = json.loads(specs_bytes).get("scenarios", [])
     truth = json.loads(truth_bytes)
     record = decode_materialization(truth_bytes)
     assert record is not None, "no materialization record sealed"
     semantic = rebuild(spec)
 
-    sheet = render(version, spec, truth, specs, record, semantic)
-    OUT_DIR.mkdir(parents=True, exist_ok=True)
-    path = OUT_DIR / f"audit_sheet_{version[:8]}.md"
+    sheet = render(version, spec, truth, specs, record, semantic, notes)
+    path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(sheet, encoding="utf-8")
     print(f"wrote {path}")
     print(sheet[: sheet.index("## Scenarios, in the plan's order")])

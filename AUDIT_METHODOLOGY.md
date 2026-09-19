@@ -275,4 +275,7 @@ not the same as the cleanest trace; the sheet header's opening-frame rollup, the
 observable only after now and any pass note that cross-references another scenario
 never enter a release. No golden scenario is released before the first evaluation has
 run over the whole set: the example a reader values is the key beside an agent's run on
-it. Until then a throwaway-seed world, never sealed or scored, illustrates the sheet.
+it. Until then a throwaway-seed world, never sealed or scored, illustrates the sheet:
+`docs/examples/audit_sheet_throwaway.md`, rendered by the sheet script's throwaway mode
+from the generator's own fresh stage, with the rows observable only after now kept,
+since that world has nothing to protect.
