@@ -128,6 +128,7 @@ from leaveimpact.core.enums import (
     LeaveStatus,
     Source,
     WorkItemStatus,
+    require_member,
 )
 from leaveimpact.core.facts import Fact, FactBase, FactKey, FactView, Gap, RunCondition
 from leaveimpact.core.grounding import (
@@ -393,6 +394,7 @@ __all__ = [
     "plan_violations",
     "predicate",
     "require_id",
+    "require_member",
     "require_well_formed",
     "required_count",
     "resolve",

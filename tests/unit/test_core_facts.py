@@ -44,6 +44,13 @@ def test_a_fact_is_validated_against_its_registry_row() -> None:
         )
 
 
+def test_a_predicate_given_as_a_plain_string_is_refused_at_construction() -> None:
+    with pytest.raises(ValueError, match="a fact's predicate is a member of PredicateName"):
+        Fact(ALICE, "has_skill", "kafka", EvidenceRef(Source.FRAPPE, ALICE, "skills"), w.NOW)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="a gap's predicate is a member of PredicateName"):
+        Gap(ALICE, "has_skill", EvidenceRef(Source.FRAPPE, ALICE, "skills"), w.NOW)  # type: ignore[arg-type]
+
+
 def test_a_gap_is_validated_like_a_fact_and_never_carries_a_value() -> None:
     with pytest.raises(ValueError, match="due_on is a fact about a work_item, got an employee"):
         Gap(ALICE, PredicateName.DUE_ON, EvidenceRef(Source.FRAPPE, ALICE, "due"), w.NOW)

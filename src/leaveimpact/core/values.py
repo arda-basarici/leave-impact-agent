@@ -34,7 +34,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from enum import StrEnum
 
-from leaveimpact.core.enums import EmploymentType, EntityKind, Source
+from leaveimpact.core.enums import EmploymentType, EntityKind, Source, require_member
 from leaveimpact.core.ids import SkillId, skill_id
 from leaveimpact.core.refs import EntityRef, with_article
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
@@ -141,6 +141,9 @@ class Observation:
 
     source: Source
     value: FactValue
+
+    def __post_init__(self) -> None:
+        require_member(self.source, Source, "an observation's source")
 
 
 # --- The spec a predicate declares ---------------------------------------------------

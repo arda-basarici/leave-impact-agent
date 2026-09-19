@@ -18,6 +18,28 @@ from __future__ import annotations
 from enum import StrEnum
 
 
+def require_member[E: StrEnum](value: E, vocabulary: type[E], what: str) -> E:
+    """``value`` if it is a member of ``vocabulary``; ``ValueError`` otherwise.
+
+    A member equals its string, so a plain string passes every equality check and
+    every dict lookup and fails only where a rule compares the member by identity, or
+    where a message reads ``.value``: a silently skipped rule, an ``AttributeError``
+    far from the cause. A constructor calls this on each enum-typed field so the
+    near-miss fails at construction, naming the field; the JSON decoders never trip
+    it, since they build members through the vocabulary's constructor.
+
+    >>> require_member(WorkItemStatus.DONE, WorkItemStatus, "a status")
+    <WorkItemStatus.DONE: 'done'>
+    >>> require_member("done", WorkItemStatus, "a status")
+    Traceback (most recent call last):
+    ...
+    ValueError: a status is a member of WorkItemStatus, got 'done'
+    """
+    if not isinstance(value, vocabulary):
+        raise ValueError(f"{what} is a member of {vocabulary.__name__}, got {value!r}")
+    return value
+
+
 class Source(StrEnum):
     """The four systems evidence comes from — one adapter each, one boundary each.
 

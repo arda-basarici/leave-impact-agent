@@ -269,6 +269,32 @@ def test_a_rationale_is_text_or_absent() -> None:
         _action(CoverageActionKind.UNKNOWN, rationale="   ")
 
 
+def test_a_plain_string_in_an_enum_field_is_refused_at_construction() -> None:
+    # A StrEnum member equals its string, so "assign" passed the equality-based checks
+    # and skipped the identity-based ones: an assign action naming nobody, a non-viable
+    # verdict with no reasons. The refusal names the field and the vocabulary.
+    with pytest.raises(ValueError, match="claim_007: an action is a member of CoverageActionKind"):
+        _action("assign")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="claim_005: a verdict is a member of Verdict"):
+        _assessment("non_viable")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="claim_005: a reason is a member of AssessmentReason"):
+        _assessment(Verdict.NON_VIABLE, ("on_leave",))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="an authority rule is a member of AuthorityRule"):
+        replace(_conflict(_two_owners()), authority_rule="system_of_record_wins")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="an unknown's reason is a member of UnknownReason"):
+        Unknown(
+            claim_id=claim_id(4),
+            evidence_refs=(),
+            subject=employee_ref(employee_id(31)),
+            required_fact=PredicateName.HAS_SKILL,
+            reason="absent",  # type: ignore[arg-type]
+        )
+    with pytest.raises(ValueError, match="an impact subtype is a member of ImpactSubtype"):
+        ImpactKey(DEADLINE.leave_id, "deadline", DEADLINE.artifact)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="a conflict's predicate is a member of PredicateName"):
+        replace(_conflict(_two_owners()), predicate="owns_work_item")  # type: ignore[arg-type]
+
+
 # --- The union ------------------------------------------------------------------------------
 
 

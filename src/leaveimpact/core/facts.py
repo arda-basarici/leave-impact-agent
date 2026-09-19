@@ -31,7 +31,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from types import MappingProxyType
 
-from leaveimpact.core.enums import Source
+from leaveimpact.core.enums import Source, require_member
 from leaveimpact.core.predicates import Predicate, PredicateName, predicate
 from leaveimpact.core.refs import EntityRef, EvidenceRef, with_article
 from leaveimpact.core.values import FactValue
@@ -105,6 +105,7 @@ class Fact:
     observable_from: date
 
     def __post_init__(self) -> None:
+        require_member(self.predicate, PredicateName, "a fact's predicate")
         row = predicate(self.predicate)
         _require_subject(row, self.subject)
         try:
@@ -138,6 +139,7 @@ class Gap:
     observable_from: date
 
     def __post_init__(self) -> None:
+        require_member(self.predicate, PredicateName, "a gap's predicate")
         row = predicate(self.predicate)
         _require_subject(row, self.subject)
         _require_in_domain(row, self.evidence)

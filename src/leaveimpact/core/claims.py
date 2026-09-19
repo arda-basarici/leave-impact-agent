@@ -46,7 +46,7 @@ from enum import StrEnum
 from types import MappingProxyType
 from typing import ClassVar
 
-from leaveimpact.core.enums import EntityKind
+from leaveimpact.core.enums import EntityKind, require_member
 from leaveimpact.core.ids import ClaimId, ClauseId, EmployeeId, LeaveId, is_numbered_id
 from leaveimpact.core.predicates import PredicateName, predicate
 from leaveimpact.core.refs import (
@@ -213,6 +213,7 @@ class ImpactKey:
 
     def __post_init__(self) -> None:
         require_id(EntityKind.LEAVE, self.leave_id)
+        require_member(self.subtype, ImpactSubtype, "an impact subtype")
         allowed = ARTIFACT_KINDS[self.subtype]
         if self.artifact.kind not in allowed:
             raise ValueError(
@@ -252,6 +253,7 @@ class ConflictKey:
     predicate: PredicateName
 
     def __post_init__(self) -> None:
+        require_member(self.predicate, PredicateName, "a conflict's predicate")
         _require_subject_of(self.predicate, self.entity)
 
 
@@ -263,6 +265,7 @@ class UnknownKey:
     required_fact: PredicateName
 
     def __post_init__(self) -> None:
+        require_member(self.required_fact, PredicateName, "an unknown's required fact")
         _require_subject_of(self.required_fact, self.subject)
 
 
@@ -393,6 +396,9 @@ class CandidateAssessment(ClaimBase):
         _set_canonical(self, "reasons", self.reasons, _by_text)
 
     def _check(self) -> None:
+        require_member(self.verdict, Verdict, f"{self.claim_id}: a verdict")
+        for reason in self.reasons:
+            require_member(reason, AssessmentReason, f"{self.claim_id}: a reason")
         if len(set(self.reasons)) != len(self.reasons):
             raise ValueError(f"{self.claim_id}: a reason is given once, not twice")
         if self.verdict is Verdict.NON_VIABLE and not self.reasons:
@@ -435,6 +441,7 @@ class SourceConflict(ClaimBase):
         _set_canonical(self, "observations", self.observations, _by_source)
 
     def _check(self) -> None:
+        require_member(self.authority_rule, AuthorityRule, f"{self.claim_id}: an authority rule")
         sources = [observation.source for observation in self.observations]
         if len(sources) < 2:
             raise ValueError(f"{self.claim_id}: a conflict needs at least two observations")
@@ -485,6 +492,9 @@ class Unknown(ClaimBase):
     def entity_refs(self) -> tuple[EntityRef, ...]:
         return (self.subject,)
 
+    def _check(self) -> None:
+        require_member(self.reason, UnknownReason, f"{self.claim_id}: an unknown's reason")
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class CoverageAction(ClaimBase):
@@ -519,6 +529,7 @@ class CoverageAction(ClaimBase):
         _set_canonical(self, "assignee_ids", self.assignee_ids, _by_text)
 
     def _check(self) -> None:
+        require_member(self.action, CoverageActionKind, f"{self.claim_id}: an action")
         for assignee in self.assignee_ids:
             require_id(EntityKind.EMPLOYEE, assignee)
         if len(set(self.assignee_ids)) != len(self.assignee_ids):

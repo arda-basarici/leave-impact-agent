@@ -87,6 +87,17 @@ def test_an_evidence_field_is_a_name_or_none_never_empty() -> None:
         EvidenceRef(Source.FRAPPE, employee_ref(employee_id(17)), "")
 
 
+def test_a_plain_string_for_a_kind_or_a_source_is_refused_at_construction() -> None:
+    # The string equals the member, so it would pass the namespace check and the
+    # holds-table lookup, then die where a rule compares by identity or reads ``.value``.
+    with pytest.raises(ValueError, match="kind is a member of EntityKind, got 'employee'"):
+        EntityRef("employee", "emp_017")  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="an evidence source is a member of Source, got 'jira'"):
+        EvidenceRef("jira", comment_ref(comment_id(9)))  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="an observation's source is a member of Source"):
+        Observation("jira", "emp_017")  # type: ignore[arg-type]
+
+
 def test_observed_values_keep_their_type() -> None:
     by_ref = Observation(Source.JIRA, employee_ref(employee_id(17)))
     by_text = Observation(Source.JIRA, "emp_017")

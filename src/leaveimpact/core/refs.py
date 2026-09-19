@@ -25,7 +25,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from types import MappingProxyType
 
-from leaveimpact.core.enums import EntityKind, Source
+from leaveimpact.core.enums import EntityKind, Source, require_member
 from leaveimpact.core.ids import (
     ClauseId,
     CommentId,
@@ -108,6 +108,7 @@ class EntityRef:
     id: str
 
     def __post_init__(self) -> None:
+        require_member(self.kind, EntityKind, "a reference's kind")
         require_id(self.kind, self.id)
 
 
@@ -178,6 +179,7 @@ class EvidenceRef:
     field: str | None = None
 
     def __post_init__(self) -> None:
+        require_member(self.source, Source, "an evidence source")
         held = TARGET_KINDS_BY_SOURCE[self.source]
         if self.target.kind not in held:
             raise ValueError(
