@@ -224,6 +224,60 @@ def test_assembly_refuses_a_scope_handle_that_names_two_artifacts_of_its_kind() 
     assert all(repr(stolen) in p and "names 2 tickets" in p for p in problems)
 
 
+def test_assembly_refuses_two_runbooks_headed_by_one_ticket_title_with_no_constraint() -> None:
+    """A stale-source row carries no constraint: its ticket is named by title only through the
+    runbook's brief, and two such rows sharing a release title passed both assembly guards
+    (the M1 audit's F-007). The handle check reads the briefs' referents too."""
+    from random import Random
+
+    from leaveimpact.core.ids import scenario_id
+    from leaveimpact.world import Reservations, StaleSourceConflict
+    from leaveimpact.world.adversarial import RUNBOOK_TITLE
+
+    org = assemble_world(7, DEFAULT_PARAMS, WORLD_START).org
+    ids, book = Minting(), Reservations()
+    slices = allocate_slices(Random(0), 2, WORLD_START)
+    first, second = (
+        construct(
+            StaleSourceConflict(),
+            (),
+            org,
+            scenario_id=scenario_id(number),
+            window=slices[number - 1],
+            world_start=WORLD_START,
+            reference_timezone=org.params.reference_timezone,
+            ids=ids,
+            rng=Random(number),
+            reservations=book,
+        )
+        for number in (1, 2)
+    )
+    assert first.key.constraints == () and second.key.constraints == ()
+    assert scope_handle_problems([first, second]) == []
+    stolen = first.owned.work_items[0].entity.title
+    [ticket] = second.owned.work_items
+    [runbook] = second.owned.documents
+    collided = replace(
+        second,
+        owned=replace(
+            second.owned,
+            work_items=(replace(ticket, entity=replace(ticket.entity, title=stolen)),),
+            documents=(
+                replace(
+                    runbook,
+                    entity=replace(runbook.entity, title=RUNBOOK_TITLE.format(release=stolen)),
+                ),
+            ),
+        ),
+    )
+    problems = scope_handle_problems([first, collided])
+    assert [p[: len("scenario_00N")] for p in problems] == ["scenario_001", "scenario_002"]
+    assert all(
+        "names the ticket title" in p and repr(stolen) in p and "names 2 tickets" in p
+        for p in problems
+    )
+
+
 def test_every_title_supply_covers_the_golden_set_in_one_context() -> None:
     """Capacity as a tested relationship: a row plants at most one scope-handle artifact of a
     kind, so a context needs at most the golden set's row count of titles."""

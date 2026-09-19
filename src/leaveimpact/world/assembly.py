@@ -69,6 +69,7 @@ from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
 from leaveimpact.core.grounding import Grounded, derive_impacts, ground_impact
 from leaveimpact.core.ids import EmployeeId, ScenarioId
 from leaveimpact.core.plans import expected_action
+from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.viability import assess_impact
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.briefs import SectionTarget, parts_of
@@ -151,53 +152,90 @@ class AmbiguousScopeHandle(ConstructionError):
 
 
 def scope_handle_problems(scenarios: Sequence[Scenario]) -> list[str]:
-    """Every constraint target whose title names more than one artifact of its kind across
-    ``scenarios``: a ticket's or meeting's own title, a section's document title.
+    """Every title a scenario uses as a handle that names more than one artifact of its kind
+    across ``scenarios``: a constraint's target (a ticket's or meeting's own title, a
+    section's document title) and every ticket, meeting or document a prose brief's facts
+    refer to, since prose names an artifact by its surface form, which is its title.
 
     The title book mints without replacement, so this never fires for a world the
     framework built; it is the assembly's defence against a class or helper that titles an
-    artifact past the book (the 15.3 rulings). Unique per kind is the resolver contract in
-    full because ticket titles carry a component name and meeting titles a team name, from
-    disjoint tables, and a section is named through its document's title.
+    artifact past the book (the 15.3 rulings). Titles are counted over every artifact of
+    the kind and a collision is reported only at a handle: some titles repeat by design and
+    are never handles (the timezone modifier's boundary event), while the other artifact of
+    a colliding pair need not carry a handle for the reference to be ambiguous. Two release
+    runbooks headed by one ticket title carried no constraint and passed both assembly
+    guards, since the check read only the constraints (the M1 audit's F-007). Unique per
+    kind is the resolver's contract because ticket titles carry a component name and
+    meeting titles a team name, from disjoint tables, and a section is named through its
+    document's title.
     """
-    tickets = Counter(p.entity.title for s in scenarios for p in s.owned.work_items)
-    events = Counter(p.entity.title for s in scenarios for p in s.owned.events)
-    documents = Counter(p.entity.title for s in scenarios for p in s.owned.documents)
+    counts = {
+        "ticket": Counter(p.entity.title for s in scenarios for p in s.owned.work_items),
+        "meeting": Counter(p.entity.title for s in scenarios for p in s.owned.events),
+        "document": Counter(p.entity.title for s in scenarios for p in s.owned.documents),
+    }
     problems: list[str] = []
     for scenario in scenarios:
-        for constraint in scenario.key.constraints:
-            target = constraint.applies_to
-            match target.kind:
-                case EntityKind.WORK_ITEM:
-                    tickets_here = scenario.owned.work_items
-                    title = next(p.entity.title for p in tickets_here if p.entity.id == target.id)
-                    kind, count = "ticket", tickets[title]
-                case EntityKind.EVENT:
-                    title = next(
-                        p.entity.title for p in scenario.owned.events if p.entity.id == target.id
-                    )
-                    kind, count = "meeting", events[title]
-                case EntityKind.CLAUSE:
-                    title = next(
-                        p.entity.title
-                        for p in scenario.owned.documents
-                        if any(section.id == target.id for section in p.entity.sections)
-                        or any(
-                            pending.target.document_id == p.entity.id
-                            for pending in scenario.briefs
-                            if isinstance(pending.target, SectionTarget)
-                            and pending.target.id == target.id
-                        )
-                    )
-                    kind, count = "document", documents[title]
-                case _:
-                    continue
+        for holder, kind, title in _handles(scenario):
+            count = counts[kind][title]
             if count > 1:
                 problems.append(
-                    f"{scenario.spec.id}: {constraint.clause_id} scopes itself by the {kind} "
-                    f"title {title!r}, which names {count} {kind}s in this world"
+                    f"{scenario.spec.id}: {holder} the {kind} title {title!r}, which names "
+                    f"{count} {kind}s in this world"
                 )
     return problems
+
+
+def _handles(scenario: Scenario) -> list[tuple[str, str, str]]:
+    """The titles ``scenario`` uses as handles, as (who uses it, the kind, the title)."""
+    handles: list[tuple[str, str, str]] = []
+    for constraint in scenario.key.constraints:
+        titled = _titled(scenario, constraint.applies_to)
+        if titled is None:
+            raise ConstructionError(
+                f"{scenario.spec.id}: {constraint.clause_id} scopes itself by "
+                f"{constraint.applies_to.id}, which this row does not own"
+            )
+        handles.append((f"{constraint.clause_id} scopes itself by", *titled))
+    for brief in scenario.briefs:
+        facts = (*brief.required_facts, *brief.allowed)
+        referred = {fact.subject for fact in facts}
+        referred |= {fact.value for fact in facts if isinstance(fact.value, EntityRef)}
+        for ref in sorted(referred, key=lambda ref: (ref.kind.value, ref.id)):
+            titled = _titled(scenario, ref)
+            if titled is not None:
+                handles.append((f"{brief.id} names", *titled))
+    return handles
+
+
+def _titled(scenario: Scenario, target: EntityRef) -> tuple[str, str] | None:
+    """The kind label and title of the owned artifact ``target`` names; ``None`` for a
+    reference to nothing titled (a person, a team) or to an artifact this row does not own."""
+    owned = scenario.owned
+    match target.kind:
+        case EntityKind.WORK_ITEM:
+            titles = (p.entity.title for p in owned.work_items if p.entity.id == target.id)
+            return next((("ticket", title) for title in titles), None)
+        case EntityKind.EVENT:
+            titles = (p.entity.title for p in owned.events if p.entity.id == target.id)
+            return next((("meeting", title) for title in titles), None)
+        case EntityKind.DOCUMENT:
+            titles = (p.entity.title for p in owned.documents if p.entity.id == target.id)
+            return next((("document", title) for title in titles), None)
+        case EntityKind.CLAUSE:
+            titles = (
+                p.entity.title
+                for p in owned.documents
+                if any(section.id == target.id for section in p.entity.sections)
+                or any(
+                    pending.target.document_id == p.entity.id
+                    for pending in scenario.briefs
+                    if isinstance(pending.target, SectionTarget) and pending.target.id == target.id
+                )
+            )
+            return next((("document", title) for title in titles), None)
+        case _:
+            return None
 
 
 @dataclass(frozen=True, slots=True)
