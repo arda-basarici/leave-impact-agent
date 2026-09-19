@@ -24,13 +24,18 @@ phrases disjoint from the real artifacts' so a distractor never shares a real ti
 
 ``COMPATIBLE_MODIFIERS`` is the class-by-modifier compatibility the world plan reads
 (the plan ruling at step 8): a modifier is compatible with a class when every draft the
-class produces affords it, and a pair is compatible when both members are — there is no
-pair-level table until a pair proves it needs one. The declaration is static because no
-draft exists when the plan is made; what makes it true is the exhaustive check in the
-tests — every admissible construction of every class, drafted, affords each modifier
-declared compatible and none declared incompatible — with the seeded pair sweep as
-regression coverage over composition. Today the one exclusion is ``already_resolved``
-on the meeting class, which plants no ticket for the leaver to have closed.
+class produces on a supported organization affords it, and a pair is compatible when
+both members are — there is no pair-level table until a pair proves it needs one. The
+declaration is static because no draft exists when the plan is made; what makes it true
+is the exhaustive check in the tests — every admissible construction of every class,
+drafted, affords each modifier declared compatible and none declared incompatible — on
+the default organization and on the supported domain's boundary, with the seeded pair
+sweep as regression coverage over composition. The domain is the plan module's,
+declared from the affordances the classes need: on two teams the wrong-team meeting
+look-alike, which needs another team holding no graded candidate, was unplantable for
+most qualification drafts while the table said compatible (the M1 repository audit's
+F-006). Today the one exclusion is ``already_resolved`` on the meeting class, which
+plants no ticket for the leaver to have closed.
 """
 
 from __future__ import annotations
@@ -620,4 +625,5 @@ COMPATIBLE_MODIFIERS: Mapping[ScenarioClassName, frozenset[ModifierName]] = Mapp
         ),
     }
 )
-"""The modifiers every draft of each class affords; a pair is compatible when both are."""
+"""The modifiers every draft of each class affords on a supported organization (the plan
+module's domain); a pair is compatible when both are."""

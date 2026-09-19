@@ -1264,3 +1264,36 @@ stage before any seal.
 Spend for the world: the fourteen writer and twelve checker calls above, about a cent
 and a half by the measurement world's per-call cost; the calendar budget one world's
 twenty-eight creations, the day's only projection.
+
+## supported-domain — the golden plan's shape boundary, swept (2026-09-20)
+
+The M1 repository audit (an external source read at `33a7b69`, re-verified on HEAD under
+Python 3.13) found two accepted shapes on which an offered plan refuses inside construction,
+after the draw: the documented minimum organization (six people, two teams, two components,
+one blank record) affords no uncovered row, and two teams leave the wrong-team modifier the
+qualification class declares compatible unplantable for most drafts (F-005, F-006). The
+ruling: a plan's supported domain is declared beside the plan tables from the affordances
+its classes need and checked in assembly before an organization is drawn; `WrongTeam` is not
+widened for shapes nothing needs. The boundary was written from the conditions and swept as
+evidence, `assemble_semantic_world` on seeds 1 to 40 (the affordance counts on 1 to 200):
+
+| shape | plan | result |
+|---|---|---|
+| org_size 6, one blank, two components | uncovered affordance | 0 of 200 seeds |
+| org_size 7, one blank, two components | uncovered affordance | 200 of 200 |
+| one component, defaults otherwise | uncovered, cardinality affordance | 0 of 200 each |
+| zero blanks, defaults otherwise | missing-information, uncovered affordance | 0 of 200 each |
+| default | golden | 0 of 40 refused |
+| team_count 2 | golden | 24 of 40 refused, all `wrong_team` |
+| team_count 3 | golden | 8 of 40 refused, all `wrong_team` |
+| team_count 4 | golden | 0 of 40 refused |
+| org_size 12, four teams | golden | 37 of 40 refused, tier-2 rows, reservation exhaustion |
+| org_size 16, four teams | golden | 3 of 40 refused, the composite's leaver a standing contact already |
+| org_size 20, four teams | golden | 0 of 40 refused |
+
+Established: the uncovered necessity is exact at one recorded person beyond the paired cast
+and the blanks; a single component or zero blanks kills its classes on every seed; four teams
+is the swept minimum for a qualification row. The size cliff is reservation pressure, the
+class the seed-138 residual already names, so it stays a loud refusal on record and not a
+guard. The declared domain is checked by `unsupported_shape_problems`; the compatibility
+promise is proven on the default organization and on the four-team boundary.

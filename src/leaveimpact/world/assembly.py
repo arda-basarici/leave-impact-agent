@@ -86,7 +86,7 @@ from leaveimpact.world.construction import (
 )
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
-from leaveimpact.world.plan import PLANS, PlanRow, plan_tiers
+from leaveimpact.world.plan import PLANS, PlanRow, plan_tiers, unsupported_shape_problems
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Scenario
@@ -140,6 +140,16 @@ class WorldContamination(ConstructionError):
     def __init__(self, findings: Sequence[Contamination]) -> None:
         super().__init__("; ".join(str(finding) for finding in findings))
         self.findings = tuple(findings)
+
+
+class UnsupportedShape(ConstructionError):
+    """The plan holds a class the organization's shape cannot afford, on any seed or on
+    most; refused before an organization is drawn, naming the class and the dial (the M1
+    repository audit's F-005 and F-006; the domain is the plan module's)."""
+
+    def __init__(self, problems: Sequence[str]) -> None:
+        super().__init__("; ".join(problems))
+        self.problems = tuple(problems)
 
 
 class AmbiguousScopeHandle(ConstructionError):
@@ -345,7 +355,8 @@ def assemble_semantic_world(
     """The semantic world ``seed`` produces under ``params`` and the named plan, re-verified as a
     whole.
 
-    ``plan_name`` is a key of ``PLANS``; an unknown name is a ``ValueError`` before any draw.
+    ``plan_name`` is a key of ``PLANS``; an unknown name is a ``ValueError`` before any draw,
+    and a shape outside the plan's supported domain is ``UnsupportedShape`` before any draw.
     Raises ``PlanInfeasible`` when the rule cannot be met, a construction error when a
     scenario cannot be built as planned, ``WorldContamination`` when the assembled world
     disagrees with a key. Same inputs, same world.
@@ -361,6 +372,9 @@ def assemble_semantic_world(
     """
     if plan_name not in PLANS:
         raise ValueError(f"no plan named {plan_name!r}; the plans are {sorted(PLANS)}")
+    unsupported = unsupported_shape_problems(PLANS[plan_name], params)
+    if unsupported:
+        raise UnsupportedShape(unsupported)
     org = generate_org(seed, params)
     rng = Random(seed)
     plan = plan_tiers(rng, PLANS[plan_name])

@@ -972,7 +972,13 @@ compatibility-aware planner under a stated rule — the golden set's Tier 1 coun
 modifier on at least two scenarios, at most two modifiers on any scenario, at least two
 scenarios with none. Compatibility is a static class-by-modifier matrix declared in code
 and proven over every admissible construction, since no draft exists when the plan is
-made. The planner is a small deterministic backtracking search in which the RNG orders
+made; proven on the default organization and on the boundary of the domain a plan
+supports, which is declared beside the plan tables from the affordances its classes need
+and checked before an organization is drawn (added 2026-09-20 after the M1 repository
+audit: the documented minimum shape afforded no uncovered row on any of two hundred
+seeds, and two teams left the qualification class's declared wrong-team pair unplantable
+on most; the organization's size below the default is reservation pressure, a measured
+refusal rate on record, not an affordance). The planner is a small deterministic backtracking search in which the RNG orders
 the legal alternatives and the first complete assignment wins — randomness chooses
 among valid plans and never decides whether one exists, the rule the organization's
 guarantees already follow; a greedy draw raised on thirty-seven of two hundred seeds

@@ -10,6 +10,7 @@ import pytest
 from leaveimpact.core.ids import scenario_id
 from leaveimpact.world import (
     COMPATIBLE_MODIFIERS,
+    DEFAULT_PARAMS,
     MEASUREMENT_RULES,
     PLANS,
     SCENARIO_CLASSES,
@@ -17,6 +18,7 @@ from leaveimpact.world import (
     TIER_THREE_RULES,
     TIER_TWO_RULES,
     ModifierName,
+    OrgParams,
     PlanInfeasible,
     PlanRow,
     PlanRules,
@@ -25,6 +27,7 @@ from leaveimpact.world import (
     check_plan,
     plan_tiers,
     plan_world,
+    unsupported_shape_problems,
 )
 from leaveimpact.world.plan import GOLDEN_SET_ROWS
 
@@ -242,3 +245,48 @@ def test_the_golden_plan_is_three_tables_and_thirty_rows(seed: int) -> None:
     for tier, rules in zip(Tier, PLANS["golden"], strict=True):
         check_plan(tuple(by_tier[tier]), rules)
     assert [row.scenario_id for row in rows] == [scenario_id(n) for n in range(1, 31)]
+
+
+# --- The supported domain: what a shape must afford for the classes a plan holds ---------------
+
+
+def _classes(problems: list[str]) -> list[str]:
+    return [problem.split(" needs")[0] for problem in problems]
+
+
+def test_every_offered_plan_is_supported_on_the_default_shape() -> None:
+    for name, tiers in PLANS.items():
+        assert unsupported_shape_problems(tiers, DEFAULT_PARAMS) == [], name
+
+
+def test_the_structured_plan_asks_nothing_of_the_minimum_shape() -> None:
+    minimum = OrgParams(org_size=6, team_count=2, component_count=2, blank_skill_records=1)
+    assert unsupported_shape_problems(PLANS["tier1"], minimum) == []
+
+
+def test_the_golden_plan_names_the_class_and_the_dial_a_shape_cannot_afford() -> None:
+    """The auditor's shapes: the documented minimum afforded no uncovered row on any of two
+    hundred seeds, two teams left the qualification row's wrong-team pair unplantable on
+    most, one component and zero blanks kill their classes on every seed (F-005, F-006)."""
+    golden = PLANS["golden"]
+    minimum = OrgParams(org_size=6, team_count=2, component_count=2, blank_skill_records=1)
+    assert _classes(unsupported_shape_problems(golden, minimum)) == [
+        "free_text_qualification",
+        "uncovered",
+    ]
+    assert unsupported_shape_problems(golden, OrgParams(team_count=3)) == [
+        "free_text_qualification needs team_count of at least 4, got 3"
+    ]
+    assert unsupported_shape_problems(golden, OrgParams(team_count=4)) == []
+    assert _classes(unsupported_shape_problems(golden, OrgParams(component_count=1))) == [
+        "release_cardinality_constraint",
+        "uncovered",
+    ]
+    assert _classes(unsupported_shape_problems(golden, OrgParams(blank_skill_records=0))) == [
+        "missing_information",
+        "uncovered",
+    ]
+    qualification = PLANS["tier1-plus-qualification"]
+    assert _classes(unsupported_shape_problems(qualification, OrgParams(team_count=2))) == [
+        "free_text_qualification"
+    ]

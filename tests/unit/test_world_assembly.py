@@ -25,8 +25,10 @@ from leaveimpact.world import (
     DEFAULT_PARAMS,
     GENERATOR_VERSION,
     Minting,
+    OrgParams,
     Planted,
     ReleaseCardinalityConstraint,
+    UnsupportedShape,
     WorldContamination,
     WorldSpec,
     allocate_slices,
@@ -179,6 +181,27 @@ def test_a_foreign_undated_ticket_of_the_leaver_is_named_as_an_undeclared_impact
     assert finding.actual == "a grounded responsibility impact of the leaver"
     (culprit,) = finding.foreign
     assert culprit.entity_id == "ticket_999" and culprit.owner == second.key.scenario_id
+
+
+# --- The supported domain: a shape that cannot afford a planned class is refused first -------
+
+
+def test_a_shape_outside_the_plans_domain_is_refused_before_any_draw() -> None:
+    """The documented minimum shape planned the golden plan and refused inside construction
+    on every seed (the M1 audit's F-005); two teams planned the qualification plan and
+    refused its wrong-team row on most (F-006). Both now refuse by name before an
+    organization is drawn."""
+    minimum = OrgParams(org_size=6, team_count=2, component_count=2, blank_skill_records=1)
+    with pytest.raises(UnsupportedShape, match="uncovered needs org_size of at least") as caught:
+        assemble_semantic_world(1, minimum, WORLD_START, "golden")
+    assert [p.split(" needs")[0] for p in caught.value.problems] == [
+        "free_text_qualification",
+        "uncovered",
+    ]
+    with pytest.raises(UnsupportedShape, match="free_text_qualification needs team_count"):
+        assemble_semantic_world(1, OrgParams(team_count=2), WORLD_START, "tier1-plus-qualification")
+    # The structured plan asks nothing of the shape; it still assembles on the minimum.
+    assert assemble_semantic_world(1, minimum, WORLD_START, "tier1").plan_name == "tier1"
 
 
 # --- Scope handles: a policy names its artifact by title, so the title names one artifact ---

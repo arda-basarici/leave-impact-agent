@@ -72,6 +72,7 @@ from leaveimpact.world.assembly import (
     Contamination,
     ForeignRecord,
     SemanticWorld,
+    UnsupportedShape,
     WorldContamination,
     WorldSpec,
     assemble_semantic_world,
@@ -153,6 +154,7 @@ from leaveimpact.world.plan import (
     check_plan,
     plan_tiers,
     plan_world,
+    unsupported_shape_problems,
 )
 from leaveimpact.world.prose import (
     COUNTER_NAMES,
@@ -370,6 +372,7 @@ __all__ = [
     "TimezoneBoundary",
     "VerdictOverride",
     "AmbiguousScopeHandle",
+    "UnsupportedShape",
     "WorldContamination",
     "WorldSpec",
     "WrongTeam",
@@ -421,6 +424,7 @@ __all__ = [
     "target_ref",
     "truth_fact_base",
     "scope_handle_problems",
+    "unsupported_shape_problems",
     "verify_world",
     "vocabulary_digest",
     "window_instants",

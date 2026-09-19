@@ -50,6 +50,7 @@ from types import MappingProxyType
 from leaveimpact.core.ids import ScenarioId, scenario_id
 from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.modifiers import COMPATIBLE_MODIFIERS
+from leaveimpact.world.org import OrgParams
 from leaveimpact.world.scenario import ModifierName, ScenarioClassName, Tier
 
 _MODIFIER_ORDER = {name: index for index, name in enumerate(ModifierName)}
@@ -221,6 +222,94 @@ def plan_world(rng: Random, rules: PlanRules) -> tuple[PlanRow, ...]:
     )
     check_plan(rows, rules)
     return rows
+
+
+QUALIFICATION_TEAM_COUNT = 4
+"""The fewest teams on which a qualification row's declared wrong-team pair is plantable, the
+swept minimum (`probes/FINDINGS.md`, `supported-domain`)."""
+
+UNCOVERED_BEYOND_CAST = 6
+"""The people an uncovered row needs beyond the blank records: the paired skill's cast of
+five and one recorded person outside their component, exact on two hundred seeds."""
+
+
+def unsupported_shape_problems(tiers: Sequence[PlanRules], params: OrgParams) -> list[str]:
+    """Why an organization of shape ``params`` cannot carry a plan of ``tiers``, one line per
+    class; empty inside the plan's supported domain.
+
+    The planner reads class names and the compatibility table and never whether a shape
+    affords a class, so an accepted shape could plan a row and refuse it inside
+    construction, after the draw: the documented minimum shape afforded no uncovered row on
+    any of two hundred seeds, and a two-team shape left the wrong-team pair the
+    qualification class declares compatible unplantable on most seeds (the M1 repository
+    audit's F-005 and F-006). The domain is stated here from the affordance each class
+    needs and checked by assembly before an organization is drawn, so the refusal names the
+    class and the dial. Each line is exact or swept (`probes/FINDINGS.md`,
+    `supported-domain`):
+
+    - a blank skills record, for a missing-information or an uncovered row;
+    - a second component, for an uncovered row (its blank-free component) and a
+      cardinality row (its paired component): one component affords neither on any seed;
+    - ``org_size >= blank_skill_records + 6`` for an uncovered row, one recorded person
+      beyond the paired cast and the blanks: six people with one blank afford it on none of
+      two hundred seeds, seven on all;
+    - four teams for a qualification row, the swept minimum for the wrong-team meeting
+      look-alike, which needs another team holding no graded candidate: at the default size
+      two teams refuse the golden plan on twenty-four of forty seeds, three on eight, four
+      and five on none.
+
+    Reservation pressure at small sizes (the golden plan refused on thirty-seven of forty
+    seeds at twelve people, three at sixteen, none at twenty) is a rate and not an
+    affordance, so it stays the loud refusal the present contract promises, on record.
+
+    >>> unsupported_shape_problems(PLANS["golden"], OrgParams())
+    []
+    >>> minimum = OrgParams(org_size=6, team_count=2, blank_skill_records=1)
+    >>> unsupported_shape_problems(PLANS["tier1"], minimum)
+    []
+    >>> for problem in unsupported_shape_problems(PLANS["golden"], minimum):
+    ...     print(problem)
+    free_text_qualification needs team_count of at least 4, got 2
+    uncovered needs org_size of at least blank_skill_records + 6, got 6 with 1
+    """
+    classes = {name for rules in tiers for name in rules.class_counts}
+    problems: list[str] = []
+    if (
+        ScenarioClassName.FREE_TEXT_QUALIFICATION in classes
+        and params.team_count < QUALIFICATION_TEAM_COUNT
+    ):
+        problems.append(
+            f"{ScenarioClassName.FREE_TEXT_QUALIFICATION.value} needs team_count of at least "
+            f"{QUALIFICATION_TEAM_COUNT}, got {params.team_count}"
+        )
+    if ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT in classes and params.component_count < 2:
+        problems.append(
+            f"{ScenarioClassName.RELEASE_CARDINALITY_CONSTRAINT.value} needs a second component, "
+            f"got component_count {params.component_count}"
+        )
+    if ScenarioClassName.MISSING_INFORMATION in classes and params.blank_skill_records < 1:
+        problems.append(
+            f"{ScenarioClassName.MISSING_INFORMATION.value} needs a blank skills record, got "
+            f"blank_skill_records {params.blank_skill_records}"
+        )
+    if ScenarioClassName.UNCOVERED in classes:
+        if params.blank_skill_records < 1:
+            problems.append(
+                f"{ScenarioClassName.UNCOVERED.value} needs a blank skills record, got "
+                f"blank_skill_records {params.blank_skill_records}"
+            )
+        if params.component_count < 2:
+            problems.append(
+                f"{ScenarioClassName.UNCOVERED.value} needs a second component, got "
+                f"component_count {params.component_count}"
+            )
+        if params.org_size < params.blank_skill_records + UNCOVERED_BEYOND_CAST:
+            problems.append(
+                f"{ScenarioClassName.UNCOVERED.value} needs org_size of at least "
+                f"blank_skill_records + {UNCOVERED_BEYOND_CAST}, got {params.org_size} with "
+                f"{params.blank_skill_records}"
+            )
+    return problems
 
 
 def plan_tiers(rng: Random, tiers: Sequence[PlanRules]) -> tuple[PlanRow, ...]:

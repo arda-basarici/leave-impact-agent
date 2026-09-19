@@ -49,6 +49,7 @@ from leaveimpact.world import (
     MissingInformation,
     Modifier,
     ModifierName,
+    OrgParams,
     OrgSpec,
     OutsideWindow,
     ReleaseCardinalityConstraint,
@@ -71,6 +72,10 @@ from leaveimpact.world import (
 )
 
 ORG = generate_org(7, DEFAULT_PARAMS)
+# The supported domain's boundary: four teams, the fewest on which a qualification row's
+# wrong-team pair is plantable (the plan module's domain; the M1 audit's F-006 found the
+# promise proven on one shape only).
+BOUNDARY_ORG = generate_org(7, OrgParams(team_count=4))
 WORLD_START = date(2026, 1, 1)
 SLICES = allocate_slices(Random(0), 30, WORLD_START)
 TZ = ORG.params.reference_timezone
@@ -404,15 +409,17 @@ def test_timezone_boundary_fails_by_name_when_the_only_far_person_is_the_leaver(
         _scenario(1, StructuredDeadline(), (TimezoneBoundary(),), org=leaver_far)
 
 
+@pytest.mark.parametrize("org", [ORG, BOUNDARY_ORG], ids=["five teams", "four teams"])
 @pytest.mark.parametrize("scenario_class", CLASSES, ids=lambda c: c.name.value)
 def test_every_admissible_construction_affords_exactly_the_declared_modifiers(
-    scenario_class: ScenarioClass,
+    scenario_class: ScenarioClass, org: OrgSpec
 ) -> None:
     """The matrix's defining promise, checked over the admissible set rather than a sample:
     the planner chooses class and modifiers before any draft exists, so every draft the
-    class can produce must afford what the declaration says, and nothing it excludes."""
+    class can produce on a supported organization must afford what the declaration says,
+    and nothing it excludes; on the default shape and at the domain's boundary."""
     compatible = COMPATIBLE_MODIFIERS[scenario_class.name]
-    constructions = scenario_class.admissible(ORG)
+    constructions = scenario_class.admissible(org)
     assert constructions
     for index, construction in enumerate(constructions):
         rng = Random(index)
@@ -429,7 +436,7 @@ def test_every_admissible_construction_affords_exactly_the_declared_modifiers(
         )
         draft = construction(frame, rng)
         for name, modifier in MODIFIERS.items():
-            afforded = modifier.admissible(ORG, draft) != ()
+            afforded = modifier.admissible(org, draft) != ()
             assert afforded == (name in compatible), (
                 f"{scenario_class.name.value} construction {index}: {name.value} "
                 f"{'afforded' if afforded else 'not afforded'}, declared "
