@@ -481,11 +481,12 @@ class TimezoneBoundary:
     colleague ahead the before-edge in the reference zone's late afternoon (the edge
     arithmetic is in the tests; the amendment asserts both readings by name). The leaver
     attends; the colleague is chosen independently of the class's roles (the timezone
-    affordance ruling at step 8). Admissible over every employee whose gap from the
-    reference zone at the edge is at least the organization's parameterized hours, in id
-    order, the leaver included: when the far person is the leaver, their own calendar
-    dates the event inside their leave and they attend alone. The organization
-    guarantees one far person exists, so a draft always affords this.
+    affordance ruling at step 8) and is never the leaver (the far-seat ruling of step 16):
+    leave dates are date-only HR facts read in the reference zone for everyone, so the
+    leaver's own zone must never be what dates the leaver's own event. Admissible over
+    every other employee whose gap from the reference zone at the edge is at least the
+    organization's parameterized hours, in id order. The organization guarantees two far
+    people, so a colleague of any leaver is always one and a draft always affords this.
     """
 
     name = ModifierName.TIMEZONE_BOUNDARY
@@ -497,6 +498,8 @@ class TimezoneBoundary:
         least = timedelta(hours=org.params.timezone_gap_hours)
         amendments: list[Amendment] = []
         for colleague in org.employees:
+            if colleague.id == leave.employee_id:
+                continue
             behind = _behind(colleague.timezone, reference, leave.end + timedelta(days=1))
             edge = leave.end + timedelta(days=1) if behind else leave.start - timedelta(days=1)
             probe = datetime.combine(edge, time(12, 0), tzinfo=zone(reference))
@@ -528,13 +531,12 @@ def _boundary_amendment(colleague: Employee, behind: bool) -> Amendment:
             inside_day, inside_zone = frame.leave.start, colleague.timezone
         _check_reading(start, reference, outside_day, "the reference zone")
         _check_reading(start, inside_zone, inside_day, f"{colleague.name}'s zone")
-        attendees = (leaver,) if colleague.id == leaver else (leaver, colleague.id)
         event = CalendarEvent(
             id=frame.ids.event(),
             title=BOUNDARY_EVENT_TITLE,
             start=start,
             end=start + EVENT_LENGTH,
-            attendee_ids=attendees,
+            attendee_ids=(leaver, colleague.id),
         )
         planted = OwnedEntities(events=(Planted(event, frame.window.start),))
         near_miss = NamedDistractor(event_ref(event.id), DistractorReason.TIMEZONE_BOUNDARY)

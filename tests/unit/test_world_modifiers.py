@@ -31,6 +31,7 @@ from leaveimpact.core import (
 from leaveimpact.core.ids import ClauseId, EmployeeId, SkillId, scenario_id
 from leaveimpact.core.worldtime import local_date
 from leaveimpact.world import (
+    CITIES,
     COMPATIBLE_MODIFIERS,
     DEFAULT_PARAMS,
     MODIFIERS,
@@ -63,6 +64,7 @@ from leaveimpact.world import (
     allocate_slices,
     construct,
     gap_at,
+    gap_holds_all_year,
     generate_org,
     place_leave,
     place_now,
@@ -358,10 +360,12 @@ def test_timezone_boundary_dates_the_event_outside_the_leave_only_in_the_referen
     assert distractor.reason is DistractorReason.TIMEZONE_BOUNDARY
     leave = edged.investigated_leave
     event = next(p.entity for p in edged.owned.events if p.entity.id == distractor.entity.id)
+    # The leaver and one far colleague, never the leaver alone: the leaver's own zone must
+    # never date the leaver's own event (the far-seat ruling of step 16).
+    assert len(event.attendee_ids) == 2
     assert leave.employee_id in event.attendee_ids
-    # The far attendee is the other one, or the leaver alone when the leaver is the far seat.
-    others = [a for a in event.attendee_ids if a != leave.employee_id]
-    colleague = BY_ID[others[0]] if others else BY_ID[leave.employee_id]
+    (colleague_id,) = [a for a in event.attendee_ids if a != leave.employee_id]
+    colleague = BY_ID[colleague_id]
     reference_day = local_date(event.start, TZ)
     assert not leave.span.contains(reference_day)
     assert reference_day in {leave.start - timedelta(days=1), leave.end + timedelta(days=1)}
@@ -376,6 +380,28 @@ def test_timezone_boundary_fails_by_name_when_nobody_is_far() -> None:
     everyone_home = replace(ORG, employees=home)
     with pytest.raises(MissingAffordance, match="timezone_boundary"):
         _scenario(1, StructuredDeadline(), (TimezoneBoundary(),), org=everyone_home)
+
+
+def test_timezone_boundary_fails_by_name_when_the_only_far_person_is_the_leaver() -> None:
+    """The leaver is not a far seat for their own event: an organization whose one far
+    person is the leaver affords the modifier nothing, which is why the organization
+    guarantees two."""
+    leaver = _scenario(1, StructuredDeadline()).investigated_leave.employee_id
+    far = next(
+        c for c in CITIES if gap_holds_all_year(c.timezone, TZ, ORG.params.timezone_gap_hours)
+    )
+    employees = tuple(
+        replace(e, timezone=far.timezone, location=far.name, country=far.country)
+        if e.id == leaver
+        else replace(e, timezone=TZ, location="Istanbul", country="TR")
+        for e in ORG.employees
+    )
+    leaver_far = replace(ORG, employees=employees)
+    # The draft still investigates the same person under the moved seats.
+    moved = _scenario(1, StructuredDeadline(), org=leaver_far)
+    assert moved.investigated_leave.employee_id == leaver
+    with pytest.raises(MissingAffordance, match="timezone_boundary"):
+        _scenario(1, StructuredDeadline(), (TimezoneBoundary(),), org=leaver_far)
 
 
 @pytest.mark.parametrize("scenario_class", CLASSES, ids=lambda c: c.name.value)

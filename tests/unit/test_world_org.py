@@ -102,7 +102,7 @@ def test_a_contractor_exists_whenever_the_share_is_above_zero(seed: int) -> None
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-def test_a_far_zone_seat_exists_and_is_never_a_lead_moved_alone(seed: int) -> None:
+def test_two_far_zone_seats_exist_so_any_leaver_has_a_far_colleague(seed: int) -> None:
     spec = generate_org(seed, DEFAULT_PARAMS)
     params = spec.params
     far = [
@@ -110,7 +110,9 @@ def test_a_far_zone_seat_exists_and_is_never_a_lead_moved_alone(seed: int) -> No
         for e in spec.employees
         if gap_holds_all_year(e.timezone, params.reference_timezone, params.timezone_gap_hours)
     ]
-    assert far
+    # Two distinct people, so removing any one leaver leaves a far colleague (the far-seat
+    # ruling of step 16); the count is over every role, since the modifier admits any colleague.
+    assert len({e.id for e in far}) >= 2
     # A far seat is a real city of the vocabulary, consistent like every other seat.
     assert all(any(e.timezone == c.timezone for c in CITIES) for e in far)
 

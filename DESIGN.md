@@ -1001,14 +1001,16 @@ higher distractor pressure and do not measure one modifier's effect. Two is the 
 because the collision rules were tested on pairs and the composite classes own "several
 things at once". The same planner serves Tiers 2 and 3 with more rows; the plan rules
 are generator semantics and bump the version. The timezone affordance is guaranteed by
-the organization, on the contractor precedent: at least one employee whose zone differs
+the organization, on the contractor precedent: at least two employees whose zone differs
 from the reference zone by a fixed minimum of hours (a cheap dial) at every instant of a
-full calendar year — DST-aware and date-free, so the invariant is checkable by the org
-generator alone, which never knows what scenarios plan; the reference zone becomes an
-org parameter under the dial rule. The modifier chooses that far attendee independently
-of the leaver, who still attends: the far colleague makes the instant plausible working
-time, and the event sits at the leave's edge so that its instant is outside the leave in
-reference-zone truth and inside it under a wrong-zone or UTC reading. Offsets are
+full calendar year (one at this ruling, two since the far-seat ruling below, so that a
+colleague of any leaver is among them) — DST-aware and date-free, so the invariant is
+checkable by the org generator alone, which never knows what scenarios plan; the
+reference zone becomes an org parameter under the dial rule. The modifier chooses that
+far attendee independently of the leaver, who still attends: the far colleague makes the
+instant plausible working time, and the event sits at the leave's edge so that its
+instant is outside the leave in reference-zone truth and inside it under a wrong-zone or
+UTC reading. Offsets are
 computed at the planted instant, never as city constants. Truth stays exclusively
 reference-zone based. Leaving the affordance to seed luck was rejected as rejection
 sampling at world level; deferring the modifier to Tier 3 contradicts the golden set.
@@ -1025,8 +1027,10 @@ future worlds the far seat is always a colleague, so the event has two attendees
 the leaver's own zone never dates the leaver's own event; since the organization
 guarantees one far person and that person may be the leaver, the guarantee grows to
 two far seats with the change, so the modifier stays affordable by construction. Both
-are generator semantics and bump the version; they are built as their own step after
-the audit's close, the golden world staying at the version it was sealed under.
+are generator semantics and bump the version; built as their own step after the audit's
+close as generator version 15 (the count over every role, the movers non-leads not yet
+far, a refusal by name should the size bound ever stop covering the deficit), the golden
+world staying at 14.
 
 **The world bundle and its version (ruled 2026-09-11, step 8 of the M1 build; the
 artifact names settled at the step's review).** `WorldSpec` is the pure composed bundle:

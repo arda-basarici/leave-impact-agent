@@ -74,6 +74,10 @@ _COMPONENT_MEMBERS = (3, 6)
 # a few rather than by the ten-against-three an independent draw produced.
 _TEAM_SIZE_MOVES = 2
 
+# Far seats guaranteed, since the timezone modifier seats a colleague of the leaver at the
+# far end and the leaver may be one of the far people: two leaves one for any leaver.
+_FAR_SEATS = 2
+
 # Non-lead grades, weighted towards the middle of a typical engineering team.
 _GRADE_WEIGHTS: tuple[tuple[Grade, int], ...] = (
     (Grade.JUNIOR, 3),
@@ -97,12 +101,14 @@ class OrgParams:
     two dimensions policy clauses and timezone distractors turn on; a share above zero
     also guarantees one contractor, so a contractor clause can always find its scope.
     ``reference_timezone`` is the zone the world's truth is read in, an org parameter
-    because the organization guarantees one person at least ``timezone_gap_hours`` from
-    it at every hour of the rules year (the timezone affordance ruling at step 8): a
-    boundary event is only plausible working time for someone that far away, and the
-    golden set plans the modifier on several scenarios, so the shape is guaranteed the
-    way the contractor is rather than left to the city draw. Six hours is the least gap
-    at which a late-afternoon meeting crosses midnight in the other zone.
+    because the organization guarantees two people at least ``timezone_gap_hours`` from
+    it at every hour of the rules year (the timezone affordance ruling at step 8, one
+    person; two since the far-seat ruling of step 16, so that a colleague of any leaver
+    is always among them): a boundary event is only plausible working time for someone
+    that far away, and the golden set plans the modifier on several scenarios, so the
+    shape is guaranteed the way the contractor is rather than left to the city draw. Six
+    hours is the least gap at which a late-afternoon meeting crosses midnight in the
+    other zone.
 
     Validation here owns the generator's ranges and cross-field constraints, rejected at
     construction and by name rather than somewhere inside a draw; scalar types are the
@@ -295,8 +301,8 @@ def generate_org(seed: int, params: OrgParams) -> OrgSpec:
     manager, who leads the first team; every other team led by a lead reporting to the
     root; every non-lead reporting to their own team's lead; leads are employees, never
     contractors, and at least one contractor exists when the share is above zero; a
-    person's location, country and timezone belong to one city, and at least one person
-    sits ``timezone_gap_hours`` or more from the reference zone all year; names unique; exactly
+    person's location, country and timezone belong to one city, and at least two people
+    sit ``timezone_gap_hours`` or more from the reference zone all year; names unique; exactly
     ``blank_skill_records`` people with ``skills`` absent, none of them a contractor; among
     the vocabulary at least one skill with no holder, one with exactly one, one held by
     at least a third of the people with a record, one held by exactly two employees and
@@ -424,9 +430,15 @@ def _names(rng: Random, count: int) -> list[str]:
 def _cities(rng: Random, seats: list[_Seat], params: OrgParams) -> list[City]:
     """Each team has a home city; a person sits there or, with ``remote_share``, elsewhere.
 
-    One far seat is guaranteed the way the contractor is: when the draw leaves nobody at
-    the parameterized gap from the reference zone, one random non-lead moves to a far
-    city. Leads stay with their teams, so the guarantee never puts a lead alone abroad.
+    Two far seats are guaranteed the way the contractor is: while the draw leaves fewer
+    than two people at the parameterized gap from the reference zone, one random non-lead
+    not yet far moves to a far city. Two, because the timezone modifier seats a colleague
+    of the leaver at the far end and the leaver may be one of the far people (the far-seat
+    ruling of step 16); the count is over everyone, leads included, since the modifier
+    admits any colleague, while only non-leads move, so the guarantee never puts a lead
+    alone abroad. The non-leads number at least ``team_count`` by the size bound
+    ``OrgParams`` enforces, so the pool always covers the deficit; the refusal names the
+    case should that bound ever move.
     """
     home = [rng.choice(CITIES) for _ in range(params.team_count)]
     cities: list[City] = []
@@ -436,8 +448,13 @@ def _cities(rng: Random, seats: list[_Seat], params: OrgParams) -> list[City]:
         else:
             cities.append(home[seat.team_index])
     far = _far_cities(params)
-    if not any(city in far for city in cities):
-        movers = [index for index, seat in enumerate(seats) if not seat.lead]
+    while sum(city in far for city in cities) < _FAR_SEATS:
+        movers = [i for i, seat in enumerate(seats) if not seat.lead and cities[i] not in far]
+        if not movers:
+            raise ValueError(
+                f"the organization guarantees {_FAR_SEATS} far seats and has no non-lead left "
+                "to move"
+            )
         cities[rng.choice(movers)] = rng.choice(far)
     return cities
 
