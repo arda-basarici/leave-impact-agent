@@ -35,6 +35,24 @@ verification proves every day of the stable interval under both views; the witne
 the one day the run is asked about, and says so. A witness that disagrees with its key is
 a defect of the generator's verification, reported in the sheet and never smoothed over.
 
+The criterion universe exists because the witness is the rule's own count, so an
+uncovered or unknown outcome, a claim over every employee, could be read off the sheet but
+not proven from it (the step 16 panel, 2026-09-19). Per impact the block lists every
+employee's facts of the four families the viability rule's criteria read (component
+memberships, skills or the record's absence, leaves and events over the need's window,
+employment type), rendered from the fact base under the same dated view with no call to
+the viability or outcome functions; the reader derives the active criteria the way the
+checklist's trace does and counts. The independence is from the rule, not from the data:
+the dated view and the fact reads are the same code the rule uses, and the need's window
+is the checklist's own statement (the investigated leave's span, or the meeting's day in
+the reference timezone) restated here rather than the rule's derivation.
+
+The cited fact-base entries are each cited entity's whole record, so they carry rows
+dated after the scenario's ``now`` that belong to other scenarios' plantings; the sheet
+lists those apart, under their own heading, so a reader neither counts them into the
+dated view nor mistakes them for a rendering fault. They stay in the private sheet and
+never enter a released example.
+
 Reads only. The rendered sheet holds benchmark truth: it is written under ``data/audit/``,
 which the repository ignores, and is never committed; the provenance artifact the audit
 produces from it is versioned into the truth bucket beside the world.
@@ -60,13 +78,16 @@ from leaveimpact.adapters.object_store.layout import (
     truth_manifest_key,
     world_spec_key,
 )
-from leaveimpact.core.facts import FactBase, RunCondition
+from leaveimpact.core.enums import EntityKind
+from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.plans import expected_action
-from leaveimpact.core.predicates import predicate
+from leaveimpact.core.predicates import PredicateName, predicate
+from leaveimpact.core.refs import EntityRef, clause_ref, employee_ref
 from leaveimpact.core.values import FactValue
 from leaveimpact.core.values_json import encode_value
 from leaveimpact.core.viability import Assessment, assess_impact
+from leaveimpact.core.worldtime import DateSpan, InstantSpan
 from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world.artifacts import semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, assemble_semantic_world
@@ -345,16 +366,24 @@ def witness_section(scenario: Scenario, org: OrgSpec, facts: FactBase, names: Na
     non-viable candidate is listed with the rule's reasons and every fact beyond those,
     whatever its subject, since the excluding fact is as often another entity's (a clashing
     meeting's schedule, a leave record) as the person's. A candidate with no fact beyond the
-    need's failed by absence: no fact of theirs met the criterion. An unknown candidate is
-    listed with each unresolved question. ``must_assess`` is compared verdict by verdict
-    too, so the sheet says in its own words whether the sealed key is what the rules derive
-    today.
+    need's carries no excluding fact from the rule: the criterion is known false against
+    the person's own record (a skill the record does not list, an employment type the
+    clause does not admit), and that record is in the criterion universe below. The sheet
+    once said "failed by absence" here, a phrase the panel found colliding with closure's
+    "absent", the gap that yields an unknown; the two are different findings. An unknown
+    candidate is listed with each unresolved question. The leaver is marked. ``must_assess``
+    is compared verdict by verdict too, so the sheet says in its own words whether the
+    sealed key is what the rules derive today.
     """
     today = scenario.spec.today
     view = facts.at(today, RunCondition.all_reachable())
     universe = [employee.id for employee in org.employees]
     leave = scenario.investigated_leave.span
+    leaver = scenario.investigated_leave.employee_id
     timezone = scenario.spec.reference_timezone
+
+    def who(employee_id: Any) -> str:
+        return names(employee_id) + (" [the leaver]" if employee_id == leaver else "")
     out = [
         f"#### Outcome witness (dated view at {today}, the generator's own assessment "
         "over every employee)",
@@ -385,20 +414,21 @@ def witness_section(scenario: Scenario, org: OrgSpec, facts: FactBase, names: Na
         shared = set.intersection(*(set(a.evidence) for a in assessments))
         for need_fact in sorted(shared, key=lambda f: (f.subject.id, f.predicate.value)):
             out.append(f"    - need: {fact_text(need_fact, names)}")
-        out.append("    - viable: " + (", ".join(names(a.employee_id) for a in viable) or "none"))
+        out.append("    - viable: " + (", ".join(who(a.employee_id) for a in viable) or "none"))
         for assessment in unknown:
             questions = "; ".join(
                 f"{u.predicate.value} of {names(u.subject.id)} ({u.reason.value})"
                 for u in assessment.unresolved
             )
-            out.append(f"    - {names(assessment.employee_id)}: unknown, {questions}")
+            out.append(f"    - {who(assessment.employee_id)}: unknown, {questions}")
         for assessment in non_viable:
             reasons = ", ".join(reason.value for reason in assessment.reasons)
             beyond = [fact_text(f, names) for f in assessment.evidence if f not in shared]
-            out.append(
-                f"    - {names(assessment.employee_id)}: non-viable, {reasons} "
-                f"({'; '.join(beyond) or 'no fact beyond the need, failed by absence'})"
+            excluded = "; ".join(beyond) or (
+                "no excluding fact from the rule: known false on the record, "
+                "see the criterion universe"
             )
+            out.append(f"    - {who(assessment.employee_id)}: non-viable, {reasons} ({excluded})")
         by_employee = {a.employee_id: a for a in assessments}
         mismatched = [
             f"{names(authored.employee_id)} authored {authored.verdict.value} "
@@ -420,6 +450,137 @@ def witness_section(scenario: Scenario, org: OrgSpec, facts: FactBase, names: Na
                 else "**MISMATCH** " + "; ".join(mismatched)
             )
         )
+    out.append("")
+    return out
+
+
+def need_window(view: FactView, artifact: EntityRef, leave: DateSpan, timezone: str) -> str:
+    """The days the need covers, as the checklist states them: the investigated leave's span
+    for a deadline or a responsibility, the meeting's day in the reference timezone for a
+    meeting. The meeting's schedule is a fact read; unreadable at ``now``, said so."""
+    if artifact.kind is not EntityKind.EVENT:
+        return f"{leave.start} … {leave.end} (the investigated leave's span)"
+    scheduled = view.facts_about(artifact, PredicateName.SCHEDULED_AT)
+    if not scheduled:
+        return "unreadable: the meeting has no visible schedule at now"
+    span = scheduled[0].value
+    assert isinstance(span, InstantSpan)
+    days = span.local_dates(timezone)
+    return f"{days.start} … {days.end} (the meeting's day in {timezone})"
+
+
+def window_days(view: FactView, artifact: EntityRef, leave: DateSpan, timezone: str) -> DateSpan:
+    """The need's days as a span, for the overlap reads; the leave's when unreadable."""
+    if artifact.kind is EntityKind.EVENT:
+        scheduled = view.facts_about(artifact, PredicateName.SCHEDULED_AT)
+        if scheduled:
+            span = scheduled[0].value
+            assert isinstance(span, InstantSpan)
+            return span.local_dates(timezone)
+    return leave
+
+
+def with_source(item: Fact, names: Names, world_start: date) -> str:
+    """A fact's value with its source, and its date when it entered after the world's start:
+    ``ios (corpus clause_019, from 2026-09-24)`` beside ``python (frappe)``."""
+    rendered = typed_value(item.value, item.predicate, names)
+    where = item.source.value
+    if item.evidence.target.kind is not EntityKind.EMPLOYEE:
+        where += f" {names(item.evidence.target.id)}"
+    if item.observable_from > world_start:
+        where += f", from {item.observable_from}"
+    return f"{rendered} ({where})"
+
+
+def universe_section(
+    scenario: Scenario, org: OrgSpec, facts: FactBase, names: Names, world_start: date
+) -> list[str]:
+    """Every employee's facts of the four families the criteria read, per impact, under the
+    dated view at the scenario's ``now``: the human's material for proving an outcome over
+    the whole organization without the rule's count (the module docstring says why).
+
+    Per impact the block states the need's window, the artifact's component and every
+    constraint in the key with what its clause requires, all as facts, so the reader
+    derives the active criteria (the checklist's trace step 3) before reading the people.
+    Then one line per employee in id order: component memberships; the skills the record
+    lists with their sources, or the record's absence as a gap; every leave overlapping the
+    window and every event on the window's days the person attends, with the event's
+    schedule; the employment type. Nothing here is graded: a leave listed is a fact, not a
+    verdict, and an event listed under a deadline need is a fact the rule never asks about.
+    """
+    today = scenario.spec.today
+    view = facts.at(today, RunCondition.all_reachable())
+    leave = scenario.investigated_leave.span
+    leaver = scenario.investigated_leave.employee_id
+    timezone = scenario.spec.reference_timezone
+    out = [
+        f"#### Criterion universe (dated view at {today}, every employee's facts the criteria "
+        "read, no rule applied)",
+        "",
+    ]
+    for expected in scenario.key.impacts:
+        artifact = expected.key.artifact
+        out.append(f"- impact {expected.key.subtype.value} on {names(artifact.id)}")
+        out.append(f"    - need window: {need_window(view, artifact, leave, timezone)}")
+        if artifact.kind is EntityKind.WORK_ITEM:
+            components = view.facts_about(artifact, PredicateName.IN_COMPONENT)
+            out.append(
+                "    - artifact's component: "
+                + (", ".join(fact_text(f, names) for f in components) or "none visible")
+            )
+        for constraint in scenario.key.constraints:
+            stated = view.facts_about(clause_ref(constraint.clause_id), PredicateName.REQUIRES)
+            out.append(
+                f"    - constraint {constraint.clause_id} names "
+                f"{constraint.applies_to.kind.value}:{names(constraint.applies_to.id)}; "
+                + (
+                    "; ".join(fact_text(f, names) for f in stated)
+                    or "no visible requirement at now"
+                )
+            )
+        days = window_days(view, artifact, leave, timezone)
+        attended_by: dict[EntityRef, list[EntityRef]] = defaultdict(list)
+        for attendance in view.facts_of(PredicateName.ATTENDS_EVENT):
+            assert isinstance(attendance.value, EntityRef)
+            attended_by[attendance.value].append(attendance.subject)
+        for employee in org.employees:
+            who = employee_ref(employee.id)
+            members = [
+                names(f.value.id) if isinstance(f.value, EntityRef) else str(f.value)
+                for f in view.facts_about(who, PredicateName.MEMBER_OF_COMPONENT)
+            ]
+            skills = [
+                with_source(f, names, world_start)
+                for f in view.facts_about(who, PredicateName.HAS_SKILL)
+            ]
+            if view.gaps_about(who, PredicateName.HAS_SKILL):
+                skills.append("skills record absent (GAP)")
+            leaves = [
+                f"{f.value.start} … {f.value.end}"
+                for f in view.facts_about(who, PredicateName.ON_LEAVE)
+                if isinstance(f.value, DateSpan) and f.value.overlaps(days)
+            ]
+            events: list[str] = []
+            for event in attended_by.get(who, []):
+                for scheduled in view.facts_about(event, PredicateName.SCHEDULED_AT):
+                    span = scheduled.value
+                    assert isinstance(span, InstantSpan)
+                    if span.local_dates(timezone).overlaps(days):
+                        when = typed_value(span, PredicateName.SCHEDULED_AT, names)
+                        events.append(f"{names(event.id)} {when}")
+            employed = [
+                typed_value(f.value, PredicateName.EMPLOYED_AS, names)
+                for f in view.facts_about(who, PredicateName.EMPLOYED_AS)
+            ]
+            mark = " [the leaver]" if employee.id == leaver else ""
+            out.append(
+                f"    - {names(employee.id)}{mark}: components [{', '.join(members)}]; "
+                f"skills [{', '.join(skills) or 'none listed'}]; "
+                f"leaves over the window [{', '.join(leaves) or 'none'}]; "
+                f"events on the window's days [{', '.join(events) or 'none'}]; "
+                f"employed_as {', '.join(employed) or '—'}"
+            )
+        out.append(f"    - {len(org.employees)} employees listed")
     out.append("")
     return out
 
@@ -497,19 +658,35 @@ def cited_ids(key: Json, spec_row: Json, owned: Json) -> set[str]:
     return {id for id in ids if id is not None}
 
 
-def fact_base_section(facts: Json, ids: set[str], names: Names) -> list[str]:
-    """The dated fact-base entries whose subject or evidence target the scenario cites."""
+def fact_base_section(facts: Json, ids: set[str], names: Names, today: str) -> list[str]:
+    """The fact-base entries whose subject or evidence target the scenario cites, the ones
+    in the dated view first and the ones observable only after ``now`` apart under their
+    own heading: a cited entity's whole record includes other scenarios' later plantings,
+    and a reader counts only the dated view."""
 
     def cited(entry: Json) -> bool:
         subject = (entry.get("subject") or {}).get("id")
         target = ((entry.get("evidence") or {}).get("target") or {}).get("id")
         return subject in ids or target in ids
 
-    out = ["#### Fact base, cited entries", ""]
-    rows = [fact(entry, names) for entry in facts.get("facts", []) if cited(entry)]
-    rows += [gap(entry, names) for entry in facts.get("gaps", []) if cited(entry)]
-    out += [f"- {row}" for row in sorted(rows)] or ["- none"]
+    def in_view(entry: Json) -> bool:
+        return str(entry.get("observable_from", "")) <= today
+
+    entries = [(entry, fact) for entry in facts.get("facts", []) if cited(entry)]
+    entries += [(entry, gap) for entry in facts.get("gaps", []) if cited(entry)]
+    dated = sorted(render(entry, names) for entry, render in entries if in_view(entry))
+    later = sorted(render(entry, names) for entry, render in entries if not in_view(entry))
+    out = ["#### Fact base, cited entries (in the dated view)", ""]
+    out += [f"- {row}" for row in dated] or ["- none"]
     out.append("")
+    if later:
+        out += [
+            "#### Fact base, cited entries observable only after now (other scenarios' "
+            "plantings; not in this dated view, never in a released example)",
+            "",
+        ]
+        out += [f"- {row}" for row in later]
+        out.append("")
     return out
 
 
@@ -563,6 +740,8 @@ def scenario_section(
     texts: Mapping[str, str],
     names: Names,
     witness: list[str],
+    universe: list[str],
+    today: str,
 ) -> list[str]:
     key = construction.get("key", {})
     owned = planting.get("owned", {})
@@ -578,13 +757,14 @@ def scenario_section(
     ]
     out += key_section(key, planting.get("stable_interval"), names)
     out += witness
+    out += universe
     out += plantings_section(owned, names)
     authored = construction.get("authored_facts", [])
     if authored:
         out += (
             ["#### Authored facts", ""] + [f"- {fact(entry, names)}" for entry in authored] + [""]
         )
-    out += fact_base_section(facts, cited_ids(key, spec_row, owned), names)
+    out += fact_base_section(facts, cited_ids(key, spec_row, owned), names, today)
     briefs = construction.get("briefs", [])
     if briefs:
         out += ["#### Prose targets", ""]
@@ -640,12 +820,14 @@ def render(
     briefs = {b["target"]["id"]: b for c in truth.get("scenarios", []) for b in c.get("briefs", [])}
     record_targets = {t.target_id: t for t in record.targets}
     scenarios = {scenario.spec.id: scenario for scenario in semantic.scenarios}
+    world_start = date.fromisoformat(spec["provenance"]["world_start"])
 
     out = header(version, spec, truth, record)
     out += rollups(record, briefs, texts)
     out += ["## Scenarios, in the plan's order", ""]
     for row in spec.get("plan", []):
         sid = row["scenario_id"]
+        scenario = scenarios[sid]
         out += scenario_section(
             row,
             constructions.get(sid, {}),
@@ -655,7 +837,9 @@ def render(
             record_targets,
             texts,
             names,
-            witness_section(scenarios[sid], semantic.org, semantic.facts, names),
+            witness_section(scenario, semantic.org, semantic.facts, names),
+            universe_section(scenario, semantic.org, semantic.facts, names, world_start),
+            scenario.spec.today.isoformat(),
         )
     return "\n".join(out)
 
