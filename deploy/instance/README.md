@@ -50,3 +50,13 @@ CI pushed under that sha, so the host runs exactly what CI tested and a
 rollback is the same script with an older sha. It runs as root on the
 instance, over `ssm send-command` from the workflow's `production`
 environment, never by hand.
+
+`DEPLOYED` names the last run that reached its end, not a verified release: the
+marker is written last, so an interrupted run leaves the new `compose.yaml`
+beside the old marker, and the boundary probe runs after the write, so a red
+probe leaves the new marker beside a failed deploy. Recovery reads the actual
+state, the image the compose file names, the containers up, the probe's result
+in the workflow log, and re-runs the script. Making the marker a ledger of
+verified releases waits for the service to be long-running (the M1 repository
+audit's F-012); today the app is a one-shot stub and nothing serves traffic in
+the window.
