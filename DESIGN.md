@@ -5,7 +5,7 @@ snapshot of the current design. Edited in place; the journey lives in the sessio
 log. Wins over VISION.md (the frozen founding snapshot) on disagreement. How it's
 built → ARCHITECTURE (born with the scaffold); pitch → README.
 
-*Design phase · last updated 2026-09-14.*
+*Design phase · last updated 2026-09-19.*
 
 ## Objective
 
@@ -22,7 +22,7 @@ from the first milestone on.
 
 ---
 
-### The answer-key contract (2026-09-09)
+## The answer-key contract (2026-09-09)
 
 **The report and the key speak one typed vocabulary, frozen at the world
 milestone.** Everything downstream grades on it and the generator emits truth in
@@ -237,6 +237,31 @@ coverage actions. Only the rationale text behind an action goes to an LLM judge,
 calibrated on a hand-graded set with its cost budgeted. The ontology is frozen
 whole and exercised gradually: the first golden set covers the three or four types
 its scenario classes need, and no scenario is authored to give a type coverage.
+
+**The investigator, at its milestone's entry.** What this document fixes for it
+today, before its own design session: it emits the vocabulary above and nothing
+else of its output is graded; the deterministic core it runs is the pure rules
+`core` holds, the same functions the evaluator runs, over facts derived through the
+read ports from systems it reaches as a reader by construction (the ports ruling,
+below); it learns the leave under investigation from `RunContext` and the world's
+date from the run, never from the machine's clock; it observes everything the reads
+return, dated to the run's day, and knows no planting date, the rule the world's
+realizability is proven under at generation; and it may not import the benchmark
+(the import law). The framework, the tool surface's transport, retrieval over the
+corpus and the harness around the loop are the entry session's rulings, on the world
+milestone's evidence, listed under the open questions.
+
+**The evaluator, at its milestone's entry.** Fixed today: it grades the vocabulary
+above by the rules this section states, the pure rules over the truth fact base
+deciding any candidate the key did not author; it admits a scenario's truth
+time-filtered by the scenario's `now` and only from the sealed objects, recording
+world version, truth digest and version id before grading (the benchmark-state
+ruling, below); it shares the pure rules with the investigator through `core` while
+neither package may import the other. Its execution boundary and the trust its role
+carries wait for the entry session, since a guessed trust frozen now would be a hole
+in the sealing claim, and the metrics beyond the grading above are that session's.
+
+---
 
 ## The world's shape
 
@@ -1964,8 +1989,8 @@ instance's first-boot configuration is cloud-init until then.
 
 ## Scope & non-goals
 
-- In: the hosting shape above, from the first probe day; the deployment itself is
-  continuous from the first application slice.
+- In: the hosting shape in the appendix below, from the first probe day; the
+  deployment itself is continuous from the first application slice.
 - Deliberately out: any AWS service beyond the named set until a requirement names
   it — service count does not add to the design.
 - **The organizational tools cost nothing.** Jira, Frappe, Google Calendar (and
@@ -1987,7 +2012,8 @@ instance's first-boot configuration is cloud-init until then.
 ## Future work (curated)
 
 - **Ephemeral compute on AWS** — preregistered probe at the demo milestone's entry
-  (criteria above); the thread lives in this document until the probe fires.
+  (criteria in the appendix below); the thread lives in this document until the
+  probe fires.
 - **Lite 2 as the box tariff** — sufficient for Frappe alone; rejected for box-level
   headroom and a single term reset. Revisit never; the upgrade is one-way.
 - **A direct Anthropic API path beside Bedrock** — not committed to; one provider
@@ -2006,9 +2032,9 @@ vision's deferred list.
 - **MCP versus plain function tools** — same session; learning value against
   plumbing cost.
 - **Post-approval execution** — same session; whether the product ends at the
-  approved report or executes the approved plan. The executor trust boundary above
-  is the candidate architecture if execution is in; if it is out, the Lambda and its
-  secrets namespace are not built.
+  approved report or executes the approved plan. The executor trust boundary in the
+  appendix below is the candidate architecture if execution is in; if it is out, the
+  Lambda and its secrets namespace are not built.
 - **Retrieval detail** — chunking and retrieval for the policy corpus, and whether
   Slack and issue-comment history share the index or stay tool-call-only; decided at
   the investigator milestone's design, once the generator's corpus exists.
@@ -2100,7 +2126,7 @@ generic compute abstraction is built on top of it; the seam is the event log and
 nothing more.
 
 **The executor trust boundary.** If post-approval execution survives its own design
-fork (an open question below), the writes run in a **deterministic executor
+fork (an open question above), the writes run in a **deterministic executor
 Lambda** — not a second agent — with its own IAM role that is the sole principal
 able to read the write credentials in Parameter Store, and with no model-invocation
 permission at all. The investigator's identity cannot retrieve those secrets; they
