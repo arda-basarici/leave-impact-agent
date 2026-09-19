@@ -154,6 +154,10 @@ def throwaway_bundle(argv: Sequence[str]) -> Bundle:
     """A world generated here from the generator's recipe flags, its prose written by the
     models the environment names, and left unsealed: the bundle is the whole of it."""
     recipe = parse_recipe(argv)
+    if recipe.resume is not None:
+        raise ConfigurationError(
+            "--resume names a sealed realization; a throwaway world is always fresh"
+        )
     writer, checker = prose_models_for(prose_models_from_env(os.environ))
     fresh = fresh_world(recipe, writer, checker, print)
     for line in fresh.metrics.lines():
@@ -903,12 +907,12 @@ def render(
 def main() -> int:
     if sys.argv[1:2] == ["--throwaway"]:
         try:
-            sealed = throwaway_bundle(sys.argv[2:])
+            unsealed = throwaway_bundle(sys.argv[2:])
         except ConfigurationError as error:
             print(f"audit_sheet --throwaway: {error}", file=sys.stderr)
             return 2
-        version = sealed.world_version
-        spec_bytes, specs_bytes, truth_bytes = (a.content for a in sealed.artifacts)
+        version = unsealed.world_version
+        spec_bytes, specs_bytes, truth_bytes = (a.content for a in unsealed.artifacts)
         notes: Sequence[str] = THROWAWAY_NOTES
         path = EXAMPLE_PATH
     else:

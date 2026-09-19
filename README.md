@@ -64,9 +64,10 @@ probe proves on every deploy.
   vendor cassettes live under `tests/integration/cassettes/`.
 - `AUDIT_METHODOLOGY.md` — how a generated world becomes a golden set;
   `scripts/audit_sheet.py` renders the sheet the audit reads and `scripts/audit_index.py`
-  verifies and seals the audit's index. The audit's output holds answer keys and stays
-  in the truth bucket, never in this tree; `docs/examples/audit_sheet_throwaway.md`
-  shows the sheet's shape on a throwaway-seed world, never sealed or scored.
+  verifies and seals the audit's index. The audit's output on a golden world holds its
+  answer keys and stays in the truth bucket, never in this tree;
+  `docs/examples/audit_sheet_throwaway.md` shows the sheet's shape, keys included, on a
+  throwaway-seed world that is never sealed or scored.
 - `probes/` — the preregistered unknowns of the probe days and their findings;
   `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
 - `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
