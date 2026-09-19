@@ -2265,8 +2265,12 @@ to host the simulation for no product reason).
 **Hosts consume artifacts; they never manufacture them** (ruled 2026-08-23, when
 Frappe HR turned out to need a custom image — no official one carries the `hrms`
 app). The box's rule from SteamLens holds for every deployable in this project:
-`source → CI build → registry → host`, the host references an immutable digest
-and pulls. CI rebuilds an image only when its *inputs* change (`apps.json`, the
+`source → CI build → registry → host`, the host pulls what CI built. The
+intended reference is the image's manifest digest, the one identity a registry
+cannot move; today the host pulls the commit-sha tag and CI records the digest
+in the build's summary, the gap the M1 repository audit named (F-010) and the
+M2-entry updater work closes with the base-image pins and a final-image smoke.
+CI rebuilds an image only when its *inputs* change (`apps.json`, the
 build recipe), never when deployment settings do — image definition and
 deployment definition are different artifacts. Rejected: a one-time build on the
 box (a special-case path for fifteen minutes' gain) and builds from the

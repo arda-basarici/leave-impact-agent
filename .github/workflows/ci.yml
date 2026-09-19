@@ -99,8 +99,11 @@ jobs:
     permissions:
       contents: read
       packages: write
+    # Every action below is pinned by full commit SHA (the tag beside it): `packages:
+    # write` is a job-level permission, and a moved tag would publish under it (the M1
+    # audit's F-010). The check job still rides tags; it publishes nothing.
     steps:
-      - uses: actions/checkout@v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # The provenance stamp the Dockerfile refuses to build without — the same
       # short-sha identity laptop builds mint from their working tree.
@@ -111,19 +114,21 @@ jobs:
       # arm64 is the instance (Graviton); amd64 is the workstation. One manifest,
       # both platforms — QEMU emulates the foreign one on the amd64 runner, a
       # cost this small image can carry.
-      - uses: docker/setup-qemu-action@v4.2.0
-      - uses: docker/setup-buildx-action@v4.3.0
+      - uses: docker/setup-qemu-action@96fe6ef7f33517b61c61be40b68a1882f3264fb8 # v4.2.0
+      - uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
 
-      - uses: docker/login-action@v4.6.0
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # Tagged latest + short sha + full sha: the instance tracks latest; rollback
-      # is pointing the compose file at a sha tag (the full one is the immutable
-      # identity; the short one is for humans).
-      - uses: docker/build-push-action@v7.3.0
+      # is pointing the compose file at a sha tag (the full one is the label the
+      # deploy names; the short one is for humans). A tag is a label the registry
+      # can move; the manifest digest recorded below is the image's identity.
+      - uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        id: build
         with:
           context: .
           platforms: linux/arm64,linux/amd64
@@ -136,6 +141,16 @@ jobs:
             ghcr.io/${{ github.repository }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # The log then says which bytes a sha tag pointed at when it was built, since the
+      # tag itself cannot; carrying the digest into the deploy is M2-entry work with the
+      # base-image pins and a final-image smoke (the M1 audit's F-010, in part).
+      - name: Record the image digest
+        run: |
+          {
+            echo "image: ghcr.io/${{ github.repository }}:${{ github.sha }}"
+            echo "digest: ${{ steps.build.outputs.digest }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   deploy:
     # The approval gate: `production` carries a required reviewer, so the job
