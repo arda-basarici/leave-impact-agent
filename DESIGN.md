@@ -428,10 +428,11 @@ spike's criterion gains this check. No attempt is made to alter the vendors'
 clocks.
 
 **Benchmark state is split by audience and authority, and "sealed" is enforced,
-not promised.** Three artifacts: the *world manifest* — adapter configuration and
-cross-system identity routing (`emp_017` → Jira option id, calendar id, Frappe
-record; document locations; org parameters; world version), read by the
-adapters and holding no fact that can change a scenario's answer — the test is
+not promised.** Three artifacts: the *world manifest* — resolved adapter
+configuration and projection receipts (the Frappe company, the Jira project and
+its field ids, the employee-to-calendar map, one locator per projected id in every
+system; org parameters; world version), read by every reader of a projected world
+and holding no answer-changing world truth — the test is
 that deleting it after the vendor ids are resolved loses nothing answer-relevant;
 the *scenario spec* — what the run is asked: scenario id, `now`, the owned
 window, the request under investigation, visible to harness and agent; and the
@@ -726,11 +727,13 @@ reads the documents where they are sealed, by id, and enumerates the held ids fo
 exactness claim; an object store has no search and the validator never needed one.
 Projectors are adapter-bound and find-or-create by
 the semantic key each system stores (the domain id planted on every entity), so a
-rerun adds nothing (the seed spike's contract; the one exception is a secondary
-calendar, whose id Google chooses and the app-created scope cannot rediscover, so
-a create whose response was lost leaves an empty orphan only a human sees — the
-composition root's persistence of the map is what keeps that narrow); they hold no
-scenario reasoning. Every receipt is checkpointed into the manifest before the next
+rerun adds nothing to the vendors and folds no new receipt, a found entity producing
+none and the checkpoint already holding it (the seed spike's contract; the one
+exception is a secondary calendar, whose id Google chooses and the app-created scope
+cannot rediscover, so a create whose response was lost leaves an empty orphan only a
+human sees — the composition root's persistence of the map, saved after each
+obtained id, is what keeps that to at most one); they hold no scenario
+reasoning. Every receipt is checkpointed into the manifest before the next
 external write, one overwrite per projected record, the one-write crash window of
 the projector step kept on purpose at step 12; the first live world measures what
 that costs — count, latency, bytes, share of the run, from a timing wrapper at the
@@ -753,6 +756,66 @@ the validator step). It validates the projected systems rather than the
 generator's intermediate objects on purpose, so the projection seam is under test
 too, and a shared generation bug cannot produce an evaluation that agrees with a
 wrong world.
+
+**The manifest and the projection in code (ruled 2026-09-12, step 10 of the M1
+build).** The world manifest lives in `adapters/manifest`, rank 2, the lowest package
+that can type all of it: the configuration types are the adapters', the provenance
+types are `world`'s, and every reader above imports both. The generator alone writes
+it; the generator's own restart, the validator and the application decode it, each
+building its adapters from the configuration there. Three things are structurally
+absent and tests hold the door: no credential (an adapter is built from a credential,
+a configuration and a transport policy as three values and only the configuration is
+recorded, the base URLs and the database DSN being host configuration from the
+environment), no seed (the seed with the parameters regenerates the plan, which names
+the planted traps), and no entity, key or fact type. The manifest is also the
+projection's durable checkpoint, so its lifecycle has two stages: under `preparing`
+configuration and receipts may both be partial, the calendar map growing one person
+at a time and the receipts one write at a time, and a preparing manifest is nobody's
+input but the generator's restart; `projected` means the projection lifecycle
+completed, the receipts covering exactly the entities the world plants and the root's
+own invariants passed, and never that the realized world was independently accepted,
+which is the validator's separate artifact. A decoder states the stage its caller
+accepts, and a reader handed a manifest of another version refuses before using any
+recorded id. Since the step 12 rulings the manifest, at format 2, also carries the
+store's version id of every sealed object, folded in at sealing. `IdentityConflict`
+is the third port fault, an existing identity holding other state, raised on the
+write side only, by the projectors' find-verify-add, by the calendar's
+verify-on-insert and by the Jira project mark; projection stops rather than adopt or
+overwrite. Every projector is restart-safe on the strongest identity guarantee its
+target provides: Frappe, Jira and the documents find by domain id, accept an existing
+record only when it equals the planted entity as the adapter reads it back (the
+integration tests prove the round trip exact for every generator-controlled field, so
+equality is the rule and no looser equivalence is named) and add what is missing; the
+calendar inserts directly, since its vendor event id is derived from the domain id
+and the insert is the ensure. The composition root prepares, checkpoints, projects,
+proves and promotes. A previous manifest in the store is the checkpoint the run
+resumes from, and it must realize the same version and describe the same company and
+project the sites were just prepared with. The two site inspections run as a
+preflight, the company and the project holding a subset of this world's ids and
+nothing outside it, and as a postflight demanding the exact set: Jira's reads the
+marker of every issue in the project and refuses an unmarked or a doubly marked one,
+Frappe's reads the employee numbers past the company, and the calendar map is scoped
+like a site. The marker check keeps one residual: the search index can trail a write,
+so a check before a run may miss an orphan created seconds earlier. What `projected`
+proves is bounded on purpose, projection safety and recoverability; proving that
+every closed enumeration the investigator sees holds exactly this world's identities,
+missing and foreign both refused, is the validator's claim. The names a world takes
+in the vendors derive from its version, so no operator chooses them and two worlds on
+one site cannot collide by choice: a key of `W` and the version's first nine hex
+digits, valid for a Jira project key by construction and the prefix every calendar
+summary carries; the Frappe company named by that key, with its first five characters
+as the abbreviation; and the Jira project marked with the full world version, which
+the restart reads before it trusts a project. Every receipt is checkpointed before
+the next external write, through a store whose `save` returns only once the manifest
+would survive the process, and the window between a write returning and its
+checkpoint is loud, never silent: the restart finds the record and receipts nothing,
+the coverage check refuses the manifest, and the refusal names the marked record to
+delete before a rerun. The checkpoint's cost is measured by a timing wrapper at the
+shell, count, latency, bytes and share of the run, and never in the manifest. Under
+`--resume` a rerun of a sealed world reassembles, proves the bundle and re-enters
+sealing; every found entity is equal, so it folds no new receipt and changes no
+vendor state, and its only writes are the checkpoint object itself under the world
+bucket's mutable `preparing/<version>/` prefix, saved at the root's start and end.
 
 **The organization in code (ruled 2026-09-11, step 6 of the M1 build).** Semantic
 generation identifies an organization by three separate inputs — the seed is the
@@ -921,7 +984,8 @@ first vendor call — the Frappe company and the Jira project are vendor state t
 live vendor state never exists without its sealed answer key, while truth-only orphans
 are harmless because nothing serves without a manifest; then the vendor projection
 through the composition root, its checkpoint under the world bucket's mutable
-`preparing/<version>/` prefix, never served, expiring after a day; then, after the
+`preparing/<version>/` prefix, never served, its overwritten versions expiring
+after a day under the platform's lifecycle rule; then, after the
 root's postflight and only then, the documents into the final prefix, one object per
 document, so a refused site leaves nothing under a prefix no job can delete from; then
 the scenario specs; then every sealed object read back, its bytes compared with what
