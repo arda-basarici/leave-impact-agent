@@ -5,7 +5,11 @@ could cover, what the leaver owns, what meets during the absence, which clause
 applies — phrased over domain ids and answered with observed entities. Vendor ids
 never cross: the adapter keeps the identity map that translates a domain id to a
 vendor key, in both directions. A record that is not there is ``None`` or an empty
-tuple; a source that cannot answer raises ``SourceUnreachable`` (``errors``).
+tuple; a source that cannot answer raises ``SourceUnreachable`` (``errors``). An
+enumeration holds each domain id once: two records carrying one id are source
+corruption and raise ``MalformedRecord`` rather than both being returned, because a
+consumer comparing identities as a set could not see the second (the M1 audit's
+F-008, a duplicate Jira marker approved as exact).
 
 A fact-bearing reader enumerates its domain, selects by identity, or narrows by a
 natural window; it never filters by a relationship the domain derives, and document
@@ -102,7 +106,7 @@ class WorkReader(Protocol):
         ...
 
     def work_items(self) -> tuple[Observed[WorkItem], ...]:
-        """Every work item the tracker holds for this world, any status, any owner."""
+        """Every work item the tracker holds for this world, any status, any owner, each id once."""
         ...
 
     def component(self, id: ComponentId) -> Observed[Component] | None:
@@ -110,7 +114,7 @@ class WorkReader(Protocol):
         ...
 
     def components(self) -> tuple[Observed[Component], ...]:
-        """Every component the tracker holds."""
+        """Every component the tracker holds, each id once."""
         ...
 
 

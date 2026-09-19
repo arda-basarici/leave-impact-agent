@@ -68,7 +68,7 @@ from leaveimpact.core.entities import Component, WorkItem
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import ComponentId, EmployeeId, WorkItemId
 from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
-from leaveimpact.core.ports.observed import Observed
+from leaveimpact.core.ports.observed import Entity, Observed
 
 _PAGE = 100
 _RECONCILE_LIMIT = 50  # the search API reconciles at most this many issue ids
@@ -522,14 +522,8 @@ class JiraAdapter:
     # --- the read side --------------------------------------------------------------
 
     def work_item(self, id: WorkItemId) -> Observed[WorkItem] | None:
-        matches = [item for item in self.work_items() if item.value.id == id]
-        if not matches:
-            return None
-        if len(matches) > 1:
-            raise MalformedRecord(
-                Source.JIRA, f"issue/{id}", f"{id} is held by more than one issue"
-            )
-        return matches[0]
+        # The enumeration holds each id once, so the first match is the only one.
+        return next((item for item in self.work_items() if item.value.id == id), None)
 
     def work_items(self) -> tuple[Observed[WorkItem], ...]:
         fields = self._config.fields
@@ -551,8 +545,9 @@ class JiraAdapter:
                 fields.resolved_on,
             ],
         )
-        return tuple(
-            Observed(
+        read = [
+            (
+                str(issue.get("key", "?")),
                 records.work_item_from_record(
                     issue,
                     ticket_id_field=fields.ticket_id,
@@ -562,31 +557,28 @@ class JiraAdapter:
                     component_by_name=component_by_name,
                     comments=self._all_comments(issue),
                 ),
-                Source.JIRA,
             )
             for issue in issues
-        )
+        ]
+        return tuple(Observed(item, Source.JIRA) for item in _held_once(read, "issue"))
 
     def component(self, id: ComponentId) -> Observed[Component] | None:
-        matches = [component for component in self.components() if component.value.id == id]
-        if not matches:
-            return None
-        if len(matches) > 1:
-            raise MalformedRecord(
-                Source.JIRA, f"component/{id}", f"{id} is held by more than one component"
-            )
-        return matches[0]
+        # The enumeration holds each id once, so the first match is the only one.
+        return next((one for one in self.components() if one.value.id == id), None)
 
     def components(self) -> tuple[Observed[Component], ...]:
         path = f"/project/{self._config.project_key}/components"
         listed = _list(self._wire.get(path), f"GET {path}", "components")
-        return tuple(
-            Observed(
-                records.component_from_record(_dict(record, f"GET {path}", "component")),
-                Source.JIRA,
+        read: list[tuple[str, Component]] = []
+        for record in listed:
+            listed_record = _dict(record, f"GET {path}", "component")
+            read.append(
+                (
+                    str(listed_record.get("id", "?")),
+                    records.component_from_record(listed_record),
+                )
             )
-            for record in listed
-        )
+        return tuple(Observed(one, Source.JIRA) for one in _held_once(read, "component"))
 
     # --- the write side -------------------------------------------------------------
 
@@ -779,6 +771,31 @@ class JiraAdapter:
                 f"employee {employee_id} has no owner option in Jira; "
                 "ensure the world's people first"
             ) from None
+
+
+def _held_once[T: Entity](read: list[tuple[str, T]], what: str) -> tuple[T, ...]:
+    """The entities of ``read`` (vendor key, entity), each domain id held by one record.
+
+    The enumeration's form of the exactly-one rule, as the Frappe adapter holds it for
+    employees and leaves: two issues carrying one ticket marker, or two components
+    whose descriptions carry one component id, are source corruption, and returning
+    both would hand a set-based exactness check one id twice, which a set cannot see
+    (the M1 audit's F-008, a false approval reproduced end to end). Both vendor keys
+    ride in the locator. In a validation run the search is unreconciled, since nothing
+    was written, so a duplicate indexed after the run began may be missed; the guard is
+    sound against one that predates the run, the case a later validation faces.
+    """
+    keys_by_id: dict[str, list[str]] = {}
+    for key, entity in read:
+        keys_by_id.setdefault(entity.id, []).append(key)
+    for id, keys in keys_by_id.items():
+        if len(keys) > 1:
+            raise MalformedRecord(
+                Source.JIRA,
+                f"{what}/{', '.join(sorted(keys))}",
+                f"{id} is held by more than one {what}",
+            )
+    return tuple(entity for _, entity in read)
 
 
 def _paged_search(

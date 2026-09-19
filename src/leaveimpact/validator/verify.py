@@ -49,6 +49,7 @@ from leaveimpact.adapters.manifest import (
 from leaveimpact.core.entities import Component, Document, Employee, WorkItem
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import DocumentId
+from leaveimpact.core.ports.errors import MalformedRecord
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.ports.read import (
     CalendarReader,
@@ -344,7 +345,20 @@ def _keyed[T: Entity](records: Iterable[T]) -> dict[str, T]:
 
 
 def _observed[T: Entity](records: Iterable[Observed[T]]) -> dict[str, T]:
-    return {record.value.id: record.value for record in records}
+    # The port promises each id once and the adapters refuse a duplicate at the source;
+    # the exactness check is set-based and would read a second record under one id as
+    # the same exact record, so the promise is held here too, where a false approval
+    # would otherwise be published (the M1 audit's F-008).
+    by_id: dict[str, T] = {}
+    for record in records:
+        if record.value.id in by_id:
+            raise MalformedRecord(
+                record.source,
+                f"enumeration/{record.value.id}",
+                f"{record.value.id} is returned twice by the enumeration",
+            )
+        by_id[record.value.id] = record.value
+    return by_id
 
 
 def _by_id[T: Entity](records: Iterable[Observed[T] | None]) -> dict[str, T]:

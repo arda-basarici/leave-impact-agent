@@ -447,6 +447,54 @@ def test_work_items_reads_the_project_by_id_field_and_pages_comments_to_completi
     assert paths(script)[-1] == "GET /rest/api/3/issue/CAS-1/comment"
 
 
+def marked_issue(key: str, marker: str) -> dict[str, Any]:
+    return {
+        "key": key,
+        "fields": {
+            "summary": "Payment retry loop",
+            "status": {"name": "Backlog"},
+            "duedate": None,
+            "components": [{"name": "Payments"}],
+            "comment": {"comments": [], "total": 0},
+            "customfield_10078": marker,
+            "customfield_10042": {"value": "emp_004 — Deniz Yılmaz"},
+            "customfield_10076": "2026-08-12",
+            "customfield_10077": None,
+        },
+    }
+
+
+def test_two_issues_holding_one_marker_are_refused_by_the_enumeration() -> None:
+    # The site inspection refuses the pair at projection; a duplicate made after that
+    # inspection reaches a later validation through this enumeration, whose set-based
+    # exactness would read the pair as one exact record.
+    page = ok(
+        {
+            "issues": [marked_issue("CAS-1", "ticket_007"), marked_issue("CAS-3", "ticket_007")],
+            "isLast": True,
+        }
+    )
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(Scripted(COMPONENTS, page)).work_items()
+    assert caught.value.locator == "issue/CAS-1, CAS-3"
+    assert caught.value.reason == "ticket_007 is held by more than one issue"
+
+
+def test_two_components_whose_descriptions_carry_one_id_are_refused_by_the_enumeration() -> None:
+    # The component id is read from the free-text description, so two components with
+    # distinct names collide on it; nothing at projection inspects components.
+    twice = ok(
+        [
+            {"id": "1", "name": "Payments", "description": "comp_003 · members: emp_001"},
+            {"id": "2", "name": "Billing", "description": "comp_003 · members:"},
+        ]
+    )
+    with pytest.raises(MalformedRecord) as caught:
+        adapter(Scripted(twice)).components()
+    assert caught.value.locator == "component/1, 2"
+    assert caught.value.reason == "comp_003 is held by more than one component"
+
+
 # --- The project mark and the debris query --------------------------------------------------
 
 VERSION = "a" * 64

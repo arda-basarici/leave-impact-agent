@@ -15,10 +15,10 @@ from typing import cast
 import pytest
 
 from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, manifest_bytes
-from leaveimpact.core import Source, SourceUnreachable
-from leaveimpact.core.entities import Document, DocumentSection
+from leaveimpact.core import MalformedRecord, Observed, Source, SourceUnreachable, WorkReader
+from leaveimpact.core.entities import Component, Document, DocumentSection, WorkItem
 from leaveimpact.core.enums import DocumentKind, EntityKind
-from leaveimpact.core.ids import clause_id, document_id, work_item_id
+from leaveimpact.core.ids import ComponentId, WorkItemId, clause_id, document_id, work_item_id
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.generator.realize import realize
 from leaveimpact.validator import (
@@ -267,6 +267,49 @@ def test_a_foreign_record_fails_exactness_and_gates_what_depends_on_it(
     assert {v.reason for v in verdict.views} == {"identity exactness failed for work_item"}
     others = [r for r in verdict.exactness if r.check.kind is not EntityKind.WORK_ITEM]
     assert {r.status for r in others} == {CheckStatus.PASSED}
+
+
+class _Doubled:
+    """A work reader breaking the port's once-per-id promise: the first item enumerated twice."""
+
+    def __init__(self, inner: WorkReader) -> None:
+        self._inner = inner
+
+    def work_item(self, id: WorkItemId) -> Observed[WorkItem] | None:
+        return self._inner.work_item(id)
+
+    def work_items(self) -> tuple[Observed[WorkItem], ...]:
+        read = self._inner.work_items()
+        return (*read, read[0])
+
+    def component(self, id: ComponentId) -> Observed[Component] | None:
+        return self._inner.component(id)
+
+    def components(self) -> tuple[Observed[Component], ...]:
+        return self._inner.components()
+
+
+def test_an_enumeration_returning_one_id_twice_is_refused_rather_than_approved(
+    landed: tuple[WorldManifest, FakePreparation], sealed: Bundle
+) -> None:
+    # Two issues carrying one planted marker read as one exact record to a set-based
+    # identity check and the world was approved (the M1 audit's F-008); the adapters
+    # refuse the pair at the source, and the validator holds the promise itself.
+    manifest, fakes = landed
+    systems = LiveSystems(
+        fakes.people,
+        _Doubled(fakes.work),
+        fakes.calendar,
+        fakes.documents,
+        fakes.documents.held_document_ids,
+    )
+    with pytest.raises(MalformedRecord, match="is returned twice by the enumeration"):
+        validate(
+            manifest_bytes(manifest),
+            sealed.world_spec.content,
+            sealed.scenario_specs.content,
+            systems,
+        )
 
 
 def test_a_foreign_document_is_seen_only_through_the_versions_inspection(
