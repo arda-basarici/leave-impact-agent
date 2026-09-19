@@ -2,7 +2,11 @@
 # its verdict sealed under the world's verdict prefix, one immutable object per execution.
 # Runs only by hand, under the `benchmark` environment on the validator's OIDC-trusted
 # role — a role that reads the world bucket and the truth bucket's world spec and writes
-# nothing but verdicts (the step 12 rulings, 2026-09-13). Deliberately a separate
+# nothing but verdicts (the step 12 rulings, 2026-09-13). The vendor credentials the step
+# receives are the generator's, which can write to Frappe, Jira and the calendar: for the
+# vendors the validator's read-only role rests on the code's read ports and the import
+# law, not on the credential, until separate read principals land (the M1 repository
+# audit's F-011, an M2-entry platform ticket). Deliberately a separate
 # workflow from the generator's: a world is re-validated later without regenerating
 # anything, and a reader sees the independence rather than trusting the roles for it.
 #
