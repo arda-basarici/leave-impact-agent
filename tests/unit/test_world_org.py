@@ -203,10 +203,13 @@ def test_a_small_organization_still_honours_every_shape() -> None:
         assert len({e.team_id for e in spec.employees if e.id in component.member_ids}) == 2
         # One component: the blank-record guarantee holds, the blank-free one cannot.
         assert any(e.skills is None for e in spec.employees if e.id in component.member_ids)
-        assert any(
-            gap_holds_all_year(e.timezone, params.reference_timezone, params.timezone_gap_hours)
+        # Two far seats even here, the tightest shape: four non-leads, two per team.
+        far = {
+            e.id
             for e in spec.employees
-        )
+            if gap_holds_all_year(e.timezone, params.reference_timezone, params.timezone_gap_hours)
+        }
+        assert len(far) >= 2
 
 
 def _assert_the_cast_is_the_second_component(spec: OrgSpec) -> None:
