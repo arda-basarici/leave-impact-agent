@@ -33,21 +33,17 @@ from collections.abc import Sequence
 
 from leaveimpact.generator.entrypoint import (
     ConfigurationError,
-    ProseModels,
-    WorldRecipe,
     deployment_from_env,
     parse_recipe,
     prose_models_for,
     prose_models_from_env,
     stores_for,
 )
-from leaveimpact.generator.materialize import ProseMetrics, materialize
+from leaveimpact.generator.fresh import fresh_world
 from leaveimpact.generator.metrics import TimedObjectWriter
-from leaveimpact.generator.prose.assets import load_prompt_assets
 from leaveimpact.generator.resume import resume_world
 from leaveimpact.generator.sealing import seal_world
 from leaveimpact.generator.systems import AdapterPreparation
-from leaveimpact.world import Bundle, WorldSpec, assemble_semantic_world, bundle, compose
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -65,11 +61,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"resuming={recipe.resume}")
         world, sealed = resume_world(recipe.resume, truth)
     else:
-        world, sealed, prose_metrics = _fresh(recipe, models)
+        writer, checker = prose_models_for(models)
+        fresh = fresh_world(recipe, writer, checker, print)
+        world, sealed = fresh.world, fresh.bundle
         # Printed before sealing begins: the prose stage is over, and a run that seals and
         # then fails in projection must not take the stage's numbers with it (the
         # measurement world's did, 2026-09-15; the record now seals them too).
-        for line in prose_metrics.lines():
+        for line in fresh.metrics.lines():
             print(line)
     # Flushed: this line is the resume handle, and stdout is a pipe under the workflow, so
     # a hard kill mid-sealing must not lose it in a block buffer.
@@ -86,19 +84,6 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"manifest_key={result.manifest_key}")
     print(f"world_version={result.manifest.world_version}")
     return 0
-
-
-def _fresh(recipe: WorldRecipe, models: ProseModels) -> tuple[WorldSpec, Bundle, ProseMetrics]:
-    """Assemble, materialize, compose: the pure world with its prose, before any external write."""
-    semantic = assemble_semantic_world(
-        recipe.seed, recipe.params, recipe.world_start, recipe.plan_name
-    )
-    writer, checker = prose_models_for(models)
-    materialized = materialize(
-        semantic, writer, checker, load_prompt_assets(), recipe.attempt_cap, print
-    )
-    world = compose(semantic, materialized.prose, materialized.record)
-    return world, bundle(world), materialized.metrics
 
 
 if __name__ == "__main__":
