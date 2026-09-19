@@ -419,7 +419,35 @@ the same world against the same key. Hand auditing produces a
 separately versioned provenance artifact; held-out truth and its audit notes stay
 in the truth bucket, never in the public repository; the repository publishes the
 audit methodology and fully released example scenarios, and a retired evaluation
-set can be published whole.
+set can be published whole. *The audit artifact's home and identity (ruled
+2026-09-17 and 2026-09-19, step 16).* The audit is written once under the truth
+bucket's create-only `audit/<world-version>/<audit-identity>/` prefix, four objects:
+an index, the rulings record, the summary and the checklist the audit ran under. The
+identity is the sha256 of the index object, a small canonical JSON binding the other
+three by digest with the sheet's digest, the world's sealed provenance and the
+validator's verdict key; content-addressed like every key in the layout and never
+ordinal, so a corrected audit is a new identity beside the old with the old named in
+the index's `supersedes` field, never a rewrite. The index sits inside the prefix it
+names and cannot carry its own digest; a reader verifies by re-hashing the index
+against the prefix and the files against the digests the index carries. The prefix
+was made create-only before the first upload, never tightened after; overwrite is
+refused by policy for every principal, delete is held by convention and versioning,
+and the only writer is a human under the administrator identity from a workstation.
+*Per-scenario retirement (ruled 2026-09-19, step 16).* A scenario released as an
+example is retired first: it keeps its place in the sealed world and in the audit's
+provenance (the world and the audit are never edited), it leaves the scored set of
+every later blinded evaluation, the evaluation's manifest names it as retired with the
+release date, and the release carries a contamination statement (whether the model
+under evaluation could have seen it). The generator's construction patterns are
+public in this record already; what a release adds is one world's roster, one
+scenario's plantings and prose, and the rows its cited entities carry, so a release
+renders the dated view only, never the rows observable after the scenario's `now`,
+never the sheet header's prose rollups, never a note that cross-references another
+scenario. No golden scenario is released before the first evaluation has run over
+the whole set: the example a reader values is the key beside an agent's run on it,
+and retirement before any evaluation would be a promise with nothing to enforce it.
+Until then a throwaway-seed world, never sealed or scored, illustrates the sheet in
+the public tree.
 
 **History is planted only where it can be planted honestly; qualification is
 derived from atomic facts, never stored as a conclusion.** Jira's REST API cannot
@@ -984,6 +1012,21 @@ reference-zone truth and inside it under a wrong-zone or UTC reading. Offsets ar
 computed at the planted instant, never as city constants. Truth stays exclusively
 reference-zone based. Leaving the affordance to seed luck was rejected as rejection
 sampling at world level; deferring the modifier to Tier 3 contradicts the golden set.
+*Leave dates and the far seat (ruled 2026-09-19, step 16, on the audit panel's
+finding).* Leave dates are date-only HR facts read in the scenario's reference
+timezone for every employee; personal location does not redefine the leave interval,
+the HR record carrying no zone. The rule was implicit in the code and unstated here
+until the golden world planted the one case that turns on it: the modifier admits any
+far employee as the far seat, the leaver included, and when the far seat is the
+leaver the event falls on the last leave day in the leaver's own zone and after the
+leave in the reference zone, alone on the leaver's calendar. Under the stated rule the
+key is right and the scenario tests the convention; it stands, no regeneration. For
+future worlds the far seat is always a colleague, so the event has two attendees and
+the leaver's own zone never dates the leaver's own event; since the organization
+guarantees one far person and that person may be the leaver, the guarantee grows to
+two far seats with the change, so the modifier stays affordable by construction. Both
+are generator semantics and bump the version; they are built as their own step after
+the audit's close, the golden world staying at the version it was sealed under.
 
 **The world bundle and its version (ruled 2026-09-11, step 8 of the M1 build; the
 artifact names settled at the step's review).** `WorldSpec` is the pure composed bundle:
@@ -1585,6 +1628,36 @@ component named as the work's context as the author's membership.
   twenty probe attempts and the measurement world's three, opens "I have" or "I've got X
   experience": a realism limitation of the first benchmark's qualification comments, not
   tuned before the golden run unless the agent is found to exploit the phrasing.
+
+*The hand audit of the first golden world, as executed (2026-09-16 to 2026-09-19, step
+16).* The protocol is `AUDIT_METHODOLOGY.md`, published scenario-free; the checklist the
+audit ran under is sealed beside the record. Executed: an acceptance pass over all
+thirty scenarios in the interview shape, one per exchange, the outcome rule read off
+the witness in one sweep after the pass; ten deep traces stratified across the tiers,
+five more by unexercised structure, then two the design panel named, seventeen in all
+under a frozen ten-step trace; a four-seat critique panel over the checklist, the sheet,
+the record and the summary, every claim reproduced on the source before triage; the
+sheet re-rendered with a criterion universe per impact so the seven uncovered or
+unknown outcomes could be recounted by hand without the rule, seven of seven equal to
+the witness; three checks the panel found missing executed on named scopes and sealed
+in the checklist with those scopes. Findings: thirty accept, no defect in the world,
+no open question; the audit's own record corrected in eleven places with dated notes
+and a ledger, none touching a key. One design gap surfaced and ruled above (leave
+dates and the far seat). Coverage observations for M2's benchmark design, not defects:
+the cardinality class constructs viable equal to the count and never above it, so
+minimum-versus-exact semantics is untestable on this set and its two instances are one
+construction sample for that question; the concurrent-leave modifier is
+outcome-insensitive by the admissibility rule, and outcome-pivotal loss of a cover
+needs a class, not a stronger modifier; no component-scoped clause, no timezone
+planting beyond the one shape the organization affords, no unknown reason beyond an
+absent record, no pending or rejected leave, no `now` inside a leave. Status: the world
+sealed at generator version 14 is the first golden set; its audit is sealed under its
+content-addressed identity in the truth bucket, `supersedes` null, the four objects'
+version ids recorded in the private stream. What the audit cannot claim: it verifies
+the key against the rules as coded and a human reading of the evidence, the universe
+recount sharing the rule's dated view and fact reads; thirteen scenarios rest on the
+pass, the executed checks and the recount rather than a trace; the reads were an
+external low-context reader's, re-verified before entry, the rulings the auditor's.
 
 *The cardinality class, ruled (2026-09-15, the 15.3 interview).* Three questions, one per
 exchange, an external low-context reviewer's read on each before the ruling; one ruling
