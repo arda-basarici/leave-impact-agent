@@ -4,8 +4,9 @@ The composition of one validation run and nothing of its logic: the request from
 command line and the runner's identifiers, the deployment from the environment through
 the shared wiring, the stores as readers, the one publication callable, and the
 validator's composition over them. What it prints is what a reader of the Actions log
-needs: the verdict's word, the key it landed at and its version id — never a credential
-or a host. A fault in the raw configuration exits with status 2 and its message; a
+needs: the verdict's word, the key it landed at and its version id, the requested world
+version beside the one the judged manifest names — never a credential or a host. A
+fault in the raw configuration exits with status 2 and its message; a
 refused verdict exits with status 1 after publishing, so the run is red and the verdict
 is still there to read; an approved one exits 0. Everything else propagates as the loud
 operational failure it is.
@@ -41,6 +42,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"verdict_key={published.key}")
     print(f"verdict_version_id={published.version_id}")
     print(f"world_version={request.world_version}")
+    print(f"judged_world_version={published.verdict.world_version}")
     print(f"approval={published.approval.value}")
     return 0 if published.approval is Approval.APPROVED else 1
 

@@ -17,6 +17,13 @@ lands (the verdict ruling of the step 12 interview). A verdict is published whet
 approves or refuses — a refusal is evidence too, immutable per execution — and the exit
 status says which, so the workflow run is red on a refused world without hiding the
 verdict that says why.
+
+The requested version is bound to the manifest before anything else happens: the three
+objects authenticate one another by digest, so a consistent world filed under another
+version's keys would pass the chain and its verdict would land under the requested prefix
+naming the other world (the M1 audit's F-009). A manifest whose version is not the
+requested one is refused as an integrity fault, before a vendor reader exists and before
+any publication; the verdict key and the verdict then always name the same world.
 """
 
 from __future__ import annotations
@@ -43,7 +50,7 @@ from leaveimpact.adapters.wiring import (
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.validator.verdict import Approval, ValidationVerdict, verdict_bytes
-from leaveimpact.validator.verify import LiveSystems, validate
+from leaveimpact.validator.verify import IntegrityRefused, LiveSystems, validate
 from leaveimpact.world.artifacts import SHA256_HEX
 
 
@@ -105,12 +112,21 @@ def validate_world(
     publish: VerdictPublisher,
     readers_of: Callable[[Hosts, ObjectReader], Readers] | None = None,
 ) -> Published:
-    """Read the sealed world, judge the live systems, publish the verdict; the result."""
+    """Read the sealed world, judge the live systems, publish the verdict; the result.
+
+    The manifest at the requested version's key must name that version, or the request
+    is refused as ``IntegrityRefused`` with no reader built and nothing published.
+    """
     version = request.world_version
     manifest_bytes = _read(stores.world, world_manifest_key(version), "the world manifest")
     spec_bytes = _read(stores.truth, world_spec_key(version), "the world spec")
     specs_bytes = _read(stores.world, scenario_specs_key(version), "the scenario specs")
     manifest = decode_manifest(manifest_bytes, stage=ManifestStage.PROJECTED)
+    if manifest.world_version != version:
+        raise IntegrityRefused(
+            f"the objects at the keys of {version} describe world {manifest.world_version}; "
+            "a verdict is published only under the version it judged"
+        )
 
     readers = (
         build_readers(hosts, manifest, stores.world)

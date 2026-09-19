@@ -4,7 +4,8 @@ identifier named; and the composition end to end over two in-memory buckets a se
 filled — the three objects read, the readers built from the manifest, the verdict judged
 against the same in-memory vendors the world was projected into, published at exactly the
 execution's key with the approval that every check passed, a world the buckets do not hold
-refused by name, and the validator package importing no writer (the import law's claim,
+refused by name, another world's objects filed under the requested keys refused before a
+reader is built, and the validator package importing no writer (the import law's claim,
 restated here as the composition's: the publisher is the one write and it is a callable)."""
 
 from __future__ import annotations
@@ -26,6 +27,7 @@ from leaveimpact.adapters.wiring import (
     deployment_from_env,
 )
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.validator import IntegrityRefused
 from leaveimpact.validator.entrypoint import parse_request, validate_world
 from leaveimpact.validator.verdict import Approval, verdict_bytes
 from leaveimpact.world import DEFAULT_PARAMS, WorldSpec, assemble_world, bundle
@@ -120,3 +122,34 @@ def test_a_world_the_buckets_do_not_hold_is_refused_by_name(tmp_path: Path) -> N
 
     with pytest.raises(ConfigurationError, match="the world manifest is not in the store"):
         validate_world(request, hosts, ObjectReaders(buckets.truth, buckets.world), never)
+
+
+def test_another_world_s_objects_under_the_requested_keys_are_refused_before_any_reader(
+    world: WorldSpec, sealed: Bundle, tmp_path: Path
+) -> None:
+    # The three objects authenticate one another, so a consistent world W filed under V's
+    # keys passed the chain, and an approved verdict naming W landed under V's prefix (the
+    # M1 audit's F-009). The bind refuses it with no reader built and nothing published.
+    buckets = Buckets()
+    run(world, sealed, buckets)
+    for store, key_of in (
+        (buckets.world, layout.world_manifest_key),
+        (buckets.truth, layout.world_spec_key),
+        (buckets.world, layout.scenario_specs_key),
+    ):
+        held = store.get(key_of(sealed.world_version))
+        assert held is not None
+        store.put_if_absent(key_of(VERSION), held.content)
+    hosts = deployment_from_env(environment(tmp_path)).hosts
+    request = parse_request(["--world-version", VERSION, "--run-id", "9", "--run-attempt", "1"], {})
+
+    def never(version: WorldVersion, run_id: str, run_attempt: str, content: bytes) -> str:
+        raise AssertionError("nothing is published for a manifest naming another world")
+
+    def no_readers(hosts: Hosts, world_store: ObjectReader) -> Readers:
+        raise AssertionError("no reader is built for a manifest naming another world")
+
+    with pytest.raises(IntegrityRefused, match=f"describe world {sealed.world_version}"):
+        validate_world(
+            request, hosts, ObjectReaders(buckets.truth, buckets.world), never, no_readers
+        )
