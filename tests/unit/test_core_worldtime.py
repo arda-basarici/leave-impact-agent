@@ -65,6 +65,15 @@ def test_a_date_span_ending_before_it_starts_is_refused() -> None:
         DateSpan(date(2026, 9, 12), date(2026, 9, 10))
 
 
+def test_a_date_span_refuses_an_instant_at_either_end() -> None:
+    # datetime subclasses date: an instant would construct, then fail to compare with a
+    # day and fail to decode as one.
+    with pytest.raises(ValueError, match="start is a calendar day, got the instant"):
+        DateSpan(_utc(10, 0), date(2026, 9, 12))
+    with pytest.raises(ValueError, match="end is a calendar day, got the instant"):
+        DateSpan(date(2026, 9, 10), datetime(2026, 9, 12))
+
+
 def test_instant_spans_are_half_open() -> None:
     meeting = InstantSpan(_utc(14, 9), _utc(14, 10))
     assert meeting.contains(_utc(14, 9))

@@ -168,6 +168,13 @@ class DateSpan:
     end: date
 
     def __post_init__(self) -> None:
+        for name, value in (("start", self.start), ("end", self.end)):
+            # datetime subclasses date; a day is a day, and an instant would neither
+            # compare with one nor decode as one (the DATE value spec's own rule).
+            if isinstance(value, datetime):
+                raise ValueError(
+                    f"a date span's {name} is a calendar day, got the instant {value.isoformat()}"
+                )
         if self.end < self.start:
             raise ValueError(
                 f"a date span ends on or after it starts, got {self.start}..{self.end}"
