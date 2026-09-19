@@ -8,8 +8,8 @@ import json
 from datetime import date
 
 from leaveimpact.adapters.prose import CheckerRequest, ToolCall, WriterRequest, WrittenText
-from leaveimpact.generator.entrypoint import WorldRecipe
 from leaveimpact.generator.fresh import fresh_world
+from leaveimpact.generator.recipe import WorldRecipe
 from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import DEFAULT_PARAMS, WORLD_SPEC, world_version
 

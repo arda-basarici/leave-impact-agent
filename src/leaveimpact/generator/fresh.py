@@ -10,8 +10,11 @@ come from (the step 17 throwaway example). The model calls happen inside: the st
 paid for by the time it returns, and it creates no resumable state, which is why the job
 prints the version right after it (``resume`` is the counterpart once sealing has begun).
 
-The writer and the checker arrive opened, so the stage knows nothing of Bedrock or the
-environment; the fakes at unit level and the live models are the same call.
+The writer and the checker arrive opened and the recipe is plain data, so the stage
+knows nothing of the environment or the stores, in its calls and in its imports; the
+fakes at unit level and the live models are the same call. The prose seam it types
+against comes from the package that also holds the Bedrock client, so that module is
+loaded here and never opened.
 """
 
 from __future__ import annotations
@@ -20,9 +23,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from leaveimpact.adapters.prose import ProseChecker, ProseWriter
-from leaveimpact.generator.entrypoint import WorldRecipe
 from leaveimpact.generator.materialize import ProseMetrics, materialize
 from leaveimpact.generator.prose.assets import load_prompt_assets
+from leaveimpact.generator.recipe import WorldRecipe
 from leaveimpact.world import Bundle, WorldSpec, assemble_semantic_world, bundle, compose
 
 __all__ = ["FreshWorld", "fresh_world"]

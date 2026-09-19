@@ -22,7 +22,6 @@ from __future__ import annotations
 import argparse
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from datetime import date
 
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.adapters.object_store.s3 import s3_client
@@ -37,6 +36,7 @@ from leaveimpact.adapters.wiring import (
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.worldtime import date_at
+from leaveimpact.generator.recipe import DEFAULT_ATTEMPT_CAP, WorldRecipe
 from leaveimpact.world.artifacts import SHA256_HEX
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams
 from leaveimpact.world.plan import PLANS
@@ -45,40 +45,12 @@ __all__ = [
     "ConfigurationError",
     "Deployment",
     "ProseModels",
-    "WorldRecipe",
     "deployment_from_env",
     "parse_recipe",
     "prose_models_for",
     "prose_models_from_env",
     "stores_for",
 ]
-
-DEFAULT_ATTEMPT_CAP = 8
-"""Fresh attempts per target before the target fails. Four until the first measurement
-world (2026-09-15): its hardest target passed on attempt three, which justifies no cap,
-since exhaustion compounds across a world's targets while an exhausted run costs only a
-re-dispatch of sealing, before any vendor write. Eight is a robustness margin, not a
-measured need; a target accepted above attempt four is read as a struggling brief."""
-
-
-@dataclass(frozen=True, slots=True)
-class WorldRecipe:
-    """What defines the world, plus the two run controls of the prose stage.
-
-    ``plan_name`` is the rule the world is planned under, a semantic input recorded in
-    the world's provenance (the step 15 rulings); ``attempt_cap`` bounds the materializer
-    and is recorded in the world's provenance;
-    ``resume`` names a sealed realization to continue instead of generating a fresh one
-    (the step 14 rulings: before sealing a restart regenerates, after it resumes).
-    """
-
-    seed: int
-    params: OrgParams
-    world_start: date
-    attempt_cap: int = DEFAULT_ATTEMPT_CAP
-    resume: WorldVersion | None = None
-    plan_name: str = "tier1"
-
 
 def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
     """The world recipe from ``argv``; every organization dial defaults to ``DEFAULT_PARAMS``."""
