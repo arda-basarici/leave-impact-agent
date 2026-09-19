@@ -38,3 +38,7 @@ __pycache__/
 # --- OS noise ---
 Thumbs.db
 .DS_Store
+
+# --- Test fixture strays ---
+# The wiring test's placeholder credential file, should a probe ever write it into the tree.
+google.json

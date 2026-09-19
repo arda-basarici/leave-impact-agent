@@ -1,6 +1,10 @@
-# The local gate is the CI gate: `just check` runs exactly what .github/workflows/ci.yml
-# runs, so a green local run predicts a green push. Recipes stay thin wrappers over
-# `uv run …` — the tools own their configuration in pyproject.toml.
+# `just check` is the fast local subset of the CI gate in .github/workflows/ci.yml: lint,
+# types, the default test levels and the docs build. CI runs two gates beyond it that this
+# file does not reproduce, the integration level against a PostgreSQL service (locally
+# `just db-up` then `just test-integration`) and a Gitleaks scan over the full history, so
+# a green `just check` predicts those two only as far as the change stays clear of them.
+# Recipes stay thin wrappers over `uv run …` — the tools own their configuration in
+# pyproject.toml.
 
 set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 # POSTGRES_PASSWORD and PGDATA_HOST come from the user's environment — no .env file
@@ -8,7 +12,7 @@ set windows-shell := ["powershell.exe", "-NoLogo", "-Command"]
 
 default: check
 
-# Everything CI runs on a push: lint, types, tests (default levels), docs build.
+# The fast subset of the CI gate: lint, types, tests (default levels), docs build.
 check: lint typecheck test docs
 
 lint:

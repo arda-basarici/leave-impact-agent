@@ -29,7 +29,7 @@ Needs `uv`, `just`, and Docker.
 ```
 uv sync                 # locked environment, dev tools included
 just hooks              # once per clone: pre-commit (secret scan + lint)
-just check              # what CI runs: lint, types, unit tests + doctests, docs build
+just check              # the fast subset of CI: lint, types, unit tests + doctests, docs build
 # set POSTGRES_PASSWORD (letters+digits) and PGDATA_HOST (absolute path) as user env vars — no .env
 docker network create web   # once per machine: the proxy network the stack joins
 just db-up              # dev PostgreSQL on 127.0.0.1:5432
