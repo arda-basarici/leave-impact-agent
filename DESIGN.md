@@ -336,6 +336,64 @@ JQL; tools answer questions about the world and make no decisions (no
 limit, a stale read — surfaces as a tool failure, which is itself an evaluated
 condition. Swapping a vendor (Outlook for Google Calendar) touches one adapter.
 
+**The adapters in code (ruled 2026-09-12, step 9 of the M1 build).** One class per
+system implements both of its ports, since the read and the write side share a
+transport, a scope and an identity map, and which side a caller holds is the type it
+is handed; construction does no I/O, the first request happens on the first call.
+*Frappe.* The facts the HRMS has no home for ride custom fields the site schema adds
+(the team id on the department, the leave id on the application, the office city, the
+country and the zone on the employee); grade and employment type use the Link masters
+hrms already has; a leave's kind is a Leave Type, four masters flagged
+leave-without-pay so an application needs no allocation, balances being outside the
+truth model. Every read filters by the configured company and every write plants it.
+An employee with a skill record is two documents sent in one `insert_many` call,
+which Frappe runs as one transaction (probed live at the step's review); the skill
+map has to name the employee before either exists, so HR Settings names employees by
+their employee number and the document name is the domain id, which makes an employee
+number unique per site rather than per company: one world is one site. *Jira.* The
+adapter is configured with the custom field ids it reads and writes and never
+discovers them at construction; the site preparation resolves the fields by name
+once, places them on the project's screens and hands the ids to the manifest. The
+owner select's options live in a field context scoped to the project, because
+employee ids restart at one in every world and a site-wide list would hold `emp_001`
+twice under two names. A component's members are carried in its description. A work
+item is several writes, so the ticket id field is set in the final request: until
+then no read by id sees the issue, the projector's restart creates the item whole a
+second time, and the orphan stays invisible to the domain; the marker alone is
+declared replayable, since setting a field to a value is the same world whether it
+lands once or twice. Search runs on an index that trails the database, so
+`add_work_item` returns only once its item is readable by id, polling through the
+injected sleep within a bound, and raises `SourceUnreachable` if the index never
+catches up. *Calendar.* A domain event is one Google event per attendee's calendar
+and the reader makes one record from the copies. The event id is derived from the
+domain id, so an insert is idempotent by construction and a 409 means verify, not
+written: the copy is read back and compared, and a copy that differs, or one Google
+holds as cancelled, is malformed. The adapter rides the shared transport with six
+plain calls under one base URL, google-auth keeping only the credential and its
+refresh; the step's tooling ruling had named Google's discovery client, and the
+deviation was taken with the reviewer's concurrence because the client ships no types
+and its own retry loop sleeps outside the injected clock. *The corpus.* Two tables,
+documents and sections, keyed by world version and id; search is full text under the
+English configuration, each section ranked and a document taking its best section's
+rank, the id the stable tie-break; the DDL ships as package data beside the module
+and is applied idempotently at composition; the connection runs in autocommit so a
+select leaves nothing open, and a document lands with its sections inside an explicit
+transaction block, since on a default connection a select opens a transaction the
+driver never closes and the projector's read-miss-add sequence lost every document at
+the module's first review. Since the step 12 rulings the corpus is the application's
+cache of the sealed documents, filled on the instance; the generator's runner holds
+no database credential. *One rule every adapter applies:* a domain id has exactly one
+vendor representation per place. The vendors enforce no such uniqueness, so each
+adapter checks it on every select, link resolution and enumeration, on the copies of
+an event, and on field names at preparation, and a duplicate is `MalformedRecord`,
+never deduplicated and never chosen from. *The calendar map's contract.* The
+secondary calendars' ids are configuration and not discovery, since the app-created
+scope refuses to list calendars: preparation verifies or creates one calendar per
+person and saves the manifest after each obtained id, so an interrupted attempt
+orphans at most one empty calendar, and a manifest lost after creation leaves orphans
+only a human can see; that bound is the whole of the limitation the projection
+paragraph below qualifies.
+
 **Time is world state, never the machine's clock.** Every run receives a
 `RunContext` — scenario id, world (seed) version, a canonical `now` as an instant
 with a reference timezone, and that's the reproducibility boundary: same
@@ -472,10 +530,11 @@ clause stating what coverage requires ("component experience and the required
 skill"), the calendar's free/busy, the active tickets a person owns — and the
 agent derives "Bob is a valid candidate" from them; no system stores that
 conclusion, which is the same rule that keeps decisions out of tools. Comments
-are plantable and their content is a world fact ("[2026-09-12, emp_023 — Bob Kaya]
-blocked on the vendor API"), while the comment's own timestamp and author are vendor
-operational facts (every write is the service account's). The bracketed prefix is
-the physical home of the comment's world date and speaker: a fixed shape the
+are plantable and their content is a world fact ("[comment_005, 2026-09-12,
+emp_023 — Bob Kaya] blocked on the vendor API"), while the comment's own timestamp
+and author are vendor operational facts (every write is the service account's). The
+bracketed prefix is the physical home of the comment's id, world date and speaker: a
+fixed shape the
 generator writes, exactly as the owner field carries `emp_017 — Alice Demir`, so the
 adapter reads it into the comment's structured date and author the way it reads a
 custom field — a format translation, not an interpretation of the prose, which stays
