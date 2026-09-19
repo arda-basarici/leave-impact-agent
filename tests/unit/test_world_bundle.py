@@ -2,8 +2,10 @@
 world version over their realized bytes, the agent-visible file carrying legitimate run inputs
 and no evaluator-only truth, the briefs and the materialization record in the evaluator-only
 file and nowhere else — and the snapshot pair: a reference seed's semantic digest recorded
-beside the generator version, so a changed meaning with an unchanged version fails the suite
-and re-cutting the pair is the deliberate act that accompanies a bump."""
+beside the generator version, under the tier-one plan and under the golden plan since a
+digest sees only the plan it was assembled under, so a changed meaning with an unchanged
+version fails the suite and re-cutting the pins is the deliberate act that accompanies a
+bump."""
 
 import json
 from datetime import date
@@ -34,12 +36,17 @@ from tests.unit.prose_fixture import pending_scenario, record_for, semantic_worl
 WORLD_START = date(2026, 1, 1)
 REFERENCE_SEED = 7
 
-# The snapshot pair. Re-cut both together, on purpose, after inspecting what the generator
-# now produces: bump GENERATOR_VERSION in world/version.py and record the new digest here.
+# The snapshot pins. Re-cut all together, on purpose, after inspecting what the generator
+# now produces: bump GENERATOR_VERSION in world/version.py and record the new digests here.
 # The semantic digest and not the world version, since the prose step: two runs of one seed
-# share the former and differ in the latter by design.
+# share the former and differ in the latter by design. Two plans, because a digest sees
+# only the plan it was assembled under: a later-tier table edit leaves the tier-one digest
+# unmoved (the M1 audit's F-004) and moves the golden one.
 SNAPSHOT_VERSION = GeneratorVersion("15")
 SNAPSHOT_SEMANTIC_DIGEST = "a404fcf09f6aefa143b6670e7798d311d1163c02a385a5e8b261d029dcf0ec3e"
+SNAPSHOT_GOLDEN_SEMANTIC_DIGEST = (
+    "673d6e89954cf6e3c4e842f8839c6e8805e68a4e0853e480e23db7a59d1d5fdd"
+)
 
 
 @pytest.fixture(scope="module")
@@ -61,9 +68,20 @@ def test_the_reference_world_matches_the_snapshot_pair(world: WorldSpec) -> None
     assert world.semantic_digest == semantic_digest(semantic)
     assert world.semantic_digest == SNAPSHOT_SEMANTIC_DIGEST, (
         f"the reference world's meaning changed under generator version {GENERATOR_VERSION}: "
-        "a change to the organization, the plan, a class, a modifier, the slices, the briefs "
-        "or the serialization moved the semantic digest; bump GENERATOR_VERSION and re-cut "
-        "the snapshot pair together, never the digest alone"
+        "a change to the organization, the tier-one plan, a tier-one class, a modifier, the "
+        "slices, the briefs or the serialization moved the semantic digest; bump "
+        "GENERATOR_VERSION and re-cut the snapshot pins together, never a digest alone"
+    )
+
+
+def test_the_reference_world_under_the_golden_plan_matches_its_snapshot() -> None:
+    # The tier-one pin cannot see a later-tier table: with tier two's class counts edited in
+    # memory, fourteen of thirty golden rows differed and the whole suite stayed green.
+    semantic = assemble_semantic_world(REFERENCE_SEED, DEFAULT_PARAMS, WORLD_START, "golden")
+    assert semantic_digest(semantic) == SNAPSHOT_GOLDEN_SEMANTIC_DIGEST, (
+        f"the reference world's golden plan changed under generator version {GENERATOR_VERSION}: "
+        "a later-tier table, class or modifier moved the golden semantic digest; bump "
+        "GENERATOR_VERSION and re-cut the snapshot pins together, never a digest alone"
     )
 
 

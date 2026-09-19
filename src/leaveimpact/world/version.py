@@ -23,10 +23,13 @@ fingerprint of the tables at the current version; a test recomputes it, so editi
 name or a city fails the suite until this file is touched, and the diff then shows
 whether the version moved with the digest. Neither check can prove a bump happened —
 that stays with review, backed by the snapshot pair: a reference seed's *semantic digest*
-recorded beside the generator version, which catches an unbumped change of any kind to
-what the seed determines. The realized bundle's hash is not the pinned value, since the
-prose step made it non-deterministic by design; the semantic digest is what two runs of
-one seed share (the step 14 rulings).
+recorded beside the generator version, which catches an unbumped change to what the seed
+determines under the pinned plans. Two plans are pinned, the tier-one plan and the golden
+plan, because the digest sees only the plan it was assembled under: an edit to a
+later-tier table leaves the tier-one digest exactly where it was and the whole suite
+green (the M1 audit's F-004), and moves the golden one. The realized bundle's hash is not
+the pinned value, since the prose step made it non-deterministic by design; the semantic
+digest is what two runs of one seed share (the step 14 rulings).
 """
 
 from __future__ import annotations
