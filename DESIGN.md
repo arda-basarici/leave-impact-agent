@@ -817,6 +817,70 @@ sealing; every found entity is equal, so it folds no new receipt and changes no
 vendor state, and its only writes are the checkpoint object itself under the world
 bucket's mutable `preparing/<version>/` prefix, saved at the root's start and end.
 
+**The validator in code (ruled 2026-09-12, step 11 of the M1 build).** The world
+spec's content was redrawn when the validator became the spec's first reader from
+bytes: it holds the organization, the plan, the slices, what each scenario planted
+with the date it became observable, each scenario's stable interval, the provenance
+and the digests of the other two files, and nothing truth expects of the plantings;
+the truth manifest holds every key, the authored facts, the briefs, the dated
+world-level fact base and, since the prose step, the materialization record. One home
+per fact across the three: the plantings and the stable intervals moved out of the
+truth manifest, because a validator whose role reads the spec alone could not
+otherwise know what was planted, the evaluator joins the two files by scenario id,
+and the serialized key is narrower than the in-memory construction record on purpose.
+Every sealed codec that stores an instant with its zone beside it decodes through one
+rule in `core`'s world-time module, `instant_at` and `date_at`, in two halves: the
+offset must be the zone's own at that instant, since a pair that disagrees was not
+written by an encoder of this project, and the spelling must be the one `isoformat`
+writes; both are refused rather than normalized, so the encoding of a decoding
+reproduces the bytes for every instant accepted. The vendor adapters sit outside the
+rule, a vendor's spelling being the vendor's and normalizing it exactly an adapter's
+job. The runtime view is stated once, in `world`: what a run can observe is decided
+by the read requests alone, leaves and events narrowed to the scenario's window,
+employees, components and work items enumerated whole, and never by a planting date,
+which is benchmark-private; the whole-world re-verification proves every key under
+that view as well as the dated one before sealing, so a world whose key held only
+because a later or foreign planting stayed hidden is refused at generation rather
+than discovered live, and the validator builds its expected side from the same
+module, so what it compares the live reads against is what the runtime should see and
+not what truth dated. The validator itself runs the integrity chain before any read:
+the manifest is decoded first and must be at `projected`, its recorded digest
+authenticates the raw world-spec bytes before they are decoded, the spec's cited
+digest authenticates the scenario-spec bytes, and the truth manifest's digest, which
+both accessible artifacts record, is compared across them without the truth ever
+being read; a refused input is an `IntegrityRefused`, never a finding, and costs no
+vendor call. Then the reads, as few as the claims need: each enumeration once; the
+windowed kinds, leaves and events, once over the world horizon, the union of every
+scenario window, for exactness and once per scenario window for the view; teams and
+documents by id, since neither port enumerates them; and the documents' held ids
+through the sealed-document reader's inspection outside the port, the one enumeration
+the investigator never makes, the documents read from the world bucket's sealed
+objects since the step 12 rulings. Three layered checks in dependency order: identity
+exactness per kind, missing and foreign both named; record fidelity by equality, run
+for a kind only when its exactness passed; and each scenario's derived view, run only
+when every kind it derives from passed, a check that could not run saying so and
+`not_run` never counting as passed. That chain is complete for the structured tier:
+the facts only prose carries are proven through the materializer's containment gates
+and the corpus's read fidelity, not through the validator. The verdict is its own
+artifact: the world version, the validator version that judged, the SHA-256 of the
+manifest bytes it read (a re-projection of the same world onto other sites would
+leave version and digests unchanged while changing every receipt, so only that digest
+ties a verdict to a projection), the three artifacts' digests, and every finding in
+full, with approval computed as exactly "every check passed"; no timestamp, and the
+manifest's stage not repeated, superseding that clause of the step's ruling, since
+the bound manifest proves its own stage when decoded. Its key is
+`worlds/<version>/verdicts/<run-id>-<run-attempt>.json`, and the serving rule is a
+stated contract whose decoder arrives with its first consumer, the serving check at
+the demo milestone. Both the checkpoint and the verdict go through one byte primitive
+in `adapters`, which knows bytes and a path and nothing of either record, since
+neither shell may be the other's dependency. Its two guarantees are stated apart so
+that atomic is never read as durable: atomic visibility on every platform, a sibling
+temporary flushed and renamed over the target so a reader sees the whole old file or
+the whole new one; crash durability on the POSIX production platform only, the parent
+directory synced after the rename, a failing sync raising, with no such barrier
+claimed on the development platform. One writer per target is the invariant, the
+temporary's name fixed so a dead process's debris is overwritten rather than adopted.
+
 **The organization in code (ruled 2026-09-11, step 6 of the M1 build).** Semantic
 generation identifies an organization by three separate inputs — the seed is the
 stochastic realization, `OrgParams` the shape (every dial that can change the org lives
