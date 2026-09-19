@@ -19,17 +19,27 @@ contain its own digest, so the file digests are computed first, the completed ob
 serialized through the repository's one byte rule (``canonical_bytes``: fixed field order,
 compact separators, UTF-8 through), and the bytes are hashed.
 
-Two modes. ``build`` reads the declaration the auditor wrote
+Three modes. ``build`` reads the declaration the auditor wrote
 (``data/audit/index_declaration_<v8>.json``), the four local files and the sealed world spec
 (for the full semantic digest, seed, plan and generator version, under the SSO profile),
 and writes ``data/audit/index_<v8>.json``, printing the identity. ``verify`` re-hashes the
 local files against a written index and re-hashes the index itself, so the identity can be
-checked before upload and after. The upload is not here yet: it waits for the truth
-bucket's ``audit/`` prefix to become create-only (the platform ticket of 2026-09-17) and
-will use the sealer's conditional create.
+checked before upload and after. ``upload`` seals the audit: after a passing verify, the
+index and the three files it binds go under ``audit/<world-version>/<index-digest>/``
+through the sealer's conditional create (the object-store writer's ``put_if_absent``: a
+key already holding these bytes is accepted as present and equal, one holding other bytes
+refuses, a plain put is refused by the bucket policy), each object read back and re-hashed
+against the local digest, the version ids printed for the stream's audit folder. The
+sheet is not uploaded: it is regenerable and its digest is in the index. The object names
+under the prefix are this script's and may move; the index binds the files by digest, so
+a reader verifies by content, never by name. The truth bucket's ``audit/`` prefix became
+create-only on 2026-09-19 (the platform ticket of 2026-09-17, its probe passed). This is a
+human-run tool under the SSO profile, outside the application's import law; the writer
+is imported inside ``upload`` alone.
 
 Usage: ``python scripts/audit_index.py build <world_version>`` with ``AWS_PROFILE`` set;
-``python scripts/audit_index.py verify <world_version>`` offline.
+``python scripts/audit_index.py verify <world_version>`` offline;
+``python scripts/audit_index.py upload <world_version>`` with ``AWS_PROFILE`` set.
 """
 
 from __future__ import annotations
@@ -184,12 +194,52 @@ def verify(version: str) -> int:
     return 1 if failed else 0
 
 
+UPLOADED_NAMES = {"rulings": "rulings.md", "summary": "summary.md", "checklist": "checklist.md"}
+"""The three bound files' object names under the prefix; the index is ``index.json``."""
+
+
+def upload(version: str) -> int:
+    """Seal the verified audit under its content-addressed prefix, one conditional create
+    per object, each read back and re-hashed; refuses to start on a failing verify."""
+    if verify(version) != 0:
+        print("FAIL: verify did not pass; nothing uploaded")
+        return 1
+    from leaveimpact.adapters.object_store.s3 import s3_client
+    from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
+
+    data = index_path(version).read_bytes()
+    identity = identity_of(data)
+    prefix = f"audit/{version}/{identity}/"
+    files = audit_files(version)
+    objects = [(prefix + "index.json", data)]
+    objects += [(prefix + name, files[role].read_bytes()) for role, name in UPLOADED_NAMES.items()]
+    store = S3ObjectWriter(s3_client(REGION), TRUTH_BUCKET)
+    failed = False
+    for key, content in objects:
+        receipt = store.put_if_absent(key, content)
+        stored = store.get(key)
+        digest = hashlib.sha256(content).hexdigest()
+        read_back = (
+            "read back equal"
+            if stored is not None and stored.content == content
+            else "**READ-BACK MISMATCH**"
+        )
+        failed |= stored is None or stored.content != content
+        print(key)
+        print(f"    {receipt.outcome.value}, version {receipt.version_id}")
+        print(f"    sha256 {digest}, {read_back}")
+    print(f"audit identity: {identity}")
+    return 1 if failed else 0
+
+
 def main() -> int:
     match sys.argv[1:]:
         case ["build", version]:
             return build(version)
         case ["verify", version]:
             return verify(version)
+        case ["upload", version]:
+            return upload(version)
         case _:
             print(__doc__)
             return 2
