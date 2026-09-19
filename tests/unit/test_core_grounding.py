@@ -3,6 +3,7 @@ classes plant, a dated ticket is a deadline or nothing, a stale document never g
 obligation the tracker contradicts, an outage leaves the grounding open rather than false,
 and the enumerator is the same predicate applied to every candidate."""
 
+import json
 from dataclasses import replace
 from datetime import date
 
@@ -23,10 +24,13 @@ from leaveimpact.core import (
     Unresolved,
     WorkItemStatus,
     clause_ref,
+    decode_value,
     derive_impacts,
     employee_ref,
+    encode_value,
     event_ref,
     ground_impact,
+    predicate,
     work_item_ref,
 )
 from leaveimpact.core.ids import clause_id
@@ -91,6 +95,14 @@ def test_a_done_ticket_grounds_nothing() -> None:
     done = world_with(replace(STATUS, value=WorkItemStatus.DONE), without=(STATUS, DUE))
     view = done.at(w.NOW, NORMAL)
     assert ground(w.DEADLINE, view=view) == Ungrounded()
+    assert ground(TICKET_DUTY, view=view) == Ungrounded()
+
+
+def test_a_done_ticket_grounds_nothing_after_its_status_crossed_the_wire() -> None:
+    spec = predicate(PredicateName.WORK_ITEM_STATUS).value_spec
+    wire = json.loads(json.dumps(encode_value(WorkItemStatus.DONE, spec)))
+    decoded = replace(STATUS, value=decode_value(wire, spec))
+    view = world_with(decoded, without=(STATUS, DUE)).at(w.NOW, NORMAL)
     assert ground(TICKET_DUTY, view=view) == Ungrounded()
 
 

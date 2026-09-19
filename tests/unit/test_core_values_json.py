@@ -2,6 +2,7 @@
 and a tag that disagrees with the spec, a value outside the vocabulary, a malformed
 criterion or a non-integer count all fail at decode."""
 
+import json
 from datetime import UTC, date, datetime
 from zoneinfo import ZoneInfo
 
@@ -62,7 +63,20 @@ def test_every_kind_round_trips_under_its_own_tag(
 ) -> None:
     encoded = encode_value(value, spec)
     assert encoded["kind"] == tag
-    assert decode_value(encoded, spec) == value
+    # Through bytes, not the dict alone: the encoder places a StrEnum member itself in
+    # the object, so a dict round trip keeps the member and hides a decoder that
+    # returns the string. Equality cannot see that either (the member equals its
+    # string); the type is the claim.
+    decoded = decode_value(json.loads(json.dumps(encoded)), spec)
+    assert decoded == value
+    assert type(decoded) is type(value)
+
+
+def test_an_enum_crossing_json_bytes_comes_back_as_its_member() -> None:
+    spec = enum_value(WorkItemStatus)
+    wire = json.loads(json.dumps(encode_value(WorkItemStatus.DONE, spec)))
+    decoded = decode_value(wire, spec)
+    assert decoded is WorkItemStatus.DONE
 
 
 def test_a_requirement_criterion_is_tagged_on_the_wire() -> None:

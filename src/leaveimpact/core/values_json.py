@@ -5,7 +5,9 @@ predicate beside it declares its spec, so the codec is spec-driven: the encoder 
 the spec's kind as the tag, and the decoder refuses a tag that disagrees with the spec
 before it reads the payload (DESIGN, "The rules in code": the JSON tag is the spec's
 kind rather than a second declaration). Enum members and skills travel as strings
-under their own tags; a requirement's criteria carry a ``kind`` each so that a sealed
+under their own tags, and an enum re-enters through its vocabulary on the way back,
+since a rule compares the member by identity and a decoded string equal to the member
+is not the member; a requirement's criteria carry a ``kind`` each so that a sealed
 answer key survives a later criterion; an instant span keeps its IANA zone beside
 the offset-bearing timestamps, since the zone is provenance for how a human read the
 time and ``fromisoformat`` alone would flatten it to an offset.
@@ -120,7 +122,13 @@ def decode_value(data: Mapping[str, object], spec: ValueSpec) -> FactValue:
         raise ValueError(f"a fact value tagged {tag!r} where {spec.describe()} is declared")
     value = _decode_payload(spec.kind, data)
     spec.check(value)
-    return value
+    if spec.vocabulary is None:
+        return value
+    # The spec admits a member by string equality, and a rule compares the member by
+    # identity (a done ticket is ``is not DONE``), so the string re-enters through the
+    # vocabulary: equal to the member is not the member.
+    assert isinstance(value, str)
+    return spec.vocabulary(value)
 
 
 def _decode_payload(kind: ValueKind, data: Mapping[str, object]) -> FactValue:
