@@ -9,13 +9,18 @@ agent investigates the exceptions; the human decides.
 
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
-**Status: engineering baseline, no application code yet.** The vision is fixed
-(VISION.md); DESIGN.md carries the rulings as they land — hosting and verification
-so far. What exists is the floor the application will be built on: a typed, linted,
-tested Python package (empty by design), CI with a real PostgreSQL service, a
-multi-arch container published to GHCR on every green push to `main`, and the
-Compose stack the instance will run. The probe days (`probes/README.md`) come next.
-This README grows with the build and never claims ahead of it.
+**Status: the world milestone closed on 2026-09-19; the investigator milestone opens
+with its own design session.** What exists is the benchmark and the machinery that
+makes it trustworthy. A generator builds a synthetic organization and thirty scenarios
+in three difficulty tiers from a seed, materializes the prose those scenarios need
+through gated model calls, projects the world into real Frappe HR, Jira and Google
+Calendar instances, and seals the answer key where the application cannot reach it. An
+independent validator re-reads the live systems and approves a world only when every
+enumeration is exact and every record equals its planting. A hand-audit protocol, under
+which the first golden world was read scenario by scenario, sealed its audit beside the
+world. No agent exists yet: its harness, framework and evaluator are the next
+milestone's design, made on this milestone's evidence. This README grows with the build
+and never claims ahead of it.
 
 ## Run the baseline
 
@@ -28,25 +33,55 @@ just check              # what CI runs: lint, types, unit tests + doctests, docs
 # set POSTGRES_PASSWORD (letters+digits) and PGDATA_HOST (absolute path) as user env vars — no .env
 docker network create web   # once per machine: the proxy network the stack joins
 just db-up              # dev PostgreSQL on 127.0.0.1:5432
-just test-integration   # the integration level against it
+just test-integration   # the integration level: recorded vendor cassettes + the real PostgreSQL
 just db-down
 ```
 
-`just --list` shows the rest (`coverage`, `test-all`, `docs`).
+`just --list` shows the rest (`coverage`, `test-all`, `test-live`, `test-record`,
+`docs`). The integration level replays recorded HTTP cassettes of the three vendor
+sandboxes, so it needs no credentials; re-recording them does, and the `live` level
+reaches the two prose models for real.
+
+## The benchmark workflows
+
+A world is never generated from a workstation or from the application's host. `generate
+world` and `validate world` are dispatched GitHub workflows under the reviewer-gated
+`benchmark` environment, each assuming its own OIDC-trusted AWS role: the generator
+writes the world and its truth, the validator reads the world and writes nothing but its
+verdict. `probe bedrock` is the live check on the two prose models. The application's
+own role reads projected worlds and has no capability over the truth, which a boundary
+probe proves on every deploy.
 
 ## Layout
 
-- `src/leaveimpact/` — the package: `core` (the domain, pure) · `world` (the
-  benchmark, pure) · `adapters` (one external boundary each) · `generator` and
-  `validator` (the shells); the layout and its import law are in ARCHITECTURE.md and
-  enforced by `tests/unit/test_import_law.py`. `tests/{unit,integration,e2e}/` — the
-  test levels (DESIGN, "Verification"); `probes/` — preregistered unknowns and their
-  findings; `scripts/regen_docs.py` — the API reference, generated from docstrings,
-  never edited.
+- `src/leaveimpact/` — the package: `core` (the domain and its pure rules) · `world`
+  (the benchmark: the organization, the scenarios, the truth, the sealed artifacts) ·
+  `adapters` (one external boundary each: Frappe HR, Jira, Google Calendar, the document
+  corpus, the prose models, the object store) · `generator` and `validator` (the
+  shells). The layout and its import law are in ARCHITECTURE.md and enforced by
+  `tests/unit/test_import_law.py`.
+- `tests/{unit,integration,live,e2e}/` — the test levels (DESIGN, "Verification"); the
+  vendor cassettes live under `tests/integration/cassettes/`.
+- `AUDIT_METHODOLOGY.md` — how a generated world becomes a golden set;
+  `scripts/audit_sheet.py` renders the sheet the audit reads and `scripts/audit_index.py`
+  verifies and seals the audit's index. The audit's output holds answer keys and stays
+  in the truth bucket, never in this tree.
+- `probes/` — the preregistered unknowns of the probe days and their findings;
+  `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
 - `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
   `compose.dev.yaml` — the laptop overlay; `deploy/` — the deployment entrypoint the
   CI deploy job runs on the host. The host itself (Terraform, the deploy role, the
   parameter names) is owned by the `platform` repository, stack `leave-impact-prod`.
+- `.github/workflows/` — `ci` (check, image, deploy behind an approval), the two
+  benchmark workflows, the prose probe, and the custom Frappe image build.
+
+## Reading order
+
+DESIGN.md holds the decisions and their reasoning, the answer-key contract first and
+hosting as its appendix; ARCHITECTURE.md the package shape and the import law;
+AUDIT_METHODOLOGY.md what "golden" means here; `probes/FINDINGS.md` what the probe days
+established; REPORT_NOTES.md the decision narratives, newest first; VISION.md the
+founding snapshot, frozen.
 
 ## License
 
