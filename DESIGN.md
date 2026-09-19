@@ -22,234 +22,221 @@ from the first milestone on.
 
 ---
 
-## Hosting and the cloud line
+### The answer-key contract (2026-09-09)
 
-The vision fixed *deployed from day one* and deferred the target. Two facts settled
-the shape before any option was weighed: the existing netcup box (then 2 vCPU /
-4 GB) already hosts SteamLens and sat at ~0.65 GB used, measured idle and in-job;
-and Frappe's recommended footprint is 8 GB. The probe days replaced the
-recommendation with a measurement: the box was upgraded in place to 8 vCPU / 16 GB
-on 2026-08-22, and Frappe HR with a site installed idles at ~0.9 GB on it
-(`probes/FINDINGS.md`, box-upgrade and frappe-up). The "bigger host" premise was
-vendor sizing, not a measured need; the split below stands on its other reasons.
-The question is where the application itself runs.
+**The report and the key speak one typed vocabulary, frozen at the world
+milestone.** Everything downstream grades on it and the generator emits truth in
+the same words, so the types, their grading keys and the four semantic rules below
+are lasting; field names and enum members can still grow. Six claim types:
 
-**The hybrid split.** The application runs on AWS; Frappe HR stays on the netcup
-box. Frappe is a heavy, stateful, multi-process system used *as* a realistic HRIS —
-nothing about hosting it on a hyperscaler adds to the product, while cheap persistent
-compute for it already exists. The application is the engineering that matters, and
-a cloud deployment with the same operating discipline as the box is itself a
-deliverable of this project. The split also makes the boundary honest: the
-application reaches Frappe as a remote system behind an **`HRProvider` adapter**
-over an authenticated API, exactly as it would reach a customer's BambooHR or
-Personio, rather than pretending a local container is an enterprise integration. A
-side effect feeds the evaluation spine — *HRIS unavailable* becomes a real failure
-mode the system must degrade through, not a mock-only one. Rejected: everything on
-the box (no cloud deployment at all), the box plus peripheral AWS services (an app
-that "uses S3 and Bedrock" is not a cloud deployment), and everything on AWS (paying
-to host the simulation for no product reason).
+```text
+impact                key (leave_id, subtype, artifact)   subtype: deadline | meeting | responsibility
+constraint            key (clause_id, applies_to)
+candidate_assessment  key (impact_key, employee_id)       verdict: viable | non_viable | unknown, reasons[]
+source_conflict       key (entity, predicate)             observations[], resolved_value, authority_rule
+unknown               key (subject, required_fact)        reason: absent | inaccessible | ambiguous | conflicting | insufficient
+coverage_action       key (impact_key)                    action: assign | uncovered | unknown, assignee_ids[], rationale?
 
-**Hosts consume artifacts; they never manufacture them** (ruled 2026-08-23, when
-Frappe HR turned out to need a custom image — no official one carries the `hrms`
-app). The box's rule from SteamLens holds for every deployable in this project:
-`source → CI build → registry → host`, the host references an immutable digest
-and pulls. CI rebuilds an image only when its *inputs* change (`apps.json`, the
-build recipe), never when deployment settings do — image definition and
-deployment definition are different artifacts. Rejected: a one-time build on the
-box (a special-case path for fifteen minutes' gain) and builds from the
-workstation (a release step in an undocumented environment). What the rule buys
-is the claim that the production machine is replaceable.
+shared, serialized: claim_id, type, evidence_refs[], derived_from_claim_ids[]
+computed from the payload, never serialized: the grading key, entity_refs[]
+```
 
-**The application host: one EC2 instance, one Compose stack.** A `t4g.small`
-(2 vCPU / 2 GB, arm) runs the application and its PostgreSQL in Docker Compose, the
-database on a gp3 EBS volume, Cloudflare in front as the only ingress (no load
-balancer), inbound restricted to Cloudflare's ranges, administrative access through
-SSM Session Manager with no public SSH port. It is the cheapest always-on shape that
-keeps PostgreSQL local; the managed alternatives were priced and rejected — an
-always-on Fargate service plus ALB plus RDS lands near 2.5× the cost for no
-architectural benefit at one-process scale (RDS is a cost floor; the ALB is pure
-overhead behind Cloudflare), and a serverless agent (Lambda / Step Functions) would
-deform multi-minute narrated runs around a 15-minute ceiling. Self-managed
-PostgreSQL carries its own obligation: a nightly backup shipped off-host (the
-SteamLens pattern with `pg_dump` in place of the SQLite snapshot) and **one
-demonstrated restore** as an exit criterion, since owning recovery is the price of
-not paying for RDS.
+*(Keys as ruled at the claim-vocabulary step, 2026-09-10; the 2026-09-09 draft keyed
+an impact by `(subtype, artifact_id)`, a constraint by a `rule_id`, an assessment by a
+`need_id`, and gave the coverage action its own `basis_claim_ids`.)*
 
-**PostgreSQL as the application's truth.** The application store is PostgreSQL, not
-SQLite: agent runs, run events, tool calls, evidence references, coverage plans,
-manager decisions, evaluation runs, and scenario metadata form a genuinely relational
-model, and the framework's checkpoints land in the same database so a run survives
-its worker. Frappe keeps its own MariaDB — Frappe-on-PostgreSQL is the less-trodden
-path and the vision's first-named risk is week-one infrastructure eating the
-schedule. Ownership is clean: Frappe's MariaDB holds HR truth, PostgreSQL holds
-application and orchestration truth, S3 holds immutable exported artifacts.
-Rejected: PostgreSQL on the netcup box reached remotely, like Frappe — the
-application store is chatty (a checkpoint per framework node, an event per narrated
-line) where Frappe is coarse, so every run would pay hundreds of cross-provider
-round trips; it would also put the production write path on a public link and
-confound the HRIS-unavailable evaluation case with the app's own outage. It buys
-~$6/mo and unlocks no better AWS shape — the ephemeral tier it would cheapen is the
-one where a remote store hurts most. The box's headroom serves instead as an
-off-host backup destination and, if useful, a development PostgreSQL.
+Impacts describe what the leave affects; constraints what a valid response must
+obey; candidate assessments who could satisfy a need; coverage actions what the
+proposed plan does; conflicts and unknowns where the evidence chain could not be
+established. A responsibility is an existing obligation attached to the leaver — an
+open ticket, a named client contact in a document — and is an impact; "a release
+needs two qualified engineers" is normative and is a constraint, cited from its
+clause, never an impact of the leave. Every type has its own grading identity
+because a universal `(type, entity_id)` fails as soon as a claim is relational (an
+assessment is a person *for* a need, a conflict is an entity *and* a predicate).
+Evidence refs are plural from the first schema: a single non-viability can rest on
+Calendar, Frappe and a clause at once, and a single-source field would tempt the
+agent to cite one fragment of a multi-source inference. Not added, deliberately:
+`violation` (the constraint checker emits those), `evidence` (that is provenance),
+`risk` (an impact already is one), `reasoning` (report layer, not benchmark
+ontology); a `dependency` impact subtype waits for a scenario class that needs it.
 
-**The job seam: runs write an event log, surfaces read it.** An investigation is a
-job that appends narrated events and checkpoints to PostgreSQL; the UI streams by
-reading that log, never by holding the worker's socket. The seam is justified on its
-own — it is what makes runs resumable, auditable, and replayable — and it is also
-what makes the worker's location a deployment detail: in-process on the instance
-today, an ephemeral task later, with the database swapped by a connection string. No
-generic compute abstraction is built on top of it; the seam is the event log and
-nothing more.
+**The vocabulary in code (ruled 2026-09-10, step 3 of the M1 build).** A
+constraint's rule is its clause: `clause_id` is the key, so a constraint the agent
+cannot trace to a clause cannot be expressed, which is the grounding rule made a type.
+Clause-backed requirements become constraint claims; deterministic domain rules (the
+cover may not itself be on leave) constrain validity inside the viability rule
+without becoming claims. There is no need apart from an impact: an impact *is* the
+coverage need, cardinality and eligibility come from constraints and rules, so the
+assessment and the coverage action key on the impact's key. That key carries the
+leave: a run investigates one leave, but the truth manifest holds every scenario's
+impacts side by side and an impact's identity is world-wide, "this leave affects
+this artifact". Grading identity is never a claim id: claim ids are minted by
+whichever emitter wrote the report, so the same world fact carries different ids in
+the agent's report and the answer key; a claim's grading key is computed from its own
+fields and identifies the fact across emitters, while `derived_from_claim_ids` links
+claims inside one report (the coverage action's former `basis_claim_ids` was the same
+relation under a second name and is folded in). References are typed at run time:
+an `EntityRef` pairs an entity kind with an id and validates the id's namespace at
+construction, because a union of `NewType` strings is invisible once the type checker
+leaves; an impact key validates its subtype against the kind (deadline → work item,
+meeting → event, responsibility → work item or clause, since an obligation may be a
+ticket or a runbook paragraph). `entity_refs` say what a claim is about,
+`evidence_refs` (source, target, field) say where it was read. A conflict's
+observations carry typed values (`FactValue`: an entity reference, text, or a date,
+tagged in JSON; the fact base owns and may extend the union from step 4), never text
+flattened for convenience, because resolution compares them. A coverage action names
+its assignees in the plural (the cardinality clause needs two) and carries an
+optional rationale, the only text the LLM judge reads. The assessment's reason
+vocabulary is seeded from what this document already names (skill, component,
+availability, load, hard rule) and closed by the viability rule at step 4.
+Serialization is a stdlib codec in one module, canonical (fixed field order, compact,
+tagged by claim type), decoding through the same constructors the code path uses so
+validation has one home; pydantic stays out of `core`, and may enter at the agent's
+structured-output edge in the investigator milestone without the domain knowing.
+A claim set is well-formed when claim ids are unique, every claim-id reference
+resolves to another claim, the provenance graph is acyclic, and no two claims of one
+type share a grading key; the semantic chain checks (an unknown assessment rests on
+an unknown claim) belong to the rules.
 
-**The executor trust boundary.** If post-approval execution survives its own design
-fork (an open question below), the writes run in a **deterministic executor
-Lambda** — not a second agent — with its own IAM role that is the sole principal
-able to read the write credentials in Parameter Store, and with no model-invocation
-permission at all. The investigator's identity cannot retrieve those secrets; they
-do not exist on its host. Input is the human-approved action manifest, output is the
-exact approved writes plus an audit artifact. Two principals on one host would be
-two configurations, not a boundary; a separate execution identity is what makes the
-least-privilege claim provable rather than intended.
+**The rules in code (ruled 2026-09-10, step 4 of the M1 build).** The fact base is
+the rules' only world: a fact is a subject, a predicate, a typed value, the evidence
+reference it was read from and the world date at which it became observable, and a
+rule that has to reach back into an entity is not reading the fact base, which is why
+two rows joined the registry (`scheduled_at`, an event's half-open instant span;
+`in_component`, a work item's component). Each registry row now declares its value
+spec — an entity reference of a kind, a closed enum vocabulary `core` owns, a skill
+slug whose seeded set only `world` knows, a date, a date span, an instant span, or a
+requirement — a fact validates against the spec at construction, and the JSON tag is
+the spec's kind rather than a second declaration. Multi-valued predicates are one
+fact per value. `on_leave` stores the inclusive date span with the leave record as
+provenance; `requires` stores a requirement, a minimum count and a tuple of typed
+criteria (skill, employment type; grade and country join with their predicates when
+a clause plants them), tagged in JSON so a sealed key survives a later criterion.
+Country, timezone and grade have no predicate until a rule reads one. Absence is a
+record of its own: a `Gap` says the record was observed and this field held no
+value, planted where a scenario class plants a missing fact, never a failed read —
+a failed read is the run condition, a separate `RunCondition` (the reachable
+sources) passed beside `RunContext` because one scenario runs under several. The
+closure rule reads facts and gaps visible at `now` from reachable sources and
+answers in order: a positive fact → known true, with the facts that established
+it; a source of the predicate's declared domain unreachable → unknown /
+inaccessible; a gap → unknown / absent; an open domain → unknown / insufficient;
+otherwise known false. Zero facts mean false only after the evidence domain has been
+fully observed, and a gap blocks that inference. Closure derives three unknown
+reasons and the claim vocabulary keeps five: `ambiguous` and `conflicting` are the
+agent's to emit, never the rule's. The entity's `None`-versus-empty distinction maps
+to gap-versus-no-facts in `core`'s derivation (the ports ruling, below; step 4 had
+placed the per-field table in `world`), and a ticket without a due date is an
+observed negative, not a gap. Viability evaluates
+every criterion through closure and combines: any known false → non-viable with
+every failing reason, otherwise any unknown → unknown deriving from one unknown
+claim per unresolved fact, otherwise viable. The criteria and their sources of
+truth: the required skill from the clause-backed requirements that apply to the
+impact's artifact or its component (`skill`); membership of a work item's component,
+a domain rule (`component`); not on leave over the need's window, the investigated
+leave's span for a deadline or responsibility and the event's own span for a
+meeting, read in the run's reference timezone, and not attending another event
+overlapping a meeting (`availability`); the requirement's policy criteria
+(`hard_rule`). The investigated leave's span is a parameter of the rule, never a fact the rule
+establishes; who supplies it differs — the evaluator from the scenario spec, the
+investigator from the leave record it read through the people port (the ports
+ruling, below). An unreadable work-item component is one unresolved criterion, not an
+unresolved need, so a known failure still settles a candidate; an unreadable meeting
+schedule leaves no window to ask about and is an unresolved need for everyone. `load` is pruned: no first-set
+class names it, and a threshold would be either a domain constant the agent can
+only be told or a clause no scenario uses; it returns when a class establishes its
+semantics. The leaver fails through `on_leave` like anyone. A requirement's count
+never touches individual viability: criteria assess a candidate, count judges a
+plan, so one viable person against a two-person clause is a viable candidate and an
+invalid plan. Three record-returning functions carry the plan side, because a
+defective plan is a graded outcome: the plan check resolves each constraint claim's
+clause to its `requires` fact — the agent establishes which clause applies and never
+transcribes its content — and reports `insufficient_cardinality` (per requirement,
+count a minimum, an implicit minimum of one without a clause; under the conjunctive
+model this reduces to the largest count, a property of the current semantics, not
+a theorem), `missing_assessment` and `non_viable_assignee` (an unknown assignee is
+not viable for an assign); the truth outcome over an explicit candidate universe,
+never the `must_assess` set, with `V` viable and `U` unknown against count `n`: `V
+≥ n` assign, `V + U < n` uncovered, otherwise unknown — the expected action is
+truth, an expected assignee set is not; and the chain checks, report-internal and
+named for what they know (an unknown assessment derives from unknown claims shaped
+as the rule emits them — about the candidate, the impact's artifact, or a clause the
+report's own constraints cite for something that could apply to the impact, on a
+predicate the rule reads for that subject — an unknown action from an unknown
+assessment, an assign action's assignees each hold a viable assessment, an
+uncovered action holds no viable one, a conflict resolves to the system of
+record's observation under the rule it cites, every impact has exactly one
+coverage action and every action an impact), with a separate completeness check
+that takes the universe and lists every member without an assessment, so
+`uncovered` is never inferred from a report that simply stopped assessing.
 
-**The surrounding AWS set, and nothing more.** All of it under Terraform, owned by
-the `platform` repository since 2026-08-27 (its stack `leave-impact-prod`; this
-repository consumes the contract values its `projects/leave-impact/README.md`
-publishes — the deploy role ARN, the instance tag, the `/leave-agent/` parameter
-prefix — and owns only its deployment entrypoint, `deploy/`): IAM roles
-and policies; GitHub Actions deploys through OIDC federation (temporary credentials,
-trust policy pinned to the repository and the `production` environment through the
-ID-based subject GitHub emits — no stored keys); SSM Parameter Store SecureString for
-secrets (free tier; Secrets Manager's per-secret fee buys rotation nothing here needs);
-CloudWatch for logs and alarms; S3 for golden datasets, evaluation reports, shipped
-audit trails, and precomputed demo replays; AWS Budgets with a cost alert; Bedrock as
-**the sole model provider behind a model seam** — the Converse API gives one
-request shape across model families, so the seam's question is *which model per
-role* (investigator, extraction sub-tasks, grading), answered by the evaluation on
-the golden set rather than fixed up front — from the models the instance role can
-*call*, not the catalogue: Nova opens with no request, Anthropic's 4.x needs a
-use-case form (opens per model within ~20 min), the 5-series is account-gated with
-no resolution path as of 2026-08-26 (`probes/captures/bedrock/models.md`); `eu.`
-inference profiles cost `global.` + 10 %; the seam also checks a model's feature
-support (tool use, structured output, caching) at startup so a mismatch fails loudly.
-A direct Anthropic API path is deliberately not committed to — the seam admits it
-later if a reason appears. Bedrock stays one supporting component rather than the
-centrepiece. Not added until a
-requirement names it: ECS services, EKS, RDS, DynamoDB, SQS, EventBridge, CloudFront,
-ElastiCache, OpenSearch, a managed vector store. One bootstrap exception is
-recorded deliberately: the Budgets alert was created by hand before any
-infrastructure existed, so the guardrail predates the resources; it is imported
-under Terraform once the infrastructure code exists.
+**Four semantic rules travel with the vocabulary.** *Viability is relational and
+preference is never truth:* the key states whether `(need, employee)` is viable and
+why; "the best person" has no exact truth unless an optimization rule is declared,
+and none is, which keeps candidate grading from smuggling a reference plan back in.
+*Extra candidates are judged from the truth fact base, never from re-reading the
+world:* the scenario plants a bounded `must_assess` set with authored verdicts (the
+deliberate near-misses that make "why not Deniz?" objectively gradable), and any
+further candidate the agent proposes is recomputed by the evaluator's pure viability
+rule over evaluator-only normalized facts — every planted atomic fact in structured
+form with its provenance, wherever it physically landed, so a skill that lives only
+in a ticket comment is a fact the evaluator holds without solving the agent's
+extraction problem. The evaluator and the deterministic core share those pure rules,
+which is not the generator-echo problem but does admit a shared rule bug; the
+generator invariant that closes it: for every `must_assess` candidate the authored
+verdict must equal the rule's verdict over the fact base, and a mismatch fails
+scenario generation rather than grading an agent wrong. *Conflicting observations
+resolve through a deterministic authority table:* "live wins" is the design intent,
+`system_of_record_wins` is the rule — each normalized predicate has exactly one
+system of record (employment and location facts → Frappe, ticket owner and status →
+Jira, meeting participation → Calendar, procedure requirements → the corpus) and a
+document is never the record for an operational fact about a person or a work item,
+while the corpus is the record for what a procedure requires, a normative fact that
+exists nowhere else; conflicts are keyed by `(entity,
+predicate)`, not by field names that happen to look alike (an office location and
+a calendar timezone are not a contradiction), and the conflict claim cites the rule
+id so precedence is testable instead of intuited. *Closed-world reasoning applies
+per declared evidence domain:* each predicate declares the sources that
+collectively hold all admissible evidence for it in this synthetic world and whether
+that domain is closed; positive evidence → known true; no positive evidence with a
+closed domain and every required source available → known false; no positive
+evidence with an open or incomplete domain, or a required source absent or
+inaccessible → unknown. So a skills list without Kafka is `non_viable / skill`, an
+explicitly empty list is the same, a missing skills field is `unknown / absent`,
+and a closed domain whose Jira half is unreachable in this run is `unknown /
+inaccessible` even when the HR half shows nothing — which is why expected verdicts
+are derived per run condition from facts plus closure declarations rather than
+stored: a tool-failure run against the same scenario legitimately turns a
+`non_viable` into an `unknown`, and that difference is the tool-failure metric.
 
-**The netcup box: in-place upgrade to VPS Lite 3 G12s.** The provider's panel
-confirms an in-place upgrade within the product generation — reboot-only, no setup
-fee, the old tariff refunded pro rata, a new six-month term. Lite 3 (8 vCPU / 16 GB /
-320 GB, €11.67/mo net, +€7.57 over the current tariff) over Lite 2 (4 vCPU / 8 GB,
-+€2.55): 8 GB is Frappe's recommended footprint *alone*, the box's own design is one
-VPS running every project, downgrades do not exist while each upgrade resets the
-term — so headroom is bought once, at box level, rather than in a second upgrade
-later. The upgrade was a probe-day step, not a design-time action: done 2026-08-22
-with `free` captured before and after (15 Gi visible), and Frappe's footprint is
-now a measured number — ~0.9 GB idle with the site installed, so the 8 GB bought
-headroom rather than met a need. Box rules that arrive with the new tenant: Compose memory
-limits on the Frappe stack and a swapfile, so the heaviest tenant cannot starve
-SteamLens. Rejected: a second box (two proxies, two firewalls, two backup paths for
-no benefit once the in-place upgrade proved reboot-only).
+**Three coverage outcomes, and the unknowns chain.** `assign` is a positive
+conclusion, `uncovered` a negative one (the evidence suffices and nobody qualifies —
+the vision's own "no qualified coverage exists for the migration" case), `unknown`
+an epistemic limit. Keeping the second apart from the third is what stops the
+benchmark rewarding caution: "I don't know whether anyone can cover this" against a
+complete world that establishes nobody can is wrong, and so is "nobody can" when a
+required source was unreachable. The word `unknown` appears at three levels with
+one relation between them: an `unknown` claim records the missing fact and its
+reason, an assessment whose verdict is `unknown` derives from that claim, a coverage
+action whose action is `unknown` rests on the assessments — missing evidence →
+unknown fact → unknown assessment → unknown coverage, one chain, not three unrelated
+uses of a word. The completeness condition reads over this: every planted impact
+gets a coverage action, `unknown` included, or the plan is incomplete.
 
-**Cost envelopes, stated and tracked.** Persistent, excluding model tokens: the box
-delta (+€7.57) plus roughly $21 on AWS always-on (instance ~$14, EBS ~$3, public
-IPv4 ~$3.65, Parameter Store / S3 / CloudWatch / Budgets ~$0–1) — Frankfurt list
-prices from the Pricing API for the provisioned shape (`probes/captures/instance/
-pricing.md`, 2026-08-26); stopping the instance between working days takes the
-instance line out for those hours; the account holds no free-tier allowance, so
-these are the real rates. Model tokens are
-the larger line: an agentic loop re-sends a growing context every turn, so a single
-investigation is estimated at ~$0.75 on Sonnet-class pricing *with prompt caching*
-(~3× more without), and an evaluation pass scales with scenario count. The budget is
-preregistered in three numbers — **expected $150 for the investigator milestone,
-hard ceiling $300, mandatory reforecast after the first ten representative runs** —
-and the levers are design-level: a tiered scenario subset for iteration with the full
-set only for reported numbers; the deterministic core pre-fetching structured facts
-so the agent starts with evidence instead of discovering it turn by turn; a cheaper
-model for sub-tasks such as extraction over chat text; the Batch API for any
-non-interactive step. Per-run cost is a hypothesis until measured.
-
-**The ephemeral-compute probe, preregistered for the demo milestone's entry.** The
-strongest cloud shape for this workload is ephemeral: a Fargate task per
-investigation, Aurora Serverless v2 PostgreSQL scaling to zero between runs, an API
-Gateway + Lambda control plane, narration relayed from the event log. Its idle cost
-would undercut the instance, and bursty agentic work is what that shape exists for.
-It is not the starting point because it is a different application topology —
-control plane, worker, and streaming relay — with VPC networking, a cold start of
-roughly 45–75 s (task provisioning plus image pull plus database resume), and a
-week of plumbing that would come out of evaluation depth. The job seam makes it a
-migration rather than a rewrite, so it is earned by measurement at the demo
-milestone's entry, criteria fixed now: control-plane acknowledgement ≤ 2 s *with the
-wait narrated in the UI*; p95 cold-to-first-substantive-narration ≤ 45 s; migration
-≤ 2 days; idle AWS baseline ≤ $5/mo; no NAT Gateway (tasks in a public subnet with
-public IPs). Pass → the demo ships on it; fail → the instance stays and the measured
-numbers are the tombstone. Either outcome is a complete story.
-
-### The hosting-options matrix
-
-The options weighed, in the order the reasoning produced them. Costs are monthly
-and persistent, excluding model tokens; "box Δ" is the netcup upgrade delta.
-
-| | **All on netcup** | **Netcup + AWS components** | **All on AWS** | **Hybrid, EC2 monolith** | **Fargate service + ALB + RDS** | **Ephemeral Fargate + Aurora** | **Serverless agent** |
-|---|---|---|---|---|---|---|---|
-| **Frappe** | box | box | EC2, 8 GB class | box, remote HRIS via adapter | box | box | box |
-| **App compute** | box | box | EC2 | EC2 `t4g.small`, Compose | Fargate service, always-on | Fargate RunTask per job + API GW/Lambda control plane | Lambda / Step Functions |
-| **PostgreSQL** | box container | box container | EC2 container | EC2 container on EBS | RDS `db.t4g.micro` | Aurora Serverless v2, scale-to-zero | RDS or Aurora |
-| **Ingress** | Caddy / Cloudflare | Caddy / Cloudflare | Cloudflare | Cloudflare → instance, no ALB | ALB | static UI + API GW WebSocket relay | API GW |
-| **Persistent cost / mo** | box Δ | box Δ + ~$3 | ~$60–80, box idle | box Δ + ~$21 | box Δ + ~$45–50 | box Δ + ~$5–10 | box Δ + ~$3–5 |
-| **Cold start to first narration** | seconds | seconds | seconds | seconds | seconds | ~45–75 s | per step; streaming awkward |
-| **A cloud deployment with the box's discipline** | no | weakly | yes, wastefully | yes | yes | yes, strongest | nominally |
-| **Effort** | lowest | low | medium | medium | medium-high | highest (three-part app + VPC) | high, deforms the product |
-| **Main risk** | no cloud evidence | reads as peripheral | paying to host a simulation | "a VPS with a logo" — answered by the surrounding discipline | cost floor, no benefit | week-one infrastructure; demo UX | 15-min ceiling vs multi-minute runs |
-| **Standing** | rejected | rejected | rejected | **baseline** | rejected | **preregistered probe** | rejected |
-
-Invariant across every surviving column: Frappe on the box behind the `HRProvider`
-adapter · the executor as its own execution identity · the PostgreSQL event log and
-checkpoints as the job seam · Bedrock as the sole provider behind the model seam ·
-S3 for artifacts · the Budgets alert from day one.
-
-**Three rulings at the world milestone's entry (2026-09-09), all cheap to
-reverse.** *The model shortlist* the instance may invoke is re-cut to what the
-account can call: Haiku 4.5, Sonnet 4.6, Nova Lite, Nova Pro, Nova 2 Lite; the
-gated Sonnet 5 and Opus 5 rows leave the list and return the day the account
-review passes. The prose stage's two families are Haiku 4.5 writing and Nova Pro
-checking — configuration, not architecture. *Residency:* `eu.` inference profiles
-throughout, at their ten-percent premium over `global.`; the data is synthetic,
-so this is a story ruling — Frankfurt end to end is a sentence the deployment can
-carry — and the cross-region cache misses the probe observed are an `eu.` fact
-that `global.` would only widen. *Hostname gating:* the Frappe hostnames go
-behind one Cloudflare Access application now — the generator's first write from
-the instance is the cross-host call over the public edge that the platform's
-trigger names, the service token joins the secrets ceremony, and the Frappe login
-stops being scannable; the agent's own hostname stays ungated, since it serves a
-hello page until the demo milestone and that demo must be public, so the
-question returns at that milestone's entry rather than being decided twice. The
-Access application is platform work; this document rules only which hostnames.
-
----
-
-## The probe days
-
-The vision's first milestone is two to three days that kill the fatal unknowns
-before anything is designed on them; the hosting ruling adds the deploy-from-day-one
-floor to the same days. **Probes precede the remaining design.** The framework,
-tool-layer, and post-approval questions are decided at a session held after the
-probe days, on their evidence — not before. Each probe's pass criterion is fixed
-before it runs and recorded with the plan in `probes/README.md`; outcomes land in
-`probes/FINDINGS.md` with captures beside them, and later rulings cite those
-findings by name. The milestone exits when the five unknowns (Frappe standing at
-its real footprint, Frappe REST including the `leave_approver` wart, Jira, Google
-Calendar, the generator seed spike) and the two floors (the instance via Terraform,
-the OIDC deploy) pass; the Bedrock model shortlist and Slack may trail into the
-world milestone without blocking it. Honest timebox: three to five days — the
-vision's estimate plus roughly a day for the AWS floor, then the usual 1.5–2× on
-first estimates.
-
----
+**Grading falls out of the vocabulary, with the judge kept away from facts.**
+Impact and constraint discovery: precision/recall over grading keys. Candidate
+assessments: verdict plus reason class against authored or derived truth.
+Distractors: false positives bucketed by the planted reason class (wrong window,
+other team, already resolved, stale document, timezone), so a near-miss reads as a
+sentence. Source conflicts: detected, and resolved to the authority table's value.
+Unknowns: the expected gaps of a missing-information scenario found, and no gap
+claimed where the world is complete. Grounding: evidence refs re-verified against
+the world. The plan: completeness plus deterministic constraint satisfaction over
+coverage actions. Only the rationale text behind an action goes to an LLM judge,
+calibrated on a hand-graded set with its cost budgeted. The ontology is frozen
+whole and exercised gradually: the first golden set covers the three or four types
+its scenario classes need, and no scenario is authored to give a type coverage.
 
 ## The world's shape
 
@@ -480,222 +467,6 @@ REST, exposed by the adapter as `opened_on` / `resolved_on`, while Jira's own
 timestamps stay hidden as vendor time. Date-level history ("opened in March,
 resolved in May") is therefore plantable without a manual step; actor-level
 history ("who handled this before") remains outside the first truth model.
-
-### The answer-key contract (2026-09-09)
-
-**The report and the key speak one typed vocabulary, frozen at the world
-milestone.** Everything downstream grades on it and the generator emits truth in
-the same words, so the types, their grading keys and the four semantic rules below
-are lasting; field names and enum members can still grow. Six claim types:
-
-```text
-impact                key (leave_id, subtype, artifact)   subtype: deadline | meeting | responsibility
-constraint            key (clause_id, applies_to)
-candidate_assessment  key (impact_key, employee_id)       verdict: viable | non_viable | unknown, reasons[]
-source_conflict       key (entity, predicate)             observations[], resolved_value, authority_rule
-unknown               key (subject, required_fact)        reason: absent | inaccessible | ambiguous | conflicting | insufficient
-coverage_action       key (impact_key)                    action: assign | uncovered | unknown, assignee_ids[], rationale?
-
-shared, serialized: claim_id, type, evidence_refs[], derived_from_claim_ids[]
-computed from the payload, never serialized: the grading key, entity_refs[]
-```
-
-*(Keys as ruled at the claim-vocabulary step, 2026-09-10; the 2026-09-09 draft keyed
-an impact by `(subtype, artifact_id)`, a constraint by a `rule_id`, an assessment by a
-`need_id`, and gave the coverage action its own `basis_claim_ids`.)*
-
-Impacts describe what the leave affects; constraints what a valid response must
-obey; candidate assessments who could satisfy a need; coverage actions what the
-proposed plan does; conflicts and unknowns where the evidence chain could not be
-established. A responsibility is an existing obligation attached to the leaver — an
-open ticket, a named client contact in a document — and is an impact; "a release
-needs two qualified engineers" is normative and is a constraint, cited from its
-clause, never an impact of the leave. Every type has its own grading identity
-because a universal `(type, entity_id)` fails as soon as a claim is relational (an
-assessment is a person *for* a need, a conflict is an entity *and* a predicate).
-Evidence refs are plural from the first schema: a single non-viability can rest on
-Calendar, Frappe and a clause at once, and a single-source field would tempt the
-agent to cite one fragment of a multi-source inference. Not added, deliberately:
-`violation` (the constraint checker emits those), `evidence` (that is provenance),
-`risk` (an impact already is one), `reasoning` (report layer, not benchmark
-ontology); a `dependency` impact subtype waits for a scenario class that needs it.
-
-**The vocabulary in code (ruled 2026-09-10, step 3 of the M1 build).** A
-constraint's rule is its clause: `clause_id` is the key, so a constraint the agent
-cannot trace to a clause cannot be expressed, which is the grounding rule made a type.
-Clause-backed requirements become constraint claims; deterministic domain rules (the
-cover may not itself be on leave) constrain validity inside the viability rule
-without becoming claims. There is no need apart from an impact: an impact *is* the
-coverage need, cardinality and eligibility come from constraints and rules, so the
-assessment and the coverage action key on the impact's key. That key carries the
-leave: a run investigates one leave, but the truth manifest holds every scenario's
-impacts side by side and an impact's identity is world-wide, "this leave affects
-this artifact". Grading identity is never a claim id: claim ids are minted by
-whichever emitter wrote the report, so the same world fact carries different ids in
-the agent's report and the answer key; a claim's grading key is computed from its own
-fields and identifies the fact across emitters, while `derived_from_claim_ids` links
-claims inside one report (the coverage action's former `basis_claim_ids` was the same
-relation under a second name and is folded in). References are typed at run time:
-an `EntityRef` pairs an entity kind with an id and validates the id's namespace at
-construction, because a union of `NewType` strings is invisible once the type checker
-leaves; an impact key validates its subtype against the kind (deadline → work item,
-meeting → event, responsibility → work item or clause, since an obligation may be a
-ticket or a runbook paragraph). `entity_refs` say what a claim is about,
-`evidence_refs` (source, target, field) say where it was read. A conflict's
-observations carry typed values (`FactValue`: an entity reference, text, or a date,
-tagged in JSON; the fact base owns and may extend the union from step 4), never text
-flattened for convenience, because resolution compares them. A coverage action names
-its assignees in the plural (the cardinality clause needs two) and carries an
-optional rationale, the only text the LLM judge reads. The assessment's reason
-vocabulary is seeded from what this document already names (skill, component,
-availability, load, hard rule) and closed by the viability rule at step 4.
-Serialization is a stdlib codec in one module, canonical (fixed field order, compact,
-tagged by claim type), decoding through the same constructors the code path uses so
-validation has one home; pydantic stays out of `core`, and may enter at the agent's
-structured-output edge in the investigator milestone without the domain knowing.
-A claim set is well-formed when claim ids are unique, every claim-id reference
-resolves to another claim, the provenance graph is acyclic, and no two claims of one
-type share a grading key; the semantic chain checks (an unknown assessment rests on
-an unknown claim) belong to the rules.
-
-**The rules in code (ruled 2026-09-10, step 4 of the M1 build).** The fact base is
-the rules' only world: a fact is a subject, a predicate, a typed value, the evidence
-reference it was read from and the world date at which it became observable, and a
-rule that has to reach back into an entity is not reading the fact base, which is why
-two rows joined the registry (`scheduled_at`, an event's half-open instant span;
-`in_component`, a work item's component). Each registry row now declares its value
-spec — an entity reference of a kind, a closed enum vocabulary `core` owns, a skill
-slug whose seeded set only `world` knows, a date, a date span, an instant span, or a
-requirement — a fact validates against the spec at construction, and the JSON tag is
-the spec's kind rather than a second declaration. Multi-valued predicates are one
-fact per value. `on_leave` stores the inclusive date span with the leave record as
-provenance; `requires` stores a requirement, a minimum count and a tuple of typed
-criteria (skill, employment type; grade and country join with their predicates when
-a clause plants them), tagged in JSON so a sealed key survives a later criterion.
-Country, timezone and grade have no predicate until a rule reads one. Absence is a
-record of its own: a `Gap` says the record was observed and this field held no
-value, planted where a scenario class plants a missing fact, never a failed read —
-a failed read is the run condition, a separate `RunCondition` (the reachable
-sources) passed beside `RunContext` because one scenario runs under several. The
-closure rule reads facts and gaps visible at `now` from reachable sources and
-answers in order: a positive fact → known true, with the facts that established
-it; a source of the predicate's declared domain unreachable → unknown /
-inaccessible; a gap → unknown / absent; an open domain → unknown / insufficient;
-otherwise known false. Zero facts mean false only after the evidence domain has been
-fully observed, and a gap blocks that inference. Closure derives three unknown
-reasons and the claim vocabulary keeps five: `ambiguous` and `conflicting` are the
-agent's to emit, never the rule's. The entity's `None`-versus-empty distinction maps
-to gap-versus-no-facts in `core`'s derivation (the ports ruling, below; step 4 had
-placed the per-field table in `world`), and a ticket without a due date is an
-observed negative, not a gap. Viability evaluates
-every criterion through closure and combines: any known false → non-viable with
-every failing reason, otherwise any unknown → unknown deriving from one unknown
-claim per unresolved fact, otherwise viable. The criteria and their sources of
-truth: the required skill from the clause-backed requirements that apply to the
-impact's artifact or its component (`skill`); membership of a work item's component,
-a domain rule (`component`); not on leave over the need's window, the investigated
-leave's span for a deadline or responsibility and the event's own span for a
-meeting, read in the run's reference timezone, and not attending another event
-overlapping a meeting (`availability`); the requirement's policy criteria
-(`hard_rule`). The investigated leave's span is a parameter of the rule, never a fact the rule
-establishes; who supplies it differs — the evaluator from the scenario spec, the
-investigator from the leave record it read through the people port (the ports
-ruling, below). An unreadable work-item component is one unresolved criterion, not an
-unresolved need, so a known failure still settles a candidate; an unreadable meeting
-schedule leaves no window to ask about and is an unresolved need for everyone. `load` is pruned: no first-set
-class names it, and a threshold would be either a domain constant the agent can
-only be told or a clause no scenario uses; it returns when a class establishes its
-semantics. The leaver fails through `on_leave` like anyone. A requirement's count
-never touches individual viability: criteria assess a candidate, count judges a
-plan, so one viable person against a two-person clause is a viable candidate and an
-invalid plan. Three record-returning functions carry the plan side, because a
-defective plan is a graded outcome: the plan check resolves each constraint claim's
-clause to its `requires` fact — the agent establishes which clause applies and never
-transcribes its content — and reports `insufficient_cardinality` (per requirement,
-count a minimum, an implicit minimum of one without a clause; under the conjunctive
-model this reduces to the largest count, a property of the current semantics, not
-a theorem), `missing_assessment` and `non_viable_assignee` (an unknown assignee is
-not viable for an assign); the truth outcome over an explicit candidate universe,
-never the `must_assess` set, with `V` viable and `U` unknown against count `n`: `V
-≥ n` assign, `V + U < n` uncovered, otherwise unknown — the expected action is
-truth, an expected assignee set is not; and the chain checks, report-internal and
-named for what they know (an unknown assessment derives from unknown claims shaped
-as the rule emits them — about the candidate, the impact's artifact, or a clause the
-report's own constraints cite for something that could apply to the impact, on a
-predicate the rule reads for that subject — an unknown action from an unknown
-assessment, an assign action's assignees each hold a viable assessment, an
-uncovered action holds no viable one, a conflict resolves to the system of
-record's observation under the rule it cites, every impact has exactly one
-coverage action and every action an impact), with a separate completeness check
-that takes the universe and lists every member without an assessment, so
-`uncovered` is never inferred from a report that simply stopped assessing.
-
-**Four semantic rules travel with the vocabulary.** *Viability is relational and
-preference is never truth:* the key states whether `(need, employee)` is viable and
-why; "the best person" has no exact truth unless an optimization rule is declared,
-and none is, which keeps candidate grading from smuggling a reference plan back in.
-*Extra candidates are judged from the truth fact base, never from re-reading the
-world:* the scenario plants a bounded `must_assess` set with authored verdicts (the
-deliberate near-misses that make "why not Deniz?" objectively gradable), and any
-further candidate the agent proposes is recomputed by the evaluator's pure viability
-rule over evaluator-only normalized facts — every planted atomic fact in structured
-form with its provenance, wherever it physically landed, so a skill that lives only
-in a ticket comment is a fact the evaluator holds without solving the agent's
-extraction problem. The evaluator and the deterministic core share those pure rules,
-which is not the generator-echo problem but does admit a shared rule bug; the
-generator invariant that closes it: for every `must_assess` candidate the authored
-verdict must equal the rule's verdict over the fact base, and a mismatch fails
-scenario generation rather than grading an agent wrong. *Conflicting observations
-resolve through a deterministic authority table:* "live wins" is the design intent,
-`system_of_record_wins` is the rule — each normalized predicate has exactly one
-system of record (employment and location facts → Frappe, ticket owner and status →
-Jira, meeting participation → Calendar, procedure requirements → the corpus) and a
-document is never the record for an operational fact about a person or a work item,
-while the corpus is the record for what a procedure requires, a normative fact that
-exists nowhere else; conflicts are keyed by `(entity,
-predicate)`, not by field names that happen to look alike (an office location and
-a calendar timezone are not a contradiction), and the conflict claim cites the rule
-id so precedence is testable instead of intuited. *Closed-world reasoning applies
-per declared evidence domain:* each predicate declares the sources that
-collectively hold all admissible evidence for it in this synthetic world and whether
-that domain is closed; positive evidence → known true; no positive evidence with a
-closed domain and every required source available → known false; no positive
-evidence with an open or incomplete domain, or a required source absent or
-inaccessible → unknown. So a skills list without Kafka is `non_viable / skill`, an
-explicitly empty list is the same, a missing skills field is `unknown / absent`,
-and a closed domain whose Jira half is unreachable in this run is `unknown /
-inaccessible` even when the HR half shows nothing — which is why expected verdicts
-are derived per run condition from facts plus closure declarations rather than
-stored: a tool-failure run against the same scenario legitimately turns a
-`non_viable` into an `unknown`, and that difference is the tool-failure metric.
-
-**Three coverage outcomes, and the unknowns chain.** `assign` is a positive
-conclusion, `uncovered` a negative one (the evidence suffices and nobody qualifies —
-the vision's own "no qualified coverage exists for the migration" case), `unknown`
-an epistemic limit. Keeping the second apart from the third is what stops the
-benchmark rewarding caution: "I don't know whether anyone can cover this" against a
-complete world that establishes nobody can is wrong, and so is "nobody can" when a
-required source was unreachable. The word `unknown` appears at three levels with
-one relation between them: an `unknown` claim records the missing fact and its
-reason, an assessment whose verdict is `unknown` derives from that claim, a coverage
-action whose action is `unknown` rests on the assessments — missing evidence →
-unknown fact → unknown assessment → unknown coverage, one chain, not three unrelated
-uses of a word. The completeness condition reads over this: every planted impact
-gets a coverage action, `unknown` included, or the plan is incomplete.
-
-**Grading falls out of the vocabulary, with the judge kept away from facts.**
-Impact and constraint discovery: precision/recall over grading keys. Candidate
-assessments: verdict plus reason class against authored or derived truth.
-Distractors: false positives bucketed by the planted reason class (wrong window,
-other team, already resolved, stale document, timezone), so a near-miss reads as a
-sentence. Source conflicts: detected, and resolved to the authority table's value.
-Unknowns: the expected gaps of a missing-information scenario found, and no gap
-claimed where the world is complete. Grounding: evidence refs re-verified against
-the world. The plan: completeness plus deterministic constraint satisfaction over
-coverage actions. Only the rationale text behind an action goes to an LLM judge,
-calibrated on a hand-graded set with its cost budgeted. The ontology is frozen
-whole and exercised gradually: the first golden set covers the three or four types
-its scenario classes need, and no scenario is authored to give a type coverage.
 
 ### The first golden set (2026-09-09)
 
@@ -2247,3 +2018,232 @@ vision's deferred list.
 - **Per-run token cost** — the ~$0.75 estimate is re-derived from the first ten
   representative runs at the investigator milestone; the budget reforecast is
   mandatory, not optional.
+---
+
+## Hosting and the cloud line
+
+The vision fixed *deployed from day one* and deferred the target. Two facts settled
+the shape before any option was weighed: the existing netcup box (then 2 vCPU /
+4 GB) already hosts SteamLens and sat at ~0.65 GB used, measured idle and in-job;
+and Frappe's recommended footprint is 8 GB. The probe days replaced the
+recommendation with a measurement: the box was upgraded in place to 8 vCPU / 16 GB
+on 2026-08-22, and Frappe HR with a site installed idles at ~0.9 GB on it
+(`probes/FINDINGS.md`, box-upgrade and frappe-up). The "bigger host" premise was
+vendor sizing, not a measured need; the split below stands on its other reasons.
+The question is where the application itself runs.
+
+**The hybrid split.** The application runs on AWS; Frappe HR stays on the netcup
+box. Frappe is a heavy, stateful, multi-process system used *as* a realistic HRIS —
+nothing about hosting it on a hyperscaler adds to the product, while cheap persistent
+compute for it already exists. The application is the engineering that matters, and
+a cloud deployment with the same operating discipline as the box is itself a
+deliverable of this project. The split also makes the boundary honest: the
+application reaches Frappe as a remote system behind an **`HRProvider` adapter**
+over an authenticated API, exactly as it would reach a customer's BambooHR or
+Personio, rather than pretending a local container is an enterprise integration. A
+side effect feeds the evaluation spine — *HRIS unavailable* becomes a real failure
+mode the system must degrade through, not a mock-only one. Rejected: everything on
+the box (no cloud deployment at all), the box plus peripheral AWS services (an app
+that "uses S3 and Bedrock" is not a cloud deployment), and everything on AWS (paying
+to host the simulation for no product reason).
+
+**Hosts consume artifacts; they never manufacture them** (ruled 2026-08-23, when
+Frappe HR turned out to need a custom image — no official one carries the `hrms`
+app). The box's rule from SteamLens holds for every deployable in this project:
+`source → CI build → registry → host`, the host references an immutable digest
+and pulls. CI rebuilds an image only when its *inputs* change (`apps.json`, the
+build recipe), never when deployment settings do — image definition and
+deployment definition are different artifacts. Rejected: a one-time build on the
+box (a special-case path for fifteen minutes' gain) and builds from the
+workstation (a release step in an undocumented environment). What the rule buys
+is the claim that the production machine is replaceable.
+
+**The application host: one EC2 instance, one Compose stack.** A `t4g.small`
+(2 vCPU / 2 GB, arm) runs the application and its PostgreSQL in Docker Compose, the
+database on a gp3 EBS volume, Cloudflare in front as the only ingress (no load
+balancer), inbound restricted to Cloudflare's ranges, administrative access through
+SSM Session Manager with no public SSH port. It is the cheapest always-on shape that
+keeps PostgreSQL local; the managed alternatives were priced and rejected — an
+always-on Fargate service plus ALB plus RDS lands near 2.5× the cost for no
+architectural benefit at one-process scale (RDS is a cost floor; the ALB is pure
+overhead behind Cloudflare), and a serverless agent (Lambda / Step Functions) would
+deform multi-minute narrated runs around a 15-minute ceiling. Self-managed
+PostgreSQL carries its own obligation: a nightly backup shipped off-host (the
+SteamLens pattern with `pg_dump` in place of the SQLite snapshot) and **one
+demonstrated restore** as an exit criterion, since owning recovery is the price of
+not paying for RDS.
+
+**PostgreSQL as the application's truth.** The application store is PostgreSQL, not
+SQLite: agent runs, run events, tool calls, evidence references, coverage plans,
+manager decisions, evaluation runs, and scenario metadata form a genuinely relational
+model, and the framework's checkpoints land in the same database so a run survives
+its worker. Frappe keeps its own MariaDB — Frappe-on-PostgreSQL is the less-trodden
+path and the vision's first-named risk is week-one infrastructure eating the
+schedule. Ownership is clean: Frappe's MariaDB holds HR truth, PostgreSQL holds
+application and orchestration truth, S3 holds immutable exported artifacts.
+Rejected: PostgreSQL on the netcup box reached remotely, like Frappe — the
+application store is chatty (a checkpoint per framework node, an event per narrated
+line) where Frappe is coarse, so every run would pay hundreds of cross-provider
+round trips; it would also put the production write path on a public link and
+confound the HRIS-unavailable evaluation case with the app's own outage. It buys
+~$6/mo and unlocks no better AWS shape — the ephemeral tier it would cheapen is the
+one where a remote store hurts most. The box's headroom serves instead as an
+off-host backup destination and, if useful, a development PostgreSQL.
+
+**The job seam: runs write an event log, surfaces read it.** An investigation is a
+job that appends narrated events and checkpoints to PostgreSQL; the UI streams by
+reading that log, never by holding the worker's socket. The seam is justified on its
+own — it is what makes runs resumable, auditable, and replayable — and it is also
+what makes the worker's location a deployment detail: in-process on the instance
+today, an ephemeral task later, with the database swapped by a connection string. No
+generic compute abstraction is built on top of it; the seam is the event log and
+nothing more.
+
+**The executor trust boundary.** If post-approval execution survives its own design
+fork (an open question below), the writes run in a **deterministic executor
+Lambda** — not a second agent — with its own IAM role that is the sole principal
+able to read the write credentials in Parameter Store, and with no model-invocation
+permission at all. The investigator's identity cannot retrieve those secrets; they
+do not exist on its host. Input is the human-approved action manifest, output is the
+exact approved writes plus an audit artifact. Two principals on one host would be
+two configurations, not a boundary; a separate execution identity is what makes the
+least-privilege claim provable rather than intended.
+
+**The surrounding AWS set, and nothing more.** All of it under Terraform, owned by
+the `platform` repository since 2026-08-27 (its stack `leave-impact-prod`; this
+repository consumes the contract values its `projects/leave-impact/README.md`
+publishes — the deploy role ARN, the instance tag, the `/leave-agent/` parameter
+prefix — and owns only its deployment entrypoint, `deploy/`): IAM roles
+and policies; GitHub Actions deploys through OIDC federation (temporary credentials,
+trust policy pinned to the repository and the `production` environment through the
+ID-based subject GitHub emits — no stored keys); SSM Parameter Store SecureString for
+secrets (free tier; Secrets Manager's per-secret fee buys rotation nothing here needs);
+CloudWatch for logs and alarms; S3 for golden datasets, evaluation reports, shipped
+audit trails, and precomputed demo replays; AWS Budgets with a cost alert; Bedrock as
+**the sole model provider behind a model seam** — the Converse API gives one
+request shape across model families, so the seam's question is *which model per
+role* (investigator, extraction sub-tasks, grading), answered by the evaluation on
+the golden set rather than fixed up front — from the models the instance role can
+*call*, not the catalogue: Nova opens with no request, Anthropic's 4.x needs a
+use-case form (opens per model within ~20 min), the 5-series is account-gated with
+no resolution path as of 2026-08-26 (`probes/captures/bedrock/models.md`); `eu.`
+inference profiles cost `global.` + 10 %; the seam also checks a model's feature
+support (tool use, structured output, caching) at startup so a mismatch fails loudly.
+A direct Anthropic API path is deliberately not committed to — the seam admits it
+later if a reason appears. Bedrock stays one supporting component rather than the
+centrepiece. Not added until a
+requirement names it: ECS services, EKS, RDS, DynamoDB, SQS, EventBridge, CloudFront,
+ElastiCache, OpenSearch, a managed vector store. One bootstrap exception is
+recorded deliberately: the Budgets alert was created by hand before any
+infrastructure existed, so the guardrail predates the resources; it is imported
+under Terraform once the infrastructure code exists.
+
+**The netcup box: in-place upgrade to VPS Lite 3 G12s.** The provider's panel
+confirms an in-place upgrade within the product generation — reboot-only, no setup
+fee, the old tariff refunded pro rata, a new six-month term. Lite 3 (8 vCPU / 16 GB /
+320 GB, €11.67/mo net, +€7.57 over the current tariff) over Lite 2 (4 vCPU / 8 GB,
++€2.55): 8 GB is Frappe's recommended footprint *alone*, the box's own design is one
+VPS running every project, downgrades do not exist while each upgrade resets the
+term — so headroom is bought once, at box level, rather than in a second upgrade
+later. The upgrade was a probe-day step, not a design-time action: done 2026-08-22
+with `free` captured before and after (15 Gi visible), and Frappe's footprint is
+now a measured number — ~0.9 GB idle with the site installed, so the 8 GB bought
+headroom rather than met a need. Box rules that arrive with the new tenant: Compose memory
+limits on the Frappe stack and a swapfile, so the heaviest tenant cannot starve
+SteamLens. Rejected: a second box (two proxies, two firewalls, two backup paths for
+no benefit once the in-place upgrade proved reboot-only).
+
+**Cost envelopes, stated and tracked.** Persistent, excluding model tokens: the box
+delta (+€7.57) plus roughly $21 on AWS always-on (instance ~$14, EBS ~$3, public
+IPv4 ~$3.65, Parameter Store / S3 / CloudWatch / Budgets ~$0–1) — Frankfurt list
+prices from the Pricing API for the provisioned shape (`probes/captures/instance/
+pricing.md`, 2026-08-26); stopping the instance between working days takes the
+instance line out for those hours; the account holds no free-tier allowance, so
+these are the real rates. Model tokens are
+the larger line: an agentic loop re-sends a growing context every turn, so a single
+investigation is estimated at ~$0.75 on Sonnet-class pricing *with prompt caching*
+(~3× more without), and an evaluation pass scales with scenario count. The budget is
+preregistered in three numbers — **expected $150 for the investigator milestone,
+hard ceiling $300, mandatory reforecast after the first ten representative runs** —
+and the levers are design-level: a tiered scenario subset for iteration with the full
+set only for reported numbers; the deterministic core pre-fetching structured facts
+so the agent starts with evidence instead of discovering it turn by turn; a cheaper
+model for sub-tasks such as extraction over chat text; the Batch API for any
+non-interactive step. Per-run cost is a hypothesis until measured.
+
+**The ephemeral-compute probe, preregistered for the demo milestone's entry.** The
+strongest cloud shape for this workload is ephemeral: a Fargate task per
+investigation, Aurora Serverless v2 PostgreSQL scaling to zero between runs, an API
+Gateway + Lambda control plane, narration relayed from the event log. Its idle cost
+would undercut the instance, and bursty agentic work is what that shape exists for.
+It is not the starting point because it is a different application topology —
+control plane, worker, and streaming relay — with VPC networking, a cold start of
+roughly 45–75 s (task provisioning plus image pull plus database resume), and a
+week of plumbing that would come out of evaluation depth. The job seam makes it a
+migration rather than a rewrite, so it is earned by measurement at the demo
+milestone's entry, criteria fixed now: control-plane acknowledgement ≤ 2 s *with the
+wait narrated in the UI*; p95 cold-to-first-substantive-narration ≤ 45 s; migration
+≤ 2 days; idle AWS baseline ≤ $5/mo; no NAT Gateway (tasks in a public subnet with
+public IPs). Pass → the demo ships on it; fail → the instance stays and the measured
+numbers are the tombstone. Either outcome is a complete story.
+
+### The hosting-options matrix
+
+The options weighed, in the order the reasoning produced them. Costs are monthly
+and persistent, excluding model tokens; "box Δ" is the netcup upgrade delta.
+
+| | **All on netcup** | **Netcup + AWS components** | **All on AWS** | **Hybrid, EC2 monolith** | **Fargate service + ALB + RDS** | **Ephemeral Fargate + Aurora** | **Serverless agent** |
+|---|---|---|---|---|---|---|---|
+| **Frappe** | box | box | EC2, 8 GB class | box, remote HRIS via adapter | box | box | box |
+| **App compute** | box | box | EC2 | EC2 `t4g.small`, Compose | Fargate service, always-on | Fargate RunTask per job + API GW/Lambda control plane | Lambda / Step Functions |
+| **PostgreSQL** | box container | box container | EC2 container | EC2 container on EBS | RDS `db.t4g.micro` | Aurora Serverless v2, scale-to-zero | RDS or Aurora |
+| **Ingress** | Caddy / Cloudflare | Caddy / Cloudflare | Cloudflare | Cloudflare → instance, no ALB | ALB | static UI + API GW WebSocket relay | API GW |
+| **Persistent cost / mo** | box Δ | box Δ + ~$3 | ~$60–80, box idle | box Δ + ~$21 | box Δ + ~$45–50 | box Δ + ~$5–10 | box Δ + ~$3–5 |
+| **Cold start to first narration** | seconds | seconds | seconds | seconds | seconds | ~45–75 s | per step; streaming awkward |
+| **A cloud deployment with the box's discipline** | no | weakly | yes, wastefully | yes | yes | yes, strongest | nominally |
+| **Effort** | lowest | low | medium | medium | medium-high | highest (three-part app + VPC) | high, deforms the product |
+| **Main risk** | no cloud evidence | reads as peripheral | paying to host a simulation | "a VPS with a logo" — answered by the surrounding discipline | cost floor, no benefit | week-one infrastructure; demo UX | 15-min ceiling vs multi-minute runs |
+| **Standing** | rejected | rejected | rejected | **baseline** | rejected | **preregistered probe** | rejected |
+
+Invariant across every surviving column: Frappe on the box behind the `HRProvider`
+adapter · the executor as its own execution identity · the PostgreSQL event log and
+checkpoints as the job seam · Bedrock as the sole provider behind the model seam ·
+S3 for artifacts · the Budgets alert from day one.
+
+**Three rulings at the world milestone's entry (2026-09-09), all cheap to
+reverse.** *The model shortlist* the instance may invoke is re-cut to what the
+account can call: Haiku 4.5, Sonnet 4.6, Nova Lite, Nova Pro, Nova 2 Lite; the
+gated Sonnet 5 and Opus 5 rows leave the list and return the day the account
+review passes. The prose stage's two families are Haiku 4.5 writing and Nova Pro
+checking — configuration, not architecture. *Residency:* `eu.` inference profiles
+throughout, at their ten-percent premium over `global.`; the data is synthetic,
+so this is a story ruling — Frankfurt end to end is a sentence the deployment can
+carry — and the cross-region cache misses the probe observed are an `eu.` fact
+that `global.` would only widen. *Hostname gating:* the Frappe hostnames go
+behind one Cloudflare Access application now — the generator's first write from
+the instance is the cross-host call over the public edge that the platform's
+trigger names, the service token joins the secrets ceremony, and the Frappe login
+stops being scannable; the agent's own hostname stays ungated, since it serves a
+hello page until the demo milestone and that demo must be public, so the
+question returns at that milestone's entry rather than being decided twice. The
+Access application is platform work; this document rules only which hostnames.
+
+---
+
+## The probe days
+
+The vision's first milestone is two to three days that kill the fatal unknowns
+before anything is designed on them; the hosting ruling adds the deploy-from-day-one
+floor to the same days. **Probes precede the remaining design.** The framework,
+tool-layer, and post-approval questions are decided at a session held after the
+probe days, on their evidence — not before. Each probe's pass criterion is fixed
+before it runs and recorded with the plan in `probes/README.md`; outcomes land in
+`probes/FINDINGS.md` with captures beside them, and later rulings cite those
+findings by name. The milestone exits when the five unknowns (Frappe standing at
+its real footprint, Frappe REST including the `leave_approver` wart, Jira, Google
+Calendar, the generator seed spike) and the two floors (the instance via Terraform,
+the OIDC deploy) pass; the Bedrock model shortlist and Slack may trail into the
+world milestone without blocking it. Honest timebox: three to five days — the
+vision's estimate plus roughly a day for the AWS floor, then the usual 1.5–2× on
+first estimates.
+
