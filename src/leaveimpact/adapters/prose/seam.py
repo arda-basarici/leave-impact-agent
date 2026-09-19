@@ -11,8 +11,9 @@ it into propositions is the generator's, since the generator wrote the schema th
 filled.
 
 Every call returns its usage — tokens in and out, the model's latency — because those are
-the run metrics the step reports and never seals; the record of a text's acceptance keeps
-digests and settings, not costs. The faults are closed and classified by what the caller
+the run metrics the step reports and, as counters, seals into the materialization record
+(the step 15 ruling); the record of a text's acceptance keeps digests and settings, not
+costs. The faults are closed and classified by what the caller
 can do about them: ``ModelUnreachable`` is the transient class, what the materializer's own
 bounded retry addresses after the SDK's have run; ``ModelAccessRefused`` is the principal's
 grant, fixed in the platform stack and never by retrying; ``ModelMisconfigured`` is a request

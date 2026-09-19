@@ -83,7 +83,9 @@ CALL_RETRIES = 3
 
 @dataclass(slots=True)
 class ProseMetrics:
-    """One run's prose numbers, reported in the log and the findings and never sealed."""
+    """One run's prose numbers, reported in the log and the findings; ``sealed`` freezes the
+    counters into the materialization record the truth manifest carries (the step 15
+    ruling on sealed counters), never the costs."""
 
     writer_attempts: int = 0
     targets_first_attempt_pass: int = 0

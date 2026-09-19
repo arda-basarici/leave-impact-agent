@@ -4,7 +4,8 @@ How it's built and why that structure — a narrative snapshot, edited in place.
 Decisions and their rationale live in DESIGN (cited here by name); the pitch in
 README.
 
-*Snapshot at the world milestone's build, step 12 · last updated 2026-09-13.*
+*Snapshot at the world milestone's close, amended after the M1 repository audit · last
+updated 2026-09-20.*
 
 ## Design shape
 
@@ -17,8 +18,10 @@ boundary the ranks alone would permit. One line per package, what it may import:
     evaluator  →  world, adapters, core            (investigator milestone; reserved)
     validator  →  world, adapters, core
     generator  →  world, adapters, core
-    adapters   →  core        frappe · jira · calendar · corpus · prose — siblings apart;
-                              transport (timeouts, the retry rule, the fault seam) beneath them
+    adapters   →  world, core frappe · jira · calendar · corpus · prose — siblings apart;
+                              transport (timeouts, the retry rule, the fault seam) beneath them;
+                              world only for the sealed artifacts' shapes (object_store) and
+                              the prose setting (prose), never a scenario or a key
     world      →  core
     core       →  nothing inside the package
 
@@ -63,7 +66,9 @@ plainly as its dotted path does. The rank table names `evaluator`,
         ▼
     the sealed bundle: world spec · scenario specs · truth manifest
     world version = the hash of the three, in order
-        ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar · corpus
+        ├──► projectors (generator ← adapters) → Frappe · Jira · Calendar; the documents
+        │        seal into the world bucket, and the app's PostgreSQL is a cache the
+        │        loader fills from them (investigator milestone; unfilled today)
         │        └──► world manifest (adapters/manifest): the resolved adapter
         │             configuration, one locator per projected id, the world version
         │             and digests — the projection's receipt and checkpoint, staged
