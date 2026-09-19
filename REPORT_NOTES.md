@@ -7,6 +7,135 @@ decisions it feeds.
 
 ---
 
+## 2026-09-19 — Fifteen traces had accepted everything, and the panel's question was whether anyone else could check that
+
+*M1 step 16, the hand audit's close: a four-seat critique panel over the audit of the
+first golden world, its findings answered the same day, the audit sealed under a
+content-addressed identity, M1's exit (session 35, 2026-09-19). Feeds: the M1 milestone
+report's evaluation section, on what "golden" can honestly mean and on auditing an
+audit; the final report's process section, on a panel as a gate, on sealing only the
+method that ran, and on an external reader as a reading engine.*
+
+By the end of the previous session the hand audit looked finished. Thirty scenarios
+had been accepted, fifteen of them traced to their evidence in a frozen ten-step shape,
+and no trace had found a defect in the world. The reason to run a panel anyway was not
+a suspicion that a key was wrong. It was that "we found nothing" is a weak sentence
+unless someone outside the audit can check the claims it rests on, and the audit's own
+prose had grown confident enough that its claims deserved an adversary. Four seats read
+the checklist, the sheet, the rulings record and the summary blind to each other: one
+checked every sentence of the summary against the record, one attacked the checklist
+against the code and the design contracts, one hunted for what the audit had never
+asked, one modelled what a released example would leak. The run cost about 795k
+subagent tokens (the seat reports and synthesis are in the private stream,
+`panels/2026-09-19-audit-panel/`), and every finding was reproduced on the source
+before it was triaged, which is how two of the seats' claims were narrowed before they
+entered any record.
+
+**The strongest finding was about proof, not defects.** The audit's outcome check reads
+an "outcome witness" the sheet renders: the generator's own assessment of every
+employee, produced by the same viability and outcome functions the world was built
+with. For an assign outcome that is fine, because the graded candidates in the key are
+enough to show it. For the seven outcomes that say "uncovered" or "unknown", the claim
+is a negative over the whole organization, nobody qualifies, or exactly one person's
+missing record decides it, and the sheet gave a human no way to prove that
+independently: the cited fact rows were a projection for the key, not the roster, and
+the witness was the rule counting itself. The methodology-breaker seat put it plainly,
+and the external reviewer who read the raw seats ranked it the one technical change to
+make before sealing. The answer was a new block in the sheet, a criterion universe: for
+every impact, every employee's facts of the four families the criteria read, component
+memberships, skills or the record's absence, leaves and events over the need's window,
+employment type, rendered from the fact base under the dated view with no call to the
+viability or outcome functions (`b1e8c0e`). The seven outcomes were then recounted by
+hand from that block, the criteria frozen before any person was read, and all seven
+equalled the witness and the key. The recount also made a pattern visible that the
+traces had only argued: the two shapes differ by exactly where the organization's two
+blank skills records sit. When the eligible component contains one of them, the count
+is zero viable, one unknown, twenty-seven non-viable, and the outcome is unknown; when
+both blank records sit outside it, the count is zero, zero, twenty-eight, and the
+outcome is uncovered. One reviewer's proposal was not taken as offered: a rendering that
+labels each criterion as passed, failed or dominated would need the core rule to expose
+states it does not carry, since its result holds reasons only for a non-viable verdict
+and unresolved questions only for an unknown one, and the fact block gives a reader the
+same visibility without touching the core. The limit is stated in the summary and in
+the design record in the same words: the independence is from the rule, not from the
+data, because the dated view and the fact reads are the code the rule uses.
+
+**One design gap, and the alternative that died.** The seat attacking the checklist
+found a scenario whose timezone distractor had the leaver as its far attendee, alone on
+the event. In the leaver's own zone the meeting fell on the last day of their leave; in
+the reference zone it fell the day after, and the key marked it a non-impact. The
+modifier's docstring admitted the case, a unit test named it, the design record's
+timezone ruling spoke only of a far colleague, and the trace had accepted by applying
+the rule without asking the audit's founding question, whether a careful reader would
+call this an impact. The organization has one far person, who is the far seat in every
+timezone planting and the leaver in one of them, so the case was a matter of when, not
+whether. Regenerating the world was the alternative on the table and it died on cost
+against correctness: a new version, a new projection of twenty-eight calendar
+creations and the whole audit redone, for a key that is right under a rule the code
+already applied and the design had simply never written down. The ruling wrote it down:
+leave dates are date-only HR facts read in the scenario's reference timezone for every
+employee, and a person's location does not redefine the leave interval, because the HR
+record carries no zone. The key stands and the scenario is that convention's test. For
+future worlds the far seat will always be a colleague, and because the organization's
+guarantee of one far person no longer suffices when that person is the leaver, the
+guarantee grows to two far seats in the same change [DECIDED, NOT BUILT: generator
+version 15, its own step after M1's close; the golden world stays at version 14].
+
+**Sealing only the method that ran.** The audit's identity is the digest of a small
+index that binds the record, the summary and the checklist by their digests, so the
+checklist inside the seal is a claim: this is the method this audit applied. The panel
+had proposed a dozen new checks. Folding all of them into the checklist and then
+sealing it would have claimed checks nobody ran. The rule adopted: only checks actually
+executed on this world enter the bound checklist, each marked with the scope it ran on,
+and everything else goes to the public methodology's note for the next audit. Three
+were executed: the required-sources line derived for the fifteen untraced scenarios,
+the structured tier's class promises on its ten, and the stale owner's placement
+outside the component on the four conflict scenarios; all passed. The reviewer had
+suggested two index fields, the checklist applied and the checklist next; the push-back
+that held was that a "next" digest is a method claim no reader can verify, so one bound
+file with executed scopes is the honest shape. Two further traces the panel named for
+structures the fifteen had left unexercised, a prose-only skill that makes a graded
+person viable and a wrong-team meeting sitting in the impacted meeting's own slot,
+both accepted, bringing the traced count to seventeen.
+
+**No example before the first evaluation.** The leak seat's model decided the release
+question. The sheet's cited entries are each cited entity's whole record, which means
+they carry rows dated after the scenario's `now` that are other scenarios'
+answer-changing plantings; thirteen of thirty scenarios carried one such row, and any
+deadline scenario's witness is a named partition of the organization. A released
+example would therefore leak the private rest unless cut at `now` and stripped of the
+witness, the header's prose rollups and every cross-referencing note. The ruling: no
+golden scenario is released at M1's close; the release waits for the first M2
+evaluation report, so the example a reader sees is a key beside an agent's actual run
+on it, and retirement before any evaluation exists would be a promise with nothing to
+enforce it. The per-scenario retirement rule went into the design record now (a
+released scenario keeps its place in the sealed world and the audit's provenance,
+leaves the scored set of every later blinded evaluation, is named as retired in that
+evaluation's manifest, carries a contamination statement), the least-leaky candidate
+is recorded privately and never designated in public, and a throwaway-seed world,
+never sealed or scored, will illustrate the sheet in the public tree.
+
+**The seal, and the shape of the evidence.** With the amendments applied, the record
+corrected in eleven places with dated notes and a ledger and none of them touching a
+key, the index was rebuilt and the four objects were created once under the truth
+bucket's create-only audit prefix, each read back and re-hashed equal, on 2026-09-19:
+audit identity `93745e04fe11de480da1e785873fddb0d2f7e843e21c573f8f3beb7b87da44d1`, the
+sha256 of the index object, with the object version ids kept in the private stream's
+audit folder and never in the record, since the record is sealed by digest before the
+upload exists (the upload mode in `16638f2`, the design record's account in `40d452b`).
+The chain the milestone can state in one sentence: thirty accepted, seventeen traced,
+seven recounted without the rule, three panel checks on named scopes, a four-seat
+panel, the amendments, the seal. The reading-engine pattern carried the day's human
+hours: an external low-context reader did the seven counts and the two traces from
+packets built off the new sheet, the main chat re-verified every claim against the
+sheet and the code before entry, and the reader caught one wording slip of the main
+chat's own brief before it reached the record. The cost of that pattern is the
+re-verification; its benefit showed on both sides of the seam in one day.
+
+Figure: the two-shape universe count as a small table or diagram, unknown (0 viable, 1
+unknown, 27 non-viable) against uncovered (0, 0, 28), with the blank record's
+placement inside or outside the eligible component as the one variable.
+
 ## 2026-09-15 — The first world the models wrote took five runs, and the gate on its numbers changed the cap it was meant to confirm
 
 *M1 step 15 of the build plan: the measurement world the step 14 design demanded before
