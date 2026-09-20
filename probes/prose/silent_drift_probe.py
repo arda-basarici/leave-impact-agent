@@ -1,6 +1,6 @@
 """The silent-drift probe: can a foreign fact change a class's required-source set while
 every ordinary conclusion stays the same? Each remaining Tier 2 and 3 class runs it before
-the step 8 carry closes at 15.5 (DESIGN, "The responsibility class, ruled", the second
+the step 8 carry closes at 15.5 (DESIGN, "The classes that leave the easy path", the second
 ruling; `probes/FINDINGS.md`, `source-dependence`).
 
 For each fixture class it builds the pending scenario, derives the conclusions tuple

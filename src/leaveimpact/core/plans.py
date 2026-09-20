@@ -1,7 +1,7 @@
 """The plan side of the rules: whether a coverage action satisfies its requirements, and which
 outcome the truth expects.
 
-A requirement's count lives here and nowhere else (DESIGN, "The rules in code"): the
+A requirement's count lives here and nowhere else (DESIGN, "What a valid answer is"): the
 viability rule judges people, this module judges the plan made of them. Both functions
 return records rather than raise, because a defective plan is a graded outcome the
 evaluator records, not a crash.

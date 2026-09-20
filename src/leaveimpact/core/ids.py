@@ -10,7 +10,7 @@ Ids are semantic, minted by the world generator (a claim id by the report's emit
 and never a vendor's: ``emp_017`` names
 an employee in every system, while the Jira option id, the calendar id and the Frappe
 record name that represent that employee belong to the world manifest, projection's
-receipt (DESIGN, "The generator: pure specification, materialized prose, frozen world").
+receipt (DESIGN, "Truth before prose").
 Numbered kinds follow ``<prefix>_<number>`` zero-padded to three digits, so a listing of
 up to a thousand sorts by number (past that, text order is still deterministic, which
 is all canonical encoding needs) and a prefix says the kind at a glance; skills are
@@ -109,7 +109,7 @@ def claim_id(number: int) -> ClaimId:
 
     The one numbered kind the world generator does not own: a claim id is minted by
     whichever emitter writes a report — the answer key or the agent — and identifies
-    the claim inside that report only (DESIGN, "The vocabulary in code").
+    the claim inside that report only (DESIGN, "What a valid answer is").
     """
     return ClaimId(_numbered("claim", number))
 

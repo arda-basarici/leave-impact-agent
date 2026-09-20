@@ -1,7 +1,7 @@
 """The structured tier's scenario classes: every answer-relevant fact sits in a structured field.
 
 Tier 1 tests tool use, temporal filtering, joins across systems and the deterministic
-candidate check, with no prose to read (DESIGN, "The first golden set"). Three classes:
+candidate check, with no prose to read (DESIGN, "One organization, many scenarios"). Three classes:
 ``structured_deadline`` (a ticket the leaver owns falls due during the leave),
 ``structured_meeting`` (a meeting the leaver attends falls inside it) and
 ``structured_mixed`` (both, on one leave).

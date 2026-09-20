@@ -14,7 +14,7 @@ emitter's numbering: sealing and replay need that, grading does not.) Decoding
 builds the domain types through their own constructors and adds nothing of its own
 beyond shape: an unknown tag, a missing or surplus field, a wrong JSON type, or a
 payload the domain refuses all raise ``ValueError`` from here, and the domain's
-invariants are checked once, in the domain (DESIGN, "The vocabulary in code").
+invariants are checked once, in the domain (DESIGN, "What a valid answer is").
 Pydantic stays out of ``core``; a schema for the agent's structured output is the
 investigator milestone's concern, at its own edge.
 """

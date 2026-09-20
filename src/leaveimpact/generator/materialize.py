@@ -3,7 +3,7 @@ refused until the cap, the whole stage before any byte of the world is fixed.
 
 One function, ``materialize``, walks the semantic world's briefs in order — scenario by
 scenario, brief by brief, which is the execution order the record preserves — and for each
-runs the loop the step 14 rulings fixed (DESIGN, "Materialization"): render the brief, ask the
+runs the loop the step 14 rulings fixed (DESIGN, "Truth before prose"): render the brief, ask the
 writer, run the namespace scanner and the required-fact check, ask the checker, parse its
 reading, run the containment check; accept on a clean pass, otherwise discard the draft
 whole and try again from the same prompt, with nothing fed back, up to the cap. Each attempt

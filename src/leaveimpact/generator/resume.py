@@ -2,7 +2,7 @@
 
 Before sealing a restart regenerates; after sealing it resumes the named realization,
 because model-written prose means reassembly from the seed no longer reproduces the bytes
-(the step 14 rulings in DESIGN, "Materialization"). The operator names the version — the
+(the step 14 rulings in DESIGN, "Truth before prose"). The operator names the version — the
 job prints it, flushed, before its first persistent mutation for exactly this — and the
 code proves it before a byte is touched:
 

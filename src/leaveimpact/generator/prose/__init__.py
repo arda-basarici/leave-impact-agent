@@ -1,7 +1,7 @@
 """Prompt policy: the assets the models are told, the render from a brief to a request, the
 checker's tool and the parse of what it filled.
 
-Above the adapter on purpose (the step 14 rulings in DESIGN, "Materialization"): what the
+Above the adapter on purpose (the step 14 rulings in DESIGN, "Truth before prose"): what the
 writer is told about a brief, which tool the checker must call and what its input means are
 benchmark decisions, so they live with the generator and the Bedrock layer sends what it is
 handed. ``assets`` ships the system texts and register fragments as package data with their

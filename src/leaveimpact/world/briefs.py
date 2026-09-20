@@ -2,7 +2,7 @@
 binds them to the facts they carry.
 
 A brief is a target's definition and the model's whole instruction (the step 14 rulings in
-DESIGN, "Materialization"). The target is one comment on a work item or one section of a
+DESIGN, "Truth before prose"). The target is one comment on a work item or one section of a
 document, named by the id the world minted for it, with the construction fields its part
 needs once text exists — the parent, the position in the parent's order, and for a comment
 its world date and author — so the model returns prose and nothing else. The brief lists

@@ -1,7 +1,7 @@
 """The pure render from a brief to the two model requests: what the writer is told, what the
 checker is told, and how a fact reads as a line of instruction.
 
-Prompt policy is the generator's (the step 14 rulings in DESIGN, "Materialization"): the
+Prompt policy is the generator's (the step 14 rulings in DESIGN, "Truth before prose"): the
 brief's required facts become lines the writer must state, its allowed facts lines it may
 mention, its namespace the only names, dates and numbers it may use, its register the voice;
 the rules the guards enforce are told to the model in the system text so the gate is not a

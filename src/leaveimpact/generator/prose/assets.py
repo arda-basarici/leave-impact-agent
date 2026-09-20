@@ -6,7 +6,7 @@ written under is the prompt in the tree at that version and nothing an environme
 swap. Each asset's SHA-256 is recorded in the materialization record and pinned in
 ``world.version`` beside the vocabulary digest: an identity-bearing prompt change updates
 the reference provenance deliberately, and a generator bump for another reason leaves the
-pins alone (the step 14 rulings in DESIGN, "Materialization"). Read once per process; the
+pins alone (the step 14 rulings in DESIGN, "Truth before prose"). Read once per process; the
 assets are small and immutable.
 """
 

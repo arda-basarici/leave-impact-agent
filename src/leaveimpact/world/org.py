@@ -1,7 +1,7 @@
 """Organization generation: seed and parameters in, the static organization out, equal every time.
 
 The organization is the part of the world no scenario owns — people, teams, the
-reporting line, skills records, work-domain components (DESIGN, "The world's shape";
+reporting line, skills records, work-domain components (DESIGN, "One organization, many scenarios";
 "Org-level facts are static across the world; scenarios select, never mutate"). It is
 generated first and alone, and a scenario later slices it: chooses a leaver, a need and
 a window so that the static facts yield the class it intends. That is why the generator

@@ -2,9 +2,9 @@
 evidence itself.
 
 Tier 3 tests whether an investigator resolves what the sources say against each other, and
-concludes a limit where the world holds one (DESIGN, "The first golden set"; the class shapes
-under the step 15 rulings, the 15.5 interview). ``stale_source_conflict`` is the first: the
-tracker gives the leaver a release ticket due inside the leave, and a runbook section a model
+concludes a limit where the world holds one (DESIGN, "One organization, many scenarios"; the
+class shapes under "The classes that leave the easy path"). ``stale_source_conflict`` is the first:
+the tracker gives the leaver a release ticket due inside the leave, and a runbook section a model
 writes names the leaver's teammate outside the component as the ticket's owner. The cast is
 the structured deadline class's, unchanged: the same viable cover inside the component, the
 same outsider authored non-viable by component. What the section adds is one fact of the

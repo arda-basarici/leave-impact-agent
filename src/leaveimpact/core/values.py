@@ -5,7 +5,7 @@ A fact pairs a subject with a predicate and a value, and the value's shape is th
 predicate's to declare, not the fact's to choose: the registry row for ``due_on`` says
 "a date", the row for ``requires`` says "a requirement", and a fact validates against
 that spec at construction, so a skills field cannot carry a sentence and a clause
-cannot carry a bare number (DESIGN, "The rules in code"). The spec is one declaration
+cannot carry a bare number (DESIGN, "What a valid answer is"). The spec is one declaration
 in one place — the same row also serializes as the value's JSON tag — instead of a
 Python union here, a tag table in the codec and an ``isinstance`` in every rule.
 

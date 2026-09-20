@@ -771,7 +771,7 @@ decoder accepting either), so they travel with the world they measured.
 
 **The gate on those numbers (2026-09-15, session 26).** Six questions, one per
 exchange, an external low-context reviewer's read on each and Arda's ruling; the
-outcome block sits under DESIGN's "The hard tiers under the step 15 rulings". The
+outcome block sits under DESIGN's "The classes that leave the easy path". The
 evidence: the sealed record (attempts 3, 1, 1; two extraction refusals on
 `comment_001`, 1 and 2 findings, bodies discarded by design), the three texts (in the
 benchmark-private world spec, `world-spec/<version>.json` in the truth bucket — the

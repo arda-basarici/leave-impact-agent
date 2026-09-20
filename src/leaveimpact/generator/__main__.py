@@ -11,7 +11,7 @@ preparation is wired on the hosts, and the sealing sequence runs. RESUME (``--re
 <version>``): the sealed realization is rebuilt and proven from the truth bucket instead of
 generated, and the same
 sealing sequence continues from wherever the checkpoint left it (the step 14 rulings in
-DESIGN, "Materialization").
+DESIGN, "Truth before prose").
 
 What the job prints is what a reader of the Actions log needs and nothing that must not be
 there: the materializer's lines — target ids, attempt numbers, guard names, counts — the

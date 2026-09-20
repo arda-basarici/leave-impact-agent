@@ -94,7 +94,7 @@ class Verdict(StrEnum):
 class AssessmentReason(StrEnum):
     """Why a candidate is non-viable — exactly the criteria the viability rule checks.
 
-    Closed by the rule at the rules step (DESIGN, "The rules in code"): ``skill`` and
+    Closed by the rule at the rules step (DESIGN, "What a valid answer is"): ``skill`` and
     ``hard_rule`` fail a clause-backed requirement's criteria, ``component`` and
     ``availability`` fail a domain rule. ``load`` was seeded and pruned — no first-set
     class names it — and returns when a scenario class establishes its semantics.

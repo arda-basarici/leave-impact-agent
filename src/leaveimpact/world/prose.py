@@ -3,7 +3,7 @@ record of how a model's text was accepted.
 
 Materialized prose is gated by semantic containment — every required planted fact present,
 no benchmark-relevant fact added — and this module holds the pure types the gate and its
-record are stated in (the step 14 rulings in DESIGN, "Materialization"). A *proposition* is
+record are stated in (the step 14 rulings in DESIGN, "Truth before prose"). A *proposition* is
 what an independent checker reads out of a text: a subject, a predicate from the registry,
 a value of the predicate's declared shape, its polarity and its assertion mode. Polarity and
 mode are properties of the text, never of the checker's confidence: "Deniz might know Kafka"

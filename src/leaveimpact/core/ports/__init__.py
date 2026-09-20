@@ -3,7 +3,7 @@
 A port describes what the domain asks of a system — the people a leave affects, the
 work they own, the meetings they attend, the documents that constrain a plan — and
 never how a vendor answers it; an abstraction that describes how Jira works belongs
-inside the Jira adapter (DESIGN, "Package boundaries and the import law"). A port is
+inside the Jira adapter (DESIGN, "Keeping the benchmark out of the product"). A port is
 declared here only when two consumers need it: the generator's projectors and the
 validator today, the investigator at its milestone.
 

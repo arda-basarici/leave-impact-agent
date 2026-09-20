@@ -1,7 +1,7 @@
 """The request-shaped seam between the materializer and the models: what a call carries, what it
 returns, the two protocols, and the faults a call can end in.
 
-The seam is request-shaped on purpose (the step 14 rulings in DESIGN, "Materialization"): the
+The seam is request-shaped on purpose (the step 14 rulings in DESIGN, "Truth before prose"): the
 generator renders a brief into a system text and a message, names the tool it wants forced
 and the inference settings it wants recorded, and the adapter sends exactly that. Nothing
 here knows what a runbook, a guard or a required fact is, so a change of prompt policy never

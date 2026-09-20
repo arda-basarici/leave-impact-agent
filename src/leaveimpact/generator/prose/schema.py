@@ -6,7 +6,7 @@ shape is the registry's: one entry per proposition with the subject as an entity
 brief's namespace or the word ``unknown``, a predicate from the registry, a value in the form
 the predicate's spec declares, the polarity and the assertion mode the text carries — plus
 ``other_claims``, the provisional bucket for an asserted benchmark-relevant statement the
-schema cannot express (the step 14 rulings in DESIGN, "Materialization"). Generated and not
+schema cannot express (the step 14 rulings in DESIGN, "Truth before prose"). Generated and not
 hand-written, so a predicate added to the registry reaches the checker with no edit here.
 
 The parse is strict and belongs to the generator because the generator wrote the schema: an

@@ -7,7 +7,7 @@ could not keep out of its reach. This one lives in the generator, which the vali
 never import, and reads exactly one section — the record of how each model-written text
 was accepted — since a resume reconstructs everything else from the seed and the sealed
 world spec and needs the record only to re-compose the world it is continuing (the step 14
-rulings in DESIGN, "Materialization": after sealing, a restart resumes the named
+rulings in DESIGN, "Truth before prose": after sealing, a restart resumes the named
 realization). Strict in the decoders' manner: exactly the declared fields, values through
 the same specs a fact's pass, an enumeration by its value; the rest of the file is checked
 for its discriminator and otherwise left unread.

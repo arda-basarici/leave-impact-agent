@@ -3,7 +3,7 @@
 Viability is relational and preference is never truth (DESIGN, "Four semantic rules
 travel with the vocabulary"): the rule states whether ``(need, employee)`` is viable,
 never who is best. Every criterion is a question to the fact base answered through
-closure, and the answers combine in one order (DESIGN, "The rules in code"): any
+closure, and the answers combine in one order (DESIGN, "What a valid answer is"): any
 criterion known to fail → non-viable, with every failing reason listed; otherwise any
 criterion unresolved → unknown, deriving from one unknown claim per unresolved fact;
 otherwise viable. A known failure dominates an unresolved question because one certain

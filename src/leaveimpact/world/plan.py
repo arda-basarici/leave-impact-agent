@@ -106,9 +106,9 @@ class PlanRules:
 
 
 GOLDEN_SET_ROWS = 30
-"""The golden set's size (DESIGN, "The first golden set"): the most rows one world holds, so
-the most titles one component's tickets or one team's meetings can need, which the title
-vocabulary's capacity per context is tested against."""
+"""The golden set's size (DESIGN, "One organization, many scenarios"): the most rows one world
+holds, so the most titles one component's tickets or one team's meetings can need, which the
+title vocabulary's capacity per context is tested against."""
 
 TIER_ONE_RULES = PlanRules(
     {

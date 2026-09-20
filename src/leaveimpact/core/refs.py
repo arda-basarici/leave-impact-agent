@@ -8,7 +8,7 @@ entities are built — a rule that takes an employee and a leave still cannot sw
 and ``EntityRef`` is the run-time and serialized form a claim uses to point at any
 kind of thing; the typed constructors below (``work_item_ref`` and the rest) are the
 bridge from one to the other, so the checker still sees which id kind went in
-(DESIGN, "The vocabulary in code").
+(DESIGN, "What a valid answer is").
 
 Two lists on every claim look alike and are not: an entity reference says what the
 claim is *about*; an evidence reference says where it was *read* — a source, the

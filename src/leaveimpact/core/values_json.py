@@ -3,7 +3,7 @@
 A value never travels alone — it sits in a conflict's observation or a fact — and the
 predicate beside it declares its spec, so the codec is spec-driven: the encoder writes
 the spec's kind as the tag, and the decoder refuses a tag that disagrees with the spec
-before it reads the payload (DESIGN, "The rules in code": the JSON tag is the spec's
+before it reads the payload (DESIGN, "What a valid answer is": the JSON tag is the spec's
 kind rather than a second declaration). Enum members and skills travel as strings
 under their own tags, and an enum re-enters through its vocabulary on the way back,
 since a rule compares the member by identity and a decoded string equal to the member

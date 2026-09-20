@@ -54,7 +54,7 @@ from leaveimpact.world.briefs import Brief
 
 
 class Tier(StrEnum):
-    """How far the reasoning has to reach (DESIGN, "The first golden set")."""
+    """How far the reasoning has to reach (DESIGN, "One organization, many scenarios")."""
 
     STRUCTURED = "structured"
     FRAGMENTED = "fragmented"

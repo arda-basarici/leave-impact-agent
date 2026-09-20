@@ -1,7 +1,7 @@
 """The three code guards of semantic containment, as pure functions over a text and its brief.
 
 Containment is ``required(brief) ⊆ claims(text) ⊆ allowed(brief)``, harmless prose permitted,
-and no single check is that guarantee (the step 14 rulings in DESIGN, "Materialization").
+and no single check is that guarantee (the step 14 rulings in DESIGN, "Truth before prose").
 Three guards run in order, the paid one last, each returning its findings — a tuple whose
 length is what a log line and a refusal may carry and whose text stays private, since a
 finding can quote what the text should not have said.

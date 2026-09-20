@@ -1,6 +1,6 @@
 """The fact base: every planted atomic fact with its provenance, and the view of it a run can see.
 
-The rules' only world is this base (DESIGN, "The rules in code"): a fact is a subject,
+The rules' only world is this base (DESIGN, "What a valid answer is"): a fact is a subject,
 a predicate, a typed value, the evidence reference it was read from and the world date
 at which it became observable, and a rule that has to reach back into an entity for a
 field is not reading the fact base. Validation happens once, at construction, against

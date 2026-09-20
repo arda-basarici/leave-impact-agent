@@ -22,6 +22,27 @@ world. No agent exists yet: its harness, framework and evaluator are the next
 milestone's design, made on this milestone's evidence. This README grows with the build
 and never claims ahead of it.
 
+> **What this is and is not.** A benchmark with ground truth by construction, and the
+> agent that will be graded on it. The organization is synthetic and small (about
+> thirty people, thirty scenarios); the vendor systems are real. It is not a product,
+> not a study of any real workforce, and it makes no claim about an agent's accuracy
+> yet, since no agent has run.
+
+## What the world milestone established
+
+- The golden plan (thirty scenarios, three tiers, eleven classes) constructs on 199 of
+  200 seeds against the default organization; the one refusal is loud and named. That
+  is feasibility evidence, not a proof of collision freedom: whole-world verification
+  stays the oracle.
+- The first golden world passed a hand audit of every scenario and seventeen deep
+  traces with thirty accepts and no defect in the world. The audit verifies the key
+  against the rules as coded and a human reading of the evidence, sharing the rules'
+  dated view; thirteen scenarios rest on the pass and a recount rather than a trace.
+- Model-written prose enters the world only under semantic containment (a lexical
+  guard, an extraction check by a second model family, a human read of every
+  answer-changing text); the stage costs well under a dollar per world, and its
+  accepted texts converge on one sentence frame, a realism limitation on record.
+
 ## Run the baseline
 
 Needs `uv`, `just`, and Docker.
@@ -79,11 +100,13 @@ probe proves on every deploy.
 
 ## Reading order
 
-DESIGN.md holds the decisions and their reasoning, the answer-key contract first and
-hosting as its appendix; ARCHITECTURE.md the package shape and the import law;
-AUDIT_METHODOLOGY.md what "golden" means here; `probes/FINDINGS.md` what the probe days
-established; REPORT_NOTES.md the decision narratives, newest first; VISION.md the
-founding snapshot, frozen.
+DESIGN.md holds the decisions and their reasoning, organized for the reader who has to
+trust the ground truth: what a valid answer is, how the world and its prose are
+constructed, the classes that leave the easy path, sealing and the audit, the boundaries
+that keep the benchmark out of the product, and the deployment; ARCHITECTURE.md the
+package shape and the import law; AUDIT_METHODOLOGY.md what "golden" means here;
+`probes/FINDINGS.md` what the probe days established; REPORT_NOTES.md the decision
+narratives, newest first; VISION.md the founding snapshot, frozen.
 
 ## License
 

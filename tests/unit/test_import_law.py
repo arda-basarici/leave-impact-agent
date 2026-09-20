@@ -1,4 +1,4 @@
-"""The import law as tests — DESIGN's "Package boundaries and the import law", enforced.
+"""The import law as tests — DESIGN's "Keeping the benchmark out of the product", enforced.
 
 Ranks give the default direction: a module imports only its own package or a lower
 rank. Denied edges sit on top of the ranks and carry the trust boundaries a rank law
