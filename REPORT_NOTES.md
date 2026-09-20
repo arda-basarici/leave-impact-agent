@@ -78,8 +78,8 @@ employee, and a person's location does not redefine the leave interval, because 
 record carries no zone. The key stands and the scenario is that convention's test. For
 future worlds the far seat will always be a colleague, and because the organization's
 guarantee of one far person no longer suffices when that person is the leaver, the
-guarantee grows to two far seats in the same change [DECIDED, NOT BUILT: generator
-version 15, its own step after M1's close; the golden world stays at version 14].
+guarantee grows to two far seats in the same change [BUILT 2026-09-19, session 36,
+commit 33a7b69: generator version 15; the golden world stays at version 14].
 
 **Sealing only the method that ran.** The audit's identity is the digest of a small
 index that binds the record, the summary and the checklist by their digests, so the
@@ -472,6 +472,11 @@ that closes the M2 path, the agent on the instance talking to Frappe, but not th
 generator's, since a GitHub runner sits in neither network and has no fixed address.
 It lands as the platform's service-to-service connectivity step at M2 entry, with a
 five-minute probe on the service-token question the docs leave open.
+
+> ⚠ REVISED by the M2-entry design session, 2026-09-20 — private connectivity moved to the
+> demo milestone's entry or observed abuse; Cloudflare Access with a service token lands
+> within M2 instead, since it gives the token-gated property without a tunnel (DESIGN's
+> hosting section, the platform's Access ticket).
 
 **The rerun that wrote nothing.** Attempt 2, same run id, went green in 375.6 seconds
 (the entry point's `run_seconds` line). The truth objects kept attempt 1's timestamps:

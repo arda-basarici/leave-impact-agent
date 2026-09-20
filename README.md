@@ -9,18 +9,25 @@ agent investigates the exceptions; the human decides.
 
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
-**Status: the world milestone closed on 2026-09-19; the investigator milestone opens
-with its own design session.** What exists is the benchmark and the machinery that
-makes it trustworthy. A generator builds a synthetic organization and thirty scenarios
-in three difficulty tiers from a seed, materializes the prose those scenarios need
-through gated model calls, projects the world into real Frappe HR, Jira and Google
-Calendar instances, and seals the answer key where the application cannot reach it. An
-independent validator re-reads the live systems and approves a world only when every
-enumeration is exact and every record equals its planting. A hand-audit protocol, under
-which the first golden world was read scenario by scenario, sealed its audit beside the
-world. No agent exists yet: its harness, framework and evaluator are the next
-milestone's design, made on this milestone's evidence. This README grows with the build
-and never claims ahead of it.
+**Status: the world milestone closed on 2026-09-19; the investigator milestone's design
+session closed on 2026-09-20 and its build begins.** What exists is the benchmark and
+the machinery that makes it trustworthy. A generator builds a synthetic organization and
+thirty scenarios in three difficulty tiers from a seed, materializes the prose those
+scenarios need through gated model calls, projects the world into real Frappe HR, Jira
+and Google Calendar instances, and seals the answer key where the application cannot
+reach it. An independent validator re-reads the live systems and approves a world only
+when every enumeration is exact and every record equals its planting. A hand-audit
+protocol, under which the first golden world was read scenario by scenario, sealed its
+audit beside the world. No agent exists yet. Its shape is ruled on this milestone's
+evidence, and nothing of it is built: the loop on LangGraph, provisional on an
+acceptance spike; tools as plain function tools generated from the read ports by a
+role-scoped registry, where MCP was weighed and not chosen because one in-process
+consumer of a small owned read surface gains nothing from a protocol and it returns with
+an external client that needs one; full-text retrieval over sections for the core, with
+vector retrieval as a measured comparison after the core has numbers; two preregistered
+baselines (rules-only, and one model call over fixed evidence) graded by an evaluator
+that runs under its own identity and never re-reads a vendor. This README grows with the
+build and never claims ahead of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
 > agent that will be graded on it. The organization is synthetic and small (about

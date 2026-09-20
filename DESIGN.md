@@ -102,7 +102,9 @@ where it was read. **A conflict's observations carry typed values** (`FactValue`
 entity reference, text or a date, tagged in JSON; the fact base owns and may extend
 the union), never text flattened for convenience, because resolution compares them.
 A coverage action names its assignees in the plural (the cardinality clause needs
-two) and carries an optional rationale, the only text the LLM judge reads. The
+two) and carries an optional rationale, text no grader reads (the judge it was
+written for was superseded at the investigator milestone's entry; the grading
+paragraph below). The
 assessment's reason vocabulary is seeded from the criteria the viability rule names
 and closed by that rule.
 
@@ -238,17 +240,35 @@ whose action is `unknown` rests on the assessments. Missing evidence → unknown
 word. The completeness condition reads over this: every planted impact gets a
 coverage action, `unknown` included, or the plan is incomplete.
 
-**Grading falls out of the vocabulary, with the judge kept away from facts.** Impact
-and constraint discovery: precision and recall over grading keys. Candidate
-assessments: verdict plus reason class against authored or derived truth.
+**Grading falls out of the vocabulary, and no prose is scored.** Impact and
+constraint discovery: precision and recall over grading keys, where the key is the
+whole fact. For every other type the key names the subject and the payload states
+the claim (an assessment's key carries no verdict), so key match and payload
+correctness are reported apart and a matched key with a wrong payload is never a
+true positive (ruled at the investigator milestone's entry, 2026-09-20). Candidate
+assessments: verdict plus reason class against authored or derived truth, the
+must-assess set the recall universe.
 Distractors: false positives bucketed by the planted reason class (wrong window,
 other team, already resolved, stale document, timezone), so a near-miss reads as a
 sentence. Source conflicts: detected, and resolved to the authority table's value.
 Unknowns: the expected gaps of a missing-information scenario found, and no gap
-claimed where the world is complete. Grounding: evidence refs re-verified against
-the world. The plan: completeness plus deterministic constraint satisfaction over
-coverage actions. Only the rationale text behind an action goes to an LLM judge,
-calibrated on a hand-graded set with its cost budgeted. The ontology is frozen whole
+claimed where the world is complete. Grounding: a claim is grounded when the pure
+rules, run over everything the run observed (records returned, reads completed or
+failed, the run's condition) and the report's own claim links, reproduce its
+payload, which is the deterministic core replayed on the agent's reads; whether the
+cited references resolve, were retrieved by that run and were used by the replay is
+a separate count, so a broken citation and an unsupported inference are different
+numbers. The plan: outcome match against the expected action derived per run
+condition, completeness (every sealed impact exactly one action, no action without
+an impact) and constraint satisfaction with truth-derived assessments; coherence,
+the same constraint check over the report's own assessments plus the chain checks,
+is reported beside it so an assignment with no reported assessment shows. The first
+draft sent the rationale text behind an action to an LLM judge calibrated on a
+hand-graded set; superseded 2026-09-20, since the rationale is optional in the
+vocabulary, no hand-graded set exists, calibration is its own measurement problem,
+and the claim this benchmark makes rests on deterministic grading against
+constructed truth. It returns as future work when rationale quality has a consumer,
+the demo's report view. The ontology is frozen whole
 and exercised gradually: the first golden set covers the types its scenario classes
 need, and no scenario is authored to give a type coverage.
 
@@ -1254,6 +1274,29 @@ answer questions about the world and make no decisions; real-API behaviour surfa
 as a tool failure, itself an evaluated condition; swapping a vendor touches one
 adapter.
 
+**A tool is one typed specification over one read-port method, constructed by a
+declared registry; MCP was weighed and not chosen.** The thirteen read-port methods
+are the whole tool surface. Each tool is a specification (name, description,
+argument bounds including the search limit, id validation, the serialization of the
+observed record, the logging hook) naming exactly one port method; the model schema
+is generated from it, and a tool makes no domain decision. The registry declares per
+role which methods become tools, so a tool list is constructed and never prompted,
+and least privilege is the registry and a role-scoped read-only vendor principal
+together: the registry is a harness-level claim, the principal is what makes it
+provable against the vendor. No tool takes a date: the wrapper stamps every
+observation with the run's `now`, the rules read the stamp, the model supplies none,
+and what a read returns is not filtered by date (time is applied above the port), so
+a wrong-time call cannot be expressed and a span argument is scope the model
+chooses, logged and not graded. MCP was the alternative transport (ruled
+2026-09-20): what a protocol buys is interoperability and discovery across a
+boundary the project does not control, and the investigator milestone has one
+in-process consumer of a small owned read surface, so a server would add a process,
+a transport, an adapter dependency and a second copy of the schema while hiding
+nothing. It is reopened by an independently deployed or external client that needs a
+shared protocol; the conversation surface runs in the same application and reuses
+the registry directly, and the registry is what a server would wrap, so the cost then
+is the transport, not a redesign.
+
 **One class per system implements both of its ports, and a domain id has exactly one
 vendor representation per place.** The read and the write side share a transport, a
 scope and an identity map, and which side a caller holds is the type it is handed.
@@ -1388,15 +1431,84 @@ facts derived through the read ports; it learns the leave from `RunContext` and 
 world's date from the run, never the machine's clock; it observes everything the
 reads return, dated to the run's day, and knows no planting date; and it may not
 import the benchmark. The framework, the tool transport, retrieval and the harness
-are that entry session's rulings. **The evaluator, at its entry, inherits four.** It
+were ruled at that entry (2026-09-20; the tool paragraph above, the deployment
+section below). **The evaluator, at its entry, inherits four.** It
 grades the frozen vocabulary by the rules stated above, the pure rules deciding any
 candidate the key did not author; it admits truth time-filtered by the scenario's
 `now` and only from the sealed objects, recording world version, truth digest and
 version id before grading; it shares the pure rules with the investigator through
 `core` while neither imports the other; and its decoder honours absent against empty
-on the key's derived-conclusion fields. Its execution boundary and the trust its
-role carries wait for the entry session, and the metrics beyond the grading stated
-above are that session's, not this document's.
+on the key's derived-conclusion fields. Its execution boundary, its identity, its
+metrics beyond the grading and the baselines it grades beside the agent were ruled
+at that entry, 2026-09-20, as follows.
+
+**The evaluator runs as a dispatched workflow under its own identity, grades what the
+recorded run observed, and never re-reads a vendor.** Its role is trusted only to a
+GitHub environment that holds no secrets, so a vendor credential cannot reach the
+job even if a reference is added later, and the boundary is IAM rather than a
+workflow review; it reads the truth manifest, the sealed spec and run exports, writes
+evaluations by conditional create, holds no model grant, and probes its own
+boundary on every dispatch (the truth manifest readable as the positive control, a
+put under the served worlds and a model invoke refused). Evaluations live with the
+truth, since an object naming which claims matched the key reveals the key; run
+exports live in the world bucket outside the served-worlds tree, the instance
+holding a create-only put there and nothing else. An export is complete enough to
+replay the grading: run context, ordered tool requests with a stable identifier per
+recorded operation, returned records, completed and failed reads, the final claims,
+and the provenance the run record carries (the observed run condition and the
+assigned outage schedule, harness commit, model and inference settings, prompt
+digests, the tool-list digest, the preregistration commit, observed usage and cost,
+any failure category); the evaluation artifact adds the export's key and version id
+beside the truth digest and version id. The validator re-reads the live systems and
+the evaluator does not: that is the difference between them. The evaluator on the
+instance under a second principal was rejected on the executor paragraph's own
+sentence, two principals on one host being two configurations and not a boundary;
+workstation runs were rejected because evaluation repeats and needs run-and-attempt
+provenance.
+
+**The metrics beyond grading come from the export.** Source discipline: required-
+source attempts and successes, malformed calls, extra reads recorded as cost and not
+as mistakes (the key seals no right query per call, and an extra read may be a
+distractor investigated); a retrieval hit rate, whether the key's answer-changing
+section or clause appeared in the returned top-k of each search the run made, reported
+before citation quality so a missed claim is attributed between returned-and-ignored
+and never-retrieved. The run condition is derived from the reads that actually
+failed, the assigned schedule recorded beside it; a system that never called the
+failed source ran under no outage. Outage runs follow one injection schedule
+registered before any run and are reported apart from normal runs. Results are x/n
+per class and tier with Wilson intervals beside, one organization stated, and every
+reported table shows all attempted runs and failure counts by category beside the
+metrics on completed runs, so an exclusion is a visible smaller denominator and
+never a better score.
+
+**Two baseline systems are preregistered beside the agent and graded by the same
+evaluator from the same export shape.** Rules-only: the pure rules over facts derived
+from a frozen structured prefetch, no prose read. Single-shot: one model call, no
+tools, over that prefetch plus one fixed corpus retrieval whose query is written down
+before any run. The prefetch and its candidate-selection rule are one frozen rule for
+all three systems, a floor the agent may extend through tools and the baselines may
+not, and it can use no sealed key because the harness cannot import the benchmark.
+The comparisons measure the incremental performance, cost and latency of these
+specified systems; a causal claim about the model or the tools needs a controlled
+arm, and the retrieval and decomposition arms are such arms, added after the core is
+measured. The rules-only result on the structured tier is a plumbing check on shared
+rules and never an oracle, since the baseline and the evaluator share the rules; a
+miss there is investigated, never pre-classified. One model per comparison, held
+constant across the agent and the single-shot baseline and recorded per run; which
+models the comparison arm lists is the preregistration's to state after the ten-run
+reforecast, because a model is one identifier to switch while prompt text and
+reported numbers bind to it.
+
+**One committed preregistration file precedes the first reported run and is cited by
+commit in every evaluation artifact.** It holds the metric definitions, both
+baselines and the fixed query, the prefetch rule, the outage set and injection point,
+the per-run cap, the ledger threshold, the model per role, the iteration subset and
+the full set, and the budget's three numbers. Development runs carry the draft's
+commit and are labeled development; the reporting design is frozen before the first
+full-set measurement. A change after full-set results is a new preregistration, the
+old numbers kept, further results on the same world labeled exploratory, and
+confirmation needs a world from a new seed, which the generator produces for one
+projection day.
 
 ---
 
@@ -1509,6 +1621,44 @@ what makes the worker's location a deployment detail: in-process on the instance
 today, an ephemeral task later. No generic compute abstraction is built on top of
 it.
 
+**The loop runs on LangGraph, contained within the agent package, with two stores of
+explicit authority.** Ruled at the investigator milestone's entry (2026-09-20) on the
+five criteria the vision fixed, narrated streaming, tool orchestration, a
+human-approval step, an audit trail and resumable runs against this seam, each of
+which the framework's checkpoint, interrupt and stream primitives answer, and on the
+positioning this project serves, where a named framework is the most frequent gap. A
+hand-rolled loop (every mechanism owned, no dependency family) was the lean and was
+rejected on that weighing; Anthropic-only SDKs on the two-family shortlist. The read
+ports, the tool registry, the claim vocabulary and this seam know nothing of the
+framework; tools are constructed from the registry and handed to it; the model is
+reached through the framework's Converse chat model, a different client from the
+generator's prose seam, which stays as it is. The checkpoint is the execution cursor
+for resuming a run and nothing more, since it cannot be rebuilt from the log; the
+event log is the authority for audit, narration and the run export; every recorded
+operation carries a stable identifier so a resumed node's repeated append is refused
+rather than duplicated, and the two stores must reconcile after every tested crash
+point. The ruling is provisional on an acceptance spike, the first harness build step,
+built as the smallest real vertical slice on PostgreSQL: resume an interrupted run
+after a process restart with one approval event; a crash injected around a tool
+result, its checkpoint and its event append, recovered with no duplicated or missing
+event; streaming and forced tool calls through the actual `eu.` Anthropic and Nova
+configurations, which the prose probe's different client path does not establish;
+the complete export from the event log alone. A failure is attributed first: a
+persistence-design failure fixes the design, which a hand-rolled loop would share; an
+integration failure reopens the framework before any further harness code.
+
+**The investigator's runtime policy keeps the fault triad's meanings.** A missing
+record is evidence; the first unreachable source marks that source unreachable for
+the run and calls stop, facts already read standing; an unreadable leave record
+degrades the run, everything downstream unknown. A malformed record propagates and
+the run fails by defect, recorded with the fault, excluded from grading and counted,
+because the validator certified record fidelity before any run and a degrade would
+fold a defect into a legitimate unknown; production fault tolerance behind a real
+HRMS is future work the benchmark does not prove, and this document says so. A
+provider fault after the SDK's retries fails the run by infrastructure, counted
+apart; a response that arrives and refuses, emits no claims or emits output the codec
+rejects is system behaviour, graded with its omissions.
+
 **The executor trust boundary, if post-approval execution ships.** The writes run in
 a deterministic executor Lambda, not a second agent, with its own IAM role that is
 the sole principal able to read the write credentials and with no model-invocation
@@ -1517,6 +1667,12 @@ approved writes plus an audit artifact. Two principals on one host would be two
 configurations, not a boundary; a separate execution identity is what makes the
 least-privilege claim provable rather than intended. Gated on the open question
 below; if execution is out, the Lambda and its secrets namespace are not built.
+Ruled out for the investigator milestone (2026-09-20): no executor, no execution
+identity, no write credential, a run still ending in the approved-plan state the
+event log holds and nothing consumes. "No IAM split" names the executor's identity
+only; the investigator's read-only vendor principals, delivered to the instance, and
+the evaluator's identity are ruled on their own. The paragraph stands as the
+candidate architecture, entered only if a later milestone brings execution back.
 
 **The surrounding AWS set, and nothing more.** All of it under Terraform in the
 platform repository, this repository consuming the contract values it publishes: IAM
@@ -1566,7 +1722,14 @@ reforecast after the first ten representative runs. The levers are design-level:
 tiered scenario subset for iteration with the full set only for reported numbers,
 the deterministic core pre-fetching structured facts so the agent starts with
 evidence, a cheaper model for sub-tasks, the Batch API for any non-interactive step.
-Per-run cost is a hypothesis until measured.
+Per-run cost is a hypothesis until measured. Enforcement is two mechanisms (ruled
+2026-09-20): a preregistered per-run cap on calls and tokens that reserves a
+finalization allowance, a run at the cap reporting what it has, marked and graded, or
+recording a failed-to-complete output graded with its omissions, never an invented
+report; and a cumulative spend ledger from observed usage across runs, baselines,
+arms and evaluator executions with an admission stop at a preregistered threshold,
+the ten-run reforecast reading it, since a per-run cap bounds one run and not the
+milestone. The stack's monthly budget stays the outer alarm.
 
 **The Frappe hostnames sit behind Cloudflare Access; the agent's own hostname stays
 ungated until the demo.** The generator's first write from the cloud is a cross-host
@@ -1574,7 +1737,18 @@ call over the public edge, so the service token joins the secrets ceremony and t
 Frappe login stops being scannable; the agent's hostname serves a hello page until
 the demo milestone and that demo must be public, so the question returns at that
 milestone's entry rather than being decided twice. The Access application is
-platform work; this document rules only which hostnames.
+platform work; this document rules only which hostnames. Confirmed at the
+investigator milestone's entry (2026-09-20): Access lands within that milestone,
+after the three identity tickets (the validator's, the investigator's and the
+evaluator's principals), since the change touches the generator's and validator's
+proven paths; until it lands the machine clients ride the public edge with
+application auth, a dated interim and not a deferral, with a successful read from
+the instance under its own read-only principals required before the first live
+investigation. Private connectivity between the hosts (a private network, a mesh, a
+tunnel) was placed at that entry by the step-13 incident's note and is superseded to
+the demo milestone's entry or observed abuse before it: Access gives the token-gated
+property without a tunnel or a third control plane, and nothing in the investigator
+milestone needs a hostname to be unreachable.
 
 ---
 
@@ -1588,15 +1762,15 @@ platform work; this document rules only which hostnames.
   free tiers; spend is AWS and model tokens only. This rules out paid Atlassian
   seats and Atlassian's official MCP server (paid plans only), so Jira access is the
   project's own REST adapter.
-- **The schedule cuts.** With four of the envelope's six weeks gone at the probe
-  days, six holds only with cuts: post-approval execution is out (no executor
-  Lambda, no IAM split), but a run still ends in an approved-plan state in the event
-  log that nothing consumes yet, so an executor later is a new consumer rather than
-  a reworked seam; Slack is out for the world and investigator milestones, the
-  adapter seam kept; the conversation milestone moves to backlog and is not part of
-  the six-week claim; the first corpus is one answer-changing clause type and one
-  staleness pattern. Each returns as an addition; none changes the shape of what is
-  built now.
+- **The schedule cuts.** With four of the envelope's six weeks gone at the probe days,
+  six holds only with cuts: post-approval execution is out (no executor Lambda, no IAM
+  split; confirmed at the investigator milestone's entry, the split meaning the
+  executor's identity only), but a run still ends in an approved-plan state in the event
+  log that nothing consumes yet, so an executor later is a new consumer rather than a
+  reworked seam; Slack is out for the world and investigator milestones, the adapter
+  seam kept; the conversation milestone moves to backlog and is not part of the six-week
+  claim; the first corpus is one answer-changing clause type and one staleness pattern.
+  Each returns as an addition; none changes the shape of what is built now.
 - **Not a world invariant:** whether the investigator's retrieval surfaces a planted
   section. That is the agent's evidence-coverage measurement.
 
@@ -1649,6 +1823,41 @@ platform work; this document rules only which hostnames.
   two days; idle baseline under five dollars a month; no NAT Gateway. Pass, and the
   demo ships on it; fail, and the instance stays with the measured numbers as the
   tombstone.
+- **Vector retrieval as a measured arm.** The investigator milestone's core runs on
+  the existing full-text search over sections, the section the unit of chunking by
+  construction; pgvector in the cache and an embedding model on the platform's list
+  enter as a second implementation behind the same port method in the corpus
+  adapter, compared with full-text on retrieval hit rate, evidence coverage and
+  citation quality over the same golden set after the core is measured, exploratory
+  on this world and confirmed on a new-seed world. The comparison is the form in
+  which a retrieval store is added, a component inside something evaluated and never
+  the project; ranked second of the three post-core arms. A future-effective section
+  can displace a current one from the top-k, since the limit precedes any date
+  consideration; that stays an open measured limitation, and a filter at the tool
+  enters only through a re-run of the realizability proof. Ticket comments stay with
+  the work-item tool; copying them into corpus documents would change the source a
+  fact is attributed to.
+- **Multi-agent decomposition as a preregistered experiment**, ranked third of the
+  arms after the model arm and the retrieval arm; arms slip from the bottom and an
+  arm not run is reported as not run. The single investigator with all read tools is
+  the reference variant, compared with the decomposed variant on the same golden set,
+  metrics, calls, cost and latency, model, retrieval, prefetch and inference settings
+  held fixed, the decision rule preregistered. The first hypothesis is decomposition
+  by source, one reader per system holding only that system's tools and a
+  synthesizer holding none; by phase is the second; count, roles and what each role
+  sees as well as calls are the preregistration's. All roles in one process share
+  the instance identity and the application's read-only principals, so the registry
+  is harness-level least privilege and not a principal split.
+- **The rationale judge**, superseded at the investigator milestone's entry (the
+  grading paragraph); returns when rationale quality has a consumer, the demo's
+  report view, with its hand-graded set and calibration budget.
+- **MCP as the tool transport**, weighed and not chosen (the tool paragraph); returns
+  with an independently deployed or external client that needs a shared protocol.
+- **Production fault tolerance.** The investigator fails a run on a malformed record
+  because the benchmark's world is certified clean; degrading gracefully behind a
+  real HRMS is a different runtime policy the benchmark does not prove.
+- **Private connectivity between the hosts**, superseded from the investigator
+  milestone's entry to the demo's or observed abuse (the hosting section).
 - **A direct Anthropic API path beside Bedrock.** Not committed to; one provider
   keeps credentials, billing and audit in one place. Trigger: Bedrock lacking a
   model or feature the evaluation shows the product needs.
@@ -1660,20 +1869,18 @@ platform work; this document rules only which hostnames.
 Pinned to the milestone whose evidence decides each; the agenda inherited from the
 vision's deferred list.
 
-- **Framework** (LangGraph the default candidate): decided at the investigator
-  milestone's entry, judged on narrated streaming, tool orchestration, a
-  human-approval step, an audit trail, resumable runs against the PostgreSQL job
-  seam.
-- **MCP versus plain function tools**: same session; learning value against plumbing
-  cost.
-- **Post-approval execution**: same session; whether the product ends at the
-  approved report or executes the approved plan. The executor trust boundary above
-  is the candidate architecture if execution is in.
-- **Retrieval detail**: chunking and retrieval for the policy corpus, and whether
-  issue-comment history shares the index or stays tool-call-only; decided at the
-  investigator milestone's design, now that the generator's corpus exists.
+- **Framework**: closed 2026-09-20, LangGraph, provisional on the acceptance spike
+  (the job-seam paragraph in the deployment section).
+- **MCP versus plain function tools**: closed 2026-09-20, plain function tools from
+  a declared registry, MCP tombstoned with its reason and trigger (the tool
+  paragraph).
+- **Post-approval execution**: closed 2026-09-20, out for this roadmap, the executor
+  paragraph kept as the candidate.
+- **Retrieval detail**: closed 2026-09-20, full-text over sections for the core,
+  vector as a measured arm, comments with the work-item tool (future work).
 - **Whether the agent's model client shares the prose adapter's Converse
-  translation**: the seam is request-shaped and knows no prompt policy, so it may.
+  translation**: closed 2026-09-20, no; the framework's own Converse client is a
+  different consumer, and the prose seam stays as it is.
 - **Conversational-surface mechanics**: grounding method, refusal behaviour,
   evaluation reuse; decided at the conversation milestone's entry, strictly after
   the demo ships.
