@@ -85,8 +85,31 @@ ssh box 'cd /srv/frappe && set -a && . ./.env && set +a &&   docker compose exec
 ssh box 'cd /srv/frappe && docker compose exec backend   bench --site <name>.ardabasarici.dev enable-scheduler'
 # 4. The API key pair on the site's Administrator (bench execute generate_keys, in
 #    your own terminal; the pair goes to the benchmark environment's secrets).
-# That is the whole recipe: a blank, usable site. ERPNext's setup wizard is NOT a
-# step here — the generator's preparation checks the site is setup-complete and
+# 5. The read principals (M2 build plan step 0, ruled 2026-09-22): one read-only
+#    role, one user per reading consumer on it, a key pair per user. Repeated on
+#    every world site, because a role and its users live in the site's database.
+#    The role has no desk access, so its holders are saved as Website Users and
+#    never receive the automatic Desk User role; `add_permission` grants read only
+#    and, on a doctype's first custom rule, copies the standard rows into Custom
+#    DocPerm (the four doctypes are customized from then on, frozen against
+#    upstream defaults: fine on a synthetic site recreated per world) and refuses
+#    a duplicate rule, so the loop is repeatable. No password: the keys are the
+#    only way in, and the users never see the desk.
+ssh box 'cd /srv/frappe && docker compose exec backend bench --site <name>.ardabasarici.dev execute frappe.client.insert --kwargs "{\"doc\": {\"doctype\": \"Role\", \"role_name\": \"Leave Impact Reader\", \"desk_access\": 0}}"'
+for doctype in Employee Department "Leave Application" "Employee Skill Map"; do
+  ssh box "cd /srv/frappe && docker compose exec backend bench --site <name>.ardabasarici.dev execute frappe.permissions.add_permission --kwargs '{\"doctype\": \"$doctype\", \"role\": \"Leave Impact Reader\"}'"
+done
+for user in validator-reader investigator-reader; do
+  ssh box "cd /srv/frappe && docker compose exec backend bench --site <name>.ardabasarici.dev add-user $user@ardabasarici.dev --first-name $user --last-name reader --add-role 'Leave Impact Reader'"
+done
+#    The key pair per user (prints the pair: run in your own terminal; the validator's
+#    goes to the benchmark environment's secrets, the investigator's to the instance's
+#    SSM parameters; regenerate on the site to rotate):
+#    bench --site <name>.ardabasarici.dev execute frappe.core.doctype.user.user.generate_keys \
+#      --args '["validator-reader@ardabasarici.dev"]'
+#    Acceptance is `probes/read-principals/probe.py frappe --principal <p>` per user.
+# That is the whole recipe: a blank, usable site with its read principals. ERPNext's
+# setup wizard is NOT a step here — the generator's preparation checks the site is setup-complete and
 # completes the wizard itself when it is not (the first truly fresh world site,
 # hr-w2, refused the world's company until it did; 2026-09-15).
 # Teardown: bench drop-site + remove the Caddy stanza + the DNS record.
