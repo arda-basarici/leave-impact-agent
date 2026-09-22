@@ -538,15 +538,43 @@ def canary_issue(project_key: str, marker: str) -> Json:
     }
 
 
+def delete_issue(cleanup: httpx.Client, key: str) -> Json:
+    """Delete ``key`` through ``cleanup``; the key stays on record unless the delete succeeded."""
+    status = cleanup.delete(f"/issue/{key}").status_code
+    return {"key": "<deleted>" if status == 204 else key, "delete_status": status}
+
+
 def attempt_create(client: httpx.Client, cleanup: httpx.Client, payload: Json) -> Json:
     """One create attempt; anything created is deleted at once through ``cleanup``."""
     response = client.post("/issue", json=payload)
     record = response_record(response)
     if response.is_success:
-        key = str(cast(Json, response.json()).get("key"))
-        record["unexpected_issue_deleted"] = cleanup.delete(f"/issue/{key}").status_code
-        record["body"] = {"key": "<deleted>"}
+        record["body"] = delete_issue(cleanup, str(cast(Json, response.json()).get("key")))
+        record["unexpected_creation"] = True
     return record
+
+
+def ensure_canary_admin(client: httpx.Client, project_key: str) -> Json:
+    """The generator account in the canary project's Administrators role, so it can delete.
+
+    Delete Issues sits with that role on the site's one permission scheme, and a project
+    created over REST gives its lead no role: the first run's proof issue could not be
+    removed by anyone. Granted on the canary project only; the golden project keeps the
+    property that no REST principal deletes its issues.
+    """
+    me = str(cast(Json, client.get("/myself").json())["accountId"])
+    roles = cast(Json, client.get(f"/project/{project_key}/role").json())
+    role_id = str(roles["Administrators"]).rstrip("/").rsplit("/", 1)[-1]
+    actors = cast(
+        list[Json],
+        cast(Json, client.get(f"/project/{project_key}/role/{role_id}").json()).get("actors", []),
+    )
+    held = any(cast(Json, actor.get("actorUser") or {}).get("accountId") == me for actor in actors)
+    if not held:
+        client.post(
+            f"/project/{project_key}/role/{role_id}", json={"user": [me]}
+        ).raise_for_status()
+    return {"role": "Administrators", "generator_was_member": held, "generator_is_member": True}
 
 
 def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None:
@@ -580,7 +608,11 @@ def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None
             site.ensure_project(canary_project, "Leave Impact read-principals canary")
         finally:
             site.close()
-        capture.check("canary_project_present", key=canary_project)
+        capture.check(
+            "canary_project_present",
+            key=canary_project,
+            **ensure_canary_admin(raw_generator, canary_project),
+        )
         capture.check(
             "distinct_credentials",
             distinct=reader_site.credential != reference_site.credential,
@@ -601,9 +633,9 @@ def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None
         proof = raw_generator.post("/issue", json=payload)
         proof_record = response_record(proof)
         if proof.is_success:
-            key = str(cast(Json, proof.json()).get("key"))
-            proof_record["deleted"] = raw_generator.delete(f"/issue/{key}").status_code
-            proof_record["body"] = {"key": "<deleted>"}
+            proof_record["body"] = delete_issue(
+                raw_generator, str(cast(Json, proof.json()).get("key"))
+            )
         refused = attempt_create(raw_reader, raw_generator, payload)
         capture.check(
             "create_refused_at_gateway",
