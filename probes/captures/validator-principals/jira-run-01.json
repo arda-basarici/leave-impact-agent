@@ -1,0 +1,84 @@
+{
+  "attempt": 1,
+  "outcome": "ok",
+  "checks": {
+    "canary_project_present": {
+      "key": "LIPROBE"
+    },
+    "distinct_credentials": {
+      "distinct": true
+    },
+    "work_items_equal": {
+      "reader_count": 33,
+      "reference_count": 33,
+      "reader_digest": "e9a6e5e93912a70343b29279ee8773f8948c5d014c28402d0fed42e0e7723f75",
+      "reference_digest": "e9a6e5e93912a70343b29279ee8773f8948c5d014c28402d0fed42e0e7723f75",
+      "equal": true
+    },
+    "components_equal": {
+      "reader_count": 5,
+      "reference_count": 5,
+      "reader_digest": "a9e82dd7fde5ff0db25ddc49a2a82aa891803ecac972618cb1cf88145e9e1844",
+      "reference_digest": "a9e82dd7fde5ff0db25ddc49a2a82aa891803ecac972618cb1cf88145e9e1844",
+      "equal": true
+    },
+    "account_permissions": {
+      "golden_project": {
+        "BROWSE_PROJECTS": true,
+        "CREATE_ISSUES": true,
+        "EDIT_ISSUES": true,
+        "DELETE_ISSUES": false,
+        "ADD_COMMENTS": true,
+        "TRANSITION_ISSUES": true
+      },
+      "canary_project": {
+        "BROWSE_PROJECTS": true,
+        "CREATE_ISSUES": true,
+        "EDIT_ISSUES": true,
+        "DELETE_ISSUES": false,
+        "ADD_COMMENTS": true,
+        "TRANSITION_ISSUES": true
+      }
+    },
+    "create_refused_at_gateway": {
+      "payload_proven_by_generator": true,
+      "generator": {
+        "status": 201,
+        "body": {
+          "key": "<deleted>"
+        },
+        "deleted": 403
+      },
+      "reader": {
+        "status": 401,
+        "body": {
+          "code": 401,
+          "message": "Unauthorized; scope does not match"
+        }
+      },
+      "refused": true
+    },
+    "site_url_characterization": {
+      "read": {
+        "status": 401,
+        "body": "Client must be authenticated to access this resource."
+      },
+      "create": {
+        "status": 400,
+        "body": {
+          "errorMessages": [
+            "The target project doesn't exist or you don't have permission to create issues in it."
+          ],
+          "errors": {
+            "project": "The target project doesn't exist or you don't have permission to create issues in it."
+          }
+        }
+      }
+    }
+  },
+  "started_at": "2026-09-22T15:13:24.160422+00:00",
+  "principal": "validator",
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "gateway_host": "api.atlassian.com",
+  "canary_project": "LIPROBE"
+}

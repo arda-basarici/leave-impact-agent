@@ -1353,3 +1353,52 @@ user from the workstation with the Administrator's pair as the reference. Captur
 - **Deviation from the ticket's wording:** a role, not a role profile; a one-role
   profile hides nothing.
 
+## read-principals, Jira — PASS for both readers, read-only by token scope at the gateway (2026-09-22)
+
+The M2 build plan's step 0, the Jira half (ruling 2 of the step). Two Atlassian
+accounts on the Free site as plain members (no admin group; plus-addressed variants of
+the owner's Gmail), each holding one API token scoped to `read:jira-work`, 365 days.
+A scoped token is honoured only at Atlassian's gateway,
+`https://api.atlassian.com/ex/jira/<cloud id>`, which becomes the readers' base URL;
+the adapter appends `/rest/api/3` and changes nothing. Acceptance is
+`probes/read-principals/probe.py jira --principal <p>` with the generator's classic
+token at the site URL as the reference. Captures:
+`captures/validator-principals/jira-run-01.json` (the first run, its delete refusal the
+finding below), `jira-run-02.json`, and `captures/investigator-principals/jira-run-01.json`.
+
+- **Read equivalence, both readers:** the adapter's own reads at the gateway, work
+  items with their comments and components, canonicalized and digested, equal the
+  generator's at the site URL: 33 work items, 5 components, the same two digests for
+  both readers.
+- **The limitation made visible:** Jira grants each account Browse, Create, Edit,
+  Comment and Transition on the golden project and on the canary project, and not
+  Delete. The Free plan cannot narrow this, as session 42 recorded; the credential
+  can. Under either scoped token the known-valid create is refused at the gateway with
+  401 `Unauthorized; scope does not match`, the status the documentation leaves
+  unstated and this probe measured; the same payload created by the generator first
+  (201), so the refusal is the scope's and not the payload's.
+- **The site URL, characterized:** a read with the scoped token answers 401 "Client
+  must be authenticated to access this resource" and the create 400 as an anonymous
+  caller ("target project doesn't exist or you don't have permission"), so the site
+  URL does not honour a scoped token at all, the official behaviour; the gateway-shape
+  guard the validator's configuration gains at commit 5 is belt and braces, not the
+  boundary.
+- **The canary project and a permission the golden project shares:** the probe creates
+  the company-managed project `LIPROBE` through the adapter's own project creation
+  under the generator principal, permission-equivalent by construction on the site's
+  one scheme. The first run's proof issue could not be deleted (403) by the generator:
+  Delete Issues and Administer Projects sit with the project role Administrators on
+  that scheme, and a project created over REST gives its lead no role, so no REST
+  principal can delete an issue in any project on the site, the golden project
+  included, a property worth knowing about the world's immutability. The probe now
+  puts the generator account in the canary project's Administrators role when it
+  ensures the project, on the canary only; `LIPROBE-1` was removed by hand after the
+  grant (a 204, confirmed by a 404 on a direct get; the search index lagged, as step 9
+  found), and the second run shows the proof issue deleted with 204.
+- **Storage, as the tickets fixed the names:** the validator's token into `benchmark`
+  as `LEAVE_IMPACT_VALIDATOR_JIRA_TOKEN`, with the variables
+  `LEAVE_IMPACT_VALIDATOR_JIRA_EMAIL` and, new by ruling 2,
+  `LEAVE_IMPACT_VALIDATOR_JIRA_BASE_URL` holding the gateway root; the investigator's
+  into SSM `/leave-agent/jira-token` (version 2, digest-verified against the put file,
+  the file deleted) and `/leave-agent/jira-email` (a String, version 2). Both tokens
+  expire 2027-09-22; the renewal trigger sits on the inventory rows.
