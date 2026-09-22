@@ -325,6 +325,16 @@ def probe_frappe(env: Mapping[str, str], principal: str, capture: Capture) -> No
     raw_reader = frappe_raw(reader_site.base_url, reader_site.credential)
     raw_admin = frappe_raw(reference_site.base_url, reference_site.credential)
     try:
+        # The credential must be the account the run claims to test: the first passing run
+        # was produced with the other reader's key pair left in the operator's session, and
+        # only the vendor's messages naming the other account gave it away.
+        logged_in_as = str(frappe_method(raw_reader, "frappe.auth.get_logged_user"))
+        if logged_in_as != account:
+            raise ConfigurationError(
+                f"the reader credential authenticates as {logged_in_as}, not {account}: "
+                "the LEAVE_IMPACT_FRAPPE_API_KEY and _SECRET in the environment are another user's"
+            )
+        capture.check("credential_identity", account=account, credential_is_account=True)
         capture.check(
             "distinct_credentials",
             distinct=reader_site.credential.api_key != reference_site.credential.api_key,
