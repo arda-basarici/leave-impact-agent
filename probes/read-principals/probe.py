@@ -316,8 +316,12 @@ def probe_frappe(env: Mapping[str, str], principal: str, capture: Capture) -> No
     capture.data["world_version"] = manifest.world_version
     capture.data["reader_account"] = account
 
-    reader = FrappeAdapter(reader_site.base_url, reader_site.credential, config)
-    admin = FrappeAdapter(reference_site.base_url, reference_site.credential, config)
+    reader = FrappeAdapter(
+        base_url=reader_site.base_url, credential=reader_site.credential, config=config
+    )
+    admin = FrappeAdapter(
+        base_url=reference_site.base_url, credential=reference_site.credential, config=config
+    )
     raw_reader = frappe_raw(reader_site.base_url, reader_site.credential)
     raw_admin = frappe_raw(reference_site.base_url, reference_site.credential)
     try:
@@ -548,8 +552,12 @@ def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None
     capture.data["gateway_host"] = httpx.URL(reader_site.base_url).host
     capture.data["canary_project"] = canary_project
 
-    reader = JiraAdapter(reader_site.base_url, reader_site.credential, config)
-    generator = JiraAdapter(reference_site.base_url, reference_site.credential, config)
+    reader = JiraAdapter(
+        base_url=reader_site.base_url, credential=reader_site.credential, config=config
+    )
+    generator = JiraAdapter(
+        base_url=reference_site.base_url, credential=reference_site.credential, config=config
+    )
     raw_reader = jira_raw(reader_site.base_url, reader_site.credential)
     raw_reader_at_site = jira_raw(reference_site.base_url, reader_site.credential)
     raw_generator = jira_raw(reference_site.base_url, reference_site.credential)
@@ -645,8 +653,8 @@ def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> No
     capture.data["reader_client"] = short(reader_credential.client_id)
     capture.data["generator_client"] = short(reference_credential.client_id)
 
-    reader = CalendarAdapter(reader_credential, config)
-    generator = CalendarAdapter(reference_credential, config)
+    reader = CalendarAdapter(credential=reader_credential, config=config)
+    generator = CalendarAdapter(credential=reference_credential, config=config)
     try:
         capture.check(
             "distinct_credentials",
@@ -735,7 +743,7 @@ def probe_google_isolation(env: Mapping[str, str], capture: Capture, confirmed: 
 
 def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
-    parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
+    parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument("vendor", choices=("frappe", "jira", "google"))
     parser.add_argument("--principal", choices=("validator", "investigator"))
     parser.add_argument("--mode", choices=("acceptance", "isolation"), default="acceptance")
@@ -774,7 +782,7 @@ def main(argv: list[str] | None = None) -> int:
         capture.data["error"] = f"{type(error).__name__}: {error}"
         raise
     finally:
-        if capture.data["checks"] or "error" in capture.data:
+        if capture.data["checks"]:
             try:
                 print(f"capture: {capture.write()}")
             except RuntimeError as refused:
