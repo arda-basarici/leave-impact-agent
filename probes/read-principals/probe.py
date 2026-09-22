@@ -66,7 +66,7 @@ from leaveimpact.adapters.calendar.adapter import (
     CalendarCredential,
 )
 from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
-from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraCredential
+from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraCredential, JiraSite
 from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
 from leaveimpact.adapters.wiring import PREFIX, ConfigurationError
 from leaveimpact.core.entities import Employee
@@ -572,6 +572,15 @@ def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None
     raw_reader_at_site = jira_raw(reference_site.base_url, reader_site.credential)
     raw_generator = jira_raw(reference_site.base_url, reference_site.credential)
     try:
+        # The canary project: company-managed on the same site, so on the Free plan it
+        # shares the one permission scheme every project has; created once by the
+        # generator principal through the adapter's own project creation, kept standing.
+        site = JiraSite(base_url=reference_site.base_url, credential=reference_site.credential)
+        try:
+            site.ensure_project(canary_project, "Leave Impact read-principals canary")
+        finally:
+            site.close()
+        capture.check("canary_project_present", key=canary_project)
         capture.check(
             "distinct_credentials",
             distinct=reader_site.credential != reference_site.credential,
