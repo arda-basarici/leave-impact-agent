@@ -1297,3 +1297,59 @@ is the swept minimum for a qualification row. The size cliff is reservation pres
 class the seed-138 residual already names, so it stays a loud refusal on record and not a
 guard. The declared domain is checked by `unsupported_shape_problems`; the compatibility
 promise is proven on the default organization and on the four-team boundary.
+
+## read-principals, Frappe — PASS for both readers (2026-09-22)
+
+The M2 build plan's step 0, the Frappe half (the step's rulings of 2026-09-22): one
+read-only role `Leave Impact Reader` on the golden world's site `hr-w3`, two users on
+it, `validator-reader@ardabasarici.dev` and `investigator-reader@ardabasarici.dev`, a
+key pair each. The recipe is step 5 of the site recipe in `deploy/frappe/README.md`;
+the acceptance is `probes/read-principals/probe.py frappe --principal <p>`, run once per
+user from the workstation with the Administrator's pair as the reference. Captures:
+`captures/validator-principals/frappe-run-01.json` and
+`captures/investigator-principals/frappe-run-01.json`.
+
+- **Read equivalence, all three reads, both readers:** the adapter's own paged reads
+  as each reader and as the Administrator, canonicalized and digested, are equal:
+  28 employees (with their skill records), 5 teams, 36 leaves, the same three digests
+  for both readers. Field by field and not by count: Leave Application's effective
+  permission set carries permission-level-one rows (Leave Approver, HR User, HR
+  Manager, All), the reader role has none, and Frappe drops such fields silently, so
+  the equality is what proves no selected field sits above level zero.
+- **The proof:** the Role Permission Manager's report for the role lists exactly four
+  rows, one per doctype, read only, permission level zero, no owner-only rule, and no
+  row for the role on any other doctype. Each account reads back enabled, user type
+  Website User, assigned roles exactly the one, no User Permission record. The
+  copy-on-first-customization the recipe documents is observed: each doctype's
+  effective set now holds its standard rows beside the reader row (Employee five rows,
+  Department six, Leave Application ten, Employee Skill Map four).
+- **The demonstration, same doctypes:** a create on each of the four doctypes refused
+  with 403 `PermissionError` under each reader ("does not have doctype access via role
+  permission"), then a write and a delete against a disposable employee the
+  Administrator created (`emp_999`, in the world's company and a real department for
+  the run's duration, no validation dispatched in the window) refused the same way,
+  the record read back unchanged, then removed by the Administrator with its skill
+  record.
+- **A Website User authenticates and reads over API keys**, the one thing the source
+  read could not settle: both accounts, saved as Website Users because the role has no
+  desk access, performed every read above with key and secret alone.
+- **The first passing run was mislabeled and is not on record.** The validator's run
+  was produced with the investigator's key pair still set in the operator's session;
+  the account check read the validator user by e-mail while every refusal named the
+  investigator. Only the vendor's messages gave it away. The probe now reads the
+  credential's own logged-in user first and refuses a mismatch before any check
+  (`credential_identity` is the first line of a run); the mislabeled capture was
+  deleted as an operator error the probe now guards against, and both runs repeated.
+  Two earlier runs that crashed on a positional adapter call, before any check, were
+  deleted for the same reason, and a run with no completed check writes no capture.
+- **Storage, as the tickets fixed the names:** the validator's pair into the
+  `benchmark` environment as `LEAVE_IMPACT_VALIDATOR_FRAPPE_API_KEY` and `_SECRET`;
+  the investigator's into SSM `/leave-agent/frappe-api-key` and `/leave-agent/frappe-api-secret`,
+  each at version 2, the stored value digest-matched against the put file, the file
+  deleted. The Administrator's pair existed only in `benchmark`, so its secret was
+  regenerated on the site for the reference reads (the key unchanged) and replaced in
+  `benchmark` the same minute; the working copy lived in process variables of one
+  terminal and nowhere on disk.
+- **Deviation from the ticket's wording:** a role, not a role profile; a one-role
+  profile hides nothing.
+
