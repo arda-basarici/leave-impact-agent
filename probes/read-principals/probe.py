@@ -26,11 +26,14 @@ acceptance for those credentials, one vendor mode per run, one principal per run
   the generator's project.
 
 Credentials enter only through the fixed ``LEAVE_IMPACT_*`` names the production wiring
-reads (the operator sources a git-ignored file first; no path or value is an argument;
-no dotenv is parsed here). The reader under test is the ``LEAVE_IMPACT_`` set, exactly
-the validator workflow's; the reference credentials (the generator's, and Frappe's
-Administrator) carry a ``LEAVE_IMPACT_REFERENCE_`` prefix. The golden world's projected
-manifest is a local copy named by ``LEAVE_IMPACT_WORLD_MANIFEST_FILE``.
+reads, each vendor mode reading its own vendor's names (the operator sources a
+git-ignored file first; no path or value is an argument; no dotenv is parsed here). The
+reader under test is the ``LEAVE_IMPACT_`` set, the validator workflow's own names; the
+reference credentials (the generator's, and Frappe's Administrator) carry a
+``LEAVE_IMPACT_REFERENCE_`` prefix. The golden world's projected manifest is a local
+copy named by ``LEAVE_IMPACT_WORLD_MANIFEST_FILE``; the isolation mode's three temporary
+tokens are ``LEAVE_IMPACT_ISOLATION_SAME_A_``, ``_SAME_B_`` and ``_OTHER_`` followed by
+``GOOGLE_AUTHORIZED_USER_FILE``.
 
 Captures are attempt-stamped and never overwritten. Golden records never reach a
 capture: the equivalence checks write counts, digests and equality verdicts. Every
@@ -65,7 +68,7 @@ from leaveimpact.adapters.calendar.adapter import (
 from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
 from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraCredential
 from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
-from leaveimpact.adapters.wiring import PREFIX, ConfigurationError, Hosts, deployment_from_env
+from leaveimpact.adapters.wiring import PREFIX, ConfigurationError
 from leaveimpact.core.entities import Employee
 from leaveimpact.core.enums import EmploymentType, Grade
 from leaveimpact.core.ids import employee_id
@@ -214,41 +217,61 @@ def manifest_from_env(env: Mapping[str, str]) -> WorldManifest:
         raise ConfigurationError(f"{name} names {path}, which cannot be read") from error
 
 
-REFERENCE_NAMES: Mapping[str, tuple[str, ...]] = {
-    "frappe": ("FRAPPE_API_KEY", "FRAPPE_API_SECRET"),
-    "jira": ("JIRA_BASE_URL", "JIRA_EMAIL", "JIRA_TOKEN"),
-    "google": ("GOOGLE_AUTHORIZED_USER_FILE",),
-}
+@dataclasses.dataclass(frozen=True)
+class FrappePrincipal:
+    base_url: str
+    credential: FrappeCredential
 
 
-def reference_hosts(env: Mapping[str, str], vendor: str) -> Hosts:
-    """The reference credential for ``vendor`` (the generator's; Frappe's Administrator).
-
-    Every ``LEAVE_IMPACT_REFERENCE_<name>`` the vendor needs must be set: a reference
-    that silently fell back to the reader's own credential would make the equivalence
-    checks compare a credential with itself. The other vendors' values are the reader's,
-    unused by this mode.
-    """
-    for name in REFERENCE_NAMES[vendor]:
-        required(env, PREFIX + "REFERENCE_" + name)
-    reference = {
-        PREFIX + name[len(PREFIX + "REFERENCE_") :]: value
-        for name, value in env.items()
-        if name.startswith(PREFIX + "REFERENCE_")
-    }
-    merged = {**{k: v for k, v in env.items() if k.startswith(PREFIX)}, **reference}
-    return deployment_from_env(merged).hosts
+@dataclasses.dataclass(frozen=True)
+class JiraPrincipal:
+    base_url: str
+    credential: JiraCredential
 
 
-def register_hosts(capture: Capture, hosts: Hosts) -> None:
-    capture.secret(hosts.frappe_credential.api_key)
-    capture.secret(hosts.frappe_credential.api_secret)
-    capture.secret(hosts.jira_credential.api_token)
-    capture.secret(hosts.calendar_credential.refresh_token)
-    capture.secret(hosts.calendar_credential.client_secret)
-    capture.redact(hosts.frappe_base_url, "https://<frappe-site>")
-    capture.redact(hosts.jira_base_url, "https://<jira-base>")
-    capture.redact(hosts.jira_credential.email, "<jira-account-email>")
+def frappe_principal(env: Mapping[str, str], prefix: str, capture: Capture) -> FrappePrincipal:
+    """The Frappe site and key pair under ``prefix`` (the reader's, or the reference's)."""
+    credential = FrappeCredential(
+        api_key=required(env, prefix + "FRAPPE_API_KEY"),
+        api_secret=required(env, prefix + "FRAPPE_API_SECRET"),
+    )
+    base_url = required(env, prefix + "FRAPPE_BASE_URL").rstrip("/")
+    capture.secret(credential.api_key)
+    capture.secret(credential.api_secret)
+    capture.redact(base_url, "https://<frappe-site>")
+    return FrappePrincipal(base_url, credential)
+
+
+def jira_principal(env: Mapping[str, str], prefix: str, capture: Capture) -> JiraPrincipal:
+    """The Jira base URL and account under ``prefix``: the gateway root for a scoped token."""
+    credential = JiraCredential(
+        email=required(env, prefix + "JIRA_EMAIL"), api_token=required(env, prefix + "JIRA_TOKEN")
+    )
+    base_url = required(env, prefix + "JIRA_BASE_URL").rstrip("/")
+    capture.secret(credential.api_token)
+    capture.redact(credential.email, f"<jira-account {short(credential.email)}>")
+    return JiraPrincipal(base_url, credential)
+
+
+def calendar_principal(env: Mapping[str, str], prefix: str, capture: Capture) -> CalendarCredential:
+    """The authorized-user JSON the name under ``prefix`` points at, as the wiring reads it."""
+    name = prefix + "GOOGLE_AUTHORIZED_USER_FILE"
+    path = Path(required(env, name))
+    try:
+        info = cast(Json, json.loads(path.read_text(encoding="utf-8")))
+        credential = CalendarCredential.from_authorized_user_info(info)
+    except OSError as error:
+        raise ConfigurationError(f"{name} names {path}, which cannot be read") from error
+    except (ValueError, KeyError, TypeError) as error:
+        raise ConfigurationError(f"{name} names {path}: not authorized-user JSON") from error
+    capture.secret(credential.refresh_token)
+    capture.secret(credential.client_secret)
+    capture.redact(credential.client_id, f"<client-id {short(credential.client_id)}>")
+    return credential
+
+
+READER = PREFIX
+REFERENCE = PREFIX + "REFERENCE_"
 
 
 # --- Frappe -----------------------------------------------------------------------------
@@ -285,24 +308,22 @@ def frappe_method(client: httpx.Client, method: str, **params: str) -> Any:
 
 def probe_frappe(env: Mapping[str, str], principal: str, capture: Capture) -> None:
     manifest = manifest_from_env(env)
-    reader_hosts = deployment_from_env(env).hosts
-    reference = reference_hosts(env, "frappe")
-    register_hosts(capture, reader_hosts)
-    register_hosts(capture, reference)
+    reader_site = frappe_principal(env, READER, capture)
+    reference_site = frappe_principal(env, REFERENCE, capture)
     account = required(env, PREFIX + "PROBE_FRAPPE_READER_EMAIL")
     config = manifest.systems.frappe
     capture.data["principal"] = principal
     capture.data["world_version"] = manifest.world_version
     capture.data["reader_account"] = account
 
-    reader = FrappeAdapter(reader_hosts.frappe_base_url, reader_hosts.frappe_credential, config)
-    admin = FrappeAdapter(reference.frappe_base_url, reference.frappe_credential, config)
-    raw_reader = frappe_raw(reader_hosts.frappe_base_url, reader_hosts.frappe_credential)
-    raw_admin = frappe_raw(reference.frappe_base_url, reference.frappe_credential)
+    reader = FrappeAdapter(reader_site.base_url, reader_site.credential, config)
+    admin = FrappeAdapter(reference_site.base_url, reference_site.credential, config)
+    raw_reader = frappe_raw(reader_site.base_url, reader_site.credential)
+    raw_admin = frappe_raw(reference_site.base_url, reference_site.credential)
     try:
         capture.check(
             "distinct_credentials",
-            distinct=reader_hosts.frappe_credential.api_key != reference.frappe_credential.api_key,
+            distinct=reader_site.credential.api_key != reference_site.credential.api_key,
         )
         # (a) read equivalence on the four doctypes, through the adapter's own reads
         reference_employees = admin.employees()
@@ -516,27 +537,26 @@ def attempt_create(client: httpx.Client, cleanup: httpx.Client, payload: Json) -
 
 def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None:
     manifest = manifest_from_env(env)
-    reader_hosts = deployment_from_env(env).hosts
-    reference = reference_hosts(env, "jira")
-    register_hosts(capture, reader_hosts)
-    register_hosts(capture, reference)
-    capture.redact(reference.jira_base_url, "https://<jira-site>")
+    reader_site = jira_principal(env, READER, capture)
+    reference_site = jira_principal(env, REFERENCE, capture)
+    capture.redact(reader_site.base_url, "https://<jira-gateway>")
+    capture.redact(reference_site.base_url, "https://<jira-site>")
     canary_project = required(env, PREFIX + "PROBE_JIRA_CANARY_PROJECT")
     config = manifest.systems.jira
     capture.data["principal"] = principal
     capture.data["world_version"] = manifest.world_version
-    capture.data["gateway_host"] = httpx.URL(reader_hosts.jira_base_url).host
+    capture.data["gateway_host"] = httpx.URL(reader_site.base_url).host
     capture.data["canary_project"] = canary_project
 
-    reader = JiraAdapter(reader_hosts.jira_base_url, reader_hosts.jira_credential, config)
-    generator = JiraAdapter(reference.jira_base_url, reference.jira_credential, config)
-    raw_reader = jira_raw(reader_hosts.jira_base_url, reader_hosts.jira_credential)
-    raw_reader_at_site = jira_raw(reference.jira_base_url, reader_hosts.jira_credential)
-    raw_generator = jira_raw(reference.jira_base_url, reference.jira_credential)
+    reader = JiraAdapter(reader_site.base_url, reader_site.credential, config)
+    generator = JiraAdapter(reference_site.base_url, reference_site.credential, config)
+    raw_reader = jira_raw(reader_site.base_url, reader_site.credential)
+    raw_reader_at_site = jira_raw(reference_site.base_url, reader_site.credential)
+    raw_generator = jira_raw(reference_site.base_url, reference_site.credential)
     try:
         capture.check(
             "distinct_credentials",
-            distinct=reader_hosts.jira_credential != reference.jira_credential,
+            distinct=reader_site.credential != reference_site.credential,
         )
         # (a) the validator's reads through the adapter, at the gateway, equal the generator's
         equivalence(capture, "work_items_equal", reader.work_items(), generator.work_items())
@@ -612,42 +632,28 @@ def refresh(credential: CalendarCredential, capture: Capture) -> tuple[Json, str
     return record, token
 
 
-def load_credential(path_name: str, env: Mapping[str, str], capture: Capture) -> CalendarCredential:
-    info = cast(Json, json.loads(Path(required(env, path_name)).read_text(encoding="utf-8")))
-    credential = CalendarCredential.from_authorized_user_info(info)
-    capture.secret(credential.refresh_token)
-    capture.secret(credential.client_secret)
-    capture.redact(credential.client_id, f"<client-id {short(credential.client_id)}>")
-    return credential
-
-
 def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> None:
     manifest = manifest_from_env(env)
-    reader_hosts = deployment_from_env(env).hosts
-    reference = reference_hosts(env, "google")
-    register_hosts(capture, reader_hosts)
-    register_hosts(capture, reference)
+    reader_credential = calendar_principal(env, READER, capture)
+    reference_credential = calendar_principal(env, REFERENCE, capture)
     probe_calendar = required(env, PREFIX + "PROBE_CALENDAR_ID")
     config = manifest.systems.calendar
     for calendar_id in (*config.calendar_by_employee.values(), probe_calendar):
         capture.redact(calendar_id, f"<calendar {short(calendar_id)}>")
-    capture.redact(reader_hosts.calendar_credential.client_id, "<reader-client-id>")
-    capture.redact(reference.calendar_credential.client_id, "<generator-client-id>")
     capture.data["principal"] = principal
     capture.data["world_version"] = manifest.world_version
-    capture.data["reader_client"] = short(reader_hosts.calendar_credential.client_id)
-    capture.data["generator_client"] = short(reference.calendar_credential.client_id)
+    capture.data["reader_client"] = short(reader_credential.client_id)
+    capture.data["generator_client"] = short(reference_credential.client_id)
 
-    reader = CalendarAdapter(reader_hosts.calendar_credential, config)
-    generator = CalendarAdapter(reference.calendar_credential, config)
+    reader = CalendarAdapter(reader_credential, config)
+    generator = CalendarAdapter(reference_credential, config)
     try:
         capture.check(
             "distinct_credentials",
-            distinct=reader_hosts.calendar_credential.refresh_token
-            != reference.calendar_credential.refresh_token,
+            distinct=reader_credential.refresh_token != reference_credential.refresh_token,
         )
         # (b) the granted scope, from the refresh response, never a token
-        granted, access_token = refresh(reader_hosts.calendar_credential, capture)
+        granted, access_token = refresh(reader_credential, capture)
         capture.check("granted_scope", **granted)
 
         # (a) list and get on the golden calendars equal the generator's
@@ -678,7 +684,7 @@ def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> No
         record = response_record(insert)
         if insert.is_success:
             event_id = str(cast(Json, insert.json()).get("id"))
-            _, generator_token = refresh(reference.calendar_credential, capture)
+            _, generator_token = refresh(reference_credential, capture)
             calendar_path = f"{GOOGLE_CALENDAR_API}/calendars/{quote(probe_calendar, safe='')}"
             record["unexpected_event_deleted"] = httpx.delete(
                 f"{calendar_path}/events/{event_id}",
@@ -695,9 +701,9 @@ def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> No
 
 def probe_google_isolation(env: Mapping[str, str], capture: Capture, confirmed: bool) -> None:
     """Revoke one of two temporary tokens in a project: the other dies, another project's lives."""
-    same_a = load_credential(PREFIX + "ISOLATION_SAME_A_FILE", env, capture)
-    same_b = load_credential(PREFIX + "ISOLATION_SAME_B_FILE", env, capture)
-    other = load_credential(PREFIX + "ISOLATION_OTHER_FILE", env, capture)
+    same_a = calendar_principal(env, PREFIX + "ISOLATION_SAME_A_", capture)
+    same_b = calendar_principal(env, PREFIX + "ISOLATION_SAME_B_", capture)
+    other = calendar_principal(env, PREFIX + "ISOLATION_OTHER_", capture)
     capture.data["same_project_clients"] = [short(same_a.client_id), short(same_b.client_id)]
     capture.data["other_project_client"] = short(other.client_id)
     before = {
