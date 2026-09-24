@@ -17,13 +17,15 @@ acceptance for those credentials, one vendor mode per run, one principal per run
   account write permission, the token's scope withholds it); a known-valid issue create
   is refused against a disposable canary project after the generator proved the payload;
   the same create through the site URL characterizes the unsupported path.
-- ``google --principal <p>``: the reader's token lists and gets events on the golden
-  calendars equal to the generator's; the granted scope is read from the refresh
-  response; a valid event insert on a calendar the world does not use is refused.
-- ``google --mode isolation``: Google's revocation unit, characterized with temporary
-  tokens only: two in one project, one in another; revoking the first kills the second
-  and not the third. Runs before any standing reader consent exists and never touches
-  the generator's project.
+- ``google --principal <p>``: the recorded exception (ruling 3b, 2026-09-24). No
+  read-only scope exists over app-created calendars, and the read-only scope that does
+  exist reaches the owner's personal calendar, so both readers hold the generator's
+  grant: `calendar.app.created` and `calendar.freebusy` under the generator's client,
+  one refresh token per consumer store. Read-only for Calendar rests on the code; what
+  the credential bounds is reach, and that is what this mode measures: the granted
+  scope set from the refresh response is exactly those two, the golden calendars are
+  readable through the adapter, and an event list on the account's primary calendar
+  and a calendar-list call are both refused.
 
 Credentials enter only through the fixed ``LEAVE_IMPACT_*`` names the production wiring
 reads, each vendor mode reading its own vendor's names (the operator sources a
@@ -31,9 +33,7 @@ git-ignored file first; no path or value is an argument; no dotenv is parsed her
 reader under test is the ``LEAVE_IMPACT_`` set, the validator workflow's own names; the
 reference credentials (the generator's, and Frappe's Administrator) carry a
 ``LEAVE_IMPACT_REFERENCE_`` prefix. The golden world's projected manifest is a local
-copy named by ``LEAVE_IMPACT_WORLD_MANIFEST_FILE``; the isolation mode's three temporary
-tokens are ``LEAVE_IMPACT_ISOLATION_SAME_A_``, ``_SAME_B_`` and ``_OTHER_`` followed by
-``GOOGLE_AUTHORIZED_USER_FILE``.
+copy named by ``LEAVE_IMPACT_WORLD_MANIFEST_FILE``.
 
 Captures are attempt-stamped and never overwritten. Golden records never reach a
 capture: the equivalence checks write counts, digests and equality verdicts. Every
@@ -56,7 +56,6 @@ from collections.abc import Callable, Iterable, Mapping
 from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any, cast
-from urllib.parse import quote
 
 import httpx
 
@@ -86,7 +85,10 @@ JIRA_PERMISSIONS = (
     "ADD_COMMENTS",
     "TRANSITION_ISSUES",
 )
-GOOGLE_REVOKE_URI = "https://oauth2.googleapis.com/revoke"
+GENERATOR_SCOPES = (
+    "https://www.googleapis.com/auth/calendar.app.created",
+    "https://www.googleapis.com/auth/calendar.freebusy",
+)
 # The Role Permission Manager's own report, whitelisted for System Manager: the rows for
 # a role across doctypes, or a doctype's effective set (custom rows when any exist).
 PERMISSION_REPORT = "frappe.core.page.permission_manager.permission_manager.get_permissions"
@@ -691,100 +693,69 @@ def refresh(credential: CalendarCredential, capture: Capture) -> tuple[Json, str
     return record, token
 
 
+def google_get(path: str, access_token: str, params: dict[str, str] | None = None) -> Json:
+    response = httpx.get(
+        f"{GOOGLE_CALENDAR_API}{path}",
+        headers={"Authorization": f"Bearer {access_token}"},
+        params=params,
+        timeout=60,
+    )
+    record = response_record(response)
+    if response.is_success:
+        # a success here is a reach the token was not supposed to have: keep the fact,
+        # never the owner's calendar data
+        record["body"] = "<omitted: the call succeeded>"
+    return record
+
+
 def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> None:
     manifest = manifest_from_env(env)
-    reader_credential = calendar_principal(env, READER, capture)
-    reference_credential = calendar_principal(env, REFERENCE, capture)
-    probe_calendar = required(env, PREFIX + "PROBE_CALENDAR_ID")
+    credential = calendar_principal(env, READER, capture)
     config = manifest.systems.calendar
-    for calendar_id in (*config.calendar_by_employee.values(), probe_calendar):
+    for calendar_id in config.calendar_by_employee.values():
         capture.redact(calendar_id, f"<calendar {short(calendar_id)}>")
     capture.data["principal"] = principal
     capture.data["world_version"] = manifest.world_version
-    capture.data["reader_client"] = short(reader_credential.client_id)
-    capture.data["generator_client"] = short(reference_credential.client_id)
+    capture.data["client"] = short(credential.client_id)
 
-    reader = CalendarAdapter(credential=reader_credential, config=config)
-    generator = CalendarAdapter(credential=reference_credential, config=config)
+    # (a) the granted scope set, from the refresh response, never a token
+    granted, access_token = refresh(credential, capture)
+    capture.check(
+        "granted_scope",
+        **granted,
+        exactly_the_generator_scopes=sorted(granted.get("scope", [])) == sorted(GENERATOR_SCOPES),
+    )
+    if access_token is None:
+        raise RuntimeError("the token did not refresh; nothing below can be measured")
+
+    # (b) the golden calendars are readable through the adapter's own read
+    reader = CalendarAdapter(credential=credential, config=config)
     try:
+        events = reader.events_within(ALL_INSTANTS)
+        count, event_digest = canonical(events)
+        got = reader.event(events[0].value.id) if events else None
         capture.check(
-            "distinct_credentials",
-            distinct=reader_credential.refresh_token != reference_credential.refresh_token,
+            "golden_calendars_readable",
+            calendars=len(config.calendar_by_employee),
+            events=count,
+            digest=event_digest,
+            event_get_ok=got is not None,
         )
-        # (b) the granted scope, from the refresh response, never a token
-        granted, access_token = refresh(reader_credential, capture)
-        capture.check("granted_scope", **granted)
-
-        # (a) list and get on the golden calendars equal the generator's
-        reference_events = generator.events_within(ALL_INSTANTS)
-        equivalence(capture, "events_equal", reader.events_within(ALL_INSTANTS), reference_events)
-        if reference_events:
-            first = reference_events[0].value.id
-            equivalence(
-                capture,
-                "event_get_equal",
-                [e for e in (reader.event(first),) if e is not None],
-                [e for e in (generator.event(first),) if e is not None],
-            )
-
-        # (c) a valid insert on a calendar the world does not use is refused
-        start = datetime(2030, 1, 1, 9, tzinfo=UTC)
-        payload = {
-            "summary": f"leave-impact read-principals probe {uuid.uuid4().hex[:12]}",
-            "start": {"dateTime": start.isoformat()},
-            "end": {"dateTime": start.replace(hour=10).isoformat()},
-        }
-        insert = httpx.post(
-            f"{GOOGLE_CALENDAR_API}/calendars/{quote(probe_calendar, safe='')}/events",
-            headers={"Authorization": f"Bearer {access_token}"},
-            json=payload,
-            timeout=60,
-        )
-        record = response_record(insert)
-        if insert.is_success:
-            event_id = str(cast(Json, insert.json()).get("id"))
-            _, generator_token = refresh(reference_credential, capture)
-            calendar_path = f"{GOOGLE_CALENDAR_API}/calendars/{quote(probe_calendar, safe='')}"
-            record["unexpected_event_deleted"] = httpx.delete(
-                f"{calendar_path}/events/{event_id}",
-                headers={"Authorization": f"Bearer {generator_token}"},
-                timeout=60,
-            ).status_code
-            record["body"] = {"id": "<deleted>"}
-        capture.check("insert_refused", **record, refused=insert.status_code == 403)
-        capture.data["outcome"] = "ok"
     finally:
         reader.close()
-        generator.close()
 
-
-def probe_google_isolation(env: Mapping[str, str], capture: Capture, confirmed: bool) -> None:
-    """Revoke one of two temporary tokens in a project: the other dies, another project's lives."""
-    same_a = calendar_principal(env, PREFIX + "ISOLATION_SAME_A_", capture)
-    same_b = calendar_principal(env, PREFIX + "ISOLATION_SAME_B_", capture)
-    other = calendar_principal(env, PREFIX + "ISOLATION_OTHER_", capture)
-    capture.data["same_project_clients"] = [short(same_a.client_id), short(same_b.client_id)]
-    capture.data["other_project_client"] = short(other.client_id)
-    before = {
-        name: refresh(cred, capture)[0]
-        for name, cred in (("same_a", same_a), ("same_b", same_b), ("other", other))
-    }
-    capture.check("before_revocation", **before)
-    if not all(record["status"] == 200 for record in before.values()):
-        raise RuntimeError("every temporary token must refresh before the revocation is tried")
-    if not confirmed:
-        raise RuntimeError("revocation is irreversible: rerun with --confirm-revoke")
-    revoke = httpx.post(GOOGLE_REVOKE_URI, data={"token": same_a.refresh_token}, timeout=60)
-    capture.check("revoked_same_a", status=revoke.status_code)
-    after = {
-        name: refresh(cred, capture)[0]
-        for name, cred in (("same_a", same_a), ("same_b", same_b), ("other", other))
-    }
+    # (c) the reach bound, measured: the owner's primary calendar and the calendar list
+    primary = google_get(
+        "/calendars/primary/events",
+        access_token,
+        {"maxResults": "1", "timeMin": "2000-01-01T00:00:00Z", "timeMax": "2100-01-01T00:00:00Z"},
+    )
+    listing = google_get("/users/me/calendarList", access_token, {"maxResults": "1"})
     capture.check(
-        "after_revocation",
-        **after,
-        same_project_coupled=after["same_a"]["status"] != 200 and after["same_b"]["status"] != 200,
-        other_project_isolated=after["other"]["status"] == 200,
+        "reach_bounded_to_app_created",
+        primary_calendar=primary,
+        calendar_list=listing,
+        both_refused=primary["status"] == 403 and listing["status"] == 403,
     )
     capture.data["outcome"] = "ok"
 
@@ -796,32 +767,18 @@ def main(argv: list[str] | None = None) -> int:
     sys.stdout.reconfigure(encoding="utf-8")  # type: ignore[union-attr]
     parser = argparse.ArgumentParser(description=(__doc__ or "").split("\n\n")[0])
     parser.add_argument("vendor", choices=("frappe", "jira", "google"))
-    parser.add_argument("--principal", choices=("validator", "investigator"))
-    parser.add_argument("--mode", choices=("acceptance", "isolation"), default="acceptance")
-    parser.add_argument("--confirm-revoke", action="store_true")
+    parser.add_argument("--principal", choices=("validator", "investigator"), required=True)
     args = parser.parse_args(argv)
     env = os.environ
+    capture = Capture(CAPTURE_ROOT / f"{args.principal}-principals", args.vendor)
+    probes: dict[str, Callable[[Mapping[str, str], str, Capture], None]] = {
+        "frappe": probe_frappe,
+        "jira": probe_jira,
+        "google": probe_google,
+    }
 
-    if args.mode == "isolation":
-        if args.vendor != "google":
-            parser.error("--mode isolation is the google vendor's")
-        capture = Capture(CAPTURE_ROOT / "google-isolation", "isolation")
-
-        def run() -> None:
-            probe_google_isolation(env, capture, args.confirm_revoke)
-
-    else:
-        if args.principal is None:
-            parser.error("--principal is required for an acceptance run")
-        capture = Capture(CAPTURE_ROOT / f"{args.principal}-principals", args.vendor)
-        probes: dict[str, Callable[[Mapping[str, str], str, Capture], None]] = {
-            "frappe": probe_frappe,
-            "jira": probe_jira,
-            "google": probe_google,
-        }
-
-        def run() -> None:
-            probes[args.vendor](env, args.principal, capture)
+    def run() -> None:
+        probes[args.vendor](env, args.principal, capture)
 
     capture.data["started_at"] = datetime.now(UTC).isoformat()
     try:
