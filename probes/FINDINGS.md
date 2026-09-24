@@ -1402,3 +1402,47 @@ finding below), `jira-run-02.json`, and `captures/investigator-principals/jira-r
   into SSM `/leave-agent/jira-token` (version 2, digest-verified against the put file,
   the file deleted) and `/leave-agent/jira-email` (a String, version 2). Both tokens
   expire 2027-09-22; the renewal trigger sits on the inventory rows.
+
+## read-principals, Google Calendar — the recorded exception, its reach bound measured (2026-09-24)
+
+The M2 build plan's step 0, the Calendar half, under ruling 3b (2026-09-24), which
+superseded the per-project read-only shape at its first console step. The reason is a
+scope fact: no read-only scope exists over app-created calendars, and the read-only
+scope that does exist, `calendar.events.readonly`, is sensitive because it reaches every
+calendar on the owner's account, the personal one included; publishing a project that
+declares it requires a home page, a privacy policy URL and an authorized domain. The
+generator's `calendar.app.created` can write, but only on the synthetic calendars the
+app made, and cannot see the personal calendar at all. For the credential most exposed
+to theft, the instance's, the read-only shape traded synthetic-world integrity (defended
+already: a rewritten calendar fails re-validation against the sealed manifest) for the
+owner's calendar privacy (no backstop). So both readers hold the generator's grant, one
+refresh token per consumer store, and the credential-level read-only guarantee holds for
+two of the three vendors; for Calendar it rests on the code, and what the credential
+bounds is reach. Captures: `captures/validator-principals/google-run-01.json` and
+`-02.json`, `captures/investigator-principals/google-run-01.json` and `-02.json` (the
+first pair failed only on the probe's own expectation of a 403, below).
+
+- **The granted scope set, both tokens:** from the refresh response, exactly
+  `calendar.app.created` and `calendar.freebusy`, nothing sensitive, nothing more.
+- **The golden calendars readable through the adapter:** 28 calendars, 27 events, the
+  same digest under both tokens, an event get succeeding.
+- **The reach bound, measured, not assumed:** an event list on the account's primary
+  calendar answers 404 "Not Found" under the app-created scope, Google hiding a calendar
+  the scope cannot see rather than refusing it; a calendar-list call answers 403
+  "Request had insufficient authentication scopes". The token cannot enumerate the
+  account's calendars or read the personal one; it reads the calendars the app made and
+  whose ids it holds, which is the M0 finding restated under the reader's credentials.
+- **One token per store:** the validator keeps the generator's `benchmark` secret, since
+  it runs on the same runner under the same environment; the instance received its own
+  consent under the generator's client (the consent helper, `include_granted_scopes`
+  false, `prompt=consent`), put into SSM `/leave-agent/google-authorized-user-json`
+  (version 2, digest-verified against the file). By Google's rule revocation is
+  project-wide, so the three tokens share one grant and one revocation, recorded; the
+  account's permissions page shows one app.
+- **Not built:** the two GCP projects created for the superseded shape are shut down
+  unused; the read-only consent, the isolation characterization and a privacy page
+  drafted for the site were dropped with the ruling; the
+  `LEAVE_IMPACT_VALIDATOR_GOOGLE_AUTHORIZED_USER_JSON` name the contract row expected is
+  not created. The upgrade path, if per-role principals everywhere is ever wanted, is a
+  dedicated reader Google account holding nothing else, the world calendars shared to it
+  as reader through the calendar ACL.

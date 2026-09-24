@@ -1,0 +1,72 @@
+{
+  "attempt": 1,
+  "outcome": "ok",
+  "checks": {
+    "granted_scope": {
+      "status": 200,
+      "scope": [
+        "https://www.googleapis.com/auth/calendar.app.created",
+        "https://www.googleapis.com/auth/calendar.freebusy"
+      ],
+      "expires_in": 3599,
+      "exactly_the_generator_scopes": true
+    },
+    "golden_calendars_readable": {
+      "calendars": 28,
+      "events": 27,
+      "digest": "8f436067fe0dbfb62dcb1b120541f6d0b3f1552526b1c50035fd8927070a0861",
+      "event_get_ok": true
+    },
+    "reach_bounded_to_app_created": {
+      "primary_calendar": {
+        "status": 404,
+        "body": {
+          "error": {
+            "errors": [
+              {
+                "domain": "global",
+                "reason": "notFound",
+                "message": "Not Found"
+              }
+            ],
+            "code": 404,
+            "message": "Not Found"
+          }
+        }
+      },
+      "calendar_list": {
+        "status": 403,
+        "body": {
+          "error": {
+            "code": 403,
+            "message": "Request had insufficient authentication scopes.",
+            "errors": [
+              {
+                "message": "Insufficient Permission",
+                "domain": "global",
+                "reason": "insufficientPermissions"
+              }
+            ],
+            "status": "PERMISSION_DENIED",
+            "details": [
+              {
+                "@type": "type.googleapis.com/google.rpc.ErrorInfo",
+                "reason": "ACCESS_TOKEN_SCOPE_INSUFFICIENT",
+                "domain": "googleapis.com",
+                "metadata": {
+                  "method": "calendar.v3.CalendarList.List",
+                  "service": "calendar-json.googleapis.com"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "both_refused": false
+    }
+  },
+  "started_at": "2026-09-24T19:02:21.168629+00:00",
+  "principal": "investigator",
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "client": "0b6e52c2f6be"
+}

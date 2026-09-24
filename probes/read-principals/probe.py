@@ -751,11 +751,14 @@ def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> No
         {"maxResults": "1", "timeMin": "2000-01-01T00:00:00Z", "timeMax": "2100-01-01T00:00:00Z"},
     )
     listing = google_get("/users/me/calendarList", access_token, {"maxResults": "1"})
+    # Google hides a calendar the scope cannot see rather than refusing it: the primary
+    # calendar answers 404 under the app-created scope (measured 2026-09-24), the
+    # calendar list an explicit 403 for insufficient scopes. Either is the reach refused.
     capture.check(
         "reach_bounded_to_app_created",
         primary_calendar=primary,
         calendar_list=listing,
-        both_refused=primary["status"] == 403 and listing["status"] == 403,
+        both_refused=primary["status"] in (403, 404) and listing["status"] == 403,
     )
     capture.data["outcome"] = "ok"
 
