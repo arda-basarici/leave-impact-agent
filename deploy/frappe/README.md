@@ -93,8 +93,10 @@ ssh box 'cd /srv/frappe && docker compose exec backend   bench --site <name>.ard
 #    and, on a doctype's first custom rule, copies the standard rows into Custom
 #    DocPerm (the four doctypes are customized from then on, frozen against
 #    upstream defaults: fine on a synthetic site recreated per world) and refuses
-#    a duplicate rule, so the loop is repeatable. No password: the keys are the
-#    only way in, and the users never see the desk.
+#    a duplicate rule, so the permission loop is repeatable; the role insert and the
+#    two user creations are not, they refuse a duplicate, which on a partial rerun
+#    is the signal that step was already done. No password: the keys are the only
+#    way in, and the users never see the desk.
 ssh box 'cd /srv/frappe && docker compose exec backend bench --site <name>.ardabasarici.dev execute frappe.client.insert --kwargs "{\"doc\": {\"doctype\": \"Role\", \"role_name\": \"Leave Impact Reader\", \"desk_access\": 0}}"'
 for doctype in Employee Department "Leave Application" "Employee Skill Map"; do
   ssh box "cd /srv/frappe && docker compose exec backend bench --site <name>.ardabasarici.dev execute frappe.permissions.add_permission --kwargs '{\"doctype\": \"$doctype\", \"role\": \"Leave Impact Reader\"}'"

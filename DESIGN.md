@@ -1169,7 +1169,8 @@ project's own committed workflow code at the cost of duplicating the vendor secr
 binding each role to its workflow file through the token's `job_workflow_ref` claim
 is the later hardening. The runner's vendor credentials are environment secrets
 scoped to the one step that runs the entry point, and since the investigator
-milestone's step 0 one credential per consumer, so no secret ever lives in two stores.
+milestone's step 0 one credential per consumer for Frappe and Jira, so no secret ever
+lives in two stores; for Calendar the validator shares the generator's secret (below).
 The validator and the investigator each hold their own read principals (the read
 principals' rulings, 2026-09-22 to 24): on Frappe a user on a read-only role over the
 four doctypes a reader touches, with no desk access so the account stays a Website
@@ -1181,7 +1182,12 @@ credential and not only on the read ports and the import law. Calendar is the re
 exception: no read-only scope exists over app-created calendars, and the one that
 exists is sensitive because it reaches the owner's personal calendar, so both readers
 hold the generator's grant, bounded to the calendars the app made and unable to
-enumerate or read the account's others, and read-only there rests on the code. Each
+enumerate or read the account's others, and read-only there rests on the code. The
+consequence is stated rather than softened: the instance's Calendar credential can
+create, change and delete events on the synthetic calendars; re-validation against the
+sealed manifest detects such drift afterwards, prevents none of it, and recovery is a
+regeneration. A claim of read-only vendor credentials everywhere is therefore not
+available to the report until the dedicated reader account below lands. Each
 principal was accepted by a live probe (`probes/FINDINGS.md`, the read-principals
 entries): reads equal to the writer's field by field, the permission set read back, a
 known-valid write refused, and for Calendar the reach bound measured. If per-role
@@ -1300,7 +1306,9 @@ is generated from it, and a tool makes no domain decision. The registry declares
 role which methods become tools, so a tool list is constructed and never prompted,
 and least privilege is the registry and a role-scoped read-only vendor principal
 together: the registry is a harness-level claim, the principal is what makes it
-provable against the vendor. No tool takes a date: the wrapper stamps every
+provable against the vendor (on Frappe and Jira; for Calendar the principal bounds
+reach, not verbs, and the registry carries the read-only claim alone, the hosting
+section's recorded exception). No tool takes a date: the wrapper stamps every
 observation with the run's `now`, the rules read the stamp, the model supplies none,
 and what a read returns is not filtered by date (time is applied above the port), so
 a wrong-time call cannot be expressed and a span argument is scope the model
@@ -1687,8 +1695,9 @@ below; if execution is out, the Lambda and its secrets namespace are not built.
 Ruled out for the investigator milestone (2026-09-20): no executor, no execution
 identity, no write credential, a run still ending in the approved-plan state the
 event log holds and nothing consumes. "No IAM split" names the executor's identity
-only; the investigator's read-only vendor principals, delivered to the instance, and
-the evaluator's identity are ruled on their own. The paragraph stands as the
+only; the investigator's vendor principals delivered to the instance (read-only by
+credential on Frappe and Jira, by code on Calendar) and the evaluator's identity are
+ruled on their own. The paragraph stands as the
 candidate architecture, entered only if a later milestone brings execution back.
 
 **The surrounding AWS set, and nothing more.** All of it under Terraform in the
@@ -1760,8 +1769,8 @@ after the three identity tickets (the validator's, the investigator's and the
 evaluator's principals), since the change touches the generator's and validator's
 proven paths; until it lands the machine clients ride the public edge with
 application auth, a dated interim and not a deferral, with a successful read from
-the instance under its own read-only principals required before the first live
-investigation. Private connectivity between the hosts (a private network, a mesh, a
+the instance under its own principals (read-only by credential on Frappe and Jira,
+bounded by reach on Calendar) required before the first live investigation. Private connectivity between the hosts (a private network, a mesh, a
 tunnel) was placed at that entry by the step-13 incident's note and is superseded to
 the demo milestone's entry or observed abuse before it: Access gives the token-gated
 property without a tunnel or a third control plane, and nothing in the investigator
@@ -1863,7 +1872,7 @@ milestone needs a hostname to be unreachable.
   by source, one reader per system holding only that system's tools and a
   synthesizer holding none; by phase is the second; count, roles and what each role
   sees as well as calls are the preregistration's. All roles in one process share
-  the instance identity and the application's read-only principals, so the registry
+  the instance identity and the application's vendor principals, so the registry
   is harness-level least privilege and not a principal split.
 - **The rationale judge**, superseded at the investigator milestone's entry (the
   grading paragraph); returns when rationale quality has a consumer, the demo's

@@ -1305,7 +1305,10 @@ read-only role `Leave Impact Reader` on the golden world's site `hr-w3`, two use
 it, `validator-reader@ardabasarici.dev` and `investigator-reader@ardabasarici.dev`, a
 key pair each. The recipe is step 5 of the site recipe in `deploy/frappe/README.md`;
 the acceptance is `probes/read-principals/probe.py frappe --principal <p>`, run once per
-user from the workstation with the Administrator's pair as the reference. Captures:
+user from the workstation with the Administrator's pair as the reference. The pass
+criteria were fixed before any ceremony by the probe's committed docstring and the
+step's rulings (the stream's step-0 rulings record), not by a row in `README.md`, which
+is the M0 probe plan and by its own rule is never edited. Captures:
 `captures/validator-principals/frappe-run-01.json` and
 `captures/investigator-principals/frappe-run-01.json`.
 
@@ -1418,7 +1421,10 @@ already: a rewritten calendar fails re-validation against the sealed manifest) f
 owner's calendar privacy (no backstop). So both readers hold the generator's grant, one
 refresh token per consumer store, and the credential-level read-only guarantee holds for
 two of the three vendors; for Calendar it rests on the code, and what the credential
-bounds is reach. Captures: `captures/validator-principals/google-run-01.json` and
+bounds is reach. Stated plainly: the instance's Calendar credential can create, change
+and delete events on the synthetic calendars; re-validation detects such drift
+afterwards, prevents none of it, and recovery is a regeneration. Captures:
+`captures/validator-principals/google-run-01.json` and
 `-02.json`, `captures/investigator-principals/google-run-01.json` and `-02.json` (the
 first pair failed only on the probe's own expectation of a 403, below).
 
