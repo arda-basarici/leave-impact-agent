@@ -39,7 +39,9 @@ Captures are attempt-stamped and never overwritten. Golden records never reach a
 capture: the equivalence checks write counts, digests and equality verdicts. Every
 capture is scanned for each secret this process loaded and for authorization-header
 patterns before it is written, and refused on a hit. A failed check is still a capture:
-the failure is the finding.
+the failure is the finding. Execution and acceptance are recorded apart: each mode
+declares the booleans that must hold, a completed run with one of them false is written
+as ``acceptance: failed`` and exits nonzero, and so does a run whose capture was refused.
 """
 
 from __future__ import annotations
@@ -112,9 +114,23 @@ class Capture:
     def __init__(self, directory: Path, stem: str) -> None:
         self.directory = directory
         self.stem = stem
-        self.data: Json = {"outcome": "failed", "checks": {}}
+        self.data: Json = {"execution": "started", "acceptance": "failed", "checks": {}}
         self._secrets: set[str] = set()
         self._redactions: dict[str, str] = {}
+        self._required: list[tuple[str, str]] = []
+
+    def require(self, *predicates: tuple[str, str]) -> None:
+        """Declare the (check, field) booleans that must all be true for the run to pass."""
+        self._required.extend(predicates)
+
+    def judge(self) -> list[str]:
+        """The declared predicates that are not true: absent, false or never recorded."""
+        checks = cast(Json, self.data["checks"])
+        return [
+            f"{check}.{field}"
+            for check, field in self._required
+            if cast(Json, checks.get(check, {})).get(field) is not True
+        ]
 
     def secret(self, value: str | None) -> None:
         """Register a value that must never appear in the capture."""
@@ -318,6 +334,19 @@ def probe_frappe(env: Mapping[str, str], principal: str, capture: Capture) -> No
     capture.data["world_version"] = manifest.world_version
     capture.data["reader_account"] = account
 
+    capture.require(
+        ("credential_identity", "credential_is_account"),
+        ("distinct_credentials", "distinct"),
+        ("employees_equal", "equal"),
+        ("teams_equal", "equal"),
+        ("leaves_equal", "equal"),
+        ("role_permissions", "read_only_on_four"),
+        ("account", "only_the_reader_role"),
+        ("account", "no_user_permissions"),
+        ("creates_refused", "all_refused"),
+        ("disposable_mutations_refused", "both_refused"),
+        ("disposable_removed", "removed"),
+    )
     reader = FrappeAdapter(
         base_url=reader_site.base_url, credential=reader_site.credential, config=config
     )
@@ -496,7 +525,6 @@ def probe_frappe(env: Mapping[str, str], principal: str, capture: Capture) -> No
                 raw_admin, "Employee", [["employee_number", "=", PROBE_EMPLOYEE]], ["name"]
             )
             capture.check("disposable_removed", removed=not remaining)
-        capture.data["outcome"] = "ok"
     finally:
         reader.close()
         admin.close()
@@ -592,6 +620,12 @@ def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None
     capture.data["gateway_host"] = httpx.URL(reader_site.base_url).host
     capture.data["canary_project"] = canary_project
 
+    capture.require(
+        ("distinct_credentials", "distinct"),
+        ("work_items_equal", "equal"),
+        ("components_equal", "equal"),
+        ("create_refused_at_gateway", "refused"),
+    )
     reader = JiraAdapter(
         base_url=reader_site.base_url, credential=reader_site.credential, config=config
     )
@@ -652,7 +686,6 @@ def probe_jira(env: Mapping[str, str], principal: str, capture: Capture) -> None
             read=response_record(raw_reader_at_site.get("/myself")),
             create=attempt_create(raw_reader_at_site, raw_generator, payload),
         )
-        capture.data["outcome"] = "ok"
     finally:
         reader.close()
         generator.close()
@@ -718,6 +751,11 @@ def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> No
     capture.data["world_version"] = manifest.world_version
     capture.data["client"] = short(credential.client_id)
 
+    capture.require(
+        ("granted_scope", "exactly_the_generator_scopes"),
+        ("golden_calendars_readable", "event_get_ok"),
+        ("reach_bounded_to_app_created", "both_refused"),
+    )
     # (a) the granted scope set, from the refresh response, never a token
     granted, access_token = refresh(credential, capture)
     capture.check(
@@ -760,7 +798,6 @@ def probe_google(env: Mapping[str, str], principal: str, capture: Capture) -> No
         calendar_list=listing,
         both_refused=primary["status"] in (403, 404) and listing["status"] == 403,
     )
-    capture.data["outcome"] = "ok"
 
 
 # --- main -------------------------------------------------------------------------------
@@ -784,21 +821,37 @@ def main(argv: list[str] | None = None) -> int:
         probes[args.vendor](env, args.principal, capture)
 
     capture.data["started_at"] = datetime.now(UTC).isoformat()
+    written = False
     try:
         run()
+        capture.data["execution"] = "completed"
     except ConfigurationError as error:  # nothing was probed: no capture, the message says what
         print(f"configuration: {error}", file=sys.stderr)
         return 2
     except Exception as error:  # the failure is the finding: capture, then re-raise
+        capture.data["execution"] = "crashed"
         capture.data["error"] = f"{type(error).__name__}: {error}"
         raise
     finally:
+        # Execution and acceptance are two facts: a run can complete with a predicate
+        # false, and that is a recorded failure, never a pass. The first Google runs
+        # completed with the reach check false and were written as passes (the step-0
+        # review's finding); the declared predicates now decide.
+        failed = capture.judge()
+        passed = capture.data["execution"] == "completed" and not failed
+        capture.data["acceptance"] = "passed" if passed else "failed"
+        capture.data["failed_predicates"] = failed
+        print(
+            f"acceptance: {capture.data['acceptance']}"
+            + (f" ({', '.join(failed)})" if failed else "")
+        )
         if capture.data["checks"]:
             try:
                 print(f"capture: {capture.write()}")
+                written = True
             except RuntimeError as refused:
                 print(f"capture refused: {refused}", file=sys.stderr)
-    return 0 if capture.data["outcome"] == "ok" else 1
+    return 0 if passed and written else 1
 
 
 if __name__ == "__main__":
