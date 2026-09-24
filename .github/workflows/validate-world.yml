@@ -2,13 +2,19 @@
 # its verdict sealed under the world's verdict prefix, one immutable object per execution.
 # Runs only by hand, under the `benchmark` environment on the validator's OIDC-trusted
 # role — a role that reads the world bucket and the truth bucket's world spec and writes
-# nothing but verdicts (the step 12 rulings, 2026-09-13). The vendor credentials the step
-# receives are the generator's, which can write to Frappe, Jira and the calendar: for the
-# vendors the validator's read-only role rests on the code's read ports and the import
-# law, not on the credential, until separate read principals land (the M1 repository
-# audit's F-011, an M2-entry platform ticket). Deliberately a separate
-# workflow from the generator's: a world is re-validated later without regenerating
-# anything, and a reader sees the independence rather than trusting the roles for it.
+# nothing but verdicts (the step 12 rulings, 2026-09-13), and the boundary probe below
+# shows that role refused the truth manifest and every put outside the verdict prefix
+# before the entry point runs (the M1 repository audit's E-001). The vendor credentials
+# are the validator's own read principals since the M2 step 0 ceremony (2026-09-22):
+# a Frappe user on a read-only role, and a Jira account whose token carries the read
+# scope alone and is honoured only at Atlassian's gateway, so for those two vendors
+# read-only rests on the credential and not only on the code's read ports and the
+# import law. Calendar is the recorded exception (ruling 3b, 2026-09-24): no read-only
+# scope exists over app-created calendars, and the one that does reaches the owner's
+# personal calendar, so the validator holds the generator's grant, bounded to the
+# calendars the app made. Deliberately a separate workflow from the generator's: a
+# world is re-validated later without regenerating anything, and a reader sees the
+# independence rather than trusting the roles for it.
 #
 # Secrets are scoped to the one step that runs the entry point; the Google JSON is
 # written to a file on the runner's ephemeral disk and passed by path. The run is red
@@ -71,15 +77,57 @@ jobs:
           aws-region: eu-central-1
           role-duration-seconds: 7200
 
+      - name: Probe the validator role's boundary before anything is read
+        # The pattern of the instance's truth-unreachable script: positive controls first,
+        # so a refusal below cannot be a dead endpoint or a broken credential, then the
+        # refusals with the AccessDenied code specifically. The truth manifest key is one
+        # KNOWN TO EXIST (this version's), because S3 answers a get of an absent key with
+        # AccessDenied whenever list is denied, so only a real key proves the get is
+        # refused. The two puts target explicit disposable keys, never a golden one, and
+        # the world-bucket put sits outside this version's verdict prefix; an AccessDenied
+        # on them does not say whether IAM or the bucket policy refused, and this step
+        # asserts the refusal, not its author. Verdict publication itself is proven by the
+        # run that follows, not by a probe put.
+        env:
+          WORLD_BUCKET: leave-impact-world-445743457479
+          TRUTH_BUCKET: leave-impact-truth-445743457479
+          INPUT_WORLD_VERSION: ${{ inputs.world_version }}
+        run: |
+          set -euo pipefail
+          version="$INPUT_WORLD_VERSION"
+          disposable="access-probe/validator-put-denied-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          errors=$(mktemp)
+          allowed() {
+            "$@" > /dev/null
+            echo "boundary probe: allowed, as it must be: $*"
+          }
+          refused() {
+            if "$@" 2> "$errors"; then
+              echo "boundary probe: NOT refused: $*"; exit 1
+            fi
+            if ! grep -q '(AccessDenied)' "$errors"; then
+              echo "boundary probe: refused for another reason than AccessDenied: $*"; cat "$errors"; exit 1
+            fi
+            echo "boundary probe: refused with AccessDenied: $*"
+          }
+          allowed aws s3api get-object --bucket "$TRUTH_BUCKET" --key "world-spec/${version}.json" /dev/null
+          allowed aws s3api list-objects-v2 --bucket "$WORLD_BUCKET" --prefix "worlds/${version}/" --max-keys 1
+          allowed aws s3api get-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/world-manifest.json" /dev/null
+          refused aws s3api get-object --bucket "$TRUTH_BUCKET" --key "truth-manifest/${version}.json" /dev/null
+          refused aws s3api list-objects-v2 --bucket "$TRUTH_BUCKET" --max-keys 1
+          refused aws s3api put-object --bucket "$TRUTH_BUCKET" --key "$disposable" --body /dev/null
+          refused aws s3api put-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/${disposable}" --body /dev/null
+          echo "boundary probe: three reads allowed, four operations refused with AccessDenied" | tee -a "$GITHUB_STEP_SUMMARY"
+
       - name: Validate the world and publish the verdict
         id: judge
         env:
           LEAVE_IMPACT_FRAPPE_BASE_URL: ${{ vars.LEAVE_IMPACT_FRAPPE_BASE_URL }}
-          LEAVE_IMPACT_FRAPPE_API_KEY: ${{ secrets.LEAVE_IMPACT_FRAPPE_API_KEY }}
-          LEAVE_IMPACT_FRAPPE_API_SECRET: ${{ secrets.LEAVE_IMPACT_FRAPPE_API_SECRET }}
-          LEAVE_IMPACT_JIRA_BASE_URL: ${{ vars.LEAVE_IMPACT_JIRA_BASE_URL }}
-          LEAVE_IMPACT_JIRA_EMAIL: ${{ vars.LEAVE_IMPACT_JIRA_EMAIL }}
-          LEAVE_IMPACT_JIRA_TOKEN: ${{ secrets.LEAVE_IMPACT_JIRA_TOKEN }}
+          LEAVE_IMPACT_FRAPPE_API_KEY: ${{ secrets.LEAVE_IMPACT_VALIDATOR_FRAPPE_API_KEY }}
+          LEAVE_IMPACT_FRAPPE_API_SECRET: ${{ secrets.LEAVE_IMPACT_VALIDATOR_FRAPPE_API_SECRET }}
+          LEAVE_IMPACT_JIRA_BASE_URL: ${{ vars.LEAVE_IMPACT_VALIDATOR_JIRA_BASE_URL }}
+          LEAVE_IMPACT_JIRA_EMAIL: ${{ vars.LEAVE_IMPACT_VALIDATOR_JIRA_EMAIL }}
+          LEAVE_IMPACT_JIRA_TOKEN: ${{ secrets.LEAVE_IMPACT_VALIDATOR_JIRA_TOKEN }}
           LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${{ secrets.LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON }}
           LEAVE_IMPACT_WORLD_BUCKET: leave-impact-world-445743457479
           LEAVE_IMPACT_TRUTH_BUCKET: leave-impact-truth-445743457479
