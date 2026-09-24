@@ -97,6 +97,8 @@ jobs:
           version="$INPUT_WORLD_VERSION"
           disposable="access-probe/validator-put-denied-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
           errors=$(mktemp)
+          body=$(mktemp)
+          printf 'validator boundary probe' > "$body"
           allowed() {
             "$@" > /dev/null
             echo "boundary probe: allowed, as it must be: $*"
@@ -115,8 +117,8 @@ jobs:
           allowed aws s3api get-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/world-manifest.json" /dev/null
           refused aws s3api get-object --bucket "$TRUTH_BUCKET" --key "truth-manifest/${version}.json" /dev/null
           refused aws s3api list-objects-v2 --bucket "$TRUTH_BUCKET" --max-keys 1
-          refused aws s3api put-object --bucket "$TRUTH_BUCKET" --key "$disposable" --body /dev/null
-          refused aws s3api put-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/${disposable}" --body /dev/null
+          refused aws s3api put-object --bucket "$TRUTH_BUCKET" --key "$disposable" --body "$body"
+          refused aws s3api put-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/${disposable}" --body "$body"
           echo "boundary probe: three reads allowed, four operations refused with AccessDenied" | tee -a "$GITHUB_STEP_SUMMARY"
 
       - name: Validate the world and publish the verdict
