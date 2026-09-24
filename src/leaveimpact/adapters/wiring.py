@@ -22,7 +22,13 @@ two buckets with their region or the local twin's root. The names, listed once:
 - ``LEAVE_IMPACT_FRAPPE_BASE_URL``, ``LEAVE_IMPACT_FRAPPE_API_KEY``,
   ``LEAVE_IMPACT_FRAPPE_API_SECRET`` — the world's Frappe site and its API pair.
 - ``LEAVE_IMPACT_JIRA_BASE_URL``, ``LEAVE_IMPACT_JIRA_EMAIL``, ``LEAVE_IMPACT_JIRA_TOKEN``
-  — the Jira site, the account and its token.
+  — the Jira site, the account and its token. A reader holding a scoped API token
+  (the validator since the read principals' ceremony, the investigator from its first
+  live run) names Atlassian's gateway root instead of the site,
+  ``https://api.atlassian.com/ex/jira/<cloud id>``, the only URL such a token is
+  honoured at; ``deployment_from_env(..., jira_at_gateway=True)`` refuses anything
+  else, so the credential's read-only property never rests on an operator's string
+  (the read principals' ruling 2, 2026-09-22). The generator keeps the site URL.
 - ``LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE`` — the path of the authorized-user JSON
   google-auth wrote at consent; the workflow writes the secret to a file on the
   runner's ephemeral disk and passes the path, since the value is multi-line.
@@ -48,6 +54,7 @@ part-2 review's carried obligation).
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from pathlib import Path
@@ -125,15 +132,26 @@ VerdictPublisher = Callable[[WorldVersion, str, str, bytes], str]
 """Publish one verdict: the version, the run id, the run attempt and the bytes; the version id."""
 
 
-def deployment_from_env(env: Mapping[str, str]) -> Deployment:
-    """The hosts, credentials and stores from ``env``; a missing name is named in the error."""
+def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False) -> Deployment:
+    """The hosts, credentials and stores from ``env``; a missing name is named in the error.
+
+    With ``jira_at_gateway`` the Jira base URL must be Atlassian's gateway root for one
+    cloud id, the shape a scoped read token is honoured at; a reader passes it, the
+    generator does not.
+    """
+    jira_name = "JIRA_BASE_URL"
+    jira_base_url = (
+        jira_gateway_root(_required(env, jira_name), name=PREFIX + jira_name)
+        if jira_at_gateway
+        else _url(env, jira_name)
+    )
     hosts = Hosts(
         frappe_base_url=_url(env, "FRAPPE_BASE_URL"),
         frappe_credential=FrappeCredential(
             api_key=_required(env, "FRAPPE_API_KEY"),
             api_secret=_required(env, "FRAPPE_API_SECRET"),
         ),
-        jira_base_url=_url(env, "JIRA_BASE_URL"),
+        jira_base_url=jira_base_url,
         jira_credential=JiraCredential(
             email=_required(env, "JIRA_EMAIL"), api_token=_required(env, "JIRA_TOKEN")
         ),
@@ -224,6 +242,38 @@ def _required(env: Mapping[str, str], name: str) -> str:
     if not value:
         raise ConfigurationError(f"{PREFIX}{name} is not set and the job needs it")
     return value
+
+
+def jira_gateway_root(value: str, *, name: str = "the Jira base URL") -> str:
+    """``value`` as the gateway root it must be, or ``ConfigurationError`` naming ``name``.
+
+    Exactly ``https://api.atlassian.com/ex/jira/<cloud id>`` with the cloud id in its
+    UUID form, an optional trailing slash stripped; no other scheme, host, userinfo,
+    query, fragment or path, and not a root that already ends in ``/rest/api/3``, which
+    the adapter appends itself.
+
+    >>> jira_gateway_root("https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af/")
+    'https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af'
+    >>> jira_gateway_root("https://leave-impact-probe.atlassian.net")
+    Traceback (most recent call last):
+    ...
+    leaveimpact.adapters.wiring.ConfigurationError: the Jira base URL must be ...
+    """
+    candidate = value.strip()
+    if candidate.endswith("/"):
+        candidate = candidate[:-1]
+    if not _GATEWAY_ROOT.fullmatch(candidate):
+        raise ConfigurationError(
+            f"{name} must be Atlassian's gateway root for one cloud id, "
+            f"https://api.atlassian.com/ex/jira/<cloud id>, got {value!r}"
+        )
+    return candidate
+
+
+_GATEWAY_ROOT = re.compile(
+    r"https://api\.atlassian\.com/ex/jira/"
+    r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
 
 
 def _url(env: Mapping[str, str], name: str) -> str:

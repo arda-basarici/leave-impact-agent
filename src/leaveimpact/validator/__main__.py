@@ -2,10 +2,12 @@
 
 The composition of one validation run and nothing of its logic: the request from the
 command line and the runner's identifiers, the deployment from the environment through
-the shared wiring, the stores as readers, the one publication callable, and the
-validator's composition over them. What it prints is what a reader of the Actions log
-needs: the verdict's word, the key it landed at and its version id, the requested world
-version beside the one the judged manifest names — never a credential or a host. A
+the shared wiring (the Jira base URL held to Atlassian's gateway root, since the
+validator's token is a scoped read token honoured nowhere else), the stores as readers,
+the one publication callable, and the validator's composition over them. What it prints
+is what a reader of the Actions log needs: the verdict's word, the key it landed at and
+its version id, the requested world version beside the one the judged manifest names —
+never a credential or a host. A
 fault in the raw configuration exits with status 2 and its message; a
 refused verdict exits with status 1 after publishing, so the run is red and the verdict
 is still there to read; an approved one exits 0. Everything else propagates as the loud
@@ -31,7 +33,7 @@ from leaveimpact.validator.verdict import Approval
 def main(argv: Sequence[str] | None = None) -> int:
     try:
         request = parse_request(sys.argv[1:] if argv is None else argv, os.environ)
-        deployment = deployment_from_env(os.environ)
+        deployment = deployment_from_env(os.environ, jira_at_gateway=True)
     except ConfigurationError as error:
         print(f"leaveimpact.validator: {error}", file=sys.stderr)
         return 2

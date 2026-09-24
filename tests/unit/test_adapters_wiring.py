@@ -23,6 +23,7 @@ from leaveimpact.adapters.wiring import (
     ConfigurationError,
     build_readers,
     deployment_from_env,
+    jira_gateway_root,
     readers_for,
     verdict_publisher,
 )
@@ -99,6 +100,52 @@ def test_a_url_without_a_scheme_and_a_bad_google_file_are_refused(tmp_path: Path
         (tmp_path / "google.json").write_text(content, encoding="utf-8")
         with pytest.raises(ConfigurationError, match="not the authorized-user JSON"):
             deployment_from_env(env)
+
+
+GATEWAY = "https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af"
+
+
+@pytest.mark.parametrize(
+    "rejected",
+    [
+        "http://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af",
+        "https://leave-impact-probe.atlassian.net",
+        "https://user:pw@api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af",
+        GATEWAY + "?x=1",
+        GATEWAY + "#frag",
+        GATEWAY + "/extra",
+        GATEWAY + "/rest/api/3",
+        "https://api.atlassian.com/ex/jira/",
+        "https://api.atlassian.com/ex/jira/not-a-cloud-id",
+        "https://api.atlassian.com/ex/confluence/9a47936a-48cf-49fb-83c1-c720400755af",
+        "https://api.atlassian.com.evil.invalid/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af",
+        "",
+    ],
+)
+def test_the_jira_gateway_root_refuses_everything_but_the_gateway(rejected: str) -> None:
+    """A credential-boundary control: read-only rests on this shape, so the table is wide."""
+    with pytest.raises(ConfigurationError, match="gateway root"):
+        jira_gateway_root(rejected)
+
+
+def test_the_jira_gateway_root_accepts_the_gateway_and_strips_the_slash() -> None:
+    assert jira_gateway_root(GATEWAY) == GATEWAY
+    assert jira_gateway_root(" " + GATEWAY + "/ ") == GATEWAY
+    upper = GATEWAY[:-36] + GATEWAY[-36:].upper()  # a pasted cloud id keeps its case
+    assert jira_gateway_root(upper) == upper
+
+
+def test_a_reader_deployment_holds_jira_to_the_gateway_and_the_generator_does_not(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ConfigurationError, match="JIRA_BASE_URL must be Atlassian's gateway"):
+        deployment_from_env(environment(tmp_path), jira_at_gateway=True)
+    reader = deployment_from_env(
+        environment(tmp_path, JIRA_BASE_URL=GATEWAY + "/"), jira_at_gateway=True
+    )
+    assert reader.hosts.jira_base_url == GATEWAY
+    generator = deployment_from_env(environment(tmp_path))
+    assert generator.hosts.jira_base_url == "https://jira.example.invalid"
 
 
 def test_the_local_twin_and_the_buckets_are_exclusive_and_the_stores_are_readers(
