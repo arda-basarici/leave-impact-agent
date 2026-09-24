@@ -1446,3 +1446,33 @@ first pair failed only on the probe's own expectation of a 403, below).
   not created. The upgrade path, if per-role principals everywhere is ever wanted, is a
   dedicated reader Google account holding nothing else, the world calendars shared to it
   as reader through the calendar ACL.
+
+## read-principals, the live validation under the new principals — PASS (2026-09-24, approved)
+
+Ticket 1's acceptance run and the close of the M2 build plan's step 0: `validate world`
+run 36047737310 on the switched workflow, the validator's own Frappe pair and scoped
+Jira token from `benchmark` (the gateway root as its Jira base URL, held by the wiring's
+new check), Calendar on the generator's grant by ruling 3b, and the M1 audit's E-001
+boundary probe as a step under the assumed validator role before the entry point.
+
+- **The boundary, seven controls:** the version's world spec read from the truth
+  bucket, the version's `worlds/` prefix listed and its world manifest read (the
+  positive controls); the version's existing truth manifest refused, the truth bucket's
+  listing refused, a put to a disposable truth-bucket key refused, a put to a disposable
+  world-bucket key outside the version's verdict prefix refused, each with the
+  AccessDenied code specifically. Whether IAM or the bucket policy refused a put the
+  step does not say; it asserts the refusal.
+- **The verdict:** approved, at
+  `worlds/7b806ed6…/verdicts/36047737310-1.json`, version id
+  `tVG.3ycObe3oI8_Foo7Lr8QuyhIMAKyH`, the judged world version equal to the requested
+  one; a second approved verdict beside the golden world's first, admissible under the
+  serving rule since its judged manifest digest is the current manifest's.
+- **The first dispatch, 36047482617, failed on the probe's own parameter:** the CLI
+  refuses `/dev/null` as a `--body` blob, so the sixth control reported a refusal for
+  another reason than AccessDenied and the run stopped there, its five earlier controls
+  having held exactly as above. The repair sends a real temp file; the failed run stays
+  on record.
+- **What this closes and what it leaves:** platform ticket 1 accepted whole; ticket 2's
+  Terraform half landed on 2026-09-22 and its from-the-instance read waits for build
+  plan step 14 (the instance's Jira base URL must be the gateway root, a named
+  dependency there); ticket 3's dispatch-probe evidence is owed at step 6.

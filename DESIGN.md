@@ -1168,13 +1168,30 @@ two roles' policies, not in a second environment, which would guard against the
 project's own committed workflow code at the cost of duplicating the vendor secrets;
 binding each role to its workflow file through the token's `job_workflow_ref` claim
 is the later hardening. The runner's vendor credentials are environment secrets
-scoped to the one step that runs the entry point, and from the investigator
-milestone on one credential per consumer, so no secret ever lives in two stores. The
-validator's read-only role toward the vendors rests today on the read ports and the
-import law under the generator's credentials; separate read principals arrive at the
-investigator milestone's entry. The evaluator's role waits for that entry too, when
-its execution boundary is known, since a guessed trust frozen now would be a hole in
-the sealing claim.
+scoped to the one step that runs the entry point, and since the investigator
+milestone's step 0 one credential per consumer, so no secret ever lives in two stores.
+The validator and the investigator each hold their own read principals (the read
+principals' rulings, 2026-09-22 to 24): on Frappe a user on a read-only role over the
+four doctypes a reader touches, with no desk access so the account stays a Website
+User; on Jira an account whose API token carries the read scope alone and is honoured
+only at Atlassian's gateway root, which a reader's configuration refuses to replace
+with any other URL, while the Free-plan account itself keeps the project write
+permissions the token cannot exercise. For those two vendors read-only rests on the
+credential and not only on the read ports and the import law. Calendar is the recorded
+exception: no read-only scope exists over app-created calendars, and the one that
+exists is sensitive because it reaches the owner's personal calendar, so both readers
+hold the generator's grant, bounded to the calendars the app made and unable to
+enumerate or read the account's others, and read-only there rests on the code. Each
+principal was accepted by a live probe (`probes/FINDINGS.md`, the read-principals
+entries): reads equal to the writer's field by field, the permission set read back, a
+known-valid write refused, and for Calendar the reach bound measured. If per-role
+principals everywhere is ever wanted, Calendar's path is a dedicated reader Google
+account holding nothing else, the world calendars shared to it as reader through the
+calendar ACL. The validate workflow also probes its role's boundary before the entry
+point runs: the world spec, the world prefix and the world manifest allowed, the truth
+manifest, the truth listing and two disposable puts refused with AccessDenied. The
+evaluator's role was settled at that entry with its execution boundary; a guessed
+trust frozen earlier would have been a hole in the sealing claim.
 
 **Integrity is the guarantee underneath secrecy.** Every final object is written
 once, by a conditional create the bucket policy enforces on the final prefixes (a
