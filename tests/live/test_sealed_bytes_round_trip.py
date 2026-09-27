@@ -18,9 +18,15 @@ land (the step 1 rulings of the investigator milestone say where), and nothing h
 them.
 
 The inventory is fixed, never discovered: a JSON file in the private stream naming each
-world by its manifest's version id, and each truth pair by its two version ids, handed in
-through ``LEAVE_IMPACT_SEALED_INVENTORY``. The manifest is the authority for the rest of a
-world's objects, since it records the store's version id of everything sealed before it.
+world by its manifest's version id, each truth pair by its two version ids, and each world
+ruled unread by today's codecs with the refusals it was ruled on, handed in through
+``LEAVE_IMPACT_SEALED_INVENTORY``. The three registered worlds are a constant here, and the
+inventory must name exactly them across the three kinds, so the scope cannot narrow without
+a code change. An unread world is executable policy, not an ignored note: its world spec
+and truth manifest must refuse at exactly the declared fields, and the shapes that still
+read (its scenario specs, its manifest) round-trip like any other. The manifest is the
+authority for the rest of a world's objects, since it records the store's version id of
+everything sealed before it.
 Every get names its version id and the returned one must match; nothing here lists a
 bucket, reads a latest version or writes. Skipped without the inventory or without
 credentials; with both present an access refusal or a decoder refusal is a failure, since
@@ -37,6 +43,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, cast
@@ -66,6 +74,7 @@ from leaveimpact.core.jsonshape import (
     field_of,
     object_field,
     string_field,
+    string_item,
 )
 from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import decode_scenario_specs, decode_world_spec
@@ -92,6 +101,16 @@ RECORD_METRICS_ABSENT = "metrics-absent"  # sealed before the counters existed
 RECORD_METRICS_PRESENT = "metrics-present"  # the counters sealed in the record
 _RECORD_SHAPES = frozenset({RECORD_NONE, RECORD_METRICS_ABSENT, RECORD_METRICS_PRESENT})
 _TRUTH_PREFIXES = ("world-spec/", "truth-manifest/")
+# The three sealed worlds on record (the step 1 rulings): the inventory names exactly these.
+REGISTERED_WORLDS = frozenset(
+    {
+        WorldVersion("7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4"),
+        WorldVersion("785bc4cdd43d2718a61bf670f352f29ede43b4f7e37f3140fb7255c9cb65dce1"),
+        WorldVersion("d674d5763715549f49e82c251977cfe5093b6bf09099c165b5d7c94d7de33046"),
+    }
+)
+# The readers an unread world may declare a refusal for.
+_REFUSAL_READERS = ("world_spec", "truth_manifest")
 
 
 @dataclass(frozen=True, slots=True)
@@ -125,6 +144,24 @@ class TruthPairCase:
 
 
 @dataclass(frozen=True, slots=True)
+class UnreadWorldCase:
+    """A world today's codecs refuse by ruling: its manifest still vouches for its objects.
+
+    ``refusals`` maps a reader (``world_spec``, ``truth_manifest``) to the fields the
+    decoder must report missing, so the ruling is asserted, never merely tolerated.
+    """
+
+    version: WorldVersion
+    manifest: Versioned
+    truth_bucket: str
+    world_bucket: str
+    refusals: dict[str, tuple[str, ...]]
+
+
+ManifestWorld = SealedWorldCase | UnreadWorldCase
+
+
+@dataclass(frozen=True, slots=True)
 class RecordCase:
     """One truth manifest with its declared record shape, by whichever path reaches it."""
 
@@ -138,6 +175,16 @@ class RecordCase:
 class Inventory:
     worlds: tuple[SealedWorldCase, ...]
     truth_pairs: tuple[TruthPairCase, ...]
+    unread: tuple[UnreadWorldCase, ...]
+
+    @property
+    def versions(self) -> list[WorldVersion]:
+        """Every version the inventory names, one entry per case, duplicates kept."""
+        return [
+            *(w.version for w in self.worlds),
+            *(p.version for p in self.truth_pairs),
+            *(u.version for u in self.unread),
+        ]
 
     @property
     def records(self) -> tuple[RecordCase, ...]:
@@ -178,8 +225,8 @@ def load_inventory(content: str) -> Inventory:
     ...                      "record": "metrics-absent"}],
     ... })
     >>> inventory = load_inventory(text)
-    >>> inventory.worlds[0].manifest.key[:13], inventory.worlds[0].manifest.bucket
-    ('worlds/ababab', 'w')
+    >>> inventory.worlds[0].manifest.key[:13], inventory.worlds[0].manifest.bucket, inventory.unread
+    ('worlds/ababab', 'w', ())
     >>> inventory.truth_pairs[0].truth_manifest.key[:17], [r.case_id for r in inventory.records]
     ('truth-manifest/cd', ['abababab', 'cdcdcdcd'])
     >>> load_inventory(text.replace('"v2"', '"TODO after listing"'))
@@ -217,7 +264,39 @@ def load_inventory(content: str) -> Inventory:
             _version_id(field_of(pair, "truth_manifest"), what),
         )
         pairs.append(TruthPairCase(version, spec, truth, _record_shape(pair, what)))
-    return Inventory(tuple(worlds), tuple(pairs))
+    unread: list[UnreadWorldCase] = []
+    unread_items = (
+        array_field(data, "unread_by_todays_codecs") if "unread_by_todays_codecs" in data else []
+    )
+    for item in unread_items:
+        world = as_object(item, "an unread world")
+        version = WorldVersion(string_field(world, "version"))
+        what = f"unread world {version[:4]}..."
+        manifest = Versioned(
+            world_bucket,
+            world_manifest_key(version),
+            _version_id(field_of(world, "manifest"), what),
+        )
+        unread.append(
+            UnreadWorldCase(version, manifest, truth_bucket, world_bucket, _refusals(world, what))
+        )
+    return Inventory(tuple(worlds), tuple(pairs), tuple(unread))
+
+
+def _refusals(data: Mapping[str, object], what: str) -> dict[str, tuple[str, ...]]:
+    """The declared refusals of an unread world: reader name to the fields reported missing."""
+    declared = object_field(data, "refusals")
+    if not declared or set(declared) - set(_REFUSAL_READERS):
+        raise ValueError(
+            f"{what}: refusals name readers among {_REFUSAL_READERS}, got {sorted(declared)}"
+        )
+    result: dict[str, tuple[str, ...]] = {}
+    for reader in declared:
+        names = tuple(string_item(item, reader) for item in array_field(declared, reader))
+        if not names:
+            raise ValueError(f"{what}: {reader} declares no missing field")
+        result[reader] = names
+    return result
 
 
 def _inventory_from_environment() -> Inventory | None:
@@ -231,7 +310,9 @@ def _inventory_from_environment() -> Inventory | None:
 _INVENTORY = _inventory_from_environment()
 _WORLDS = list(_INVENTORY.worlds) if _INVENTORY else []
 _PAIRS = list(_INVENTORY.truth_pairs) if _INVENTORY else []
+_UNREAD = list(_INVENTORY.unread) if _INVENTORY else []
 _RECORDS = list(_INVENTORY.records) if _INVENTORY else []
+_MANIFEST_WORLDS: list[ManifestWorld] = [*_WORLDS, *_UNREAD]
 
 
 @pytest.fixture(scope="module")
@@ -264,15 +345,15 @@ def _assert_same_bytes(key: str, sealed: bytes, re_encoded: bytes) -> None:
     assert finding is None, finding
 
 
-def _case_id(case: SealedWorldCase | TruthPairCase | RecordCase) -> str:
+def _case_id(case: ManifestWorld | TruthPairCase | RecordCase) -> str:
     return case.case_id if isinstance(case, RecordCase) else case.version[:8]
 
 
-def _manifest_of(s3: S3Client, world: SealedWorldCase) -> WorldManifest:
+def _manifest_of(s3: S3Client, world: ManifestWorld) -> WorldManifest:
     return decode_manifest(fetch(s3, world.manifest), stage=ManifestStage.PROJECTED)
 
 
-def _vouched(s3: S3Client, world: SealedWorldCase, key: str) -> tuple[Versioned, bytes]:
+def _vouched(s3: S3Client, world: ManifestWorld, key: str) -> tuple[Versioned, bytes]:
     """An object the world's manifest vouches for, fetched at the version the manifest records."""
     manifest = _manifest_of(s3, world)
     assert key in manifest.object_versions, f"{key}: the manifest records no version id for it"
@@ -295,15 +376,15 @@ def test_a_truth_pairs_world_spec_round_trips(s3: S3Client, pair: TruthPairCase)
     _assert_same_bytes(pair.world_spec.key, sealed, re_encoded)
 
 
-@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
-def test_the_scenario_specs_round_trip(s3: S3Client, world: SealedWorldCase) -> None:
+@pytest.mark.parametrize("world", _MANIFEST_WORLDS, ids=_case_id)
+def test_the_scenario_specs_round_trip(s3: S3Client, world: ManifestWorld) -> None:
     target, sealed = _vouched(s3, world, scenario_specs_key(world.version))
     re_encoded = canonical_bytes(encode_scenario_specs(decode_scenario_specs(sealed)))
     _assert_same_bytes(target.key, sealed, re_encoded)
 
 
-@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
-def test_every_referenced_document_round_trips(s3: S3Client, world: SealedWorldCase) -> None:
+@pytest.mark.parametrize("world", _MANIFEST_WORLDS, ids=_case_id)
+def test_every_referenced_document_round_trips(s3: S3Client, world: ManifestWorld) -> None:
     """Every document the manifest records a version for, not a sample; the findings gathered."""
     manifest = _manifest_of(s3, world)
     keys = [key for key in manifest.object_versions if document_id_of(world.version, key)]
@@ -318,8 +399,8 @@ def test_every_referenced_document_round_trips(s3: S3Client, world: SealedWorldC
     assert not findings, f"{len(findings)} of {len(keys)} documents:\n" + "\n".join(findings)
 
 
-@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
-def test_the_manifest_round_trips(s3: S3Client, world: SealedWorldCase) -> None:
+@pytest.mark.parametrize("world", _MANIFEST_WORLDS, ids=_case_id)
+def test_the_manifest_round_trips(s3: S3Client, world: ManifestWorld) -> None:
     sealed = fetch(s3, world.manifest)
     manifest = decode_manifest(sealed, stage=ManifestStage.PROJECTED)
     _assert_same_bytes(world.manifest.key, sealed, manifest_bytes(manifest))
@@ -354,8 +435,33 @@ def test_the_materialization_record_round_trips_at_its_declared_shape(
     _assert_same_bytes(f"{target.key}#materialization", sealed_section, re_encoded)
 
 
-def test_the_inventory_names_a_case() -> None:
-    """The loaded inventory itself, so a run with an empty inventory is not read as a pass."""
+@pytest.mark.parametrize("world", _UNREAD, ids=_case_id)
+def test_an_unread_world_refuses_at_exactly_the_declared_fields(
+    s3: S3Client, world: UnreadWorldCase
+) -> None:
+    """The ruling as a claim: each declared reader refuses, naming the declared fields missing.
+
+    The world spec decoder reports a field set at once (``missing [...]``), the truth
+    manifest's section reader one field (``<name> is missing``); both messages are the
+    codecs' error contract, and the test reads them as such.
+    """
+    for reader, fields in world.refusals.items():
+        if reader == "world_spec":
+            _, sealed = _vouched(s3, world, world_spec_key(world.version))
+            with pytest.raises(ValueError, match=re.escape(f"missing {sorted(fields)}")):
+                decode_world_spec(sealed)
+        else:
+            _, sealed = _vouched(s3, world, truth_manifest_key(world.version))
+            with pytest.raises(ValueError, match=re.escape(f"{fields[0]} is missing")):
+                decode_materialization(sealed)
+
+
+def test_the_inventory_names_exactly_the_registered_worlds() -> None:
+    """The scope is the code's, not the file's: three worlds, each in exactly one kind."""
     if _INVENTORY is None:
         pytest.skip(f"{INVENTORY_VARIABLE} is not set; the private inventory lives in the stream")
-    assert _INVENTORY.worlds or _INVENTORY.truth_pairs, "the inventory names no case"
+    named = _INVENTORY.versions
+    assert sorted(named) == sorted(REGISTERED_WORLDS), (
+        f"the inventory names {[v[:8] for v in named]}, the registry "
+        f"{sorted(v[:8] for v in REGISTERED_WORLDS)}"
+    )
