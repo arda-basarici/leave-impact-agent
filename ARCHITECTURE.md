@@ -4,8 +4,8 @@ How it's built and why that structure — a narrative snapshot, edited in place.
 Decisions and their rationale live in DESIGN (cited here by name); the pitch in
 README.
 
-*Snapshot at the world milestone's close, amended after the M1 repository audit · last
-updated 2026-09-20.*
+*Snapshot at the world milestone's close, amended after the M1 repository audit and at
+the investigator milestone's first build step · last updated 2026-09-27.*
 
 ## Design shape
 
@@ -14,8 +14,8 @@ lower rank, and a few edges are denied on top of the ranks because they cross a 
 boundary the ranks alone would permit. One line per package, what it may import:
 
     app        →  agent, adapters, core            (demo milestone; reserved)
-    agent      →  adapters, core                   (investigator milestone; reserved)
-    evaluator  →  world, adapters, core            (investigator milestone; reserved)
+    agent      →  adapters, core
+    evaluator  →  world, adapters, core
     validator  →  world, adapters, core
     generator  →  world, adapters, core
     adapters   →  world, core frappe · jira · calendar · corpus · prose — siblings apart;
@@ -52,8 +52,9 @@ law from failing open: every package under `src` must hold a rank; relative impo
 banned because the edge scan cannot rank them; the top level holds only the package
 docstring and the composition root, so no unranked module can launder an edge; and an
 import is read with its aliases, so `from leaveimpact import world` names `world` as
-plainly as its dotted path does. The rank table names `evaluator`,
-`agent` and `app` ahead of their milestones; they are not created until then.
+plainly as its dotted path does. The rank table named `evaluator`,
+`agent` and `app` ahead of their milestones; the first two were scaffolded at the
+investigator milestone's first build step, `app` waits for the demo milestone.
 
 ### The life of a world
 
@@ -98,8 +99,8 @@ the map.
 | `adapters` | one external boundary per subpackage — `frappe`, `jira`, `calendar`, `corpus`, `prose` — translating vendor shape and identity to `core` types, never laundering a fact (`prose` is the Converse translation for the writer and the checker behind a request-shaped seam, `seam` the request and answer types with the closed faults and `bedrock` the one call; prompt policy stays the generator's); `transport` beneath them carries timeouts, the retry rule and the fault seam; `manifest` beside them is the world manifest, the configuration-and-receipt contract every reader of a projected world decodes; `object_store` is the bucket the sealed world lands in — `read` the capability every consumer holds, `write` the generator's alone under the import law, `s3` and `local` the readers of the two backends, `s3_write` and `local_write` their gated writer subclasses; `layout` the key of every sealed object, `documents` the sealed documents read by id and enumerated, `documents_write` the projector's gated writer over them; `wiring` beside them is the read side both shells share — the deployment from the environment, the stores as readers, the four readers from a manifest, and the one verdict-publication callable that closes over the only writer a validator run touches |
 | `generator` | the generation job: `materialize` is the attempt loop that writes every pending brief, gates each draft and keeps the record and the run's metrics, `guards` the three containment checks as pure functions, `prose` the prompt policy — the assets as package data with pinned digests, the render from a brief to the two requests, the checker's tool generated from the registry and the parse of what it filled; `fresh` the stage every fresh run shares before any external write (assemble, materialize, compose, bundle), the job's first half and the whole of the audit sheet's throwaway mode; `resume` rebuilds and proves a sealed realization from the truth bucket so sealing continues from its checkpoint, `truth_record` being the generator's own decoder of the sealed materialization record (the one reader the truth manifest has before the evaluator, unreachable by the validator by the import law), `probe` the one-call-per-model check the probe workflow runs under the generator role; `projection` writes the frozen world restart-safe on each system's identity guarantee, `realize` is the composition root that checkpoints every calendar and receipt into the manifest and promotes it only after the site inspections and the coverage proof, `systems` wires the real adapters, `manifest_store` checkpoints the manifest to a file atomically or to the bucket's mutable prefix; `sealing` drives the ruled order — truth first, the site preparation and the vendor projection with the documents after its postflight, the scenario specs, every object read back, the manifest last with every version id; `recipe` the world recipe as plain data, what defines a world plus the prose stage's two run controls, apart from the boundary that parses it so the fresh stage loads no store on import; `entrypoint` is the configuration boundary (the recipe from the command line, the deployment from the environment, the stores it names), `metrics` the checkpoint timer at the shell, `__main__` the job |
 | `validator` | read-only verification that projection realized the declared world: `verify` the integrity chain and the three layered checks, `verdict` the artifact, `entrypoint` the request from the command line and the composition that reads the sealed world, judges the live systems and publishes through the wiring's callable, `__main__` the job |
-| `evaluator` | reserved — grades runs against truth (investigator milestone) |
-| `agent` | reserved — the investigator (investigator milestone) |
+| `evaluator` | grades recorded runs against the sealed truth in the frozen claim vocabulary, key match and payload apart, grounding as `core`'s rules replayed over the run's own reads; never re-reads a vendor, which is the validator's job before any run. Scaffolded at the investigator milestone's first build step; the grading lands at step 3, the grounding replay and the metrics at 4, the entry point and its workflow at 6 |
+| `agent` | the investigator and the two preregistered baselines it is measured against (rules-only, single-shot), over the read ports alone, claims in the frozen vocabulary, a plan a human approves; the loop's framework contained inside the package. Scaffolded at the investigator milestone's first build step; the rules-only baseline lands at step 5, the event log at 8, the registry at 10, the graph at 11 |
 | `app` | reserved — the demo surface (demo milestone) |
 
 ## A rank law alone would have let the investigator read the answer key
@@ -123,9 +124,11 @@ property.
 
 ## Deliberately not done (restraint)
 
-- **`evaluator`, `agent`, `app` are named, not created.** Empty placeholder packages
-  would be structure for its own sake; each milestone scaffolds its own after its own
-  design session. Revisit at the investigator milestone's entry.
+- **`app` is named, not created.** Empty placeholder packages would be structure for
+  its own sake; each milestone scaffolds its own after its own design session.
+  `evaluator` and `agent` were scaffolded at the investigator milestone's first build
+  step, each holding its contract docstring and nothing else until its first module
+  lands; `app` waits the same way for the demo milestone.
 - **The purity guard is a banned-import list, not an allowlist.** It catches the
   libraries this project actually uses for I/O and misses `open()`; the pure packages
   are also reviewed as pure. Revisit if the guard ever proves thin in review.
