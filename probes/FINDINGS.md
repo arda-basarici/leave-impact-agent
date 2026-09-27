@@ -1524,3 +1524,44 @@ recovered by five hand listings the same day, each key holding exactly one versi
   step 9, and the truth manifest as a whole none until the evaluator's decoder at
   step 3, absent-versus-empty expected conflicts and unknowns included. Both join
   this test when their readers land.
+
+## golden-chain — PASS, every link of the golden world's provenance holds (2026-09-27)
+
+The M1 repository audit's E-002, build plan step 1's second evidence: the bytes on record
+are the bytes that were sealed. The probe is `probes/golden-chain/probe.py`, its twenty
+predicates preregistered in the docstring and committed before it ran; the run from the
+workstation under the administrative `leave-impact` profile, a write-capable identity,
+the program itself read-only (thirty-six gets, each for a named version id, no list, no
+latest-version read, no write); the inventory the stream's
+`audit/2026-09-27-sealed-inventory.json`. Capture:
+`captures/golden-chain/golden-chain-run-01.json`, locators, digests and verdicts, no
+content. Every predicate true, exit 0.
+
+- **The content-addressed link.** The world spec (truth bucket, 48,668 bytes), the
+  scenario specs (world bucket, 6,198) and the truth manifest (truth bucket, 181,476),
+  each fetched at the version the manifest records, hash to the manifest's role digests
+  (`7800015e…`, `67975c51…`, `24fed413…`); the world spec cites the other two by those
+  digests; and the world version recomputed from the three raw streams in the sealing
+  order is `7b806ed6…`, the golden version. The manifest (`aed4f67d…`) decodes at
+  `projected`, names the version and generator version 14.
+- **Documents.** Twenty-six sealed under `documents/`, twenty-six planted in the world
+  spec, the same id set, every sealed object equal to the canonical bytes of the
+  document as planted.
+- **Verdicts.** Both approved, both naming the golden version, both carrying
+  `aed4f67d…` as the manifest digest they judged and the three artifact digests equal
+  to the manifest's, validator version 1. The two objects are byte-identical
+  (`e9e63056…`, 5,354 bytes): the verdict carries no timestamp or run id by design, its
+  provenance being the judged digests and the version, so the golden run
+  (2026-09-16) and step 0's run under the new principals (2026-09-24) wrote the same
+  bytes and differ by key alone. The serving rule's condition holds on both.
+- **The audit prefix.** The index hashes to `93745e04…`, the identity that names the
+  prefix; the four objects hash to the digests the stream's sealed-objects record holds;
+  the index binds the rulings, summary and checklist by the digests of the objects
+  beside it, names the golden version, the manifest's generator version and the golden
+  run's verdict key; and the four staging copies in the stream hash equal to the sealed
+  objects.
+- **Every response carried the requested version id**, thirty-six of thirty-six.
+
+E-002 is closed as a provenance audit; it judges no content and re-derives no verdict.
+The first world and the measurement world are outside it by ruling, since the audit and
+the release claims rest on the golden world alone.
