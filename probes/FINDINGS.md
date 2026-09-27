@@ -1534,7 +1534,7 @@ recovered by five hand listings the same day, each key holding exactly one versi
   `materialization is missing`, the fields the inventory declares, while its scenario
   specs and manifest round-trip and its documents skip with the reason. The rerun on
   that revision: twelve cases and the doctest green, one reasoned skip. The inventory
-  the runs read is the stream's commit `<stream-sha>`.
+  the runs read is the stream's commit `52bd3f0`.
 
 ## golden-chain — PASS, every link of the golden world's provenance holds (2026-09-27)
 
@@ -1582,5 +1582,5 @@ and any audit object set, weaker than its contract; at `8ba3ef2` three predicate
 added (exactly two verdicts, distinct keys, exactly the four audit objects), twenty-three
 in all, and run 02 on that revision (`captures/golden-chain/golden-chain-run-02.json`)
 reported every one true, thirty-six versioned gets as before. The inventory both runs
-read is the stream's commit `<stream-sha>`, which also freezes the staging copies the
+read is the stream's commit `52bd3f0`, which also freezes the staging copies the
 audit check compared against.
