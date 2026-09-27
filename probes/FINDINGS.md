@@ -1524,6 +1524,17 @@ recovered by five hand listings the same day, each key holding exactly one versi
   step 9, and the truth manifest as a whole none until the evaluator's decoder at
   step 3, absent-versus-empty expected conflicts and unknowns included. Both join
   this test when their readers land.
+- **Review amendment (2026-09-27, the external review of the step's commits):** the
+  test had read the inventory's unread section as a note and accepted any non-empty
+  inventory, so a dropped world would have passed silently, and moving the first world
+  out had discarded the two round-trips that succeeded. At `b173bce` the three
+  registered versions are a constant the inventory must name exactly, one per kind, and
+  the first world is an executable unread case: its world spec must refuse with
+  `missing ['plan_name', 'semantic_digest']` and its truth manifest with
+  `materialization is missing`, the fields the inventory declares, while its scenario
+  specs and manifest round-trip and its documents skip with the reason. The rerun on
+  that revision: twelve cases and the doctest green, one reasoned skip. The inventory
+  the runs read is the stream's commit `<stream-sha>`.
 
 ## golden-chain — PASS, every link of the golden world's provenance holds (2026-09-27)
 
@@ -1565,3 +1576,11 @@ content. Every predicate true, exit 0.
 E-002 is closed as a provenance audit; it judges no content and re-derives no verdict.
 The first world and the measurement world are outside it by ruling, since the audit and
 the release claims rest on the golden world alone.
+
+**Review amendment (2026-09-27).** The program had accepted any non-empty verdict list
+and any audit object set, weaker than its contract; at `8ba3ef2` three predicates were
+added (exactly two verdicts, distinct keys, exactly the four audit objects), twenty-three
+in all, and run 02 on that revision (`captures/golden-chain/golden-chain-run-02.json`)
+reported every one true, thirty-six versioned gets as before. The inventory both runs
+read is the stream's commit `<stream-sha>`, which also freezes the staging copies the
+audit check compared against.
