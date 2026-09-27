@@ -1482,3 +1482,45 @@ boundary probe as a step under the assumed validator role before the entry point
   Terraform half landed on 2026-09-22 and its from-the-instance read waits for build
   plan step 14 (the instance's Jira base URL must be the gateway root, a named
   dependency there); ticket 3's dispatch-probe evidence is owed at step 6.
+
+## historical-bytes — PASS on every world today's codecs read, the first world ruled unread (2026-09-27)
+
+The M1 repository audit's E-003, the first evaluator-side evidence of the investigator
+milestone's build plan step 1 (the rulings in the stream's
+`m2-build/2026-09-24-step-1-rulings.md`): the sealed worlds' private bytes fetched by
+exact version id from a fixed inventory, decoded through the reader a consumer uses,
+re-encoded through the writer, compared by digest, on Python 3.13.5. The test is
+`tests/live/test_sealed_bytes_round_trip.py`, committed at `66b99f0` before its first
+run and at `aa0463b` before its second, run from the workstation under the
+administrative `leave-impact` profile, the one identity that reads both buckets; the
+inventory is the stream's `audit/2026-09-27-sealed-inventory.json`, its version ids
+recovered by five hand listings the same day, each key holding exactly one version.
+
+- **The golden world `7b806ed6…` (generator version 14), exact on every shape:** the
+  world spec, the scenario specs, every document the manifest records a version for,
+  the manifest itself, and the materialization record at subsection scope with its
+  counters declared present and decoded present, each re-encoding to the sealed
+  digest. **The measurement world `785bc4cd…`, truth pair only** (its projection was
+  blocked at site preparation): the world spec exact, the record with its counters
+  declared absent and decoded absent, never as empty, re-encoding to the sealed digest.
+  Eight cases and the loader's doctest green on the second run; nothing listed, nothing
+  written, every returned version id equal to the requested.
+- **The first world `d674d576…` (generator version 4, sealed 2026-09-13) is unread by
+  today's codecs.** The first run refused it twice, verbatim: the world spec's
+  provenance `missing ['plan_name', 'semantic_digest']` (both added at M1 step 15
+  part 1) and the truth manifest's `materialization is missing` (added at step 14
+  part 2). Its scenario specs and its manifest round-tripped exactly, so those two
+  codecs have read the same bytes unchanged across ten generator versions. Ruled
+  unread rather than given compatibility branches (ruling 1's second exit): nothing
+  consumes it, the golden set is the golden world, and a branch that normalized an old
+  shape is what the audit warned against. It stays in the buckets with its two
+  verdicts; the inventory carries it under `unread_by_todays_codecs` with the reason,
+  not to be re-added without a ruling.
+- **The first run's third failure was the test's own:** it asserted a manifest records
+  at least one document, and the first world plants none (tier 1 has no documents).
+  The document check now skips with its reason on an empty set; a world with nothing
+  to round-trip is not a failure. Repaired at `aa0463b` and rerun.
+- **Owed, not claimed:** the verdict has no reader until the serving rule's at build
+  step 9, and the truth manifest as a whole none until the evaluator's decoder at
+  step 3, absent-versus-empty expected conflicts and unknowns included. Both join
+  this test when their readers land.
