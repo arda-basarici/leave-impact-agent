@@ -6,7 +6,8 @@ the record names is fetched at exactly the version id the record holds, hashed a
 bytes, and each declared link between objects is checked against those digests. JSON is
 decoded only to read declared links; nothing is re-encoded here (that is E-003's job).
 
-The pass criterion, preregistered as the predicates below; every one is evaluated, the
+The pass criterion, preregistered as the twenty-three predicates below; every one is
+evaluated, the
 capture is written whole, and the exit is nonzero if any is false:
 
 - ``manifest``: the manifest fetched at its recorded version decodes at ``projected``,
@@ -21,12 +22,13 @@ capture is written whole, and the exit is nonzero if any is false:
 - ``documents``: every document the manifest records a version for is fetched at that
   version and hashes to the canonical bytes of the same document as the world spec
   planted it; the set of ids in the manifest equals the set the world spec plants.
-- ``verdicts``: both approved verdicts, fetched at the inventory's version ids, say
-  ``approved``, name the golden version, carry the manifest digest equal to the SHA-256
-  of the fetched manifest bytes, and carry the three artifact digests equal to the
-  manifest's.
-- ``audit``: the four sealed audit objects, fetched at the inventory's version ids,
-  hash to the digests the stream's sealed-objects record holds; the index hashes to the
+- ``verdicts``: exactly two verdicts with distinct keys, fetched at the inventory's
+  version ids, each saying ``approved``, naming the golden version, carrying the
+  manifest digest equal to the SHA-256 of the fetched manifest bytes and the three
+  artifact digests equal to the manifest's.
+- ``audit``: exactly the four sealed audit objects (index, rulings, summary,
+  checklist), fetched at the inventory's version ids, hash to the digests the stream's
+  sealed-objects record holds; the index hashes to the
   audit identity that names its prefix; the index's rulings, summary and checklist
   digests equal the objects beside it; the index names the golden version, the
   manifest's generator version and one of the two verdict keys; and the stream's
@@ -92,6 +94,7 @@ Json = dict[str, Any]
 CAPTURE_ROOT = Path(__file__).resolve().parents[1] / "captures" / "golden-chain"
 INVENTORY_VARIABLE = "LEAVE_IMPACT_SEALED_INVENTORY"
 _TRUTH_PREFIXES = ("world-spec/", "truth-manifest/")
+AUDIT_OBJECTS = frozenset({"index.json", "rulings.md", "summary.md", "checklist.md"})
 
 
 class ConfigurationError(Exception):
@@ -351,6 +354,8 @@ def check_verdicts(
     capture.check(
         "verdicts",
         count=len(rows),
+        exactly_two=len(rows) == 2,
+        keys_distinct=len({str(row["key"]) for row in rows}) == 2,
         fetched_manifest_sha256=manifest_digest,
         all_bound=bool(rows) and all(row[f] for row in rows for f in fields),
         objects=rows,
@@ -403,6 +408,7 @@ def check_audit(
         index_sha256=sha256(fetched["index.json"]),
         index_hashes_to_identity=sha256(fetched["index.json"]) == identity,
         prefix_ends_with_identity=prefix.rstrip("/").endswith(identity),
+        object_names_exactly_the_four=frozenset(fetched) == AUDIT_OBJECTS,
         every_object_equals_recorded=all(row["equals_recorded"] for row in rows),
         index_binds_the_three_files=all(sha256(fetched[n]) == d for n, d in bound.items()),
         index_names_golden_version=string_field(index, "world_version") == version,
@@ -460,9 +466,12 @@ def main(argv: list[str] | None = None) -> int:
         ("artifacts", "recomputed_equals_golden"),
         ("documents", "every_sealed_equals_planted"),
         ("documents", "same_id_set"),
+        ("verdicts", "exactly_two"),
+        ("verdicts", "keys_distinct"),
         ("verdicts", "all_bound"),
         ("audit", "index_hashes_to_identity"),
         ("audit", "prefix_ends_with_identity"),
+        ("audit", "object_names_exactly_the_four"),
         ("audit", "every_object_equals_recorded"),
         ("audit", "index_binds_the_three_files"),
         ("audit", "index_names_golden_version"),
