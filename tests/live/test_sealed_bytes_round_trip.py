@@ -1,0 +1,360 @@
+"""E-003: the sealed worlds' historical bytes decoded and re-encoded on today's codecs, exactly.
+
+The M1 repository audit could construct old-style values from source but never held the
+private byte streams, so it asked for this: every reader-supported shape fetched as the
+exact version that was sealed, decoded through the reader a consumer uses, re-encoded
+through the writer, and compared canonical bytes to sealed bytes. A codec that "reads old
+files" by normalizing them would pass every fixture and fail here, and a field appended
+since a world was sealed would show as a re-encode that adds bytes. Five shapes have both a
+reader and a writer today and are covered: the world spec, the scenario specs, every
+document a world manifest references, the manifest itself, and the materialization record,
+one section of the truth manifest read by the generator's own decoder, the only truth reader
+until the evaluator's lands. The record is where absent-versus-empty exists in real bytes:
+the measurement world's counters died with its run and the golden world's were sealed, and
+the inventory states which each is, so a silent normalization of absent to empty fails
+against a declared expectation and not against whatever was found. The verdict has no
+reader yet and the truth manifest as a whole none either; both are owed when their readers
+land (the step 1 rulings of the investigator milestone say where), and nothing here claims
+them.
+
+The inventory is fixed, never discovered: a JSON file in the private stream naming each
+world by its manifest's version id, and each truth pair by its two version ids, handed in
+through ``LEAVE_IMPACT_SEALED_INVENTORY``. The manifest is the authority for the rest of a
+world's objects, since it records the store's version id of everything sealed before it.
+Every get names its version id and the returned one must match; nothing here lists a
+bucket, reads a latest version or writes. Skipped without the inventory or without
+credentials; with both present an access refusal or a decoder refusal is a failure, since
+each is a finding and not an absence of setup. Assertions compare digests, never bytes or
+decoded records, so a failure discloses a key and two SHA-256 prefixes and no content: the
+objects are the benchmark's private truth and its unreleased golden scenarios.
+
+Run from a workstation under the administrative profile, the one identity that reads both
+buckets: ``just test-live`` with the inventory variable set. The result enters
+``probes/FINDINGS.md``.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from dataclasses import dataclass
+from pathlib import Path
+from typing import TYPE_CHECKING, cast
+
+import boto3
+import pytest
+
+from leaveimpact.adapters.manifest import (
+    ManifestStage,
+    WorldManifest,
+    decode_manifest,
+    manifest_bytes,
+)
+from leaveimpact.adapters.object_store.layout import (
+    document_id_of,
+    scenario_specs_key,
+    truth_manifest_key,
+    world_manifest_key,
+    world_spec_key,
+)
+from leaveimpact.adapters.object_store.s3 import s3_client
+from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.jsonshape import (
+    array_field,
+    as_object,
+    canonical_bytes,
+    field_of,
+    object_field,
+    string_field,
+)
+from leaveimpact.generator.truth_record import decode_materialization
+from leaveimpact.world import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.artifacts import (
+    digest,
+    encode_document,
+    encode_materialization,
+    encode_scenario_specs,
+    encode_world_spec,
+)
+from leaveimpact.world.decoders import decode_document
+
+if TYPE_CHECKING:
+    from mypy_boto3_s3 import S3Client
+
+pytestmark = pytest.mark.live
+
+INVENTORY_VARIABLE = "LEAVE_IMPACT_SEALED_INVENTORY"
+
+# The record's three real shapes, declared per truth manifest in the inventory so the test
+# asserts an expectation and never merely reports what it found.
+RECORD_NONE = "none"  # no model wrote anything: the section is null
+RECORD_METRICS_ABSENT = "metrics-absent"  # sealed before the counters existed
+RECORD_METRICS_PRESENT = "metrics-present"  # the counters sealed in the record
+_RECORD_SHAPES = frozenset({RECORD_NONE, RECORD_METRICS_ABSENT, RECORD_METRICS_PRESENT})
+_TRUTH_PREFIXES = ("world-spec/", "truth-manifest/")
+
+
+@dataclass(frozen=True, slots=True)
+class Versioned:
+    """One sealed object as the inventory names it: bucket, key and the version id to fetch."""
+
+    bucket: str
+    key: str
+    version_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class SealedWorldCase:
+    """A completed world: its manifest, the authority for every other object's version id."""
+
+    version: WorldVersion
+    manifest: Versioned
+    truth_bucket: str
+    world_bucket: str
+    record: str
+
+
+@dataclass(frozen=True, slots=True)
+class TruthPairCase:
+    """A world sealed only as far as its truth pair, since its projection never completed."""
+
+    version: WorldVersion
+    world_spec: Versioned
+    truth_manifest: Versioned
+    record: str
+
+
+@dataclass(frozen=True, slots=True)
+class RecordCase:
+    """One truth manifest with its declared record shape, by whichever path reaches it."""
+
+    case_id: str
+    world: SealedWorldCase | None
+    direct: Versioned | None
+    shape: str
+
+
+@dataclass(frozen=True, slots=True)
+class Inventory:
+    worlds: tuple[SealedWorldCase, ...]
+    truth_pairs: tuple[TruthPairCase, ...]
+
+    @property
+    def records(self) -> tuple[RecordCase, ...]:
+        """Every truth manifest the inventory reaches, with its declared record shape."""
+        return (
+            *(RecordCase(w.version[:8], w, None, w.record) for w in self.worlds),
+            *(
+                RecordCase(p.version[:8], None, p.truth_manifest, p.record)
+                for p in self.truth_pairs
+            ),
+        )
+
+
+def _version_id(data: object, what: str) -> str:
+    """A recorded version id: a non-empty token, never a placeholder left in the inventory."""
+    text = string_field(as_object(data, what), "version_id")
+    if not text or any(character.isspace() for character in text):
+        raise ValueError(f"{what}: the version id is a non-empty token, got {text!r}")
+    return text
+
+
+def _record_shape(data: object, what: str) -> str:
+    shape = string_field(as_object(data, what), "record")
+    if shape not in _RECORD_SHAPES:
+        raise ValueError(f"{what}: record is one of {sorted(_RECORD_SHAPES)}, got {shape!r}")
+    return shape
+
+
+def load_inventory(content: str) -> Inventory:
+    """The inventory from its JSON text, every case complete or refused by name.
+
+    >>> text = json.dumps({
+    ...     "buckets": {"truth": "t", "world": "w"},
+    ...     "worlds": [{"version": "ab" * 32, "manifest": {"version_id": "v1"},
+    ...                 "record": "metrics-present"}],
+    ...     "truth_pairs": [{"version": "cd" * 32, "world_spec": {"version_id": "v2"},
+    ...                      "truth_manifest": {"version_id": "v3"},
+    ...                      "record": "metrics-absent"}],
+    ... })
+    >>> inventory = load_inventory(text)
+    >>> inventory.worlds[0].manifest.key[:13], inventory.worlds[0].manifest.bucket
+    ('worlds/ababab', 'w')
+    >>> inventory.truth_pairs[0].truth_manifest.key[:17], [r.case_id for r in inventory.records]
+    ('truth-manifest/cd', ['abababab', 'cdcdcdcd'])
+    >>> load_inventory(text.replace('"v2"', '"TODO after listing"'))
+    Traceback (most recent call last):
+    ...
+    ValueError: truth pair cdcd...: the version id is a non-empty token, got 'TODO after listing'
+    """
+    data = as_object(json.loads(content), "the sealed inventory")
+    buckets = object_field(data, "buckets")
+    truth_bucket = string_field(buckets, "truth")
+    world_bucket = string_field(buckets, "world")
+    worlds: list[SealedWorldCase] = []
+    for item in array_field(data, "worlds"):
+        world = as_object(item, "a world")
+        version = WorldVersion(string_field(world, "version"))
+        what = f"world {version[:4]}..."
+        manifest = Versioned(
+            world_bucket,
+            world_manifest_key(version),
+            _version_id(field_of(world, "manifest"), what),
+        )
+        shape = _record_shape(world, what)
+        worlds.append(SealedWorldCase(version, manifest, truth_bucket, world_bucket, shape))
+    pairs: list[TruthPairCase] = []
+    for item in array_field(data, "truth_pairs"):
+        pair = as_object(item, "a truth pair")
+        version = WorldVersion(string_field(pair, "version"))
+        what = f"truth pair {version[:4]}..."
+        spec = Versioned(
+            truth_bucket, world_spec_key(version), _version_id(field_of(pair, "world_spec"), what)
+        )
+        truth = Versioned(
+            truth_bucket,
+            truth_manifest_key(version),
+            _version_id(field_of(pair, "truth_manifest"), what),
+        )
+        pairs.append(TruthPairCase(version, spec, truth, _record_shape(pair, what)))
+    return Inventory(tuple(worlds), tuple(pairs))
+
+
+def _inventory_from_environment() -> Inventory | None:
+    path = os.environ.get(INVENTORY_VARIABLE)
+    if path is None:
+        return None
+    return load_inventory(Path(path).read_text(encoding="utf-8"))
+
+
+# Read once at import so the cases parametrize; an empty case list is pytest's own skip.
+_INVENTORY = _inventory_from_environment()
+_WORLDS = list(_INVENTORY.worlds) if _INVENTORY else []
+_PAIRS = list(_INVENTORY.truth_pairs) if _INVENTORY else []
+_RECORDS = list(_INVENTORY.records) if _INVENTORY else []
+
+
+@pytest.fixture(scope="module")
+def s3() -> S3Client:
+    if boto3.Session().get_credentials() is None:  # pyright: ignore[reportUnknownMemberType]
+        pytest.skip("no AWS credentials in this process; run under the administrative profile")
+    return s3_client(os.environ.get("AWS_REGION", "eu-central-1"))
+
+
+def fetch(s3: S3Client, target: Versioned) -> bytes:
+    """The bytes of exactly ``target``'s version; a response for any other version is refused."""
+    response = s3.get_object(Bucket=target.bucket, Key=target.key, VersionId=target.version_id)
+    returned = cast("dict[str, object]", response).get("VersionId")
+    assert returned == target.version_id, (
+        f"{target.key}: requested version {target.version_id}, the store returned {returned}"
+    )
+    return response["Body"].read()
+
+
+def _mismatch(key: str, sealed: bytes, re_encoded: bytes) -> str | None:
+    """A one-line finding when the digests differ: the key and two prefixes, never content."""
+    sealed_digest, re_encoded_digest = digest(sealed), digest(re_encoded)
+    if sealed_digest == re_encoded_digest:
+        return None
+    return f"{key}: sealed {sealed_digest[:16]} re-encodes to {re_encoded_digest[:16]}"
+
+
+def _assert_same_bytes(key: str, sealed: bytes, re_encoded: bytes) -> None:
+    finding = _mismatch(key, sealed, re_encoded)
+    assert finding is None, finding
+
+
+def _case_id(case: SealedWorldCase | TruthPairCase | RecordCase) -> str:
+    return case.case_id if isinstance(case, RecordCase) else case.version[:8]
+
+
+def _manifest_of(s3: S3Client, world: SealedWorldCase) -> WorldManifest:
+    return decode_manifest(fetch(s3, world.manifest), stage=ManifestStage.PROJECTED)
+
+
+def _vouched(s3: S3Client, world: SealedWorldCase, key: str) -> tuple[Versioned, bytes]:
+    """An object the world's manifest vouches for, fetched at the version the manifest records."""
+    manifest = _manifest_of(s3, world)
+    assert key in manifest.object_versions, f"{key}: the manifest records no version id for it"
+    bucket = world.truth_bucket if key.startswith(_TRUTH_PREFIXES) else world.world_bucket
+    target = Versioned(bucket, key, manifest.object_versions[key])
+    return target, fetch(s3, target)
+
+
+@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
+def test_the_world_spec_round_trips(s3: S3Client, world: SealedWorldCase) -> None:
+    target, sealed = _vouched(s3, world, world_spec_key(world.version))
+    re_encoded = canonical_bytes(encode_world_spec(decode_world_spec(sealed)))
+    _assert_same_bytes(target.key, sealed, re_encoded)
+
+
+@pytest.mark.parametrize("pair", _PAIRS, ids=_case_id)
+def test_a_truth_pairs_world_spec_round_trips(s3: S3Client, pair: TruthPairCase) -> None:
+    sealed = fetch(s3, pair.world_spec)
+    re_encoded = canonical_bytes(encode_world_spec(decode_world_spec(sealed)))
+    _assert_same_bytes(pair.world_spec.key, sealed, re_encoded)
+
+
+@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
+def test_the_scenario_specs_round_trip(s3: S3Client, world: SealedWorldCase) -> None:
+    target, sealed = _vouched(s3, world, scenario_specs_key(world.version))
+    re_encoded = canonical_bytes(encode_scenario_specs(decode_scenario_specs(sealed)))
+    _assert_same_bytes(target.key, sealed, re_encoded)
+
+
+@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
+def test_every_referenced_document_round_trips(s3: S3Client, world: SealedWorldCase) -> None:
+    """Every document the manifest records a version for, not a sample; the findings gathered."""
+    manifest = _manifest_of(s3, world)
+    keys = [key for key in manifest.object_versions if document_id_of(world.version, key)]
+    assert keys, f"{world.manifest.key}: the manifest records no document"
+    findings: list[str] = []
+    for key in keys:
+        sealed = fetch(s3, Versioned(world.world_bucket, key, manifest.object_versions[key]))
+        finding = _mismatch(key, sealed, canonical_bytes(encode_document(decode_document(sealed))))
+        if finding is not None:
+            findings.append(finding)
+    assert not findings, f"{len(findings)} of {len(keys)} documents:\n" + "\n".join(findings)
+
+
+@pytest.mark.parametrize("world", _WORLDS, ids=_case_id)
+def test_the_manifest_round_trips(s3: S3Client, world: SealedWorldCase) -> None:
+    sealed = fetch(s3, world.manifest)
+    manifest = decode_manifest(sealed, stage=ManifestStage.PROJECTED)
+    _assert_same_bytes(world.manifest.key, sealed, manifest_bytes(manifest))
+
+
+@pytest.mark.parametrize("case", _RECORDS, ids=_case_id)
+def test_the_materialization_record_round_trips_at_its_declared_shape(
+    s3: S3Client, case: RecordCase
+) -> None:
+    """The record's section: canonical bytes of the sealed value against decode and re-encode.
+
+    Absent and present are asserted against the inventory's declaration, so a decoder that
+    invented empty counters for the measurement world's record, or dropped the golden's,
+    fails by name. The rest of the truth manifest is not decoded here: no reader exists yet.
+    """
+    if case.world is not None:
+        target, sealed = _vouched(s3, case.world, truth_manifest_key(case.world.version))
+    else:
+        assert case.direct is not None
+        target, sealed = case.direct, fetch(s3, case.direct)
+    section = field_of(as_object(json.loads(sealed), "the truth manifest"), "materialization")
+    record = decode_materialization(sealed)
+    if case.shape == RECORD_NONE:
+        assert section is None and record is None, f"{target.key}: a record where none was declared"
+        return
+    assert record is not None, f"{target.key}: no record where {case.shape} was declared"
+    decoded = "present" if record.metrics is not None else "absent"
+    declared = "present" if case.shape == RECORD_METRICS_PRESENT else "absent"
+    assert decoded == declared, f"{target.key}: declared metrics {declared}, decoded {decoded}"
+    sealed_section = canonical_bytes(dict(as_object(section, "the record")))
+    re_encoded = canonical_bytes(encode_materialization(record))
+    _assert_same_bytes(f"{target.key}#materialization", sealed_section, re_encoded)
+
+
+def test_the_inventory_names_a_case() -> None:
+    """The loaded inventory itself, so a run with an empty inventory is not read as a pass."""
+    if _INVENTORY is None:
+        pytest.skip(f"{INVENTORY_VARIABLE} is not set; the private inventory lives in the stream")
+    assert _INVENTORY.worlds or _INVENTORY.truth_pairs, "the inventory names no case"
