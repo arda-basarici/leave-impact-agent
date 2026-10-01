@@ -22,6 +22,12 @@ observe — facts and gaps dated at or before ``now`` from reachable sources —
 qualification evidenced in month three is admissible in month nine and not in month
 one, and a skill visible only in a ticket comment is no evidence in a run where the
 tracker is down. Every rule takes the view; the filtering happens once.
+
+The view also carries its *coverage*: which slices of the sources were observed whole
+(the coverage module). For a view cut from a base by a run condition that is the
+condition restated, every slice of a reachable source covered and every slice of an
+unreachable one failed; the field exists because a view built from what a run read
+cannot say it that way, a reachable source being no proof that a record was read.
 """
 
 from __future__ import annotations
@@ -31,6 +37,7 @@ from dataclasses import dataclass, field
 from datetime import date
 from types import MappingProxyType
 
+from leaveimpact.core.coverage import Coverage, SourceCoverage
 from leaveimpact.core.enums import Source, require_member
 from leaveimpact.core.predicates import Predicate, PredicateName, predicate
 from leaveimpact.core.refs import EntityRef, EvidenceRef, with_article
@@ -212,17 +219,23 @@ class FactBase:
                 for gap in self.gaps
                 if gap.observable_from <= now and gap.source in condition.reachable
             ),
+            SourceCoverage(condition.reachable),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class FactView:
-    """The base as one run sees it; built by ``FactBase.at``, read by every rule."""
+    """The base as one run sees it; built by ``FactBase.at``, read by every rule.
+
+    ``coverage`` says which slices of the sources the facts and gaps were observed from
+    whole, which is what lets a rule read "no fact" as a negative.
+    """
 
     now: date
     condition: RunCondition
     facts: tuple[Fact, ...]
     gaps: tuple[Gap, ...]
+    coverage: Coverage
     _facts_by_key: Mapping[FactKey, tuple[Fact, ...]] = field(init=False, repr=False, compare=False)
     _gaps_by_key: Mapping[FactKey, tuple[Gap, ...]] = field(init=False, repr=False, compare=False)
     _facts_by_predicate: Mapping[PredicateName, tuple[Fact, ...]] = field(
