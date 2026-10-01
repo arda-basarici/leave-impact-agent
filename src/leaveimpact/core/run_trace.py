@@ -1,0 +1,379 @@
+"""What a run did, in order: the model calls made, the reads attempted, the claims it ended with.
+
+The trace is the part of a run export the grading replays. The evaluator re-derives
+every fact from the records the operations returned, derives the run condition from
+the reads that failed, counts the required-source attempts, the malformed calls and
+the extra reads, and asks of each search whether the key's section sat in its top-k;
+none of that needs a prompt or a line of assistant prose, so none is here (the
+investigator milestone's second build step, ruling 3). Model calls appear as compact
+records all the same, one per invocation even when it emitted no tool call and no
+claim, because the finalization call, a refusal and the single-shot baseline's one
+call are attempts the accounting counts and the usage ledger prices.
+
+Three closed shapes carry the facts a replay needs and nothing the model could invent.
+An *operation* is one attempted read: an opaque identifier the event log assigned,
+its origin (the frozen prefetch, or the model call it answered), the tool and the
+source it resolved to, the arguments exactly as accepted (the wrapper coerces and
+defaults nothing, so accepted arguments are the effective ones), and one of six
+*outcomes*: a record, no record, a sequence of records that may be empty, the source
+unreachable, a record the adapter could not translate, or a call the wrapper refused
+before any source was asked. The first three are completed reads, the next two failed
+reads, and the last is neither a read nor a source attempt. Only an unreachable
+outcome moves the observed run condition; a malformed record ends the attempt by
+defect. An empty sequence and no record are different evidence and stay different.
+Every accepted read names its source itself, because an absent result carries no
+``Observed`` to read it from and the evaluator may not import the registry that would
+resolve it. A *model call record* holds the identifier, the role, how the call ended,
+the provider's stop reason, its latency, the digest of the exact rendered request,
+and the usage the provider reported — each counter present only when reported, never
+synthesized as zero, so a missing counter stays unknown and the cost it would have
+priced stays incomplete.
+
+Order is the sequence's own. Repeated reads stay repeated operations, since a later
+replay policy may care that the same thing was read twice and in what order.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Mapping
+from dataclasses import dataclass
+from enum import StrEnum
+from types import MappingProxyType
+from typing import NewType
+
+from leaveimpact.core.claims import Claim
+from leaveimpact.core.enums import Source
+from leaveimpact.core.ports.observed import Entity, Observed
+
+OperationId = NewType("OperationId", str)
+"""The event log's identifier of one attempted read, opaque here, unique within a trace."""
+
+ModelCallId = NewType("ModelCallId", str)
+"""The event log's identifier of one model invocation, opaque here, unique within a trace."""
+
+SHA256_HEX_LENGTH = 64
+
+USAGE_COUNTER_NAMES: tuple[str, ...] = (
+    "input_tokens",
+    "output_tokens",
+    "cache_read_input_tokens",
+    "cache_write_input_tokens",
+)
+"""Every usage counter a provider may report, in the order a record holds them: append-only,
+so a record sealed with fewer holds a prefix of this order and reads the rest as unavailable."""
+
+
+def require_opaque_id(value: str, what: str) -> str:
+    """``value`` if it is a usable identifier: non-empty with no surrounding whitespace."""
+    if not value or value != value.strip():
+        raise ValueError(f"{what} is a non-empty identifier, got {value!r}")
+    return value
+
+
+def require_digest(value: str, what: str) -> str:
+    """``value`` if it is a lower-case SHA-256 hex digest."""
+    if len(value) != SHA256_HEX_LENGTH or any(c not in "0123456789abcdef" for c in value):
+        raise ValueError(f"{what} is a SHA-256 hex digest, got {value!r}")
+    return value
+
+
+# --- Usage and cost --------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Usage:
+    """The counters one call's provider reported, in the declared order, each only if reported.
+
+    >>> usage = Usage((("input_tokens", 120), ("output_tokens", 30)))
+    >>> usage.value("cache_read_input_tokens") is None
+    True
+    >>> Usage((("output_tokens", 30), ("input_tokens", 120)))
+    Traceback (most recent call last):
+    ...
+    ValueError: usage counters are held in the declared order, got ['output_tokens', 'input_tokens']
+    """
+
+    counters: tuple[tuple[str, int], ...]
+
+    def __post_init__(self) -> None:
+        names = [name for name, _ in self.counters]
+        unknown = [name for name in names if name not in USAGE_COUNTER_NAMES]
+        if unknown:
+            raise ValueError(f"not a usage counter a provider reports: {', '.join(unknown)}")
+        if len(set(names)) != len(names):
+            raise ValueError("a usage counter is reported once")
+        declared = [name for name in USAGE_COUNTER_NAMES if name in names]
+        if names != declared:
+            raise ValueError(f"usage counters are held in the declared order, got {names}")
+        for name, value in self.counters:
+            if isinstance(value, bool) or value < 0:
+                raise ValueError(f"{name}: a usage counter is a non-negative integer, got {value}")
+
+    def value(self, name: str) -> int | None:
+        """The counter ``name`` if the provider reported it; ``None`` is unknown, never zero."""
+        for held, value in self.counters:
+            if held == name:
+                return value
+        return None
+
+
+@dataclass(frozen=True, slots=True)
+class Cost:
+    """A priced amount in integer nano-dollars, and whether every counter it needed was reported.
+
+    Integer nano-dollars because the price table states rates as integers per token, so
+    a product never rounds (ruling 5); ``complete`` is false when a counter the rate
+    would have priced was not reported, so the amount is a floor, never a total.
+    """
+
+    nano_usd: int
+    complete: bool
+
+    def __post_init__(self) -> None:
+        if isinstance(self.nano_usd, bool) or self.nano_usd < 0:
+            raise ValueError(
+                f"a cost is a non-negative integer of nano-dollars, got {self.nano_usd}"
+            )
+
+
+# --- Model calls -----------------------------------------------------------------------
+
+
+class ModelCallOutcome(StrEnum):
+    """How one invocation ended, as the harness classified the response.
+
+    ``TEXT`` is a response with neither a tool call nor claims, which the loop treats as
+    the model having nothing more to read; ``REFUSAL`` is a response that declined. Both
+    are system behaviour, graded with their omissions; only ``PROVIDER_FAULT`` is
+    infrastructure, counted apart (ruling 3d).
+    """
+
+    TOOL_CALLS = "tool_calls"
+    CLAIMS = "claims"
+    TEXT = "text"
+    REFUSAL = "refusal"
+    PROVIDER_FAULT = "provider_fault"
+
+
+@dataclass(frozen=True, slots=True)
+class ModelCallRecord:
+    """One model invocation, compact: identity, role, how it ended, what it cost, no prose.
+
+    ``request_digest`` is the SHA-256 of the exact rendered request, beside the prompt
+    policy's asset digests the run record holds, the generator's own pattern. ``usage``
+    is ``None`` when the provider reported nothing (a fault before any answer), and a
+    cost exists only over a usage. ``fault`` is the provider's reason, present exactly
+    on a provider fault.
+    """
+
+    id: ModelCallId
+    role: str
+    outcome: ModelCallOutcome
+    stop_reason: str
+    provider_latency_ms: int
+    request_digest: str
+    usage: Usage | None
+    cost: Cost | None
+    fault: str | None
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.id, "a model call id")
+        require_opaque_id(self.role, "a role")
+        require_digest(self.request_digest, "request_digest")
+        latency = self.provider_latency_ms
+        if isinstance(latency, bool) or latency < 0:
+            raise ValueError(f"provider latency is a non-negative integer of ms, got {latency}")
+        if (self.fault is not None) != (self.outcome is ModelCallOutcome.PROVIDER_FAULT):
+            raise ValueError("a fault is recorded exactly on a provider fault")
+        if self.cost is not None and self.usage is None:
+            raise ValueError("a cost prices a reported usage; none was reported")
+
+
+# --- Operations ------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class PrefetchOrigin:
+    """The read was the frozen prefetch's, its arguments constructed by the harness."""
+
+
+@dataclass(frozen=True, slots=True)
+class ModelOrigin:
+    """The read answered a tool call the model made in the invocation ``model_call``."""
+
+    model_call: ModelCallId
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.model_call, "a model call id")
+
+
+type Origin = PrefetchOrigin | ModelOrigin
+
+
+@dataclass(frozen=True, slots=True)
+class RecordOutcome:
+    """A single read found its record."""
+
+    record: Observed[Entity]
+
+
+@dataclass(frozen=True, slots=True)
+class AbsentOutcome:
+    """A single read found nothing: evidence of absence, not a failure."""
+
+
+@dataclass(frozen=True, slots=True)
+class RecordsOutcome:
+    """An enumerating read or a search returned these records in this order, possibly none."""
+
+    records: tuple[Observed[Entity], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class UnreachableOutcome:
+    """The source could not answer after the adapter's retries: a run condition."""
+
+    source: Source
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class DefectOutcome:
+    """The source answered and the record at ``locator`` could not be translated: a defect."""
+
+    source: Source
+    locator: str
+    reason: str
+
+
+@dataclass(frozen=True, slots=True)
+class RefusedCallOutcome:
+    """The wrapper refused the call's arguments before any source was asked."""
+
+    reason: str
+
+
+type Outcome = (
+    RecordOutcome
+    | AbsentOutcome
+    | RecordsOutcome
+    | UnreachableOutcome
+    | DefectOutcome
+    | RefusedCallOutcome
+)
+
+
+def is_completed_read(outcome: Outcome) -> bool:
+    """Whether the source answered: a record, no record, or a sequence."""
+    return isinstance(outcome, RecordOutcome | AbsentOutcome | RecordsOutcome)
+
+
+def is_failed_read(outcome: Outcome) -> bool:
+    """Whether a source was asked and the read failed: unreachable, or a malformed record."""
+    return isinstance(outcome, UnreachableOutcome | DefectOutcome)
+
+
+@dataclass(frozen=True, slots=True)
+class Operation:
+    """One attempted read: who asked, what was asked, of which source, and what came back.
+
+    ``source`` is ``None`` only for a refused call whose tool name resolved to nothing;
+    every other outcome names the one source the tool reads, and every record returned
+    was read from it.
+
+    >>> Operation(OperationId("op-1"), PrefetchOrigin(), "employees", None, {}, AbsentOutcome())
+    Traceback (most recent call last):
+    ...
+    ValueError: an accepted read names its source; only a refused call may name none
+    """
+
+    id: OperationId
+    origin: Origin
+    tool: str
+    source: Source | None
+    arguments: Mapping[str, object]
+    outcome: Outcome
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.id, "an operation id")
+        require_opaque_id(self.tool, "a tool name")
+        object.__setattr__(self, "arguments", MappingProxyType(dict(self.arguments)))
+        if self.source is None and not isinstance(self.outcome, RefusedCallOutcome):
+            raise ValueError("an accepted read names its source; only a refused call may name none")
+        for record in _records_of(self.outcome):
+            if record.source is not self.source:
+                raise ValueError(
+                    f"a record read from {record.source.value} in an operation on {_name(self)}"
+                )
+        outcome = self.outcome
+        if (
+            isinstance(outcome, UnreachableOutcome | DefectOutcome)
+            and outcome.source is not self.source
+        ):
+            raise ValueError(
+                f"a failure of {outcome.source.value} in an operation on {_name(self)}"
+            )
+
+
+def _records_of(outcome: Outcome) -> tuple[Observed[Entity], ...]:
+    if isinstance(outcome, RecordOutcome):
+        return (outcome.record,)
+    if isinstance(outcome, RecordsOutcome):
+        return outcome.records
+    return ()
+
+
+def _name(operation: Operation) -> str:
+    return "no source" if operation.source is None else operation.source.value
+
+
+# --- The trace -------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class RunTrace:
+    """The model calls, the attempted reads and the final claims of one run attempt, in order.
+
+    Identifiers are unique within their kind, and every read the model asked for names a
+    model call this trace holds; those are the structural facts a replay stands on. What
+    the record block claims about the trace (the cumulative usage, the observed
+    condition) is not enforced here: the evaluator verifies a claim against the trace,
+    and a constructor that enforced it would hide the mismatch the verification exists
+    to report.
+    """
+
+    model_calls: tuple[ModelCallRecord, ...]
+    operations: tuple[Operation, ...]
+    claims: tuple[Claim, ...]
+
+    def __post_init__(self) -> None:
+        call_ids = [call.id for call in self.model_calls]
+        if len(set(call_ids)) != len(call_ids):
+            raise ValueError("model call ids are unique within a trace")
+        operation_ids = [operation.id for operation in self.operations]
+        if len(set(operation_ids)) != len(operation_ids):
+            raise ValueError("operation ids are unique within a trace")
+        known = set(call_ids)
+        for operation in self.operations:
+            origin = operation.origin
+            if isinstance(origin, ModelOrigin) and origin.model_call not in known:
+                raise ValueError(
+                    f"operation {operation.id} answers model call {origin.model_call!r}, "
+                    "which the trace does not hold"
+                )
+        claim_ids = [claim.claim_id for claim in self.claims]
+        if len(set(claim_ids)) != len(claim_ids):
+            raise ValueError("claim ids are unique within a trace")
+
+    def model_call(self, id: ModelCallId) -> ModelCallRecord:
+        """The model call record ``id`` names; ``KeyError`` is a bug, the constructor checked."""
+        for call in self.model_calls:
+            if call.id == id:
+                return call
+        raise KeyError(id)
+
+    def holds(self, id: str) -> bool:
+        """Whether ``id`` names a model call or an operation of this trace."""
+        return any(call.id == id for call in self.model_calls) or any(
+            operation.id == id for operation in self.operations
+        )
