@@ -1535,6 +1535,18 @@ recovered by five hand listings the same day, each key holding exactly one versi
   specs and manifest round-trip and its documents skip with the reason. The rerun on
   that revision: twelve cases and the doctest green, one reasoned skip. The inventory
   the runs read is the stream's commit `52bd3f0`.
+- **Step 2 rerun (2026-10-01, build plan step 2's third commit):** the entity codec
+  moved from the world's spec codecs into `core` at `d88d452` (seven observable kinds,
+  the observed-record wrapper, the time shapes) and the model configuration with its
+  codec at `6d8d987`, each a refactor of a codec the sealed bytes pass through. The
+  suite's pinned semantic digest guarded the move offline; this run is the live
+  guard the step's ruling 2 requires, the bytes in the buckets against today's
+  readers. Run at `7aa9523` (the test rendering documents through `core`'s encoder,
+  the owner since the move) under the administrative profile, the ini's network block
+  lifted for the live recipe: twelve cases and the doctest green, the same reasoned
+  skip (the first world's manifest records no document), every world's digests equal
+  to the sealed ones, the first world refusing at exactly its declared fields as
+  before. No sealed byte moved.
 
 ## golden-chain — PASS, every link of the golden world's provenance holds (2026-09-27)
 
