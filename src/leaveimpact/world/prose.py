@@ -46,6 +46,7 @@ from leaveimpact.core.enums import EmploymentType, EntityKind
 from leaveimpact.core.facts import Fact
 from leaveimpact.core.ids import SkillId, skill_id
 from leaveimpact.core.predicates import PredicateName, predicate
+from leaveimpact.core.provenance import ModelConfiguration
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.values import (
     EmploymentTypeCriterion,
@@ -497,34 +498,6 @@ class Refusal:
         object.__setattr__(self, "reasons", tuple(sorted(self.reasons, key=lambda r: r[0].value)))
 
 
-@dataclass(frozen=True, slots=True)
-class Setting:
-    """One inference parameter by name, as the model was called with it."""
-
-    name: str
-    value: int | float | str
-
-
-@dataclass(frozen=True, slots=True)
-class ModelConfiguration:
-    """A model and every explicit inference setting it ran under, settings in name order.
-
-    Serialized whole so a parameter added later joins the record unasked (the step 14
-    ruling on provenance); ordered here so equal configurations are equal in bytes.
-    """
-
-    model_id: str
-    settings: tuple[Setting, ...]
-
-    def __post_init__(self) -> None:
-        if not self.model_id.strip():
-            raise ValueError("a model configuration names its model")
-        names = [setting.name for setting in self.settings]
-        if len(set(names)) != len(names):
-            raise ValueError(f"a setting is given once, got {names}")
-        object.__setattr__(self, "settings", tuple(sorted(self.settings, key=lambda s: s.name)))
-
-
 SHA256_HEX = r"[0-9a-f]{64}"
 
 
@@ -697,12 +670,10 @@ __all__ = [
     "GuardName",
     "Lexicon",
     "MaterializationRecord",
-    "ModelConfiguration",
     "Namespace",
     "Polarity",
     "Proposition",
     "Refusal",
-    "Setting",
     "Statement",
     "SurfaceForm",
     "TargetRecord",

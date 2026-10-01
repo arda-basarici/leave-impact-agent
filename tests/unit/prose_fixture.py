@@ -46,6 +46,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.claims import AuthorityRule
 from leaveimpact.core.ids import ComponentId, EmployeeId, comment_id, scenario_id, skill_id
+from leaveimpact.core.provenance import ModelConfiguration, Setting
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     GENERATOR_VERSION,
@@ -58,7 +59,6 @@ from leaveimpact.world import (
     Frame,
     MaterializationRecord,
     Minting,
-    ModelConfiguration,
     OrgSpec,
     OwnedEntities,
     PendingProse,
@@ -69,7 +69,6 @@ from leaveimpact.world import (
     ScenarioClassName,
     SectionTarget,
     SemanticWorld,
-    Setting,
     TargetRecord,
     Tier,
     construct,

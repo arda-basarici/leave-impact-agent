@@ -28,6 +28,7 @@ from leaveimpact.core.jsonshape import (
     string_field,
 )
 from leaveimpact.core.predicates import PredicateName, predicate
+from leaveimpact.core.provenance import decode_model_configuration
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.values_json import decode_ref, decode_value
 from leaveimpact.world.artifacts import TRUTH_MANIFEST
@@ -36,13 +37,11 @@ from leaveimpact.world.prose import (
     GuardName,
     MaterializationMetrics,
     MaterializationRecord,
-    ModelConfiguration,
     Polarity,
     Proposition,
     ReasonCount,
     Refusal,
     RefusalReason,
-    Setting,
     TargetRecord,
 )
 
@@ -69,8 +68,8 @@ def _record(data: Mapping[str, object]) -> MaterializationRecord:
         "the materialization record",
     )
     return MaterializationRecord(
-        writer=_model(object_field(data, "writer")),
-        checker=_model(object_field(data, "checker")),
+        writer=decode_model_configuration(object_field(data, "writer")),
+        checker=decode_model_configuration(object_field(data, "checker")),
         prompt_digests=tuple(_prompt(item) for item in array_field(data, "prompt_digests")),
         attempt_cap=integer_field(data, "attempt_cap"),
         targets=tuple(_target(item) for item in array_field(data, "targets")),
@@ -83,23 +82,6 @@ def _metrics(data: Mapping[str, object]) -> MaterializationMetrics:
     # name, a repeat or a departure from the declared order, and asks nothing of a name
     # a later stage added.
     return MaterializationMetrics(tuple((name, integer_field(data, name)) for name in data))
-
-
-def _model(data: Mapping[str, object]) -> ModelConfiguration:
-    expect_fields(data, ("model_id", "settings"), "a model configuration")
-    return ModelConfiguration(
-        string_field(data, "model_id"),
-        tuple(_setting(item) for item in array_field(data, "settings")),
-    )
-
-
-def _setting(item: object) -> Setting:
-    data = as_object(item, "a setting")
-    expect_fields(data, ("name", "value"), "a setting")
-    value = field_of(data, "value")
-    if isinstance(value, bool) or not isinstance(value, int | float | str):
-        raise ValueError(f"a setting's value is a number or a string, got {value!r}")
-    return Setting(string_field(data, "name"), value)
 
 
 def _prompt(item: object) -> tuple[str, str]:

@@ -32,6 +32,7 @@ from leaveimpact.core.ids import (
     skill_id,
     work_item_id,
 )
+from leaveimpact.core.provenance import ModelConfiguration
 from leaveimpact.world import (
     COUNTER_NAMES,
     PROSE_CAPABLE,
@@ -40,13 +41,11 @@ from leaveimpact.world import (
     Lexicon,
     MaterializationMetrics,
     MaterializationRecord,
-    ModelConfiguration,
     Namespace,
     Polarity,
     Proposition,
     Refusal,
     RefusalReason,
-    Setting,
     SurfaceForm,
     TargetRecord,
     derive_namespace,
@@ -247,15 +246,6 @@ def test_a_target_record_is_a_possible_history_one_refusal_per_failed_attempt() 
             TargetRecord("comment_005", attempts, refusals, SHA, SHA, ())
     with pytest.raises(ValueError, match="accepted_body_digest is a SHA-256 hex"):
         TargetRecord("comment_005", 1, (), SHA, "deadbeef", ())
-
-
-def test_a_model_configuration_orders_its_settings_and_names_each_once() -> None:
-    configured = ModelConfiguration(
-        "eu.model", (Setting("top_p", 0.9), Setting("temperature", 0.7))
-    )
-    assert [setting.name for setting in configured.settings] == ["temperature", "top_p"]
-    with pytest.raises(ValueError, match="a setting is given once"):
-        ModelConfiguration("eu.model", (Setting("temperature", 0.7), Setting("temperature", 0)))
 
 
 def test_the_record_keeps_attempts_under_the_cap_and_each_target_once() -> None:

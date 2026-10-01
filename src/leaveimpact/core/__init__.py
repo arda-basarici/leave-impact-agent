@@ -43,6 +43,7 @@ from leaveimpact.core import (
     plans,
     ports,
     predicates,
+    provenance,
     refs,
     timeshape,
     values,
@@ -178,6 +179,12 @@ from leaveimpact.core.ports.read import (
     WorkReader,
 )
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
+from leaveimpact.core.provenance import (
+    ModelConfiguration,
+    Setting,
+    decode_model_configuration,
+    encode_model_configuration,
+)
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
     SOURCE_BY_TARGET_KIND,
@@ -244,6 +251,7 @@ __all__ = [
     "plans",
     "ports",
     "predicates",
+    "provenance",
     "refs",
     "timeshape",
     "values",
@@ -330,6 +338,7 @@ __all__ = [
     "LeaveStatus",
     "IdentityConflict",
     "MalformedRecord",
+    "ModelConfiguration",
     "Need",
     "Observation",
     "Observed",
@@ -342,6 +351,7 @@ __all__ = [
     "RunCondition",
     "RunContext",
     "ScenarioId",
+    "Setting",
     "SkillCriterion",
     "SkillId",
     "Source",
@@ -378,6 +388,7 @@ __all__ = [
     "decode_claim",
     "decode_claims",
     "decode_entity",
+    "decode_model_configuration",
     "decode_observed",
     "decode_value",
     "derive",
@@ -392,6 +403,7 @@ __all__ = [
     "encode_claim",
     "encode_claims",
     "encode_entity",
+    "encode_model_configuration",
     "encode_observed",
     "encode_value",
     "entity_value",

@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from typing import Protocol
 
 from leaveimpact.core.jsonshape import JsonObject
-from leaveimpact.world.prose import Setting
+from leaveimpact.core.provenance import Setting
 
 
 @dataclass(frozen=True, slots=True)

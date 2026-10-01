@@ -25,7 +25,7 @@ from leaveimpact.adapters.prose import (
     WriterRequest,
 )
 from leaveimpact.adapters.prose.bedrock import usage_of
-from leaveimpact.world.prose import Setting
+from leaveimpact.core.provenance import Setting
 
 WRITER_MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 CHECKER_MODEL = "eu.amazon.nova-pro-v1:0"

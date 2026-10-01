@@ -85,6 +85,7 @@ from leaveimpact.core.facts import Fact, FactBase, Gap
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.predicates import predicate
+from leaveimpact.core.provenance import encode_model_configuration
 from leaveimpact.core.refs import EvidenceRef
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.core.values_json import encode_ref, encode_value
@@ -95,7 +96,6 @@ from leaveimpact.world.org import OrgSpec, encode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.prose import (
     MaterializationRecord,
-    ModelConfiguration,
     Namespace,
     Proposition,
     Refusal,
@@ -458,8 +458,8 @@ def encode_materialization(record: MaterializationRecord) -> JsonObject:
     what a resume's proof of the sealed provenance compares.
     """
     encoded: JsonObject = {
-        "writer": _model_configuration(record.writer),
-        "checker": _model_configuration(record.checker),
+        "writer": encode_model_configuration(record.writer),
+        "checker": encode_model_configuration(record.checker),
         "prompt_digests": [
             {"name": name, "digest": value} for name, value in record.prompt_digests
         ],
@@ -469,15 +469,6 @@ def encode_materialization(record: MaterializationRecord) -> JsonObject:
     if record.metrics is not None:
         encoded["metrics"] = dict(record.metrics.counters)
     return encoded
-
-
-def _model_configuration(configured: ModelConfiguration) -> JsonObject:
-    return {
-        "model_id": configured.model_id,
-        "settings": [
-            {"name": setting.name, "value": setting.value} for setting in configured.settings
-        ],
-    }
 
 
 def _target_record(target: TargetRecord) -> JsonObject:

@@ -48,6 +48,7 @@ from leaveimpact.adapters.prose.seam import (
     WrittenText,
 )
 from leaveimpact.core.jsonshape import canonical_bytes
+from leaveimpact.core.provenance import ModelConfiguration
 from leaveimpact.generator.guards import (
     Finding,
     containment_findings,
@@ -71,7 +72,6 @@ from leaveimpact.world.prose import (
     Lexicon,
     MaterializationMetrics,
     MaterializationRecord,
-    ModelConfiguration,
     Refusal,
     SurfaceForm,
     TargetRecord,
