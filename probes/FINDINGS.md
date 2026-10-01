@@ -1696,8 +1696,25 @@ that adds it. It reproduces every number the rulings record.
   thirty keys reproduced; and the oracle, asked under the normal condition, returned the
   sealed key for every scenario. This was the named risk of the step, since no code had
   asked today's rules about that world before.
-- **What this does not show.** The forty worlds are generator version 15 and unsealed;
-  the golden world's own count of view-dependent pairs is `probes/runtime-truth/golden.py`
-  and is recorded below when run. The evaluator's own role cannot yet read the scenario
-  specs the join needs (a platform ticket, owed before the evaluation workflow's first
-  dispatch), so both live readings ran under the administrative profile.
+- **The golden world holds no view-dependent pair (live, 2026-10-01).**
+  `probes/runtime-truth/golden.py`, committed at `23cf13f` before its run, loads the
+  golden world as the evaluator does and compares the two views through the evaluator's
+  own `compare_views`; capture `captures/runtime-truth/golden-world.json`, counts only.
+  Declared before the run, and it holds: under the normal condition 0 of 72 must-assess
+  pairs and 0 of 32 outcomes differ. Recorded with no criterion: 0 of 824 other pairs
+  differ, under the normal condition and under each of the four single-source outages, so
+  no scenario of the thirty holds a difference under any of the five conditions. Seventeen
+  of the forty throwaway worlds held none under the normal condition either, and the
+  golden world is of that kind. On this world, then, a dated oracle and the runtime one
+  give the same verdict, reasons and outcome for every candidate of every sealed impact,
+  and no graded item of the reported results rests on which view was ruled. The ruling
+  is what keeps that true of a world where it would not be: the same function finds three
+  such pairs, one of them a verdict flip, on the throwaway world the unit suite grades
+  against, and any new-seed world the arms are confirmed on is more likely to hold one
+  than not.
+- **What this does not show.** The forty worlds are generator version 15 and unsealed.
+  The comparison covers the sealed impacts over the whole organization (verdict, reasons,
+  outcome); it does not compare the two views' expected conflicts or unknowns beyond what
+  loading already proves under the normal condition. The evaluator's own role cannot yet
+  read the scenario specs the join needs (a platform ticket, owed before the evaluation
+  workflow's first dispatch), so both live readings ran under the administrative profile.

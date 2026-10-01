@@ -1,0 +1,86 @@
+{
+  "probe": "runtime-truth, the golden world",
+  "run_at": "2026-10-01T18:21:50+00:00",
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "generator_version": "14",
+  "scenarios": 30,
+  "organization": 28,
+  "sources": {
+    "world_spec": {
+      "key": "world-spec/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json",
+      "version_id": "8qWE9gppFrK55lkEqhpa3L7_Qkc_V5Lv",
+      "sha256": "7800015e1207a7ac03b56d550693c377d517d1703b4354518a5bf87e1d32fdb0"
+    },
+    "scenario_specs": {
+      "key": "worlds/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/scenario-specs.json",
+      "version_id": "oEyrOwBR1SGT38bfz_dUZrFwDYMHddlA",
+      "sha256": "67975c51be3dd4c5eeb93fecee992a0fc7f969e2947c31d6edf681f1bef3a0ef"
+    },
+    "truth_manifest": {
+      "key": "truth-manifest/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json",
+      "version_id": "SLuBHnmFkmENp8QXOEOIMsDxtEGvQ.Xa",
+      "sha256": "24fed413b3222818abe39f361894fed10d4ca2b15c5c2e38ca504a1db189ee41"
+    }
+  },
+  "declared": {
+    "the world loads and its sealed keys are reproduced": true,
+    "normal condition: no must-assess pair and no outcome differs": true
+  },
+  "conditions": [
+    {
+      "condition": "normal",
+      "impacts": 32,
+      "must_assess_pairs": 72,
+      "must_assess_differ": 0,
+      "other_pairs": 824,
+      "other_differ": 0,
+      "other_differ_verdict_flips": 0,
+      "outcomes_differ": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "frappe_down",
+      "impacts": 32,
+      "must_assess_pairs": 72,
+      "must_assess_differ": 0,
+      "other_pairs": 824,
+      "other_differ": 0,
+      "other_differ_verdict_flips": 0,
+      "outcomes_differ": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "jira_down",
+      "impacts": 32,
+      "must_assess_pairs": 72,
+      "must_assess_differ": 0,
+      "other_pairs": 824,
+      "other_differ": 0,
+      "other_differ_verdict_flips": 0,
+      "outcomes_differ": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "calendar_down",
+      "impacts": 32,
+      "must_assess_pairs": 72,
+      "must_assess_differ": 0,
+      "other_pairs": 824,
+      "other_differ": 0,
+      "other_differ_verdict_flips": 0,
+      "outcomes_differ": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "corpus_down",
+      "impacts": 32,
+      "must_assess_pairs": 72,
+      "must_assess_differ": 0,
+      "other_pairs": 824,
+      "other_differ": 0,
+      "other_differ_verdict_flips": 0,
+      "outcomes_differ": 0,
+      "scenarios_with_a_difference": 0
+    }
+  ]
+}
