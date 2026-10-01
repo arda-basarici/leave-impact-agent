@@ -217,8 +217,9 @@ class ModelCallRecord:
     policy's asset digests the run record holds, the generator's own pattern. The
     provider's stop reason and its reported latency exist exactly when a response
     arrived, so a fault carries no invented ones; ``usage`` is ``None`` when the
-    provider reported nothing, and a cost exists only over a usage. ``fault`` is the
-    provider's reason, present exactly on a provider fault.
+    provider reported nothing, which a fault always is since usage arrives with the
+    response, and a cost exists only over a usage. ``fault`` is the provider's reason,
+    present exactly on a provider fault.
     """
 
     id: ModelCallId
@@ -244,6 +245,8 @@ class ModelCallRecord:
             require_integer(self.provider_latency_ms, "provider latency in ms")
         if (self.fault is not None) != (not answered):
             raise ValueError("a fault is recorded exactly on a provider fault")
+        if not answered and self.usage is not None:
+            raise ValueError("a provider fault reports no usage; usage arrives with a response")
         if self.cost is not None and self.usage is None:
             raise ValueError("a cost prices a reported usage; none was reported")
 

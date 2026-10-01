@@ -3,25 +3,26 @@
 Cost is a reported metric, so the evaluator checks it rather than copying it (the
 investigator milestone's second build step, ruling 5), and the arithmetic lives here in
 ``core`` so the harness that prices a call and the evaluator that verifies the price run
-the same function. The table states every rate as integer nano-dollars per token: Haiku
-4.5's $1.10 per million input tokens is 1,100, Nova Lite's $0.06 is 60, so a per-call
-product is an integer and no rounding point exists anywhere; a table whose rate is not
+the same function. The table states every rate as integer nano-dollars per token (a
+rate of $1.10 per million tokens is 1,100; $0.06 is 60), so a per-call product is an
+integer and no rounding point exists anywhere; a table whose rate is not
 an integer refuses at load, since a rate that needs rounding would make the sum of the
 per-call costs differ from the cost of the aggregate. A rate is named by its pricing
 key, region and billing mode together, because a model id alone does not fix a Bedrock
 rate (the ``eu.`` profile and on-demand are their own keys); a role's calls are priced
 under the selection the run record holds for that role.
 
-Completeness is stated, never assumed away. A call's cost is complete when the two
-classes every provider reports on every answered call, input and output tokens, were
-both reported; a cache class the provider did not report adds nothing, on the reading
-that an absent cache counter means no cached tokens were billed. That reading is an
-assumption about the provider, stated here so the acceptance spike (build step 7)
-checks it against the actual ``eu.`` configurations rather than leaving it implicit. A
-reported class the basis holds no rate for is a configuration error and refuses, never
-a silent zero. A cumulative cost sums the priced calls and is complete only when every
-call was priced and every price complete, so a fault that reported no usage leaves the
-run's cost a floor.
+Completeness is stated, never assumed away. A counter the provider did not report is
+unavailable, never a zero, so a cost is complete only when every rate row under the
+selection either was reported or carries the table's recorded policy that absence
+means nothing billed (``AbsentMeaning.ZERO``). That policy is data in the table, per
+rate, unknown by default: a provider that omits a cache counter exactly when no cached
+token was billed earns the ``zero`` entry only once the acceptance spike (build step 7)
+shows it on that configuration, and until then a missing cache counter makes the cost
+incomplete. A reported class the basis holds no rate for is a configuration error and
+refuses, never a silent zero. A cumulative cost sums the priced calls and is complete
+only when every call was priced and every price complete, so a fault that reported no
+usage leaves the run's cost a floor.
 """
 
 from __future__ import annotations
@@ -40,7 +41,13 @@ from leaveimpact.core.jsonshape import (
     field_of,
     string_field,
 )
-from leaveimpact.core.run_record import PricingBasis, PricingRow, PricingSelection, UsageAggregate
+from leaveimpact.core.run_record import (
+    AbsentMeaning,
+    PricingBasis,
+    PricingRow,
+    PricingSelection,
+    UsageAggregate,
+)
 from leaveimpact.core.run_trace import (
     USAGE_COUNTER_NAMES,
     Cost,
@@ -49,10 +56,6 @@ from leaveimpact.core.run_trace import (
     require_integer,
 )
 from leaveimpact.core.timeshape import decode_date, encode_date
-
-ALWAYS_REPORTED: tuple[str, ...] = ("input_tokens", "output_tokens")
-"""The token classes every provider reports on every answered call; a cost missing one is
-incomplete, while a cache class absent is read as nothing billed there (the module says why)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +98,7 @@ def encode_price_table(table: PriceTable) -> JsonObject:
                 "billing_mode": row.billing_mode,
                 "token_class": row.token_class,
                 "nano_usd_per_token": row.nano_usd_per_token,
+                "when_absent": row.when_absent.value,
             }
             for row in table.rows
         ],
@@ -106,7 +110,8 @@ def decode_price_table(value: object) -> PriceTable:
 
     >>> decode_price_table({"currency": "USD", "effective_from": "2026-09-01", "rates": [
     ...     {"pricing_key": "k", "region": "eu-central-1", "billing_mode": "on_demand",
-    ...      "token_class": "input_tokens", "nano_usd_per_token": 1100.0}]})
+    ...      "token_class": "input_tokens", "nano_usd_per_token": 1100.0,
+    ...      "when_absent": "unknown"}]})
     Traceback (most recent call last):
     ...
     ValueError: nano_usd_per_token is an integer, got 1100.0
@@ -124,7 +129,14 @@ def _decode_row(item: object) -> PricingRow:
     data = as_object(item, "a rate")
     expect_fields(
         data,
-        ("pricing_key", "region", "billing_mode", "token_class", "nano_usd_per_token"),
+        (
+            "pricing_key",
+            "region",
+            "billing_mode",
+            "token_class",
+            "nano_usd_per_token",
+            "when_absent",
+        ),
         "a rate",
     )
     return PricingRow(
@@ -133,6 +145,7 @@ def _decode_row(item: object) -> PricingRow:
         string_field(data, "billing_mode"),
         string_field(data, "token_class"),
         require_integer(field_of(data, "nano_usd_per_token"), "nano_usd_per_token"),
+        AbsentMeaning(string_field(data, "when_absent")),
     )
 
 
@@ -165,12 +178,12 @@ def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> C
 
     >>> from datetime import date
     >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), (
-    ...     PricingRow("haiku", "eu-central-1", "on_demand", "input_tokens", 1_100),
-    ...     PricingRow("haiku", "eu-central-1", "on_demand", "output_tokens", 5_500)))
-    >>> haiku = PricingSelection("haiku", "eu-central-1", "on_demand")
-    >>> cost_of(Usage((("input_tokens", 120), ("output_tokens", 30))), haiku, basis)
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500)))
+    >>> model_a = PricingSelection("model-a", "eu-central-1", "on_demand")
+    >>> cost_of(Usage((("input_tokens", 120), ("output_tokens", 30))), model_a, basis)
     Cost(nano_usd=297000, complete=True)
-    >>> cost_of(Usage((("input_tokens", 120),)), haiku, basis)
+    >>> cost_of(Usage((("input_tokens", 120),)), model_a, basis)
     Cost(nano_usd=132000, complete=False)
     """
     total = 0
@@ -184,7 +197,11 @@ def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> C
                 f"{selection.pricing_key} in {selection.region} {selection.billing_mode}"
             )
         total += tokens * rate
-    complete = all(usage.value(token_class) is not None for token_class in ALWAYS_REPORTED)
+    complete = all(
+        usage.value(row.token_class) is not None or row.when_absent is AbsentMeaning.ZERO
+        for row in basis.rows
+        if _under(row, selection)
+    )
     return Cost(total, complete)
 
 

@@ -277,12 +277,27 @@ class UsageAggregate:
         return None
 
 
+class AbsentMeaning(StrEnum):
+    """What an unreported counter of this class means for the cost under this rate.
+
+    ``UNKNOWN`` makes the cost incomplete, the default for every rate until a probe
+    shows otherwise; ``ZERO`` records that the provider omits the counter exactly when
+    nothing of that class was billed, a fact proven per model configuration (the
+    acceptance spike, build step 7) and written into the table, never assumed in code.
+    """
+
+    UNKNOWN = "unknown"
+    ZERO = "zero"
+
+
 @dataclass(frozen=True, slots=True)
 class PricingRow:
     """One rate: integer nano-dollars per token for a token class under a pricing key.
 
     The key, region and billing mode together name a Bedrock rate; a model id alone
     does not (the ``eu.`` profile and on-demand are priced as their own keys).
+    ``when_absent`` is the row's policy for a call that did not report this class,
+    unknown unless the table says zero.
     """
 
     pricing_key: str
@@ -290,6 +305,7 @@ class PricingRow:
     billing_mode: str
     token_class: str
     nano_usd_per_token: int
+    when_absent: AbsentMeaning = AbsentMeaning.UNKNOWN
 
     def __post_init__(self) -> None:
         for name in ("pricing_key", "region", "billing_mode"):
@@ -364,8 +380,9 @@ class RunRecord:
     """The provenance block of one run attempt; see the module for what each field states.
 
     Role-indexed collections are unique by their key and held in key order, so two
-    equal records are equal in bytes; every role that calls a model names both its
-    configuration and the rate it was priced under. ``failure`` is present exactly when
+    equal records are equal in bytes; the roles that call a model are one set across the
+    configurations, the pricing selections, the prompt digests and the tool surfaces.
+    ``failure`` is present exactly when
     the status is failed. ``cost`` is ``None`` when no call was priced, never a zero.
     """
 
@@ -417,6 +434,17 @@ class RunRecord:
         for role, digest in self.tool_surface_digests:
             require_opaque_id(role, "a role")
             require_digest(digest, f"the {role} tool surface digest")
+        prompted = {role for role, _, _ in self.prompt_digests}
+        if prompted != set(roles):
+            raise ValueError(
+                "every role that calls a model has its prompts digested: configured "
+                f"{sorted(roles)}, prompted {sorted(prompted)}"
+            )
+        if set(surfaces) != set(roles):
+            raise ValueError(
+                "every role that calls a model has its tool surface digested: configured "
+                f"{sorted(roles)}, surfaced {sorted(surfaces)}"
+            )
         if self.system.kind is SystemKind.RULES_ONLY:
             if self.model_configurations:
                 raise ValueError("rules-only calls no model, so it records no model configuration")

@@ -184,7 +184,6 @@ from leaveimpact.core.ports.read import (
 )
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
 from leaveimpact.core.pricing import (
-    ALWAYS_REPORTED,
     PriceTable,
     aggregate_usage,
     basis_for,
@@ -218,6 +217,7 @@ from leaveimpact.core.refs import (
 )
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
 from leaveimpact.core.run_record import (
+    AbsentMeaning,
     Caps,
     Failure,
     FailureCategory,
@@ -323,7 +323,6 @@ __all__ = [
     "worldtime",
     "ABOUT_THE_ARTIFACT",
     "ABOUT_THE_CANDIDATE",
-    "ALWAYS_REPORTED",
     "ARTIFACT_KINDS",
     "DATE_SPAN_VALUE",
     "DATE_VALUE",
@@ -338,6 +337,7 @@ __all__ = [
     "TARGET_KINDS_BY_SOURCE",
     "TEXT_VALUE",
     "USAGE_COUNTER_NAMES",
+    "AbsentMeaning",
     "AbsentOutcome",
     "Assessment",
     "AssessmentKey",

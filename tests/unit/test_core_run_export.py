@@ -84,7 +84,7 @@ CALL = ModelCallId("call-1")
 REPORTED = Usage((("input_tokens", 120), ("output_tokens", 30)))
 PRICED = Cost(297_000, True)
 PREFETCH = PrefetchOrigin()
-HAIKU = PricingSelection("eu.anthropic.claude-haiku-4-5", "eu-central-1", "on_demand")
+HAIKU = PricingSelection("model-a", "eu-central-1", "on_demand")
 AGENT = System(SystemKind.AGENT, "reference")
 FULL_TEXT = Retrieval(RetrievalKind.FULL_TEXT, None)
 CONTEXT = RunContext(
@@ -99,12 +99,8 @@ PRICING = PricingBasis(
     "USD",
     date(2026, 9, 1),
     (
-        PricingRow(
-            "eu.anthropic.claude-haiku-4-5", "eu-central-1", "on_demand", "input_tokens", 1_100
-        ),
-        PricingRow(
-            "eu.anthropic.claude-haiku-4-5", "eu-central-1", "on_demand", "output_tokens", 5_500
-        ),
+        PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
+        PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500),
     ),
 )
 
@@ -168,8 +164,8 @@ def _record(
         preregistration_commit=COMMIT,
         model_configurations=configurations,
         pricing_selections=selections,
-        prompt_digests=(("investigator", "system", DIGEST),),
-        tool_surface_digests=(("investigator", DIGEST),),
+        prompt_digests=tuple((role, "system", DIGEST) for role, _ in configurations),
+        tool_surface_digests=tuple((role, DIGEST) for role, _ in configurations),
         system=system,
         retrieval=retrieval,
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
@@ -238,6 +234,14 @@ def test_a_cost_prices_a_reported_usage_and_a_fault_is_recorded_exactly_on_a_pro
         _call(outcome=ModelCallOutcome.PROVIDER_FAULT, usage=None, cost=None, fault="timeout")
     with pytest.raises(ValueError, match="a provider latency is recorded exactly when a response"):
         _call(latency=None)
+    with pytest.raises(ValueError, match="a provider fault reports no usage"):
+        _call(
+            outcome=ModelCallOutcome.PROVIDER_FAULT,
+            cost=None,
+            fault="timeout",
+            stop_reason=None,
+            latency=None,
+        )
     faulted = _faulted()
     assert (faulted.fault, faulted.stop_reason, faulted.provider_latency_ms) == (
         "timeout",
@@ -377,6 +381,13 @@ def test_every_role_that_calls_a_model_names_the_rate_it_was_priced_under() -> N
         _record(selections=(("investigator", HAIKU), ("investigator", HAIKU)))
     with pytest.raises(ValueError, match="the basis is in USD, got 'EUR'"):
         PricingBasis(DIGEST, "EUR", date(2026, 9, 1), ())
+    with pytest.raises(ValueError, match=r"prompted \['investigator', 'other'\]"):
+        replace(
+            _record(),
+            prompt_digests=(("investigator", "system", DIGEST), ("other", "system", DIGEST)),
+        )
+    with pytest.raises(ValueError, match=r"surfaced \[\]"):
+        replace(_record(), tool_surface_digests=())
     record = _record(configurations=(("b", one), ("a", one)))
     assert [role for role, _ in record.pricing_selections] == ["a", "b"]
 
@@ -397,10 +408,7 @@ def test_pricing_rows_are_unique_by_rate_and_the_commit_is_a_full_sha() -> None:
     row = PricingRow("key", "eu-central-1", "on_demand", "input_tokens", 1_100)
     with pytest.raises(ValueError, match="a rate is given once"):
         PricingBasis(DIGEST, "USD", date(2026, 9, 1), (row, row))
-    assert (
-        PRICING.rate("eu.anthropic.claude-haiku-4-5", "eu-central-1", "on_demand", "input_tokens")
-        == 1_100
-    )
+    assert PRICING.rate("model-a", "eu-central-1", "on_demand", "input_tokens") == 1_100
     assert PRICING.rate("other", "eu-central-1", "on_demand", "input_tokens") is None
     with pytest.raises(ValueError, match="a token class is a usage counter name"):
         PricingRow("key", "eu-central-1", "on_demand", "total_tokens", 1)

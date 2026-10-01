@@ -10,6 +10,7 @@ from datetime import date
 import pytest
 
 from leaveimpact.core import (
+    AbsentMeaning,
     Cost,
     ModelCallId,
     ModelCallOutcome,
@@ -28,15 +29,25 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.jsonshape import canonical_json
 
-HAIKU = PricingSelection("eu.anthropic.claude-haiku-4-5", "eu-central-1", "on_demand")
-NOVA = PricingSelection("eu.amazon.nova-lite", "eu-central-1", "on_demand")
+HAIKU = PricingSelection("model-a", "eu-central-1", "on_demand")
+NOVA = PricingSelection("model-b", "eu-central-1", "on_demand")
 TABLE = PriceTable(
     "USD",
     date(2026, 9, 1),
     (
         PricingRow(HAIKU.pricing_key, "eu-central-1", "on_demand", "input_tokens", 1_100),
         PricingRow(HAIKU.pricing_key, "eu-central-1", "on_demand", "output_tokens", 5_500),
-        PricingRow(HAIKU.pricing_key, "eu-central-1", "on_demand", "cache_read_input_tokens", 110),
+        PricingRow(
+            HAIKU.pricing_key,
+            "eu-central-1",
+            "on_demand",
+            "cache_read_input_tokens",
+            110,
+            AbsentMeaning.ZERO,
+        ),
+        PricingRow(
+            HAIKU.pricing_key, "eu-central-1", "on_demand", "cache_write_input_tokens", 1_375
+        ),
         PricingRow(NOVA.pricing_key, "eu-central-1", "on_demand", "input_tokens", 60),
         PricingRow(NOVA.pricing_key, "eu-central-1", "on_demand", "output_tokens", 240),
     ),
@@ -48,6 +59,7 @@ RATE = {
     "billing_mode": "on_demand",
     "token_class": "input_tokens",
     "nano_usd_per_token": 1_100,
+    "when_absent": "unknown",
 }
 
 
@@ -99,6 +111,10 @@ def test_a_rate_loads_only_as_an_exact_integer_in_dollars() -> None:
         decode_price_table(_table(RATE, currency="EUR"))
     with pytest.raises(ValueError, match=r"a rate has fields .*surplus \['note'\]"):
         decode_price_table(_table({**RATE, "note": "x"}))
+    with pytest.raises(ValueError, match="maybe"):
+        decode_price_table(_table({**RATE, "when_absent": "maybe"}))
+    loaded = decode_price_table(_table(RATE))
+    assert loaded.rows[0].when_absent is AbsentMeaning.UNKNOWN
     with pytest.raises(ValueError, match="a rate is given once"):
         decode_price_table(_table(RATE, RATE))
 
@@ -107,25 +123,39 @@ def test_a_basis_holds_the_rows_under_each_selection_and_refuses_one_with_none()
     basis = basis_for(TABLE, [HAIKU, HAIKU])
     assert [row.token_class for row in basis.rows] == [
         "cache_read_input_tokens",
+        "cache_write_input_tokens",
         "input_tokens",
         "output_tokens",
     ]
     assert basis.table_digest == TABLE.digest
-    assert len(basis_for(TABLE, [NOVA, HAIKU]).rows) == 5
-    with pytest.raises(ValueError, match="no rate for eu.amazon.nova-lite in us-east-1 on_demand"):
+    assert len(basis_for(TABLE, [NOVA, HAIKU]).rows) == 6
+    with pytest.raises(ValueError, match="no rate for model-b in us-east-1 on_demand"):
         basis_for(TABLE, [PricingSelection(NOVA.pricing_key, "us-east-1", "on_demand")])
 
 
 def test_a_cost_is_the_exact_integer_product_with_its_completeness() -> None:
-    basis = basis_for(TABLE, [HAIKU])
+    """Under model-a the cache-read row says absence is zero and the cache-write row
+    says unknown, so a call reporting neither is incomplete, and one reporting the
+    write counter alone is complete; under model-b, with no cache rows, input and
+    output suffice."""
+    basis = basis_for(TABLE, [HAIKU, NOVA])
     both = cost_of(Usage((("input_tokens", 120), ("output_tokens", 30))), HAIKU, basis)
-    assert both == Cost(120 * 1_100 + 30 * 5_500, True)
+    assert both == Cost(120 * 1_100 + 30 * 5_500, False)
+    written = cost_of(
+        Usage((("input_tokens", 120), ("output_tokens", 30), ("cache_write_input_tokens", 0))),
+        HAIKU,
+        basis,
+    )
+    assert written == Cost(120 * 1_100 + 30 * 5_500, True)
+    assert cost_of(Usage((("input_tokens", 120), ("output_tokens", 30))), NOVA, basis) == Cost(
+        120 * 60 + 30 * 240, True
+    )
     cached = cost_of(
         Usage((("input_tokens", 1), ("output_tokens", 1), ("cache_read_input_tokens", 1_000))),
         HAIKU,
         basis,
     )
-    assert cached == Cost(1_100 + 5_500 + 110_000, True)
+    assert cached == Cost(1_100 + 5_500 + 110_000, False)
     assert cost_of(Usage((("output_tokens", 30),)), HAIKU, basis) == Cost(165_000, False)
     assert cost_of(Usage(()), HAIKU, basis) == Cost(0, False)
 
