@@ -21,11 +21,13 @@ from leaveimpact.adapters.object_store.layout import (
     truth_manifest_key,
     world_spec_key,
 )
+from leaveimpact.evaluator.sealed_world import SealedWorld, load_sealed_world
 from leaveimpact.world import (
     DEFAULT_PARAMS,
     Bundle,
     WorldSpec,
     assemble_semantic_world,
+    bundle,
     compose,
 )
 from tests.unit.in_memory_object_store import InMemoryObjectStore
@@ -69,10 +71,23 @@ def sealed_stores(sealed: Bundle) -> SealedStores:
     return stores
 
 
+@cache
+def loaded_world(plan_name: str = "golden", seed: int = REFERENCE_SEED) -> SealedWorld:
+    """``composed_world`` sealed and loaded as the evaluator loads it, once per process.
+
+    Loading runs the whole-world verification, seconds for a golden plan, so the tests that
+    only read a loaded world share one.
+    """
+    sealed = bundle(composed_world(plan_name, seed))
+    stores = sealed_stores(sealed)
+    return load_sealed_world(sealed.world_version, stores.truth, stores.world)
+
+
 __all__ = [
     "REFERENCE_SEED",
     "WORLD_START",
     "SealedStores",
     "composed_world",
+    "loaded_world",
     "sealed_stores",
 ]

@@ -16,7 +16,10 @@ by the import law and not by credential alone. Imports ``world``, ``adapters`` a
 ``agent`` never imports it, so the grader and the graded share only ``core``'s rules.
 
 ``sealed_world`` joins the three sealed files into the world a run is graded against,
-each scenario's construction record rebuilt and every cross-file claim checked, and
-loads them through the object-store reader. The oracle and the grading follow in the
-same build step (the investigator milestone's third).
+each scenario's construction record rebuilt, every cross-file claim checked and every
+sealed key reproduced by today's rules, and loads them through the object-store reader.
+``condition`` reads the condition a run was observed under off its trace. ``oracle``
+derives what the rules conclude about a scenario under a condition, over the facts a run
+can actually obtain, anchored on the sealed key under the normal condition. The grading
+follows in the same build step (the investigator milestone's third).
 """

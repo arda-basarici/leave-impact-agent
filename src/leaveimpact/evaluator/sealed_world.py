@@ -21,9 +21,23 @@ A key sealed before it carried its expected conflicts or its expected unknowns i
 refused here: unavailable is not "none expected", and letting it through would grade a
 run as though the world expected none.
 
+The last proof asks the rules. A sealed key is what the rules concluded when the world
+was generated, and the evaluator derives what a key does not hold (a candidate outside the
+probe set, every expectation under an outage) with the rules as they are today. So before
+anything is graded, world assembly's own whole-world verification is run again on the
+joined scenarios: every key under the dated and the runtime view on every day of its
+stable interval, the check that let the world be sealed. If today's rules do not
+reproduce a sealed key, the rules have drifted since the world was sealed and their other
+conclusions about this world cannot be trusted either, so the whole world is refused, not
+the one scenario.
+
 Every failure is ``SealedWorldRefused`` and refuses the whole world. These are faults of
 the sealed files or of this code, never of a run, so nothing is graded against a world
-the join could not prove; the loader raises and the job that called it fails.
+the join could not prove; the loader raises and the job that called it fails. A message
+names the file, the scenarios and the counts and never what a sealed file holds, since
+the job that prints it may log in public: a decoder's or a constructor's own reason stays
+on the exception as its cause, and ``KeysNotReproduced`` carries its findings, for a
+reader who holds the truth.
 
 The loader reads by key through the object-store reader and records, for each file, the
 version id the store returned and the digest of the bytes, which the evaluation cites.
@@ -58,6 +72,7 @@ from leaveimpact.world.artifacts import (
     digest,
     world_version,
 )
+from leaveimpact.world.assembly import Contamination, verify_world
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import Scenario, ScenarioKey, ScenarioSpec
@@ -67,6 +82,24 @@ from leaveimpact.world.version import GeneratorVersion
 
 class SealedWorldRefused(Exception):
     """The sealed files cannot be read as the world named; the message says which proof failed."""
+
+
+class KeysNotReproduced(SealedWorldRefused):
+    """Today's rules do not conclude what a sealed key holds: an evaluator-compatibility defect.
+
+    ``findings`` are assembly's own records of each disagreement, with the expected and the
+    actual conclusion; they are truth, so the message carries only the scenarios and the
+    count.
+    """
+
+    def __init__(self, version: WorldVersion, findings: Sequence[Contamination]) -> None:
+        scenarios = sorted({finding.scenario_id for finding in findings})
+        super().__init__(
+            f"{version}: today's rules do not reproduce the sealed keys of {len(scenarios)} "
+            f"scenario(s) ({', '.join(scenarios)}), {len(findings)} conclusion(s) differing; "
+            "nothing is graded against a world whose keys the rules no longer derive"
+        )
+        self.findings = tuple(findings)
 
 
 @dataclass(frozen=True, slots=True)
@@ -138,7 +171,7 @@ def join_sealed_world(
     Pure over the objects' bytes and version ids. Checked in order: the world spec
     decodes; the digests it cites are those of the other two files; the version recomputed
     from the three byte streams is ``version``; the other two decode; the scenarios join
-    (``join_scenarios``).
+    (``join_scenarios``); today's rules reproduce every sealed key (``require_reproduced``).
     """
     planted = _decoded("world spec", decode_world_spec, world_spec.content, version)
     for name, read, cited in (
@@ -162,11 +195,13 @@ def join_sealed_world(
         )
     specs = _decoded("scenario specs", decode_scenario_specs, scenario_specs.content, version)
     manifest = _decoded("truth manifest", decode_truth_manifest, truth_manifest.content, version)
+    scenarios = join_scenarios(planted, specs, manifest)
+    require_reproduced(version, manifest.facts, scenarios, planted.org)
     return SealedWorld(
         version=version,
         generator_version=planted.generator_version,
         org=planted.org,
-        scenarios=join_scenarios(planted, specs, manifest),
+        scenarios=scenarios,
         facts=manifest.facts,
         world_spec=_source(world_spec),
         scenario_specs=_source(scenario_specs),
@@ -207,9 +242,7 @@ def join_scenarios(
         if (row.tier, row.scenario_class, row.modifiers) != stated:
             raise SealedWorldRefused(
                 f"{row.scenario_id}: the plan row and the key disagree on the tier, class or "
-                f"modifiers ({row.tier.value}, {row.scenario_class.value}, "
-                f"{[modifier.value for modifier in row.modifiers]} against {key.tier.value}, "
-                f"{key.scenario_class.value}, {[modifier.value for modifier in key.modifiers]})"
+                "modifiers both state"
             )
         complete = complete_key(key, planting.stable_interval)
         try:
@@ -218,7 +251,7 @@ def join_scenarios(
             )
         except ValueError as problem:
             raise SealedWorldRefused(
-                f"{row.scenario_id}: the sealed records do not describe one scenario: {problem}"
+                f"{row.scenario_id}: the sealed records do not describe one scenario"
             ) from problem
     return tuple(scenarios)
 
@@ -259,6 +292,28 @@ def complete_key(key: TruthKey, stable_interval: DateSpan) -> ScenarioKey:
     )
 
 
+def require_reproduced(
+    version: WorldVersion, facts: FactBase, scenarios: Sequence[Scenario], org: OrgSpec
+) -> None:
+    """Refuse the world unless today's rules reproduce every sealed key.
+
+    World assembly's whole-world verification, unchanged, over the joined scenarios and the
+    sealed dated base: each key's must-assess verdicts and reasons, outcomes, groundings,
+    expected conflicts and unknowns and required sources, under both views on every day of
+    its stable interval. Raises ``KeysNotReproduced`` with the findings, or
+    ``SealedWorldRefused`` when a rule cannot be asked at all (a sealed constraint whose
+    clause states no requirement in the fact base).
+    """
+    try:
+        findings = verify_world(facts, scenarios, org)
+    except ValueError as problem:
+        raise SealedWorldRefused(
+            f"{version}: the rules cannot be asked about a sealed key"
+        ) from problem
+    if findings:
+        raise KeysNotReproduced(version, findings)
+
+
 def _read(store: ObjectReader, key: str, what: str, version: WorldVersion) -> StoredObject:
     stored = store.get(key)
     if stored is None:
@@ -272,7 +327,7 @@ def _decoded[T](
     try:
         return decode(content)
     except ValueError as problem:
-        raise SealedWorldRefused(f"{version}: the {what} does not decode: {problem}") from problem
+        raise SealedWorldRefused(f"{version}: the {what} does not decode") from problem
 
 
 def _artifact(name: str, stored: StoredObject) -> Artifact:
@@ -284,6 +339,7 @@ def _source(stored: StoredObject) -> SealedSource:
 
 
 __all__ = [
+    "KeysNotReproduced",
     "SealedSource",
     "SealedWorld",
     "SealedWorldRefused",
@@ -291,4 +347,5 @@ __all__ = [
     "join_sealed_world",
     "join_scenarios",
     "load_sealed_world",
+    "require_reproduced",
 ]

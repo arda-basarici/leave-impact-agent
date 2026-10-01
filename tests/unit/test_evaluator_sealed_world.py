@@ -3,7 +3,8 @@ world was sealed from, with where each file was read; and every proof refuses th
 name — a file absent, a file the world spec does not cite, three consistent files under another
 version's keys, a file that does not decode, the four scenario listings disagreeing, a plan row
 and its key disagreeing, a key sealed before its derived sets, three records that describe no one
-scenario."""
+scenario, a key today's rules do not reproduce. A refusal's message names files, scenarios and
+counts and never what a sealed file holds."""
 
 from dataclasses import replace
 
@@ -14,15 +15,18 @@ from leaveimpact.adapters.object_store.layout import (
     truth_manifest_key,
     world_spec_key,
 )
-from leaveimpact.core import RunContext
+from leaveimpact.core import AssessmentReason, RunContext, Verdict
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion
 from leaveimpact.evaluator.sealed_world import (
+    KeysNotReproduced,
     SealedWorld,
     SealedWorldRefused,
     join_scenarios,
     load_sealed_world,
+    require_reproduced,
 )
 from leaveimpact.world import (
+    AuthoredVerdict,
     Bundle,
     PlantedWorldSpec,
     ScenarioSpec,
@@ -60,6 +64,18 @@ def stores(sealed: Bundle) -> SealedStores:
     return sealed_stores(sealed)
 
 
+@pytest.fixture(scope="module")
+def kept(sealed: Bundle) -> SealedStores:
+    """The stores the read-only tests share, never mutated."""
+    return sealed_stores(sealed)
+
+
+@pytest.fixture(scope="module")
+def loaded(sealed: Bundle, kept: SealedStores) -> SealedWorld:
+    """The world loaded once: a load runs the whole-world verification."""
+    return load(sealed, kept)
+
+
 def load(sealed: Bundle, stores: SealedStores) -> SealedWorld:
     return load_sealed_world(sealed.world_version, stores.truth, stores.world)
 
@@ -74,9 +90,8 @@ def replace_object(store: InMemoryObjectStore, key: str, content: bytes) -> None
 
 
 def test_loading_rebuilds_the_construction_records_the_world_was_sealed_from(
-    world: WorldSpec, sealed: Bundle, stores: SealedStores
+    world: WorldSpec, sealed: Bundle, loaded: SealedWorld
 ) -> None:
-    loaded = load(sealed, stores)
     assert loaded.scenarios == world.scenarios
     assert (loaded.org, loaded.facts) == (world.org, world.facts)
     assert (loaded.version, loaded.generator_version) == (
@@ -91,23 +106,21 @@ def test_loading_rebuilds_the_construction_records_the_world_was_sealed_from(
 
 
 def test_each_file_is_recorded_with_its_key_the_version_read_and_its_digest(
-    sealed: Bundle, stores: SealedStores
+    sealed: Bundle, kept: SealedStores, loaded: SealedWorld
 ) -> None:
-    loaded = load(sealed, stores)
     version = sealed.world_version
     for source, key, store, artifact in (
-        (loaded.world_spec, world_spec_key(version), stores.truth, sealed.world_spec),
-        (loaded.scenario_specs, scenario_specs_key(version), stores.world, sealed.scenario_specs),
-        (loaded.truth_manifest, truth_manifest_key(version), stores.truth, sealed.truth_manifest),
+        (loaded.world_spec, world_spec_key(version), kept.truth, sealed.world_spec),
+        (loaded.scenario_specs, scenario_specs_key(version), kept.world, sealed.scenario_specs),
+        (loaded.truth_manifest, truth_manifest_key(version), kept.truth, sealed.truth_manifest),
     ):
         assert (source.key, source.digest) == (key, artifact.digest)
         assert source.version_id == store.objects[key].version_id
 
 
 def test_a_runs_expected_context_is_built_from_sealed_data(
-    sealed: Bundle, stores: SealedStores
+    sealed: Bundle, loaded: SealedWorld
 ) -> None:
-    loaded = load(sealed, stores)
     scenario = loaded.scenarios[4]
     assert loaded.scenario(scenario.spec.id) is scenario
     assert loaded.scenario(ScenarioId("scenario_999")) is None
@@ -170,8 +183,10 @@ def test_a_file_that_does_not_decode_is_refused_with_the_decoders_reason(
     sealed: Bundle, stores: SealedStores
 ) -> None:
     replace_object(stores.truth, world_spec_key(sealed.world_version), b'{"artifact":"x"}')
-    with pytest.raises(SealedWorldRefused, match="the world spec does not decode: .*sealed as"):
+    with pytest.raises(SealedWorldRefused, match="the world spec does not decode$") as refused:
         load(sealed, stores)
+    # The decoder's own reason is kept as the cause and out of the message.
+    assert "sealed as" in str(refused.value.__cause__)
 
 
 def test_a_tampered_world_spec_changes_the_version_it_recomputes_to(
@@ -185,6 +200,38 @@ def test_a_tampered_world_spec_changes_the_version_it_recomputes_to(
         load(sealed, stores)
     with pytest.raises(SealedWorldRefused, match="no sealed world spec"):
         load_sealed_world(WorldVersion("f" * 64), stores.truth, stores.world)
+
+
+# --- The proof that asks the rules ----------------------------------------------------------
+
+
+def test_a_key_todays_rules_do_not_reproduce_refuses_the_whole_world_without_its_content(
+    loaded: SealedWorld,
+) -> None:
+    require_reproduced(loaded.version, loaded.facts, loaded.scenarios, loaded.org)
+    # One authored verdict turned over: the key no longer says what the rules conclude.
+    first, *rest = loaded.scenarios
+    impact, *others = first.key.impacts
+    authored, *probe = impact.must_assess
+    flipped = (
+        AuthoredVerdict(authored.employee_id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,))
+        if authored.verdict is Verdict.VIABLE
+        else AuthoredVerdict(authored.employee_id, Verdict.VIABLE)
+    )
+    drifted_key = replace(
+        first.key, impacts=(replace(impact, must_assess=(flipped, *probe)), *others)
+    )
+    drifted = (replace(first, key=drifted_key), *rest)
+    with pytest.raises(KeysNotReproduced) as refused:
+        require_reproduced(loaded.version, loaded.facts, drifted, loaded.org)
+    message = str(refused.value)
+    assert f"the sealed keys of 1 scenario(s) ({first.spec.id})" in message
+    # The findings hold expected against actual, which is truth; the message holds neither.
+    assert all(finding.scenario_id == first.spec.id for finding in refused.value.findings)
+    assert {"viable", "non_viable"} & {refused.value.findings[0].expected.split()[0]}
+    for word in ("viable", authored.employee_id, impact.key.artifact.id):
+        assert word not in message
+    assert isinstance(refused.value, SealedWorldRefused)
 
 
 # --- The proofs over the decoded files ------------------------------------------------------
@@ -250,7 +297,7 @@ def test_three_records_that_describe_no_one_scenario_are_refused_naming_the_scen
     # Each record is well-formed alone; together they name a leave the scenario does not own.
     foreign = replace(first, leave_id=LeaveId("leave_999"))
     with pytest.raises(
-        SealedWorldRefused,
-        match=f"{first.id}: the sealed records do not describe one scenario: .*leave_999",
-    ):
+        SealedWorldRefused, match=f"{first.id}: the sealed records do not describe one scenario$"
+    ) as refused:
         join_scenarios(planted, (foreign, *rest), manifest)
+    assert "leave_999" in str(refused.value.__cause__)
