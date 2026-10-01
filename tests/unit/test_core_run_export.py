@@ -390,6 +390,11 @@ def test_every_role_that_calls_a_model_names_the_rate_it_was_priced_under() -> N
         replace(_record(), tool_surface_digests=())
     record = _record(configurations=(("b", one), ("a", one)))
     assert [role for role, _ in record.pricing_selections] == ["a", "b"]
+    unpriced = PricingSelection("model-z", "eu-central-1", "on_demand")
+    with pytest.raises(
+        ValueError, match="no input_tokens rate for investigator's selection model-z"
+    ):
+        _record(selections=(("investigator", unpriced),))
 
 
 def test_the_reserves_sit_inside_the_caps_and_an_embedding_model_names_vector_retrieval() -> None:

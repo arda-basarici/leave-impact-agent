@@ -63,6 +63,7 @@ from leaveimpact.core import (
     UnreachableOutcome,
     Usage,
     UsageAggregate,
+    decode_export_bytes,
     decode_run_export,
     employee_ref,
     encode_run_export,
@@ -408,6 +409,54 @@ def test_a_non_canonical_instant_in_the_context_is_refused_rather_than_normalize
     _nested(data, "context", "now")["at"] = "2026-09-14T22:30:00Z"
     with pytest.raises(ValueError, match="now is spelled '2026-09-14T22:30:00Z'"):
         decode_run_export(data)
+
+
+def test_equal_arguments_spelled_in_another_key_order_are_the_same_bytes() -> None:
+    """A key's position says nothing in JSON, so two exports whose arguments differ only
+    in nested key order are one export and one byte sequence."""
+    forward = Operation(
+        OperationId("op-9"),
+        PrefetchOrigin(),
+        "leaves_within",
+        Source.FRAPPE,
+        {"span": {"start": "2026-09-10", "end": "2026-09-19"}, "limit": 5},
+        AbsentOutcome(),
+    )
+    backward = Operation(
+        OperationId("op-9"),
+        PrefetchOrigin(),
+        "leaves_within",
+        Source.FRAPPE,
+        {"limit": 5, "span": {"end": "2026-09-19", "start": "2026-09-10"}},
+        AbsentOutcome(),
+    )
+    assert forward == backward
+    base = _export()
+    one = replace(base, trace=RunTrace(base.trace.model_calls, (forward,), base.trace.claims))
+    other = replace(base, trace=RunTrace(base.trace.model_calls, (backward,), base.trace.claims))
+    assert export_bytes(one) == export_bytes(other)
+    assert '"arguments":{"limit":5,"span":{"end":"2026-09-19","start":"2026-09-10"}}' in (
+        export_bytes(one).decode("utf-8")
+    )
+
+
+def test_the_bytes_decoder_accepts_only_the_canonical_encoding() -> None:
+    export = _export()
+    assert decode_export_bytes(export_bytes(export)) == export
+    assert decode_export_bytes(export_bytes(export).decode("utf-8")) == export
+    pretty = json.dumps(json.loads(export_bytes(export)), indent=2)
+    with pytest.raises(ValueError, match="not its canonical encoding"):
+        decode_export_bytes(pretty)
+    data = _reparsed(export)
+    reachable = cast(list[str], _nested(data, "record", "observed_condition")["reachable"])
+    reachable.append(reachable[0])  # a duplicate the set would silently collapse
+    with pytest.raises(ValueError, match="not its canonical encoding"):
+        decode_export_bytes(canonical_json(data))
+    data = _reparsed(export)
+    prompts = cast(list[object], _nested(data, "record")["prompt_digests"])
+    prompts.reverse()  # an order the constructor would silently sort
+    with pytest.raises(ValueError, match="not its canonical encoding"):
+        decode_export_bytes(canonical_json(data))
 
 
 def test_arguments_decode_frozen_and_equal_to_what_was_encoded() -> None:

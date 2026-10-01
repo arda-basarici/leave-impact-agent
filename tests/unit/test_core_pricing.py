@@ -160,13 +160,33 @@ def test_a_cost_is_the_exact_integer_product_with_its_completeness() -> None:
     assert cost_of(Usage(()), HAIKU, basis) == Cost(0, False)
 
 
+def test_a_selection_the_basis_cannot_price_refuses_even_for_an_empty_usage() -> None:
+    """A basis with no input and output rates under the selection prices nothing, so an
+    empty usage must not come back as a complete zero cost."""
+    empty = PricingBasis(DIGEST, "USD", date(2026, 9, 1), ())
+    with pytest.raises(
+        ValueError, match="no input_tokens rate under model-a .*nothing can be priced"
+    ):
+        cost_of(Usage(()), HAIKU, empty)
+    half = PricingBasis(
+        DIGEST,
+        "USD",
+        date(2026, 9, 1),
+        (PricingRow(HAIKU.pricing_key, "eu-central-1", "on_demand", "input_tokens", 1_100),),
+    )
+    with pytest.raises(ValueError, match="no output_tokens rate under model-a"):
+        cost_of(Usage((("input_tokens", 1),)), HAIKU, half)
+
+
 def test_a_reported_class_with_no_rate_refuses_instead_of_pricing_at_zero() -> None:
     basis = basis_for(TABLE, [NOVA])
     with pytest.raises(
         ValueError, match="cache_read_input_tokens was reported but the basis holds"
     ):
         cost_of(Usage((("input_tokens", 1), ("cache_read_input_tokens", 1))), NOVA, basis)
-    with pytest.raises(ValueError, match="input_tokens was reported but the basis holds no rate"):
+    with pytest.raises(
+        ValueError, match="no input_tokens rate under model-a .*nothing can be priced"
+    ):
         cost_of(Usage((("input_tokens", 1),)), HAIKU, basis)
 
 

@@ -26,6 +26,7 @@ codec, each the one encoding its type has in this project.
 
 from __future__ import annotations
 
+import json
 from collections.abc import Mapping
 from typing import assert_never, cast
 
@@ -287,6 +288,31 @@ def thawed_json(value: object) -> object:
 
 
 # --- Decoding ---------------------------------------------------------------------------
+
+
+def decode_export_bytes(content: bytes | str) -> RunExport:
+    """The export ``content`` holds, accepted only if its re-encoding is ``content`` byte for byte.
+
+    The boundary a reader actually meets is bytes, and the digest it cites is of those
+    bytes, so the decoder checks what the one byte rule promises: that the bytes are the
+    canonical encoding of the tree they decode to. Input that decodes to a tree and then
+    re-encodes differently (a pretty-printed spelling, a duplicate in a set-valued list,
+    a role-indexed entry out of order) is refused as not canonical, since accepting it
+    would let two byte sequences stand for one export and the cited digest name neither.
+
+    >>> decode_export_bytes(b'{"format_version": 2}')
+    Traceback (most recent call last):
+    ...
+    ValueError: this code reads export format 1, got 2
+    """
+    raw = content.encode("utf-8") if isinstance(content, str) else content
+    export = decode_run_export(json.loads(raw))
+    if export_bytes(export) != raw:
+        raise ValueError(
+            "the export's bytes are not its canonical encoding; a re-encoding of what they "
+            "decode to differs, so they are not what the one byte rule writes"
+        )
+    return export
 
 
 def decode_run_export(value: object) -> RunExport:

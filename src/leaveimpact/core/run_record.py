@@ -44,6 +44,10 @@ from leaveimpact.core.run_trace import (
 
 GIT_SHA_LENGTH = 40
 
+BILLED_ON_EVERY_CALL: tuple[str, ...] = ("input_tokens", "output_tokens")
+"""The token classes every answered call is billed for, so a selection's basis must price
+them; a cache class is priced only where the table has a rate for it."""
+
 
 def require_commit(value: str, what: str) -> str:
     """``value`` if it is a full lower-case git commit SHA."""
@@ -421,6 +425,16 @@ class RunRecord:
                 "every role that calls a model names its pricing: configured "
                 f"{sorted(roles)}, priced {sorted(priced)}"
             )
+        for role, selection in self.pricing_selections:
+            for token_class in BILLED_ON_EVERY_CALL:
+                rate = self.pricing.rate(
+                    selection.pricing_key, selection.region, selection.billing_mode, token_class
+                )
+                if rate is None:
+                    raise ValueError(
+                        f"the basis holds no {token_class} rate for {role}'s selection "
+                        f"{selection.pricing_key} in {selection.region} {selection.billing_mode}"
+                    )
         prompts = [(role, name) for role, name, _ in self.prompt_digests]
         if len(set(prompts)) != len(prompts):
             raise ValueError(f"a prompt is digested once per role and name, got {prompts}")

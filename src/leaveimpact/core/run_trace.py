@@ -89,14 +89,18 @@ def require_integer(value: object, what: str, *, minimum: int = 0) -> int:
 def frozen_json(value: object, what: str) -> object:
     """``value`` as an immutable copy of a JSON value, refused if JSON could not carry it.
 
-    Objects become read-only mappings and arrays tuples, all the way down, so a record
-    holding the result cannot change under a caller that keeps the original; a value
-    outside JSON's own (a date, a set, a non-finite float) is refused rather than
-    serialized by surprise later.
+    Objects become read-only mappings with their keys in sorted order and arrays tuples,
+    all the way down, so a record holding the result cannot change under a caller that
+    keeps the original and two equal argument objects are equal in bytes whatever order
+    the caller spelled them in (a key's position says nothing in JSON); a value outside
+    JSON's own (a date, a set, a non-finite float) is refused rather than serialized by
+    surprise later.
 
     >>> frozen = frozen_json({"span": {"start": "2026-09-10", "end": "2026-09-12"}}, "arguments")
     >>> frozen["span"]["end"]
     '2026-09-12'
+    >>> list(frozen_json({"b": 1, "a": 2}, "arguments"))
+    ['a', 'b']
     """
     match value:
         case None | bool() | int() | str():
@@ -114,7 +118,7 @@ def frozen_json(value: object, what: str) -> object:
                 if not isinstance(key, str):
                     raise ValueError(f"{what} has a non-string key {key!r}")
                 frozen[key] = frozen_json(item, what)
-            return MappingProxyType(frozen)
+            return MappingProxyType(dict(sorted(frozen.items())))
         case _:
             raise ValueError(f"{what} holds {type(value).__name__}, which JSON cannot carry")
 

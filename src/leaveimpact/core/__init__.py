@@ -220,6 +220,7 @@ from leaveimpact.core.refs import (
 )
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
 from leaveimpact.core.run_export_json import (
+    decode_export_bytes,
     decode_run_export,
     decode_run_record,
     decode_run_trace,
@@ -229,6 +230,7 @@ from leaveimpact.core.run_export_json import (
     export_bytes,
 )
 from leaveimpact.core.run_record import (
+    BILLED_ON_EVERY_CALL,
     AbsentMeaning,
     Caps,
     Failure,
@@ -337,6 +339,7 @@ __all__ = [
     "ABOUT_THE_ARTIFACT",
     "ABOUT_THE_CANDIDATE",
     "ARTIFACT_KINDS",
+    "BILLED_ON_EVERY_CALL",
     "DATE_SPAN_VALUE",
     "DATE_VALUE",
     "EXPORT_FORMAT_VERSION",
@@ -508,6 +511,7 @@ __all__ = [
     "decode_claim",
     "decode_claims",
     "decode_entity",
+    "decode_export_bytes",
     "decode_model_configuration",
     "decode_observed",
     "decode_price_table",

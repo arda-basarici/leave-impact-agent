@@ -42,6 +42,7 @@ from leaveimpact.core.jsonshape import (
     string_field,
 )
 from leaveimpact.core.run_record import (
+    BILLED_ON_EVERY_CALL,
     AbsentMeaning,
     PricingBasis,
     PricingRow,
@@ -189,6 +190,14 @@ def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> C
     >>> cost_of(Usage((("input_tokens", 120),)), model_a, basis)
     Cost(nano_usd=132000, complete=False)
     """
+    for token_class in BILLED_ON_EVERY_CALL:
+        if basis.rate(
+            selection.pricing_key, selection.region, selection.billing_mode, token_class
+        ) is None:
+            raise ValueError(
+                f"the basis holds no {token_class} rate under {selection.pricing_key} in "
+                f"{selection.region} {selection.billing_mode}; nothing can be priced"
+            )
     total = 0
     for token_class, tokens in usage.counters:
         rate = basis.rate(
