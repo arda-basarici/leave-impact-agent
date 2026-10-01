@@ -27,6 +27,9 @@ plain data, one record per expected or reported claim with expectation, presence
 standing and payload kept apart, and ``matching`` writes those rows from a report's
 claims and the oracle. ``plan_checks`` asks whether the plan is valid against the oracle
 and whether the report hangs together with itself, two questions with their findings
-kept apart. The outcome of a whole run follows in the same build step (the investigator
-milestone's third).
+kept apart. ``grading`` gives every export exactly one outcome: graded against the
+oracle, limited to the checks that need no expected answer, or excluded and counted.
+
+Grounding, citations, source discipline and the aggregation of rows into tables are the
+next build step's; the evaluation artifact's codec and the entry point follow it.
 """
