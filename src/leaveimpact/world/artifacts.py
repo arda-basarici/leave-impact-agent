@@ -68,24 +68,25 @@ import hashlib
 import re
 from collections.abc import Sequence
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import date
 
 from leaveimpact.core.claims import ConstraintKey, ImpactKey
-from leaveimpact.core.entities import (
-    CalendarEvent,
-    Comment,
-    Component,
-    Document,
-    Employee,
-    Leave,
-    Team,
-    WorkItem,
+from leaveimpact.core.entities import CalendarEvent, Document, Leave, WorkItem
+from leaveimpact.core.entities_json import (
+    encode_component,
+    encode_document,
+    encode_employee,
+    encode_event,
+    encode_leave,
+    encode_team,
+    encode_work_item,
 )
 from leaveimpact.core.facts import Fact, FactBase, Gap
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.predicates import predicate
 from leaveimpact.core.refs import EvidenceRef
+from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec
@@ -256,11 +257,11 @@ def encode_semantic_world(semantic: SemanticWorld) -> JsonObject:
         "provenance": _provenance(semantic),
         "org": _org(semantic.org),
         "plan": [_plan_row(row) for row in semantic.plan],
-        "slices": [_span(window) for window in semantic.slices],
+        "slices": [encode_date_span(window) for window in semantic.slices],
         "scenarios": [
             {
                 "spec": _spec(scenario.spec),
-                "stable_interval": _span(scenario.key.stable_interval),
+                "stable_interval": encode_date_span(scenario.key.stable_interval),
                 "owned": _owned(scenario.owned),
                 **_construction(scenario),
             }
@@ -310,7 +311,7 @@ def encode_world_spec(spec: PlantedWorldSpec) -> JsonObject:
         "provenance": {**_provenance(spec), "semantic_digest": spec.semantic_digest},
         "org": _org(spec.org),
         "plan": [_plan_row(row) for row in spec.plan],
-        "slices": [_span(window) for window in spec.slices],
+        "slices": [encode_date_span(window) for window in spec.slices],
         "scenarios": [_planting(planting) for planting in spec.scenarios],
         "artifacts": {
             SCENARIO_SPECS: spec.scenario_specs_digest,
@@ -357,34 +358,11 @@ def _org(org: OrgSpec) -> JsonObject:
         "seed": org.seed,
         "params": encode_org_params(org.params),
         "generator_version": org.generator_version,
-        "teams": [_team(team) for team in org.teams],
-        "employees": [_employee(employee) for employee in org.employees],
-        "components": [_component(component) for component in org.components],
+        "teams": [encode_team(team) for team in org.teams],
+        "employees": [encode_employee(employee) for employee in org.employees],
+        "components": [encode_component(component) for component in org.components],
         "skills": list(org.skills),
     }
-
-
-def _team(team: Team) -> JsonObject:
-    return {"id": team.id, "name": team.name}
-
-
-def _employee(employee: Employee) -> JsonObject:
-    return {
-        "id": employee.id,
-        "name": employee.name,
-        "team_id": employee.team_id,
-        "manager_id": employee.manager_id,
-        "skills": None if employee.skills is None else list(employee.skills),
-        "location": employee.location,
-        "country": employee.country,
-        "timezone": employee.timezone,
-        "grade": employee.grade.value,
-        "employment_type": employee.employment_type.value,
-    }
-
-
-def _component(component: Component) -> JsonObject:
-    return {"id": component.id, "name": component.name, "member_ids": list(component.member_ids)}
 
 
 def _plan_row(row: PlanRow) -> JsonObject:
@@ -403,16 +381,16 @@ def _spec(spec: ScenarioSpec) -> JsonObject:
     return {
         "id": spec.id,
         "leave_id": spec.leave_id,
-        "now": _instant(spec.now),
+        "now": encode_instant(spec.now),
         "reference_timezone": spec.reference_timezone,
-        "window": _span(spec.window),
+        "window": encode_date_span(spec.window),
     }
 
 
 def _planting(planting: ScenarioPlanting) -> JsonObject:
     return {
         "scenario_id": planting.scenario_id,
-        "stable_interval": _span(planting.stable_interval),
+        "stable_interval": encode_date_span(planting.stable_interval),
         "owned": _owned(planting.owned),
     }
 
@@ -609,11 +587,11 @@ def _distractor(distractor: NamedDistractor) -> JsonObject:
 
 def _owned(owned: OwnedEntities) -> JsonObject:
     return {
-        "leaves": [_planted(planted, _leave(planted.entity)) for planted in owned.leaves],
+        "leaves": [_planted(planted, encode_leave(planted.entity)) for planted in owned.leaves],
         "work_items": [
-            _planted(planted, _work_item(planted.entity)) for planted in owned.work_items
+            _planted(planted, encode_work_item(planted.entity)) for planted in owned.work_items
         ],
-        "events": [_planted(planted, _event(planted.entity)) for planted in owned.events],
+        "events": [_planted(planted, encode_event(planted.entity)) for planted in owned.events],
         "documents": [
             _planted(planted, encode_document(planted.entity)) for planted in owned.documents
         ],
@@ -626,53 +604,6 @@ def _planted[T: Leave | WorkItem | CalendarEvent | Document](
     return {"record": record, "observable_from": planted.observable_from.isoformat()}
 
 
-# --- Planted records ----------------------------------------------------------------------
-
-
-def _leave(leave: Leave) -> JsonObject:
-    return {
-        "id": leave.id,
-        "employee_id": leave.employee_id,
-        "start": leave.start.isoformat(),
-        "end": leave.end.isoformat(),
-        "kind": leave.kind.value,
-        "status": leave.status.value,
-    }
-
-
-def _work_item(item: WorkItem) -> JsonObject:
-    return {
-        "id": item.id,
-        "title": item.title,
-        "owner_id": item.owner_id,
-        "status": item.status.value,
-        "component_id": item.component_id,
-        "opened_on": item.opened_on.isoformat(),
-        "resolved_on": _optional_date(item.resolved_on),
-        "due_on": _optional_date(item.due_on),
-        "comments": [_comment(comment) for comment in item.comments],
-    }
-
-
-def _comment(comment: Comment) -> JsonObject:
-    return {
-        "id": comment.id,
-        "world_date": comment.world_date.isoformat(),
-        "author_id": comment.author_id,
-        "text": comment.text,
-    }
-
-
-def _event(event: CalendarEvent) -> JsonObject:
-    return {
-        "id": event.id,
-        "title": event.title,
-        "start": _instant(event.start),
-        "end": _instant(event.end),
-        "attendee_ids": list(event.attendee_ids),
-    }
-
-
 def document_bytes(document: Document) -> bytes:
     """The canonical bytes of one document, what the world bucket holds per document.
 
@@ -680,17 +611,6 @@ def document_bytes(document: Document) -> bytes:
     sealed documents are content-addressed objects a reader decodes one at a time.
     """
     return canonical_bytes(encode_document(document))
-
-
-def encode_document(document: Document) -> JsonObject:
-    """The JSON object of one document: id, title, kind, effective date, sections in order."""
-    return {
-        "id": document.id,
-        "title": document.title,
-        "kind": document.kind.value,
-        "effective_from": document.effective_from.isoformat(),
-        "sections": [{"id": section.id, "text": section.text} for section in document.sections],
-    }
 
 
 # --- Facts ----------------------------------------------------------------------------------
@@ -728,19 +648,3 @@ def _evidence(evidence: EvidenceRef) -> JsonObject:
         "target": encode_ref(evidence.target),
         "field": evidence.field,
     }
-
-
-# --- Time ---------------------------------------------------------------------------------
-
-
-def _span(span: DateSpan) -> JsonObject:
-    return {"start": span.start.isoformat(), "end": span.end.isoformat()}
-
-
-def _instant(instant: datetime) -> JsonObject:
-    """An aware instant with its IANA zone beside the offset-bearing timestamp, when it has one."""
-    return {"at": instant.isoformat(), "timezone": getattr(instant.tzinfo, "key", None)}
-
-
-def _optional_date(day: date | None) -> str | None:
-    return None if day is None else day.isoformat()

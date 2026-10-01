@@ -122,7 +122,7 @@ def test_a_vendor_key_where_a_world_id_belongs_is_refused(sealed: Bundle) -> Non
     data = spec_json(sealed)
     org = cast(JsonObject, data["org"])
     cast(list[JsonObject], org["employees"])[0]["id"] = "LIA-42"
-    with pytest.raises(ValueError, match="'LIA-42' is not a emp_ id"):
+    with pytest.raises(ValueError, match="an employee id has the form emp_NNN, got 'LIA-42'"):
         decode_world_spec(canonical_bytes(data))
 
 

@@ -28,43 +28,20 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Mapping
-from datetime import date, datetime
+from datetime import date
 from typing import TypeGuard
 
-from leaveimpact.core.entities import (
-    CalendarEvent,
-    Comment,
-    Component,
-    Document,
-    DocumentSection,
-    Employee,
-    Leave,
-    Team,
-    WorkItem,
+from leaveimpact.core.entities import CalendarEvent, Document, Leave, WorkItem
+from leaveimpact.core.entities_json import (
+    decode_component,
+    decode_employee,
+    decode_event,
+    decode_leave,
+    decode_team,
+    decode_work_item,
 )
-from leaveimpact.core.enums import (
-    DocumentKind,
-    EmploymentType,
-    Grade,
-    LeaveKind,
-    LeaveStatus,
-    WorkItemStatus,
-)
-from leaveimpact.core.ids import (
-    ClauseId,
-    CommentId,
-    ComponentId,
-    DocumentId,
-    EmployeeId,
-    EventId,
-    LeaveId,
-    ScenarioId,
-    SkillId,
-    TeamId,
-    WorkItemId,
-    is_numbered_id,
-    skill_id,
-)
+from leaveimpact.core.entities_json import decode_document as _decode_document_value
+from leaveimpact.core.ids import LeaveId, ScenarioId, is_numbered_id, skill_id
 from leaveimpact.core.jsonshape import (
     array_field,
     as_object,
@@ -72,11 +49,11 @@ from leaveimpact.core.jsonshape import (
     field_of,
     integer_field,
     object_field,
-    optional_string_field,
     string_field,
     string_item,
 )
-from leaveimpact.core.worldtime import DateSpan, date_at, instant_at
+from leaveimpact.core.timeshape import decode_date_span, decode_instant
+from leaveimpact.core.worldtime import date_at
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
@@ -134,7 +111,7 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
         vocabulary_digest=string_field(provenance, "vocabulary_digest"),
         semantic_digest=string_field(provenance, "semantic_digest"),
         org=_org(object_field(data, "org")),
-        slices=tuple(_span(item, "a slice") for item in array_field(data, "slices")),
+        slices=tuple(decode_date_span(item, "a slice") for item in array_field(data, "slices")),
         plan=tuple(_plan_row(item) for item in array_field(data, "plan")),
         scenarios=tuple(_planting(item) for item in array_field(data, "scenarios")),
         scenario_specs_digest=string_field(cited, SCENARIO_SPECS),
@@ -174,64 +151,10 @@ def _org(data: Mapping[str, object]) -> OrgSpec:
         seed=integer_field(data, "seed"),
         params=decode_org_params(object_field(data, "params")),
         generator_version=GeneratorVersion(string_field(data, "generator_version")),
-        teams=tuple(_team(item) for item in array_field(data, "teams")),
-        employees=tuple(_employee(item) for item in array_field(data, "employees")),
-        components=tuple(_component(item) for item in array_field(data, "components")),
+        teams=tuple(decode_team(item) for item in array_field(data, "teams")),
+        employees=tuple(decode_employee(item) for item in array_field(data, "employees")),
+        components=tuple(decode_component(item) for item in array_field(data, "components")),
         skills=tuple(skill_id(string_item(item, "skills")) for item in array_field(data, "skills")),
-    )
-
-
-def _team(item: object) -> Team:
-    data = as_object(item, "a team")
-    expect_fields(data, ("id", "name"), "a team")
-    return Team(id=_id_field(data, "id", "team", TeamId), name=string_field(data, "name"))
-
-
-def _employee(item: object) -> Employee:
-    data = as_object(item, "an employee")
-    expect_fields(
-        data,
-        (
-            "id",
-            "name",
-            "team_id",
-            "manager_id",
-            "skills",
-            "location",
-            "country",
-            "timezone",
-            "grade",
-            "employment_type",
-        ),
-        "an employee",
-    )
-    manager = optional_string_field(data, "manager_id")
-    skills = field_of(data, "skills")
-    return Employee(
-        id=_id_field(data, "id", "emp", EmployeeId),
-        name=string_field(data, "name"),
-        team_id=_id_field(data, "team_id", "team", TeamId),
-        manager_id=None if manager is None else _id(manager, "emp", EmployeeId),
-        skills=None if skills is None else tuple(_skills(data)),
-        location=string_field(data, "location"),
-        country=string_field(data, "country"),
-        timezone=string_field(data, "timezone"),
-        grade=Grade(string_field(data, "grade")),
-        employment_type=EmploymentType(string_field(data, "employment_type")),
-    )
-
-
-def _skills(data: Mapping[str, object]) -> list[SkillId]:
-    return [skill_id(string_item(item, "skills")) for item in array_field(data, "skills")]
-
-
-def _component(item: object) -> Component:
-    data = as_object(item, "a component")
-    expect_fields(data, ("id", "name", "member_ids"), "a component")
-    return Component(
-        id=_id_field(data, "id", "comp", ComponentId),
-        name=string_field(data, "name"),
-        member_ids=_ids(data, "member_ids", "emp", EmployeeId),
     )
 
 
@@ -259,9 +182,9 @@ def _scenario_spec(item: object) -> ScenarioSpec:
     return ScenarioSpec(
         id=_id_field(data, "id", "scenario", ScenarioId),
         leave_id=_id_field(data, "leave_id", "leave", LeaveId),
-        now=_instant(field_of(data, "now"), "now"),
+        now=decode_instant(field_of(data, "now"), "now"),
         reference_timezone=string_field(data, "reference_timezone"),
-        window=_span(field_of(data, "window"), "the window"),
+        window=decode_date_span(field_of(data, "window"), "the window"),
     )
 
 
@@ -270,7 +193,7 @@ def _planting(item: object) -> ScenarioPlanting:
     expect_fields(data, ("scenario_id", "stable_interval", "owned"), "a planting")
     return ScenarioPlanting(
         scenario_id=_id_field(data, "scenario_id", "scenario", ScenarioId),
-        stable_interval=_span(field_of(data, "stable_interval"), "the stable interval"),
+        stable_interval=decode_date_span(field_of(data, "stable_interval"), "the stable interval"),
         owned=_owned(object_field(data, "owned")),
     )
 
@@ -278,15 +201,19 @@ def _planting(item: object) -> ScenarioPlanting:
 def _owned(data: Mapping[str, object]) -> OwnedEntities:
     expect_fields(data, ("leaves", "work_items", "events", "documents"), "owned entities")
     return OwnedEntities(
-        leaves=tuple(_planted(item, _leave) for item in array_field(data, "leaves")),
-        work_items=tuple(_planted(item, _work_item) for item in array_field(data, "work_items")),
-        events=tuple(_planted(item, _event) for item in array_field(data, "events")),
-        documents=tuple(_planted(item, _document) for item in array_field(data, "documents")),
+        leaves=tuple(_planted(item, decode_leave) for item in array_field(data, "leaves")),
+        work_items=tuple(
+            _planted(item, decode_work_item) for item in array_field(data, "work_items")
+        ),
+        events=tuple(_planted(item, decode_event) for item in array_field(data, "events")),
+        documents=tuple(
+            _planted(item, _decode_document_value) for item in array_field(data, "documents")
+        ),
     )
 
 
 def _planted[T: Leave | WorkItem | CalendarEvent | Document](
-    item: object, record: Callable[[Mapping[str, object]], T]
+    item: object, record: Callable[[object], T]
 ) -> Planted[T]:
     data = as_object(item, "a planted record")
     expect_fields(data, ("record", "observable_from"), "a planted record")
@@ -296,94 +223,9 @@ def _planted[T: Leave | WorkItem | CalendarEvent | Document](
     )
 
 
-# --- Planted records ----------------------------------------------------------------------
-
-
-def _leave(data: Mapping[str, object]) -> Leave:
-    expect_fields(data, ("id", "employee_id", "start", "end", "kind", "status"), "a leave")
-    return Leave(
-        id=_id_field(data, "id", "leave", LeaveId),
-        employee_id=_id_field(data, "employee_id", "emp", EmployeeId),
-        start=_date(string_field(data, "start")),
-        end=_date(string_field(data, "end")),
-        kind=LeaveKind(string_field(data, "kind")),
-        status=LeaveStatus(string_field(data, "status")),
-    )
-
-
-def _work_item(data: Mapping[str, object]) -> WorkItem:
-    expect_fields(
-        data,
-        (
-            "id",
-            "title",
-            "owner_id",
-            "status",
-            "component_id",
-            "opened_on",
-            "resolved_on",
-            "due_on",
-            "comments",
-        ),
-        "a work item",
-    )
-    return WorkItem(
-        id=_id_field(data, "id", "ticket", WorkItemId),
-        title=string_field(data, "title"),
-        owner_id=_id_field(data, "owner_id", "emp", EmployeeId),
-        status=WorkItemStatus(string_field(data, "status")),
-        component_id=_id_field(data, "component_id", "comp", ComponentId),
-        opened_on=_date(string_field(data, "opened_on")),
-        resolved_on=_optional_date(data, "resolved_on"),
-        due_on=_optional_date(data, "due_on"),
-        comments=tuple(_comment(item) for item in array_field(data, "comments")),
-    )
-
-
-def _comment(item: object) -> Comment:
-    data = as_object(item, "a comment")
-    expect_fields(data, ("id", "world_date", "author_id", "text"), "a comment")
-    return Comment(
-        id=_id_field(data, "id", "comment", CommentId),
-        world_date=_date(string_field(data, "world_date")),
-        author_id=_id_field(data, "author_id", "emp", EmployeeId),
-        text=string_field(data, "text"),
-    )
-
-
-def _event(data: Mapping[str, object]) -> CalendarEvent:
-    expect_fields(data, ("id", "title", "start", "end", "attendee_ids"), "an event")
-    return CalendarEvent(
-        id=_id_field(data, "id", "event", EventId),
-        title=string_field(data, "title"),
-        start=_instant(field_of(data, "start"), "start"),
-        end=_instant(field_of(data, "end"), "end"),
-        attendee_ids=_ids(data, "attendee_ids", "emp", EmployeeId),
-    )
-
-
 def decode_document(content: bytes | str) -> Document:
     """The document one sealed object encodes; ``ValueError`` names what is malformed."""
-    return _document(as_object(json.loads(content), "a document"))
-
-
-def _document(data: Mapping[str, object]) -> Document:
-    expect_fields(data, ("id", "title", "kind", "effective_from", "sections"), "a document")
-    return Document(
-        id=_id_field(data, "id", "doc", DocumentId),
-        title=string_field(data, "title"),
-        kind=DocumentKind(string_field(data, "kind")),
-        effective_from=_date(string_field(data, "effective_from")),
-        sections=tuple(_section(item) for item in array_field(data, "sections")),
-    )
-
-
-def _section(item: object) -> DocumentSection:
-    data = as_object(item, "a section")
-    expect_fields(data, ("id", "text"), "a section")
-    return DocumentSection(
-        id=_id_field(data, "id", "clause", ClauseId), text=string_field(data, "text")
-    )
+    return _decode_document_value(json.loads(content))
 
 
 # --- Ids, time, provenance ----------------------------------------------------------------
@@ -401,32 +243,8 @@ def _id_field[K: str](
     return _id(string_field(data, key), prefix, kind)
 
 
-def _ids[K: str](
-    data: Mapping[str, object], key: str, prefix: str, kind: Callable[[str], K]
-) -> tuple[K, ...]:
-    return tuple(_id(string_item(item, key), prefix, kind) for item in array_field(data, key))
-
-
 def _date(text: str) -> date:
     return date_at(text, "a date")
-
-
-def _optional_date(data: Mapping[str, object], key: str) -> date | None:
-    text = optional_string_field(data, key)
-    return None if text is None else _date(text)
-
-
-def _span(item: object, what: str) -> DateSpan:
-    data = as_object(item, what)
-    expect_fields(data, ("start", "end"), what)
-    return DateSpan(_date(string_field(data, "start")), _date(string_field(data, "end")))
-
-
-def _instant(item: object, what: str) -> datetime:
-    """An aware instant in its IANA zone when the file names one; the one rule is ``core``'s."""
-    data = as_object(item, what)
-    expect_fields(data, ("at", "timezone"), what)
-    return instant_at(string_field(data, "at"), optional_string_field(data, "timezone"), what)
 
 
 def _interpreter(data: Mapping[str, object]) -> tuple[int, int]:
