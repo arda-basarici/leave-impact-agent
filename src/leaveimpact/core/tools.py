@@ -180,6 +180,8 @@ class IntegerArgument:
     maximum: int
 
     def __post_init__(self) -> None:
+        require_integer(self.minimum, f"{self.name}: minimum", minimum=-(2**63))
+        require_integer(self.maximum, f"{self.name}: maximum", minimum=-(2**63))
         if self.minimum > self.maximum:
             raise ValueError(
                 f"{self.name}: the bounds are ordered, got {self.minimum}..{self.maximum}"
@@ -401,7 +403,9 @@ def _validated(argument: Argument, value: object) -> object:
                 decode_instant(data["start"], f"{argument.name}.start"),
                 decode_instant(data["end"], f"{argument.name}.end"),
             )
-            if span.end - span.start > timedelta(days=argument.max_days):
+            # Elapsed time, never wall-clock difference: two ends in one zone subtract naively
+            # in Python and a span across a clock change would be an hour off.
+            if span.duration > timedelta(days=argument.max_days):
                 raise ValueError(f"{argument.name} spans at most {argument.max_days} days")
             return span
         case QueryArgument():
@@ -465,7 +469,13 @@ def _schema(argument: Argument) -> JsonObject:
                 "description": f"Half-open [start, end), at most {argument.max_days} days long",
             }
         case QueryArgument():
-            return {"type": "string", "minLength": 1, "maxLength": argument.max_length}
+            # The pattern says what the wrapper enforces: at least one non-blank character.
+            return {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": argument.max_length,
+                "pattern": r"\S",
+            }
         case _:
             assert_never(argument)
 

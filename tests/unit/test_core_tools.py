@@ -146,6 +146,38 @@ def test_instant_spans_are_zoned_canonical_and_bounded() -> None:
         validate_arguments(EVENTS_WITHIN, {"span": {**INSTANTS, "end": late}})
 
 
+def test_the_instant_bound_is_elapsed_time_across_both_clock_changes() -> None:
+    """Two London ends subtract naively in Python; the bound reads elapsed time, so the
+    October span of thirty-one wall-clock days is thirty-one days and an hour and refuses,
+    while the March span of thirty-one wall-clock days is an hour short and passes."""
+    autumn = {
+        "start": {"at": "2026-10-01T00:00:00+01:00", "timezone": "Europe/London"},
+        "end": {"at": "2026-11-01T00:00:00+00:00", "timezone": "Europe/London"},
+    }
+    with pytest.raises(ValueError, match="span spans at most 31 days"):
+        validate_arguments(EVENTS_WITHIN, {"span": autumn})
+    spring = {
+        "start": {"at": "2026-03-01T00:00:00+00:00", "timezone": "Europe/London"},
+        "end": {"at": "2026-04-01T00:00:00+01:00", "timezone": "Europe/London"},
+    }
+    assert isinstance(validate_arguments(EVENTS_WITHIN, {"span": spring})["span"], InstantSpan)
+
+
+def test_bounds_are_exact_integers_and_the_query_schema_says_non_blank() -> None:
+    with pytest.raises(ValueError, match="limit: minimum is an integer, got True"):
+        IntegerArgument("limit", True, 20)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="limit: maximum is an integer, got 20.5"):
+        IntegerArgument("limit", 1, 20.5)  # type: ignore[arg-type]
+    query = cast(
+        JsonObject,
+        cast(JsonObject, cast(JsonObject, tool_definition(SEARCH)["input_schema"])["properties"])[
+            "query"
+        ],
+    )
+    pattern = cast(str, query["pattern"])
+    assert re.search(pattern, "kafka") and not re.search(pattern, "   ")
+
+
 def test_the_definition_requires_every_argument_and_closes_the_object() -> None:
     definition = tool_definition(SEARCH)
     assert definition["name"] == "search"
