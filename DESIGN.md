@@ -262,7 +262,10 @@ numbers. The plan: outcome match against the expected action derived per run
 condition, completeness (every sealed impact exactly one action, no action without
 an impact) and constraint satisfaction with truth-derived assessments; coherence,
 the same constraint check over the report's own assessments plus the chain checks,
-is reported beside it so an assignment with no reported assessment shows. The first
+is reported beside it so an assignment with no reported assessment shows. The shape
+of a grade, what is expected under an outage and where no answer exists were ruled
+at the investigator milestone's third build step (the evaluator paragraphs under
+"Keeping the benchmark out of the product"). The first
 draft sent the rationale text behind an action to an LLM judge calibrated on a
 hand-graded set; superseded 2026-09-20, since the rationale is optional in the
 vocabulary, no hand-graded set exists, calibration is its own measurement problem,
@@ -451,8 +454,13 @@ scenarios, leavers repeat, as they would.
 evidenced in a ticket comment from month three is admissible in month nine and not
 in month one. Every fact in the truth base therefore carries the world date at which
 its provenance became observable (static HR facts carry world start), and the
-evaluator admits only facts dated at or before the scenario's `now`: the "time is
-world state" rule applied to truth. The truth manifest thus has two layers, one
+dated view admits only facts dated at or before the scenario's `now`: the "time is
+world state" rule applied to truth. That view is construction's. The evaluator was
+first ruled to grade from it as well; superseded at the investigator milestone's
+third build step (2026-10-01), because a run observes every record the systems hold
+at its run day whatever the planting date, so the evaluator's oracle is runtime
+truth (the oracle paragraph under "Keeping the benchmark out of the product"). The
+truth manifest thus has two layers, one
 world-level fact base with dated provenance and per-scenario keys that own the
 impacts, the distractors, the `must_assess` set, the slice and `now`. It also
 settles what an evidence domain spans: "relevant Jira history" means the whole
@@ -567,9 +575,10 @@ per target every attempt and refusal by guard with its findings counted by reaso
 under a closed vocabulary (failure-path attribution, never proof of writer or
 checker blame, which the hand audit supplies), the accepted body's digest and its
 extracted propositions, which are what the hand audit is measured against. Nothing
-the validator can reach decodes the record: the generator's own decoder is the one
-reader the truth manifest has before the evaluator, unreachable by the validator
-under the import law. It also seals the stage's aggregate counters, because the log
+the validator can reach decodes the record: the truth manifest's decoder is a
+module the import law opens to three named readers and no other (the decoder
+paragraph under "Keeping the benchmark out of the product"). It also seals the
+stage's aggregate counters, because the log
 had been their only carrier and one run sealed its truth, failed in projection and
 took them with it; the counters are names in a declared append-only order, so a
 counter added later reads back from an older record as unavailable, never zero.
@@ -1448,8 +1457,9 @@ size, pagination staying the adapter's. **`RunContext` carries the leave under
 investigation as an id and nothing more**: run inputs identify what to investigate,
 ports establish the facts, so the leave record is read as evidence a scenario can
 contradict, and a run that cannot read it continues degraded rather than inventing
-the span, everything downstream unknown and not only `on_leave`, how that grades
-being the evaluator's design. **A port reports three outcomes three ways**, because
+the span, everything downstream unknown and not only `on_leave`; such a run has no
+claim-level expected answer and is limited instead of graded (the outage paragraph
+below). **A port reports three outcomes three ways**, because
 closure treats them differently: a record that is not there is `None` or empty; a
 source that cannot answer raises `SourceUnreachable`, an epistemic limit the run
 condition records, the fault per call: the first marks the source unreachable for
@@ -1472,9 +1482,10 @@ import the benchmark. The framework, the tool transport, retrieval and the harne
 were ruled at that entry (2026-09-20; the tool paragraph above, the deployment
 section below). **The evaluator, at its entry, inherits four.** It
 grades the frozen vocabulary by the rules stated above, the pure rules deciding any
-candidate the key did not author; it admits truth time-filtered by the scenario's
-`now` and only from the sealed objects, recording world version, truth digest and
-version id before grading; it shares the pure rules with the investigator through
+candidate the key did not author; it admits truth only from the sealed objects,
+recording world version, truth digest and version id before grading (the entry also
+had it filter truth by the scenario's `now`, superseded at the third build step,
+the oracle paragraph below); it shares the pure rules with the investigator through
 `core` while neither imports the other; and its decoder honours absent against empty
 on the key's derived-conclusion fields. Its execution boundary, its identity, its
 metrics beyond the grading and the baselines it grades beside the agent were ruled
@@ -1484,7 +1495,9 @@ at that entry, 2026-09-20, as follows.
 recorded run observed, and never re-reads a vendor.** Its role is trusted only to a
 GitHub environment that holds no secrets, so a vendor credential cannot reach the
 job even if a reference is added later, and the boundary is IAM rather than a
-workflow review; it reads the truth manifest, the sealed spec and run exports, writes
+workflow review; it reads the truth manifest, the sealed spec and run exports (and,
+since the third build step's join, the scenario specs, a grant the platform owes
+before the entry point lands), writes
 evaluations by conditional create, holds no model grant, and probes its own
 boundary on every dispatch (the truth manifest readable as the positive control, a
 put under the served worlds and a model invoke refused). Evaluations live with the
@@ -1536,6 +1549,197 @@ instance under a second principal was rejected on the executor paragraph's own
 sentence, two principals on one host being two configurations and not a boundary;
 workstation runs were rejected because evaluation repeats and needs run-and-attempt
 provenance.
+
+**The truth manifest is decoded whole by one gated module, and absent stays apart
+from empty.** The manifest's value is a set of types that are exactly the file's
+content: its scenario rows with their keys, authored facts and briefs, and the
+materialization record. One encoder writes it through a pure projection of the
+assembled world, and one decoder reads it, taking bytes and accepting them only when
+their re-encoding reproduces them. The encoder stays ungated, since it needs an
+assembled world as input and gives a reader nothing. The decoder is its own module
+in `world`, and the import law names its importers by full path: the generator's
+resume, the evaluator's world loading, and the audit-sheet script, an operator's
+program, which is why this one gate also scans the operator's programs under
+`scripts` and `probes`. A named reader that no longer imports the decoder fails the
+law too, so the list stays the statement of who reads the key. An earlier placement
+kept the decoder outside `world`, because the law could not then keep a `world`
+module from the validator; module-path gates arrived with the object store's write
+side and removed the reason. A key's two derived sets, the expected conflicts and
+the expected unknowns, are each present or unavailable on their own: an omitted
+field decodes as unavailable, an empty list as known empty, and `null` is refused.
+Only bytes sealed before the fields existed decode as unavailable (the measurement
+world's manifest, confirmed against its live bytes), and the evaluator's join
+refuses such a key, so unavailable never reaches a metric.
+
+**The evaluator loads a world by proving it, and refuses the whole world on any
+incompatibility.** Loading reads the world spec, the scenario specs and the truth
+manifest by key through the object-store reader and records the version ids
+returned. It verifies the two digests the world spec cites against the files' bytes,
+recomputes the world version from the three byte streams and compares it with the
+one requested, requires the plan, the plantings, the scenario specs and the truth
+rows to list the same scenarios in the same order, checks that what a plan row and
+its truth key both state agrees, and attaches each planting's stable interval to its
+key. It then runs world assembly's whole-world re-verification on the joined
+scenarios, the function that let the world be sealed, so every sealed key is
+reproduced by the rules as they stand today, under both views, on every day of its
+stable interval. The golden world was sealed by the rules of generator version 14
+and the evaluator derives everything beyond the key with today's; that reproduction
+is what licenses it, and it held on all thirty keys at the first live load. A
+failure is a defect of the evaluator or of the sealed files, never of a run, and it
+refuses the world whole, because a rule that drifted on one scenario cannot be
+trusted for the others. No version id is compared at loading: production holds no
+inventory of them and the manifest that records them is outside the evaluator role's
+reach, while content identity (every key embeds the world version, and the
+recomputed hash must equal it) is the stronger check. A refusal's message names
+files, scenarios and counts and nothing else, and it is raised with no chained
+cause, since the evaluation job's log is public and a decoder's own reason names ids
+and values. Suppressing the chain at the raise was not enough, because that hides
+the context from the default formatter and leaves the reason on the exception; the
+refusal is raised after the handler has ended and keeps the reason as an attribute
+no traceback prints.
+
+**The evaluator's oracle is runtime truth: what a run can obtain at its run day.** A
+world has two views. The dated view admits a fact from the day its provenance became
+observable; the runtime view holds every record the systems hold, dated to the run
+day, which is what the harness gives a run. World assembly proves the sealed key
+under both, for the normal condition only. What the evaluator derives itself, a
+candidate outside the probe set and every expectation under an outage, is not proven
+equal, and measured on forty seeds of the golden plan it is not: under the normal
+condition none of 2,880 must-assess pairs and none of 1,280 outcomes differ, while
+36 of 32,960 other candidate pairs do, 20 of them non-viable for skill by date and
+viable at run time, each because a later scenario plants evidence of the skill;
+under a tracker outage two must-assess pairs differ the same way. Under the dated
+view a report that read the later comment correctly would be graded wrong. So the
+oracle is the runtime view, rebuilt from the sealed plantings and the manifest's
+authored facts by the call assembly makes, and planting dates do not gate it. Three
+views are kept apart by name: runtime truth is the oracle; the observed-run view,
+built from the export's observations alone, is what the grounding replay reads, and
+it never receives truth the run did not read; the dated view remains a construction
+and history diagnostic. Under the normal condition the oracle's answer must equal
+the sealed key, and a difference is raised as an evaluator defect, so the code that
+feeds the grader is checked on every call and not only the rules beneath it. How far
+the two views disagree is a property of a world and a condition, computed by a pure
+function over the complete answer and recorded in FINDINGS (`runtime-truth`): on the
+golden world no part of the answer differs under the normal condition or under a
+tracker or a calendar outage, so no reported result rests on the choice, and the
+ruling stands for the worlds where it does.
+
+**Under an outage the expected answer is derived for the condition, and two
+conditions have none.** The registered injection fails a source for the whole run,
+so the condition a run ran under is a set of unreachable sources and the oracle is
+runtime truth restricted to it. The reading pass construction uses derives the
+answer. The expected impacts are those the rules ground under the condition: an
+impact whose artifact only the failed source connects to the leaver is not expected.
+The probe set of a grounded impact stays the sealed one, its verdicts re-derived,
+and a constraint is expected when its clause is readable and what it applies to is
+in the scope of a grounded impact. On the forty seeds every verdict or outcome an
+outage moves goes to unknown or keeps non-viable with fewer reasons; a failed source
+outside a key's required sources moved nothing in 1,400 of 1,400 cases, and one
+inside them moved something in 3,400 of 3,400. Two conditions leave no claim-level
+answer, and the oracle says so as a state instead of returning an empty expected
+set, which a silent report would match perfectly. *The unreadable leave:* the rules
+take the leave's span as a premise, so when the leave's record cannot be read
+nothing can be concluded. *The unreadable policy:* when the source that holds what
+clauses require is unreachable, no run can establish which clause governs an impact
+or whether any does; the oracle knows only because the sealed constraints are its
+input. Its own answer there cannot be stated as a coherent report, since it expects
+every candidate unknown on a clause's requirement and expects no constraint claim,
+while the chain admits an unknown about a clause only when the report cites it. A
+system that always assigns would be right on the ungoverned impacts and one that
+always says unknown on the governed ones, so the state holds for every scenario
+under that condition, governed or not. Both states are stated by what must be
+readable (the leave's record, the evidence domain of a clause's requirement) and
+never by a source's name, and the leave is asked first. The outages that can be
+graded are therefore the tracker's and the calendar's; with Frappe or the corpus
+down a run is limited, and how a system says it could not know is settled with the
+rules-only baseline. Redesigning the oracle so that a producible report exists was
+rejected: it needs "whether a policy applies is unknown", and the frozen vocabulary
+has no predicate for it. Grading the condition anyway was rejected as a number no
+system could score on. A run in which one source both answered and failed, possible
+only from an unscheduled vendor fault, ran under a mixed condition and is limited
+too, labeled and counted apart.
+
+**A grade is one row per expected or reported claim, four things kept apart, and no
+count is stored.** Matching runs on a structurally valid claim set, over the union
+of the keys the oracle requires and the keys the report holds. A row states the
+*expectation* (required; optional, meaning derivable and true outside the probe set;
+unexpected), the *presence* (reported, or missed, which only a required key can be),
+the *standing* of a claim the oracle does not expect, and the *payload* flags of a
+claim it can judge, optional ones included. Standing is one named bucket per type. A
+reported impact is a planted distractor with its reason, unsupported under the
+condition, or another false positive. A constraint outside the expected set is a
+false positive. An assessment or an action on an unexpected impact is tallied and
+not judged, as is an assessment of someone outside the organization. A conflict is
+real in the oracle and outside the expected set, a relevance error, or unsupported
+by the oracle's facts. An unknown is a gap claimed where the oracle resolves the
+fact, or a true gap that no assessment needed. An impact whose grounding is
+unresolved under the condition is *unsupported*: no true positive and no factual
+false positive, counted against precision and reported apart, because an impact
+claim is a positive assertion, the vocabulary has no "possible impact", and
+neutrality would make guessing free. A reported impact that shares its artifact with
+an expected one carries that relation, which earns nothing and explains the
+assessments and actions that land behind it. Recall's universes are the expected
+sets for impacts, constraints and conflicts, the probe set for assessments, and for
+unknowns those behind a probed candidate's assessment. Under the normal condition
+four in five of the unknowns the rules derive concern colleagues outside the probe
+set (blank skill records), and under a tracker outage the derived set grows to about
+twelve a scenario, so a universe of every derivable unknown would grade verbosity.
+Correct optional claims count toward precision and never toward recall. An action's
+flag is whether its kind matches the expected outcome, and no assignee set is
+compared. Rows are typed per claim type so an impossible combination cannot be
+built, and they hold no counts: aggregation into tables is the next step's, and a
+table can be recut without regrading.
+
+**The plan is asked three questions, and each omission has one record.** *Validity,
+against the oracle:* for every action on an expected impact the plan rule is fed the
+oracle's requirements and verdicts, so an assign is valid only when each assignee is
+in the organization and viable in the oracle and the viable assignees meet each
+applicable clause's count. *Coherence, within the report:* the chain checks, and the
+same plan rule fed the report's own assessments and the clauses the report itself
+cites, a clause's content read from the fact base since a report states which clause
+applies and never transcribes it. A report that missed a constraint fails validity
+and stays coherent; one that contradicts a clause it cited fails coherence. A cited
+clause whose content cannot be read makes the check uncheckable for that action,
+whatever its kind, and is recorded as such, never read as imposing nothing.
+*Coverage:* a conclusion of uncovered or unknown is about everyone, so it calls for
+an assessment of every organization member. The oracle's expected outcome calls for
+it whatever action the report made, which fixes the denominator by truth and makes
+it the same for every system graded; the report's own conclusion calls for it too,
+the completeness rule of the vocabulary extended from uncovered to unknown. One gap
+per impact names the colleagues left unassessed and which of the two called for
+them. An omission is recorded once: a probed candidate of an expected impact left
+out is a recall miss on its row and stays out of the gap, anyone else is in the gap,
+an assignee with no reported assessment is a coherence finding, and an unknown
+assessment with nothing behind it is a chain finding. Where no row exists (an impact
+the oracle does not expect under the condition, or a limited run) the gap covers the
+probe set too, being the only record the omission has. Plan violations stay typed
+records keyed by impact beside the rows; a flag on the action row would be a second
+copy of them.
+
+**Every export that decodes gets exactly one outcome, and nothing a run did
+raises.** *Graded:* the run completed or reported at its cap, and the oracle has an
+answer for its condition; a report with no claims is graded through its misses.
+*Limited:* no claim-level answer exists (the unreadable leave, the unreadable
+policy, a mixed condition), so no comparative answer metric is computed, and every
+check that needs no expected answer still runs: the structural check and the
+report's coherence and coverage now, the grounding replay's checks when they exist.
+*Excluded:* the run failed, by defect or by infrastructure, or its context is not
+the one the sealed scenario gives, a harness defect; it is counted with a typed
+reason. The order is fixed, context, terminal status, condition, oracle, so a failed
+run of another context is a context mismatch and no outcome rests on a trace that
+describes another run. A structurally invalid claim set is system behaviour and
+stays in the denominator with zero credit: every required key is a missed row, every
+reported claim is kept and not matched, and the plan checks are recorded as not
+evaluated, a different statement from having found nothing, which the outcome types
+enforce. Dropping the offending claims and grading the rest was rejected, since it
+needs a rule for which duplicate wins and invites gaming. The condition is read off
+the trace's unreachable outcomes alone (a malformed record is a defect, and a
+refused call never reached a source); a source with both a completed read and an
+unreachable one is mixed in either order; and when the record's stored condition
+disagrees, the trace stands and the disagreement is a harness finding on the
+outcome. A condition nobody registered, two sources down for the whole run, is
+graded mechanically, and whether it enters a reported comparison is the
+preregistration's.
 
 **The metrics beyond grading come from the export.** Source discipline: required-
 source attempts and successes, malformed calls, extra reads recorded as cost and not

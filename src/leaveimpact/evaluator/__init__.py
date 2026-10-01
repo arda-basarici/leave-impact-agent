@@ -20,14 +20,16 @@ each scenario's construction record rebuilt, every cross-file claim checked and 
 sealed key reproduced by today's rules, and loads them through the object-store reader.
 ``condition`` reads the condition a run was observed under off its trace. ``oracle``
 derives what the rules conclude about a scenario under a condition, over the facts a run
-can actually obtain, anchored on the sealed key under the normal condition.
+can actually obtain, anchored on the sealed key under the normal condition, or states
+that no answer exists there because the leave or the policy cannot be read.
 ``characterization`` measures, once per world, how far that view and the dated one
 disagree, the count of graded items the choice of view rests on. ``rows`` is the grade's
 plain data, one record per expected or reported claim with expectation, presence,
 standing and payload kept apart, and ``matching`` writes those rows from a report's
-claims and the oracle. ``plan_checks`` asks whether the plan is valid against the oracle
-and whether the report hangs together with itself, two questions with their findings
-kept apart. ``grading`` gives every export exactly one outcome: graded against the
+claims and the oracle. ``plan_checks`` asks whether the plan is valid against the oracle,
+whether the report hangs together with itself, and whether it assessed everyone where a
+conclusion is about everyone, three questions with their results kept apart, one record
+per omission. ``grading`` gives every export exactly one outcome: graded against the
 oracle, limited to the checks that need no expected answer, or excluded and counted.
 
 Grounding, citations, source discipline and the aggregation of rows into tables are the

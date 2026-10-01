@@ -7,6 +7,102 @@ decisions it feeds.
 
 ---
 
+## 2026-10-01 — The answer key had two readings of time, and one outage turned out to have no answer
+
+*M2 step 3, the investigator milestone's third build step: the evaluator's grading, from
+the truth manifest's decoder through the joined world, the oracle, the grade's rows and
+the plan checks to one outcome per export. Six rulings by interview, each read by an
+external reviewer with no chat context, then twelve planned commits reviewed in batches
+after their pushes (session 46, 2026-10-01). Feeds: the M2 milestone report's
+evaluation-design section, on which truth a run is graded against and on what the outage
+results are allowed to cover; the final report's section on honest measurement, on a
+claim that was narrowed the day it was made and then earned by a second run; and its
+process section, on what the batch reviews caught.*
+
+The step's one-line plan said the evaluator grades against truth "time-filtered at the
+scenario's now", and DESIGN said the same since the world milestone: a fact is
+admissible from the day its provenance became observable. The second ruling's interview
+started from what world assembly actually proves, and that turned out to be narrower
+than the plan assumed. A world has two views. The dated view applies the planting dates.
+The runtime view is what a run obtains: every record the systems hold, dated to the run
+day, because the harness knows no planting date. Assembly proves the sealed key under
+both views, and only for the normal condition. Whatever the evaluator derives on its
+own, a candidate outside the probe set or any expectation under an outage, was never
+shown to agree. So it was measured, on forty seeds of the golden plan. Under the normal
+condition none of 2,880 must-assess pairs and none of 1,280 outcomes differ between the
+views, and 36 of 32,960 other candidate pairs do. Twenty of those flip a verdict from
+non-viable for skill to viable, each because a later scenario plants a comment or a
+document that evidences the skill. Under a tracker outage two must-assess pairs differ,
+and one trace explains both: the scenario's own ticket comment evidences the candidate's
+skill, the tracker is down, a document a later scenario plants restates the skill, the
+dated view hides that document and a run can read it. An agent that read it and called
+the candidate viable would have been graded wrong by a dated oracle. The ruling made
+runtime truth the oracle and kept the dated view as a construction diagnostic (FINDINGS,
+`runtime-truth`; the probe and its capture under `probes/`).
+
+Two live runs on the golden world followed, and both had a way to fail. The golden world
+was sealed by the rules of generator version 14, and the evaluator derives everything
+beyond the key with today's rules, so world loading reproduces every sealed key before
+anything is graded and refuses the world if one does not come back. That was the step's
+named risk, and the first live load cleared it: thirty of thirty keys (`d648b27`). The
+second run compared the two views on the golden world itself and found no differing pair
+under any of the five conditions (`50fcde5`). The FINDINGS entry then said that no
+graded item of the reported results rests on the choice of view. The reviewer's batch
+read pointed out that the comparison covered verdicts, reasons and outcomes for the
+sealed impacts, and that under an outage the derived impact sets, constraints, conflicts
+and unknowns had never been compared, so the sentence claimed more than the run showed.
+The claim was narrowed the same day (`59b758d`). The owner then ruled to extend the
+comparison instead of living with the narrow sentence: the oracle's core became a
+function that can be asked of either view, the comparison covers the complete answer
+part by part, and a second declared run found nothing differing (`60b23e4`, `7caa170`).
+On six throwaway worlds the same function does find differences, so it is able to. The
+sentence the first run overclaimed is the one the second run supports, and the report
+can say the choice of oracle was tested on the reported world, where it changes nothing,
+and matters on worlds where later evidence exists.
+
+The corpus outage is the part that changed what the milestone will report. The plan
+checks' tests use a truthful report, a fixture built from the oracle that states exactly
+what it concludes, so that each test breaks one thing. Under a corpus outage that
+fixture failed the report's own coherence check on 12 of 30 scenarios, 119 chain
+findings (`87ce8af`). The cause is in what the corpus holds. Only the corpus says which
+clause applies to an artifact. With it down the oracle expects no constraint claim,
+since the clause cannot be read, and expects every candidate of that impact unknown on
+what the clause requires. The chain admits an unknown about a clause only when the
+report cites the clause, and a run with the corpus down cannot name it. The oracle can,
+because the sealed constraints are an input of its rules. So the expected answer there
+was something no report could state coherently, and behind that sat a plainer problem: a
+run cannot tell an impact a clause governs, where unknown is expected, from one no
+clause governs, where the normal answer is. A system that always assigns would be right
+on the second kind and one that always says unknown on the first. The author recorded
+the finding, held it with a test that stated the fact, and left the ruling to the step
+that registers the outage set. The reviewer did not accept that: a perfect report built
+from the oracle receives a coherence failure, so the behaviour could not stay as
+expected and needed a ruling. It was ruled the same day. Beside the unreadable leave the oracle has a second
+state with no claim-level answer, the unreadable policy, for every scenario under that
+condition, and such a run is limited to the checks that need no expected answer
+(`d26bfe0`). Of the four single-source outages two can be graded, the tracker's and the
+calendar's. That narrows the outage table the milestone promised, and the weighing was
+explicit: a number no system could score on is worth less to a reader than a stated
+reason for declining to produce it. The check that found it cost nothing, since the
+fixture already existed: ask whether the oracle's own answer, written as a report,
+passes the report's checks.
+
+Two smaller findings from the batch reviews are worth keeping. The join's refusal
+messages were written to carry no sealed content, because an evaluation job logs in
+public, and each refusal was raised from the decoder's or the rule's own exception,
+whose message names ids and values; a printed traceback shows the whole chain. The fix
+went further than suppressing the chain at the raise, which only hides the context from
+the default formatter: the refusal is raised after the handler has ended, with no cause
+and no context, and a test formats the complete traceback and looks for the sealed
+content (`59b758d`). And the coverage check took three passes to count one omission
+once. Its first form recorded a probed candidate left out both as a recall miss and as a
+coverage finding. The second left the probe set out of every gap, which lost the
+omission wherever no recall row exists, in a limited run. Reproducing that finding
+before fixing it showed the same hole on the graded path, where a report under a tracker
+outage still claims the ticket's impact the oracle no longer expects. The rule that
+holds is stated by where the other record exists: the probe set is left out of a gap
+only for an impact the oracle expects (`d6cbccd`).
+
 ## 2026-10-01 — A provider assumption became a column in the price table, and a digest became provable at the byte
 
 *M2 step 2, the investigator milestone's second build step: the run export, the
