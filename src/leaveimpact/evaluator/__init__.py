@@ -20,6 +20,8 @@ each scenario's construction record rebuilt, every cross-file claim checked and 
 sealed key reproduced by today's rules, and loads them through the object-store reader.
 ``condition`` reads the condition a run was observed under off its trace. ``oracle``
 derives what the rules conclude about a scenario under a condition, over the facts a run
-can actually obtain, anchored on the sealed key under the normal condition. The grading
-follows in the same build step (the investigator milestone's third).
+can actually obtain, anchored on the sealed key under the normal condition.
+``characterization`` measures, once per world, how far that view and the dated one
+disagree, the count of graded items the choice of view rests on. The grading follows in
+the same build step (the investigator milestone's third).
 """

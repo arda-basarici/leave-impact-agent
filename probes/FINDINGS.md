@@ -1615,3 +1615,89 @@ in all, and run 02 on that revision (`captures/golden-chain/golden-chain-run-02.
 reported every one true, thirty-six versioned gets as before. The inventory both runs
 read is the stream's commit `52bd3f0`, which also freezes the staging copies the
 audit check compared against.
+
+## runtime-truth — the evaluator grades against what a run can obtain, measured on forty worlds and proven on the golden one (2026-10-01)
+
+A measurement behind three rulings of the investigator milestone's build step 3 (the
+stream's `m2-build/2026-10-01-step-3-rulings.md`), with no pass criterion of its own, and
+one live proof that has one. A world has two views. The dated view is the truth fact base,
+each fact visible from the day its record was planted. The runtime view is what a run
+obtains: the systems hold every projected record at once and the harness dates what it
+reads to the run's day. World assembly proves every sealed key under both, under the
+normal condition only. What the evaluator derives for itself (the verdict of a candidate
+outside the must-assess set, everything under an outage) is proven under neither, and
+DESIGN had the evaluator filter truth by date. The question was whether that matters.
+
+The probe is `probes/runtime-truth/probe.py`, its capture
+`captures/runtime-truth/forty-seeds.txt`: seeds 1 to 40 of the golden plan under
+generator version 15, every scenario at its own run day, 1,200 scenarios, 1,280 impacts,
+2,880 must-assess pairs against an organization of 28. The numbers were first produced on
+2026-10-01 by four scratch scripts, one question at a time while the rulings were argued,
+and so before anything was committed; the committed probe is the same computation in one
+pass per world, and the capture was generated from it in the working tree of the commit
+that adds it. It reproduces every number the rulings record.
+
+- **The two views disagree where nothing proved them equal.** The viability rule over the
+  whole organization under both views, normal condition: 0 of 2,880 must-assess pairs
+  differ (assembly's proof, restated), 36 of 32,960 other pairs do, 0 of 1,280 outcomes.
+  Twenty of the 36 flip the verdict from non-viable for skill to viable and 16 change the
+  reasons only; all sit in three prose-bearing classes (qualification 10, responsibility
+  10, cardinality 16); 23 of the 40 worlds hold at least one. With the calendar down, 26
+  other pairs differ; with Jira down, 2 must-assess pairs; with Frappe or the corpus
+  down, none.
+- **The cause, traced on the two Jira-down cases.** In both, the scenario's own ticket
+  comment evidences the candidate's skill and a document a later scenario plants restates
+  it. With Jira down the comment is unreachable. The dated view hides the later document
+  and answers unknown, inaccessible; the runtime view holds it and answers viable. A run
+  can read that document. Under a dated oracle an investigator that read it correctly is
+  graded wrong, and a claim could be grounded on complete reads and still incorrect.
+- **Ruled: the oracle is runtime truth**, reconstructed from the sealed plantings and the
+  authored facts through `world.runtime_view`; the dated view stays a construction and
+  history diagnostic; grounding and citation replay read only what the run observed.
+- **What an outage does to the expected answer**, the rules over the runtime view under
+  each single-source outage. Sealed impacts that still ground when asked by their exact
+  key: Frappe down 1,280 of 1,280, Jira 560, calendar 920, corpus 1,080. Must-assess
+  verdicts unchanged: 873, 1,061, 2,160, 1,560 of 2,880. Outcomes unchanged: 160, 720,
+  920, 760 of 1,280. Every verdict or outcome that moves goes to unknown, or keeps
+  non-viable with fewer reasons; none moves toward a positive conclusion. A downed source
+  outside the key's required sources moved nothing in 1,400 of 1,400 scenario-outage
+  pairs and one inside them moved something in 3,400 of 3,400, so the derivation and the
+  sealed `required_sources` field agree exactly.
+- **The Frappe row is a gap, not a result.** Nothing ungrounds with Frappe down because
+  the rules take the leave's span as a premise and the probe supplies it; a run that
+  cannot read the leave has no span. Ruled: reading the investigated leave is a
+  precondition of the oracle, which answers with a state, unreadable leave, and no
+  claim-level expectation, never with an empty expected set that a silent report would
+  match.
+- **An outage only removes impacts.** `derive_impacts` under each condition grounded no
+  impact outside the sealed keys and listed none as unresolved. The impacts an outage
+  loses (720 under Jira, 360 calendar, 200 corpus) are absent from the enumeration, since
+  no visible fact connects the artifact to the leaver, and unresolved when `ground_impact`
+  is asked by the exact key. Ruled all the same that the expected impacts are the ones
+  `derive_impacts` grounds under the condition, so the rule follows the derivation and
+  not this sample.
+- **Whose the expected unknowns are.** The distinct unknown claims the rules derive over
+  the impacts that still ground: 792 under the normal condition, of which 160 seed a
+  must-assess candidate's assessment and 632 only other colleagues (blank skill records);
+  Jira down 6,662 and 412, calendar 560 and 160, corpus 480 and 480. Must-assess averages
+  2.25 people per impact, so four fifths of the sealed expected unknowns are about people
+  a report holds only if it assesses the whole organization. Ruled: recall's universe for
+  unknowns is the ones seeding a must-assess candidate; a broader omission shows through
+  the coverage and chain checks.
+- **The golden world's keys are reproduced by today's rules (live, 2026-10-01).** The
+  golden world `7b806ed6…` was sealed at generator version 14 and the evaluator derives
+  what a key does not hold with the rules as they are now. Loading it runs world
+  assembly's whole-world verification over the joined scenarios, both views on every day
+  of each stable interval, and refuses the world on any difference.
+  `tests/live/test_sealed_world_loads.py`, committed at `d648b27` before its run and run
+  from the workstation under the administrative profile: one passed. The three files
+  joined by the cited digests and the recomputed world version; thirty scenarios; the
+  version id read for each file equal to the one the world's manifest recorded; all
+  thirty keys reproduced; and the oracle, asked under the normal condition, returned the
+  sealed key for every scenario. This was the named risk of the step, since no code had
+  asked today's rules about that world before.
+- **What this does not show.** The forty worlds are generator version 15 and unsealed;
+  the golden world's own count of view-dependent pairs is `probes/runtime-truth/golden.py`
+  and is recorded below when run. The evaluator's own role cannot yet read the scenario
+  specs the join needs (a platform ticket, owed before the evaluation workflow's first
+  dispatch), so both live readings ran under the administrative profile.

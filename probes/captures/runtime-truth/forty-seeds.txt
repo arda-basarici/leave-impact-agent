@@ -1,0 +1,61 @@
+runtime truth, measured on the golden plan under generator version 15
+seeds 1..40 (40 worlds), scenarios 1200, impacts 1280, must-assess pairs 2880 (2.25 per impact), organization 28 per impact
+
+1. Divergence between the dated and the runtime view
+condition                 must-assess                 extra          outcomes     scenarios
+normal                0 of 2880            36 of 32960          0 of 1280       36 of 1200
+frappe_down           0 of 2880             0 of 32960          0 of 1280        0 of 1200
+jira_down             2 of 2880             0 of 32960          0 of 1280        2 of 1200
+calendar_down         0 of 2880            26 of 32960          0 of 1280       26 of 1200
+corpus_down           0 of 2880             0 of 32960          0 of 1280        0 of 1200
+normal condition: 23 of 40 worlds hold a difference; {'verdict flips': 20, 'reasons only': 16}; by class {'free_text_qualification': 10, 'free_text_responsibility': 10, 'release_cardinality_constraint': 16}
+must-assess differences under an outage, traced:
+  seed 10 scenario_013 [free_text_qualification] jira_down, run day 2026-07-09, emp_002 on event_021: dated unknown[] (open: [('has_skill', 'inaccessible')]) vs runtime viable[]; the candidate's skill facts in the dated base: ['airflow from frappe:emp_002 observable 2026-01-01', 'redis from frappe:emp_002 observable 2026-01-01', 'go from jira:comment_002 observable 2026-07-07', 'go from corpus:clause_017 observable 2026-08-06']
+  seed 19 scenario_015 [free_text_qualification] jira_down, run day 2026-08-05, emp_006 on event_022: dated unknown[] (open: [('has_skill', 'inaccessible')]) vs runtime viable[]; the candidate's skill facts in the dated base: ['kubernetes from frappe:emp_006 observable 2026-01-01', 'elasticsearch from corpus:clause_017 observable 2026-06-19', 'android from jira:comment_002 observable 2026-08-03', 'android from corpus:clause_019 observable 2026-09-19']
+
+2. Outage shape, the rules over the runtime view
+
+sealed impacts asked by their exact key
+  frappe_down    grounded 1280
+  jira_down      unresolved 720, grounded 560
+  calendar_down  grounded 920, unresolved 360
+  corpus_down    grounded 1080, unresolved 200
+
+must-assess verdicts (sealed -> under the outage)
+  frappe_down    non_viable->unknown 1000, same 873, viable->unknown 840, non_viable->non_viable 167
+  jira_down      non_viable->unknown 1313, same 1061, viable->unknown 499, non_viable->non_viable 7
+  calendar_down  same 2160, non_viable->unknown 432, viable->unknown 288
+  corpus_down    same 1560, non_viable->unknown 760, viable->unknown 400, non_viable->non_viable 160
+
+outcomes (sealed -> under the outage)
+  frappe_down    assign->unknown 1000, same 160, uncovered->unknown 120
+  jira_down      same 720, assign->unknown 440, uncovered->unknown 120
+  calendar_down  same 920, assign->unknown 360
+  corpus_down    same 760, assign->unknown 400, uncovered->unknown 120
+
+unknowns and conflicts the rules derive over every sealed impact
+  normal         unknowns    792   conflicts  160
+  frappe_down    unknowns  29327   conflicts  160
+  jira_down      unknowns  34800   conflicts    0
+  calendar_down  unknowns  10640   conflicts  160
+  corpus_down    unknowns   9890   conflicts    0
+
+is the downed source in the key's required sources, and did anything move
+  not required nothing moved  1400
+  required     moved          3400
+
+3. derive_impacts against the sealed impacts
+condition                 sealed, grounded  sealed, listed unresolved         sealed, not listed               new grounded             new unresolved
+normal                                1280                          0                          0                          0                          0
+frappe_down                           1280                          0                          0                          0                          0
+jira_down                              560                          0                        720                          0                          0
+calendar_down                          920                          0                        360                          0                          0
+corpus_down                           1080                          0                        200                          0                          0
+
+4. Whose the unknowns are, over the impacts that still ground
+condition                  distinct unknown claims    seeding a must-assess candidate      seeding only other colleagues  scenarios with no grounded impact
+normal                                         792                                160                                632                                  0
+frappe_down                                  29327                               3537                              25790                                  0
+jira_down                                     6662                                412                               6250                                640
+calendar_down                                  560                                160                                400                                280
+corpus_down                                    480                                480                                  0                                200
