@@ -10,6 +10,8 @@ for two Kafka *employees*. A release meeting sits on the 16th; another meeting
 overlaps it and Bob attends that one.
 """
 
+from collections.abc import Mapping
+from dataclasses import dataclass, replace
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -23,13 +25,17 @@ from leaveimpact.core import (
     Fact,
     FactBase,
     FactValue,
+    FactView,
     Gap,
     ImpactKey,
     ImpactSubtype,
     InstantSpan,
     PredicateName,
     Requirement,
+    RunCondition,
     SkillCriterion,
+    Slice,
+    SliceStatus,
     Source,
     WorkItemStatus,
     clause_ref,
@@ -212,6 +218,33 @@ FACTS: tuple[Fact, ...] = (
 )
 
 WORLD = FactBase(FACTS, (DENIZ_SKILLS_GAP,))
+
+
+@dataclass(frozen=True)
+class StatedCoverage:
+    """A coverage stated slice by slice: the status named for a slice, ``otherwise`` for the
+    rest. What a run read, written by hand, for the tests of what the rules make of it."""
+
+    statuses: Mapping[Slice, SliceStatus]
+    otherwise: SliceStatus
+
+    def status(self, where: Slice) -> SliceStatus:
+        return self.statuses.get(where, self.otherwise)
+
+
+def view_observing(
+    statuses: Mapping[Slice, SliceStatus],
+    *,
+    otherwise: SliceStatus = SliceStatus.UNREAD,
+    facts: tuple[Fact, ...] = FACTS,
+    gaps: tuple[Gap, ...] = (DENIZ_SKILLS_GAP,),
+) -> FactView:
+    """A view of ``facts`` and ``gaps`` at the fixture's day in which the named slices have
+    the status given and every other slice ``otherwise``: by default, nothing was read but
+    what the test says. The caller keeps the two coherent, a fact present being a fact
+    whose record was returned."""
+    whole = FactBase(facts, gaps).at(NOW, RunCondition.all_reachable())
+    return replace(whole, coverage=StatedCoverage(statuses, otherwise))
 
 REFERENCE_TIMEZONE = "Europe/Istanbul"
 DEADLINE = ImpactKey(LEAVE, ImpactSubtype.DEADLINE, work_item_ref(TICKET))

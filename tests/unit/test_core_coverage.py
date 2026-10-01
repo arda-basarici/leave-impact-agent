@@ -181,3 +181,14 @@ def test_a_view_cut_by_a_condition_covers_a_slice_exactly_when_its_source_is_rea
         SliceStatus.COVERED,
         SliceStatus.COVERED,
     ]
+
+
+def test_each_slice_sits_at_the_source_its_placement_is_declared_for() -> None:
+    # Closure reads "a source of the domain could not be read" off the slices' sources, and
+    # the first slice as the system of record's: a placement whose slice lay at another
+    # source would report an outage of the wrong system.
+    for row in ROWS:
+        sources = [each.where.source for each in closing_slices_of_any(row, None)]
+        assert sources[0] is row.system_of_record, row.name
+        assert set(sources) == row.evidence_domain, row.name
+        assert len(sources) == len(row.evidence_domain), row.name

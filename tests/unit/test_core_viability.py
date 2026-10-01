@@ -3,24 +3,28 @@ known failure dominates an unresolved question, an unresolved question makes the
 unknown with the fact it rests on, the count never enters, and the need itself is read
 from the fact base."""
 
-from datetime import date
+from datetime import date, datetime
 
 import pytest
 
 from leaveimpact.core import (
     AssessmentReason,
     ConstraintKey,
+    EntityKind,
     FactView,
     ImpactKey,
     ImpactSubtype,
+    InstantSpan,
     PredicateName,
     Requirement,
     RunCondition,
     SkillCriterion,
+    SliceStatus,
     Source,
     UnknownReason,
     Unresolved,
     Verdict,
+    WindowSlice,
     applicable_requirements,
     assess,
     assess_impact,
@@ -31,7 +35,7 @@ from leaveimpact.core import (
     need_of,
     work_item_ref,
 )
-from leaveimpact.core.ids import clause_id, employee_id, work_item_id
+from leaveimpact.core.ids import clause_id, employee_id, event_id, work_item_id
 from leaveimpact.core.viability import Need
 from tests.unit import world_fixture as w
 
@@ -117,6 +121,33 @@ def test_a_meeting_overlap_is_an_availability_failure_but_the_target_is_not() ->
     # Can already attends the release; the target meeting never disqualifies its own attendee.
     can = assess(VIEW, meeting_need(), w.CAN, ())
     assert AssessmentReason.AVAILABILITY not in can.reasons
+
+
+def test_not_busy_needs_the_meetings_span_observed_not_some_other_event_read() -> None:
+    # Deniz attends a stand-up later that day, read by its id. The events of the release's
+    # hour were never listed, so whether he is free then is open: an event that falls
+    # elsewhere says nothing about that hour.
+    standup = event_id(9)
+    later = InstantSpan(
+        datetime(2026, 9, 16, 15, 0, tzinfo=w.ISTANBUL),
+        datetime(2026, 9, 16, 15, 30, tzinfo=w.ISTANBUL),
+    )
+    facts = (*w.FACTS, w.scheduled(standup, later), w.attends(standup, w.DENIZ))
+    the_hour = WindowSlice(EntityKind.EVENT, w.RELEASE_SPAN)
+    unlisted = w.view_observing(
+        {the_hour: SliceStatus.UNREAD}, otherwise=SliceStatus.COVERED, facts=facts
+    )
+    deniz = assess(unlisted, meeting_need(unlisted), w.DENIZ, w.CONSTRAINTS)
+    assert deniz.verdict is Verdict.UNKNOWN
+    assert deniz.unresolved == (
+        Unresolved(event_ref(w.RELEASE), PredicateName.ATTENDS_EVENT, UnknownReason.INSUFFICIENT),
+    )
+    listed = w.view_observing({}, otherwise=SliceStatus.COVERED, facts=facts)
+    assert assess(listed, meeting_need(listed), w.DENIZ, w.CONSTRAINTS).verdict is Verdict.VIABLE
+    # An event of that hour he does attend is evidence however it was read.
+    bob = assess(unlisted, meeting_need(unlisted), w.BOB, w.CONSTRAINTS)
+    assert bob.reasons == (AssessmentReason.AVAILABILITY,)
+    assert w.scheduled(w.OTHER_MEETING, w.OTHER_SPAN) in bob.evidence
 
 
 def test_an_unresolved_criterion_makes_the_verdict_unknown_with_its_fact() -> None:

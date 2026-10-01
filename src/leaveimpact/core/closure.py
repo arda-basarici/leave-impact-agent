@@ -8,47 +8,73 @@ holds only what this run can see:
 
 1. a positive fact → known true, carrying the facts that established it, because the
    assessment's evidence references are built from them;
-2. a source of the predicate's declared domain unreachable → unknown, *inaccessible*;
-3. a gap → unknown, *absent*;
-4. an open domain → unknown, *insufficient*;
-5. otherwise → known false.
+2. a slice the negative needs could not be read → unknown, *inaccessible*;
+3. a slice the negative needs was not read, or no read observes it whole and the
+   placement does not waive it → unknown, *insufficient*;
+4. a gap → unknown, *absent*;
+5. an open domain → unknown, *insufficient*;
+6. otherwise → known false.
 
-The precedence inside "unknown" runs inaccessible > absent > insufficient because the
-run condition is the outermost cause of an incomplete observation set: a blank HR
-field with the tracker unreachable reports inaccessible, since a reachable tracker
-could have made the fact known true, and absent shows only when every source
-answered. Closure derives these three reasons and no other; ``ambiguous`` and
-``conflicting`` are the agent's to emit, never the rule's, and the result type says so
-in its signature rather than in a second enum.
+Fully observed is asked of the view's coverage, slice by slice (the coverage module):
+the question names where its answer lives, one slice per source of the predicate's
+declared domain, and the view says whether each was observed whole. Reachability alone
+is not that. Over a base cut by a run condition the two coincide, a slice being covered
+exactly when its source is reachable, so step 3 never fires there and the order is the
+one the truth has always been read by. Over what a run read they part: the source
+answered, and the record that would have settled the question was never asked for. An
+unread record is not a negative (the investigator milestone's fourth build step,
+ruling 2).
+
+The precedence inside "unknown" runs inaccessible > unread > absent > open, because the
+outermost cause of an incomplete observation set wins: a blank HR field with the
+tracker unreachable reports inaccessible, since a reachable tracker could have made the
+fact known true; the same field with the tracker never asked reports insufficient, for
+the same reason; and absent shows only when every slice was observed. Closure derives
+these three reasons and no other; ``ambiguous`` and ``conflicting`` are the agent's to
+emit, never the rule's, and the result type says so in its signature rather than in a
+second enum.
 
 A single-valued predicate is read through the authority table (the step 15 rulings in
 DESIGN, "The stale conflict sits on a real impact, and reads resolve"). The raw base
 keeps every source's value, since the conflict derivation needs them all; a read
 resolves them first, so a rule sees the system of record's value and the facts that
 agree with it, and a lower-authority fact never answers "known true" for a value the
-record contradicts. When the record itself is unreachable, a positive fact from
-another source is not promoted to truth: the answer is unknown, *inaccessible*, ahead
-of the positive-fact step. Multi-valued predicates keep the plain order — a skill
-evidenced in a comment is evidence whether or not the HR record answered — which is
-what the fragmented tier relies on. The record reachable and silent while another
-source holds a value is known true: answered is the line, not answered positively.
+record contradicts. When the record's own slice was not observed, a positive fact from
+another source is not promoted to truth: the answer is unknown, ahead of the
+positive-fact step, *inaccessible* when the record could not be read and *insufficient*
+when it was not, so an unread tracker never lets a runbook's owner stand. Multi-valued
+predicates keep the plain order — a skill evidenced in a comment is evidence whether or
+not the HR record answered — which is what the fragmented tier relies on. The record
+observed and silent while another source holds a value is known true: answered is the
+line, not answered positively.
 
 Two entry points share the rule. ``establish`` asks about one subject — "does this
 employee hold this skill" — and gaps apply. ``establish_any`` asks a subject-free
-question over every visible fact of a predicate — "which events does this employee
-attend" — keyed to the entity the question is about so an unresolved answer still
+question over every visible fact of a predicate — "is this employee on leave over
+these days" — keyed to the entity the question is about so an unresolved answer still
 names a subject for the unknown claim; gaps are subject-bound and no planted class
-puts one on an event's schedule or attendance, so they do not apply there.
+puts one on an event's schedule or attendance, so they do not apply there. The caller
+states the question's scope, a window or ``None`` for every record there is, because
+the matcher hides it and the negative is only as wide as what was observed: one event
+read by its id settles nothing about the other events of that hour.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Literal
 
 from leaveimpact.core.authority import resolve
 from leaveimpact.core.claims import UnknownReason
+from leaveimpact.core.coverage import (
+    Needed,
+    Scope,
+    Slice,
+    SliceStatus,
+    closing_slices,
+    closing_slices_of_any,
+)
 from leaveimpact.core.facts import Fact, FactView
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName
 from leaveimpact.core.refs import EntityRef, with_article
@@ -118,7 +144,10 @@ def establish(
             row.value_spec.check(value)
         except ValueError as problem:
             raise ValueError(f"{row.name.value}: {problem}") from None
-    standing = _standing(view, row, subject, view.facts_about(subject, name), registry=registry)
+    needed = closing_slices(row, subject, value)
+    standing = _standing(
+        view, row, subject, view.facts_about(subject, name), needed[0].where, registry=registry
+    )
     if isinstance(standing, Unresolved):
         return standing
     facts = tuple(fact for fact in standing if value is None or fact.value == value)
@@ -127,7 +156,7 @@ def establish(
     if standing and not row.multi_valued:
         # The record answered with another value, and a single-valued predicate holds one.
         return KnownFalse()
-    return _absence(view, row, subject, gapped=bool(view.gaps_about(subject, name)))
+    return _absence(view, row, subject, needed, gapped=bool(view.gaps_about(subject, name)))
 
 
 def establish_any(
@@ -136,25 +165,36 @@ def establish_any(
     matches: Callable[[Fact], bool],
     about: EntityRef,
     *,
+    scope: Scope | None,
     registry: Mapping[PredicateName, Predicate] = REGISTRY,
 ) -> Closure:
     """Whether any visible fact of ``name`` satisfies ``matches``; ``about`` keys an unresolved
-    answer and must be a subject the predicate accepts."""
+    answer and must be a subject the predicate accepts.
+
+    ``scope`` is the window ``matches`` selects within, the leave's days or the meeting's
+    span, and ``None`` when it selects among every record there is. A fact that matches
+    is evidence wherever it was read; "none matches" is false only over a scope that was
+    observed whole, so ``matches`` must not admit a fact outside the scope it states.
+    """
     row = registry[name]
     _require_subject(row, about)
-    if not row.multi_valued and row.system_of_record not in view.condition.reachable:
-        return Unresolved(about, row.name, UnknownReason.INACCESSIBLE)
+    needed = closing_slices_of_any(row, scope)
+    if not row.multi_valued:
+        # Every subject's record is read through authority, so the records' slice is asked
+        # once, ahead of the facts, as ``establish`` asks one record's.
+        reason = _unobserved(view, needed[0].where)
+        if reason is not None:
+            return Unresolved(about, row.name, reason)
     by_subject: dict[EntityRef, list[Fact]] = {}
     for fact in view.facts_of(name):
         by_subject.setdefault(fact.subject, []).append(fact)
     facts: list[Fact] = []
-    for subject, group in by_subject.items():
-        standing = _standing(view, row, subject, tuple(group), registry=registry)
-        assert not isinstance(standing, Unresolved)  # the record's reachability was checked above
+    for group in by_subject.values():
+        standing = _agreeing_with_the_record(row, tuple(group), registry=registry)
         facts.extend(fact for fact in standing if matches(fact))
     if facts:
         return KnownTrue(tuple(facts))
-    return _absence(view, row, about, gapped=False)
+    return _absence(view, row, about, needed, gapped=False)
 
 
 def any_true(closures: Iterable[Closure]) -> Closure:
@@ -180,17 +220,28 @@ def _standing(
     row: Predicate,
     subject: EntityRef,
     facts: tuple[Fact, ...],
+    record: Slice,
     *,
     registry: Mapping[PredicateName, Predicate],
 ) -> tuple[Fact, ...] | Unresolved:
     """The facts of ``subject`` a rule may read: all of them for a multi-valued predicate; for
-    a single-valued one, those agreeing with the authority table's value — or unresolved,
-    *inaccessible*, when another source answered while the record could not."""
+    a single-valued one, those agreeing with the authority table's value — or unresolved
+    when another source answered while ``record``, the slice the system of record holds
+    the fact in, was not observed."""
     if row.multi_valued or not facts:
         return facts
-    if row.system_of_record not in view.condition.reachable:
-        return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE)
-    if len({fact.value for fact in facts}) == 1:
+    reason = _unobserved(view, record)
+    if reason is not None:
+        return Unresolved(subject, row.name, reason)
+    return _agreeing_with_the_record(row, facts, registry=registry)
+
+
+def _agreeing_with_the_record(
+    row: Predicate, facts: tuple[Fact, ...], *, registry: Mapping[PredicateName, Predicate]
+) -> tuple[Fact, ...]:
+    """The facts of one subject that state the value authority resolves to; all of them for a
+    multi-valued predicate, which has no one value to resolve."""
+    if row.multi_valued or len({fact.value for fact in facts}) <= 1:
         return facts
     # One observation per source: the base refuses a source holding two values.
     by_source = {fact.source: fact.value for fact in facts}
@@ -199,9 +250,36 @@ def _standing(
     return tuple(fact for fact in facts if fact.value == resolution.value)
 
 
-def _absence(view: FactView, row: Predicate, subject: EntityRef, *, gapped: bool) -> Closure:
-    if not view.condition.reaches(row.evidence_domain):
+def _unobserved(view: FactView, where: Slice) -> DerivedUnknownReason | None:
+    """Why ``where`` cannot be read as observed whole, or ``None`` when it was: *inaccessible*
+    when it could not be read, *insufficient* when it was not or cannot be."""
+    match view.coverage.status(where):
+        case SliceStatus.COVERED:
+            return None
+        case SliceStatus.FAILED:
+            return UnknownReason.INACCESSIBLE
+        case SliceStatus.UNREAD | SliceStatus.UNCLOSABLE:
+            return UnknownReason.INSUFFICIENT
+
+
+def _absence(
+    view: FactView, row: Predicate, subject: EntityRef, needed: Sequence[Needed], *, gapped: bool
+) -> Closure:
+    """What no fact means, once every slice in ``needed`` has been asked of the view.
+
+    A waivable slice no read observes whole does not hold the negative back (the coverage
+    module says why); one that failed does, like any other.
+    """
+    blocking = [
+        status
+        for each in needed
+        if (status := view.coverage.status(each.where)) is not SliceStatus.COVERED
+        and not (each.waivable and status is SliceStatus.UNCLOSABLE)
+    ]
+    if SliceStatus.FAILED in blocking:
         return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE)
+    if blocking:
+        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT)
     if gapped:
         return Unresolved(subject, row.name, UnknownReason.ABSENT)
     if not row.closed:

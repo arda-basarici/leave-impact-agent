@@ -248,6 +248,7 @@ def _criteria(
             and fact.value.overlaps(need.window)
         ),
         who,
+        scope=need.window,
         registry=registry,
     )
     criteria.append(_Criterion(AssessmentReason.AVAILABILITY, on_leave, fails_when_true=True))
@@ -286,20 +287,36 @@ def _criteria(
 
 
 def _busy(view: FactView, need: Need, who: EntityRef, *, registry: Registry) -> Closure:
-    """Whether ``who`` attends another event overlapping the meeting — the target excluded."""
+    """Whether ``who`` attends another event overlapping the meeting — the target excluded.
+
+    The question is about the meeting's span and is asked that way: an event known not to
+    overlap is no part of it, so "none" is false only when the events of that span were
+    observed, never because some other event ``who`` attends was read and falls elsewhere.
+    An attended event whose schedule could not be read stays in, and leaves the answer
+    open. The evidence of a positive answer is the overlapping events' schedules.
+    """
     target = need.impact.artifact
-    assert need.event_span is not None
+    span = need.event_span
+    assert span is not None
+
+    def another_event_in_the_span(fact: Fact) -> bool:
+        if fact.value != who or fact.subject == target:
+            return False
+        overlap = _overlaps(view, fact.subject, span, registry=registry)
+        return not isinstance(overlap, KnownFalse)
+
     attended = establish_any(
         view,
         PredicateName.ATTENDS_EVENT,
-        lambda fact: fact.value == who and fact.subject != target,
+        another_event_in_the_span,
         target,
+        scope=span,
         registry=registry,
     )
     match attended:
         case KnownTrue(facts):
             return any_true(
-                _overlaps(view, fact.subject, need.event_span, registry=registry) for fact in facts
+                _overlaps(view, fact.subject, span, registry=registry) for fact in facts
             )
         case _:
             return attended
