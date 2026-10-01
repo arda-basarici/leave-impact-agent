@@ -66,6 +66,7 @@ from leaveimpact.adapters.object_store.layout import (
     world_spec_key,
 )
 from leaveimpact.adapters.object_store.s3 import s3_client
+from leaveimpact.core.entities_json import encode_document
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.jsonshape import (
     array_field,
@@ -80,7 +81,6 @@ from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.artifacts import (
     digest,
-    encode_document,
     encode_materialization,
     encode_scenario_specs,
     encode_world_spec,
