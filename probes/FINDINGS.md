@@ -1767,3 +1767,84 @@ that adds it. It reproduces every number the rulings record.
   and involves neither view. The evaluator's own role cannot yet read the scenario specs
   the join needs (a platform ticket, owed before the evaluation workflow's first
   dispatch), so every live reading here ran under the administrative profile.
+
+## grounding-basis — what a run must read for the rules to reproduce its claims, measured on twenty worlds (2026-10-02)
+
+A measurement behind four rulings of the investigator milestone's build step 4 (the
+stream's `m2-build/2026-10-02-step-4-rulings.md`, rulings 1, 2, 3 and 5), with no pass
+criterion. The grounding replay asks whether the rules, fed only what a run's completed
+reads returned, conclude what its report claims. Before any of it was designed, five
+things about the worlds had to be known: where the facts that exist only in prose live,
+how many verdicts rest on a negative, whether a constraint's scope follows from its
+clause, what the sealed role tags cover, and which unit of prose moves the answer.
+
+The probe is `probes/grounding-basis/probe.py`, its capture
+`captures/grounding-basis/twenty-seeds.txt`: seeds 1 to 20 of the golden plan under
+generator version 15, 600 scenarios, assembled in memory. The numbers were first produced
+on 2026-10-02 by seven scratch scripts, one question at a time while the rulings were
+argued, and so before anything was committed; the committed probe is the same computation
+in one pass per world, and the capture was generated from it in the working tree of the
+commit that adds it. It reproduces every number the rulings record but one, which had no
+script behind it and is corrected below.
+
+- **Every fact that exists only in prose sits on a comment or a clause.** 620 authored
+  facts: what a clause requires 340, whom a clause names responsible 100, a ticket's owner
+  as a stale runbook states it 80, a skill evidenced by a ticket comment 60 and by a
+  clause 40. No scenario holds an authored fact on any other carrier. `core` derives facts
+  from structured records and nothing from prose, so a view built from returned records
+  alone would leave every claim resting on prose ungrounded for every system. Ruled: a
+  sealed authored fact enters the observed-run view only when a completed read returned
+  its carrier and the returned comment or section equals the sealed one.
+- **Nearly every assessment rests on a negative.** 1,440 sealed must-assess verdicts:
+  viable 420, which needs "not on leave" known false and "not busy" for a meeting;
+  non-viable with skill among the reasons 420 (340 alone, 80 with component); availability
+  244 (240 alone, 4 with component); component only 236; hard rule 40; unknown 80. Closure
+  infers a negative from a source being reachable, and a view that holds only what a run
+  read would turn every unread record into one. Ruled: a negative needs coverage of its
+  question, read off the trace by where the fact lives. The skill negative is the one no
+  run can close, the corpus having no enumerating read, and 29.2% of the verdicts rest on
+  it; so it is grounded operationally with the corpus named unclosed, since a strict
+  reading alone would make that share ungroundable for every system and compare nothing.
+- **On this plan a constraint's scope is a function of its clause.** 340 authored
+  `requires` facts and 340 sealed constraint pairings, naming the same clauses in 600 of
+  600 scenarios, one target per clause; targets 180 work items, 60 events, 100 clauses,
+  and exactly one section, written or pending, in the document behind each clause-kind
+  target. The fact base holds what a clause requires and nothing about what it applies
+  to. Ruled: the pairing is an annotation admitted through its clause under the same
+  gate, and the three properties are an invariant the evaluator enforces at loading.
+- **The sealed role tags cover model-written text only.** 580 distinct carriers (520
+  clauses, 60 comments); 400 of 600 scenarios hold one and 400 have the corpus among
+  their required sources. A brief tags 240 of them answer-changing (180 clauses, 60
+  comments); the 340 class-written requirement clauses carry no tag. Ruled: retrieval
+  targets are derived by ablation, never read off the tags.
+- **The unit that moves the answer is the statement.** Over the runtime view, normal
+  condition, against each scenario's unablated conclusions. A carrier removed with its
+  facts: 520 of 520 clauses and 58 of 60 comments move a conclusion. The two that do not
+  (seeds 10 and 19) each evidence a skill that a clause of a later scenario restates for
+  the same person; the runtime view holds that clause on the earlier scenario's run day,
+  the mechanism of the `runtime-truth` entry above. An external read of the interview
+  had every one of the 580 moving; under the dated view the later clause is hidden on the
+  earlier scenario's run day, and this probe did not re-run the count there. A single
+  fact removed, its carrier's other facts kept: 616 of 620 move, and the four that do not
+  are the two doubled skill statements seen from both sides, the comment's fact and the
+  later clause's. The later clause still moves as a carrier only because it also names
+  the responsible person (40 clauses carry two facts). A statement removed on every
+  carrier in its world: 620 of 620 scenario-statement pairs move. So carrier and fact
+  both miss, in different places, and the statement does not. Ruled: the retrieval target
+  is the answer-changing statement, its carriers alternatives, retrieved when any of them
+  came back.
+- **One number corrected.** The rulings file recorded "578 targets have one carrier and 2
+  have two", a subtraction from the carrier count. Counted: 618 distinct statements, 616
+  on one carrier and 2 on two. The rulings file carries the correction.
+- **A constraint whose clause states no requirement makes the rules raise.** A
+  requirement fact removed with its constraint kept: 340 of 340 raise in
+  `applicable_requirements`. On truth that is right, the world being defective. A run that
+  cites a constraint and never read its clause is in exactly this state, so the replay
+  cannot call the rules that way: nothing a run did may raise in the evaluator.
+- **What this does not show.** Twenty unsealed worlds of generator version 15, not the
+  golden world, whose carriers are counted when its index is built at loading. The
+  ablation compares the generator's own conclusions tuple (a private import the probe
+  states), for a scenario's own carriers and statements, under the normal condition. The
+  evaluator's retrieval targets are defined on the oracle's complete answer, constraints
+  included, under the run's condition and over every statement of the world, another
+  scenario's among them, and are counted when that derivation exists.

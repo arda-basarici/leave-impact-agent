@@ -1,0 +1,78 @@
+the grounding replay's basis, measured on the golden plan under generator version 15
+seeds 1..20 (20 worlds), scenarios 600
+
+1. Where prose-only facts live
+authored facts: 620
+  predicate             source    carrier kind   count
+  has_skill             corpus    clause            40
+  has_skill             jira      comment           60
+  names_responsible     corpus    clause           100
+  owns_work_item        corpus    clause            80
+  requires              corpus    clause           340
+scenarios holding an authored fact carried by neither a comment nor a clause: 0
+
+2. How much rests on a negative
+sealed must-assess verdicts: 1440
+  verdict     reasons                    count   share
+  non_viable  availability                 240   16.7%
+  non_viable  availability+component         4    0.3%
+  non_viable  component                    236   16.4%
+  non_viable  component+skill               80    5.6%
+  non_viable  hard_rule                     40    2.8%
+  non_viable  skill                        340   23.6%
+  unknown     -                             80    5.6%
+  viable      -                            420   29.2%
+grouped by the negative the verdict rests on:
+  viable                                         420   29.2%
+  non_viable, skill among the reasons            420   29.2%
+  non_viable, availability among the reasons     244   16.9%
+  non_viable, component only                     236   16.4%
+  unknown                                         80    5.6%
+  non_viable, hard_rule                           40    2.8%
+skill among the reasons, by tier: adversarial: 220, fragmented: 200
+
+3. Constraints against requires facts
+authored requires facts: 340; sealed constraint pairings: 340
+scenarios whose constraints and requires facts name the same clauses: 600 of 600
+constraints per scenario: 0: 260, 1: 340
+targets per clause within a world: 1: 340
+target kinds: clause: 100, event: 60, work_item: 180
+sections, written and pending, in the document behind a clause-kind target: 1: 100
+clause-kind targets per such document: 1: 100
+
+4. Carriers, role tags, required sources
+distinct carriers: 580 (clause, other: 180, clause, requirement: 340, comment, other: 60)
+scenarios holding at least one carrier: 400 of 600
+scenarios whose required sources include the corpus: 400
+authored facts required by a brief: 280; by none (class-written text): 340
+required facts by carrier kind and role: clause, answer_changing: 220, comment, answer_changing: 60
+carriers a brief tags answer-changing: 240 (clause: 180, comment: 60); untagged: 340
+tagged sections per scenario, by tier:
+  adversarial   0 tagged   120 of 200
+  adversarial   1 tagged    80 of 200
+  fragmented    0 tagged   100 of 200
+  fragmented    1 tagged   100 of 200
+  structured    0 tagged   200 of 200
+required sources per scenario:
+  corpus, frappe, jira                340
+  calendar, frappe                     80
+  frappe, jira                         80
+  calendar, corpus, frappe, jira       60
+  calendar, frappe, jira               40
+
+5. Which carriers and which statements move the answer (runtime view, normal)
+a carrier removed, its facts and a requirement's scope pairing with it:
+  clause    moved             520
+  comment   moved              58
+  comment   moved nothing       2
+the carriers that move nothing, traced:
+  seed 10 scenario_013 [free_text_qualification, run day 2026-07-09] comment_002 moves nothing
+     carries has_skill(emp_002) = go; the same statement on other carriers: ['corpus:clause_017 of scenario_015, run day 2026-08-07']; in structured records: []
+  seed 19 scenario_015 [free_text_qualification, run day 2026-08-05] comment_002 moves nothing
+     carries has_skill(emp_006) = android; the same statement on other carriers: ['corpus:clause_019 of scenario_018, run day 2026-09-22']; in structured records: []
+a requirement fact removed, its constraint kept: raised: states no requirement in the fact base: 340
+an authored fact removed alone, a requirement's scope pairing with it: moved: 616, moved nothing: 4
+distinct statements per world, by the number of carriers stating them: 1: 616, 2: 2 (total 618)
+a scenario's statement removed on every carrier in its world:
+  on 1 carrier(s)  moved             616
+  on 2 carrier(s)  moved               4
