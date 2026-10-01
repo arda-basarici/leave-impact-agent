@@ -88,11 +88,24 @@ _OBJECT_STORE_WRITERS = frozenset(
 # the generator or the evaluator is a deliberate edit here. The types and the encoder stay
 # ungated in ``world.artifacts``, since an encoder needs an assembled world as input and
 # gives a reader nothing. The readers are named ahead of the code that imports the
-# decoder, as the rank table names packages ahead of their milestone.
+# decoder, as the rank table names packages ahead of their milestone. Three, by their
+# full dotted path: the generator's resume, the evaluator's world loading, and the audit
+# sheet, the operator's program that renders a sealed world for the hand audit under the
+# administrative profile. This one gate reaches past ``src``: the operator's programs
+# under ``scripts`` and ``probes`` run in the repository with the package importable, so
+# a script that read the answer key without being named here would make "its named
+# readers" false (the step 3 batch review found the audit sheet doing exactly that). The
+# tests stay outside it; they exercise the decoder and hold no truth.
 _TRUTH_DECODER: tuple[str, ...] = ("world", "truth_decoder")
 _TRUTH_DECODER_READERS: frozenset[tuple[str, ...]] = frozenset(
-    {("generator", "resume"), ("evaluator", "sealed_world")}
+    {
+        (PKG, "generator", "resume"),
+        (PKG, "evaluator", "sealed_world"),
+        ("scripts", "audit_sheet"),
+    }
 )
+REPOSITORY = Path(__file__).resolve().parents[2]
+_OPERATOR_ROOTS = ("scripts", "probes")
 _PURE = frozenset({"core", "world"})
 # The top level is the package docstring and the composition root, nothing else: a module
 # here has no rank, so the edge scan could not see what it re-exports.
@@ -350,20 +363,33 @@ def test_an_object_store_writer_is_a_module_attribute_of_gated_modules_only() ->
     )
 
 
+def _operator_programs() -> Iterator[tuple[Path, list[str]]]:
+    """Every Python file under ``scripts`` and ``probes``, as (path, dotted parts from its root).
+
+    The programs an operator runs from the repository: outside the package and so outside
+    the rank law, inside the one gate whose capability they could exercise.
+    """
+    for root in _OPERATOR_ROOTS:
+        for path in sorted((REPOSITORY / root).rglob("*.py")):
+            yield path, [root, *path.relative_to(REPOSITORY / root).with_suffix("").parts]
+
+
 def _truth_decoder_violations(parts: list[str], imports: list[list[str]]) -> list[str]:
     """The imports of the truth decoder that the module ``parts`` makes without being a reader.
 
     Pure over a module's dotted parts and its imports, so the gate is shown red on planted
-    importers without planting a file under ``src``. A package ``__init__`` is never a
-    named reader, so one that names the decoder is a violation like any other.
+    importers without planting a file. A reader is named by its full dotted path; a package
+    ``__init__`` is never one, so one that names the decoder is a violation like any other.
 
     >>> decoder = ["leaveimpact", "world", "truth_decoder", "decode_truth_manifest"]
     >>> _truth_decoder_violations(["leaveimpact", "validator", "checks"], [decoder])
     ['leaveimpact.validator.checks imports world.truth_decoder']
+    >>> _truth_decoder_violations(["scripts", "another_sheet"], [decoder])
+    ['scripts.another_sheet imports world.truth_decoder']
     >>> _truth_decoder_violations(["leaveimpact", "generator", "resume"], [decoder])
     []
     """
-    if tuple(parts[1:]) in _TRUTH_DECODER_READERS:
+    if tuple(parts) in _TRUTH_DECODER_READERS:
         return []
     return [
         f"{'.'.join(parts)} imports {'.'.join(imported[1:3])}"
@@ -377,12 +403,13 @@ def test_the_truth_decoder_is_imported_only_by_its_named_readers() -> None:
 
     The validator's role cannot read the truth object and the investigator cannot import
     ``world`` at all; this is the source-level half for everything else, the validator's
-    own code and ``world``'s import surface included. The scan reads nested imports too,
-    so an import inside a function is no way around it.
+    own code and ``world``'s import surface included, and the operator's programs under
+    ``scripts`` and ``probes`` beside the package. The scan reads nested imports too, so
+    an import inside a function is no way around it.
     """
     violations = [
         violation
-        for path, parts in _modules()
+        for path, parts in (*_modules(), *_operator_programs())
         for violation in _truth_decoder_violations(parts, _intra_imports(path))
     ]
     assert not violations, "the truth decoder imported outside its readers:\n" + "\n".join(
@@ -390,25 +417,45 @@ def test_the_truth_decoder_is_imported_only_by_its_named_readers() -> None:
     )
 
 
+def test_every_named_reader_of_the_truth_decoder_that_exists_does_read_it() -> None:
+    """A reader named ahead of its module is fine; one that exists and no longer imports the
+    decoder is a stale grant, and the list is the claim of who reads the key."""
+    scanned = {tuple(parts): path for path, parts in (*_modules(), *_operator_programs())}
+    stale = sorted(
+        ".".join(reader)
+        for reader in _TRUTH_DECODER_READERS
+        if reader in scanned
+        and not any(
+            tuple(imported[1:3]) == _TRUTH_DECODER for imported in _intra_imports(scanned[reader])
+        )
+    )
+    assert not stale, f"named readers that do not import the truth decoder: {stale}"
+
+
 def test_the_truth_decoder_gate_is_red_on_a_planted_importer() -> None:
     """The gate is trusted because it fails: every other importer, in either spelling."""
     by_symbol = [PKG, "world", "truth_decoder", "decode_truth_manifest"]
     by_module = [PKG, "world", "truth_decoder"]
     planted = (
-        ["validator", "checks"],
-        ["validator", "__init__"],
-        ["adapters", "wiring"],
-        ["world", "__init__"],
-        ["world", "decoders"],
-        ["generator", "fresh"],
-        ["evaluator", "grading"],
-        ["evaluator", "__init__"],
+        [PKG, "validator", "checks"],
+        [PKG, "validator", "__init__"],
+        [PKG, "adapters", "wiring"],
+        [PKG, "world", "__init__"],
+        [PKG, "world", "decoders"],
+        [PKG, "generator", "fresh"],
+        [PKG, "evaluator", "grading"],
+        [PKG, "evaluator", "__init__"],
+        ["scripts", "regen_docs"],
+        ["probes", "golden-chain", "probe"],
+        # A reader's name is its whole path: the same stem elsewhere is not the reader.
+        ["probes", "audit_sheet"],
+        [PKG, "scripts", "audit_sheet"],
     )
     for module in planted:
         for spelling in (by_symbol, by_module):
-            assert _truth_decoder_violations([PKG, *module], [spelling]), module
+            assert _truth_decoder_violations(module, [spelling]), module
     for reader in _TRUTH_DECODER_READERS:
-        assert not _truth_decoder_violations([PKG, *reader], [by_symbol, by_module])
+        assert not _truth_decoder_violations(list(reader), [by_symbol, by_module])
 
 
 def test_sibling_adapters_do_not_import_one_another() -> None:

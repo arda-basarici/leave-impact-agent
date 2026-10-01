@@ -4,11 +4,13 @@ The truth manifest holds every key, the authored facts, the briefs, the dated fa
 the record of the model-written texts; reading it is reading the answer key. Its types and
 its encoder live in ``artifacts`` ungated, since an encoder needs an assembled world as
 input and gives a reader nothing. The decoder is the capability, so it sits alone in this
-module and the import law gates the module by path: the generator's resume and the
-evaluator's world loading may import it, by exact module, and nothing else may, the
-validator above all, whose role reads the world spec and never the key. No ``__init__``
-names this module, so the package's own import surface cannot hand it on. That is the
-split the object store's writers have, by capability and not by file kind.
+module and the import law gates the module by path, to readers it names one by one: the
+generator's resume, the evaluator's world loading, and the audit sheet, the operator's
+script that renders a sealed world for the hand audit. Nothing else may import it, in
+the package or among the scripts and probes beside it, the validator above all, whose
+role reads the world spec and never the key. No ``__init__`` names this module, so the
+package's own import surface cannot hand it on. That is the split the object store's
+writers have, by capability and not by file kind.
 
 Bytes in, the value out, and only for bytes that are the value's canonical encoding: the
 decoded manifest is re-encoded and compared, so one manifest is one byte sequence and the
