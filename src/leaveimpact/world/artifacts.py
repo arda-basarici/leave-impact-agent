@@ -61,8 +61,9 @@ over a type the file cannot rebuild. The truth manifest is encoded the same way,
 carries and with each of the two derived sets present or unavailable, since a key sealed
 before those fields existed must re-encode to the bytes it was sealed as. The decoders
 for the spec and the scenario specs live in the sibling ``decoders`` module; the truth
-manifest's waits for its first consumer, the evaluator, since a decoder the validator is
-forbidden to use has no place where the validator can reach it.
+manifest's sits alone in ``truth_decoder``, since reading that file is reading the answer
+key and the import law gates that module by path to its named readers, which a module the
+validator may import could never be.
 """
 
 from __future__ import annotations

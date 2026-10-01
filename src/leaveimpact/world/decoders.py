@@ -3,9 +3,9 @@
 The validator is the first consumer of a sealed file as bytes — the projectors read the
 assembled world in memory — so the decoders arrive with it and cover what it reads: the
 world spec, into ``PlantedWorldSpec``, and the scenario specs, into the same scenario-spec
-records the world assembled. The truth manifest has no decoder here on purpose; its first
-consumer is the evaluator, and a decoder the validator is forbidden to use would be one
-the import law could not keep out of its reach.
+records the world assembled. The truth manifest has no decoder here on purpose: this
+module is within the validator's reach, so that decoder sits alone in ``truth_decoder``,
+which the import law gates by module path to its named readers.
 
 Strict in the manifest decoder's manner: exactly the declared fields, each of its declared
 shape, an id of the kind the field names, an enum member by its value, a digest of

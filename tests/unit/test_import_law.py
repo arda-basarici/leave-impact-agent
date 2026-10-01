@@ -9,7 +9,9 @@ import one another, so the validator's read-only role and the evaluator's indepe
 from the generator are architectural rather than aspirational. Sibling adapters never
 import one another. The write capabilities — the vendor write ports and the object
 store's writer — are imported only by ``adapters`` and ``generator``, so the validator
-and the investigator are read-only at source level. The pure packages
+and the investigator are read-only at source level. The truth manifest's decoder, the
+capability to read the answer key, is gated the same way and tighter: by module path, to
+the exact modules named as its readers. The pure packages
 import no I/O library — a cheap guard, not a proof of purity. World time comes only from
 an explicit ``RunContext``: the wall clock is read at a composition root and nowhere else.
 
@@ -80,6 +82,16 @@ _OBJECT_STORE_WRITERS = frozenset(
     gated
     for gated in _GATED_WRITE_MODULES
     if gated[:2] == ("adapters", "object_store") and gated[2] != "write"
+)
+# The truth manifest's decoder reads the answer key, so its module is gated like a writer
+# and the allowlist names exact importing modules, not packages: a second reader inside
+# the generator or the evaluator is a deliberate edit here. The types and the encoder stay
+# ungated in ``world.artifacts``, since an encoder needs an assembled world as input and
+# gives a reader nothing. The readers are named ahead of the code that imports the
+# decoder, as the rank table names packages ahead of their milestone.
+_TRUTH_DECODER: tuple[str, ...] = ("world", "truth_decoder")
+_TRUTH_DECODER_READERS: frozenset[tuple[str, ...]] = frozenset(
+    {("generator", "resume"), ("evaluator", "sealed_world")}
 )
 _PURE = frozenset({"core", "world"})
 # The top level is the package docstring and the composition root, nothing else: a module
@@ -336,6 +348,67 @@ def test_an_object_store_writer_is_a_module_attribute_of_gated_modules_only() ->
     assert not violations, "object-store writers exposed as module attributes:\n" + "\n".join(
         violations
     )
+
+
+def _truth_decoder_violations(parts: list[str], imports: list[list[str]]) -> list[str]:
+    """The imports of the truth decoder that the module ``parts`` makes without being a reader.
+
+    Pure over a module's dotted parts and its imports, so the gate is shown red on planted
+    importers without planting a file under ``src``. A package ``__init__`` is never a
+    named reader, so one that names the decoder is a violation like any other.
+
+    >>> decoder = ["leaveimpact", "world", "truth_decoder", "decode_truth_manifest"]
+    >>> _truth_decoder_violations(["leaveimpact", "validator", "checks"], [decoder])
+    ['leaveimpact.validator.checks imports world.truth_decoder']
+    >>> _truth_decoder_violations(["leaveimpact", "generator", "resume"], [decoder])
+    []
+    """
+    if tuple(parts[1:]) in _TRUTH_DECODER_READERS:
+        return []
+    return [
+        f"{'.'.join(parts)} imports {'.'.join(imported[1:3])}"
+        for imported in imports
+        if tuple(imported[1:3]) == _TRUTH_DECODER
+    ]
+
+
+def test_the_truth_decoder_is_imported_only_by_its_named_readers() -> None:
+    """Reading the answer key is one module path, importable by the modules named for it.
+
+    The validator's role cannot read the truth object and the investigator cannot import
+    ``world`` at all; this is the source-level half for everything else, the validator's
+    own code and ``world``'s import surface included. The scan reads nested imports too,
+    so an import inside a function is no way around it.
+    """
+    violations = [
+        violation
+        for path, parts in _modules()
+        for violation in _truth_decoder_violations(parts, _intra_imports(path))
+    ]
+    assert not violations, "the truth decoder imported outside its readers:\n" + "\n".join(
+        violations
+    )
+
+
+def test_the_truth_decoder_gate_is_red_on_a_planted_importer() -> None:
+    """The gate is trusted because it fails: every other importer, in either spelling."""
+    by_symbol = [PKG, "world", "truth_decoder", "decode_truth_manifest"]
+    by_module = [PKG, "world", "truth_decoder"]
+    planted = (
+        ["validator", "checks"],
+        ["validator", "__init__"],
+        ["adapters", "wiring"],
+        ["world", "__init__"],
+        ["world", "decoders"],
+        ["generator", "fresh"],
+        ["evaluator", "grading"],
+        ["evaluator", "__init__"],
+    )
+    for module in planted:
+        for spelling in (by_symbol, by_module):
+            assert _truth_decoder_violations([PKG, *module], [spelling]), module
+    for reader in _TRUTH_DECODER_READERS:
+        assert not _truth_decoder_violations([PKG, *reader], [by_symbol, by_module])
 
 
 def test_sibling_adapters_do_not_import_one_another() -> None:
