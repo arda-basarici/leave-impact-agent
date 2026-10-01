@@ -25,6 +25,8 @@ can actually obtain, anchored on the sealed key under the normal condition.
 disagree, the count of graded items the choice of view rests on. ``rows`` is the grade's
 plain data, one record per expected or reported claim with expectation, presence,
 standing and payload kept apart, and ``matching`` writes those rows from a report's
-claims and the oracle. The plan checks and the outcome of a whole run follow in the same
-build step (the investigator milestone's third).
+claims and the oracle. ``plan_checks`` asks whether the plan is valid against the oracle
+and whether the report hangs together with itself, two questions with their findings
+kept apart. The outcome of a whole run follows in the same build step (the investigator
+milestone's third).
 """
