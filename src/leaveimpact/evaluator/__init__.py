@@ -22,6 +22,9 @@ sealed key reproduced by today's rules, and loads them through the object-store 
 derives what the rules conclude about a scenario under a condition, over the facts a run
 can actually obtain, anchored on the sealed key under the normal condition.
 ``characterization`` measures, once per world, how far that view and the dated one
-disagree, the count of graded items the choice of view rests on. The grading follows in
-the same build step (the investigator milestone's third).
+disagree, the count of graded items the choice of view rests on. ``rows`` is the grade's
+plain data, one record per expected or reported claim with expectation, presence,
+standing and payload kept apart, and ``matching`` writes those rows from a report's
+claims and the oracle. The plan checks and the outcome of a whole run follow in the same
+build step (the investigator milestone's third).
 """
