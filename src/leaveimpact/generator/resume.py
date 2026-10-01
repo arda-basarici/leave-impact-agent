@@ -12,8 +12,10 @@ code proves it before a byte is touched:
    parameters, world start — and its semantic digest must equal the sealed one, so a
    resume can never continue a world of different meaning;
 3. the sealed truth manifest is read and its digest must be the one the world spec cites;
-4. the materialization record is decoded from it, and the accepted bodies are lifted from
-   the sealed plantings — a comment's remark after its prefix, a section's text;
+4. the truth manifest is decoded whole, through the one decoder the file has (``world``'s
+   gated module, which this module is a named reader of), and its materialization record
+   taken; the accepted bodies are lifted from the sealed plantings — a comment's remark
+   after its prefix, a section's text;
    the plan's name is part of that provenance, so a measurement world reassembles
    under the rule it was drawn with;
 5. the same ``compose`` and the same ``bundle`` as a fresh run rebuild the realization, and
@@ -37,13 +39,13 @@ from leaveimpact.adapters.object_store.layout import truth_manifest_key, world_s
 from leaveimpact.adapters.object_store.read import ObjectReader
 from leaveimpact.core.comments import comment_body
 from leaveimpact.core.ids import WorldVersion
-from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world.artifacts import Bundle, PlantedWorldSpec, bundle, digest, semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec, assemble_semantic_world
 from leaveimpact.world.briefs import CommentTarget, SectionTarget
 from leaveimpact.world.composition import compose
 from leaveimpact.world.decoders import decode_world_spec
 from leaveimpact.world.org import OrgParams
+from leaveimpact.world.truth_decoder import decode_truth_manifest
 from leaveimpact.world.version import GENERATOR_VERSION
 
 Assembler = Callable[[int, OrgParams, date, str], SemanticWorld]
@@ -84,7 +86,7 @@ def resume_world(
         raise ResumeRefused(
             f"{version}: the sealed truth manifest is not the one the world spec cites"
         )
-    record = decode_materialization(truth_object.content)
+    record = decode_truth_manifest(truth_object.content).materialization
     world = compose(semantic, _prose_of(planted, semantic, version), record)
     sealed = bundle(world)
     if sealed.world_version != version:

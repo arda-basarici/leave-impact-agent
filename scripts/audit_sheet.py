@@ -113,12 +113,12 @@ from leaveimpact.generator.entrypoint import (
     prose_models_from_env,
 )
 from leaveimpact.generator.fresh import fresh_world
-from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world.artifacts import Bundle, semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, assemble_semantic_world
 from leaveimpact.world.construction import required_count_for
 from leaveimpact.world.org import OrgSpec, decode_org_params
 from leaveimpact.world.scenario import Scenario
+from leaveimpact.world.truth_decoder import decode_truth_manifest
 
 TRUTH_BUCKET = os.environ.get("LEAVE_IMPACT_TRUTH_BUCKET", "leave-impact-truth-445743457479")
 WORLD_BUCKET = os.environ.get("LEAVE_IMPACT_WORLD_BUCKET", "leave-impact-world-445743457479")
@@ -926,7 +926,7 @@ def main() -> int:
     spec = json.loads(spec_bytes)
     specs = json.loads(specs_bytes).get("scenarios", [])
     truth = json.loads(truth_bytes)
-    record = decode_materialization(truth_bytes)
+    record = decode_truth_manifest(truth_bytes).materialization
     assert record is not None, "no materialization record sealed"
     semantic = rebuild(spec)
 

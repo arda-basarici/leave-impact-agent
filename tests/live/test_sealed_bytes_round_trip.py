@@ -7,15 +7,16 @@ through the writer, and compared canonical bytes to sealed bytes. A codec that "
 files" by normalizing them would pass every fixture and fail here, and a field appended
 since a world was sealed would show as a re-encode that adds bytes. Five shapes have both a
 reader and a writer today and are covered: the world spec, the scenario specs, every
-document a world manifest references, the manifest itself, and the materialization record,
-one section of the truth manifest read by the generator's own decoder, the only truth reader
-until the evaluator's lands. The record is where absent-versus-empty exists in real bytes:
-the measurement world's counters died with its run and the golden world's were sealed, and
-the inventory states which each is, so a silent normalization of absent to empty fails
-against a declared expectation and not against whatever was found. The verdict has no
-reader yet and the truth manifest as a whole none either; both are owed when their readers
-land (the step 1 rulings of the investigator milestone say where), and nothing here claims
-them.
+document a world manifest references, the manifest itself, and the truth manifest whole,
+through the one decoder the file has (the evaluator milestone's third build step; before
+it only the record's section had a reader). The truth manifest is where absent-versus-empty
+exists in real bytes, in two places, and each is asserted against a declaration made before
+the run, so a silent normalization of absent to empty fails by name and never against
+whatever was found: the record's counters, which the inventory states per world (the
+measurement world's died with its run, the golden world's were sealed), and a key's two
+derived sets, which a world sealed before generator version 13 lacks and this module names.
+The verdict has no reader yet; it is owed when its reader lands (the step 1 rulings of the
+investigator milestone say where), and nothing here claims it.
 
 The inventory is fixed, never discovered: a JSON file in the private stream naming each
 world by its manifest's version id, each truth pair by its two version ids, and each world
@@ -77,15 +78,16 @@ from leaveimpact.core.jsonshape import (
     string_field,
     string_item,
 )
-from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.artifacts import (
     digest,
     encode_materialization,
     encode_scenario_specs,
+    encode_truth_manifest,
     encode_world_spec,
 )
 from leaveimpact.world.decoders import decode_document
+from leaveimpact.world.truth_decoder import decode_truth_manifest
 
 if TYPE_CHECKING:
     from mypy_boto3_s3 import S3Client
@@ -108,6 +110,13 @@ REGISTERED_WORLDS = frozenset(
         WorldVersion("785bc4cdd43d2718a61bf670f352f29ede43b4f7e37f3140fb7255c9cb65dce1"),
         WorldVersion("d674d5763715549f49e82c251977cfe5093b6bf09099c165b5d7c94d7de33046"),
     }
+)
+# The worlds sealed before a key carried its two derived sets, the expected conflicts and the
+# expected unknowns (generator version 13, 2026-09-16; the measurement world was sealed on
+# 2026-09-14). Declared before the run, from the dates: every key of a world named here must
+# decode both sets as unavailable, every key of any other world both as present.
+SEALED_BEFORE_THE_DERIVED_SETS = frozenset(
+    {WorldVersion("785bc4cdd43d2718a61bf670f352f29ede43b4f7e37f3140fb7255c9cb65dce1")}
 )
 # The readers an unread world may declare a refusal for.
 _REFUSAL_READERS = ("world_spec", "truth_manifest")
@@ -165,10 +174,14 @@ ManifestWorld = SealedWorldCase | UnreadWorldCase
 class RecordCase:
     """One truth manifest with its declared record shape, by whichever path reaches it."""
 
-    case_id: str
+    version: WorldVersion
     world: SealedWorldCase | None
     direct: Versioned | None
     shape: str
+
+    @property
+    def case_id(self) -> str:
+        return self.version[:8]
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,11 +203,8 @@ class Inventory:
     def records(self) -> tuple[RecordCase, ...]:
         """Every truth manifest the inventory reaches, with its declared record shape."""
         return (
-            *(RecordCase(w.version[:8], w, None, w.record) for w in self.worlds),
-            *(
-                RecordCase(p.version[:8], None, p.truth_manifest, p.record)
-                for p in self.truth_pairs
-            ),
+            *(RecordCase(w.version, w, None, w.record) for w in self.worlds),
+            *(RecordCase(p.version, None, p.truth_manifest, p.record) for p in self.truth_pairs),
         )
 
 
@@ -406,6 +416,40 @@ def test_the_manifest_round_trips(s3: S3Client, world: ManifestWorld) -> None:
     _assert_same_bytes(world.manifest.key, sealed, manifest_bytes(manifest))
 
 
+def _truth_manifest_bytes(s3: S3Client, case: RecordCase) -> tuple[Versioned, bytes]:
+    """The sealed truth manifest of ``case``: vouched for by its world's manifest, or named
+    directly by the inventory when the world was sealed only as far as its truth pair."""
+    if case.world is not None:
+        return _vouched(s3, case.world, truth_manifest_key(case.world.version))
+    assert case.direct is not None
+    return case.direct, fetch(s3, case.direct)
+
+
+@pytest.mark.parametrize("case", _RECORDS, ids=_case_id)
+def test_the_truth_manifest_round_trips_with_its_derived_sets_as_declared(
+    s3: S3Client, case: RecordCase
+) -> None:
+    """The whole file through its one decoder and back to the sealed bytes, and every key's
+    two derived sets unavailable or present as this module declared before the run.
+
+    The decoder itself refuses bytes that do not re-encode to themselves; the comparison is
+    repeated here so a mismatch reads as a key and two digest prefixes like every other.
+    """
+    target, sealed = _truth_manifest_bytes(s3, case)
+    manifest = decode_truth_manifest(sealed)
+    _assert_same_bytes(target.key, sealed, canonical_bytes(encode_truth_manifest(manifest)))
+    declared = "absent" if case.version in SEALED_BEFORE_THE_DERIVED_SETS else "present"
+    for row in manifest.scenarios:
+        for name, found in (
+            ("expected_conflicts", row.key.expected_conflicts),
+            ("expected_unknowns", row.key.expected_unknowns),
+        ):
+            decoded = "absent" if found is None else "present"
+            assert decoded == declared, (
+                f"{target.key}: {row.key.scenario_id} {name} declared {declared}, decoded {decoded}"
+            )
+
+
 @pytest.mark.parametrize("case", _RECORDS, ids=_case_id)
 def test_the_materialization_record_round_trips_at_its_declared_shape(
     s3: S3Client, case: RecordCase
@@ -414,15 +458,11 @@ def test_the_materialization_record_round_trips_at_its_declared_shape(
 
     Absent and present are asserted against the inventory's declaration, so a decoder that
     invented empty counters for the measurement world's record, or dropped the golden's,
-    fails by name. The rest of the truth manifest is not decoded here: no reader exists yet.
+    fails by name.
     """
-    if case.world is not None:
-        target, sealed = _vouched(s3, case.world, truth_manifest_key(case.world.version))
-    else:
-        assert case.direct is not None
-        target, sealed = case.direct, fetch(s3, case.direct)
+    target, sealed = _truth_manifest_bytes(s3, case)
     section = field_of(as_object(json.loads(sealed), "the truth manifest"), "materialization")
-    record = decode_materialization(sealed)
+    record = decode_truth_manifest(sealed).materialization
     if case.shape == RECORD_NONE:
         assert section is None and record is None, f"{target.key}: a record where none was declared"
         return
@@ -441,9 +481,9 @@ def test_an_unread_world_refuses_at_exactly_the_declared_fields(
 ) -> None:
     """The ruling as a claim: each declared reader refuses, naming the declared fields missing.
 
-    The world spec decoder reports a field set at once (``missing [...]``), the truth
-    manifest's section reader one field (``<name> is missing``); both messages are the
-    codecs' error contract, and the test reads them as such.
+    Both decoders check the top level first and report its field set at once
+    (``missing [...]``); the message is the codecs' error contract, and the test reads it
+    as such.
     """
     for reader, fields in world.refusals.items():
         if reader == "world_spec":
@@ -452,8 +492,8 @@ def test_an_unread_world_refuses_at_exactly_the_declared_fields(
                 decode_world_spec(sealed)
         else:
             _, sealed = _vouched(s3, world, truth_manifest_key(world.version))
-            with pytest.raises(ValueError, match=re.escape(f"{fields[0]} is missing")):
-                decode_materialization(sealed)
+            with pytest.raises(ValueError, match=re.escape(f"missing {sorted(fields)}")):
+                decode_truth_manifest(sealed)
 
 
 def test_the_inventory_names_exactly_the_registered_worlds() -> None:

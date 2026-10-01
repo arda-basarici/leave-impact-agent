@@ -64,7 +64,9 @@ def golden() -> WorldSpec:
     record = replace(
         base,
         targets=(replace(first, attempts=2, refusals=(refused,)), *rest),
-        metrics=MaterializationMetrics(tuple((name, 0) for name in COUNTER_NAMES)),
+        metrics=MaterializationMetrics(
+            tuple((name, 5 if name == "writer_attempts" else 0) for name in COUNTER_NAMES)
+        ),
     )
     return compose(semantic, bodies, record)
 
@@ -135,6 +137,7 @@ def test_an_empty_derived_set_is_known_empty_and_null_is_refused(sealed: Bundle)
 def test_the_records_counters_and_a_refusals_reasons_come_back_as_sealed(sealed: Bundle) -> None:
     present = decode_truth_manifest(sealed.truth_manifest.content).materialization
     assert present is not None and present.metrics is not None
+    assert present.metrics.value("writer_attempts") == 5
     assert present.targets[0].refusals[0].reasons == (
         (RefusalReason.OTHER_CLAIM, 1),
         (RefusalReason.UNTYPED_PROPOSITION, 1),
@@ -147,6 +150,22 @@ def test_the_records_counters_and_a_refusals_reasons_come_back_as_sealed(sealed:
     assert older is not None and older.metrics is None
     assert older.targets[0].refusals == (Refusal(1, GuardName.EXTRACTION, 2),)
     assert older.targets[0].refusals[0].reasons is None
+
+
+def test_a_record_sealed_before_a_counter_existed_holds_the_counters_its_run_had(
+    sealed: Bundle,
+) -> None:
+    """The counters of a record sealed between their arrival and the canonicalized-pair counter
+    (no such record was sealed, the shape was real in code): the later counter is unavailable,
+    never zero, and the bytes come back exactly, which acceptance by the decoder is."""
+    data = truth_json(sealed)
+    counters = data["materialization"]["metrics"]
+    data["materialization"]["metrics"] = {name: counters[name] for name in COUNTER_NAMES[:16]}
+    assert "canonicalized_pairs" not in data["materialization"]["metrics"]
+    earlier = decode_truth_manifest(canonical_bytes(data)).materialization
+    assert earlier is not None and earlier.metrics is not None
+    assert earlier.metrics.value("canonicalized_pairs") is None
+    assert earlier.metrics.value("writer_attempts") == 5
 
 
 def test_a_world_without_prose_decodes_in_both_of_its_shapes(structured: WorldSpec) -> None:

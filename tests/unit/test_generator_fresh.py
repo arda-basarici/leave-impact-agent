@@ -10,8 +10,8 @@ from datetime import date
 from leaveimpact.adapters.prose import CheckerRequest, ToolCall, WriterRequest, WrittenText
 from leaveimpact.generator.fresh import fresh_world
 from leaveimpact.generator.recipe import WorldRecipe
-from leaveimpact.generator.truth_record import decode_materialization
 from leaveimpact.world import DEFAULT_PARAMS, WORLD_SPEC, world_version
+from leaveimpact.world.truth_decoder import decode_truth_manifest
 
 
 class RefusingWriter:
@@ -37,7 +37,7 @@ def test_the_recipe_reaches_the_bundle_and_an_empty_prose_stage_calls_no_model()
     provenance = json.loads(fresh.bundle.world_spec.content)["provenance"]
     assert (provenance["seed"], provenance["plan_name"]) == (3, "tier1")
     assert provenance["world_start"] == "2026-01-05"
-    record = decode_materialization(fresh.bundle.truth_manifest.content)
+    record = decode_truth_manifest(fresh.bundle.truth_manifest.content).materialization
     assert record is not None
     assert (record.writer.model_id, record.checker.model_id) == ("fake-writer", "fake-checker")
     assert record.attempt_cap == 5
