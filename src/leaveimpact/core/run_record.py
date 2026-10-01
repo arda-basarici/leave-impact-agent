@@ -34,7 +34,13 @@ from enum import StrEnum
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.provenance import ModelConfiguration
-from leaveimpact.core.run_trace import USAGE_COUNTER_NAMES, Cost, require_digest, require_opaque_id
+from leaveimpact.core.run_trace import (
+    USAGE_COUNTER_NAMES,
+    Cost,
+    require_digest,
+    require_integer,
+    require_opaque_id,
+)
 
 GIT_SHA_LENGTH = 40
 
@@ -47,9 +53,7 @@ def require_commit(value: str, what: str) -> str:
 
 
 def _non_negative(value: int, what: str) -> int:
-    if isinstance(value, bool) or value < 0:
-        raise ValueError(f"{what} is a non-negative integer, got {value!r}")
-    return value
+    return require_integer(value, what)
 
 
 # --- How the attempt ended ---------------------------------------------------------------
@@ -234,8 +238,10 @@ class UsageAggregate:
 
     Each counter is ``(name, value, reported_calls)``: a sum over the calls that
     reported it and how many did, beside ``model_calls``, the number there were, so a
-    reader can tell a total from a partial sum. ``duration_ms`` is the run's own, from a
-    monotonic clock, a different quantity from any provider latency.
+    reader can tell a total from a partial sum. A counter no call reported is not a row
+    at all, so absence is never spelled as a zero sum over zero calls. ``duration_ms``
+    is the run's own, from a monotonic clock, a different quantity from any provider
+    latency.
 
     >>> UsageAggregate((("input_tokens", 500, 3),), 3, 12_000).value("input_tokens")
     (500, 3)
@@ -259,10 +265,9 @@ class UsageAggregate:
             raise ValueError(f"usage counters are held in the declared order, got {names}")
         for name, value, reported in self.counters:
             _non_negative(value, name)
-            if _non_negative(reported, f"{name} reported_calls") > self.model_calls:
+            require_integer(reported, f"{name} reported_calls", minimum=1)
+            if reported > self.model_calls:
                 raise ValueError(f"{name}: reported by {reported} calls of {self.model_calls}")
-            if reported == 0 and value != 0:
-                raise ValueError(f"{name}: a sum over no reporting call is zero, got {value}")
 
     def value(self, name: str) -> tuple[int, int] | None:
         """``(sum, reported_calls)`` for ``name``, or ``None`` when no call reported it."""
@@ -314,7 +319,10 @@ class PricingBasis:
 
     def __post_init__(self) -> None:
         require_digest(self.table_digest, "the price table digest")
-        require_opaque_id(self.currency, "a currency")
+        if self.currency != "USD":
+            raise ValueError(
+                f"costs are nano-dollars, so the basis is in USD, got {self.currency!r}"
+            )
         keys = [row.key for row in self.rows]
         if len(set(keys)) != len(keys):
             raise ValueError("a rate is given once per pricing key, region, billing mode and class")
@@ -330,6 +338,24 @@ class PricingBasis:
         return None
 
 
+@dataclass(frozen=True, slots=True)
+class PricingSelection:
+    """The rate a role's calls were priced under: the pricing key, region and billing mode.
+
+    A role's configuration names a model id, and a model id alone does not fix a
+    Bedrock rate, so the selection is recorded beside it; with the basis's rows it is
+    what lets the evaluator reproduce every per-call cost.
+    """
+
+    pricing_key: str
+    region: str
+    billing_mode: str
+
+    def __post_init__(self) -> None:
+        for name in ("pricing_key", "region", "billing_mode"):
+            require_opaque_id(getattr(self, name), name)
+
+
 # --- The record --------------------------------------------------------------------------
 
 
@@ -338,8 +364,9 @@ class RunRecord:
     """The provenance block of one run attempt; see the module for what each field states.
 
     Role-indexed collections are unique by their key and held in key order, so two
-    equal records are equal in bytes. ``failure`` is present exactly when the status is
-    failed. ``cost`` is ``None`` when no call reported usage, never a zero.
+    equal records are equal in bytes; every role that calls a model names both its
+    configuration and the rate it was priced under. ``failure`` is present exactly when
+    the status is failed. ``cost`` is ``None`` when no call was priced, never a zero.
     """
 
     observed_condition: RunCondition
@@ -347,6 +374,7 @@ class RunRecord:
     harness: HarnessRevision
     preregistration_commit: str
     model_configurations: tuple[tuple[str, ModelConfiguration], ...]
+    pricing_selections: tuple[tuple[str, PricingSelection], ...]
     prompt_digests: tuple[tuple[str, str, str], ...]
     tool_surface_digests: tuple[tuple[str, str], ...]
     system: System
@@ -368,6 +396,14 @@ class RunRecord:
             raise ValueError(f"a role calls one model configuration, got {roles}")
         for role in roles:
             require_opaque_id(role, "a role")
+        priced = [role for role, _ in self.pricing_selections]
+        if len(set(priced)) != len(priced):
+            raise ValueError(f"a role is priced under one selection, got {priced}")
+        if set(priced) != set(roles):
+            raise ValueError(
+                "every role that calls a model names its pricing: configured "
+                f"{sorted(roles)}, priced {sorted(priced)}"
+            )
         prompts = [(role, name) for role, name, _ in self.prompt_digests]
         if len(set(prompts)) != len(prompts):
             raise ValueError(f"a prompt is digested once per role and name, got {prompts}")
@@ -388,6 +424,9 @@ class RunRecord:
                 raise ValueError("rules-only retrieves nothing, so its retrieval is none")
         object.__setattr__(
             self, "model_configurations", tuple(sorted(self.model_configurations, key=_role))
+        )
+        object.__setattr__(
+            self, "pricing_selections", tuple(sorted(self.pricing_selections, key=_role))
         )
         object.__setattr__(
             self, "prompt_digests", tuple(sorted(self.prompt_digests, key=_role_name))

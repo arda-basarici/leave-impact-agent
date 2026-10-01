@@ -38,8 +38,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
+from math import isfinite
 from types import MappingProxyType
-from typing import NewType
+from typing import NewType, cast
 
 from leaveimpact.core.claims import Claim
 from leaveimpact.core.enums import Source
@@ -68,6 +69,54 @@ def require_opaque_id(value: str, what: str) -> str:
     if not value or value != value.strip():
         raise ValueError(f"{what} is a non-empty identifier, got {value!r}")
     return value
+
+
+def require_integer(value: object, what: str, *, minimum: int = 0) -> int:
+    """``value`` if it is an exact integer at least ``minimum``: never a boolean, never a float.
+
+    >>> require_integer(True, "attempt")
+    Traceback (most recent call last):
+    ...
+    ValueError: attempt is an integer, got True
+    """
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{what} is an integer, got {value!r}")
+    if value < minimum:
+        raise ValueError(f"{what} is at least {minimum}, got {value}")
+    return value
+
+
+def frozen_json(value: object, what: str) -> object:
+    """``value`` as an immutable copy of a JSON value, refused if JSON could not carry it.
+
+    Objects become read-only mappings and arrays tuples, all the way down, so a record
+    holding the result cannot change under a caller that keeps the original; a value
+    outside JSON's own (a date, a set, a non-finite float) is refused rather than
+    serialized by surprise later.
+
+    >>> frozen = frozen_json({"span": {"start": "2026-09-10", "end": "2026-09-12"}}, "arguments")
+    >>> frozen["span"]["end"]
+    '2026-09-12'
+    """
+    match value:
+        case None | bool() | int() | str():
+            return value
+        case float():
+            if not isfinite(value):
+                raise ValueError(f"{what} holds a non-finite float, which JSON cannot carry")
+            return value
+        case list() | tuple():
+            items = cast("list[object] | tuple[object, ...]", value)
+            return tuple(frozen_json(item, what) for item in items)
+        case Mapping():
+            frozen: dict[str, object] = {}
+            for key, item in cast("Mapping[object, object]", value).items():
+                if not isinstance(key, str):
+                    raise ValueError(f"{what} has a non-string key {key!r}")
+                frozen[key] = frozen_json(item, what)
+            return MappingProxyType(frozen)
+        case _:
+            raise ValueError(f"{what} holds {type(value).__name__}, which JSON cannot carry")
 
 
 def require_digest(value: str, what: str) -> str:
@@ -106,8 +155,7 @@ class Usage:
         if names != declared:
             raise ValueError(f"usage counters are held in the declared order, got {names}")
         for name, value in self.counters:
-            if isinstance(value, bool) or value < 0:
-                raise ValueError(f"{name}: a usage counter is a non-negative integer, got {value}")
+            require_integer(value, f"{name}: a usage counter")
 
     def value(self, name: str) -> int | None:
         """The counter ``name`` if the provider reported it; ``None`` is unknown, never zero."""
@@ -130,10 +178,9 @@ class Cost:
     complete: bool
 
     def __post_init__(self) -> None:
-        if isinstance(self.nano_usd, bool) or self.nano_usd < 0:
-            raise ValueError(
-                f"a cost is a non-negative integer of nano-dollars, got {self.nano_usd}"
-            )
+        require_integer(self.nano_usd, "a cost in nano-dollars")
+        if not isinstance(cast(object, self.complete), bool):
+            raise ValueError(f"a cost's completeness is a boolean, got {self.complete!r}")
 
 
 # --- Model calls -----------------------------------------------------------------------
@@ -143,16 +190,23 @@ class ModelCallOutcome(StrEnum):
     """How one invocation ended, as the harness classified the response.
 
     ``TEXT`` is a response with neither a tool call nor claims, which the loop treats as
-    the model having nothing more to read; ``REFUSAL`` is a response that declined. Both
-    are system behaviour, graded with their omissions; only ``PROVIDER_FAULT`` is
-    infrastructure, counted apart (ruling 3d).
+    the model having nothing more to read; ``REFUSAL`` is a response that declined;
+    ``INVALID_OUTPUT`` is a response the claim codec rejected. All three are system
+    behaviour, graded with their omissions; only ``PROVIDER_FAULT`` is infrastructure,
+    counted apart (ruling 3d).
     """
 
     TOOL_CALLS = "tool_calls"
     CLAIMS = "claims"
     TEXT = "text"
     REFUSAL = "refusal"
+    INVALID_OUTPUT = "invalid_output"
     PROVIDER_FAULT = "provider_fault"
+
+    @property
+    def answered(self) -> bool:
+        """Whether a response arrived at all; a provider fault is the one case it did not."""
+        return self is not ModelCallOutcome.PROVIDER_FAULT
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,17 +214,18 @@ class ModelCallRecord:
     """One model invocation, compact: identity, role, how it ended, what it cost, no prose.
 
     ``request_digest`` is the SHA-256 of the exact rendered request, beside the prompt
-    policy's asset digests the run record holds, the generator's own pattern. ``usage``
-    is ``None`` when the provider reported nothing (a fault before any answer), and a
-    cost exists only over a usage. ``fault`` is the provider's reason, present exactly
-    on a provider fault.
+    policy's asset digests the run record holds, the generator's own pattern. The
+    provider's stop reason and its reported latency exist exactly when a response
+    arrived, so a fault carries no invented ones; ``usage`` is ``None`` when the
+    provider reported nothing, and a cost exists only over a usage. ``fault`` is the
+    provider's reason, present exactly on a provider fault.
     """
 
     id: ModelCallId
     role: str
     outcome: ModelCallOutcome
-    stop_reason: str
-    provider_latency_ms: int
+    stop_reason: str | None
+    provider_latency_ms: int | None
     request_digest: str
     usage: Usage | None
     cost: Cost | None
@@ -180,10 +235,14 @@ class ModelCallRecord:
         require_opaque_id(self.id, "a model call id")
         require_opaque_id(self.role, "a role")
         require_digest(self.request_digest, "request_digest")
-        latency = self.provider_latency_ms
-        if isinstance(latency, bool) or latency < 0:
-            raise ValueError(f"provider latency is a non-negative integer of ms, got {latency}")
-        if (self.fault is not None) != (self.outcome is ModelCallOutcome.PROVIDER_FAULT):
+        answered = self.outcome.answered
+        if (self.stop_reason is not None) != answered:
+            raise ValueError("a stop reason is recorded exactly when a response arrived")
+        if (self.provider_latency_ms is not None) != answered:
+            raise ValueError("a provider latency is recorded exactly when a response arrived")
+        if self.provider_latency_ms is not None:
+            require_integer(self.provider_latency_ms, "provider latency in ms")
+        if (self.fault is not None) != (not answered):
             raise ValueError("a fault is recorded exactly on a provider fault")
         if self.cost is not None and self.usage is None:
             raise ValueError("a cost prices a reported usage; none was reported")
@@ -297,7 +356,7 @@ class Operation:
     def __post_init__(self) -> None:
         require_opaque_id(self.id, "an operation id")
         require_opaque_id(self.tool, "a tool name")
-        object.__setattr__(self, "arguments", MappingProxyType(dict(self.arguments)))
+        object.__setattr__(self, "arguments", frozen_json(dict(self.arguments), "arguments"))
         if self.source is None and not isinstance(self.outcome, RefusedCallOutcome):
             raise ValueError("an accepted read names its source; only a refused call may name none")
         for record in _records_of(self.outcome):
@@ -353,13 +412,21 @@ class RunTrace:
         operation_ids = [operation.id for operation in self.operations]
         if len(set(operation_ids)) != len(operation_ids):
             raise ValueError("operation ids are unique within a trace")
-        known = set(call_ids)
+        by_id = {call.id: call for call in self.model_calls}
         for operation in self.operations:
             origin = operation.origin
-            if isinstance(origin, ModelOrigin) and origin.model_call not in known:
+            if not isinstance(origin, ModelOrigin):
+                continue
+            call = by_id.get(origin.model_call)
+            if call is None:
                 raise ValueError(
                     f"operation {operation.id} answers model call {origin.model_call!r}, "
                     "which the trace does not hold"
+                )
+            if call.outcome is not ModelCallOutcome.TOOL_CALLS:
+                raise ValueError(
+                    f"operation {operation.id} answers model call {origin.model_call!r}, "
+                    f"which emitted {call.outcome.value}, not tool calls"
                 )
         claim_ids = [claim.claim_id for claim in self.claims]
         if len(set(claim_ids)) != len(claim_ids):
@@ -372,8 +439,16 @@ class RunTrace:
                 return call
         raise KeyError(id)
 
-    def holds(self, id: str) -> bool:
-        """Whether ``id`` names a model call or an operation of this trace."""
-        return any(call.id == id for call in self.model_calls) or any(
-            operation.id == id for operation in self.operations
-        )
+    def operation(self, id: OperationId) -> Operation | None:
+        """The operation ``id`` names, or ``None``."""
+        for operation in self.operations:
+            if operation.id == id:
+                return operation
+        return None
+
+    def model_call_or_none(self, id: ModelCallId) -> ModelCallRecord | None:
+        """The model call record ``id`` names, or ``None``."""
+        for call in self.model_calls:
+            if call.id == id:
+                return call
+        return None

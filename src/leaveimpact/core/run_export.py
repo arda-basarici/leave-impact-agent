@@ -27,8 +27,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from leaveimpact.core.run_record import RunRecord, SystemKind
-from leaveimpact.core.run_trace import RunTrace, require_opaque_id
+from leaveimpact.core.run_record import FailureCategory, RunRecord, SystemKind
+from leaveimpact.core.run_trace import (
+    DefectOutcome,
+    ModelCallId,
+    ModelCallOutcome,
+    OperationId,
+    RunTrace,
+    require_integer,
+    require_opaque_id,
+)
 from leaveimpact.core.worldtime import RunContext
 
 EXPORT_FORMAT_VERSION = 1
@@ -40,9 +48,13 @@ class RunExport:
     """The export of one run attempt: identity, context, record, trace.
 
     The constructor checks what makes the tree one object: the format is this code's,
-    the identity is usable, a recorded failure points into the trace, and a rules-only
-    export holds no model call. What the record claims about the trace is left to the
-    evaluator to verify, since a mismatch there is a finding and not a construction error.
+    the identity is usable, a recorded failure points at the trace entry of its own
+    kind (a defect at an operation that read a malformed record, an infrastructure
+    fault at a model call the provider failed), every role the trace's calls name has a
+    configuration in the record, the cumulative cost is absent exactly when no call was
+    priced, and a rules-only export holds no model call. What the record claims about
+    the trace's numbers is left to the evaluator to verify, since a mismatch there is a
+    finding and not a construction error.
     """
 
     format_version: int
@@ -53,17 +65,40 @@ class RunExport:
     trace: RunTrace
 
     def __post_init__(self) -> None:
+        require_integer(self.format_version, "the format version")
         if self.format_version != EXPORT_FORMAT_VERSION:
             raise ValueError(
                 f"this code builds export format {EXPORT_FORMAT_VERSION}, got {self.format_version}"
             )
         require_opaque_id(self.run_id, "a run id")
-        if isinstance(self.attempt, bool) or self.attempt < 1:
-            raise ValueError(f"attempts are numbered from one, got {self.attempt!r}")
-        failure = self.record.failure
-        if failure is not None and not self.trace.holds(failure.at):
-            raise ValueError(
-                f"the failure names {failure.at!r}, no operation or model call of the trace"
-            )
+        require_integer(self.attempt, "an attempt", minimum=1)
         if self.record.system.kind is SystemKind.RULES_ONLY and self.trace.model_calls:
             raise ValueError("a rules-only export holds no model call")
+        failure = self.record.failure
+        if failure is not None:
+            _require_failure_at_its_fault(failure.category, failure.at, self.trace)
+        configured = {role for role, _ in self.record.model_configurations}
+        for call in self.trace.model_calls:
+            if call.role not in configured:
+                raise ValueError(
+                    f"model call {call.id} ran as {call.role!r}, a role with no recorded "
+                    "model configuration"
+                )
+        priced = any(call.cost is not None for call in self.trace.model_calls)
+        if (self.record.cost is None) == priced:
+            raise ValueError("a cumulative cost is recorded exactly when a call was priced")
+
+
+def _require_failure_at_its_fault(category: FailureCategory, at: str, trace: RunTrace) -> None:
+    if category is FailureCategory.DEFECT:
+        operation = trace.operation(OperationId(at))
+        if operation is None or not isinstance(operation.outcome, DefectOutcome):
+            raise ValueError(
+                f"a defect failure names an operation that read a malformed record, got {at!r}"
+            )
+        return
+    call = trace.model_call_or_none(ModelCallId(at))
+    if call is None or call.outcome is not ModelCallOutcome.PROVIDER_FAULT:
+        raise ValueError(
+            f"an infrastructure failure names a model call the provider failed, got {at!r}"
+        )

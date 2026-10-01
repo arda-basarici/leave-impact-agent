@@ -38,6 +38,7 @@ from leaveimpact.core import (
     PrefetchRule,
     PricingBasis,
     PricingRow,
+    PricingSelection,
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
@@ -60,6 +61,7 @@ from leaveimpact.core import (
     Usage,
     UsageAggregate,
     employee_ref,
+    frozen_json,
     is_completed_read,
     is_failed_read,
 )
@@ -82,6 +84,7 @@ CALL = ModelCallId("call-1")
 REPORTED = Usage((("input_tokens", 120), ("output_tokens", 30)))
 PRICED = Cost(297_000, True)
 PREFETCH = PrefetchOrigin()
+HAIKU = PricingSelection("eu.anthropic.claude-haiku-4-5", "eu-central-1", "on_demand")
 AGENT = System(SystemKind.AGENT, "reference")
 FULL_TEXT = Retrieval(RetrievalKind.FULL_TEXT, None)
 CONTEXT = RunContext(
@@ -112,9 +115,17 @@ def _call(
     usage: Usage | None = REPORTED,
     cost: Cost | None = PRICED,
     fault: str | None = None,
+    stop_reason: str | None = "end_turn",
+    latency: int | None = 840,
 ) -> ModelCallRecord:
     return ModelCallRecord(
-        ModelCallId(id), "investigator", outcome, "end_turn", 840, DIGEST, usage, cost, fault
+        ModelCallId(id), "investigator", outcome, stop_reason, latency, DIGEST, usage, cost, fault
+    )
+
+
+def _faulted(id: str = "call-1") -> ModelCallRecord:
+    return _call(
+        id, ModelCallOutcome.PROVIDER_FAULT, None, None, "timeout", stop_reason=None, latency=None
     )
 
 
@@ -145,13 +156,18 @@ def _record(
     configurations: tuple[tuple[str, ModelConfiguration], ...] = (
         ("investigator", ModelConfiguration("eu.model", (Setting("temperature", 0),))),
     ),
+    selections: tuple[tuple[str, PricingSelection], ...] | None = None,
+    cost: Cost | None = PRICED,
 ) -> RunRecord:
+    if selections is None:
+        selections = tuple((role, HAIKU) for role, _ in configurations)
     return RunRecord(
         observed_condition=RunCondition.all_reachable(),
         outage=OutageAssignment(frozenset(), DIGEST),
         harness=HarnessRevision(COMMIT, TreeState.CLEAN),
         preregistration_commit=COMMIT,
         model_configurations=configurations,
+        pricing_selections=selections,
         prompt_digests=(("investigator", "system", DIGEST),),
         tool_surface_digests=(("investigator", DIGEST),),
         system=system,
@@ -161,7 +177,7 @@ def _record(
         status=status,
         failure=failure,
         usage=UsageAggregate((("input_tokens", 120, 1), ("output_tokens", 30, 1)), 1, 12_000),
-        cost=Cost(297_000, True),
+        cost=cost,
         pricing=PRICING,
     )
 
@@ -190,8 +206,10 @@ def test_usage_counters_hold_the_declared_order_and_a_missing_one_reads_as_unkno
         Usage((("total_tokens", 150),))
     with pytest.raises(ValueError, match="reported once"):
         Usage((("input_tokens", 1), ("input_tokens", 2)))
-    with pytest.raises(ValueError, match="non-negative integer"):
+    with pytest.raises(ValueError, match="is an integer, got True"):
         Usage((("input_tokens", True),))
+    with pytest.raises(ValueError, match="is an integer, got 1.5"):
+        Usage((("input_tokens", 1.5),))  # type: ignore[arg-type]
 
 
 def test_an_aggregate_carries_its_coverage_and_a_sum_over_no_call_is_zero() -> None:
@@ -200,8 +218,10 @@ def test_an_aggregate_carries_its_coverage_and_a_sum_over_no_call_is_zero() -> N
     assert aggregate.value("output_tokens") is None
     with pytest.raises(ValueError, match="reported by 5 calls of 4"):
         UsageAggregate((("input_tokens", 500, 5),), 4, 9_000)
-    with pytest.raises(ValueError, match="a sum over no reporting call is zero"):
-        UsageAggregate((("input_tokens", 500, 0),), 4, 9_000)
+    with pytest.raises(ValueError, match="reported_calls is at least 1, got 0"):
+        UsageAggregate((("input_tokens", 0, 0),), 4, 9_000)
+    with pytest.raises(ValueError, match="duration_ms is an integer, got 2.5"):
+        UsageAggregate((), 0, 2.5)  # type: ignore[arg-type]
 
 
 def test_a_cost_prices_a_reported_usage_and_a_fault_is_recorded_exactly_on_a_provider_fault() -> (
@@ -212,12 +232,25 @@ def test_a_cost_prices_a_reported_usage_and_a_fault_is_recorded_exactly_on_a_pro
     assert _call(usage=None, cost=None).cost is None
     with pytest.raises(ValueError, match="exactly on a provider fault"):
         _call(fault="timeout")
-    with pytest.raises(ValueError, match="exactly on a provider fault"):
-        _call(outcome=ModelCallOutcome.PROVIDER_FAULT)
-    faulted = _call(outcome=ModelCallOutcome.PROVIDER_FAULT, usage=None, cost=None, fault="timeout")
-    assert faulted.fault == "timeout"
-    with pytest.raises(ValueError, match="nano-dollars"):
+    with pytest.raises(
+        ValueError, match="a stop reason is recorded exactly when a response arrived"
+    ):
+        _call(outcome=ModelCallOutcome.PROVIDER_FAULT, usage=None, cost=None, fault="timeout")
+    with pytest.raises(ValueError, match="a provider latency is recorded exactly when a response"):
+        _call(latency=None)
+    faulted = _faulted()
+    assert (faulted.fault, faulted.stop_reason, faulted.provider_latency_ms) == (
+        "timeout",
+        None,
+        None,
+    )
+    assert _call(outcome=ModelCallOutcome.INVALID_OUTPUT).outcome.answered
+    with pytest.raises(ValueError, match="a cost in nano-dollars is at least 0, got -1"):
         Cost(-1, True)
+    with pytest.raises(ValueError, match="a cost in nano-dollars is an integer, got 1.5"):
+        Cost(1.5, True)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="completeness is a boolean, got 1"):
+        Cost(1, 1)  # type: ignore[arg-type]
 
 
 # --- Operations -------------------------------------------------------------------------
@@ -246,11 +279,32 @@ def test_an_accepted_read_names_its_source_and_every_record_was_read_from_it() -
     assert _operation(outcome=RecordsOutcome(())).source is Source.FRAPPE
 
 
-def test_arguments_are_frozen_as_accepted() -> None:
-    operation = _operation()
+def test_arguments_are_frozen_as_accepted_all_the_way_down() -> None:
+    span = {"start": "2026-09-10", "end": "2026-09-12"}
+    operation = Operation(
+        OperationId("op-2"),
+        PREFETCH,
+        "leaves_within",
+        Source.FRAPPE,
+        {"span": span},
+        AbsentOutcome(),
+    )
+    span["end"] = "2026-12-31"
+    assert operation.arguments["span"]["end"] == "2026-09-12"  # type: ignore[index]
     with pytest.raises(TypeError):
-        operation.arguments["id"] = "leave_006"  # type: ignore[index]
-    assert dict(operation.arguments) == {"id": "leave_005"}
+        operation.arguments["span"]["end"] = "2026-12-31"  # type: ignore[index]
+    with pytest.raises(ValueError, match="arguments holds date, which JSON cannot carry"):
+        Operation(
+            OperationId("op-3"),
+            PREFETCH,
+            "leave",
+            Source.FRAPPE,
+            {"on": date(2026, 9, 10)},
+            AbsentOutcome(),
+        )
+    with pytest.raises(ValueError, match="non-finite float"):
+        frozen_json({"limit": float("inf")}, "arguments")
+    assert frozen_json([1, "a", None, True, 2.5], "arguments") == (1, "a", None, True, 2.5)
 
 
 # --- The trace --------------------------------------------------------------------------
@@ -267,9 +321,14 @@ def test_ids_are_unique_and_a_model_originated_read_names_a_call_the_trace_holds
         RunTrace((_call(),), (_operation(origin=ModelOrigin(ModelCallId("call-9"))),), ())
     with pytest.raises(ValueError, match="claim ids are unique"):
         RunTrace((), (), (_claim(), _claim()))
-    trace = RunTrace((_call(),), (_operation(origin=ModelOrigin(CALL)),), (_claim(),))
+    with pytest.raises(ValueError, match="which emitted claims, not tool calls"):
+        RunTrace((_call(),), (_operation(origin=ModelOrigin(CALL)),), ())
+    asked = _call(outcome=ModelCallOutcome.TOOL_CALLS, stop_reason="tool_use")
+    trace = RunTrace((asked,), (_operation(origin=ModelOrigin(CALL)),), (_claim(),))
     assert trace.model_call(CALL).role == "investigator"
-    assert trace.holds("op-1") and trace.holds("call-1") and not trace.holds("op-2")
+    assert trace.operation(OperationId("op-1")) is not None
+    assert trace.operation(OperationId("op-2")) is None
+    assert trace.model_call_or_none(ModelCallId("call-2")) is None
 
 
 # --- The record -------------------------------------------------------------------------
@@ -308,6 +367,18 @@ def test_role_indexed_provenance_is_unique_by_role_and_held_in_role_order() -> N
         replace(record, prompt_digests=(("a", "system", DIGEST), ("a", "system", DIGEST)))
     with pytest.raises(ValueError, match="the a system prompt digest is a SHA-256"):
         replace(record, prompt_digests=(("a", "system", "deadbeef"),))
+
+
+def test_every_role_that_calls_a_model_names_the_rate_it_was_priced_under() -> None:
+    one = ModelConfiguration("eu.model", ())
+    with pytest.raises(ValueError, match=r"configured \['investigator'\], priced \[\]"):
+        _record(configurations=(("investigator", one),), selections=())
+    with pytest.raises(ValueError, match="a role is priced under one selection"):
+        _record(selections=(("investigator", HAIKU), ("investigator", HAIKU)))
+    with pytest.raises(ValueError, match="the basis is in USD, got 'EUR'"):
+        PricingBasis(DIGEST, "EUR", date(2026, 9, 1), ())
+    record = _record(configurations=(("b", one), ("a", one)))
+    assert [role for role, _ in record.pricing_selections] == ["a", "b"]
 
 
 def test_the_reserves_sit_inside_the_caps_and_an_embedding_model_names_vector_retrieval() -> None:
@@ -349,21 +420,63 @@ def test_the_export_is_this_formats_self_identifying_tree() -> None:
     )
     with pytest.raises(ValueError, match="builds export format 1, got 2"):
         replace(export, format_version=2)
-    with pytest.raises(ValueError, match="attempts are numbered from one"):
+    with pytest.raises(ValueError, match="an attempt is at least 1, got 0"):
         replace(export, attempt=0)
+    with pytest.raises(ValueError, match="an attempt is an integer, got 1.5"):
+        replace(export, attempt=1.5)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="the format version is an integer, got True"):
+        replace(export, format_version=True)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="a run id is a non-empty identifier"):
         replace(export, run_id=" ")
 
 
-def test_a_recorded_failure_points_into_the_trace() -> None:
-    failed = _record(
-        status=TerminalStatus.FAILED,
-        failure=Failure(FailureCategory.INFRASTRUCTURE, "call-9", "timeout after retries"),
+def test_a_recorded_failure_points_at_the_trace_entry_of_its_own_kind() -> None:
+    infrastructure = Failure(FailureCategory.INFRASTRUCTURE, "call-1", "timeout after retries")
+    failed = _record(status=TerminalStatus.FAILED, failure=infrastructure, cost=None)
+    with pytest.raises(ValueError, match="names a model call the provider failed, got 'call-1'"):
+        _export(record=failed)  # call-1 answered with claims
+    trace = RunTrace((_faulted(),), (_operation(),), ())
+    assert _export(record=failed, trace=trace).record.failure is infrastructure
+    defect = Failure(FailureCategory.DEFECT, "op-1", "no world id")
+    with pytest.raises(
+        ValueError, match="names an operation that read a malformed record, got 'op-1'"
+    ):
+        _export(record=replace(failed, failure=defect), trace=trace)
+    malformed = _operation(
+        outcome=DefectOutcome(Source.FRAPPE, "Employee/HR-EMP-00017", "no world id")
     )
-    with pytest.raises(ValueError, match="names 'call-9', no operation or model call of the trace"):
-        _export(record=failed)
-    at_call = replace(failed, failure=Failure(FailureCategory.INFRASTRUCTURE, "call-1", "timeout"))
-    assert _export(record=at_call).record.failure is not None
+    export = _export(
+        record=replace(failed, failure=defect), trace=RunTrace((_faulted(),), (malformed,), ())
+    )
+    assert export.record.failure is defect
+
+
+def test_every_model_call_role_is_configured_and_a_cumulative_cost_follows_a_priced_call() -> None:
+    synthesizer = ModelCallRecord(
+        ModelCallId("call-2"),
+        "synthesizer",
+        ModelCallOutcome.CLAIMS,
+        "end_turn",
+        10,
+        DIGEST,
+        REPORTED,
+        PRICED,
+        None,
+    )
+    with pytest.raises(ValueError, match="ran as 'synthesizer', a role with no recorded model"):
+        _export(trace=RunTrace((_call(), synthesizer), (_operation(),), (_claim(),)))
+    with pytest.raises(
+        ValueError, match="a cumulative cost is recorded exactly when a call was priced"
+    ):
+        _export(record=_record(cost=None))
+    with pytest.raises(
+        ValueError, match="a cumulative cost is recorded exactly when a call was priced"
+    ):
+        _export(trace=RunTrace((_faulted(),), (_operation(),), ()))
+    unpriced = _export(
+        record=_record(cost=None), trace=RunTrace((_faulted(),), (_operation(),), ())
+    )
+    assert unpriced.record.cost is None
 
 
 def test_a_rules_only_export_holds_no_model_call() -> None:
@@ -371,6 +484,7 @@ def test_a_rules_only_export_holds_no_model_call() -> None:
         system=System(SystemKind.RULES_ONLY, "frozen"),
         retrieval=Retrieval(RetrievalKind.NONE, None),
         configurations=(),
+        cost=None,
     )
     with pytest.raises(ValueError, match="a rules-only export holds no model call"):
         _export(record=record)
