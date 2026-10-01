@@ -33,12 +33,14 @@ count's denominator by truth and makes it the same for every system graded; or t
 itself made such a conclusion, which it is not entitled to from a report that stopped
 assessing. One omission is one record. A gap names the impact, the colleagues left
 unassessed and which of the two called for them, both when both did, so a colleague
-missing where the oracle and the report agree is not counted twice. The impact's sealed
-probe set is left out of every gap: a probed candidate with no assessment is a recall miss
-on its own row.
+missing where the oracle and the report agree is not counted twice. Where the oracle
+expects the impact, its sealed probe set is left out of the gap: a probed candidate with no
+assessment there is a recall miss on its own row. Where no such row exists (an impact the
+oracle does not expect under the condition, or a run with no claim-level answer at all)
+nobody is left out, since the gap is then the omission's only record.
 
-So each omission has one home: a probed candidate unassessed is a recall miss; a colleague
-outside the probe set unassessed where everyone is called for is a coverage gap; an
+So each omission has one home: a probed candidate of an expected impact unassessed is a
+recall miss; anyone else unassessed where everyone is called for is a coverage gap; an
 assignee with no reported assessment is a consistency finding; an unknown assessment with
 no unknown claim behind it is a chain finding.
 
@@ -110,8 +112,9 @@ class CheckFinding:
 class CoverageGap:
     """Colleagues left unassessed for an impact whose conclusion is about everyone.
 
-    ``missing`` are organization members outside the impact's sealed probe set with no
-    assessment in the report. ``required_by_oracle`` says the oracle expects uncovered or
+    ``missing`` are the organization members with no assessment in the report, less the
+    probe set of an impact the oracle expects, whose omissions are recall misses on their
+    own rows. ``required_by_oracle`` says the oracle expects uncovered or
     unknown there, ``required_by_report`` that the report itself concluded so; at least one
     holds, and both hold when the two agree, which is one gap and not two.
     """
@@ -153,7 +156,6 @@ def report_checks(
 
 def coverage_gaps(
     claims: Sequence[Claim],
-    scenario: Scenario,
     universe: Sequence[EmployeeId],
     oracle: Answerable | None = None,
 ) -> tuple[CoverageGap, ...]:
@@ -161,17 +163,16 @@ def coverage_gaps(
 
     An impact calls for everyone when ``oracle`` expects uncovered or unknown for it, or
     when the report's own action for it is one of those. Without an oracle (a run with no
-    claim-level answer) only the report's own conclusions call for it. The oracle's
-    impacts come first, in its order, then the report's others in claim order.
+    claim-level answer) only the report's own conclusions call for it. The probe set is
+    left out only for an impact ``oracle`` expects, where claim matching records a probed
+    candidate's omission as a missed row; for any other impact, and for every impact when
+    there is no oracle, a gap is over the whole of ``universe``. The oracle's impacts come
+    first, in its order, then the report's others in claim order.
     """
     require_well_formed(claims)
-    probes = {
-        expected.key: frozenset(authored.employee_id for authored in expected.must_assess)
-        for expected in scenario.key.impacts
-    }
-    by_oracle = (
-        [truth.key for truth in oracle.impacts if truth.outcome in UNIVERSAL] if oracle else []
-    )
+    expected = oracle.impacts if oracle else ()
+    probes = {truth.key: frozenset(truth.probe) for truth in expected}
+    by_oracle = [truth.key for truth in expected if truth.outcome in UNIVERSAL]
     by_report = [action.impact_key for action in _actions(claims) if action.action in UNIVERSAL]
     gaps: list[CoverageGap] = []
     for impact in dict.fromkeys((*by_oracle, *by_report)):

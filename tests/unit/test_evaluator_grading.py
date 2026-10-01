@@ -5,7 +5,10 @@ required key; a structurally invalid one is graded with zero credit and its chec
 an invalid plan surfaces as a finding. A run under an outage is graded against that condition's
 answer, read off the trace and not the record. A run that could not read the leave or the policy,
 or in which a source both answered and failed, is limited; a failed run and a run of another
-context are excluded and never read further."""
+context are excluded and never read further. A probed candidate a report left out under a
+conclusion about everyone is recorded once in every outcome that checks the report: a missed row
+where the oracle expects the impact, a coverage gap where it does not or where there is no
+oracle."""
 
 from dataclasses import replace
 from datetime import timedelta
@@ -14,6 +17,7 @@ import pytest
 
 from leaveimpact.core import (
     CandidateAssessment,
+    Claim,
     CoverageAction,
     CoverageActionKind,
     EntityKind,
@@ -36,7 +40,7 @@ from leaveimpact.evaluator.grading import (
     LimitedReason,
     grade_run,
 )
-from leaveimpact.evaluator.oracle import Answerable, oracle_for
+from leaveimpact.evaluator.oracle import Answerable, ImpactTruth, oracle_for
 from leaveimpact.evaluator.plan_checks import CheckFamily
 from leaveimpact.evaluator.rows import (
     ActionRow,
@@ -59,7 +63,7 @@ from tests.unit.export_fixture import (
     run_export,
     unreachable,
 )
-from tests.unit.report_fixture import of_type, renumbered, swapped, truthful_report
+from tests.unit.report_fixture import of_type, renumbered, swapped, truthful_report, without
 from tests.unit.throwaway_world import loaded_world
 
 JIRA_DOWN = NORMAL.without(Source.JIRA)
@@ -95,6 +99,35 @@ def every_row(outcome: Graded) -> list[Row]:
         *rows.conflicts,
         *rows.unknowns,
     ]
+
+
+def uncovered_with_a_probe_left_out(
+    world: SealedWorld, scenario: Scenario, artifact: EntityKind | None = None
+) -> tuple[tuple[Claim, ...], ImpactTruth]:
+    """The normal condition's truthful report with one impact's action turned to uncovered and
+    the assessment of that impact's first probed candidate left out, and the impact's truth.
+    ``artifact`` picks the impact by the kind of its artifact, the first one otherwise."""
+    report = truthful_report(answer(world, scenario))
+    truth = next(
+        truth
+        for truth in answer(world, scenario).impacts
+        if artifact is None or truth.key.artifact.kind is artifact
+    )
+    action = next(a for a in of_type(report, CoverageAction) if a.key == truth.key)
+    probed = next(
+        a
+        for a in of_type(report, CandidateAssessment)
+        if a.impact_key == truth.key and a.employee_id == truth.probe[0]
+    )
+    concluded = replace(
+        action,
+        action=CoverageActionKind.UNCOVERED,
+        assignee_ids=(),
+        derived_from_claim_ids=tuple(
+            link for link in action.derived_from_claim_ids if link != probed.claim_id
+        ),
+    )
+    return swapped(without(report, probed), action, concluded), truth
 
 
 # --- Graded -------------------------------------------------------------------------------
@@ -199,6 +232,45 @@ def test_an_invalid_plan_reaches_the_outcome_as_a_finding(world: SealedWorld) ->
     # The outcome kind is still right, and the row says so: the two judgments are apart.
     [row] = [row for row in outcome.rows.actions if row.key == truth.key]
     assert row.outcome_matches is True
+
+
+def test_a_probed_candidate_left_out_is_recorded_once_whether_the_impact_is_expected_or_not(
+    world: SealedWorld,
+) -> None:
+    scenario = next(
+        s
+        for s in world.scenarios
+        if any(e.key.artifact.kind is EntityKind.WORK_ITEM for e in s.key.impacts)
+    )
+    claims, truth = uncovered_with_a_probe_left_out(world, scenario, EntityKind.WORK_ITEM)
+    omitted = truth.probe[0]
+
+    def records(outcome: Graded) -> tuple[int, int]:
+        """How many missed rows and how many gaps name the omitted candidate for the impact."""
+        assert outcome.coverage is not None
+        about = (truth.key, omitted)
+        missed = [
+            row
+            for row in outcome.rows.assessments
+            if row.claim_id is None and (row.key.impact_key, row.key.employee_id) == about
+        ]
+        named = [
+            gap for gap in outcome.coverage if gap.impact == truth.key and omitted in gap.missing
+        ]
+        return len(missed), len(named)
+
+    # The oracle expects the impact: the omission is a missed row and no gap.
+    expected = graded(world, run_export(world, scenario, claims))
+    assert records(expected) == (1, 0)
+    # With the tracker down the oracle no longer expects the ticket's impact, so no row is
+    # owed for its probe set and the gap is the only record of the omission.
+    operations = reads(answered(Source.FRAPPE), unreachable(Source.JIRA))
+    lost = graded(
+        world, run_export(world, scenario, claims, operations=operations, recorded=JIRA_DOWN)
+    )
+    assert records(lost) == (0, 1)
+    [gap] = [gap for gap in lost.coverage or () if gap.impact == truth.key]
+    assert (gap.required_by_oracle, gap.required_by_report) == (False, True)
 
 
 # --- The condition is the trace's -----------------------------------------------------------
@@ -308,6 +380,31 @@ def test_a_run_that_could_not_read_the_leave_is_limited_and_its_report_still_che
     assert isinstance(broken, Limited)
     assert broken.structural_problems
     assert (broken.report_findings, broken.coverage) == (None, None)
+
+
+def test_a_limited_run_keeps_a_probed_candidate_its_report_left_out_as_a_gap(
+    world: SealedWorld,
+) -> None:
+    scenario = world.scenarios[0]
+    claims, truth = uncovered_with_a_probe_left_out(world, scenario)
+    frappe_down = NORMAL.without(Source.FRAPPE)
+    outcome = grade_run(
+        world,
+        run_export(
+            world,
+            scenario,
+            claims,
+            operations=reads(unreachable(Source.FRAPPE)),
+            recorded=frappe_down,
+        ),
+    )
+    assert isinstance(outcome, Limited) and outcome.structural_problems == ()
+    # A limited outcome holds no claim rows, so the gap is over the whole organization and
+    # is where the omission is recorded.
+    assert outcome.coverage is not None
+    [gap] = [gap for gap in outcome.coverage if gap.impact == truth.key]
+    assert gap.missing == (truth.probe[0],)
+    assert (gap.required_by_oracle, gap.required_by_report) == (False, True)
 
 
 def test_a_run_that_could_not_read_the_policy_is_limited_whether_a_clause_governs_or_not(

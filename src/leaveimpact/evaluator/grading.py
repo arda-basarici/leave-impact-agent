@@ -125,7 +125,9 @@ class Limited:
     ``mixed`` holds the sources that both answered and failed, empty for an unreadable
     leave or policy. ``report_findings`` and ``coverage`` are ``None`` when the claim set was
     structurally invalid; the coverage gaps here are the ones the report's own conclusions
-    call for, since no oracle outcome exists to call for any.
+    call for, since no oracle outcome exists to call for any, and each is over the whole
+    organization, the probe set included: no claim row exists here to hold a probed
+    candidate's omission.
     """
 
     header: RunHeader
@@ -202,7 +204,7 @@ def grade_run(world: SealedWorld, export: RunExport) -> RunOutcome:
         rows,
         oracle_checks(oracle, claims),
         report_checks(claims, scenario, oracle.view),
-        coverage_gaps(claims, scenario, oracle.universe, oracle),
+        coverage_gaps(claims, oracle.universe, oracle),
         harness,
     )
 
@@ -226,7 +228,7 @@ def _limited(
         view = runtime_truth(world, scenario).at(scenario.spec.today, observed.condition)
         universe = tuple(employee.id for employee in world.org.employees)
         findings = report_checks(claims, scenario, view)
-        gaps = coverage_gaps(claims, scenario, universe)
+        gaps = coverage_gaps(claims, universe)
     mixed = observed.mixed if reason is LimitedReason.MIXED_CONDITION else frozenset[Source]()
     return Limited(header, observed.condition, reason, mixed, problems, findings, gaps, harness)
 

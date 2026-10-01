@@ -5,7 +5,8 @@ the clause; a stranger is named as one; an assignee the report never assessed is
 inconsistency; a cited clause nobody can read makes the check uncheckable for an action of any
 kind, never a pass. A coverage gap is called for by the oracle's outcome, by the report's own
 conclusion, or by both, and one omission is one record: a colleague missing where the two agree is
-one gap, and a probed candidate left out is a recall miss and no gap at all."""
+one gap, and a probed candidate left out is a recall miss where the oracle expects the impact
+and a gap where no recall row would hold the omission."""
 
 from dataclasses import replace
 
@@ -25,6 +26,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.ids import ClauseId, EmployeeId, claim_id
 from leaveimpact.core.plans import Violation
+from leaveimpact.evaluator.matching import match_claims
 from leaveimpact.evaluator.oracle import Answerable, ImpactTruth, oracle_for, runtime_truth
 from leaveimpact.evaluator.plan_checks import (
     CheckFamily,
@@ -69,7 +71,7 @@ def coherence(oracle: Answerable, claims: tuple[Claim, ...]) -> tuple[CheckFindi
 
 
 def gaps(oracle: Answerable, claims: tuple[Claim, ...]) -> tuple[CoverageGap, ...]:
-    return coverage_gaps(claims, oracle.scenario, oracle.universe, oracle)
+    return coverage_gaps(claims, oracle.universe, oracle)
 
 
 def families(findings: tuple[CheckFinding, ...]) -> list[CheckFamily]:
@@ -294,14 +296,22 @@ def test_a_colleague_missing_where_the_oracle_and_the_report_agree_is_one_gap_wi
     assert oracle_checks(oracle, skipped) == () and coherence(oracle, skipped) == ()
 
 
-def test_a_probed_candidate_left_out_is_a_recall_miss_and_no_gap(world: SealedWorld) -> None:
+def test_a_probed_candidate_left_out_is_a_gap_only_where_no_recall_row_holds_it(
+    world: SealedWorld,
+) -> None:
     oracle, truth = expecting(world, CoverageActionKind.UNCOVERED)
     report = truthful_report(oracle)
     probed = assessment_of(report, truth, truth.probe[0])
     silent = without(report, probed)
-    # Called for by the oracle and by the report's own uncovered, and still not a gap.
+    # Called for by the oracle and by the report's own uncovered, and no gap: claim matching
+    # holds the omission as a missed row.
     assert gaps(oracle, silent) == ()
-    assert coverage_gaps(silent, oracle.scenario, oracle.universe) == ()
+    [missed] = [row for row in match_claims(oracle, silent).assessments if row.claim_id is None]
+    assert missed.key == probed.key
+    # With no oracle there is no row, so the gap is the omission's only record.
+    [gap] = coverage_gaps(silent, oracle.universe)
+    assert (gap.impact, gap.missing) == (truth.key, (truth.probe[0],))
+    assert (gap.required_by_oracle, gap.required_by_report) == (False, True)
 
 
 def test_the_oracle_calls_for_everyone_whatever_action_the_report_chose(
@@ -356,7 +366,7 @@ def test_a_report_that_concludes_uncovered_without_looking_calls_for_everyone_it
     assert (gap.required_by_oracle, gap.required_by_report) == (False, True)
     # With no oracle to ask (a run with no claim-level answer) the report's own conclusion
     # still calls for everyone.
-    [alone] = coverage_gaps(gave_up, oracle.scenario, oracle.universe)
+    [alone] = coverage_gaps(gave_up, oracle.universe)
     assert (alone.missing, alone.required_by_oracle) == (gap.missing, False)
 
 
