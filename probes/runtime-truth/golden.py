@@ -1,26 +1,40 @@
 """Runtime truth on the sealed golden world: how many graded items rest on the choice of view.
 
 The forty-seed measurement beside this file (`probe.py`) counts, over throwaway worlds, how
-often the dated view and runtime truth judge a candidate differently. This asks the same of
-the one world the results are reported on, through the evaluator's own code: the world is
-loaded as the evaluator loads it (the three sealed files joined, every sealed key
-reproduced by today's rules) and `compare_views` is run under the normal condition and
-under each single-source outage.
+often the dated view and runtime truth judge a candidate differently. This asks the one
+world the results are reported on, through the evaluator's own code: the world is loaded
+as the evaluator loads it (the three sealed files joined, every sealed key reproduced by
+today's rules) and `compare_views` puts the oracle's question to both views, under the
+normal condition and under each single-source outage, and compares the two answers part
+by part: whether the leave is readable, the impacts the rules ground, every organization
+member's verdict and reasons for each impact both views expect, the open questions behind
+an unknown verdict, the requirements, the outcomes, the expected constraints, conflicts
+and unknowns.
 
-Declared before the first run:
+Two runs, two captures. Run 01 (`golden-world.json`, at `23cf13f`) compared verdicts,
+reasons and outcomes for the sealed impacts and nothing else, and found none differing;
+its entry in FINDINGS first read that as "no graded item rests on the view", which the
+comparison did not show under an outage (the batch review of 2026-10-01). This file now
+makes the complete comparison, and run 02 (`golden-world-run-02.json`) is its capture.
+
+Declared before run 02:
 
 - the world loads, which is the reproduction of its thirty sealed keys;
-- under the normal condition no must-assess pair and no outcome differs between the
-  views, since world assembly proved every key under both before the world was sealed. A
-  difference there fails the probe.
+- under the normal condition every part the sealed key proves agrees between the views:
+  the leave's readability, the impact sets, the must-assess verdicts, the requirements,
+  the outcomes, the constraints, the conflicts and the unknowns, hence the open questions
+  too. World assembly proved the key under both views before the world was sealed, so a
+  difference there fails the probe. A verdict outside the must-assess set may differ and
+  is recorded.
 
-Everything else is a count to record, with no criterion: the pairs outside the must-assess
-set that differ under each condition, how many of them flip the verdict, how many scenarios
-hold one. On forty throwaway worlds twenty-three held at least one such pair under the
-normal condition, so one is expected here and none would not be a failure.
+Everything under an outage is a count to record, with no criterion: nothing was proven
+there. On six throwaway worlds the complete comparison found, under a Jira outage, two
+must-assess verdicts and two unknown sets differing, and under a calendar outage four
+other verdicts; so a difference here would be a finding about this world, and none would
+be the sentence run 01 could not support.
 
-The capture holds counts per condition and no candidate, artifact or scenario id: what
-`compare_views` returns names them, and they are the benchmark's private truth.
+The capture holds counts per condition and per part and no candidate, artifact or scenario
+id: what `compare_views` returns names them, and they are the benchmark's private truth.
 
 Read-only: three objects are read by key through the object-store reader, nothing is
 listed or written to a bucket. It runs from a workstation under the administrative
@@ -75,28 +89,27 @@ def main() -> int:
     rows = []
     for name, condition in CONDITIONS.items():
         comparison = compare_views(world, condition)
-        differences = comparison.verdict_differences
-        probed = [difference for difference in differences if difference.probed]
-        other = [difference for difference in differences if not difference.probed]
         rows.append(
             {
                 "condition": name,
-                "impacts": comparison.impacts,
+                "scenarios": comparison.scenarios,
+                "answerable_in_both_views": comparison.answerable,
+                "impacts_expected_in_both_views": comparison.impacts,
                 "must_assess_pairs": comparison.probed_pairs,
-                "must_assess_differ": len(probed),
                 "other_pairs": comparison.other_pairs,
-                "other_differ": len(other),
-                "other_differ_verdict_flips": sum(difference.flips for difference in other),
-                "outcomes_differ": len(comparison.outcome_differences),
-                "scenarios_with_a_difference": len(
-                    {difference.scenario_id for difference in differences}
-                    | {scenario_id for scenario_id, _ in comparison.outcome_differences}
+                "differing": comparison.counts(),
+                "other_verdicts_that_flip": sum(
+                    difference.flips
+                    for difference in comparison.verdict_differences
+                    if not difference.probed
                 ),
+                "scenarios_with_a_difference": len(comparison.scenarios_differing),
             }
         )
 
     normal = rows[0]
-    holds = normal["must_assess_differ"] == 0 and normal["outcomes_differ"] == 0
+    proven = {part: n for part, n in normal["differing"].items() if part != "other verdicts"}
+    holds = not any(proven.values())
     capture = {
         "probe": "runtime-truth, the golden world",
         "run_at": datetime.now(UTC).isoformat(timespec="seconds"),
@@ -112,28 +125,27 @@ def main() -> int:
                 ("truth_manifest", world.truth_manifest),
             )
         },
+        "run": 2,
         "declared": {
             "the world loads and its sealed keys are reproduced": True,
-            "normal condition: no must-assess pair and no outcome differs": holds,
+            "normal condition: every part the sealed key proves agrees between the views": holds,
         },
         "conditions": rows,
     }
     CAPTURES.mkdir(parents=True, exist_ok=True)
-    out = CAPTURES / "golden-world.json"
+    out = CAPTURES / "golden-world-run-02.json"
     out.write_text(json.dumps(capture, indent=2) + "\n", encoding="utf-8")
 
     print(f"golden world {version[:8]}…, {len(world.scenarios)} scenarios, "
           f"organization of {len(world.org.employees)}, sealed keys reproduced")
-    print(f"{'condition':<15}{'must-assess differ':>22}{'other differ (flips)':>26}"
-          f"{'outcomes differ':>18}{'scenarios':>11}")
     for row in rows:
+        differing = {part: n for part, n in row["differing"].items() if n}
         print(
-            f"{row['condition']:<15}"
-            f"{row['must_assess_differ']:>8} of {row['must_assess_pairs']:<10}"
-            f"{row['other_differ']:>8} ({row['other_differ_verdict_flips']}) of "
-            f"{row['other_pairs']:<8}"
-            f"{row['outcomes_differ']:>8} of {row['impacts']:<6}"
-            f"{row['scenarios_with_a_difference']:>8}"
+            f"{row['condition']:<15}answerable {row['answerable_in_both_views']:>2} of "
+            f"{row['scenarios']}, impacts compared {row['impacts_expected_in_both_views']:>2}, "
+            f"pairs {row['must_assess_pairs']} must-assess + {row['other_pairs']} other | "
+            f"differing: {differing or 'nothing'} | scenarios with a difference "
+            f"{row['scenarios_with_a_difference']}"
         )
     print(f"declared, normal condition: {'HOLDS' if holds else 'FAILS'}; capture {out}")
     return 0 if holds else 1

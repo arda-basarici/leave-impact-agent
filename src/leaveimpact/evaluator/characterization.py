@@ -9,26 +9,26 @@ under an outage) is proven under neither, and there the two can differ: a record
 scenario plants is readable when an earlier one runs, and the dated view hides it.
 
 The evaluator grades against runtime truth (the oracle module says why). This module
-measures what that choice rests on, for one world: per run condition, every sealed impact
-assessed over the whole organization under both views, the pairs whose verdict or reasons
-differ, and the impacts whose expected outcome differs. It is a property of the world, the
-scenario and the condition, never of a run, a model or a system, so it is computed once
-per world and reported beside the results, not inside every evaluation. A difference
-among the probed candidates under the normal condition would contradict assembly's proof;
-elsewhere a difference is a candidate a dated oracle would have judged otherwise.
+measures what that choice rests on, for one world and one run condition: the oracle's own
+question, what do the rules conclude about this scenario, is asked of both views and the
+two answers are compared part by part. Whether the leave is readable at all; the impacts
+the rules ground; for each impact both views expect, every organization member's verdict
+and reasons, the questions an unknown verdict leaves open, the requirements that apply
+and the outcome; the expected constraints; the expected conflicts; the expected unknowns.
+That is everything a report is graded against, so a comparison in which no part differs
+says a dated oracle would have graded every item of that scenario the same, and one in
+which a part differs names the part.
 
-The comparison is of candidate judgments and outcomes for the sealed impacts, and no
-wider. It does not compare the impact sets the rules derive under each view, nor the
-expected constraints, conflicts or unknown claims; a count of zero here says the two
-views agree on every verdict, reason and outcome, never that they agree on everything
-the oracle expects.
+It is a property of the world, the scenario and the condition, never of a run, a model or
+a system, so it is computed once per world and reported beside the results, not inside
+every evaluation. Under the normal condition the sealed key is proven under both views,
+so the impacts, the probed candidates' verdicts, the outcomes, the constraints, the
+conflicts and the unknowns cannot differ there without contradicting that proof; what can
+is the verdict of a candidate outside the probe set that changes no unknown. Under an
+outage nothing is proven and every part can differ.
 
-The rules are asked with the sealed leave span under every condition, so under a
-condition in which the leave itself is unreadable the counts describe the rules and not an
-expectation: the oracle has no claim-level answer there.
-
-What it returns names candidates and artifacts and so is truth; a caller that prints
-counts prints no key.
+What a comparison returns names candidates and artifacts and so is truth; a caller that
+prints its counts prints no key.
 """
 
 from __future__ import annotations
@@ -36,13 +36,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from leaveimpact.core.claims import AssessmentReason, ImpactKey, Verdict
-from leaveimpact.core.facts import FactView, RunCondition
+from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import EmployeeId, ScenarioId
-from leaveimpact.core.plans import expected_action
-from leaveimpact.evaluator.oracle import runtime_truth
+from leaveimpact.evaluator.oracle import Answerable, ImpactTruth, conclusions_in, runtime_truth
 from leaveimpact.evaluator.sealed_world import SealedWorld
-from leaveimpact.world.construction import Reading, read_impacts, required_count_for
-from leaveimpact.world.scenario import Scenario
 
 Judgment = tuple[Verdict, tuple[AssessmentReason, ...]]
 """A verdict with its reasons: what the two views are compared on, per candidate."""
@@ -50,7 +47,7 @@ Judgment = tuple[Verdict, tuple[AssessmentReason, ...]]
 
 @dataclass(frozen=True, slots=True)
 class VerdictDifference:
-    """One candidate for one sealed impact whom the two views judge differently."""
+    """One candidate for one expected impact whom the two views judge differently."""
 
     scenario_id: ScenarioId
     impact: ImpactKey
@@ -68,80 +65,151 @@ class VerdictDifference:
 
 @dataclass(frozen=True, slots=True)
 class ViewComparison:
-    """The two views compared under one condition, over every sealed impact of a world."""
+    """The two views' answers compared under one condition, over every scenario of a world.
+
+    ``answerable`` counts the scenarios both views can answer and ``impacts`` the impacts
+    both expect; the candidate pairs are over those impacts. Each ``*_differences`` field
+    lists where one part of the answer differs: by scenario for a part that is the
+    scenario's, by impact or by candidate for a part that is theirs.
+    """
 
     condition: RunCondition
+    scenarios: int
+    answerable: int
+    impacts: int
     probed_pairs: int
     other_pairs: int
-    impacts: int
+    state_differences: tuple[ScenarioId, ...]
+    impact_set_differences: tuple[ScenarioId, ...]
     verdict_differences: tuple[VerdictDifference, ...]
+    open_question_differences: tuple[tuple[ScenarioId, ImpactKey, EmployeeId], ...]
+    requirement_differences: tuple[tuple[ScenarioId, ImpactKey], ...]
     outcome_differences: tuple[tuple[ScenarioId, ImpactKey], ...]
+    constraint_differences: tuple[ScenarioId, ...]
+    conflict_differences: tuple[ScenarioId, ...]
+    unknown_differences: tuple[ScenarioId, ...]
+
+    def counts(self) -> dict[str, int]:
+        """How many differences each part holds, by the part's name: counts and no content."""
+        return {
+            "the leave readable in one view only": len(self.state_differences),
+            "impact sets": len(self.impact_set_differences),
+            "must-assess verdicts": sum(d.probed for d in self.verdict_differences),
+            "other verdicts": sum(not d.probed for d in self.verdict_differences),
+            "open questions": len(self.open_question_differences),
+            "requirements": len(self.requirement_differences),
+            "outcomes": len(self.outcome_differences),
+            "constraints": len(self.constraint_differences),
+            "conflicts": len(self.conflict_differences),
+            "unknowns": len(self.unknown_differences),
+        }
+
+    @property
+    def scenarios_differing(self) -> frozenset[ScenarioId]:
+        """The scenarios for which any part of the answer differs between the views."""
+        return frozenset(
+            (
+                *self.state_differences,
+                *self.impact_set_differences,
+                *(difference.scenario_id for difference in self.verdict_differences),
+                *(scenario for scenario, _, _ in self.open_question_differences),
+                *(scenario for scenario, _ in self.requirement_differences),
+                *(scenario for scenario, _ in self.outcome_differences),
+                *self.constraint_differences,
+                *self.conflict_differences,
+                *self.unknown_differences,
+            )
+        )
 
 
 def compare_views(world: SealedWorld, condition: RunCondition) -> ViewComparison:
-    """The dated view against runtime truth under ``condition``, every scenario at its run day.
+    """The dated view's answer against runtime truth's under ``condition``, every scenario at
+    its run day.
 
-    Each sealed impact is read under both views over the whole organization, through the
-    reading pass every other consumer of the rules uses.
+    Both answers come from ``conclusions_in``, the oracle's core, so what is compared is
+    what the grader would be handed under each view.
     """
-    universe = tuple(employee.id for employee in world.org.employees)
-    probed = other = impacts = 0
+    answerable = impacts = probed = other = 0
+    states: list[ScenarioId] = []
+    impact_sets: list[ScenarioId] = []
     verdicts: list[VerdictDifference] = []
+    open_questions: list[tuple[ScenarioId, ImpactKey, EmployeeId]] = []
+    requirements: list[tuple[ScenarioId, ImpactKey]] = []
     outcomes: list[tuple[ScenarioId, ImpactKey]] = []
+    constraints: list[ScenarioId] = []
+    conflicts: list[ScenarioId] = []
+    unknowns: list[ScenarioId] = []
     for scenario in world.scenarios:
-        today = scenario.spec.today
-        dated_view = world.facts.at(today, condition)
-        runtime_view = runtime_truth(world, scenario).at(today, condition)
-        dated = _readings(dated_view, scenario, universe)
-        runtime = _readings(runtime_view, scenario, universe)
-        for expected, before, after in zip(scenario.key.impacts, dated, runtime, strict=True):
+        today, name = scenario.spec.today, scenario.spec.id
+        dated = conclusions_in(world, scenario, world.facts.at(today, condition))
+        runtime = conclusions_in(
+            world, scenario, runtime_truth(world, scenario).at(today, condition)
+        )
+        if not (isinstance(dated, Answerable) and isinstance(runtime, Answerable)):
+            if isinstance(dated, Answerable) != isinstance(runtime, Answerable):
+                states.append(name)
+            continue
+        answerable += 1
+        if {truth.key for truth in dated.impacts} != {truth.key for truth in runtime.impacts}:
+            impact_sets.append(name)
+        for before in dated.impacts:
+            after = runtime.impact(before.key)
+            if after is None:
+                continue
             impacts += 1
-            probe = {authored.employee_id for authored in expected.must_assess}
-            probed += len(probe)
-            other += len(universe) - len(probe)
+            probed += len(before.probe)
+            other += len(before.assessments) - len(before.probe)
             for old, new in zip(before.assessments, after.assessments, strict=True):
                 if (old.verdict, old.reasons) != (new.verdict, new.reasons):
                     verdicts.append(
                         VerdictDifference(
-                            scenario.spec.id,
-                            expected.key,
+                            name,
+                            before.key,
                             old.employee_id,
-                            old.employee_id in probe,
+                            old.employee_id in before.probe,
                             (old.verdict, old.reasons),
                             (new.verdict, new.reasons),
                         )
                     )
-            if _outcome(dated_view, scenario, before) is not _outcome(
-                runtime_view, scenario, after
-            ):
-                outcomes.append((scenario.spec.id, expected.key))
-    return ViewComparison(condition, probed, other, impacts, tuple(verdicts), tuple(outcomes))
-
-
-def _readings(
-    view: FactView, scenario: Scenario, universe: tuple[EmployeeId, ...]
-) -> tuple[Reading, ...]:
-    leave = scenario.investigated_leave
-    return read_impacts(
-        view,
-        [expected.key for expected in scenario.key.impacts],
-        scenario.key.constraints,
-        leave.employee_id,
-        leave.span,
-        scenario.spec.reference_timezone,
-        universe,
+                elif old.unresolved != new.unresolved:
+                    open_questions.append((name, before.key, old.employee_id))
+            if _required(before) != _required(after):
+                requirements.append((name, before.key))
+            if before.outcome is not after.outcome:
+                outcomes.append((name, before.key))
+        if dated.constraints != runtime.constraints:
+            constraints.append(name)
+        if set(dated.conflicts) != set(runtime.conflicts):
+            conflicts.append(name)
+        if dated.unknowns != runtime.unknowns:
+            unknowns.append(name)
+    return ViewComparison(
+        condition=condition,
+        scenarios=len(world.scenarios),
+        answerable=answerable,
+        impacts=impacts,
+        probed_pairs=probed,
+        other_pairs=other,
+        state_differences=tuple(states),
+        impact_set_differences=tuple(impact_sets),
+        verdict_differences=tuple(verdicts),
+        open_question_differences=tuple(open_questions),
+        requirement_differences=tuple(requirements),
+        outcome_differences=tuple(outcomes),
+        constraint_differences=tuple(constraints),
+        conflict_differences=tuple(conflicts),
+        unknown_differences=tuple(unknowns),
     )
 
 
-def _outcome(view: FactView, scenario: Scenario, reading: Reading) -> object:
-    required = required_count_for(
-        view,
-        reading.impact,
-        scenario.key.constraints,
-        scenario.investigated_leave.span,
-        scenario.spec.reference_timezone,
+def _required(truth: ImpactTruth) -> tuple[int, tuple[object, ...]]:
+    """What an impact asks of a plan, comparable across views: the count, and each readable
+    requirement by its clause and content. The fact stating it is left out, since the two
+    views date one fact differently."""
+    return (
+        truth.required,
+        tuple((resolved.clause_id, resolved.requirement) for resolved in truth.requirements),
     )
-    return expected_action((assessment.verdict for assessment in reading.assessments), required)
 
 
 __all__ = ["Judgment", "VerdictDifference", "ViewComparison", "compare_views"]

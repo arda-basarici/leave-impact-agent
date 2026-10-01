@@ -1,8 +1,10 @@
-"""The dated view against runtime truth on a throwaway golden-plan world: under the normal
-condition no probed candidate and no outcome differs, which is assembly's proof restated; a
-candidate outside the probe set can differ, each time because evidence about them is planted
-after the scenario's run day; and one such candidate is non-viable under the dated view and viable
-at run time, the case in which a dated oracle would grade a correct reading wrong."""
+"""The dated view's answer against runtime truth's, on throwaway golden-plan worlds. Under the
+normal condition every part of the answer the sealed key proves agrees, and only a candidate
+outside the probe set can differ, each time because evidence about them is planted after the run
+day; one such candidate is non-viable by date and viable at run time, the case in which a dated
+oracle would grade a correct reading wrong. Under an outage nothing is proven: a world holds a
+probed candidate the two views judge differently, and the unknowns they expect differ with it.
+With the leave unreadable in both views there is no answer to compare."""
 
 import pytest
 
@@ -20,6 +22,9 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit.throwaway_world import loaded_world
 
 NORMAL = RunCondition.all_reachable()
+# The seed whose world holds a probed candidate that a Jira outage splits between the views
+# (the forty-seed measurement's trace); a generator bump that moves it needs another seed.
+OUTAGE_SEED = 10
 
 
 @pytest.fixture(scope="module")
@@ -32,23 +37,37 @@ def normal(world: SealedWorld) -> ViewComparison:
     return compare_views(world, NORMAL)
 
 
-def test_every_sealed_impact_is_compared_over_the_whole_organization(
+def test_every_scenario_is_answered_and_every_impact_compared_over_the_organization(
     world: SealedWorld, normal: ViewComparison
 ) -> None:
     impacts = sum(len(scenario.key.impacts) for scenario in world.scenarios)
     probed = sum(len(e.must_assess) for s in world.scenarios for e in s.key.impacts)
-    assert normal.impacts == impacts
-    assert normal.probed_pairs == probed
+    assert (normal.scenarios, normal.answerable) == (len(world.scenarios), len(world.scenarios))
+    assert (normal.impacts, normal.probed_pairs) == (impacts, probed)
     assert normal.probed_pairs + normal.other_pairs == impacts * len(world.org.employees)
 
 
-def test_under_the_normal_condition_no_probed_candidate_and_no_outcome_differs(
+def test_under_the_normal_condition_every_part_the_key_proves_agrees(
     normal: ViewComparison,
 ) -> None:
-    # World assembly proved every key under both views; a difference here would say the
-    # sealed world should not have sealed.
-    assert not [difference for difference in normal.verdict_differences if difference.probed]
-    assert normal.outcome_differences == ()
+    # World assembly proved every key under both views; a difference in one of these parts
+    # would say the sealed world should not have sealed.
+    counts = normal.counts()
+    assert set(counts) == {
+        "the leave readable in one view only",
+        "impact sets",
+        "must-assess verdicts",
+        "other verdicts",
+        "open questions",
+        "requirements",
+        "outcomes",
+        "constraints",
+        "conflicts",
+        "unknowns",
+    }
+    differing = {part for part, count in counts.items() if count}
+    assert differing == {"other verdicts"}
+    assert normal.scenarios_differing == {d.scenario_id for d in normal.verdict_differences}
 
 
 def test_a_difference_outside_the_probe_set_rests_on_evidence_planted_after_the_run_day(
@@ -92,11 +111,31 @@ def test_a_candidate_non_viable_by_date_and_viable_at_run_time_is_what_the_oracl
         assert assessed is not None and assessed.verdict is Verdict.VIABLE
 
 
-def test_the_comparison_runs_under_an_outage_and_names_its_condition(world: SealedWorld) -> None:
-    jira_down = NORMAL.without(Source.JIRA)
-    comparison = compare_views(world, jira_down)
-    assert comparison.condition == jira_down
-    assert (comparison.impacts, comparison.probed_pairs) == (
-        compare_views(world, NORMAL).impacts,
-        compare_views(world, NORMAL).probed_pairs,
-    )
+def test_under_an_outage_a_probed_candidate_and_the_expected_unknowns_can_differ() -> None:
+    world = loaded_world("golden", OUTAGE_SEED)
+    assert compare_views(world, NORMAL).counts()["must-assess verdicts"] == 0
+    jira_down = compare_views(world, NORMAL.without(Source.JIRA))
+    assert jira_down.condition == NORMAL.without(Source.JIRA)
+    # Fewer impacts are compared than the world seals: the tracker's are lost in both views.
+    assert jira_down.answerable == len(world.scenarios)
+    assert 0 < jira_down.impacts < sum(len(s.key.impacts) for s in world.scenarios)
+    [split] = [difference for difference in jira_down.verdict_differences if difference.probed]
+    # The scenario's own comment is unreachable; a document a later scenario plants restates
+    # the skill, hidden by date and readable at run time.
+    assert split.dated == (Verdict.UNKNOWN, ())
+    assert split.runtime == (Verdict.VIABLE, ())
+    # The dated view expects an unknown claim the runtime view does not: a part of the
+    # answer beyond verdicts differs, and the comparison names it.
+    assert jira_down.unknown_differences == (split.scenario_id,)
+    assert jira_down.scenarios_differing == {split.scenario_id}
+
+
+def test_with_the_leave_unreadable_in_both_views_there_is_nothing_to_compare(
+    world: SealedWorld,
+) -> None:
+    frappe_down = compare_views(world, NORMAL.without(Source.FRAPPE))
+    assert (frappe_down.scenarios, frappe_down.answerable) == (len(world.scenarios), 0)
+    assert (frappe_down.impacts, frappe_down.probed_pairs, frappe_down.other_pairs) == (0, 0, 0)
+    # Unreadable under both is agreement about the state, not a difference.
+    assert frappe_down.state_differences == ()
+    assert not any(frappe_down.counts().values())

@@ -159,6 +159,22 @@ def oracle_for(world: SealedWorld, scenario: Scenario, condition: RunCondition) 
     sealed key.
     """
     view = runtime_truth(world, scenario).at(scenario.spec.today, condition)
+    answer = conclusions_in(world, scenario, view)
+    if isinstance(answer, Answerable) and condition == RunCondition.all_reachable():
+        _require_the_sealed_key(answer)
+    return answer
+
+
+def conclusions_in(world: SealedWorld, scenario: Scenario, view: FactView) -> Oracle:
+    """What the rules conclude about ``scenario`` in ``view``, whichever reading of the world
+    the view is.
+
+    The oracle is this over runtime truth, and ``oracle_for`` is the grader's entry: it
+    builds that view and anchors the answer on the sealed key. This is exposed for the one
+    other caller, the characterization, which asks the same question of the dated view to
+    measure where the two readings part. Nothing is anchored here.
+    """
+    condition = view.condition
     if not _leave_is_readable(view, scenario):
         return UnreadableLeave(scenario, condition)
     key, spec, leave = scenario.key, scenario.spec, scenario.investigated_leave
@@ -191,7 +207,7 @@ def oracle_for(world: SealedWorld, scenario: Scenario, condition: RunCondition) 
         scopes.append(scope)
         truths.append(_impact_truth(reading, requirements, probes.get(reading.impact, ())))
     expectations = expectations_of(view, readings)
-    answer = Answerable(
+    return Answerable(
         scenario=scenario,
         condition=condition,
         view=view,
@@ -201,9 +217,6 @@ def oracle_for(world: SealedWorld, scenario: Scenario, condition: RunCondition) 
         conflicts=expectations.conflicts,
         unknowns=expectations.unknowns,
     )
-    if condition == RunCondition.all_reachable():
-        _require_the_sealed_key(answer)
-    return answer
 
 
 def _leave_is_readable(view: FactView, scenario: Scenario) -> bool:
@@ -307,6 +320,7 @@ __all__ = [
     "Oracle",
     "OracleDisagrees",
     "UnreadableLeave",
+    "conclusions_in",
     "oracle_for",
     "runtime_truth",
 ]
