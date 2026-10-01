@@ -91,17 +91,19 @@ def encode_price_table(table: PriceTable) -> JsonObject:
     return {
         "currency": table.currency,
         "effective_from": encode_date(table.effective_from),
-        "rates": [
-            {
-                "pricing_key": row.pricing_key,
-                "region": row.region,
-                "billing_mode": row.billing_mode,
-                "token_class": row.token_class,
-                "nano_usd_per_token": row.nano_usd_per_token,
-                "when_absent": row.when_absent.value,
-            }
-            for row in table.rows
-        ],
+        "rates": [encode_rate(row) for row in table.rows],
+    }
+
+
+def encode_rate(row: PricingRow) -> JsonObject:
+    """The JSON object of one rate, the shape a table and a record's basis share."""
+    return {
+        "pricing_key": row.pricing_key,
+        "region": row.region,
+        "billing_mode": row.billing_mode,
+        "token_class": row.token_class,
+        "nano_usd_per_token": row.nano_usd_per_token,
+        "when_absent": row.when_absent.value,
     }
 
 
@@ -121,11 +123,12 @@ def decode_price_table(value: object) -> PriceTable:
     return PriceTable(
         string_field(data, "currency"),
         decode_date(string_field(data, "effective_from"), "effective_from"),
-        tuple(_decode_row(item) for item in array_field(data, "rates")),
+        tuple(decode_rate(item) for item in array_field(data, "rates")),
     )
 
 
-def _decode_row(item: object) -> PricingRow:
+def decode_rate(item: object) -> PricingRow:
+    """The rate ``item`` encodes; an integer rate and a known policy, or ``ValueError``."""
     data = as_object(item, "a rate")
     expect_fields(
         data,

@@ -394,14 +394,18 @@ def _name(operation: Operation) -> str:
 
 @dataclass(frozen=True, slots=True)
 class RunTrace:
-    """The model calls, the attempted reads and the final claims of one run attempt, in order.
+    """The model calls, the attempted reads and the final claims of one run attempt.
 
-    Identifiers are unique within their kind, and every read the model asked for names a
-    model call this trace holds; those are the structural facts a replay stands on. What
-    the record block claims about the trace (the cumulative usage, the observed
-    condition) is not enforced here: the evaluator verifies a claim against the trace,
-    and a constructor that enforced it would hide the mismatch the verification exists
-    to report.
+    Calls and operations keep the order they happened in. Claims are held in claim-id
+    order, the claim codec's own, since a claim's position says nothing (its id is its
+    identity and the grading matches by key), and one order means the export's bytes
+    are a property of the trace and not of the emission. Identifiers are unique within
+    their kind, and every read the model asked for names a model call this trace holds
+    that emitted tool calls; those are the structural facts a replay stands on. What the
+    record block claims about the trace (the cumulative usage, the observed condition)
+    is not enforced here: the evaluator verifies a claim against the trace, and a
+    constructor that enforced it would hide the mismatch the verification exists to
+    report.
     """
 
     model_calls: tuple[ModelCallRecord, ...]
@@ -409,6 +413,9 @@ class RunTrace:
     claims: tuple[Claim, ...]
 
     def __post_init__(self) -> None:
+        object.__setattr__(
+            self, "claims", tuple(sorted(self.claims, key=lambda claim: claim.claim_id))
+        )
         call_ids = [call.id for call in self.model_calls]
         if len(set(call_ids)) != len(call_ids):
             raise ValueError("model call ids are unique within a trace")

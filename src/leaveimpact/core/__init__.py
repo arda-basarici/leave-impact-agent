@@ -47,6 +47,7 @@ from leaveimpact.core import (
     provenance,
     refs,
     run_export,
+    run_export_json,
     run_record,
     run_trace,
     timeshape,
@@ -190,7 +191,9 @@ from leaveimpact.core.pricing import (
     cost_of,
     cumulative_cost,
     decode_price_table,
+    decode_rate,
     encode_price_table,
+    encode_rate,
 )
 from leaveimpact.core.provenance import (
     ModelConfiguration,
@@ -216,6 +219,15 @@ from leaveimpact.core.refs import (
     work_item_ref,
 )
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
+from leaveimpact.core.run_export_json import (
+    decode_run_export,
+    decode_run_record,
+    decode_run_trace,
+    encode_run_export,
+    encode_run_record,
+    encode_run_trace,
+    export_bytes,
+)
 from leaveimpact.core.run_record import (
     AbsentMeaning,
     Caps,
@@ -314,6 +326,7 @@ __all__ = [
     "provenance",
     "refs",
     "run_export",
+    "run_export_json",
     "run_record",
     "run_trace",
     "timeshape",
@@ -498,6 +511,10 @@ __all__ = [
     "decode_model_configuration",
     "decode_observed",
     "decode_price_table",
+    "decode_rate",
+    "decode_run_export",
+    "decode_run_record",
+    "decode_run_trace",
     "decode_value",
     "derive",
     "derive_component",
@@ -514,6 +531,10 @@ __all__ = [
     "encode_model_configuration",
     "encode_observed",
     "encode_price_table",
+    "encode_rate",
+    "encode_run_export",
+    "encode_run_record",
+    "encode_run_trace",
     "encode_value",
     "entity_value",
     "enum_value",
@@ -526,6 +547,7 @@ __all__ = [
     "is_failed_read",
     "event_ref",
     "expected_action",
+    "export_bytes",
     "leave_ref",
     "local_date",
     "need_of",
