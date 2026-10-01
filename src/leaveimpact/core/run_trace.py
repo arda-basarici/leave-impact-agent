@@ -71,17 +71,19 @@ def require_opaque_id(value: str, what: str) -> str:
     return value
 
 
-def require_integer(value: object, what: str, *, minimum: int = 0) -> int:
-    """``value`` if it is an exact integer at least ``minimum``: never a boolean, never a float.
+def require_integer(value: object, what: str, *, minimum: int | None = 0) -> int:
+    """``value`` if it is an exact integer, never a boolean or a float, at least ``minimum`` if one.
 
     >>> require_integer(True, "attempt")
     Traceback (most recent call last):
     ...
     ValueError: attempt is an integer, got True
+    >>> require_integer(-5, "a bound", minimum=None)
+    -5
     """
     if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{what} is an integer, got {value!r}")
-    if value < minimum:
+    if minimum is not None and value < minimum:
         raise ValueError(f"{what} is at least {minimum}, got {value}")
     return value
 

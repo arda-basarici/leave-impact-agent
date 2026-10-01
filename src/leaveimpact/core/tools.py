@@ -180,8 +180,8 @@ class IntegerArgument:
     maximum: int
 
     def __post_init__(self) -> None:
-        require_integer(self.minimum, f"{self.name}: minimum", minimum=-(2**63))
-        require_integer(self.maximum, f"{self.name}: maximum", minimum=-(2**63))
+        require_integer(self.minimum, f"{self.name}: minimum", minimum=None)
+        require_integer(self.maximum, f"{self.name}: maximum", minimum=None)
         if self.minimum > self.maximum:
             raise ValueError(
                 f"{self.name}: the bounds are ordered, got {self.minimum}..{self.maximum}"
