@@ -300,8 +300,11 @@ class TruthManifest:
 
     The assembled world holds this beside what it planted; this is the projection of it the
     file holds, so the file's codec is a round trip over one value, as the world spec's is
-    over ``PlantedWorldSpec``. ``materialization`` is ``None`` exactly when no scenario
-    carries a brief, the invariant the composed world states over the same two things.
+    over ``PlantedWorldSpec``. ``materialization`` names exactly the briefed targets, the
+    invariant the composed world states over the same two things. A world without briefs
+    therefore holds either no record, when no prose stage ran, or a record of no targets,
+    which the generator's fresh stage seals with the models it was handed and the cap it
+    ran under; both are valid and neither is the other.
     """
 
     scenarios: tuple[TruthScenario, ...]

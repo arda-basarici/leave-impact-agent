@@ -303,10 +303,11 @@ class WorldSpec(SemanticWorld):
 
     Built by the composition module and never by hand: ``semantic_digest`` is the hash of
     the semantic world this was composed from, computed there so no caller passes one, and
-    ``materialization`` is the provenance of every accepted text, ``None`` exactly when
-    the world had no pending prose. The invariant a composed world adds is that every
-    brief's target is now a part of its parent and every prose-authored fact resolves to a
-    part that exists.
+    ``materialization`` is the provenance of every accepted text, naming exactly the
+    briefed targets: ``None`` only for a world with no pending prose, which may equally
+    carry a record of no targets when a prose stage ran with nothing to write. The
+    invariant a composed world adds is that every brief's target is now a part of its
+    parent and every prose-authored fact resolves to a part that exists.
     """
 
     semantic_digest: str

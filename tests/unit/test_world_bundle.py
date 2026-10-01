@@ -237,6 +237,14 @@ def test_a_truth_manifest_names_a_scenario_once_and_its_record_covers_its_briefs
     manifest = truth_manifest_of(world)
     with pytest.raises(ValueError, match="scenario ids are unique"):
         replace(manifest, scenarios=(*manifest.scenarios, manifest.scenarios[0]))
+    # A world without briefs holds no record, or the record of no targets the fresh stage
+    # seals when it ran with nothing to write: two valid shapes, two different byte streams.
+    assert manifest.materialization is None
+    stage_ran = replace(manifest, materialization=record_for({}))
+    assert encode_truth_manifest(manifest)["materialization"] is None
+    assert encode_truth_manifest(stage_ran)["materialization"] is not None
+    with pytest.raises(ValueError, match="the materialization record covers"):
+        replace(manifest, materialization=record_for({}, extra_targets=["comment_001"]))
     scenario = pending_scenario()
     [brief] = scenario.briefs
     body = "Deniz has been running the Kafka side of the retry-queue migration."
