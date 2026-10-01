@@ -8,6 +8,7 @@ version fails the suite and re-cutting the pins is the deliberate act that accom
 bump."""
 
 import json
+from dataclasses import replace
 from datetime import date
 
 import pytest
@@ -20,13 +21,16 @@ from leaveimpact.world import (
     WORLD_SPEC,
     Bundle,
     GeneratorVersion,
+    TruthKey,
     WorldSpec,
     assemble_semantic_world,
     assemble_world,
     bundle,
     canonical_bytes,
     compose,
+    encode_truth_manifest,
     semantic_digest,
+    truth_manifest_of,
     world_version,
 )
 from leaveimpact.world.artifacts import document_bytes
@@ -157,6 +161,88 @@ def test_the_truth_manifest_holds_keys_authored_facts_and_the_dated_fact_base_an
     assert len(truth["facts"]["facts"]) == len(world.facts.facts)
     assert all("observable_from" in fact for fact in truth["facts"]["facts"])
     assert truth["materialization"] is None  # no model wrote anything
+
+
+def test_the_truth_manifest_value_is_the_projection_the_file_encodes(
+    sealed: Bundle, world: WorldSpec
+) -> None:
+    manifest = truth_manifest_of(world)
+    assert manifest.facts == world.facts
+    assert manifest.materialization is world.materialization
+    for row, scenario in zip(manifest.scenarios, world.scenarios, strict=True):
+        key = scenario.key
+        assert (row.authored_facts, row.briefs) == (scenario.authored_facts, scenario.briefs)
+        assert (row.key.scenario_id, row.key.tier, row.key.scenario_class, row.key.modifiers) == (
+            key.scenario_id,
+            key.tier,
+            key.scenario_class,
+            key.modifiers,
+        )
+        assert (row.key.impacts, row.key.constraints, row.key.distractors) == (
+            key.impacts,
+            key.constraints,
+            key.distractors,
+        )
+        assert row.key.required_sources == key.required_sources
+        # A key built today states both derived sets, an empty one included, never unavailable.
+        assert row.key.expected_conflicts == key.expected_conflicts
+        assert row.key.expected_unknowns == key.expected_unknowns
+        assert not hasattr(row.key, "stable_interval")
+    assert canonical_bytes(encode_truth_manifest(manifest)) == sealed.truth_manifest.content
+
+
+def test_a_key_without_a_derived_set_encodes_no_field_for_it_and_each_set_stands_alone(
+    world: WorldSpec,
+) -> None:
+    manifest = truth_manifest_of(world)
+    first, *rest = manifest.scenarios
+
+    def encoded_keys(key: TruthKey) -> list[dict[str, object]]:
+        older = replace(manifest, scenarios=(replace(first, key=key), *rest))
+        truth = json.loads(canonical_bytes(encode_truth_manifest(older)))
+        return [row["key"] for row in truth["scenarios"]]
+
+    one, untouched, *_ = encoded_keys(replace(first.key, expected_conflicts=None))
+    assert "expected_conflicts" not in one and one["expected_unknowns"] == []
+    assert untouched["expected_conflicts"] == []
+    neither, *_ = encoded_keys(replace(first.key, expected_conflicts=None, expected_unknowns=None))
+    # The fields a key sealed before both sets holds, in the order the bytes carry them.
+    assert list(neither) == [
+        "scenario_id",
+        "tier",
+        "scenario_class",
+        "modifiers",
+        "impacts",
+        "constraints",
+        "distractors",
+        "required_sources",
+    ]
+
+
+def test_a_truth_key_holds_the_invariants_of_the_key_it_was_projected_from(
+    world: WorldSpec,
+) -> None:
+    key = truth_manifest_of(world).scenarios[0].key
+    with pytest.raises(ValueError, match="impact keys are unique"):
+        replace(key, impacts=key.impacts * 2)
+    with pytest.raises(ValueError, match="at least one impact"):
+        replace(key, impacts=())
+    with pytest.raises(ValueError, match="required_sources are listed once each"):
+        replace(key, required_sources=key.required_sources * 2)
+
+
+def test_a_truth_manifest_names_a_scenario_once_and_its_record_covers_its_briefs(
+    world: WorldSpec,
+) -> None:
+    manifest = truth_manifest_of(world)
+    with pytest.raises(ValueError, match="scenario ids are unique"):
+        replace(manifest, scenarios=(*manifest.scenarios, manifest.scenarios[0]))
+    scenario = pending_scenario()
+    [brief] = scenario.briefs
+    body = "Deniz has been running the Kafka side of the retry-queue migration."
+    composed = compose(semantic_world_of(scenario), {brief.id: body}, record_for({brief.id: body}))
+    with pytest.raises(ValueError, match="the materialization record covers"):
+        replace(truth_manifest_of(composed), materialization=None)
 
 
 def test_the_briefs_and_the_record_seal_in_the_truth_manifest_and_nowhere_else() -> None:

@@ -292,33 +292,52 @@ class ScenarioKey:
     expected_unknowns: tuple[ExpectedUnknown, ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.impacts:
-            raise ValueError(f"a scenario plants at least one impact, {self.scenario_id} has none")
-        keys = [expected.key for expected in self.impacts]
-        if len(set(keys)) != len(keys):
-            raise ValueError(f"impact keys are unique within a scenario, got {keys}")
-        for name, values in (
-            ("modifiers", self.modifiers),
-            ("constraints", self.constraints),
-            ("required_sources", self.required_sources),
-            ("expected_conflicts", self.expected_conflicts),
-            ("expected_unknowns", self.expected_unknowns),
-        ):
-            if len(set(values)) != len(values):
-                raise ValueError(f"{name} are listed once each, got {values}")
-        # A distractor is one entity with one planted reason: a false positive is graded
-        # into the bucket of that reason, and an entity in two buckets would count one
-        # mistake twice. An entity wrong for two reasons becomes a tuple of reasons on
-        # the record when a class needs it, never a second entry.
-        distracting = [distractor.entity for distractor in self.distractors]
-        if len(set(distracting)) != len(distracting):
-            raise ValueError(f"a distractor entity is listed once, got {distracting}")
-        artifacts = {expected.key.artifact for expected in self.impacts}
-        both = sorted(ref.id for ref in artifacts & set(distracting))
-        if both:
-            raise ValueError(
-                f"an expected impact's artifact is never also a near-miss, got {both} as both"
-            )
+        require_coherent_key(
+            self.scenario_id,
+            self.impacts,
+            self.distractors,
+            modifiers=self.modifiers,
+            constraints=self.constraints,
+            required_sources=self.required_sources,
+            expected_conflicts=self.expected_conflicts,
+            expected_unknowns=self.expected_unknowns,
+        )
+
+
+def require_coherent_key(
+    scenario_id: ScenarioId,
+    impacts: tuple[ExpectedImpact, ...],
+    distractors: tuple[NamedDistractor, ...],
+    **listed_once: tuple[object, ...],
+) -> None:
+    """Refuse a key's contents that cannot describe one scenario, whichever record holds them.
+
+    The key exists in two records, the construction's ``ScenarioKey`` and the sealed
+    file's own key, which carries no stable interval; both hold these invariants, so a
+    sealed key that decodes is one the construction could have built. ``listed_once``
+    names each field whose entries are a set written as a sequence.
+    """
+    if not impacts:
+        raise ValueError(f"a scenario plants at least one impact, {scenario_id} has none")
+    keys = [expected.key for expected in impacts]
+    if len(set(keys)) != len(keys):
+        raise ValueError(f"impact keys are unique within a scenario, got {keys}")
+    for name, values in listed_once.items():
+        if len(set(values)) != len(values):
+            raise ValueError(f"{name} are listed once each, got {values}")
+    # A distractor is one entity with one planted reason: a false positive is graded
+    # into the bucket of that reason, and an entity in two buckets would count one
+    # mistake twice. An entity wrong for two reasons becomes a tuple of reasons on
+    # the record when a class needs it, never a second entry.
+    distracting = [distractor.entity for distractor in distractors]
+    if len(set(distracting)) != len(distracting):
+        raise ValueError(f"a distractor entity is listed once, got {distracting}")
+    artifacts = {expected.key.artifact for expected in impacts}
+    both = sorted(ref.id for ref in artifacts & set(distracting))
+    if both:
+        raise ValueError(
+            f"an expected impact's artifact is never also a near-miss, got {both} as both"
+        )
 
 
 @dataclass(frozen=True, slots=True)

@@ -56,10 +56,13 @@ content, projected from the assembled world by a pure function; the encoder choo
 fields of its own. That makes the codec a round trip over one value, three separately
 provable claims — the projection yields the expected value, decoding an encoding yields
 the value, encoding a decoding of the sealed bytes yields the bytes — instead of a codec
-over a type the file cannot rebuild. The decoders for the spec and the scenario specs
-live in the sibling ``decoders`` module; the truth manifest's waits for its first
-consumer, the evaluator, since a decoder the validator is forbidden to use has no place
-where the validator can reach it.
+over a type the file cannot rebuild. The truth manifest is encoded the same way, from
+``TruthManifest``: its key is the file's own, without the stable interval the world spec
+carries and with each of the two derived sets present or unavailable, since a key sealed
+before those fields existed must re-encode to the bytes it was sealed as. The decoders
+for the spec and the scenario specs live in the sibling ``decoders`` module; the truth
+manifest's waits for its first consumer, the evaluator, since a decoder the validator is
+forbidden to use has no place where the validator can reach it.
 """
 
 from __future__ import annotations
@@ -81,6 +84,7 @@ from leaveimpact.core.entities_json import (
     encode_team,
     encode_work_item,
 )
+from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import Fact, FactBase, Gap
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
@@ -106,12 +110,16 @@ from leaveimpact.world.scenario import (
     ExpectedConflict,
     ExpectedImpact,
     ExpectedUnknown,
+    ModifierName,
     NamedDistractor,
     OwnedEntities,
     Planted,
     Scenario,
+    ScenarioClassName,
     ScenarioKey,
     ScenarioSpec,
+    Tier,
+    require_coherent_key,
 )
 from leaveimpact.world.version import GeneratorVersion
 
@@ -238,6 +246,117 @@ def planted_world_spec(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class TruthKey:
+    """A scenario's key exactly as the truth manifest holds it: no stable interval, which the
+    world spec's planting row carries, and the two derived sets present or unavailable.
+
+    ``expected_conflicts`` and ``expected_unknowns`` joined the key after the first worlds
+    were sealed. ``None`` is a key sealed before the field existed, written as no field at
+    all; an empty tuple is a key that expects none, written as an empty list. The two are
+    different statements and a reader keeps them apart: unavailable is never graded as
+    "none expected". The projection of an assembled world always states both, so ``None``
+    arises only from decoding older bytes, and each field is unavailable on its own.
+    """
+
+    scenario_id: ScenarioId
+    tier: Tier
+    scenario_class: ScenarioClassName
+    modifiers: tuple[ModifierName, ...]
+    impacts: tuple[ExpectedImpact, ...]
+    constraints: tuple[ConstraintKey, ...]
+    distractors: tuple[NamedDistractor, ...]
+    required_sources: tuple[Source, ...]
+    expected_conflicts: tuple[ExpectedConflict, ...] | None
+    expected_unknowns: tuple[ExpectedUnknown, ...] | None
+
+    def __post_init__(self) -> None:
+        require_coherent_key(
+            self.scenario_id,
+            self.impacts,
+            self.distractors,
+            modifiers=self.modifiers,
+            constraints=self.constraints,
+            required_sources=self.required_sources,
+            expected_conflicts=self.expected_conflicts or (),
+            expected_unknowns=self.expected_unknowns or (),
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class TruthScenario:
+    """One scenario's row of the truth manifest: its key, the facts only the world could plant,
+    and the briefs its model-written parts were asked to carry."""
+
+    key: TruthKey
+    authored_facts: tuple[Fact, ...]
+    briefs: tuple[Brief, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class TruthManifest:
+    """Exactly the content of the truth manifest file: every scenario's row, the dated
+    world-level fact base, and the record of the model-written texts.
+
+    The assembled world holds this beside what it planted; this is the projection of it the
+    file holds, so the file's codec is a round trip over one value, as the world spec's is
+    over ``PlantedWorldSpec``. ``materialization`` is ``None`` exactly when no scenario
+    carries a brief, the invariant the composed world states over the same two things.
+    """
+
+    scenarios: tuple[TruthScenario, ...]
+    facts: FactBase
+    materialization: MaterializationRecord | None
+
+    def __post_init__(self) -> None:
+        ids = [row.key.scenario_id for row in self.scenarios]
+        if len(set(ids)) != len(ids):
+            raise ValueError(f"scenario ids are unique within a truth manifest, got {ids}")
+        briefed = [brief.id for row in self.scenarios for brief in row.briefs]
+        if len(set(briefed)) != len(briefed):
+            raise ValueError(f"a prose target is briefed once world-wide, got {briefed}")
+        recorded: frozenset[str] = (
+            frozenset() if self.materialization is None else self.materialization.target_ids
+        )
+        if recorded != frozenset(briefed):
+            raise ValueError(
+                f"the materialization record covers {sorted(recorded)} and the briefs name "
+                f"{sorted(briefed)}"
+            )
+
+
+def truth_manifest_of(world: WorldSpec) -> TruthManifest:
+    """The truth manifest's content for ``world``: every key without its stable interval, the
+    authored facts and briefs beside it, the fact base and the record."""
+    return TruthManifest(
+        scenarios=tuple(truth_scenario_of(scenario) for scenario in world.scenarios),
+        facts=world.facts,
+        materialization=world.materialization,
+    )
+
+
+def truth_scenario_of(scenario: Scenario) -> TruthScenario:
+    """``scenario``'s row of the truth manifest; its plantings are the world spec's row."""
+    return TruthScenario(truth_key_of(scenario.key), scenario.authored_facts, scenario.briefs)
+
+
+def truth_key_of(key: ScenarioKey) -> TruthKey:
+    """``key`` as the file holds it: the stable interval left to the world spec, both derived
+    sets stated, since a key built today always has them."""
+    return TruthKey(
+        scenario_id=key.scenario_id,
+        tier=key.tier,
+        scenario_class=key.scenario_class,
+        modifiers=key.modifiers,
+        impacts=key.impacts,
+        constraints=key.constraints,
+        distractors=key.distractors,
+        required_sources=key.required_sources,
+        expected_conflicts=key.expected_conflicts,
+        expected_unknowns=key.expected_unknowns,
+    )
+
+
 def semantic_digest(semantic: SemanticWorld) -> str:
     """The SHA-256 of the semantic world's canonical encoding: the identity of what a seed means.
 
@@ -263,7 +382,7 @@ def encode_semantic_world(semantic: SemanticWorld) -> JsonObject:
                 "spec": _spec(scenario.spec),
                 "stable_interval": encode_date_span(scenario.key.stable_interval),
                 "owned": _owned(scenario.owned),
-                **_construction(scenario),
+                **_truth_scenario(truth_scenario_of(scenario)),
             }
             for scenario in semantic.scenarios
         ],
@@ -276,7 +395,7 @@ def bundle(world: WorldSpec) -> Bundle:
     specs = _artifact(
         SCENARIO_SPECS, encode_scenario_specs([scenario.spec for scenario in world.scenarios])
     )
-    truth = _artifact(TRUTH_MANIFEST, encode_truth_manifest(world))
+    truth = _artifact(TRUTH_MANIFEST, encode_truth_manifest(truth_manifest_of(world)))
     planted = planted_world_spec(world, specs.digest, truth.digest)
     spec = _artifact(WORLD_SPEC, encode_world_spec(planted))
     return Bundle(spec, specs, truth, world_version((spec, specs, truth)))
@@ -325,14 +444,16 @@ def encode_scenario_specs(specs: Sequence[ScenarioSpec]) -> JsonObject:
     return {"artifact": SCENARIO_SPECS, "scenarios": [_spec(spec) for spec in specs]}
 
 
-def encode_truth_manifest(world: WorldSpec) -> JsonObject:
+def encode_truth_manifest(manifest: TruthManifest) -> JsonObject:
     """Evaluator-only: every key, authored facts and briefs, the dated fact base, the record."""
     return {
         "artifact": TRUTH_MANIFEST,
-        "scenarios": [_construction(scenario) for scenario in world.scenarios],
-        "facts": _fact_base(world.facts),
+        "scenarios": [_truth_scenario(row) for row in manifest.scenarios],
+        "facts": _fact_base(manifest.facts),
         "materialization": (
-            None if world.materialization is None else encode_materialization(world.materialization)
+            None
+            if manifest.materialization is None
+            else encode_materialization(manifest.materialization)
         ),
     }
 
@@ -395,12 +516,12 @@ def _planting(planting: ScenarioPlanting) -> JsonObject:
     }
 
 
-def _construction(scenario: Scenario) -> JsonObject:
+def _truth_scenario(row: TruthScenario) -> JsonObject:
     """The key, the authored facts and the briefs; the plantings are the world spec's row."""
     return {
-        "key": _key(scenario.key),
-        "authored_facts": [encode_fact(fact) for fact in scenario.authored_facts],
-        "briefs": [_brief(brief) for brief in scenario.briefs],
+        "key": _key(row.key),
+        "authored_facts": [encode_fact(fact) for fact in row.authored_facts],
+        "briefs": [_brief(brief) for brief in row.briefs],
     }
 
 
@@ -508,9 +629,10 @@ def encode_proposition(read: Proposition) -> JsonObject:
     }
 
 
-def _key(key: ScenarioKey) -> JsonObject:
-    """The key without its stable interval, which the world spec's row carries."""
-    return {
+def _key(key: TruthKey) -> JsonObject:
+    """The key as sealed. A derived set the key does not have is written as no field, never
+    as an empty list, so a key sealed before the field re-encodes to the bytes it was."""
+    encoded: JsonObject = {
         "scenario_id": key.scenario_id,
         "tier": key.tier.value,
         "scenario_class": key.scenario_class.value,
@@ -519,9 +641,12 @@ def _key(key: ScenarioKey) -> JsonObject:
         "constraints": [_constraint(constraint) for constraint in key.constraints],
         "distractors": [_distractor(distractor) for distractor in key.distractors],
         "required_sources": [source.value for source in key.required_sources],
-        "expected_conflicts": [_expected_conflict(c) for c in key.expected_conflicts],
-        "expected_unknowns": [_expected_unknown(u) for u in key.expected_unknowns],
     }
+    if key.expected_conflicts is not None:
+        encoded["expected_conflicts"] = [_expected_conflict(c) for c in key.expected_conflicts]
+    if key.expected_unknowns is not None:
+        encoded["expected_unknowns"] = [_expected_unknown(u) for u in key.expected_unknowns]
+    return encoded
 
 
 def _expected_conflict(conflict: ExpectedConflict) -> JsonObject:
