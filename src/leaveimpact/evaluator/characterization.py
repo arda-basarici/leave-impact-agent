@@ -11,10 +11,11 @@ scenario plants is readable when an earlier one runs, and the dated view hides i
 The evaluator grades against runtime truth (the oracle module says why). This module
 measures what that choice rests on, for one world and one run condition: the oracle's own
 question, what do the rules conclude about this scenario, is asked of both views and the
-two answers are compared part by part. Whether the leave is readable at all; the impacts
-the rules ground; for each impact both views expect, every organization member's verdict
-and reasons, the questions an unknown verdict leaves open, the requirements that apply
-and the outcome; the expected constraints; the expected conflicts; the expected unknowns.
+two answers are compared part by part. Whether there is an answer at all (the leave and
+the policy both readable); the impacts the rules ground; for each impact both views
+expect, every organization member's verdict and reasons, the questions an unknown verdict
+leaves open, the requirements that apply and the outcome; the expected constraints; the
+expected conflicts; the expected unknowns.
 That is everything a report is graded against, so a comparison in which no part differs
 says a dated oracle would have graded every item of that scenario the same, and one in
 which a part differs names the part.
@@ -92,7 +93,7 @@ class ViewComparison:
     def counts(self) -> dict[str, int]:
         """How many differences each part holds, by the part's name: counts and no content."""
         return {
-            "the leave readable in one view only": len(self.state_differences),
+            "answerable in one view only": len(self.state_differences),
             "impact sets": len(self.impact_set_differences),
             "must-assess verdicts": sum(d.probed for d in self.verdict_differences),
             "other verdicts": sum(not d.probed for d in self.verdict_differences),

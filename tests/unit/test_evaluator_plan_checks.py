@@ -2,9 +2,10 @@
 and coherence fail apart — a plan naming someone the report wrongly calls viable is coherent and
 invalid, a plan short of a clause's count is invalid, and incoherent only when the report cited
 the clause; a stranger is named as one; an assignee the report never assessed is the report's own
-inconsistency; a cited clause nobody can read makes the check uncheckable, never a pass. Coverage
-follows the oracle's outcome for the truth-side count and the report's own for its coherence, and
-each omission is counted in one place."""
+inconsistency; a cited clause nobody can read makes the check uncheckable for an action of any
+kind, never a pass. A coverage gap is called for by the oracle's outcome, by the report's own
+conclusion, or by both, and one omission is one record: a colleague missing where the two agree is
+one gap, and a probed candidate left out is a recall miss and no gap at all."""
 
 from dataclasses import replace
 
@@ -24,10 +25,12 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.ids import ClauseId, EmployeeId, claim_id
 from leaveimpact.core.plans import Violation
-from leaveimpact.evaluator.oracle import Answerable, ImpactTruth, oracle_for
+from leaveimpact.evaluator.oracle import Answerable, ImpactTruth, oracle_for, runtime_truth
 from leaveimpact.evaluator.plan_checks import (
     CheckFamily,
     CheckFinding,
+    CoverageGap,
+    coverage_gaps,
     oracle_checks,
     report_checks,
 )
@@ -62,7 +65,11 @@ def expecting(world: SealedWorld, *outcomes: CoverageActionKind) -> tuple[Answer
 
 
 def coherence(oracle: Answerable, claims: tuple[Claim, ...]) -> tuple[CheckFinding, ...]:
-    return report_checks(claims, oracle.scenario, oracle.view, oracle.universe)
+    return report_checks(claims, oracle.scenario, oracle.view)
+
+
+def gaps(oracle: Answerable, claims: tuple[Claim, ...]) -> tuple[CoverageGap, ...]:
+    return coverage_gaps(claims, oracle.scenario, oracle.universe, oracle)
 
 
 def families(findings: tuple[CheckFinding, ...]) -> list[CheckFamily]:
@@ -104,34 +111,7 @@ def test_a_truthful_report_raises_nothing_where_the_condition_is_well_posed(
             report = truthful_report(oracle)
             assert oracle_checks(oracle, report) == (), (scenario.spec.id, condition)
             assert coherence(oracle, report) == (), (scenario.spec.id, condition)
-
-
-def test_under_a_corpus_outage_the_oracles_own_answer_is_valid_and_not_chain_coherent(
-    world: SealedWorld,
-) -> None:
-    """An open finding, held here so it cannot be forgotten, not a behaviour to keep.
-
-    With the corpus down a sealed constraint's clause is unreadable, so the oracle expects
-    no constraint claim, and it expects every candidate unknown on what that clause
-    requires. The chain rule admits an unknown about a clause only when the report cites
-    the clause as a constraint. So the oracle's own answer, stated as a report, fails the
-    chain on every such assessment: under this condition no report can be both what the
-    oracle expects and coherent, and no run could name the clause at all, since only the
-    corpus says which clause applies. What the truth is under a corpus outage is ruled
-    with the outage set, before that condition is graded.
-    """
-    corpus_down = NORMAL.without(Source.CORPUS)
-    incoherent = 0
-    for scenario in world.scenarios:
-        oracle = answer(world, scenario, corpus_down)
-        report = truthful_report(oracle)
-        assert oracle_checks(oracle, report) == ()
-        findings = coherence(oracle, report)
-        assert set(families(findings)) <= {CheckFamily.CHAIN}
-        # Exactly the scenarios whose key seals a constraint the outage leaves unread.
-        assert bool(findings) == bool(scenario.key.constraints and oracle.impacts), scenario.spec.id
-        incoherent += bool(findings)
-    assert incoherent
+            assert gaps(oracle, report) == (), (scenario.spec.id, condition)
 
 
 def test_the_checks_refuse_a_structurally_invalid_claim_set(world: SealedWorld) -> None:
@@ -142,6 +122,8 @@ def test_the_checks_refuse_a_structurally_invalid_claim_set(world: SealedWorld) 
         oracle_checks(oracle, twice)
     with pytest.raises(ValueError, match="not well-formed"):
         coherence(oracle, twice)
+    with pytest.raises(ValueError, match="not well-formed"):
+        gaps(oracle, twice)
 
 
 # --- Validity against coherence -------------------------------------------------------------
@@ -253,31 +235,34 @@ def test_a_cited_clause_nobody_can_read_makes_the_check_uncheckable_and_never_a_
     ]
     assert finding.uncheckable and finding.impact == truth.key
     assert isinstance(finding.result, str) and "clause_999" in finding.result
-    # A real clause whose source is down is uncheckable the same way.
-    scenario = next(s for s in world.scenarios if s.key.constraints)
-    corpus_down = answer(world, scenario, NORMAL.without(Source.CORPUS))
-    remaining = corpus_down.impacts[0]
-    sealed = next(c for c in scenario.key.constraints if c.applies_to == remaining.key.artifact)
-    degraded = truthful_report(corpus_down)
-    action = action_on(degraded, remaining)
-    assigning = replace(
-        action,
-        action=CoverageActionKind.ASSIGN,
-        assignee_ids=(corpus_down.universe[0],),
-        derived_from_claim_ids=(),
-    )
-    cited = Constraint(
-        claim_id=claim_id(SPARE),
-        evidence_refs=(),
-        clause_id=sealed.clause_id,
-        applies_to=sealed.applies_to,
+    # An action that names nobody cites it too, and that is recorded all the same: the
+    # clause is resolved before the plan rule is asked anything.
+    action = action_on(report, truth)
+    for kind in (CoverageActionKind.UNCOVERED, CoverageActionKind.UNKNOWN):
+        naming_nobody = replace(action, action=kind, assignee_ids=(), derived_from_claim_ids=())
+        [recorded] = [
+            f
+            for f in coherence(oracle, (*swapped(report, action, naming_nobody), invented))
+            if f.family is CheckFamily.DECLARED_CONSTRAINT
+        ]
+        assert recorded.uncheckable and "clause_999" in str(recorded.result)
+    # A real clause whose source is down is uncheckable the same way. No oracle answers
+    # under that condition, and the report's own checks need none: the view is enough.
+    governed = next(answer(world, s) for s in world.scenarios if answer(world, s).constraints)
+    corpus_down = runtime_truth(world, governed.scenario).at(
+        governed.scenario.spec.today, NORMAL.without(Source.CORPUS)
     )
     unreadable = [
         f
-        for f in coherence(corpus_down, (*swapped(degraded, action, assigning), cited))
+        for f in report_checks(truthful_report(governed), governed.scenario, corpus_down)
         if f.family is CheckFamily.DECLARED_CONSTRAINT
     ]
-    assert [f.uncheckable for f in unreadable] == [True]
+    assert unreadable and all(f.uncheckable for f in unreadable)
+    assert {f.impact for f in unreadable} == {
+        truth.key
+        for truth in governed.impacts
+        if any(c.applies_to == truth.key.artifact for c in governed.constraints)
+    }
 
 
 def test_an_unknown_assessment_with_nothing_behind_it_is_a_chain_finding(
@@ -295,39 +280,46 @@ def test_an_unknown_assessment_with_nothing_behind_it_is_a_chain_finding(
 # --- Coverage -------------------------------------------------------------------------------
 
 
-def test_where_the_truth_concludes_about_everyone_an_unassessed_colleague_is_counted_once(
+def test_a_colleague_missing_where_the_oracle_and_the_report_agree_is_one_gap_with_both_causes(
     world: SealedWorld,
 ) -> None:
     oracle, truth = expecting(world, CoverageActionKind.UNCOVERED)
     report = truthful_report(oracle)
     colleague = next(e for e in oracle.universe if e not in truth.probe)
     skipped = without(report, assessment_of(report, truth, colleague))
-    [against_truth] = oracle_checks(oracle, skipped)
-    assert against_truth.family is CheckFamily.ORACLE_COVERAGE
-    assert (against_truth.impact, against_truth.people) == (truth.key, (colleague,))
-    # The report itself says uncovered, so its own conclusion is unentitled too.
-    [own] = coherence(oracle, skipped)
-    assert (own.family, own.people) == (CheckFamily.REPORT_COVERAGE, (colleague,))
-    # A probed candidate left out is a recall miss on its row and no coverage finding.
+    [gap] = gaps(oracle, skipped)
+    assert (gap.impact, gap.missing) == (truth.key, (colleague,))
+    assert (gap.required_by_oracle, gap.required_by_report) == (True, True)
+    # The omission is a gap and nothing else: no finding of either check names it.
+    assert oracle_checks(oracle, skipped) == () and coherence(oracle, skipped) == ()
+
+
+def test_a_probed_candidate_left_out_is_a_recall_miss_and_no_gap(world: SealedWorld) -> None:
+    oracle, truth = expecting(world, CoverageActionKind.UNCOVERED)
+    report = truthful_report(oracle)
     probed = assessment_of(report, truth, truth.probe[0])
-    assert oracle_checks(oracle, without(report, probed)) == ()
+    silent = without(report, probed)
+    # Called for by the oracle and by the report's own uncovered, and still not a gap.
+    assert gaps(oracle, silent) == ()
+    assert coverage_gaps(silent, oracle.scenario, oracle.universe) == ()
 
 
-def test_oracle_coverage_holds_whatever_action_the_report_chose(world: SealedWorld) -> None:
+def test_the_oracle_calls_for_everyone_whatever_action_the_report_chose(
+    world: SealedWorld,
+) -> None:
     oracle, truth = expecting(world, CoverageActionKind.UNCOVERED, CoverageActionKind.UNKNOWN)
     report = truthful_report(oracle)
-    kept = {*truth.probe}
     someone = truth.probe[0]
     action = action_on(report, truth)
     # A report that assigns somebody and assesses only the probe set: the wrong action does
     # not lift the burden the right one carries.
-    assessments = [
+    outside = [
         a
         for a in of_type(report, CandidateAssessment)
-        if a.impact_key == truth.key and a.employee_id not in kept
+        if a.impact_key == truth.key and a.employee_id not in truth.probe
     ]
     hasty = swapped(
-        without(report, *assessments),
+        without(report, *outside),
         action,
         replace(
             action,
@@ -336,14 +328,13 @@ def test_oracle_coverage_holds_whatever_action_the_report_chose(world: SealedWor
             derived_from_claim_ids=(),
         ),
     )
-    coverage = [f for f in oracle_checks(oracle, hasty) if f.family is CheckFamily.ORACLE_COVERAGE]
-    [finding] = coverage
-    assert len(finding.people) == len(oracle.universe) - len(truth.probe)
-    # Its own action is an assign, which quantifies over nobody: no report-coverage finding.
-    assert CheckFamily.REPORT_COVERAGE not in families(coherence(oracle, hasty))
+    [gap] = gaps(oracle, hasty)
+    assert len(gap.missing) == len(oracle.universe) - len(truth.probe)
+    # Its own action is an assign, which quantifies over nobody.
+    assert (gap.required_by_oracle, gap.required_by_report) == (True, False)
 
 
-def test_a_report_that_concludes_uncovered_without_looking_is_unentitled_to_it(
+def test_a_report_that_concludes_uncovered_without_looking_calls_for_everyone_itself(
     world: SealedWorld,
 ) -> None:
     oracle, truth = expecting(world, CoverageActionKind.ASSIGN)
@@ -359,8 +350,19 @@ def test_a_report_that_concludes_uncovered_without_looking_is_unentitled_to_it(
         action,
         replace(action, action=CoverageActionKind.UNCOVERED, assignee_ids=()),
     )
-    # The truth expects an assign, a conclusion about its assignees only: no oracle coverage.
-    assert CheckFamily.ORACLE_COVERAGE not in families(oracle_checks(oracle, gave_up))
-    own = [f for f in coherence(oracle, gave_up) if f.family is CheckFamily.REPORT_COVERAGE]
-    [finding] = own
-    assert finding.impact == truth.key and len(finding.people) == len(outside)
+    # The truth expects an assign, a conclusion about its assignees only.
+    [gap] = gaps(oracle, gave_up)
+    assert gap.impact == truth.key and len(gap.missing) == len(outside)
+    assert (gap.required_by_oracle, gap.required_by_report) == (False, True)
+    # With no oracle to ask (a run with no claim-level answer) the report's own conclusion
+    # still calls for everyone.
+    [alone] = coverage_gaps(gave_up, oracle.scenario, oracle.universe)
+    assert (alone.missing, alone.required_by_oracle) == (gap.missing, False)
+
+
+def test_a_gap_names_somebody_and_says_who_called_for_them(world: SealedWorld) -> None:
+    oracle, truth = expecting(world, CoverageActionKind.UNCOVERED)
+    with pytest.raises(ValueError, match="names at least one unassessed colleague"):
+        CoverageGap(truth.key, (), True, False)
+    with pytest.raises(ValueError, match="called for by the oracle, the report or both"):
+        CoverageGap(truth.key, (oracle.universe[0],), False, False)

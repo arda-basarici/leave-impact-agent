@@ -16,13 +16,23 @@ when this scenario runs, a run can read it, and a truth that hid it would grade 
 reading wrong; the sealed keys were proven under both views, and what the key does not
 hold is derived under this one.
 
-The oracle answers in one of two states. *Answerable*: the investigated leave's record is
-readable under the condition, and the rules' conclusions follow. *Unreadable leave*: it is
-not, so the run could establish neither who is leaving nor when, and there is no
-claim-level expectation at all. That is a state and not an empty answer, since an empty
-expected set would let a silent report score perfectly. The rules take the leave's span
-as a premise and would go on concluding without the record, which is why the precondition
-is asked first.
+The oracle answers in one of three states, and two of them are the absence of an answer.
+*Answerable*: the rules' conclusions follow. *Unreadable leave*: the investigated leave's
+record is not readable under the condition, so the run could establish neither who is
+leaving nor when. *Unreadable policy*: the source that holds what clauses require is
+unreachable. In both there is no claim-level expectation at all, which is a state and not
+an empty answer, since an empty expected set would let a silent report score perfectly.
+
+Both are asked before the rules because the rules would go on concluding without them.
+They take the leave's span as a premise. And they take the sealed constraints as an
+input, which is knowledge only the policy source gives a run: which clause applies to an
+artifact, and whether any does. With that source down the rules still say "unknown" for an
+impact a clause governs and leave an ungoverned one unchanged, a distinction no run can
+see. A system that always assigns would be right on the ungoverned impacts and one that
+always says unknown on the governed ones, neither on both except by luck, and the
+expected unknowns would name a clause nobody could have read. So the state holds for every
+scenario under that condition, governed or not, and it is stated by the evidence domain of
+what a clause requires, not by a source's name.
 
 Under a condition the expected impacts are the ones the rules ground there
 (``derive_impacts``), never the sealed impacts filtered afterwards; only a grounded
@@ -49,7 +59,7 @@ from leaveimpact.core.facts import FactBase, FactView, RunCondition
 from leaveimpact.core.grounding import derive_impacts
 from leaveimpact.core.ids import EmployeeId
 from leaveimpact.core.plans import expected_action, required_count
-from leaveimpact.core.predicates import PredicateName
+from leaveimpact.core.predicates import PredicateName, predicate
 from leaveimpact.core.refs import EntityRef, clause_ref
 from leaveimpact.core.viability import (
     Assessment,
@@ -136,7 +146,17 @@ class UnreadableLeave:
     condition: RunCondition
 
 
-type Oracle = Answerable | UnreadableLeave
+@dataclass(frozen=True, slots=True)
+class UnreadablePolicy:
+    """What clauses require cannot be read under ``condition``, so which constraints govern an
+    impact, and whether any does, is something no run could establish: no claim-level
+    expectation exists, for a scenario a clause governs and for one none does alike."""
+
+    scenario: Scenario
+    condition: RunCondition
+
+
+type Oracle = Answerable | UnreadableLeave | UnreadablePolicy
 
 
 def runtime_truth(world: SealedWorld, scenario: Scenario) -> FactBase:
@@ -154,9 +174,9 @@ def runtime_truth(world: SealedWorld, scenario: Scenario) -> FactBase:
 def oracle_for(world: SealedWorld, scenario: Scenario, condition: RunCondition) -> Oracle:
     """What the rules conclude about ``scenario`` of ``world`` under ``condition``.
 
-    ``UnreadableLeave`` when the leave's record is not readable there. Raises
-    ``OracleDisagrees`` when ``condition`` is the normal one and the answer is not the
-    sealed key.
+    ``UnreadableLeave`` when the leave's record is not readable there, ``UnreadablePolicy``
+    when what clauses require is not; the leave is asked first. Raises ``OracleDisagrees``
+    when ``condition`` is the normal one and the answer is not the sealed key.
     """
     view = runtime_truth(world, scenario).at(scenario.spec.today, condition)
     answer = conclusions_in(world, scenario, view)
@@ -177,6 +197,8 @@ def conclusions_in(world: SealedWorld, scenario: Scenario, view: FactView) -> Or
     condition = view.condition
     if not _leave_is_readable(view, scenario):
         return UnreadableLeave(scenario, condition)
+    if not condition.reaches(predicate(PredicateName.REQUIRES).evidence_domain):
+        return UnreadablePolicy(scenario, condition)
     key, spec, leave = scenario.key, scenario.spec, scenario.investigated_leave
     universe = tuple(employee.id for employee in world.org.employees)
     grounded = derive_impacts(
@@ -320,6 +342,7 @@ __all__ = [
     "Oracle",
     "OracleDisagrees",
     "UnreadableLeave",
+    "UnreadablePolicy",
     "conclusions_in",
     "oracle_for",
     "runtime_truth",

@@ -1,6 +1,7 @@
 """The oracle over a throwaway golden-plan world: under the normal condition it is the sealed key,
-and an answer that is not is a defect named without the key's content; an unreadable leave is a
-state and not an empty answer; under an outage a source the key does not require moves nothing
+and an answer that is not is a defect named without the key's content; an unreadable leave and
+an unreadable policy are states and not empty answers; under an outage of the tracker or the
+calendar a source the key does not require moves nothing
 and one it requires moves something, every moved verdict or outcome going to unknown or losing
 reasons; a lost impact carries no assessment and its constraint is not expected; a candidate
 outside the probe set still has a verdict."""
@@ -21,6 +22,7 @@ from leaveimpact.evaluator.oracle import (
     Answerable,
     OracleDisagrees,
     UnreadableLeave,
+    UnreadablePolicy,
     oracle_for,
 )
 from leaveimpact.evaluator.sealed_world import SealedWorld
@@ -28,7 +30,8 @@ from leaveimpact.world import Scenario
 from tests.unit.throwaway_world import loaded_world
 
 NORMAL = RunCondition.all_reachable()
-OUTAGES = (Source.JIRA, Source.CALENDAR, Source.CORPUS)
+OUTAGES = (Source.JIRA, Source.CALENDAR)
+"""The single-source outages the oracle answers under; the other two leave no answer."""
 
 
 @pytest.fixture(scope="module")
@@ -129,9 +132,28 @@ def test_a_leave_that_cannot_be_read_is_a_state_and_not_an_empty_answer(
         oracle = oracle_for(world, scenario, frappe_down)
         assert isinstance(oracle, UnreadableLeave)
         assert (oracle.scenario, oracle.condition) == (scenario, frappe_down)
-    # With the people system back the same scenario is answerable, whatever else is down.
-    others_down = NORMAL.without(Source.JIRA, Source.CALENDAR, Source.CORPUS)
+    # With the people system back the same scenario is answerable, the tracker and the
+    # calendar both down.
+    others_down = NORMAL.without(Source.JIRA, Source.CALENDAR)
     assert isinstance(oracle_for(world, world.scenarios[0], others_down), Answerable)
+
+
+def test_a_policy_that_cannot_be_read_leaves_no_answer_for_any_scenario(
+    world: SealedWorld,
+) -> None:
+    corpus_down = NORMAL.without(Source.CORPUS)
+    governed = ungoverned = 0
+    for scenario in world.scenarios:
+        oracle = oracle_for(world, scenario, corpus_down)
+        assert isinstance(oracle, UnreadablePolicy)
+        assert (oracle.scenario, oracle.condition) == (scenario, corpus_down)
+        governed += bool(scenario.key.constraints)
+        ungoverned += not scenario.key.constraints
+    # A scenario no clause governs has no answer either: a run cannot know that none does.
+    assert governed and ungoverned
+    # The leave is asked first: with both down it is the leave that is unreadable.
+    both_down = NORMAL.without(Source.FRAPPE, Source.CORPUS)
+    assert isinstance(oracle_for(world, world.scenarios[0], both_down), UnreadableLeave)
 
 
 # --- Outages --------------------------------------------------------------------------------
@@ -180,14 +202,16 @@ def test_what_an_outage_moves_goes_to_unknown_or_keeps_non_viable_with_fewer_rea
                         assert set(derived.reasons) < set(authored.reasons)
                     else:
                         assert derived.verdict is Verdict.UNKNOWN and derived.unresolved
-    assert verdicts_moved and outcomes_moved
+    # Verdicts move on this world under both outages. No outcome of an impact that still
+    # grounds does, so the outcome arm is a guard here and not a demonstrated case.
+    assert verdicts_moved and outcomes_moved == 0
 
 
 def test_an_impact_an_outage_loses_carries_nothing_and_its_constraint_is_not_expected(
     world: SealedWorld,
 ) -> None:
-    jira_down, corpus_down = NORMAL.without(Source.JIRA), NORMAL.without(Source.CORPUS)
-    ticket_scoped = clause_impacts = 0
+    jira_down, calendar_down = NORMAL.without(Source.JIRA), NORMAL.without(Source.CALENDAR)
+    ticket_scoped = meetings = 0
     for scenario in world.scenarios:
         key = scenario.key
         without_tracker = answer(world, scenario, jira_down)
@@ -197,18 +221,17 @@ def test_an_impact_an_outage_loses_carries_nothing_and_its_constraint_is_not_exp
                 assert without_tracker.impact(expected.key) is None
         for constraint in key.constraints:
             if constraint.applies_to.kind is EntityKind.WORK_ITEM:
+                # The clause is readable; what it applies to is not, so it is not expected.
                 assert constraint not in without_tracker.constraints
                 ticket_scoped += 1
-        without_corpus = answer(world, scenario, corpus_down)
-        # No clause is readable, so no constraint can be established.
-        assert without_corpus.constraints == ()
+        without_calendar = answer(world, scenario, calendar_down)
         for expected in key.impacts:
-            if expected.key.artifact.kind is EntityKind.CLAUSE:
-                assert without_corpus.impact(expected.key) is None
-                clause_impacts += 1
+            if expected.key.artifact.kind is EntityKind.EVENT:
+                assert without_calendar.impact(expected.key) is None
+                meetings += 1
         # What remains is a subset of the sealed impacts, in the key's order.
         sealed = [e.key for e in key.impacts]
-        for oracle in (without_tracker, without_corpus):
+        for oracle in (without_tracker, without_calendar):
             kept = [truth.key for truth in oracle.impacts]
             assert kept == [impact for impact in sealed if impact in kept]
-    assert ticket_scoped and clause_impacts
+    assert ticket_scoped and meetings

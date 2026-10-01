@@ -3,9 +3,9 @@ export gets exactly one outcome. A correct report is graded right in every row w
 and the same holds after the export has been through its byte codec; a claimless one misses every
 required key; a structurally invalid one is graded with zero credit and its checks not evaluated;
 an invalid plan surfaces as a finding. A run under an outage is graded against that condition's
-answer, read off the trace and not the record. A run that could not read the leave, or in which a
-source both answered and failed, is limited; a failed run and a run of another context are
-excluded and never read further."""
+answer, read off the trace and not the record. A run that could not read the leave or the policy,
+or in which a source both answered and failed, is limited; a failed run and a run of another
+context are excluded and never read further."""
 
 from dataclasses import replace
 from datetime import timedelta
@@ -107,7 +107,7 @@ def test_a_correct_report_is_graded_right_in_every_row_with_no_finding(
         report = truthful_report(answer(world, scenario))
         outcome = graded(world, run_export(world, scenario, report))
         assert outcome.condition == NORMAL and outcome.harness_findings == ()
-        assert (outcome.oracle_findings, outcome.report_findings) == ((), ())
+        assert (outcome.oracle_findings, outcome.report_findings, outcome.coverage) == ((), (), ())
         assert all(row.claim_id is not None and row.standing is None for row in every_row(outcome))
         assert all(row.payload_correct for row in outcome.rows.assessments)
         assert all(row.outcome_matches for row in outcome.rows.actions)
@@ -131,7 +131,7 @@ def test_a_claimless_report_is_graded_through_its_misses(world: SealedWorld) -> 
     assert rows and all(row.claim_id is None for row in rows)
     assert all(row.expectation is Expectation.REQUIRED for row in rows)
     # Nothing was planned, so there is nothing for the plan checks to find.
-    assert (outcome.oracle_findings, outcome.report_findings) == ((), ())
+    assert (outcome.oracle_findings, outcome.report_findings, outcome.coverage) == ((), (), ())
 
 
 def test_a_run_that_reported_at_its_cap_is_graded_on_what_it_had(world: SealedWorld) -> None:
@@ -157,7 +157,11 @@ def test_a_structurally_invalid_report_is_graded_with_no_credit_and_its_checks_u
     twice = (*report, renumbered(of_type(report, Impact)[0], 9_000))
     outcome = graded(world, run_export(world, scenario, twice))
     assert outcome.rows.structural_problems
-    assert (outcome.oracle_findings, outcome.report_findings) == (None, None)
+    assert (outcome.oracle_findings, outcome.report_findings, outcome.coverage) == (
+        None,
+        None,
+        None,
+    )
     reported = [row for row in every_row(outcome) if row.claim_id is not None]
     assert len(reported) == len(twice)
     assert all(row.expectation is Expectation.NOT_MATCHED for row in reported)
@@ -216,7 +220,7 @@ def test_a_run_under_an_outage_is_graded_against_that_conditions_answer(
     )
     assert outcome.condition == JIRA_DOWN and outcome.harness_findings == ()
     assert all(row.claim_id is not None and row.standing is None for row in every_row(outcome))
-    assert (outcome.oracle_findings, outcome.report_findings) == ((), ())
+    assert (outcome.oracle_findings, outcome.report_findings, outcome.coverage) == ((), (), ())
     # The normal condition's answer, given under the outage, is no longer right: what the
     # tracker alone could establish is unsupported, not confirmed.
     confident = truthful_report(answer(world, scenario))
@@ -289,7 +293,7 @@ def test_a_run_that_could_not_read_the_leave_is_limited_and_its_report_still_che
         frappe_down,
     )
     # Nothing to compare against, and the report's own checks ran and found nothing.
-    assert (silent.structural_problems, silent.report_findings) == ((), ())
+    assert (silent.structural_problems, silent.report_findings, silent.coverage) == ((), (), ())
     # A report that goes on to claim impacts with no action is incoherent, and that shows.
     impacts = tuple(of_type(truthful_report(answer(world, scenario)), Impact))
     talkative = grade_run(
@@ -302,7 +306,43 @@ def test_a_run_that_could_not_read_the_leave_is_limited_and_its_report_still_che
         world, run_export(world, scenario, twice, operations=operations, recorded=frappe_down)
     )
     assert isinstance(broken, Limited)
-    assert broken.structural_problems and broken.report_findings is None
+    assert broken.structural_problems
+    assert (broken.report_findings, broken.coverage) == (None, None)
+
+
+def test_a_run_that_could_not_read_the_policy_is_limited_whether_a_clause_governs_or_not(
+    world: SealedWorld,
+) -> None:
+    corpus_down = NORMAL.without(Source.CORPUS)
+    operations = reads(answered(Source.FRAPPE), unreachable(Source.CORPUS))
+    governed = next(s for s in world.scenarios if s.key.constraints)
+    ungoverned = next(s for s in world.scenarios if not s.key.constraints)
+    for scenario in (governed, ungoverned):
+        # Even the answer that is right under the normal condition is not graded here: a run
+        # with the corpus down could not know whether a clause applies.
+        report = truthful_report(answer(world, scenario))
+        outcome = grade_run(
+            world, run_export(world, scenario, report, operations=operations, recorded=corpus_down)
+        )
+        assert isinstance(outcome, Limited), scenario.spec.id
+        assert (outcome.reason, outcome.mixed, outcome.condition) == (
+            LimitedReason.UNREADABLE_POLICY,
+            frozenset(),
+            corpus_down,
+        )
+        assert outcome.report_findings is not None and outcome.coverage is not None
+    # The leave is asked first: with the people system down too it is the leave.
+    both = grade_run(
+        world,
+        run_export(
+            world,
+            governed,
+            (),
+            operations=reads(unreachable(Source.FRAPPE), unreachable(Source.CORPUS)),
+            recorded=NORMAL.without(Source.FRAPPE, Source.CORPUS),
+        ),
+    )
+    assert isinstance(both, Limited) and both.reason is LimitedReason.UNREADABLE_LEAVE
 
 
 def test_a_run_in_which_a_source_both_answered_and_failed_is_limited_as_mixed(

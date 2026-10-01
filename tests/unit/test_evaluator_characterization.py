@@ -4,7 +4,7 @@ outside the probe set can differ, each time because evidence about them is plant
 day; one such candidate is non-viable by date and viable at run time, the case in which a dated
 oracle would grade a correct reading wrong. Under an outage nothing is proven: a world holds a
 probed candidate the two views judge differently, and the unknowns they expect differ with it.
-With the leave unreadable in both views there is no answer to compare."""
+With the leave or the policy unreadable in both views there is no answer to compare."""
 
 import pytest
 
@@ -54,7 +54,7 @@ def test_under_the_normal_condition_every_part_the_key_proves_agrees(
     # would say the sealed world should not have sealed.
     counts = normal.counts()
     assert set(counts) == {
-        "the leave readable in one view only",
+        "answerable in one view only",
         "impact sets",
         "must-assess verdicts",
         "other verdicts",
@@ -130,12 +130,13 @@ def test_under_an_outage_a_probed_candidate_and_the_expected_unknowns_can_differ
     assert jira_down.scenarios_differing == {split.scenario_id}
 
 
-def test_with_the_leave_unreadable_in_both_views_there_is_nothing_to_compare(
+def test_with_the_leave_or_the_policy_unreadable_in_both_views_there_is_nothing_to_compare(
     world: SealedWorld,
 ) -> None:
-    frappe_down = compare_views(world, NORMAL.without(Source.FRAPPE))
-    assert (frappe_down.scenarios, frappe_down.answerable) == (len(world.scenarios), 0)
-    assert (frappe_down.impacts, frappe_down.probed_pairs, frappe_down.other_pairs) == (0, 0, 0)
-    # Unreadable under both is agreement about the state, not a difference.
-    assert frappe_down.state_differences == ()
-    assert not any(frappe_down.counts().values())
+    for source in (Source.FRAPPE, Source.CORPUS):
+        down = compare_views(world, NORMAL.without(source))
+        assert (down.scenarios, down.answerable) == (len(world.scenarios), 0)
+        assert (down.impacts, down.probed_pairs, down.other_pairs) == (0, 0, 0)
+        # No answer under both views is agreement about the state, not a difference.
+        assert down.state_differences == ()
+        assert not any(down.counts().values())

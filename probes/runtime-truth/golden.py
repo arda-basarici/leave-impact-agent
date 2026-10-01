@@ -14,10 +14,14 @@ and unknowns.
 Two runs, two captures. Run 01 (`golden-world.json`, at `23cf13f`) compared verdicts,
 reasons and outcomes for the sealed impacts and nothing else, and found none differing;
 its entry in FINDINGS first read that as "no graded item rests on the view", which the
-comparison did not show under an outage (the batch review of 2026-10-01). This file now
-makes the complete comparison, and run 02 (`golden-world-run-02.json`) is its capture.
+comparison did not show under an outage (the batch review of 2026-10-01). Run 02
+(`golden-world-run-02.json`, at `60b23e4`) made the complete comparison and found no part
+differing under any condition. After it, a corpus outage was ruled to leave no claim-level
+answer (the policy is unreadable, as the leave is with Frappe down), so a later run
+compares nothing under that condition where run 02 compared thirty scenarios; a third
+run, if made, writes `golden-world-run-03.json` and never over an earlier capture.
 
-Declared before run 02:
+Declared, for run 02 and any later one:
 
 - the world loads, which is the reproduction of its thirty sealed keys;
 - under the normal condition every part the sealed key proves agrees between the views:
@@ -125,7 +129,7 @@ def main() -> int:
                 ("truth_manifest", world.truth_manifest),
             )
         },
-        "run": 2,
+        "run": 3,
         "declared": {
             "the world loads and its sealed keys are reproduced": True,
             "normal condition: every part the sealed key proves agrees between the views": holds,
@@ -133,7 +137,7 @@ def main() -> int:
         "conditions": rows,
     }
     CAPTURES.mkdir(parents=True, exist_ok=True)
-    out = CAPTURES / "golden-world-run-02.json"
+    out = CAPTURES / "golden-world-run-03.json"
     out.write_text(json.dumps(capture, indent=2) + "\n", encoding="utf-8")
 
     print(f"golden world {version[:8]}…, {len(world.scenarios)} scenarios, "

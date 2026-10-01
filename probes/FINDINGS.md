@@ -1742,6 +1742,24 @@ that adds it. It reproduces every number the rulings record.
   world, under the normal condition and under each single-source outage, a dated oracle
   and the runtime one expect the same of a report in every graded part, and no graded
   item of the reported results rests on which view was ruled.
+- **A corpus outage leaves no answer to grade, ruled after run 02 (2026-10-01).** Building
+  the plan checks showed that under a corpus outage the oracle's own answer cannot be
+  stated as a coherent report: it expects no constraint claim, since the clause is
+  unreadable, and expects every candidate unknown on what that clause requires, while
+  the chain rule admits an unknown about a clause only when the report cites it as a
+  constraint (12 of 30 scenarios on the throwaway world, all 480 expected unknown claims
+  of that condition on the forty seeds). Underneath, only the corpus says which clause
+  applies to an artifact and whether any does, so a run with the corpus down cannot tell
+  an impact a clause governs, expected unknown, from one none governs, expected
+  unchanged: a system that always assigns is right on the second kind, one that always
+  says unknown on the first, neither on both except by luck. Ruled: beside the unreadable
+  leave the oracle has a second state with no claim-level expectation, the unreadable
+  policy, for every scenario under that condition and stated by the evidence domain of
+  what a clause requires; such a run is limited to the checks that need no expected
+  answer. So the outages that can be graded are the tracker's and the calendar's, and
+  the corpus rows of the tables above (the outage shape, the unknowns, run 02's
+  comparison of 27 impacts) describe what the rules conclude and no longer an
+  expectation, as the Frappe rows always did.
 - **What this does not show.** The forty worlds are generator version 15 and unsealed.
   The golden comparison covers the normal condition and the four single-source outages,
   not an outage of two sources at once, which no ruling registers yet. It compares what
