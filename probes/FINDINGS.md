@@ -1547,6 +1547,25 @@ recovered by five hand listings the same day, each key holding exactly one versi
   skip (the first world's manifest records no document), every world's digests equal
   to the sealed ones, the first world refusing at exactly its declared fields as
   before. No sealed byte moved.
+- **Step 3 rerun, the truth manifest whole (2026-10-01, build plan step 3's third
+  commit):** the reader this entry owed has landed. The truth manifest's one decoder
+  (`world/truth_decoder.py`, `c6d4577`) accepts bytes only when they re-encode to
+  themselves; at `a893627` it replaced the generator's one-section reader and joined
+  this test, which was committed before the run. Run at `a893627` under the
+  administrative profile: fourteen passed (thirteen cases and the doctest), the same
+  reasoned skip. The golden world's truth manifest and the measurement pair's decode
+  whole and re-encode to their sealed digests. The test declared, before the run and
+  from dates alone, that the measurement world `785bc4cd…` was sealed before a key
+  carried its two derived sets (sealed 2026-09-14; the expected conflicts and the
+  expected unknowns arrived at generator version 13 on 2026-09-16), and the bytes
+  agree: every one of its keys decodes both sets as unavailable, every key of the
+  golden world holds both. That is absent-versus-empty for the derived sets on real
+  bytes, beside the record's counters. Nothing else in the measurement manifest
+  refused, so the two sets and the counters are the whole difference between its shape
+  and today's. The first world refuses through the new decoder at its declared field,
+  the message now the field-set form (`missing ['materialization']`) where the retired
+  reader said `materialization is missing`. Still owed: the verdict's reader, at build
+  step 9.
 
 ## golden-chain — PASS, every link of the golden world's provenance holds (2026-09-27)
 
