@@ -11,10 +11,12 @@ import pytest
 from leaveimpact.core import (
     AssessmentReason,
     EntityRef,
+    Grounded,
     LeaveKind,
     LeaveStatus,
     PredicateName,
     Requirement,
+    RunCondition,
     SkillCriterion,
     Verdict,
     clause_ref,
@@ -35,6 +37,8 @@ from leaveimpact.world import (
     assemble_semantic_world,
     assemble_world,
     construct,
+    expectations_of,
+    read_impacts,
     scope_handle_problems,
     verify_world,
     vocabulary_digest,
@@ -59,6 +63,37 @@ WORLD_START = date(2026, 1, 1)
 @pytest.fixture(scope="module")
 def world() -> WorldSpec:
     return assemble_world(7, DEFAULT_PARAMS, WORLD_START)
+
+
+def test_the_reading_pass_gives_one_reading_per_impact_and_the_expectations_the_key_seals() -> None:
+    """The pass every consumer of the rules shares, asked the way a consumer outside
+    construction asks it: by impact key, over the organization, at a scenario's run day."""
+    semantic = assemble_semantic_world(7, DEFAULT_PARAMS, WORLD_START, "golden")
+    universe = [employee.id for employee in semantic.org.employees]
+    sealed_conclusions = 0
+    for scenario in semantic.scenarios:
+        key, leave = scenario.key, scenario.investigated_leave
+        view = semantic.facts.at(scenario.spec.today, RunCondition.all_reachable())
+        impacts = [expected.key for expected in key.impacts]
+        readings = read_impacts(
+            view,
+            impacts,
+            key.constraints,
+            leave.employee_id,
+            leave.span,
+            scenario.spec.reference_timezone,
+            universe,
+        )
+        assert [reading.impact for reading in readings] == impacts
+        for reading in readings:
+            assert isinstance(reading.grounding, Grounded)
+            assert [a.employee_id for a in reading.assessments] == universe
+        expectations = expectations_of(view, readings)
+        assert expectations.conflicts == key.expected_conflicts
+        assert expectations.unknowns == key.expected_unknowns
+        sealed_conclusions += len(key.expected_conflicts) + len(key.expected_unknowns)
+    # The golden plan seals conflicts and unknowns, so the two equalities are not vacuous.
+    assert sealed_conclusions
 
 
 def test_one_seed_gives_one_world_with_its_provenance(world: WorldSpec) -> None:

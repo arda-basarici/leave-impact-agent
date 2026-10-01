@@ -1004,34 +1004,44 @@ class Expectations:
 
 
 @dataclass(frozen=True, slots=True)
-class _Reading:
+class Reading:
+    """What the rules conclude about one impact in one view: whether the leaver holds it, and
+    every candidate's assessment for it, in the candidates' order."""
+
+    impact: ImpactKey
     grounding: Grounding
     assessments: tuple[Assessment, ...]
 
 
-def _read(
+def read_impacts(
     view: FactView,
-    impacts: Sequence[ExpectedImpact],
+    impacts: Sequence[ImpactKey],
     constraints: Sequence[ConstraintKey],
     leaver: EmployeeId,
     leave_span: DateSpan,
     reference_timezone: str,
     universe: Sequence[EmployeeId],
-) -> tuple[_Reading, ...]:
-    """Each impact's grounding and its assessments over ``universe``, the one pass every
-    derivation below shares, so no consumer reads the rules a second way."""
+) -> tuple[Reading, ...]:
+    """Each impact's grounding and its assessments over ``universe``, in ``impacts``' order.
+
+    The one pass every derivation of what the rules conclude shares, so no consumer reads
+    the rules a second way: construction seals a key from it, world assembly re-derives
+    every key through it, the required-sources derivation asks it under each outage, and
+    the evaluator derives what it expects of a run from it. It takes impact keys and not
+    the key's expected impacts because under an outage the impacts are the ones the rules
+    ground there, which no key lists.
+    """
     return tuple(
-        _Reading(
-            ground_impact(view, expected.key, leaver, leave_span, reference_timezone),
-            assess_impact(
-                view, expected.key, universe, constraints, leave_span, reference_timezone
-            ),
+        Reading(
+            impact,
+            ground_impact(view, impact, leaver, leave_span, reference_timezone),
+            assess_impact(view, impact, universe, constraints, leave_span, reference_timezone),
         )
-        for expected in impacts
+        for impact in impacts
     )
 
 
-def _evidence(readings: Sequence[_Reading]) -> list[Fact]:
+def _evidence(readings: Sequence[Reading]) -> list[Fact]:
     facts: list[Fact] = []
     for reading in readings:
         if isinstance(reading.grounding, Grounded):
@@ -1058,7 +1068,19 @@ def derive_expectations(
     a stable order. Construction seals them into the key and world assembly re-derives them
     against every key, the same pass both times.
     """
-    readings = _read(view, impacts, constraints, leaver, leave_span, reference_timezone, universe)
+    keys = [expected.key for expected in impacts]
+    return expectations_of(
+        view,
+        read_impacts(view, keys, constraints, leaver, leave_span, reference_timezone, universe),
+    )
+
+
+def expectations_of(view: FactView, readings: Sequence[Reading]) -> Expectations:
+    """The expected conflicts and unknowns that ``readings`` of ``view`` conclude.
+
+    ``derive_expectations`` over readings a caller already holds, so the conflicts and the
+    unknowns come from the very assessments it reads verdicts and outcomes off.
+    """
     conflicts = tuple(
         ExpectedConflict(
             finding.subject, finding.predicate, finding.resolution.value, finding.resolution.rule
@@ -1139,8 +1161,11 @@ def _conclusions(
     """
     universe = [employee.id for employee in org.employees]
     concluded: list[object] = []
-    readings = _read(view, impacts, constraints, leaver, leave_span, reference_timezone, universe)
-    for expected, reading in zip(impacts, readings, strict=True):
+    keys = [expected.key for expected in impacts]
+    readings = read_impacts(
+        view, keys, constraints, leaver, leave_span, reference_timezone, universe
+    )
+    for reading in readings:
         # The unresolved questions travel too: an unknown for absence and an unknown for
         # an unreachable source are different conclusions with one verdict, and the
         # source that separates them was required.
@@ -1148,7 +1173,7 @@ def _conclusions(
             (a.employee_id, a.verdict, a.reasons, a.unresolved) for a in reading.assessments
         )
         required = required_count_for(
-            view, expected.key, constraints, leave_span, reference_timezone
+            view, reading.impact, constraints, leave_span, reference_timezone
         )
         outcome = expected_action((a.verdict for a in reading.assessments), required)
         concluded.append((reading.grounding, verdicts, outcome))
