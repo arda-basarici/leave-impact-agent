@@ -1302,7 +1302,20 @@ declared registry; MCP was weighed and not chosen.** The thirteen read-port meth
 are the whole tool surface. Each tool is a specification (name, description,
 argument bounds including the search limit, id validation, the serialization of the
 observed record, the logging hook) naming exactly one port method; the model schema
-is generated from it, and a tool makes no domain decision. The registry declares per
+is generated from it, and a tool makes no domain decision. The specifications are
+declarative data in `core` (the second build step, 2026-10-01): one method table is
+the authority for a method's family, source, record kind and cardinality, the
+thirteen are declared in one explicit canonical order, validation is one generic
+function (an exact JSON object with every argument required, no coercion and no
+default, ids and spellings through the one rules, spans bounded by elapsed time),
+the serialization is the entity codec's observed record for all thirteen, and the
+logging hook and the port binding are the harness's alone. The tool-surface digest
+hashes a versioned envelope of what a role's model sees, the ordered generated
+definitions with the identifiers and versions of the result codec and the validation
+protocol, because a change in how a result is rendered or a call refused is a change
+the model sees as much as a changed description; it names the semantic surface, not
+provider wire bytes, and its two protocol identifiers are declared policy bumped by
+hand under review, the same convention as the export's format version. The registry declares per
 role which methods become tools, so a tool list is constructed and never prompted,
 and least privilege is the registry and a role-scoped read-only vendor principal
 together: the registry is a harness-level claim, the principal is what makes it
@@ -1482,9 +1495,42 @@ replay the grading: run context, ordered tool requests with a stable identifier 
 recorded operation, returned records, completed and failed reads, the final claims,
 and the provenance the run record carries (the observed run condition and the
 assigned outage schedule, harness commit, model and inference settings, prompt
-digests, the tool-list digest, the preregistration commit, observed usage and cost,
-any failure category); the evaluation artifact adds the export's key and version id
-beside the truth digest and version id. The validator re-reads the live systems and
+digests, the tool-surface digest, the preregistration commit, observed usage and
+cost, any failure category); the evaluation artifact adds the export's key and
+version id beside the truth digest and version id. Its shape was ruled at the
+investigator milestone's second build step (2026-10-01) and lives in `core` as plain
+data with one codec, since the agent writes it and the evaluator reads it and neither
+may import the other. One immutable artifact per run attempt, self-identifying by run
+id and attempt beside a format version, projected from the event log once the attempt
+reaches the investigation's terminal state (the job's later approval state is no
+export status) and written once by conditional create; its digest is of its canonical
+bytes, computed by whoever cites it and never stored inside, and a reader accepts
+bytes only when their re-encoding reproduces them, so one export has one byte
+sequence. Three blocks: the context (what changes the evidence), the record
+(provenance: the observed condition as a claim the replay re-derives and verifies,
+the sources scheduled unreachable with the schedule's digest, the harness commit with
+its tree state, the preregistration commit, the model configuration, pricing
+selection, prompt digests and tool surface of every role as one role set, the system
+kind and variant, the retrieval implementation, the prefetch rule's identity, the
+cap with its finalization reserves inside the totals, a terminal status with a
+normalized failure pointing at the trace entry of its own kind, the usage aggregate
+with per-counter reporting coverage, the cumulative cost, and the embedded pricing
+rows that priced it), and the trace (compact model-call records, one per invocation
+with the exact request's digest and the usage reported; the attempted reads, each
+with its origin, its resolved source, its arguments exactly as accepted with no
+coercion or default, and one of six outcomes, a record, none, a possibly empty
+sequence, unreachable, a malformed record, or a call refused before any source was
+asked; the final claims in claim-id order). Absent is a different statement from
+empty throughout: a usage counter a provider did not report is unavailable and never
+zero, an aggregate row exists only for counters some call reported, and a cost is
+incomplete when a rate row under its selection was neither reported nor recorded in
+the price table as meaning nothing billed when absent, that policy being table data a
+probe earns per configuration rather than an assumption in code. Costs are exact
+integer nano-dollars from a committed table of integer rates, verified by the
+evaluator against the embedded rows, the basis never benchmark truth. Within a
+format, the structural fields are required and an incompatible change bumps the
+version, while the extensible blocks follow a declared append-only order so an entry
+appended later reads as absent from an older export. The validator re-reads the live systems and
 the evaluator does not: that is the difference between them. The evaluator on the
 instance under a second principal was rejected on the executor paragraph's own
 sentence, two principals on one host being two configurations and not a boundary;

@@ -7,6 +7,81 @@ decisions it feeds.
 
 ---
 
+## 2026-10-01 — A provider assumption became a column in the price table, and a digest became provable at the byte
+
+*M2 step 2, the investigator milestone's second build step: the run export, the
+artifact a run leaves behind and the evaluator grades, built as plain data in the core
+package with its codec, its pricing arithmetic and the tool specifications, eight
+commits each reviewed after its push (session 45, 2026-10-01). Feeds: the M2 milestone
+report's evaluation-design section, on what a cost claim is allowed to say and on why
+the export is one byte sequence; the final report's reproducibility section, on
+enforcing a canonical encoding where the reader meets bytes; and its process section,
+on a post-push reviewer reversing a call the author had argued and the owner had
+accepted.*
+
+The step's interview had settled, among six rulings, how a run's usage and cost are
+recorded: a counter the provider did not report is unavailable and never a zero, and a
+cost that would have priced a missing counter is incomplete. The first pricing commit
+then quietly narrowed that rule in code. A constant named `ALWAYS_REPORTED` declared
+that input and output tokens are the two classes every provider reports, so a cost was
+complete when those two were present, and a cache counter the provider had not
+reported added nothing, on the reading that an absent cache counter means no cached
+tokens were billed (`eb98474`). The docstring called it a provider assumption and
+promised that the acceptance spike would check it against the real configurations.
+The author had argued the narrower rule in chat on the grounds that Bedrock reports
+cache counters only when caching is in play, so the literal ruling would mark nearly
+every uncached call incomplete, and the owner had accepted it before the review. The
+external reviewer, reading the pushed commit with no chat context, named the defect in
+one sentence: a cost could be understated while labelled complete, which is the one
+thing the completeness flag exists to prevent, and a fact a spike might later prove
+should become recorded policy rather than a global assumption in code.
+
+The repair moved the assumption out of code and into data. Each rate row of the
+committed price table now carries a policy, `when_absent`, with two values: unknown,
+the default for every rate, under which a missing counter makes the cost incomplete;
+and zero, which a row earns only once a probe shows, per model configuration, that the
+provider omits that counter exactly when nothing of that class was billed. The policy
+travels in the pricing rows every export embeds, so a cost's completeness is
+verifiable from the record alone, with no code constant to consult and no spike
+finding to remember. Until the spike earns the zero entry for a configuration, a
+missing cache counter makes a cost incomplete, which is the ruling's literal reading
+restored (`aadb2d8`; the spike's obligation is in the stream's TODO under build
+step 7). The lesson is the same shape as one already in the
+repo's lessons, that a prompt instruction stays only on a probe that shows it moves
+the model: a claim about a vendor is data a probe earns, and the place it lives is a
+record a reader can check, not a constant the author believed. The reviewer deserves
+the credit here; the author had the honest instinct to name the assumption and the
+wrong instinct about where to put it.
+
+The second movement is about the export's bytes. The project has carried a one byte
+rule since the world milestone: everything hashed or compared is canonical JSON, so a
+digest is a property of the value and never of a serializer's defaults. The codec
+commit gave the export that encoding, and the review found two ways one export could
+still be two byte sequences. Tool arguments kept the caller's key insertion order, so
+two equal exports whose arguments were spelled `{"a":2,"b":1}` and `{"b":1,"a":2}`
+compared equal as values and produced different bytes. And the decoder took an
+already-parsed object, so input that normalized on the way in was accepted without a
+trace: a duplicate in a set-valued list collapsed silently, role-indexed entries out of
+order were sorted by the constructor, and a reader would have cited a digest of bytes
+that no writer of this project could have produced. The repair has two parts. Argument
+objects are frozen with their keys sorted to the leaf, since a key's position says
+nothing in JSON. And the reader now meets the artifact as bytes: a bytes decoder parses
+them, decodes the tree, re-encodes it, and accepts the input only if the re-encoding
+reproduces it byte for byte, so a pretty-printed spelling, a duplicate, or an unsorted
+entry is refused as not canonical (`7241e1a`; the tests build each case). The consequence for the evaluation design is that the digest the evaluation
+artifact cites is provably of a canonical tree: one export is one byte sequence, and
+the rule is enforced where the reader actually meets bytes rather than trusted from
+the writer's good behaviour.
+
+The same step moved the entity codec, the one JSON shape of the seven observable
+records, from the world's sealed-spec codecs into the core package, where both the
+agent and the evaluator can reach it, without moving a sealed byte. Two guards say so:
+the suite's pinned semantic digest, which hashes every planted entity's canonical
+encoding and did not change, and the historical-bytes live test rerun against the
+objects in the buckets after the move (twelve cases green and the same reasoned skip
+at commit `7aa9523`; the amendment is in the probes' findings file under the
+historical-bytes entry).
+
 ## 2026-09-19 — Fifteen traces had accepted everything, and the panel's question was whether anyone else could check that
 
 *M1 step 16, the hand audit's close: a four-seat critique panel over the audit of the
