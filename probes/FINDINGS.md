@@ -1805,13 +1805,25 @@ script behind it and is corrected below.
   run can close, the corpus having no enumerating read, and 29.2% of the verdicts rest on
   it; so it is grounded operationally with the corpus named unclosed, since a strict
   reading alone would make that share ungroundable for every system and compare nothing.
-- **On this plan a constraint's scope is a function of its clause.** 340 authored
-  `requires` facts and 340 sealed constraint pairings, naming the same clauses in 600 of
-  600 scenarios, one target per clause; targets 180 work items, 60 events, 100 clauses,
-  and exactly one section, written or pending, in the document behind each clause-kind
-  target. The fact base holds what a clause requires and nothing about what it applies
-  to. Ruled: the pairing is an annotation admitted through its clause under the same
-  gate, and the three properties are an invariant the evaluator enforces at loading.
+- **On this plan a constraint's scope is a function of its clause, and the clause's text
+  states it.** 340 authored `requires` facts and 340 sealed constraint pairings, naming
+  the same clauses in 600 of 600 scenarios, one target per clause; targets 180 work
+  items, 60 events, 100 clauses, and exactly one section, written or pending, in the
+  document behind each clause-kind target. The fact base holds what a clause requires and
+  nothing about what it applies to. Ruled: the pairing is an annotation admitted through
+  its clause under the same gate, and the three properties are an invariant the evaluator
+  enforces at loading.
+  Those counts read the sealed pairing and never the clause, so they would hold for a
+  clause whose text named nothing, or another artifact; the batch review of 2026-10-02
+  caught it, and the probe's first capture did not have what follows. Every title of a
+  ticket, a meeting or a document of the world is searched in each requirement clause's
+  text, a section being named through its document's title: 340 of 340 clauses hold their
+  sealed target's title. Containment alone does not resolve the text. In 26 clauses two
+  titles are found, because a qualified title contains the plain one ("… upgrade the
+  client library" inside "… upgrade the client library for the mobile clients"). With the
+  titles contained in a longer found title set aside, 340 of 340 texts leave exactly one
+  artifact and it is the sealed target, the kind included. The invariant at loading gains
+  this as a fourth property, with that resolution rule.
 - **The sealed role tags cover model-written text only.** 580 distinct carriers (520
   clauses, 60 comments); 400 of 600 scenarios hold one and 400 have the corpus among
   their required sources. A brief tags 240 of them answer-changing (180 clauses, 60

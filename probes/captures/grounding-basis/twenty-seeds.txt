@@ -39,6 +39,9 @@ targets per clause within a world: 1: 340
 target kinds: clause: 100, event: 60, work_item: 180
 sections, written and pending, in the document behind a clause-kind target: 1: 100
 clause-kind targets per such document: 1: 100
+clauses whose text holds their sealed target's title: 340 of 340 (clause: 100, event: 60, work_item: 180)
+distinct titles of the world found in a clause's text: 1: 314, 2: 26
+the text resolved by its longest titles, the contained ones set aside: one artifact, the sealed target: 340
 
 4. Carriers, role tags, required sources
 distinct carriers: 580 (clause, other: 180, clause, requirement: 340, comment, other: 60)

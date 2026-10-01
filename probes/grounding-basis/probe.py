@@ -25,7 +25,12 @@ that replay has to be:
    what a clause requires and nothing about what it applies to. The sealed constraint
    pairings against the authored `requires` facts: the same clauses, one target each, and
    one section in the document behind a clause-kind target, or the pairing is not a
-   function of the clause.
+   function of the clause. And the clause's own text, since a pairing admitted through a
+   clause a run read must be something that clause states: every title of a ticket, a
+   meeting or a document of the world found in the text, the ones contained in a longer
+   found title set aside (a qualified title contains the plain one), and whether exactly
+   one artifact is left and it is the sealed target, a section being named through its
+   document's title.
 4. *What the sealed role tags cover.* The carriers of authored facts, how many a brief
    tags answer-changing, and the required sources per scenario. The tags are derived for
    model-written text only, so a retrieval target read off them would miss the
@@ -116,6 +121,9 @@ def main(seeds: list[int]) -> None:
     targets_per_clause: Counter = Counter()
     sections_behind_target: Counter = Counter()
     targets_per_document: Counter = Counter()
+    text_names_target: Counter = Counter()
+    titles_in_text: Counter = Counter()
+    text_resolution: Counter = Counter()
     # 4. Carriers, role tags, required sources.
     carriers: Counter = Counter()
     carrier_scenarios = 0
@@ -145,6 +153,24 @@ def main(seeds: list[int]) -> None:
             carriers_of.setdefault(statement_of(fact), set()).add(fact.evidence.target)
         for stating in carriers_of.values():
             world_statements[len(stating)] += 1
+
+        # Every titled artifact of the world as (kind, id, title), and where each written
+        # or pending section sits: what a clause's text can name, and by which surface form.
+        titled: list[tuple[str, str, str]] = []
+        text_of: dict[str, str] = {}
+        home_of: dict[str, str] = {}
+        for scenario in world.scenarios:
+            held = scenario.owned
+            titled += [("work_item", p.entity.id, p.entity.title) for p in held.work_items]
+            titled += [("event", p.entity.id, p.entity.title) for p in held.events]
+            for planted in held.documents:
+                titled.append(("document", planted.entity.id, planted.entity.title))
+                for section in planted.entity.sections:
+                    text_of[section.id] = section.text
+                    home_of[section.id] = planted.entity.id
+            for brief in scenario.briefs:
+                if isinstance(brief.target, SectionTarget):
+                    home_of[brief.target.id] = brief.target.document_id
 
         targets_of_clause: dict[str, set] = {}
         for scenario in world.scenarios:
@@ -200,6 +226,28 @@ def main(seeds: list[int]) -> None:
                     scoped_in[document] += 1
             for count in scoped_in.values():
                 targets_per_document[count] += 1
+            for constraint in key.constraints:
+                target = constraint.applies_to
+                kind = target.kind.value
+                sealed = (
+                    ("document", home_of[target.id]) if kind == "clause" else (kind, target.id)
+                )
+                stated = text_of[constraint.clause_id]
+                found = [artifact for artifact in titled if artifact[2] in stated]
+                maximal = [
+                    (a_kind, a_id)
+                    for a_kind, a_id, title in found
+                    if not any(title != other and title in other for _, _, other in found)
+                ]
+                text_names_target[kind] += sealed in [(a_kind, a_id) for a_kind, a_id, _ in found]
+                titles_in_text[len({title for _, _, title in found})] += 1
+                text_resolution[
+                    "one artifact, the sealed target"
+                    if maximal == [sealed]
+                    else "one artifact, another"
+                    if len(maximal) == 1
+                    else f"{len(maximal)} artifacts"
+                ] += 1
 
             # 4. Carriers, role tags, required sources.
             tier_scenarios[key.tier.value] += 1
@@ -348,6 +396,15 @@ def main(seeds: list[int]) -> None:
         f"{spread(sections_behind_target)}"
     )
     print(f"clause-kind targets per such document: {spread(targets_per_document)}")
+    print(
+        f"clauses whose text holds their sealed target's title: "
+        f"{sum(text_names_target.values())} of {pairings} ({spread(text_names_target)})"
+    )
+    print(f"distinct titles of the world found in a clause's text: {spread(titles_in_text)}")
+    print(
+        "the text resolved by its longest titles, the contained ones set aside: "
+        f"{spread(text_resolution)}"
+    )
 
     print("\n4. Carriers, role tags, required sources")
     print(
