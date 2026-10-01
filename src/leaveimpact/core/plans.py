@@ -7,16 +7,22 @@ return records rather than raise, because a defective plan is a graded outcome t
 evaluator records, not a crash.
 
 ``plan_violations`` reads one coverage action against the requirements that apply to
-its impact and the assessments in the same report. An assign action is checked per
-requirement — the assignees holding a viable assessment must number at least the
-requirement's count — with an implicit minimum of one when no clause applies. Under
-the current conjunctive model a viable assignee satisfies every applicable criterion,
-so the per-requirement loop reduces to the largest count; that is a property of the
-present requirement semantics, kept as a loop so a clause with its own criteria needs
-no restructuring. An assignee with no assessment is a violation of its own, and an
-unknown assignee is not viable for an assign, since assign is a positive conclusion
-nobody unknown can carry. ``uncovered`` and ``unknown`` actions have no cardinality to
-violate; their consistency with the assessments is the chain checks' question.
+its impact and the verdicts held for that impact, by employee. Whose verdicts they are
+is the caller's question and the reason the rule takes verdicts and not assessment
+claims: a report checked against its own assessments is coherence, a report checked
+against the truth's verdicts is validity, and the truth's assessments are not claims
+(they carry no claim id and no evidence references), so one rule serves both without a
+claim invented to carry a verdict. ``verdicts_by_employee`` reads the mapping off a
+report. An assign action is checked per requirement — the assignees holding a viable
+verdict must number at least the requirement's count — with an implicit minimum of one
+when no clause applies. Under the current conjunctive model a viable assignee satisfies
+every applicable criterion, so the per-requirement loop reduces to the largest count;
+that is a property of the present requirement semantics, kept as a loop so a clause
+with its own criteria needs no restructuring. An assignee with no verdict is a
+violation of its own, and an unknown assignee is not viable for an assign, since assign
+is a positive conclusion nobody unknown can carry. ``uncovered`` and ``unknown`` actions
+have no cardinality to violate; their consistency with the assessments is the chain
+checks' question.
 
 ``expected_action`` is the truth side. Over an explicit candidate universe — the
 organization, never the ``must_assess`` set — with ``V`` viable and ``U`` unknown
@@ -28,7 +34,7 @@ best person" has no exact truth unless an optimization rule is declared, and non
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -66,26 +72,41 @@ def required_count(requirements: Iterable[ResolvedRequirement]) -> int:
     return max((resolved.requirement.count for resolved in requirements), default=1)
 
 
-def plan_violations(
-    action: CoverageAction,
-    requirements: Sequence[ResolvedRequirement],
-    assessments: Sequence[CandidateAssessment],
-) -> tuple[Violation, ...]:
-    """Every way ``action`` fails ``requirements`` given the report's ``assessments``; empty when
-    the plan holds. Only an assign action can violate cardinality."""
-    if action.action is not CoverageActionKind.ASSIGN:
-        return ()
-    impact = action.impact_key
-    by_employee = {
-        assessment.employee_id: assessment
+def verdicts_by_employee(
+    impact: ImpactKey, assessments: Iterable[CandidateAssessment]
+) -> dict[EmployeeId, Verdict]:
+    """The verdicts ``assessments`` hold for ``impact``, by employee; other impacts' are left out.
+
+    The report side of ``plan_violations``' input. A well-formed report holds one
+    assessment per impact and employee, so nothing is lost in the mapping.
+    """
+    return {
+        assessment.employee_id: assessment.verdict
         for assessment in assessments
         if assessment.impact_key == impact
     }
+
+
+def plan_violations(
+    action: CoverageAction,
+    requirements: Sequence[ResolvedRequirement],
+    verdicts: Mapping[EmployeeId, Verdict],
+) -> tuple[Violation, ...]:
+    """Every way ``action`` fails ``requirements`` given the ``verdicts`` held for its impact,
+    by employee; empty when the plan holds. Only an assign action can violate cardinality.
+
+    ``verdicts`` are for the action's own impact, the caller's to scope: the report's
+    assessments (``verdicts_by_employee``) or the truth's. An assignee the mapping does
+    not hold is a missing assessment, whatever the reason it is not there.
+    """
+    if action.action is not CoverageActionKind.ASSIGN:
+        return ()
+    impact = action.impact_key
     violations: list[Violation] = []
     viable: list[EmployeeId] = []
     for assignee in action.assignee_ids:
-        assessment = by_employee.get(assignee)
-        if assessment is None:
+        verdict = verdicts.get(assignee)
+        if verdict is None:
             violations.append(
                 Violation(
                     impact,
@@ -94,13 +115,13 @@ def plan_violations(
                     f"{assignee} is assigned without an assessment",
                 )
             )
-        elif assessment.verdict is not Verdict.VIABLE:
+        elif verdict is not Verdict.VIABLE:
             violations.append(
                 Violation(
                     impact,
                     ViolationKind.NON_VIABLE_ASSIGNEE,
                     None,
-                    f"{assignee} is assigned with {assessment.verdict.value} verdict",
+                    f"{assignee} is assigned with {verdict.value} verdict",
                 )
             )
         else:

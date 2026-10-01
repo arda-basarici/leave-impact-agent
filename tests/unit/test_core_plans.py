@@ -1,7 +1,7 @@
 """The plan side: an assign action is checked per requirement against the viable assignees in
-the report, an unknown assignee is not viable for an assign, non-assign actions have no
-cardinality, and the truth's expected outcome follows the V / U / n rule over the whole
-candidate universe."""
+the verdicts held for its impact, whoever holds them, an unknown assignee is not viable for an
+assign, non-assign actions have no cardinality, and the truth's expected outcome follows the
+V / U / n rule over the whole candidate universe."""
 
 import pytest
 
@@ -23,6 +23,7 @@ from leaveimpact.core import (
     expected_action,
     plan_violations,
     required_count,
+    verdicts_by_employee,
 )
 from leaveimpact.core.ids import ClaimId, EmployeeId, claim_id
 from tests.unit import world_fixture as w
@@ -70,13 +71,43 @@ REPORT = (
 )
 
 
+def held(impact: ImpactKey) -> dict[EmployeeId, Verdict]:
+    """The verdicts the report holds for ``impact``, as a caller grading coherence passes them."""
+    return verdicts_by_employee(impact, REPORT)
+
+
+def test_the_verdicts_held_for_an_impact_leave_the_other_impacts_out() -> None:
+    assert held(w.MEETING) == {
+        w.DENIZ: Verdict.VIABLE,
+        w.BOB: Verdict.NON_VIABLE,
+        w.CAN: Verdict.UNKNOWN,
+    }
+    assert held(w.DEADLINE) == {w.DENIZ: Verdict.VIABLE}
+
+
+def test_the_rule_takes_verdicts_from_any_holder_not_only_a_reports_claims() -> None:
+    # The truth's assessments are not claims; the same rule reads their verdicts directly.
+    truth = {w.DENIZ: Verdict.VIABLE, w.ALICE: Verdict.NON_VIABLE}
+    assert plan_violations(assign(w.MEETING, w.DENIZ), (), truth) == ()
+    non_viable, short = plan_violations(assign(w.MEETING, w.ALICE), (ONE_KAFKA,), truth)
+    assert non_viable.kind is ViolationKind.NON_VIABLE_ASSIGNEE
+    assert (short.kind, short.clause_id) == (
+        ViolationKind.INSUFFICIENT_CARDINALITY,
+        w.KAFKA_CLAUSE,
+    )
+    # Somebody the holder has no verdict for is a missing assessment, whoever they are.
+    missing, _ = plan_violations(assign(w.MEETING, w.BOB), (), truth)
+    assert missing.kind is ViolationKind.MISSING_ASSESSMENT
+    assert missing.detail == f"{w.BOB} is assigned without an assessment"
+
+
 def test_a_plan_that_holds_has_no_violations() -> None:
-    assert plan_violations(assign(w.DEADLINE, w.DENIZ), (ONE_KAFKA,), REPORT) == ()
-    assert plan_violations(assign(w.DEADLINE, w.DENIZ), (), REPORT) == ()
+    assert plan_violations(assign(w.DEADLINE, w.DENIZ), (ONE_KAFKA,), held(w.DEADLINE)) == ()
+    assert plan_violations(assign(w.DEADLINE, w.DENIZ), (), held(w.DEADLINE)) == ()
 
 
 def test_cardinality_is_checked_per_requirement_with_the_count_a_minimum() -> None:
-    violations = plan_violations(assign(w.MEETING, w.DENIZ), (TWO_EMPLOYEES,), REPORT)
+    violations = plan_violations(assign(w.MEETING, w.DENIZ), (TWO_EMPLOYEES,), held(w.MEETING))
     assert violations == (
         Violation(
             w.MEETING,
@@ -91,12 +122,13 @@ def test_cardinality_is_checked_per_requirement_with_the_count_a_minimum() -> No
         assessment(w.MEETING, w.BOB, Verdict.VIABLE, claim_id(6)),
     )
     three_named = assign(w.MEETING, w.DENIZ, w.ALICE, w.BOB)
-    assert plan_violations(three_named, (TWO_EMPLOYEES,), three_viable) == ()
+    held_by_three = verdicts_by_employee(w.MEETING, three_viable)
+    assert plan_violations(three_named, (TWO_EMPLOYEES,), held_by_three) == ()
 
 
 def test_an_unknown_or_non_viable_assignee_and_a_missing_assessment_are_violations() -> None:
     violations = plan_violations(
-        assign(w.MEETING, w.DENIZ, w.BOB, w.CAN, w.ALICE), (TWO_EMPLOYEES,), REPORT
+        assign(w.MEETING, w.DENIZ, w.BOB, w.CAN, w.ALICE), (TWO_EMPLOYEES,), held(w.MEETING)
     )
     # Assignees are canonical by id on the claim: Bob, Alice, Deniz, Can.
     assert [violation.kind for violation in violations] == [
@@ -110,7 +142,7 @@ def test_an_unknown_or_non_viable_assignee_and_a_missing_assessment_are_violatio
 
 
 def test_an_assign_with_no_clause_still_needs_one_viable_assignee() -> None:
-    non_viable, short = plan_violations(assign(w.MEETING, w.BOB), (), REPORT)
+    non_viable, short = plan_violations(assign(w.MEETING, w.BOB), (), held(w.MEETING))
     assert non_viable.kind is ViolationKind.NON_VIABLE_ASSIGNEE
     assert short.kind is ViolationKind.INSUFFICIENT_CARDINALITY
     assert short.clause_id is None
@@ -121,7 +153,7 @@ def test_non_assign_actions_have_no_cardinality() -> None:
         action = CoverageAction(
             claim_id=claim_id(98), evidence_refs=(), impact_key=w.MEETING, action=kind
         )
-        assert plan_violations(action, (TWO_EMPLOYEES,), REPORT) == ()
+        assert plan_violations(action, (TWO_EMPLOYEES,), held(w.MEETING)) == ()
 
 
 def test_the_required_count_is_the_largest_applicable_or_one() -> None:

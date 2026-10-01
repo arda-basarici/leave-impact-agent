@@ -175,6 +175,7 @@ from leaveimpact.core.plans import (
     expected_action,
     plan_violations,
     required_count,
+    verdicts_by_employee,
 )
 from leaveimpact.core.ports.errors import IdentityConflict, MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import KIND_BY_ENTITY_TYPE, Entity, Observed
@@ -611,5 +612,6 @@ __all__ = [
     "tool_definition",
     "tool_surface_digest",
     "validate_arguments",
+    "verdicts_by_employee",
     "work_item_ref",
 ]
