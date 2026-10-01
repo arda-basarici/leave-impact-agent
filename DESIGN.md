@@ -1496,8 +1496,9 @@ recorded run observed, and never re-reads a vendor.** Its role is trusted only t
 GitHub environment that holds no secrets, so a vendor credential cannot reach the
 job even if a reference is added later, and the boundary is IAM rather than a
 workflow review; it reads the truth manifest, the sealed spec and run exports (and,
-since the third build step's join, the scenario specs, a grant the platform owes
-before the entry point lands), writes
+since the third build step's join, the scenario specs: that one object name per
+world, granted 2026-10-01 with no list and nothing else under the served worlds, so
+a rename of the file is a change to the role first), writes
 evaluations by conditional create, holds no model grant, and probes its own
 boundary on every dispatch (the truth manifest readable as the positive control, a
 put under the served worlds and a model invoke refused). Evaluations live with the

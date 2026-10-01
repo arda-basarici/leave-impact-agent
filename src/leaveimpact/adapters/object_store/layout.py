@@ -45,6 +45,10 @@ def world_prefix(version: WorldVersion) -> str:
 def scenario_specs_key(version: WorldVersion) -> str:
     """World bucket: the agent-visible scenario rows.
 
+    The one name under ``worlds/`` that is not this module's alone to change: the
+    evaluator's role is granted a get on exactly this object and nothing else there (the
+    platform's contract row for the role), so a rename is a change to that role first.
+
     >>> scenario_specs_key(WorldVersion("ab" * 32))
     'worlds/abababababababababababababababababababababababababababababababab/scenario-specs.json'
     """
