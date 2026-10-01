@@ -15,8 +15,13 @@ differ, and the impacts whose expected outcome differs. It is a property of the 
 scenario and the condition, never of a run, a model or a system, so it is computed once
 per world and reported beside the results, not inside every evaluation. A difference
 among the probed candidates under the normal condition would contradict assembly's proof;
-elsewhere a difference is the count of graded items a dated oracle would have judged
-otherwise.
+elsewhere a difference is a candidate a dated oracle would have judged otherwise.
+
+The comparison is of candidate judgments and outcomes for the sealed impacts, and no
+wider. It does not compare the impact sets the rules derive under each view, nor the
+expected constraints, conflicts or unknown claims; a count of zero here says the two
+views agree on every verdict, reason and outcome, never that they agree on everything
+the oracle expects.
 
 The rules are asked with the sealed leave span under every condition, so under a
 condition in which the leave itself is unreadable the counts describe the rules and not an

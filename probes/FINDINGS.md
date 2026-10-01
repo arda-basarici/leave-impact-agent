@@ -1705,13 +1705,20 @@ that adds it. It reproduces every number the rulings record.
   differ, under the normal condition and under each of the four single-source outages, so
   no scenario of the thirty holds a difference under any of the five conditions. Seventeen
   of the forty throwaway worlds held none under the normal condition either, and the
-  golden world is of that kind. On this world, then, a dated oracle and the runtime one
-  give the same verdict, reasons and outcome for every candidate of every sealed impact,
-  and no graded item of the reported results rests on which view was ruled. The ruling
-  is what keeps that true of a world where it would not be: the same function finds three
-  such pairs, one of them a verdict flip, on the throwaway world the unit suite grades
-  against, and any new-seed world the arms are confirmed on is more likely to hold one
-  than not.
+  golden world is of that kind. What that supports, exactly: on this world a dated
+  oracle and the runtime one give the same verdict, the same reasons and the same outcome
+  for every candidate of every sealed impact, under each of the five conditions. Under
+  the normal condition loading proves the rest of the key equal as well (the impacts, the
+  expected conflicts and unknowns, the required sources). Under an outage the comparison
+  stops at verdicts, reasons and outcomes: the impact sets the rules derive, the expected
+  constraints, the conflicts and the unknown claims were not compared between the views,
+  so "no graded item rests on the view" is shown for the normal condition and not yet for
+  an outage. The first text of this entry, and the commit that added it, claimed it for
+  all five; the batch review of 2026-10-01 caught the overstatement. The ruling is what
+  keeps the equality true of a world where it would not hold: the same function finds
+  three such pairs, one of them a verdict flip, on the throwaway world the unit suite
+  grades against, and any new-seed world the arms are confirmed on is more likely to hold
+  one than not.
 - **What this does not show.** The forty worlds are generator version 15 and unsealed.
   The comparison covers the sealed impacts over the whole organization (verdict, reasons,
   outcome); it does not compare the two views' expected conflicts or unknowns beyond what

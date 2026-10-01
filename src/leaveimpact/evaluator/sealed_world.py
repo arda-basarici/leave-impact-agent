@@ -33,11 +33,13 @@ the one scenario.
 
 Every failure is ``SealedWorldRefused`` and refuses the whole world. These are faults of
 the sealed files or of this code, never of a run, so nothing is graded against a world
-the join could not prove; the loader raises and the job that called it fails. A message
-names the file, the scenarios and the counts and never what a sealed file holds, since
-the job that prints it may log in public: a decoder's or a constructor's own reason stays
-on the exception as its cause, and ``KeysNotReproduced`` carries its findings, for a
-reader who holds the truth.
+the join could not prove; the loader raises and the job that called it fails. A refusal
+prints nothing a sealed file holds, since the job that raises it may log in public, and
+that is a property of the whole traceback and not only of the message: a decoder's or a
+constructor's own reason names ids and values, so it is never chained to the refusal as
+its cause or its context, where an uncaught exception or a logged one would print it.
+The reason is kept as ``detail`` and ``KeysNotReproduced`` keeps its findings, both
+attributes no traceback formats, for a reader who holds the truth.
 
 The loader reads by key through the object-store reader and records, for each file, the
 version id the store returned and the digest of the bytes, which the evaluation cites.
@@ -51,6 +53,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from functools import partial
 
 from leaveimpact.adapters.object_store.layout import (
     scenario_specs_key,
@@ -81,7 +84,17 @@ from leaveimpact.world.version import GeneratorVersion
 
 
 class SealedWorldRefused(Exception):
-    """The sealed files cannot be read as the world named; the message says which proof failed."""
+    """The sealed files cannot be read as the world named; the message says which proof failed.
+
+    The message holds no sealed content and the exception is raised with no cause and no
+    context. ``detail`` is the underlying reason when one exists (a decoder's, a
+    constructor's, a rule's), which may name what a sealed file holds: an attribute for a
+    privileged reader to ask for, never printed with the exception.
+    """
+
+    def __init__(self, message: str, *, detail: str | None = None) -> None:
+        super().__init__(message)
+        self.detail = detail
 
 
 class KeysNotReproduced(SealedWorldRefused):
@@ -245,14 +258,14 @@ def join_scenarios(
                 "modifiers both state"
             )
         complete = complete_key(key, planting.stable_interval)
-        try:
-            scenarios.append(
-                Scenario(spec, complete, planting.owned, truth.authored_facts, truth.briefs)
+        scenarios.append(
+            _or_refused(
+                partial(
+                    Scenario, spec, complete, planting.owned, truth.authored_facts, truth.briefs
+                ),
+                f"{row.scenario_id}: the sealed records do not describe one scenario",
             )
-        except ValueError as problem:
-            raise SealedWorldRefused(
-                f"{row.scenario_id}: the sealed records do not describe one scenario"
-            ) from problem
+        )
     return tuple(scenarios)
 
 
@@ -304,12 +317,10 @@ def require_reproduced(
     ``SealedWorldRefused`` when a rule cannot be asked at all (a sealed constraint whose
     clause states no requirement in the fact base).
     """
-    try:
-        findings = verify_world(facts, scenarios, org)
-    except ValueError as problem:
-        raise SealedWorldRefused(
-            f"{version}: the rules cannot be asked about a sealed key"
-        ) from problem
+    findings = _or_refused(
+        lambda: verify_world(facts, scenarios, org),
+        f"{version}: the rules cannot be asked about a sealed key",
+    )
     if findings:
         raise KeysNotReproduced(version, findings)
 
@@ -324,10 +335,22 @@ def _read(store: ObjectReader, key: str, what: str, version: WorldVersion) -> St
 def _decoded[T](
     what: str, decode: Callable[[bytes], T], content: bytes, version: WorldVersion
 ) -> T:
+    return _or_refused(lambda: decode(content), f"{version}: the {what} does not decode")
+
+
+def _or_refused[T](attempt: Callable[[], T], message: str) -> T:
+    """``attempt()``, or ``SealedWorldRefused(message)`` when it raises ``ValueError``.
+
+    The refusal is raised after the handler has ended, so it has no cause and no context:
+    ``raise ... from None`` would only hide the context from the default formatter, and
+    the reason, which names sealed content, would still travel on the exception. It is
+    kept as ``detail`` instead.
+    """
     try:
-        return decode(content)
+        return attempt()
     except ValueError as problem:
-        raise SealedWorldRefused(f"{version}: the {what} does not decode") from problem
+        detail = str(problem)
+    raise SealedWorldRefused(message, detail=detail)
 
 
 def _artifact(name: str, stored: StoredObject) -> Artifact:

@@ -3,9 +3,10 @@ world was sealed from, with where each file was read; and every proof refuses th
 name — a file absent, a file the world spec does not cite, three consistent files under another
 version's keys, a file that does not decode, the four scenario listings disagreeing, a plan row
 and its key disagreeing, a key sealed before its derived sets, three records that describe no one
-scenario, a key today's rules do not reproduce. A refusal's message names files, scenarios and
-counts and never what a sealed file holds."""
+scenario, a key today's rules do not reproduce. A refusal names files, scenarios and counts and
+prints nothing a sealed file holds, in its message or anywhere in its traceback."""
 
+import traceback
 from dataclasses import replace
 
 import pytest
@@ -15,8 +16,8 @@ from leaveimpact.adapters.object_store.layout import (
     truth_manifest_key,
     world_spec_key,
 )
-from leaveimpact.core import AssessmentReason, RunContext, Verdict
-from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion
+from leaveimpact.core import AssessmentReason, ConstraintKey, RunContext, Verdict
+from leaveimpact.core.ids import ClauseId, LeaveId, ScenarioId, WorldVersion
 from leaveimpact.evaluator.sealed_world import (
     KeysNotReproduced,
     SealedWorld,
@@ -185,8 +186,8 @@ def test_a_file_that_does_not_decode_is_refused_with_the_decoders_reason(
     replace_object(stores.truth, world_spec_key(sealed.world_version), b'{"artifact":"x"}')
     with pytest.raises(SealedWorldRefused, match="the world spec does not decode$") as refused:
         load(sealed, stores)
-    # The decoder's own reason is kept as the cause and out of the message.
-    assert "sealed as" in str(refused.value.__cause__)
+    # The decoder's own reason is kept as the detail, out of the message and unchained.
+    assert refused.value.detail is not None and "sealed as" in refused.value.detail
 
 
 def test_a_tampered_world_spec_changes_the_version_it_recomputes_to(
@@ -232,6 +233,72 @@ def test_a_key_todays_rules_do_not_reproduce_refuses_the_whole_world_without_its
     for word in ("viable", authored.employee_id, impact.key.artifact.id):
         assert word not in message
     assert isinstance(refused.value, SealedWorldRefused)
+
+
+def printed(refused: BaseException) -> str:
+    """Everything an uncaught refusal, or one a logger formats, would print: the message and
+    the traceback of the exception and of every exception chained to it."""
+    return "".join(traceback.format_exception(refused))
+
+
+def test_a_refusal_prints_nothing_a_sealed_file_holds_in_its_whole_traceback(
+    sealed: Bundle,
+    stores: SealedStores,
+    loaded: SealedWorld,
+    planted: PlantedWorldSpec,
+    specs: tuple[ScenarioSpec, ...],
+    manifest: TruthManifest,
+) -> None:
+    """The message being clean is not enough: Python prints a chained cause in full, and the
+    reasons here name ids and values of the sealed files. Each refusal that has an
+    underlying reason keeps it as ``detail`` and carries no cause and no context."""
+    first, *rest = specs
+    # 1. Three records that describe no one scenario: the reason lists the owned leaves.
+    foreign = replace(first, leave_id=LeaveId("leave_999"))
+    with pytest.raises(SealedWorldRefused) as no_scenario:
+        join_scenarios(planted, (foreign, *rest), manifest)
+    # 2. A file that does not decode: the reason quotes what the file held.
+    held = b'{"artifact":"a-value-only-the-file-holds"}'
+    replace_object(stores.truth, world_spec_key(sealed.world_version), held)
+    with pytest.raises(SealedWorldRefused) as no_decode:
+        load(sealed, stores)
+    # 3. A key the rules cannot be asked about: the reason names the clause.
+    scenario, *others = loaded.scenarios
+    artifact = scenario.key.impacts[0].key.artifact
+    unstated = ConstraintKey(ClauseId("clause_999"), artifact)
+    asked = replace(scenario, key=replace(scenario.key, constraints=(unstated,)))
+    with pytest.raises(SealedWorldRefused) as no_rule:
+        require_reproduced(loaded.version, loaded.facts, (asked, *others), loaded.org)
+    for refused, sealed_content in (
+        (no_scenario, first.leave_id),
+        (no_decode, "a-value-only-the-file-holds"),
+        (no_rule, "clause_999"),
+    ):
+        error = refused.value
+        assert error.detail is not None and sealed_content in error.detail
+        assert error.__cause__ is None and error.__context__ is None
+        assert sealed_content not in printed(error)
+        assert error.detail not in printed(error)
+    # 4. A key today's rules do not reproduce: the findings are an attribute, never printed.
+    impact, *more = scenario.key.impacts
+    authored, *probe = impact.must_assess
+    flipped = (
+        AuthoredVerdict(authored.employee_id, Verdict.NON_VIABLE, (AssessmentReason.SKILL,))
+        if authored.verdict is Verdict.VIABLE
+        else AuthoredVerdict(authored.employee_id, Verdict.VIABLE)
+    )
+    drifted_key = replace(
+        scenario.key, impacts=(replace(impact, must_assess=(flipped, *probe)), *more)
+    )
+    with pytest.raises(KeysNotReproduced) as not_reproduced:
+        require_reproduced(
+            loaded.version, loaded.facts, (replace(scenario, key=drifted_key), *others), loaded.org
+        )
+    text = printed(not_reproduced.value)
+    assert not_reproduced.value.__cause__ is None and not_reproduced.value.__context__ is None
+    for finding in not_reproduced.value.findings:
+        assert finding.expected not in text and finding.actual not in text
+        assert finding.subject not in text and finding.artifact_id not in text
 
 
 # --- The proofs over the decoded files ------------------------------------------------------
@@ -300,4 +367,4 @@ def test_three_records_that_describe_no_one_scenario_are_refused_naming_the_scen
         SealedWorldRefused, match=f"{first.id}: the sealed records do not describe one scenario$"
     ) as refused:
         join_scenarios(planted, (foreign, *rest), manifest)
-    assert "leave_999" in str(refused.value.__cause__)
+    assert refused.value.detail is not None and "leave_999" in refused.value.detail
