@@ -1719,9 +1719,33 @@ that adds it. It reproduces every number the rulings record.
   three such pairs, one of them a verdict flip, on the throwaway world the unit suite
   grades against, and any new-seed world the arms are confirmed on is more likely to hold
   one than not.
+- **Run 02, the whole answer compared: on the golden world nothing differs (live,
+  2026-10-01).** The comparison was extended to everything a report is graded against.
+  The oracle's core is asked of both views (`conclusions_in`) and the two answers are
+  compared part by part: whether the leave is readable, the impacts the rules ground,
+  every organization member's verdict and reasons for each impact both views expect, the
+  open questions behind an unknown verdict, the requirements, the outcomes, the expected
+  constraints, conflicts and unknowns. `probes/runtime-truth/golden.py` committed at
+  `60b23e4` before the run, capture `captures/runtime-truth/golden-world-run-02.json`,
+  counts per part and no id. Declared, and it holds: under the normal condition every
+  part the sealed key proves agrees. Recorded: under a Jira outage (30 scenarios
+  answerable, 14 impacts expected in both views, 28 must-assess and 364 other pairs),
+  under a calendar outage (23 impacts, 54 and 590) and under a corpus outage (27 impacts,
+  62 and 694), no part differs either, and no scenario of the thirty holds a difference
+  under any condition. With Frappe down the leave is unreadable under both views, so
+  there is no claim-level answer in either and nothing to compare. The comparison is not
+  vacuous: on six throwaway golden-plan worlds the same function finds six other verdicts
+  differing under the normal condition, four under a calendar outage, and under a Jira
+  outage two must-assess verdicts with the two unknown sets they change, the part run 01
+  could not see.
+  So the sentence run 01 could not support now holds, within its scope: on the golden
+  world, under the normal condition and under each single-source outage, a dated oracle
+  and the runtime one expect the same of a report in every graded part, and no graded
+  item of the reported results rests on which view was ruled.
 - **What this does not show.** The forty worlds are generator version 15 and unsealed.
-  The comparison covers the sealed impacts over the whole organization (verdict, reasons,
-  outcome); it does not compare the two views' expected conflicts or unknowns beyond what
-  loading already proves under the normal condition. The evaluator's own role cannot yet
-  read the scenario specs the join needs (a platform ticket, owed before the evaluation
-  workflow's first dispatch), so both live readings ran under the administrative profile.
+  The golden comparison covers the normal condition and the four single-source outages,
+  not an outage of two sources at once, which no ruling registers yet. It compares what
+  the oracle expects, and says nothing of grounding, which reads only what a run observed
+  and involves neither view. The evaluator's own role cannot yet read the scenario specs
+  the join needs (a platform ticket, owed before the evaluation workflow's first
+  dispatch), so every live reading here ran under the administrative profile.

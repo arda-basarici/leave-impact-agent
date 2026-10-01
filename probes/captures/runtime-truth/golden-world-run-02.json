@@ -1,0 +1,142 @@
+{
+  "probe": "runtime-truth, the golden world",
+  "run_at": "2026-10-01T18:52:30+00:00",
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "generator_version": "14",
+  "scenarios": 30,
+  "organization": 28,
+  "sources": {
+    "world_spec": {
+      "key": "world-spec/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json",
+      "version_id": "8qWE9gppFrK55lkEqhpa3L7_Qkc_V5Lv",
+      "sha256": "7800015e1207a7ac03b56d550693c377d517d1703b4354518a5bf87e1d32fdb0"
+    },
+    "scenario_specs": {
+      "key": "worlds/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/scenario-specs.json",
+      "version_id": "oEyrOwBR1SGT38bfz_dUZrFwDYMHddlA",
+      "sha256": "67975c51be3dd4c5eeb93fecee992a0fc7f969e2947c31d6edf681f1bef3a0ef"
+    },
+    "truth_manifest": {
+      "key": "truth-manifest/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json",
+      "version_id": "SLuBHnmFkmENp8QXOEOIMsDxtEGvQ.Xa",
+      "sha256": "24fed413b3222818abe39f361894fed10d4ca2b15c5c2e38ca504a1db189ee41"
+    }
+  },
+  "run": 2,
+  "declared": {
+    "the world loads and its sealed keys are reproduced": true,
+    "normal condition: every part the sealed key proves agrees between the views": true
+  },
+  "conditions": [
+    {
+      "condition": "normal",
+      "scenarios": 30,
+      "answerable_in_both_views": 30,
+      "impacts_expected_in_both_views": 32,
+      "must_assess_pairs": 72,
+      "other_pairs": 824,
+      "differing": {
+        "the leave readable in one view only": 0,
+        "impact sets": 0,
+        "must-assess verdicts": 0,
+        "other verdicts": 0,
+        "open questions": 0,
+        "requirements": 0,
+        "outcomes": 0,
+        "constraints": 0,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "other_verdicts_that_flip": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "frappe_down",
+      "scenarios": 30,
+      "answerable_in_both_views": 0,
+      "impacts_expected_in_both_views": 0,
+      "must_assess_pairs": 0,
+      "other_pairs": 0,
+      "differing": {
+        "the leave readable in one view only": 0,
+        "impact sets": 0,
+        "must-assess verdicts": 0,
+        "other verdicts": 0,
+        "open questions": 0,
+        "requirements": 0,
+        "outcomes": 0,
+        "constraints": 0,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "other_verdicts_that_flip": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "jira_down",
+      "scenarios": 30,
+      "answerable_in_both_views": 30,
+      "impacts_expected_in_both_views": 14,
+      "must_assess_pairs": 28,
+      "other_pairs": 364,
+      "differing": {
+        "the leave readable in one view only": 0,
+        "impact sets": 0,
+        "must-assess verdicts": 0,
+        "other verdicts": 0,
+        "open questions": 0,
+        "requirements": 0,
+        "outcomes": 0,
+        "constraints": 0,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "other_verdicts_that_flip": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "calendar_down",
+      "scenarios": 30,
+      "answerable_in_both_views": 30,
+      "impacts_expected_in_both_views": 23,
+      "must_assess_pairs": 54,
+      "other_pairs": 590,
+      "differing": {
+        "the leave readable in one view only": 0,
+        "impact sets": 0,
+        "must-assess verdicts": 0,
+        "other verdicts": 0,
+        "open questions": 0,
+        "requirements": 0,
+        "outcomes": 0,
+        "constraints": 0,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "other_verdicts_that_flip": 0,
+      "scenarios_with_a_difference": 0
+    },
+    {
+      "condition": "corpus_down",
+      "scenarios": 30,
+      "answerable_in_both_views": 30,
+      "impacts_expected_in_both_views": 27,
+      "must_assess_pairs": 62,
+      "other_pairs": 694,
+      "differing": {
+        "the leave readable in one view only": 0,
+        "impact sets": 0,
+        "must-assess verdicts": 0,
+        "other verdicts": 0,
+        "open questions": 0,
+        "requirements": 0,
+        "outcomes": 0,
+        "constraints": 0,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "other_verdicts_that_flip": 0,
+      "scenarios_with_a_difference": 0
+    }
+  ]
+}
