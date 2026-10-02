@@ -1915,3 +1915,41 @@ that a conclusion drawn over the truth would move. Declared before the group: no
   the gate on prose and the integrity comparison are the next group's. The proofs are
   carried and not yet read by any grader. The live load covers the normal condition, as
   it did at step 3.
+
+## observed-view — a run that read everything observes what the oracle derives from (2026-10-02)
+
+The second code group of the investigator milestone's build step 4 built what the grounding
+replay will be asked over: the sealed world indexed by identity at loading
+(`evaluator/world_index.py`), and the view of what one run's completed reads support
+(`evaluator/observed_view.py`; commits `11062fc` to `03032d5`).
+Two things are now built apart that must agree: runtime truth, from the sealed plantings,
+and the observed view, from a trace's reads with prose admitted only where a comment or a
+section came back with the sealed text. Declared before the gate was run: over the view of
+a run that read everything, the oracle's own function returns the oracle's own answer.
+
+- **It does, on the first run.** Thirty scenarios of the throwaway world, each read whole
+  through the in-memory ports by the declared tools: under the normal condition, with the
+  tracker down and with the calendar down, the observed view holds the same facts and gaps
+  as runtime truth and `conclusions_in` returns the oracle's complete answer (every
+  organization member's verdict, reasons, open questions and evidence, the requirements,
+  the outcomes, the constraints, the conflicts, the unknowns). With the HR system or the
+  corpus down, both sides have no answer.
+- **The equality is not vacuous.** With the tracker's enumeration left out of the reads,
+  the answer changes in 26 of the 30 scenarios: exactly those whose sealed key lists the
+  tracker among its required sources, and no other.
+- **The loader now indexes, and the golden world still loads (live, 2026-10-02).**
+  `tests/live/test_sealed_world_loads.py`, unchanged, run from the workstation under the
+  administrative profile after the group's review commit: passed. Loading now refuses a
+  world that cannot be indexed or whose requirement clause does not state its scope; the
+  counts-only run recorded under `grounding-basis` had shown the golden world holds on
+  each property before that refusal existed.
+- **What the batch review caught.** A read by id that came back with a record of another
+  id left the asked record unobserved, correctly, and produced no finding, though the
+  module promised one. It is now a finding of its own about the record asked for, whether
+  or not the sealed world holds it and whatever else returned it.
+- **What this does not show.** No run has been observed: the operations are made by a test
+  recorder against in-memory systems, since no harness exists yet. The integrity findings
+  are exercised on drift a test simulates (a comment edited, a ticket reassigned, a record
+  deleted), never on a real system that drifted. The throwaway world's model-written parts
+  are stand-in text, so the content gate has compared real prose only in the sense that
+  the golden world indexes; the full read asks for documents by id and makes no search.
