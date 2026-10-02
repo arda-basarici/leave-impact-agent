@@ -15,12 +15,20 @@ a run is looked at. The outcome is one of three:
   under the run's condition, or what clauses require was, or one source both answered and
   failed in the run, a mixed condition no registered outage produces. No comparative
   answer metric is computed. Every check that needs no expected answer still is: the
-  structural check and the report's own coherence here, and grounding, citations and
-  source discipline when the next build step adds them.
+  structural check, the report's own coherence, and grounding with its citations.
 - *Excluded.* The run failed by a defect or by infrastructure and is counted, not graded
   (the runtime-policy ruling); or its context is not the one the sealed scenario gives, a
   harness defect, since a run of another scenario, world or ``now`` cannot be graded
   against this key.
+
+A graded and a limited run both carry their *grounding*: what the run's own reads support
+of its report, claim by claim, and each citation on its three axes (``replay``,
+``citations``). It needs no expected answer, only the reads, so it is computed wherever a
+report can be replayed, which is wherever its claim set is structurally valid; for an
+invalid one it is not evaluated, as the plan checks are not. Both also carry the
+*integrity findings*: every difference between what the run read and the sealed world
+(``observed_view``). A run with findings is graded and replayed like any other. Whether
+it enters a reported table is the preregistration's.
 
 The condition is read off the trace, never taken from the record (``condition``). When the
 record's stored condition disagrees with the trace, the trace stands and the disagreement
@@ -45,8 +53,10 @@ from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import FailureCategory, System, TerminalStatus
+from leaveimpact.evaluator.citations import CitationRecord, judge_citations
 from leaveimpact.evaluator.condition import ObservedCondition, observed_condition
 from leaveimpact.evaluator.matching import match_claims
+from leaveimpact.evaluator.observed_view import IntegrityFinding, ObservedRun, observe
 from leaveimpact.evaluator.oracle import (
     Answerable,
     UnreadableLeave,
@@ -60,6 +70,7 @@ from leaveimpact.evaluator.plan_checks import (
     oracle_checks,
     report_checks,
 )
+from leaveimpact.evaluator.replay import ClaimGrounding, replay
 from leaveimpact.evaluator.rows import ClaimRows
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world.scenario import Scenario
@@ -93,12 +104,23 @@ class RunHeader:
 
 
 @dataclass(frozen=True, slots=True)
+class Grounding:
+    """What a run's own reads support of its report: every claim's local standing with its
+    proof and premises, in claim order, and every citation on its three axes."""
+
+    claims: tuple[ClaimGrounding, ...]
+    citations: tuple[CitationRecord, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Graded:
     """A run graded against the oracle's answer for the condition it ran under.
 
-    ``oracle_findings``, ``report_findings`` and ``coverage`` are ``None`` exactly when the
-    claim set was structurally invalid: the plan checks were not evaluated, which is a
-    different statement from having found nothing.
+    ``oracle_findings``, ``report_findings``, ``coverage`` and ``grounding`` are ``None``
+    exactly when the claim set was structurally invalid: the checks and the replay were
+    not evaluated, which is a different statement from having found nothing. ``integrity``
+    holds what the run read that the sealed world does not hold that way, whatever the
+    claim set.
     """
 
     header: RunHeader
@@ -107,14 +129,17 @@ class Graded:
     oracle_findings: tuple[CheckFinding, ...] | None
     report_findings: tuple[CheckFinding, ...] | None
     coverage: tuple[CoverageGap, ...] | None
+    grounding: Grounding | None
+    integrity: tuple[IntegrityFinding, ...]
     harness_findings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         evaluated = self.rows.structurally_valid
-        checks = (self.oracle_findings, self.report_findings, self.coverage)
+        checks = (self.oracle_findings, self.report_findings, self.coverage, self.grounding)
         if any((check is not None) != evaluated for check in checks):
             raise ValueError(
-                "the plan checks are evaluated exactly when the claim set is structurally valid"
+                "the plan checks and the grounding are evaluated exactly when the claim set "
+                "is structurally valid"
             )
 
 
@@ -127,7 +152,8 @@ class Limited:
     structurally invalid; the coverage gaps here are the ones the report's own conclusions
     call for, since no oracle outcome exists to call for any, and each is over the whole
     organization, the probe set included: no claim row exists here to hold a probed
-    candidate's omission.
+    candidate's omission. ``grounding`` is ``None`` with them: what the run's reads
+    support needs no expected answer, and it does need a claim set that can be replayed.
     """
 
     header: RunHeader
@@ -137,15 +163,19 @@ class Limited:
     structural_problems: tuple[str, ...]
     report_findings: tuple[CheckFinding, ...] | None
     coverage: tuple[CoverageGap, ...] | None
+    grounding: Grounding | None
+    integrity: tuple[IntegrityFinding, ...]
     harness_findings: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if (self.reason is LimitedReason.MIXED_CONDITION) != bool(self.mixed):
             raise ValueError("a mixed condition names its mixed sources, and only it does")
         evaluated = not self.structural_problems
-        if any((check is not None) != evaluated for check in (self.report_findings, self.coverage)):
+        checks = (self.report_findings, self.coverage, self.grounding)
+        if any((check is not None) != evaluated for check in checks):
             raise ValueError(
-                "the report's checks are evaluated exactly when the claim set is structurally valid"
+                "the report's checks and the grounding are evaluated exactly when the claim "
+                "set is structurally valid"
             )
 
 
@@ -182,9 +212,10 @@ def grade_run(world: SealedWorld, export: RunExport) -> RunOutcome:
         return Excluded(header, failed_by)
     observed = observed_condition(trace)
     harness = _condition_findings(record.observed_condition, observed.condition)
+    run = observe(world.index, export)
     if observed.is_mixed:
         return _limited(
-            world, scenario, export, header, observed, LimitedReason.MIXED_CONDITION, harness
+            world, scenario, export, header, observed, run, LimitedReason.MIXED_CONDITION, harness
         )
     oracle = oracle_for(world, scenario, observed.condition)
     if not isinstance(oracle, Answerable):
@@ -193,11 +224,13 @@ def grade_run(world: SealedWorld, export: RunExport) -> RunOutcome:
             if isinstance(oracle, UnreadableLeave)
             else LimitedReason.UNREADABLE_POLICY
         )
-        return _limited(world, scenario, export, header, observed, unreadable, harness)
+        return _limited(world, scenario, export, header, observed, run, unreadable, harness)
     claims = trace.claims
     rows = match_claims(oracle, claims)
     if not rows.structurally_valid:
-        return Graded(header, observed.condition, rows, None, None, None, harness)
+        return Graded(
+            header, observed.condition, rows, None, None, None, None, run.findings, harness
+        )
     return Graded(
         header,
         observed.condition,
@@ -205,8 +238,17 @@ def grade_run(world: SealedWorld, export: RunExport) -> RunOutcome:
         oracle_checks(oracle, claims),
         report_checks(claims, scenario, oracle.view),
         coverage_gaps(claims, oracle.universe, oracle),
+        _grounding(world, export, run),
+        run.findings,
         harness,
     )
+
+
+def _grounding(world: SealedWorld, export: RunExport, run: ObservedRun) -> Grounding:
+    """What ``run`` supports of the export's claims, a structurally valid set."""
+    claims = export.trace.claims
+    standings = replay(run, world.index, claims, export.context.reference_timezone)
+    return Grounding(standings, judge_citations(claims, standings, run, world.index))
 
 
 def _limited(
@@ -215,6 +257,7 @@ def _limited(
     export: RunExport,
     header: RunHeader,
     observed: ObservedCondition,
+    run: ObservedRun,
     reason: LimitedReason,
     harness: tuple[str, ...],
 ) -> Limited:
@@ -224,13 +267,26 @@ def _limited(
     problems = structural_problems(claims)
     findings: tuple[CheckFinding, ...] | None = None
     gaps: tuple[CoverageGap, ...] | None = None
+    grounding: Grounding | None = None
     if not problems:
         view = runtime_truth(world, scenario).at(scenario.spec.today, observed.condition)
         universe = tuple(employee.id for employee in world.org.employees)
         findings = report_checks(claims, scenario, view)
         gaps = coverage_gaps(claims, universe)
+        grounding = _grounding(world, export, run)
     mixed = observed.mixed if reason is LimitedReason.MIXED_CONDITION else frozenset[Source]()
-    return Limited(header, observed.condition, reason, mixed, problems, findings, gaps, harness)
+    return Limited(
+        header,
+        observed.condition,
+        reason,
+        mixed,
+        problems,
+        findings,
+        gaps,
+        grounding,
+        run.findings,
+        harness,
+    )
 
 
 def _condition_findings(recorded: RunCondition, observed: RunCondition) -> tuple[str, ...]:
@@ -252,6 +308,7 @@ __all__ = [
     "Excluded",
     "ExcludedReason",
     "Graded",
+    "Grounding",
     "Limited",
     "LimitedReason",
     "RunHeader",
