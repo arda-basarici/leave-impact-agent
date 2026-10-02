@@ -228,12 +228,22 @@ a contradiction), and the conflict claim cites the rule id so precedence is test
 instead of intuited. *Closed-world reasoning applies per declared evidence domain:*
 each predicate declares the sources that collectively hold all admissible evidence
 for it in this synthetic world and whether that domain is closed; positive evidence
-→ known true; no positive evidence with a closed domain and every required source
-available → known false; no positive evidence with an open or incomplete domain, or
-a required source absent or inaccessible → unknown. So a skills list without Kafka
-is `non_viable / skill`, an explicitly empty list is the same, a missing skills
-field is `unknown / absent`, and a closed domain whose Jira half is unreachable in
-this run is `unknown / inaccessible` even when the HR half shows nothing. That is
+→ known true; no positive evidence with a closed domain and every place the fact
+could be recorded observed → known false; no positive evidence with an open domain,
+or with one of those places unobserved → unknown. Observed is a statement about what
+was read, not about what could be reached. The evidence for a skill has three places:
+the employee's HR record, the comments of every ticket, and the corpus. A place that
+could not be read gives `unknown / inaccessible`, one that nobody read gives `unknown
+/ insufficient`, and a field the record leaves blank gives `unknown / absent`. So
+with the record read and the tickets listed, a skills list without Kafka is
+`non_viable / skill` and an explicitly empty list is the same; a missing skills field
+is `unknown / absent`; a run that read the record and never listed the tickets has
+`unknown / insufficient`, however reachable the tracker was; and one whose tracker is
+unreachable has `unknown / inaccessible` even when the HR record shows nothing. The
+corpus is the one stated exception, since it has a search and no enumeration: a
+negative may stand without it and records that it did. The truth a world plants
+observes whatever its reachable sources hold, which is the case the sealed keys are
+derived in. That is
 why expected verdicts are derived per run condition from facts plus closure
 declarations rather than stored: a tool-failure run against the same scenario
 legitimately turns a `non_viable` into an `unknown`, and that difference is the
@@ -1462,10 +1472,10 @@ finds; a fact-bearing reader enumerates, selects by identity or narrows by a nat
 window, and never filters by a derived relationship, because a closed domain's
 "known false" is honoured only when the run read the universe to completion and a
 malformed record raised instead of being dropped by a vendor-side filter.
-Reachability is not completeness: the run condition records the first and the
-ingestion lifecycle owns the second, a contract the derivation states and the
-investigator's harness will have to keep, an explicit record only if reads ever turn
-incremental. "What Alice owns" is then a filter over facts derived from every work
+Reachability is not completeness: the run condition records the first, and the
+second is coverage, what the run's completed reads observed, derived from the trace
+by one function that the evaluator and a harness concluding from its own reads both
+call. "What Alice owns" is then a filter over facts derived from every work
 item, retrieval efficiency spent for evidence semantics, negligible at this world
 size, pagination staying the adapter's. **`RunContext` carries the leave under
 investigation as an id and nothing more**: run inputs identify what to investigate,
@@ -1877,9 +1887,11 @@ beside it; a system that never called the failed source ran under no outage.
 system, one assigned condition and one stratum: the whole set, a tier, or a scenario
 class. Nothing is pooled across systems or conditions. The arm is the condition a run
 was *assigned*, so a system's own behaviour never chooses its arm, while each run is
-still graded against the condition its trace shows. The arms are the ones the
-preregistration registers, and one that produced no export is reported with every
-intended run missing. Outage runs follow one injection schedule registered before any
+still graded against the condition its trace shows. The arms the preregistration
+registers define what was intended, so one that produced no export is reported with
+every intended run missing. An arm that arrives without being registered is kept and
+marked unregistered, never dropped, and whether it enters a reported table is the
+reporting policy's. Outage runs follow one injection schedule registered before any
 run and are reported apart from normal runs. Two kinds of number come out. A
 *scenario-level proportion*, x of n scenarios passing a yes-or-no check, carries a
 Wilson interval, the scenario being the trial. A *claim-level ratio* (precision, recall,
