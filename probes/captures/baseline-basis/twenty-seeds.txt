@@ -65,14 +65,17 @@ normal: 810 claims in 30 reports; outcomes: Graded: 30
   replay: 810 reproduced of 810 (candidate_assessment reproduced: 756, coverage_action reproduced: 27, impact reproduced: 27)
   structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
   findings against the oracle: oracle_plan: 24
+  graded correct whole, by tier: adversarial 0 of 10, fragmented 0 of 10, structured 10 of 10
 jira down: 270 claims in 30 reports; outcomes: Graded: 30
   replay: 270 reproduced of 270 (candidate_assessment reproduced: 252, coverage_action reproduced: 9, impact reproduced: 9)
   structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
   findings against the oracle: oracle_plan: 6
+  graded correct whole, by tier: adversarial 10 of 10, fragmented 2 of 10, structured 10 of 10
 calendar down: 540 claims in 30 reports; outcomes: Graded: 30
   replay: 540 reproduced of 540 (candidate_assessment reproduced: 504, coverage_action reproduced: 18, impact reproduced: 18)
   structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
   findings against the oracle: oracle_plan: 18
+  graded correct whole, by tier: adversarial 0 of 10, fragmented 3 of 10, structured 10 of 10
 
 7. The degraded states (the reference seed)
 the HR system down, an empty report: 0 claims in 30 reports; outcomes: Limited as unreadable_leave: 30

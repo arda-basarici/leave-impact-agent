@@ -2104,6 +2104,22 @@ here is `core`'s. The step's acceptance grades the baseline through these same p
   the fixture's full read uses the scenario's window where the ruled prefetch reads the
   leave's span: the structured-only answer read with the leave's exact span equals the
   one read with the scenario's window in 600 of 600 scenarios under each condition.
+- **What the batch review caught (2026-10-03).** The probe's "equal to the oracle's answer
+  whole" was a flag built by hand beside the transition counts, and it compared impact
+  keys, outcomes, must-assess verdicts, conflicts and unknowns, leaving out the required
+  count, the resolved requirements and constraints, the assessments of candidates outside
+  the probe set and what each assessment left unresolved. The review asked for the
+  comparison the full-read test holds a view to the oracle by, over everything a report
+  is graded against, and the probe now decides equality by it; the transition counts stay
+  as diagnostics. The capture came back identical, every line: the structured tier's keys
+  hold no constraint and no resolved requirement, so nothing the flag left out could
+  differ there, and every scenario the flag called equal elsewhere is equal under the
+  full comparison. The review also exposed that section 6 pinned claim totals and not the
+  third leg of ruling 2, so it now states what the evaluator's own rows grade correct
+  whole, by tier: every required row reported with its payload right, no unexpected row,
+  no plan finding. Structured 10 of 10 under each of the three conditions; fragmented 0,
+  2 and 3 of 10; adversarial 0, 10 and 0 of 10, the counts the oracle comparison gives on
+  the same seed.
 - **What this does not show.** A simulation, and no part of the baseline: no prefetch
   plan, no execution layer, no report built under the ruled reporting policy. The report
   graded here is the tests' truthful-report builder applied to the simulated answer, so

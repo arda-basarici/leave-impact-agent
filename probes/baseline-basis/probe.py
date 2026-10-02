@@ -45,7 +45,8 @@ Seven questions, the ruling each one decided in brackets:
    evaluator's view and forecast the baseline only where the answer is no.
 6. *The answer graded* [rulings 2 and 6]. The reference seed. The structured-only answer
    written as a report, every employee assessed for every impact, graded by the real
-   evaluator under the three conditions.
+   evaluator under the three conditions, and whether its rows grade the report correct
+   whole, by tier: the third leg of ruling 2's acceptance, read off the evaluator.
 7. *The degraded states* [ruling 4]. The reference seed. What the evaluator makes of an
    empty report and of a non-empty one when the HR system is down and when the corpus is;
    what the plan rule says of an impact with nobody enumerated; whether the vocabulary can
@@ -100,6 +101,7 @@ from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.evaluator.grading import Graded, Limited
 from leaveimpact.evaluator.observed_view import ObservedRun, observe
 from leaveimpact.evaluator.oracle import Answerable, _conclusions, conclusions_in, oracle_for
+from leaveimpact.evaluator.rows import Expectation
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
@@ -167,6 +169,10 @@ def structured_read(
 def against_oracle(
     c: Counter, scenario: Scenario, oracle: Answerable, read: StructuredRead
 ) -> None:
+    """The transitions from the oracle's answer to the structured-only one, counted part by
+    part, and whether the two are equal whole: the full-read test's own comparison, over
+    everything a report is graded against, so no part left out of the counts can make an
+    unequal answer read as equal."""
     base = read.answer
     c["integrity findings"] += len(read.run.findings)
     base_keys = {truth.key for truth in base.impacts}
@@ -174,7 +180,7 @@ def against_oracle(
     c["oracle impacts"] += len(oracle_keys)
     c["impacts not grounded"] += len(oracle_keys - base_keys)
     c["impacts extra"] += len(base_keys - oracle_keys)
-    same = base_keys == oracle_keys
+    same = parts(base) == parts(oracle)
     for truth in oracle.impacts:
         got = base.impact(truth.key)
         if got is None:
@@ -182,7 +188,6 @@ def against_oracle(
         c["impacts found"] += 1
         c[("outcome", truth.outcome.value, got.outcome.value)] += 1
         c[("required", truth.required, got.required)] += 1
-        same &= truth.outcome is got.outcome
         for theirs in truth.assessments:
             if theirs.employee_id not in truth.probe:
                 continue
@@ -193,14 +198,12 @@ def against_oracle(
                 stated += " with other reasons"
             c["must-assess on impacts found"] += 1
             c[("must-assess", theirs.verdict.value, stated)] += 1
-            same &= (theirs.verdict, theirs.reasons) == (ours.verdict, ours.reasons)
     theirs_conflicts, ours_conflicts = set(oracle.conflicts), set(base.conflicts)
     theirs_unknowns, ours_unknowns = set(oracle.unknowns), set(base.unknowns)
     c["oracle conflicts"] += len(theirs_conflicts)
     c["conflicts not stated"] += len(theirs_conflicts - ours_conflicts)
     c["oracle unknowns"] += len(theirs_unknowns)
     c["unknowns stated"] += len(ours_unknowns)
-    same &= theirs_conflicts == ours_conflicts and theirs_unknowns == ours_unknowns
     c[("equal by tier", scenario.key.tier.value, same)] += 1
     needs_corpus = Source.CORPUS in scenario.key.required_sources
     c[("equal by corpus", "required" if needs_corpus else "not required", same)] += 1
@@ -517,12 +520,42 @@ def with_outage(export: RunExport, down: tuple[Source, ...]) -> RunExport:
     return replace(export, record=replace(export.record, outage=outage))
 
 
+PAYLOAD_FLAGS = (
+    "verdict_matches",
+    "reasons_match",
+    "value_matches",
+    "rule_matches",
+    "observations_hold",
+    "reason_matches",
+)
+
+
+def correct_whole(outcome: Graded) -> bool:
+    """Whether the evaluator's rows grade the report correct in every part: every required
+    row reported with its payload right (an action's by the kind reported), no unexpected or
+    unmatched row, and no plan finding against the oracle."""
+    for name in ("impacts", "constraints", "assessments", "actions", "conflicts", "unknowns"):
+        for row in getattr(outcome.rows, name):
+            if row.expectation is not Expectation.REQUIRED:
+                if row.expectation is not Expectation.OPTIONAL:
+                    return False
+                continue
+            if row.claim_id is None:
+                return False
+            if any(getattr(row, flag, None) is False for flag in PAYLOAD_FLAGS):
+                return False
+            if name == "actions" and row.expected is not row.reported:
+                return False
+    return not outcome.oracle_findings
+
+
 def graded_summary(world: SealedWorld, build: Callable[[Scenario], RunExport]) -> list[str]:
     """What the evaluator makes of ``build``'s export of every scenario, as report lines."""
     outcomes: Counter = Counter()
     standings: Counter = Counter()
     against_oracle_: Counter = Counter()
     report: Counter = Counter()
+    whole: Counter = Counter()
     c: Counter = Counter()
     for scenario in world.scenarios:
         export = build(scenario)
@@ -534,6 +567,8 @@ def graded_summary(world: SealedWorld, build: Callable[[Scenario], RunExport]) -
         outcomes[name] += 1
         if not isinstance(outcome, (Graded, Limited)):
             continue
+        if isinstance(outcome, Graded):
+            whole[(scenario.key.tier.value, correct_whole(outcome))] += 1
         problems = (
             outcome.rows.structural_problems
             if isinstance(outcome, Graded)
@@ -562,6 +597,11 @@ def graded_summary(world: SealedWorld, build: Callable[[Scenario], RunExport]) -
         f"{sum(report.values())}, coverage gaps {c['coverage gaps']}, integrity findings "
         f"{c['integrity findings']}, harness findings {c['harness findings']}",
         f"  findings against the oracle: {spread(against_oracle_)}",
+        "  graded correct whole, by tier: "
+        + ", ".join(
+            f"{tier} {whole[(tier, True)]} of {whole[(tier, True)] + whole[(tier, False)]}"
+            for tier in sorted({tier for tier, _ in whole})
+        ),
     ]
 
 
