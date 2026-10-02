@@ -32,6 +32,25 @@ conclusion is about everyone, three questions with their results kept apart, one
 per omission. ``grading`` gives every export exactly one outcome: graded against the
 oracle, limited to the checks that need no expected answer, or excluded and counted.
 
-Grounding, citations, source discipline and the aggregation of rows into tables are the
-next build step's; the evaluation artifact's codec and the entry point follow it.
+``world_index`` is the sealed world by identity: every record, every comment and section,
+the facts each carries, and what each requirement clause is scoped to, with the proof that
+the clause's own text states that scope. ``observed_view`` builds, from an export's
+completed reads, the facts those reads support and what they covered, and reports every
+difference between what was read and what was sealed. ``plan_reading`` is the one reading
+of a plan that the coherence check and the replay share. ``replay`` asks of each claim
+whether the rules, fed only what the run read, conclude what it says; ``grounded`` derives
+from its records which claims are grounded end to end, under the operational and the
+strict reading; ``citations`` judges each evidence reference on three axes.
+
+``trace_metrics`` measures what a run did, beside its outcome and for every export that
+decodes, and is the entry that returns both. Its parts are ``source_discipline`` (the
+reads by source, outcome and origin, the refused calls, the model calls, the repeats, the
+operations no conforming harness records), ``cost_check`` (usage and cost recomputed from
+the trace in three layers), ``proof_contribution`` (which reads supplied something a proof
+rests on), ``retrieval_targets`` (the statements a scenario's answer depends on under a
+condition, by removal through the oracle) and ``retrieval`` (which of them a run's reads
+returned, and through which search at what rank).
+
+The aggregation of rows and metrics into tables is the next commit group's; the evaluation
+artifact's codec and the job's entry point follow it.
 """
