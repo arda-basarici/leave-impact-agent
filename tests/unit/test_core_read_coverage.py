@@ -327,6 +327,65 @@ def test_a_caller_can_withdraw_a_record_it_has_its_own_reason_to_doubt() -> None
     assert doubted.status(RecordSlice(TICKET_REF)) is COVERED
 
 
+def _recorded(
+    tool: str, source: Source, arguments: Mapping[str, object], outcome: Outcome
+) -> tuple[Operation, ...]:
+    """One operation exactly as given, whatever its tool declares."""
+    return (Operation(OperationId("op-1"), PrefetchOrigin(), tool, source, arguments, outcome),)
+
+
+def test_an_operation_is_credited_only_when_it_is_what_its_tool_declares() -> None:
+    # The operation type holds no agreement between a tool and what was recorded for it, so
+    # that a broken export can be decoded and reported. None of these observed what the
+    # tool's name suggests (the batch review of group A).
+    week = {"span": encode_date_span(w.LEAVE_SPAN)}
+    can = {"id": w.CAN}
+    not_credited = (
+        # A read of the HR system recorded against the tracker says nothing about HR.
+        (_recorded("employee", Source.JIRA, can, AbsentOutcome()), RecordSlice(CAN)),
+        (_recorded("work_items", Source.FRAPPE, {}, RecordsOutcome(())), EVERY_TICKET),
+        # Records of another kind: the employees were not listed, the leaves not searched.
+        (
+            _recorded("employees", Source.FRAPPE, {}, RecordsOutcome((ALICE_LEAVE,))),
+            KindSlice(EntityKind.EMPLOYEE),
+        ),
+        (
+            _recorded("leaves_within", Source.FRAPPE, week, RecordsOutcome((CAN_RECORD,))),
+            WindowSlice(EntityKind.LEAVE, w.LEAVE_SPAN),
+        ),
+        # The other cardinality: an enumeration answers a sequence, a read by id one or none.
+        (
+            _recorded("employees", Source.FRAPPE, {}, RecordOutcome(CAN_RECORD)),
+            KindSlice(EntityKind.EMPLOYEE),
+        ),
+        (
+            _recorded("employees", Source.FRAPPE, {}, AbsentOutcome()),
+            KindSlice(EntityKind.EMPLOYEE),
+        ),
+        (_recorded("employee", Source.FRAPPE, can, RecordsOutcome(())), RecordSlice(CAN)),
+    )
+    for operations, where in not_credited:
+        assert coverage_from_reads(operations).status(where) is UNREAD, operations[0].tool
+
+
+def test_a_malformed_operation_still_contributes_the_records_it_returned() -> None:
+    listed = _recorded("employees", Source.FRAPPE, {}, RecordsOutcome((ALICE_LEAVE, CAN_RECORD)))
+    seen = coverage_from_reads(listed)
+    assert seen.status(RecordSlice(leave_ref(w.LEAVE))) is COVERED
+    assert seen.status(RecordSlice(CAN)) is COVERED
+    assert seen.status(KindSlice(EntityKind.EMPLOYEE)) is UNREAD
+    assert seen.status(RecordSlice(BOB)) is UNREAD
+
+
+def test_a_negative_about_hr_is_not_grounded_by_a_read_recorded_against_the_tracker() -> None:
+    view = view_of(_recorded("employee", Source.JIRA, {"id": w.CAN}, AbsentOutcome()))
+    employed = PredicateName.EMPLOYED_AS
+    assert establish(view, CAN, employed) == Unresolved(CAN, employed, INSUFFICIENT)
+    # The same call on the source its tool reads is an observation of that record's absence.
+    honest = view_of(reads(by_id("employee", w.CAN, None)))
+    assert establish(honest, CAN, employed) == KnownFalse()
+
+
 def test_a_call_that_is_not_a_declared_tools_contributes_its_records_only() -> None:
     unknown = Operation(
         OperationId("op-1"),

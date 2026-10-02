@@ -37,10 +37,18 @@ withdrawn section: the record in doubt is exactly where the missing evidence cou
 ``excluding`` withdraws further records for a caller that has its own reason to doubt
 one, as the evaluator has for a comment or a section whose text is not the sealed one.
 
-An operation whose tool is not one of the declared thirteen, or whose arguments are not
-what its tool declares, contributes the records it returned and nothing else: what it
-asked for cannot be read off it. Reporting such an operation is its verifier's, not
-this function's.
+An operation is credited with what its tool observes only when it is what the tool
+declares, in every respect the method table states: the tool is one of the thirteen,
+the arguments are the ones it accepts, the source is the one it reads, the outcome has
+its cardinality (one record or none for a read by id, a sequence for the rest) and
+every returned record is of the kind it returns. The operation type holds none of that
+on purpose, so that an export which breaks it can be decoded and reported; here it is
+the difference between an observation and a claim of one. An ``employee`` call recorded
+against the tracker and answered "no such record" says nothing about the HR system,
+and an ``employees`` call that returned leaves did not list the employees. An operation
+that fails any of these contributes the records it returned and nothing else: no
+absence, no enumeration, no window. Reporting it is its verifier's, not this
+function's.
 """
 
 from __future__ import annotations
@@ -239,14 +247,33 @@ def _what_was_asked(
     operation: Operation,
 ) -> tuple[ToolSpecification, Mapping[str, object]] | None:
     """The tool's specification and the call's arguments as domain values, or ``None`` when the
-    operation is not a call of a declared tool with the arguments it declares."""
+    operation is not a call of a declared tool, answered as that tool answers, with the
+    arguments it declares."""
     specification = specification_named(operation.tool)
-    if specification is None:
+    if specification is None or not _answered_as_declared(operation, specification):
         return None
     try:
         return specification, validate_arguments(specification, thawed_json(operation.arguments))
     except ValueError:
         return None
+
+
+def _answered_as_declared(operation: Operation, specification: ToolSpecification) -> bool:
+    """Whether a completed ``operation`` read the source its tool reads and answered in the
+    tool's shape: its cardinality, and records of the kind it returns."""
+    declared = specification.facts
+    outcome = operation.outcome
+    if isinstance(outcome, RecordsOutcome):
+        shape, records = Cardinality.SEQUENCE, outcome.records
+    elif isinstance(outcome, RecordOutcome):
+        shape, records = Cardinality.SINGLE, (outcome.record,)
+    else:
+        shape, records = Cardinality.SINGLE, ()
+    return (
+        operation.source is declared.source
+        and declared.cardinality is shape
+        and all(record.kind is declared.entity_kind for record in records)
+    )
 
 
 def _merged_days(windows: list[DateSpan]) -> tuple[DateSpan, ...]:
