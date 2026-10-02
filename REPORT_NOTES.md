@@ -7,6 +7,172 @@ decisions it feeds.
 
 ---
 
+## 2026-10-02 — A run that read nothing would have had every negative confirmed, and one of the step's own numbers had no script behind it
+
+*M2 step 4, the investigator milestone's fourth build step: the grounding replay and
+source discipline, from the coverage a run's reads give the shared rules through the
+observed-run view, the replay with its citations and the trace metrics to the tables and
+their intervals. Six rulings by interview, each read by an external reviewer with no
+chat context, then six commit groups, each reviewed in one batch after its push (session
+47, 2026-10-02). Feeds: the M2 milestone report's evaluation-design section, on what
+"grounded" is allowed to mean and on which interval goes with which number; the final
+report's section on honest measurement, on a negative no system can establish and on a
+number that was corrected twice; and its process section, on what the batch reviews
+caught and on the one finding that was declined.*
+
+Step 4 asks one thing of a run: do the rules, fed only what its reads returned, conclude
+what its report claims. The plan treated that as a replay of code that already existed.
+The second ruling's interview found that the replay as it stood would have been wrong in
+the direction that flatters a system. Closure, the rule that decides whether a fact is
+known true, known false or unknown, inferred a negative when every source of the fact's
+evidence domain was reachable and no fact was there. For the truth a world plants that
+is sound, since a reachable source holds everything. A view built from a run's reads
+holds only what the run asked for, and reachability says nothing about that: a run that
+read nothing would have had every "lacks the skill" and every "not on leave" confirmed
+by its own silence. How much of the answer rests on a negative was counted before
+anything was ruled, on the sealed must-assess verdicts of twenty seeds of the golden
+plan. Of 1,440, 420 are viable, which needs "not on leave" known false and "not busy"
+for a meeting; 420 are non-viable with skill among the reasons, 244 on availability, 236
+on component alone, 40 on a hard rule, and 80 are unknown (`probes/grounding-basis` and
+its capture; FINDINGS, `grounding-basis`). Nearly every assessment touches one. The
+ruling was that an unread record is not false. The unit a view is asked about became a
+slice of a source, and whether a slice was observed is read off the trace by where the
+fact lives: a component's record settles membership and the employee's record cannot, a
+leave read by its id settles nothing about "no leave overlaps these days" and a window
+containing them does, one ticket gives positive evidence of a skill and only the
+enumeration of tickets closes the tracker's part of a negative. The change went into the
+shared rules, which the oracle also runs, so the risk was to the answer key itself. The
+truth's coverage was defined as covered where the source is reachable, the old behaviour
+exactly, and it was held to that: no existing expectation of the suite was edited, both
+committed measurements regenerated identical to their captures after each of the three
+changes, and the golden world reloaded live with its thirty keys reproduced (FINDINGS,
+`coverage-in-core`).
+
+The first ruling had found the other half of the problem. The rules derive facts from
+structured records and nothing from prose, and on the same twenty seeds all 620 authored
+facts sit on a ticket comment or a document clause: what a clause requires, whom a
+section names, a skill a comment shows (`grounding-basis`). A view built from returned
+records alone would leave every claim resting on prose ungrounded for every system. So a
+sealed fact enters a run's view when a completed read returned its carrier and the
+returned text equals the sealed text, which the evaluator already holds. The limit was
+written into the ruling and not discovered later: once a carrier came back, grounding
+cannot tell reading from guessing. Whether a query found the carrier is the retrieval
+measure's question, whether the claim follows from what came back is grounding's, and
+whether it is right is the grading's. The corpus then produced a negative nobody can
+establish. It has a search and no enumeration, and a skill can be stated in any section
+of any document, so "no document says this person knows Kafka" is out of reach of every
+tool. Four ways of handling it were weighed. A strict reading alone makes the 420 skill
+verdicts, 29 % of the total, ungroundable for every system, a constant that compares
+nothing. A lenient reading alone hides a limit of the tool surface inside a definition.
+Storing both judgments keeps a second copy that can disagree with the first. What was
+ruled is one stored judgment, the operational one, with the source it stood without
+recorded beside it, and the strict reading derived wherever a table is cut; the word
+grounded is never used alone for a result with a source left unclosed.
+
+One number in these rulings was wrong twice. The fifth ruling needed to know which
+pieces of prose move the answer, because the sealed "answer-changing" tags exist only
+for model-written text and the 340 class-written requirement clauses carry none. The
+external reviewer's read said all 580 carriers move a conclusion when removed. Re-run
+over the runtime view, 578 did: all 520 clauses and 58 of the 60 comments. The two
+comments that move nothing, on seeds 10 and 19, each show a skill that a later
+scenario's clause states again for the same person, the mechanism step 3's oracle
+measurement had already found, and the reviewer's 580 does hold under the dated view the
+tags were derived in. That settled the unit: the target is the statement, and its
+carriers are alternatives. The ruling then recorded "578 statements on one carrier, 2 on
+two". Nobody had counted statements. The line was a subtraction from the carrier count,
+written down by the author in the very ruling that corrected the reviewer's number for
+not reproducing. It surfaced at the first build group, whose job was to turn the
+interview's seven scratch scripts into one committed probe with a capture: the probe
+counts 618 statements, 616 on one carrier and 2 on two (`grounding-basis`). The step's
+rulings record carries the correction with its date, and the project's working rules
+gained a line: a number in a ruling has a script behind it, or says it was derived by
+hand.
+
+The build ran in six groups, each read after its push by the external reviewer, who sees
+the repository and no chat, and every finding was reproduced on the committed code
+before it was triaged. The reviewer found something real in every group. In the probe:
+the three properties that make a requirement's scope admissible through its clause all
+read the sealed pairing and never the clause, so a clause naming nothing would have
+passed. The property added searches every title of the world in the clause's text, and
+it needed a rule to work, since titles nest by design and plain containment was
+ambiguous in 26 of 340 clauses, while the longest title found decides all 340
+(`grounding-basis`). In the shared rules: an operation was credited with what its tool
+observes on the strength of the tool's name and arguments, so an `employee` call
+recorded against the tracker and answered "no such record" grounded a negative about the
+HR system (`coverage-in-core`). In the observed view: a read by id answered with another
+record left no finding (FINDINGS, `observed-view`). In the replay: a citation counted as
+used through a premise that was itself contradicted, and the leave record, from which
+the replay takes who is leaving and when, was missing from the proof of every impact
+(`a0f9a0b`). In the trace metrics: a target that two returned documents carry was
+recorded as two search hits at two ranks (`4b0bbf7`). The aggregation drew five
+(`7f9ac03`). An arm that produced no export left no row to say so. A scenario run twice
+with one run limited was given Wilson's interval as if it were one trial. A limited
+run's invalid report was in no count. An invalid report's claims came back as unexpected
+ones. And a conflict's observations reached no measure, so a conflict resolved correctly
+from an observation nobody made scored in full everywhere. That last one was the
+author's omission against a step 3 ruling, which keeps the observations as a flag apart
+from the payload: the flag was on every row and nothing read it. The reviewer offered
+two repairs, and the one taken was the separate measure, since the other would have
+reopened that ruling.
+
+One finding was declined, twice. The reviewer wanted an unknown whose reason only an
+agent can give, ambiguous or conflicting, always filed as not replayable. The third
+ruling says otherwise, after an amendment made to this same reviewer's read at the
+interview: such a claim is contradicted when the rules establish the fact from the run's
+reads. The case that decides it is the one the adversarial tier plants, a stale owner in
+a runbook that the tracker's record resolves by authority, where a report that stops at
+"conflicting" is refuted by what it read. The reviewer raised it again on the fix
+commit's second read, and the owner let the ruling stand. The reviewer's procedural
+point was fair all the same: the repository stated the ruling in one docstring sentence,
+and a reader without the interview could not know it was a decision. The module's
+docstring now carries it with its reason (`60f9cb5`). One gap the reviews did not find
+came out of a measurement. Counting which reads a conclusion rests on showed that a
+conclusion about everyone takes its candidates from the run's enumeration of the
+employees while its proof was empty, so that read could not be credited through it. On
+the test world the read was credited anyway in all 14 such cases, through an HR record
+some assessment had consulted (the step's rulings record); it was fixed for what the
+proof should say, and it amends a sentence of the fourth ruling (`300ef94`).
+
+The aggregation started from two sentences that disagreed. The build plan said results
+are x of n per class and tier with Wilson intervals. DESIGN's paragraph on the golden
+set said claim-level counts are not independent within a scenario and uncertainty is
+bootstrapped over scenarios. Each is right about a different number. Thirty scenarios
+passing or failing a check are roughly independent trials, and Wilson fits them. The
+claims inside one scenario share its people and its documents, so a system that misreads
+one clause gets a dozen claims wrong together, and a ratio over claims takes a bootstrap
+that resamples whole scenarios within their tiers. A class has one to four scenarios and
+shows raw counts only. The sixth ruling also fixed what the code may not decide: the
+arms, the named checks, the seed, the repeats and the retry rule belong to the
+preregistration and are arguments with no default.
+
+What exists at the end of the step is the instrument, checked against a report that
+cannot be wrong. No harness exists yet, so no system has been measured. The gates run
+the oracle's own answer, written as claims, over the reads a complete investigation
+makes, recorded by a test through in-memory systems, on the tests' throwaway world of
+thirty scenarios with stand-in prose. There the replay reproduces the report whole:
+1,001 claims under the normal condition, 613 with the tracker down and 722 with the
+calendar down, of which 547, 613 and 349 are strictly grounded
+(`tests/unit/test_evaluator_evidence_measures.py`). Retrieval targets are derived by
+removing each statement through the oracle. Under the normal condition 20 scenarios have
+one, 31 targets are the planting scenario's own and 4 are another scenario's, skills
+planted for a colleague that move only rows no report must hold; with the tracker down
+the counts are 8, 15 and 0, with the calendar down 17, 25 and 2
+(`tests/unit/test_evaluator_retrieval_targets.py`). Of 960 completed reads, 158 supplied
+something a conclusion rests on, and nearly all the others are the fixture reading every
+document by its id (`tests/unit/test_evaluator_proof_contribution.py`). Eight of ten
+scenarios is 0.490 to 0.943 by Wilson (`tests/unit/test_evaluator_intervals.py`), the
+figure DESIGN has quoted since the world milestone as the reason the set is sized for
+failure localization. A truthful report at the ceiling of a measure says the ceiling can
+be reached and nothing about whether the measure separates real systems (FINDINGS,
+`grounding-gates`).
+
+Figure: the 1,440 must-assess verdicts as one bar split by the negative each rests on
+(viable 420, skill 420, availability 244, component 236, hard rule 40, unknown 80), the
+420 skill verdicts marked as the ones no read can close strictly. A second candidate:
+the three readings of grounded on the truthful report, reproduced, grounded end to end
+and strictly grounded, per condition (1,001 / 1,001 / 547; 613 / 613 / 613; 722 / 722 /
+349).
+
 ## 2026-10-01 — The answer key had two readings of time, and one outage turned out to have no answer
 
 *M2 step 3, the investigator milestone's third build step: the evaluator's grading, from

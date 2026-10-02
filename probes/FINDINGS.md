@@ -1953,3 +1953,58 @@ a run that read everything, the oracle's own function returns the oracle's own a
   deleted), never on a real system that drifted. The throwaway world's model-written parts
   are stand-in text, so the content gate has compared real prose only in the sense that
   the golden world indexes; the full read asks for documents by id and makes no search.
+
+## grounding-gates — a truthful report over a full read, measured through the replay, the trace metrics and the tables (2026-10-02)
+
+The last three code groups of the investigator milestone's build step 4 built the grounding
+replay with its citations (commits `d9f73ef` to `60f9cb5`), the trace metrics beside every
+outcome (`a4f5d09` to `4b0bbf7`) and the aggregation into tables (`053323e` to `7f9ac03`).
+Each group declared a gate before its code ran. No harness exists yet, so nothing here is a
+system's result: the runs are a *truthful report*, the oracle's own answer written as
+claims, over a *full read*, every read a complete investigation makes, recorded by a test
+through the in-memory ports with the declared tools. The world is the tests' throwaway
+golden world, thirty scenarios composed from the reference seed with stand-in prose. Every
+number below is pinned by a test, named with it.
+
+- **The replay reproduces a truthful report whole, and nothing of it with nothing read.**
+  1,001 claims under the normal condition, 613 with the tracker down, 722 with the calendar
+  down, each reproduced and grounded end to end, and graded correct by the rows in the same
+  outcome. The same report over no reads is unsupported throughout, each claim with a typed
+  reason (`test_evaluator_evidence_measures.py`, `test_evaluator_grading_grounding.py`).
+- **The strict reading costs what the corpus cannot close, and only that.** Strictly
+  grounded: 547 of 1,001, 613 of 613, 349 of 722. The claims outside it stood without the
+  corpus's documents enumerated, which no read can do; no other slice is ever waived. With
+  the tracker down the strict reading loses nothing, because every skill question is already
+  stopped by the outage and none stands without the corpus.
+- **Most reads of a complete investigation feed no conclusion.** Of 960 completed reads
+  under the normal condition 158 first supplied something a proof rests on and 802 are
+  extra; 58 and 842 of 900 with the tracker down, 126 and 804 of 930 with the calendar down
+  (`test_evaluator_proof_contribution.py`). Nearly all the extra reads are the fixture's
+  read of every document of the world by its id, the corpus having no enumeration: the
+  number describes this fixture's reading pattern and is no baseline for a system.
+- **Retrieval targets, derived by removing each statement through the oracle.** The world
+  holds 31 statements, each on one carrier. Under the normal condition 20 scenarios have a
+  target, 31 targets are of the scenario that planted the statement and 4 are of another
+  scenario; 8 scenarios, 15 and 0 with the tracker down; 17, 25 and 2 with the calendar down
+  (`test_evaluator_retrieval_targets.py`). Every statement is a target of its own scenario
+  under the normal condition. The four foreign ones are skills planted for a colleague, and
+  each moves only rows no report must hold. No removal was refused by the rules in 2,790.
+- **The intervals' gate.** Eight of ten scenarios is 0.490 to 0.943 by Wilson. Over the
+  thirty truthful runs every answer measure is at 1 with an interval of exactly [1, 1] at
+  the whole and at each tier, recall 161 of 161; the strict grounded share has a proper
+  interval around 547 of 1,001. A zero denominator has no value and no interval, a seeded
+  interval is identical whatever was computed before it, and a system compared with itself
+  differs by exactly 0 in every resample (`test_evaluator_intervals.py`,
+  `test_evaluator_tables.py`).
+- **What the batch reviews caught.** A citation counted as used through a premise that was
+  itself contradicted. A target that two returned documents carry recorded as two search
+  hits. An arm that produced no export leaving no row to say so. A conflict resolved rightly
+  from an observation nobody made scoring in full on every measure, its observations flag
+  read by none. A scenario run twice with one run limited given Wilson's interval as if it
+  were one trial. Each was reproduced on the committed code before it was fixed.
+- **What this does not show.** No system has been measured, and a truthful report at the
+  ceiling of a measure shows the measure can be reached, not that it discriminates. The
+  throwaway world's prose is stand-in text. The full read makes no search, so the search
+  rows and the ranks are exercised by tests that add one, against an in-memory search. The
+  golden world itself was not re-read for this: its load, which now indexes it, is recorded
+  under `observed-view`.
