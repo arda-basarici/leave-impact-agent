@@ -2008,3 +2008,108 @@ number below is pinned by a test, named with it.
   rows and the ranks are exercised by tests that add one, against an in-memory search. The
   golden world itself was not re-read for this: its load, which now indexes it, is recorded
   under `observed-view`.
+
+## baseline-basis — what the shared rules conclude over structured reads alone, forecast on twenty worlds before the baseline exists (2026-10-03)
+
+A measurement behind the six rulings of the investigator milestone's build step 5 (the
+stream's `m2-build/2026-10-02-step-5-rulings.md`), with no pass criterion. The rules-only
+baseline reads the structured systems through a frozen prefetch, feeds what came back to
+the shared rules and reports their results. It reads no document, so it holds no clause
+and no constraint. Before it was designed, five things had to be known: what that answer
+is worth against the oracle, whom it must assess, which window it must read, what it must
+report, and what the evaluator makes of a run that could not read the leave or the policy.
+
+Nothing of the baseline exists at this commit, so the probe forecasts it by simulation: a
+full read with the document reads left out, the view the evaluator builds from those
+reads, the rules asked with an empty constraint list. The probe is
+`probes/baseline-basis/probe.py`, its capture `captures/baseline-basis/twenty-seeds.txt`:
+seeds 1 to 20 of the golden plan under generator version 15, 600 scenarios, the tests'
+throwaway worlds with stand-in prose, assembled and sealed in memory. Its last two
+sections are of the reference seed, 30 scenarios, through the real evaluator. The numbers
+were first produced on 2026-10-02 and 2026-10-03 by six scratch scripts while the rulings
+were argued; the committed probe is the same computation in one pass per world, its
+capture was generated from the working tree of the commit that adds it, and it reproduces
+every number the rulings record.
+
+The probe imports the tests' fixtures and one private name of the oracle, and its
+docstring states both with the reason. A probe that built its own reads would be a second
+implementation of the in-memory ports and the recorder, and the first scratch run had one
+wrong column from exactly such a copy, a plan rule written again locally. The outcome rule
+here is `core`'s. The step's acceptance grades the baseline through these same ports.
+
+- **The structured-only answer is the oracle's exactly where the key does not require the
+  corpus.** Normal condition: 200 of 200 structured-tier scenarios equal the oracle's
+  answer whole and none of the 400 others does, and the split is the same as "the sealed
+  key's required sources include the corpus". 100 of 640 impacts are not grounded. On the
+  540 found, 140 outcomes are an assign where the oracle expects uncovered (60) or unknown
+  (80), and the required count is one where the oracle's is two on 40. Of 1,240
+  must-assess verdicts on found impacts, 360 are viable where the oracle's is non-viable
+  (280) or unknown (80), and 80 are non-viable with other reasons. None of the oracle's 80
+  conflicts and none of its 392 unknowns is stated. Every error is a confident positive.
+  Under the tracker outage and under the calendar outage the structured tier stays 200 of
+  200, and the answer states no unknown there either, a measured property of this
+  construction and no guarantee. Ruled: the baseline has no conclusion rule of its own
+  and emits the shared rules' results over its own reads; on the structured tier a miss
+  is a plumbing fault to investigate, and elsewhere the disagreement is its measured
+  quality.
+- **Grounded is not correct.** The same answer written as a report, every employee
+  assessed for every impact, and graded by the evaluator on the reference seed: 810
+  claims under the normal condition, 270 with the tracker down, 540 with the calendar
+  down. The replay reproduces every one, with no structural, report, coverage, integrity
+  or harness finding, and the plan checks find 24, 6 and 18 disagreements with the
+  oracle. The replay takes the empty constraint list as a premise the run declares; it
+  does not prove that no clause governs. These six numbers are the forecast the step's
+  end-to-end gate has to reproduce with the real baseline.
+- **No selection a prefetch can compute keeps the outcomes.** The oracle's verdicts
+  restricted to a selection of the 28 employees, the plan rule rerun with the oracle's
+  required count, over 640 impacts, 4,844 viable and 1,440 must-assess verdicts. The
+  leaver's team (mean size 5.7): 255 outcomes change and 781 must-assess verdicts fall
+  outside. Team and component members (7.5): 56 and 307. Team and the holders of a needed
+  skill (7.0): 159 and 626. All three (8.7): no outcome changes and 261 must-assess
+  verdicts are still outside. The needed skill is stated only in a clause, so the last
+  two are selections no prefetch can make. Ruled: the candidate universe is the whole
+  employee enumeration, complete when the shared coverage rule marks it covered.
+- **The leave's exact span is window enough.** The scenario's window starts 5 to 8 days
+  before the leave and ends 1 to 7 after; leaves last 2 to 5 days; every event is one
+  hour, so no meeting crosses midnight at a leave's edge in these worlds. A full read
+  with the leave's span in place of the scenario's window gives the oracle's answer in
+  600 of 600, and so does one day of margin each side. Ruled: the prefetch window is the
+  returned leave's span, derived from the run's own read, with no margin.
+- **Stopping at enough viable candidates loses most of what a report must hold.** On the
+  540 grounded impacts, assessing everyone is 15,120 assessments with no must-assess row
+  left out. Walking the employees in id order and stopping at the required count of
+  viable candidates is 2,793 assessments and leaves out 807 of 1,240 must-assess rows; on
+  each of the 140 impacts where the oracle calls for everyone there is a coverage gap,
+  2,729 colleagues named in all. Ruled: the baseline reports everyone's assessment for
+  every impact it grounds.
+- **The two degraded states, as the evaluator sees them.** The reference seed. With the
+  HR system down every run is limited as an unreadable leave, whether its report is empty
+  or claims the normal condition's truthful answer; of those 1,001 claims 960 are
+  unsupported because the leave was not read, 20 unknowns are unsupported, and 21 are
+  reproduced (17 constraints, 4 conflicts). With the corpus down every run is limited as
+  an unreadable policy; the structured-only answer claimed there has all 810 claims
+  reproduced, the same premise accepted. The plan rule over no verdicts with one person
+  required returns uncovered, and the vocabulary refuses an unknown about the leave
+  record at construction: `on_leave` is a fact about an employee, and the registry's
+  subjects are employee, work item, event and clause. Ruled: both states are represented
+  by abstention, a completed run with an empty claim set, and the baseline never runs
+  the plan rule over a universe it did not read.
+- **Two questions the scratch run had not asked.** Both decide whether the numbers above
+  forecast the baseline as ruled. The simulation's view is the evaluator's, which admits
+  the sealed facts of a returned ticket comment, and the baseline derives nothing from
+  prose: over twenty seeds the view holds 1,800 `has_skill` facts carried by comments (90
+  on the reference seed), in every scenario where the tracker answered, and removing them
+  changes the rules' conclusions with no constraint in 0 of 600 scenarios under each of
+  the three conditions. The scratch run had asked that of the reference seed only. And
+  the fixture's full read uses the scenario's window where the ruled prefetch reads the
+  leave's span: the structured-only answer read with the leave's exact span equals the
+  one read with the scenario's window in 600 of 600 scenarios under each condition.
+- **What this does not show.** A simulation, and no part of the baseline: no prefetch
+  plan, no execution layer, no report built under the ruled reporting policy. The report
+  graded here is the tests' truthful-report builder applied to the simulated answer, so
+  its claim counts and standings are the forecast and its citations and ordering are
+  not. The worlds are twenty unsealed throwaway worlds of one organization shape with
+  stand-in prose, not the golden world, and the two evaluator sections are one world of
+  thirty scenarios. The capture regenerates only while the tests' fixtures stand; the
+  probe is rerun at the build group that replaces the recorder, and its capture is
+  identical there or the difference is explained.

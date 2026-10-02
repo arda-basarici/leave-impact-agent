@@ -1,0 +1,92 @@
+the rules-only baseline's basis, measured on the golden plan under generator version 15
+seeds 1..20 (20 worlds), scenarios 600; the reference seed is 7
+
+1. The structured-only answer against the oracle
+(a transition reads: the oracle's -> the structured-only answer's)
+normal:
+  scenarios equal to the oracle's answer whole, by tier: adversarial 0 of 200, fragmented 0 of 200, structured 200 of 200
+  by whether the key requires the corpus: not required 200 of 200, required 0 of 400
+  impacts: the oracle's 640, not grounded 100, found 540, beyond the oracle's 0
+  outcome on the impacts found: assign -> assign: 400, uncovered -> assign: 60, unknown -> assign: 80
+  required count on the impacts found: 1 -> 1: 500, 2 -> 1: 40
+  must-assess verdicts on the impacts found (1240): non_viable -> non_viable: 454, non_viable -> non_viable with other reasons: 80, non_viable -> viable: 280, unknown -> viable: 80, viable -> viable: 346
+  conflicts: the oracle's 80, not stated 80; unknowns: the oracle's 392, stated 0
+  integrity findings in the view: 0
+jira down:
+  scenarios equal to the oracle's answer whole, by tier: adversarial 200 of 200, fragmented 40 of 200, structured 200 of 200
+  by whether the key requires the corpus: not required 200 of 200, required 240 of 400
+  impacts: the oracle's 280, not grounded 100, found 180, beyond the oracle's 0
+  outcome on the impacts found: assign -> assign: 180
+  required count on the impacts found: 1 -> 1: 180
+  must-assess verdicts on the impacts found (360): non_viable -> non_viable: 153, unknown -> viable: 104, viable -> viable: 103
+  conflicts: the oracle's 0, not stated 0; unknowns: the oracle's 3323, stated 0
+  integrity findings in the view: 0
+calendar down:
+  scenarios equal to the oracle's answer whole, by tier: adversarial 0 of 200, fragmented 60 of 200, structured 200 of 200
+  by whether the key requires the corpus: not required 200 of 200, required 60 of 400
+  impacts: the oracle's 460, not grounded 100, found 360, beyond the oracle's 0
+  outcome on the impacts found: assign -> assign: 220, uncovered -> assign: 60, unknown -> assign: 80
+  required count on the impacts found: 1 -> 1: 320, 2 -> 1: 40
+  must-assess verdicts on the impacts found (880): non_viable -> non_viable: 301, non_viable -> non_viable with other reasons: 80, non_viable -> viable: 220, unknown -> viable: 80, viable -> viable: 199
+  conflicts: the oracle's 80, not stated 80; unknowns: the oracle's 280, stated 0
+  integrity findings in the view: 0
+
+2. Candidate selection (normal condition)
+impacts: 640; viable verdicts: 4844; must-assess verdicts: 1440; organization size: 28
+  selection                        mean size  viable outside  must-assess outside  outcome changes
+  the leaver's team                      5.7            4131                  781              255
+  team and component members             7.5            3502                  307               56
+  team and needed-skill holders          7.0            3305                  626              159
+  all three                              8.7            2752                  261                0
+
+3. The prefetch window
+leave length in days: 2: 144, 3: 147, 4: 144, 5: 165
+days the scenario's window starts before the leave: 5: 135, 6: 158, 7: 135, 8: 172
+days the scenario's window ends after the leave: 1: 54, 2: 86, 3: 102, 4: 144, 5: 97, 6: 86, 7: 31
+event length in hours: 1.0: 510
+a full read with the leave's span and 0 day(s) each side, normal condition: the answer equals the oracle's in 600 of 600 (adversarial 200 of 200, fragmented 200 of 200, structured 200 of 200)
+a full read with the leave's span and 1 day(s) each side, normal condition: the answer equals the oracle's in 600 of 600 (adversarial 200 of 200, fragmented 200 of 200, structured 200 of 200)
+the structured-only answer read with the leave's exact span, against the one read with the scenario's window (sections 1, 4 and 6): normal equal in 600 of 600, jira down equal in 600 of 600, calendar down equal in 600 of 600
+
+4. The reporting policy (normal condition, the impacts the structured-only answer grounds)
+impacts grounded: 540; must-assess rows on them: 1240
+everyone assessed: 15120 assessments, no must-assess row left out
+walking the employees in id order and stopping at the required count of viable candidates: 2793 assessments, 807 must-assess rows left out
+impacts where the oracle calls for everyone: 140; with a coverage gap under stopping: 140, naming 2729 colleagues
+
+5. Prose in the evaluator's view of a structured-only read
+normal: prose-carried facts 1800 (has_skill on a comment: 1800); scenarios holding one 600 of 600; scenarios whose conclusions with no constraint change without them 0
+jira down: prose-carried facts 0 (none); scenarios holding one 0 of 600; scenarios whose conclusions with no constraint change without them 0
+calendar down: prose-carried facts 1800 (has_skill on a comment: 1800); scenarios holding one 600 of 600; scenarios whose conclusions with no constraint change without them 0
+the reference seed alone, normal: prose-carried facts 90 (has_skill on a comment: 90); scenarios holding one 30 of 30; scenarios whose conclusions with no constraint change without them 0
+
+6. The structured-only answer graded by the evaluator (the reference seed)
+normal: 810 claims in 30 reports; outcomes: Graded: 30
+  replay: 810 reproduced of 810 (candidate_assessment reproduced: 756, coverage_action reproduced: 27, impact reproduced: 27)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+  findings against the oracle: oracle_plan: 24
+jira down: 270 claims in 30 reports; outcomes: Graded: 30
+  replay: 270 reproduced of 270 (candidate_assessment reproduced: 252, coverage_action reproduced: 9, impact reproduced: 9)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+  findings against the oracle: oracle_plan: 6
+calendar down: 540 claims in 30 reports; outcomes: Graded: 30
+  replay: 540 reproduced of 540 (candidate_assessment reproduced: 504, coverage_action reproduced: 18, impact reproduced: 18)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+  findings against the oracle: oracle_plan: 18
+
+7. The degraded states (the reference seed)
+the HR system down, an empty report: 0 claims in 30 reports; outcomes: Limited as unreadable_leave: 30
+  replay: 0 reproduced of 0 (none)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+the HR system down, the normal condition's truthful report: 1001 claims in 30 reports; outcomes: Limited as unreadable_leave: 30
+  replay: 21 reproduced of 1001 (candidate_assessment unsupported (leave_not_read): 896, constraint reproduced: 17, coverage_action unsupported (leave_not_read): 32, impact unsupported (leave_not_read): 32, source_conflict reproduced: 4, unknown unsupported (unknown_without_question): 20)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+the corpus down, an empty report: 0 claims in 30 reports; outcomes: Limited as unreadable_policy: 30
+  replay: 0 reproduced of 0 (none)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+the corpus down, the structured-only answer: 810 claims in 30 reports; outcomes: Limited as unreadable_policy: 30
+  replay: 810 reproduced of 810 (candidate_assessment reproduced: 756, coverage_action reproduced: 27, impact reproduced: 27)
+  structural problems 0, report findings 0, coverage gaps 0, integrity findings 0, harness findings 0
+the plan rule over no verdicts, one viable person required: uncovered
+an unknown about the leave record, on_leave, inaccessible: refused at construction (on_leave is a fact about an employee, got a leave)
+subject kinds of the predicate registry: clause: 2, employee: 7, event: 2, work_item: 4
