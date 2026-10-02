@@ -49,6 +49,11 @@ and an ``employees`` call that returned leaves did not list the employees. An op
 that fails any of these contributes the records it returned and nothing else: no
 absence, no enumeration, no window. Reporting it is its verifier's, not this
 function's.
+
+One mismatch the method table cannot state is kept for whoever reports it: a read by id
+that came back with a record of another id. The record it returned was returned and
+counts; the record it asked for was neither returned nor found missing, so it stays
+unobserved by that read, and its reference is held in ``misanswered``.
 """
 
 from __future__ import annotations
@@ -104,11 +109,14 @@ class ReadCoverage:
     inside them included; ``absent`` the records a read by id found none of;
     ``enumerated`` the kinds read in full; the windows are the completed ones, merged
     where they touch; ``failed`` the sources a read found unreachable; ``unobserved``
-    the records withdrawn, which count as never read.
+    the records withdrawn, which count as never read. ``misanswered`` holds the records a
+    read asked for by id and got another record instead of; it changes no status and is
+    there to be reported.
     """
 
     returned: frozenset[EntityRef]
     absent: frozenset[EntityRef]
+    misanswered: frozenset[EntityRef]
     enumerated: frozenset[EntityKind]
     day_windows: tuple[DateSpan, ...]
     instant_windows: tuple[InstantSpan, ...]
@@ -174,6 +182,7 @@ def coverage_from_reads(operations: Iterable[Operation]) -> ReadCoverage:
     first_return: dict[EntityRef, Observed[Entity]] = {}
     returned: set[EntityRef] = set()
     absent: set[EntityRef] = set()
+    misanswered: set[EntityRef] = set()
     enumerated: set[EntityKind] = set()
     day_windows: list[DateSpan] = []
     instant_windows: list[InstantSpan] = []
@@ -208,9 +217,12 @@ def coverage_from_reads(operations: Iterable[Operation]) -> ReadCoverage:
             enumerated.add(specification.facts.entity_kind)
         for declared in specification.arguments:
             given = arguments[declared.name]
-            if isinstance(outcome, AbsentOutcome):
-                if isinstance(declared, IdArgument) and isinstance(given, str):
-                    absent.add(EntityRef(declared.kind, given))
+            if isinstance(declared, IdArgument) and isinstance(given, str):
+                asked_for = EntityRef(declared.kind, given)
+                if isinstance(outcome, AbsentOutcome):
+                    absent.add(asked_for)
+                elif isinstance(outcome, RecordOutcome) and outcome.record.ref != asked_for:
+                    misanswered.add(asked_for)
             elif isinstance(outcome, RecordsOutcome):
                 if isinstance(declared, DateSpanArgument) and isinstance(given, DateSpan):
                     day_windows.append(given)
@@ -224,6 +236,7 @@ def coverage_from_reads(operations: Iterable[Operation]) -> ReadCoverage:
     return ReadCoverage(
         returned=frozenset(returned),
         absent=frozenset(absent),
+        misanswered=frozenset(misanswered),
         enumerated=frozenset(enumerated),
         day_windows=_merged_days(day_windows),
         instant_windows=_merged_instants(instant_windows),

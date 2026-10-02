@@ -215,6 +215,17 @@ def test_an_answer_of_no_such_record_is_an_observation_of_that_record() -> None:
     assert nobody.status(RecordSlice(CAN)) is UNREAD
 
 
+def test_a_read_by_id_answered_with_another_record_observed_only_what_it_returned() -> None:
+    # Asked for Can, answered with Bob: Bob's record was returned, Can's was neither
+    # returned nor found missing, and the mismatch is kept for whoever reports it.
+    seen = coverage_from_reads(reads(by_id("employee", w.CAN, BOB_RECORD)))
+    assert seen.status(RecordSlice(BOB)) is COVERED
+    assert seen.status(RecordSlice(CAN)) is UNREAD
+    assert seen.misanswered == {CAN}
+    honest = coverage_from_reads(reads(by_id("employee", w.CAN, CAN_RECORD)))
+    assert honest.misanswered == frozenset()
+
+
 def test_an_enumeration_observes_its_kind_and_every_record_of_it_present_or_not() -> None:
     everyone = coverage_from_reads(reads(listing("employees", ALICE_RECORD, BOB_RECORD)))
     assert everyone.status(KindSlice(EntityKind.EMPLOYEE)) is COVERED

@@ -320,6 +320,41 @@ def test_a_sealed_record_a_completed_read_should_have_returned_is_a_finding(
     assert establish(run.view, employee_ref(gone.id), PredicateName.EMPLOYED_AS) == KnownFalse()
 
 
+def test_a_read_by_id_answered_with_another_record_is_a_finding_about_the_record_asked_for(
+    world: SealedWorld, systems: Systems, scenario: Scenario
+) -> None:
+    # The batch review of group B: the source answers a read of one employee with
+    # another's record. Nothing was learned about the one asked for, and that is said.
+    asked, other = world.org.employees[0], world.org.employees[1]
+    systems.people.people[asked.id] = other
+    reads = Recorder(systems)
+    reads.read("employee", {"id": asked.id})
+    run = observed(world, scenario, reads)
+    assert run.findings == (
+        IntegrityFinding(IntegrityKind.ANOTHER_RECORD_RETURNED, employee_ref(asked.id)),
+    )
+    assert run.coverage.status(RecordSlice(employee_ref(asked.id))) is SliceStatus.UNREAD
+    employed = PredicateName.EMPLOYED_AS
+    assert establish(run.view, employee_ref(asked.id), employed) == Unresolved(
+        employee_ref(asked.id), employed, UnknownReason.INSUFFICIENT
+    )
+    # The record that did come back is the sealed one of its own id, and was read.
+    assert run.view.facts_about(employee_ref(other.id), employed)
+
+    # Reported whatever else returned the record asked for, and for an id nothing holds.
+    reads.read("employees")
+    reads.read("employee", {"id": EmployeeId("emp_999")})
+    systems.people.people[EmployeeId("emp_999")] = other
+    reads.read("employee", {"id": EmployeeId("emp_999")})
+    again = observed(world, scenario, reads)
+    assert [finding for finding in again.findings if finding.record.id == "emp_999"] == [
+        IntegrityFinding(IntegrityKind.ANOTHER_RECORD_RETURNED, employee_ref(EmployeeId("emp_999")))
+    ]
+    assert IntegrityFinding(
+        IntegrityKind.ANOTHER_RECORD_RETURNED, employee_ref(asked.id)
+    ) in again.findings
+
+
 def test_a_section_whose_text_is_not_the_sealed_one_states_no_requirement(
     world: SealedWorld, systems: Systems, scenario: Scenario
 ) -> None:

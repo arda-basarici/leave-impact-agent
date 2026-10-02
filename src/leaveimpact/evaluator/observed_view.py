@@ -32,7 +32,10 @@ How the view is built, from the export's completed reads:
 The other direction is checked too: a sealed record that a completed enumeration, a
 completed window or a read by its id should have returned and did not. The run observed
 what it observed, so its coverage stands and the facts are what came back; the finding
-says the systems no longer held the sealed world when the run read them.
+says the systems no longer held the sealed world when the run read them. A read by id
+that came back with a record of another id is a finding of its own, about the record
+asked for, whether or not the sealed world holds it and whatever else returned it: the
+source or its adapter answered a question it was not asked.
 
 A finding names a kind and ids, never content, since the job that reports it logs in
 public. Whether a run carrying one enters a reported table is the preregistration's; here
@@ -74,6 +77,7 @@ class IntegrityKind(StrEnum):
     RETURNS_DIFFER = "returns_differ"
     RECORD_NOT_DERIVABLE = "record_not_derivable"
     SEALED_RECORD_NOT_RETURNED = "sealed_record_not_returned"
+    ANOTHER_RECORD_RETURNED = "another_record_returned"
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +160,9 @@ def observe(index: WorldIndex, export: RunExport) -> ObservedRun:
     findings.extend(
         IntegrityFinding(IntegrityKind.SEALED_RECORD_NOT_RETURNED, ref)
         for ref in _owed_and_not_returned(index, reads)
+    )
+    findings.extend(
+        IntegrityFinding(IntegrityKind.ANOTHER_RECORD_RETURNED, ref) for ref in reads.misanswered
     )
     coverage = reads.excluding(withdrawn)
     facts = (
