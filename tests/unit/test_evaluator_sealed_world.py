@@ -3,8 +3,9 @@ world was sealed from, with where each file was read; and every proof refuses th
 name — a file absent, a file the world spec does not cite, three consistent files under another
 version's keys, a file that does not decode, the four scenario listings disagreeing, a plan row
 and its key disagreeing, a key sealed before its derived sets, three records that describe no one
-scenario, a key today's rules do not reproduce. A refusal names files, scenarios and counts and
-prints nothing a sealed file holds, in its message or anywhere in its traceback."""
+scenario, a key today's rules do not reproduce, a world that cannot be indexed by identity or
+whose requirement clause does not state its scope. A refusal names files, scenarios and counts
+and prints nothing a sealed file holds, in its message or anywhere in its traceback."""
 
 import traceback
 from dataclasses import replace
@@ -22,10 +23,13 @@ from leaveimpact.evaluator.sealed_world import (
     KeysNotReproduced,
     SealedWorld,
     SealedWorldRefused,
+    WorldNotIndexed,
     join_scenarios,
     load_sealed_world,
+    require_indexed,
     require_reproduced,
 )
+from leaveimpact.evaluator.world_index import ProblemKind
 from leaveimpact.world import (
     AuthoredVerdict,
     Bundle,
@@ -233,6 +237,39 @@ def test_a_key_todays_rules_do_not_reproduce_refuses_the_whole_world_without_its
     for word in ("viable", authored.employee_id, impact.key.artifact.id):
         assert word not in message
     assert isinstance(refused.value, SealedWorldRefused)
+
+
+def test_the_loaded_world_holds_its_index_and_an_unindexable_one_is_refused_without_content(
+    loaded: SealedWorld,
+) -> None:
+    assert require_indexed(loaded.version, loaded.org, loaded.scenarios) == loaded.index
+    pairings = {
+        constraint.clause_id: constraint.applies_to
+        for scenario in loaded.scenarios
+        for constraint in scenario.key.constraints
+    }
+    assert dict(loaded.index.scope) == pairings
+    # One scenario's scope pairings dropped: its requirement clauses are scoped by nothing.
+    owner = next(scenario for scenario in loaded.scenarios if scenario.key.constraints)
+    unscoped = tuple(
+        replace(scenario, key=replace(scenario.key, constraints=()))
+        if scenario is owner
+        else scenario
+        for scenario in loaded.scenarios
+    )
+    with pytest.raises(WorldNotIndexed) as refused:
+        require_indexed(loaded.version, loaded.org, unscoped)
+    error = refused.value
+    dropped = len(owner.key.constraints)
+    assert f"{dropped} problem(s) in 1 scenario(s) ({owner.spec.id})" in str(error)
+    assert f"{ProblemKind.REQUIREMENT_NOT_SCOPED_ONCE.value}: {dropped}" in str(error)
+    assert isinstance(error, SealedWorldRefused)
+    # The problems name the clauses, which is truth; nothing printed does.
+    assert error.__cause__ is None and error.__context__ is None
+    text = printed(error)
+    for problem, constraint in zip(error.problems, owner.key.constraints, strict=True):
+        assert constraint.clause_id in problem.detail
+        assert problem.detail not in text and constraint.clause_id not in text
 
 
 def printed(refused: BaseException) -> str:

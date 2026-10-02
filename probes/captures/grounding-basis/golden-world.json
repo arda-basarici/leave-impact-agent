@@ -1,0 +1,50 @@
+{
+  "probe": "grounding-basis, the golden world",
+  "run_at": "2026-10-02T01:13:37+00:00",
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "generator_version": "14",
+  "scenarios": 30,
+  "sources": {
+    "world_spec": {
+      "key": "world-spec/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json",
+      "version_id": "8qWE9gppFrK55lkEqhpa3L7_Qkc_V5Lv",
+      "sha256": "7800015e1207a7ac03b56d550693c377d517d1703b4354518a5bf87e1d32fdb0"
+    },
+    "scenario_specs": {
+      "key": "worlds/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/scenario-specs.json",
+      "version_id": "oEyrOwBR1SGT38bfz_dUZrFwDYMHddlA",
+      "sha256": "67975c51be3dd4c5eeb93fecee992a0fc7f969e2947c31d6edf681f1bef3a0ef"
+    },
+    "truth_manifest": {
+      "key": "truth-manifest/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json",
+      "version_id": "SLuBHnmFkmENp8QXOEOIMsDxtEGvQ.Xa",
+      "sha256": "24fed413b3222818abe39f361894fed10d4ca2b15c5c2e38ca504a1db189ee41"
+    }
+  },
+  "run": 1,
+  "declared": {
+    "the world loads and its sealed keys are reproduced": true,
+    "the index reports no problem of any kind": true
+  },
+  "index": {
+    "records": 160,
+    "parts": 29,
+    "carriers": 29,
+    "authored_facts": 31,
+    "statements": 31,
+    "statements_by_carriers": {
+      "1": 31
+    },
+    "scoped_clauses": 17,
+    "scoped_clauses_by_target_kind": {
+      "clause": 5,
+      "event": 3,
+      "work_item": 9
+    },
+    "scoped_clauses_by_titles_found_in_their_text": {
+      "1": 14,
+      "2": 3
+    },
+    "problems": {}
+  }
+}

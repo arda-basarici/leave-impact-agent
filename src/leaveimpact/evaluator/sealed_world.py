@@ -31,6 +31,15 @@ reproduce a sealed key, the rules have drifted since the world was sealed and th
 conclusions about this world cannot be trusted either, so the whole world is refused, not
 the one scenario.
 
+Then the world is indexed by identity (``world_index``): every record, every comment and
+section, what each carries, what each requirement clause is scoped to. A run is graded on
+what it read, and what it read is checked against this index, so a world that cannot be
+indexed cannot have a run checked against it: a record or a part sealed twice, an authored
+fact whose carrier no record holds, a requirement clause that is not scoped exactly once
+or whose own text does not name its scope. That last one is asked of the clause's text
+because the scope reaches a run's view through the clause, and a scope the clause does not
+state is one no run could have read.
+
 Every failure is ``SealedWorldRefused`` and refuses the whole world. These are faults of
 the sealed files or of this code, never of a run, so nothing is graded against a world
 the join could not prove; the loader raises and the job that called it fails. A refusal
@@ -51,6 +60,7 @@ scenario specs from the world bucket.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from functools import partial
@@ -64,6 +74,7 @@ from leaveimpact.adapters.object_store.read import ObjectReader, StoredObject
 from leaveimpact.core.facts import FactBase
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.worldtime import DateSpan, RunContext
+from leaveimpact.evaluator.world_index import IndexProblem, WorldIndex, index_world
 from leaveimpact.world.artifacts import (
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
@@ -115,6 +126,28 @@ class KeysNotReproduced(SealedWorldRefused):
         self.findings = tuple(findings)
 
 
+class WorldNotIndexed(SealedWorldRefused):
+    """The sealed world cannot be read by identity, or a requirement clause does not state its
+    scope: nothing a run read could be checked against it.
+
+    ``problems`` are the index's own findings, each naming the ids it concerns; they are
+    truth, so the message carries the scenarios and a count per kind of problem.
+    """
+
+    def __init__(self, version: WorldVersion, problems: Sequence[IndexProblem]) -> None:
+        scenarios = sorted(
+            {problem.scenario_id for problem in problems if problem.scenario_id is not None}
+        )
+        kinds = Counter(problem.kind.value for problem in problems)
+        counted = ", ".join(f"{kind}: {count}" for kind, count in sorted(kinds.items()))
+        super().__init__(
+            f"{version}: the sealed world cannot be indexed, {len(problems)} problem(s) in "
+            f"{len(scenarios)} scenario(s) ({', '.join(scenarios)}), {counted}; nothing is "
+            "graded against a world a run's reads cannot be checked against"
+        )
+        self.problems = tuple(problems)
+
+
 @dataclass(frozen=True, slots=True)
 class SealedSource:
     """One sealed file as it was read: its key, the version id the store returned, its SHA-256."""
@@ -131,7 +164,8 @@ class SealedWorld:
 
     ``scenarios`` are in the plan's order. ``facts`` is the dated base as sealed; the
     runtime truth the evaluator derives from is built from the scenarios' plantings and
-    authored facts, never from this base's dates.
+    authored facts, never from this base's dates. ``index`` is the same world by identity,
+    what a run's reads are checked against.
     """
 
     version: WorldVersion
@@ -139,6 +173,7 @@ class SealedWorld:
     org: OrgSpec
     scenarios: tuple[Scenario, ...]
     facts: FactBase
+    index: WorldIndex
     world_spec: SealedSource
     scenario_specs: SealedSource
     truth_manifest: SealedSource
@@ -184,7 +219,9 @@ def join_sealed_world(
     Pure over the objects' bytes and version ids. Checked in order: the world spec
     decodes; the digests it cites are those of the other two files; the version recomputed
     from the three byte streams is ``version``; the other two decode; the scenarios join
-    (``join_scenarios``); today's rules reproduce every sealed key (``require_reproduced``).
+    (``join_scenarios``); today's rules reproduce every sealed key (``require_reproduced``);
+    the world indexes by identity and every requirement clause states its scope
+    (``require_indexed``).
     """
     planted = _decoded("world spec", decode_world_spec, world_spec.content, version)
     for name, read, cited in (
@@ -216,6 +253,7 @@ def join_sealed_world(
         org=planted.org,
         scenarios=scenarios,
         facts=manifest.facts,
+        index=require_indexed(version, planted.org, scenarios),
         world_spec=_source(world_spec),
         scenario_specs=_source(scenario_specs),
         truth_manifest=_source(truth_manifest),
@@ -325,6 +363,20 @@ def require_reproduced(
         raise KeysNotReproduced(version, findings)
 
 
+def require_indexed(
+    version: WorldVersion, org: OrgSpec, scenarios: Sequence[Scenario]
+) -> WorldIndex:
+    """The world by identity, or ``WorldNotIndexed`` with what the index found wrong.
+
+    Every record and every comment and section sealed once, every authored fact on a
+    carrier a record holds, and the scope invariant's four properties (``world_index``).
+    """
+    index, problems = index_world(org, scenarios)
+    if problems:
+        raise WorldNotIndexed(version, problems)
+    return index
+
+
 def _read(store: ObjectReader, key: str, what: str, version: WorldVersion) -> StoredObject:
     stored = store.get(key)
     if stored is None:
@@ -366,9 +418,11 @@ __all__ = [
     "SealedSource",
     "SealedWorld",
     "SealedWorldRefused",
+    "WorldNotIndexed",
     "complete_key",
     "join_sealed_world",
     "join_scenarios",
     "load_sealed_world",
+    "require_indexed",
     "require_reproduced",
 ]

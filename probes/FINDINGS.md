@@ -1860,3 +1860,58 @@ script behind it and is corrected below.
   evaluator's retrieval targets are defined on the oracle's complete answer, constraints
   included, under the run's condition and over every statement of the world, another
   scenario's among them, and are counted when that derivation exists.
+- **The golden world, asked before the invariant refuses (live, 2026-10-02).**
+  `probes/grounding-basis/golden.py`, committed at `47c07de` before its run and run from
+  the workstation under the administrative profile; capture
+  `captures/grounding-basis/golden-world.json`, counts and problem kinds, no id. Declared,
+  and both hold: the world loads, and the evaluator's own index reports no problem of any
+  kind. Recorded: 160 records; 29 comments and sections, each of them a carrier; 31
+  authored facts stating 31 statements, each on one carrier; 17 requirement clauses scoped
+  to 9 tickets, 3 meetings and 5 sections. In 3 of the 17 plain containment finds two
+  titles, and the longest-title rule resolves all 17 to their sealed targets. This was the
+  open risk of the fourth property: the world was sealed at generator version 14 with a
+  model's prose in it, the measurement above is of version 15 worlds, and no code had
+  read this world's clauses. The loader refuses on these properties from the commit that
+  records this. It is one world of thirty scenarios, and none of its statements is stated
+  twice, so the doubled statement the twenty seeds found in 2 of 618 does not occur in
+  the world the results are reported on.
+
+## coverage-in-core — the rules ask what was observed, and the truth concludes what it did (2026-10-02)
+
+The first code group of the investigator milestone's build step 4 changed rules the oracle
+runs. Closure used to read "fully observed" off the run condition, a source reachable or
+not; it now asks the view, slice by slice, whether the part of a source that holds the
+answer was observed, and every answer carries what it rests on (`core/coverage.py`,
+`core/read_coverage.py`, `core/closure.py`; commits `409ac2e` to `b2e7746`). The reason is
+the grounding replay: over what a run read, a reachable source is no proof that a record
+was read, and an unread record must not be a negative. The risk was the other side of it,
+that a conclusion drawn over the truth would move. Declared before the group: none does.
+
+- **The suite.** 3,822 tests before the group, 3,915 after, one skipped, twenty-four
+  deselected. No existing expectation was edited; seven calls of the subject-free
+  question gained its scope argument.
+- **The two committed probes, rerun on the changed rules.** `probes/runtime-truth` over
+  forty seeds and five conditions (every verdict, outcome, unknown and conflict the rules
+  derive for 1,200 scenarios) and `probes/grounding-basis` over twenty, each compared with
+  its committed capture after the closure change, after the proofs and after the reads
+  mapping: identical every time. This is the evidence that covers the outage conditions,
+  on unsealed worlds.
+- **The golden world's keys are reproduced by the rules as they now stand (live,
+  2026-10-02).** `tests/live/test_sealed_world_loads.py`, unchanged since step 3, run from
+  the workstation under the administrative profile after the group's review commit:
+  passed. It loads the golden world as the evaluator does, runs world assembly's
+  whole-world verification over the thirty keys under both views on every day of each
+  stable interval, and asks the oracle for every scenario under the normal condition.
+- **What the batch review caught.** The function that reads coverage off a trace credited
+  an operation by its tool's name and arguments alone. The operation type permits a
+  recorded source, cardinality or record kind that disagrees with the tool, so that a
+  broken export can be decoded and reported; an `employee` call recorded against the
+  tracker and answered "no such record" grounded a negative about the HR system. Four of
+  six malformed shapes were credited. An operation is now credited only when it is what
+  its tool declares in every respect the method table states, and still contributes the
+  records it returned.
+- **What this does not show.** Nothing builds a view from a run export yet: the mapping
+  from reads to coverage is tested on hand-built operations, and the facts of that view,
+  the gate on prose and the integrity comparison are the next group's. The proofs are
+  carried and not yet read by any grader. The live load covers the normal condition, as
+  it did at step 3.
