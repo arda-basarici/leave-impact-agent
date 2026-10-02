@@ -25,7 +25,7 @@ from leaveimpact.core import (
 from leaveimpact.evaluator.matching import match_claims
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.retrieval import SearchHit, SearchRow, retrieval_of
-from leaveimpact.evaluator.retrieval_targets import RetrievalTarget, retrieval_targets
+from leaveimpact.evaluator.retrieval_targets import Carrier, RetrievalTarget, retrieval_targets
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.source_discipline import OriginKind
 from leaveimpact.world import Scenario
@@ -99,9 +99,9 @@ def test_a_comment_is_retrieved_inside_its_ticket_and_is_out_of_a_searchs_reach(
     )
     assert not found.searchable
     # Both reads returned the ticket that holds the comment, and both are kept, in order.
-    assert [(r.operation, r.tool, r.carrier) for r in found.retrieving] == [
-        ("op-1", "work_item", shown.carriers[0].part),
-        ("op-2", "work_items", shown.carriers[0].part),
+    assert [(r.operation, r.tool, r.carriers) for r in found.retrieving] == [
+        ("op-1", "work_item", (shown.carriers[0].part,)),
+        ("op-2", "work_items", (shown.carriers[0].part,)),
     ]
 
 
@@ -178,6 +178,54 @@ def test_the_rank_is_the_carrying_documents_position_among_the_documents_returne
     )
     failed = retrieval_of((down,), targets, None)
     assert failed.searches == () and not any(each.retrieved for each in failed.targets)
+
+
+def test_a_target_two_returned_documents_carry_is_one_hit_at_its_best_rank(
+    world: SealedWorld,
+) -> None:
+    # Carriers are alternatives: two documents stating one thing are one target found. The
+    # throwaway world states everything once, so the second carrier is given by hand, a
+    # section of another document (the batch review of group D).
+    _, _, stated = a_target_carried_by(world, EntityKind.CLAUSE)
+    first = stated.carriers[0]
+    second = next(
+        Carrier(part, sealed.parent)
+        for part, sealed in world.index.parts.items()
+        if part.kind is EntityKind.CLAUSE and sealed.parent != first.record
+    )
+    twice = replace(stated, carriers=(first, second))
+    reads = Recorder(systems_holding(world))
+    unrelated = next(
+        planted.entity.id
+        for owner in world.scenarios
+        for planted in owner.owned.documents
+        if planted.entity.id not in (first.record.id, second.record.id)
+    )
+    by_id = [
+        reads.read("document", {"id": id}) for id in (unrelated, second.record.id, first.record.id)
+    ]
+    listed = RecordsOutcome(
+        tuple(outcome.record for outcome in by_id if isinstance(outcome, RecordOutcome))
+    )
+    search = Operation(
+        OperationId("op-1"),
+        PrefetchOrigin(),
+        "search",
+        Source.CORPUS,
+        {"query": "anything", "limit": 5},
+        listed,
+    )
+    run = retrieval_of((search,), (twice,), None)
+    # Returned at ranks two and three: one hit, at two.
+    assert run.searches[0].hits == (SearchHit(twice.statement, 2),)
+    (retrieving,) = run.targets[0].retrieving
+    assert (retrieving.operation, retrieving.rank) == ("op-1", 2)
+    assert retrieving.carriers == (first.part, second.part)
+    # One of the two alone is the target retrieved all the same.
+    only_second = replace(search, outcome=RecordsOutcome(listed.records[:2]))
+    alone = retrieval_of((only_second,), (twice,), None)
+    assert alone.searches[0].hits == (SearchHit(twice.statement, 2),)
+    assert alone.targets[0].retrieving[0].carriers == (second.part,)
 
 
 def test_a_target_says_whether_the_report_concluded_what_it_moves(world: SealedWorld) -> None:

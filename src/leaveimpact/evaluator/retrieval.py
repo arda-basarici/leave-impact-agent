@@ -10,11 +10,16 @@ comment or a section that carries it, inside the ticket or the document the read
 A carrier that came back with other text was still retrieved; that it differs is an
 integrity finding, and the content gate has already kept its fact out of what the rules
 were fed. Every retrieving operation is kept, in the trace's order, with who asked: a
-target the prefetch returned and one the model searched for are different findings.
+target the prefetch returned and one the model searched for are different findings. The
+unit is the target, as it is where targets are derived: a statement's carriers are
+alternatives, so an operation that returned two of them retrieved the target once, and is
+one row naming both.
 
 *Searches.* Each completed search is a row: its limit, how many documents it returned, and
 the targets among them with the rank of the document that carries each, the first
-returned being rank one. From the rows a table reads whether a search hit any target, how
+returned being rank one. A target is a hit once per search, at the best rank among the
+returned documents that carry it: two documents stating one thing are one target found,
+not two. From the rows a table reads whether a search hit any target, how
 many of the targets a search can return it did return, and at what rank. Only a target a
 section carries can be returned by a search, so the comment-carried ones are in the
 per-target coverage and out of a search's denominator. A search that failed is not a row:
@@ -52,17 +57,19 @@ from leaveimpact.evaluator.world_index import Statement
 
 @dataclass(frozen=True, slots=True)
 class Retrieving:
-    """One completed operation that returned a carrier of a target.
+    """One completed operation that returned a target: once, however many of its carriers
+    came back.
 
-    ``rank`` and ``limit`` are set for a search that is what the tool declares: the
-    position of the carrier's document among the documents returned, from one, and the
-    limit the search was called with.
+    ``carriers`` are the ones this operation returned, in the target's order. ``rank`` and
+    ``limit`` are set for a search that is what the tool declares: the best position, from
+    one, among the returned documents that carry the target, and the limit the search was
+    called with.
     """
 
     operation: OperationId
     origin: OriginKind
     tool: str
-    carrier: EntityRef
+    carriers: tuple[EntityRef, ...]
     rank: int | None = None
     limit: int | None = None
 
@@ -93,7 +100,8 @@ class TargetRetrieval:
 
 @dataclass(frozen=True, slots=True)
 class SearchHit:
-    """A target a search returned, and the rank of the document that carries it."""
+    """A target a search returned, and the rank of the document that carries it: the best
+    rank when several of the documents returned do. A row holds a target once."""
 
     statement: Statement
     rank: int
@@ -142,24 +150,34 @@ def retrieval_of(
         )
         hits: list[SearchHit] = []
         for target in targets:
-            for carrier in target.carriers:
-                if carrier.part not in returned:
-                    continue
-                rank = None if search is None else search.ranks.get(carrier.record)
-                retrieving[target.statement].append(
-                    Retrieving(
-                        operation.id,
-                        origin,
-                        operation.tool,
-                        carrier.part,
-                        rank,
-                        None if search is None else search.limit,
-                    )
-                )
-                if rank is not None:
+            came_back = [carrier for carrier in target.carriers if carrier.part in returned]
+            if not came_back:
+                continue
+            rank: int | None = None
+            if search is not None:
+                # Carriers are alternatives: the target was found where the first of them
+                # was. A section returned inside a document the sealed world does not place
+                # it in has no rank to give; that drift is an integrity finding.
+                ranks = [
+                    position
+                    for carrier in came_back
+                    if (position := search.ranks.get(carrier.record)) is not None
+                ]
+                if ranks:
+                    rank = min(ranks)
                     hits.append(SearchHit(target.statement, rank))
+            retrieving[target.statement].append(
+                Retrieving(
+                    operation.id,
+                    origin,
+                    operation.tool,
+                    tuple(carrier.part for carrier in came_back),
+                    rank,
+                    None if search is None else search.limit,
+                )
+            )
         if search is not None:
-            ordered = tuple(sorted(dict.fromkeys(hits), key=lambda hit: hit.rank))
+            ordered = tuple(sorted(hits, key=lambda hit: hit.rank))
             searches.append(SearchRow(operation.id, origin, search.limit, search.returned, ordered))
     correct = None if rows is None else _reported_correctly(rows)
     return RunRetrieval(
