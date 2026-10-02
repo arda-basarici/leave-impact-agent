@@ -6,6 +6,7 @@ spec, the claim vocabulary with its per-type grading keys, ``RunContext`` and wo
 time, the fact base a run sees through a ``FactView`` under a ``RunCondition``, the
 coverage that says which slices of the sources a view observed whole and the
 function that computes it from a run's reads, the condition those reads show, the
+structured projection of those reads that both the grader and the graded build on, the
 derivation that turns an observed record into facts and gaps, and the
 deterministic rules — closed-world evaluation per declared evidence domain, the
 system-of-record authority table that resolves conflicting observations, viability of
@@ -51,6 +52,7 @@ from leaveimpact.core import (
     provenance,
     read_condition,
     read_coverage,
+    read_projection,
     readings,
     refs,
     run_export,
@@ -242,6 +244,7 @@ from leaveimpact.core.read_coverage import (
     supplied_by,
     tool_mismatches,
 )
+from leaveimpact.core.read_projection import StructuredReads, project_reads
 from leaveimpact.core.readings import Reading, read_impacts
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
@@ -394,6 +397,7 @@ __all__ = [
     "provenance",
     "read_condition",
     "read_coverage",
+    "read_projection",
     "readings",
     "refs",
     "run_export",
@@ -573,6 +577,7 @@ __all__ = [
     "SourceConflict",
     "SourceCoverage",
     "SourceUnreachable",
+    "StructuredReads",
     "System",
     "SystemKind",
     "Supplied",
@@ -671,6 +676,7 @@ __all__ = [
     "observed_condition",
     "plan_violations",
     "predicate",
+    "project_reads",
     "proof_of",
     "read_impacts",
     "require_id",

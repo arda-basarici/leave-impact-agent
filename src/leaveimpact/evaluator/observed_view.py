@@ -10,12 +10,17 @@ compared with the sealed one of its id, because a grade against the sealed truth
 nothing for a run that was shown something else. Truth enters only through what the run
 read (the investigator milestone's fourth build step, ruling 1).
 
-How the view is built, from the export's completed reads:
+The view is the structured projection of the reads (``core``'s ``read_projection``: each
+record as first returned, the facts and gaps of the usable ones dated to the run's day, the
+coverage, the condition) with the sealed overlay this module adds. A harness that reads no
+prose concludes from the projection alone, so what the graded concludes from is the
+structured part of what the grader replays over, by construction (the fifth build step's
+design). Over the projection:
 
-- *Structured facts* derive from each returned record exactly as returned, dated to the
-  run's day. A record that differs from the sealed one still derives its facts, with a
-  finding: grounding asks what the run's reads support, and it read that record. This is
-  the one place the view can hold something the sealed world does not.
+- *Structured facts* are the projection's. A record that differs from the sealed one still
+  derives its facts, with a finding: grounding asks what the run's reads support, and it
+  read that record. This is the one place the view can hold something the sealed world
+  does not.
 - *Prose* is gated on content. A comment or a section is read as sealed when its content
   is the sealed content; then the facts it carries are admitted, re-dated to the run's
   day. A part whose content differs, a part the sealed record does not hold, and a
@@ -24,10 +29,10 @@ How the view is built, from the export's completed reads:
   its text is the sealed text, and a negative that could be hidden in a part it cannot
   vouch for is not grounded (``ReadCoverage.excluding``). The gate is on every part, not
   only on the ones that carry a fact.
-- *A record returned two ways* by the run's own reads is withdrawn by the coverage
-  mapping and derives nothing here. A record whose fields no fact can be made from is
-  withdrawn the same way: a decodable export can hold one (a blank location), and nothing
-  a run did raises in the evaluator.
+- *A record returned two ways* by the run's own reads is withdrawn by the projection and
+  derives nothing; here it is a finding. A record whose fields no fact can be made from is
+  withdrawn there too, and is a finding here: a decodable export can hold one (a blank
+  location), and nothing a run did raises in the evaluator.
 
 The other direction is checked too: a sealed record that a completed enumeration, a
 completed window or a read by its id should have returned and did not. The run observed
@@ -41,28 +46,24 @@ A finding names a kind and ids, never content, since the job that reports it log
 public. Whether a run carrying one enters a reported table is the preregistration's; here
 the run is observed all the same.
 
-The fact base cannot refuse what this builds. Identical facts are stated once, a record
-contributes once, a gap and a value never come from one record's field, and the authored
-facts admitted are a subset of the sealed ones, which the world's own base already holds
-together. If it did refuse, that would be a defect of this module and should surface as
-one.
+The fact base cannot refuse what this builds. The projection states identical facts once
+and a gap and a value never come from one record's field, and the authored facts admitted
+are a subset of the sealed ones, which the world's own base already holds together. If it
+did refuse, that would be a defect of this module and should surface as one.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from enum import StrEnum
 
-from leaveimpact.core.derivation import Derived, derive
 from leaveimpact.core.entities import CalendarEvent, Document, Leave, WorkItem
-from leaveimpact.core.facts import Fact, FactBase, FactView, Gap
-from leaveimpact.core.ports.observed import Entity, Observed
-from leaveimpact.core.read_condition import observed_condition
-from leaveimpact.core.read_coverage import ReadCoverage, coverage_from_reads
+from leaveimpact.core.facts import Fact, FactBase, FactView
+from leaveimpact.core.ports.observed import Entity
+from leaveimpact.core.read_coverage import ReadCoverage
+from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.run_export import RunExport
-from leaveimpact.core.run_trace import Operation, RecordOutcome, RecordsOutcome
 from leaveimpact.evaluator.world_index import WorldIndex, parts_of
 
 
@@ -113,15 +114,15 @@ def observe(index: WorldIndex, export: RunExport) -> ObservedRun:
     Raises nothing for what the run did or was shown.
     """
     today = export.context.today
-    operations = export.trace.operations
-    reads = coverage_from_reads(operations)
+    projection = project_reads(export.trace.operations, today)
+    reads = projection.reads
     findings: list[IntegrityFinding] = []
     withdrawn: set[EntityRef] = set()
     read_as_sealed: set[EntityRef] = set()
-    derived: dict[Derived, None] = {}
     admitted: dict[Fact, None] = {}
 
-    for ref, record in _first_returns(operations).items():
+    for record in projection.returned:
+        ref = record.ref
         if ref in reads.unobserved:
             findings.append(IntegrityFinding(IntegrityKind.RETURNS_DIFFER, ref))
             continue
@@ -151,12 +152,10 @@ def observe(index: WorldIndex, export: RunExport) -> ObservedRun:
             for part in sealed_parts.keys() - returned_parts.keys():
                 findings.append(IntegrityFinding(IntegrityKind.PART_MISSING, ref, part))
                 withdrawn.add(part)
-        try:
-            derived.update(dict.fromkeys(derive(record, today)))
-        except ValueError:
-            findings.append(IntegrityFinding(IntegrityKind.RECORD_NOT_DERIVABLE, ref))
-            withdrawn.add(ref)
 
+    findings.extend(
+        IntegrityFinding(IntegrityKind.RECORD_NOT_DERIVABLE, ref) for ref in projection.underivable
+    )
     findings.extend(
         IntegrityFinding(IntegrityKind.SEALED_RECORD_NOT_RETURNED, ref)
         for ref in _owed_and_not_returned(index, reads)
@@ -164,14 +163,10 @@ def observe(index: WorldIndex, export: RunExport) -> ObservedRun:
     findings.extend(
         IntegrityFinding(IntegrityKind.ANOTHER_RECORD_RETURNED, ref) for ref in reads.misanswered
     )
-    coverage = reads.excluding(withdrawn)
-    facts = (
-        *(item for item in derived if isinstance(item, Fact)),
-        *(replace(fact, observable_from=today) for fact in admitted),
-    )
-    gaps = tuple(item for item in derived if isinstance(item, Gap))
-    view = FactBase(facts, gaps).observed(
-        today, observed_condition(operations).condition, coverage
+    coverage = projection.coverage.excluding(withdrawn)
+    facts = (*projection.facts, *(replace(fact, observable_from=today) for fact in admitted))
+    view = FactBase(facts, projection.gaps).observed(
+        today, projection.condition.condition, coverage
     )
     return ObservedRun(
         view=view,
@@ -179,19 +174,6 @@ def observe(index: WorldIndex, export: RunExport) -> ObservedRun:
         read_as_sealed=frozenset(read_as_sealed),
         findings=tuple(sorted(findings, key=_finding_order)),
     )
-
-
-def _first_returns(operations: Iterable[Operation]) -> dict[EntityRef, Observed[Entity]]:
-    """Each record the completed reads returned, as first returned, in that order."""
-    first: dict[EntityRef, Observed[Entity]] = {}
-    for operation in operations:
-        outcome = operation.outcome
-        if isinstance(outcome, RecordOutcome):
-            first.setdefault(outcome.record.ref, outcome.record)
-        elif isinstance(outcome, RecordsOutcome):
-            for record in outcome.records:
-                first.setdefault(record.ref, record)
-    return first
 
 
 def _without_parts(entity: Entity) -> Entity:
