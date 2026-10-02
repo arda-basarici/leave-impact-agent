@@ -12,6 +12,8 @@ from leaveimpact.core import (
     AbsentOutcome,
     ClaimType,
     Consulted,
+    CoverageAction,
+    CoverageActionKind,
     DateSpan,
     EntityKind,
     InstantSpan,
@@ -39,7 +41,7 @@ from tests.unit import test_core_read_coverage as trace
 from tests.unit import world_fixture as w
 from tests.unit.reads_fixture import reads_of_everything
 from tests.unit.replay_fixture import replayed
-from tests.unit.report_fixture import truthful_report
+from tests.unit.report_fixture import of_type, truthful_report
 from tests.unit.throwaway_world import loaded_world
 
 COVERED = SliceStatus.COVERED
@@ -208,7 +210,9 @@ def test_over_a_full_read_every_completed_read_is_contributing_or_extra_once(
         oracle = oracle_for(world, scenario, condition)
         assert isinstance(oracle, Answerable)
         operations = reads_of_everything(world, scenario, *down)
-        groundings = replayed(world, scenario, truthful_report(oracle), operations).values()
+        claims = truthful_report(oracle)
+        replays = replayed(world, scenario, claims, operations)
+        groundings = replays.values()
         found = proof_contribution(operations, groundings)
         completed = [op.id for op in operations if is_completed_read(op.outcome)]
         assert sorted((*found.contributing, *found.extra)) == sorted(completed)
@@ -218,3 +222,14 @@ def test_over_a_full_read_every_completed_read_is_contributing_or_extra_once(
             assert operations[0].id in found.contributing
         # The documents are read by id, one read each: a document no proof names is extra.
         assert found.extra, scenario.spec.id
+        # A conclusion about everyone took its candidates from the enumeration of the
+        # employees, and that read is credited for it whatever else consulted an HR record.
+        about_everyone = [
+            claim
+            for claim in of_type(claims, CoverageAction)
+            if claim.action is not CoverageActionKind.ASSIGN
+        ]
+        if about_everyone:
+            listing = next(op.id for op in operations if op.tool == "employees")
+            alone = proof_contribution(operations, [replays[about_everyone[0]]])
+            assert alone.contributing == (listing,)

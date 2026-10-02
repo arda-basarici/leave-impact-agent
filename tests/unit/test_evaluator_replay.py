@@ -17,12 +17,15 @@ from leaveimpact.core import (
     Claim,
     ClaimType,
     Constraint,
+    Consulted,
     CoverageAction,
     CoverageActionKind,
     EntityKind,
     Impact,
+    KindSlice,
     PredicateName,
     RunCondition,
+    SliceStatus,
     Source,
     SourceConflict,
     Unknown,
@@ -351,7 +354,7 @@ def test_an_assign_is_the_plan_rule_over_the_reports_own_assessments(world: Seal
         for c in of_type(claims, CandidateAssessment)
         if c.impact_key == assign.impact_key
     }
-    assert record.proof == ()  # an action has no witnesses of its own
+    assert record.proof == ()  # an assignment has no witness of its own
     assert {assessed[e].claim_id for e in assign.assignee_ids} <= set(record.premises)
     non_viable = next(e for e, c in assessed.items() if c.verdict is Verdict.NON_VIABLE)
     bad = replace(assign, assignee_ids=(non_viable,))
@@ -385,6 +388,9 @@ def test_a_conclusion_about_everyone_needs_everyone_the_run_listed_assessed(
     ]
     assert record.standing is REPRODUCED
     assert {c.claim_id for c in everyone} <= set(record.premises)
+    # Who everyone is was read off the enumeration of the employees: its one witness.
+    listed = KindSlice(EntityKind.EMPLOYEE)
+    assert record.proof == (Consulted(listed, SliceStatus.COVERED),)
     other = next(
         k
         for k in (CoverageActionKind.UNCOVERED, CoverageActionKind.UNKNOWN)
@@ -402,6 +408,7 @@ def test_a_conclusion_about_everyone_needs_everyone_the_run_listed_assessed(
         UnsupportedReason.UNIVERSE_NOT_ASSESSED,
     )
     assert partial.missing_premises == ()  # named by the coverage gap, not here
+    assert partial.proof == record.proof
     # The organization never listed: who "everyone" is was not read.
     never_listed = [operation for operation in full if operation.tool != "employees"]
     unlisted = replayed(world, scenario, claims, never_listed)[universal]
@@ -409,3 +416,4 @@ def test_a_conclusion_about_everyone_needs_everyone_the_run_listed_assessed(
         UNSUPPORTED,
         UnsupportedReason.UNIVERSE_NOT_READ,
     )
+    assert unlisted.proof == (Consulted(listed, SliceStatus.UNREAD),)  # what stopped it

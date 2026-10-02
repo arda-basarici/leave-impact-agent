@@ -18,7 +18,9 @@ resolve and be retrieved and used; a citation can resolve and never have been re
   or the record a witnessing comment or section is read inside. The reverse does not
   hold: a cited comment supports no structured fact of its ticket. A claim's witnesses
   are its own proof's and those of the premises its replay consumed, transitively, one
-  rule for every claim type; an action is the case with none of its own. Only a
+  rule for every claim type; an action is the case with none of its own that a citation
+  can name, an assignment having no witness and a conclusion about everyone only the
+  enumeration of the candidates. Only a
   reproduced premise lends its witnesses, and the walk stops at one that is not: a
   contradicted assessment's proof is what the rules hold against it, and an action that
   rests on it is not supported by that evidence. Evaluated only when the citation was

@@ -32,7 +32,11 @@ seen and what stopped the answer for an unsupported one. Citations and source di
 read them. The absence the leave record derives is a witness wherever a replay took the
 leaver or the span from it: of every impact, and of an assessment whose window is the
 leave's span, which is every need but a meeting's, that one being free over its own day.
-An action has no witness of its own; it rests on its premises.
+An assignment has no witness of its own; it rests on its premises. A conclusion about
+everyone has one: the enumeration of the employees, since the replay takes from it who
+everyone is, covered when the run listed them and unread or failed when that is what
+stopped the answer. No citation can name an enumeration, so it changes nothing a citation
+is judged on; it is what lets the read that listed the candidates be credited.
 
 An unknown claim names a subject and a fact and no value or window, so it is replayed
 against the questions the replay of the report's own claims stopped on for that subject
@@ -80,7 +84,14 @@ from leaveimpact.core.claims import (
     Verdict,
     require_well_formed,
 )
-from leaveimpact.core.closure import KnownFalse, Proof, Unresolved, establish, proof_of
+from leaveimpact.core.closure import (
+    Consulted,
+    KnownFalse,
+    Proof,
+    Unresolved,
+    establish,
+    proof_of,
+)
 from leaveimpact.core.coverage import KindSlice, SliceStatus
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact, FactView
@@ -227,18 +238,21 @@ class _Run:
                 return EmployeeId(fact.subject.id), fact.value, fact
         return None
 
-    def _universe(self) -> tuple[EmployeeId, ...] | None:
-        """The candidates the run enumerated, or ``None`` when it never listed them whole."""
+    def _universe(self) -> tuple[tuple[EmployeeId, ...] | None, Consulted]:
+        """The candidates the run enumerated, or ``None`` when it never listed them whole, with
+        what the run's coverage says of that enumeration: the witness of who everyone is."""
         everyone = KindSlice(EntityKind.EMPLOYEE)
-        if self.observed.coverage.status(everyone) is not SliceStatus.COVERED:
-            return None
-        return tuple(
+        asked = Consulted(everyone, self.observed.coverage.status(everyone))
+        if asked.status is not SliceStatus.COVERED:
+            return None, asked
+        listed = tuple(
             sorted(
                 EmployeeId(ref.id)
                 for ref in self.observed.coverage.returned
                 if ref.kind is EntityKind.EMPLOYEE
             )
         )
+        return listed, asked
 
     def _requirement(self, constraint: Constraint) -> object:
         return establish(self.view, clause_ref(constraint.clause_id), PredicateName.REQUIRES)
@@ -395,11 +409,15 @@ class _Run:
         _, span, _ = leave
         premises += self._constraints_about(self._scope_of(impact, span))
         about_everyone = claim.action is not CoverageActionKind.ASSIGN
-        universe = self._universe() if about_everyone else None
-        if about_everyone and universe is None:
-            return _unsupported(
-                claim, UnsupportedReason.UNIVERSE_NOT_READ, premises=premises, missing=missing
-            )
+        universe: tuple[EmployeeId, ...] | None = None
+        proof: Proof = ()
+        if about_everyone:
+            universe, listed = self._universe()
+            proof = (listed,)
+            if universe is None:
+                return _unsupported(
+                    claim, UnsupportedReason.UNIVERSE_NOT_READ, proof, premises, missing
+                )
         plan = read_plan(
             claim,
             [constraint.key for constraint in self.constraints],
@@ -411,7 +429,7 @@ class _Run:
         )
         if isinstance(plan, PlanUnreadable):
             return _unsupported(
-                claim, UnsupportedReason.PLAN_NOT_READABLE, premises=premises, missing=missing
+                claim, UnsupportedReason.PLAN_NOT_READABLE, proof, premises, missing
             )
         needed = claim.assignee_ids if universe is None else universe
         assessed = {a.employee_id: a.claim_id for a in self.assessments if a.impact_key == impact}
@@ -420,10 +438,7 @@ class _Run:
             # The unassessed are named by the coverage gap; here their absence is the reason.
             if plan.unassessed:
                 return _unsupported(
-                    claim,
-                    UnsupportedReason.UNIVERSE_NOT_ASSESSED,
-                    premises=premises,
-                    missing=missing,
+                    claim, UnsupportedReason.UNIVERSE_NOT_ASSESSED, proof, premises, missing
                 )
             standing = (
                 Standing.REPRODUCED if plan.expected is claim.action else Standing.CONTRADICTED
@@ -447,6 +462,7 @@ class _Run:
             claim.claim_id,
             claim.claim_type,
             standing,
+            proof=proof,
             premises=premises,
             missing_premises=missing,
         )
