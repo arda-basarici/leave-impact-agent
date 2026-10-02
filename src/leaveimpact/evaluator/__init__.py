@@ -51,6 +51,20 @@ rests on), ``retrieval_targets`` (the statements a scenario's answer depends on 
 condition, by removal through the oracle) and ``retrieval`` (which of them a run's reads
 returned, and through which search at what rank).
 
-The aggregation of rows and metrics into tables is the next commit group's; the evaluation
-artifact's codec and the job's entry point follow it.
+Tables are a reading of evaluated runs, never stored. ``cells`` groups them by system and
+assigned condition, the scenario with all its runs as the unit, cuts each arm at the whole,
+each tier and each scenario class, and keeps the accounting every table shows: what was
+intended, made and missing, and how each run ended. ``measures`` and ``evidence_measures``
+state each claim-level ratio as the numerator and the denominator of one run, with its
+scope: the two precisions, recall and payload accuracy on the answer side; grounding,
+citations, source discipline and retrieval on the other. ``intervals`` holds the two
+intervals and knows nothing of claims: Wilson's for a proportion of scenarios, and a
+seeded bootstrap over whole scenarios, drawn within tiers, for a ratio of sums and for the
+paired difference of two. ``tables`` estimates a measure or a yes-or-no check in a cell,
+conditionally and end to end, pairs two systems on scenario and assigned condition, and
+keeps the cost ledger. What the preregistration fixes (the confidence level, the seed, the
+repeats, the retry rule, the named checks) is given to these as arguments and chosen
+nowhere here.
+
+The evaluation artifact's codec and the job's entry point are later build steps'.
 """

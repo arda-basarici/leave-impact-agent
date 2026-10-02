@@ -1,0 +1,519 @@
+"""Tables: a measure or a check estimated in a cell, two systems compared, and what a cell cost.
+
+Everything here is a reading of evaluated runs already grouped into cells, and each estimate
+keeps what it was computed from, so a number on a page can be traced to its counts, its
+scenarios and the plan it was cut under (the investigator milestone's fourth build step,
+ruling 6).
+
+*A claim-level ratio* is the sum of a measure's numerators over the sum of its
+denominators, across the scenarios of the cell, a scenario's repeats pooled first. Its
+interval resamples those scenarios within their tiers. The scenarios resampled are the ones
+with a run in the measure's scope: a conditional quality is conditional on the run being
+one the measure applies to, and the count of scenarios it rests on is shown beside it. An
+observed zero denominator is ``0/0``, not estimable, with no value and no interval, and
+the scenarios in scope that had nothing to count are counted.
+
+*A yes-or-no check* is read two ways, and a table shows both. *Conditional* quality is
+over the runs the check applies to. *End to end* is over every run a scenario was meant to
+have: a limited or an excluded run does not pass, and is counted apart from a run that was
+checked and failed, so a provider fault is never scored as a wrong answer and never
+improves a score by leaving. Whether an intended run that was never made counts as not
+passed or is left out is the plan's. A scenario's value is its pass fraction over its
+runs; the cell's is the mean of those. With exactly one run behind every scenario that is
+x of n and the interval is Wilson's; otherwise it is the bootstrap of the mean.
+
+*A comparison* is paired on scenario and assigned condition: the same stratum of two
+systems' arms under one condition, over the scenarios both have in scope, the paired
+count stated. For a ratio every resample draws the same scenarios for both systems and
+takes the difference of the two ratios of sums. For a check with one run per scenario on
+each side the result is the two-by-two table: both passed, the first only, the second
+only, neither. With repeats it is the difference of the mean pass fractions, repeats
+never being paired slot to slot.
+
+*Cost and duration carry no interval.* A cell's cost is the total over every attempt,
+retries included, with the median and the range per run and the number of runs whose cost
+is a floor: a run with a call the provider reported no usage for, or one the embedded
+rates could not price. A run that called no model cost nothing, and that is a complete
+cost of zero. The whole's ledger also holds the arm's attempts that no scenario of the
+world could place: they belong to no tier and were paid for all the same.
+
+A class stratum gets its raw counts and no interval, anywhere in this module.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from dataclasses import dataclass
+from enum import StrEnum
+from statistics import median
+
+from leaveimpact.core.ids import ScenarioId
+from leaveimpact.evaluator.cells import Cell, MissingRepeat, Preregistered, ScenarioRuns, Stratum
+from leaveimpact.evaluator.intervals import (
+    BootstrapInterval,
+    Cluster,
+    WilsonInterval,
+    bootstrap_difference,
+    bootstrap_ratio,
+    derived_seed,
+    wilson,
+)
+from leaveimpact.evaluator.measures import Measure
+from leaveimpact.evaluator.trace_metrics import Evaluation
+from leaveimpact.world.scenario import Tier
+
+
+@dataclass(frozen=True, slots=True)
+class Check:
+    """A yes-or-no question of one run, by name: ``True`` or ``False`` where it applies, and
+    ``None`` for a run it does not apply to, a limited or an excluded one as a rule."""
+
+    name: str
+    of: Callable[[Evaluation], bool | None]
+
+
+class Reading(StrEnum):
+    """Which runs a check is read over; a member is the wire format."""
+
+    CONDITIONAL = "conditional"
+    END_TO_END = "end_to_end"
+
+
+@dataclass(frozen=True, slots=True)
+class RatioEstimate:
+    """A measure in a cell: the two sums, the scenarios they are over, and the interval.
+
+    ``scenarios`` had a run in the measure's scope and are what the interval resamples;
+    ``empty`` of them had nothing to count. ``interval`` is ``None`` for a class stratum
+    and for an observed zero denominator.
+    """
+
+    measure: str
+    arm: str
+    stratum: Stratum
+    numerator: int
+    denominator: int
+    scenarios: int
+    empty: int
+    interval: BootstrapInterval | None
+
+    @property
+    def value(self) -> float | None:
+        """The ratio of sums, or ``None`` when the denominator is zero: not estimable."""
+        return self.numerator / self.denominator if self.denominator else None
+
+
+@dataclass(frozen=True, slots=True)
+class CheckEstimate:
+    """A check in a cell under one reading.
+
+    ``scenarios`` are the ones with at least one run counted under the reading and
+    ``passed`` the sum of their pass fractions, so ``passed / scenarios`` is the cell's
+    value. ``runs`` were looked at; ``not_checked`` of them the check did not apply to,
+    which under the end-to-end reading count as not passed; ``missing`` intended runs were
+    never made and count as the plan says. One of the two intervals is set for a tier and
+    for the whole: Wilson's when every scenario rests on exactly one run, the bootstrap
+    otherwise.
+    """
+
+    check: str
+    arm: str
+    stratum: Stratum
+    reading: Reading
+    passed: float
+    scenarios: int
+    runs: int
+    not_checked: int
+    missing: int
+    wilson: WilsonInterval | None
+    bootstrap: BootstrapInterval | None
+
+    @property
+    def value(self) -> float | None:
+        """The mean pass fraction over the scenarios, or ``None`` with no scenario."""
+        return self.passed / self.scenarios if self.scenarios else None
+
+
+@dataclass(frozen=True, slots=True)
+class RatioComparison:
+    """A measure in the same stratum of two arms, over the scenarios both have in scope.
+
+    ``first`` and ``second`` are each arm's ratio of sums over those ``paired`` scenarios,
+    ``None`` when its denominator there is zero; the interval is of ``first - second``.
+    """
+
+    measure: str
+    first_arm: str
+    second_arm: str
+    stratum: Stratum
+    paired: int
+    first: float | None
+    second: float | None
+    interval: BootstrapInterval | None
+
+    @property
+    def difference(self) -> float | None:
+        if self.first is None or self.second is None:
+            return None
+        return self.first - self.second
+
+
+@dataclass(frozen=True, slots=True)
+class CheckComparison:
+    """A check in the same stratum of two arms under one reading, over the scenarios both
+    count.
+
+    ``first`` and ``second`` are the mean pass fractions over the ``paired`` scenarios.
+    With one run per scenario on each side, ``two_by_two`` holds the scenarios where both
+    passed, the first only, the second only and neither, and no interval; with repeats it
+    is ``None`` and the interval is of ``first - second``.
+    """
+
+    check: str
+    first_arm: str
+    second_arm: str
+    stratum: Stratum
+    reading: Reading
+    paired: int
+    first: float | None
+    second: float | None
+    two_by_two: tuple[int, int, int, int] | None
+    interval: BootstrapInterval | None
+
+
+@dataclass(frozen=True, slots=True)
+class Spread:
+    """The middle and the range of a quantity per run."""
+
+    median: float
+    low: int
+    high: int
+
+
+@dataclass(frozen=True, slots=True)
+class CostLedger:
+    """What a cell's runs cost and how long they took, every attempt counted.
+
+    ``nano_usd`` is the total over every attempt and a floor when ``floors`` is not zero:
+    that many runs hold an attempt whose cost is unknown or incomplete. ``per_run`` and
+    ``duration_ms`` are over runs, a run's attempts summed, ``None`` with no run.
+    """
+
+    arm: str
+    stratum: Stratum
+    runs: int
+    attempts: int
+    nano_usd: int
+    floors: int
+    per_run: Spread | None
+    duration_ms: Spread | None
+
+
+def estimate_ratio(cell: Cell, measure: Measure, plan: Preregistered) -> RatioEstimate:
+    """``measure`` in ``cell``: the ratio of sums over its scenarios in scope, with its
+    interval under ``plan`` where the stratum carries one."""
+    clusters = _clusters(cell, measure)
+    numerator = sum(counts[0] for _, counts in clusters)
+    denominator = sum(counts[1] for _, counts in clusters)
+    interval = None
+    if cell.stratum.estimated:
+        interval = bootstrap_ratio(
+            _by_tier(clusters),
+            confidence=plan.confidence,
+            seed=derived_seed(plan.seed, cell.arm.name, *_names(cell.stratum), measure.name),
+            resamples=plan.resamples,
+        )
+    return RatioEstimate(
+        measure.name,
+        cell.arm.name,
+        cell.stratum,
+        numerator,
+        denominator,
+        len(clusters),
+        sum(counts[1] == 0 for _, counts in clusters),
+        interval,
+    )
+
+
+def estimate_check(
+    cell: Cell, check: Check, reading: Reading, plan: Preregistered
+) -> CheckEstimate:
+    """``check`` in ``cell`` under ``reading``, with its interval under ``plan`` where the
+    stratum carries one."""
+    trials = [_trials(runs, check, reading, plan) for runs in cell.scenarios]
+    counted = [(runs, each) for runs, each in zip(cell.scenarios, trials, strict=True) if each.of]
+    passed = sum(each.fraction for _, each in counted)
+    single = all(each.of == 1 for _, each in counted)
+    interval_w: WilsonInterval | None = None
+    interval_b: BootstrapInterval | None = None
+    if cell.stratum.estimated and counted:
+        if single:
+            interval_w = wilson(round(passed), len(counted), plan.confidence)
+        else:
+            interval_b = bootstrap_ratio(
+                _by_tier([(runs.tier, (each.fraction, 1.0)) for runs, each in counted]),
+                confidence=plan.confidence,
+                seed=derived_seed(
+                    plan.seed, cell.arm.name, *_names(cell.stratum), check.name, reading.value
+                ),
+                resamples=plan.resamples,
+            )
+    return CheckEstimate(
+        check.name,
+        cell.arm.name,
+        cell.stratum,
+        reading,
+        passed,
+        len(counted),
+        sum(each.runs for each in trials),
+        sum(each.not_checked for each in trials),
+        sum(runs.missing for runs in cell.scenarios),
+        interval_w,
+        interval_b,
+    )
+
+
+def compare_ratio(
+    first: Cell, second: Cell, measure: Measure, plan: Preregistered
+) -> RatioComparison:
+    """``measure`` in ``first`` against ``second``, paired on scenario: the same stratum of two
+    arms under one assigned condition. ``ValueError`` when the two cells are not that."""
+    _require_paired(first, second)
+    ours = dict(_scenario_clusters(first, measure))
+    theirs = dict(_scenario_clusters(second, measure))
+    paired = [
+        (runs.tier, (_as_cluster(ours[runs.scenario_id]), _as_cluster(theirs[runs.scenario_id])))
+        for runs in first.scenarios
+        if runs.scenario_id in ours and runs.scenario_id in theirs
+    ]
+    interval = None
+    if first.stratum.estimated:
+        interval = bootstrap_difference(
+            _by_tier(paired),
+            confidence=plan.confidence,
+            seed=derived_seed(
+                plan.seed, first.arm.name, second.arm.name, *_names(first.stratum), measure.name
+            ),
+            resamples=plan.resamples,
+        )
+    return RatioComparison(
+        measure.name,
+        first.arm.name,
+        second.arm.name,
+        first.stratum,
+        len(paired),
+        _ratio([pair[0] for _, pair in paired]),
+        _ratio([pair[1] for _, pair in paired]),
+        interval,
+    )
+
+
+def compare_check(
+    first: Cell, second: Cell, check: Check, reading: Reading, plan: Preregistered
+) -> CheckComparison:
+    """``check`` in ``first`` against ``second`` under ``reading``, paired on scenario.
+    ``ValueError`` when the two cells are not the same stratum of two arms under one
+    assigned condition."""
+    _require_paired(first, second)
+    theirs = {runs.scenario_id: runs for runs in second.scenarios}
+    paired: list[tuple[Tier, _Trials, _Trials]] = []
+    for runs in first.scenarios:
+        other = theirs.get(runs.scenario_id)
+        if other is None:
+            continue
+        mine = _trials(runs, check, reading, plan)
+        yours = _trials(other, check, reading, plan)
+        if mine.of and yours.of:
+            paired.append((runs.tier, mine, yours))
+    single = all(mine.of == 1 and yours.of == 1 for _, mine, yours in paired)
+    two_by_two: tuple[int, int, int, int] | None = None
+    interval: BootstrapInterval | None = None
+    if paired and single:
+        outcomes = [(mine.fraction == 1, yours.fraction == 1) for _, mine, yours in paired]
+        two_by_two = (
+            outcomes.count((True, True)),
+            outcomes.count((True, False)),
+            outcomes.count((False, True)),
+            outcomes.count((False, False)),
+        )
+    elif paired and first.stratum.estimated:
+        interval = bootstrap_difference(
+            _by_tier(
+                [
+                    (tier, ((mine.fraction, 1.0), (yours.fraction, 1.0)))
+                    for tier, mine, yours in paired
+                ]
+            ),
+            confidence=plan.confidence,
+            seed=derived_seed(
+                plan.seed,
+                first.arm.name,
+                second.arm.name,
+                *_names(first.stratum),
+                check.name,
+                reading.value,
+            ),
+            resamples=plan.resamples,
+        )
+    count = len(paired)
+    return CheckComparison(
+        check.name,
+        first.arm.name,
+        second.arm.name,
+        first.stratum,
+        reading,
+        count,
+        sum(mine.fraction for _, mine, _ in paired) / count if count else None,
+        sum(yours.fraction for _, _, yours in paired) / count if count else None,
+        two_by_two,
+        interval,
+    )
+
+
+def cost_ledger(cell: Cell) -> CostLedger:
+    """What ``cell``'s runs cost and how long they took, every attempt of every run counted."""
+    costs: list[int] = []
+    durations: list[int] = []
+    floors = 0
+    attempts = 0
+    for held in (*(runs.attempts for runs in cell.scenarios), cell.unplaced):
+        by_run: dict[tuple[str, str], list[Evaluation]] = {}
+        for attempt in held:
+            header = attempt.outcome.header
+            by_run.setdefault((header.scenario_id, header.run_id), []).append(attempt)
+        for made in by_run.values():
+            attempts += len(made)
+            costs.append(sum(_nano_usd(attempt) for attempt in made))
+            durations.append(sum(attempt.metrics.cost.usage.duration_ms for attempt in made))
+            floors += any(not _cost_is_complete(attempt) for attempt in made)
+    return CostLedger(
+        cell.arm.name,
+        cell.stratum,
+        len(costs),
+        attempts,
+        sum(costs),
+        floors,
+        _spread(costs),
+        _spread(durations),
+    )
+
+
+# --- Clusters ----------------------------------------------------------------------------
+
+
+def _scenario_clusters(cell: Cell, measure: Measure) -> list[tuple[ScenarioId, tuple[int, int]]]:
+    """Each scenario of ``cell`` with a run in the measure's scope, and its counts pooled over
+    those runs."""
+    clusters: list[tuple[ScenarioId, tuple[int, int]]] = []
+    for runs in cell.scenarios:
+        in_scope = [counts for run in runs.counted if (counts := measure.of(run)) is not None]
+        if in_scope:
+            pooled = (sum(n for n, _ in in_scope), sum(d for _, d in in_scope))
+            clusters.append((runs.scenario_id, pooled))
+    return clusters
+
+
+def _clusters(cell: Cell, measure: Measure) -> list[tuple[Tier, tuple[int, int]]]:
+    tiers = {runs.scenario_id: runs.tier for runs in cell.scenarios}
+    return [(tiers[scenario], counts) for scenario, counts in _scenario_clusters(cell, measure)]
+
+
+def _by_tier[T](held: list[tuple[Tier, T]]) -> list[list[T]]:
+    """``held`` grouped by tier, in the tiers' order: the strata a resample is drawn within."""
+    return [[value for tier, value in held if tier is each] for each in Tier]
+
+
+def _as_cluster(counts: tuple[int, int]) -> Cluster:
+    return (float(counts[0]), float(counts[1]))
+
+
+def _ratio(clusters: list[Cluster]) -> float | None:
+    denominator = sum(d for _, d in clusters)
+    return sum(n for n, _ in clusters) / denominator if denominator else None
+
+
+def _names(stratum: Stratum) -> tuple[str, str]:
+    return (stratum.kind.value, stratum.name)
+
+
+# --- Checks ------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class _Trials:
+    """One scenario's runs under one reading of a check: ``passes`` of ``of`` trials, from
+    ``runs`` runs of which the check did not apply to ``not_checked``."""
+
+    passes: int
+    of: int
+    runs: int
+    not_checked: int
+
+    @property
+    def fraction(self) -> float:
+        return self.passes / self.of if self.of else 0.0
+
+
+def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregistered) -> _Trials:
+    answers = [check.of(run) for run in runs.counted]
+    passes = sum(answer is True for answer in answers)
+    not_checked = sum(answer is None for answer in answers)
+    if reading is Reading.CONDITIONAL:
+        return _Trials(passes, len(answers) - not_checked, len(answers), not_checked)
+    missed = runs.missing if plan.missing_repeat is MissingRepeat.NOT_PASSED else 0
+    return _Trials(passes, len(answers) + missed, len(answers), not_checked)
+
+
+def _require_paired(first: Cell, second: Cell) -> None:
+    if first.stratum != second.stratum:
+        raise ValueError(
+            f"a comparison is within one stratum, got {first.stratum.name} and "
+            f"{second.stratum.name}"
+        )
+    if first.arm.assigned != second.arm.assigned:
+        raise ValueError(
+            "a comparison is paired on the assigned condition; the two arms were assigned "
+            "different ones"
+        )
+    if first.arm.system == second.arm.system:
+        raise ValueError("a comparison is between two systems; both cells are one system's")
+
+
+# --- Cost --------------------------------------------------------------------------------
+
+
+def _nano_usd(attempt: Evaluation) -> int:
+    cost = attempt.metrics.cost.cost
+    return 0 if cost is None else cost.nano_usd
+
+
+def _cost_is_complete(attempt: Evaluation) -> bool:
+    """Whether the attempt's recomputed cost is a total: every call priced in full, or no
+    model called at all."""
+    check = attempt.metrics.cost
+    if check.cost is None:
+        return check.usage.model_calls == 0
+    return check.cost.complete
+
+
+def _spread(values: list[int]) -> Spread | None:
+    if not values:
+        return None
+    return Spread(float(median(values)), min(values), max(values))
+
+
+__all__ = [
+    "Check",
+    "CheckComparison",
+    "CheckEstimate",
+    "CostLedger",
+    "RatioComparison",
+    "RatioEstimate",
+    "Reading",
+    "Spread",
+    "compare_check",
+    "compare_ratio",
+    "cost_ledger",
+    "estimate_check",
+    "estimate_ratio",
+]
