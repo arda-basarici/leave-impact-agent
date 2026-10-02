@@ -69,6 +69,7 @@ from leaveimpact.core.grounding import derive_impacts
 from leaveimpact.core.ids import EmployeeId
 from leaveimpact.core.plans import expected_action, required_count
 from leaveimpact.core.predicates import PredicateName, predicate
+from leaveimpact.core.readings import Reading, read_impacts
 from leaveimpact.core.refs import EntityRef, clause_ref
 from leaveimpact.core.viability import (
     Assessment,
@@ -79,7 +80,7 @@ from leaveimpact.core.viability import (
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.world_index import Statement, statement_of
-from leaveimpact.world.construction import Reading, expectations_of, read_impacts
+from leaveimpact.world.construction import expectations_of
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Scenario
 

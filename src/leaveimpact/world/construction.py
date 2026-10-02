@@ -79,10 +79,10 @@ from leaveimpact.core.ids import (
 )
 from leaveimpact.core.plans import expected_action, required_count
 from leaveimpact.core.predicates import PredicateName
+from leaveimpact.core.readings import Reading, read_impacts
 from leaveimpact.core.refs import EntityRef, clause_ref, component_ref
 from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.core.viability import (
-    Assessment,
     ResolvedRequirement,
     applicable_requirements,
     assess_impact,
@@ -1001,44 +1001,6 @@ class Expectations:
 
     conflicts: tuple[ExpectedConflict, ...]
     unknowns: tuple[ExpectedUnknown, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class Reading:
-    """What the rules conclude about one impact in one view: whether the leaver holds it, and
-    every candidate's assessment for it, in the candidates' order."""
-
-    impact: ImpactKey
-    grounding: Grounding
-    assessments: tuple[Assessment, ...]
-
-
-def read_impacts(
-    view: FactView,
-    impacts: Sequence[ImpactKey],
-    constraints: Sequence[ConstraintKey],
-    leaver: EmployeeId,
-    leave_span: DateSpan,
-    reference_timezone: str,
-    universe: Sequence[EmployeeId],
-) -> tuple[Reading, ...]:
-    """Each impact's grounding and its assessments over ``universe``, in ``impacts``' order.
-
-    The one pass every derivation of what the rules conclude shares, so no consumer reads
-    the rules a second way: construction seals a key from it, world assembly re-derives
-    every key through it, the required-sources derivation asks it under each outage, and
-    the evaluator derives what it expects of a run from it. It takes impact keys and not
-    the key's expected impacts because under an outage the impacts are the ones the rules
-    ground there, which no key lists.
-    """
-    return tuple(
-        Reading(
-            impact,
-            ground_impact(view, impact, leaver, leave_span, reference_timezone),
-            assess_impact(view, impact, universe, constraints, leave_span, reference_timezone),
-        )
-        for impact in impacts
-    )
 
 
 def _evidence(readings: Sequence[Reading]) -> list[Fact]:

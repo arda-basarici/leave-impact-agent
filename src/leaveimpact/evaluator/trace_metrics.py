@@ -47,8 +47,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from leaveimpact.core.facts import RunCondition
+from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.run_export import RunExport
-from leaveimpact.evaluator.condition import observed_condition
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
 from leaveimpact.evaluator.grading import (
     Excluded,
@@ -128,7 +128,7 @@ def _retrieval(
 ) -> RunRetrieval | None:
     """The run's retrieval against the targets of the condition its trace shows, or ``None``
     when that condition is mixed or has no answer."""
-    observed = observed_condition(export.trace)
+    observed = observed_condition(export.trace.operations)
     if observed.is_mixed:
         return None
     oracle = oracle_for(world, scenario, observed.condition)

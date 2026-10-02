@@ -30,11 +30,11 @@ invalid one it is not evaluated, as the plan checks are not. Both also carry the
 (``observed_view``). A run with findings is graded and replayed like any other. Whether
 it enters a reported table is the preregistration's.
 
-The condition is read off the trace, never taken from the record (``condition``). When the
-record's stored condition disagrees with the trace, the trace stands and the disagreement
-is a harness finding carried on the outcome. A condition no outage registered (two sources
-down for the whole run, say) is graded mechanically like any other; whether it enters a
-reported comparison is the reporting step's.
+The condition is read off the trace, never taken from the record (``core``'s
+``read_condition``). When the record's stored condition disagrees with the trace, the trace
+stands and the disagreement is a harness finding carried on the outcome. A condition no
+outage registered (two sources down for the whole run, say) is graded mechanically like any
+other; whether it enters a reported comparison is the reporting step's.
 
 Order matters and is fixed: the context, then the terminal status, then the condition,
 then the oracle. A failed run is excluded before its trace is read for a condition, and a
@@ -51,10 +51,10 @@ from leaveimpact.core.claims import structural_problems
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
+from leaveimpact.core.read_condition import ObservedCondition, observed_condition
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import FailureCategory, System, TerminalStatus
 from leaveimpact.evaluator.citations import CitationRecord, judge_citations
-from leaveimpact.evaluator.condition import ObservedCondition, observed_condition
 from leaveimpact.evaluator.matching import match_claims
 from leaveimpact.evaluator.observed_view import IntegrityFinding, ObservedRun, observe
 from leaveimpact.evaluator.oracle import (
@@ -210,7 +210,7 @@ def grade_run(world: SealedWorld, export: RunExport) -> RunOutcome:
             else ExcludedReason.FAILED_BY_INFRASTRUCTURE
         )
         return Excluded(header, failed_by)
-    observed = observed_condition(trace)
+    observed = observed_condition(trace.operations)
     harness = _condition_findings(record.observed_condition, observed.condition)
     run = observe(world.index, export)
     if observed.is_mixed:

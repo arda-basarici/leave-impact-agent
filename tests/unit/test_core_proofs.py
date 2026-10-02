@@ -2,7 +2,9 @@
 source left unclosed; a positive its facts, and the record authority read it through; an
 open answer what was seen and what stopped it. A proof names slices and never reads, so one
 question has one proof over the truth and over a run that read enough, and it is no part of
-an answer's identity. Grounding and viability carry their questions' proofs through."""
+an answer's identity. Grounding and viability carry their questions' proofs through. A
+citation can name the record a fact or a gap was read from and a record whose return settled
+a negative, and nothing else a proof holds."""
 
 from leaveimpact.core import (
     Assessment,
@@ -29,6 +31,7 @@ from leaveimpact.core import (
     WorkItemStatus,
     assess,
     assess_impact,
+    citable_record,
     component_ref,
     employee_ref,
     establish,
@@ -219,3 +222,21 @@ def test_an_unreadable_need_carries_what_stopped_it() -> None:
     stopped = Consulted(RecordSlice(event_ref(w.RELEASE)), FAILED)
     assert all(assessment.verdict is Verdict.UNKNOWN for assessment in everyone)
     assert all(assessment.proof == (stopped,) for assessment in everyone)
+
+
+# --- What a citation can name ---------------------------------------------------------------
+
+
+def test_a_citation_names_the_record_behind_a_fact_a_gap_or_a_settled_negative() -> None:
+    assert citable_record(DUE) == DUE.evidence.target
+    assert citable_record(w.DENIZ_SKILLS_GAP) == w.DENIZ_SKILLS_GAP.evidence.target
+    assert citable_record(observed(RecordSlice(TICKET))) == TICKET
+
+
+def test_an_enumeration_a_window_and_a_slice_that_was_not_observed_name_no_record() -> None:
+    assert citable_record(observed(EVERY_TICKET)) is None
+    assert citable_record(observed(WindowSlice(EntityKind.EVENT, w.RELEASE_SPAN))) is None
+    # The same record slice names its record only when a read returned it or found none.
+    assert citable_record(Consulted(RecordSlice(TICKET), UNREAD)) is None
+    assert citable_record(Consulted(RecordSlice(TICKET), FAILED)) is None
+    assert citable_record(Consulted(EVERY_DOCUMENT, UNCLOSABLE, waived=True)) is None

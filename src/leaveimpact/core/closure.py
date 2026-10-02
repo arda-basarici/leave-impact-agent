@@ -83,6 +83,7 @@ from leaveimpact.core.authority import resolve
 from leaveimpact.core.claims import UnknownReason
 from leaveimpact.core.coverage import (
     Needed,
+    RecordSlice,
     Scope,
     Slice,
     SliceStatus,
@@ -128,6 +129,20 @@ Proof = tuple[Witness, ...]
 def proof_of(*parts: Iterable[Witness]) -> Proof:
     """The witnesses of ``parts`` as one proof: in order, each once."""
     return tuple(dict.fromkeys(witness for part in parts for witness in part))
+
+
+def citable_record(witness: Witness) -> EntityRef | None:
+    """The record a citation can name for ``witness``, or ``None`` when it can name none.
+
+    A fact or a gap gives the record it was read from. A consulted slice gives its record
+    when it is one record and was covered, the return that settled a negative. An
+    enumeration, a window, a slice left unread or failed and a source left unclosed give
+    nothing: they closed or stopped an answer, and no citation names them.
+    """
+    if isinstance(witness, Consulted):
+        covered = witness.status is SliceStatus.COVERED
+        return witness.where.record if covered and isinstance(witness.where, RecordSlice) else None
+    return witness.evidence.target
 
 
 @dataclass(frozen=True, slots=True)

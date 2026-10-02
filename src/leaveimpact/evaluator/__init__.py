@@ -18,7 +18,7 @@ by the import law and not by credential alone. Imports ``world``, ``adapters`` a
 ``sealed_world`` joins the three sealed files into the world a run is graded against,
 each scenario's construction record rebuilt, every cross-file claim checked and every
 sealed key reproduced by today's rules, and loads them through the object-store reader.
-``condition`` reads the condition a run was observed under off its trace. ``oracle``
+The condition a run was observed under is read off its trace by ``core``. ``oracle``
 derives what the rules conclude about a scenario under a condition, over the facts a run
 can actually obtain, anchored on the sealed key under the normal condition, or states
 that no answer exists there because the leave or the policy cannot be read.

@@ -58,11 +58,11 @@ from leaveimpact.core.derivation import Derived, derive
 from leaveimpact.core.entities import CalendarEvent, Document, Leave, WorkItem
 from leaveimpact.core.facts import Fact, FactBase, FactView, Gap
 from leaveimpact.core.ports.observed import Entity, Observed
+from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.read_coverage import ReadCoverage, coverage_from_reads
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_trace import Operation, RecordOutcome, RecordsOutcome
-from leaveimpact.evaluator.condition import observed_condition
 from leaveimpact.evaluator.world_index import WorldIndex, parts_of
 
 
@@ -171,7 +171,7 @@ def observe(index: WorldIndex, export: RunExport) -> ObservedRun:
     )
     gaps = tuple(item for item in derived if isinstance(item, Gap))
     view = FactBase(facts, gaps).observed(
-        today, observed_condition(export.trace).condition, coverage
+        today, observed_condition(operations).condition, coverage
     )
     return ObservedRun(
         view=view,

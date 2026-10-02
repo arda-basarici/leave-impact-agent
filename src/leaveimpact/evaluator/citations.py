@@ -32,7 +32,8 @@ from, and a record whose return settled a negative. An enumeration or a window t
 a negative, and a source left unclosed, name no record. So a negative settled only by an
 enumeration has nothing to cite, and the limit runs the other way for a conclusion about
 everyone, which rests on every candidate's assessment: nearly any record read counts as
-used there.
+used there. The mapping from a witness to its record is ``core``'s ``citable_record``, the
+same one a harness cites its own proofs by.
 
 One record per evidence reference as the claim carries it, the field included and not
 judged: a field metric needs a relation over a fact's fields (an event's schedule comes
@@ -48,8 +49,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
 from leaveimpact.core.claims import Claim
-from leaveimpact.core.closure import Consulted, Witness
-from leaveimpact.core.coverage import RecordSlice, SliceStatus
+from leaveimpact.core.closure import citable_record
 from leaveimpact.core.ids import ClaimId
 from leaveimpact.core.refs import EntityRef, EvidenceRef
 from leaveimpact.evaluator.observed_view import ObservedRun
@@ -129,14 +129,9 @@ def cited_witnesses(
 def citable_witnesses(grounding: ClaimGrounding) -> frozenset[EntityRef]:
     """The records the claim's own proof can be cited by: what each fact and each gap was read
     from, and each record whose return settled a negative."""
-    return frozenset(target for witness in grounding.proof if (target := _citable(witness)))
-
-
-def _citable(witness: Witness) -> EntityRef | None:
-    if isinstance(witness, Consulted):
-        covered = witness.status is SliceStatus.COVERED
-        return witness.where.record if covered and isinstance(witness.where, RecordSlice) else None
-    return witness.evidence.target
+    return frozenset(
+        target for witness in grounding.proof if (target := citable_record(witness))
+    )
 
 
 __all__ = ["CitationRecord", "citable_witnesses", "cited_witnesses", "judge_citations"]

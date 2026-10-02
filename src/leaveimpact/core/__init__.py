@@ -5,11 +5,12 @@ document, leave, and their ids), the predicate registry with each predicate's va
 spec, the claim vocabulary with its per-type grading keys, ``RunContext`` and world
 time, the fact base a run sees through a ``FactView`` under a ``RunCondition``, the
 coverage that says which slices of the sources a view observed whole and the
-function that computes it from a run's reads, the
+function that computes it from a run's reads, the condition those reads show, the
 derivation that turns an observed record into facts and gaps, and the
 deterministic rules — closed-world evaluation per declared evidence domain, the
 system-of-record authority table that resolves conflicting observations, viability of
-a person for a need, constraint checks. The investigator's deterministic core and the
+a person for a need, constraint checks, and the reading pass that asks grounding and
+viability of each impact together. The investigator's deterministic core and the
 evaluator call the same rule functions from here, which makes that sharing visible
 instead of duplicated (the answer-key contract in DESIGN says why sharing rules is
 safe and sharing code between generator and evaluator is not). Vendor-neutral ports
@@ -48,7 +49,9 @@ from leaveimpact.core import (
     predicates,
     pricing,
     provenance,
+    read_condition,
     read_coverage,
+    readings,
     refs,
     run_export,
     run_export_json,
@@ -110,6 +113,7 @@ from leaveimpact.core.closure import (
     Unresolved,
     Witness,
     any_true,
+    citable_record,
     establish,
     establish_any,
     proof_of,
@@ -227,6 +231,7 @@ from leaveimpact.core.provenance import (
     decode_model_configuration,
     encode_model_configuration,
 )
+from leaveimpact.core.read_condition import ObservedCondition, observed_condition
 from leaveimpact.core.read_coverage import (
     ENUMERABLE_KINDS,
     HELD_IN,
@@ -237,6 +242,7 @@ from leaveimpact.core.read_coverage import (
     supplied_by,
     tool_mismatches,
 )
+from leaveimpact.core.readings import Reading, read_impacts
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
     SOURCE_BY_TARGET_KIND,
@@ -386,7 +392,9 @@ __all__ = [
     "predicates",
     "pricing",
     "provenance",
+    "read_condition",
     "read_coverage",
+    "readings",
     "refs",
     "run_export",
     "run_export_json",
@@ -518,6 +526,7 @@ __all__ = [
     "Needed",
     "Observation",
     "Observed",
+    "ObservedCondition",
     "Operation",
     "OperationId",
     "Origin",
@@ -533,6 +542,7 @@ __all__ = [
     "PrefetchRule",
     "QueryArgument",
     "ReadCoverage",
+    "Reading",
     "PriceTable",
     "PricingBasis",
     "PricingRow",
@@ -599,6 +609,7 @@ __all__ = [
     "assess_impact",
     "basis_for",
     "chain_problems",
+    "citable_record",
     "clause_ref",
     "closing_slices",
     "closing_slices_of_any",
@@ -657,9 +668,11 @@ __all__ = [
     "leave_ref",
     "local_date",
     "need_of",
+    "observed_condition",
     "plan_violations",
     "predicate",
     "proof_of",
+    "read_impacts",
     "require_id",
     "require_integer",
     "require_member",

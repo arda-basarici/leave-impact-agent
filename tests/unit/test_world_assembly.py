@@ -20,6 +20,7 @@ from leaveimpact.core import (
     SkillCriterion,
     Verdict,
     clause_ref,
+    read_impacts,
 )
 from leaveimpact.core.entities import Leave
 from leaveimpact.core.ids import leave_id, work_item_id
@@ -38,7 +39,6 @@ from leaveimpact.world import (
     assemble_world,
     construct,
     expectations_of,
-    read_impacts,
     scope_handle_problems,
     verify_world,
     vocabulary_digest,
