@@ -24,7 +24,9 @@ assignee set is truth, so nothing is compared with an expected set.
   or its source is unreachable) makes the check *uncheckable* for that action, whatever
   kind of action it is: the clauses are resolved before the plan rule is asked anything,
   so an uncovered action that cites a clause nobody can read is recorded too. It is never
-  read as imposing no requirement.
+  read as imposing no requirement. The reading itself is ``plan_reading``'s, shared with
+  the grounding replay, which asks the same of an action with the leave's span as the run
+  read it; here the span is the sealed scenario's.
 
 *Coverage.* A conclusion of uncovered or unknown is about everyone, so it calls for an
 assessment of every organization member. Two things can call for it for an impact: the
@@ -62,21 +64,16 @@ from leaveimpact.core.claims import (
     CandidateAssessment,
     Claim,
     Constraint,
-    ConstraintKey,
     CoverageAction,
     CoverageActionKind,
     ImpactKey,
     require_well_formed,
 )
-from leaveimpact.core.closure import KnownTrue, Unresolved, establish
-from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import FactView
 from leaveimpact.core.ids import EmployeeId
-from leaveimpact.core.plans import Violation, ViolationKind, plan_violations, verdicts_by_employee
-from leaveimpact.core.predicates import PredicateName
-from leaveimpact.core.refs import EntityRef, clause_ref
-from leaveimpact.core.viability import ResolvedRequirement, applicable_requirements, need_of
+from leaveimpact.core.plans import Violation, ViolationKind, plan_violations
 from leaveimpact.evaluator.oracle import Answerable
+from leaveimpact.evaluator.plan_reading import PlanUnreadable, read_plan
 from leaveimpact.world.scenario import Scenario
 
 UNIVERSAL = (CoverageActionKind.UNCOVERED, CoverageActionKind.UNKNOWN)
@@ -224,79 +221,28 @@ def _declared_constraints(
 ) -> list[CheckFinding]:
     cited = [claim.key for claim in claims if isinstance(claim, Constraint)]
     assessments = [claim for claim in claims if isinstance(claim, CandidateAssessment)]
+    leave_span = scenario.investigated_leave.span
     findings: list[CheckFinding] = []
     for action in _actions(claims):
         impact = action.impact_key
         # Resolved before the plan rule is asked: an action of any kind that cites a clause
         # nobody can read is uncheckable, and the rule itself has nothing to say of an
         # action that names nobody.
-        cited_requirements = _cited_requirements(cited, impact, scenario, view)
-        if isinstance(cited_requirements, str):
+        plan = read_plan(
+            action, cited, assessments, view, leave_span, scenario.spec.reference_timezone
+        )
+        if isinstance(plan, PlanUnreadable):
             findings.append(
                 CheckFinding(
-                    CheckFamily.DECLARED_CONSTRAINT, impact, cited_requirements, uncheckable=True
+                    CheckFamily.DECLARED_CONSTRAINT, impact, plan.message, uncheckable=True
                 )
             )
             continue
         findings.extend(
             CheckFinding(CheckFamily.DECLARED_CONSTRAINT, impact, violation)
-            for violation in plan_violations(
-                action, cited_requirements, verdicts_by_employee(impact, assessments)
-            )
+            for violation in plan.violations
         )
     return findings
-
-
-def _cited_requirements(
-    cited: Sequence[ConstraintKey], impact: ImpactKey, scenario: Scenario, view: FactView
-) -> list[ResolvedRequirement] | str:
-    """The requirements of the clauses the report cites for ``impact``, or why they cannot be
-    read: a reason, never an empty list, since an unreadable clause imposes an unknown
-    requirement and not none."""
-    # What the report's own citations could be about for this impact, read off the report:
-    # the artifact itself, or a component when the artifact is a work item.
-    by_component = [
-        constraint
-        for constraint in cited
-        if impact.artifact.kind is EntityKind.WORK_ITEM
-        and constraint.applies_to.kind is EntityKind.COMPONENT
-    ]
-    could_apply = [c for c in cited if c.applies_to == impact.artifact] + by_component
-    try:
-        need = need_of(
-            view, impact, scenario.investigated_leave.span, scenario.spec.reference_timezone
-        )
-    except ValueError:
-        need = None  # an artifact the fact base knows nothing of
-    if need is None or isinstance(need, Unresolved):
-        if could_apply:
-            return "the impact's artifact cannot be read, so which cited clause applies is open"
-        return []
-    component = need.component
-    if isinstance(component, Unresolved) and by_component:
-        return (
-            "the artifact's component cannot be read, so whether a cited component clause "
-            "applies is open"
-        )
-    scope = {impact.artifact, component} if isinstance(component, EntityRef) else {impact.artifact}
-    applying = [constraint for constraint in cited if constraint.applies_to in scope]
-    unreadable = sorted(
-        constraint.clause_id
-        for constraint in applying
-        if not isinstance(
-            establish(view, clause_ref(constraint.clause_id), PredicateName.REQUIRES), KnownTrue
-        )
-    )
-    if unreadable:
-        return (
-            "a clause the report cites for this impact states no requirement that can be "
-            f"read: {', '.join(unreadable)}"
-        )
-    return [
-        requirement
-        for requirement in applicable_requirements(view, need, applying)
-        if isinstance(requirement, ResolvedRequirement)
-    ]
 
 
 def _actions(claims: Sequence[Claim]) -> list[CoverageAction]:
