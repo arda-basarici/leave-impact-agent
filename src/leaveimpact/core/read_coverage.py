@@ -48,12 +48,18 @@ against the tracker and answered "no such record" says nothing about the HR syst
 and an ``employees`` call that returned leaves did not list the employees. An operation
 that fails any of these contributes the records it returned and nothing else: no
 absence, no enumeration, no window. Reporting it is its verifier's, not this
-function's.
+function's; ``tool_mismatches`` names the respects it fails in, from the same checks, so
+what is reported and what is not credited cannot part.
 
 One mismatch the method table cannot state is kept for whoever reports it: a read by id
 that came back with a record of another id. The record it returned was returned and
 counts; the record it asked for was neither returned nor found missing, so it stays
 unobserved by that read, and its reference is held in ``misanswered``.
+
+The mapping is a fold. ``supplied_by`` says what one operation observed taken alone, and
+``coverage_from_reads`` gathers that over a trace; whoever asks which operation first
+supplied a record, an absence, an enumeration or part of a window reads the same
+per-operation answer the coverage was built from.
 """
 
 from __future__ import annotations
@@ -61,6 +67,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
 from datetime import timedelta
+from enum import StrEnum
 from types import MappingProxyType
 
 from leaveimpact.core.coverage import KindSlice, RecordSlice, Slice, SliceStatus, WindowSlice
@@ -72,8 +79,10 @@ from leaveimpact.core.run_export_json import thawed_json
 from leaveimpact.core.run_trace import (
     AbsentOutcome,
     Operation,
+    Outcome,
     RecordOutcome,
     RecordsOutcome,
+    RefusedCallOutcome,
     UnreachableOutcome,
 )
 from leaveimpact.core.tools import (
@@ -171,6 +180,78 @@ class ReadCoverage:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class Supplied:
+    """What one operation observed, taken alone.
+
+    ``records`` are what a completed read returned, in its order, whatever its tool. The
+    rest is credited only to an operation that is what its tool declares: ``absent`` the
+    record a read by id found none of, ``misanswered`` the one it asked for and got
+    another instead of, ``enumerated`` the kind it read in full, and the window it read,
+    days or instants. ``failed`` is the source an unreachable outcome names. A malformed
+    record and a refused call supplied nothing.
+    """
+
+    records: tuple[Observed[Entity], ...] = ()
+    absent: EntityRef | None = None
+    misanswered: EntityRef | None = None
+    enumerated: EntityKind | None = None
+    day_window: DateSpan | None = None
+    instant_window: InstantSpan | None = None
+    failed: Source | None = None
+
+    @property
+    def returned(self) -> tuple[EntityRef, ...]:
+        """Every record returned and every section or comment inside one, in the order
+        returned."""
+        return tuple(
+            ref for record in self.records for ref in (record.ref, *_parts_of(record))
+        )
+
+
+def supplied_by(operation: Operation) -> Supplied:
+    """What ``operation`` observed on its own, before any other read is looked at.
+
+    Withdrawal is not here: it is a property of two reads together, and the fold's.
+    """
+    outcome = operation.outcome
+    if isinstance(outcome, UnreachableOutcome):
+        return Supplied(failed=outcome.source)
+    if not isinstance(outcome, RecordOutcome | AbsentOutcome | RecordsOutcome):
+        return Supplied()
+    records = _records_of(outcome)
+    asked = _what_was_asked(operation)
+    if asked is None:
+        return Supplied(records=records)
+    specification, arguments = asked
+    absent: EntityRef | None = None
+    misanswered: EntityRef | None = None
+    day_window: DateSpan | None = None
+    instant_window: InstantSpan | None = None
+    for declared in specification.arguments:
+        given = arguments[declared.name]
+        if isinstance(declared, IdArgument) and isinstance(given, str):
+            asked_for = EntityRef(declared.kind, given)
+            if isinstance(outcome, AbsentOutcome):
+                absent = asked_for
+            elif isinstance(outcome, RecordOutcome) and outcome.record.ref != asked_for:
+                misanswered = asked_for
+        elif isinstance(outcome, RecordsOutcome):
+            if isinstance(declared, DateSpanArgument) and isinstance(given, DateSpan):
+                day_window = given
+            if isinstance(declared, InstantSpanArgument) and isinstance(given, InstantSpan):
+                instant_window = given
+    in_full = isinstance(outcome, RecordsOutcome) and not specification.arguments
+    return Supplied(
+        records=records,
+        absent=absent,
+        misanswered=misanswered,
+        enumerated=specification.facts.entity_kind if in_full else None,
+        day_window=day_window,
+        instant_window=instant_window,
+    )
+
+
 def coverage_from_reads(operations: Iterable[Operation]) -> ReadCoverage:
     """What ``operations`` observed, whatever order they came in.
 
@@ -190,44 +271,24 @@ def coverage_from_reads(operations: Iterable[Operation]) -> ReadCoverage:
     unobserved: set[EntityRef] = set()
 
     for operation in operations:
-        outcome = operation.outcome
-        if isinstance(outcome, UnreachableOutcome):
-            failed.add(outcome.source)
-            continue
-        if isinstance(outcome, RecordOutcome):
-            records: tuple[Observed[Entity], ...] = (outcome.record,)
-        elif isinstance(outcome, RecordsOutcome):
-            records = outcome.records
-        elif isinstance(outcome, AbsentOutcome):
-            records = ()
-        else:
-            continue
-        for record in records:
-            held = (record.ref, *_parts_of(record))
-            returned.update(held)
+        supplied = supplied_by(operation)
+        returned.update(supplied.returned)
+        for record in supplied.records:
             earlier = first_return.setdefault(record.ref, record)
             if earlier != record:
-                unobserved.update((*held, *_parts_of(earlier)))
-
-        asked = _what_was_asked(operation)
-        if asked is None:
-            continue
-        specification, arguments = asked
-        if isinstance(outcome, RecordsOutcome) and not specification.arguments:
-            enumerated.add(specification.facts.entity_kind)
-        for declared in specification.arguments:
-            given = arguments[declared.name]
-            if isinstance(declared, IdArgument) and isinstance(given, str):
-                asked_for = EntityRef(declared.kind, given)
-                if isinstance(outcome, AbsentOutcome):
-                    absent.add(asked_for)
-                elif isinstance(outcome, RecordOutcome) and outcome.record.ref != asked_for:
-                    misanswered.add(asked_for)
-            elif isinstance(outcome, RecordsOutcome):
-                if isinstance(declared, DateSpanArgument) and isinstance(given, DateSpan):
-                    day_windows.append(given)
-                if isinstance(declared, InstantSpanArgument) and isinstance(given, InstantSpan):
-                    instant_windows.append(given)
+                unobserved.update((record.ref, *_parts_of(record), *_parts_of(earlier)))
+        if supplied.absent is not None:
+            absent.add(supplied.absent)
+        if supplied.misanswered is not None:
+            misanswered.add(supplied.misanswered)
+        if supplied.enumerated is not None:
+            enumerated.add(supplied.enumerated)
+        if supplied.failed is not None:
+            failed.add(supplied.failed)
+        if supplied.day_window is not None:
+            day_windows.append(supplied.day_window)
+        if supplied.instant_window is not None:
+            instant_windows.append(supplied.instant_window)
 
     for record in absent & first_return.keys():
         # Found by one read and found missing by another: nothing to conclude from either.
@@ -256,6 +317,43 @@ def _parts_of(record: Observed[Entity]) -> tuple[EntityRef, ...]:
     return ()
 
 
+class ToolMismatch(StrEnum):
+    """One respect in which a recorded operation is not a call of the tool it names; a member
+    is the wire format."""
+
+    UNKNOWN_TOOL = "unknown_tool"
+    SOURCE = "source"
+    CARDINALITY = "cardinality"
+    RECORD_KIND = "record_kind"
+    ARGUMENTS = "arguments"
+
+
+def tool_mismatches(operation: Operation) -> tuple[ToolMismatch, ...]:
+    """Every respect in which ``operation`` is not a call of the tool it names, answered as
+    that tool answers; empty for one that is.
+
+    A failed read is held to the tool's source and its arguments, having returned nothing
+    to hold to a cardinality or a kind. A refused call is held to nothing: the wrapper
+    stopped it before it was a call of any tool.
+
+    >>> from leaveimpact.core.run_trace import OperationId, PrefetchOrigin
+    >>> misfiled = Operation(
+    ...     OperationId("op-1"), PrefetchOrigin(), "employee", Source.JIRA, {"id": "emp_017"},
+    ...     AbsentOutcome())
+    >>> [mismatch.value for mismatch in tool_mismatches(misfiled)]
+    ['source']
+    """
+    if isinstance(operation.outcome, RefusedCallOutcome):
+        return ()
+    specification = specification_named(operation.tool)
+    if specification is None:
+        return (ToolMismatch.UNKNOWN_TOOL,)
+    mismatches = list(_not_as_declared(operation, specification))
+    if _accepted_arguments(operation, specification) is None:
+        mismatches.append(ToolMismatch.ARGUMENTS)
+    return tuple(mismatches)
+
+
 def _what_was_asked(
     operation: Operation,
 ) -> tuple[ToolSpecification, Mapping[str, object]] | None:
@@ -263,30 +361,49 @@ def _what_was_asked(
     operation is not a call of a declared tool, answered as that tool answers, with the
     arguments it declares."""
     specification = specification_named(operation.tool)
-    if specification is None or not _answered_as_declared(operation, specification):
+    if specification is None or _not_as_declared(operation, specification):
         return None
+    arguments = _accepted_arguments(operation, specification)
+    return None if arguments is None else (specification, arguments)
+
+
+def _accepted_arguments(
+    operation: Operation, specification: ToolSpecification
+) -> Mapping[str, object] | None:
+    """The operation's arguments as the tool's validation accepts them, or ``None``."""
     try:
-        return specification, validate_arguments(specification, thawed_json(operation.arguments))
+        return validate_arguments(specification, thawed_json(operation.arguments))
     except ValueError:
         return None
 
 
-def _answered_as_declared(operation: Operation, specification: ToolSpecification) -> bool:
-    """Whether a completed ``operation`` read the source its tool reads and answered in the
-    tool's shape: its cardinality, and records of the kind it returns."""
+def _not_as_declared(
+    operation: Operation, specification: ToolSpecification
+) -> tuple[ToolMismatch, ...]:
+    """Where ``operation`` departs from what the method table states of its tool: the source
+    it reads and, for a completed read, its cardinality and the kind of record it returns."""
     declared = specification.facts
     outcome = operation.outcome
+    mismatches: list[ToolMismatch] = []
+    if operation.source is not declared.source:
+        mismatches.append(ToolMismatch.SOURCE)
+    if isinstance(outcome, RecordOutcome | AbsentOutcome | RecordsOutcome):
+        sequence = isinstance(outcome, RecordsOutcome)
+        shape = Cardinality.SEQUENCE if sequence else Cardinality.SINGLE
+        if declared.cardinality is not shape:
+            mismatches.append(ToolMismatch.CARDINALITY)
+        if any(record.kind is not declared.entity_kind for record in _records_of(outcome)):
+            mismatches.append(ToolMismatch.RECORD_KIND)
+    return tuple(mismatches)
+
+
+def _records_of(outcome: Outcome) -> tuple[Observed[Entity], ...]:
+    """The records a completed read returned: one, a sequence, or none."""
+    if isinstance(outcome, RecordOutcome):
+        return (outcome.record,)
     if isinstance(outcome, RecordsOutcome):
-        shape, records = Cardinality.SEQUENCE, outcome.records
-    elif isinstance(outcome, RecordOutcome):
-        shape, records = Cardinality.SINGLE, (outcome.record,)
-    else:
-        shape, records = Cardinality.SINGLE, ()
-    return (
-        operation.source is declared.source
-        and declared.cardinality is shape
-        and all(record.kind is declared.entity_kind for record in records)
-    )
+        return outcome.records
+    return ()
 
 
 def _merged_days(windows: list[DateSpan]) -> tuple[DateSpan, ...]:
@@ -315,4 +432,13 @@ def _merged_instants(windows: list[InstantSpan]) -> tuple[InstantSpan, ...]:
     return tuple(merged)
 
 
-__all__ = ["ENUMERABLE_KINDS", "HELD_IN", "ReadCoverage", "coverage_from_reads"]
+__all__ = [
+    "ENUMERABLE_KINDS",
+    "HELD_IN",
+    "ReadCoverage",
+    "Supplied",
+    "ToolMismatch",
+    "coverage_from_reads",
+    "supplied_by",
+    "tool_mismatches",
+]

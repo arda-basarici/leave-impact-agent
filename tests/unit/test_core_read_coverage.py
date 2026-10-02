@@ -2,7 +2,9 @@
 read returned it, answered that it does not exist, or enumerated its kind; a kind by its
 enumeration, and never where the tools have none; a window by the union of the completed
 windows. A failed read covers nothing, what was read stays read whatever came after, and a
-record returned two ways is withdrawn with everything it could have hidden.
+record returned two ways is withdrawn with everything it could have hidden. The mapping
+is a fold over what each operation supplied alone, and an operation that is not what its
+tool declares is named by the respects it departs in.
 
 The second half holds the rules to it through real operations: what an unread record
 permits (the fourth build step's ruling 2), case by case."""
@@ -45,6 +47,8 @@ from leaveimpact.core import (
     RunCondition,
     SliceStatus,
     Source,
+    Supplied,
+    ToolMismatch,
     UnknownReason,
     UnreachableOutcome,
     Unresolved,
@@ -61,6 +65,8 @@ from leaveimpact.core import (
     event_ref,
     leave_ref,
     specification_named,
+    supplied_by,
+    tool_mismatches,
     work_item_ref,
 )
 from leaveimpact.core.ids import document_id, employee_id, team_id
@@ -420,6 +426,86 @@ def test_a_call_that_is_not_a_declared_tools_contributes_its_records_only() -> N
     assert seen.status(KindSlice(EntityKind.EMPLOYEE)) is UNREAD
     assert seen.status(RecordSlice(team_ref(team_id(1)))) is UNREAD
     assert seen.status(RecordSlice(document_ref(document_id(7)))) is UNREAD
+
+
+# --- What one operation supplied, and how one departs from its tool -------------------------
+
+
+def test_what_one_operation_supplied_is_told_apart_by_how_it_answered() -> None:
+    defect: Call = ("work_items", {}, DefectOutcome(Source.JIRA, "issue 10012", "no owner field"))
+    refused: Call = ("employee", {"id": "LIA-42"}, RefusedCallOutcome("not an employee id"))
+    found, missing, another, listed, days, hour, failed, malformed, stopped = reads(
+        by_id("work_item", w.TICKET, TICKET),
+        by_id("employee", "emp_099", None),
+        by_id("employee", w.CAN, BOB_RECORD),
+        listing("employees", ALICE_RECORD),
+        leaves_within(w.LEAVE_SPAN, ALICE_LEAVE),
+        events_within(w.RELEASE_SPAN),
+        down("work_items"),
+        defect,
+        refused,
+    )
+    assert supplied_by(found) == Supplied(records=(TICKET,))
+    # A returned ticket is its comments too, the unit a prose fact is carried by.
+    assert supplied_by(found).returned == (TICKET_REF, comment_ref(w.DENIZ_COMMENT))
+    assert supplied_by(missing) == Supplied(absent=employee_ref(employee_id(99)))
+    assert supplied_by(another) == Supplied(records=(BOB_RECORD,), misanswered=CAN)
+    assert supplied_by(listed) == Supplied(
+        records=(ALICE_RECORD,), enumerated=EntityKind.EMPLOYEE
+    )
+    assert supplied_by(days) == Supplied(records=(ALICE_LEAVE,), day_window=w.LEAVE_SPAN)
+    assert supplied_by(hour) == Supplied(instant_window=w.RELEASE_SPAN)
+    assert supplied_by(failed) == Supplied(failed=Source.JIRA)
+    assert supplied_by(malformed) == supplied_by(stopped) == Supplied()
+
+
+def test_each_respect_an_operation_departs_from_its_tool_in_is_named() -> None:
+    can = {"id": w.CAN}
+    hr_down = UnreachableOutcome(Source.FRAPPE, "no answer after the retries")
+    cases = (
+        (_recorded("employee", Source.FRAPPE, can, RecordOutcome(CAN_RECORD)), ()),
+        (
+            _recorded("everyone", Source.FRAPPE, {}, RecordsOutcome(())),
+            (ToolMismatch.UNKNOWN_TOOL,),
+        ),
+        (_recorded("employee", Source.JIRA, can, AbsentOutcome()), (ToolMismatch.SOURCE,)),
+        (_recorded("employees", Source.FRAPPE, {}, AbsentOutcome()), (ToolMismatch.CARDINALITY,)),
+        (
+            _recorded("employees", Source.FRAPPE, {}, RecordsOutcome((ALICE_LEAVE,))),
+            (ToolMismatch.RECORD_KIND,),
+        ),
+        (
+            _recorded("employees", Source.FRAPPE, {"team": "team_001"}, RecordsOutcome(())),
+            (ToolMismatch.ARGUMENTS,),
+        ),
+        # Every respect at once: a read of one employee, recorded as a listing of tickets.
+        (
+            _recorded("employee", Source.JIRA, {}, RecordsOutcome((TICKET,))),
+            (
+                ToolMismatch.SOURCE,
+                ToolMismatch.CARDINALITY,
+                ToolMismatch.RECORD_KIND,
+                ToolMismatch.ARGUMENTS,
+            ),
+        ),
+        # A failed read returned nothing to hold to a shape; its source and arguments are held.
+        (
+            _recorded("work_items", Source.FRAPPE, {}, hr_down),
+            (ToolMismatch.SOURCE,),
+        ),
+        (
+            _recorded("work_item", Source.JIRA, {}, DefectOutcome(Source.JIRA, "issue 1", "x")),
+            (ToolMismatch.ARGUMENTS,),
+        ),
+        # A refused call was stopped before it was a call of anything.
+        (_recorded("everyone", Source.JIRA, {"id": 7}, RefusedCallOutcome("no such tool")), ()),
+    )
+    for (operation,), mismatches in cases:
+        assert tool_mismatches(operation) == mismatches, operation.tool
+        # What is reported is what is not credited: with any mismatch, the records and no more.
+        if mismatches and not isinstance(operation.outcome, UnreachableOutcome):
+            supplied = supplied_by(operation)
+            assert supplied == Supplied(records=supplied.records), operation.tool
 
 
 # --- What an unread record permits, through real operations -----------------------------------
