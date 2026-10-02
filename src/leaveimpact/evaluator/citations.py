@@ -18,9 +18,12 @@ resolve and be retrieved and used; a citation can resolve and never have been re
   or the record a witnessing comment or section is read inside. The reverse does not
   hold: a cited comment supports no structured fact of its ticket. A claim's witnesses
   are its own proof's and those of the premises its replay consumed, transitively, one
-  rule for every claim type; an action is the case with none of its own. Evaluated only
-  when the citation was retrieved and the claim is reproduced, so "retrieved and unused"
-  stays apart from "use not evaluated".
+  rule for every claim type; an action is the case with none of its own. Only a
+  reproduced premise lends its witnesses, and the walk stops at one that is not: a
+  contradicted assessment's proof is what the rules hold against it, and an action that
+  rests on it is not supported by that evidence. Evaluated only when the citation was
+  retrieved and the claim is reproduced, so "retrieved and unused" stays apart from "use
+  not evaluated".
 
 A citable witness is something a citation can name: the record a fact or a gap was read
 from, and a record whose return settled a negative. An enumeration or a window that closed
@@ -105,13 +108,14 @@ def cited_witnesses(
     grounding: ClaimGrounding, by_id: Mapping[ClaimId, ClaimGrounding], index: WorldIndex
 ) -> frozenset[EntityRef]:
     """What a citation of this claim may name and count as used: the citable witnesses of its
-    proof and of every premise under it, and the record each witnessing part is read inside."""
+    proof and of every reproduced premise under it, and the record each witnessing part is
+    read inside. Empty for a claim that was not reproduced: it has no proof to be cited by."""
     named: set[EntityRef] = set()
     seen: set[ClaimId] = set()
     pending = [grounding]
     while pending:
         record = pending.pop()
-        if record.claim_id in seen:
+        if record.claim_id in seen or record.standing is not Standing.REPRODUCED:
             continue
         seen.add(record.claim_id)
         named.update(citable_witnesses(record))

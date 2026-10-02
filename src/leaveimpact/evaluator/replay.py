@@ -29,7 +29,10 @@ nowhere, so one failure is one stored fact however many claims rest on it.
 *Proofs.* Every record keeps the witnesses of the rules' own conclusion, whatever the
 standing: what supports a reproduced claim, what contradicts a contradicted one, what was
 seen and what stopped the answer for an unsupported one. Citations and source discipline
-read them. An action has none of its own; it rests on its premises.
+read them. The absence the leave record derives is a witness wherever a replay took the
+leaver or the span from it: of every impact, and of an assessment whose window is the
+leave's span, which is every need but a meeting's, that one being free over its own day.
+An action has no witness of its own; it rests on its premises.
 
 An unknown claim names a subject and a fact and no value or window, so it is replayed
 against the questions the replay of the report's own claims stopped on for that subject
@@ -73,7 +76,7 @@ from leaveimpact.core.claims import (
 from leaveimpact.core.closure import KnownFalse, Proof, Unresolved, establish, proof_of
 from leaveimpact.core.coverage import KindSlice, SliceStatus
 from leaveimpact.core.enums import EntityKind
-from leaveimpact.core.facts import FactView
+from leaveimpact.core.facts import Fact, FactView
 from leaveimpact.core.grounding import Grounded, Ungrounded, ground_impact
 from leaveimpact.core.ids import ClaimId, EmployeeId, LeaveId
 from leaveimpact.core.plans import ViolationKind
@@ -208,12 +211,13 @@ class _Run:
 
     # --- What the run read ---------------------------------------------------------------
 
-    def _leave(self, leave_id: LeaveId) -> tuple[EmployeeId, DateSpan] | None:
-        """The leaver and the span of ``leave_id`` as the run read them, or ``None``."""
+    def _leave(self, leave_id: LeaveId) -> tuple[EmployeeId, DateSpan, Fact] | None:
+        """The leaver and the span of ``leave_id`` as the run read them, with the fact that
+        says so, or ``None`` when the run did not read that leave."""
         record = leave_ref(leave_id)
         for fact in self.view.facts_of(PredicateName.ON_LEAVE):
             if fact.evidence.target == record and isinstance(fact.value, DateSpan):
-                return EmployeeId(fact.subject.id), fact.value
+                return EmployeeId(fact.subject.id), fact.value, fact
         return None
 
     def _universe(self) -> tuple[EmployeeId, ...] | None:
@@ -268,20 +272,22 @@ class _Run:
         leave = self._leave(claim.leave_id)
         if leave is None:
             return _unsupported(claim, UnsupportedReason.LEAVE_NOT_READ)
-        leaver, span = leave
+        leaver, span, read = leave
         grounding = ground_impact(self.view, claim.key, leaver, span, self.timezone)
+        # Who is leaving and when is a premise of the question, read off the leave record.
+        proof = proof_of((read,), grounding.proof)
         match grounding:
             case Grounded():
                 return ClaimGrounding(
-                    claim.claim_id, claim.claim_type, Standing.REPRODUCED, proof=grounding.proof
+                    claim.claim_id, claim.claim_type, Standing.REPRODUCED, proof=proof
                 )
             case Ungrounded():
                 return ClaimGrounding(
-                    claim.claim_id, claim.claim_type, Standing.CONTRADICTED, proof=grounding.proof
+                    claim.claim_id, claim.claim_type, Standing.CONTRADICTED, proof=proof
                 )
             case Unresolved():
                 self._stop(grounding)
-                return _unsupported(claim, UnsupportedReason.NOT_CONCLUDED, grounding.proof)
+                return _unsupported(claim, UnsupportedReason.NOT_CONCLUDED, proof)
 
     def constraint(self, claim: Constraint) -> ClaimGrounding:
         clause = clause_ref(claim.clause_id)
@@ -302,7 +308,7 @@ class _Run:
             return _unsupported(
                 claim, UnsupportedReason.LEAVE_NOT_READ, premises=premises, missing=missing
             )
-        _, span = leave
+        _, span, read = leave
         premises += self._constraints_about(self._scope_of(impact, span))
         try:
             (rule,) = assess_impact(
@@ -312,18 +318,21 @@ class _Run:
             return _unsupported(
                 claim, UnsupportedReason.NEED_NOT_READABLE, premises=premises, missing=missing
             )
+        # A meeting is covered on its own day; every other need over the leave's span.
+        over_the_leave = impact.artifact.kind is not EntityKind.EVENT
+        proof = proof_of((read,), rule.proof) if over_the_leave else rule.proof
         for question in rule.unresolved:
             self._stop(question)
         if (rule.verdict, rule.reasons) != (claim.verdict, claim.reasons):
             if rule.verdict is Verdict.UNKNOWN:
                 return _unsupported(
-                    claim, UnsupportedReason.NOT_CONCLUDED, rule.proof, premises, missing
+                    claim, UnsupportedReason.NOT_CONCLUDED, proof, premises, missing
                 )
             return ClaimGrounding(
                 claim.claim_id,
                 claim.claim_type,
                 Standing.CONTRADICTED,
-                proof=rule.proof,
+                proof=proof,
                 premises=premises,
                 missing_premises=missing,
             )
@@ -338,7 +347,7 @@ class _Run:
             claim.claim_id,
             claim.claim_type,
             Standing.REPRODUCED,
-            proof=rule.proof,
+            proof=proof,
             premises=premises,
             missing_premises=missing,
         )
@@ -376,7 +385,7 @@ class _Run:
             return _unsupported(
                 claim, UnsupportedReason.LEAVE_NOT_READ, premises=premises, missing=missing
             )
-        _, span = leave
+        _, span, _ = leave
         premises += self._constraints_about(self._scope_of(impact, span))
         about_everyone = claim.action is not CoverageActionKind.ASSIGN
         universe = self._universe() if about_everyone else None

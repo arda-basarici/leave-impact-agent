@@ -28,6 +28,7 @@ from leaveimpact.core import (
     Source,
     Verdict,
     employee_ref,
+    leave_ref,
 )
 from leaveimpact.core.ids import claim_id
 from leaveimpact.evaluator.citations import (
@@ -325,3 +326,85 @@ def test_an_action_has_no_witnesses_of_its_own_and_may_cite_its_premises(
         assert (unused.retrieved, unused.used) == (True, False)
         return
     raise AssertionError("no truthful report assigns anyone")
+
+
+def test_an_impact_and_a_deadlines_assessment_rest_on_the_leave_record(
+    world: SealedWorld,
+) -> None:
+    # Who is leaving and when is read off the leave record, so that record is a witness
+    # of every impact, and of an assessment whose window is the leave's span (the batch
+    # review of group C).
+    for scenario in world.scenarios:
+        claims = truthful_report(answer(world, scenario))
+        impact = next(
+            (c for c in of_type(claims, Impact) if c.artifact.kind is EntityKind.WORK_ITEM), None
+        )
+        if impact is None:
+            continue
+        operations = reads_of_everything(world, scenario)
+        leave = leave_ref(impact.leave_id)
+        record = judged_with(world, scenario, claims, impact, leave, operations)
+        assert (record.resolves, record.retrieved, record.used) == (True, True, True)
+        assessment = next(
+            c for c in of_type(claims, CandidateAssessment) if c.impact_key == impact.key
+        )
+        record = judged_with(world, scenario, claims, assessment, leave, operations)
+        assert record.used is True
+        return
+    raise AssertionError("no truthful report holds an impact on a work item")
+
+
+def test_a_contradicted_premise_lends_no_witness_to_the_claim_that_rests_on_it(
+    world: SealedWorld,
+) -> None:
+    # The batch review of group C: an assessment falsely says viable, an action assigns
+    # that person and cites the very record that contradicts the assessment. The action
+    # is the plan rule over the report's own assessments, so it is reproduced; the
+    # evidence it cites is what the rules hold against its premise, and is not its support.
+    for scenario in world.scenarios:
+        claims = truthful_report(answer(world, scenario))
+        assign = next(
+            (c for c in of_type(claims, CoverageAction) if c.action is CoverageActionKind.ASSIGN),
+            None,
+        )
+        truthful = next(
+            (
+                c
+                for c in of_type(claims, CandidateAssessment)
+                if assign is not None
+                and c.impact_key == assign.impact_key
+                and c.verdict is Verdict.NON_VIABLE
+            ),
+            None,
+        )
+        if assign is None or truthful is None:
+            continue
+        operations = reads_of_everything(world, scenario)
+        export = run_export(world, scenario, claims, operations=operations)
+        groundings = replay(
+            observe(world.index, export),
+            world.index,
+            export.trace.claims,
+            scenario.spec.reference_timezone,
+        )
+        held = next(g for g in groundings if g.claim_id == truthful.claim_id)
+        against = sorted(citable_witnesses(held), key=lambda ref: ref.id)[0]
+        falsely = replace(truthful, verdict=Verdict.VIABLE, reasons=())
+        acting = replace(
+            assign, assignee_ids=(truthful.employee_id,), evidence_refs=cite(against)
+        )
+        report = swapped(swapped(claims, truthful, falsely), assign, acting)
+        export = run_export(world, scenario, report, operations=operations)
+        observed = observe(world.index, export)
+        groundings = replay(
+            observed, world.index, export.trace.claims, scenario.spec.reference_timezone
+        )
+        by_id = {g.claim_id: g for g in groundings}
+        assert by_id[falsely.claim_id].standing is Standing.CONTRADICTED
+        assert by_id[acting.claim_id].standing is Standing.REPRODUCED
+        (record,) = judge_citations(export.trace.claims, groundings, observed, world.index)
+        assert (record.claim_id, record.retrieved, record.used) == (acting.claim_id, True, False)
+        # Nothing is lent by a claim that was not reproduced, itself included.
+        assert cited_witnesses(by_id[falsely.claim_id], by_id, world.index) == frozenset()
+        return
+    raise AssertionError("no truthful report both assigns and holds a non-viable candidate")
