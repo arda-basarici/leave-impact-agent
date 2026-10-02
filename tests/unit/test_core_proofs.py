@@ -82,7 +82,7 @@ def test_a_negative_carries_the_slices_that_settled_it_and_the_source_left_unclo
     # The exact record a claim can cite, the prose no read enumerates, the enumeration.
     assert lacks_kafka.proof == (
         observed(RecordSlice(CAN)),
-        Consulted(EVERY_DOCUMENT, UNCLOSABLE),
+        Consulted(EVERY_DOCUMENT, UNCLOSABLE, waived=True),
         observed(EVERY_TICKET),
     )
 
@@ -135,6 +135,12 @@ def test_an_open_answer_carries_what_was_seen_and_what_stopped_it() -> None:
         observed(EVERY_DOCUMENT),
         observed(EVERY_TICKET),
     )
+    # An unclosable slice in an answer something else stopped is not waived: with the
+    # tickets unread the skill question is open, and it does not rest on the corpus.
+    record_only = w.view_observing({RecordSlice(CAN): COVERED, EVERY_DOCUMENT: UNCLOSABLE})
+    stopped = establish(record_only, CAN, SKILL, w.KAFKA)
+    assert Consulted(EVERY_DOCUMENT, UNCLOSABLE) in stopped.proof
+    assert not any(isinstance(each, Consulted) and each.waived for each in stopped.proof)
     # The runbook's owner was seen and not promoted: the tracker's record was never read.
     runbook_only = w.view_observing({}, facts=(w.STALE_OWNER,), gaps=())
     assert establish(runbook_only, TICKET, OWNS, BOB).proof == (

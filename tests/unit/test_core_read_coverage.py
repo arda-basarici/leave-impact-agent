@@ -448,7 +448,7 @@ def test_the_record_and_every_ticket_ground_it_with_the_corpus_left_unclosed() -
     assert lacks_kafka == KnownFalse()
     assert lacks_kafka.proof == (
         Consulted(RecordSlice(CAN), COVERED),
-        Consulted(EVERY_DOCUMENT, UNCLOSABLE),
+        Consulted(EVERY_DOCUMENT, UNCLOSABLE, waived=True),
         Consulted(EVERY_TICKET, COVERED),
     )
 

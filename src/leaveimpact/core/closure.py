@@ -106,12 +106,16 @@ class Consulted:
 
     Covered, it is what settled a negative: the exact record when the slice is one
     record, which a claim can cite, and the enumeration or the window when it is a kind
-    or a window, which no citation can name. Unclosable in a negative that stands, it is
-    the source left unclosed. Unread or failed, it is what stopped an answer.
+    or a window, which no citation can name. Unread or failed, it is what stopped an
+    answer. ``waived`` marks the slice no read observes whole that the answer stood
+    without: the source left unclosed, which is what separates the operational reading of
+    a negative from the strict one. An unclosable slice in an answer that something else
+    stopped is not waived; the answer does not rest on it.
     """
 
     where: Slice
     status: SliceStatus
+    waived: bool = False
 
 
 Witness = Fact | Gap | Consulted
@@ -351,11 +355,20 @@ def _absence(
         if consulted.status is not SliceStatus.COVERED
         and not (each.waivable and consulted.status is SliceStatus.UNCLOSABLE)
     ]
-    proof: Proof = (*gaps, *asked)
     if SliceStatus.FAILED in blocking:
-        return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE, proof)
+        return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE, (*gaps, *asked))
     if blocking:
-        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT, proof)
+        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT, (*gaps, *asked))
+    # Nothing stopped the answer, so whatever was not covered was waived: said in the proof.
+    proof: Proof = (
+        *gaps,
+        *(
+            consulted
+            if consulted.status is SliceStatus.COVERED
+            else Consulted(consulted.where, consulted.status, waived=True)
+            for consulted in asked
+        ),
+    )
     if gaps:
         return Unresolved(subject, row.name, UnknownReason.ABSENT, proof)
     if not row.closed:
