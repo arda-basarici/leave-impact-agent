@@ -87,6 +87,23 @@ def test_a_truthful_report_over_a_full_read_is_reproduced_whole_and_cites_nothin
     assert all(measure.of(runs[0]) is None for measure in limited_only)
 
 
+@pytest.mark.parametrize(
+    ("down", "claims", "strictly"),
+    [((Source.JIRA,), 613, 613), ((Source.CALENDAR,), 722, 349)],
+    ids=["tracker down", "calendar down"],
+)
+def test_under_an_outage_the_truthful_report_is_still_reproduced_whole(
+    world: SealedWorld, down: tuple[Source, ...], claims: int, strictly: int
+) -> None:
+    # The report is the oracle's answer for the condition met, shorter where the outage
+    # leaves less to conclude. With the tracker down every skill question is stopped by
+    # the outage and none stands without the corpus, so the strict reading loses nothing.
+    runs = [evaluated(world, scenario, down=down) for scenario in world.scenarios]
+    assert total(standing_share(REPRODUCED, Graded), runs) == (claims, claims)
+    assert total(grounded_end_to_end_share(Graded), runs) == (claims, claims)
+    assert total(strictly_grounded_share(Graded), runs) == (strictly, claims)
+
+
 def test_a_report_citing_its_own_witnesses_resolves_was_retrieved_and_is_used(
     world: SealedWorld,
 ) -> None:

@@ -206,6 +206,7 @@ def test_over_a_full_read_every_completed_read_is_contributing_or_extra_once(
     world: SealedWorld, down: tuple[Source, ...]
 ) -> None:
     condition = RunCondition.all_reachable().without(*down)
+    contributing = extra = 0
     for scenario in world.scenarios:
         oracle = oracle_for(world, scenario, condition)
         assert isinstance(oracle, Answerable)
@@ -217,6 +218,8 @@ def test_over_a_full_read_every_completed_read_is_contributing_or_extra_once(
         completed = [op.id for op in operations if is_completed_read(op.outcome)]
         assert sorted((*found.contributing, *found.extra)) == sorted(completed)
         assert not set(found.contributing) & set(found.extra)
+        contributing += len(found.contributing)
+        extra += len(found.extra)
         # The leave under investigation is read first, and every impact rests on it.
         if groundings:
             assert operations[0].id in found.contributing
@@ -233,3 +236,11 @@ def test_over_a_full_read_every_completed_read_is_contributing_or_extra_once(
             listing = next(op.id for op in operations if op.tool == "employees")
             alone = proof_contribution(operations, [replays[about_everyone[0]]])
             assert alone.contributing == (listing,)
+    # The thirty scenarios together. Nearly all the extra reads are the fixture's read of
+    # every document of the world by its id, the corpus having no enumeration.
+    measured: dict[tuple[Source, ...], tuple[int, int]] = {
+        (): (158, 802),
+        (Source.JIRA,): (58, 842),
+        (Source.CALENDAR,): (126, 804),
+    }
+    assert (contributing, extra) == measured[down]
