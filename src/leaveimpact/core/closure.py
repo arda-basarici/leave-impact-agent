@@ -57,12 +57,26 @@ puts one on an event's schedule or attendance, so they do not apply there. The c
 states the question's scope, a window or ``None`` for every record there is, because
 the matcher hides it and the negative is only as wide as what was observed: one event
 read by its id settles nothing about the other events of that hour.
+
+Every answer carries its *proof*: the witnesses it rests on. A witness is a fact, a gap,
+or a slice the answer asked the view about with what the view said of it. A negative
+has no fact to show and used to carry nothing, so the record whose return answered it
+was lost (the employee's own record for a skill not held, the ticket for a due date not
+set); now it is a covered record slice in the proof, the enumeration or the window that
+closed the rest is a covered kind or window slice, and prose no read enumerates is an
+unclosable one, which is how a result says a source was left unclosed. An unresolved
+answer's proof holds the slices that stopped it. A proof names slices and never the
+reads that supplied them, so one question has one proof over the truth and over a run
+that read enough (ruling 4 of the same step). The proof is not part of an answer's
+identity: two answers are equal when they say the same thing, whatever each rests on,
+which keeps every comparison the rules and the world's verification make exactly what
+it was.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Literal
 
 from leaveimpact.core.authority import resolve
@@ -75,7 +89,7 @@ from leaveimpact.core.coverage import (
     closing_slices,
     closing_slices_of_any,
 )
-from leaveimpact.core.facts import Fact, FactView
+from leaveimpact.core.facts import Fact, FactView, Gap
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName
 from leaveimpact.core.refs import EntityRef, with_article
 from leaveimpact.core.values import FactValue, Observation
@@ -87,25 +101,80 @@ DerivedUnknownReason = Literal[
 
 
 @dataclass(frozen=True, slots=True)
+class Consulted:
+    """A slice an answer asked the view about, and what the view said of it.
+
+    Covered, it is what settled a negative: the exact record when the slice is one
+    record, which a claim can cite, and the enumeration or the window when it is a kind
+    or a window, which no citation can name. Unclosable in a negative that stands, it is
+    the source left unclosed. Unread or failed, it is what stopped an answer.
+    """
+
+    where: Slice
+    status: SliceStatus
+
+
+Witness = Fact | Gap | Consulted
+"""One thing an answer rests on."""
+
+Proof = tuple[Witness, ...]
+"""What an answer rests on, each witness once, in the order the rule came to them."""
+
+
+def proof_of(*parts: Iterable[Witness]) -> Proof:
+    """The witnesses of ``parts`` as one proof: in order, each once."""
+    return tuple(dict.fromkeys(witness for part in parts for witness in part))
+
+
+@dataclass(frozen=True, slots=True)
 class KnownTrue:
-    """Positive evidence exists; ``facts`` are what established it."""
+    """Positive evidence exists; ``facts`` are what established it.
+
+    ``proof`` holds the facts and whatever else the answer rested on, as the record a
+    single-valued predicate was resolved through; it takes no part in equality.
+
+    >>> from leaveimpact.core.coverage import KindSlice
+    >>> from leaveimpact.core.enums import EntityKind
+    >>> observed = Consulted(KindSlice(EntityKind.LEAVE), SliceStatus.COVERED)
+    >>> KnownTrue(()) == KnownTrue((), (observed,))
+    True
+    """
 
     facts: tuple[Fact, ...]
+    proof: Proof = field(default=(), compare=False)
+
+    def __post_init__(self) -> None:
+        # The one write a frozen dataclass allows itself: the facts are witnesses whatever
+        # the caller listed, so a proof never has to be assembled from two fields.
+        object.__setattr__(self, "proof", proof_of(self.facts, self.proof))
 
 
 @dataclass(frozen=True, slots=True)
 class KnownFalse:
-    """The domain was fully observed and holds no positive evidence."""
+    """The domain was fully observed and holds no positive evidence.
+
+    ``proof`` holds what showed it: the slices observed, and the fact that decided it when
+    one did (the record's other value, a status that is done). No part of equality.
+    """
+
+    proof: Proof = field(default=(), compare=False)
 
 
 @dataclass(frozen=True, slots=True)
 class Unresolved:
     """The question could not be settled; becomes an unknown claim keyed by subject and
-    predicate."""
+    predicate.
+
+    ``proof`` holds what was seen and what stopped the answer: a gap, the slices asked
+    with their statuses, a lower-authority fact that was not promoted. No part of
+    equality, so two unresolved answers about one subject and predicate for one reason
+    are one unknown, as they always were.
+    """
 
     subject: EntityRef
     predicate: PredicateName
     reason: DerivedUnknownReason
+    proof: Proof = field(default=(), compare=False)
 
 
 Closure = KnownTrue | KnownFalse | Unresolved
@@ -145,18 +214,25 @@ def establish(
         except ValueError as problem:
             raise ValueError(f"{row.name.value}: {problem}") from None
     needed = closing_slices(row, subject, value)
-    standing = _standing(
-        view, row, subject, view.facts_about(subject, name), needed[0].where, registry=registry
-    )
-    if isinstance(standing, Unresolved):
-        return standing
+    standing = view.facts_about(subject, name)
+    authority: Proof = ()
+    if standing and not row.multi_valued:
+        # Read through authority: the slice the system of record holds the fact in is asked
+        # ahead of the facts, so another source's value is never promoted over a record
+        # that was not observed.
+        record = _consult(view, needed[0].where)
+        reason = _why_unobserved(record.status)
+        if reason is not None:
+            return Unresolved(subject, row.name, reason, (*standing, record))
+        standing = _agreeing_with_the_record(row, standing, registry=registry)
+        authority = (record,)
     facts = tuple(fact for fact in standing if value is None or fact.value == value)
     if facts:
-        return KnownTrue(facts)
+        return KnownTrue(facts, authority)
     if standing and not row.multi_valued:
         # The record answered with another value, and a single-valued predicate holds one.
-        return KnownFalse()
-    return _absence(view, row, subject, needed, gapped=bool(view.gaps_about(subject, name)))
+        return KnownFalse((*standing, *authority))
+    return _absence(view, row, subject, needed, view.gaps_about(subject, name))
 
 
 def establish_any(
@@ -179,12 +255,15 @@ def establish_any(
     row = registry[name]
     _require_subject(row, about)
     needed = closing_slices_of_any(row, scope)
+    authority: Proof = ()
     if not row.multi_valued:
         # Every subject's record is read through authority, so the records' slice is asked
         # once, ahead of the facts, as ``establish`` asks one record's.
-        reason = _unobserved(view, needed[0].where)
+        records = _consult(view, needed[0].where)
+        reason = _why_unobserved(records.status)
         if reason is not None:
-            return Unresolved(about, row.name, reason)
+            return Unresolved(about, row.name, reason, (records,))
+        authority = (records,)
     by_subject: dict[EntityRef, list[Fact]] = {}
     for fact in view.facts_of(name):
         by_subject.setdefault(fact.subject, []).append(fact)
@@ -193,47 +272,33 @@ def establish_any(
         standing = _agreeing_with_the_record(row, tuple(group), registry=registry)
         facts.extend(fact for fact in standing if matches(fact))
     if facts:
-        return KnownTrue(tuple(facts))
-    return _absence(view, row, about, needed, gapped=False)
+        return KnownTrue(tuple(facts), authority)
+    return _absence(view, row, about, needed, ())
 
 
 def any_true(closures: Iterable[Closure]) -> Closure:
     """The closure of "at least one of these": true if any is, else unresolved if any is, else
-    false — an empty sequence is false, since nothing was asked."""
+    false — an empty sequence is false, since nothing was asked.
+
+    A true answer rests on the true ones, a false answer on every one of them, and the
+    first unresolved one is returned as it is.
+    """
     unresolved: Unresolved | None = None
     established: list[Fact] = []
+    shown: list[Witness] = []
+    refuted: list[Witness] = []
     for closure in closures:
         match closure:
             case KnownTrue():
                 established.extend(closure.facts)
+                shown.extend(closure.proof)
             case Unresolved():
                 unresolved = unresolved or closure
             case KnownFalse():
-                pass
+                refuted.extend(closure.proof)
     if established:
-        return KnownTrue(tuple(established))
-    return unresolved or KnownFalse()
-
-
-def _standing(
-    view: FactView,
-    row: Predicate,
-    subject: EntityRef,
-    facts: tuple[Fact, ...],
-    record: Slice,
-    *,
-    registry: Mapping[PredicateName, Predicate],
-) -> tuple[Fact, ...] | Unresolved:
-    """The facts of ``subject`` a rule may read: all of them for a multi-valued predicate; for
-    a single-valued one, those agreeing with the authority table's value — or unresolved
-    when another source answered while ``record``, the slice the system of record holds
-    the fact in, was not observed."""
-    if row.multi_valued or not facts:
-        return facts
-    reason = _unobserved(view, record)
-    if reason is not None:
-        return Unresolved(subject, row.name, reason)
-    return _agreeing_with_the_record(row, facts, registry=registry)
+        return KnownTrue(tuple(established), proof_of(shown))
+    return unresolved or KnownFalse(proof_of(refuted))
 
 
 def _agreeing_with_the_record(
@@ -250,10 +315,14 @@ def _agreeing_with_the_record(
     return tuple(fact for fact in facts if fact.value == resolution.value)
 
 
-def _unobserved(view: FactView, where: Slice) -> DerivedUnknownReason | None:
-    """Why ``where`` cannot be read as observed whole, or ``None`` when it was: *inaccessible*
-    when it could not be read, *insufficient* when it was not or cannot be."""
-    match view.coverage.status(where):
+def _consult(view: FactView, where: Slice) -> Consulted:
+    return Consulted(where, view.coverage.status(where))
+
+
+def _why_unobserved(status: SliceStatus) -> DerivedUnknownReason | None:
+    """Why a slice of that status cannot be read as observed whole, or ``None`` when it was:
+    *inaccessible* when it could not be read, *insufficient* when it was not or cannot be."""
+    match status:
         case SliceStatus.COVERED:
             return None
         case SliceStatus.FAILED:
@@ -263,28 +332,35 @@ def _unobserved(view: FactView, where: Slice) -> DerivedUnknownReason | None:
 
 
 def _absence(
-    view: FactView, row: Predicate, subject: EntityRef, needed: Sequence[Needed], *, gapped: bool
+    view: FactView,
+    row: Predicate,
+    subject: EntityRef,
+    needed: Sequence[Needed],
+    gaps: tuple[Gap, ...],
 ) -> Closure:
     """What no fact means, once every slice in ``needed`` has been asked of the view.
 
     A waivable slice no read observes whole does not hold the negative back (the coverage
-    module says why); one that failed does, like any other.
+    module says why); one that failed does, like any other. Whatever the answer, its
+    proof is the gaps and every slice asked.
     """
+    asked = tuple(_consult(view, each.where) for each in needed)
     blocking = [
-        status
-        for each in needed
-        if (status := view.coverage.status(each.where)) is not SliceStatus.COVERED
-        and not (each.waivable and status is SliceStatus.UNCLOSABLE)
+        consulted.status
+        for each, consulted in zip(needed, asked, strict=True)
+        if consulted.status is not SliceStatus.COVERED
+        and not (each.waivable and consulted.status is SliceStatus.UNCLOSABLE)
     ]
+    proof: Proof = (*gaps, *asked)
     if SliceStatus.FAILED in blocking:
-        return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE)
+        return Unresolved(subject, row.name, UnknownReason.INACCESSIBLE, proof)
     if blocking:
-        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT)
-    if gapped:
-        return Unresolved(subject, row.name, UnknownReason.ABSENT)
+        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT, proof)
+    if gaps:
+        return Unresolved(subject, row.name, UnknownReason.ABSENT, proof)
     if not row.closed:
-        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT)
-    return KnownFalse()
+        return Unresolved(subject, row.name, UnknownReason.INSUFFICIENT, proof)
+    return KnownFalse(proof)
 
 
 def _require_subject(row: Predicate, subject: EntityRef) -> None:

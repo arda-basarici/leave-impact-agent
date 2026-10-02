@@ -39,17 +39,20 @@ ruling in DESIGN).
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from leaveimpact.core.claims import AssessmentReason, ConstraintKey, ImpactKey, Verdict
 from leaveimpact.core.closure import (
     Closure,
     KnownFalse,
     KnownTrue,
+    Proof,
     Unresolved,
+    Witness,
     any_true,
     establish,
     establish_any,
+    proof_of,
 )
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact, FactView
@@ -79,16 +82,25 @@ class Need:
     event_span: InstantSpan | None
     facts: tuple[Fact, ...]
     """The facts the need was read from — the artifact's component, the meeting's schedule."""
+    proof: Proof = field(default=(), compare=False)
+    """What reading the need rested on, the facts among it; no part of equality."""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "proof", proof_of(self.facts, self.proof))
 
 
 @dataclass(frozen=True, slots=True)
 class ResolvedRequirement:
     """A requirement that applies to a need, with the clause it came from and the fact stating
-    it."""
+    it. ``proof`` is what reading it rested on, the fact among it; no part of equality."""
 
     clause_id: ClauseId
     requirement: Requirement
     fact: Fact
+    proof: Proof = field(default=(), compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "proof", proof_of((self.fact,), self.proof))
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,6 +110,9 @@ class Assessment:
     ``reasons`` is non-empty exactly for a non-viable verdict; ``unresolved`` is non-empty
     exactly for an unknown one, one entry per unresolved fact and the seed of the unknown
     claims the assessment derives from; ``evidence`` is every fact any criterion read.
+    ``proof`` is everything the rule read to reach the verdict: the evidence, and what
+    each negative and each open question rested on (the closure module says what a proof
+    is). It takes no part in equality.
     """
 
     impact: ImpactKey
@@ -106,6 +121,10 @@ class Assessment:
     reasons: tuple[AssessmentReason, ...]
     unresolved: tuple[Unresolved, ...]
     evidence: tuple[Fact, ...]
+    proof: Proof = field(default=(), compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "proof", proof_of(self.evidence, self.proof))
 
 
 # --- The need ------------------------------------------------------------------------
@@ -136,7 +155,9 @@ def need_of(
             case KnownTrue(facts):
                 span = facts[0].value
                 assert isinstance(span, InstantSpan)
-                return Need(impact, span.local_dates(reference_timezone), None, span, facts)
+                return Need(
+                    impact, span.local_dates(reference_timezone), None, span, facts, scheduled.proof
+                )
             case Unresolved():
                 return scheduled
             case KnownFalse():
@@ -147,11 +168,11 @@ def need_of(
             case KnownTrue(facts):
                 ref = facts[0].value
                 assert isinstance(ref, EntityRef)
-                return Need(impact, leave_span, ref, None, facts)
+                return Need(impact, leave_span, ref, None, facts, component.proof)
             case Unresolved():
                 return Need(impact, leave_span, component, None, ())
             case KnownFalse():
-                return Need(impact, leave_span, None, None, ())
+                return Need(impact, leave_span, None, None, (), component.proof)
     return Need(impact, leave_span, None, None, ())
 
 
@@ -190,7 +211,9 @@ def applicable_requirements(
             case KnownTrue(facts):
                 requirement = facts[0].value
                 assert isinstance(requirement, Requirement)
-                resolved.append(ResolvedRequirement(constraint.clause_id, requirement, facts[0]))
+                resolved.append(
+                    ResolvedRequirement(constraint.clause_id, requirement, facts[0], stated.proof)
+                )
             case Unresolved():
                 resolved.append(stated)
             case KnownFalse():
@@ -315,9 +338,13 @@ def _busy(view: FactView, need: Need, who: EntityRef, *, registry: Registry) -> 
     )
     match attended:
         case KnownTrue(facts):
-            return any_true(
+            overlapping = any_true(
                 _overlaps(view, fact.subject, span, registry=registry) for fact in facts
             )
+            if isinstance(overlapping, KnownTrue):
+                # The schedules are the evidence; who attends is part of what it rests on.
+                return KnownTrue(overlapping.facts, proof_of(overlapping.proof, attended.proof))
+            return overlapping
         case _:
             return attended
 
@@ -330,7 +357,7 @@ def _overlaps(
         case KnownTrue(facts):
             other = facts[0].value
             assert isinstance(other, InstantSpan)
-            return scheduled if other.overlaps(span) else KnownFalse()
+            return scheduled if other.overlaps(span) else KnownFalse(scheduled.proof)
         case _:
             return scheduled
 
@@ -355,8 +382,10 @@ def assess(
     unresolved: list[Unresolved] = [item for item in requirements if isinstance(item, Unresolved)]
     resolved = [item for item in requirements if isinstance(item, ResolvedRequirement)]
     evidence: list[Fact] = list(need.facts) + [item.fact for item in resolved]
+    read: list[Witness] = [*need.proof, *(witness for item in resolved for witness in item.proof)]
     reasons: set[AssessmentReason] = set()
     for criterion in _criteria(view, need, candidate, resolved, registry=registry):
+        read.extend(criterion.answer.proof)
         match criterion.answer:
             case KnownTrue(facts):
                 evidence.extend(facts)
@@ -367,7 +396,8 @@ def assess(
                     reasons.add(criterion.reason)
             case Unresolved():
                 unresolved.append(criterion.answer)
-    return _verdict(need.impact, candidate, reasons, unresolved, evidence)
+    read.extend(witness for item in unresolved for witness in item.proof)
+    return _verdict(need.impact, candidate, reasons, unresolved, evidence, read)
 
 
 def assess_impact(
@@ -387,7 +417,9 @@ def assess_impact(
     """
     need = need_of(view, impact, leave_span, reference_timezone, registry=registry)
     if isinstance(need, Unresolved):
-        return tuple(_verdict(impact, candidate, set(), [need], []) for candidate in candidates)
+        return tuple(
+            _verdict(impact, candidate, set(), [need], [], need.proof) for candidate in candidates
+        )
     return tuple(
         assess(view, need, candidate, constraints, registry=registry) for candidate in candidates
     )
@@ -399,6 +431,7 @@ def _verdict(
     reasons: set[AssessmentReason],
     unresolved: Sequence[Unresolved],
     evidence: Sequence[Fact],
+    read: Sequence[Witness],
 ) -> Assessment:
     if reasons:
         verdict, open_questions = Verdict.NON_VIABLE, ()
@@ -413,6 +446,7 @@ def _verdict(
         tuple(sorted(reasons, key=lambda reason: reason.value)),
         open_questions,
         _unique(evidence),
+        proof_of(read),
     )
 
 

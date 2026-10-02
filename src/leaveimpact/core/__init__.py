@@ -100,13 +100,17 @@ from leaveimpact.core.claims import (
 from leaveimpact.core.claims_json import decode_claim, decode_claims, encode_claim, encode_claims
 from leaveimpact.core.closure import (
     Closure,
+    Consulted,
     DerivedUnknownReason,
     KnownFalse,
     KnownTrue,
+    Proof,
     Unresolved,
+    Witness,
     any_true,
     establish,
     establish_any,
+    proof_of,
 )
 from leaveimpact.core.comments import comment_body, comment_text, parse_comment
 from leaveimpact.core.coverage import (
@@ -434,6 +438,7 @@ __all__ = [
     "ConflictKey",
     "Constraint",
     "ConstraintKey",
+    "Consulted",
     "Cost",
     "Coverage",
     "CoverageAction",
@@ -516,6 +521,7 @@ __all__ = [
     "PricingBasis",
     "PricingRow",
     "PricingSelection",
+    "Proof",
     "Requirement",
     "RecordOutcome",
     "RecordSlice",
@@ -562,6 +568,7 @@ __all__ = [
     "Violation",
     "ViolationKind",
     "WindowSlice",
+    "Witness",
     "WorkItem",
     "WorkItemId",
     "WorkItemStatus",
@@ -633,6 +640,7 @@ __all__ = [
     "need_of",
     "plan_violations",
     "predicate",
+    "proof_of",
     "require_id",
     "require_integer",
     "require_member",

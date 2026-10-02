@@ -25,16 +25,29 @@ authority table and a stale document never grounds an obligation the tracker
 contradicts; an unreachable source makes the grounding unknown with closure's reason
 rather than false, and any known failure settles the grounding whatever else is
 unsettled, the same order the viability rule uses.
+
+A grounding carries the proof of every question it asked (the closure module says what
+a proof is). The responsibility grounded by a ticket having no due date is the case
+that needed it: no fact says a date is absent, so what the conclusion rests on is the
+ticket's own record having been observed, and that is in the proof.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from leaveimpact.core.claims import ImpactKey, ImpactSubtype
-from leaveimpact.core.closure import Closure, KnownFalse, KnownTrue, Unresolved, establish
+from leaveimpact.core.closure import (
+    Closure,
+    KnownFalse,
+    KnownTrue,
+    Proof,
+    Unresolved,
+    establish,
+    proof_of,
+)
 from leaveimpact.core.enums import EntityKind, WorkItemStatus
 from leaveimpact.core.facts import Fact, FactView
 from leaveimpact.core.ids import EmployeeId, LeaveId
@@ -47,15 +60,25 @@ Registry = Mapping[PredicateName, Predicate]
 
 @dataclass(frozen=True, slots=True)
 class Grounded:
-    """The leaver holds the obligation; ``facts`` are what established it, in question order."""
+    """The leaver holds the obligation; ``facts`` are what established it, in question order.
+
+    ``proof`` holds the facts and what else the questions rested on; no part of equality.
+    """
 
     facts: tuple[Fact, ...]
+    proof: Proof = field(default=(), compare=False)
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "proof", proof_of(self.facts, self.proof))
 
 
 @dataclass(frozen=True, slots=True)
 class Ungrounded:
     """The fact base was fully observed on the question that failed, and the obligation is not
-    the leaver's — or not of this subtype."""
+    the leaver's — or not of this subtype. ``proof`` holds what every answered question
+    rested on; no part of equality."""
+
+    proof: Proof = field(default=(), compare=False)
 
 
 Grounding = Grounded | Ungrounded | Unresolved
@@ -167,7 +190,8 @@ def _open(view: FactView, artifact: EntityRef, registry: Registry) -> Closure:
     status = establish(view, artifact, PredicateName.WORK_ITEM_STATUS, registry=registry)
     match status:
         case KnownTrue(facts):
-            return status if facts[0].value is not WorkItemStatus.DONE else KnownFalse()
+            done = facts[0].value is WorkItemStatus.DONE
+            return KnownFalse(status.proof) if done else status
         case _:
             return status
 
@@ -180,12 +204,14 @@ def _due(
     match due:
         case KnownTrue(facts):
             if inside is None:
-                return KnownFalse()
+                return KnownFalse(due.proof)
             day = facts[0].value
             assert isinstance(day, date)
-            return due if inside.contains(day) else KnownFalse()
+            return due if inside.contains(day) else KnownFalse(due.proof)
         case KnownFalse():
-            return KnownTrue(()) if inside is None else due
+            # No fact states an absent date: what the answer rests on is the ticket's record
+            # observed without one, which is the negative's own proof.
+            return KnownTrue((), due.proof) if inside is None else due
         case _:
             return due
 
@@ -203,15 +229,21 @@ def _on_a_leave_day(
             span = facts[0].value
             assert isinstance(span, InstantSpan)
             days = span.local_dates(reference_timezone)
-            return scheduled if days.overlaps(leave_span) else KnownFalse()
+            return scheduled if days.overlaps(leave_span) else KnownFalse(scheduled.proof)
         case _:
             return scheduled
 
 
 def _combine(answers: list[Closure]) -> Grounding:
-    """Known failure first, then any open question, else grounded on every answer's facts."""
+    """Known failure first, then any open question, else grounded on every answer's facts.
+
+    Grounded or not, the proof is every answered question's; an open question is returned
+    as it is, with its own.
+    """
     if any(isinstance(answer, KnownFalse) for answer in answers):
-        return Ungrounded()
+        return Ungrounded(
+            proof_of(*(answer.proof for answer in answers if not isinstance(answer, Unresolved)))
+        )
     for answer in answers:
         if isinstance(answer, Unresolved):
             return answer
@@ -219,7 +251,7 @@ def _combine(answers: list[Closure]) -> Grounding:
     for answer in answers:
         assert isinstance(answer, KnownTrue)
         facts.extend(answer.facts)
-    return Grounded(tuple(facts))
+    return Grounded(tuple(facts), proof_of(*(answer.proof for answer in answers)))
 
 
 __all__ = [
