@@ -4,8 +4,10 @@ filled with stand-ins, and the three things a test varies (the claims, the reads
 Test infrastructure. The grading reads an export's context, its terminal status, the
 outcomes of its reads and its claims; everything else in the record block is provenance the
 grading does not look at, so it is built once here, valid and inert. The default is a
-rules-only export, the smallest valid one, with no model call; an infrastructure failure
-needs a model call the provider failed, so that one export is an agent's.
+rules-only export, the smallest valid one, with no model call. An agent's export holds the
+model calls a test gives it, priced under one selection, its record's usage and cumulative
+cost summed from them the way a harness sums them; an infrastructure failure is one of
+those, its one call failed by the provider.
 """
 
 from __future__ import annotations
@@ -50,6 +52,8 @@ from leaveimpact.core import (
     TreeState,
     UnreachableOutcome,
     UsageAggregate,
+    aggregate_usage,
+    cumulative_cost,
 )
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
@@ -57,6 +61,17 @@ from leaveimpact.world import Scenario
 DIGEST = "a" * 64
 COMMIT = "b" * 40
 NORMAL = RunCondition.all_reachable()
+ROLE = "investigator"
+SELECTION = PricingSelection("model-a", "eu-central-1", "on_demand")
+BASIS = PricingBasis(
+    DIGEST,
+    "USD",
+    date(2026, 9, 1),
+    (
+        PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
+        PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500),
+    ),
+)
 
 
 def reads(*outcomes: tuple[Source | None, Outcome]) -> tuple[Operation, ...]:
@@ -129,11 +144,59 @@ def run_export(
     )
 
 
+def agent_export(
+    world: SealedWorld,
+    scenario: Scenario,
+    calls: Sequence[ModelCallRecord],
+    *,
+    claims: Sequence[Claim] = (),
+    operations: Sequence[Operation] = (),
+    failure: Failure | None = None,
+    basis: PricingBasis = BASIS,
+) -> RunExport:
+    """An agent's export of a run of ``scenario`` that made ``calls`` as the investigator.
+
+    The record's usage and cumulative cost are summed from ``calls`` as a harness sums
+    them, so the export states nothing its trace does not; a test of the verification
+    replaces the part it wants wrong. The run completed unless ``failure`` says how it
+    failed.
+    """
+    record = RunRecord(
+        observed_condition=NORMAL,
+        outage=OutageAssignment(frozenset(), DIGEST),
+        harness=HarnessRevision(COMMIT, TreeState.CLEAN),
+        preregistration_commit=COMMIT,
+        model_configurations=(
+            (ROLE, ModelConfiguration("eu.model", (Setting("temperature", 0),))),
+        ),
+        pricing_selections=((ROLE, SELECTION),),
+        prompt_digests=((ROLE, "system", DIGEST),),
+        tool_surface_digests=((ROLE, DIGEST),),
+        system=System(SystemKind.AGENT, "reference"),
+        retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
+        prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
+        caps=Caps(20, 100_000, 2, 5_000, "input_output"),
+        status=TerminalStatus.COMPLETED if failure is None else TerminalStatus.FAILED,
+        failure=failure,
+        usage=aggregate_usage(calls, 1_200),
+        cost=cumulative_cost(call.cost for call in calls),
+        pricing=basis,
+    )
+    return RunExport(
+        EXPORT_FORMAT_VERSION,
+        "run-8",
+        1,
+        world.context_of(scenario),
+        record,
+        RunTrace(tuple(calls), tuple(operations), tuple(claims)),
+    )
+
+
 def provider_failed_export(world: SealedWorld, scenario: Scenario) -> RunExport:
     """An agent's export of a run the provider failed on its first model call."""
     call = ModelCallRecord(
         ModelCallId("call-1"),
-        "investigator",
+        ROLE,
         ModelCallOutcome.PROVIDER_FAULT,
         None,
         None,
@@ -142,48 +205,16 @@ def provider_failed_export(world: SealedWorld, scenario: Scenario) -> RunExport:
         None,
         "timeout",
     )
-    selection = PricingSelection("model-a", "eu-central-1", "on_demand")
-    record = RunRecord(
-        observed_condition=NORMAL,
-        outage=OutageAssignment(frozenset(), DIGEST),
-        harness=HarnessRevision(COMMIT, TreeState.CLEAN),
-        preregistration_commit=COMMIT,
-        model_configurations=(
-            ("investigator", ModelConfiguration("eu.model", (Setting("temperature", 0),))),
-        ),
-        pricing_selections=(("investigator", selection),),
-        prompt_digests=(("investigator", "system", DIGEST),),
-        tool_surface_digests=(("investigator", DIGEST),),
-        system=System(SystemKind.AGENT, "reference"),
-        retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
-        prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_output"),
-        status=TerminalStatus.FAILED,
-        failure=Failure(FailureCategory.INFRASTRUCTURE, call.id, "the provider timed out"),
-        usage=UsageAggregate((), 1, 1_200),
-        cost=None,
-        pricing=PricingBasis(
-            DIGEST,
-            "USD",
-            date(2026, 9, 1),
-            (
-                PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
-                PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500),
-            ),
-        ),
-    )
-    return RunExport(
-        EXPORT_FORMAT_VERSION,
-        "run-8",
-        1,
-        world.context_of(scenario),
-        record,
-        RunTrace((call,), (), ()),
-    )
+    failure = Failure(FailureCategory.INFRASTRUCTURE, call.id, "the provider timed out")
+    return agent_export(world, scenario, (call,), failure=failure)
 
 
 __all__ = [
+    "BASIS",
     "NORMAL",
+    "ROLE",
+    "SELECTION",
+    "agent_export",
     "answered",
     "malformed",
     "provider_failed_export",
