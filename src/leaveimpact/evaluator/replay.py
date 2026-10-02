@@ -38,9 +38,16 @@ An unknown claim names a subject and a fact and no value or window, so it is rep
 against the questions the replay of the report's own claims stopped on for that subject
 and fact. With none, closure is asked directly when the fact is single-valued, the subject
 and the fact then being the whole question, and a multi-valued fact is unsupported: nothing
-fixes what the claim is about. A reason only an agent can give (ambiguous, conflicting) is
-contradicted when the rules establish the fact and unsupported when they too leave it
-open.
+fixes what the claim is about.
+
+A reason only an agent can give (ambiguous, conflicting) is not set aside as a class. It is
+contradicted when the rules establish the fact from the run's own reads, and unsupported,
+as a reason no rule derives, only when they too leave the question open. The case that
+decides it is the one the adversarial tier plants: a runbook names a stale owner, the
+tracker's record resolves it by authority, and a report that stops at "conflicting" there
+is refuted by what the run read. Filing it as not replayable would say less than the
+replay knows. How many unknowns carry an agent's reason is read off the claims
+themselves and needs no standing to hold it.
 
 Nothing a report states raises. A constraint whose clause was read and states no
 requirement is not fed to a replay, since the rule cannot apply it: it is contradicted
