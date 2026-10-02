@@ -46,6 +46,15 @@ conflicts and unknowns, the constraints. ``OracleDisagrees`` says this module de
 something else, a defect of the evaluator and never of a run. World loading has already
 shown the rules reproduce every key; this shows the oracle, the code that feeds the
 grader, does.
+
+One counterfactual is asked here as well: the answer *without a statement*. Prose carries
+facts into a run, and which pieces of prose a run needed is defined by what the rules
+conclude with one removed: every authored fact that states it, on every comment or
+section that carries it, anywhere in the world. A statement of what a clause requires is
+removed together with the clause's scope pairing, since the rules refuse a constraint
+whose clause states no requirement, and a clause that states none governs nothing. The
+answer is derived through the same reading pass and anchored on nothing, there being no
+sealed key for a world that was never built.
 """
 
 from __future__ import annotations
@@ -69,6 +78,7 @@ from leaveimpact.core.viability import (
 )
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.evaluator.sealed_world import SealedWorld
+from leaveimpact.evaluator.world_index import Statement, statement_of
 from leaveimpact.world.construction import Reading, expectations_of, read_impacts
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Scenario
@@ -159,15 +169,27 @@ class UnreadablePolicy:
 type Oracle = Answerable | UnreadableLeave | UnreadablePolicy
 
 
-def runtime_truth(world: SealedWorld, scenario: Scenario) -> FactBase:
-    """The fact base a run of ``scenario`` can obtain from ``world``, dated to its run day."""
+def runtime_truth(
+    world: SealedWorld, scenario: Scenario, *, without: Statement | None = None
+) -> FactBase:
+    """The fact base a run of ``scenario`` can obtain from ``world``, dated to its run day.
+
+    ``without`` leaves out every authored fact that makes that statement, whichever
+    scenario planted it and whatever carries it: the world as it would read had no prose
+    said so.
+    """
     records = runtime_records(
         world.org,
         [other.owned for other in world.scenarios],
         scenario.spec,
         [brief for other in world.scenarios for brief in other.briefs],
     )
-    authored = [fact for other in world.scenarios for fact in other.authored_facts]
+    authored = [
+        fact
+        for other in world.scenarios
+        for fact in other.authored_facts
+        if without is None or statement_of(fact) != without
+    ]
     return runtime_facts(records, scenario.spec.today, authored)
 
 
@@ -194,6 +216,34 @@ def conclusions_in(world: SealedWorld, scenario: Scenario, view: FactView) -> Or
     other caller, the characterization, which asks the same question of the dated view to
     measure where the two readings part. Nothing is anchored here.
     """
+    return _conclusions(world, scenario, view, scenario.key.constraints)
+
+
+def answer_without(
+    world: SealedWorld, scenario: Scenario, condition: RunCondition, statement: Statement
+) -> Oracle:
+    """What the rules would conclude about ``scenario`` under ``condition`` if no prose made
+    ``statement``: runtime truth with it removed on every carrier, and, for a statement of
+    what a clause requires, without that clause's scope pairing.
+
+    Raises ``ValueError`` when the rules cannot read the world so reduced, which says the
+    sealed world leans on that statement in a way no ruling covers; the caller reports it.
+    """
+    view = runtime_truth(world, scenario, without=statement).at(scenario.spec.today, condition)
+    subject, stated, _ = statement
+    constraints = tuple(
+        constraint
+        for constraint in scenario.key.constraints
+        if not (stated is PredicateName.REQUIRES and clause_ref(constraint.clause_id) == subject)
+    )
+    return _conclusions(world, scenario, view, constraints)
+
+
+def _conclusions(
+    world: SealedWorld, scenario: Scenario, view: FactView, constraints: Sequence[ConstraintKey]
+) -> Oracle:
+    """What the rules conclude about ``scenario`` in ``view`` with ``constraints`` as the scope
+    pairings in force: the sealed key's, or those less one for a counterfactual."""
     condition = view.condition
     if not _leave_is_readable(view, scenario):
         return UnreadableLeave(scenario, condition)
@@ -210,7 +260,7 @@ def conclusions_in(world: SealedWorld, scenario: Scenario, view: FactView) -> Or
     readings = read_impacts(
         view,
         ordered,
-        key.constraints,
+        constraints,
         leave.employee_id,
         leave.span,
         spec.reference_timezone,
@@ -224,7 +274,7 @@ def conclusions_in(world: SealedWorld, scenario: Scenario, view: FactView) -> Or
     scopes: list[frozenset[EntityRef]] = []
     for reading in readings:
         requirements, scope = _requirements_and_scope(
-            view, reading.impact, key.constraints, leave.span, spec.reference_timezone
+            view, reading.impact, constraints, leave.span, spec.reference_timezone
         )
         scopes.append(scope)
         truths.append(_impact_truth(reading, requirements, probes.get(reading.impact, ())))
@@ -235,7 +285,7 @@ def conclusions_in(world: SealedWorld, scenario: Scenario, view: FactView) -> Or
         view=view,
         universe=universe,
         impacts=tuple(truths),
-        constraints=_expected_constraints(view, key.constraints, scopes),
+        constraints=_expected_constraints(view, constraints, scopes),
         conflicts=expectations.conflicts,
         unknowns=expectations.unknowns,
     )
@@ -343,6 +393,7 @@ __all__ = [
     "OracleDisagrees",
     "UnreadableLeave",
     "UnreadablePolicy",
+    "answer_without",
     "conclusions_in",
     "oracle_for",
     "runtime_truth",
