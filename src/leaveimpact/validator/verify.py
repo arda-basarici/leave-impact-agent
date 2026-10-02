@@ -74,7 +74,7 @@ from leaveimpact.validator.verdict import (
 )
 from leaveimpact.world.artifacts import PlantedWorldSpec
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
-from leaveimpact.world.runtime_view import events_within, leaves_within, window_instants
+from leaveimpact.world.runtime_view import events_within, leaves_within
 from leaveimpact.world.scenario import ScenarioSpec
 
 
@@ -319,7 +319,7 @@ def _view_checked(
             reason=f"identity exactness failed for {', '.join(failed)}",
         )
     today = one.today
-    instants = window_instants(one.window, one.reference_timezone)
+    instants = one.window.instants_in(one.reference_timezone)
     # The enumerations are the record phase's reads; only the windowed reads are the
     # scenario's own, since the window query is what this layer exercises.
     live = frozenset(

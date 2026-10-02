@@ -189,7 +189,6 @@ from leaveimpact.world.runtime_view import (
     leaves_within,
     runtime_facts,
     runtime_records,
-    window_instants,
 )
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -435,7 +434,6 @@ __all__ = [
     "unsupported_shape_problems",
     "verify_world",
     "vocabulary_digest",
-    "window_instants",
     "world_fact_base",
     "world_version",
 ]

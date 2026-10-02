@@ -200,6 +200,23 @@ class DateSpan:
         """
         return self.start <= other.end and other.start <= self.end
 
+    def instants_in(self, timezone: str) -> InstantSpan:
+        """The half-open run of instants these days cover for a human in ``timezone``: from
+        the first day's midnight to the midnight after the last day.
+
+        The mirror of ``InstantSpan.local_dates``, and the window rule of the event reads:
+        the events a run reads for a span of days are those overlapping its instants in
+        the reference zone.
+
+        >>> DateSpan(date(2026, 3, 28), date(2026, 3, 29)).instants_in("Europe/Berlin").duration
+        datetime.timedelta(days=1, seconds=82800)
+        """
+        tz = zone(timezone)
+        return InstantSpan(
+            datetime.combine(self.start, datetime.min.time(), tzinfo=tz),
+            datetime.combine(self.end + timedelta(days=1), datetime.min.time(), tzinfo=tz),
+        )
+
 
 @dataclass(frozen=True, slots=True)
 class InstantSpan:

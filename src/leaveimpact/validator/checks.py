@@ -45,7 +45,7 @@ from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
 from leaveimpact.world.artifacts import PlantedWorldSpec
-from leaveimpact.world.runtime_view import runtime_facts, runtime_records, window_instants
+from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import ScenarioSpec
 from leaveimpact.world.truth_facts import observed
 
@@ -103,7 +103,7 @@ def world_horizon(specs: Iterable[ScenarioSpec]) -> tuple[DateSpan, InstantSpan]
     if not rows:
         raise ValueError("the horizon of no scenarios is undefined")
     days = DateSpan(min(s.window.start for s in rows), max(s.window.end for s in rows))
-    spans = [window_instants(s.window, s.reference_timezone) for s in rows]
+    spans = [s.window.instants_in(s.reference_timezone) for s in rows]
     return days, InstantSpan(min(span.start for span in spans), max(span.end for span in spans))
 
 

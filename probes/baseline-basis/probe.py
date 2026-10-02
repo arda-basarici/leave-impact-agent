@@ -105,7 +105,6 @@ from leaveimpact.evaluator.rows import Expectation
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
-from leaveimpact.world.runtime_view import window_instants
 from leaveimpact.world.version import GENERATOR_VERSION
 from tests.unit.export_fixture import DIGEST, run_export
 from tests.unit.reads_fixture import Recorder, reads_of_everything, systems_holding
@@ -340,7 +339,7 @@ def reads_with_window(
         port.reachable = port.source not in down
     reads = Recorder(systems)
     spec = scenario.spec
-    instants = window_instants(window, spec.reference_timezone)
+    instants = window.instants_in(spec.reference_timezone)
     reads.read("leave", {"id": spec.leave_id})
     reads.read("employees")
     reads.read("components")

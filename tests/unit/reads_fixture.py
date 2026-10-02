@@ -37,7 +37,6 @@ from leaveimpact.core import (
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
-from leaveimpact.world.runtime_view import window_instants
 from tests.unit.in_memory_ports import (
     InMemoryCalendar,
     InMemoryDocuments,
@@ -144,7 +143,7 @@ def full_read(reads: Recorder, world: SealedWorld, scenario: Scenario) -> None:
     has no enumeration, which is the point the tests that use this make.
     """
     spec = scenario.spec
-    instants = window_instants(spec.window, spec.reference_timezone)
+    instants = spec.window.instants_in(spec.reference_timezone)
     reads.read("leave", {"id": spec.leave_id})
     reads.read("employees")
     reads.read("components")

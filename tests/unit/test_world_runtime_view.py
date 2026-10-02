@@ -20,7 +20,6 @@ from leaveimpact.world import (
     runtime_facts,
     runtime_records,
     verify_world,
-    window_instants,
     world_fact_base,
 )
 from tests.unit.in_memory_ports import InMemoryCalendar, InMemoryPeople
@@ -44,7 +43,7 @@ def test_the_window_rules_are_the_ports_own() -> None:
         calendar.add_event(planted.entity)
     for scenario in spec.scenarios:
         window = scenario.spec.window
-        instants = window_instants(window, scenario.spec.reference_timezone)
+        instants = window.instants_in(scenario.spec.reference_timezone)
         assert {leave.id for leave in leaves_within(leaves, window)} == {
             o.value.id for o in people.leaves_within(window)
         }
@@ -75,7 +74,7 @@ def test_a_run_obtains_every_work_item_and_only_its_windows_leaves_and_events() 
         p.entity.id for p in first.owned.leaves if p.entity.span.overlaps(first.spec.window)
     }
     assert all(
-        event.span.overlaps(window_instants(first.spec.window, "Europe/Istanbul"))
+        event.span.overlaps(first.spec.window.instants_in("Europe/Istanbul"))
         for event in records.events
     )
 

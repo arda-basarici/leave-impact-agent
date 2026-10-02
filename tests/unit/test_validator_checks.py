@@ -33,7 +33,6 @@ from leaveimpact.world import (
     events_within,
     leaves_within,
     planted_world_spec,
-    window_instants,
 )
 from tests.unit.in_memory_ports import InMemoryCalendar, InMemoryPeople, InMemoryWork
 
@@ -81,7 +80,7 @@ def live_view(
 ) -> frozenset[Derived]:
     """The facts the investigator's reads yield for one scenario, dated to its run day."""
     today = spec.today
-    instants = window_instants(spec.window, spec.reference_timezone)
+    instants = spec.window.instants_in(spec.reference_timezone)
     return frozenset(
         [
             *derive_live(people.employees(), today),
@@ -157,7 +156,7 @@ def test_the_horizon_bounds_every_window_and_holds_the_gaps_between_them(
     assert days.start == min(s.window.start for s in specs)
     assert days.end == max(s.window.end for s in specs)
     for spec in specs:
-        span = window_instants(spec.window, spec.reference_timezone)
+        span = spec.window.instants_in(spec.reference_timezone)
         assert instants.contains(span.start)
         assert instants.overlaps(span)
     ordered = sorted(specs, key=lambda s: s.window.start)

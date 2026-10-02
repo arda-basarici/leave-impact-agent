@@ -38,7 +38,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
-from datetime import date, datetime, timedelta
+from datetime import date
 
 from leaveimpact.core.derivation import Derived, derive
 from leaveimpact.core.entities import (
@@ -52,25 +52,11 @@ from leaveimpact.core.entities import (
 )
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact, FactBase, Gap
-from leaveimpact.core.worldtime import DateSpan, InstantSpan, zone
+from leaveimpact.core.worldtime import DateSpan, InstantSpan
 from leaveimpact.world.briefs import Brief, parts_of
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import OwnedEntities, Planted, ScenarioSpec
 from leaveimpact.world.truth_facts import observed
-
-
-def window_instants(window: DateSpan, reference_timezone: str) -> InstantSpan:
-    """``window`` as the half-open run of instants it covers in ``reference_timezone``.
-
-    The events a run reads for a window are those overlapping its days as a human in the
-    reference zone reads them: from the first day's midnight to the midnight after the
-    last day.
-    """
-    tz = zone(reference_timezone)
-    return InstantSpan(
-        datetime.combine(window.start, datetime.min.time(), tzinfo=tz),
-        datetime.combine(window.end + timedelta(days=1), datetime.min.time(), tzinfo=tz),
-    )
 
 
 def leaves_within(plantings: Iterable[Planted[Leave]], span: DateSpan) -> tuple[Leave, ...]:
@@ -127,7 +113,7 @@ def runtime_records(
         components=org.components,
         work_items=work_items,
         leaves=leaves_within(leaves, spec.window),
-        events=events_within(events, window_instants(spec.window, spec.reference_timezone)),
+        events=events_within(events, spec.window.instants_in(spec.reference_timezone)),
         documents=documents,
         parts=parts,
     )
