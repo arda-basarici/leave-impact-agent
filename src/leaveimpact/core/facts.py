@@ -28,6 +28,10 @@ The view also carries its *coverage*: which slices of the sources were observed 
 condition restated, every slice of a reachable source covered and every slice of an
 unreachable one failed; the field exists because a view built from what a run read
 cannot say it that way, a reachable source being no proof that a record was read.
+``FactBase.observed`` builds that second kind of view: the base is then the facts
+derived from the records a run's completed reads returned, the coverage is computed
+from those reads, and nothing is dropped for a source that failed later, since what a
+run read before a fault it did read.
 """
 
 from __future__ import annotations
@@ -220,6 +224,22 @@ class FactBase:
                 if gap.observable_from <= now and gap.source in condition.reachable
             ),
             SourceCoverage(condition.reachable),
+        )
+
+    def observed(self, now: date, condition: RunCondition, coverage: Coverage) -> FactView:
+        """What a run that read this base's records can conclude from at ``now``.
+
+        Every fact and gap dated at or before ``now`` stays, whatever its source, and
+        ``coverage`` says which slices those reads observed whole. ``condition`` is the
+        run's statement of which sources answered, kept beside the coverage and not
+        applied to the facts: a record returned before its source failed was read.
+        """
+        return FactView(
+            now,
+            condition,
+            tuple(fact for fact in self.facts if fact.observable_from <= now),
+            tuple(gap for gap in self.gaps if gap.observable_from <= now),
+            coverage,
         )
 
 

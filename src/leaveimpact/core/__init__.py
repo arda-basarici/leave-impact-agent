@@ -4,7 +4,8 @@ Holds the types every other package speaks (employee, team, work item, calendar 
 document, leave, and their ids), the predicate registry with each predicate's value
 spec, the claim vocabulary with its per-type grading keys, ``RunContext`` and world
 time, the fact base a run sees through a ``FactView`` under a ``RunCondition``, the
-coverage that says which slices of the sources a view observed whole, the
+coverage that says which slices of the sources a view observed whole and the
+function that computes it from a run's reads, the
 derivation that turns an observed record into facts and gaps, and the
 deterministic rules — closed-world evaluation per declared evidence domain, the
 system-of-record authority table that resolves conflicting observations, viability of
@@ -47,6 +48,7 @@ from leaveimpact.core import (
     predicates,
     pricing,
     provenance,
+    read_coverage,
     refs,
     run_export,
     run_export_json,
@@ -225,6 +227,12 @@ from leaveimpact.core.provenance import (
     decode_model_configuration,
     encode_model_configuration,
 )
+from leaveimpact.core.read_coverage import (
+    ENUMERABLE_KINDS,
+    HELD_IN,
+    ReadCoverage,
+    coverage_from_reads,
+)
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
     SOURCE_BY_TARGET_KIND,
@@ -374,6 +382,7 @@ __all__ = [
     "predicates",
     "pricing",
     "provenance",
+    "read_coverage",
     "refs",
     "run_export",
     "run_export_json",
@@ -391,7 +400,9 @@ __all__ = [
     "BILLED_ON_EVERY_CALL",
     "DATE_SPAN_VALUE",
     "DATE_VALUE",
+    "ENUMERABLE_KINDS",
     "EXPORT_FORMAT_VERSION",
+    "HELD_IN",
     "INSTANT_SPAN_VALUE",
     "KIND_BY_ENTITY_TYPE",
     "METHOD_TABLE",
@@ -517,6 +528,7 @@ __all__ = [
     "PrefetchOrigin",
     "PrefetchRule",
     "QueryArgument",
+    "ReadCoverage",
     "PriceTable",
     "PricingBasis",
     "PricingRow",
@@ -587,6 +599,7 @@ __all__ = [
     "comment_ref",
     "completeness_problems",
     "cost_of",
+    "coverage_from_reads",
     "cumulative_cost",
     "component_ref",
     "conflicts_in",
