@@ -17,9 +17,16 @@ ledger, since a retry was paid for.
 
 Nothing the preregistration owns is chosen here. ``Preregistered`` is the one record of
 what it fixes for estimation: the confidence level, the seed and the number of resamples,
-how many runs of each scenario were intended, which attempt of a retried run counts, and
-how an intended run that was never made counts toward end-to-end success. It has no
-default anywhere; a table records the plan it was cut under.
+how many runs of each scenario were intended, which attempt of a retried run counts, how
+an intended run that was never made counts toward end-to-end success, and the arms that
+were registered, each a system under an assigned condition. It has no default anywhere; a
+table records the plan it was cut under.
+
+The arms come from the registration and not from what arrived. An arm that produced no
+export at all is built all the same, every scenario with its intended runs missing: a
+system that failed to run would otherwise leave no row to say so. An arm that arrived
+without being registered is built too and says it was not registered; whether it enters a
+reported table is the reporting step's.
 
 The *accounting* is what keeps an exclusion a visible smaller denominator and never a
 better score. Per cell: the runs intended, made and missing; how each counted run ended,
@@ -85,8 +92,13 @@ class Preregistered:
     intended_repeats: int
     counted_attempt: CountedAttempt
     missing_repeat: MissingRepeat
+    arms: tuple[tuple[System, RunCondition], ...]
 
     def __post_init__(self) -> None:
+        if not self.arms:
+            raise ValueError("at least one arm is registered: a system under an assigned condition")
+        if len(set(self.arms)) != len(self.arms):
+            raise ValueError("an arm is registered once")
         if not 0 < self.confidence < 1:
             raise ValueError(
                 f"a confidence level lies strictly between 0 and 1, got {self.confidence}"
@@ -143,12 +155,14 @@ class ScenarioRuns:
 @dataclass(frozen=True, slots=True)
 class Arm:
     """One system under one assigned condition: every scenario of the world in the plan's
-    order, with the runs it has, and the attempts no scenario of the world could place."""
+    order, with the runs it has, and the attempts no scenario of the world could place.
+    ``registered`` says the plan names the arm; one that only arrived is built and says not."""
 
     system: System
     assigned: RunCondition
     scenarios: tuple[ScenarioRuns, ...]
     unplaced: tuple[Evaluation, ...]
+    registered: bool
 
     @property
     def name(self) -> str:
@@ -187,7 +201,9 @@ class Accounting:
     ``intended`` is the plan's repeats times the scenarios; ``made`` the runs present,
     ``missing`` the shortfall and ``surplus`` the runs beyond what was intended, each summed
     per scenario so that one scenario's surplus never hides another's shortfall.
-    ``attempts`` counts every attempt, retries included. ``observed`` is over the graded
+    ``attempts`` counts every attempt, retries included. A structurally invalid report is
+    counted where its run ended: among the graded, where it was graded with zero credit, or
+    among the limited. ``observed`` is over the graded
     and the limited runs, the ones whose trace was read for a condition. A run is
     ``unexercised`` when a source its assignment scheduled out was reachable in its trace,
     and has an ``unscheduled`` fault when a source nobody scheduled out was not.
@@ -203,6 +219,7 @@ class Accounting:
     attempts: int
     graded: int
     structurally_invalid: int
+    limited_structurally_invalid: int
     limited: tuple[tuple[LimitedReason, int], ...]
     excluded: tuple[tuple[ExcludedReason, int], ...]
     observed: tuple[tuple[RunCondition, int], ...]
@@ -231,10 +248,11 @@ def arms(
     """``evaluations`` grouped into arms: by system, and within a system the normal condition
     first, then the outages by how many sources they take and by name.
 
-    Every arm holds every scenario of ``world``, with no run where it has none: a scenario
-    a system never ran is a missing run of that arm, not an absent row.
+    Every arm the plan registers is built, with or without a run, and every arm holds every
+    scenario of ``world``: a scenario a system never ran is a missing run of that arm, and
+    an arm that never ran is thirty of them, not an absent table.
     """
-    by_arm: dict[tuple[System, RunCondition], list[Evaluation]] = {}
+    by_arm: dict[tuple[System, RunCondition], list[Evaluation]] = {arm: [] for arm in plan.arms}
     for evaluation in evaluations:
         key = (evaluation.outcome.header.system, evaluation.assigned)
         by_arm.setdefault(key, []).append(evaluation)
@@ -254,7 +272,8 @@ def arms(
             for scenario in world.scenarios
         )
         unplaced = tuple(each for left in by_scenario.values() for each in _in_order(left))
-        built.append(Arm(system, assigned, scenarios, unplaced))
+        registered = (system, assigned) in plan.arms
+        built.append(Arm(system, assigned, scenarios, unplaced, registered))
     return tuple(sorted(built, key=_arm_order))
 
 
@@ -295,6 +314,7 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
         attempts=sum(len(runs.attempts) for runs in scenarios),
         graded=len(graded),
         structurally_invalid=sum(not outcome.rows.structurally_valid for outcome in graded),
+        limited_structurally_invalid=sum(bool(outcome.structural_problems) for outcome in limited),
         limited=_tally(outcome.reason for outcome in limited),
         excluded=_tally(outcome.reason for outcome in excluded),
         observed=tuple(

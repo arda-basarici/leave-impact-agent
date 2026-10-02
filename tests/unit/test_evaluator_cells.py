@@ -2,13 +2,15 @@
 every arm, and cut at the whole, each tier and each class. The arm is the condition a run was
 assigned, whatever its reads met. A retried run is one run whose counted attempt the plan
 names, with every attempt kept; a scenario short of its intended runs is counted missing and
-one beyond them surplus. The accounting says how each counted run ended."""
+one beyond them surplus. The accounting says how each counted run ended. The arms are the
+ones the plan registers: one that produced no export is built with every run missing, and one
+that arrived unregistered says so."""
 
 from dataclasses import replace
 
 import pytest
 
-from leaveimpact.core import ScenarioId, Source, System, SystemKind
+from leaveimpact.core import RunCondition, ScenarioId, Source, System, SystemKind
 from leaveimpact.evaluator.cells import (
     OVERALL,
     Cell,
@@ -35,10 +37,12 @@ TRACKER_DOWN = NORMAL.without(Source.JIRA)
 
 
 def plan(
-    intended_repeats: int = 1, counted_attempt: CountedAttempt = CountedAttempt.FIRST
+    intended_repeats: int = 1,
+    counted_attempt: CountedAttempt = CountedAttempt.FIRST,
+    registered: tuple[tuple[System, RunCondition], ...] = ((REFERENCE, NORMAL),),
 ) -> Preregistered:
     return Preregistered(
-        0.95, 7, 1_000, intended_repeats, counted_attempt, MissingRepeat.NOT_PASSED
+        0.95, 7, 1_000, intended_repeats, counted_attempt, MissingRepeat.NOT_PASSED, registered
     )
 
 
@@ -57,7 +61,8 @@ def test_every_arm_holds_every_scenario_and_is_cut_at_the_whole_each_tier_and_ea
         for evaluation, scenario in zip(reference, world.scenarios, strict=True)
         if scenario.key.tier is Tier.STRUCTURED
     ]
-    first, second = arms(world, [*partial, *reference], plan())
+    both = plan(registered=((OTHER, NORMAL), (REFERENCE, NORMAL)))
+    first, second = arms(world, [*partial, *reference], both)
     assert (first.name, second.name) == ("rules_only/other normal", "rules_only/reference normal")
     for arm in (first, second):
         assert [runs.scenario_id for runs in arm.scenarios] == [s.spec.id for s in world.scenarios]
@@ -97,7 +102,11 @@ def test_the_arm_is_the_condition_assigned_whatever_the_reads_met(world: SealedW
     assert isinstance(never_met.outcome, Graded) and never_met.outcome.condition == NORMAL
     assert never_met.assigned == TRACKER_DOWN
 
-    normal, tracker_down = arms(world, [never_met, unscheduled, met], plan(intended_repeats=2))
+    two_arms = plan(
+        intended_repeats=2, registered=((REFERENCE, NORMAL), (REFERENCE, TRACKER_DOWN))
+    )
+    normal, tracker_down = arms(world, [never_met, unscheduled, met], two_arms)
+    assert normal.registered and tracker_down.registered
     assert (normal.assigned, tracker_down.assigned) == (NORMAL, TRACKER_DOWN)
     assert condition_name(tracker_down.assigned) == "jira down"
     in_the_outage_arm = accounting_of(cells_of(tracker_down)[0], plan(intended_repeats=2))
@@ -123,7 +132,10 @@ def test_a_retried_run_is_one_run_and_the_plan_says_which_attempt_counts(
         (CountedAttempt.FIRST, failed),
         (CountedAttempt.LAST, retried),
     ):
-        chosen = plan(counted_attempt=counted_attempt)
+        chosen = plan(
+            counted_attempt=counted_attempt,
+            registered=((failed.outcome.header.system, NORMAL),),
+        )
         (arm,) = arms(world, [retried, failed], chosen)
         runs = arm.scenarios[0]
         assert runs.counted == (counted_is,)
@@ -208,8 +220,59 @@ def test_one_export_given_twice_is_refused_where_its_runs_are_grouped(world: Sea
     arms(world, [run, relabelled(run, attempt=2)], plan())
 
 
+def test_a_registered_arm_with_no_export_is_built_with_every_run_missing(
+    world: SealedWorld,
+) -> None:
+    # The second system never produced an export: its arm must not vanish from the tables.
+    runs = [evaluated(world, scenario) for scenario in world.scenarios]
+    registered = plan(intended_repeats=2, registered=((OTHER, NORMAL), (REFERENCE, NORMAL)))
+    silent, reference = arms(world, runs, registered)
+    assert (silent.system, silent.assigned, silent.registered) == (OTHER, NORMAL, True)
+    assert [runs.scenario_id for runs in silent.scenarios] == [s.spec.id for s in world.scenarios]
+    accounting = accounting_of(cells_of(silent)[0], registered)
+    assert (accounting.intended, accounting.made, accounting.missing) == (60, 0, 60)
+    assert (accounting.graded, accounting.attempts) == (0, 0)
+    assert accounting_of(cells_of(reference)[0], registered).missing == 30
+    # With nothing registered but the reference, the silent arm has no row to be missing from.
+    assert len(arms(world, runs, plan())) == 1
+
+
+def test_an_arm_that_arrived_unregistered_is_built_and_says_so(world: SealedWorld) -> None:
+    scenario = world.scenarios[0]
+    stray = relabelled(evaluated(world, scenario, down=(Source.JIRA,)), system=OTHER)
+    unregistered, reference = arms(world, [evaluated(world, scenario), stray], plan())
+    assert (reference.registered, unregistered.registered) == (True, False)
+    assert (unregistered.system, unregistered.assigned) == (OTHER, TRACKER_DOWN)
+    assert accounting_of(cells_of(unregistered)[0], plan()).made == 1
+
+
+def test_a_structurally_invalid_report_is_counted_where_its_run_ended(world: SealedWorld) -> None:
+    graded_one, limited_one = world.scenarios[:2]
+    claims = truthful(world, graded_one, NORMAL)
+    other_claims = truthful(world, limited_one, NORMAL)
+    runs = [
+        evaluated(world, graded_one, claims=(*claims, renumbered(claims[0], 9_999))),
+        evaluated(
+            world,
+            limited_one,
+            down=(Source.FRAPPE,),
+            assigned=(),
+            claims=(*other_claims, renumbered(other_claims[0], 9_999)),
+        ),
+    ]
+    (arm,) = arms(world, runs, plan())
+    accounting = accounting_of(cells_of(arm)[0], plan())
+    assert (accounting.graded, accounting.structurally_invalid) == (1, 1)
+    assert accounting.limited == ((LimitedReason.UNREADABLE_LEAVE, 1),)
+    assert accounting.limited_structurally_invalid == 1
+
+
 def test_the_plan_refuses_what_no_preregistration_could_mean() -> None:
-    kept = (CountedAttempt.FIRST, MissingRepeat.LEFT_OUT)
+    kept = (CountedAttempt.FIRST, MissingRepeat.LEFT_OUT, ((REFERENCE, NORMAL),))
+    with pytest.raises(ValueError, match="at least one arm is registered"):
+        Preregistered(0.95, 7, 1_000, 1, *kept[:2], ())
+    with pytest.raises(ValueError, match="registered once"):
+        Preregistered(0.95, 7, 1_000, 1, *kept[:2], ((REFERENCE, NORMAL), (REFERENCE, NORMAL)))
     with pytest.raises(ValueError, match="strictly between 0 and 1"):
         Preregistered(1.0, 7, 1_000, 1, *kept)
     with pytest.raises(ValueError, match="at least one resample"):

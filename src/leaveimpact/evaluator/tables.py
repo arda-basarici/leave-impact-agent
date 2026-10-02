@@ -20,7 +20,10 @@ checked and failed, so a provider fault is never scored as a wrong answer and ne
 improves a score by leaving. Whether an intended run that was never made counts as not
 passed or is left out is the plan's. A scenario's value is its pass fraction over its
 runs; the cell's is the mean of those. With exactly one run behind every scenario that is
-x of n and the interval is Wilson's; otherwise it is the bootstrap of the mean.
+x of n and the interval is Wilson's; otherwise it is the bootstrap of the mean. One run
+means one run held, not one run the check applied to: a scenario run twice with one run
+limited is a repeated scenario whose conditional value happens to rest on one of its
+runs, and it stays a cluster.
 
 *A comparison* is paired on scenario and assigned condition: the same stratum of two
 systems' arms under one condition, over the scenarios both have in scope, the paired
@@ -243,7 +246,7 @@ def estimate_check(
     trials = [_trials(runs, check, reading, plan) for runs in cell.scenarios]
     counted = [(runs, each) for runs, each in zip(cell.scenarios, trials, strict=True) if each.of]
     passed = sum(each.fraction for _, each in counted)
-    single = all(each.of == 1 for _, each in counted)
+    single = all(each.single for _, each in counted)
     interval_w: WilsonInterval | None = None
     interval_b: BootstrapInterval | None = None
     if cell.stratum.estimated and counted:
@@ -325,7 +328,7 @@ def compare_check(
         yours = _trials(other, check, reading, plan)
         if mine.of and yours.of:
             paired.append((runs.tier, mine, yours))
-    single = all(mine.of == 1 and yours.of == 1 for _, mine, yours in paired)
+    single = all(mine.single and yours.single for _, mine, yours in paired)
     two_by_two: tuple[int, int, int, int] | None = None
     interval: BootstrapInterval | None = None
     if paired and single:
@@ -452,6 +455,12 @@ class _Trials:
     @property
     def fraction(self) -> float:
         return self.passes / self.of if self.of else 0.0
+
+    @property
+    def single(self) -> bool:
+        """Whether the scenario is one yes-or-no trial: one trial, from at most one run held,
+        the run never made that counts as not passed being the other way to be one."""
+        return self.of == 1 and self.runs <= 1
 
 
 def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregistered) -> _Trials:

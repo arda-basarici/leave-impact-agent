@@ -14,6 +14,7 @@ from leaveimpact.core import (
     ModelCallId,
     ModelCallOutcome,
     ModelCallRecord,
+    RunCondition,
     ScenarioId,
     Source,
     System,
@@ -75,11 +76,22 @@ CONDITIONAL, END_TO_END = Reading.CONDITIONAL, Reading.END_TO_END
 
 
 def plan(
-    intended_repeats: int = 1, missing_repeat: MissingRepeat = MissingRepeat.NOT_PASSED
+    intended_repeats: int = 1,
+    missing_repeat: MissingRepeat = MissingRepeat.NOT_PASSED,
+    registered: tuple[tuple[System, RunCondition], ...] = ((REFERENCE, NORMAL),),
 ) -> Preregistered:
     return Preregistered(
-        0.95, 20_261_002, 2_000, intended_repeats, CountedAttempt.FIRST, missing_repeat
+        0.95,
+        20_261_002,
+        2_000,
+        intended_repeats,
+        CountedAttempt.FIRST,
+        missing_repeat,
+        registered,
     )
+
+
+TWO_SYSTEMS = ((OTHER, NORMAL), (REFERENCE, NORMAL))
 
 
 @pytest.fixture(scope="module")
@@ -231,7 +243,7 @@ def test_a_system_compared_with_itself_differs_by_exactly_nothing(
     world: SealedWorld, truthful_runs: list[Evaluation]
 ) -> None:
     twin = [relabelled(run, system=OTHER) for run in truthful_runs]
-    theirs, ours = arms(world, [*truthful_runs, *twin], plan())
+    theirs, ours = arms(world, [*truthful_runs, *twin], plan(registered=TWO_SYSTEMS))
     strict = strictly_grounded_share(Graded)
     for first, second in zip(cells_of(ours), cells_of(theirs), strict=True):
         same = compare_ratio(first, second, strict, plan())
@@ -301,6 +313,17 @@ def test_repeats_are_bundled_in_their_scenario_and_estimated_by_the_bootstrap(
     # Two runs of every scenario; the second run of the first four structured ones fails.
     second = [relabelled(run, run_id="run-second") for run in truthful_runs]
     flaky = set(structured[:4])
+    first_scenario = world.scenarios[0]
+    limited = relabelled(
+        evaluated(
+            world,
+            first_scenario,
+            down=(Source.FRAPPE,),
+            assigned=(),
+            claims=truthful(world, first_scenario, NORMAL),
+        ),
+        run_id="run-second",
+    )
 
     def of(evaluation: Evaluation) -> bool | None:
         header = evaluation.outcome.header
@@ -316,6 +339,19 @@ def test_repeats_are_bundled_in_their_scenario_and_estimated_by_the_bootstrap(
     assert estimate.value == 0.8
     assert estimate.wilson is None and estimate.bootstrap is not None
     assert estimate.bootstrap.low < 0.8 < estimate.bootstrap.high
+    # A scenario run twice with one run the check does not apply to is still a repeated
+    # scenario: one applicable trial is not one run, and it stays a cluster (the batch
+    # review of group E).
+    limited_second = [
+        replace(run, outcome=limited.outcome) if position == 0 else run
+        for position, run in enumerate(second)
+    ]
+    assert limited_second[0].outcome.header.scenario_id == limited.outcome.header.scenario_id
+    graded_only = Check("graded", lambda e: True if isinstance(e.outcome, Graded) else None)
+    (mixed,) = arms(world, [*truthful_runs, *limited_second], two_runs)
+    half_checked = estimate_check(cell_of(mixed), graded_only, CONDITIONAL, two_runs)
+    assert (half_checked.scenarios, half_checked.runs, half_checked.not_checked) == (30, 60, 1)
+    assert half_checked.wilson is None and half_checked.bootstrap is not None
     # A ratio pools a scenario's repeats before any ratio is taken.
     pooled = estimate_ratio(cell_of(arm), recall(), two_runs)
     assert (pooled.numerator, pooled.denominator, pooled.scenarios) == (322, 322, 30)
@@ -343,7 +379,7 @@ def test_a_comparison_is_paired_on_the_scenarios_both_systems_have_in_scope(
                 claims=truthful(world, scenario, NORMAL),
             )
         other.append(relabelled(run, system=OTHER))
-    theirs, ours = arms(world, [*truthful_runs, *other], plan())
+    theirs, ours = arms(world, [*truthful_runs, *other], plan(registered=TWO_SYSTEMS))
 
     whole = compare_ratio(cell_of(ours), cell_of(theirs), recall(), plan())
     # The scenario the other system could not be graded on is in neither side's sums.
@@ -394,7 +430,10 @@ def test_a_comparison_refuses_cells_that_are_not_paired(
         relabelled(evaluated(world, scenario, down=(Source.JIRA,)), system=OTHER)
         for scenario in world.scenarios[:3]
     ]
-    theirs, their_outage, ours = arms(world, [*truthful_runs, *twin, *outage], plan())
+    registered = (*TWO_SYSTEMS, (OTHER, NORMAL.without(Source.JIRA)))
+    theirs, their_outage, ours = arms(
+        world, [*truthful_runs, *twin, *outage], plan(registered=registered)
+    )
     with pytest.raises(ValueError, match="within one stratum"):
         compare_ratio(cell_of(ours), tier_of(theirs, Tier.STRUCTURED), recall(), plan())
     with pytest.raises(ValueError, match="assigned condition"):
@@ -407,7 +446,7 @@ def test_repeated_runs_are_compared_by_the_difference_of_pass_fractions(
     world: SealedWorld, truthful_runs: list[Evaluation]
 ) -> None:
     structured = [s.spec.id for s in world.scenarios if s.key.tier is Tier.STRUCTURED]
-    two_runs = plan(intended_repeats=2)
+    two_runs = plan(intended_repeats=2, registered=TWO_SYSTEMS)
     ours = [*truthful_runs, *(relabelled(run, run_id="run-second") for run in truthful_runs)]
     theirs = [relabelled(run, system=OTHER) for run in ours]
     flaky = set(structured[:4])
@@ -464,7 +503,8 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
     failed_first = evaluate_run(world, provider_failed_export(world, one))  # run-8, attempt 1
     retried = priced(one, 1_000, "run-8", 2)
     clean = priced(two, 3_000, "run-9", 1)
-    (agent,) = arms(world, [failed_first, retried, clean], plan())
+    agents = plan(registered=((failed_first.outcome.header.system, NORMAL),))
+    (agent,) = arms(world, [failed_first, retried, clean], agents)
     ledger = cost_ledger(cell_of(agent))
     cost_of_retry = 1_000 * 1_100 + 100 * 5_500
     cost_of_clean = 3_000 * 1_100 + 100 * 5_500
@@ -485,7 +525,7 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
             stray.outcome, header=replace(stray.outcome.header, scenario_id=ScenarioId("scn_999"))
         ),
     )
-    (agent,) = arms(world, [failed_first, retried, clean, stray], plan())
+    (agent,) = arms(world, [failed_first, retried, clean, stray], agents)
     whole = cost_ledger(cell_of(agent))
     assert (whole.runs, whole.attempts) == (3, 4)
     assert whole.nano_usd == ledger.nano_usd + 2_000 * 1_100 + 100 * 5_500

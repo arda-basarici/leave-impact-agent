@@ -26,11 +26,20 @@ all six:
 - *Payload accuracy*: of the reported claims whose payload the oracle could judge, the
   ones it judged right. An impact and a constraint have no payload, their key being the
   whole fact, so the measure exists for the other four types.
+- *Conflict observations*: of the reported conflicts whose observations were checked, the
+  ones citing only values their sources hold. A conflict's payload is the value that
+  stands and the rule that chose it; what each source was seen to say is a separate flag
+  on the row (the matching ruling of the third build step), so it is a separate measure
+  here and no part of a conflict being correct. Without it a conflict resolved rightly
+  from an observation nobody made would score in full on every other measure and be
+  visible nowhere.
 
 A structurally invalid report is in every denominator and no numerator: it was graded,
 with zero credit. Unexpected claims are also counted by *standing*, so that wrong is never
 one bucket: a planted distractor, a conflict that is real and beside the point and a gap
 claimed where the world is complete are different findings (``unexpected_by_standing``).
+The rows of a structurally invalid report are not among them: nothing of it was matched,
+so the oracle was never asked, and the accounting counts such a report as what it is.
 """
 
 from __future__ import annotations
@@ -132,15 +141,27 @@ def payload_accuracy(claim_type: ClaimType | None = None) -> Measure:
     return Measure(_named("payload accuracy", claim_type), _on_graded(of))
 
 
+def conflict_observations() -> Measure:
+    """Reported conflicts whose every cited observation is a value its source holds, over the
+    reported conflicts whose observations were checked."""
+
+    def of(rows: ClaimRows) -> Counts:
+        checked = [row.observations_hold for row in rows.conflicts]
+        return sum(held is True for held in checked), sum(held is not None for held in checked)
+
+    return Measure("conflict observations that hold", _on_graded(of))
+
+
 def unexpected_by_standing(evaluation: Evaluation) -> Counter[tuple[ClaimType, str]] | None:
     """How many reported claims the oracle does not expect, by claim type and standing; ``None``
-    for a run that was not graded."""
+    for a run that was not graded. A claim of a structurally invalid report was not matched,
+    which is not unexpected, and is not counted here."""
     if not isinstance(evaluation.outcome, Graded):
         return None
     return Counter(
         (row.claim_type, row.standing.value)
         for row in _rows(evaluation.outcome.rows, None)
-        if row.standing is not None
+        if row.expectation is Expectation.UNEXPECTED and row.standing is not None
     )
 
 
@@ -246,6 +267,7 @@ ANSWER_MEASURES: tuple[Measure, ...] = (
         for measure in (recall, type_local_precision, strict_precision)
     ),
     *(payload_accuracy(claim_type) for claim_type in (None, *_WITH_PAYLOAD)),
+    conflict_observations(),
 )
 """Every answer-side measure: recall and the two precisions over all claims and per claim
 type, and payload accuracy over all and per type that has a payload."""
@@ -255,6 +277,7 @@ __all__ = [
     "ANSWER_MEASURES",
     "Counts",
     "Measure",
+    "conflict_observations",
     "payload_accuracy",
     "recall",
     "strict_precision",

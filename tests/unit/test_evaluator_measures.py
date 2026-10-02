@@ -16,14 +16,17 @@ from leaveimpact.core import (
     ClaimType,
     CoverageAction,
     Source,
+    SourceConflict,
     Verdict,
 )
 from leaveimpact.core.ids import LeaveId, claim_id
+from leaveimpact.core.refs import employee_ref
 from leaveimpact.evaluator.grading import Graded, Limited
 from leaveimpact.evaluator.measures import (
     ANSWER_MEASURES,
     Counts,
     Measure,
+    conflict_observations,
     payload_accuracy,
     recall,
     strict_precision,
@@ -40,6 +43,7 @@ from tests.unit.report_fixture import of_type, renumbered, swapped, without
 from tests.unit.throwaway_world import loaded_world
 
 ASSESSMENT, ACTION = ClaimType.CANDIDATE_ASSESSMENT, ClaimType.COVERAGE_ACTION
+CONFLICT = ClaimType.SOURCE_CONFLICT
 SPARE = 9_000
 
 
@@ -84,9 +88,9 @@ def test_a_truthful_report_is_at_the_ceiling_of_every_answer_measure(world: Seal
             assert by_type == counts(family(), evaluation)[1]
     # Every measure had something to count somewhere in the set: none passes vacuously.
     assert all(total > 0 for total in held.values()), held
-    # 26: recall and the two precisions over all and per type, payload accuracy where a
-    # claim type has a payload.
-    assert len(ANSWER_MEASURES) == 26
+    # 27: recall and the two precisions over all and per type, payload accuracy where a
+    # claim type has a payload, and a conflict's observations.
+    assert len(ANSWER_MEASURES) == 27
     assert held["recall: all claims"] == 161
     assert held["strict precision: all claims"] > held["recall: all claims"]
 
@@ -172,6 +176,33 @@ def test_claims_on_an_unexpected_impact_count_against_strict_precision_only(
     assert unexpected_by_standing(whole) == {}
 
 
+def test_a_conflict_resolved_rightly_from_an_observation_nobody_made_is_seen_on_its_own_axis(
+    world: SealedWorld,
+) -> None:
+    scenario, report, conflict = next(
+        (scenario, report, conflicts[0])
+        for scenario in world.scenarios
+        if (conflicts := of_type(report := truthful(world, scenario, NORMAL), SourceConflict))
+    )
+    first, *rest = conflict.observations
+    held = {observation.value for observation in conflict.observations}
+    somebody_else = next(
+        employee_ref(employee.id)
+        for employee in world.org.employees
+        if employee_ref(employee.id) not in held
+    )
+    forged = replace(conflict, observations=(replace(first, value=somebody_else), *rest))
+    honest = evaluated(world, scenario)
+    invented = evaluated(world, scenario, claims=swapped(report, conflict, forged))
+    # The payload is the value that stands and the rule that chose it, and both are right:
+    # every measure of the payload is where it was (the matching ruling of the third step).
+    for measure in (recall, strict_precision, payload_accuracy):
+        assert counts(measure(CONFLICT), invented) == counts(measure(CONFLICT), honest)
+    # What the sources were said to hold is its own flag and its own measure.
+    assert counts(conflict_observations(), honest) == (1, 1)
+    assert counts(conflict_observations(), invented) == (0, 1)
+
+
 def test_a_structurally_invalid_report_is_in_every_denominator_and_no_numerator(
     world: SealedWorld,
 ) -> None:
@@ -183,8 +214,12 @@ def test_a_structurally_invalid_report_is_in_every_denominator_and_no_numerator(
     assert counts(recall(), invalid) == (0, counts(recall(), whole)[1])
     for precision in (strict_precision, type_local_precision):
         assert counts(precision(), invalid) == (0, len(report) + 1)
-    # Nothing was matched, so no payload was judged.
+    # Nothing was matched, so no payload was judged and no observation checked.
     assert counts(payload_accuracy(), invalid) == (0, 0)
+    assert counts(conflict_observations(), invalid) == (0, 0)
+    # Not matched is not unexpected: the oracle was never asked, and the accounting counts
+    # the report as structurally invalid.
+    assert unexpected_by_standing(invalid) == {}
 
 
 def test_a_run_that_was_not_graded_is_in_no_answer_measure(world: SealedWorld) -> None:

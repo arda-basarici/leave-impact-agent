@@ -62,9 +62,9 @@ intervals and knows nothing of claims: Wilson's for a proportion of scenarios, a
 seeded bootstrap over whole scenarios, drawn within tiers, for a ratio of sums and for the
 paired difference of two. ``tables`` estimates a measure or a yes-or-no check in a cell,
 conditionally and end to end, pairs two systems on scenario and assigned condition, and
-keeps the cost ledger. What the preregistration fixes (the confidence level, the seed, the
-repeats, the retry rule, the named checks) is given to these as arguments and chosen
-nowhere here.
+keeps the cost ledger. What the preregistration fixes (the arms, the confidence level, the
+seed, the repeats, the retry rule, the named checks) is given to these as arguments and
+chosen nowhere here.
 
 The evaluation artifact's codec and the job's entry point are later build steps'.
 """
