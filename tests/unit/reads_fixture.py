@@ -28,6 +28,7 @@ from leaveimpact.core import (
     PrefetchOrigin,
     RecordOutcome,
     RecordsOutcome,
+    Source,
     SourceUnreachable,
     UnreachableOutcome,
     specification_named,
@@ -158,4 +159,17 @@ def full_read(reads: Recorder, world: SealedWorld, scenario: Scenario) -> None:
             reads.read("document", {"id": planted.entity.id})
 
 
-__all__ = ["Recorder", "Systems", "full_read", "systems_holding"]
+def reads_of_everything(
+    world: SealedWorld, scenario: Scenario, *down: Source
+) -> list[Operation]:
+    """The operations of a run of ``scenario`` that read everything, with the sources in
+    ``down`` unreachable for the whole run."""
+    systems = systems_holding(world)
+    for port in (systems.people, systems.work, systems.calendar, systems.documents):
+        port.reachable = port.source not in down
+    reads = Recorder(systems)
+    full_read(reads, world, scenario)
+    return reads.operations
+
+
+__all__ = ["Recorder", "Systems", "full_read", "reads_of_everything", "systems_holding"]
