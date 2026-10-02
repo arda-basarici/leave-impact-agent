@@ -31,9 +31,11 @@ The record's prefetch-rule field holds a stable identifier and a digest over the
 planner-protocol version, the ordered specification, and the contract of every tool the
 plan names, a contract being the tool's model-facing definition together with its method
 facts (the port method, the source, the kind of record, the cardinality), since those are
-what coverage credits an operation by and the definition alone omits them. A semantic
-change to the planner raises the protocol version even when the steps read the same; a
-changed description, bound or method fact moves the digest on its own.
+what coverage credits an operation by and the definition alone omits them, together with
+the tool-surface digest of those tools, which binds the validation protocol a planned call
+is accepted under and the result codec. A semantic change to the planner raises the
+protocol version even when the steps read the same; a changed description, bound, method
+fact, validation protocol or result codec moves the digest on its own.
 """
 
 from __future__ import annotations
@@ -55,6 +57,7 @@ from leaveimpact.core.tools import (
     ToolSpecification,
     specification_named,
     tool_definition,
+    tool_surface_digest,
 )
 from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, as_utc
 
@@ -209,11 +212,15 @@ def prefetch_digest(
     steps: Sequence[PrefetchStep],
     specifications: Sequence[ToolSpecification],
 ) -> str:
-    """SHA-256 over the versioned envelope of the rule: the protocol, the ordered steps, and
-    the contract of each tool the steps name, in the order first named.
+    """SHA-256 over the versioned envelope of the rule: the protocol, the ordered steps, the
+    contract of each tool the steps name, in the order first named, and the tool-surface
+    digest of those same tools.
 
-    Only the named tools enter: a change to a tool the plan never calls is not a change to
-    the plan. ``specifications`` must declare every tool the steps name.
+    The surface digest carries what a contract's definition does not: the validation
+    protocol a planned call is accepted under and the codec its result is rendered by,
+    which a system's model sees of the prefetch. Only the named tools enter: a change to a
+    tool the plan never calls is not a change to the plan. ``specifications`` must declare
+    every tool the steps name.
     """
     declared = {specification.name: specification for specification in specifications}
     missing = [step.tool for step in steps if step.tool not in declared]
@@ -225,6 +232,7 @@ def prefetch_digest(
         "protocol": {"id": protocol[0], "version": protocol[1]},
         "steps": [{"tool": step.tool, "arguments": step.arguments.value} for step in steps],
         "tools": [_contract(declared[name]) for name in named],
+        "surface": tool_surface_digest(tuple(declared[name] for name in named)),
     }
     return hashlib.sha256(canonical_bytes(envelope)).hexdigest()
 

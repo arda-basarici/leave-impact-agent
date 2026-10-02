@@ -33,6 +33,7 @@ from leaveimpact.core import (
     prefetch_digest,
     prefetch_rule,
     specification_named,
+    tools,
     validate_arguments,
 )
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, employee_id, leave_id
@@ -223,6 +224,21 @@ def test_the_digest_moves_with_the_protocol_the_steps_and_the_named_tools_contra
     }
     assert all(digest != base for digest in moved.values()), moved
     assert len(set(moved.values())) == len(moved)
+
+
+def test_the_digest_moves_with_the_validation_protocol_and_the_result_codec(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Neither is in a tool's definition or its method facts; both reach the digest through
+    # the surface digest of the named tools, so a changed acceptance rule or a changed
+    # rendering of a result is a changed prefetch rule.
+    base = prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
+    monkeypatch.setattr(tools, "VALIDATION_PROTOCOL", ("exact-json-object", 2))
+    protocol_moved = prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
+    monkeypatch.undo()
+    monkeypatch.setattr(tools, "RESULT_CODEC", ("observed-record", 2))
+    codec_moved = prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
+    assert len({base, protocol_moved, codec_moved}) == 3
 
 
 def test_the_digest_ignores_a_tool_the_plan_never_names() -> None:

@@ -531,15 +531,14 @@ PAYLOAD_FLAGS = (
 
 def correct_whole(outcome: Graded) -> bool:
     """Whether the evaluator's rows grade the report correct in every part: every required
-    row reported with its payload right (an action's by the kind reported), no unexpected or
-    unmatched row, and no plan finding against the oracle."""
+    row reported, every reported row's payload right (an action's by the kind reported), an
+    optional row being optional in recall only, no unexpected or unmatched row, and no plan
+    finding against the oracle."""
     for name in ("impacts", "constraints", "assessments", "actions", "conflicts", "unknowns"):
         for row in getattr(outcome.rows, name):
-            if row.expectation is not Expectation.REQUIRED:
-                if row.expectation is not Expectation.OPTIONAL:
-                    return False
-                continue
-            if row.claim_id is None:
+            if row.expectation in (Expectation.UNEXPECTED, Expectation.NOT_MATCHED):
+                return False
+            if row.expectation is Expectation.REQUIRED and row.claim_id is None:
                 return False
             if any(getattr(row, flag, None) is False for flag in PAYLOAD_FLAGS):
                 return False

@@ -2120,6 +2120,11 @@ here is `core`'s. The step's acceptance grades the baseline through these same p
   no plan finding. Structured 10 of 10 under each of the three conditions; fragmented 0,
   2 and 3 of 10; adversarial 0, 10 and 0 of 10, the counts the oracle comparison gives on
   the same seed.
+  The second batch review (2026-10-03) caught that this reading skipped an optional row's
+  payload: an assessment of a candidate outside the probe set is optional in recall
+  only, and once reported its verdict is judged. Every reported row's payload now counts;
+  the capture is identical, the wrong optional rows all sitting in scenarios already
+  graded wrong elsewhere.
 - **What this does not show.** A simulation, and no part of the baseline: no prefetch
   plan, no execution layer, no report built under the ruled reporting policy. The report
   graded here is the tests' truthful-report builder applied to the simulated answer, so
