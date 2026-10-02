@@ -135,14 +135,27 @@ derivation of closure. The entity's `None`-versus-empty distinction maps to
 gap-versus-no-facts in `core`'s derivation, and a ticket without a due date is an
 observed negative, not a gap.
 
-**Closure answers in a fixed order and derives three of the five unknown reasons.**
-It reads facts and gaps visible at `now` from reachable sources: a positive fact →
-known true, with the facts that established it; a source of the predicate's declared
-domain unreachable → unknown / inaccessible; a gap → unknown / absent; an open
-domain → unknown / insufficient; otherwise known false. Zero facts mean false only
-after the evidence domain has been fully observed, and a gap blocks that inference.
-`ambiguous` and `conflicting` are the agent's to emit, never the rule's, which keeps
-the rule's derivation and the agent's own uncertainty apart.
+**Closure answers in a fixed order and derives three of the five unknown reasons.** It
+reads the facts and gaps a view holds at `now` and asks the view what it observed. A
+positive fact → known true, with the facts that established it. Otherwise each place the
+answer could live is a *slice* of a source (one record, every record of a kind, the
+records of a kind inside a window), and the view says of each whether it was observed
+whole: a slice whose source could not be read → unknown / inaccessible; a slice nobody
+read → unknown / insufficient; a gap → unknown / absent; an open domain → unknown /
+insufficient; otherwise known false. Zero facts mean false only after every slice the
+answer could live in has been observed, and a gap blocks that inference. For the truth a
+world plants, a slice is observed exactly when its source is reachable, so no sealed key
+moved when slices replaced reachability. For a run the two come apart: a source can
+answer every call and the one record that would settle a question never be asked for,
+and an unread record is not a negative. Read by reachability alone, a run that read
+nothing would have every "not on leave" and every "lacks the skill" confirmed by its own
+silence. One slice no read can observe whole: the corpus's documents, which have a
+search and no enumeration. A negative may stand without it and says that it did, because
+a negative that waited for it would be out of reach for every system and compare
+nothing. Every answer carries what it rested on, the facts, the gaps and each slice it
+asked about with what the view said, and citations and the accounting of reads are
+judged against that. `ambiguous` and `conflicting` are the agent's to emit, never the
+rule's, which keeps the rule's derivation and the agent's own uncertainty apart.
 
 **Viability evaluates four criteria through closure and combines them.** Any known
 false → non-viable with every failing reason; otherwise any unknown → unknown,
@@ -252,10 +265,11 @@ Distractors: false positives bucketed by the planted reason class (wrong window,
 other team, already resolved, stale document, timezone), so a near-miss reads as a
 sentence. Source conflicts: detected, and resolved to the authority table's value.
 Unknowns: the expected gaps of a missing-information scenario found, and no gap
-claimed where the world is complete. Grounding: a claim is grounded when the pure
-rules, run over everything the run observed (records returned, reads completed or
-failed, the run's condition) and the report's own claim links, reproduce its
-payload, which is the deterministic core replayed on the agent's reads; whether the
+claimed where the world is complete. Grounding: the pure rules are run over
+everything the run observed (records returned, reads completed or failed, the run's
+condition) with the report's own claims as premises, and a claim is reproduced when
+they conclude its payload, contradicted when they conclude another, and unsupported,
+with a typed reason, when they cannot conclude from what was read; whether the
 cited references resolve, were retrieved by that run and were used by the replay is
 a separate count, so a broken citation and an unsupported inference are different
 numbers. The plan: outcome match against the expected action derived per run
@@ -1614,9 +1628,10 @@ view a report that read the later comment correctly would be graded wrong. So th
 oracle is the runtime view, rebuilt from the sealed plantings and the manifest's
 authored facts by the call assembly makes, and planting dates do not gate it. Three
 views are kept apart by name: runtime truth is the oracle; the observed-run view,
-built from the export's observations alone, is what the grounding replay reads, and
-it never receives truth the run did not read; the dated view remains a construction
-and history diagnostic. Under the normal condition the oracle's answer must equal
+built from what the export's completed reads returned, is what the grounding replay
+reads, and truth enters it only through a carrier the run read; the dated view
+remains a construction and history diagnostic. Under the normal condition the
+oracle's answer must equal
 the sealed key, and a difference is raised as an evaluator defect, so the code that
 feeds the grader is checked on every call and not only the rules beneath it. How far
 the two views disagree is a property of a world and a condition, computed by a pure
@@ -1688,8 +1703,8 @@ twelve a scenario, so a universe of every derivable unknown would grade verbosit
 Correct optional claims count toward precision and never toward recall. An action's
 flag is whether its kind matches the expected outcome, and no assignee set is
 compared. Rows are typed per claim type so an impossible combination cannot be
-built, and they hold no counts: aggregation into tables is the next step's, and a
-table can be recut without regrading.
+built, and they hold no counts: tables are aggregated from them, and a table can
+be recut without regrading.
 
 **The plan is asked three questions, and each omission has one record.** *Validity,
 against the oracle:* for every action on an expected impact the plan rule is fed the
@@ -1722,8 +1737,8 @@ raises.** *Graded:* the run completed or reported at its cap, and the oracle has
 answer for its condition; a report with no claims is graded through its misses.
 *Limited:* no claim-level answer exists (the unreadable leave, the unreadable
 policy, a mixed condition), so no comparative answer metric is computed, and every
-check that needs no expected answer still runs: the structural check and the
-report's coherence and coverage now, the grounding replay's checks when they exist.
+check that needs no expected answer still runs: the structural check, the report's
+coherence and coverage, and the grounding replay with its citations.
 *Excluded:* the run failed, by defect or by infrastructure, or its context is not
 the one the sealed scenario gives, a harness defect; it is counted with a typed
 reason. The order is fixed, context, terminal status, condition, oracle, so a failed
@@ -1742,20 +1757,162 @@ outcome. A condition nobody registered, two sources down for the whole run, is
 graded mechanically, and whether it enters a reported comparison is the
 preregistration's.
 
-**The metrics beyond grading come from the export.** Source discipline: required-
-source attempts and successes, malformed calls, extra reads recorded as cost and not
-as mistakes (the key seals no right query per call, and an extra read may be a
-distractor investigated); a retrieval hit rate, whether the key's answer-changing
-section or clause appeared in the returned top-k of each search the run made, reported
-before citation quality so a missed claim is attributed between returned-and-ignored
-and never-retrieved. The run condition is derived from the reads that actually
-failed, the assigned schedule recorded beside it; a system that never called the
-failed source ran under no outage. Outage runs follow one injection schedule
-registered before any run and are reported apart from normal runs. Results are x/n
-per class and tier with Wilson intervals beside, one organization stated, and every
-reported table shows all attempted runs and failure counts by category beside the
-metrics on completed runs, so an exclusion is a visible smaller denominator and
-never a better score.
+**The observed-run view holds what a run's completed reads returned, and truth enters it
+only through a carrier the run read.** `core` derives facts from structured records and
+nothing from prose, and five kinds of fact exist only in prose: what a clause requires,
+whom a section names, a stale owner in a runbook, a skill shown in a comment or stated
+in a section. On twenty seeds of the golden plan every one of 620 authored facts is
+carried by a comment or a clause (FINDINGS, `grounding-basis`), so a view built from
+records alone would leave every claim that rests on prose ungrounded for every system.
+The view is built from the export's completed reads in two ways. Structured facts derive
+from each record exactly as returned, dated to the run's day. A sealed authored fact is
+admitted when a completed read returned its carrier and the returned comment or section
+equals the sealed one: the evaluator holds the sealed text, and can say what a piece of
+prose states only when it is that text. A claim's evidence references admit nothing;
+they are assertions the citation check judges. The limit is stated: once a carrier came
+back, grounding cannot tell reading from guessing. Whether a query returned the carrier
+is retrieval's question and whether the claim is right the grading's. Every returned
+record is also compared with the sealed one of its id, and a difference is an *integrity
+finding* on the outcome: a record or a part that differs, one the world does not hold, a
+sealed one that a completed enumeration should have returned, a read by id answered with
+another record. It is never an exception and never a licence to substitute sealed
+content. A drifted structured record still derives its facts as returned, since
+grounding asks what the run's own reads support; a part that differs admits no authored
+fact and counts as unobserved; two differing returns of one record in one run leave
+nothing to conclude from it. Whether a run carrying a finding enters a reported table is
+the preregistration's. A requirement's scope is the one thing admitted that is not a
+fact. The fact base holds what a clause requires and nothing about what it applies to,
+so the sealed pairing is admitted through the clause, and loading refuses a world unless
+every requirement clause's own text names exactly its target. Titles nest by design, a
+qualified title containing the plain one, so the longest title found decides.
+
+**The grounding replay gives each claim one of three standings, on premises taken from
+the run.** *Reproduced*: the rules conclude the claim's payload from what the run read.
+*Contradicted*: they conclude a different one. *Unsupported*: they cannot conclude, with
+a typed reason (the leave not read, a clause not read, the candidates never enumerated).
+A claim can be right and unsupported, or wrong and reproduced; the replay asks only
+whether a report asserts beyond its evidence. Nothing reaches it from sealed truth
+except through the view. The leaver and the span are read off the run's own read of the
+leave record; an assessment is replayed with the report's own constraint claims, an
+action with the report's own assessments, and a conclusion about everyone with the
+candidates the run itself enumerated. A standing is local: it takes the claims a replay
+consumed as given, and each record names those premises. So a wrong constraint under
+twelve assessments is one failure stored, and tables report the local failures, which
+are the roots, apart from the claims *grounded end to end*, of which that constraint
+costs thirteen. A third reading, *strictly grounded*, also refuses an answer that stood
+without the corpus closed. One judgment is stored and the strict one is derived from
+what each answer carries. Storing both was rejected as a second copy that can disagree;
+strict alone would make 29 % of verdicts ungroundable for every system, a constant that
+compares nothing; lenient alone would hide a limit of the tool surface in a definition.
+The word grounded is never used alone for a result with a source left unclosed. An
+unknown claim names a subject and a fact and no window, so it is replayed against the
+questions the replay of the report's own claims stopped on. With none, the rules are
+asked directly when the fact is single-valued, and a multi-valued one is unsupported,
+nothing fixing what it claims. On an empty trace, then, an "unknown, insufficient" about
+a single-valued fact is reproduced: the replay measures assertion beyond evidence, and
+recall is what charges a report for not looking. A reason only an agent can give,
+ambiguous or conflicting, is contradicted when the rules establish the fact from the
+run's reads and is unsupported, as not replayable, only when they too leave it open. The
+adversarial tier plants a stale owner that the tracker's record resolves by authority,
+and a report that stops at "conflicting" there is refuted by what it read; filing it as
+not replayable would say less than the replay knows. An assignment has no witness of its
+own and rests on its premises. A conclusion about everyone has one, the enumeration that
+says who everyone is. A truthful report over a full read is reproduced whole, 1,001
+claims on a thirty-scenario world with 547 of them strictly grounded, and the same
+report over no reads is unsupported throughout.
+
+**A citation is judged on three independent axes, and citing nothing is neither perfect
+nor zero.** *Resolves*: the sealed world holds the cited record, comment or section.
+*Retrieved*: a completed read of this run returned it, a comment or a section inside its
+ticket or document. *Used*: it is a witness of the proof the claim was reproduced by, or
+of a reproduced premise's; this is evaluated only for a retrieved citation of a
+reproduced claim, so "retrieved and unused" stays apart from "use not evaluated". The
+axes are not nested. A record the world does not hold still derives facts when a read
+returns it, so a citation can fail to resolve and be retrieved and used; one ordered
+status was rejected for assuming otherwise. Nothing is labelled fabricated, since a
+returned foreign record points at contamination or a harness defect and not at
+invention. A negative settled only by an enumeration or a window has no record to cite.
+Presence is its own number, the share of claims that cite anything, beside the quality
+of the citations made. Fields are recorded and not judged: an event's schedule comes
+from its start and its end together, and a field metric needs that relation, which this
+milestone does not define.
+
+**What a run did is measured beside its outcome, for every export that decodes.** A
+failed attempt still made calls and cost money, so the metrics are one record beside the
+outcome, and each part is evaluated where its inputs exist; a part that was not
+evaluated says so and is never a zero. *Source discipline* is read off the trace alone:
+every read by source, by how it ended and by who asked, the frozen prefetch or the
+model, with a refused call counting for no source; the model's refused tool requests,
+apart from model calls that ended as a refusal; repeated reads; and the operations no
+conforming harness records (a tool that is not one of the thirteen, or a source,
+cardinality, record kind or arguments that are not the tool's), which coverage refuses
+to credit and this reports. Required-source attempt and success are joined from the key.
+*Extra reads* are defined by what a proof rests on: whatever an answer's witnesses name
+is attributed to the earliest completed read that supplied it (a record, an absence, an
+enumeration, the part of a window no earlier read had covered), and every other
+completed read is extra, a later identical one included. Extra is a cost that fed no
+conclusion about the report. It is not a mistake, since the key seals no right query per
+call and a reasonable read can hold nothing, and it is no judgment of attention.
+*Retrieval* is measured against targets that are derived and never read off the sealed
+role tags, which exist for model-written text only. A statement of prose is a target of
+a scenario under a condition when the oracle's answer there changes with the statement
+removed on every carrier, a requirement removed together with its scope. The unit is the
+statement, its carriers alternatives. Each target keeps the claim keys it moves and
+whether the oracle requires each, because a skill another scenario plants for a
+colleague moves only rows no report must hold. A completed search is a row with the rank
+of each target it returned, and each target says whether it was retrieved and whether
+the report concluded what it moves, which tells a target retrieved without the correct
+conclusion from one never retrieved. Nothing says a system ignored what it retrieved: a
+trace cannot tell inattention from misunderstanding. *Usage and cost* are verified and
+not copied: the usage aggregate recomputed from the trace's model calls, each call's
+cost from its pricing selection and the embedded rates, and the cumulative cost from the
+recomputed per-call costs, so a harness wrong the same way twice does not agree with
+itself. A mismatch is a harness finding and a missing rate a pricing finding; neither
+raises. The arithmetic is checked against the rates the record embeds, and that those
+are the committed table's is a digest check owed when the table is an asset. The run
+condition is derived from the reads that actually failed, the assigned schedule recorded
+beside it; a system that never called the failed source ran under no outage.
+
+**Tables are cut by cell, and each kind of number has its own interval.** A cell is one
+system, one assigned condition and one stratum: the whole set, a tier, or a scenario
+class. Nothing is pooled across systems or conditions. The arm is the condition a run
+was *assigned*, so a system's own behaviour never chooses its arm, while each run is
+still graded against the condition its trace shows. The arms are the ones the
+preregistration registers, and one that produced no export is reported with every
+intended run missing. Outage runs follow one injection schedule registered before any
+run and are reported apart from normal runs. Two kinds of number come out. A
+*scenario-level proportion*, x of n scenarios passing a yes-or-no check, carries a
+Wilson interval, the scenario being the trial. A *claim-level ratio* (precision, recall,
+a grounded share, a citation share, target coverage) is the sum of numerators over the
+sum of denominators across scenarios, with a percentile bootstrap that resamples whole
+scenarios within their tiers: the claims of one scenario share its people and its
+documents, and counting each as an independent trial would make the interval far too
+narrow. Intervals are given for the whole and for each tier. A class, one to four
+scenarios, shows its raw counts, which localize a failure and do not estimate a rate. An
+observed zero denominator is 0/0, not estimable, and a resample with a zero denominator
+is left out and counted, never read as zero. Under repeats the scenario stays the unit:
+a ratio pools a scenario's runs before any ratio is taken, a check takes the scenario's
+pass fraction, and the repeats of two systems are never paired slot to slot. A
+comparison is paired on scenario and assigned condition, each resample drawing the same
+scenarios for both systems. A check is read two ways. Conditional quality is over the
+runs the check applies to. End-to-end success is over every run a scenario was meant to
+have: a limited or an excluded run does not pass, and is counted apart from a run that
+was checked and failed, so a provider fault is never scored as a wrong answer and never
+improves a score by leaving. Precision has two readings shown together: strict counts
+every reported claim, and type-local leaves out an assessment or an action hung on an
+unexpected impact, which is charged once, at the impact. A conflict's observations are a
+measure of their own beside its payload, since the payload is the value that stands and
+the rule that chose it. Cost and duration carry no interval: the total over every
+attempt, the median and range per run, and the count of runs whose cost is a floor.
+Every reported table shows the runs intended, made and missing and how each ended,
+graded, limited or excluded by reason, so an exclusion is a visible smaller denominator
+and never a better score. What the preregistration fixes (the arms, the named checks,
+the confidence level and the seed, the repeats and how a missing one counts, which
+attempt of a retried run counts) is an argument to the aggregation and is chosen nowhere
+in the code. Two limits go with every table. The scenarios belong to one organization
+and share its people, so resampling them says nothing about another organization. And
+ten scenarios per tier is very few clusters, where a percentile interval's coverage can
+be poor and visibly discrete; no correction is applied.
 
 **Two baseline systems are preregistered beside the agent and graded by the same
 evaluator from the same export shape.** Rules-only: the pure rules over facts derived
