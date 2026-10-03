@@ -5,9 +5,12 @@ calls of the declared tools, with the arguments the tools accept, answered by sy
 hold a sealed world. ``systems_holding`` fills the four in-memory ports with every record a
 sealed world plants, which is what the projector does to the real systems; a test that
 wants the systems to have drifted since then changes a store directly. ``Recorder`` makes
-a call the way the harness's tool wrapper will, through the specification's own validation
-and the port method the specification names, and records the operation with its outcome:
-a record, no record, a sequence, or the source unreachable when the port is switched off.
+a call through the harness's own executor, the one path every system's reads take:
+the specification's validation, the port method the specification names, the operation
+recorded with its outcome. One liberty is the fixture's: the executor stops a source at
+its first unreachable answer and refuses a further call against it, while the evaluator
+must grade traces no conforming harness makes, a full read under an outage among them,
+so the recorder clears the stop state before each read and asks whatever the test asks.
 ``full_read`` is the reads of a run that looked at everything a scenario can show it.
 """
 
@@ -15,25 +18,9 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import cast
 
-from leaveimpact.core import (
-    AbsentOutcome,
-    Entity,
-    Observed,
-    Operation,
-    OperationId,
-    Outcome,
-    PortFamily,
-    PrefetchOrigin,
-    RecordOutcome,
-    RecordsOutcome,
-    Source,
-    SourceUnreachable,
-    UnreachableOutcome,
-    specification_named,
-    validate_arguments,
-)
+from leaveimpact.agent.execution import Executor, ReadPorts
+from leaveimpact.core import Operation, Outcome, PortFamily, PrefetchOrigin, Source
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
@@ -56,12 +43,12 @@ class Systems:
 
     def port(self, family: PortFamily) -> object:
         """The port a tool of ``family`` reads."""
-        return {
-            PortFamily.PEOPLE: self.people,
-            PortFamily.WORK: self.work,
-            PortFamily.CALENDAR: self.calendar,
-            PortFamily.DOCUMENT: self.documents,
-        }[family]
+        return self.ports.port(family)
+
+    @property
+    def ports(self) -> ReadPorts:
+        """The four as the executor takes them."""
+        return ReadPorts(self.people, self.work, self.calendar, self.documents)
 
 
 def systems_holding(world: SealedWorld) -> Systems:
@@ -89,48 +76,25 @@ def systems_holding(world: SealedWorld) -> Systems:
 
 @dataclass
 class Recorder:
-    """Calls of the declared tools against ``systems``, kept as operations in call order."""
+    """Calls of the declared tools against ``systems`` through the executor, kept as operations
+    in call order."""
 
     systems: Systems
-    operations: list[Operation] = field(default_factory=list[Operation])
+    executor: Executor = field(init=False)
+
+    def __post_init__(self) -> None:
+        self.executor = Executor(self.systems.ports)
+
+    @property
+    def operations(self) -> list[Operation]:
+        """Every call made, in the order made."""
+        return self.executor.operations
 
     def read(self, tool: str, arguments: Mapping[str, object] | None = None) -> Outcome:
-        """Call ``tool`` with ``arguments`` as a model would spell them, and record it."""
-        given = dict(arguments or {})
-        specification = specification_named(tool)
-        assert specification is not None, tool
-        accepted = validate_arguments(specification, given)
-        method = getattr(self.systems.port(specification.facts.family), specification.method.value)
-        try:
-            answer: object = method(**accepted)
-        except SourceUnreachable as unreachable:
-            outcome: Outcome = UnreachableOutcome(unreachable.source, unreachable.reason)
-        else:
-            if answer is None:
-                outcome = AbsentOutcome()
-            elif isinstance(answer, tuple):
-                records = cast("tuple[Observed[Entity], ...]", answer)
-                outcome = RecordsOutcome(tuple(_as_returned(record) for record in records))
-            else:
-                outcome = RecordOutcome(_as_returned(cast("Observed[Entity]", answer)))
-        self.operations.append(
-            Operation(
-                OperationId(f"op-{len(self.operations) + 1}"),
-                PrefetchOrigin(),
-                tool,
-                specification.facts.source,
-                given,
-                outcome,
-            )
-        )
-        return outcome
-
-
-def _as_returned(record: Observed[Entity]) -> Observed[Entity]:
-    """``record`` typed as an operation's outcome holds it: any entity, from its source."""
-    return Observed[Entity](record.value, record.source)
-
-
+        """Call ``tool`` with ``arguments`` as a model would spell them, and record it; a source
+        that has stopped is asked all the same (the module docstring says why)."""
+        self.executor.stopped.clear()
+        return self.executor.call(PrefetchOrigin(), tool, dict(arguments or {}))
 
 
 def full_read(reads: Recorder, world: SealedWorld, scenario: Scenario) -> None:
