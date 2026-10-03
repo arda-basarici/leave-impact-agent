@@ -93,6 +93,12 @@ def answers(evaluation: Evaluation) -> tuple[bool | None, bool | None, bool | No
     )
 
 
+def selection_pending(registration: Registration) -> Registration:
+    """``registration`` as it stood before its development scenarios were selected."""
+    sets = replace(registration.scenario_sets, development=Pending("not yet selected"))
+    return replace(registration, scenario_sets=sets)
+
+
 def with_development(registration: Registration, *ids: str) -> Registration:
     sets = replace(registration.scenario_sets, development=tuple(ScenarioId(i) for i in ids))
     return replace(registration, scenario_sets=sets)
@@ -268,9 +274,10 @@ def test_the_development_selection_is_two_per_tier_and_the_same_every_time(
     reseeded = replace(DRAFT, statistics=replace(DRAFT.statistics, seed=DRAFT.statistics.seed + 1))
     assert development_selection(world, reseeded) != selected
 
-    three_each = replace(DRAFT.scenario_sets, development_size=9, development_per_tier=3)
+    unselected = selection_pending(DRAFT).scenario_sets
+    three_each = replace(unselected, development_size=9, development_per_tier=3)
     assert len(development_selection(world, replace(DRAFT, scenario_sets=three_each))) == 9
-    eight = replace(DRAFT.scenario_sets, development_size=8, development_per_tier=2)
+    eight = replace(unselected, development_size=8, development_per_tier=2)
     with pytest.raises(ValueError, match="need 4 tiers, the world has 3"):
         development_selection(world, replace(DRAFT, scenario_sets=eight))
 
@@ -281,7 +288,7 @@ def test_the_primary_set_is_the_rest_and_is_refused_while_the_selection_is_pendi
     every = tuple(scenario.spec.id for scenario in world.scenarios)
     assert scenario_set(world, DRAFT, ScenarioSetName.FULL) == every
     with pytest.raises(ValueError, match="the development scenarios are pending"):
-        scenario_set(world, DRAFT, ScenarioSetName.PRIMARY)
+        scenario_set(world, selection_pending(DRAFT), ScenarioSetName.PRIMARY)
 
     selected = development_selection(world, DRAFT)
     resolved = with_development(DRAFT, *selected)

@@ -302,7 +302,14 @@
     "development_size": 6,
     "development_per_tier": 2,
     "development": {
-      "pending": "selected by tier alone on the evaluation job's first dispatch"
+      "value": [
+        "scenario_009",
+        "scenario_010",
+        "scenario_013",
+        "scenario_018",
+        "scenario_023",
+        "scenario_028"
+      ]
     }
   }
 }

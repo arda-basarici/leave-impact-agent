@@ -122,7 +122,7 @@ def test_the_draft_marks_its_caps_and_budget_unmeasured_and_amends_nothing() -> 
     assert (draft.amendment.amends, draft.amendment.prior_full_set_results) == (None, False)
 
 
-def test_the_drafts_pending_values_are_the_model_systems_and_the_development_scenarios() -> None:
+def test_the_drafts_pending_values_are_the_model_systems() -> None:
     draft = _draft()
     assert pending_fields(draft) == (
         "systems.agent.variant",
@@ -134,7 +134,15 @@ def test_the_drafts_pending_values_are_the_model_systems_and_the_development_sce
         "systems.single_shot.prompt_digests",
         "systems.single_shot.query_protocol",
         "systems.single_shot.search_limit",
-        "scenario_sets.development",
+    )
+    # The development scenarios are registered: the six the first dispatch selected.
+    assert draft.scenario_sets.development == (
+        "scenario_009",
+        "scenario_010",
+        "scenario_013",
+        "scenario_018",
+        "scenario_023",
+        "scenario_028",
     )
     rules_only = draft.system(SystemKind.RULES_ONLY)
     assert isinstance(rules_only, RulesOnlySystem)

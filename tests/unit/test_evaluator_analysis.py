@@ -16,6 +16,7 @@ from leaveimpact.core import (
     AgentSystem,
     CoverageAction,
     Operation,
+    Pending,
     Registration,
     ReportingScope,
     ScenarioSetName,
@@ -81,6 +82,12 @@ def named(world: SealedWorld) -> Registration:
     return replace(DRAFT, systems=systems, scenario_sets=sets)
 
 
+def selection_pending(registration: Registration) -> Registration:
+    """``registration`` as it stood before its development scenarios were selected."""
+    sets = replace(registration.scenario_sets, development=Pending("not yet selected"))
+    return replace(registration, scenario_sets=sets)
+
+
 def arm_of(held: SetAnalysis, kind: SystemKind, condition: str) -> ArmAnalysis:
     return next(a for a in held.arms if (a.system.kind, a.condition) == (kind, condition))
 
@@ -96,7 +103,8 @@ def lacking_its_action(world: SealedWorld, scenario: Scenario) -> Evaluation:
 def test_the_draft_scores_the_rules_only_arms_and_keeps_what_it_cannot_compute(
     world: SealedWorld, truthful_runs: list[Evaluation]
 ) -> None:
-    analysis = analyse(world, truthful_runs, DRAFT)
+    # As the draft stood before its development scenarios were selected.
+    analysis = analyse(world, truthful_runs, selection_pending(DRAFT))
     assert len(analysis.plan.arms) == 5 and len(analysis.pending_arms) == 10
     full, primary = analysis.sets
     assert (full.name, primary.name) == (ScenarioSetName.FULL, ScenarioSetName.PRIMARY)
@@ -159,6 +167,17 @@ def test_the_draft_scores_the_rules_only_arms_and_keeps_what_it_cannot_compute(
     assert len(full.descriptive) == 9
     assert all(row.unavailable and not row.checks and not row.measures for row in full.descriptive)
     assert "agent" in (full.descriptive[0].unavailable or "")
+
+    # With the scenarios registered, as the draft is now, the primary set is cut and the
+    # rules-only arms are scored on it; the primaries still wait for the agent's arm.
+    registered = analyse(world, truthful_runs, DRAFT)
+    _, held_out = registered.sets
+    assert held_out.unavailable is None and len(held_out.scenarios) == 24
+    scored = arm_of(held_out, SystemKind.RULES_ONLY, "normal").cells[0]
+    assert (scored.accounting.scenarios, scored.accounting.made) == (24, 24)
+    assert all(
+        p.results == () and "agent" in (p.unavailable or "") for p in held_out.primary
+    )
 
 
 def test_an_arm_that_arrived_unregistered_is_described_and_never_scored(
