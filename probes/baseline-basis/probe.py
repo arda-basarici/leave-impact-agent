@@ -98,10 +98,9 @@ from leaveimpact.core.refs import leave_ref
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.core.values import SkillCriterion
 from leaveimpact.core.worldtime import DateSpan
-from leaveimpact.evaluator.grading import Graded, Limited
+from leaveimpact.evaluator.grading import Graded, Limited, correct_whole
 from leaveimpact.evaluator.observed_view import ObservedRun, observe
 from leaveimpact.evaluator.oracle import Answerable, _conclusions, conclusions_in, oracle_for
-from leaveimpact.evaluator.rows import Expectation
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
@@ -517,34 +516,6 @@ def print_prose(prose: dict[tuple[Source, ...], Counter], reference: Counter) ->
 def with_outage(export: RunExport, down: tuple[Source, ...]) -> RunExport:
     outage = OutageAssignment(frozenset(down), DIGEST)
     return replace(export, record=replace(export.record, outage=outage))
-
-
-PAYLOAD_FLAGS = (
-    "verdict_matches",
-    "reasons_match",
-    "value_matches",
-    "rule_matches",
-    "observations_hold",
-    "reason_matches",
-)
-
-
-def correct_whole(outcome: Graded) -> bool:
-    """Whether the evaluator's rows grade the report correct in every part: every required
-    row reported, every reported row's payload right (an action's by the kind reported), an
-    optional row being optional in recall only, no unexpected or unmatched row, and no plan
-    finding against the oracle."""
-    for name in ("impacts", "constraints", "assessments", "actions", "conflicts", "unknowns"):
-        for row in getattr(outcome.rows, name):
-            if row.expectation in (Expectation.UNEXPECTED, Expectation.NOT_MATCHED):
-                return False
-            if row.expectation is Expectation.REQUIRED and row.claim_id is None:
-                return False
-            if any(getattr(row, flag, None) is False for flag in PAYLOAD_FLAGS):
-                return False
-            if name == "actions" and row.expected is not row.reported:
-                return False
-    return not outcome.oracle_findings
 
 
 def graded_summary(world: SealedWorld, build: Callable[[Scenario], RunExport]) -> list[str]:

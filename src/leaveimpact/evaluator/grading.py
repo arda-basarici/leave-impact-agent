@@ -50,7 +50,7 @@ from enum import StrEnum
 from leaveimpact.core.claims import structural_problems
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
-from leaveimpact.core.ids import ScenarioId
+from leaveimpact.core.ids import ClaimId, ScenarioId
 from leaveimpact.core.read_condition import ObservedCondition, observed_condition
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import FailureCategory, System, TerminalStatus
@@ -71,7 +71,7 @@ from leaveimpact.evaluator.plan_checks import (
     report_checks,
 )
 from leaveimpact.evaluator.replay import ClaimGrounding, replay
-from leaveimpact.evaluator.rows import ClaimRows
+from leaveimpact.evaluator.rows import ActionRow, ClaimRows, Expectation
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world.scenario import Scenario
 
@@ -141,6 +141,54 @@ class Graded:
                 "the plan checks and the grounding are evaluated exactly when the claim set "
                 "is structurally valid"
             )
+
+
+def correct_whole(outcome: Graded) -> bool:
+    """Whether the rows grade the report correct in every part: structurally valid, every
+    required row reported, every reported row's payload right (an action's by the kind
+    reported), an optional row being optional in recall only, no unexpected or unmatched
+    row, and no plan finding against the oracle.
+
+    The reading the structured tier's plumbing gate is held by: a rules-only system that
+    reads what that tier's key needs is graded correct whole there, and a miss is a fault
+    to investigate (the investigator milestone's fifth build step, ruling 2).
+    """
+    rows = outcome.rows
+    if not rows.structurally_valid or outcome.oracle_findings:
+        return False
+    judged: list[tuple[Expectation, ClaimId | None, tuple[bool | None, ...]]] = [
+        *((row.expectation, row.claim_id, ()) for row in rows.impacts),
+        *((row.expectation, row.claim_id, ()) for row in rows.constraints),
+        *(
+            (row.expectation, row.claim_id, (row.verdict_matches, row.reasons_match))
+            for row in rows.assessments
+        ),
+        *((row.expectation, row.claim_id, (_action_matches(row),)) for row in rows.actions),
+        *(
+            (
+                row.expectation,
+                row.claim_id,
+                (row.value_matches, row.rule_matches, row.observations_hold),
+            )
+            for row in rows.conflicts
+        ),
+        *((row.expectation, row.claim_id, (row.reason_matches,)) for row in rows.unknowns),
+    ]
+    for expectation, claim, flags in judged:
+        if expectation in (Expectation.UNEXPECTED, Expectation.NOT_MATCHED):
+            return False
+        if expectation is Expectation.REQUIRED and claim is None:
+            return False
+        if False in flags:
+            return False
+    return True
+
+
+def _action_matches(row: ActionRow) -> bool | None:
+    """Whether a reported action is the expected kind; ``None`` when either side is absent."""
+    if row.expected is None or row.reported is None:
+        return None
+    return row.expected is row.reported
 
 
 @dataclass(frozen=True, slots=True)
@@ -313,5 +361,6 @@ __all__ = [
     "LimitedReason",
     "RunHeader",
     "RunOutcome",
+    "correct_whole",
     "grade_run",
 ]
