@@ -20,6 +20,7 @@ dev = [
     "pytest",
     "pytest-cov>=7.1.0",
     "pytest-recording>=0.13.4",
+    "pytest-xdist>=3.8.0",
     "ruff",
     "vcrpy>=8.3.0",
 ]

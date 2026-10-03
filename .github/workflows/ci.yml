@@ -76,8 +76,11 @@ jobs:
       - name: Pyright (types, strict)
         run: uv run pyright
 
+      # In parallel, one worker per core, a test file kept whole on one worker: many
+      # files build one expensive module-scoped fixture (a loaded world), and spreading a
+      # file's tests would rebuild it on every worker that got one.
       - name: Pytest (unit level, doctests)
-        run: uv run pytest -q
+        run: uv run pytest -q -n auto --dist loadfile
 
       - name: Pytest (integration, against the PostgreSQL service)
         run: uv run pytest -q -m integration

@@ -23,7 +23,7 @@ typecheck:
 
 # Default levels only — `live` and `e2e` stay excluded (pyproject addopts).
 test:
-    uv run pytest -q
+    uv run pytest -q -n auto --dist loadfile
 
 # Every level, including the ones that need a deployment or spend quota.
 test-all:
