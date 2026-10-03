@@ -7,6 +7,134 @@ decisions it feeds.
 
 ---
 
+## 2026-10-03 — The baseline that reads no prose is grounded whole and wrong exactly where the answer lives in prose, and the forecast was met by the real thing
+
+*M2 step 5, the investigator milestone's fifth build step: the rules-only baseline, the
+first system the benchmark measures, from the frozen prefetch through the shared rules to
+the export the evaluator grades. Six rulings by interview, each measured before it was
+argued and read by an external reviewer with no chat context (session 48), then six
+commit groups built and reviewed in batches (session 49, 2026-10-03). Feeds: the M2
+milestone report's baseline section, on what a system that reads only structured records
+is worth and on why its numbers are the floor the agent is measured against; the final
+report's section on honest measurement, on grounded not meaning correct and on
+forecasting a system before building it; and its process section, on what the batch
+reviews caught, including one that turned into a ruling.*
+
+The plan said "the rules-only baseline" as if it were a plumbing exercise: run the shared
+rules over a fixed set of reads, export, grade. The interview found that nearly every
+word in that sentence hid a decision, and measured each one before ruling, on twenty
+seeds of the golden plan assembled in memory (the probe `probes/baseline-basis` and its
+capture, FINDINGS `baseline-basis`). The first was whom the baseline assesses. The design
+at the milestone's entry had said the leaver's team and the holders of each needed
+skill, which reads sensibly until one asks where the needed skill is stated: only in a
+policy clause, which a system that reads no prose never sees. The two selections a
+prefetch can actually compute, the leaver's team and the team with the component's
+members, change the coverage outcome on 255 and 56 of 640 impacts and leave 781 and 307
+of 1,440 must-assess verdicts outside; the only selection that keeps every outcome needs
+the clause. The ruling made the candidate universe the whole employee enumeration,
+complete when the coverage rule marks it covered, with a scale note that a larger
+organization would need a retrieval stage that bears completeness. The second was the
+window: the run carries no window, so the prefetch derives one from the leave it read,
+and the leave's exact span gives the oracle's answer in 600 of 600 scenarios, a day of
+margin adding nothing. The third was how much to report: assessing everyone is 15,120
+assessments on twenty seeds where stopping at enough viable candidates is 2,793, and the
+cheaper policy leaves out 807 of the 1,240 rows a report must hold and takes a coverage
+gap on every one of the 140 impacts where the oracle calls for everyone. Everyone is
+assessed.
+
+The result that names the entry came from the first measurement. A full read with the
+document reads left out, the rules asked with no constraint and the answer compared with
+the oracle: the 200 structured-tier scenarios are the oracle's answer whole, and none of
+the 400 others is, the split being exactly "the sealed key's required sources include
+the corpus". On the 540 impacts it finds, 140 outcomes are an assign where the truth is
+uncovered or unknown; of 1,240 must-assess verdicts, 360 are viable where the truth is
+non-viable or unknown; none of 80 conflicts and none of 392 unknowns is stated. Every
+error is a confident positive. Then the same answer was written as a report and graded by
+the real evaluator on the reference seed: 810 claims, every one reproduced by the
+grounding replay, no finding of any kind, and 24 plan findings against the oracle. The
+replay accepts the baseline's empty constraint list as a premise, because a system that
+read no clause holds none; it cannot say that no clause governs. So grounded is not
+correct, the two are separate measurements, and the distance between them on the two
+prose tiers is a number the report can put beside the agent's: what the prose is worth,
+measured on a system that never reads it. The same reasoning settled the degraded
+states. The vocabulary cannot even state "the leave record could not be read" (an
+unknown is about an employee, a work item, an event or a clause, and the registry's
+subjects are those four), so both unreadable states are represented by abstention, a
+completed run with no claims, nothing added to the export. The reviewer's version of the
+abstention ruling was adopted almost whole; its one wrong turn, that a partial report in
+a degraded state always breaks the coherence rule, was corrected in the record (a
+structurally non-viable verdict stays true under any policy), and the partial report was
+parked for the report view rather than refused on a false ground.
+
+The build was a forecast made good. Group 0 committed the interview's measurements as a
+probe before any baseline code existed, and the reviewer's first catch was that its
+"equal to the oracle's answer whole" was a flag built by hand that compared five parts
+and left out the required count, the requirements, the non-probed assessments and what
+each assessment left open; the probe now decides equality by the full-read test's own
+comparison, and the capture came back identical on every line, the structured tier's
+keys holding no constraint and no resolved requirement. The probe also gained the line
+the rulings had been missing, what the evaluator's own rows grade correct whole: the
+structured tier 10 of 10 under each condition, the fragmented tier 0, 2 and 3 of 10, the
+adversarial 0, 10 and 0. Five groups later the real baseline, through its real export
+and the real evaluator, gave the forecast's numbers exactly: 810, 270 and 540 claims
+under the normal condition, the tracker outage and the calendar outage, every one
+reproduced with no finding and every citation resolving, retrieved and used; 24, 6 and
+18 plan findings; the structured tier correct whole 10 of 10
+(`tests/unit/test_agent_rules_only_graded.py`, commit `db07c03`; FINDINGS
+`baseline-graded`). The honest part of that sentence is the method, not the match: the
+simulation was built from the evaluator's own view and the oracle's own composition, so
+the forecast and the system share their rules by design, and agreement shows the
+plumbing holds, not that the rules are right. Two gaps between simulation and system were
+closed on the way rather than assumed: the simulation's view held 1,800 skill facts
+carried by ticket comments that the baseline never sees, and removing them changed no
+conclusion in 600 scenarios; and the simulation read the scenario's wider window where
+the baseline reads the leave's span, and the answers were equal in 600 of 600.
+
+What made the build possible was moving more into the shared core than the plan said. A
+harness may not import the benchmark, and three things the baseline needed lived there
+or in the evaluator: the pass that composes the rules per impact, the view a trace's
+reads give those rules, and the record a claim's citation may name. Writing any of them
+again in the harness would have been a second reading of the rules, free to drift from
+the one the grader runs. The structured projection of a trace's reads was the decision
+with teeth: the evaluator's view became that projection plus a sealed overlay (the prose
+a returned comment or section admits, the comparison of every returned record with the
+sealed one), and the baseline's view became the projection alone, so what the graded
+concludes from is the structured part of what the grader replays over, by construction.
+That equality was shown as two independent implementations before one replaced the
+other: the gate's seventeen tests were run green against the evaluator's old view and
+then against the one rebuilt on the projection (commits `8295d26`, `f2c7434`).
+
+One review finding turned into a ruling. The baseline detects three things the plan's
+own reads cannot: the HR system answering the leave id asked with another leave, an
+employee enumeration without the leaver, and a returned record no fact can be made from.
+The interview had ruled each a defect that fails the run "at that operation", on the
+ground that degrading would fold a defect into a legitimate unknown. The export's own
+rule, written two steps earlier, held that a defect failure names an operation that read
+a malformed record, and the operations in question read records fine. The reviewer
+reproduced the refusal ("a defect failure names an operation that read a malformed
+record, got 'op-2'"), and the two shapes were brought: make the contradiction an outcome
+in the trace, which would rewrite what the source answered and add a seventh outcome
+kind to a format two rulings had frozen; or broaden the export's invariant so a defect
+names the operation the fault was found at, a malformed record or returned records the
+harness could not accept. The second was ruled, one existing expectation amended by the
+ruling and said so, and the reviewer's second read narrowed it once more: the broadened
+rule had admitted an absent answer, and absence is evidence, for the leave an
+abstention, never a fault (commits `7cdba9e`, `dcf0cb0`). The other catches were of the
+kind a second reader exists for: the prefetch digest blind to the validation protocol
+and the result codec; the correct-whole reading skipping an optional row's payload,
+optional in recall only; the prefetch going on after a malformed record. Each was
+reproduced on the committed code before it was fixed, and none changed a number.
+
+[PRELIMINARY — one throwaway world of thirty scenarios with stand-in prose; no sealed
+world run, no model called; the single-shot baseline and the agent do not exist, so the
+"what prose is worth" number has no second system beside it yet. The sealed golden
+world's numbers by condition arrive with the evaluation job's first dispatch.]
+
+Figure: the forecast against the real thing, three conditions by claims reproduced and
+plan findings, with the structured tier's 10 of 10 beside the other tiers' 0, 2 and 3;
+or the simpler one, per tier, "grounded" and "correct" as two bars that agree on one
+tier and part on two.
+
 ## 2026-10-02 — A run that read nothing would have had every negative confirmed, and one of the step's own numbers had no script behind it
 
 *M2 step 4, the investigator milestone's fourth build step: the grounding replay and

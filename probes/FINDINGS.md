@@ -2134,3 +2134,62 @@ here is `core`'s. The step's acceptance grades the baseline through these same p
   thirty scenarios. The capture regenerates only while the tests' fixtures stand; the
   probe is rerun at the build group that replaces the recorder, and its capture is
   identical there or the difference is explained.
+
+## baseline-graded — the rules-only baseline built, graded end to end, and the forecast met (2026-10-03)
+
+The investigator milestone's fifth build step built the first system: the frozen
+prefetch, the structured projection of what it read as its whole view, the shared rules
+through `core`'s composing pass, one reporting policy, and the export the evaluator grades
+(commits `761ed3f` to `db07c03`, the stream's `m2-build/2026-10-02-step-5-rulings.md`
+holding the six rulings, each group's design, as-built notes and reviews). The forecast
+of `baseline-basis` above was a simulation; this entry is the real thing. Every number
+below is pinned by a test, named with it, on the tests' throwaway golden world (thirty
+scenarios, the reference seed, stand-in prose); the twenty-seed numbers stay the probe's.
+
+- **The forecast is met exactly.** The real run, its real export and the real evaluator,
+  every scenario under the normal condition, the tracker outage and the calendar outage:
+  810, 270 and 540 claims, every one reproduced by the replay, no structural, report,
+  coverage, integrity or harness finding, every citation resolving, retrieved and used;
+  24, 6 and 18 plan findings against the oracle; the structured tier graded correct whole
+  10 of 10 under each condition and the other tiers never whole
+  (`test_agent_rules_only_graded.py`). The claim set equals the policy's enumerated from
+  the composing pass over the run's own view, and the baseline reproduces the probe's
+  simulation claim for claim under each condition (`test_agent_rules_only.py`).
+- **Grounded whole and wrong exactly where the answer lives in prose.** On the structured
+  tier the baseline is the oracle whole; on the other two tiers it is wrong in every
+  scenario, with confidence: an assign where truth is uncovered or unknown, a viable
+  verdict where truth is non-viable, no unknown stated. The replay accepts its empty
+  constraint list as a premise, so grounding and correctness are two measurements and
+  the gap between them is what the prose is worth.
+- **The degraded states as built.** With the HR system down every run abstains after one
+  operation, a completed run with no claims, and the evaluator limits it as an unreadable
+  leave with no harness finding. With the corpus down the baseline makes no corpus read,
+  its trace shows the normal condition, and it is graded whole with its 810 claims: not a
+  degraded state but the premise its record declares. A malformed record exports a failed
+  run at that operation and the evaluator excludes it by defect (the same test file).
+- **The equality the design rests on.** The evaluator's observed view is `core`'s
+  structured projection plus the sealed overlay, held equal over a full read of every
+  scenario, each whole-run outage, every read made twice, differing returns,
+  returned-then-absent, a mixed source and an underivable record, first against the old
+  `observe` and then against the one rebuilt on the projection
+  (`test_evaluator_structured_part.py`, `test_core_read_projection.py`). The three probes
+  came back identical to their captures after every group.
+- **What the batch reviews caught.** A hand-built whole-answer flag that left parts out
+  (`baseline-basis` above); the prefetch digest blind to the validation protocol and the
+  result codec; the probe's correct-whole reading skipping an optional row's payload; the
+  prefetch going on after a malformed record; three harness-found defects the export's
+  own rule refused to anchor, which became a ruling (a defect names the operation the
+  fault was found at, a malformed record or returned records the harness could not
+  accept, an absent answer never); and that rule first admitting an absent answer. Each
+  reproduced on the committed code before it was fixed.
+- **The golden world, live.** `tests/live/test_sealed_world_loads.py` from the
+  workstation under the administrative profile after group A's review commit, with
+  `observe` rebuilt and the condition moved: passed, the thirty keys reproduced. A first
+  attempt failed in a second as "object store unreachable": the suite's default
+  `--block-network` was still in force, which the `test-live` recipe clears.
+- **What this does not show.** One throwaway world with stand-in prose, thirty scenarios;
+  no sealed world has been run, no model has been called, and the single-shot baseline
+  and the agent do not exist. The structured tier being correct whole is a plumbing
+  check on shared rules, never an oracle. Prefetch conformance is not yet checked by the
+  evaluator (the sixth step's), and the capture of `baseline-basis` regenerates only
+  while the tests' fixtures stand.
