@@ -273,6 +273,26 @@ GradingKey = ImpactKey | ConstraintKey | AssessmentKey | ConflictKey | UnknownKe
 """Every grading identity; a key is compared only against keys of the same claim type."""
 
 
+def key_order(key: GradingKey) -> tuple[str, ...]:
+    """The canonical order of grading keys of one type, as strings: what a report that must
+    be the same bytes for the same observations sorts its claims by within a type.
+
+    >>> key_order(UnknownKey(EntityRef(EntityKind.EMPLOYEE, "emp_017"), PredicateName.HAS_SKILL))
+    ('employee', 'emp_017', 'has_skill')
+    """
+    match key:
+        case ImpactKey():
+            return (key.leave_id, key.subtype.value, key.artifact.kind.value, key.artifact.id)
+        case ConstraintKey():
+            return (key.clause_id, key.applies_to.kind.value, key.applies_to.id)
+        case AssessmentKey():
+            return (*key_order(key.impact_key), key.employee_id)
+        case ConflictKey():
+            return (key.entity.kind.value, key.entity.id, key.predicate.value)
+        case UnknownKey():
+            return (key.subject.kind.value, key.subject.id, key.required_fact.value)
+
+
 # --- Claims ---------------------------------------------------------------------------
 
 

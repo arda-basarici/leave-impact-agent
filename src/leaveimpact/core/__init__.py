@@ -103,6 +103,7 @@ from leaveimpact.core.claims import (
     UnknownKey,
     UnknownReason,
     Verdict,
+    key_order,
     require_well_formed,
     structural_problems,
 )
@@ -262,7 +263,7 @@ from leaveimpact.core.read_coverage import (
     tool_mismatches,
 )
 from leaveimpact.core.read_projection import StructuredReads, project_reads
-from leaveimpact.core.readings import Reading, read_impacts
+from leaveimpact.core.readings import ImpactConclusion, Reading, conclude_impacts, read_impacts
 from leaveimpact.core.refs import (
     PREFIX_BY_KIND,
     SOURCE_BY_TARGET_KIND,
@@ -525,6 +526,7 @@ __all__ = [
     "Grade",
     "GradingKey",
     "Impact",
+    "ImpactConclusion",
     "ImpactKey",
     "ImpactSubtype",
     "InstantSpan",
@@ -641,6 +643,7 @@ __all__ = [
     "calls_after_leave",
     "chain_problems",
     "citable_record",
+    "conclude_impacts",
     "clause_ref",
     "closing_slices",
     "closing_slices_of_any",
@@ -695,6 +698,7 @@ __all__ = [
     "instant_chunks",
     "is_completed_read",
     "is_failed_read",
+    "key_order",
     "event_ref",
     "expected_action",
     "export_bytes",

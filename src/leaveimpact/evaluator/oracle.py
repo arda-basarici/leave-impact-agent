@@ -63,21 +63,14 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from leaveimpact.core.claims import ConstraintKey, CoverageActionKind, ImpactKey
-from leaveimpact.core.closure import KnownTrue, Unresolved, establish
+from leaveimpact.core.closure import KnownTrue, establish
 from leaveimpact.core.facts import FactBase, FactView, RunCondition
 from leaveimpact.core.grounding import derive_impacts
 from leaveimpact.core.ids import EmployeeId
-from leaveimpact.core.plans import expected_action, required_count
 from leaveimpact.core.predicates import PredicateName, predicate
-from leaveimpact.core.readings import Reading, read_impacts
+from leaveimpact.core.readings import ImpactConclusion, conclude_impacts
 from leaveimpact.core.refs import EntityRef, clause_ref
-from leaveimpact.core.viability import (
-    Assessment,
-    ResolvedRequirement,
-    applicable_requirements,
-    need_of,
-)
-from leaveimpact.core.worldtime import DateSpan
+from leaveimpact.core.viability import Assessment, Need, ResolvedRequirement
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.world_index import Statement, statement_of
 from leaveimpact.world.construction import expectations_of
@@ -258,7 +251,7 @@ def _conclusions(
     sealed = [expected.key for expected in key.impacts]
     ordered = [impact for impact in sealed if impact in grounded]
     ordered.extend(impact for impact in grounded if impact not in sealed)
-    readings = read_impacts(
+    conclusions = conclude_impacts(
         view,
         ordered,
         constraints,
@@ -271,15 +264,11 @@ def _conclusions(
         expected.key: tuple(authored.employee_id for authored in expected.must_assess)
         for expected in key.impacts
     }
-    truths: list[ImpactTruth] = []
-    scopes: list[frozenset[EntityRef]] = []
-    for reading in readings:
-        requirements, scope = _requirements_and_scope(
-            view, reading.impact, constraints, leave.span, spec.reference_timezone
-        )
-        scopes.append(scope)
-        truths.append(_impact_truth(reading, requirements, probes.get(reading.impact, ())))
-    expectations = expectations_of(view, readings)
+    truths = [
+        _impact_truth(conclusion, probes.get(conclusion.impact, ())) for conclusion in conclusions
+    ]
+    scopes = [_scope(conclusion) for conclusion in conclusions]
+    expectations = expectations_of(view, [conclusion.reading for conclusion in conclusions])
     return Answerable(
         scenario=scenario,
         condition=condition,
@@ -300,42 +289,24 @@ def _leave_is_readable(view: FactView, scenario: Scenario) -> bool:
     )
 
 
-def _requirements_and_scope(
-    view: FactView,
-    impact: ImpactKey,
-    constraints: Sequence[ConstraintKey],
-    leave_span: DateSpan,
-    reference_timezone: str,
-) -> tuple[tuple[ResolvedRequirement, ...], frozenset[EntityRef]]:
-    """The readable requirements that apply to ``impact``, and what a constraint may name to
-    apply to it: the artifact, and its component when that could be read."""
-    need = need_of(view, impact, leave_span, reference_timezone)
-    if isinstance(need, Unresolved):
-        return (), frozenset({impact.artifact})
-    scope = {impact.artifact}
-    if isinstance(need.component, EntityRef):
+def _scope(conclusion: ImpactConclusion) -> frozenset[EntityRef]:
+    """What a constraint may name to apply to the impact: the artifact, and its component
+    when that could be read."""
+    scope = {conclusion.impact.artifact}
+    need = conclusion.need
+    if isinstance(need, Need) and isinstance(need.component, EntityRef):
         scope.add(need.component)
-    resolved = tuple(
-        requirement
-        for requirement in applicable_requirements(view, need, constraints)
-        if isinstance(requirement, ResolvedRequirement)
-    )
-    return resolved, frozenset(scope)
+    return frozenset(scope)
 
 
-def _impact_truth(
-    reading: Reading, requirements: tuple[ResolvedRequirement, ...], probe: tuple[EmployeeId, ...]
-) -> ImpactTruth:
-    required = required_count(requirements)
+def _impact_truth(conclusion: ImpactConclusion, probe: tuple[EmployeeId, ...]) -> ImpactTruth:
     return ImpactTruth(
-        key=reading.impact,
+        key=conclusion.impact,
         probe=probe,
-        assessments=reading.assessments,
-        requirements=requirements,
-        required=required,
-        outcome=expected_action(
-            (assessment.verdict for assessment in reading.assessments), required
-        ),
+        assessments=conclusion.reading.assessments,
+        requirements=conclusion.requirements,
+        required=conclusion.required,
+        outcome=conclusion.outcome,
     )
 
 
