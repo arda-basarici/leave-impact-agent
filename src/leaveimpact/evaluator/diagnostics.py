@@ -15,8 +15,10 @@ unreadable there is no claim-level answer to grade against, so the arm's runs ar
 described and not scored. Four things are kept apart, each run in exactly one row:
 
 - *exposure*: whether the run met the outage it was assigned. A source scheduled out that
-  the trace shows reachable was never exercised, and the run says nothing about the
-  outage. A run with no trace to read (an excluded one) has no exposure to state.
+  the trace does not show unreachable was never exercised, and the run says nothing about
+  the outage. An excluded run has no outcome that states a condition and still has a
+  trace, so its exposure is read off its operations the same way: a provider fault after
+  a read met the outage is an exercised run that failed.
 - *outcome*: the evaluator's, graded, limited by reason or excluded by reason. An
   assignment does not decide it: a corpus outage a system never touched is a graded run.
 - *report*: empty or non-empty for a completed report, and none for an excluded run, so a
@@ -43,6 +45,7 @@ from leaveimpact.evaluator.grading import (
     LimitedReason,
 )
 from leaveimpact.evaluator.replay import Standing
+from leaveimpact.evaluator.source_discipline import Ended
 from leaveimpact.evaluator.tables import Check
 from leaveimpact.evaluator.trace_metrics import Evaluation
 
@@ -104,7 +107,6 @@ class Exposure(StrEnum):
 
     EXERCISED = "exercised"
     UNEXERCISED = "unexercised"
-    NOT_OBSERVED = "not_observed"
 
 
 class OutcomeKind(StrEnum):
@@ -165,17 +167,21 @@ _Described = tuple[
 
 def _described(run: Evaluation) -> _Described:
     outcome = run.outcome
+    # The sources the trace shows unreachable, whatever the outcome: the same reading the
+    # condition of a graded or a limited run is derived from.
+    met = {
+        row.source for row in run.metrics.discipline.operations if row.ended is Ended.UNREACHABLE
+    }
+    scheduled_out = frozenset(Source) - run.assigned.reachable
+    exposure = Exposure.EXERCISED if scheduled_out <= met else Exposure.UNEXERCISED
     if isinstance(outcome, Excluded):
         return (
-            Exposure.NOT_OBSERVED,
+            exposure,
             OutcomeKind.EXCLUDED,
             outcome.reason,
             ReportState.NONE,
             ReplayState.NOTHING_TO_REPLAY,
         )
-    scheduled_out = frozenset(Source) - run.assigned.reachable
-    exercised = not (scheduled_out & outcome.condition.reachable)
-    exposure = Exposure.EXERCISED if exercised else Exposure.UNEXERCISED
     if isinstance(outcome, Graded):
         kind, reason = OutcomeKind.GRADED, None
     else:

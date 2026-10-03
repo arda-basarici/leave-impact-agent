@@ -6,6 +6,13 @@ build step, rulings 1, 4 and 6). A registered measure or check is an identifier;
 registries below say which function it is, and a name they do not hold is refused, never
 skipped: a table that silently lacked a registered row would read as a smaller plan.
 
+A registered measure is a family of rows, the leading one first. An answer-side measure
+is over all claims, then per claim type. A grounding or a citation measure is over graded
+runs, then over limited ones, the two never pooled: a limited run has no expected answer
+and its report was written with a source missing. A source-discipline or a retrieval
+measure is one row. A comparison between two systems is made on a family's leading row;
+the rest are reported per arm.
+
 ``preregistered`` projects the registration onto ``Preregistered``, the one record the
 cells and the tables are cut under. An arm needs its system's variant, and a variant may
 still be pending in a draft; such an arm cannot be built, and the projection says which
@@ -39,7 +46,6 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from random import Random
 
-from leaveimpact.core.claims import ClaimType
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.registration import (
@@ -50,26 +56,75 @@ from leaveimpact.core.registration import (
 )
 from leaveimpact.core.run_record import FailureCategory, System
 from leaveimpact.evaluator.cells import CountedAttempt, MissingRepeat, Preregistered
-from leaveimpact.evaluator.intervals import derived_seed
-from leaveimpact.evaluator.measures import (
-    Measure,
-    payload_accuracy,
-    recall,
-    strict_precision,
-    type_local_precision,
+from leaveimpact.evaluator.evidence_measures import (
+    RETRIEVAL_MEASURES,
+    SOURCE_MEASURES,
+    Replayed,
+    citing_a_witness_share,
+    citing_share,
+    grounded_end_to_end_share,
+    local_failure_share,
+    resolving_share,
+    retrieved_share,
+    standing_share,
+    strictly_grounded_share,
+    used_share,
 )
+from leaveimpact.evaluator.grading import Graded, Limited
+from leaveimpact.evaluator.intervals import derived_seed
+from leaveimpact.evaluator.measures import ANSWER_MEASURES, Measure, conflict_observations
+from leaveimpact.evaluator.replay import Standing
 from leaveimpact.evaluator.run_checks import CORRECT_WHOLE, EXPECTED_ACTION, REPRODUCED_WHOLE
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.tables import Check
 from leaveimpact.world.scenario import Tier
 
-MEASURES: dict[str, Callable[[ClaimType | None], Measure]] = {
-    "strict_precision": strict_precision,
-    "type_local_precision": type_local_precision,
-    "recall": recall,
-    "payload_accuracy": payload_accuracy,
+
+def _answer(display: str) -> tuple[Measure, ...]:
+    """The answer-side family named ``display``: over all claims, then per claim type."""
+    return tuple(m for m in ANSWER_MEASURES if m.name.startswith(f"{display}: "))
+
+
+def _replayed(build: Callable[[Replayed], Measure]) -> tuple[Measure, ...]:
+    """A grounding or a citation measure over graded runs, then over limited ones."""
+    return build(Graded), build(Limited)
+
+
+def _named(held: tuple[Measure, ...], display: str) -> tuple[Measure, ...]:
+    (found,) = (measure for measure in held if measure.name == display)
+    return (found,)
+
+
+MEASURES: dict[str, tuple[Measure, ...]] = {
+    "strict_precision": _answer("strict precision"),
+    "type_local_precision": _answer("type-local precision"),
+    "recall": _answer("recall"),
+    "payload_accuracy": _answer("payload accuracy"),
+    "conflict_observations_holding": (conflict_observations(),),
+    "claims_reproduced": _replayed(lambda over: standing_share(Standing.REPRODUCED, over)),
+    "claims_contradicted": _replayed(lambda over: standing_share(Standing.CONTRADICTED, over)),
+    "claims_unsupported": _replayed(lambda over: standing_share(Standing.UNSUPPORTED, over)),
+    "claims_failing_locally": _replayed(local_failure_share),
+    "claims_grounded_end_to_end": _replayed(grounded_end_to_end_share),
+    "claims_strictly_grounded": _replayed(strictly_grounded_share),
+    "claims_citing": _replayed(citing_share),
+    "citations_resolving": _replayed(resolving_share),
+    "citations_retrieved": _replayed(retrieved_share),
+    "citations_used": _replayed(used_share),
+    "reproduced_claims_citing_a_witness": _replayed(citing_a_witness_share),
+    "required_sources_asked": _named(SOURCE_MEASURES, "required sources asked"),
+    "required_sources_answered": _named(SOURCE_MEASURES, "required sources answered"),
+    "tool_requests_refused": _named(SOURCE_MEASURES, "tool requests refused"),
+    "completed_reads_repeated": _named(SOURCE_MEASURES, "completed reads repeated"),
+    "completed_reads_extra": _named(SOURCE_MEASURES, "completed reads extra"),
+    "targets_retrieved": _named(RETRIEVAL_MEASURES, "targets retrieved"),
+    "required_targets_retrieved": _named(
+        RETRIEVAL_MEASURES, "targets a required row rests on retrieved"
+    ),
+    "searches_with_a_hit": _named(RETRIEVAL_MEASURES, "searches with a hit"),
+    "targets_per_search": _named(RETRIEVAL_MEASURES, "searchable targets returned per search"),
 }
-"""The measures a registration can name, each over all claims or one claim type."""
+"""The measures a registration can name, each as its family of rows, the leading one first."""
 
 CHECKS: dict[str, Check] = {
     check.name: check for check in (CORRECT_WHOLE, EXPECTED_ACTION, REPRODUCED_WHOLE)
@@ -77,13 +132,13 @@ CHECKS: dict[str, Check] = {
 """The checks a registration can name, by the identifier each carries."""
 
 
-def registered_measure(name: str, claim_type: ClaimType | None = None) -> Measure:
-    """The measure registered as ``name``, over ``claim_type`` or over all claims."""
+def registered_measures(name: str) -> tuple[Measure, ...]:
+    """The rows of the measure registered as ``name``, the leading one first."""
     if name not in MEASURES:
         raise ValueError(
             f"no measure is registered as {name!r}; this evaluator holds {list(MEASURES)}"
         )
-    return MEASURES[name](claim_type)
+    return MEASURES[name]
 
 
 def registered_check(name: str) -> Check:
@@ -112,7 +167,7 @@ def preregistered(registration: Registration) -> Projection:
     for name in statistics.checks:
         registered_check(name)
     for name in statistics.measures:
-        registered_measure(name)
+        registered_measures(name)
     accounting = registration.run_accounting
     if accounting.retry.after is not FailureCategory.INFRASTRUCTURE:
         raise ValueError(
@@ -216,6 +271,6 @@ __all__ = [
     "development_selection",
     "preregistered",
     "registered_check",
-    "registered_measure",
+    "registered_measures",
     "scenario_set",
 ]

@@ -15,6 +15,7 @@ import pytest
 from leaveimpact.core import (
     AgentSystem,
     CoverageAction,
+    Operation,
     Registration,
     ReportingScope,
     ScenarioSetName,
@@ -43,7 +44,7 @@ from leaveimpact.evaluator.tables import Reading
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
-from tests.unit.export_fixture import provider_failed_export
+from tests.unit.export_fixture import provider_failed_export, reads, unreachable
 from tests.unit.report_fixture import of_type, without
 from tests.unit.throwaway_world import loaded_world
 
@@ -117,15 +118,27 @@ def test_the_draft_scores_the_rules_only_arms_and_keeps_what_it_cannot_compute(
     assert whole.checks is not None and whole.measures is not None
     assert (whole.accounting.made, whole.accounting.graded) == (30, 30)
     assert (whole.attempts.attempts, whole.cost.attempts) == (30, 30)
-    # Three checks in two readings, four measures over all claims and per claim type.
+    # Three checks in two readings, and every row of the twenty-five registered measures.
     assert [(e.check, e.reading.value, e.value) for e in whole.checks] == [
         (name, reading, 1.0)
         for name in ("correct_whole", "expected_action", "reproduced_whole")
         for reading in ("conditional", "end_to_end")
     ]
-    assert len(whole.measures) == 4 * 7
+    assert len(whole.measures) == 58
     assert whole.measures[0].measure == "strict precision: all claims"
     assert whole.measures[0].value == 1.0
+    by_name = {estimate.measure: estimate for estimate in whole.measures}
+    # The evidence side reaches the tables: grounding over graded and limited runs apart,
+    # a truthful report over a full read grounded whole, and no limited run to measure.
+    grounded = by_name["claims grounded end to end: graded runs"]
+    assert (grounded.value, grounded.scenarios) == (1.0, 30)
+    assert by_name["claims grounded end to end: limited runs"].scenarios == 0
+    # The fixture's truthful report cites nothing: a rate over no citation is not estimable,
+    # which is a different statement from a rate of zero.
+    resolving = by_name["citations that resolve: graded runs"]
+    assert (resolving.value, resolving.denominator, resolving.empty) == (None, 0, 30)
+    assert by_name["required sources answered"].value == 1.0
+    assert "targets retrieved" in by_name and "conflict observations that hold" in by_name
 
     # A degraded-condition arm is described and never scored; here it never ran.
     hr_down = arm_of(full, SystemKind.RULES_ONLY, "frappe_down")
@@ -201,8 +214,15 @@ def test_the_primaries_are_over_the_held_out_scenarios_and_the_descriptive_over_
             if r.systems == (SystemKind.AGENT, SystemKind.RULES_ONLY) and r.condition == "normal"
         )
         assert row.unavailable is None
-        # The whole and three tiers; three checks in two readings; four measures.
+        # The whole and three tiers; three checks in two readings; and the four measures
+        # registered for comparison, each on its leading row, never the twenty-five.
         assert (len(row.checks), len(row.measures)) == (4 * 3 * 2, 4 * 4)
+        assert {comparison.measure for comparison in row.measures} == {
+            "strict precision: all claims",
+            "type-local precision: all claims",
+            "recall: all claims",
+            "payload accuracy: all claims",
+        }
         overall = row.checks[0]
         assert overall.stratum.kind is StratumKind.OVERALL and overall.paired == size
         assert row.measures[0].measure == "strict precision: all claims"
@@ -256,11 +276,20 @@ def test_repeats_are_classified_per_scenario_only_where_every_repeat_can_be_comp
 
 
 def test_the_degraded_table_puts_each_counted_run_in_one_row(world: SealedWorld) -> None:
-    abstained, unexercised, spoke, failed_one = world.scenarios[:4]
+    abstained, unexercised, spoke, failed_one, failed_after = world.scenarios[:5]
     hr_down = (Source.FRAPPE,)
-    export = provider_failed_export(world, failed_one)
-    outage = replace(export.record.outage, scheduled_unreachable=frozenset(hr_down))
-    record = replace(export.record, outage=outage)
+
+    def provider_failed(scenario: Scenario, *operations: Operation) -> Evaluation:
+        """A provider fault under the same assignment, after ``operations``."""
+        export = provider_failed_export(world, scenario)
+        outage = replace(export.record.outage, scheduled_unreachable=frozenset(hr_down))
+        export = replace(
+            export,
+            record=replace(export.record, outage=outage),
+            trace=replace(export.trace, operations=operations),
+        )
+        return relabelled(evaluate_run(world, export), system=REFERENCE)
+
     runs = [
         # The outage met, and nothing reported: the abstention.
         evaluated(world, abstained, down=hr_down, claims=()),
@@ -268,13 +297,15 @@ def test_the_degraded_table_puts_each_counted_run_in_one_row(world: SealedWorld)
         evaluated(world, unexercised, assigned=hr_down),
         # The outage met, and a report written all the same.
         evaluated(world, spoke, down=hr_down, claims=truthful(world, spoke, NORMAL)),
-        # A provider fault under the same assignment: no report at all.
-        relabelled(evaluate_run(world, replace(export, record=record)), system=REFERENCE),
+        # A provider fault before any read: no report, and the outage never met.
+        provider_failed(failed_one),
+        # A provider fault after a read met the outage: an exercised run that failed.
+        provider_failed(failed_after, *reads(unreachable(Source.FRAPPE))),
     ]
     plan = preregistered(DRAFT).plan
     arm = next(a for a in arms(world, runs, plan) if a.assigned == NORMAL.without(*hr_down))
     table = degraded_table(cells_of(arm)[0])
-    assert sum(row.runs for row in table) == 4
+    assert sum(row.runs for row in table) == 5
     assert set(table) == {
         DegradedRow(
             Exposure.EXERCISED,
@@ -301,7 +332,15 @@ def test_the_degraded_table_puts_each_counted_run_in_one_row(world: SealedWorld)
             1,
         ),
         DegradedRow(
-            Exposure.NOT_OBSERVED,
+            Exposure.UNEXERCISED,
+            OutcomeKind.EXCLUDED,
+            ExcludedReason.FAILED_BY_INFRASTRUCTURE,
+            ReportState.NONE,
+            ReplayState.NOTHING_TO_REPLAY,
+            1,
+        ),
+        DegradedRow(
+            Exposure.EXERCISED,
             OutcomeKind.EXCLUDED,
             ExcludedReason.FAILED_BY_INFRASTRUCTURE,
             ReportState.NONE,

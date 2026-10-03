@@ -11,11 +11,15 @@ Per scenario set, the full set and the primary one:
 
 - every arm, at the whole, each tier and each class: the accounting, the attempt summary
   and the cost ledger. An arm under an answer-quality condition also carries the
-  registered checks in the registered readings and the registered measures, over all
-  claims and per claim type. An arm under a degraded-condition assignment carries the
+  registered checks in the registered readings and every row of every registered
+  measure: the answer side over all claims and per claim type, grounding and citations
+  over graded and over limited runs apart, source discipline and retrieval. An arm under
+  a degraded-condition assignment carries the
   degraded table instead: there is no claim-level answer to score it against. An arm that
   arrived without being registered is described like a degraded one, never scored.
 - the primary comparisons registered for the set, and the descriptive product. A
+  comparison is made on a measure's leading row, and only on the measures the
+  registration lists for comparison; the rest are reported per arm. A
   comparison one of whose arms cannot be built, its system's variant still pending, is
   kept and says so; it is never dropped, since a missing row would read as a smaller plan.
 - the repeat-consistency diagnostic on each primary check, when the plan repeats runs.
@@ -33,7 +37,6 @@ from __future__ import annotations
 from collections.abc import Iterable
 from dataclasses import dataclass
 
-from leaveimpact.core.claims import ClaimType
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
@@ -71,7 +74,7 @@ from leaveimpact.evaluator.diagnostics import (
 from leaveimpact.evaluator.registered import (
     preregistered,
     registered_check,
-    registered_measure,
+    registered_measures,
     scenario_set,
 )
 from leaveimpact.evaluator.sealed_world import SealedWorld
@@ -262,9 +265,9 @@ def _cell_analysis(
             for reading in Reading
         )
         measures = tuple(
-            estimate_ratio(cell, registered_measure(name, claim_type), plan)
+            estimate_ratio(cell, measure, plan)
             for name in statistics.measures
-            for claim_type in (None, *ClaimType)
+            for measure in registered_measures(name)
         )
     else:
         degraded = degraded_table(cell)
@@ -348,7 +351,7 @@ def _descriptive(
         for reading in registered.readings
     )
     measures = tuple(
-        compare_ratio(first[stratum], second[stratum], registered_measure(name), plan)
+        compare_ratio(first[stratum], second[stratum], registered_measures(name)[0], plan)
         for stratum in shared
         for name in registered.measures
     )

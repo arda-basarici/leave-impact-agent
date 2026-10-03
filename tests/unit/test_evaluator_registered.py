@@ -47,7 +47,7 @@ from leaveimpact.evaluator.registered import (
     development_selection,
     preregistered,
     registered_check,
-    registered_measure,
+    registered_measures,
     scenario_set,
 )
 from leaveimpact.evaluator.run_checks import CORRECT_WHOLE, EXPECTED_ACTION, REPRODUCED_WHOLE
@@ -184,13 +184,26 @@ def test_every_name_the_draft_registers_resolves_and_any_other_is_refused() -> N
     assert set(DRAFT.statistics.measures) == set(MEASURES)
     for name in DRAFT.statistics.checks:
         assert registered_check(name).name == name
-    assert registered_measure("strict_precision").name == "strict precision: all claims"
-    typed = registered_measure("recall", ClaimType.COVERAGE_ACTION)
-    assert typed.name == "recall: coverage_action"
+    # A measure is a family of rows, the leading one first.
+    recall_rows = [measure.name for measure in registered_measures("recall")]
+    assert recall_rows[0] == "recall: all claims" and len(recall_rows) == 1 + len(ClaimType)
+    assert "recall: coverage_action" in recall_rows
+    # Payload accuracy has a row only for a claim type that has a payload.
+    assert len(registered_measures("payload_accuracy")) == 5
+    assert [measure.name for measure in registered_measures("claims_grounded_end_to_end")] == [
+        "claims grounded end to end: graded runs",
+        "claims grounded end to end: limited runs",
+    ]
+    assert [measure.name for measure in registered_measures("searches_with_a_hit")] == [
+        "searches with a hit"
+    ]
+    # Twenty-five registered families, and no row belongs to two.
+    rows = [measure.name for name in MEASURES for measure in registered_measures(name)]
+    assert (len(MEASURES), len(rows), len(set(rows))) == (25, 58, 58)
     with pytest.raises(ValueError, match="no check is registered as 'plausible'"):
         registered_check("plausible")
     with pytest.raises(ValueError, match="no measure is registered as 'f1'"):
-        registered_measure("f1")
+        registered_measures("f1")
 
 
 # --- The projection ----------------------------------------------------------------------------
