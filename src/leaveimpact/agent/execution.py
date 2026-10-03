@@ -33,9 +33,11 @@ what such a call records.
 
 The prefetch runs over the executor as the plan says: the opening read of the leave the
 context names; on the leave asked for, the remaining calls in order, each skipped when its
-source has stopped; a leave not returned, returned absent, or returned as another record
-ends the plan at the first operation. What that ending means is the system's to conclude
-from the opening outcome, not this module's.
+source has stopped, and none after a malformed record, since the run fails by defect at
+that operation and the reads the plan would have made after it are not made; a leave not
+returned, returned absent, or returned as another record ends the plan at the first
+operation. What an ending means is the system's to conclude from the trace, not this
+module's.
 """
 
 from __future__ import annotations
@@ -195,7 +197,8 @@ class PrefetchResult:
 
 def run_prefetch(executor: Executor, context: RunContext) -> PrefetchResult:
     """The frozen prefetch of ``context`` over ``executor``: the opening read, then on the leave
-    asked for the planned calls in order, each at most once and none against a stopped source."""
+    asked for the planned calls in order, each at most once, none against a stopped source,
+    and none after a defect, since a malformed record fails the run at that operation."""
     first = opening_call(context)
     opening = executor.call(PrefetchOrigin(), first.tool, first.arguments)
     leave = _leave_asked_for(opening, context)
@@ -204,7 +207,9 @@ def run_prefetch(executor: Executor, context: RunContext) -> PrefetchResult:
     for planned in calls_after_leave(leave, context.reference_timezone):
         if _source_of(planned) in executor.stopped:
             continue
-        executor.call(PrefetchOrigin(), planned.tool, planned.arguments)
+        outcome = executor.call(PrefetchOrigin(), planned.tool, planned.arguments)
+        if isinstance(outcome, DefectOutcome):
+            break
     return PrefetchResult(opening, leave)
 
 

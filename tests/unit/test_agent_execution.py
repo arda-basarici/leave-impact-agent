@@ -12,6 +12,7 @@ import pytest
 from leaveimpact.agent.execution import Executor, ReadPorts, run_prefetch, sequential_ids
 from leaveimpact.core import (
     AbsentOutcome,
+    Component,
     DefectOutcome,
     Leave,
     LeaveKind,
@@ -35,7 +36,7 @@ from leaveimpact.core import (
 from leaveimpact.core.ids import LeaveId, employee_id, leave_id
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
-from tests.unit.in_memory_ports import InMemoryPeople
+from tests.unit.in_memory_ports import InMemoryPeople, InMemoryWork
 from tests.unit.reads_fixture import Systems, systems_holding
 from tests.unit.throwaway_world import loaded_world
 
@@ -68,6 +69,15 @@ def executor_over(systems: Systems) -> Executor:
 
 def made(executor: Executor) -> list[tuple[str, dict[str, object], type]]:
     return [(op.tool, dict(op.arguments), type(op.outcome)) for op in executor.operations]
+
+
+@dataclass
+class _WorkWithBrokenComponents(InMemoryWork):
+    """The tracker fake whose component enumeration cannot be translated."""
+
+    def components(self) -> tuple[Observed[Component], ...]:
+        self._reach()
+        raise MalformedRecord(self.source, "Component/all", "a member id of the wrong shape")
 
 
 @dataclass
@@ -221,6 +231,27 @@ def test_with_the_calendar_down_its_one_call_fails_and_the_rest_stand(
     assert len(executor.operations) == 6
     assert isinstance(executor.operations[5].outcome, UnreachableOutcome)
     assert executor.stopped == {Source.CALENDAR}
+
+
+def test_a_malformed_record_mid_plan_ends_the_prefetch_at_that_operation(
+    world: SealedWorld, systems: Systems, scenario: Scenario
+) -> None:
+    # The run fails by defect at that operation (DESIGN's runtime policy); the reads the
+    # plan would have made after it are not made.
+    broken = _WorkWithBrokenComponents(
+        tickets=systems.work.tickets, components_by_id=systems.work.components_by_id
+    )
+    executor = Executor(replace(ports_of(systems), work=broken))
+    result = run_prefetch(executor, world.context_of(scenario))
+    assert result.leave == scenario.investigated_leave
+    assert [op.tool for op in executor.operations] == [
+        "leave",
+        "employees",
+        "leaves_within",
+        "components",
+    ]
+    assert isinstance(executor.operations[-1].outcome, DefectOutcome)
+    assert executor.stopped == set()
 
 
 def test_with_the_hr_system_down_the_plan_ends_at_the_first_operation(
