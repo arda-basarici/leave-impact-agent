@@ -77,5 +77,11 @@ keeps the cost ledger. What the preregistration fixes (the arms, the confidence 
 seed, the repeats, the retry rule, the named checks) is given to these as arguments and
 chosen nowhere here.
 
-The evaluation artifact's codec and the job's entry point are later build steps'.
+``artifact`` is one evaluation as plain data and the pure function that makes it: every
+stored object given to it listed with its version, its digest, its cost and the one reason
+it is in or out of the tables, a run eligible when the registration it cites has this
+evaluation's bytes and its recorded settings are the registered ones, the label derived
+from the registration's status, and the registered analysis over the eligible runs.
+
+The artifact's codec and the job's entry point are later build steps'.
 """
