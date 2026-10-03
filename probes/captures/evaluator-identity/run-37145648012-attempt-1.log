@@ -1,0 +1,410 @@
+evaluate	Set up job	﻿2026-10-03T18:49:47.9880813Z Current runner version: '2.337.0'
+evaluate	Set up job	2026-10-03T18:49:47.9901806Z ##[group]Runner Image Provisioner
+evaluate	Set up job	2026-10-03T18:49:47.9902704Z Hosted Compute Agent
+evaluate	Set up job	2026-10-03T18:49:47.9903120Z Version: 20260901.588
+evaluate	Set up job	2026-10-03T18:49:47.9903550Z Commit: f88ec8081b781fac6c440065ac7ff9e710ce3d0b
+evaluate	Set up job	2026-10-03T18:49:47.9904092Z Build Date: 2026-09-01T19:56:44Z
+evaluate	Set up job	2026-10-03T18:49:47.9904569Z Worker ID: {0a9811d8-2027-47fa-8e69-6728ec4fea6f}
+evaluate	Set up job	2026-10-03T18:49:47.9905085Z Azure Region: centralus
+evaluate	Set up job	2026-10-03T18:49:47.9905503Z ##[endgroup]
+evaluate	Set up job	2026-10-03T18:49:47.9906577Z ##[group]Operating System
+evaluate	Set up job	2026-10-03T18:49:47.9907018Z Ubuntu
+evaluate	Set up job	2026-10-03T18:49:47.9907379Z 24.04.5
+evaluate	Set up job	2026-10-03T18:49:47.9907793Z LTS
+evaluate	Set up job	2026-10-03T18:49:47.9908155Z ##[endgroup]
+evaluate	Set up job	2026-10-03T18:49:47.9908534Z ##[group]Runner Image
+evaluate	Set up job	2026-10-03T18:49:47.9909295Z Image: ubuntu-24.04
+evaluate	Set up job	2026-10-03T18:49:47.9909715Z Version: 20260927.320.1
+evaluate	Set up job	2026-10-03T18:49:47.9910435Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260927.320/images/ubuntu/Ubuntu2404-Readme.md
+evaluate	Set up job	2026-10-03T18:49:47.9911963Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260927.320
+evaluate	Set up job	2026-10-03T18:49:47.9912659Z ##[endgroup]
+evaluate	Set up job	2026-10-03T18:49:47.9913467Z ##[group]GITHUB_TOKEN Permissions
+evaluate	Set up job	2026-10-03T18:49:47.9915338Z Contents: read
+evaluate	Set up job	2026-10-03T18:49:47.9915755Z Metadata: read
+evaluate	Set up job	2026-10-03T18:49:47.9916131Z ##[endgroup]
+evaluate	Set up job	2026-10-03T18:49:47.9917728Z Secret source: Actions
+evaluate	Set up job	2026-10-03T18:49:47.9918398Z Cache mode: write
+evaluate	Set up job	2026-10-03T18:49:47.9918953Z Prepare workflow directory
+evaluate	Set up job	2026-10-03T18:49:48.0578068Z Prepare all required actions
+evaluate	Set up job	2026-10-03T18:49:48.0622185Z Getting action download info
+evaluate	Set up job	2026-10-03T18:49:48.2878290Z Download action repository 'actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3' (SHA:3a2844b7e9c422d3c10d287c895573f7108da1b3)
+evaluate	Set up job	2026-10-03T18:49:49.0669293Z Download action repository 'actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1' (SHA:3d3c42e5aac5ba805825da76410c181273ba90b1)
+evaluate	Set up job	2026-10-03T18:49:49.4413330Z Download action repository 'astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d' (SHA:20cfd1bf945f4377ade1205e4dbc17946fc9a30d)
+evaluate	Set up job	2026-10-03T18:49:50.2000350Z Download action repository 'aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c' (SHA:e6de054238d6b7531b4efff3b6587d9aade6a06c)
+evaluate	Set up job	2026-10-03T18:49:50.7292000Z Complete job name: evaluate
+evaluate	Record the OIDC subject and the workflow claims	﻿2026-10-03T18:49:50.7799000Z ##[group]Run actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7799660Z with:
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7800903Z   script: const token = await core.getIDToken('sts.amazonaws.com');
+evaluate	Record the OIDC subject and the workflow claims	const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+evaluate	Record the OIDC subject and the workflow claims	core.info(`sub=${claims.sub}`);
+evaluate	Record the OIDC subject and the workflow claims	core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+evaluate	Record the OIDC subject and the workflow claims	core.info(`workflow=${claims.workflow} workflow_ref=${claims.workflow_ref} job_workflow_ref=${claims.job_workflow_ref}`);
+evaluate	Record the OIDC subject and the workflow claims	await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+evaluate	Record the OIDC subject and the workflow claims	
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7804230Z   github-token: ***
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7804554Z   debug: false
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7804907Z   user-agent: actions/github-script
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7805233Z   result-encoding: json
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7805504Z   retries: 0
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7805877Z   retry-exempt-status-codes: 400,401,403,404,422
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.7806366Z ##[endgroup]
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.9920524Z sub=repo:arda-basarici@133336041/leave-impact-agent@1342572683:environment:evaluation
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.9921365Z aud=sts.amazonaws.com repository_id=1342572683 ref=refs/heads/main
+evaluate	Record the OIDC subject and the workflow claims	2026-10-03T18:49:50.9922661Z workflow=evaluate run workflow_ref=arda-basarici/leave-impact-agent/.github/workflows/evaluate-run.yml@refs/heads/main job_workflow_ref=arda-basarici/leave-impact-agent/.github/workflows/evaluate-run.yml@refs/heads/main
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	﻿2026-10-03T18:49:51.0121925Z ##[group]Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0122421Z with:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0122716Z   fetch-depth: 0
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0123076Z   repository: arda-basarici/leave-impact-agent
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0125236Z   token: ***
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0125596Z   ssh-strict: true
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0125910Z   ssh-user: git
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0126208Z   persist-credentials: true
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0126502Z   clean: true
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0126829Z   sparse-checkout-cone-mode: true
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0127200Z   fetch-tags: false
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0127521Z   show-progress: true
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0127864Z   lfs: false
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0128142Z   submodules: false
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0128470Z   set-safe-directory: true
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0128845Z   allow-unsafe-pr-checkout: false
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0129160Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0861075Z Syncing repository: arda-basarici/leave-impact-agent
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0863158Z ##[group]Getting Git version info
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0863914Z Working directory is '/home/runner/work/leave-impact-agent/leave-impact-agent'
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0864611Z [command]/usr/bin/git version
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0922435Z git version 2.55.0
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0936693Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0944342Z Temporarily overriding HOME='/home/runner/work/_temp/87e5450a-4503-438e-b448-49f9b858e731' before making global git config changes
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0945180Z Adding repository directory to the temporary git global config as a safe directory
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0948439Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/leave-impact-agent/leave-impact-agent
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0988069Z Deleting the contents of '/home/runner/work/leave-impact-agent/leave-impact-agent'
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0991221Z ##[group]Determining repository object format
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0992364Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0993132Z ##[group]Initializing the repository
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.0996505Z [command]/usr/bin/git init /home/runner/work/leave-impact-agent/leave-impact-agent
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1083414Z hint: Using 'master' as the name for the initial branch. This default branch name
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1085912Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1086852Z hint: to use in all of your new repositories, which will suppress this warning,
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1087345Z hint: call:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1087612Z hint:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1087951Z hint: 	git config --global init.defaultBranch <name>
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1088423Z hint:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1088870Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1089474Z hint: 'development'. The just-created branch can be renamed via this command:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1089868Z hint:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1090138Z hint: 	git branch -m <name>
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1090476Z hint:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1090850Z hint: Disable this message with "git config set advice.defaultBranchName false"
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1091809Z Initialized empty Git repository in /home/runner/work/leave-impact-agent/leave-impact-agent/.git/
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1093226Z [command]/usr/bin/git remote add origin https://github.com/arda-basarici/leave-impact-agent
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1132586Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1133224Z ##[group]Disabling automatic garbage collection
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1135417Z [command]/usr/bin/git config --local gc.auto 0
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1160262Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1161047Z ##[group]Setting up auth
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1161483Z Removing SSH command configuration
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1166109Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1187749Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1462803Z Removing HTTP extra header
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1467629Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1490855Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1647756Z Removing includeIf entries pointing to credentials config files
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1652944Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1678912Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1835270Z [command]/usr/bin/git config --file /home/runner/work/_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config http.https://github.com/.extraheader AUTHORIZATION: basic ***
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1864862Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git.path /home/runner/work/_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1890903Z [command]/usr/bin/git config --local includeIf.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git/worktrees/*.path /home/runner/work/_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1963745Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git.path /github/runner_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.1989938Z [command]/usr/bin/git config --local includeIf.gitdir:/github/workspace/.git/worktrees/*.path /github/runner_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.2012789Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.2013482Z ##[group]Fetching the repository
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:51.2018330Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules origin +refs/heads/*:refs/remotes/origin/* +refs/tags/*:refs/tags/*
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6404292Z From https://github.com/arda-basarici/leave-impact-agent
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6405283Z  * [new branch]      main       -> origin/main
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6412415Z [command]/usr/bin/git branch --list --remote origin/main
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6441237Z   origin/main
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6447175Z [command]/usr/bin/git rev-parse refs/remotes/origin/main
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6470041Z 3835e152b5b0a38888ef47f4130dd002946133ee
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6472797Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6473675Z ##[group]Determining the checkout info
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6474632Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6478472Z [command]/usr/bin/git sparse-checkout disable
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6532154Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6563445Z ##[group]Checking out the ref
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6566998Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6982419Z Switched to a new branch 'main'
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6985946Z branch 'main' set up to track 'origin/main'.
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.6994172Z ##[endgroup]
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.7030780Z [command]/usr/bin/git log -1 --format=%H
+evaluate	Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:49:52.7052286Z 3835e152b5b0a38888ef47f4130dd002946133ee
+evaluate	Install uv	﻿2026-10-03T18:49:52.7230658Z ##[group]Run astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d
+evaluate	Install uv	2026-10-03T18:49:52.7231179Z with:
+evaluate	Install uv	2026-10-03T18:49:52.7231469Z   version: 0.11.26
+evaluate	Install uv	2026-10-03T18:49:52.7231989Z   python-version: 3.13
+evaluate	Install uv	2026-10-03T18:49:52.7232298Z   enable-cache: true
+evaluate	Install uv	2026-10-03T18:49:52.7232603Z   activate-environment: false
+evaluate	Install uv	2026-10-03T18:49:52.7233016Z   no-project: false
+evaluate	Install uv	2026-10-03T18:49:52.7233432Z   working-directory: /home/runner/work/leave-impact-agent/leave-impact-agent
+evaluate	Install uv	2026-10-03T18:49:52.7235662Z   github-token: ***
+evaluate	Install uv	2026-10-03T18:49:52.7236269Z   cache-dependency-glob: **/*requirements*.txt
+evaluate	Install uv	**/*requirements*.in
+evaluate	Install uv	**/*constraints*.txt
+evaluate	Install uv	**/*constraints*.in
+evaluate	Install uv	**/pyproject.toml
+evaluate	Install uv	**/uv.lock
+evaluate	Install uv	**/*.py.lock
+evaluate	Install uv	
+evaluate	Install uv	2026-10-03T18:49:52.7236929Z   restore-cache: true
+evaluate	Install uv	2026-10-03T18:49:52.7237286Z   save-cache: true
+evaluate	Install uv	2026-10-03T18:49:52.7237615Z   prune-cache: false
+evaluate	Install uv	2026-10-03T18:49:52.7237924Z   cache-python: false
+evaluate	Install uv	2026-10-03T18:49:52.7238238Z   ignore-nothing-to-cache: false
+evaluate	Install uv	2026-10-03T18:49:52.7238748Z   ignore-empty-workdir: false
+evaluate	Install uv	2026-10-03T18:49:52.7239197Z   download-from-astral-mirror: true
+evaluate	Install uv	2026-10-03T18:49:52.7239541Z   add-problem-matchers: true
+evaluate	Install uv	2026-10-03T18:49:52.7239866Z   quiet: false
+evaluate	Install uv	2026-10-03T18:49:52.7240183Z   resolution-strategy: highest
+evaluate	Install uv	2026-10-03T18:49:52.7240524Z ##[endgroup]
+evaluate	Install uv	2026-10-03T18:49:52.8654088Z Fetching manifest data from https://raw.githubusercontent.com/astral-sh/versions/main/v1/uv.ndjson ...
+evaluate	Install uv	2026-10-03T18:49:52.9315339Z Downloading uv from "https://releases.astral.sh/github/uv/releases/download/0.11.26/uv-x86_64-unknown-linux-gnu.tar.gz" ...
+evaluate	Install uv	2026-10-03T18:49:53.1994793Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/ba39a0d6-7995-4ecd-a1c5-c4c2838b6b1f -f /home/runner/work/_temp/6bfbfa2e-3cf1-4b6d-a0ec-564666d2b65e
+evaluate	Install uv	2026-10-03T18:49:53.8581939Z Added /home/runner/.local/bin to the path
+evaluate	Install uv	2026-10-03T18:49:53.8584155Z Added /opt/hostedtoolcache/uv/0.11.26/x86_64 to the path
+evaluate	Install uv	2026-10-03T18:49:53.8585096Z Set UV_PYTHON_INSTALL_DIR to /home/runner/work/_temp/uv-python-dir
+evaluate	Install uv	2026-10-03T18:49:53.8585806Z Added /home/runner/work/_temp/uv-python-dir to the path
+evaluate	Install uv	2026-10-03T18:49:53.8586489Z Set UV_PYTHON to 3.13
+evaluate	Install uv	2026-10-03T18:49:53.8607728Z Set UV_CACHE_DIR to /home/runner/work/_temp/setup-uv-cache
+evaluate	Install uv	2026-10-03T18:49:53.8608257Z Successfully installed uv version 0.11.26
+evaluate	Install uv	2026-10-03T18:49:53.8609955Z Searching files using cache dependency glob: /home/runner/work/leave-impact-agent/leave-impact-agent/**/*requirements*.txt,/home/runner/work/leave-impact-agent/leave-impact-agent/**/*requirements*.in,/home/runner/work/leave-impact-agent/leave-impact-agent/**/*constraints*.txt,/home/runner/work/leave-impact-agent/leave-impact-agent/**/*constraints*.in,/home/runner/work/leave-impact-agent/leave-impact-agent/**/pyproject.toml,/home/runner/work/leave-impact-agent/leave-impact-agent/**/uv.lock,/home/runner/work/leave-impact-agent/leave-impact-agent/**/*.py.lock
+evaluate	Install uv	2026-10-03T18:49:53.8961695Z /home/runner/work/leave-impact-agent/leave-impact-agent/pyproject.toml
+evaluate	Install uv	2026-10-03T18:49:53.9276424Z /home/runner/work/leave-impact-agent/leave-impact-agent/uv.lock
+evaluate	Install uv	2026-10-03T18:49:53.9286697Z Found 2 files to hash.
+evaluate	Install uv	2026-10-03T18:49:53.9340883Z Trying to restore cache from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.13-284ac0f79d8fddd6d1d64d79ae658512e7540a6dc705e9b92e92c89ccde54731
+evaluate	Install uv	2026-10-03T18:49:54.0581198Z Cache hit for: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.13-284ac0f79d8fddd6d1d64d79ae658512e7540a6dc705e9b92e92c89ccde54731
+evaluate	Install uv	2026-10-03T18:49:54.9695001Z Received 49913244 of 49913244 (100.0%), 62.3 MBs/sec
+evaluate	Install uv	2026-10-03T18:49:54.9696544Z Cache Size: ~48 MB (49913244 B)
+evaluate	Install uv	2026-10-03T18:49:54.9803411Z [command]/usr/bin/tar -xf /home/runner/work/_temp/0776f63e-2422-4342-aa32-4c0801d3eb1d/cache.tzst -P -C /home/runner/work/leave-impact-agent/leave-impact-agent --use-compress-program unzstd
+evaluate	Install uv	2026-10-03T18:49:55.2401810Z Cache restored successfully
+evaluate	Install uv	2026-10-03T18:49:55.2425186Z cache restored from GitHub Actions cache with key: setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.13-284ac0f79d8fddd6d1d64d79ae658512e7540a6dc705e9b92e92c89ccde54731
+evaluate	Sync the locked environment	﻿2026-10-03T18:49:55.3547653Z ##[group]Run uv sync --locked
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3548127Z ^[[36;1muv sync --locked^[[0m
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3717637Z shell: /usr/bin/bash -e {0}
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3717985Z env:
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3718324Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3718703Z   UV_PYTHON: 3.13
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3718962Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+evaluate	Sync the locked environment	2026-10-03T18:49:55.3719289Z ##[endgroup]
+evaluate	Sync the locked environment	2026-10-03T18:49:55.5575770Z Downloading cpython-3.13.14-linux-x86_64-gnu (download) (33.4MiB)
+evaluate	Sync the locked environment	2026-10-03T18:49:56.3497702Z  Downloaded cpython-3.13.14-linux-x86_64-gnu (download)
+evaluate	Sync the locked environment	2026-10-03T18:49:56.8366241Z Using CPython 3.13.14
+evaluate	Sync the locked environment	2026-10-03T18:49:56.8367315Z Creating virtual environment at: .venv
+evaluate	Sync the locked environment	2026-10-03T18:49:56.8406165Z Resolved 58 packages in 0.65ms
+evaluate	Sync the locked environment	2026-10-03T18:49:56.9365003Z    Building leaveimpact @ file:///home/runner/work/leave-impact-agent/leave-impact-agent
+evaluate	Sync the locked environment	2026-10-03T18:49:56.9575887Z       Built leaveimpact @ file:///home/runner/work/leave-impact-agent/leave-impact-agent
+evaluate	Sync the locked environment	2026-10-03T18:49:56.9608604Z Prepared 1 package in 118ms
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0436035Z Installed 56 packages in 82ms
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0436555Z  + anyio==4.15.1
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0436864Z  + boto3==1.43.93
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0437209Z  + boto3-stubs==1.43.93
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0437488Z  + botocore==1.43.93
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0437789Z  + botocore-stubs==1.43.67
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0438130Z  + certifi==2026.7.22
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0438391Z  + cffi==2.1.1
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0438690Z  + cfgv==3.5.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0438988Z  + charset-normalizer==3.5.1
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0439359Z  + coverage==7.15.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0439637Z  + cryptography==50.0.1
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0439907Z  + distlib==0.4.3
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0440225Z  + filelock==3.32.3
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0440524Z  + google-auth==2.58.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0442389Z  + h11==0.16.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0442739Z  + httpcore==1.0.9
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0443054Z  + httpx==0.28.1
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0443340Z  + identify==2.6.19
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0443706Z  + idna==3.19
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0443990Z  + iniconfig==2.3.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0444274Z  + jinja2==3.1.6
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0444625Z  + jmespath==1.1.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0445145Z  + leaveimpact==0.1.0 (from file:///home/runner/work/leave-impact-agent/leave-impact-agent)
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0445695Z  + markdown2==2.5.5
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0446185Z  + markupsafe==3.0.3
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0446638Z  + mypy-boto3-bedrock-runtime==1.43.62
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0447200Z  + mypy-boto3-s3==1.43.93
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0447766Z  + nodeenv==1.10.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0448245Z  + packaging==26.3
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0448721Z  + pdoc==16.0.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0449031Z  + platformdirs==4.11.3
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0449481Z  + pluggy==1.6.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0449992Z  + pre-commit==4.6.2
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0450837Z  + psycopg==3.3.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0451518Z  + psycopg-binary==3.3.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0452328Z  + pyasn1==0.6.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0453119Z  + pyasn1-modules==0.4.2
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0453729Z  + pycparser==3.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0454108Z  + pygments==2.21.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0454432Z  + pyright==1.1.411
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0454770Z  + pytest==9.1.1
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0455138Z  + pytest-cov==7.1.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0455465Z  + pytest-recording==0.13.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0455855Z  + python-dateutil==2.9.0.post0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0456263Z  + python-discovery==1.5.2
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0456608Z  + pyyaml==6.0.3
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0456960Z  + requests==2.34.2
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0457355Z  + ruff==0.16.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0457677Z  + s3transfer==0.19.2
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0457974Z  + six==1.17.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0458361Z  + types-s3transfer==0.16.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0458714Z  + typing-extensions==4.16.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0459057Z  + urllib3==2.7.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0459389Z  + vcrpy==8.3.0
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0459728Z  + virtualenv==21.7.4
+evaluate	Sync the locked environment	2026-10-03T18:49:57.0460110Z  + wrapt==2.4.1
+evaluate	Assume the evaluator role	﻿2026-10-03T18:49:57.0592251Z ##[group]Run aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0592737Z with:
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0593132Z   role-to-assume: arn:aws:iam::445743457479:role/leave-agent-evaluator
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0593509Z   aws-region: eu-central-1
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0593788Z   audience: sts.amazonaws.com
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0594197Z env:
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0594553Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0594894Z   UV_PYTHON: 3.13
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0595218Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.0595521Z ##[endgroup]
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.2919617Z Assuming role with OIDC
+evaluate	Assume the evaluator role	2026-10-03T18:49:57.7548998Z Authenticated as assumedRoleId AROAWPSDBMTDQUMGKCUF6:GitHubActions
+evaluate	Probe the evaluator role's boundary before anything is read	﻿2026-10-03T18:49:58.1736962Z ##[group]Run set -euo pipefail
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1737582Z ^[[36;1mset -euo pipefail^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1738040Z ^[[36;1maws sts get-caller-identity --query Arn --output text | tee "$RUNNER_TEMP/identity.txt"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1738573Z ^[[36;1mgrep -q 'assumed-role/leave-agent-evaluator/' "$RUNNER_TEMP/identity.txt"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1739022Z ^[[36;1mversion="$INPUT_WORLD_VERSION"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1739363Z ^[[36;1mcase "$version" in^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1739760Z ^[[36;1m  *[!0-9a-f]*|"") echo "boundary probe: the world version is 64 hex characters"; exit 1 ;;^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1740167Z ^[[36;1mesac^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1740582Z ^[[36;1mdisposable="worlds/access-probe/evaluator-put-denied-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1741075Z ^[[36;1merrors=$(mktemp)^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1741386Z ^[[36;1mbody=$(mktemp)^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1741877Z ^[[36;1mprintf 'evaluator boundary probe' > "$body"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1742249Z ^[[36;1mallowed() {^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1742621Z ^[[36;1m  "$@" > /dev/null^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1743001Z ^[[36;1m  echo "boundary probe: allowed, as it must be: $*"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1743317Z ^[[36;1m}^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1743594Z ^[[36;1mrefused() {^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1743894Z ^[[36;1m  code="$1"; shift^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1744180Z ^[[36;1m  if "$@" > /dev/null 2> "$errors"; then^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1744558Z ^[[36;1m    echo "boundary probe: NOT refused: $*"; exit 1^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1744852Z ^[[36;1m  fi^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1745170Z ^[[36;1m  if ! grep -q "(${code})" "$errors"; then^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1745632Z ^[[36;1m    echo "boundary probe: refused for another reason than ${code}: $*"; cat "$errors"; exit 1^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1746087Z ^[[36;1m  fi^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1746396Z ^[[36;1m  echo "boundary probe: refused with ${code}: $*"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1746749Z ^[[36;1m}^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1747161Z ^[[36;1mallowed aws s3api get-object --bucket "$TRUTH_BUCKET" --key "world-spec/${version}.json" /dev/null^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1747791Z ^[[36;1mallowed aws s3api get-object --bucket "$TRUTH_BUCKET" --key "truth-manifest/${version}.json" /dev/null^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1748402Z ^[[36;1mallowed aws s3api get-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/scenario-specs.json" /dev/null^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1749014Z ^[[36;1mallowed aws s3api list-objects-v2 --bucket "$WORLD_BUCKET" --prefix "runs/" --max-keys 1^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1749692Z ^[[36;1mrefused AccessDenied aws s3api put-object --bucket "$WORLD_BUCKET" --key "$disposable" --if-none-match '*' --body "$body"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1750391Z ^[[36;1mrefused AccessDenied aws s3api get-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/world-manifest.json" /dev/null^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1751015Z ^[[36;1mrefused AccessDeniedException aws bedrock-runtime converse --model-id "$PROBE_MODEL" \^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1751659Z ^[[36;1m  --messages '[{"role":"user","content":[{"text":"boundary probe"}]}]' \^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1752224Z ^[[36;1m  --inference-config '{"maxTokens":1}'^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1752717Z ^[[36;1mecho "boundary probe: unproven, not attempted: a get under preparing/ (no key there is known to exist independently)"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1753496Z ^[[36;1mecho "boundary probe: four reads allowed, three operations refused with the permission error; a preparing/ get unproven" | tee -a "$GITHUB_STEP_SUMMARY"^[[0m
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1790066Z shell: /usr/bin/bash -e {0}
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1790441Z env:
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1790777Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1791156Z   UV_PYTHON: 3.13
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1791506Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1792021Z   AWS_DEFAULT_REGION: eu-central-1
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1792357Z   AWS_REGION: eu-central-1
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1792822Z   AWS_ACCESS_KEY_ID: ***
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1793182Z   AWS_SECRET_ACCESS_KEY: ***
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1797966Z   AWS_SESSION_TOKEN: ***
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1798483Z   WORLD_BUCKET: leave-impact-world-445743457479
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1798966Z   TRUTH_BUCKET: leave-impact-truth-445743457479
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1799397Z   PROBE_MODEL: eu.anthropic.claude-haiku-4-5-20251001-v1:0
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1799926Z   INPUT_WORLD_VERSION: 7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:49:58.1800346Z ##[endgroup]
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:01.9621199Z arn:aws:sts::445743457479:assumed-role/leave-agent-evaluator/GitHubActions
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:03.2396551Z boundary probe: allowed, as it must be: aws s3api get-object --bucket leave-impact-truth-445743457479 --key world-spec/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json /dev/null
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:04.6169805Z boundary probe: allowed, as it must be: aws s3api get-object --bucket leave-impact-truth-445743457479 --key truth-manifest/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4.json /dev/null
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:05.6601055Z boundary probe: allowed, as it must be: aws s3api get-object --bucket leave-impact-world-445743457479 --key worlds/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/scenario-specs.json /dev/null
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:06.6653108Z boundary probe: allowed, as it must be: aws s3api list-objects-v2 --bucket leave-impact-world-445743457479 --prefix runs/ --max-keys 1
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:07.6703546Z boundary probe: refused with AccessDenied: aws s3api put-object --bucket leave-impact-world-445743457479 --key worlds/access-probe/evaluator-put-denied-37145648012-1 --if-none-match * --body /tmp/tmp.LQEFkxL3su
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:08.6167219Z boundary probe: refused with AccessDenied: aws s3api get-object --bucket leave-impact-world-445743457479 --key worlds/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/world-manifest.json /dev/null
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:09.7167963Z boundary probe: refused with AccessDeniedException: aws bedrock-runtime converse --model-id eu.anthropic.claude-haiku-4-5-20251001-v1:0 --messages [{"role":"user","content":[{"text":"boundary probe"}]}] --inference-config {"maxTokens":1}
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:09.7169162Z boundary probe: unproven, not attempted: a get under preparing/ (no key there is known to exist independently)
+evaluate	Probe the evaluator role's boundary before anything is read	2026-10-03T18:50:09.7177809Z boundary probe: four reads allowed, three operations refused with the permission error; a preparing/ get unproven
+evaluate	Run the evaluation job	﻿2026-10-03T18:50:09.7215765Z ##[group]Run set -euo pipefail
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7216135Z ^[[36;1mset -euo pipefail^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7216420Z ^[[36;1mstatus=0^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7216921Z ^[[36;1muv run python -m leaveimpact.evaluator "$INPUT_COMMAND" --world-version "$INPUT_WORLD_VERSION" 2>&1 | tee "$RUNNER_TEMP/evaluate.log" || status=$?^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7217484Z ^[[36;1m{^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7217799Z ^[[36;1m  echo "## Evaluation job: ${INPUT_COMMAND}"^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7218180Z ^[[36;1m  echo^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7218411Z ^[[36;1m  echo '```'^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7218721Z ^[[36;1m  cat "$RUNNER_TEMP/evaluate.log"^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7219036Z ^[[36;1m  echo '```'^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7219420Z ^[[36;1m} >> "$GITHUB_STEP_SUMMARY"^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7219762Z ^[[36;1mexit "$status"^[[0m
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7255890Z shell: /usr/bin/bash -e {0}
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7256227Z env:
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7256638Z   UV_PYTHON_INSTALL_DIR: /home/runner/work/_temp/uv-python-dir
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7256989Z   UV_PYTHON: 3.13
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7257416Z   UV_CACHE_DIR: /home/runner/work/_temp/setup-uv-cache
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7257769Z   AWS_DEFAULT_REGION: eu-central-1
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7258057Z   AWS_REGION: eu-central-1
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7258680Z   AWS_ACCESS_KEY_ID: ***
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7259126Z   AWS_SECRET_ACCESS_KEY: ***
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7263872Z   AWS_SESSION_TOKEN: ***
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7264272Z   LEAVE_IMPACT_WORLD_BUCKET: leave-impact-world-445743457479
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7264836Z   LEAVE_IMPACT_TRUTH_BUCKET: leave-impact-truth-445743457479
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7265287Z   LEAVE_IMPACT_AWS_REGION: eu-central-1
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7265858Z   INPUT_WORLD_VERSION: 7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7266623Z   INPUT_COMMAND: prove
+evaluate	Run the evaluation job	2026-10-03T18:50:09.7266925Z ##[endgroup]
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3163166Z world_version=7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3163952Z scenarios=30
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3164459Z development_scenarios=scenario_009,scenario_010,scenario_013,scenario_018,scenario_023,scenario_028
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3165552Z retrieval_targets[normal]=31
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3165827Z retrieval_targets[jira_down]=14
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3166136Z retrieval_targets[calendar_down]=25
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3166487Z retrieval_targets[frappe_down]=no answer
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3166764Z retrieval_targets[corpus_down]=no answer
+evaluate	Run the evaluation job	2026-10-03T18:50:23.3167085Z wrote=nothing
+evaluate	Post Assume the evaluator role	﻿2026-10-03T18:50:23.4517577Z Post job cleanup.
+evaluate	Post Install uv	﻿2026-10-03T18:50:23.5152604Z Post job cleanup.
+evaluate	Post Install uv	2026-10-03T18:50:23.6020183Z UV_CACHE_DIR is already set to /home/runner/work/_temp/setup-uv-cache
+evaluate	Post Install uv	2026-10-03T18:50:23.6023462Z UV_PYTHON_INSTALL_DIR is already set to /home/runner/work/_temp/uv-python-dir
+evaluate	Post Install uv	2026-10-03T18:50:23.6024886Z Cache hit occurred on key setup-uv-2-x86_64-unknown-linux-gnu-ubuntu-24.04-3.13-284ac0f79d8fddd6d1d64d79ae658512e7540a6dc705e9b92e92c89ccde54731, not saving cache.
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	﻿2026-10-03T18:50:23.7135133Z Post job cleanup.
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7796299Z [command]/usr/bin/git version
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7831485Z git version 2.55.0
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7854645Z Temporarily overriding HOME='/home/runner/work/_temp/1c5d12ce-20b9-4022-ba00-3fadbf8f1207' before making global git config changes
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7855443Z Adding repository directory to the temporary git global config as a safe directory
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7858137Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/leave-impact-agent/leave-impact-agent
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7882710Z Removing SSH command configuration
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7887332Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.7911960Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8061792Z Removing HTTP extra header
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8065852Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8089163Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8233955Z Removing includeIf entries pointing to credentials config files
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8237785Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8371905Z includeif.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8372703Z includeif.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git/worktrees/*.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8373316Z includeif.gitdir:/github/workspace/.git.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8373770Z includeif.gitdir:/github/workspace/.git/worktrees/*.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8377776Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8394916Z /home/runner/work/_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8401060Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git.path \/home\/runner\/work\/_temp\/git\-credentials\-8f0e3f6c\-c656\-4f6f\-b5ce\-eea5999e492e\.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8428070Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git/worktrees/*.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8449239Z /home/runner/work/_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8456101Z [command]/usr/bin/git config --local --unset includeif.gitdir:/home/runner/work/leave-impact-agent/leave-impact-agent/.git/worktrees/*.path \/home\/runner\/work\/_temp\/git\-credentials\-8f0e3f6c\-c656\-4f6f\-b5ce\-eea5999e492e\.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8479589Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8494194Z /github/runner_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8499327Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git.path \/github\/runner_temp\/git\-credentials\-8f0e3f6c\-c656\-4f6f\-b5ce\-eea5999e492e\.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8524019Z [command]/usr/bin/git config --local --get-all includeif.gitdir:/github/workspace/.git/worktrees/*.path
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8538797Z /github/runner_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8543604Z [command]/usr/bin/git config --local --unset includeif.gitdir:/github/workspace/.git/worktrees/*.path \/github\/runner_temp\/git\-credentials\-8f0e3f6c\-c656\-4f6f\-b5ce\-eea5999e492e\.config
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8568248Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+evaluate	Post Run actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1	2026-10-03T18:50:23.8717090Z Removing credentials config '/home/runner/work/_temp/git-credentials-8f0e3f6c-c656-4f6f-b5ce-eea5999e492e.config'
+evaluate	Complete job	﻿2026-10-03T18:50:23.8836166Z Cleaning up orphan processes
