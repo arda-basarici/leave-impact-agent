@@ -49,6 +49,13 @@ run's identifiers, the writer it closes over never exposed: the validator packag
 name a writer, cannot choose a key, and cannot overwrite, which is the read-only boundary
 of the validator step kept at source level while its one artifact still lands (the
 part-2 review's carried obligation).
+
+The evaluator reads no vendor and holds no vendor credential, so its half of the
+environment is the stores alone: ``stores_from_env`` reads the two buckets with their
+region, or the local twin's root, and nothing else, and ``store_readers`` gives the two
+readers. Its one write crosses the seam the way a verdict does: ``evaluation_publisher``
+returns a callable that seals one evaluation at the key computed from the version and
+the execution's identifiers, in the truth store, the writer never exposed.
 """
 
 from __future__ import annotations
@@ -65,7 +72,7 @@ from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
 from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraCredential
 from leaveimpact.adapters.manifest import WorldManifest
 from leaveimpact.adapters.object_store.documents import SealedDocumentReader
-from leaveimpact.adapters.object_store.layout import verdict_key
+from leaveimpact.adapters.object_store.layout import evaluation_key, verdict_key
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.object_store.read import ObjectReader
 from leaveimpact.adapters.object_store.s3 import S3ObjectReader, s3_client
@@ -110,6 +117,14 @@ class Deployment:
 
 
 @dataclass(frozen=True, slots=True)
+class Stores:
+    """Where the two stores are: the buckets, or the local twin's root; exactly one is set."""
+
+    buckets: Buckets | None
+    local_root: Path | None
+
+
+@dataclass(frozen=True, slots=True)
 class ObjectReaders:
     """The truth and world stores as readers."""
 
@@ -130,6 +145,10 @@ class Readers:
 
 VerdictPublisher = Callable[[WorldVersion, str, str, bytes], str]
 """Publish one verdict: the version, the run id, the run attempt and the bytes; the version id."""
+
+EvaluationPublisher = Callable[[WorldVersion, str, str, bytes], str]
+"""Publish one evaluation: the version, the run id, the run attempt and the bytes; the
+version id."""
 
 
 def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False) -> Deployment:
@@ -157,6 +176,13 @@ def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False
         ),
         calendar_credential=_calendar_credential(env),
     )
+    stores = stores_from_env(env)
+    return Deployment(hosts, buckets=stores.buckets, local_root=stores.local_root)
+
+
+def stores_from_env(env: Mapping[str, str]) -> Stores:
+    """Where the two stores are, from ``env``: the local twin's root or the two buckets with
+    their region, never both; a missing name is named in the error."""
     root = env.get(PREFIX + "OBJECT_STORE_ROOT", "").strip()
     named_buckets = [
         name for name in ("WORLD_BUCKET", "TRUTH_BUCKET", "AWS_REGION") if env.get(PREFIX + name)
@@ -167,26 +193,57 @@ def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False
             "names S3: one store per run, not both"
         )
     if root:
-        return Deployment(hosts, buckets=None, local_root=Path(root))
+        return Stores(buckets=None, local_root=Path(root))
     buckets = Buckets(
         world=_required(env, "WORLD_BUCKET"),
         truth=_required(env, "TRUTH_BUCKET"),
         region=_required(env, "AWS_REGION"),
     )
-    return Deployment(hosts, buckets=buckets, local_root=None)
+    return Stores(buckets=buckets, local_root=None)
 
 
 def readers_for(deployment: Deployment) -> ObjectReaders:
     """The truth and world stores as readers, where the deployment says they are."""
-    if deployment.local_root is not None:
-        root = deployment.local_root
+    return store_readers(Stores(deployment.buckets, deployment.local_root))
+
+
+def store_readers(stores: Stores) -> ObjectReaders:
+    """The truth and world stores as readers, where ``stores`` says they are."""
+    if stores.local_root is not None:
+        root = stores.local_root
         return ObjectReaders(LocalObjectReader(root / "truth"), LocalObjectReader(root / "world"))
-    assert deployment.buckets is not None, "a deployment names a root or the buckets"
-    client = s3_client(deployment.buckets.region)
+    assert stores.buckets is not None, "the stores are a root or the buckets"
+    client = s3_client(stores.buckets.region)
     return ObjectReaders(
-        S3ObjectReader(client, deployment.buckets.truth),
-        S3ObjectReader(client, deployment.buckets.world),
+        S3ObjectReader(client, stores.buckets.truth),
+        S3ObjectReader(client, stores.buckets.world),
     )
+
+
+def evaluation_publisher(stores: Stores) -> EvaluationPublisher:
+    """A callable that seals one evaluation at its key in the truth store and returns the
+    version id.
+
+    The same shape as the verdict's publication: the writer lives in the closure, the key
+    is computed here from the version and the execution's identifiers, so the evaluator
+    names no writer, chooses no key and cannot write over an earlier evaluation.
+    """
+    # Imported here and not at module scope, for the reason given in ``verdict_publisher``.
+    from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
+    from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
+
+    writer: ObjectWriter
+    if stores.local_root is not None:
+        writer = LocalObjectWriter(stores.local_root / "truth")
+    else:
+        assert stores.buckets is not None, "the stores are a root or the buckets"
+        writer = S3ObjectWriter(s3_client(stores.buckets.region), stores.buckets.truth)
+
+    def publish(version: WorldVersion, run_id: str, run_attempt: str, content: bytes) -> str:
+        key = evaluation_key(version, run_id, run_attempt)
+        return writer.put_if_absent(key, content).version_id
+
+    return publish
 
 
 def verdict_publisher(deployment: Deployment) -> VerdictPublisher:

@@ -16,6 +16,14 @@ documents and the scenario specs under the final world prefix, and the world man
 last, so an object under ``worlds/`` with a manifest beside it is a completed projection
 by construction. Verdicts are the validator's, immutable per execution, keyed by the
 GitHub run id and attempt since a rerun shares the id.
+
+Two more prefixes belong to the measurement and not to a world's sealing. ``runs/<version>/``
+in the world bucket holds the application's exports of finished runs, final and
+create-only, outside ``worlds/`` so the application's read surface stays the served
+worlds; what is under one run's own prefix is the application's to name, and a reader
+lists the version's prefix whole. ``evaluations/<version>/`` in the truth bucket holds
+the evaluator's artifacts, one per execution, keyed like a verdict: an evaluation says
+which claims matched the key, so it lives beside the key.
 """
 
 from __future__ import annotations
@@ -111,6 +119,29 @@ def verdict_key(version: WorldVersion, run_id: str, run_attempt: str) -> str:
     return f"{verdicts_prefix(version)}{run_id}-{run_attempt}.json"
 
 
+def runs_prefix(version: WorldVersion) -> str:
+    """World bucket: every stored export of a run on ``version``.
+
+    >>> runs_prefix(WorldVersion("ab" * 32))[:9]
+    'runs/abab'
+    """
+    return f"runs/{version}/"
+
+
+def evaluations_prefix(version: WorldVersion) -> str:
+    """Truth bucket: every evaluation of runs on ``version``."""
+    return f"evaluations/{version}/"
+
+
+def evaluation_key(version: WorldVersion, run_id: str, run_attempt: str) -> str:
+    """Truth bucket: one execution's evaluation; a rerun shares the run id, never the attempt.
+
+    >>> evaluation_key(WorldVersion("ab" * 32), "37135207381", "1").rsplit("/", 1)[1]
+    '37135207381-1.json'
+    """
+    return f"{evaluations_prefix(version)}{run_id}-{run_attempt}.json"
+
+
 __all__ = [
     "SCENARIO_SPECS",
     "TRUTH_MANIFEST",
@@ -120,6 +151,9 @@ __all__ = [
     "document_id_of",
     "document_key",
     "documents_prefix",
+    "evaluation_key",
+    "evaluations_prefix",
+    "runs_prefix",
     "scenario_specs_key",
     "truth_manifest_key",
     "verdict_key",
