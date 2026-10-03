@@ -83,5 +83,8 @@ it is in or out of the tables, a run eligible when the registration it cites has
 evaluation's bytes and its recorded settings are the registered ones, the label derived
 from the registration's status, and the registered analysis over the eligible runs.
 
-The artifact's codec and the job's entry point are later build steps'.
+``artifact_json`` is its written form, an encoder derived from the types with no decoder,
+a run written as its outcome and findings and nothing the stored export gives back.
+
+The job's entry point is a later build step's.
 """
