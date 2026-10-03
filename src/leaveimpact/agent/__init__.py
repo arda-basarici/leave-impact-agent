@@ -20,5 +20,6 @@ projection as its whole view, ruling 4's preconditions (a defect at its operatio
 abstention with no claims), the shared rules through ``core``'s composing pass, and
 ``report``, the one reporting policy that writes the rules' conclusions as claims;
 ``export`` writes a run as the artifact the evaluator grades, under the provenance the
-harness around it supplies.
+harness around it supplies; ``registered`` builds that provenance from the preregistration
+and refuses a run whose registration differs from what this code computes or declares.
 """

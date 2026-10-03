@@ -25,6 +25,14 @@ source left unclosed name no record, and an action copies none of its premises' 
 Claims are ordered by type (impacts, unknowns, assessments, actions, conflicts) and by
 grading key within a type, and ids are assigned after that ordering, so identical
 observations give an identical report, byte for byte once exported.
+
+The policy has a declared identity, ``REPORTING_POLICY``: an identifier, a version and the
+tie-break by name. The version is a semantic version kept by hand, raised whenever what
+this module reports for the same conclusions changes; nothing derives it. The
+preregistration names the three, and the harness refuses to run when they differ from
+these. The evaluator cannot import this package and does not verify the value: what binds
+a run to the policy is the clean harness commit its record names, the claims it exported,
+and the construction gate that grades the baseline end to end.
 """
 
 from __future__ import annotations
@@ -51,6 +59,10 @@ from leaveimpact.core.grounding import Grounded
 from leaveimpact.core.ids import ClaimId, claim_id
 from leaveimpact.core.readings import ImpactConclusion
 from leaveimpact.core.refs import SOURCE_BY_TARGET_KIND, EvidenceRef
+from leaveimpact.core.registration import ReportingPolicy
+
+REPORTING_POLICY = ReportingPolicy("rules-only-report", 1, "first_viable_in_id_code_point_order")
+"""The policy this module implements, as the preregistration names it."""
 
 
 def rules_only_report(conclusions: Sequence[ImpactConclusion], view: FactView) -> tuple[Claim, ...]:
@@ -188,4 +200,4 @@ def _cites(proof: Iterable[Witness]) -> tuple[EvidenceRef, ...]:
     return tuple(EvidenceRef(SOURCE_BY_TARGET_KIND[target.kind], target) for target in targets)
 
 
-__all__ = ["rules_only_report"]
+__all__ = ["REPORTING_POLICY", "rules_only_report"]
