@@ -1,10 +1,13 @@
 """The registration as the evaluator reads it. The three registered checks answer mechanically:
 a truthful report over a full read passes all three, a missing or a wrong-kind action fails
-the action check and correct whole and leaves the replay alone, a claim the reads do not
-support fails the replay alone, an empty report is outside the replay check, and a run that
-was not graded is outside the other two. The registries resolve the registered names and
-refuse any other. The projection gives the plan the tables are cut under, over the arms whose
-variant is resolved, naming the ones it left out. The scenario sets and the development
+the action check and correct whole and leaves the replay alone, correct whole fails on each
+thing it names (a wrong verdict or reasons, a plan finding against the oracle, a wrong
+conflict resolution or unknown reason, an unexpected claim, an invalid claim set), a claim
+the reads do not support fails the replay alone, an empty report is outside the replay
+check, and a run that was not graded is outside the other two. The registries resolve the
+registered names and refuse any other. The projection gives the plan the tables are cut
+under, over the arms whose variant is resolved, naming the ones it left out. The scenario
+sets and the development
 selection: two per tier, the same draw every time, by tier alone; the primary set is the
 rest, refused while the selection is pending. And a repeat the plan intended and nobody made
 keeps its scenario a repeated one."""
@@ -17,19 +20,25 @@ from traceback import format_exception
 import pytest
 
 from leaveimpact.core import (
+    AssessmentReason,
     CandidateAssessment,
     ClaimType,
     CoverageAction,
     CoverageActionKind,
     FailureCategory,
+    Impact,
     Pending,
     Registration,
     RunCondition,
     ScenarioId,
     ScenarioSetName,
     Source,
+    SourceConflict,
     System,
     SystemKind,
+    Unknown,
+    UnknownReason,
+    Verdict,
     decode_registration_bytes,
 )
 from leaveimpact.evaluator.cells import (
@@ -39,7 +48,7 @@ from leaveimpact.evaluator.cells import (
     cells_of,
     within,
 )
-from leaveimpact.evaluator.grading import Graded
+from leaveimpact.evaluator.grading import Graded, correct_whole
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.registered import (
     CHECKS,
@@ -50,6 +59,7 @@ from leaveimpact.evaluator.registered import (
     registered_measures,
     scenario_set,
 )
+from leaveimpact.evaluator.rows import Expectation
 from leaveimpact.evaluator.run_checks import CORRECT_WHOLE, EXPECTED_ACTION, REPRODUCED_WHOLE
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.tables import Reading, compare_check, estimate_check
@@ -58,7 +68,7 @@ from leaveimpact.world import Scenario
 from leaveimpact.world.scenario import Tier
 from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
 from tests.unit.export_fixture import provider_failed_export
-from tests.unit.report_fixture import of_type, swapped, without
+from tests.unit.report_fixture import of_type, renumbered, swapped, without
 from tests.unit.throwaway_world import loaded_world
 
 DRAFT = decode_registration_bytes(
@@ -91,6 +101,11 @@ def answers(evaluation: Evaluation) -> tuple[bool | None, bool | None, bool | No
         EXPECTED_ACTION.of(evaluation),
         REPRODUCED_WHOLE.of(evaluation),
     )
+
+
+def graded(evaluation: Evaluation) -> Graded:
+    assert isinstance(evaluation.outcome, Graded), type(evaluation.outcome).__name__
+    return evaluation.outcome
 
 
 def selection_pending(registration: Registration) -> Registration:
@@ -145,6 +160,107 @@ def test_a_missing_required_assessment_fails_correct_whole_and_not_the_action_ch
     lacking = evaluated(world, assigning, claims=without(report, required))
     correct, action, _ = answers(lacking)
     assert (correct, action) == (False, True)
+
+
+def test_a_wrong_verdict_or_wrong_reasons_on_an_assessment_fails_correct_whole(
+    world: SealedWorld, assigning: Scenario
+) -> None:
+    report = truthful(world, assigning, NORMAL)
+    ruled_out = next(
+        claim
+        for claim in of_type(report, CandidateAssessment)
+        if claim.verdict is Verdict.NON_VIABLE
+    )
+    other = next(reason for reason in AssessmentReason if reason not in ruled_out.reasons)
+    for changed, flags in (
+        (replace(ruled_out, reasons=(other,)), (True, False)),
+        (replace(ruled_out, verdict=Verdict.VIABLE, reasons=()), (False, False)),
+    ):
+        outcome = graded(evaluated(world, assigning, claims=swapped(report, ruled_out, changed)))
+        row = next(r for r in outcome.rows.assessments if r.claim_id == ruled_out.claim_id)
+        assert (row.verdict_matches, row.reasons_match) == flags
+        # The one row is all that is wrong: nobody assigned changed, the plan checks are quiet.
+        assert outcome.oracle_findings == () and not correct_whole(outcome)
+
+
+def test_an_assignee_the_oracle_rules_out_fails_correct_whole_by_the_plan_finding_alone(
+    world: SealedWorld, assigning: Scenario
+) -> None:
+    report = truthful(world, assigning, NORMAL)
+    action = next(
+        claim
+        for claim in of_type(report, CoverageAction)
+        if claim.action is CoverageActionKind.ASSIGN
+    )
+    ruled_out = next(
+        claim
+        for claim in of_type(report, CandidateAssessment)
+        if claim.impact_key == action.impact_key and claim.verdict is Verdict.NON_VIABLE
+    )
+    named = replace(action, assignee_ids=(ruled_out.employee_id,))
+    outcome = graded(evaluated(world, assigning, claims=swapped(report, action, named)))
+    # An action's row is judged by its kind, so every row is still right; the plan check
+    # against the oracle is what objects, and without its finding the rows would pass.
+    assert outcome.oracle_findings
+    assert correct_whole(replace(outcome, oracle_findings=()))
+    assert not correct_whole(outcome)
+
+
+def test_a_wrong_conflict_resolution_or_a_wrong_unknown_reason_fails_correct_whole(
+    world: SealedWorld,
+) -> None:
+    disputed, report, conflict = next(
+        (scenario, report, conflicts[0])
+        for scenario in world.scenarios
+        if (conflicts := of_type(report := truthful(world, scenario, NORMAL), SourceConflict))
+    )
+    loser = next(o.value for o in conflict.observations if o.value != conflict.resolved_value)
+    resolved_wrong = swapped(report, conflict, replace(conflict, resolved_value=loser))
+    outcome = graded(evaluated(world, disputed, claims=resolved_wrong))
+    row = next(r for r in outcome.rows.conflicts if r.claim_id == conflict.claim_id)
+    assert (row.value_matches, row.rule_matches, row.observations_hold) == (False, True, True)
+    assert outcome.oracle_findings == () and not correct_whole(outcome)
+
+    open_question, report, unknown = next(
+        (scenario, report, unknowns[0])
+        for scenario in world.scenarios
+        if (unknowns := of_type(report := truthful(world, scenario, NORMAL), Unknown))
+    )
+    reason = next(reason for reason in UnknownReason if reason is not unknown.reason)
+    misreasoned = swapped(report, unknown, replace(unknown, reason=reason))
+    outcome = graded(evaluated(world, open_question, claims=misreasoned))
+    row = next(r for r in outcome.rows.unknowns if r.claim_id == unknown.claim_id)
+    assert row.reason_matches is False
+    assert outcome.oracle_findings == () and not correct_whole(outcome)
+
+
+def test_an_unexpected_claim_or_an_invalid_claim_set_fails_correct_whole(
+    world: SealedWorld, assigning: Scenario
+) -> None:
+    report = truthful(world, assigning, NORMAL)
+    mine = of_type(report, Impact)
+    held = {impact.artifact for impact in mine}
+    elsewhere = next(
+        impact
+        for scenario in world.scenarios
+        for impact in of_type(truthful(world, scenario, NORMAL), Impact)
+        if impact.artifact not in held
+    )
+    # Another leave's impact stated of this one: everything the oracle expects is still
+    # there and right, with one claim it does not expect.
+    stray = renumbered(
+        replace(mine[0], subtype=elsewhere.subtype, artifact=elsewhere.artifact), 9_999
+    )
+    outcome = graded(evaluated(world, assigning, claims=(*report, stray)))
+    row = next(r for r in outcome.rows.impacts if r.claim_id == stray.claim_id)
+    assert row.expectation is Expectation.UNEXPECTED
+    assert outcome.oracle_findings == () and not correct_whole(outcome)
+
+    # The same impact stated twice is no claim set at all: no row is matched.
+    twice = graded(evaluated(world, assigning, claims=(*report, renumbered(mine[0], 9_999))))
+    assert not twice.rows.structurally_valid
+    assert all(r.expectation is Expectation.NOT_MATCHED for r in twice.rows.impacts if r.claim_id)
+    assert not correct_whole(twice)
 
 
 def test_a_report_the_reads_do_not_support_fails_the_replay_check_alone(
