@@ -451,11 +451,12 @@ def test_a_recorded_failure_points_at_the_trace_entry_of_its_own_kind() -> None:
     trace = RunTrace((_faulted(),), (_operation(),), ())
     assert _export(record=failed, trace=trace).record.failure is infrastructure
     defect = Failure(FailureCategory.DEFECT, "op-1", "no world id")
-    # A defect is found at an operation that read something; an unreachable or a refused
-    # operation read nothing and anchors none.
+    # A defect is found at an operation that returned something; an unreachable or a
+    # refused operation read nothing, an absent answer is evidence, and none anchors one.
     for unread in (
         UnreachableOutcome(Source.FRAPPE, "no answer after the retries"),
         RefusedCallOutcome("LIA-42 is no leave id"),
+        AbsentOutcome(),
     ):
         source = None if isinstance(unread, RefusedCallOutcome) else Source.FRAPPE
         with pytest.raises(ValueError, match="could not accept, got 'op-1'"):

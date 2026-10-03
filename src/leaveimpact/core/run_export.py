@@ -33,8 +33,9 @@ from leaveimpact.core.run_trace import (
     ModelCallId,
     ModelCallOutcome,
     OperationId,
+    RecordOutcome,
+    RecordsOutcome,
     RunTrace,
-    is_completed_read,
     require_integer,
     require_opaque_id,
 )
@@ -91,19 +92,19 @@ class RunExport:
 
 
 def _require_failure_at_its_fault(category: FailureCategory, at: str, trace: RunTrace) -> None:
-    # A defect is found at an operation that read something: a record the adapter could
-    # not translate, or a completed read whose records the harness could not accept (the
-    # source contradicting the run's premise, a record no fact can be made from; the
-    # investigator milestone's fifth build step, ruling 4). An unreachable or a refused
-    # operation read nothing and anchors no defect.
+    # A defect is found at an operation that returned something: a record the adapter
+    # could not translate, or returned records the harness could not accept (the source
+    # contradicting the run's premise, a record no fact can be made from; the investigator
+    # milestone's fifth build step, ruling 4). An unreachable or a refused operation read
+    # nothing, and an absent answer is evidence, not a fault: none of them anchors a defect.
     if category is FailureCategory.DEFECT:
         operation = trace.operation(OperationId(at))
-        if operation is None or not (
-            isinstance(operation.outcome, DefectOutcome) or is_completed_read(operation.outcome)
+        if operation is None or not isinstance(
+            operation.outcome, DefectOutcome | RecordOutcome | RecordsOutcome
         ):
             raise ValueError(
-                "a defect failure names an operation that read a malformed record or a "
-                f"completed read the harness could not accept, got {at!r}"
+                "a defect failure names an operation that read a malformed record or "
+                f"returned records the harness could not accept, got {at!r}"
             )
         return
     call = trace.model_call_or_none(ModelCallId(at))
