@@ -15,6 +15,8 @@ the write ports are unreachable by module path.
 ``execution`` is the one path for a declared tool call, the frozen prefetch's now and
 the model's when the registry arrives: validation, the port and the method, one
 recorded operation with one of the six outcomes, the per-source stop state, and the
-prefetch run over it. The rules-only baseline, the first system, follows it in the
-investigator milestone's fifth build step.
+prefetch run over it. ``rules_only`` is the first system: the prefetch, the structured
+projection as its whole view, ruling 4's preconditions (a defect at its operation, or an
+abstention with no claims), the shared rules through ``core``'s composing pass, and
+``report``, the one reporting policy that writes the rules' conclusions as claims.
 """
