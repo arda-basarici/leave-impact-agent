@@ -60,7 +60,10 @@ plan's rule counts, and the gap, the excess attempt and the attempt after a stop
 outcome a conforming harness never produces. ``run_checks`` holds the three checks a
 registration can name, and ``registered`` reads the registration for this package: its
 names resolved against the registries here, the plan the tables are cut under, the
-scenario sets and the seeded development selection. ``measures`` and ``evidence_measures``
+scenario sets and the seeded development selection. ``diagnostics`` holds the two readings
+that are raw counts, whether a scenario's repeats agree and what a degraded-condition
+arm's runs did, and ``analysis`` computes every table the registration names from a set
+of evaluated runs in one pure pass. ``measures`` and ``evidence_measures``
 state each claim-level ratio as the numerator and the denominator of one run, with its
 scope: the two precisions, recall and payload accuracy on the answer side; grounding,
 citations, source discipline and retrieval on the other. ``intervals`` holds the two
