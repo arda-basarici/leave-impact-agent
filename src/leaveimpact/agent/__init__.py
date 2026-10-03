@@ -10,7 +10,11 @@ package: the ports, the tool registry and the run record know nothing of it.
 Boundary: the investigator is blind to the benchmark by the import law, not by
 convention. Imports ``adapters`` and ``core``; never ``world``, ``generator``,
 ``validator`` or ``evaluator``, so the answer key is unreachable at source level and
-the write ports are unreachable by module path. The first arrival is the rules-only
-baseline at the investigator milestone's build step 5; until then the package holds
-this contract and nothing else.
+the write ports are unreachable by module path.
+
+``execution`` is the one path for a declared tool call, the frozen prefetch's now and
+the model's when the registry arrives: validation, the port and the method, one
+recorded operation with one of the six outcomes, the per-source stop state, and the
+prefetch run over it. The rules-only baseline, the first system, follows it in the
+investigator milestone's fifth build step.
 """
