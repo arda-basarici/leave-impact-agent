@@ -1,0 +1,287 @@
+{
+  "format_version": 1,
+  "status": "draft",
+  "amendment": {
+    "amends": null,
+    "prior_full_set_results": false
+  },
+  "systems": [
+    {
+      "kind": "agent",
+      "variant": {
+        "pending": "set when the investigator's tool registry and graph are built"
+      },
+      "retrieval": {
+        "kind": "full_text",
+        "embedding_model": null
+      },
+      "model": {
+        "pending": "the development model, named when the investigator first runs live; the reported model is named at the freeze"
+      },
+      "prompt_digests": {
+        "pending": "set when the investigator's tool registry and graph are built"
+      },
+      "tool_surface_digest": {
+        "pending": "set when the investigator's tool registry and graph are built"
+      }
+    },
+    {
+      "kind": "rules_only",
+      "variant": {
+        "value": "reference"
+      },
+      "retrieval": {
+        "kind": "none",
+        "embedding_model": null
+      },
+      "policy": {
+        "identifier": "rules-only-report",
+        "version": 1,
+        "tie_break": "first_viable_in_id_code_point_order"
+      }
+    },
+    {
+      "kind": "single_shot",
+      "variant": {
+        "pending": "set when the single-shot baseline is built"
+      },
+      "retrieval": {
+        "kind": "full_text",
+        "embedding_model": null
+      },
+      "model": {
+        "pending": "the same model as the agent, held constant across the comparison"
+      },
+      "prompt_digests": {
+        "pending": "set when the single-shot baseline is built"
+      },
+      "query_protocol": {
+        "pending": "chosen when the single-shot baseline is built, on development worlds from other seeds with the selection procedure fixed before any candidate is tried, never on the golden world"
+      },
+      "search_limit": {
+        "pending": "chosen with the query protocol, by the same procedure"
+      }
+    }
+  ],
+  "outage": {
+    "protocol": {
+      "id": "whole-run-read-port-outage",
+      "version": 1
+    },
+    "injection": "whole_run_at_read_port",
+    "conditions": [
+      {
+        "unreachable": [],
+        "reporting": "answer_quality"
+      },
+      {
+        "unreachable": [
+          "jira"
+        ],
+        "reporting": "answer_quality"
+      },
+      {
+        "unreachable": [
+          "calendar"
+        ],
+        "reporting": "answer_quality"
+      },
+      {
+        "unreachable": [
+          "frappe"
+        ],
+        "reporting": "degraded_condition"
+      },
+      {
+        "unreachable": [
+          "corpus"
+        ],
+        "reporting": "degraded_condition"
+      }
+    ]
+  },
+  "arms": [
+    {
+      "system": "agent",
+      "condition": "normal"
+    },
+    {
+      "system": "rules_only",
+      "condition": "normal"
+    },
+    {
+      "system": "single_shot",
+      "condition": "normal"
+    },
+    {
+      "system": "agent",
+      "condition": "jira_down"
+    },
+    {
+      "system": "rules_only",
+      "condition": "jira_down"
+    },
+    {
+      "system": "single_shot",
+      "condition": "jira_down"
+    },
+    {
+      "system": "agent",
+      "condition": "calendar_down"
+    },
+    {
+      "system": "rules_only",
+      "condition": "calendar_down"
+    },
+    {
+      "system": "single_shot",
+      "condition": "calendar_down"
+    },
+    {
+      "system": "agent",
+      "condition": "frappe_down"
+    },
+    {
+      "system": "rules_only",
+      "condition": "frappe_down"
+    },
+    {
+      "system": "single_shot",
+      "condition": "frappe_down"
+    },
+    {
+      "system": "agent",
+      "condition": "corpus_down"
+    },
+    {
+      "system": "rules_only",
+      "condition": "corpus_down"
+    },
+    {
+      "system": "single_shot",
+      "condition": "corpus_down"
+    }
+  ],
+  "run_accounting": {
+    "repeats": 1,
+    "missing_run": "not_passed",
+    "retry": {
+      "after": "infrastructure",
+      "max_attempts": 3
+    },
+    "counted_attempt": "earliest_not_infrastructure",
+    "estimand": "the registered system with up to two retries after an infrastructure failure"
+  },
+  "statistics": {
+    "confidence_percent": 95,
+    "seed": 20261003,
+    "resamples": 10000,
+    "checks": [
+      "correct_whole",
+      "expected_action",
+      "reproduced_whole"
+    ],
+    "measures": [
+      "strict_precision",
+      "type_local_precision",
+      "recall",
+      "payload_accuracy"
+    ],
+    "primary": [
+      {
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "stratum": "overall",
+        "scenario_set": "primary",
+        "systems": [
+          "agent",
+          "rules_only"
+        ]
+      },
+      {
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "stratum": "overall",
+        "scenario_set": "primary",
+        "systems": [
+          "agent",
+          "single_shot"
+        ]
+      }
+    ],
+    "descriptive": {
+      "pairs": [
+        [
+          "agent",
+          "rules_only"
+        ],
+        [
+          "agent",
+          "single_shot"
+        ],
+        [
+          "single_shot",
+          "rules_only"
+        ]
+      ],
+      "conditions": [
+        "normal",
+        "jira_down",
+        "calendar_down"
+      ],
+      "strata": [
+        "overall",
+        "tier"
+      ],
+      "scenario_sets": [
+        "primary",
+        "full"
+      ],
+      "checks": [
+        "correct_whole",
+        "expected_action",
+        "reproduced_whole"
+      ],
+      "readings": [
+        "end_to_end",
+        "conditional"
+      ],
+      "measures": [
+        "strict_precision",
+        "type_local_precision",
+        "recall",
+        "payload_accuracy"
+      ]
+    }
+  },
+  "prefetch": {
+    "identifier": "leave-span-prefetch",
+    "protocol_version": 1,
+    "digest": "492d59036eb457444dd0682baad4a33f4b9336fd98926d6e6ee8fcd3306f1504"
+  },
+  "caps": {
+    "basis": "unmeasured",
+    "call_cap": 20,
+    "token_cap": 400000,
+    "finalization_call_reserve": 2,
+    "finalization_token_reserve": 20000,
+    "counting_rule": "input_plus_output_cached_included"
+  },
+  "budget": {
+    "basis": "unmeasured",
+    "expected_usd": 150,
+    "ceiling_usd": 300,
+    "reforecast_after_runs": 10,
+    "admission_threshold_usd": 50,
+    "admission_threshold_limit_usd": 270
+  },
+  "scenario_sets": {
+    "development_size": 6,
+    "development_per_tier": 2,
+    "development": {
+      "pending": "selected by tier alone on the evaluation job's first dispatch"
+    }
+  }
+}
