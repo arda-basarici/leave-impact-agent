@@ -54,7 +54,10 @@ returned, and through which search at what rank).
 Tables are a reading of evaluated runs, never stored. ``cells`` groups them by system and
 assigned condition, the scenario with all its runs as the unit, cuts each arm at the whole,
 each tier and each scenario class, and keeps the accounting every table shows: what was
-intended, made and missing, and how each run ended. ``measures`` and ``evidence_measures``
+intended, made and missing, and how each run ended, with the same tallies over every
+attempt beside it. ``attempts`` reads a run's attempts as a history: the attempt the
+plan's rule counts, and the gap, the excess attempt and the attempt after a stopping
+outcome a conforming harness never produces. ``measures`` and ``evidence_measures``
 state each claim-level ratio as the numerator and the denominator of one run, with its
 scope: the two precisions, recall and payload accuracy on the answer side; grounding,
 citations, source discipline and retrieval on the other. ``intervals`` holds the two

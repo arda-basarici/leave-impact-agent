@@ -470,7 +470,9 @@ def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregiste
     if reading is Reading.CONDITIONAL:
         return _Trials(passes, len(answers) - not_checked, len(answers), not_checked)
     missed = runs.missing if plan.missing_repeat is MissingRepeat.NOT_PASSED else 0
-    return _Trials(passes, len(answers) + missed, len(answers), not_checked)
+    # A run made whose attempt history has a gap has no counted attempt: it did not pass
+    # end to end whatever the missing-run rule says, being made and not missing.
+    return _Trials(passes, len(answers) + missed + runs.unverifiable, len(answers), not_checked)
 
 
 def _require_paired(first: Cell, second: Cell) -> None:

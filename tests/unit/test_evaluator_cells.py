@@ -42,7 +42,7 @@ def plan(
     registered: tuple[tuple[System, RunCondition], ...] = ((REFERENCE, NORMAL),),
 ) -> Preregistered:
     return Preregistered(
-        0.95, 7, 1_000, intended_repeats, counted_attempt, MissingRepeat.NOT_PASSED, registered
+        0.95, 7, 1_000, intended_repeats, counted_attempt, MissingRepeat.NOT_PASSED, registered, 3
     )
 
 
@@ -268,11 +268,11 @@ def test_a_structurally_invalid_report_is_counted_where_its_run_ended(world: Sea
 
 
 def test_the_plan_refuses_what_no_preregistration_could_mean() -> None:
-    kept = (CountedAttempt.FIRST, MissingRepeat.LEFT_OUT, ((REFERENCE, NORMAL),))
+    kept = (CountedAttempt.FIRST, MissingRepeat.LEFT_OUT, ((REFERENCE, NORMAL),), 3)
     with pytest.raises(ValueError, match="at least one arm is registered"):
-        Preregistered(0.95, 7, 1_000, 1, *kept[:2], ())
+        Preregistered(0.95, 7, 1_000, 1, *kept[:2], (), 3)
     with pytest.raises(ValueError, match="registered once"):
-        Preregistered(0.95, 7, 1_000, 1, *kept[:2], ((REFERENCE, NORMAL), (REFERENCE, NORMAL)))
+        Preregistered(0.95, 7, 1_000, 1, *kept[:2], ((REFERENCE, NORMAL), (REFERENCE, NORMAL)), 3)
     with pytest.raises(ValueError, match="strictly between 0 and 1"):
         Preregistered(1.0, 7, 1_000, 1, *kept)
     with pytest.raises(ValueError, match="at least one resample"):

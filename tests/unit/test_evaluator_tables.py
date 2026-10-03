@@ -88,6 +88,7 @@ def plan(
         CountedAttempt.FIRST,
         missing_repeat,
         registered,
+        3,
     )
 
 

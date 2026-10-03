@@ -43,6 +43,14 @@ scenario to be a run of.
 
 One export is one attempt. The same run and attempt given twice for one scenario of one arm
 would count twice in every sum, so it is refused where the runs are grouped.
+
+A run's attempts are read as a history (``attempts``): the counted attempt by the plan's
+rule, and what the history shows that the retry protocol never produces. A run whose
+attempt numbers have a gap has no counted attempt: it is counted as made under its own
+reason, and no measure, check or outcome tally reads it. The accounting is over counted
+attempts, so an infrastructure failure a retry recovered from would show nowhere in it;
+the *attempt summary* is the same tallies over every attempt, with the runs retried, the
+runs recovered and the history findings, so that a retry never hides what it replaced.
 """
 
 from __future__ import annotations
@@ -56,6 +64,7 @@ from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.run_record import System
+from leaveimpact.evaluator.attempts import CountedAttempt, HistoryFinding, RunHistory, run_history
 from leaveimpact.evaluator.grading import (
     Excluded,
     ExcludedReason,
@@ -66,13 +75,6 @@ from leaveimpact.evaluator.grading import (
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
 from leaveimpact.world.scenario import ScenarioClassName, Tier
-
-
-class CountedAttempt(StrEnum):
-    """Which attempt of a retried run is the run, for everything but the cost ledger."""
-
-    FIRST = "first"
-    LAST = "last"
 
 
 class MissingRepeat(StrEnum):
@@ -93,6 +95,7 @@ class Preregistered:
     counted_attempt: CountedAttempt
     missing_repeat: MissingRepeat
     arms: tuple[tuple[System, RunCondition], ...]
+    max_attempts: int
 
     def __post_init__(self) -> None:
         if not self.arms:
@@ -109,6 +112,8 @@ class Preregistered:
             raise ValueError(
                 f"at least one run per scenario is intended, got {self.intended_repeats}"
             )
+        if self.max_attempts < 1:
+            raise ValueError(f"a run has at least one attempt, got {self.max_attempts}")
 
 
 class StratumKind(StrEnum):
@@ -139,9 +144,10 @@ OVERALL = Stratum(StratumKind.OVERALL, "overall")
 class ScenarioRuns:
     """One scenario's runs in one arm of one system: the cluster every estimate resamples.
 
-    ``counted`` holds one evaluation per run, the attempt the plan counts, in run order;
-    ``attempts`` every attempt of every run, for the cost ledger; ``missing`` how many
-    intended runs were never made.
+    ``counted`` holds one evaluation per run whose history gives one, the attempt the plan
+    counts, in run order; ``attempts`` every attempt of every run, for the cost ledger;
+    ``missing`` how many intended runs were never made; ``histories`` every run's attempt
+    history, in run order.
     """
 
     scenario_id: ScenarioId
@@ -150,6 +156,12 @@ class ScenarioRuns:
     counted: tuple[Evaluation, ...]
     attempts: tuple[Evaluation, ...]
     missing: int
+    histories: tuple[RunHistory, ...]
+
+    @property
+    def unverifiable(self) -> int:
+        """How many runs were made and have no counted attempt, their history holding a gap."""
+        return sum(history.counted is None for history in self.histories)
 
 
 @dataclass(frozen=True, slots=True)
@@ -201,6 +213,8 @@ class Accounting:
     ``intended`` is the plan's repeats times the scenarios; ``made`` the runs present,
     ``missing`` the shortfall and ``surplus`` the runs beyond what was intended, each summed
     per scenario so that one scenario's surplus never hides another's shortfall.
+    ``unverifiable_history`` counts the runs made whose attempt numbers have a gap: they
+    are among ``made`` and in no count of how a run ended, having no counted attempt.
     ``attempts`` counts every attempt, retries included. A structurally invalid report is
     counted where its run ended: among the graded, where it was graded with zero credit, or
     among the limited. ``observed`` is over the graded
@@ -230,6 +244,30 @@ class Accounting:
     with_operation_findings: int
     with_cost_findings: int
     unplaced: int
+    unverifiable_history: int
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptSummary:
+    """What happened to every attempt of a cell's runs, the ones a retry replaced included.
+
+    The outcome and finding counts are ``Accounting``'s, over all attempts instead of the
+    counted ones. ``runs_retried`` are the runs with more than one attempt and
+    ``runs_recovered`` those where an attempt failed by infrastructure and the counted one
+    did not; ``history`` is how many runs carry each history finding. The attempts no
+    scenario of the world could place are not here, having no run history to be read in.
+    """
+
+    attempts: int
+    graded: int
+    limited: tuple[tuple[LimitedReason, int], ...]
+    excluded: tuple[tuple[ExcludedReason, int], ...]
+    with_integrity_findings: int
+    with_operation_findings: int
+    with_cost_findings: int
+    runs_retried: int
+    runs_recovered: int
+    history: tuple[tuple[HistoryFinding, int], ...]
 
 
 def condition_name(condition: RunCondition) -> str:
@@ -308,9 +346,9 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
     return Accounting(
         scenarios=len(scenarios),
         intended=plan.intended_repeats * len(scenarios),
-        made=len(counted),
+        made=sum(len(runs.histories) for runs in scenarios),
         missing=sum(runs.missing for runs in scenarios),
-        surplus=sum(max(len(runs.counted) - plan.intended_repeats, 0) for runs in scenarios),
+        surplus=sum(max(len(runs.histories) - plan.intended_repeats, 0) for runs in scenarios),
         attempts=sum(len(runs.attempts) for runs in scenarios),
         graded=len(graded),
         structurally_invalid=sum(not outcome.rows.structurally_valid for outcome in graded),
@@ -335,6 +373,29 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
         ),
         with_cost_findings=sum(bool(evaluation.metrics.cost.findings) for evaluation in counted),
         unplaced=len(cell.unplaced),
+        unverifiable_history=sum(runs.unverifiable for runs in scenarios),
+    )
+
+
+def attempt_summary_of(cell: Cell) -> AttemptSummary:
+    """What happened to every attempt of ``cell``'s runs, and what their histories show."""
+    histories = [history for runs in cell.scenarios for history in runs.histories]
+    attempts = [attempt for history in histories for attempt in history.attempts]
+    outcomes = [attempt.outcome for attempt in attempts]
+    read = [outcome for outcome in outcomes if isinstance(outcome, Graded | Limited)]
+    return AttemptSummary(
+        attempts=len(attempts),
+        graded=sum(isinstance(outcome, Graded) for outcome in outcomes),
+        limited=_tally(outcome.reason for outcome in outcomes if isinstance(outcome, Limited)),
+        excluded=_tally(outcome.reason for outcome in outcomes if isinstance(outcome, Excluded)),
+        with_integrity_findings=sum(bool(outcome.integrity) for outcome in read),
+        with_operation_findings=sum(
+            bool(attempt.metrics.discipline.findings) for attempt in attempts
+        ),
+        with_cost_findings=sum(bool(attempt.metrics.cost.findings) for attempt in attempts),
+        runs_retried=sum(history.retried for history in histories),
+        runs_recovered=sum(history.recovered for history in histories),
+        history=_tally(finding for history in histories for finding in history.findings),
     )
 
 
@@ -345,7 +406,8 @@ def _scenario_runs(
     evaluations: Sequence[Evaluation],
     plan: Preregistered,
 ) -> ScenarioRuns:
-    """One scenario's evaluations as its runs: the counted attempt of each, and every attempt."""
+    """One scenario's evaluations as its runs: each run's history, the counted attempt of
+    each that has one, and every attempt."""
     by_run: dict[str, list[Evaluation]] = {}
     for evaluation in evaluations:
         by_run.setdefault(evaluation.outcome.header.run_id, []).append(evaluation)
@@ -356,18 +418,18 @@ def _scenario_runs(
                 f"{scenario_id}: run {run_id} holds one attempt twice; an export is aggregated "
                 "once"
             )
-    counted: list[Evaluation] = []
-    for run_id in sorted(by_run):
-        attempts = _in_order(by_run[run_id])
-        first = plan.counted_attempt is CountedAttempt.FIRST
-        counted.append(attempts[0] if first else attempts[-1])
+    histories = tuple(
+        run_history(run_id, by_run[run_id], plan.counted_attempt, plan.max_attempts)
+        for run_id in sorted(by_run)
+    )
     return ScenarioRuns(
         scenario_id,
         tier,
         scenario_class,
-        tuple(counted),
-        tuple(each for run_id in sorted(by_run) for each in _in_order(by_run[run_id])),
+        tuple(history.counted for history in histories if history.counted is not None),
+        tuple(each for history in histories for each in history.attempts),
         max(plan.intended_repeats - len(by_run), 0),
+        histories,
     )
 
 
@@ -396,6 +458,7 @@ __all__ = [
     "OVERALL",
     "Accounting",
     "Arm",
+    "AttemptSummary",
     "Cell",
     "CountedAttempt",
     "MissingRepeat",
@@ -405,6 +468,7 @@ __all__ = [
     "StratumKind",
     "accounting_of",
     "arms",
+    "attempt_summary_of",
     "cells_of",
     "condition_name",
 ]
