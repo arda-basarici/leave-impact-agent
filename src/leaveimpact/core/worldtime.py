@@ -67,10 +67,21 @@ def as_utc(instant: datetime, what: str = "instant") -> datetime:
 
 
 def zone(key: str) -> ZoneInfo:
-    """The IANA zone for ``key``, or a ``ValueError`` naming the key that is not one."""
+    """The IANA zone for ``key``, or a ``ValueError`` naming the key that is not one.
+
+    A key that names a directory of the zone database (``Europe``) is not found as a zone
+    and fails as an ``OSError`` when the database tries to open it, a ``PermissionError``
+    on Windows; it is refused like any other key that is not a zone, so a timezone a model
+    sends as a tool argument is a refused call and never a crash.
+
+    >>> zone("Europe")
+    Traceback (most recent call last):
+    ...
+    ValueError: not an IANA timezone key: 'Europe'
+    """
     try:
         return ZoneInfo(key)
-    except ZoneInfoNotFoundError as error:
+    except (ZoneInfoNotFoundError, OSError) as error:
         raise ValueError(f"not an IANA timezone key: {key!r}") from error
 
 

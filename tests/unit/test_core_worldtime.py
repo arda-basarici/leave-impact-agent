@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, leave_id
-from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_date
+from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_date, zone
 
 SCENARIO = ScenarioId("scenario_003")
 WORLD = WorldVersion("4f2c")
@@ -31,6 +31,12 @@ def test_a_leave_id_outside_the_leave_namespace_is_refused() -> None:
 def test_an_unknown_reference_zone_is_refused_by_name() -> None:
     with pytest.raises(ValueError, match="Mars/Olympus"):
         RunContext(SCENARIO, WORLD, LEAVE, _utc(14, 9), "Mars/Olympus")
+
+
+def test_a_key_naming_a_directory_of_the_zone_database_is_refused_like_an_unknown_one() -> None:
+    # The database fails to open it with an OSError, a PermissionError on Windows.
+    with pytest.raises(ValueError, match="not an IANA timezone key: 'Europe'"):
+        zone("Europe")
 
 
 def test_today_is_read_in_the_reference_zone_not_utc() -> None:
