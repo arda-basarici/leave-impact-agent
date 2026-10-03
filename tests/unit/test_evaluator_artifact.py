@@ -30,6 +30,7 @@ from leaveimpact.core import (
     RegistrationStatus,
     RulesOnlySystem,
     RunExport,
+    RunRecord,
     ScenarioSetName,
     Setting,
     Source,
@@ -353,6 +354,46 @@ def test_a_model_systems_configuration_prompts_and_surface_are_compared_per_role
     # A system the registration does not hold at all.
     without_agent = replace(frozen(world), status=RegistrationStatus.DRAFT)
     assert setting_differences(without_agent, record) == (RecordedSetting.SYSTEM,)
+
+
+def test_every_role_holds_the_whole_registered_prompt_set(world: SealedWorld) -> None:
+    # Two roles that hold one registered prompt each cover the set between them and
+    # neither ran under it.
+    record = agent_export(world, world.scenarios[0], ()).record
+    ((role, model),) = record.model_configurations
+    ((_, selection),) = record.pricing_selections
+    agent = next(system for system in DRAFT.systems if isinstance(system, AgentSystem))
+    named = replace(
+        agent,
+        variant=record.system.variant,
+        model=model,
+        prompt_digests=(("report", DIGEST), ("system", DIGEST)),
+        tool_surface_digest=DIGEST,
+    )
+    registration = replace(
+        DRAFT, systems=tuple(named if system is agent else system for system in DRAFT.systems)
+    )
+    assert role > "checker"
+
+    def two_roles(*prompts: tuple[str, str, str]) -> RunRecord:
+        return replace(
+            record,
+            model_configurations=(("checker", model), (role, model)),
+            pricing_selections=(("checker", selection), (role, selection)),
+            tool_surface_digests=(("checker", DIGEST), (role, DIGEST)),
+            prompt_digests=prompts,
+        )
+
+    split = two_roles(("checker", "report", DIGEST), (role, "system", DIGEST))
+    assert RecordedSetting.PROMPTS in setting_differences(registration, split)
+    whole = two_roles(
+        ("checker", "report", DIGEST),
+        ("checker", "system", DIGEST),
+        (role, "report", DIGEST),
+        (role, "system", DIGEST),
+    )
+    model_side = {RecordedSetting.MODEL, RecordedSetting.PROMPTS, RecordedSetting.TOOL_SURFACE}
+    assert not model_side & set(setting_differences(registration, whole))
 
 
 # --- Under a frozen registration ---------------------------------------------------------------

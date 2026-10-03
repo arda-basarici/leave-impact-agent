@@ -281,7 +281,7 @@ def setting_differences(
     condition = condition_id(record.outage.scheduled_unreachable)
     recorded = _ModelSettings(
         frozenset(configuration for _, configuration in record.model_configurations),
-        frozenset((name, value) for _, name, value in record.prompt_digests),
+        frozenset(_prompts_by_role(record).values()),
         frozenset(surface for _, surface in record.tool_surface_digests),
     )
     same = {
@@ -304,11 +304,13 @@ def setting_differences(
 
 @dataclass(frozen=True, slots=True)
 class _ModelSettings:
-    """What a system's model calls ran under, as sets: a record indexes them by role and the
-    registration holds one of each per system, so every role's must be the registered one."""
+    """What a system's model calls ran under, as sets over its roles: a record indexes them
+    by role and the registration holds one of each per system, so every role's must be the
+    registered one. ``prompts`` holds each role's whole prompt set as one member; pooled
+    over roles, two roles holding half the registered set each would pass for it."""
 
     models: frozenset[ModelConfiguration]
-    prompts: frozenset[tuple[str, str]]
+    prompts: frozenset[frozenset[tuple[str, str]]]
     surfaces: frozenset[str]
 
 
@@ -327,11 +329,22 @@ def _model_settings(system: RegisteredSystem) -> _ModelSettings | None:
             ):
                 return None
             return _ModelSettings(
-                frozenset({system.model}), frozenset(system.prompt_digests), frozenset({surface})
+                frozenset({system.model}),
+                frozenset({frozenset(system.prompt_digests)}),
+                frozenset({surface}),
             )
         case SingleShotSystem():
             # Its query protocol is only ever pending in this registration format.
             return None
+
+
+def _prompts_by_role(record: RunRecord) -> dict[str, frozenset[tuple[str, str]]]:
+    """Each role's prompts as ``record`` states them, by name and digest; a role that calls a
+    model and records no prompt holds the empty set."""
+    held: dict[str, set[tuple[str, str]]] = {role: set() for role, _ in record.model_configurations}
+    for role, name, value in record.prompt_digests:
+        held.setdefault(role, set()).add((name, value))
+    return {role: frozenset(prompts) for role, prompts in held.items()}
 
 
 def _entry(
