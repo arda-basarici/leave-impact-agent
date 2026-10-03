@@ -348,3 +348,21 @@ def test_the_projection_refuses_a_registered_prefetch_this_code_does_not_plan() 
     ):
         with pytest.raises(ValueError, match="this evaluator checks conformance to"):
             preregistered(replace(REGISTRATION, prefetch=other))
+
+
+def test_a_second_read_of_one_chunk_in_place_of_another_is_missing_and_extra(
+    world: SealedWorld, scenario: Scenario
+) -> None:
+    # The duplicate matches a planned call, the first chunk's, so it is no wrongly
+    # parameterized read of the second: that chunk is missing and the duplicate extra.
+    systems = systems_holding(world)
+    leave = scenario.investigated_leave
+    systems.people.leaves[leave.id] = replace(leave, end=leave.start + timedelta(days=399))
+    long = exported(world, scenario, systems)
+    operations = list(long.trace.operations)
+    first, second, *_ = (i for i, operation in enumerate(operations) if operation.tool == PLAN[2])
+    operations[second] = again(operations[first], 99)
+    assert findings(with_operations(long, *operations)) == [
+        (MISSING, 2, None),
+        (EXTRA, None, "op-99"),
+    ]

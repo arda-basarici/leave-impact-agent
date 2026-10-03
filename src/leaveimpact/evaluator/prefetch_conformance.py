@@ -140,8 +140,13 @@ def prefetch_conformance(export: RunExport) -> PrefetchConformance:
     ]
     plan = _plan(export.context, [operation for _, operation in made])
     exact = _exact_matches(plan, made)
-    taken = set(exact.values())
-    spare = [slot for slot in range(len(made)) if slot not in taken]
+    # A second read of a planned call is extra, never another call's wrong parameters.
+    planned = {_asked(call.tool, call.arguments) for call in plan}
+    spare = [
+        slot
+        for slot, (_, operation) in enumerate(made)
+        if _asked(operation.tool, _arguments(operation)) not in planned
+    ]
 
     findings: list[PrefetchFinding] = []
     served: list[tuple[int, int]] = []
