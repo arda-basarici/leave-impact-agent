@@ -53,7 +53,7 @@ from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_date_span, decode_instant
 from leaveimpact.core.worldtime import InstantSpan
 
-TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
+TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*\Z")  # ``\Z``: ``$`` would admit a trailing newline
 
 SURFACE_VERSION = 1
 """The envelope the digest hashes; bumped when the envelope's own shape changes."""

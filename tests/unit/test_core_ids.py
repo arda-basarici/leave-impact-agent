@@ -44,7 +44,7 @@ def test_skill_keys_are_lower_case_vocabulary(key: str) -> None:
     assert ids.skill_id(key) == key
 
 
-@pytest.mark.parametrize("key", ["Kafka", "kafka streams", "", "1st"])
+@pytest.mark.parametrize("key", ["Kafka", "kafka streams", "", "1st", "kafka\n"])
 def test_a_malformed_skill_key_is_refused(key: str) -> None:
     with pytest.raises(ValueError, match="vocabulary key"):
         ids.skill_id(key)
@@ -53,3 +53,8 @@ def test_a_malformed_skill_key_is_refused(key: str) -> None:
 @pytest.mark.parametrize("leaked", ["LIA-42", "emp-017", "emp_17", "10481"])
 def test_a_vendor_key_does_not_pass_as_a_world_id(leaked: str) -> None:
     assert not ids.is_numbered_id(leaked)
+
+
+@pytest.mark.parametrize("padded", ["emp_017\n", "emp_017 ", " emp_017", "emp_017\nemp_018"])
+def test_an_id_is_the_whole_text_with_nothing_around_it(padded: str) -> None:
+    assert not ids.is_numbered_id(padded)

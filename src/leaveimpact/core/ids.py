@@ -38,8 +38,10 @@ ScenarioId = NewType("ScenarioId", str)
 ClaimId = NewType("ClaimId", str)
 WorldVersion = NewType("WorldVersion", str)
 
-NUMBERED_ID = re.compile(r"^[a-z]+_[0-9]{3,}$")
-SKILL_ID = re.compile(r"^[a-z][a-z0-9_]*$")
+# ``\Z`` and not ``$``: ``$`` also matches before a trailing newline, and an id that arrives as
+# a tool argument must be the id whole, as the schema the model sees already demands.
+NUMBERED_ID = re.compile(r"^[a-z]+_[0-9]{3,}\Z")
+SKILL_ID = re.compile(r"^[a-z][a-z0-9_]*\Z")
 
 
 def _numbered(prefix: str, number: int) -> str:

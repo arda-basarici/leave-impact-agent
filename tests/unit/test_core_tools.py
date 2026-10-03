@@ -73,6 +73,8 @@ def test_the_method_table_is_the_one_authority_for_source_and_shape() -> None:
 def test_a_specification_is_well_named_described_and_declares_each_argument_once() -> None:
     with pytest.raises(ValueError, match="lower-case words joined by underscores, got 'Leave'"):
         ToolSpecification("Leave", "a leave", PortMethod.LEAVE, ())
+    with pytest.raises(ValueError, match="lower-case words joined by underscores"):
+        ToolSpecification("leave\n", "a leave", PortMethod.LEAVE, ())
     with pytest.raises(ValueError, match="a tool is described"):
         ToolSpecification("leave", " ", PortMethod.LEAVE, ())
     with pytest.raises(ValueError, match="an argument is declared once"):
@@ -112,6 +114,9 @@ def test_ids_are_validated_in_their_kinds_namespace() -> None:
     assert validate_arguments(EMPLOYEE, {"id": "emp_017"}) == {"id": "emp_017"}
     with pytest.raises(ValueError, match="an employee id has the form emp_NNN, got 'ticket_042'"):
         validate_arguments(EMPLOYEE, {"id": "ticket_042"})
+    # The schema the model sees refuses a trailing newline; so does the validation.
+    with pytest.raises(ValueError, match="an employee id has the form emp_NNN"):
+        validate_arguments(EMPLOYEE, {"id": "emp_017\n"})
     with pytest.raises(ValueError, match="id is a string id, got int"):
         validate_arguments(EMPLOYEE, {"id": 17})
 
