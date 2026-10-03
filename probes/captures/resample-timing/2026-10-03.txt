@@ -1,0 +1,6 @@
+python 3.13.5, AMD64, Windows
+10000 resamples, median of 5 runs, seconds
+  full set, 10 a tier: one ratio 0.049, one paired difference 0.065
+  primary set, 8 a tier: one ratio 0.038, one paired difference 0.059
+descriptive measure comparisons: 3 pairs x 3 conditions x 4 measures x 4 strata x 2 sets = 288 bootstraps, 72 full draws a set
+  estimated 9 seconds in all, single-threaded
