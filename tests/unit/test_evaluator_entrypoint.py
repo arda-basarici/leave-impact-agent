@@ -32,6 +32,7 @@ from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
     HarnessRevision,
+    Pending,
     PricingBasis,
     TreeState,
     condition_id,
@@ -346,3 +347,29 @@ def test_a_file_is_read_at_a_commit_as_committed_and_is_absent_where_it_is_not(
         checkout.last_changed("preregistration/another.json")
     assert checkout.changed(head, head, IMPLEMENTATION) == ()
     checkout.require_clean()
+
+
+def test_a_registered_selection_is_what_proving_returns_whatever_the_seed_would_draw(
+    world: SealedWorld, twin: Path
+) -> None:
+    # The registered list survives a change of seed: the tuning was done on those
+    # scenarios, and a fresh draw would name ones the evaluator holds out.
+    registered = DRAFT.scenario_sets.development
+    assert isinstance(registered, tuple)
+    reseeded = replace(DRAFT, statistics=replace(DRAFT.statistics, seed=DRAFT.statistics.seed + 1))
+    assert development_selection(world, reseeded) != registered
+    proven = prove(world.version, stores(twin), reseeded)
+    assert (proven.development, proven.registered) == (registered, True)
+
+    pending = replace(
+        reseeded,
+        scenario_sets=replace(reseeded.scenario_sets, development=Pending("not yet selected")),
+    )
+    drawn = prove(world.version, stores(twin), pending)
+    assert (drawn.development, drawn.registered) == (development_selection(world, reseeded), False)
+
+    # A registered list the world's tiers do not fit is refused, not replaced by a draw.
+    unbalanced = tuple(scenario.spec.id for scenario in world.scenarios[:6])
+    misfit = replace(DRAFT, scenario_sets=replace(DRAFT.scenario_sets, development=unbalanced))
+    with pytest.raises(ValueError, match="from each tier"):
+        prove(world.version, stores(twin), misfit)

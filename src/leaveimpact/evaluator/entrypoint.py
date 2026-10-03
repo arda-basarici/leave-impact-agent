@@ -3,10 +3,13 @@ stored runs.
 
 *Prove* reads nothing but the sealed world and writes nothing. It loads the world from its
 three objects, which proves them to be the version named and every sealed key
-reproducible by today's rules; it selects the development scenarios the registration's
-rule gives, by tier alone; and it counts, per registered condition, the statements the
-answers depend on. It is what a first dispatch runs: the read boundary and the world shown
-to hold before any run exists to evaluate.
+reproducible by today's rules; it gives the development scenarios, the registered ones
+once the registration lists them and the ones its rule draws, by tier alone, while the
+list is pending; and it counts, per registered condition, the statements the answers
+depend on. A registered list is never redrawn: it survives a change of seed on purpose,
+the tuning having been done on those scenarios, and a fresh draw would name scenarios the
+evaluator holds out as if they were free to tune on. It is what a first dispatch runs:
+the read boundary and the world shown to hold before any run exists to evaluate.
 
 *Evaluate* is the thin shell over the pure function (the investigator milestone's sixth
 build step, ruling 7). It refuses a dirty checkout; lists every object stored for the
@@ -36,7 +39,7 @@ from leaveimpact.adapters.object_store.layout import evaluation_key, runs_prefix
 from leaveimpact.adapters.wiring import ConfigurationError, EvaluationPublisher, ObjectReaders
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId, WorldVersion
-from leaveimpact.core.registration import Registration
+from leaveimpact.core.registration import Pending, Registration, ScenarioSetName
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.evaluator.artifact import (
     Disposition,
@@ -47,7 +50,7 @@ from leaveimpact.evaluator.artifact import (
 )
 from leaveimpact.evaluator.artifact_json import artifact_bytes
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
-from leaveimpact.evaluator.registered import development_selection
+from leaveimpact.evaluator.registered import development_selection, scenario_set
 from leaveimpact.evaluator.repository import (
     REGISTRATION_PATH,
     Repository,
@@ -85,7 +88,9 @@ class EvaluationRefused(Exception):
 class Proven:
     """A world proven and read for what a first dispatch reports.
 
-    ``development`` are the scenarios the registration's rule selects, in id order.
+    ``development`` are the development scenarios in id order: the registered list, held
+    to the registered number from each tier, when ``registered`` says so, and otherwise
+    what the registration's rule draws while its list is pending.
     ``targets`` holds, per registered condition in the registration's order, the number of
     statements the answers depend on over all scenarios, or ``None`` when some scenario
     has no answer under the condition, which is not a count of zero.
@@ -94,6 +99,7 @@ class Proven:
     world_version: WorldVersion
     scenarios: int
     development: tuple[ScenarioId, ...]
+    registered: bool
     targets: tuple[tuple[str, int | None], ...]
 
 
@@ -145,9 +151,11 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> EvaluationRequ
 
 def prove(version: WorldVersion, stores: ObjectReaders, registration: Registration) -> Proven:
     """The sealed world ``version`` loaded and proven, with the development scenarios
-    ``registration`` selects and the retrieval targets counted per registered condition.
+    ``registration`` lists, or draws while its list is pending, and the retrieval targets
+    counted per registered condition.
 
-    Raises ``SealedWorldRefused`` when the three objects are not that world.
+    Raises ``SealedWorldRefused`` when the three objects are not that world, and
+    ``ValueError`` for a registered development list the world's tiers do not fit.
     """
     world = load_sealed_world(version, stores.truth, stores.world)
     targets = tuple(
@@ -157,12 +165,14 @@ def prove(version: WorldVersion, stores: ObjectReaders, registration: Registrati
         )
         for condition in registration.outage.conditions
     )
-    return Proven(
-        world.version,
-        len(world.scenarios),
-        development_selection(world, registration),
-        targets,
-    )
+    listed = registration.scenario_sets.development
+    if isinstance(listed, Pending):
+        development, registered = development_selection(world, registration), False
+    else:
+        # Cutting the primary set is what holds the list to the world and to its tiers.
+        scenario_set(world, registration, ScenarioSetName.PRIMARY)
+        development, registered = listed, True
+    return Proven(world.version, len(world.scenarios), development, registered, targets)
 
 
 def evaluate(
