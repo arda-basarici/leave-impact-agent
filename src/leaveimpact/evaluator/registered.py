@@ -22,6 +22,15 @@ from each tier, the stream derived from the registration's seed, so the selectio
 reproducible and reads no expected answer. A draw, and not the first ids of a tier,
 because ids follow the generator's construction order and the first of a tier may share a
 scenario class.
+
+A registered development list is held to the registered allocation before the primary set
+is cut from it: the registered number from every tier. The registration's own type cannot
+check this, a scenario's tier being sealed, and a list that passed it unbalanced would
+leave a primary set unbalanced the other way with nothing to say so. The list is not held
+to the draw itself: the draw is how the list is first produced, and a seed changed later
+must not disown the scenarios the tuning was really done on. The refusal names no tier
+and no count per tier, since which listed scenarios share a tier is sealed and the
+evaluation's log is public.
 """
 
 from __future__ import annotations
@@ -142,7 +151,8 @@ def scenario_set(
     """The scenarios of ``world`` in the set ``name``, in the world's order.
 
     Raises ``ValueError`` for the primary set while the development scenarios are pending,
-    and when a registered development scenario is not one of ``world``'s.
+    when a registered development scenario is not one of ``world``'s, and when the
+    registered ones are not the registered number from each tier.
     """
     every = tuple(scenario.spec.id for scenario in world.scenarios)
     if name is ScenarioSetName.FULL:
@@ -156,6 +166,14 @@ def scenario_set(
     strangers = sorted(set(development) - set(every))
     if strangers:
         raise ValueError(f"the world holds no scenario {', '.join(strangers)}")
+    per_tier = registration.scenario_sets.development_per_tier
+    for tier in Tier:
+        held = [s.spec.id for s in world.scenarios if s.key.tier is tier]
+        if held and sum(scenario in development for scenario in held) != per_tier:
+            raise ValueError(
+                f"the registered development scenarios are not {per_tier} from each tier of "
+                "the world"
+            )
     return tuple(scenario for scenario in every if scenario not in development)
 
 

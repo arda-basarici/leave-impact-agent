@@ -9,8 +9,10 @@ selection: two per tier, the same draw every time, by tier alone; the primary se
 rest, refused while the selection is pending. And a repeat the plan intended and nobody made
 keeps its scenario a repeated one."""
 
+import re
 from dataclasses import replace
 from pathlib import Path
+from traceback import format_exception
 
 import pytest
 
@@ -279,6 +281,29 @@ def test_the_primary_set_is_the_rest_and_is_refused_while_the_selection_is_pendi
     strangers = with_development(DRAFT, *selected[:5], "scenario_999")
     with pytest.raises(ValueError, match="the world holds no scenario scenario_999"):
         scenario_set(world, strangers, ScenarioSetName.PRIMARY)
+
+
+def test_a_development_list_that_is_not_two_from_each_tier_is_refused_without_saying_which(
+    world: SealedWorld,
+) -> None:
+    structured = [s.spec.id for s in world.scenarios if s.key.tier is Tier.STRUCTURED]
+    selected = development_selection(world, DRAFT)
+    one_tier = with_development(DRAFT, *structured[:6])
+    # Balanced but for one scenario moved between tiers: three, one and two.
+    moved = with_development(
+        DRAFT, *selected[:2], next(s for s in structured if s not in selected), *selected[3:]
+    )
+    for lopsided in (one_tier, moved):
+        with pytest.raises(ValueError) as refused:
+            scenario_set(world, lopsided, ScenarioSetName.PRIMARY)
+        printed = "".join(format_exception(refused.value))
+        assert "are not 2 from each tier of the world" in printed
+        # Which listed scenarios share a tier is sealed: no tier, no id, no count per tier.
+        assert not any(tier.value in printed for tier in Tier)
+        assert re.search(r"scenario_\d", printed) is None
+        assert refused.value.__cause__ is None and refused.value.__context__ is None
+    # The full set never depended on the list.
+    assert len(scenario_set(world, one_tier, ScenarioSetName.FULL)) == 30
 
 
 def test_an_arm_cut_to_a_scenario_set_holds_those_scenarios_in_its_own_order(
