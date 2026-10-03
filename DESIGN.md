@@ -1960,8 +1960,8 @@ across a clock change is never planned. The record names the rule by an identifi
 and a digest over the planner-protocol version, the ordered steps, and each named
 tool's definition, method facts and surface protocols; a semantic change to the
 planner raises the protocol version. Whether a trace conforms to the plan is a check
-apart from coverage, which derives only from the operations recorded; the sixth step
-owes the evaluator's side of it. The candidate universe is the distinct employee set
+apart from coverage, which derives only from the operations recorded; the evaluator's
+side of it is described with the preregistration below. The candidate universe is the distinct employee set
 the whole-organization enumeration returned, complete when the coverage mapping marks
 the employee kind covered, the leaver included and never repaired from truth: every
 narrower selection a prefetch can compute changes the outcome (255 and 56 of 640
@@ -2014,15 +2014,153 @@ the preregistration's to state after the ten-run reforecast, because a model is 
 identifier to switch while prompt text and reported numbers bind to it.
 
 **One committed preregistration file precedes the first reported run and is cited by
-commit in every evaluation artifact.** It holds the metric definitions, both
-baselines and the fixed query, the prefetch rule, the outage set and injection point,
-the per-run cap, the ledger threshold, the model per role, the iteration subset and
-the full set, and the budget's three numbers. Development runs carry the draft's
-commit and are labeled development; the reporting design is frozen before the first
-full-set measurement. A change after full-set results is a new preregistration, the
-old numbers kept, further results on the same world labeled exploratory, and
-confirmation needs a world from a new seed, which the generator produces for one
-projection day.
+commit in every evaluation artifact** (the sixth build step). It is one JSON file with
+a format version, `preregistration/registration.json`, decoded strictly by a codec in
+`core` and accepted only as the bytes its encoder writes, with the development
+protocol as prose beside it. Names live in the file and behaviour in code: the file
+names the checks, the measures, the prefetch rule, the outage protocol and the
+rules-only reporting policy, and each consumer compares what it names with what its
+own code computes and refuses to run on a difference, neither side substituted for
+the other, since a run that used today's value would cite a registration it did not
+follow. The file is a draft or frozen. A draft may hold a value not yet chosen, typed
+as pending with what resolves it, and a pending value blocks only the execution that
+needs it, so the rules-only baseline runs while the model systems' entries wait; no
+entry point fills one with a literal. Frozen refuses any pending value and any number
+whose basis is unmeasured, and comes before the first full-set measurement. A change
+after full-set results is an amendment, the old numbers kept, further results on the
+same world labeled exploratory, and confirmation needs a world from a new seed, which
+the generator produces for one projection day.
+
+**Three systems under five assigned conditions make fifteen arms, reported in two
+ways.** The normal condition and the two outages that leave an expected answer, the
+tracker's and the calendar's, are answer-quality assignments: the full tables and the
+comparisons between systems. The HR system's and the corpus's outages leave the leave
+or the policy unreadable, so no claim-level answer exists, and are degraded-condition
+assignments: the accounting, the cost, and a table that keeps four things apart,
+whether the run met its outage, how the evaluator ended it, whether its report was
+empty, and what its own reads make of the report. The names describe the assignment
+and never a run's outcome: a normal assignment can produce a limited run, and a run
+that never called the failed source ran under no outage and is counted in its arm as
+unexercised. Each outage is whole-run at the read-port boundary, because a fault
+partway through gives a mixed condition the evaluator limits; no two-source outage is
+registered. The schedule's digest covers the source sets, the injection and a protocol
+version, and a run records it.
+
+**A run is retried after an infrastructure failure only, and the attempt that counts
+is the earliest that did not fail by infrastructure.** Two retries at most. A defect
+is not retried, because a retry could conceal it, not because it is deterministic.
+Counting the first attempt would measure first-attempt reliability and counting the
+last is right only while nothing behavioural is retried, so the estimand is stated:
+the registered system with up to two infrastructure retries. Every attempt is kept
+and summarized beside the counted ones, so a failure a retry recovered from is shown
+and not absorbed. A run whose attempt numbers have a gap has no counted attempt under
+any rule: it keeps its grade and its cost, is counted as made, does not pass end to
+end, and enters no conditional estimate. An intended run that was never made does not
+pass end to end either. A run with an integrity, an operation, a cost or a prefetch
+finding stays in the tables and is counted beside them; keeping a run is not vouching
+for it. Whether a scenario's interval is Wilson's or the bootstrap's follows the plan
+and not what arrived: a scenario is a single trial only when at most one run was made
+and at most one intended, so a missing or an unverifiable repeat does not change the
+method.
+
+**Three checks are registered, two comparisons are primary, and nothing is registered
+as a test of superiority.** Correct whole reads the rows: structurally valid, every
+required row reported and right, nothing unexpected, no plan finding against the
+oracle. Expected action reads the action rows alone. Reproduced whole asks whether a
+non-empty report's every claim is reproduced by the run's own reads; an empty report
+is outside its conditional denominator and does not pass end to end. The primary
+comparisons are the agent against each baseline on correct whole, end to end, under
+the normal condition, over the primary scenario set; tier breakdowns are supporting
+results named in advance and everything else is descriptive. A difference is reported
+with its paired interval, and one that crosses zero is said to include differences in
+either direction, never equivalence. Twenty-five measure families are registered, the
+answer side over all claims and per claim type, grounding and citations over graded
+and limited runs apart, source discipline and retrieval one row each; two systems are
+compared on a family's leading row and the rest is reported per arm. Ten thousand
+resamples take about a twentieth of a second an interval at these sizes (FINDINGS,
+`resample-timing`), so the count buys smooth percentiles and does nothing for ten
+scenarios a tier.
+
+**Six scenarios are tuned on and the other twenty-four are the primary set.** The
+development scenarios are two from each tier, selected by tier alone by a draw seeded
+from the registration, no expected answer read, and listed in the file as bare ids
+with no tier beside them, a scenario's tier being sealed and the repository public.
+The evaluator holds a registered list to the registered number from each tier before
+it cuts the primary set, and refuses a list that is not, naming no tier, id or count.
+The list is not held to the draw: a seed changed later must not disown the scenarios
+the tuning was done on, and the job that proves a world returns the registered list
+once one exists. The primary result therefore excludes every scenario a prompt was
+tuned on. All thirty are also reported together as a supporting summary. The held-out
+scenarios share the organization and the generator's conventions with the others, so
+this is held out from scenario-specific tuning and not an independent sample; a world
+from another seed is the stronger design and is reopened if the budget leaves room.
+
+**Whether a run's prefetch is the registered plan is checked from its trace, for every
+system and every export that decodes.** The planner and the chunking are `core`'s,
+shared with the harness, so a fault of the planner is invisible to the check and stays
+with the planner's tests. What the evaluator reconstructs by itself is the execution:
+the opening read always; the rest of the plan only when that read returned the leave
+asked for, the span taken from the returned record and never from sealed truth; no
+call once an earlier call of the same source ended unreachable; none after a call that
+returned a malformed record, and nothing else ends the plan, since a defect found at a
+read that completed is found after the prefetch has finished. Four findings, missing,
+wrongly parameterized, reordered and extra, each naming a step and an operation and
+never an argument; none changes coverage, which derives from the operations recorded.
+A run whose record names another prefetch rule is not evaluated, which is a different
+statement from having no finding, and a registration that names a rule this code does
+not plan refuses the evaluation whole. Arguments are compared with keys in one order:
+the planner and the record spell an object's keys differently, and the first run of
+the real harness against the check failed on exactly that.
+
+**An evaluation is one immutable artifact over an explicit set of stored runs.** Every
+object listed under a world's runs is in its inventory with the store's version id,
+the digest of the bytes read, its cost, and exactly one reason for being in or out of
+the tables; a run that contributes no estimate was still paid for. A run is eligible
+when the registration at the commit it cites has the evaluator's own bytes and what
+the run recorded of its execution is what the registration says: the system and its
+variant, a registered arm, the schedule's digest, the caps, the prefetch rule, the
+retrieval, and for a model system its configuration, each role's whole prompt set and
+its tool surface. Equal bytes alone would show matching declarations and nothing about
+what ran. Under a frozen registration the harness's tree is clean as well. A run that
+fails any of these, or whose commit resolves to no registration, keeps its grade and
+enters no table. Two things refuse the whole evaluation, since tables cut from either
+would look complete and be about something else: two eligible exports of one run and
+attempt, and a registration the evaluator cannot read as a plan. A set that is merely
+short is evaluated and shows its shortfall. The label is derived and stored, never
+read from a run: development under a draft, reported under a frozen registration,
+exploratory when that registration declares it amends an earlier one and that
+full-set results existed, the two declarations carried as declared because no job
+can read earlier evaluations to check them. The evaluator runs from a clean tree,
+records its commit, and records which paths of its declared implementation changed
+since the registration's commit; whether a change was maintenance or a change to a
+metric is a judgment for the report. No run is replaced after the fact: an evaluator
+defect means evaluating the same stored runs again, a compromised execution means
+measuring again under an amendment, and both results are kept either way. The
+artifact's written form is derived from its types by one encoder with no decoder,
+the format held by a version and a pinned list of key paths; a run is written as its
+outcome and findings, and what the stored export gives back is not written twice. An
+explicit codec with a strict decoder replaces it when something reads an artifact
+back.
+
+**The evaluation job proves the world before it grades anything, and its log holds
+nothing sealed.** It runs by hand under its own environment and role: a required
+reviewer, the main branch only, no secret, reads of the run exports, the scenario
+specs and the two truth objects, and one put under the evaluations prefix. Every
+dispatch first probes that boundary, positive controls before refusals, each refusal
+asserted on the permission error. The refused put carries the create-only header and
+targets a disposable key, because the bucket refuses a put without that header for
+every principal and a plain put refused would say nothing about the role. One command
+proves the world from its three objects and writes nothing; the other lists the
+stored runs, resolves each cited commit in the checkout's own history without running
+anything from it, and publishes the artifact. The log is public, so the job prints a
+world version, scenario ids as a flat list, totals, keys and labels, a known refusal
+by its message, and any other failure by its type alone with no traceback, which
+would print a chain of causes that can quote what the rules were reading. On its
+first dispatch the golden world was proven, the six development scenarios selected,
+and its retrieval targets counted for the first time: 31 under the normal condition,
+14 with the tracker down, 25 with the calendar down (FINDINGS, `evaluator-identity`).
+Publication and the grading of a real export are proven by the first live run, not
+by a probe.
 
 ---
 
@@ -2233,7 +2371,17 @@ turn; a single investigation is estimated near seventy-five cents on Sonnet-clas
 pricing with prompt caching, about three times that without, an evaluation pass
 scaling with scenario count, and the budget is preregistered in three numbers:
 expected $150 for the investigator milestone, hard ceiling $300, mandatory
-reforecast after the first ten representative runs. The levers are design-level: a
+reforecast after the first ten representative runs. Every one of these dollar figures
+is a placeholder and none is a target or an accepted spend: they predate the harness,
+assume a larger model than development uses, are cumulative over the milestone and
+not a rate per period, are carried in the registration marked unmeasured, and are
+set again from real usage before the registration is frozen. The ledger's admission
+threshold is staged the same way, a placeholder until the reforecast and then set
+from the forecast of the whole registered workload; when that forecast does not fit,
+the repeat count is cut first, then the two model arms under a corpus outage, never
+an answer-quality arm, and failing that the registration stays a draft and the
+measurement does not start. The per-run caps are development values too, final ones
+set from the calibration runs' usage and never from full-set results. The levers are design-level: a
 tiered scenario subset for iteration with the full set only for reported numbers,
 the deterministic core pre-fetching structured facts so the agent starts with
 evidence, a cheaper model for sub-tasks, the Batch API for any non-interactive step.

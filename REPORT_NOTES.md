@@ -7,6 +7,131 @@ decisions it feeds.
 
 ---
 
+## 2026-10-03 — A preregistration that binds only what the code reads, and what the gates and the reviews caught on the way to its first dispatch
+
+*M2 step 6, the investigator milestone's sixth build step: the preregistration as a
+committed file, the harness and the evaluator reading it, and the evaluation job proved
+once against the golden world. Seven rulings by interview, then eight commit groups, each
+opened by a design pass and closed by an external review with no chat context; this entry
+covers the last four groups and the dispatch (commits `6bb06c0` to `761a58d`, per
+`git log`). Feeds: the M2 milestone report's method section, on what was fixed before any
+system was measured and how a run is tied to it; the final report's section on honest
+measurement, on eligibility, labels and the held-out scenarios; and its process section,
+on what a gate that runs the real system finds that a reading of the code does not.*
+
+The preregistration could have been a document. It was built as one JSON file that the
+code decodes, because a document can say anything and nothing checks it. The rule that
+shaped the file is that names live in it and behaviour lives in code. The file names a
+check, a measure, a prefetch rule, an outage protocol, a reporting policy; the code holds
+what each name means; and each consumer compares what the file names with what its own
+code computes and refuses to run on a difference. Neither side is substituted for the
+other, since a run that quietly used today's value would cite a registration it did not
+follow. The consequence is that the file binds only what some code reads. A sentence of
+intent that no consumer checks has no place in it, and the prose that explains the file
+sits beside it and restates no value. The file is a draft or frozen. A draft may hold a
+value nobody has chosen yet, written as pending with what will resolve it, and a pending
+value blocks only the execution that needs it, so the rules-only baseline has been
+running under the draft while the agent's model and prompts are still pending. Frozen
+refuses anything pending and any number still marked unmeasured, which today includes
+every cap and every dollar figure.
+
+The first thing the session built on top of it was the check that a run's opening reads
+are the registered plan. The planner is shared between the harness and the evaluator, so
+the evaluator reconstructs only the execution: which planned calls a run was obliged to
+make given what its earlier ones returned. The check was written, and the first run of
+its gate, the real baseline on every scenario, failed on all thirty, on the same two
+calls. A recorded operation holds its arguments with keys
+in sorted order; the planner spells them in the order it builds them; and the encoding
+used for the comparison keeps insertion order. Two identical requests never matched. No
+reading of either module shows this, because each is right alone. The comparison now
+sorts keys at every depth, and the real baseline conforms on thirty scenarios under each
+of the five registered conditions, read back from its exported bytes (the gate in
+`tests/unit/test_evaluator_prefetch_conformance.py`). The external review then found what
+the gate could not, a misclassification: when a long leave's second chunk is replaced by
+a second read of the first, the check reported one wrongly parameterized call, where its
+own docstring promised a missing call and an extra one. The fallback had accepted any
+spare operation of the right tool. It was reproduced by a new test before the fix
+(commit `96dfea1`).
+
+The evaluation artifact came next, and with it the question of which runs enter a table.
+A run is eligible when the registration at the commit it cites has the evaluator's own
+bytes and when what the run recorded of its own execution is what the registration says.
+The second half is there because equal bytes show matching declarations and nothing
+about what ran. The review found a hole in exactly that half. Prompts were compared as
+one pooled set over all of a system's roles, so with two prompts registered, one role
+holding the first and another holding the second passed, though neither had run under
+the registered set. Each role's whole prompt set is compared now (commit `aa3bc3a`); the
+test that had covered it used a single role. One ruled choice was also reversed during
+the build and said so at the time: the design pass had an export of an unregistered arm
+refuse the whole evaluation, and the ruling's own text lists the outage schedule among
+the settings a run is compared on, so such a run is ineligible like any other settings
+mismatch, keeps its grade and its cost in the inventory, and refuses nothing.
+
+How the artifact is written was a fork of its own. The export and the registration each
+have a codec written field by field, because a second party decodes them strictly and a
+hand-written pair keeps encoder and decoder honest with each other. Nothing reads an
+artifact back in this milestone, and some thirty-five types written out by hand with
+nothing to mirror would have been transcription. The artifact is written by one walk
+over its dataclasses, with explicit cases only where the written form differs from the
+type, and the format is held by a version and a pinned list of every key path the walk
+produces, 442 of them (`tests/unit/artifact_shape.txt`). Three situations are recorded
+as the point where an explicit codec with a strict decoder replaces it: something
+decodes an artifact, artifacts from two versions of the code are read side by side, or
+bytes must be equal across platforms. The pin itself had to be earned. Its first
+version, made from the baseline's own runs, looked complete at 346 paths and was thin in
+a way the path count hid: counting paths per row type showed none under conflicts,
+constraints or unknowns, and five kinds of finding with no fields, since the baseline
+reports none of those. That was found by the build's own count, not by a review, and the
+fixture was widened with truthful reports of every scenario, reports stripped of their
+assessments, an undeclared tool, a short enumeration and a priced model call until each
+type was present.
+
+The last group built the job that runs all this, and its workflow had a fault that would
+only have shown at the first real evaluation. The draft wrote its logs into the
+checkout, and the evaluate command refuses a checkout that differs from its commit, so
+the job would have refused itself. It was caught while writing the file and the logs go
+to the runner's temporary directory. Whether anything else in the job's setup trips the
+same refusal is not known yet. The review of this group found the most consequential
+of the three faults the reviews caught. The command that proves a world printed the development scenarios by
+running the seeded draw every time, while the registered list is deliberately kept when
+a seed changes, so that tuning already done is not disowned. With the seed moved by one,
+the command would have printed scenarios the evaluator holds out as if they were free to
+tune on, which is the one thing the held-out set exists to prevent. It now returns the
+registered list once one exists and draws only while the list is pending (commit
+`761a58d`).
+
+The dispatch itself was quiet. One run, the proving command, on commit `3835e15` (run
+37145648012; everything in this paragraph is from
+`probes/captures/evaluator-identity/run-37145648012-attempt-1.log` and the approval
+record beside it). It waited for its reviewer and has one approval. Under the
+evaluator's role four reads were allowed: the world spec, the truth manifest, the
+scenario specs and a listing of the stored runs. Three operations were refused, each on
+the permission error: a get of the world's manifest, a model call, and a put under the
+sealed worlds. That put carries the create-only header on purpose. The bucket refuses a
+put without it for every principal, administrators included, so a plain put refused
+would have said nothing about the role, which is what the validator's older probe does
+and why it was not copied. The golden world was proven from its three objects, six
+development scenarios were selected by tier alone, and the retrieval targets of the
+golden world were derived for the first time: 31 under the normal condition, 14 with the
+tracker down, 25 with the calendar down, and no answer under the two outages that leave
+the leave or the policy unreadable. Nothing was written. The log is public, so its 410
+lines were searched for every tier name, every scenario class name, a traceback and any
+leave, employee or ticket id, and none occurs.
+
+What the step leaves unproven is stated in the same places it was built. No export of a
+model system exists, so the evaluate command has run only against a local store and a
+temporary git repository, and publication of an artifact is proven by the first live
+run and not by a probe. The six development scenarios were drawn by tier, and whether
+two of them share a scenario class on the golden world cannot be printed, class being
+sealed. The suite stands at 4,309 passing tests (the last full run of the session, after
+commit `761a58d`), which says the pieces agree with each other and nothing about a
+measurement that has not been made.
+
+Figure: a small table of the six catches by who made them (the gate on the real
+harness, the external review three times, the build's own count and reread twice), each
+with what a wrong version would have reported, would carry the process section without
+prose.
+
 ## 2026-10-03 — The baseline that reads no prose is grounded whole and wrong exactly where the answer lives in prose, and the forecast was met by the real thing
 
 *M2 step 5, the investigator milestone's fifth build step: the rules-only baseline, the

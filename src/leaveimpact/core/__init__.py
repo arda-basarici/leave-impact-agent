@@ -8,7 +8,8 @@ coverage that says which slices of the sources a view observed whole and the
 function that computes it from a run's reads, the condition those reads show, the
 structured projection of those reads that both the grader and the graded build on, the
 frozen prefetch every system opens with as data with its planner and its digest, the
-derivation that turns an observed record into facts and gaps, and the
+preregistration the harness and the evaluator both read, as plain data with its strict
+codec, the derivation that turns an observed record into facts and gaps, and the
 deterministic rules — closed-world evaluation per declared evidence domain, the
 system-of-record authority table that resolves conflicting observations, viability of
 a person for a need, constraint checks, and the reading pass that asks grounding and

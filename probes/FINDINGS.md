@@ -2193,3 +2193,69 @@ scenarios, the reference seed, stand-in prose); the twenty-seed numbers stay the
   check on shared rules, never an oracle. Prefetch conformance is not yet checked by the
   evaluator (the sixth step's), and the capture of `baseline-basis` regenerates only
   while the tests' fixtures stand.
+
+## resample-timing — ten thousand resamples cost a twentieth of a second an interval, so the count stays (2026-10-03)
+
+The statistics ruling of the investigator milestone's sixth build step registered 10,000
+bootstrap resamples and asked for a timing at the build, any reduction to be settled
+before measurement. The probe is `probes/resample-timing/probe.py`, its capture
+`captures/resample-timing/2026-10-03.txt`; it times the evaluator's own interval
+functions at the sizes the registered analysis draws them.
+
+- **One interval.** At 10,000 resamples, median of five runs: a ratio over the full set
+  (ten scenarios a tier) 0.049 s, a paired difference 0.065 s; over the primary set
+  (eight a tier) 0.038 s and 0.059 s. One workstation, Python 3.13.5, single-threaded.
+- **The whole descriptive product.** Three system pairs, three conditions, four measures,
+  four strata and two scenario sets are 288 bootstraps, an estimated 9 seconds in all.
+- **Consequence.** The count stays at 10,000; nothing is traded for speed.
+- **Limits.** The estimate is arithmetic over the measured per-interval time, not a run
+  of the whole analysis. The count reduces simulation noise in a percentile and does
+  nothing for the width of an interval over ten scenarios a tier.
+
+## evaluator-identity — the evaluation job's first dispatch: the reviewer's pause, the role's boundary, the golden world proven, nothing written (2026-10-03)
+
+The sixth build step's last group built the evaluation job and dispatched it once, with
+the command that proves a world and writes nothing. Run 37145648012, attempt 1, on commit
+`3835e15`. Captures: `captures/evaluator-identity/run-37145648012-attempt-1.log` (the
+run's whole log) and `run-37145648012-approvals.json` (the approval record from the
+API). This is the acceptance evidence owed for the evaluator's principal and for the
+grant that lets it read the scenario specs.
+
+- **The reviewer's pause.** The run has one approval record: state approved, for the
+  `evaluation` environment. A dispatch does not reach the role without it.
+- **The identity.** OIDC subject `…:environment:evaluation` on `refs/heads/main`; the
+  role assumed is `leave-agent-evaluator`.
+- **Allowed, shown first.** Gets of the world spec and the truth manifest in the truth
+  bucket and of the scenario specs in the world bucket, and a listing of `runs/`.
+- **Refused, each on the permission error.** A put to a disposable key under `worlds/`
+  carrying `If-None-Match: *` (AccessDenied); a get of this version's
+  `world-manifest.json`, a key known to exist (AccessDenied); one Bedrock `converse` call
+  with a valid request on a model the generator's role is granted
+  (AccessDeniedException). The put carries the header because the bucket policy refuses
+  a put on a final prefix without it for every principal, so a plain put refused would
+  say nothing about this role.
+- **The world.** The golden world `7b806ed6…` loaded from its three objects under this
+  role: the digests the world spec cites, the version recomputed from the three byte
+  streams, every sealed key reproduced by today's rules. Thirty scenarios.
+- **The development scenarios.** `scenario_009`, `scenario_010`, `scenario_013`,
+  `scenario_018`, `scenario_023`, `scenario_028`: two from each tier by the registered
+  draw, printed as a flat list and since written into the registration.
+- **The retrieval targets on the golden world, derived for the first time.** 31 under
+  the normal condition, 14 with the tracker down, 25 with the calendar down; no answer,
+  and so no count, with the HR system down or the corpus down. Until this run the
+  targets were pinned on the tests' throwaway world only.
+- **Nothing sealed in the log.** The whole 410-line log was searched for every tier
+  name, every scenario class name, a traceback, and a leave, employee or ticket id.
+  None occurs.
+
+Not shown by this run, and said so:
+
+- A get under `preparing/` was not attempted: no key there is known to exist
+  independently of the role's own reads, and the role is not widened to find one.
+- Publication under `evaluations/` and the grading of a real export. The job's other
+  command is tested against a local store and a temporary git repository only; the first
+  live run proves it.
+- Whether two of the six development scenarios share a scenario class on the golden
+  world. The draw reads tier alone, class is sealed, and the job cannot print it.
+- The six ids are the ones the same draw gives on the tests' throwaway world, the
+  golden plan laying tiers out by id the same way in both.
