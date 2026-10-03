@@ -1,0 +1,170 @@
+# The evaluation job: the sealed world proven from its three objects, and the runs stored
+# for it graded against the answer key into one immutable artifact per execution. Runs
+# only by hand, under the `evaluation` environment on the evaluator's OIDC-trusted role:
+# a role that reads the run exports, the scenario specs and the two truth objects, writes
+# nothing but evaluations, and reaches no vendor and no model. The environment holds no
+# secret; its reviewer rule and its `main`-only rule are what stand between a dispatch
+# and the answer key.
+#
+# Two commands. `prove` loads the world, selects the development scenarios by tier alone
+# and counts the retrieval targets per registered condition; it writes nothing, and it is
+# what the first dispatch runs. `evaluate` lists every object under the world's runs
+# prefix, grades each export, and publishes the artifact; it refuses an empty listing and
+# a dirty checkout.
+#
+# The log of this job is public and the world is sealed. The entry point prints a world
+# version, scenario ids as a flat list, totals, keys and labels; a refusal by its message,
+# written to name nothing sealed; and any other failure by its type alone, with no
+# traceback. Nothing in this file prints an object's content.
+#
+# The boundary probe runs on every dispatch, before anything is read for the job itself,
+# positive controls first so a refusal below cannot be a dead endpoint or a broken
+# credential. The history is fetched whole because an export cites the registration by
+# commit and the job resolves that commit here. Every action is pinned by full commit SHA
+# (the tag beside it), because `id-token: write` is a job-level permission and a moved tag
+# would be a moved trust boundary.
+name: evaluate run
+on:
+  workflow_dispatch:
+    inputs:
+      world_version:
+        description: the 64-hex world version whose runs are evaluated
+        required: true
+        type: string
+      command:
+        description: prove (reads the world, writes nothing) or evaluate (publishes one artifact)
+        required: true
+        type: choice
+        default: prove
+        options:
+          - prove
+          - evaluate
+permissions: {}
+
+concurrency:
+  group: evaluation
+  cancel-in-progress: false
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    environment: evaluation
+    timeout-minutes: 60
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - name: Record the OIDC subject and the workflow claims
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            core.info(`workflow=${claims.workflow} workflow_ref=${claims.workflow_ref} job_workflow_ref=${claims.job_workflow_ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Assume the evaluator role
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-evaluator
+          aws-region: eu-central-1
+
+      - name: Probe the evaluator role's boundary before anything is read
+        # Allowed, first: the three objects a world is proven from and a listing of the run
+        # exports. Then the refusals, each asserted on the permission error specifically.
+        #
+        # The put carries `If-None-Match: *` and targets a disposable key under `worlds/`
+        # that is inside no real version. The bucket policy refuses a put on a final prefix
+        # without that header for every principal, the account's administrators included,
+        # so a plain put refused would say nothing about this role; with the header, the
+        # role's own lack of a put is the only thing left to refuse it.
+        #
+        # The world manifest is a key KNOWN TO EXIST (this version's projection wrote it):
+        # S3 answers a get of an absent key with AccessDenied whenever list is denied, so
+        # only a real key proves the get is refused. The model call is a valid request to a
+        # model the generator's role is granted, so the refusal is this role's.
+        #
+        # Not proven here, and said so: a get under `preparing/`. No key there is known to
+        # exist independently of this role's own reads, and the role is not widened to find
+        # one. Publication under `evaluations/` is proven by the first `evaluate` run and
+        # not by a probe put.
+        env:
+          WORLD_BUCKET: leave-impact-world-445743457479
+          TRUTH_BUCKET: leave-impact-truth-445743457479
+          PROBE_MODEL: eu.anthropic.claude-haiku-4-5-20251001-v1:0
+          INPUT_WORLD_VERSION: ${{ inputs.world_version }}
+        run: |
+          set -euo pipefail
+          aws sts get-caller-identity --query Arn --output text | tee "$RUNNER_TEMP/identity.txt"
+          grep -q 'assumed-role/leave-agent-evaluator/' "$RUNNER_TEMP/identity.txt"
+          version="$INPUT_WORLD_VERSION"
+          case "$version" in
+            *[!0-9a-f]*|"") echo "boundary probe: the world version is 64 hex characters"; exit 1 ;;
+          esac
+          disposable="worlds/access-probe/evaluator-put-denied-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          errors=$(mktemp)
+          body=$(mktemp)
+          printf 'evaluator boundary probe' > "$body"
+          allowed() {
+            "$@" > /dev/null
+            echo "boundary probe: allowed, as it must be: $*"
+          }
+          refused() {
+            code="$1"; shift
+            if "$@" > /dev/null 2> "$errors"; then
+              echo "boundary probe: NOT refused: $*"; exit 1
+            fi
+            if ! grep -q "(${code})" "$errors"; then
+              echo "boundary probe: refused for another reason than ${code}: $*"; cat "$errors"; exit 1
+            fi
+            echo "boundary probe: refused with ${code}: $*"
+          }
+          allowed aws s3api get-object --bucket "$TRUTH_BUCKET" --key "world-spec/${version}.json" /dev/null
+          allowed aws s3api get-object --bucket "$TRUTH_BUCKET" --key "truth-manifest/${version}.json" /dev/null
+          allowed aws s3api get-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/scenario-specs.json" /dev/null
+          allowed aws s3api list-objects-v2 --bucket "$WORLD_BUCKET" --prefix "runs/" --max-keys 1
+          refused AccessDenied aws s3api put-object --bucket "$WORLD_BUCKET" --key "$disposable" --if-none-match '*' --body "$body"
+          refused AccessDenied aws s3api get-object --bucket "$WORLD_BUCKET" --key "worlds/${version}/world-manifest.json" /dev/null
+          refused AccessDeniedException aws bedrock-runtime converse --model-id "$PROBE_MODEL" \
+            --messages '[{"role":"user","content":[{"text":"boundary probe"}]}]' \
+            --inference-config '{"maxTokens":1}'
+          echo "boundary probe: unproven, not attempted: a get under preparing/ (no key there is known to exist independently)"
+          echo "boundary probe: four reads allowed, three operations refused with the permission error; a preparing/ get unproven" | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Run the evaluation job
+        env:
+          LEAVE_IMPACT_WORLD_BUCKET: leave-impact-world-445743457479
+          LEAVE_IMPACT_TRUTH_BUCKET: leave-impact-truth-445743457479
+          LEAVE_IMPACT_AWS_REGION: eu-central-1
+          INPUT_WORLD_VERSION: ${{ inputs.world_version }}
+          INPUT_COMMAND: ${{ inputs.command }}
+        # The log goes to the runner's temporary directory, never into the checkout: the
+        # evaluate command refuses a tree that differs from its commit.
+        run: |
+          set -euo pipefail
+          status=0
+          uv run python -m leaveimpact.evaluator "$INPUT_COMMAND" --world-version "$INPUT_WORLD_VERSION" 2>&1 | tee "$RUNNER_TEMP/evaluate.log" || status=$?
+          {
+            echo "## Evaluation job: ${INPUT_COMMAND}"
+            echo
+            echo '```'
+            cat "$RUNNER_TEMP/evaluate.log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "$status"
