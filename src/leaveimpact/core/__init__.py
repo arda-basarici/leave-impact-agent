@@ -79,7 +79,6 @@ from leaveimpact.core.checks import (
     ABOUT_THE_ARTIFACT,
     ABOUT_THE_CANDIDATE,
     chain_problems,
-    completeness_problems,
 )
 from leaveimpact.core.claims import (
     ARTIFACT_KINDS,
@@ -648,7 +647,6 @@ __all__ = [
     "closing_slices",
     "closing_slices_of_any",
     "comment_ref",
-    "completeness_problems",
     "cost_of",
     "coverage_from_reads",
     "cumulative_cost",

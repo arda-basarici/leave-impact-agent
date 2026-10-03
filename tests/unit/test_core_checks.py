@@ -24,12 +24,11 @@ from leaveimpact.core import (
     Verdict,
     chain_problems,
     clause_ref,
-    completeness_problems,
     component_ref,
     employee_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import claim_id, clause_id, component_id, employee_id, work_item_id
+from leaveimpact.core.ids import claim_id, clause_id, component_id, work_item_id
 from tests.unit.conftest import CANDIDATE_UNRECORDED, CANDIDATE_UNSKILLED, LEAVER, STALE_OWNER
 
 
@@ -173,17 +172,6 @@ def test_every_impact_is_answered_by_an_action_and_every_action_answers_an_impac
     without_impact = tuple(claim for claim in sample_claims if claim is not impact)
     assert chain_problems(without_impact) == (
         "claim_007 answers an impact the report does not claim",
-    )
-
-
-def test_completeness_needs_the_universe_and_names_who_was_never_assessed(
-    sample_claims: tuple[Claim, ...],
-) -> None:
-    assessed = (CANDIDATE_UNRECORDED, CANDIDATE_UNSKILLED)
-    assert completeness_problems(sample_claims, assessed) == ()
-    universe = (*assessed, LEAVER, employee_id(40))
-    assert completeness_problems(sample_claims, universe) == (
-        "claim_001 has no assessment for emp_017, emp_040 of the candidate universe",
     )
 
 

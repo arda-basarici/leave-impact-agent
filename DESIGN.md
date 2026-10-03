@@ -196,9 +196,10 @@ something that could apply to the impact, on a predicate the rule reads for that
 subject); an unknown action from an unknown assessment; an assign action's assignees
 each hold a viable assessment; an uncovered action holds no viable one; a conflict
 resolves to the system of record's observation under the rule it cites; every impact
-has exactly one coverage action and every action an impact. A separate completeness
-check takes the universe and lists every member without an assessment, so
-`uncovered` is never inferred from a report that simply stopped assessing.
+has exactly one coverage action and every action an impact. Completeness is the
+coverage check below: a conclusion of uncovered or unknown calls for everyone's
+assessment and the gap names who was left out, so `uncovered` is never inferred from
+a report that simply stopped assessing; no separate unconditional check runs.
 
 **Four semantic rules travel with the vocabulary.** *Viability is relational and
 preference is never truth:* the key states whether `(need, employee)` is viable and
@@ -1445,7 +1446,18 @@ domain needs belongs below the adapter, one that describes how Jira works belong
 inside the Jira adapter; no interface is manufactured to look hexagonal. Two
 verification points, two packages: the truth-level checks are construction
 invariants in `world`, run before sealing; the validator verifies that projection
-realized the declared world and never reads truth.
+realized the declared world and never reads truth. Beside the rules, `core` holds what
+both parties must compose the same way (the fifth build step): the reading pass that
+asks grounding and viability of each impact, the composing pass that gives each impact
+its need, its requirements, the count they ask for and the plan rule's outcome, the
+condition a run's reads show, the coverage the reads give, the structured projection of
+a trace's reads (each record as first returned, the usable ones derived and dated to the
+run's day, a record no fact can be made from withdrawn and named), the record a witness
+can be cited by, and the frozen prefetch as data with its planner. A composition written
+again in either party would be a second reading of the rules, free to drift; the
+evaluator's view is the projection plus its sealed overlay, so what a system that reads
+no prose concludes from is the structured part of what the grader replays over, by
+construction.
 
 **A port returns observed entities, never facts.** `core` derives facts and gaps
 from an observed entity in one deterministic derivation, so an adapter never decides
@@ -1774,8 +1786,9 @@ whom a section names, a stale owner in a runbook, a skill shown in a comment or 
 in a section. On twenty seeds of the golden plan every one of 620 authored facts is
 carried by a comment or a clause (FINDINGS, `grounding-basis`), so a view built from
 records alone would leave every claim that rests on prose ungrounded for every system.
-The view is built from the export's completed reads in two ways. Structured facts derive
-from each record exactly as returned, dated to the run's day. A sealed authored fact is
+The view is `core`'s structured projection of the export's completed reads, with the
+sealed overlay this view adds. Structured facts derive from each usable record exactly as
+returned, dated to the run's day. A sealed authored fact is
 admitted when a completed read returned its carrier and the returned comment or section
 equals the sealed one: the evaluator holds the sealed text, and can say what a piece of
 prose states only when it is that text. A claim's evidence references admit nothing;
@@ -1927,22 +1940,78 @@ ten scenarios per tier is very few clusters, where a percentile interval's cover
 be poor and visibly discrete; no correction is applied.
 
 **Two baseline systems are preregistered beside the agent and graded by the same
-evaluator from the same export shape.** Rules-only: the pure rules over facts derived
-from a frozen structured prefetch, no prose read. Single-shot: one model call, no
-tools, over that prefetch plus one fixed corpus retrieval whose query is written down
-before any run. The prefetch and its candidate-selection rule are one frozen rule for
-all three systems, a floor the agent may extend through tools and the baselines may
-not, and it can use no sealed key because the harness cannot import the benchmark.
+evaluator from the same export shape.** Rules-only: the frozen structured prefetch,
+the structured projection of what it read as its whole view, the shared rules over it
+with no constraint, and one reporting policy; no model call, no prose read.
+Single-shot: one model call, no tools, over that prefetch plus one fixed corpus
+retrieval whose query is written down before any run. The prefetch is one frozen rule
+for all three systems, a floor the agent may extend through tools and the baselines
+may not, and it can use no sealed key because the harness cannot import the
+benchmark.
+**The prefetch is a dependent plan with the leave's exact span as its window** (the
+fifth build step): read the leave the context names; on the leave asked for,
+enumerate the employees, read the leaves overlapping the leave's span, enumerate the
+components and the work items, read the events overlapping that span as instants in
+the reference zone. The returned leave, never a sealed truth, supplies the span, and
+the context carries no window; on twenty worlds the exact span gives the oracle's
+answer in every scenario and a margin adds nothing. A span past a tool's bound is
+chunked by the bound the tool's own validation applies, in elapsed time, so a chunk
+across a clock change is never planned. The record names the rule by an identifier
+and a digest over the planner-protocol version, the ordered steps, and each named
+tool's definition, method facts and surface protocols; a semantic change to the
+planner raises the protocol version. Whether a trace conforms to the plan is a check
+apart from coverage, which derives only from the operations recorded; the sixth step
+owes the evaluator's side of it. The candidate universe is the distinct employee set
+the whole-organization enumeration returned, complete when the coverage mapping marks
+the employee kind covered, the leaver included and never repaired from truth: every
+narrower selection a prefetch can compute changes the outcome (255 and 56 of 640
+impacts for the leaver's team, and with the component's members), and the selection
+that keeps every outcome needs the skill a clause states. At a larger scale narrowing
+needs a completeness-bearing retrieval stage, the two whole enumerations being the
+load-bearing reads of a negative about a skill or an ownership.
+**The rules-only baseline has no conclusion rule of its own.** It emits the rules'
+results over its own view: every impact the view grounds; one assessment of every
+employee in the universe exactly as the viability rule returns it, since stopping at
+enough viable candidates loses 807 of 1,240 must-assess rows and takes 140 coverage
+gaps on twenty worlds; one action per impact as the plan rule gives it, an assign
+naming the first viable by the code-point order of their ids, a declared tie-break;
+the open questions once each; the conflicts met on the evidence used; and no
+constraint, its empty constraint list a premise its record declares. Each claim cites
+the citable records of its own proof; claims are ordered by type and key and numbered
+after, so identical observations give identical bytes. Each prefetch operation is
+attempted at most once, a source left alone after its first unreachable answer; retry
+is the harness's. It requires the leave returned and the universe covered, and
+otherwise abstains, a completed run with no claims under the condition its trace
+shows, which is how both degraded states, an unreadable leave and an unreadable
+policy, are represented for every system: no claim type, status or field is added,
+and the evaluator reports whether the claim set was empty and the standing of each
+claim when it was not. An HR system that contradicts itself, another leave for the id
+asked or an enumeration without the leaver, and a returned record no fact can be made
+from, fail the run by defect at that operation, since a degrade would fold a defect
+into a legitimate unknown; so a defect failure names the operation the fault was
+found at, a malformed record or returned records the harness could not accept, and an
+absent answer anchors none. A system that makes no corpus read is not degraded by its
+retrieval mode: the baseline is graded on what it reports, and its confident errors
+measure what prose is worth. Its result on the structured tier is a plumbing check on
+shared rules and never an oracle, since the baseline and the evaluator share the
+rules; a miss there is investigated, never pre-classified, and disagreement on the
+other tiers is its measured quality. Forecast before any system existed and met by
+the real one on the reference seed: 810, 270 and 540 claims under the normal
+condition and the two gradable outages, every one reproduced by the replay with no
+finding, 24, 6 and 18 plan findings against the oracle, the structured tier correct
+whole and the other tiers never (FINDINGS, `baseline-basis` and `baseline-graded`).
+Grounded is not correct: the replay takes the empty constraint list as a premise. No
+monotonic partial report is emitted in a degraded state; a structurally non-viable
+verdict and an uncovered action when everyone is one stay true under any policy, and
+the report view may reopen it once a claim-level oracle can grade it.
+
 The comparisons measure the incremental performance, cost and latency of these
 specified systems; a causal claim about the model or the tools needs a controlled
 arm, and the retrieval and decomposition arms are such arms, added after the core is
-measured. The rules-only result on the structured tier is a plumbing check on shared
-rules and never an oracle, since the baseline and the evaluator share the rules; a
-miss there is investigated, never pre-classified. One model per comparison, held
-constant across the agent and the single-shot baseline and recorded per run; which
-models the comparison arm lists is the preregistration's to state after the ten-run
-reforecast, because a model is one identifier to switch while prompt text and
-reported numbers bind to it.
+measured. One model per comparison, held constant across the agent and the
+single-shot baseline and recorded per run; which models the comparison arm lists is
+the preregistration's to state after the ten-run reforecast, because a model is one
+identifier to switch while prompt text and reported numbers bind to it.
 
 **One committed preregistration file precedes the first reported run and is cited by
 commit in every evaluation artifact.** It holds the metric definitions, both

@@ -12,13 +12,13 @@ report claims is compared with the fact base by the evaluator, which is grading;
 report that is internally incoherent is a graded outcome too, which is why these
 return problems rather than raise, like the structural check they extend.
 
-Two checks look alike and are not. ``chain_problems`` is report-internal: an
-uncovered action passes it when the report holds no viable assessment, which proves
-nothing about the world, since a report that simply stopped assessing would pass too.
-``completeness_problems`` takes the candidate universe — the organization, never the
-``must_assess`` set — and lists every member without an assessment for each impact,
-so ``uncovered`` is never inferred from a report that did not look. The evaluator runs
-it with the org; the generator runs it against its own truth.
+``chain_problems`` is report-internal: an uncovered action passes it when the report
+holds no viable assessment, which proves nothing about the world, since a report that
+simply stopped assessing would pass too. Whether everyone who should have been assessed
+was is the evaluator's coverage check, asked against the candidate universe where the
+oracle expects uncovered or unknown or the report concludes so (the fifth build step's
+first ruling); an unconditional form of it lived here until that step's close and had
+no caller.
 
 An unknown assessment's unknown claims are checked for shape, not for truth: each is
 about the candidate, or about the impact's artifact, or about a clause, on a predicate
@@ -33,7 +33,7 @@ fact base is the evaluator's.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Mapping, Sequence
 
 from leaveimpact.core.authority import resolve
 from leaveimpact.core.claims import (
@@ -43,13 +43,12 @@ from leaveimpact.core.claims import (
     CoverageAction,
     CoverageActionKind,
     Impact,
-    ImpactKey,
     SourceConflict,
     Unknown,
     Verdict,
 )
 from leaveimpact.core.enums import EntityKind
-from leaveimpact.core.ids import ClaimId, EmployeeId
+from leaveimpact.core.ids import ClaimId
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import EntityRef, clause_ref, employee_ref
 
@@ -95,36 +94,6 @@ def chain_problems(claims: Sequence[Claim]) -> tuple[str, ...]:
         if isinstance(claim, SourceConflict):
             problems.extend(_conflict_problems(claim))
     problems.extend(_answer_problems(impacts, actions))
-    return tuple(problems)
-
-
-def completeness_problems(
-    claims: Sequence[Claim], universe: Iterable[EmployeeId]
-) -> tuple[str, ...]:
-    """Every candidate of ``universe`` without an assessment for an impact the report names.
-
-    The one check that needs something outside the report — who could have been
-    assessed — and the reason ``uncovered`` is never inferred from a report that stopped
-    assessing.
-
-    >>> completeness_problems((), ())
-    ()
-    """
-    assessed: dict[ImpactKey, set[EmployeeId]] = {}
-    for claim in claims:
-        if isinstance(claim, CandidateAssessment):
-            assessed.setdefault(claim.impact_key, set()).add(claim.employee_id)
-    candidates = tuple(universe)
-    problems: list[str] = []
-    for claim in claims:
-        if not isinstance(claim, Impact):
-            continue
-        missing = [who for who in candidates if who not in assessed.get(claim.key, set())]
-        if missing:
-            problems.append(
-                f"{claim.claim_id} has no assessment for {', '.join(missing)} "
-                f"of the candidate universe"
-            )
     return tuple(problems)
 
 
