@@ -20,7 +20,10 @@ ones it left out instead of refusing the rest, since the baseline's development 
 not need the agent's variant. Nothing is left to project when every arm is pending, and
 that is refused. The retry rule the attempt histories are read under is the one this
 package implements, retries after an infrastructure failure only, so another category is
-refused here.
+refused here. So is a registered prefetch that is not the one this code plans, by
+identifier, protocol version or digest: the conformance check holds a run to this code's
+plan, and under another registered rule it would manufacture findings from a planner the
+registration never named.
 
 The scenario sets: the full set is the world's scenarios, the primary set the ones held
 out from scenario-specific tuning, every scenario that is not a development one. The
@@ -48,6 +51,7 @@ from random import Random
 
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
+from leaveimpact.core.prefetch import PREFETCH_PROTOCOL, prefetch_rule
 from leaveimpact.core.registration import (
     Pending,
     RegisteredArm,
@@ -161,8 +165,10 @@ def preregistered(registration: Registration) -> Projection:
     """``registration`` as the estimation plan, every name it registers resolved.
 
     Raises ``ValueError`` for a check or a measure this evaluator does not hold, a retry
-    rule it does not implement, and a registration with no arm whose variant is resolved.
+    rule it does not implement, a registered prefetch other than the one this code plans,
+    and a registration with no arm whose variant is resolved.
     """
+    _require_registered_prefetch(registration)
     statistics = registration.statistics
     for name in statistics.checks:
         registered_check(name)
@@ -198,6 +204,18 @@ def preregistered(registration: Registration) -> Projection:
         max_attempts=accounting.retry.max_attempts,
     )
     return Projection(plan, tuple(pending))
+
+
+def _require_registered_prefetch(registration: Registration) -> None:
+    registered = registration.prefetch
+    rule = prefetch_rule()
+    declared = (registered.identifier, registered.protocol_version, registered.digest)
+    computed = (rule.identifier, PREFETCH_PROTOCOL[1], rule.digest)
+    if declared != computed:
+        raise ValueError(
+            f"the registered prefetch is {declared}, this evaluator checks conformance to "
+            f"{computed} (identifier, protocol version, digest)"
+        )
 
 
 def scenario_set(

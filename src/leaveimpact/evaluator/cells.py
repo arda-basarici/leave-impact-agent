@@ -33,8 +33,9 @@ better score. Per cell: the runs intended, made and missing; how each counted ru
 graded, limited by reason, excluded by reason; the conditions the runs observed against
 the one assigned, with the assigned outages a run never exercised and the faults nobody
 scheduled; the runs whose record disagreed with their trace, and the ones that carry an
-integrity, an operation or a cost finding. Whether a run with a finding enters a reported
-table is the preregistration's; here it is counted.
+integrity, an operation, a cost or a prefetch finding, with the runs whose prefetch was
+planned under another rule and so not held to this one. Whether a run with a finding
+enters a reported table is the preregistration's; here it is counted.
 
 An attempt whose scenario the sealed world does not hold cannot be placed in a tier or a
 class. It is kept on its arm as unplaced, counted in the accounting of the whole and paid
@@ -221,6 +222,9 @@ class Accounting:
     and the limited runs, the ones whose trace was read for a condition. A run is
     ``unexercised`` when a source its assignment scheduled out was reachable in its trace,
     and has an ``unscheduled`` fault when a source nobody scheduled out was not.
+    ``with_prefetch_findings`` counts the runs whose prefetch reads are not the ones the
+    plan obliged, and ``prefetch_not_evaluated`` the runs planned under another prefetch
+    rule, which carry no such finding because they were held to no plan.
     ``unplaced`` counts the attempts of the arm that no scenario of the world could place,
     in the whole only; they are in no other count here.
     """
@@ -245,17 +249,19 @@ class Accounting:
     with_cost_findings: int
     unplaced: int
     unverifiable_history: int
+    with_prefetch_findings: int
+    prefetch_not_evaluated: int
 
 
 @dataclass(frozen=True, slots=True)
 class AttemptSummary:
     """What happened to every attempt of a cell's runs, the ones a retry replaced included.
 
-    The outcome and finding counts are ``Accounting``'s, over all attempts instead of the
-    counted ones. ``runs_retried`` are the runs with more than one attempt and
-    ``runs_recovered`` those where an attempt before the counted one failed by
-    infrastructure and the counted one did not; ``history`` is how many runs carry each
-    history finding. The attempts no
+    The outcome and finding counts are ``Accounting``'s, the two prefetch counts among
+    them, over all attempts instead of the counted ones. ``runs_retried`` are the runs with
+    more than one attempt and ``runs_recovered`` those where an attempt before the counted
+    one failed by infrastructure and the counted one did not; ``history`` is how many runs
+    carry each history finding. The attempts no
     scenario of the world could place are not here, having no run history to be read in.
     """
 
@@ -270,6 +276,8 @@ class AttemptSummary:
     runs_retried: int
     runs_recovered: int
     history: tuple[tuple[HistoryFinding, int], ...]
+    with_prefetch_findings: int
+    prefetch_not_evaluated: int
 
 
 def condition_name(condition: RunCondition) -> str:
@@ -390,6 +398,12 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
         with_cost_findings=sum(bool(evaluation.metrics.cost.findings) for evaluation in counted),
         unplaced=len(cell.unplaced),
         unverifiable_history=sum(runs.unverifiable for runs in scenarios),
+        with_prefetch_findings=sum(
+            bool(evaluation.metrics.prefetch.findings) for evaluation in counted
+        ),
+        prefetch_not_evaluated=sum(
+            not evaluation.metrics.prefetch.evaluated for evaluation in counted
+        ),
     )
 
 
@@ -413,6 +427,8 @@ def attempt_summary_of(cell: Cell) -> AttemptSummary:
         runs_retried=sum(history.retried for history in histories),
         runs_recovered=sum(history.recovered for history in histories),
         history=_tally(finding for history in histories for finding in history.findings),
+        with_prefetch_findings=sum(bool(attempt.metrics.prefetch.findings) for attempt in attempts),
+        prefetch_not_evaluated=sum(not attempt.metrics.prefetch.evaluated for attempt in attempts),
     )
 
 

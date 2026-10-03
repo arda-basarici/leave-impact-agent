@@ -7,14 +7,17 @@ has reads to count. So the metrics are one record beside the outcome, never fiel
 its three types, and the entry here returns the pair (the investigator milestone's fourth
 build step, ruling 5).
 
-The record has five parts, and each is evaluated only where what it needs exists. A part
+The record has six parts, and each is evaluated only where what it needs exists. A part
 that was not evaluated is ``None``, which is a different statement from a part that found
 nothing:
 
-- *Source discipline* and the *cost check* need the export alone and are always there:
-  the reads by source, outcome and origin, the refused calls, the model calls by how each
-  ended, the repeats, the operations no conforming harness records; the usage and the
-  cost recomputed, with every disagreement between them and the record.
+- *Source discipline*, the *cost check* and *prefetch conformance* need the export alone
+  and are always there: the reads by source, outcome and origin, the refused calls, the
+  model calls by how each ended, the repeats, the operations no conforming harness
+  records; the usage and the cost recomputed, with every disagreement between them and
+  the record; and whether the prefetch reads recorded are the ones the frozen plan
+  obliged, which says of itself when a run was planned under another rule and is held to
+  none.
 - *Required sources* need the sealed key: for each source the scenario's answer depends
   on, whether the run asked it and whether it answered. Evaluated when the export's
   context is the sealed scenario's; a run of another context keeps its raw tallies and
@@ -58,6 +61,7 @@ from leaveimpact.evaluator.grading import (
     grade_run,
 )
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
+from leaveimpact.evaluator.prefetch_conformance import PrefetchConformance, prefetch_conformance
 from leaveimpact.evaluator.proof_contribution import ProofContribution, proof_contribution
 from leaveimpact.evaluator.retrieval import RunRetrieval, retrieval_of
 from leaveimpact.evaluator.retrieval_targets import retrieval_targets
@@ -76,6 +80,7 @@ class TraceMetrics:
 
     discipline: SourceDiscipline
     cost: CostCheck
+    prefetch: PrefetchConformance
     required_sources: tuple[RequiredSourceUse, ...] | None
     contribution: ProofContribution | None
     retrieval: RunRetrieval | None
@@ -107,14 +112,16 @@ def trace_metrics(world: SealedWorld, export: RunExport, outcome: RunOutcome) ->
     trace = export.trace
     discipline = source_discipline(trace)
     cost = check_cost(export)
+    prefetch = prefetch_conformance(export)
     scenario = world.scenario(export.context.scenario_id)
     mismatched = isinstance(outcome, Excluded) and outcome.reason is ExcludedReason.CONTEXT_MISMATCH
     if scenario is None or mismatched:
-        return TraceMetrics(discipline, cost, None, None, None)
+        return TraceMetrics(discipline, cost, prefetch, None, None, None)
     grounding = None if isinstance(outcome, Excluded) else outcome.grounding
     return TraceMetrics(
         discipline=discipline,
         cost=cost,
+        prefetch=prefetch,
         required_sources=discipline.required_source_use(scenario.key.required_sources),
         contribution=(
             None if grounding is None else proof_contribution(trace.operations, grounding.claims)

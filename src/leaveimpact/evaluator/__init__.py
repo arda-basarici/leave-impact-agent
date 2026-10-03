@@ -47,7 +47,9 @@ decodes, and is the entry that returns both. Its parts are ``source_discipline``
 reads by source, outcome and origin, the refused calls, the model calls, the repeats, the
 operations no conforming harness records), ``cost_check`` (usage and cost recomputed from
 the trace in three layers), ``proof_contribution`` (which reads supplied something a proof
-rests on), ``retrieval_targets`` (the statements a scenario's answer depends on under a
+rests on), ``prefetch_conformance`` (whether the prefetch reads recorded are the ones the
+frozen plan obliged, the obligations reconstructed here from what each read returned),
+``retrieval_targets`` (the statements a scenario's answer depends on under a
 condition, by removal through the oracle) and ``retrieval`` (which of them a run's reads
 returned, and through which search at what rank).
 
