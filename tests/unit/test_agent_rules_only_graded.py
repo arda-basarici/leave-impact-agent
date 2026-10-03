@@ -9,24 +9,26 @@ degraded states as the evaluator sees them, and a failed run excluded by its def
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import date
+from pathlib import Path
 
 import pytest
 
 from leaveimpact.agent.export import RunProvenance, export_rules_only_run
+from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import Abstention, RulesOnlyRun, investigate
 from leaveimpact.core import (
-    Caps,
     Component,
     HarnessRevision,
     MalformedRecord,
     Observed,
-    OutageAssignment,
     PricingBasis,
     RunCondition,
     RunExport,
     Source,
     TerminalStatus,
     TreeState,
+    condition_id,
+    decode_registration_bytes,
     export_bytes,
     prefetch_rule,
 )
@@ -57,12 +59,17 @@ FORECAST: dict[tuple[Source, ...], tuple[int, int]] = {
 }
 
 
+REGISTRATION = decode_registration_bytes(
+    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
+)
+
+
 def provenance(*down: Source) -> RunProvenance:
-    return RunProvenance(
-        outage=OutageAssignment(frozenset(down), DIGEST),
+    return rules_only_provenance(
+        REGISTRATION,
+        condition_id(down),
         harness=HarnessRevision(COMMIT, TreeState.CLEAN),
         preregistration_commit=COMMIT,
-        caps=Caps(20, 100_000, 2, 5_000, "input_output"),
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
     )
 

@@ -47,14 +47,15 @@ from leaveimpact.core.worldtime import RunContext
 class RunProvenance:
     """What the harness knows about a run and the run does not: the outage it was assigned,
     the commit it ran from, the preregistration, the caps and the price table it ran
-    under, and the variant name the system is recorded as."""
+    under, and the variant name the system is recorded as. Built from the registration
+    (``registered``), no field defaulted."""
 
     outage: OutageAssignment
     harness: HarnessRevision
     preregistration_commit: str
     caps: Caps
     pricing: PricingBasis
-    variant: str = "reference"
+    variant: str
 
 
 def export_rules_only_run(
