@@ -445,12 +445,14 @@ def _names(stratum: Stratum) -> tuple[str, str]:
 @dataclass(frozen=True, slots=True)
 class _Trials:
     """One scenario's runs under one reading of a check: ``passes`` of ``of`` trials, from
-    ``runs`` runs of which the check did not apply to ``not_checked``."""
+    ``runs`` runs of which the check did not apply to ``not_checked``; ``made`` runs were
+    made in all, the ones with no counted attempt included."""
 
     passes: int
     of: int
     runs: int
     not_checked: int
+    made: int
 
     @property
     def fraction(self) -> float:
@@ -458,21 +460,25 @@ class _Trials:
 
     @property
     def single(self) -> bool:
-        """Whether the scenario is one yes-or-no trial: one trial, from at most one run held,
-        the run never made that counts as not passed being the other way to be one."""
-        return self.of == 1 and self.runs <= 1
+        """Whether the scenario is one yes-or-no trial: one trial, from at most one run made,
+        the run never made that counts as not passed being the other way to be one. A run
+        made and left out of the trials, the check not applying to it or its attempt
+        history holding a gap, is still a repeat: the scenario is not a single trial."""
+        return self.of == 1 and self.made <= 1
 
 
 def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregistered) -> _Trials:
     answers = [check.of(run) for run in runs.counted]
     passes = sum(answer is True for answer in answers)
     not_checked = sum(answer is None for answer in answers)
+    made = len(runs.histories)
     if reading is Reading.CONDITIONAL:
-        return _Trials(passes, len(answers) - not_checked, len(answers), not_checked)
+        return _Trials(passes, len(answers) - not_checked, len(answers), not_checked, made)
     missed = runs.missing if plan.missing_repeat is MissingRepeat.NOT_PASSED else 0
     # A run made whose attempt history has a gap has no counted attempt: it did not pass
     # end to end whatever the missing-run rule says, being made and not missing.
-    return _Trials(passes, len(answers) + missed + runs.unverifiable, len(answers), not_checked)
+    of = len(answers) + missed + runs.unverifiable
+    return _Trials(passes, of, len(answers), not_checked, made)
 
 
 def _require_paired(first: Cell, second: Cell) -> None:

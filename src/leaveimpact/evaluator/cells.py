@@ -253,8 +253,9 @@ class AttemptSummary:
 
     The outcome and finding counts are ``Accounting``'s, over all attempts instead of the
     counted ones. ``runs_retried`` are the runs with more than one attempt and
-    ``runs_recovered`` those where an attempt failed by infrastructure and the counted one
-    did not; ``history`` is how many runs carry each history finding. The attempts no
+    ``runs_recovered`` those where an attempt before the counted one failed by
+    infrastructure and the counted one did not; ``history`` is how many runs carry each
+    history finding. The attempts no
     scenario of the world could place are not here, having no run history to be read in.
     """
 
@@ -262,6 +263,7 @@ class AttemptSummary:
     graded: int
     limited: tuple[tuple[LimitedReason, int], ...]
     excluded: tuple[tuple[ExcludedReason, int], ...]
+    record_disagreements: int
     with_integrity_findings: int
     with_operation_findings: int
     with_cost_findings: int
@@ -388,6 +390,7 @@ def attempt_summary_of(cell: Cell) -> AttemptSummary:
         graded=sum(isinstance(outcome, Graded) for outcome in outcomes),
         limited=_tally(outcome.reason for outcome in outcomes if isinstance(outcome, Limited)),
         excluded=_tally(outcome.reason for outcome in outcomes if isinstance(outcome, Excluded)),
+        record_disagreements=sum(bool(outcome.harness_findings) for outcome in read),
         with_integrity_findings=sum(bool(outcome.integrity) for outcome in read),
         with_operation_findings=sum(
             bool(attempt.metrics.discipline.findings) for attempt in attempts

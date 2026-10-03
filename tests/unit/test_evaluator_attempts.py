@@ -9,6 +9,7 @@ from dataclasses import replace
 
 import pytest
 
+from leaveimpact.core import System
 from leaveimpact.evaluator.attempts import (
     CountedAttempt,
     HistoryFinding,
@@ -25,7 +26,13 @@ from leaveimpact.evaluator.cells import (
 )
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded
 from leaveimpact.evaluator.sealed_world import SealedWorld
-from leaveimpact.evaluator.tables import Check, Reading, cost_ledger, estimate_check
+from leaveimpact.evaluator.tables import (
+    Check,
+    Reading,
+    compare_check,
+    cost_ledger,
+    estimate_check,
+)
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from tests.unit.evaluation_fixture import NORMAL, evaluated, relabelled
 from tests.unit.export_fixture import provider_failed_export
@@ -112,6 +119,15 @@ def test_a_defect_is_a_stopping_outcome_that_a_later_attempt_cannot_replace(
     assert not history.recovered
 
 
+def test_a_failure_after_the_counted_attempt_is_nothing_the_run_recovered_from(
+    failed: Evaluation, good: Evaluation
+) -> None:
+    history = run_history(RUN, [good, numbered(failed, 2)], EARLIEST, 3)
+    assert history.counted == good
+    assert history.findings == (AFTER_STOP,)
+    assert history.retried and not history.recovered
+
+
 def test_the_first_and_the_last_rules_still_choose_by_position(
     failed: Evaluation, good: Evaluation
 ) -> None:
@@ -191,6 +207,47 @@ def test_a_run_with_a_gap_is_made_unverifiable_and_in_no_quality_estimate(
     assert cost_ledger(held).attempts == 2
 
 
+def test_a_gapped_repeat_keeps_its_scenario_a_repeated_one_in_both_readings(
+    world: SealedWorld, failed: Evaluation, good: Evaluation
+) -> None:
+    system = failed.outcome.header.system
+    two_runs = replace(plan(failed), intended_repeats=2)
+    valid = relabelled(good, run_id="run-a")
+    gapped = relabelled(good, run_id="run-b", attempt=2)
+    (arm,) = arms(world, [valid, gapped], two_runs)
+    held = replace(cells_of(arm)[0], scenarios=(arm.scenarios[0],))
+    for reading in Reading:
+        estimate = estimate_check(held, PASSES, reading, two_runs)
+        assert (estimate.wilson, estimate.runs) == (None, 1), reading
+        assert estimate.bootstrap is not None, reading
+
+    # Against an arm with one clean run of the scenario, the comparison is of a repeated
+    # design: an interval, never the two-by-two counts of single runs.
+    other = System(system.kind, "other")
+    both = replace(two_runs, arms=((system, NORMAL), (other, NORMAL)))
+    clean = relabelled(good, run_id="run-c", system=other)
+    theirs, mine = arms(world, [valid, gapped, clean], both)
+    assert (mine.system, theirs.system) == (system, other)
+    first = replace(cells_of(mine)[0], scenarios=(mine.scenarios[0],))
+    second = replace(cells_of(theirs)[0], scenarios=(theirs.scenarios[0],))
+    comparison = compare_check(first, second, PASSES, Reading.CONDITIONAL, both)
+    assert comparison.two_by_two is None
+    assert comparison.interval is not None
+
+
+def test_a_record_disagreement_on_a_gapped_run_shows_in_the_summary_alone(
+    world: SealedWorld, failed: Evaluation, good: Evaluation
+) -> None:
+    assert isinstance(good.outcome, Graded) and good.outcome.harness_findings == ()
+    disagreeing = replace(good, outcome=replace(good.outcome, harness_findings=("disagrees",)))
+    chosen = plan(failed)
+    (arm,) = arms(world, [numbered(disagreeing, 2)], chosen)
+    cell = cells_of(arm)[0]
+    assert accounting_of(cell, chosen).record_disagreements == 0
+    assert accounting_of(cell, chosen).unverifiable_history == 1
+    assert attempt_summary_of(cell).record_disagreements == 1
+
+
 def test_the_attempt_summary_shows_the_failure_a_recovered_retry_hides(
     world: SealedWorld, failed: Evaluation, good: Evaluation
 ) -> None:
@@ -205,7 +262,7 @@ def test_the_attempt_summary_shows_the_failure_a_recovered_retry_hides(
     assert (summary.attempts, summary.graded) == (2, 1)
     assert summary.excluded == ((ExcludedReason.FAILED_BY_INFRASTRUCTURE, 1),)
     assert (summary.runs_retried, summary.runs_recovered) == (1, 1)
-    assert summary.history == ()
+    assert (summary.history, summary.record_disagreements) == ((), 0)
 
 
 def test_the_attempt_summary_counts_the_runs_carrying_each_history_finding(

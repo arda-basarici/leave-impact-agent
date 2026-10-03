@@ -82,11 +82,16 @@ class RunHistory:
 
     @property
     def recovered(self) -> bool:
-        """Whether an attempt failed by infrastructure and the counted one did not."""
-        return (
-            self.counted is not None
-            and not failed_by_infrastructure(self.counted)
-            and any(failed_by_infrastructure(attempt) for attempt in self.attempts)
+        """Whether an attempt before the counted one failed by infrastructure and the
+        counted one did not. A failure after the counted attempt is nothing the run
+        recovered from."""
+        if self.counted is None or failed_by_infrastructure(self.counted):
+            return False
+        number = self.counted.outcome.header.attempt
+        return any(
+            failed_by_infrastructure(attempt)
+            for attempt in self.attempts
+            if attempt.outcome.header.attempt < number
         )
 
 
