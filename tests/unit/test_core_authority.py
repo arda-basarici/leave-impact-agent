@@ -1,9 +1,11 @@
 """The authority table: the system of record's observation wins whatever the order, an
 unresolvable set of observations is refused loudly, and the planted conflicts of a view are
 derived from the facts — single-valued predicates only, differing values only, reachable
-sources only."""
+sources only. An investigation's conflicts are the planted ones on a subject and predicate
+its evidence carries, whichever side of the disagreement it read."""
 
 from dataclasses import replace
+from datetime import date
 
 import pytest
 
@@ -18,6 +20,7 @@ from leaveimpact.core import (
     RunCondition,
     Source,
     conflicts_in,
+    conflicts_on,
     employee_ref,
     resolve,
     work_item_ref,
@@ -103,3 +106,24 @@ def test_agreeing_sources_and_multi_valued_sets_are_not_conflicts() -> None:
 def test_a_conflict_needs_both_sources_visible() -> None:
     assert conflicts_in(w.WORLD.at(w.NOW, NORMAL.without(Source.CORPUS))) == ()
     assert conflicts_in(w.WORLD.at(w.NOW, NORMAL.without(Source.JIRA))) == ()
+
+
+def test_an_investigation_reports_the_conflicts_on_the_facts_it_read() -> None:
+    view = w.WORLD.at(w.NOW, NORMAL)
+    planted = ConflictFinding(
+        work_item_ref(w.TICKET),
+        PredicateName.OWNS_WORK_ITEM,
+        (w.STALE_OWNER, w.LIVE_OWNER),
+        (STALE, LIVE),
+        Resolution(ALICE, AuthorityRule.SYSTEM_OF_RECORD_WINS, LIVE),
+    )
+    # Either side brings the disagreement in: the match is by subject and predicate.
+    assert conflicts_on(view, (w.LIVE_OWNER,)) == (planted,)
+    assert conflicts_on(view, (w.ALICE_ON_LEAVE, w.STALE_OWNER)) == (planted,)
+    # Another fact of the same ticket is not its ownership, and no evidence is no conflict.
+    due = w.ticket(PredicateName.DUE_ON, date(2026, 9, 17), "due_on")
+    assert conflicts_on(view, (due, w.ALICE_ON_LEAVE)) == ()
+    assert conflicts_on(view, ()) == ()
+    # With the tracker down the view holds one side only, whatever the evidence names.
+    tracker_down = w.WORLD.at(w.NOW, NORMAL.without(Source.JIRA))
+    assert conflicts_on(tracker_down, (w.LIVE_OWNER, w.STALE_OWNER)) == ()
