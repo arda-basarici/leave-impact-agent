@@ -18,5 +18,7 @@ recorded operation with one of the six outcomes, the per-source stop state, and 
 prefetch run over it. ``rules_only`` is the first system: the prefetch, the structured
 projection as its whole view, ruling 4's preconditions (a defect at its operation, or an
 abstention with no claims), the shared rules through ``core``'s composing pass, and
-``report``, the one reporting policy that writes the rules' conclusions as claims.
+``report``, the one reporting policy that writes the rules' conclusions as claims;
+``export`` writes a run as the artifact the evaluator grades, under the provenance the
+harness around it supplies.
 """
