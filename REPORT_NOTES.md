@@ -7,6 +7,154 @@ decisions it feeds.
 
 ---
 
+## 2026-10-04 — A one-day probe before the harness settled who writes the claims, and showed the benchmark is too small to separate the systems it compares
+
+*M2, between the evaluator phase and the harness phase: an outside review of the
+project's direction asked whether any real model could reach the all-or-nothing
+headline, and the question was answered by running a model against the evaluator on a
+throwaway world before any harness code existed. Three rulings came out of it; the
+question of what M2 compares is open. Feeds: the M2 report's evaluation-design section,
+on what the model is allowed to assert and on what the benchmark can and cannot
+separate; and the milestone post.*
+
+**[PRELIMINARY — one throwaway world, one model, ten to thirty calls per cell, prose
+gated for extractability and written by the model family that read it, no retrieval or
+tool loop. Every number below decided a direction and none is a result. What would
+revise it: the same measurements on the registered systems, through the harness, on the
+development scenarios and then the held-out set.]** All model numbers are from one
+world generated for the purpose (seed 23, the golden plan, real prose from the
+generator's own fresh stage, never sealed, never projected into a vendor) with Haiku
+4.5 at temperature 0. The probe's scripts and raw outputs are kept outside the
+repository; each number names the script that produced it.
+
+The evaluator was finished before any model had been run against it. That was the
+plan's order, evaluation first, and it left a risk nobody had tested. The headline check
+grades a scenario correct only when every required row is reported, every payload is
+right, nothing unexpected is stated and the plan agrees with the oracle. A truthful
+report is about thirty claims. A review of the project's direction, written from
+outside the build, pointed out that a model might floor on this for reasons that have
+nothing to do with investigation: one wrong reason in thirty rows fails the scenario,
+and nothing in the plan showed a real model's output until the first live run, eight
+steps later. The review also named the design question underneath, which the plan had
+left to the step that builds the agent: does the model write every claim, or does it
+supply what it read and let the shared rules conclude.
+
+The session did not argue the question. It read how the evaluator already treats prose
+and found the answer half built. The evaluator's own view of a run admits a sealed
+prose fact when the run read the comment or the section that carries it, then runs the
+rules over the structured reads plus those facts. A system could be built the same way
+with the model's stated facts in the sealed facts' place. So the first thing written
+was that pipeline with no model in it: the frozen prefetch, every document read by its
+id, the prose facts supplied as an argument, the rules composing the report, the real
+evaluator grading it. Its first run was refused by the rules themselves. A scope
+pairing whose clause has no readable requirement in the view is an error, not an empty
+case, so the pairings have to be limited to clauses the run read. With that, three rows
+came out that needed no model (`probe_harness`, reproduced on the throwaway seed 23
+world by `probe_reference_rows`): with no prose facts 10 of 30 scenarios grade correct
+whole, the structured tier and nothing else; with only what the clauses require, 16 of
+30; with every sealed prose fact of the parts read, 30 of 30. The last row is the one
+that mattered. The shape fits the evaluator as built, and the only addition to the
+rules-only report was the constraint claims. The middle row was a surprise: reading
+what a clause requires is worth six scenarios by itself, and the clauses are template
+text.
+
+Then the model. Shown everything the run read, about 9,700 input tokens for the whole
+world, and asked to state three kinds of prose fact with the exact words that assert
+each, it produced 26 of 30 scenarios correct whole (`probe_model`, first prompt, thirty
+calls). It invented nothing and every quote was verbatim, 434 of 434. The misses were
+not noise. The same two facts were missed in all thirty calls, a skill sentence sitting
+beside a contact sentence in a client note, and each of the four failed scenarios was
+one wrong assessment out of thirty-odd claims (that the four trace to those two facts is
+an inference from the second pass, which fixed the facts and the scenarios together). The prompt had described skills with a
+comment as its example and sections only as naming a contact. Three sentences were
+added, saying a text can assert several facts and a section can state a skill, and the
+second pass was 30 of 30 with 420 of 420 planted facts matched (`probe_model`, second
+prompt, thirty calls). That wording was written after the misses were seen, so it is
+tuned on this world and proves nothing about a world it has not seen. The first pass
+also showed something one repeat would never show: on identical prose, at temperature
+0, four of thirty calls dropped all four runbook-ownership facts. None of the four was
+a scenario that needed them.
+
+The other shape was run as the contrast: the model writes the whole report itself, in
+the codec's exact format, given one object of each claim type and three worked
+examples. It scored 0 of 6 (`probe_claims_arm`, two scenarios per tier). Five of the
+six answers decoded and most were near misses: one to three wrong rows out of thirty or
+more, a conflict claim missing, one wrong impact that made everything under it
+unexpected. It failed even the structured scenarios, which the rules get right with no
+model at all. The contrast is real and it is also partly circular, and the session said
+so before the number could harden into a finding. The facts arm concludes with the same
+rules the oracle runs, so given the right facts it matches the oracle by construction.
+The authoring arm was asked to reproduce those rules' verdicts and reasons and was
+never told the rules. What was measured is narrower than "constraining the model made
+it correct": a model executing deterministic logic over thirty candidates makes a few
+errors, and an all-or-nothing check turns each one into a failed scenario. A fair
+version states the rules in the prompt, and until that runs the 0 of 6 is a direction.
+
+The shape question was settled by this. The more important thing the probe showed was
+not asked for. The whole world's reads are about ten thousand tokens. One call to the
+development model, with everything in context, reaches the ceiling. On a world this size
+rules-only reads ten of thirty and a call shown everything reads thirty, so the agent
+can at best tie it, and a table in which every model-based system scores full marks
+measures nothing. (The registered single-shot baseline makes one fixed corpus query with
+a limit and is not that call; where it lands is unmeasured.) The external read named
+this as the larger problem, and it is: the planned side comparisons assumed a world hard
+enough to separate what they compare. A model comparison has nothing to separate when
+the development model is at the ceiling, and two retrieval methods will both find
+everything in a corpus that fits one context several times over. The prose
+makes it worse. The generator's gate accepted a text only when a second model could
+extract exactly the planted fact, with the names verbatim and no hedge, so the measured
+difficulty of the prose is fourteen near-template sentences. That was recorded at the
+world milestone as a limit on realism. It is a limit on measurement too.
+
+The proposal was to find out cheaply whether size alone creates difficulty: pad the
+input and rerun. The first suggestion, documents from other throwaway worlds, was
+rejected on a check of how worlds are built. Every world draws from the same ids and
+the same names, so another world's note that someone has experience with a skill would
+be read as a fact about this world's person of that name and would change answers. The
+filler was written instead as handbook prose under an instruction to name nothing, and
+every section was scanned against this world's names, with 43 of 495 sections dropped.
+At about 40,000 input tokens the model still matched 134 of 140 planted facts and all
+ten prose-dependent scenarios graded correct whole. At about 108,000 it matched 93 of
+140 and seven of ten scenarios passed (`probe_padded`, ten calls per size, second
+prompt). Three things went wrong at the large size. One call returned two facts where
+seventeen were expected. In two calls the model named the document where the section
+was asked for, and 33 otherwise correct facts were refused on the id's form. And 29
+facts were invented. Nothing was ever stated from a filler section.
+
+Two readings of that last table are worth keeping. The scenario grade hid most of the
+damage: seven scenarios passed while only four of the ten calls stated all fourteen
+facts, because each scenario leans on one or two of them. The per-fact count is the
+sensitive instrument for a size experiment and the headline check is not, which is why
+stated-against-planted moved from wanted to required. And the 29 inventions all passed
+the verbatim-quote check. Every one was the same move (nineteen skills, ten contacts,
+counted from the saved answers): a requirement clause such as "the release needs an
+engineer with iOS experience" read as a named employee having that skill or being that
+contact. The quote was in the text. The text did not assert the fact. The external
+read suggested requiring the quote itself to name the person and the skill the fact is
+about, and the session tried it on the saved runs before adopting it
+(`probe_anchor_check`, a rough version that matches a skill by its id): it refused all
+29 inventions and passed 420 of 420 and 134 of 134 planted facts at the two smaller
+sizes and 120 of 126 at the largest, the six refusals being quotes the model had
+truncated. The check is partly a property of this generator, whose gate put the names
+into every planted sentence. On text that says "she" it would cost recall, and that
+belongs beside any claim made for it.
+
+Three things were ruled. The model states quoted facts and the rules conclude, for the
+agent and for the single-shot baseline, and the model writes no verdict. More than one
+repeat, since the dropped classes are per-call variance and a call costs little at this
+size. And the multi-agent comparison stays in the plan, against the external read's
+proposal to drop it. What M2 compares is open: whether to add a size dial with
+answer-neutral documents, whether a full-context call becomes a system of its own,
+whether the authoring contrast is registered with a fair prompt, and what the existing
+side comparisons are run on. The honest state is that the probe found where a tool loop
+could earn its place, a corpus near a hundred thousand tokens for this model, and did
+not test whether it does.
+
+Figure: planted facts matched and facts invented against input size, at about 9,700,
+40,000 and 108,000 tokens (420 of 420 over thirty calls, then 134 of 140 and 93 of 140
+over ten; inventions 0, 0 and 29), with scenarios correct whole as a second series to
+show how little of the damage the headline check sees.
+
 ## 2026-10-03 — A preregistration that binds only what the code reads, and what the gates and the reviews caught on the way to its first dispatch
 
 *M2 step 6, the investigator milestone's sixth build step: the preregistration as a
