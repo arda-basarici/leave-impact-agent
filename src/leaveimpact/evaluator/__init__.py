@@ -86,5 +86,10 @@ from the registration's status, and the registered analysis over the eligible ru
 ``artifact_json`` is its written form, an encoder derived from the types with no decoder,
 a run written as its outcome and findings and nothing the stored export gives back.
 
-The job's entry point is a later build step's.
+``entrypoint`` holds the job's two commands as compositions over readers: prove a world
+from its three objects, with the development scenarios selected and the retrieval targets
+counted, and evaluate every object stored for a world's runs into one published artifact.
+``repository`` is the job's own checkout read through git: a clean tree, the registration
+at a cited commit, the implementation paths that changed since the registration.
+``__main__`` composes them from the environment and prints what a public log may hold.
 """
