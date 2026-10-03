@@ -317,6 +317,20 @@ def arms(
     return tuple(sorted(built, key=_arm_order))
 
 
+def within(arm: Arm, scenarios: Iterable[ScenarioId]) -> Arm:
+    """``arm`` cut to ``scenarios``, a scenario set of the registration, in the arm's order.
+
+    The attempts no scenario of the world could place belong to no set and are left with
+    the whole arm; a set that names a scenario the arm does not hold is refused.
+    """
+    kept = set(scenarios)
+    strangers = sorted(kept - {runs.scenario_id for runs in arm.scenarios})
+    if strangers:
+        raise ValueError(f"the arm holds no scenario {', '.join(strangers)}")
+    held = tuple(runs for runs in arm.scenarios if runs.scenario_id in kept)
+    return Arm(arm.system, arm.assigned, held, (), arm.registered)
+
+
 def cells_of(arm: Arm) -> tuple[Cell, ...]:
     """``arm`` cut at every stratum it has: the whole, each tier, each scenario class."""
     cells = [Cell(arm, OVERALL, arm.scenarios)]
@@ -474,4 +488,5 @@ __all__ = [
     "attempt_summary_of",
     "cells_of",
     "condition_name",
+    "within",
 ]

@@ -57,7 +57,10 @@ each tier and each scenario class, and keeps the accounting every table shows: w
 intended, made and missing, and how each run ended, with the same tallies over every
 attempt beside it. ``attempts`` reads a run's attempts as a history: the attempt the
 plan's rule counts, and the gap, the excess attempt and the attempt after a stopping
-outcome a conforming harness never produces. ``measures`` and ``evidence_measures``
+outcome a conforming harness never produces. ``run_checks`` holds the three checks a
+registration can name, and ``registered`` reads the registration for this package: its
+names resolved against the registries here, the plan the tables are cut under, the
+scenario sets and the seeded development selection. ``measures`` and ``evidence_measures``
 state each claim-level ratio as the numerator and the denominator of one run, with its
 scope: the two precisions, recall and payload accuracy on the answer side; grounding,
 citations, source discipline and retrieval on the other. ``intervals`` holds the two

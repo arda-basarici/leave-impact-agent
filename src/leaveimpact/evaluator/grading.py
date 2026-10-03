@@ -163,7 +163,7 @@ def correct_whole(outcome: Graded) -> bool:
             (row.expectation, row.claim_id, (row.verdict_matches, row.reasons_match))
             for row in rows.assessments
         ),
-        *((row.expectation, row.claim_id, (_action_matches(row),)) for row in rows.actions),
+        *((row.expectation, row.claim_id, (action_matches(row),)) for row in rows.actions),
         *(
             (
                 row.expectation,
@@ -184,7 +184,7 @@ def correct_whole(outcome: Graded) -> bool:
     return True
 
 
-def _action_matches(row: ActionRow) -> bool | None:
+def action_matches(row: ActionRow) -> bool | None:
     """Whether a reported action is the expected kind; ``None`` when either side is absent."""
     if row.expected is None or row.reported is None:
         return None

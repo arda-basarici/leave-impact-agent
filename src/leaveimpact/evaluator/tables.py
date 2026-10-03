@@ -23,7 +23,10 @@ runs; the cell's is the mean of those. With exactly one run behind every scenari
 x of n and the interval is Wilson's; otherwise it is the bootstrap of the mean. One run
 means one run held, not one run the check applied to: a scenario run twice with one run
 limited is a repeated scenario whose conditional value happens to rest on one of its
-runs, and it stays a cluster.
+runs, and it stays a cluster. The same holds for a scenario the plan meant to run more
+than once: with one of two intended runs never made it is a repeated scenario short of a
+run, so the form of an interval and of a comparison follows the plan and the runs made,
+never how many answers happened to arrive.
 
 *A comparison* is paired on scenario and assigned condition: the same stratum of two
 systems' arms under one condition, over the scenarios both have in scope, the paired
@@ -114,9 +117,10 @@ class CheckEstimate:
     ``passed`` the sum of their pass fractions, so ``passed / scenarios`` is the cell's
     value. ``runs`` were looked at; ``not_checked`` of them the check did not apply to,
     which under the end-to-end reading count as not passed; ``missing`` intended runs were
-    never made and count as the plan says. One of the two intervals is set for a tier and
-    for the whole: Wilson's when every scenario rests on exactly one run, the bootstrap
-    otherwise.
+    never made and count as the plan says; ``unverifiable`` runs were made with a gap in
+    their attempt history, have no counted attempt, and did not pass end to end. One of
+    the two intervals is set for a tier and for the whole: Wilson's when every scenario
+    rests on exactly one run, the bootstrap otherwise.
     """
 
     check: str
@@ -128,6 +132,7 @@ class CheckEstimate:
     runs: int
     not_checked: int
     missing: int
+    unverifiable: int
     wilson: WilsonInterval | None
     bootstrap: BootstrapInterval | None
 
@@ -271,6 +276,7 @@ def estimate_check(
         sum(each.runs for each in trials),
         sum(each.not_checked for each in trials),
         sum(runs.missing for runs in cell.scenarios),
+        sum(runs.unverifiable for runs in cell.scenarios),
         interval_w,
         interval_b,
     )
@@ -446,13 +452,15 @@ def _names(stratum: Stratum) -> tuple[str, str]:
 class _Trials:
     """One scenario's runs under one reading of a check: ``passes`` of ``of`` trials, from
     ``runs`` runs of which the check did not apply to ``not_checked``; ``made`` runs were
-    made in all, the ones with no counted attempt included."""
+    made in all, the ones with no counted attempt included, and ``intended`` is the plan's
+    number."""
 
     passes: int
     of: int
     runs: int
     not_checked: int
     made: int
+    intended: int
 
     @property
     def fraction(self) -> float:
@@ -460,11 +468,13 @@ class _Trials:
 
     @property
     def single(self) -> bool:
-        """Whether the scenario is one yes-or-no trial: one trial, from at most one run made,
-        the run never made that counts as not passed being the other way to be one. A run
-        made and left out of the trials, the check not applying to it or its attempt
-        history holding a gap, is still a repeat: the scenario is not a single trial."""
-        return self.of == 1 and self.made <= 1
+        """Whether the scenario is one yes-or-no trial: one trial, where at most one run was
+        made and at most one intended, the one intended run never made that counts as not
+        passed being the other way to be one. A run made and left out of the trials, the
+        check not applying to it or its attempt history holding a gap, is still a repeat,
+        and so is an intended repeat that was never made: the scenario is not a single
+        trial."""
+        return self.of == 1 and self.made <= 1 and self.intended <= 1
 
 
 def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregistered) -> _Trials:
@@ -473,12 +483,13 @@ def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregiste
     not_checked = sum(answer is None for answer in answers)
     made = len(runs.histories)
     if reading is Reading.CONDITIONAL:
-        return _Trials(passes, len(answers) - not_checked, len(answers), not_checked, made)
+        of = len(answers) - not_checked
+        return _Trials(passes, of, len(answers), not_checked, made, plan.intended_repeats)
     missed = runs.missing if plan.missing_repeat is MissingRepeat.NOT_PASSED else 0
     # A run made whose attempt history has a gap has no counted attempt: it did not pass
     # end to end whatever the missing-run rule says, being made and not missing.
     of = len(answers) + missed + runs.unverifiable
-    return _Trials(passes, of, len(answers), not_checked, made)
+    return _Trials(passes, of, len(answers), not_checked, made, plan.intended_repeats)
 
 
 def _require_paired(first: Cell, second: Cell) -> None:
