@@ -9,25 +9,28 @@ agent investigates the exceptions; the human decides.
 
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
-**Status: the world milestone closed on 2026-09-19; the investigator milestone's design
-session closed on 2026-09-20 and its build begins.** What exists is the benchmark and
-the machinery that makes it trustworthy. A generator builds a synthetic organization and
+**Status: the world milestone closed on 2026-09-19; the investigator milestone is in
+build.** What exists is the benchmark, the evaluator that grades a run against it, and
+the first of the systems it will grade. A generator builds a synthetic organization and
 thirty scenarios in three difficulty tiers from a seed, materializes the prose those
 scenarios need through gated model calls, projects the world into real Frappe HR, Jira
 and Google Calendar instances, and seals the answer key where the application cannot
 reach it. An independent validator re-reads the live systems and approves a world only
 when every enumeration is exact and every record equals its planting. A hand-audit
 protocol, under which the first golden world was read scenario by scenario, sealed its
-audit beside the world. No agent exists yet. Its shape is ruled on this milestone's
-evidence, and nothing of it is built: the loop on LangGraph, provisional on an
-acceptance spike; tools as plain function tools generated from the read ports by a
-role-scoped registry, where MCP was weighed and not chosen because one in-process
-consumer of a small owned read surface gains nothing from a protocol and it returns with
-an external client that needs one; full-text retrieval over sections for the core, with
-vector retrieval as a measured comparison after the core has numbers; two preregistered
-baselines (rules-only, and one model call over fixed evidence) graded by an evaluator
-that runs under its own identity and never re-reads a vendor. This README grows with the
-build and never claims ahead of it.
+audit beside the world. The evaluator takes a recorded run and the sealed answer key
+and grades the run claim by claim, checks its plan, replays its conclusions from what
+the run itself read, and computes the tables a committed preregistration names; it runs
+under its own identity and never re-reads a vendor. The rules-only baseline, the
+deterministic rules over structured reads with no model, is built and graded end to end
+on a throwaway world. No system that calls a model exists yet. The agent's shape is
+ruled and not built: the loop on LangGraph, provisional on an acceptance spike; tools as
+plain function tools generated from the read ports by a role-scoped registry, where MCP
+was weighed and not chosen because one in-process consumer of a small owned read surface
+gains nothing from a protocol and it returns with an external client that needs one;
+full-text retrieval over sections for the core, with vector retrieval as a measured
+comparison after the core has numbers. This README grows with the build and never claims
+ahead of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
 > agent that will be graded on it. The organization is synthetic and small (about
@@ -50,9 +53,11 @@ build and never claims ahead of it.
   answer-changing text); the stage costs well under a dollar per world, and its
   accepted texts converge on one sentence frame, a realism limitation on record.
 
-## Run the baseline
+## Run the checks
 
-Needs `uv`, `just`, and Docker.
+Needs `uv`, `just`, and Docker. No command here runs a system against a world: the
+rules-only baseline runs inside the unit tests on a throwaway world, and an evaluation
+of stored runs is a dispatched workflow (below).
 
 ```
 uv sync                 # locked environment, dev tools included
@@ -76,7 +81,10 @@ A world is never generated from a workstation or from the application's host. `g
 world` and `validate world` are dispatched GitHub workflows under the reviewer-gated
 `benchmark` environment, each assuming its own OIDC-trusted AWS role: the generator
 writes the world and its truth, the validator reads the world and writes nothing but its
-verdict. `probe bedrock` is the live check on the two prose models. The application's
+verdict. `evaluate run` proves a sealed world and grades its stored runs under a third
+role, in its own reviewer-gated `evaluation` environment; it reads the answer key and
+writes one evaluation artifact. `probe bedrock` is the live check on the two prose
+models. The application's
 own role reads projected worlds and has no capability over the truth, which a boundary
 probe proves on every deploy.
 
@@ -85,9 +93,12 @@ probe proves on every deploy.
 - `src/leaveimpact/` — the package: `core` (the domain and its pure rules) · `world`
   (the benchmark: the organization, the scenarios, the truth, the sealed artifacts) ·
   `adapters` (one external boundary each: Frappe HR, Jira, Google Calendar, the document
-  corpus, the prose models, the object store) · `generator` and `validator` (the
-  shells). The layout and its import law are in ARCHITECTURE.md and enforced by
-  `tests/unit/test_import_law.py`.
+  corpus, the prose models, the object store) · `generator`, `validator` and
+  `evaluator` (the shells that build a world, check its projection and grade a run) ·
+  `agent` (the systems under test, today the rules-only baseline). The layout and its
+  import law are in ARCHITECTURE.md and enforced by `tests/unit/test_import_law.py`.
+- `preregistration/` — `registration.json`, what the investigator milestone measures and
+  how the result is read, a draft until the freeze; `PROTOCOL.md` explains the file.
 - `tests/{unit,integration,live,e2e}/` — the test levels (DESIGN, "Verification"); the
   vendor cassettes live under `tests/integration/cassettes/`.
 - `AUDIT_METHODOLOGY.md` — how a generated world becomes a golden set;
@@ -102,8 +113,9 @@ probe proves on every deploy.
   `compose.dev.yaml` — the laptop overlay; `deploy/` — the deployment entrypoint the
   CI deploy job runs on the host. The host itself (Terraform, the deploy role, the
   parameter names) is owned by the `platform` repository, stack `leave-impact-prod`.
-- `.github/workflows/` — `ci` (check, image, deploy behind an approval), the two
-  benchmark workflows, the prose probe, and the custom Frappe image build.
+- `.github/workflows/` — `ci` (check, image, deploy behind an approval), the three
+  benchmark workflows (generate world, validate world, evaluate run), the prose probe,
+  and the custom Frappe image build.
 
 ## Reading order
 

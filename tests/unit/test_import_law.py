@@ -20,9 +20,8 @@ hold a rank before the build accepts it; relative imports — which the edge sca
 rank — are banned outright; the top level holds only the package docstring and the
 composition root, so no unranked module can launder an import for a ranked one; and an
 ``ImportFrom`` is read with its aliases, so ``from leaveimpact import world`` names
-``world`` as plainly as ``import leaveimpact.world`` does. The rank table names packages
-that do not exist yet (``evaluator``, ``agent``, ``app``); declared ahead is fine,
-existing unranked is not.
+``world`` as plainly as ``import leaveimpact.world`` does. The rank table names a package
+that does not exist yet (``app``); declared ahead is fine, existing unranked is not.
 """
 
 from __future__ import annotations
