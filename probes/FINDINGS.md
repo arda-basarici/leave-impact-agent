@@ -2151,13 +2151,14 @@ scenarios, the reference seed, stand-in prose); the twenty-seed numbers stay the
   810, 270 and 540 claims, every one reproduced by the replay, no structural, report,
   coverage, integrity or harness finding, every citation resolving, retrieved and used;
   24, 6 and 18 plan findings against the oracle; the structured tier graded correct whole
-  10 of 10 under each condition and the other tiers never whole
-  (`test_agent_rules_only_graded.py`). The claim set equals the policy's enumerated from
+  10 of 10 under each condition, the fragmented tier 0, 2 and 3 of 10 and the adversarial
+  0, 10 and 0, the outages being where the oracle expects less and a report that states
+  little is right more often (`test_agent_rules_only_graded.py`). The claim set equals the policy's enumerated from
   the composing pass over the run's own view, and the baseline reproduces the probe's
   simulation claim for claim under each condition (`test_agent_rules_only.py`).
 - **Grounded whole and wrong exactly where the answer lives in prose.** On the structured
-  tier the baseline is the oracle whole; on the other two tiers it is wrong in every
-  scenario, with confidence: an assign where truth is uncovered or unknown, a viable
+  tier the baseline is the oracle whole; on the other two tiers, under the normal
+  condition, it is wrong in every scenario, with confidence: an assign where truth is uncovered or unknown, a viable
   verdict where truth is non-viable, no unknown stated. The replay accepts its empty
   constraint list as a premise, so grounding and correctness are two measurements and
   the gap between them is what the prose is worth.

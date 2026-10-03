@@ -1999,7 +1999,10 @@ other tiers is its measured quality. Forecast before any system existed and met 
 the real one on the reference seed: 810, 270 and 540 claims under the normal
 condition and the two gradable outages, every one reproduced by the replay with no
 finding, 24, 6 and 18 plan findings against the oracle, the structured tier correct
-whole and the other tiers never (FINDINGS, `baseline-basis` and `baseline-graded`).
+whole under each. The other tiers are never correct whole under the normal condition;
+under an outage the oracle expects less and a report that states little is right more
+often, 2 fragmented and all 10 adversarial scenarios with the tracker down and 3
+fragmented with the calendar down (FINDINGS, `baseline-basis` and `baseline-graded`).
 Grounded is not correct: the replay takes the empty constraint list as a premise. No
 monotonic partial report is emitted in a degraded state; a structurally non-viable
 verdict and an uncovered action when everyone is one stay true under any policy, and

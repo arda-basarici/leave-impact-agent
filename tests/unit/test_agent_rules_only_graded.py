@@ -3,7 +3,8 @@ on every scenario of the throwaway world under the normal condition and the two 
 outages. Ruling 6's construction gate: every claim reproduced by the replay, no finding of
 any kind, every citation resolving, retrieved and used, identical bytes on a repeat. And the
 forecast the step's rulings were measured on, met by the real thing: 810, 270 and 540 claims,
-24, 6 and 18 plan findings against the oracle, the structured tier graded correct whole. The
+24, 6 and 18 plan findings against the oracle, the structured tier graded correct whole and
+the other tiers never under the normal condition, some of them under an outage. The
 degraded states as the evaluator sees them, and a failed run excluded by its defect."""
 
 from collections import Counter
@@ -58,6 +59,15 @@ FORECAST: dict[tuple[Source, ...], tuple[int, int]] = {
     (Source.CALENDAR,): (540, 18),
 }
 
+# Scenarios graded correct whole, per tier. Under the normal condition a system that reads no
+# prose is right on the structured tier and nowhere else. Under an outage the oracle expects
+# less, and a report that states little is right more often: with the tracker down every
+# adversarial scenario and two fragmented ones, with the calendar down three fragmented ones.
+CORRECT_WHOLE: dict[tuple[Source, ...], dict[str, int]] = {
+    (): {"structured": 10, "fragmented": 0, "adversarial": 0},
+    (Source.JIRA,): {"structured": 10, "fragmented": 2, "adversarial": 10},
+    (Source.CALENDAR,): {"structured": 10, "fragmented": 3, "adversarial": 0},
+}
 
 REGISTRATION = decode_registration_bytes(
     (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
@@ -134,8 +144,7 @@ def test_the_baseline_is_grounded_whole_and_right_exactly_where_no_prose_is_need
         whole[scenario.key.tier.value] += correct_whole(outcome)
     assert (claims, plan_findings) == FORECAST[down]
     assert citations > claims
-    assert whole["structured"] == 10
-    assert whole["structured"] + whole["fragmented"] + whole["adversarial"] < 30
+    assert whole == CORRECT_WHOLE[down]
 
 
 def test_a_repeated_run_exports_identical_bytes(world: SealedWorld, scenario: Scenario) -> None:
