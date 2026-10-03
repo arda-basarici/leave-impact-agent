@@ -451,10 +451,20 @@ def test_a_recorded_failure_points_at_the_trace_entry_of_its_own_kind() -> None:
     trace = RunTrace((_faulted(),), (_operation(),), ())
     assert _export(record=failed, trace=trace).record.failure is infrastructure
     defect = Failure(FailureCategory.DEFECT, "op-1", "no world id")
-    with pytest.raises(
-        ValueError, match="names an operation that read a malformed record, got 'op-1'"
+    # A defect is found at an operation that read something; an unreachable or a refused
+    # operation read nothing and anchors none.
+    for unread in (
+        UnreachableOutcome(Source.FRAPPE, "no answer after the retries"),
+        RefusedCallOutcome("LIA-42 is no leave id"),
     ):
-        _export(record=replace(failed, failure=defect), trace=trace)
+        source = None if isinstance(unread, RefusedCallOutcome) else Source.FRAPPE
+        with pytest.raises(ValueError, match="could not accept, got 'op-1'"):
+            _export(
+                record=replace(failed, failure=defect),
+                trace=RunTrace((_faulted(),), (_operation(source=source, outcome=unread),), ()),
+            )
+    with pytest.raises(ValueError, match="got 'op-9'"):
+        _export(record=replace(failed, failure=replace(defect, at="op-9")), trace=trace)
     malformed = _operation(
         outcome=DefectOutcome(Source.FRAPPE, "Employee/HR-EMP-00017", "no world id")
     )
@@ -462,6 +472,10 @@ def test_a_recorded_failure_points_at_the_trace_entry_of_its_own_kind() -> None:
         record=replace(failed, failure=defect), trace=RunTrace((_faulted(),), (malformed,), ())
     )
     assert export.record.failure is defect
+    # The harness's own defect: the record came back and the run could not accept it.
+    contradicted = Failure(FailureCategory.DEFECT, "op-1", "the HR system answered with leave_998")
+    export = _export(record=replace(failed, failure=contradicted), trace=trace)
+    assert export.record.failure is contradicted
 
 
 def test_every_model_call_role_is_configured_and_a_cumulative_cost_follows_a_priced_call() -> None:

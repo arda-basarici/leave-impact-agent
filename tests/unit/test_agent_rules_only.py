@@ -37,10 +37,12 @@ from leaveimpact.core import (
     PredicateName,
     Reading,
     RunCondition,
+    RunExport,
     SliceStatus,
     Source,
     SourceConflict,
     SourceUnreachable,
+    TerminalStatus,
     Unknown,
     UnknownKey,
     UnknownReason,
@@ -409,6 +411,67 @@ def test_a_malformed_record_is_a_defect_at_its_operation_and_outranks_abstention
     )
     assert both.failure is not None and both.abstention is None
     assert both.failure.at == "op-3"
+
+
+def exported(world: SealedWorld, scenario: Scenario, result: RulesOnlyRun) -> RunExport:
+    """``result`` as a run export, the fixture's provenance around it: what group E writes."""
+    template = run_export(world, scenario)
+    status = TerminalStatus.FAILED if result.failure is not None else TerminalStatus.COMPLETED
+    return RunExport(
+        template.format_version,
+        "run-1",
+        1,
+        template.context,
+        replace(template.record, status=status, failure=result.failure),
+        replace(template.trace, operations=result.operations, claims=result.claims),
+    )
+
+
+def test_every_way_a_run_ends_is_exportable(
+    world: SealedWorld, systems: Systems, scenario: Scenario
+) -> None:
+    context = world.context_of(scenario)
+    leave = scenario.investigated_leave
+    ways: dict[str, RulesOnlyRun] = {}
+    ways["concluded"] = investigate(context, systems_holding(world).ports)
+    hr_down = systems_holding(world)
+    hr_down.people.reachable = False
+    ways["abstained, leave not returned"] = investigate(context, hr_down.ports)
+    no_list = systems_holding(world)
+    people = _PeopleWithoutAnEnumeration(
+        people=no_list.people.people, leaves=no_list.people.leaves, teams=no_list.people.teams
+    )
+    ways["abstained, universe not covered"] = investigate(
+        context, replace(no_list.ports, people=people)
+    )
+    broken = systems_holding(world)
+    work = _WorkWithBrokenComponents(
+        tickets=broken.work.tickets, components_by_id=broken.work.components_by_id
+    )
+    ways["defect, malformed"] = investigate(context, replace(broken.ports, work=work))
+    another = systems_holding(world)
+    another.people.leaves[LeaveId(context.leave_id)] = Leave(
+        leave_id(998),
+        employee_id(1),
+        leave.start,
+        leave.end,
+        LeaveKind.ANNUAL,
+        LeaveStatus.APPROVED,
+    )
+    ways["defect, another leave"] = investigate(context, another.ports)
+    no_leaver = systems_holding(world)
+    del no_leaver.people.people[leave.employee_id]
+    ways["defect, enumeration without the leaver"] = investigate(context, no_leaver.ports)
+    blank = systems_holding(world)
+    blank.people.people[world.org.employees[1].id] = replace(world.org.employees[1], location="  ")
+    ways["defect, underivable record"] = investigate(context, blank.ports)
+
+    assert sum(way.failure is not None for way in ways.values()) == 4
+    assert sum(way.abstention is not None for way in ways.values()) == 2
+    for name, way in ways.items():
+        export = exported(world, scenario, way)
+        assert export.record.failure == way.failure, name
+        assert export.trace.operations == way.operations, name
 
 
 # --- The report alone -----------------------------------------------------------------------------

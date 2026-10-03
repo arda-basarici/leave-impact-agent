@@ -34,6 +34,7 @@ from leaveimpact.core.run_trace import (
     ModelCallOutcome,
     OperationId,
     RunTrace,
+    is_completed_read,
     require_integer,
     require_opaque_id,
 )
@@ -49,8 +50,8 @@ class RunExport:
 
     The constructor checks what makes the tree one object: the format is this code's,
     the identity is usable, a recorded failure points at the trace entry of its own
-    kind (a defect at an operation that read a malformed record, an infrastructure
-    fault at a model call the provider failed), every role the trace's calls name has a
+    kind (a defect at the operation the fault was found at, an infrastructure fault at
+    a model call the provider failed), every role the trace's calls name has a
     configuration in the record, the cumulative cost is absent exactly when no call was
     priced, and a rules-only export holds no model call. What the record claims about
     the trace's numbers is left to the evaluator to verify, since a mismatch there is a
@@ -90,11 +91,19 @@ class RunExport:
 
 
 def _require_failure_at_its_fault(category: FailureCategory, at: str, trace: RunTrace) -> None:
+    # A defect is found at an operation that read something: a record the adapter could
+    # not translate, or a completed read whose records the harness could not accept (the
+    # source contradicting the run's premise, a record no fact can be made from; the
+    # investigator milestone's fifth build step, ruling 4). An unreachable or a refused
+    # operation read nothing and anchors no defect.
     if category is FailureCategory.DEFECT:
         operation = trace.operation(OperationId(at))
-        if operation is None or not isinstance(operation.outcome, DefectOutcome):
+        if operation is None or not (
+            isinstance(operation.outcome, DefectOutcome) or is_completed_read(operation.outcome)
+        ):
             raise ValueError(
-                f"a defect failure names an operation that read a malformed record, got {at!r}"
+                "a defect failure names an operation that read a malformed record or a "
+                f"completed read the harness could not accept, got {at!r}"
             )
         return
     call = trace.model_call_or_none(ModelCallId(at))
