@@ -16,8 +16,9 @@ One row per crossing, each in a schema of its own:
 2. *The boundary.* Once the dead child's database sessions have ended, the parent reads the
    log and every checkpoint with its pending writes. The invariant: each result a
    checkpoint or a pending write represents, a position and a digest, is in the log with
-   that digest. An older checkpoint is expected; a digest the log does not hold is a
-   failure.
+   that digest. Every stored pair is checked on its own, the state's and each pending
+   write's, with nothing merged first. An older checkpoint is expected; a digest the log
+   does not hold is a failure.
 3. A second child recovers and must complete.
 4. *Reconciliation.* The invariant again over every checkpoint; the final checkpoint's
    results equal to the logged ones by position, no position missing on either side; no
@@ -67,7 +68,7 @@ from dataclasses import replace
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import psycopg
 from eventlog import (
@@ -121,32 +122,36 @@ def digests_by_position(events: tuple[Event, ...]) -> dict[str, str]:
     return held
 
 
-def represented(checkpoint: dict[str, Any]) -> dict[str, str]:
-    """Every result ``checkpoint`` represents: its state's and its pending writes'."""
-    results = dict(checkpoint["results"])
-    for task in checkpoint["pending"]:
+def represented(checkpoint: dict[str, Any]) -> list[tuple[str, str, str]]:
+    """Every result ``checkpoint`` represents, each stored pair on its own: where it is held
+    (the state, or which pending write), its position and its digest. Nothing is merged, so
+    a right digest stored later for a position cannot cover a wrong one stored earlier."""
+    pairs = [("state", position, digest) for position, digest in checkpoint["results"].items()]
+    for index, task in enumerate(checkpoint["pending"]):
         for channel, value in task:
             if channel == "results" and isinstance(value, dict):
-                results.update(value)
-    return results
+                pairs += [
+                    (f"pending write {index}", position, digest)
+                    for position, digest in cast("dict[str, str]", value).items()
+                ]
+    return pairs
 
 
 def violations(store: list[dict[str, Any]], events: tuple[Event, ...]) -> list[dict[str, Any]]:
-    """Each result a checkpoint represents that the log does not hold with the same digest."""
+    """Each stored pair of a checkpoint that the log does not hold with the same digest."""
     in_log = digests_by_position(events)
-    found: list[dict[str, Any]] = []
-    for checkpoint in store:
-        for position, digest in represented(checkpoint).items():
-            if in_log.get(position) != digest:
-                found.append(
-                    {
-                        "step": checkpoint["step"],
-                        "position": position,
-                        "checkpoint": digest,
-                        "log": in_log.get(position),
-                    }
-                )
-    return found
+    return [
+        {
+            "step": checkpoint["step"],
+            "held_in": held_in,
+            "position": position,
+            "checkpoint": digest,
+            "log": in_log.get(position),
+        }
+        for checkpoint in store
+        for held_in, position, digest in represented(checkpoint)
+        if in_log.get(position) != digest
+    ]
 
 
 def witnessed(record: Path, events: tuple[Event, ...]) -> dict[str, int]:
