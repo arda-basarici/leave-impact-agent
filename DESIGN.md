@@ -2098,6 +2098,111 @@ scenarios share the organization and the generator's conventions with the others
 this is held out from scenario-specific tuning and not an independent sample; a world
 from another seed is the stronger design and is reopened if the budget leaves room.
 
+**Ruled on 2026-10-04 and not yet built: the measurement changes shape before any model
+system is measured.** The paragraphs above describe the evaluator and the committed
+registration as they stand: three systems, fifteen arms, six tuned scenarios, two
+primary comparisons, export format 1. The rulings in the five paragraphs below replace
+those parts as the code for each lands, and this text is rewritten with it. Until then
+the registration stays a draft, and no reported measurement is made under what it
+states today.
+
+**The model states facts and the shared rules conclude, for every model system.** A
+model decides what to read and states what free text asserts, each fact with its
+carrier (a ticket comment or a document section) and a verbatim quote; the rules
+compose every claim from the structured reads and the stated facts, and no model
+writes a verdict. A model asked to write the whole report was wrong in some row of
+every scenario tried, and the same model stating quoted facts reached the rules'
+ceiling (`REPORT_NOTES.md`, the one-day probe of 2026-10-04, a development result on
+a throwaway world). Five predicates can be stated, the ones prose can carry: a skill, a component
+membership, a ticket's owner, what a clause requires, whom a document names
+responsible. Only a positive assertion is stated, since the rules derive a negative
+from a closed evidence domain and a stated one would be a second, unverifiable route
+to it. A fact is admitted when its carrier was returned by a read of the run, its quote
+is an exact substring of the carrier, its subject is an entity the run read, and the
+quote names the person and the skill the fact is about; anything else is refused with
+a reason and the run goes on. These gates establish where a statement came from. They
+do not show that the text entails it: a negated sentence carries the same names. Facts
+accumulate over a run and none is retracted; two readings of one passage that give one
+single-valued fact two values are both left out of the final view, and stay in the
+trace.
+
+**A clause's scope is a span the model copies and the harness binds once.** A
+requirement is stated with the title of what it applies to, copied from inside its own
+quote. At composition the span is compared for exact equality with the titles of the
+distinct tickets, meetings and documents the run read: one match places the
+requirement, none leaves it unplaced, several leave it ambiguous, and a longer read
+title that contains the span and occurs in the passage makes it ambiguous too. The
+evaluator's own resolver, which searches a clause's text for every title of the world,
+was not reused, because its proof holds over the complete catalog and a run reads part
+of it: titles nest, so with a qualified title unread the search settles on the plain
+one. Where a title ends is not marked in a clause's text, so a span cut short can
+still bind the wrong artifact, and one that runs long leaves a read requirement
+unapplied; both are the system's measured behaviour. An unplaced or ambiguous
+requirement composes no constraint and no unknown, is shown in the report as a
+diagnostic, and is inside what an approval covers.
+
+**Four systems at two corpus sizes, one primary comparison.** The measured world is a
+new one from a seed drawn from a secret, with answer-neutral documents sealed into it
+at nested levels, and the world generated so far becomes a development world: its
+recipe is public, and a full-context call over its small corpus reaches the ceiling,
+so it separates no model systems. The corpus level is an assigned factor of its own,
+base and padded, applied before any search and checked by the evaluator on every
+document a run was shown. A fourth system joins the three: full context, one call
+shown every document of the level. The registered cells are the four systems under the
+normal condition at both levels and rules only, single-shot and the agent under each
+of the four outages at the base level, twenty in all, with full context under the
+outages run for all four or for none, decided from the cost forecast before any result
+exists. The primary comparison is the agent against full context at the padded level
+under the normal condition, on correct whole read end to end, overall, over all thirty
+scenarios, none of which is tuned on. Tier contrasts are supporting, and no claim of
+success is made from a tier, an outage cell or a supporting comparison. Beside it the
+report gives the mechanism: of the prose statements a scenario's required rows depend
+on, how many had their carrier returned, were stated correctly, were admitted, and
+were usable in the composed view. That denominator is fixed by the sealed scenario
+(on the suite's throwaway world, 31 statements in 20 of 30 scenarios, none in the
+structured tier). Every interval is a marginal 95 percent interval from whole scenarios
+resampled within their tiers, at any repeat count. One the bootstrap cannot resolve is
+printed as such with its reason and supports no statement that one system beats
+another. Under an outage correct whole is unchanged and the cells are descriptive,
+each reported with the number of scenarios rules only does not already get right.
+
+**Export format 2 records what happened apart from how it is read.** A model call
+holds its dispatches, and a dispatch permits at most one send: the SDK retries
+nothing, the graph retries nothing, and a retry is a new dispatch the harness makes
+under a registered bound, so every possible send has its own entry in the log. A
+dispatch keeps what arrived (a complete response, a broken stream, a service error, a
+client error, a refusal before sending, or nothing recorded) and, separately, how the
+measurement attributes it, by a registered rule: behaviour, infrastructure, defect or
+unresolved. An intent with no outcome is an unresolved send whose usage is unknown, so
+a call can be answered by a later dispatch while the run's cost stays a floor and the
+earlier allocation of its reservation is kept. A cost is complete only when every send
+has priced usage or an evidenced rule that it cost nothing. A request the harness
+built wrongly is a defect, named at its dispatch; a missing terminal event is not an
+abandonment, which is an explicit event carrying the ownership it ends. Rates and
+costs are integer pico-dollars per token, because nano-dollars cannot state rates
+already paid (Nova Pro's published cache-read rate for Frankfurt is 262.5 nano-dollars
+a token). Time is two numbers: evidenced active time, summed per process on that
+process's own clock, and elapsed time on the wall clock, with a killed process marked
+as a lower bound. Every tool call the model made has one disposition (a read, handled
+by the harness, unparsed, undispatched with a reason, or unresolved). An export is
+written only at a terminal state and says whether an approval was not requested,
+requested and unapproved, or given, by the automatic evaluation policy or by a person.
+It keeps the raw payload of a fact batch or a tool call that did not parse, the one
+exception to holding no model prose, so the classification can be checked from the
+export alone. Measurement runs are not streamed.
+
+**Three grading rules change with it.** Reproduced whole also requires that no claim's
+premise is missing from the report, since a report otherwise gains by omitting a claim
+that would be contradicted. A structured source that contradicts itself within a run,
+one record returned two ways or a record a complete enumeration over the same span
+omits, fails the run by defect on equivalent complete reads, with both reads recorded;
+the two HR cases above are instances. The counted attempt is chosen only among the
+attempts the registration allows, so an attempt past the maximum never counts.
+Comparisons beyond the primary and its named secondaries (vector retrieval, a
+multi-agent layout, a second model, a model-authored report) are a list fixed with
+their cells, endpoints and analysis when the procedure is frozen, which is before the
+measurement world exists; anything added later is exploratory and says so.
+
 **Whether a run's prefetch is the registered plan is checked from its trace, for every
 system and every export that decodes.** The planner and the chunking are `core`'s,
 shared with the harness, so a fault of the planner is invisible to the check and stays
@@ -2333,8 +2438,8 @@ the run fails by defect, recorded with the fault, excluded from grading and coun
 because the validator certified record fidelity before any run and a degrade would
 fold a defect into a legitimate unknown; production fault tolerance behind a real
 HRMS is future work the benchmark does not prove, and this document says so. A
-provider fault after the SDK's retries fails the run by infrastructure, counted
-apart; a response that arrives and refuses, emits no claims or emits output the codec
+provider fault after the harness's registered re-dispatches fails the run by
+infrastructure, counted apart, the SDK itself retrying nothing; a response that arrives and refuses, emits no claims or emits output the codec
 rejects is system behaviour, graded with its omissions.
 
 **The executor trust boundary, if post-approval execution ships.** The writes run in
