@@ -38,8 +38,10 @@ never being paired slot to slot.
 
 *Cost and duration carry no interval.* A cell's cost is the total over every attempt,
 retries included, with the median and the range per run and the number of runs whose cost
-is a floor: a run with a call the provider reported no usage for, or one the embedded
-rates could not price. A run that called no model cost nothing, and that is a complete
+is a floor: a run with a send the provider reported no usage for, one nobody can prove
+was not sent, or one the embedded rates could not price. Costs are in pico-dollars and a
+duration is evidenced active time. A run that called no model cost nothing, and that is a
+complete
 cost of zero. The whole's ledger also holds the arm's attempts that no scenario of the
 world could place: they belong to no tier and were paid for all the same.
 
@@ -202,7 +204,7 @@ class Spread:
 class CostLedger:
     """What a cell's runs cost and how long they took, every attempt counted.
 
-    ``nano_usd`` is the total over every attempt and a floor when ``floors`` is not zero:
+    ``pico_usd`` is the total over every attempt and a floor when ``floors`` is not zero:
     that many runs hold an attempt whose cost is unknown or incomplete. ``per_run`` and
     ``duration_ms`` are over runs, a run's attempts summed, ``None`` with no run.
     """
@@ -211,7 +213,7 @@ class CostLedger:
     stratum: Stratum
     runs: int
     attempts: int
-    nano_usd: int
+    pico_usd: int
     floors: int
     per_run: Spread | None
     duration_ms: Spread | None
@@ -392,8 +394,8 @@ def cost_ledger(cell: Cell) -> CostLedger:
             by_run.setdefault((header.scenario_id, header.run_id), []).append(attempt)
         for made in by_run.values():
             attempts += len(made)
-            costs.append(sum(_nano_usd(attempt) for attempt in made))
-            durations.append(sum(attempt.metrics.cost.usage.duration_ms for attempt in made))
+            costs.append(sum(_pico_usd(attempt) for attempt in made))
+            durations.append(sum(attempt.metrics.cost.duration_ms for attempt in made))
             floors += any(not _cost_is_complete(attempt) for attempt in made)
     return CostLedger(
         cell.arm.name,
@@ -510,9 +512,9 @@ def _require_paired(first: Cell, second: Cell) -> None:
 # --- Cost --------------------------------------------------------------------------------
 
 
-def _nano_usd(attempt: Evaluation) -> int:
+def _pico_usd(attempt: Evaluation) -> int:
     cost = attempt.metrics.cost.cost
-    return 0 if cost is None else cost.nano_usd
+    return 0 if cost is None else cost.pico_usd
 
 
 def _cost_is_complete(attempt: Evaluation) -> bool:

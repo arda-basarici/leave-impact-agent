@@ -414,6 +414,10 @@ def _decode_retrieval(data: Mapping[str, object]) -> Retrieval:
 def _decode_system(item: object) -> RegisteredSystem:
     data = as_object(item, "a system")
     kind = SystemKind(string_field(data, "kind"))
+    if kind is SystemKind.FULL_CONTEXT:
+        # A run export may name the fourth system (export format 2); this registration
+        # format predates it and registers three.
+        raise ValueError("registration format 1 registers no full-context system")
     expect_fields(data, _SYSTEM_FIELDS[kind], f"the {kind.value} system")
     variant = _pendable(data, "variant", _string_of("variant"))
     retrieval = _decode_retrieval(object_field(data, "retrieval"))

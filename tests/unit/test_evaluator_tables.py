@@ -11,16 +11,13 @@ import pytest
 
 from leaveimpact.core import (
     CandidateAssessment,
-    ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
+    ReportedUsage,
     RunCondition,
     ScenarioId,
     Source,
     System,
     SystemKind,
-    Usage,
-    cost_of,
+    cost_of_reported,
 )
 from leaveimpact.evaluator.cells import (
     Arm,
@@ -62,10 +59,9 @@ from leaveimpact.world.scenario import Tier
 from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
 from tests.unit.export_fixture import (
     BASIS,
-    DIGEST,
-    ROLE,
     SELECTION,
     agent_export,
+    answered_call,
     provider_failed_export,
 )
 from tests.unit.report_fixture import of_type, without
@@ -480,23 +476,14 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
     (reference,) = arms(world, truthful_runs, plan())
     free = cost_ledger(cell_of(reference))
     # No model was called: a complete cost of zero, never an unknown one.
-    assert (free.runs, free.attempts, free.nano_usd, free.floors) == (30, 30, 0, 0)
+    assert (free.runs, free.attempts, free.pico_usd, free.floors) == (30, 30, 0, 0)
     assert free.per_run == Spread(0.0, 0, 0)
     assert free.duration_ms == Spread(1_200.0, 1_200, 1_200)
 
     def priced(scenario: Scenario, input_tokens: int, run_id: str, attempt: int) -> Evaluation:
-        usage = Usage((("input_tokens", input_tokens), ("output_tokens", 100)))
-        call = ModelCallRecord(
-            ModelCallId("call-1"),
-            ROLE,
-            ModelCallOutcome.CLAIMS,
-            "end_turn",
-            40,
-            DIGEST,
-            usage,
-            cost_of(usage, SELECTION, BASIS),
-            None,
-        )
+        usage: dict[str, object] = {"inputTokens": input_tokens, "outputTokens": 100}
+        cost = cost_of_reported(ReportedUsage(usage), SELECTION, BASIS)
+        call = answered_call(1, usage, cost)
         export = agent_export(world, scenario, (call,), claims=truthful(world, scenario, NORMAL))
         return evaluate_run(world, replace(export, run_id=run_id, attempt=attempt))
 
@@ -507,10 +494,10 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
     agents = plan(registered=((failed_first.outcome.header.system, NORMAL),))
     (agent,) = arms(world, [failed_first, retried, clean], agents)
     ledger = cost_ledger(cell_of(agent))
-    cost_of_retry = 1_000 * 1_100 + 100 * 5_500
-    cost_of_clean = 3_000 * 1_100 + 100 * 5_500
+    cost_of_retry = 1_000 * 1_100_000 + 100 * 5_500_000
+    cost_of_clean = 3_000 * 1_100_000 + 100 * 5_500_000
     assert (ledger.runs, ledger.attempts) == (2, 3)
-    assert ledger.nano_usd == cost_of_retry + cost_of_clean
+    assert ledger.pico_usd == cost_of_retry + cost_of_clean
     # The failed attempt reported no usage: that run's cost is a floor. The retry was paid for.
     assert ledger.floors == 1
     assert ledger.per_run == Spread(
@@ -529,6 +516,6 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
     (agent,) = arms(world, [failed_first, retried, clean, stray], agents)
     whole = cost_ledger(cell_of(agent))
     assert (whole.runs, whole.attempts) == (3, 4)
-    assert whole.nano_usd == ledger.nano_usd + 2_000 * 1_100 + 100 * 5_500
+    assert whole.pico_usd == ledger.pico_usd + 2_000 * 1_100_000 + 100 * 5_500_000
     tiers = [cell for cell in cells_of(agent) if cell.stratum.kind is StratumKind.TIER]
-    assert sum(cost_ledger(cell).nano_usd for cell in tiers) == ledger.nano_usd
+    assert sum(cost_ledger(cell).pico_usd for cell in tiers) == ledger.pico_usd

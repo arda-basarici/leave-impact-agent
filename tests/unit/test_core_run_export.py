@@ -1,10 +1,11 @@
 """The run export's plain data holds the rulings' invariants at construction: usage counters in
-the declared order and never synthesized, a cost only over a usage, a fault exactly on a
-provider fault, an accepted read naming its source and every record read from it, ids unique
-and a model-originated read naming a call the trace holds, a failure exactly on a failed
-status and pointing into the trace, rules-only with no model and no retrieval, reserves inside
-the caps, an embedding model exactly for vector retrieval, and role-indexed provenance
-unique by role and held in role order."""
+the declared order and never synthesized, an accepted read naming its source and every record
+read from it, ids unique, one event order over reads and dispatches, a model-originated read
+and the tool call that asked for it naming each other, a failure exactly on a failed status
+and pointing into the trace at its site, an approval following the status and not the claims,
+rules-only with no model and no retrieval, reserves inside the caps, an embedding model
+exactly for vector retrieval, and role-indexed provenance unique by role and held in role
+order. The model call's own invariants are ``test_core_model_calls``'s."""
 
 from dataclasses import replace
 from datetime import UTC, date, datetime
@@ -13,25 +14,48 @@ import pytest
 
 from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
+    Abandonment,
     AbsentOutcome,
+    Answer,
+    Approval,
+    ApprovalState,
+    Approver,
+    AsOperation,
+    Attribution,
+    AttributionKind,
+    CallConfiguration,
+    CallSetting,
     Caps,
+    ClaimAuthor,
+    ClientError,
+    ClientErrorKind,
+    CompleteResponse,
+    ComposingPolicy,
+    Composition,
     Cost,
     DefectOutcome,
+    Dispatch,
+    DispatchPhase,
+    DispatchSite,
     Entity,
     Failure,
     FailureCategory,
+    HarnessOrigin,
     HarnessRevision,
+    HarnessSite,
+    HarnessSiteName,
+    KeptReason,
     Leave,
     LeaveKind,
     LeaveStatus,
+    ModelCall,
     ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
-    ModelConfiguration,
     ModelOrigin,
+    NoRecordedOutcome,
     Observed,
     Operation,
     OperationId,
+    OperationSite,
     OutageAssignment,
     PredicateName,
     PrefetchOrigin,
@@ -42,6 +66,10 @@ from leaveimpact.core import (
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
+    ReportedUsage,
+    RequestIdentity,
+    Reservation,
+    ReservationState,
     Retrieval,
     RetrievalKind,
     RunCondition,
@@ -49,11 +77,14 @@ from leaveimpact.core import (
     RunExport,
     RunRecord,
     RunTrace,
-    Setting,
+    Segment,
     Source,
+    Stamp,
     System,
     SystemKind,
     TerminalStatus,
+    Timing,
+    ToolCall,
     TreeState,
     Unknown,
     UnknownReason,
@@ -61,11 +92,14 @@ from leaveimpact.core import (
     Usage,
     UsageAggregate,
     employee_ref,
+    evidenced_active_ms,
     frozen_json,
     is_completed_read,
     is_failed_read,
 )
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, claim_id, employee_id, leave_id
+from leaveimpact.core.model_calls import Observation
+from leaveimpact.core.run_trace import Origin
 
 DIGEST = "a" * 64
 COMMIT = "b" * 40
@@ -81,8 +115,8 @@ LEAVE: Observed[Entity] = Observed(
     Source.FRAPPE,
 )
 CALL = ModelCallId("call-1")
-REPORTED = Usage((("input_tokens", 120), ("output_tokens", 30)))
-PRICED = Cost(297_000, True)
+REPORTED = {"inputTokens": 120, "outputTokens": 30, "totalTokens": 150}
+PRICED = Cost(297_000_000, True)
 PREFETCH = PrefetchOrigin()
 HAIKU = PricingSelection("model-a", "eu-central-1", "on_demand")
 AGENT = System(SystemKind.AGENT, "reference")
@@ -99,39 +133,87 @@ PRICING = PricingBasis(
     "USD",
     date(2026, 9, 1),
     (
-        PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
-        PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500),
+        PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100_000),
+        PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500_000),
     ),
 )
+COMPOSITION = Composition(ClaimAuthor.RULES, ComposingPolicy("a-policy", DIGEST), (), ())
+REQUEST = RequestIdentity(DIGEST, "Converse", "eu.model", "eu-central-1", None)
+ANSWERED = CompleteResponse("end_turn", 840, 0)
+TIMED_OUT = ClientError(ClientErrorKind.TIMEOUT, "timeout")
+ADMITTED = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
+REVISION = HarnessRevision(COMMIT, TreeState.CLEAN)
+TIMING = Timing((Segment(1, REVISION, 12_000, True),), ADMITTED, ADMITTED, None, None)
+APPROVED = Approval(ApprovalState.APPROVED, Approver.AUTOMATIC, DIGEST)
+NOT_REQUESTED = Approval(ApprovalState.NOT_REQUESTED, None, None)
+RECONCILED = Reservation(5_000_000_000, ReservationState.RECONCILED, None, 3)
+KEPT = Reservation(5_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 3)
+
+
+def _dispatch(
+    intent: int = 10,
+    observation: Observation = ANSWERED,
+    read_as: AttributionKind = AttributionKind.BEHAVIOUR,
+    *,
+    number: int = 1,
+    segment: int = 1,
+    input_reads: tuple[str, ...] = (),
+) -> Dispatch:
+    """A dispatch whose usage and cost are the priced ones exactly when a response arrived."""
+    answered = isinstance(observation, CompleteResponse)
+    return Dispatch(
+        number=number,
+        segment=segment,
+        intent_position=intent,
+        outcome_position=None if isinstance(observation, NoRecordedOutcome) else intent + 1,
+        request=REQUEST,
+        input_reads=tuple(OperationId(read) for read in input_reads),
+        observation=observation,
+        attribution=Attribution(read_as, "a-rule"),
+        usage=ReportedUsage(REPORTED) if answered else None,
+        cost=PRICED if answered else None,
+        zero_cost_rule=None,
+        allocation=5_000_000_000,
+    )
 
 
 def _call(
     id: str = "call-1",
-    outcome: ModelCallOutcome = ModelCallOutcome.CLAIMS,
-    usage: Usage | None = REPORTED,
-    cost: Cost | None = PRICED,
-    fault: str | None = None,
-    stop_reason: str | None = "end_turn",
-    latency: int | None = 840,
-) -> ModelCallRecord:
-    return ModelCallRecord(
-        ModelCallId(id), "investigator", outcome, stop_reason, latency, DIGEST, usage, cost, fault
-    )
+    role: str = "investigator",
+    *dispatches: Dispatch,
+    answer: Answer | None = None,
+) -> ModelCall:
+    """A call answered on one dispatch at position 10, unless ``dispatches`` says otherwise;
+    an answered call carries text and nothing else unless ``answer`` says what."""
+    held = dispatches if dispatches else (_dispatch(),)
+    if answer is None and isinstance(held[-1].observation, CompleteResponse):
+        answer = Answer(True, (), ())
+    return ModelCall(ModelCallId(id), role, held, answer)
 
 
-def _faulted(id: str = "call-1") -> ModelCallRecord:
+def _faulted(id: str = "call-1", intent: int = 10) -> ModelCall:
+    return _call(id, "investigator", _dispatch(intent, TIMED_OUT, AttributionKind.INFRASTRUCTURE))
+
+
+def _asking(operation: str = "op-2") -> ModelCall:
+    """call-1 answered with one tool call that became ``operation``."""
+    asked = Answer(False, (ToolCall("tu_1", "leave", AsOperation(OperationId(operation))),), ())
     return _call(
-        id, ModelCallOutcome.PROVIDER_FAULT, None, None, "timeout", stop_reason=None, latency=None
-    )
+        "call-1", "investigator", _dispatch(observation=CompleteResponse("tool_use", 840, 0)),
+        answer=asked,
+    )  # fmt: skip
 
 
 def _operation(
     id: str = "op-1",
-    origin: PrefetchOrigin | ModelOrigin = PREFETCH,
+    origin: Origin = PREFETCH,
     source: Source | None = Source.FRAPPE,
     outcome: object = RecordOutcome(LEAVE),
+    position: int | None = 1,
 ) -> Operation:
-    return Operation(OperationId(id), origin, "leave", source, {"id": "leave_005"}, outcome)  # type: ignore[arg-type]
+    return Operation(
+        OperationId(id), origin, "leave", source, {"id": "leave_005"}, outcome, position  # type: ignore[arg-type]
+    )
 
 
 def _claim() -> Unknown:
@@ -144,24 +226,41 @@ def _claim() -> Unknown:
     )
 
 
+def _trace(
+    calls: tuple[ModelCall, ...] | None = None,
+    operations: tuple[Operation, ...] | None = None,
+    claims: tuple[Unknown, ...] | None = None,
+) -> RunTrace:
+    return RunTrace(
+        (_call(),) if calls is None else calls,
+        (_operation(),) if operations is None else operations,
+        (_claim(),) if claims is None else claims,
+        COMPOSITION,
+    )
+
+
 def _record(
     system: System = AGENT,
     retrieval: Retrieval = FULL_TEXT,
     status: TerminalStatus = TerminalStatus.COMPLETED,
     failure: Failure | None = None,
-    configurations: tuple[tuple[str, ModelConfiguration], ...] = (
-        ("investigator", ModelConfiguration("eu.model", (Setting("temperature", 0),))),
+    configurations: tuple[tuple[str, CallConfiguration], ...] = (
+        ("investigator", CallConfiguration("eu.model", (CallSetting("temperature", 0),))),
     ),
     selections: tuple[tuple[str, PricingSelection], ...] | None = None,
     cost: Cost | None = PRICED,
+    reservation: Reservation | None = RECONCILED,
 ) -> RunRecord:
+    """A record whose approval follows its status, and whose attribution table and reservation
+    exist exactly when a role calls a model."""
     if selections is None:
         selections = tuple((role, HAIKU) for role, _ in configurations)
     return RunRecord(
         observed_condition=RunCondition.all_reachable(),
         outage=OutageAssignment(frozenset(), DIGEST),
-        harness=HarnessRevision(COMMIT, TreeState.CLEAN),
+        corpus_level="base",
         preregistration_commit=COMMIT,
+        attribution_table=DIGEST if configurations else None,
         model_configurations=configurations,
         pricing_selections=selections,
         prompt_digests=tuple((role, "system", DIGEST) for role, _ in configurations),
@@ -172,8 +271,12 @@ def _record(
         caps=Caps(20, 100_000, 2, 5_000, "input_output"),
         status=status,
         failure=failure,
-        usage=UsageAggregate((("input_tokens", 120, 1), ("output_tokens", 30, 1)), 1, 12_000),
+        abandonment=None,
+        timing=TIMING,
+        usage=UsageAggregate((("input_tokens", 120, 1), ("output_tokens", 30, 1)), 1, 1),
         cost=cost,
+        reservation=reservation if configurations else None,
+        approval=NOT_REQUESTED if status is TerminalStatus.FAILED else APPROVED,
         pricing=PRICING,
     )
 
@@ -185,8 +288,14 @@ def _export(record: RunRecord | None = None, trace: RunTrace | None = None) -> R
         1,
         CONTEXT,
         record if record is not None else _record(),
-        trace if trace is not None else RunTrace((_call(),), (_operation(),), (_claim(),)),
+        trace if trace is not None else _trace(),
     )
+
+
+def _failed(failure: Failure) -> RunRecord:
+    """A record of an attempt that failed with ``failure``, no dispatch priced, its
+    reservation kept."""
+    return _record(status=TerminalStatus.FAILED, failure=failure, cost=None, reservation=KEPT)
 
 
 # --- Usage and cost ---------------------------------------------------------------------
@@ -208,53 +317,28 @@ def test_usage_counters_hold_the_declared_order_and_a_missing_one_reads_as_unkno
         Usage((("input_tokens", 1.5),))  # type: ignore[arg-type]
 
 
-def test_an_aggregate_carries_its_coverage_and_a_sum_over_no_call_is_zero() -> None:
-    aggregate = UsageAggregate((("input_tokens", 500, 3),), 4, 9_000)
+def test_an_aggregate_carries_its_coverage_and_a_sum_over_no_dispatch_is_no_row() -> None:
+    aggregate = UsageAggregate((("input_tokens", 500, 3),), 3, 4)
     assert aggregate.value("input_tokens") == (500, 3)
     assert aggregate.value("output_tokens") is None
-    with pytest.raises(ValueError, match="reported by 5 calls of 4"):
-        UsageAggregate((("input_tokens", 500, 5),), 4, 9_000)
-    with pytest.raises(ValueError, match="reported_calls is at least 1, got 0"):
-        UsageAggregate((("input_tokens", 0, 0),), 4, 9_000)
-    with pytest.raises(ValueError, match="duration_ms is an integer, got 2.5"):
+    with pytest.raises(ValueError, match="reported by 5 dispatches of 4"):
+        UsageAggregate((("input_tokens", 500, 5),), 4, 4)
+    with pytest.raises(ValueError, match="input_tokens reported is at least 1, got 0"):
+        UsageAggregate((("input_tokens", 0, 0),), 4, 4)
+    with pytest.raises(ValueError, match="every call holds a dispatch: 4 calls, 3 dispatches"):
+        UsageAggregate((), 4, 3)
+    with pytest.raises(ValueError, match="dispatches is an integer, got 2.5"):
         UsageAggregate((), 0, 2.5)  # type: ignore[arg-type]
 
 
-def test_a_cost_prices_a_reported_usage_and_a_fault_is_recorded_exactly_on_a_provider_fault() -> (
-    None
-):
-    with pytest.raises(ValueError, match="a cost prices a reported usage"):
-        _call(usage=None, cost=Cost(1, False))
-    assert _call(usage=None, cost=None).cost is None
-    with pytest.raises(ValueError, match="exactly on a provider fault"):
-        _call(fault="timeout")
-    with pytest.raises(
-        ValueError, match="a stop reason is recorded exactly when a response arrived"
-    ):
-        _call(outcome=ModelCallOutcome.PROVIDER_FAULT, usage=None, cost=None, fault="timeout")
-    with pytest.raises(ValueError, match="a provider latency is recorded exactly when a response"):
-        _call(latency=None)
-    with pytest.raises(ValueError, match="a provider fault reports no usage"):
-        _call(
-            outcome=ModelCallOutcome.PROVIDER_FAULT,
-            cost=None,
-            fault="timeout",
-            stop_reason=None,
-            latency=None,
-        )
-    faulted = _faulted()
-    assert (faulted.fault, faulted.stop_reason, faulted.provider_latency_ms) == (
-        "timeout",
-        None,
-        None,
-    )
-    assert _call(outcome=ModelCallOutcome.INVALID_OUTPUT).outcome.answered
-    with pytest.raises(ValueError, match="a cost in nano-dollars is at least 0, got -1"):
+def test_a_cost_is_an_exact_count_of_pico_dollars_with_its_completeness() -> None:
+    with pytest.raises(ValueError, match="a cost in pico-dollars is at least 0, got -1"):
         Cost(-1, True)
-    with pytest.raises(ValueError, match="a cost in nano-dollars is an integer, got 1.5"):
+    with pytest.raises(ValueError, match="a cost in pico-dollars is an integer, got 1.5"):
         Cost(1.5, True)  # type: ignore[arg-type]
     with pytest.raises(ValueError, match="completeness is a boolean, got 1"):
         Cost(1, 1)  # type: ignore[arg-type]
+    assert PRICED.pico_usd == 120 * 1_100_000 + 30 * 5_500_000
 
 
 # --- Operations -------------------------------------------------------------------------
@@ -311,40 +395,169 @@ def test_arguments_are_frozen_as_accepted_all_the_way_down() -> None:
     assert frozen_json([1, "a", None, True, 2.5], "arguments") == (1, "a", None, True, 2.5)
 
 
+def test_an_operation_outside_a_trace_holds_no_position_and_one_inside_must() -> None:
+    assert _operation(position=None).position is None
+    with pytest.raises(ValueError, match="an operation's position is at least 1, got 0"):
+        _operation(position=0)
+    with pytest.raises(ValueError, match="operation op-1 of a trace holds no position"):
+        _trace(operations=(_operation(position=None),))
+    issued = _operation(origin=HarnessOrigin("full-context-documents"))
+    assert isinstance(issued.origin, HarnessOrigin)
+    with pytest.raises(ValueError, match="the policy that issued a harness read"):
+        HarnessOrigin(" ")
+
+
 # --- The trace --------------------------------------------------------------------------
 
 
-def test_ids_are_unique_and_a_model_originated_read_names_a_call_the_trace_holds() -> None:
+def test_ids_are_unique_within_their_kind() -> None:
     with pytest.raises(ValueError, match="model call ids are unique"):
-        RunTrace((_call(), _call()), (), ())
+        _trace(calls=(_call(), _call()))
     with pytest.raises(ValueError, match="operation ids are unique"):
-        RunTrace((), (_operation(), _operation()), ())
-    with pytest.raises(
-        ValueError, match="answers model call 'call-9', which the trace does not hold"
-    ):
-        RunTrace((_call(),), (_operation(origin=ModelOrigin(ModelCallId("call-9"))),), ())
+        _trace(operations=(_operation(), _operation(position=2)))
     with pytest.raises(ValueError, match="claim ids are unique"):
-        RunTrace((), (), (_claim(), _claim()))
-    with pytest.raises(ValueError, match="which emitted claims, not tool calls"):
-        RunTrace((_call(),), (_operation(origin=ModelOrigin(CALL)),), ())
-    asked = _call(outcome=ModelCallOutcome.TOOL_CALLS, stop_reason="tool_use")
-    trace = RunTrace((asked,), (_operation(origin=ModelOrigin(CALL)),), (_claim(),))
+        _trace(claims=(_claim(), _claim()))
+    trace = _trace()
     assert trace.model_call(CALL).role == "investigator"
     assert trace.operation(OperationId("op-1")) is not None
     assert trace.operation(OperationId("op-2")) is None
     assert trace.model_call_or_none(ModelCallId("call-2")) is None
+    assert [dispatch.intent_position for dispatch in trace.dispatches] == [10]
+
+
+def test_reads_and_dispatches_share_one_event_order() -> None:
+    with pytest.raises(ValueError, match="operations are held in position order"):
+        _trace(operations=(_operation(position=5), _operation("op-2", position=3)))
+    with pytest.raises(ValueError, match="in the order of their first intents"):
+        _trace(calls=(_call("call-1", "investigator", _dispatch(30)), _call("call-2")))
+    with pytest.raises(ValueError, match="no two events of a trace share a position"):
+        _trace(operations=(_operation(position=10),))
+    with pytest.raises(ValueError, match="no two events of a trace share a position"):
+        _trace(operations=(_operation(position=11),))  # the dispatch's outcome
+    recovered = _call(
+        "call-1",
+        "investigator",
+        _dispatch(10, NoRecordedOutcome(), AttributionKind.UNRESOLVED),
+        _dispatch(14, number=2, segment=2),
+    )
+    trace = _trace(calls=(recovered, _call("call-2", "investigator", _dispatch(20))))
+    assert [dispatch.number for dispatch in trace.dispatches] == [1, 2, 1]
+
+
+def test_a_model_originated_read_and_the_tool_call_that_asked_for_it_name_each_other() -> None:
+    read = _operation("op-2", origin=ModelOrigin(CALL), position=12)
+    trace = _trace(calls=(_asking(),), operations=(_operation(), read))
+    assert trace.operation(OperationId("op-2")) is read
+    with pytest.raises(
+        ValueError, match="answers model call 'call-9', which the trace does not hold"
+    ):
+        _trace(operations=(_operation(origin=ModelOrigin(ModelCallId("call-9"))),))
+    with pytest.raises(ValueError, match="whose answer holds no tool call that became it"):
+        _trace(operations=(_operation(origin=ModelOrigin(CALL)),))
+    with pytest.raises(ValueError, match="became operation op-2, which the trace does not hold"):
+        _trace(calls=(_asking(),))
+    with pytest.raises(ValueError, match="became operation op-1, which no model call asked for"):
+        _trace(calls=(_asking("op-1"),))
+    twice = Answer(
+        False,
+        (
+            ToolCall("tu_1", "leave", AsOperation(OperationId("op-2"))),
+            ToolCall("tu_2", "leave", AsOperation(OperationId("op-2"))),
+        ),
+        (),
+    )
+    with pytest.raises(ValueError, match="operation op-2 is the disposition of two tool calls"):
+        _trace(
+            calls=(
+                _call(
+                    "call-1", "investigator",
+                    _dispatch(observation=CompleteResponse("tool_use", 840, 0)), answer=twice,
+                ),
+            ),
+            operations=(_operation(), read),
+        )  # fmt: skip
+
+
+def test_a_dispatch_was_shown_only_reads_the_trace_holds_logged_before_its_intent() -> None:
+    shown = _call("call-1", "investigator", _dispatch(input_reads=("op-1",)))
+    assert _trace(calls=(shown,)).dispatches[0].input_reads == ("op-1",)
+    with pytest.raises(ValueError, match="was shown operation op-9, which the trace does not"):
+        _trace(calls=(_call("call-1", "investigator", _dispatch(input_reads=("op-9",))),))
+    with pytest.raises(ValueError, match="was shown operation op-1, which was logged after"):
+        _trace(calls=(shown,), operations=(_operation(position=40),))
 
 
 # --- The record -------------------------------------------------------------------------
 
 
 def test_a_failure_is_recorded_exactly_when_the_status_is_failed() -> None:
-    failure = Failure(FailureCategory.DEFECT, "op-1", "no world id")
+    failure = Failure(FailureCategory.DEFECT, OperationSite(OperationId("op-1")), "no world id")
     with pytest.raises(ValueError, match="exactly when the status is failed"):
-        _record(failure=failure)
+        replace(_record(), failure=failure)
     with pytest.raises(ValueError, match="exactly when the status is failed"):
-        _record(status=TerminalStatus.FAILED)
+        replace(_record(), status=TerminalStatus.FAILED)
     assert _record(status=TerminalStatus.FAILED, failure=failure).failure is failure
+
+
+def test_an_approval_follows_the_status_and_not_the_claims() -> None:
+    """A completed attempt is approved, an abstention's empty payload included, and so is one
+    that reported at its cap. A failed one states the approval as it stood: none, a request
+    nobody answered, or one given before the attempt failed."""
+    failure = Failure(FailureCategory.DEFECT, OperationSite(OperationId("op-1")), "no world id")
+    failed = _record(status=TerminalStatus.FAILED, failure=failure)
+    assert failed.approval.state is ApprovalState.NOT_REQUESTED
+    waiting = Approval(ApprovalState.REQUESTED_UNAPPROVED, None, DIGEST)
+    assert replace(failed, approval=waiting).approval is waiting
+    # Approved, resumed, and then the terminal append failed: the export says all three,
+    # and its active time leaves out only the wait.
+    approved_then_failed = replace(
+        failed,
+        approval=APPROVED,
+        timing=replace(
+            TIMING, approval_requested=Stamp(1, 100, 30), approval_resumed=Stamp(1, 200, 31)
+        ),
+    )
+    assert approved_then_failed.approval is APPROVED
+    assert evidenced_active_ms(approved_then_failed.timing) == 12_000 - 100
+    with pytest.raises(ValueError, match="status completed, approval not_requested"):
+        replace(_record(), approval=NOT_REQUESTED)
+    with pytest.raises(ValueError, match="status completed, approval requested_unapproved"):
+        replace(_record(), approval=waiting)
+    at_cap = replace(_record(), status=TerminalStatus.CAP_EXHAUSTED)
+    assert at_cap.approval is APPROVED
+    stamped = replace(TIMING, approval_requested=Stamp(1, 11_000, 30))
+    with pytest.raises(ValueError, match="stamps an approval request the approval does not hold"):
+        replace(failed, timing=stamped)
+    resumed = replace(stamped, approval_resumed=Stamp(1, 11_004, 31))
+    with pytest.raises(ValueError, match="stamps a resume from an approval that was not given"):
+        replace(failed, approval=waiting, timing=resumed)
+    assert replace(_record(), timing=resumed).timing is resumed
+    # An attempt that did not fail ended at a terminal event its worker wrote.
+    with pytest.raises(ValueError, match="also stamped its resume"):
+        replace(_record(), timing=stamped)
+    killed = replace(TIMING, segments=(Segment(1, REVISION, 12_000, False),))
+    with pytest.raises(ValueError, match="its last segment's end was recorded"):
+        replace(_record(), timing=killed)
+    assert replace(failed, timing=killed).timing is killed
+
+
+def test_an_abandonment_is_recorded_exactly_at_the_abandoned_site() -> None:
+    abandoned = Failure(
+        FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.ABANDONED), "no owner"
+    )
+    at_prefetch = Failure(
+        FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.PREFETCH), "the store"
+    )
+    decision = Abandonment("operator", 3)
+    with pytest.raises(ValueError, match="exactly when the failure's site is the abandoned one"):
+        _record(status=TerminalStatus.FAILED, failure=abandoned)
+    elsewhere = _record(status=TerminalStatus.FAILED, failure=at_prefetch, reservation=KEPT)
+    with pytest.raises(ValueError, match="exactly when the failure's site is the abandoned one"):
+        replace(elsewhere, abandonment=decision)
+    kept = replace(elsewhere, failure=abandoned, abandonment=decision)
+    assert kept.abandonment is decision
+    with pytest.raises(ValueError, match="an abandoned attempt failed by infrastructure"):
+        replace(kept, failure=replace(abandoned, category=FailureCategory.DEFECT))
 
 
 def test_rules_only_calls_no_model_and_retrieves_nothing() -> None:
@@ -357,10 +570,23 @@ def test_rules_only_calls_no_model_and_retrieves_nothing() -> None:
         system=rules_only, retrieval=Retrieval(RetrievalKind.NONE, None), configurations=()
     )
     assert record.model_configurations == ()
+    assert (record.attribution_table, record.reservation) == (None, None)
+    assert SystemKind.FULL_CONTEXT.value == "full_context"
+
+
+def test_what_only_a_model_system_has_is_recorded_exactly_when_a_role_calls_a_model() -> None:
+    with pytest.raises(ValueError, match="an attribution table is named exactly when"):
+        replace(_record(), attribution_table=None)
+    with pytest.raises(ValueError, match="a reservation is recorded exactly when"):
+        replace(_record(), reservation=None)
+    with pytest.raises(ValueError, match="the attribution table digest is a SHA-256"):
+        replace(_record(), attribution_table="deadbeef")
+    with pytest.raises(ValueError, match="the assigned corpus level is a non-empty identifier"):
+        replace(_record(), corpus_level="")
 
 
 def test_role_indexed_provenance_is_unique_by_role_and_held_in_role_order() -> None:
-    one = ModelConfiguration("eu.model", ())
+    one = CallConfiguration("eu.model", ())
     with pytest.raises(ValueError, match="a role calls one model configuration"):
         _record(configurations=(("investigator", one), ("investigator", one)))
     record = _record(configurations=(("synthesizer", one), ("investigator", one)))
@@ -374,7 +600,7 @@ def test_role_indexed_provenance_is_unique_by_role_and_held_in_role_order() -> N
 
 
 def test_every_role_that_calls_a_model_names_the_rate_it_was_priced_under() -> None:
-    one = ModelConfiguration("eu.model", ())
+    one = CallConfiguration("eu.model", ())
     with pytest.raises(ValueError, match=r"configured \['investigator'\], priced \[\]"):
         _record(configurations=(("investigator", one),), selections=())
     with pytest.raises(ValueError, match="a role is priced under one selection"):
@@ -410,10 +636,10 @@ def test_the_reserves_sit_inside_the_caps_and_an_embedding_model_names_vector_re
 
 
 def test_pricing_rows_are_unique_by_rate_and_the_commit_is_a_full_sha() -> None:
-    row = PricingRow("key", "eu-central-1", "on_demand", "input_tokens", 1_100)
+    row = PricingRow("key", "eu-central-1", "on_demand", "input_tokens", 1_100_000)
     with pytest.raises(ValueError, match="a rate is given once"):
         PricingBasis(DIGEST, "USD", date(2026, 9, 1), (row, row))
-    assert PRICING.rate("model-a", "eu-central-1", "on_demand", "input_tokens") == 1_100
+    assert PRICING.rate("model-a", "eu-central-1", "on_demand", "input_tokens") == 1_100_000
     assert PRICING.rate("other", "eu-central-1", "on_demand", "input_tokens") is None
     with pytest.raises(ValueError, match="a token class is a usage counter name"):
         PricingRow("key", "eu-central-1", "on_demand", "total_tokens", 1)
@@ -431,8 +657,9 @@ def test_the_export_is_this_formats_self_identifying_tree() -> None:
         "run-7",
         1,
     )
-    with pytest.raises(ValueError, match="builds export format 1, got 2"):
-        replace(export, format_version=2)
+    assert EXPORT_FORMAT_VERSION == 2
+    with pytest.raises(ValueError, match="builds export format 2, got 1"):
+        replace(export, format_version=1)
     with pytest.raises(ValueError, match="an attempt is at least 1, got 0"):
         replace(export, attempt=0)
     with pytest.raises(ValueError, match="an attempt is an integer, got 1.5"):
@@ -443,14 +670,9 @@ def test_the_export_is_this_formats_self_identifying_tree() -> None:
         replace(export, run_id=" ")
 
 
-def test_a_recorded_failure_points_at_the_trace_entry_of_its_own_kind() -> None:
-    infrastructure = Failure(FailureCategory.INFRASTRUCTURE, "call-1", "timeout after retries")
-    failed = _record(status=TerminalStatus.FAILED, failure=infrastructure, cost=None)
-    with pytest.raises(ValueError, match="names a model call the provider failed, got 'call-1'"):
-        _export(record=failed)  # call-1 answered with claims
-    trace = RunTrace((_faulted(),), (_operation(),), ())
-    assert _export(record=failed, trace=trace).record.failure is infrastructure
-    defect = Failure(FailureCategory.DEFECT, "op-1", "no world id")
+def test_a_failure_at_an_operation_is_a_defect_at_one_that_returned_something() -> None:
+    defect = Failure(FailureCategory.DEFECT, OperationSite(OperationId("op-1")), "no world id")
+    faulted = (_faulted(),)
     # A defect is found at an operation that returned something; an unreachable or a
     # refused operation read nothing, an absent answer is evidence, and none anchors one.
     for unread in (
@@ -459,52 +681,122 @@ def test_a_recorded_failure_points_at_the_trace_entry_of_its_own_kind() -> None:
         AbsentOutcome(),
     ):
         source = None if isinstance(unread, RefusedCallOutcome) else Source.FRAPPE
-        with pytest.raises(ValueError, match="could not accept, got 'op-1'"):
+        with pytest.raises(ValueError, match="could not accept, got defect at 'op-1'"):
             _export(
-                record=replace(failed, failure=defect),
-                trace=RunTrace((_faulted(),), (_operation(source=source, outcome=unread),), ()),
+                record=_failed(defect),
+                trace=_trace(faulted, (_operation(source=source, outcome=unread),), ()),
             )
-    with pytest.raises(ValueError, match="got 'op-9'"):
-        _export(record=replace(failed, failure=replace(defect, at="op-9")), trace=trace)
+    absent = replace(defect, site=OperationSite(OperationId("op-9")))
+    with pytest.raises(ValueError, match="got defect at 'op-9'"):
+        _export(record=_failed(absent), trace=_trace(faulted, claims=()))
     malformed = _operation(
         outcome=DefectOutcome(Source.FRAPPE, "Employee/HR-EMP-00017", "no world id")
     )
-    export = _export(
-        record=replace(failed, failure=defect), trace=RunTrace((_faulted(),), (malformed,), ())
-    )
+    export = _export(record=_failed(defect), trace=_trace(faulted, (malformed,), ()))
     assert export.record.failure is defect
     # The harness's own defect: the record came back and the run could not accept it.
-    contradicted = Failure(FailureCategory.DEFECT, "op-1", "the HR system answered with leave_998")
-    export = _export(record=replace(failed, failure=contradicted), trace=trace)
+    contradicted = replace(defect, reason="the HR system answered with leave_998")
+    export = _export(record=_failed(contradicted), trace=_trace(faulted, claims=()))
     assert export.record.failure is contradicted
+    misfiled = replace(defect, category=FailureCategory.INFRASTRUCTURE)
+    with pytest.raises(ValueError, match="got infrastructure at 'op-1'"):
+        _export(record=_failed(misfiled), trace=_trace(faulted, claims=()))
 
 
-def test_every_model_call_role_is_configured_and_a_cumulative_cost_follows_a_priced_call() -> None:
-    synthesizer = ModelCallRecord(
-        ModelCallId("call-2"),
-        "synthesizer",
-        ModelCallOutcome.CLAIMS,
-        "end_turn",
-        10,
-        DIGEST,
-        REPORTED,
-        PRICED,
-        None,
+def test_a_failure_at_a_dispatch_names_one_the_trace_holds_and_agrees_with_its_reading() -> None:
+    at_send = DispatchSite(CALL, 1, DispatchPhase.SEND)
+    infrastructure = Failure(FailureCategory.INFRASTRUCTURE, at_send, "timeout")
+    trace = _trace((_faulted(),), claims=())
+    assert _export(record=_failed(infrastructure), trace=trace).record.failure is infrastructure
+    with pytest.raises(ValueError, match="one no complete response arrived for"):
+        _export(record=_failed(infrastructure), trace=_trace(claims=()))  # the call answered
+    as_behaviour = _call(
+        "call-1", "investigator", _dispatch(10, TIMED_OUT, AttributionKind.BEHAVIOUR)
     )
+    with pytest.raises(ValueError, match="by infrastructure at the send of a dispatch read"):
+        _export(record=_failed(infrastructure), trace=_trace((as_behaviour,), claims=()))
+    with pytest.raises(ValueError, match="by defect at the send of a dispatch read as"):
+        _export(
+            record=_failed(replace(infrastructure, category=FailureCategory.DEFECT)), trace=trace
+        )
+    # A failure at the send names the call's last dispatch, one nothing whole arrived for.
+    answered_after = _call(
+        "call-1",
+        "investigator",
+        _dispatch(10, TIMED_OUT, AttributionKind.INFRASTRUCTURE),
+        _dispatch(14, number=2),
+    )
+    with pytest.raises(ValueError, match="a failure at the send names a call's last dispatch"):
+        _export(record=_failed(infrastructure), trace=_trace((answered_after,), claims=()))
+    for phase in (DispatchPhase.PARSE, DispatchPhase.RECORD):
+        nothing_arrived = replace(
+            infrastructure, category=FailureCategory.DEFECT, site=DispatchSite(CALL, 1, phase)
+        )
+        with pytest.raises(ValueError, match="names one whose response arrived"):
+            _export(record=_failed(nothing_arrived), trace=trace)
+    for missing in (DispatchSite(ModelCallId("call-9"), 1, DispatchPhase.SEND),
+                    DispatchSite(CALL, 2, DispatchPhase.SEND)):  # fmt: skip
+        with pytest.raises(ValueError, match="which the trace does not hold"):
+            _export(record=_failed(replace(infrastructure, site=missing)), trace=trace)
+    # The re-dispatch bound exhausted on an unresolved history: infrastructure, anchored at
+    # the last dispatch.
+    unresolved = _call(
+        "call-1", "investigator", _dispatch(10, NoRecordedOutcome(), AttributionKind.UNRESOLVED)
+    )
+    exhausted = _export(record=_failed(infrastructure), trace=_trace((unresolved,), claims=()))
+    assert exhausted.trace.model_call(CALL).state.value == "unresolved"
+
+
+def test_a_response_nobody_parsed_is_preserved_only_by_the_failure_that_ended_there() -> None:
+    unparsed = ModelCall(CALL, "investigator", (_dispatch(),), None)
+    at_parse = Failure(
+        FailureCategory.DEFECT, DispatchSite(CALL, 1, DispatchPhase.PARSE), "the parser raised"
+    )
+    record = _record(status=TerminalStatus.FAILED, failure=at_parse)
+    kept = _export(record=record, trace=_trace((unparsed,), claims=()))
+    assert kept.trace.model_call(CALL).answer is None
+    assert kept.trace.model_call(CALL).stop_reason == "end_turn"
+    with pytest.raises(ValueError, match="holds a complete response and no answer"):
+        _export(trace=_trace((unparsed,)))
+    elsewhere = replace(at_parse, site=HarnessSite(HarnessSiteName.COMPOSITION))
+    with pytest.raises(ValueError, match="holds a complete response and no answer"):
+        _export(record=replace(record, failure=elsewhere), trace=_trace((unparsed,), claims=()))
+
+
+def test_every_role_is_configured_and_every_dispatch_ran_in_a_segment_the_record_holds() -> None:
+    synthesizer = _call("call-2", "synthesizer", _dispatch(20))
     with pytest.raises(ValueError, match="ran as 'synthesizer', a role with no recorded model"):
-        _export(trace=RunTrace((_call(), synthesizer), (_operation(),), (_claim(),)))
+        _export(trace=_trace((_call(), synthesizer)))
+    later = _call("call-1", "investigator", _dispatch(segment=2))
+    with pytest.raises(ValueError, match="ran in segment 2, which the record does not hold"):
+        _export(trace=_trace((later,)))
+    second = Segment(2, REVISION, 400, True)
+    two = replace(_record(), timing=replace(TIMING, segments=(*TIMING.segments, second)))
+    assert _export(record=two, trace=_trace((later,))).record.timing.segments[1] is second
+
+
+def test_a_cumulative_cost_follows_a_priced_dispatch_and_a_reservation_every_priced_send() -> None:
     with pytest.raises(
-        ValueError, match="a cumulative cost is recorded exactly when a call was priced"
+        ValueError, match="a cumulative cost is recorded exactly when a dispatch was priced"
     ):
         _export(record=_record(cost=None))
     with pytest.raises(
-        ValueError, match="a cumulative cost is recorded exactly when a call was priced"
+        ValueError, match="a cumulative cost is recorded exactly when a dispatch was priced"
     ):
-        _export(trace=RunTrace((_faulted(),), (_operation(),), ()))
+        _export(trace=_trace((_faulted(),), claims=()))
+    with pytest.raises(ValueError, match="reconciled only when every send was priced whole"):
+        _export(record=_record(cost=None), trace=_trace((_faulted(),), claims=()))
     unpriced = _export(
-        record=_record(cost=None), trace=RunTrace((_faulted(),), (_operation(),), ())
+        record=_record(cost=None, reservation=KEPT), trace=_trace((_faulted(),), claims=())
     )
     assert unpriced.record.cost is None
+    floor = replace(_dispatch(), cost=Cost(132_000_000, False))
+    with pytest.raises(ValueError, match="reconciled only when every send was priced whole"):
+        _export(trace=_trace((_call("call-1", "investigator", floor),)))
+    # The record's own cost says incomplete while every dispatch was priced whole: the
+    # evaluator reports the disagreement, and the reservation cannot be reconciled over it.
+    with pytest.raises(ValueError, match="incomplete cumulative cost never carries a reconciled"):
+        _export(record=_record(cost=Cost(PRICED.pico_usd, False)))
 
 
 def test_a_rules_only_export_holds_no_model_call() -> None:
@@ -516,7 +808,50 @@ def test_a_rules_only_export_holds_no_model_call() -> None:
     )
     with pytest.raises(ValueError, match="a rules-only export holds no model call"):
         _export(record=record)
-    assert (
-        _export(record=record, trace=RunTrace((), (_operation(),), (_claim(),))).trace.model_calls
-        == ()
+    assert _export(record=record, trace=_trace(calls=())).trace.model_calls == ()
+    issued = _operation(origin=HarnessOrigin("full-context-documents"))
+    with pytest.raises(ValueError, match="of a rules-only export is not the prefetch's"):
+        _export(record=record, trace=_trace(calls=(), operations=(issued,)))
+    by_a_model = Composition(ClaimAuthor.MODEL, COMPOSITION.policy, (), ())
+    with pytest.raises(ValueError, match="claims were composed by the rules"):
+        _export(record=record, trace=RunTrace((), (_operation(),), (), by_a_model))
+
+
+def test_the_approvals_stamps_are_events_of_the_same_order_as_reads_and_dispatches() -> None:
+    def stamped(requested: Stamp, resumed: Stamp, *segments: Segment) -> RunRecord:
+        held = segments if segments else TIMING.segments
+        timing = replace(
+            TIMING, segments=held, approval_requested=requested, approval_resumed=resumed
+        )
+        return replace(_record(), timing=timing)
+
+    in_order = stamped(Stamp(1, 11_000, 30), Stamp(1, 11_004, 31))
+    assert _export(record=in_order).record.timing.approval_resumed == Stamp(1, 11_004, 31)
+    for taken in (1, 10, 11):  # the read, the dispatch's intent, its outcome
+        with pytest.raises(ValueError, match=f"stamp at position {taken} shares it"):
+            _export(record=stamped(Stamp(1, 11_000, taken), Stamp(1, 11_004, 31)))
+    three = (
+        Segment(1, REVISION, 12_000, True),
+        Segment(2, REVISION, 600, False),
+        Segment(3, REVISION, 2_000, True),
     )
+    across = stamped(Stamp(1, 11_000, 5), Stamp(3, 50, 6), *three)
+    # The dispatch at position 10 ran in segment 1, after the resume of segment 3 at 6.
+    with pytest.raises(ValueError, match="position 10 ran in segment 1, after one of segment 3"):
+        _export(record=across)
+    later = _call("call-1", "investigator", _dispatch(segment=3))
+    assert _export(record=across, trace=_trace((later,))).record.timing.segments == three
+
+
+def test_a_read_the_model_asked_for_is_logged_after_that_calls_answer() -> None:
+    early = _operation("op-2", origin=ModelOrigin(CALL), position=5)
+    with pytest.raises(ValueError, match="was logged before that call's answer"):
+        _trace(calls=(_asking(),), operations=(_operation(), early))
+
+
+def test_an_attempt_that_did_not_fail_holds_no_unresolved_call() -> None:
+    unresolved = _call(
+        "call-1", "investigator", _dispatch(10, NoRecordedOutcome(), AttributionKind.UNRESOLVED)
+    )
+    with pytest.raises(ValueError, match="is unresolved in an attempt that did not fail"):
+        _export(record=_record(cost=None, reservation=KEPT), trace=_trace((unresolved,)))

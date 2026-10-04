@@ -11,15 +11,19 @@ from datetime import timedelta
 import pytest
 
 from leaveimpact.core import (
+    Answer,
+    AsOperation,
+    AttributionKind,
+    CallState,
+    Cost,
     ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
     ModelOrigin,
+    ReportedUsage,
     RunCondition,
     Source,
     TerminalStatus,
-    Usage,
-    cost_of,
+    ToolCall,
+    cost_of_reported,
     is_completed_read,
 )
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded, Limited, LimitedReason
@@ -30,10 +34,9 @@ from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.export_fixture import (
     BASIS,
-    DIGEST,
-    ROLE,
     SELECTION,
     agent_export,
+    answered_call,
     malformed,
     provider_failed_export,
     reads,
@@ -131,7 +134,9 @@ def test_a_failed_attempt_keeps_its_tallies_its_cost_and_what_it_retrieved(
     by_the_provider = evaluate_run(world, provider_failed_export(world, scenario))
     assert isinstance(by_the_provider.outcome, Excluded)
     metrics = by_the_provider.metrics
-    assert dict(metrics.discipline.model_calls)[ModelCallOutcome.PROVIDER_FAULT] == 1
+    counted = {(state, read): count for state, read, count in metrics.discipline.model_calls}
+    assert counted[(CallState.FAILED, AttributionKind.INFRASTRUCTURE)] == 1
+    assert sum(counted.values()) == 1
     assert (metrics.cost.cost, metrics.cost.findings) == (None, ())
     assert metrics.required_sources is not None
     assert not any(use.attempted for use in metrics.required_sources)
@@ -148,7 +153,7 @@ def test_a_failed_attempt_keeps_its_tallies_its_cost_and_what_it_retrieved(
     )
     assert isinstance(by_a_defect.outcome, Excluded)
     metrics = by_a_defect.metrics
-    assert metrics.discipline.tally(Source.JIRA).defect == OriginCount(1, 0)
+    assert metrics.discipline.tally(Source.JIRA).defect == OriginCount(1, 0, 0)
     assert metrics.contribution is None
     assert metrics.retrieval is not None
     assert all(found.retrieved for found in metrics.retrieval.targets)
@@ -221,25 +226,23 @@ def test_an_agents_run_is_measured_by_who_asked_and_what_it_cost(world: SealedWo
     scenario = world.scenarios[0]
     first = ModelCallId("call-1")
 
-    def call(id: ModelCallId, outcome: ModelCallOutcome, usage: Usage) -> ModelCallRecord:
-        cost = cost_of(usage, SELECTION, BASIS)
-        return ModelCallRecord(id, ROLE, outcome, "end_turn", 40, DIGEST, usage, cost, None)
+    def priced(input_tokens: int, output_tokens: int) -> tuple[dict[str, object], Cost]:
+        usage: dict[str, object] = {"inputTokens": input_tokens, "outputTokens": output_tokens}
+        return usage, cost_of_reported(ReportedUsage(usage), SELECTION, BASIS)
 
-    calls = (
-        call(
-            first,
-            ModelCallOutcome.TOOL_CALLS,
-            Usage((("input_tokens", 900), ("output_tokens", 80))),
-        ),
-        call(
-            ModelCallId("call-2"),
-            ModelCallOutcome.CLAIMS,
-            Usage((("input_tokens", 4_000), ("output_tokens", 600))),
-        ),
-    )
     # The leave is the prefetch's; everything after it the model asked for in its first call.
     prefetched, *asked = reads_of_everything(world, scenario)
     operations = (prefetched, *(replace(op, origin=ModelOrigin(first)) for op in asked))
+    tool_calls = tuple(
+        ToolCall(f"tu_{number}", op.tool, AsOperation(op.id))
+        for number, op in enumerate(asked, start=1)
+    )
+    calls = (
+        answered_call(
+            1, *priced(900, 80), stop_reason="tool_use", answer=Answer(False, tool_calls, ())
+        ),
+        answered_call(2, *priced(4_000, 600)),
+    )
     export = agent_export(
         world,
         scenario,
@@ -258,4 +261,4 @@ def test_an_agents_run_is_measured_by_who_asked_and_what_it_cost(world: SealedWo
     )
     assert metrics.cost.cost == export.record.cost
     assert metrics.cost.cost is not None and metrics.cost.cost.complete
-    assert metrics.cost.cost.nano_usd == 4_900 * 1_100 + 680 * 5_500
+    assert metrics.cost.cost.pico_usd == 4_900 * 1_100_000 + 680 * 5_500_000

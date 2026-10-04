@@ -13,7 +13,6 @@ from pathlib import Path
 
 import pytest
 
-from leaveimpact.agent.export import export_rules_only_run
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
@@ -38,6 +37,7 @@ from leaveimpact.core import (
     export_bytes,
 )
 from leaveimpact.core.ids import LeaveId
+from leaveimpact.core.run_ending import OperationSite
 from leaveimpact.evaluator.cells import accounting_of, arms, attempt_summary_of, cells_of
 from leaveimpact.evaluator.prefetch_conformance import (
     PrefetchConformance,
@@ -49,6 +49,7 @@ from leaveimpact.evaluator.registered import preregistered
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
+from tests.unit.export_fixture import export_baseline, logged_in_order
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import Systems, systems_holding
 from tests.unit.throwaway_world import loaded_world
@@ -99,7 +100,7 @@ def exported(
         preregistration_commit=COMMIT,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
     )
-    export = export_rules_only_run(
+    export = export_baseline(
         investigate(context, systems.ports),
         context,
         provenance,
@@ -118,7 +119,10 @@ def normal(world: SealedWorld, scenario: Scenario) -> RunExport:
 
 
 def with_operations(export: RunExport, *operations: Operation) -> RunExport:
-    return replace(export, trace=replace(export.trace, operations=operations))
+    """``export`` as if its harness had logged ``operations`` in the order given."""
+    return replace(
+        export, trace=replace(export.trace, operations=logged_in_order(operations))
+    )
 
 
 def again(operation: Operation, number: int) -> Operation:
@@ -261,7 +265,8 @@ def test_a_defect_found_at_a_completed_read_ends_nothing(
     systems = systems_holding(world)
     del systems.people.people[scenario.investigated_leave.employee_id]
     failed = exported(world, scenario, systems)
-    assert failed.record.failure is not None and failed.record.failure.at == "op-2"
+    assert failed.record.failure is not None
+    assert failed.record.failure.site == OperationSite(OperationId("op-2"))
     assert [operation.tool for operation in failed.trace.operations] == PLAN
     assert prefetch_conformance(failed) == CONFORMS
     stopped_there = with_operations(failed, *failed.trace.operations[:2])

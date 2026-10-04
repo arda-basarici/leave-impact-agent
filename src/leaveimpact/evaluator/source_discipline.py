@@ -8,7 +8,8 @@ here needs the sealed world; the one join with it, whether the sources a scenari
 depends on were asked and answered, takes the key's sources as an argument.
 
 One row per operation, and nothing stored is a count. A row says who asked (the frozen
-prefetch or the model), which tool, which source, and how it ended. Every table is a
+prefetch, the harness under a registered policy, or the model), which tool, which source,
+and how it ended. Every table is a
 reading of the rows, as the claim tables are of theirs:
 
 - *The per-source tally.* Completed reads (a record, no record, a sequence), unreachable
@@ -16,11 +17,15 @@ reading of the rows, as the claim tables are of theirs:
   against it and *succeeded* when one completed. A refused call counts for no source, even
   one the wrapper had resolved a source for: no source was asked.
 - *Refused calls*, over the operations the model asked for. A call the wrapper refused is
-  a malformed tool request, the model's; a refused call of the prefetch is the harness's
-  own and is reported as a finding, never as model behaviour.
-- *Model calls* by how each ended, the six kinds. A model call that ended as a refusal is
-  an invocation's response; a refused operation is a tool request the wrapper stopped. The
-  two are counted apart and share only a word.
+  a malformed tool request, the model's; a refused call of the prefetch, or of a read
+  the harness issued under a policy, is the harness's own and is reported as a finding,
+  never as model behaviour.
+- *Model calls* by how each stands and how its last dispatch was read: the state
+  (answered, failed, unresolved) beside the attribution (behaviour, infrastructure, defect,
+  unresolved), every pair present. A service error read as the model's behaviour is a
+  failed call counted under behaviour, so the tally never has to choose between what
+  arrived and how it was read. A refused operation is a tool request the wrapper stopped,
+  an operation's ending and no model call's.
 - *Repeats.* A completed read with the tool and the arguments of an earlier completed one
   names the first such read. Whether a repeat was wasteful is not judged here: a second
   read after a suspected change is a legitimate pattern, and the count is what a table
@@ -43,20 +48,23 @@ from typing import cast
 
 from leaveimpact.core.enums import Source
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
+from leaveimpact.core.model_calls import AttributionKind, CallState
 from leaveimpact.core.read_coverage import ToolMismatch, tool_mismatches
+from leaveimpact.core.run_export import RunTrace
 from leaveimpact.core.run_export_json import thawed_json
 from leaveimpact.core.run_trace import (
     AbsentOutcome,
     DefectOutcome,
-    ModelCallOutcome,
+    HarnessOrigin,
     ModelOrigin,
     Operation,
     OperationId,
+    Origin,
     Outcome,
+    PrefetchOrigin,
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
-    RunTrace,
     UnreachableOutcome,
 )
 from leaveimpact.core.tools import SEARCH_LIMIT, PortMethod, specification_named
@@ -66,7 +74,19 @@ class OriginKind(StrEnum):
     """Who asked for a read; a member is the wire format."""
 
     PREFETCH = "prefetch"
+    HARNESS = "harness"
     MODEL = "model"
+
+
+def origin_kind(origin: Origin) -> OriginKind:
+    """Who asked for the read ``origin`` records."""
+    match origin:
+        case PrefetchOrigin():
+            return OriginKind.PREFETCH
+        case HarnessOrigin():
+            return OriginKind.HARNESS
+        case ModelOrigin():
+            return OriginKind.MODEL
 
 
 class Ended(StrEnum):
@@ -142,11 +162,12 @@ class OriginCount:
     """A count split by who asked."""
 
     prefetch: int
+    harness: int
     model: int
 
     @property
     def total(self) -> int:
-        return self.prefetch + self.model
+        return self.prefetch + self.harness + self.model
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,13 +204,13 @@ class SourceDiscipline:
     """What one trace shows of its reads and its model calls.
 
     ``operations`` holds one row per operation in the trace's order; ``model_calls`` the
-    number of invocations by how each ended, every kind present, in the kinds' declared
-    order; ``findings`` are in the trace's order, an operation's own in the order of the
-    kinds.
+    number of logical calls by state and by the attribution of the last dispatch, every
+    pair present, in the declared order of both; ``findings`` are in the trace's order, an
+    operation's own in the order of the kinds.
     """
 
     operations: tuple[OperationRow, ...]
-    model_calls: tuple[tuple[ModelCallOutcome, int], ...]
+    model_calls: tuple[tuple[CallState, AttributionKind, int], ...]
     findings: tuple[OperationFinding, ...]
 
     def tally(self, source: Source) -> SourceTally:
@@ -197,8 +218,8 @@ class SourceDiscipline:
 
         def count(*ended: Ended) -> OriginCount:
             rows = [row for row in self.operations if row.source is source and row.ended in ended]
-            prefetch = sum(row.origin is OriginKind.PREFETCH for row in rows)
-            return OriginCount(prefetch, len(rows) - prefetch)
+            by = [sum(row.origin is kind for row in rows) for kind in OriginKind]
+            return OriginCount(*by)
 
         return SourceTally(
             source,
@@ -236,7 +257,9 @@ class SourceDiscipline:
 def source_discipline(trace: RunTrace) -> SourceDiscipline:
     """What ``trace`` shows of its reads and its model calls.
 
-    >>> source_discipline(RunTrace((), (), ())).tally(Source.JIRA).attempted
+    >>> from leaveimpact.core.run_ending import ClaimAuthor, ComposingPolicy, Composition
+    >>> composed = Composition(ClaimAuthor.RULES, ComposingPolicy("policy", "0" * 64), (), ())
+    >>> source_discipline(RunTrace((), (), (), composed)).tally(Source.JIRA).attempted
     False
     """
     rows: list[OperationRow] = []
@@ -244,9 +267,7 @@ def source_discipline(trace: RunTrace) -> SourceDiscipline:
     first_completed: dict[tuple[str, bytes], OperationId] = {}
     for operation in trace.operations:
         ended = _ended(operation.outcome)
-        origin = (
-            OriginKind.MODEL if isinstance(operation.origin, ModelOrigin) else OriginKind.PREFETCH
-        )
+        origin = origin_kind(operation.origin)
         repeat_of: OperationId | None = None
         if ended.completed:
             arguments = cast("JsonObject", thawed_json(operation.arguments))
@@ -259,12 +280,16 @@ def source_discipline(trace: RunTrace) -> SourceDiscipline:
         kinds = [_BY_MISMATCH[mismatch] for mismatch in tool_mismatches(operation)]
         if _returned_more_than_its_limit(operation):
             kinds.append(OperationFindingKind.MORE_THAN_THE_LIMIT)
-        if ended is Ended.REFUSED and origin is OriginKind.PREFETCH:
+        if ended is Ended.REFUSED and origin is not OriginKind.MODEL:
             kinds.append(OperationFindingKind.REFUSED_PREFETCH)
         findings.extend(OperationFinding(operation.id, kind) for kind in kinds)
+    stands = [
+        (call.state, call.dispatches[-1].attribution.kind) for call in trace.model_calls
+    ]
     calls = tuple(
-        (outcome, sum(call.outcome is outcome for call in trace.model_calls))
-        for outcome in ModelCallOutcome
+        (state, read_as, stands.count((state, read_as)))
+        for state in CallState
+        for read_as in AttributionKind
     )
     return SourceDiscipline(tuple(rows), calls, tuple(findings))
 
@@ -309,5 +334,6 @@ __all__ = [
     "RequiredSourceUse",
     "SourceDiscipline",
     "SourceTally",
+    "origin_kind",
     "source_discipline",
 ]

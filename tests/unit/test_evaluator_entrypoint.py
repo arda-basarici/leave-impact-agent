@@ -27,7 +27,6 @@ from leaveimpact.adapters.object_store.layout import (
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.adapters.wiring import ConfigurationError, ObjectReaders
-from leaveimpact.agent.export import export_rules_only_run
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
@@ -54,6 +53,7 @@ from leaveimpact.evaluator.repository import (
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario, bundle
 from leaveimpact.world.scenario import ScenarioClassName, Tier
+from tests.unit.export_fixture import export_baseline
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.throwaway_world import composed_world, loaded_world
 
@@ -135,7 +135,7 @@ def export_of(world: SealedWorld, scenario: Scenario, commit: str, run_id: str) 
     )
     run = investigate(context, systems_holding(world).ports)
     return export_bytes(
-        export_rules_only_run(run, context, provenance, run_id=run_id, attempt=1, duration_ms=1_200)
+        export_baseline(run, context, provenance, run_id=run_id, attempt=1, duration_ms=1_200)
     )
 
 

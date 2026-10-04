@@ -37,6 +37,7 @@ and the construction gate that grades the baseline end to end.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Iterable, Sequence
 
 from leaveimpact.core.authority import conflicts_on
@@ -57,12 +58,30 @@ from leaveimpact.core.closure import Unresolved, Witness, citable_record
 from leaveimpact.core.facts import Fact, FactView
 from leaveimpact.core.grounding import Grounded
 from leaveimpact.core.ids import ClaimId, claim_id
+from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.readings import ImpactConclusion
 from leaveimpact.core.refs import SOURCE_BY_TARGET_KIND, EvidenceRef
 from leaveimpact.core.registration import ReportingPolicy
+from leaveimpact.core.run_ending import ClaimAuthor, ComposingPolicy, Composition
 
 REPORTING_POLICY = ReportingPolicy("rules-only-report", 1, "first_viable_in_id_code_point_order")
 """The policy this module implements, as the preregistration names it."""
+
+
+def rules_only_composition() -> Composition:
+    """How a rules-only run's claims were composed, as its export states it: by the rules,
+    under the reporting policy, with nothing placed and nothing left out, since the
+    baseline's view holds no stated fact. The policy's digest is of its three declared
+    values, so a change of version or tie-break is a change of the composing policy."""
+    declared: JsonObject = {
+        "identifier": REPORTING_POLICY.identifier,
+        "version": REPORTING_POLICY.version,
+        "tie_break": REPORTING_POLICY.tie_break,
+    }
+    digest = hashlib.sha256(canonical_bytes(declared)).hexdigest()
+    return Composition(
+        ClaimAuthor.RULES, ComposingPolicy(REPORTING_POLICY.identifier, digest), (), ()
+    )
 
 
 def rules_only_report(conclusions: Sequence[ImpactConclusion], view: FactView) -> tuple[Claim, ...]:
@@ -200,4 +219,4 @@ def _cites(proof: Iterable[Witness]) -> tuple[EvidenceRef, ...]:
     return tuple(EvidenceRef(SOURCE_BY_TARGET_KIND[target.kind], target) for target in targets)
 
 
-__all__ = ["REPORTING_POLICY", "rules_only_report"]
+__all__ = ["REPORTING_POLICY", "rules_only_composition", "rules_only_report"]

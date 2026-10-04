@@ -177,7 +177,12 @@ class Executor:
         arguments: Mapping[str, object],
         outcome: Outcome,
     ) -> Outcome:
-        self.operations.append(Operation(self.next_id(), origin, tool, source, arguments, outcome))
+        # The position is the order the calls were made in, from one: what a run with no event
+        # log has for it. A logged run's positions are the log's.
+        position = len(self.operations) + 1
+        self.operations.append(
+            Operation(self.next_id(), origin, tool, source, arguments, outcome, position)
+        )
         return outcome
 
 

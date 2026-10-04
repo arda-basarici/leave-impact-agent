@@ -1,33 +1,32 @@
-"""What a run did, in order: the model calls made, the reads attempted, the claims it ended with.
+"""The reads of a run, and the primitives every part of a run export shares.
 
 The trace is the part of a run export the grading replays. The evaluator re-derives
 every fact from the records the operations returned, derives the run condition from
 the reads that failed, counts the required-source attempts, the malformed calls and
 the extra reads, and asks of each search whether the key's section sat in its top-k;
 none of that needs a prompt or a line of assistant prose, so none is here (the
-investigator milestone's second build step, ruling 3). Model calls appear as compact
-records all the same, one per invocation even when it emitted no tool call and no
-claim, because the finalization call, a refusal and the single-shot baseline's one
-call are attempts the accounting counts and the usage ledger prices.
+investigator milestone's second build step, ruling 3). This module holds the half of
+the trace that is reads; the model calls are ``model_calls``'s, and the two meet with
+the claims in the trace type beside the export.
 
-Three closed shapes carry the facts a replay needs and nothing the model could invent.
 An *operation* is one attempted read: an opaque identifier the event log assigned,
-its origin (the frozen prefetch, or the model call it answered), the tool and the
-source it resolved to, the arguments exactly as accepted (the wrapper coerces and
-defaults nothing, so accepted arguments are the effective ones), and one of six
-*outcomes*: a record, no record, a sequence of records that may be empty, the source
-unreachable, a record the adapter could not translate, or a call the wrapper refused
-before any source was asked. The first three are completed reads, the next two failed
-reads, and the last is neither a read nor a source attempt. Only an unreachable
-outcome moves the observed run condition; a malformed record ends the attempt by
-defect. An empty sequence and no record are different evidence and stay different.
-Every accepted read names its source itself, because an absent result carries no
-``Observed`` to read it from and the evaluator may not import the registry that would
-resolve it. A *model call record* holds the identifier, the role, how the call ended,
-the provider's stop reason, its latency, the digest of the exact rendered request,
-and the usage the provider reported — each counter present only when reported, never
-synthesized as zero, so a missing counter stays unknown and the cost it would have
-priced stays incomplete.
+its origin (the frozen prefetch, a read the harness issued under a registered policy,
+or the model call it answered), the tool and the source it resolved to, the arguments
+exactly as accepted (the wrapper coerces and defaults nothing, so accepted arguments
+are the effective ones), and one of six *outcomes*: a record, no record, a sequence of
+records that may be empty, the source unreachable, a record the adapter could not
+translate, or a call the wrapper refused before any source was asked. The first three
+are completed reads, the next two failed reads, and the last is neither a read nor a
+source attempt. Only an unreachable outcome moves the observed run condition; a
+malformed record ends the attempt by defect. An empty sequence and no record are
+different evidence and stay different. Every accepted read names its source itself,
+because an absent result carries no ``Observed`` to read it from and the evaluator may
+not import the registry that would resolve it.
+
+An operation in a trace also holds its *position*: where its result's append sits in
+the attempt's event order, which is what orders it against a model dispatch (neither
+clock does). An operation built outside a trace, by a rule or a test that reads
+outcomes, has none.
 
 Order is the sequence's own. Repeated reads stay repeated operations, since a later
 replay policy may care that the same thing was read twice and in what order.
@@ -37,12 +36,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from enum import StrEnum
 from math import isfinite
 from types import MappingProxyType
 from typing import NewType, cast
 
-from leaveimpact.core.claims import Claim
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ports.observed import Entity, Observed
 
@@ -125,6 +122,18 @@ def frozen_json(value: object, what: str) -> object:
             raise ValueError(f"{what} holds {type(value).__name__}, which JSON cannot carry")
 
 
+def thawed_json(value: object) -> object:
+    """A frozen JSON value (``frozen_json``) back as the lists and dicts the serializer writes."""
+    match value:
+        case Mapping():
+            items = cast("Mapping[object, object]", value).items()
+            return {str(key): thawed_json(item) for key, item in items}
+        case tuple() | list():
+            return [thawed_json(item) for item in cast("tuple[object, ...] | list[object]", value)]
+        case _:
+            return value
+
+
 def require_digest(value: str, what: str) -> str:
     """``value`` if it is a lower-case SHA-256 hex digest."""
     if len(value) != SHA256_HEX_LENGTH or any(c not in "0123456789abcdef" for c in value):
@@ -173,88 +182,23 @@ class Usage:
 
 @dataclass(frozen=True, slots=True)
 class Cost:
-    """A priced amount in integer nano-dollars, and whether every counter it needed was reported.
+    """A priced amount in integer pico-dollars, and whether every counter it needed was reported.
 
-    Integer nano-dollars because the price table states rates as integers per token, so
-    a product never rounds (ruling 5); ``complete`` is false when a counter the rate
-    would have priced was not reported, so the amount is a floor, never a total.
+    Integer pico-dollars because the price table states rates as integers per token, so
+    a product never rounds, and pico-dollars per token is the coarsest unit in which every
+    rate the project pays is an integer (the contract step's ruling on the rate unit: the
+    smallest models' cache reads are fractions of a nano-dollar). ``complete`` is false
+    when a counter the rate would have priced was not reported, so the amount is a floor,
+    never a total.
     """
 
-    nano_usd: int
+    pico_usd: int
     complete: bool
 
     def __post_init__(self) -> None:
-        require_integer(self.nano_usd, "a cost in nano-dollars")
+        require_integer(self.pico_usd, "a cost in pico-dollars")
         if not isinstance(cast(object, self.complete), bool):
             raise ValueError(f"a cost's completeness is a boolean, got {self.complete!r}")
-
-
-# --- Model calls -----------------------------------------------------------------------
-
-
-class ModelCallOutcome(StrEnum):
-    """How one invocation ended, as the harness classified the response.
-
-    ``TEXT`` is a response with neither a tool call nor claims, which the loop treats as
-    the model having nothing more to read; ``REFUSAL`` is a response that declined;
-    ``INVALID_OUTPUT`` is a response the claim codec rejected. All three are system
-    behaviour, graded with their omissions; only ``PROVIDER_FAULT`` is infrastructure,
-    counted apart (ruling 3d).
-    """
-
-    TOOL_CALLS = "tool_calls"
-    CLAIMS = "claims"
-    TEXT = "text"
-    REFUSAL = "refusal"
-    INVALID_OUTPUT = "invalid_output"
-    PROVIDER_FAULT = "provider_fault"
-
-    @property
-    def answered(self) -> bool:
-        """Whether a response arrived at all; a provider fault is the one case it did not."""
-        return self is not ModelCallOutcome.PROVIDER_FAULT
-
-
-@dataclass(frozen=True, slots=True)
-class ModelCallRecord:
-    """One model invocation, compact: identity, role, how it ended, what it cost, no prose.
-
-    ``request_digest`` is the SHA-256 of the exact rendered request, beside the prompt
-    policy's asset digests the run record holds, the generator's own pattern. The
-    provider's stop reason and its reported latency exist exactly when a response
-    arrived, so a fault carries no invented ones; ``usage`` is ``None`` when the
-    provider reported nothing, which a fault always is since usage arrives with the
-    response, and a cost exists only over a usage. ``fault`` is the provider's reason,
-    present exactly on a provider fault.
-    """
-
-    id: ModelCallId
-    role: str
-    outcome: ModelCallOutcome
-    stop_reason: str | None
-    provider_latency_ms: int | None
-    request_digest: str
-    usage: Usage | None
-    cost: Cost | None
-    fault: str | None
-
-    def __post_init__(self) -> None:
-        require_opaque_id(self.id, "a model call id")
-        require_opaque_id(self.role, "a role")
-        require_digest(self.request_digest, "request_digest")
-        answered = self.outcome.answered
-        if (self.stop_reason is not None) != answered:
-            raise ValueError("a stop reason is recorded exactly when a response arrived")
-        if (self.provider_latency_ms is not None) != answered:
-            raise ValueError("a provider latency is recorded exactly when a response arrived")
-        if self.provider_latency_ms is not None:
-            require_integer(self.provider_latency_ms, "provider latency in ms")
-        if (self.fault is not None) != (not answered):
-            raise ValueError("a fault is recorded exactly on a provider fault")
-        if not answered and self.usage is not None:
-            raise ValueError("a provider fault reports no usage; usage arrives with a response")
-        if self.cost is not None and self.usage is None:
-            raise ValueError("a cost prices a reported usage; none was reported")
 
 
 # --- Operations ------------------------------------------------------------------------
@@ -275,7 +219,20 @@ class ModelOrigin:
         require_opaque_id(self.model_call, "a model call id")
 
 
-type Origin = PrefetchOrigin | ModelOrigin
+@dataclass(frozen=True, slots=True)
+class HarnessOrigin:
+    """The read was issued by the harness outside the frozen prefetch, under the registered
+    policy or component ``policy`` names: a single-shot system's retrieval query, the
+    documents a full-context system is shown. Who asked for a read is not what a model was
+    shown; that is the dispatch's input reads."""
+
+    policy: str
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.policy, "the policy that issued a harness read")
+
+
+type Origin = PrefetchOrigin | HarnessOrigin | ModelOrigin
 
 
 @dataclass(frozen=True, slots=True)
@@ -347,7 +304,8 @@ class Operation:
 
     ``source`` is ``None`` only for a refused call whose tool name resolved to nothing;
     every other outcome names the one source the tool reads, and every record returned
-    was read from it.
+    was read from it. ``position`` is where the operation's result sits in the attempt's
+    event order, held by every operation of a trace and by none built outside one.
 
     >>> Operation(OperationId("op-1"), PrefetchOrigin(), "employees", None, {}, AbsentOutcome())
     Traceback (most recent call last):
@@ -361,10 +319,13 @@ class Operation:
     source: Source | None
     arguments: Mapping[str, object]
     outcome: Outcome
+    position: int | None = None
 
     def __post_init__(self) -> None:
         require_opaque_id(self.id, "an operation id")
         require_opaque_id(self.tool, "a tool name")
+        if self.position is not None:
+            require_integer(self.position, "an operation's position", minimum=1)
         object.__setattr__(self, "arguments", frozen_json(dict(self.arguments), "arguments"))
         if self.source is None and not isinstance(self.outcome, RefusedCallOutcome):
             raise ValueError("an accepted read names its source; only a refused call may name none")
@@ -393,78 +354,3 @@ def _records_of(outcome: Outcome) -> tuple[Observed[Entity], ...]:
 
 def _name(operation: Operation) -> str:
     return "no source" if operation.source is None else operation.source.value
-
-
-# --- The trace -------------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class RunTrace:
-    """The model calls, the attempted reads and the final claims of one run attempt.
-
-    Calls and operations keep the order they happened in. Claims are held in claim-id
-    order, the claim codec's own, since a claim's position says nothing (its id is its
-    identity and the grading matches by key), and one order means the export's bytes
-    are a property of the trace and not of the emission. Identifiers are unique within
-    their kind, and every read the model asked for names a model call this trace holds
-    that emitted tool calls; those are the structural facts a replay stands on. What the
-    record block claims about the trace (the cumulative usage, the observed condition)
-    is not enforced here: the evaluator verifies a claim against the trace, and a
-    constructor that enforced it would hide the mismatch the verification exists to
-    report.
-    """
-
-    model_calls: tuple[ModelCallRecord, ...]
-    operations: tuple[Operation, ...]
-    claims: tuple[Claim, ...]
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "claims", tuple(sorted(self.claims, key=lambda claim: claim.claim_id))
-        )
-        call_ids = [call.id for call in self.model_calls]
-        if len(set(call_ids)) != len(call_ids):
-            raise ValueError("model call ids are unique within a trace")
-        operation_ids = [operation.id for operation in self.operations]
-        if len(set(operation_ids)) != len(operation_ids):
-            raise ValueError("operation ids are unique within a trace")
-        by_id = {call.id: call for call in self.model_calls}
-        for operation in self.operations:
-            origin = operation.origin
-            if not isinstance(origin, ModelOrigin):
-                continue
-            call = by_id.get(origin.model_call)
-            if call is None:
-                raise ValueError(
-                    f"operation {operation.id} answers model call {origin.model_call!r}, "
-                    "which the trace does not hold"
-                )
-            if call.outcome is not ModelCallOutcome.TOOL_CALLS:
-                raise ValueError(
-                    f"operation {operation.id} answers model call {origin.model_call!r}, "
-                    f"which emitted {call.outcome.value}, not tool calls"
-                )
-        claim_ids = [claim.claim_id for claim in self.claims]
-        if len(set(claim_ids)) != len(claim_ids):
-            raise ValueError("claim ids are unique within a trace")
-
-    def model_call(self, id: ModelCallId) -> ModelCallRecord:
-        """The model call record ``id`` names; ``KeyError`` is a bug, the constructor checked."""
-        for call in self.model_calls:
-            if call.id == id:
-                return call
-        raise KeyError(id)
-
-    def operation(self, id: OperationId) -> Operation | None:
-        """The operation ``id`` names, or ``None``."""
-        for operation in self.operations:
-            if operation.id == id:
-                return operation
-        return None
-
-    def model_call_or_none(self, id: ModelCallId) -> ModelCallRecord | None:
-        """The model call record ``id`` names, or ``None``."""
-        for call in self.model_calls:
-            if call.id == id:
-                return call
-        return None

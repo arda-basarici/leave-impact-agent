@@ -91,7 +91,10 @@ def test_the_committed_draft_is_the_encoders_own_bytes() -> None:
 def test_the_draft_registers_three_systems_under_five_conditions_as_fifteen_arms() -> None:
     draft = _draft()
     assert draft.status is RegistrationStatus.DRAFT
-    assert [system.kind for system in draft.systems] == list(SystemKind)
+    # Registration format 1 registers three systems; the fourth kind, full context, exists
+    # for the run export and joins the registration with the registration's own format 2.
+    registered = [kind for kind in SystemKind if kind is not SystemKind.FULL_CONTEXT]
+    assert [system.kind for system in draft.systems] == registered
     scopes = {condition.id: condition.reporting for condition in draft.outage.conditions}
     assert scopes == {
         "normal": ReportingScope.ANSWER_QUALITY,
@@ -101,7 +104,7 @@ def test_the_draft_registers_three_systems_under_five_conditions_as_fifteen_arms
         "corpus_down": ReportingScope.DEGRADED_CONDITION,
     }
     assert {(arm.system, arm.condition) for arm in draft.arms} == {
-        (kind, condition) for kind in SystemKind for condition in scopes
+        (kind, condition) for kind in registered for condition in scopes
     }
     assert len(draft.arms) == 15
 

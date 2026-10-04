@@ -59,6 +59,8 @@ from leaveimpact.core import (
 from leaveimpact.core.entities import Component, Employee
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import EmployeeId, LeaveId, claim_id, employee_id, leave_id
+from leaveimpact.core.run_ending import OperationSite
+from leaveimpact.core.run_trace import OperationId
 from leaveimpact.evaluator.observed_view import observe
 from leaveimpact.evaluator.oracle import (
     Answerable,
@@ -67,7 +69,7 @@ from leaveimpact.evaluator.oracle import (
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from tests.unit import world_fixture as w
-from tests.unit.export_fixture import run_export
+from tests.unit.export_fixture import approval, run_export
 from tests.unit.in_memory_ports import InMemoryPeople, InMemoryWork
 from tests.unit.reads_fixture import Systems, systems_holding
 from tests.unit.report_fixture import truthful_report
@@ -363,7 +365,8 @@ def test_another_leave_for_the_id_asked_is_a_defect_at_the_opening_operation(
     result = run(world, scenario, systems)
     assert result.failure is not None
     assert result.failure.category is FailureCategory.DEFECT
-    assert result.failure.at == "op-1" and "leave_998" in result.failure.reason
+    assert result.failure.site == OperationSite(OperationId("op-1"))
+    assert "leave_998" in result.failure.reason
     assert result.abstention is None and result.claims == ()
 
 
@@ -372,7 +375,7 @@ def test_an_enumeration_without_the_leaver_is_a_defect_at_that_operation(
 ) -> None:
     del systems.people.people[scenario.investigated_leave.employee_id]
     result = run(world, scenario, systems)
-    assert result.failure is not None and result.failure.at == "op-2"
+    assert result.failure is not None and result.failure.site == OperationSite(OperationId("op-2"))
     assert "holds no" in result.failure.reason
 
 
@@ -382,7 +385,7 @@ def test_a_record_no_fact_can_be_made_from_is_a_defect_at_its_operation(
     blank = replace(world.org.employees[1], location="  ")
     systems.people.people[blank.id] = blank
     result = run(world, scenario, systems)
-    assert result.failure is not None and result.failure.at == "op-2"
+    assert result.failure is not None and result.failure.site == OperationSite(OperationId("op-2"))
     assert "no fact could be made" in result.failure.reason
 
 
@@ -400,7 +403,7 @@ def test_a_malformed_record_is_a_defect_at_its_operation_and_outranks_abstention
         tickets=systems.work.tickets, components_by_id=systems.work.components_by_id
     )
     result = investigate(world.context_of(scenario), replace(systems.ports, work=work))
-    assert result.failure is not None and result.failure.at == "op-4"
+    assert result.failure is not None and result.failure.site == OperationSite(OperationId("op-4"))
     assert result.failure.category is FailureCategory.DEFECT
     # The same fault with the universe also unreadable: still the defect, never the abstention.
     people = _PeopleWithoutAnEnumeration(
@@ -410,7 +413,7 @@ def test_a_malformed_record_is_a_defect_at_its_operation_and_outranks_abstention
         world.context_of(scenario), ReadPorts(people, work, systems.calendar, systems.documents)
     )
     assert both.failure is not None and both.abstention is None
-    assert both.failure.at == "op-3"
+    assert both.failure.site == OperationSite(OperationId("op-3"))
 
 
 def exported(world: SealedWorld, scenario: Scenario, result: RulesOnlyRun) -> RunExport:
@@ -422,7 +425,12 @@ def exported(world: SealedWorld, scenario: Scenario, result: RulesOnlyRun) -> Ru
         "run-1",
         1,
         template.context,
-        replace(template.record, status=status, failure=result.failure),
+        replace(
+            template.record,
+            status=status,
+            failure=result.failure,
+            approval=approval(result.claims, failed=result.failure is not None),
+        ),
         replace(template.trace, operations=result.operations, claims=result.claims),
     )
 

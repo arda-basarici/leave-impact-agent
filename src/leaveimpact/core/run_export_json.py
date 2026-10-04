@@ -1,4 +1,4 @@
-"""JSON for the run export: one canonical tree under the one byte rule, format version 1.
+"""JSON for the run export: one canonical tree under the one byte rule, format version 2.
 
 The export is written once by the agent and read by the evaluator, so its codec sits
 here with the types, the only package both reach (the investigator milestone's second
@@ -17,11 +17,12 @@ dates and instants in the one canonical spelling, every tagged union by its ``ki
 and every invariant the types enforce, so a tree that decodes is one the evaluator can
 grade and anything else refuses naming the field. Absent is a different statement from
 empty throughout: ``null`` where a run had no value (no usage reported, no cost, no
-failure, no stop reason), an empty list where it had none of a thing.
+failure, no answer), an empty list where it had none of a thing.
 
 Observed records travel through the entity codec, claims through the claim codec,
-model configurations through the provenance codec and rates through the pricing
-codec, each the one encoding its type has in this project.
+call configurations through their own codec, rates through the pricing codec, and the
+parts format 2 added (model calls, usage, timing, the attempt's ending) through
+``run_parts_json``, each the one encoding its type has in this project.
 """
 
 from __future__ import annotations
@@ -30,6 +31,11 @@ import json
 from collections.abc import Mapping
 from typing import assert_never, cast
 
+from leaveimpact.core.call_settings import (
+    CallConfiguration,
+    decode_call_configuration,
+    encode_call_configuration,
+)
 from leaveimpact.core.claims_json import decode_claim, encode_claim
 from leaveimpact.core.entities_json import decode_observed, encode_observed
 from leaveimpact.core.enums import Source
@@ -49,17 +55,29 @@ from leaveimpact.core.jsonshape import (
     string_item,
 )
 from leaveimpact.core.pricing import decode_rate, encode_rate
-from leaveimpact.core.provenance import (
-    ModelConfiguration,
-    decode_model_configuration,
-    encode_model_configuration,
+from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport, RunTrace
+from leaveimpact.core.run_parts_json import (
+    decode_abandonment,
+    decode_approval,
+    decode_composition,
+    decode_cost,
+    decode_failure_site,
+    decode_model_call,
+    decode_reservation,
+    decode_timing,
+    encode_abandonment,
+    encode_approval,
+    encode_composition,
+    encode_cost,
+    encode_failure_site,
+    encode_model_call,
+    encode_reservation,
+    encode_timing,
 )
-from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
 from leaveimpact.core.run_record import (
     Caps,
     Failure,
     FailureCategory,
-    HarnessRevision,
     OutageAssignment,
     PrefetchRule,
     PricingBasis,
@@ -70,16 +88,13 @@ from leaveimpact.core.run_record import (
     System,
     SystemKind,
     TerminalStatus,
-    TreeState,
     UsageAggregate,
 )
 from leaveimpact.core.run_trace import (
     AbsentOutcome,
-    Cost,
     DefectOutcome,
+    HarnessOrigin,
     ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
     ModelOrigin,
     Operation,
     OperationId,
@@ -89,11 +104,10 @@ from leaveimpact.core.run_trace import (
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
-    RunTrace,
     UnreachableOutcome,
-    Usage,
     frozen_json,
     require_integer,
+    thawed_json,
 )
 from leaveimpact.core.timeshape import decode_date, decode_instant, encode_date, encode_instant
 from leaveimpact.core.worldtime import RunContext
@@ -140,10 +154,11 @@ def encode_run_record(record: RunRecord) -> JsonObject:
             ),
             "schedule_digest": record.outage.schedule_digest,
         },
-        "harness": {"commit": record.harness.commit, "tree": record.harness.tree.value},
+        "corpus_level": record.corpus_level,
         "preregistration_commit": record.preregistration_commit,
+        "attribution_table": record.attribution_table,
         "model_configurations": [
-            {"role": role, "configuration": encode_model_configuration(configured)}
+            {"role": role, "configuration": encode_call_configuration(configured)}
             for role, configured in record.model_configurations
         ],
         "pricing_selections": [
@@ -180,15 +195,19 @@ def encode_run_record(record: RunRecord) -> JsonObject:
         },
         "status": record.status.value,
         "failure": None if record.failure is None else _encode_failure(record.failure),
+        "abandonment": encode_abandonment(record.abandonment),
+        "timing": encode_timing(record.timing),
         "usage": {
             "counters": [
-                {"name": name, "value": value, "reported_calls": reported}
+                {"name": name, "value": value, "reported": reported}
                 for name, value, reported in record.usage.counters
             ],
             "model_calls": record.usage.model_calls,
-            "duration_ms": record.usage.duration_ms,
+            "dispatches": record.usage.dispatches,
         },
-        "cost": _encode_cost(record.cost),
+        "cost": encode_cost(record.cost),
+        "reservation": encode_reservation(record.reservation),
+        "approval": encode_approval(record.approval),
         "pricing": {
             "table_digest": record.pricing.table_digest,
             "currency": record.pricing.currency,
@@ -199,35 +218,21 @@ def encode_run_record(record: RunRecord) -> JsonObject:
 
 
 def _encode_failure(failure: Failure) -> JsonObject:
-    return {"category": failure.category.value, "at": failure.at, "reason": failure.reason}
-
-
-def _encode_cost(cost: Cost | None) -> JsonObject | None:
-    return None if cost is None else {"nano_usd": cost.nano_usd, "complete": cost.complete}
-
-
-def encode_run_trace(trace: RunTrace) -> JsonObject:
-    """The JSON object of the trace: model calls, operations, claims, each in the trace's order."""
     return {
-        "model_calls": [_encode_model_call(call) for call in trace.model_calls],
-        "operations": [_encode_operation(operation) for operation in trace.operations],
-        "claims": [encode_claim(claim) for claim in trace.claims],
+        "category": failure.category.value,
+        "site": encode_failure_site(failure.site),
+        "reason": failure.reason,
     }
 
 
-def _encode_model_call(call: ModelCallRecord) -> JsonObject:
+def encode_run_trace(trace: RunTrace) -> JsonObject:
+    """The JSON object of the trace: model calls, operations and claims in the trace's order,
+    then how the claims were composed."""
     return {
-        "id": call.id,
-        "role": call.role,
-        "outcome": call.outcome.value,
-        "stop_reason": call.stop_reason,
-        "provider_latency_ms": call.provider_latency_ms,
-        "request_digest": call.request_digest,
-        "usage": None
-        if call.usage is None
-        else {"counters": [{"name": name, "value": value} for name, value in call.usage.counters]},
-        "cost": _encode_cost(call.cost),
-        "fault": call.fault,
+        "model_calls": [encode_model_call(call) for call in trace.model_calls],
+        "operations": [_encode_operation(operation) for operation in trace.operations],
+        "claims": [encode_claim(claim) for claim in trace.claims],
+        "composition": encode_composition(trace.composition),
     }
 
 
@@ -239,6 +244,7 @@ def _encode_operation(operation: Operation) -> JsonObject:
         "source": None if operation.source is None else operation.source.value,
         "arguments": thawed_json(operation.arguments),
         "outcome": _encode_outcome(operation.outcome),
+        "position": operation.position,
     }
 
 
@@ -246,6 +252,8 @@ def _encode_origin(origin: Origin) -> JsonObject:
     match origin:
         case PrefetchOrigin():
             return {"kind": "prefetch"}
+        case HarnessOrigin():
+            return {"kind": "harness", "policy": origin.policy}
         case ModelOrigin():
             return {"kind": "model", "model_call": origin.model_call}
         case _:
@@ -275,18 +283,6 @@ def _encode_outcome(outcome: Outcome) -> JsonObject:
             assert_never(outcome)
 
 
-def thawed_json(value: object) -> object:
-    """A frozen JSON value (``frozen_json``) back as the lists and dicts the serializer writes."""
-    match value:
-        case Mapping():
-            items = cast("Mapping[object, object]", value).items()
-            return {str(key): thawed_json(item) for key, item in items}
-        case tuple() | list():
-            return [thawed_json(item) for item in cast("tuple[object, ...] | list[object]", value)]
-        case _:
-            return value
-
-
 # --- Decoding ---------------------------------------------------------------------------
 
 
@@ -300,10 +296,10 @@ def decode_export_bytes(content: bytes | str) -> RunExport:
     a role-indexed entry out of order) is refused as not canonical, since accepting it
     would let two byte sequences stand for one export and the cited digest name neither.
 
-    >>> decode_export_bytes(b'{"format_version": 2}')
+    >>> decode_export_bytes(b'{"format_version": 1}')
     Traceback (most recent call last):
     ...
-    ValueError: this code reads export format 1, got 2
+    ValueError: this code reads export format 2, got 1
     """
     raw = content.encode("utf-8") if isinstance(content, str) else content
     export = decode_run_export(json.loads(raw))
@@ -359,8 +355,9 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
         (
             "observed_condition",
             "outage",
-            "harness",
+            "corpus_level",
             "preregistration_commit",
+            "attribution_table",
             "model_configurations",
             "pricing_selections",
             "prompt_digests",
@@ -371,8 +368,12 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
             "caps",
             "status",
             "failure",
+            "abandonment",
+            "timing",
             "usage",
             "cost",
+            "reservation",
+            "approval",
             "pricing",
         ),
         "the record",
@@ -381,8 +382,6 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
     expect_fields(condition, ("reachable",), "the observed condition")
     outage = object_field(data, "outage")
     expect_fields(outage, ("scheduled_unreachable", "schedule_digest"), "the outage")
-    harness = object_field(data, "harness")
-    expect_fields(harness, ("commit", "tree"), "the harness")
     system = object_field(data, "system")
     expect_fields(system, ("kind", "variant"), "the system")
     retrieval = object_field(data, "retrieval")
@@ -402,7 +401,7 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
         "the caps",
     )
     usage = object_field(data, "usage")
-    expect_fields(usage, ("counters", "model_calls", "duration_ms"), "the usage")
+    expect_fields(usage, ("counters", "model_calls", "dispatches"), "the usage")
     pricing = object_field(data, "pricing")
     expect_fields(pricing, ("table_digest", "currency", "effective_from", "rows"), "the pricing")
     failure = field_of(data, "failure")
@@ -411,10 +410,9 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
         outage=OutageAssignment(
             _sources(outage, "scheduled_unreachable"), string_field(outage, "schedule_digest")
         ),
-        harness=HarnessRevision(
-            string_field(harness, "commit"), TreeState(string_field(harness, "tree"))
-        ),
+        corpus_level=string_field(data, "corpus_level"),
         preregistration_commit=string_field(data, "preregistration_commit"),
+        attribution_table=optional_string_field(data, "attribution_table"),
         model_configurations=tuple(
             _decode_configured(item) for item in array_field(data, "model_configurations")
         ),
@@ -442,12 +440,16 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
         ),
         status=TerminalStatus(string_field(data, "status")),
         failure=None if failure is None else _decode_failure(as_object(failure, "the failure")),
+        abandonment=decode_abandonment(field_of(data, "abandonment")),
+        timing=decode_timing(object_field(data, "timing")),
         usage=UsageAggregate(
             tuple(_decode_aggregate_counter(item) for item in array_field(usage, "counters")),
             integer_field(usage, "model_calls"),
-            integer_field(usage, "duration_ms"),
+            integer_field(usage, "dispatches"),
         ),
-        cost=_decode_cost(field_of(data, "cost")),
+        cost=decode_cost(field_of(data, "cost")),
+        reservation=decode_reservation(field_of(data, "reservation")),
+        approval=decode_approval(object_field(data, "approval")),
         pricing=PricingBasis(
             string_field(pricing, "table_digest"),
             string_field(pricing, "currency"),
@@ -461,10 +463,10 @@ def _sources(data: Mapping[str, object], key: str) -> frozenset[Source]:
     return frozenset(Source(string_item(item, key)) for item in array_field(data, key))
 
 
-def _decode_configured(item: object) -> tuple[str, ModelConfiguration]:
+def _decode_configured(item: object) -> tuple[str, CallConfiguration]:
     data = as_object(item, "a model configuration entry")
     expect_fields(data, ("role", "configuration"), "a model configuration entry")
-    return string_field(data, "role"), decode_model_configuration(field_of(data, "configuration"))
+    return string_field(data, "role"), decode_call_configuration(field_of(data, "configuration"))
 
 
 def _decode_selection(item: object) -> tuple[str, PricingSelection]:
@@ -490,90 +492,43 @@ def _decode_surface(item: object) -> tuple[str, str]:
 
 
 def _decode_failure(data: Mapping[str, object]) -> Failure:
-    expect_fields(data, ("category", "at", "reason"), "the failure")
+    expect_fields(data, ("category", "site", "reason"), "the failure")
     return Failure(
         FailureCategory(string_field(data, "category")),
-        string_field(data, "at"),
+        decode_failure_site(object_field(data, "site")),
         string_field(data, "reason"),
     )
 
 
 def _decode_aggregate_counter(item: object) -> tuple[str, int, int]:
     data = as_object(item, "an aggregate counter")
-    expect_fields(data, ("name", "value", "reported_calls"), "an aggregate counter")
+    expect_fields(data, ("name", "value", "reported"), "an aggregate counter")
     return (
         string_field(data, "name"),
         integer_field(data, "value"),
-        integer_field(data, "reported_calls"),
+        integer_field(data, "reported"),
     )
-
-
-def _decode_cost(value: object) -> Cost | None:
-    if value is None:
-        return None
-    data = as_object(value, "a cost")
-    expect_fields(data, ("nano_usd", "complete"), "a cost")
-    complete = field_of(data, "complete")
-    if not isinstance(complete, bool):
-        raise ValueError(f"complete is a boolean, got {complete!r}")
-    return Cost(integer_field(data, "nano_usd"), complete)
 
 
 def decode_run_trace(data: Mapping[str, object]) -> RunTrace:
     """The trace ``data`` encodes, through every constructor invariant."""
-    expect_fields(data, ("model_calls", "operations", "claims"), "the trace")
+    expect_fields(data, ("model_calls", "operations", "claims", "composition"), "the trace")
     return RunTrace(
-        tuple(_decode_model_call(item) for item in array_field(data, "model_calls")),
+        tuple(decode_model_call(item) for item in array_field(data, "model_calls")),
         tuple(_decode_operation(item) for item in array_field(data, "operations")),
         tuple(decode_claim(as_object(item, "a claim")) for item in array_field(data, "claims")),
+        decode_composition(object_field(data, "composition")),
     )
-
-
-def _decode_model_call(item: object) -> ModelCallRecord:
-    data = as_object(item, "a model call")
-    expect_fields(
-        data,
-        (
-            "id",
-            "role",
-            "outcome",
-            "stop_reason",
-            "provider_latency_ms",
-            "request_digest",
-            "usage",
-            "cost",
-            "fault",
-        ),
-        "a model call",
-    )
-    latency = field_of(data, "provider_latency_ms")
-    usage = field_of(data, "usage")
-    return ModelCallRecord(
-        ModelCallId(string_field(data, "id")),
-        string_field(data, "role"),
-        ModelCallOutcome(string_field(data, "outcome")),
-        optional_string_field(data, "stop_reason"),
-        None if latency is None else require_integer(latency, "provider_latency_ms"),
-        string_field(data, "request_digest"),
-        None if usage is None else _decode_usage(as_object(usage, "the usage")),
-        _decode_cost(field_of(data, "cost")),
-        optional_string_field(data, "fault"),
-    )
-
-
-def _decode_usage(data: Mapping[str, object]) -> Usage:
-    expect_fields(data, ("counters",), "the usage")
-    counters: list[tuple[str, int]] = []
-    for item in array_field(data, "counters"):
-        counter = as_object(item, "a usage counter")
-        expect_fields(counter, ("name", "value"), "a usage counter")
-        counters.append((string_field(counter, "name"), integer_field(counter, "value")))
-    return Usage(tuple(counters))
 
 
 def _decode_operation(item: object) -> Operation:
     data = as_object(item, "an operation")
-    expect_fields(data, ("id", "origin", "tool", "source", "arguments", "outcome"), "an operation")
+    expect_fields(
+        data,
+        ("id", "origin", "tool", "source", "arguments", "outcome", "position"),
+        "an operation",
+    )
+    position = field_of(data, "position")
     source = optional_string_field(data, "source")
     arguments = cast(
         "Mapping[str, object]", frozen_json(object_field(data, "arguments"), "arguments")
@@ -585,6 +540,7 @@ def _decode_operation(item: object) -> Operation:
         None if source is None else Source(source),
         arguments,
         _decode_outcome(object_field(data, "outcome")),
+        None if position is None else require_integer(position, "position"),
     )
 
 
@@ -593,10 +549,13 @@ def _decode_origin(data: Mapping[str, object]) -> Origin:
     if kind == "prefetch":
         expect_fields(data, ("kind",), "a prefetch origin")
         return PrefetchOrigin()
+    if kind == "harness":
+        expect_fields(data, ("kind", "policy"), "a harness origin")
+        return HarnessOrigin(string_field(data, "policy"))
     if kind == "model":
         expect_fields(data, ("kind", "model_call"), "a model origin")
         return ModelOrigin(ModelCallId(string_field(data, "model_call")))
-    raise ValueError(f"an origin is prefetch or model, got {kind!r}")
+    raise ValueError(f"an origin is prefetch, harness or model, got {kind!r}")
 
 
 def _decode_outcome(data: Mapping[str, object]) -> Outcome:

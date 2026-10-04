@@ -52,6 +52,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.provenance import ModelConfiguration
 from leaveimpact.core.registration import (
     AgentSystem,
@@ -69,15 +70,17 @@ from leaveimpact.core.registration import (
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_export_json import decode_export_bytes
-from leaveimpact.core.run_record import PrefetchRule, RunRecord, TreeState
+from leaveimpact.core.run_record import PrefetchRule, RunRecord
+from leaveimpact.core.run_timing import TreeState
 from leaveimpact.evaluator.analysis import Analysis, analyse
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
 from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 1
-"""The format of the evaluation artifact as this code writes it."""
+ARTIFACT_FORMAT_VERSION = 2
+"""The format of the evaluation artifact as this code writes it; 2 since the run export's
+format 2 moved costs to pico-dollars and a run's duration out of its usage."""
 
 
 class Label(StrEnum):
@@ -309,7 +312,7 @@ class _ModelSettings:
     registered one. ``prompts`` holds each role's whole prompt set as one member; pooled
     over roles, two roles holding half the registered set each would pass for it."""
 
-    models: frozenset[ModelConfiguration]
+    models: frozenset[CallConfiguration]
     prompts: frozenset[frozenset[tuple[str, str]]]
     surfaces: frozenset[str]
 
@@ -329,13 +332,23 @@ def _model_settings(system: RegisteredSystem) -> _ModelSettings | None:
             ):
                 return None
             return _ModelSettings(
-                frozenset({system.model}),
+                frozenset({_as_called(system.model)}),
                 frozenset({frozenset(system.prompt_digests)}),
                 frozenset({surface}),
             )
         case SingleShotSystem():
             # Its query protocol is only ever pending in this registration format.
             return None
+
+
+def _as_called(registered: ModelConfiguration) -> CallConfiguration:
+    """A registered model configuration in the type a run records one in, so the two compare
+    by their one encoding: the registration still holds the generator's provenance type,
+    whose values a run's settings include."""
+    return CallConfiguration(
+        registered.model_id,
+        tuple(CallSetting(setting.name, setting.value) for setting in registered.settings),
+    )
 
 
 def _prompts_by_role(record: RunRecord) -> dict[str, frozenset[tuple[str, str]]]:
@@ -385,7 +398,10 @@ def _entry(
     if differing:
         return entry(Disposition.SETTINGS_DIFFER, evaluation, cost, differing)
     frozen = registration.status is RegistrationStatus.FROZEN
-    if frozen and record.harness.tree is not TreeState.CLEAN:
+    dirty = any(
+        revision.tree is not TreeState.CLEAN for revision in record.timing.harness_revisions
+    )
+    if frozen and dirty:
         return entry(Disposition.DIRTY_HARNESS, evaluation, cost)
     return entry(Disposition.ELIGIBLE, evaluation, cost, (), label)
 

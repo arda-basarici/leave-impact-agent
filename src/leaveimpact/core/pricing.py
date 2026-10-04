@@ -3,9 +3,10 @@
 Cost is a reported metric, so the evaluator checks it rather than copying it (the
 investigator milestone's second build step, ruling 5), and the arithmetic lives here in
 ``core`` so the harness that prices a call and the evaluator that verifies the price run
-the same function. The table states every rate as integer nano-dollars per token (a
-rate of $1.10 per million tokens is 1,100; $0.06 is 60), so a per-call product is an
-integer and no rounding point exists anywhere; a table whose rate is not
+the same function. The table states every rate as integer pico-dollars per token (a
+rate of $1.10 per million tokens is 1,100,000; $0.0002625 per thousand is 262,500), so a
+per-dispatch product is an integer and no rounding point exists anywhere; a table whose
+rate is not
 an integer refuses at load, since a rate that needs rounding would make the sum of the
 per-call costs differ from the cost of the aggregate. A rate is named by its pricing
 key, region and billing mode together, because a model id alone does not fix a Bedrock
@@ -20,9 +21,12 @@ rate, unknown by default: a provider that omits a cache counter exactly when no 
 token was billed earns the ``zero`` entry only once the acceptance spike (build step 7)
 shows it on that configuration, and until then a missing cache counter makes the cost
 incomplete. A reported class the basis holds no rate for is a configuration error and
-refuses, never a silent zero. A cumulative cost sums the priced calls and is complete
-only when every call was priced and every price complete, so a fault that reported no
-usage leaves the run's cost a floor.
+refuses, never a silent zero. A usage object the reading could not take as declared
+(``usage.read_usage``) is never priced complete either, since a field nobody understood
+may be a class that was billed. A cumulative cost sums the priced dispatches and is
+complete only when every send was priced and every price complete, so an error that
+reported no usage, or a dispatch nobody can prove was not sent, leaves the run's cost a
+floor; a dispatch the client refused before sending was no send and costs nothing.
 """
 
 from __future__ import annotations
@@ -41,6 +45,7 @@ from leaveimpact.core.jsonshape import (
     field_of,
     string_field,
 )
+from leaveimpact.core.model_calls import Dispatch, ModelCall, Sends
 from leaveimpact.core.run_record import (
     BILLED_ON_EVERY_CALL,
     AbsentMeaning,
@@ -49,14 +54,9 @@ from leaveimpact.core.run_record import (
     PricingSelection,
     UsageAggregate,
 )
-from leaveimpact.core.run_trace import (
-    USAGE_COUNTER_NAMES,
-    Cost,
-    ModelCallRecord,
-    Usage,
-    require_integer,
-)
+from leaveimpact.core.run_trace import USAGE_COUNTER_NAMES, Cost, Usage, require_integer
 from leaveimpact.core.timeshape import decode_date, encode_date
+from leaveimpact.core.usage import ReportedUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +74,7 @@ class PriceTable:
     def __post_init__(self) -> None:
         if self.currency != "USD":
             raise ValueError(
-                f"rates are nano-dollars, so the table is in USD, got {self.currency!r}"
+                f"rates are pico-dollars, so the table is in USD, got {self.currency!r}"
             )
         keys = [row.key for row in self.rows]
         if len(set(keys)) != len(keys):
@@ -103,7 +103,7 @@ def encode_rate(row: PricingRow) -> JsonObject:
         "region": row.region,
         "billing_mode": row.billing_mode,
         "token_class": row.token_class,
-        "nano_usd_per_token": row.nano_usd_per_token,
+        "pico_usd_per_token": row.pico_usd_per_token,
         "when_absent": row.when_absent.value,
     }
 
@@ -113,11 +113,11 @@ def decode_price_table(value: object) -> PriceTable:
 
     >>> decode_price_table({"currency": "USD", "effective_from": "2026-09-01", "rates": [
     ...     {"pricing_key": "k", "region": "eu-central-1", "billing_mode": "on_demand",
-    ...      "token_class": "input_tokens", "nano_usd_per_token": 1100.0,
+    ...      "token_class": "input_tokens", "pico_usd_per_token": 1100000.0,
     ...      "when_absent": "unknown"}]})
     Traceback (most recent call last):
     ...
-    ValueError: nano_usd_per_token is an integer, got 1100.0
+    ValueError: pico_usd_per_token is an integer, got 1100000.0
     """
     data = as_object(value, "a price table")
     expect_fields(data, ("currency", "effective_from", "rates"), "a price table")
@@ -138,7 +138,7 @@ def decode_rate(item: object) -> PricingRow:
             "region",
             "billing_mode",
             "token_class",
-            "nano_usd_per_token",
+            "pico_usd_per_token",
             "when_absent",
         ),
         "a rate",
@@ -148,7 +148,7 @@ def decode_rate(item: object) -> PricingRow:
         string_field(data, "region"),
         string_field(data, "billing_mode"),
         string_field(data, "token_class"),
-        require_integer(field_of(data, "nano_usd_per_token"), "nano_usd_per_token"),
+        require_integer(field_of(data, "pico_usd_per_token"), "pico_usd_per_token"),
         AbsentMeaning(string_field(data, "when_absent")),
     )
 
@@ -182,13 +182,13 @@ def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> C
 
     >>> from datetime import date
     >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), (
-    ...     PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
-    ...     PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500)))
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100_000),
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500_000)))
     >>> model_a = PricingSelection("model-a", "eu-central-1", "on_demand")
     >>> cost_of(Usage((("input_tokens", 120), ("output_tokens", 30))), model_a, basis)
-    Cost(nano_usd=297000, complete=True)
+    Cost(pico_usd=297000000, complete=True)
     >>> cost_of(Usage((("input_tokens", 120),)), model_a, basis)
-    Cost(nano_usd=132000, complete=False)
+    Cost(pico_usd=132000000, complete=False)
     """
     for token_class in BILLED_ON_EVERY_CALL:
         if basis.rate(
@@ -217,13 +217,22 @@ def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> C
     return Cost(total, complete)
 
 
-def cumulative_cost(costs: Iterable[Cost | None]) -> Cost | None:
-    """The run's cost over its calls: the priced ones summed, complete only if every call was.
+def cost_of_reported(
+    reported: ReportedUsage, selection: PricingSelection, basis: PricingBasis
+) -> Cost:
+    """What a send's reported usage cost: its counters under ``selection``'s rates, complete
+    only if the rates covered them and the raw object was read whole as declared."""
+    cost = cost_of(reported.counters, selection, basis)
+    return Cost(cost.pico_usd, cost.complete and reported.complete)
 
-    ``None`` when no call was priced, since a sum over nothing is not a zero cost.
+
+def cumulative_cost(costs: Iterable[Cost | None]) -> Cost | None:
+    """A cost over several: the priced ones summed, complete only if every one was priced whole.
+
+    ``None`` when none was priced, since a sum over nothing is not a zero cost.
 
     >>> cumulative_cost([Cost(100, True), None, Cost(50, True)])
-    Cost(nano_usd=150, complete=False)
+    Cost(pico_usd=150, complete=False)
     >>> cumulative_cost([None]) is None
     True
     """
@@ -232,22 +241,41 @@ def cumulative_cost(costs: Iterable[Cost | None]) -> Cost | None:
     if not priced:
         return None
     complete = len(priced) == len(listed) and all(cost.complete for cost in priced)
-    return Cost(sum(cost.nano_usd for cost in priced), complete)
+    return Cost(sum(cost.pico_usd for cost in priced), complete)
 
 
-def aggregate_usage(calls: Iterable[ModelCallRecord], duration_ms: int) -> UsageAggregate:
-    """The run's usage summed per counter over the calls that reported it, with the coverage.
+def billed_dispatches(calls: Iterable[ModelCall]) -> tuple[Dispatch, ...]:
+    """The dispatches of ``calls`` that stand for a send or may: every one but those the
+    client refused before sending, in order."""
+    return tuple(
+        dispatch
+        for call in calls
+        for dispatch in call.dispatches
+        if dispatch.sends is not Sends.NONE
+    )
 
-    A counter no call reported is no row (never a zero), per the aggregate's own rule.
+
+def run_cost(calls: Iterable[ModelCall]) -> Cost | None:
+    """The cumulative cost of a run's model calls as their dispatches record it: a floor
+    when a send reported no usage under no zero-cost rule, or was never resolved."""
+    return cumulative_cost(dispatch.cost for dispatch in billed_dispatches(calls))
+
+
+def aggregate_usage(calls: Iterable[ModelCall]) -> UsageAggregate:
+    """The run's usage summed per counter over the dispatches that reported it, with the coverage.
+
+    A counter no dispatch reported is no row (never a zero), per the aggregate's own rule.
     """
     listed = list(calls)
+    dispatches = [dispatch for call in listed for dispatch in call.dispatches]
     counters: list[tuple[str, int, int]] = []
     for name in USAGE_COUNTER_NAMES:
         values = [
             value
-            for call in listed
-            if call.usage is not None and (value := call.usage.value(name)) is not None
+            for dispatch in dispatches
+            if dispatch.usage is not None
+            and (value := dispatch.usage.counters.value(name)) is not None
         ]
         if values:
             counters.append((name, sum(values), len(values)))
-    return UsageAggregate(tuple(counters), len(listed), duration_ms)
+    return UsageAggregate(tuple(counters), len(listed), len(dispatches))

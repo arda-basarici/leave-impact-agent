@@ -49,6 +49,7 @@ from leaveimpact.core.read_condition import ObservedCondition
 from leaveimpact.core.read_projection import StructuredReads, project_reads
 from leaveimpact.core.readings import conclude_impacts
 from leaveimpact.core.refs import EntityRef
+from leaveimpact.core.run_ending import OperationSite
 from leaveimpact.core.run_record import Failure, FailureCategory
 from leaveimpact.core.run_trace import (
     DefectOutcome,
@@ -199,7 +200,7 @@ def _records_of(operation: Operation) -> tuple[Observed[Entity], ...]:
 
 
 def _failure(operation: Operation, reason: str) -> Failure:
-    return Failure(FailureCategory.DEFECT, operation.id, reason)
+    return Failure(FailureCategory.DEFECT, OperationSite(operation.id), reason)
 
 
 def _named(ref: EntityRef) -> str:

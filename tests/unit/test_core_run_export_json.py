@@ -14,9 +14,27 @@ from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
     AbsentMeaning,
     AbsentOutcome,
+    Answer,
+    Approval,
+    ApprovalState,
+    Approver,
+    AsOperation,
+    Attribution,
+    AttributionKind,
+    CallConfiguration,
+    CallSetting,
     Caps,
+    ClaimAuthor,
+    ClientError,
+    ClientErrorKind,
+    CompleteResponse,
+    ComposingPolicy,
+    Composition,
     Cost,
     DefectOutcome,
+    Dispatch,
+    DispatchPhase,
+    DispatchSite,
     Document,
     DocumentKind,
     DocumentSection,
@@ -24,17 +42,17 @@ from leaveimpact.core import (
     Failure,
     FailureCategory,
     HarnessRevision,
+    KeptReason,
     Leave,
     LeaveKind,
     LeaveStatus,
+    ModelCall,
     ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
-    ModelConfiguration,
     ModelOrigin,
     Observed,
     Operation,
     OperationId,
+    OperationSite,
     OutageAssignment,
     PredicateName,
     PrefetchOrigin,
@@ -45,6 +63,10 @@ from leaveimpact.core import (
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
+    ReportedUsage,
+    RequestIdentity,
+    Reservation,
+    ReservationState,
     Retrieval,
     RetrievalKind,
     RunCondition,
@@ -52,16 +74,17 @@ from leaveimpact.core import (
     RunExport,
     RunRecord,
     RunTrace,
-    Setting,
+    Segment,
     Source,
     System,
     SystemKind,
     TerminalStatus,
+    Timing,
+    ToolCall,
     TreeState,
     Unknown,
     UnknownReason,
     UnreachableOutcome,
-    Usage,
     UsageAggregate,
     decode_export_bytes,
     decode_run_export,
@@ -80,6 +103,7 @@ from leaveimpact.core.ids import (
     leave_id,
 )
 from leaveimpact.core.jsonshape import JsonObject, canonical_json
+from leaveimpact.core.model_calls import Observation
 
 DIGEST = "a" * 64
 COMMIT = "b" * 40
@@ -117,54 +141,109 @@ PRICING = PricingBasis(
     "USD",
     date(2026, 9, 1),
     (
-        PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100),
-        PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500),
+        PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100_000),
+        PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500_000),
         PricingRow(
             "model-a",
             "eu-central-1",
             "on_demand",
             "cache_read_input_tokens",
-            110,
+            110_000,
             AbsentMeaning.ZERO,
         ),
     ),
 )
+COMPOSITION = Composition(ClaimAuthor.RULES, ComposingPolicy("a-policy", DIGEST), (), ())
+REQUEST = RequestIdentity(DIGEST, "Converse", "eu.model", "eu-central-1", None)
+ADMITTED = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 
 
-def _calls() -> tuple[ModelCallRecord, ...]:
+def _dispatch(
+    intent: int,
+    observation: Observation,
+    read_as: AttributionKind,
+    usage: dict[str, object] | None,
+    cost: Cost | None,
+    shown: tuple[str, ...] = (),
+) -> Dispatch:
+    return Dispatch(
+        number=1,
+        segment=1,
+        intent_position=intent,
+        outcome_position=intent + 1,
+        request=REQUEST,
+        input_reads=tuple(OperationId(read) for read in shown),
+        observation=observation,
+        attribution=Attribution(read_as, "a-rule"),
+        usage=None if usage is None else ReportedUsage(usage),
+        cost=cost,
+        zero_cost_rule=None,
+        allocation=5_000_000_000,
+    )
+
+
+def _calls() -> tuple[ModelCall, ...]:
+    """Three calls: one that asked for four reads, one whose send timed out, and one that
+    answered with an empty usage object, so a usage is present, empty and absent in turn."""
+    asked = Answer(
+        True,
+        tuple(
+            ToolCall(f"tu_{number}", tool, AsOperation(OperationId(operation)))
+            for number, (tool, operation) in enumerate(
+                (
+                    ("leaves_within", "op-2"),
+                    ("search", "op-3"),
+                    ("work_item", "op-6"),
+                    ("search", "op-7"),
+                ),
+                start=1,
+            )
+        ),
+        (),
+    )
     return (
-        ModelCallRecord(
+        ModelCall(
             ModelCallId("call-1"),
             "investigator",
-            ModelCallOutcome.TOOL_CALLS,
-            "tool_use",
-            840,
-            DIGEST,
-            Usage((("input_tokens", 120), ("output_tokens", 30))),
-            Cost(297_000, True),
-            None,
+            (
+                _dispatch(
+                    2,
+                    CompleteResponse("tool_use", 840, 0),
+                    AttributionKind.BEHAVIOUR,
+                    {"inputTokens": 120, "outputTokens": 30},
+                    Cost(297_000_000, True),
+                    shown=("op-1",),
+                ),
+            ),
+            asked,
         ),
-        ModelCallRecord(
+        ModelCall(
             ModelCallId("call-2"),
             "investigator",
-            ModelCallOutcome.PROVIDER_FAULT,
+            (
+                _dispatch(
+                    10,
+                    ClientError(ClientErrorKind.TIMEOUT, "timeout after retries"),
+                    AttributionKind.INFRASTRUCTURE,
+                    None,
+                    None,
+                ),
+            ),
             None,
-            None,
-            DIGEST,
-            None,
-            None,
-            "timeout after retries",
         ),
-        ModelCallRecord(
+        ModelCall(
             ModelCallId("call-3"),
             "investigator",
-            ModelCallOutcome.CLAIMS,
-            "end_turn",
-            12,
-            DIGEST,
-            Usage(()),
-            Cost(0, False),
-            None,
+            (
+                _dispatch(
+                    12,
+                    CompleteResponse("end_turn", 12, None),
+                    AttributionKind.BEHAVIOUR,
+                    {},
+                    Cost(0, False),
+                ),
+            ),
+            Answer(False, (), ()),
         ),
     )
 
@@ -179,6 +258,7 @@ def _operations() -> tuple[Operation, ...]:
             Source.FRAPPE,
             {"id": "leave_005"},
             RecordOutcome(LEAVE),
+            1,
         ),
         Operation(
             OperationId("op-2"),
@@ -187,6 +267,7 @@ def _operations() -> tuple[Operation, ...]:
             Source.FRAPPE,
             {"span": span},
             RecordsOutcome(()),
+            4,
         ),
         Operation(
             OperationId("op-3"),
@@ -195,6 +276,7 @@ def _operations() -> tuple[Operation, ...]:
             Source.CORPUS,
             {"query": "kafka owner", "limit": 5},
             RecordsOutcome((RUNBOOK,)),
+            5,
         ),
         Operation(
             OperationId("op-4"),
@@ -203,6 +285,7 @@ def _operations() -> tuple[Operation, ...]:
             Source.FRAPPE,
             {"id": "emp_099"},
             AbsentOutcome(),
+            6,
         ),
         Operation(
             OperationId("op-5"),
@@ -211,6 +294,7 @@ def _operations() -> tuple[Operation, ...]:
             Source.JIRA,
             {},
             UnreachableOutcome(Source.JIRA, "refused after 3 attempts"),
+            7,
         ),
         Operation(
             OperationId("op-6"),
@@ -219,6 +303,7 @@ def _operations() -> tuple[Operation, ...]:
             Source.JIRA,
             {"id": "ticket_042"},
             DefectOutcome(Source.JIRA, "LIA-42", "no world id"),
+            8,
         ),
         Operation(
             OperationId("op-7"),
@@ -227,6 +312,7 @@ def _operations() -> tuple[Operation, ...]:
             None,
             {"query": "", "limit": 500},
             RefusedCallOutcome("query is non-blank; limit above 20"),
+            9,
         ),
     )
 
@@ -254,10 +340,11 @@ def _record(status: TerminalStatus, failure: Failure | None) -> RunRecord:
     return RunRecord(
         observed_condition=RunCondition.all_reachable().without(Source.JIRA),
         outage=OutageAssignment(frozenset({Source.JIRA}), DIGEST),
-        harness=HarnessRevision(COMMIT, TreeState.DIRTY),
+        corpus_level="base",
         preregistration_commit=COMMIT,
+        attribution_table=DIGEST,
         model_configurations=(
-            ("investigator", ModelConfiguration("eu.model", (Setting("temperature", 0),))),
+            ("investigator", CallConfiguration("eu.model", (CallSetting("temperature", 0),))),
         ),
         pricing_selections=(("investigator", SELECTION),),
         prompt_digests=(("investigator", "system", DIGEST), ("investigator", "finalize", DIGEST)),
@@ -268,8 +355,24 @@ def _record(status: TerminalStatus, failure: Failure | None) -> RunRecord:
         caps=Caps(20, 100_000, 2, 5_000, "input_output"),
         status=status,
         failure=failure,
-        usage=UsageAggregate((("input_tokens", 120, 1), ("output_tokens", 30, 1)), 3, 12_000),
-        cost=Cost(297_000, False),
+        abandonment=None,
+        timing=Timing(
+            (Segment(1, HarnessRevision(COMMIT, TreeState.DIRTY), 12_000, True),),
+            ADMITTED,
+            ADMITTED,
+            None,
+            None,
+        ),
+        usage=UsageAggregate((("input_tokens", 120, 1), ("output_tokens", 30, 1)), 3, 3),
+        cost=Cost(297_000_000, False),
+        reservation=Reservation(
+            15_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 4
+        ),
+        approval=(
+            Approval(ApprovalState.NOT_REQUESTED, None, None)
+            if failure is not None
+            else Approval(ApprovalState.APPROVED, Approver.AUTOMATIC, DIGEST)
+        ),
         pricing=PRICING,
     )
 
@@ -283,7 +386,7 @@ def _export(
         2,
         CONTEXT,
         _record(status, failure),
-        RunTrace(_calls(), _operations(), _claims()),
+        RunTrace(_calls(), _operations(), _claims(), COMPOSITION),
     )
 
 
@@ -311,23 +414,39 @@ def test_a_full_export_round_trips_to_an_equal_tree_and_the_same_bytes() -> None
 
 
 def test_a_failed_export_round_trips_with_its_failure_at_the_fault() -> None:
+    at_send = DispatchSite(ModelCallId("call-2"), 1, DispatchPhase.SEND)
     failed = _export(
         TerminalStatus.FAILED,
-        Failure(FailureCategory.INFRASTRUCTURE, "call-2", "timeout after retries"),
+        Failure(FailureCategory.INFRASTRUCTURE, at_send, "timeout after retries"),
     )
     assert decode_run_export(_reparsed(failed)) == failed
-    defect = _export(TerminalStatus.FAILED, Failure(FailureCategory.DEFECT, "op-6", "no world id"))
+    assert _nested(_reparsed(failed), "record", "failure")["site"] == {
+        "kind": "dispatch",
+        "model_call": "call-2",
+        "dispatch": 1,
+        "phase": "send",
+    }
+    defect = _export(
+        TerminalStatus.FAILED,
+        Failure(FailureCategory.DEFECT, OperationSite(OperationId("op-6")), "no world id"),
+    )
     assert decode_run_export(_reparsed(defect)) == defect
 
 
 def test_absent_and_empty_stay_distinct_in_the_bytes() -> None:
     data = _nested(_reparsed(_export()), "trace")
     calls = cast(list[JsonObject], data["model_calls"])
-    assert (
-        calls[1]["usage"] is None and calls[1]["cost"] is None and calls[1]["stop_reason"] is None
-    )
-    assert calls[2]["usage"] == {"counters": []}
-    assert calls[2]["cost"] == {"nano_usd": 0, "complete": False}
+    timed_out = _nested(calls, 1, "dispatches", 0)
+    assert timed_out["usage"] is None and timed_out["cost"] is None
+    assert calls[1]["answer"] is None
+    empty = _nested(calls, 2, "dispatches", 0)
+    assert empty["usage"] == {"raw": {}, "counters": []}
+    assert empty["cost"] == {"pico_usd": 0, "complete": False}
+    assert calls[2]["answer"] == {"text_present": False, "tool_calls": [], "fact_batches": []}
+    assert _nested(calls, 2, "dispatches", 0, "observation")["sdk_retries"] is None
+    assert _nested(calls, 0, "dispatches", 0, "observation")["sdk_retries"] == 0
+    assert _nested(calls, 0, "dispatches", 0)["input_reads"] == ["op-1"]
+    assert _nested(calls, 0, "dispatches", 0, "request")["sent_body_digest"] is None
     operations = cast(list[JsonObject], data["operations"])
     assert operations[1]["outcome"] == {"kind": "records", "records": []}
     assert operations[3]["outcome"] == {"kind": "absent"}
@@ -336,19 +455,22 @@ def test_absent_and_empty_stay_distinct_in_the_bytes() -> None:
         "start": "2026-09-10",
         "end": "2026-09-19",
     }
+    record = _nested(_reparsed(_export()), "record")
+    assert record["failure"] is None and record["abandonment"] is None
+    assert _nested(record, "timing")["approval_requested"] is None
 
 
 def test_the_tree_opens_with_the_format_version_and_the_identity() -> None:
     encoded = encode_run_export(_export())
     assert list(encoded)[:3] == ["format_version", "run_id", "attempt"]
-    assert canonical_json(encoded).startswith('{"format_version":1,"run_id":"run-7","attempt":2,')
+    assert canonical_json(encoded).startswith('{"format_version":2,"run_id":"run-7","attempt":2,')
 
 
 def test_another_format_refuses_before_anything_else() -> None:
     data = cast(JsonObject, _reparsed(_export()))
-    data["format_version"] = 2
+    data["format_version"] = 1
     del data["trace"]
-    with pytest.raises(ValueError, match="this code reads export format 1, got 2"):
+    with pytest.raises(ValueError, match="this code reads export format 2, got 1"):
         decode_run_export(data)
     data["format_version"] = True
     with pytest.raises(ValueError, match="format_version is an integer, got True"):
@@ -361,8 +483,12 @@ def test_a_surplus_or_missing_field_deep_in_the_tree_refuses_naming_the_object()
     with pytest.raises(ValueError, match=r"the caps has fields .*surplus \['burst'\]"):
         decode_run_export(data)
     data = _reparsed(_export())
-    del _nested(data, "trace", "model_calls", 0)["fault"]
-    with pytest.raises(ValueError, match=r"a model call has fields .*missing \['fault'\]"):
+    del _nested(data, "trace", "model_calls", 0)["answer"]
+    with pytest.raises(ValueError, match=r"a model call has fields .*missing \['answer'\]"):
+        decode_run_export(data)
+    data = _reparsed(_export())
+    _nested(data, "trace", "model_calls", 0, "dispatches", 0)["retries"] = 2
+    with pytest.raises(ValueError, match=r"a dispatch has fields .*surplus \['retries'\]"):
         decode_run_export(data)
     data = _reparsed(_export())
     _nested(data, "trace", "operations", 0, "outcome", "record")["read_at"] = "x"
@@ -377,7 +503,17 @@ def test_an_unknown_kind_or_value_refuses_by_name() -> None:
         decode_run_export(data)
     data = _reparsed(_export())
     _nested(data, "trace", "operations", 0, "origin")["kind"] = "human"
-    with pytest.raises(ValueError, match="an origin is prefetch or model, got 'human'"):
+    with pytest.raises(ValueError, match="an origin is prefetch, harness or model, got 'human'"):
+        decode_run_export(data)
+    data = _reparsed(_export())
+    _nested(data, "trace", "model_calls", 0, "dispatches", 0, "observation")["kind"] = "echo"
+    with pytest.raises(ValueError, match="an observation is complete_response, .*got 'echo'"):
+        decode_run_export(data)
+    data = _reparsed(_export())
+    _nested(data, "trace", "model_calls", 0, "answer", "tool_calls", 0, "disposition")[
+        "kind"
+    ] = "dropped"
+    with pytest.raises(ValueError, match="a disposition is operation, handled, .*got 'dropped'"):
         decode_run_export(data)
     data = _reparsed(_export())
     _nested(data, "record")["status"] = "done"
@@ -392,15 +528,34 @@ def test_an_unknown_kind_or_value_refuses_by_name() -> None:
 def test_the_constructors_invariants_hold_on_decode_too() -> None:
     data = _reparsed(_export())
     _nested(data, "trace", "operations", 1, "origin")["model_call"] = "call-3"
-    with pytest.raises(ValueError, match="which emitted claims, not tool calls"):
+    with pytest.raises(ValueError, match="whose answer holds no tool call that became it"):
         decode_run_export(data)
     data = _reparsed(_export())
-    _nested(data, "trace", "model_calls", 1)["usage"] = {"counters": []}
-    with pytest.raises(ValueError, match="a provider fault reports no usage"):
+    _nested(data, "trace", "model_calls", 1, "dispatches", 0)["observation"] = {
+        "kind": "no_recorded_outcome"
+    }
+    with pytest.raises(ValueError, match="an outcome position is held exactly when"):
         decode_run_export(data)
     data = _reparsed(_export())
     _nested(data, "trace", "operations", 0)["source"] = "jira"
     with pytest.raises(ValueError, match="a record read from frappe in an operation on jira"):
+        decode_run_export(data)
+    data = _reparsed(_export())
+    _nested(data, "record", "approval")["state"] = "not_requested"
+    with pytest.raises(ValueError, match="an approver is named exactly"):
+        decode_run_export(data)
+
+
+def test_a_usages_counters_are_the_reading_of_its_raw_object_or_the_tree_refuses() -> None:
+    data = _reparsed(_export())
+    usage = _nested(data, "trace", "model_calls", 0, "dispatches", 0, "usage")
+    assert usage["raw"] == {"inputTokens": 120, "outputTokens": 30}
+    assert usage["counters"] == [
+        {"name": "input_tokens", "value": 120},
+        {"name": "output_tokens", "value": 30},
+    ]
+    cast(list[JsonObject], usage["counters"])[0]["value"] = 121
+    with pytest.raises(ValueError, match="a usage's counters are the reading of its raw object"):
         decode_run_export(data)
 
 
@@ -409,6 +564,18 @@ def test_a_non_canonical_instant_in_the_context_is_refused_rather_than_normalize
     _nested(data, "context", "now")["at"] = "2026-09-14T22:30:00Z"
     with pytest.raises(ValueError, match="now is spelled '2026-09-14T22:30:00Z'"):
         decode_run_export(data)
+
+
+def _reading_only(operation: Operation) -> RunExport:
+    """The full export's record around a trace of one read and no model call."""
+    base = _export()
+    record = replace(
+        base.record,
+        cost=None,
+        reservation=Reservation(0, ReservationState.RECONCILED, None, 4),
+        usage=UsageAggregate((), 0, 0),
+    )
+    return replace(base, record=record, trace=RunTrace((), (operation,), (), COMPOSITION))
 
 
 def test_equal_arguments_spelled_in_another_key_order_are_the_same_bytes() -> None:
@@ -421,6 +588,7 @@ def test_equal_arguments_spelled_in_another_key_order_are_the_same_bytes() -> No
         Source.FRAPPE,
         {"span": {"start": "2026-09-10", "end": "2026-09-19"}, "limit": 5},
         AbsentOutcome(),
+        1,
     )
     backward = Operation(
         OperationId("op-9"),
@@ -429,11 +597,10 @@ def test_equal_arguments_spelled_in_another_key_order_are_the_same_bytes() -> No
         Source.FRAPPE,
         {"limit": 5, "span": {"end": "2026-09-19", "start": "2026-09-10"}},
         AbsentOutcome(),
+        1,
     )
     assert forward == backward
-    base = _export()
-    one = replace(base, trace=RunTrace(base.trace.model_calls, (forward,), base.trace.claims))
-    other = replace(base, trace=RunTrace(base.trace.model_calls, (backward,), base.trace.claims))
+    one, other = _reading_only(forward), _reading_only(backward)
     assert export_bytes(one) == export_bytes(other)
     assert '"arguments":{"limit":5,"span":{"end":"2026-09-19","start":"2026-09-10"}}' in (
         export_bytes(one).decode("utf-8")
@@ -455,6 +622,17 @@ def test_the_bytes_decoder_accepts_only_the_canonical_encoding() -> None:
     data = _reparsed(export)
     prompts = cast(list[object], _nested(data, "record")["prompt_digests"])
     prompts.reverse()  # an order the constructor would silently sort
+    with pytest.raises(ValueError, match="not its canonical encoding"):
+        decode_export_bytes(canonical_json(data))
+
+
+def test_a_setting_spelled_a_second_way_is_not_the_canonical_encoding() -> None:
+    """``temperature`` 0 and 0.0 are one setting, so only one spelling is the export's."""
+    data = _reparsed(_export())
+    setting = _nested(data, "record", "model_configurations", 0, "configuration", "settings", 0)
+    assert setting == {"name": "temperature", "value": 0}
+    setting["value"] = 0.0
+    assert decode_run_export(data) == _export()
     with pytest.raises(ValueError, match="not its canonical encoding"):
         decode_export_bytes(canonical_json(data))
 

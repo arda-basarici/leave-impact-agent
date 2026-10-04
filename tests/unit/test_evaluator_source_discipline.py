@@ -1,18 +1,23 @@
 """Source discipline is read off the trace alone: every read counts for the source it was
 recorded against by how it ended and who asked, a refused call for none; the model's refused
-tool requests are counted over the operations it asked for and apart from the model calls that
-ended as a refusal; a completed read with an earlier one's tool and arguments names it; and an
-operation that a conforming harness could not have recorded is a finding. The reads of a full
-investigation of a sealed scenario carry no finding."""
+tool requests are counted over the operations it asked for and apart from the model calls,
+which are counted by how each stands and how its last dispatch was read; a completed read
+with an earlier one's tool and arguments names it; and an operation that a conforming harness
+could not have recorded is a finding. The reads of a full investigation of a sealed scenario
+carry no finding."""
 
 from collections.abc import Mapping
 
 from leaveimpact.core import (
     AbsentOutcome,
+    Answer,
+    AsOperation,
+    AttributionKind,
+    CallState,
     DefectOutcome,
+    HarnessOrigin,
+    ModelCall,
     ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
     ModelOrigin,
     Operation,
     OperationId,
@@ -23,7 +28,9 @@ from leaveimpact.core import (
     RecordsOutcome,
     RefusedCallOutcome,
     RunTrace,
+    ServiceError,
     Source,
+    ToolCall,
     UnreachableOutcome,
 )
 from leaveimpact.evaluator.source_discipline import (
@@ -35,10 +42,10 @@ from leaveimpact.evaluator.source_discipline import (
     SourceDiscipline,
     source_discipline,
 )
+from tests.unit.export_fixture import COMPOSITION, answered_call, dispatch, failed_call
 from tests.unit.reads_fixture import Recorder, reads_of_everything, systems_holding
 from tests.unit.throwaway_world import loaded_world
 
-DIGEST = "a" * 64
 PREFETCH = PrefetchOrigin()
 CALL = ModelCallId("call-1")
 MODEL = ModelOrigin(CALL)
@@ -48,33 +55,27 @@ REFUSED = RefusedCallOutcome("not an id of that kind")
 Read = tuple[Origin, str, Source | None, Mapping[str, object], Outcome]
 
 
-def call(id: str, outcome: ModelCallOutcome) -> ModelCallRecord:
-    """A model call that ended as ``outcome``, with nothing reported that the tests read."""
-    answered = outcome.answered
-    return ModelCallRecord(
-        ModelCallId(id),
-        "investigator",
-        outcome,
-        "end_turn" if answered else None,
-        40 if answered else None,
-        DIGEST,
-        None,
-        None,
-        None if answered else "timeout",
+def asking(*operations: OperationId) -> ModelCall:
+    """The first model call, answered with one tool call for each of ``operations``."""
+    asked = tuple(
+        ToolCall(f"tu_{number}", "a_tool", AsOperation(operation))
+        for number, operation in enumerate(operations, start=1)
     )
+    return answered_call(1, None, None, stop_reason="tool_use", answer=Answer(False, asked, ()))
 
 
-def discipline_of(
-    *reads: Read, calls: tuple[ModelCallRecord, ...] | None = None
-) -> SourceDiscipline:
+def discipline_of(*reads: Read, calls: tuple[ModelCall, ...] | None = None) -> SourceDiscipline:
     """The discipline of a trace holding ``reads`` in order, after one model call that asked
-    for tools unless ``calls`` says otherwise."""
+    for the reads of model origin; ``calls`` adds the calls that follow it."""
     operations = tuple(
-        Operation(OperationId(f"op-{number}"), origin, tool, source, arguments, outcome)
+        Operation(
+            OperationId(f"op-{number}"), origin, tool, source, arguments, outcome, 10_000 + number
+        )
         for number, (origin, tool, source, arguments, outcome) in enumerate(reads, start=1)
     )
-    held = (call(CALL, ModelCallOutcome.TOOL_CALLS),) if calls is None else calls
-    return source_discipline(RunTrace(held, operations, ()))
+    asked = tuple(op.id for op in operations if isinstance(op.origin, ModelOrigin))
+    held = (asking(*asked), *(() if calls is None else calls)) if asked or calls else ()
+    return source_discipline(RunTrace(held, operations, (), COMPOSITION))
 
 
 def down(source: Source) -> UnreachableOutcome:
@@ -93,14 +94,14 @@ def test_a_read_counts_for_its_source_by_how_it_ended_and_who_asked() -> None:
     )
     hr, tracker = seen.tally(Source.FRAPPE), seen.tally(Source.JIRA)
     assert (hr.completed, hr.unreachable, hr.defect) == (
-        OriginCount(2, 0),
-        OriginCount(0, 1),
-        OriginCount(0, 0),
+        OriginCount(2, 0, 0),
+        OriginCount(0, 0, 1),
+        OriginCount(0, 0, 0),
     )
     assert (tracker.completed, tracker.unreachable, tracker.defect) == (
-        OriginCount(0, 1),
-        OriginCount(0, 1),
-        OriginCount(0, 1),
+        OriginCount(0, 0, 1),
+        OriginCount(0, 0, 1),
+        OriginCount(0, 0, 1),
     )
     # The refused call had a source resolved and counts for none: no source was asked.
     assert [row.ended for row in seen.operations][-1] is Ended.REFUSED
@@ -152,27 +153,56 @@ def test_refused_calls_are_the_models_and_a_refused_prefetch_is_a_harness_findin
     )
 
 
-def test_model_calls_are_counted_by_how_each_ended_apart_from_refused_operations() -> None:
+def test_a_read_the_harness_issued_is_counted_apart_from_the_prefetch_and_the_model() -> None:
+    issued = HarnessOrigin("full-context-documents")
+    seen = discipline_of(
+        (PREFETCH, "employees", Source.FRAPPE, {}, NOTHING),
+        (issued, "employees", Source.FRAPPE, {}, NOTHING),
+        (MODEL, "employees", Source.FRAPPE, {}, NOTHING),
+    )
+    assert seen.tally(Source.FRAPPE).completed == OriginCount(1, 1, 1)
+    # A refused read the harness issued is the harness's own, as a refused prefetch call is.
+    refused = discipline_of((issued, "employee", Source.FRAPPE, {"id": "LIA-42"}, REFUSED))
+    assert refused.findings == (
+        OperationFinding(OperationId("op-1"), OperationFindingKind.REFUSED_PREFETCH),
+    )
+    assert refused.refused_by_the_wrapper == 0
+    assert [row.origin.value for row in seen.operations] == ["prefetch", "harness", "model"]
+    assert seen.model_operations == 1
+
+
+def test_model_calls_are_counted_by_state_and_reading_apart_from_refused_operations() -> None:
+    """Three answered calls, one of them under a refusal's stop reason, which is behaviour like
+    any registered stop; a send that timed out; and a service error read as the model's
+    behaviour, which is a failed call counted under behaviour."""
+    cut = ServiceError(424, "ModelErrorException", None, "invalid sequence as part of ToolUse")
     calls = (
-        call(CALL, ModelCallOutcome.TOOL_CALLS),
-        call("call-2", ModelCallOutcome.REFUSAL),
-        call("call-3", ModelCallOutcome.PROVIDER_FAULT),
-        call("call-4", ModelCallOutcome.TOOL_CALLS),
-        call("call-5", ModelCallOutcome.CLAIMS),
+        answered_call(2, None, None, stop_reason="guardrail_intervened"),
+        failed_call(3),
+        answered_call(4, None, None),
+        ModelCall(
+            ModelCallId("call-5"),
+            "investigator",
+            (dispatch(5, cut, AttributionKind.BEHAVIOUR),),
+            None,
+        ),
     )
     seen = discipline_of((MODEL, "work_item", Source.JIRA, {"id": "LIA-42"}, REFUSED), calls=calls)
-    assert seen.model_calls == (
-        (ModelCallOutcome.TOOL_CALLS, 2),
-        (ModelCallOutcome.CLAIMS, 1),
-        (ModelCallOutcome.TEXT, 0),
-        (ModelCallOutcome.REFUSAL, 1),
-        (ModelCallOutcome.INVALID_OUTPUT, 0),
-        (ModelCallOutcome.PROVIDER_FAULT, 1),
-    )
-    # One model call ended as a refusal; one tool request was refused. Different things.
+    counted = {(state, read_as): count for state, read_as, count in seen.model_calls}
+    assert len(seen.model_calls) == len(CallState) * len(AttributionKind) == 12
+    assert {pair: count for pair, count in counted.items() if count} == {
+        (CallState.ANSWERED, AttributionKind.BEHAVIOUR): 3,
+        (CallState.FAILED, AttributionKind.BEHAVIOUR): 1,
+        (CallState.FAILED, AttributionKind.INFRASTRUCTURE): 1,
+    }
+    assert [pair for pair in counted][:2] == [
+        (CallState.ANSWERED, AttributionKind.BEHAVIOUR),
+        (CallState.ANSWERED, AttributionKind.INFRASTRUCTURE),
+    ]
+    # No model call is a refused operation: one tool request was refused, a different thing.
     assert seen.refused_by_the_wrapper == 1
-    # A rules-only trace calls no model and every kind is still there, at zero.
-    assert all(count == 0 for _, count in discipline_of(calls=()).model_calls)
+    # A rules-only trace calls no model and every pair is still there, at zero.
+    assert all(count == 0 for _, _, count in discipline_of().model_calls)
 
 
 def test_a_completed_read_with_an_earlier_ones_tool_and_arguments_names_it() -> None:
@@ -234,7 +264,7 @@ def test_an_operation_no_conforming_harness_records_is_a_finding_by_kind() -> No
         OperationFinding(OperationId("op-5"), kinds.MORE_THAN_THE_LIMIT),
     )
     # The mismatched reads still count for the source they were recorded against.
-    assert seen.tally(Source.JIRA).unreachable == OriginCount(1, 0)
+    assert seen.tally(Source.JIRA).unreachable == OriginCount(1, 0, 0)
 
 
 def test_the_reads_of_a_full_investigation_carry_no_finding_and_sum_to_the_trace() -> None:
@@ -242,7 +272,7 @@ def test_the_reads_of_a_full_investigation_carry_no_finding_and_sum_to_the_trace
     for scenario in world.scenarios[:5]:
         for down_sources in ((), (Source.JIRA,), (Source.CALENDAR,)):
             operations = reads_of_everything(world, scenario, *down_sources)
-            seen = source_discipline(RunTrace((), tuple(operations), ()))
+            seen = source_discipline(RunTrace((), tuple(operations), (), COMPOSITION))
             assert seen.findings == ()
             assert seen.repeats == ()
             assert (seen.model_operations, seen.refused_by_the_wrapper) == (0, 0)

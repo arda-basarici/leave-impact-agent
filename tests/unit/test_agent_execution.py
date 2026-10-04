@@ -302,4 +302,5 @@ def test_every_operation_is_the_executors_own_record(systems: Systems, scenario:
         Source.FRAPPE,
         {"id": scenario.spec.leave_id},
         operation.outcome,
+        1,
     )

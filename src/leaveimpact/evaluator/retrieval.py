@@ -47,11 +47,11 @@ from leaveimpact.core.claims import ClaimType, GradingKey
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.read_coverage import supplied_by, tool_mismatches
 from leaveimpact.core.refs import EntityRef
-from leaveimpact.core.run_trace import ModelOrigin, Operation, OperationId, RecordsOutcome
+from leaveimpact.core.run_trace import Operation, OperationId, RecordsOutcome
 from leaveimpact.core.tools import SEARCH_LIMIT, PortMethod, specification_named
 from leaveimpact.evaluator.retrieval_targets import RetrievalTarget
 from leaveimpact.evaluator.rows import ClaimRows, Expectation
-from leaveimpact.evaluator.source_discipline import OriginKind
+from leaveimpact.evaluator.source_discipline import OriginKind, origin_kind
 from leaveimpact.evaluator.world_index import Statement
 
 
@@ -145,9 +145,7 @@ def retrieval_of(
         search = _as_a_search(operation)
         if search is None and not returned:
             continue
-        origin = (
-            OriginKind.MODEL if isinstance(operation.origin, ModelOrigin) else OriginKind.PREFETCH
-        )
+        origin = origin_kind(operation.origin)
         hits: list[SearchHit] = []
         for target in targets:
             came_back = [carrier for carrier in target.carriers if carrier.part in returned]

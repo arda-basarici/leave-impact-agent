@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from leaveimpact.agent.export import RunProvenance, export_rules_only_run
+from leaveimpact.agent.export import RunProvenance
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import Abstention, RulesOnlyRun, investigate
 from leaveimpact.core import (
@@ -45,6 +45,7 @@ from leaveimpact.evaluator.replay import Standing
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world import Scenario
+from tests.unit.export_fixture import export_baseline
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import Systems, systems_holding
 from tests.unit.throwaway_world import loaded_world
@@ -101,7 +102,7 @@ def run_and_export(
         port.reachable = port.source not in down
     context = world.context_of(scenario)
     result = investigate(context, systems.ports)
-    export = export_rules_only_run(
+    export = export_baseline(
         result, context, provenance(*down), run_id="run-1", attempt=1, duration_ms=1_200
     )
     return result, export
@@ -203,7 +204,7 @@ def test_a_run_failed_by_defect_exports_its_failure_and_is_excluded(
     )
     context = world.context_of(scenario)
     result = investigate(context, replace(systems.ports, work=work))
-    export = export_rules_only_run(
+    export = export_baseline(
         result, context, provenance(), run_id="run-1", attempt=1, duration_ms=900
     )
     assert export.record.status is TerminalStatus.FAILED

@@ -13,7 +13,6 @@ from typing import cast
 
 import pytest
 
-from leaveimpact.agent.export import export_rules_only_run
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
@@ -23,22 +22,19 @@ from leaveimpact.core import (
     CoverageAction,
     HarnessRevision,
     MalformedRecord,
-    ModelCallId,
-    ModelCallOutcome,
-    ModelCallRecord,
     Observed,
     PrefetchRule,
     PricingBasis,
     Registration,
+    ReportedUsage,
     RunExport,
     SingleShotSystem,
     Source,
     System,
     SystemKind,
     TreeState,
-    Usage,
     condition_id,
-    cost_of,
+    cost_of_reported,
     decode_registration_bytes,
     export_bytes,
     registration_bytes,
@@ -60,10 +56,11 @@ from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import NORMAL, evaluated, relabelled, truthful
 from tests.unit.export_fixture import (
     BASIS,
-    ROLE,
     SELECTION,
     agent_export,
     answered,
+    answered_call,
+    export_baseline,
     reads,
     run_export,
 )
@@ -118,7 +115,7 @@ def exported(
         preregistration_commit=COMMIT,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
     )
-    return export_rules_only_run(
+    return export_baseline(
         investigate(context, systems.ports),
         context,
         provenance,
@@ -195,20 +192,11 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
     )
     del short.people.people[bystander]
     found["short"] = exported(world, first, run_id="run-short", systems=short)
-    reported = Usage((("input_tokens", 300), ("output_tokens", 40)))
+    reported: dict[str, object] = {"inputTokens": 300, "outputTokens": 40}
+    priced = cost_of_reported(ReportedUsage(reported), SELECTION, BASIS)
     calls = tuple(
-        ModelCallRecord(
-            ModelCallId(name),
-            ROLE,
-            ModelCallOutcome.TOOL_CALLS,
-            "tool_use",
-            40,
-            DIGEST,
-            reported,
-            cost,
-            None,
-        )
-        for name, cost in (("call-1", cost_of(reported, SELECTION, BASIS)), ("call-2", None))
+        answered_call(number, reported, cost, stop_reason="tool_use")
+        for number, cost in ((1, priced), (2, None))
     )
     found["priced"] = agent_export(world, first, calls)
     return found
@@ -303,7 +291,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "inventory",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (1, "development")
+    assert (decoded["format_version"], decoded["label"]) == (2, "development")
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,

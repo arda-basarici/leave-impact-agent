@@ -35,11 +35,12 @@ from leaveimpact.core.registration import (
     schedule_digest,
 )
 from leaveimpact.core.run_record import (
-    HarnessRevision,
+    BASE_CORPUS_LEVEL,
     OutageAssignment,
     PricingBasis,
     SystemKind,
 )
+from leaveimpact.core.run_timing import HarnessRevision
 
 
 def rules_only_provenance(
@@ -71,6 +72,9 @@ def rules_only_provenance(
         )
     return RunProvenance(
         outage=_assignment(registration, SystemKind.RULES_ONLY, condition),
+        # The baseline reads no document, so it runs the same at every corpus level; the
+        # registration names the levels once it holds them, and until then this is the one.
+        corpus_level=BASE_CORPUS_LEVEL,
         harness=harness,
         preregistration_commit=preregistration_commit,
         caps=registration.caps.caps,

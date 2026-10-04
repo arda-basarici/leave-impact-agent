@@ -12,7 +12,6 @@ from pathlib import Path
 
 import pytest
 
-from leaveimpact.agent.export import export_rules_only_run
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
@@ -64,7 +63,7 @@ from leaveimpact.evaluator.registered import development_selection
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
-from tests.unit.export_fixture import agent_export
+from tests.unit.export_fixture import agent_export, export_baseline
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.throwaway_world import loaded_world
 
@@ -108,7 +107,7 @@ def exported(
         preregistration_commit=COMMIT,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
     )
-    return export_rules_only_run(
+    return export_baseline(
         investigate(context, systems.ports),
         context,
         provenance,

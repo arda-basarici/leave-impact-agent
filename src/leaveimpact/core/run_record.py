@@ -1,27 +1,29 @@
 """The provenance of one run attempt: what ran, under what, with what, how it ended, what it cost.
 
 The record is the block of a run export that identifies the execution rather than
-replaying it (the investigator milestone's second build step, rulings 4 and 5). A
-result is regenerable only from its recorded inputs, and a comparison between systems
-is sound only when what was held fixed is on record, so the record states each of
-those as a fact the evaluator can read without the harness: the condition the run
-observed and the outage it was assigned, the harness revision and the preregistration
-it ran under, the model each role called and the prompts and tool surface each role
-saw, which of the three systems produced the export and with which retrieval and
-prefetch rule, the cap it ran under, how the attempt ended, and the usage and cost the
-provider reported with the pricing that priced it.
+replaying it (the investigator milestone's second build step, rulings 4 and 5; the
+contract step's rulings for format 2). A result is regenerable only from its recorded
+inputs, and a comparison between systems is sound only when what was held fixed is on
+record, so the record states each of those as a fact the evaluator can read without the
+harness: the condition the run observed, the outage and the corpus level it was assigned,
+the preregistration it ran under and the attribution table its dispatches were read by,
+the model each role called and the prompts and tool surface each role saw, which of the
+four systems produced the export and with which retrieval and prefetch rule, the cap it
+ran under, how the attempt ended and where it failed, the segments it ran in with their
+harness revisions, what became of its reservation and of its approval, and the usage and
+cost the provider reported with the pricing that priced it.
 
 Two kinds of statement sit here and are kept apart in the reader's mind. Some fields
 are *inputs* the harness set and nobody can derive (the assignment, the caps, the
-revision); others are *claims over the trace* that the evaluator re-derives and
+segments' revisions); others are *claims over the trace* that the evaluator re-derives and
 verifies (the observed condition from the failed reads, the usage aggregate from the
-model calls, the cumulative cost from the per-call costs). A claim is stored rather
+dispatches, the cumulative cost from the per-dispatch costs). A claim is stored rather
 than left to derivation because a mismatch between the harness's reading and the
 replay's is a finding, and only a stored value can mismatch. The constructors here
 enforce each block's own shape; the cross-trace checks are the evaluator's.
 
 Absent is a different statement from zero: a usage counter the provider did not report
-is unavailable, an aggregate says how many calls reported each counter, and a cost
+is unavailable, an aggregate says how many dispatches reported each counter, and a cost
 whose counters were incomplete says so.
 """
 
@@ -31,9 +33,19 @@ from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 
+from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
-from leaveimpact.core.provenance import ModelConfiguration
+from leaveimpact.core.run_ending import (
+    Abandonment,
+    Approval,
+    ApprovalState,
+    FailureSite,
+    HarnessSite,
+    HarnessSiteName,
+    Reservation,
+)
+from leaveimpact.core.run_timing import Timing, require_commit
 from leaveimpact.core.run_trace import (
     USAGE_COUNTER_NAMES,
     Cost,
@@ -42,18 +54,14 @@ from leaveimpact.core.run_trace import (
     require_opaque_id,
 )
 
-GIT_SHA_LENGTH = 40
-
 BILLED_ON_EVERY_CALL: tuple[str, ...] = ("input_tokens", "output_tokens")
 """The token classes every answered call is billed for, so a selection's basis must price
 them; a cache class is priced only where the table has a rate for it."""
 
-
-def require_commit(value: str, what: str) -> str:
-    """``value`` if it is a full lower-case git commit SHA."""
-    if len(value) != GIT_SHA_LENGTH or any(c not in "0123456789abcdef" for c in value):
-        raise ValueError(f"{what} is a forty-hex git commit, got {value!r}")
-    return value
+BASE_CORPUS_LEVEL = "base"
+"""The corpus level of a world with no filler added. The levels a run may be assigned are
+the registration's; this one exists before any registration names them, and a system that
+reads no document is recorded under it."""
 
 
 def _non_negative(value: int, what: str) -> int:
@@ -64,10 +72,10 @@ def _non_negative(value: int, what: str) -> int:
 
 
 class TerminalStatus(StrEnum):
-    """How the investigation ended; the job's later approval state is not an export status.
+    """How the investigation ended.
 
-    ``COMPLETED`` means the system produced its final claims, the same for all three
-    systems, a refusal or a claimless completion included (graded with its omissions);
+    ``COMPLETED`` means the system produced its final claims, the same for every system,
+    a refusal or a claimless completion included (graded with its omissions);
     ``CAP_EXHAUSTED`` that it reported what it had at the cap; ``FAILED`` that a defect
     or an infrastructure fault ended it, recorded with the fault.
     """
@@ -86,29 +94,28 @@ class FailureCategory(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Failure:
-    """The normalized fault of a failed attempt: its category, where in the trace, and why.
+    """The normalized fault of a failed attempt: its category, where it was found, and why.
 
-    ``at`` names the operation (a malformed record) or the model call (a provider
-    fault) that failed, so the fault is recorded and not merely counted.
+    ``site`` is an operation, a model dispatch or a harness site, so the fault is recorded
+    and not merely counted, and a fault that is no read and no model call still has a
+    truthful place.
     """
 
     category: FailureCategory
-    at: str
+    site: FailureSite
     reason: str
-
-    def __post_init__(self) -> None:
-        require_opaque_id(self.at, "the failing operation or model call id")
 
 
 # --- What ran ----------------------------------------------------------------------------
 
 
 class SystemKind(StrEnum):
-    """The three systems the evaluator grades from one export shape."""
+    """The four systems the evaluator grades from one export shape."""
 
     AGENT = "agent"
     RULES_ONLY = "rules_only"
     SINGLE_SHOT = "single_shot"
+    FULL_CONTEXT = "full_context"
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,24 +167,6 @@ class PrefetchRule:
     def __post_init__(self) -> None:
         require_opaque_id(self.identifier, "a prefetch rule identifier")
         require_digest(self.digest, "a prefetch rule digest")
-
-
-class TreeState(StrEnum):
-    """Whether the harness ran from the commit it names or from uncommitted changes over it."""
-
-    CLEAN = "clean"
-    DIRTY = "dirty"
-
-
-@dataclass(frozen=True, slots=True)
-class HarnessRevision:
-    """The harness commit and the state of the tree it ran from; dirty is refused at reporting."""
-
-    commit: str
-    tree: TreeState
-
-    def __post_init__(self) -> None:
-        require_commit(self.commit, "the harness commit")
 
 
 @dataclass(frozen=True, slots=True)
@@ -238,26 +227,30 @@ class Caps:
 
 @dataclass(frozen=True, slots=True)
 class UsageAggregate:
-    """The run's usage summed over the model calls that reported each counter, with the coverage.
+    """The run's usage summed over the dispatches that reported each counter, with the coverage.
 
-    Each counter is ``(name, value, reported_calls)``: a sum over the calls that
-    reported it and how many did, beside ``model_calls``, the number there were, so a
-    reader can tell a total from a partial sum. A counter no call reported is not a row
-    at all, so absence is never spelled as a zero sum over zero calls. ``duration_ms``
-    is the run's own, from a monotonic clock, a different quantity from any provider
-    latency.
+    Each counter is ``(name, value, reported)``: a sum over the dispatches that reported
+    it and how many did, beside ``dispatches``, the number there were, and ``model_calls``,
+    the logical calls they belong to, so a reader can tell a total from a partial sum. A
+    counter no dispatch reported is not a row at all, so absence is never spelled as a
+    zero sum over zero dispatches. A run's duration is not usage and sits in its timing.
 
-    >>> UsageAggregate((("input_tokens", 500, 3),), 3, 12_000).value("input_tokens")
+    >>> UsageAggregate((("input_tokens", 500, 3),), 3, 4).value("input_tokens")
     (500, 3)
     """
 
     counters: tuple[tuple[str, int, int], ...]
     model_calls: int
-    duration_ms: int
+    dispatches: int
 
     def __post_init__(self) -> None:
         _non_negative(self.model_calls, "model_calls")
-        _non_negative(self.duration_ms, "duration_ms")
+        _non_negative(self.dispatches, "dispatches")
+        if self.dispatches < self.model_calls:
+            raise ValueError(
+                f"every call holds a dispatch: {self.model_calls} calls, "
+                f"{self.dispatches} dispatches"
+            )
         names = [name for name, _, _ in self.counters]
         unknown = [name for name in names if name not in USAGE_COUNTER_NAMES]
         if unknown:
@@ -269,12 +262,14 @@ class UsageAggregate:
             raise ValueError(f"usage counters are held in the declared order, got {names}")
         for name, value, reported in self.counters:
             _non_negative(value, name)
-            require_integer(reported, f"{name} reported_calls", minimum=1)
-            if reported > self.model_calls:
-                raise ValueError(f"{name}: reported by {reported} calls of {self.model_calls}")
+            require_integer(reported, f"{name} reported", minimum=1)
+            if reported > self.dispatches:
+                raise ValueError(
+                    f"{name}: reported by {reported} dispatches of {self.dispatches}"
+                )
 
     def value(self, name: str) -> tuple[int, int] | None:
-        """``(sum, reported_calls)`` for ``name``, or ``None`` when no call reported it."""
+        """``(sum, reported)`` for ``name``, or ``None`` when no dispatch reported it."""
         for held, value, reported in self.counters:
             if held == name:
                 return value, reported
@@ -296,7 +291,7 @@ class AbsentMeaning(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class PricingRow:
-    """One rate: integer nano-dollars per token for a token class under a pricing key.
+    """One rate: integer pico-dollars per token for a token class under a pricing key.
 
     The key, region and billing mode together name a Bedrock rate; a model id alone
     does not (the ``eu.`` profile and on-demand are priced as their own keys).
@@ -308,7 +303,7 @@ class PricingRow:
     region: str
     billing_mode: str
     token_class: str
-    nano_usd_per_token: int
+    pico_usd_per_token: int
     when_absent: AbsentMeaning = AbsentMeaning.UNKNOWN
 
     def __post_init__(self) -> None:
@@ -316,7 +311,7 @@ class PricingRow:
             require_opaque_id(getattr(self, name), name)
         if self.token_class not in USAGE_COUNTER_NAMES:
             raise ValueError(f"a token class is a usage counter name, got {self.token_class!r}")
-        _non_negative(self.nano_usd_per_token, "nano_usd_per_token")
+        _non_negative(self.pico_usd_per_token, "pico_usd_per_token")
 
     @property
     def key(self) -> tuple[str, str, str, str]:
@@ -341,7 +336,7 @@ class PricingBasis:
         require_digest(self.table_digest, "the price table digest")
         if self.currency != "USD":
             raise ValueError(
-                f"costs are nano-dollars, so the basis is in USD, got {self.currency!r}"
+                f"costs are pico-dollars, so the basis is in USD, got {self.currency!r}"
             )
         keys = [row.key for row in self.rows]
         if len(set(keys)) != len(keys):
@@ -351,10 +346,10 @@ class PricingBasis:
     def rate(
         self, pricing_key: str, region: str, billing_mode: str, token_class: str
     ) -> int | None:
-        """The nano-dollars per token for the named rate, or ``None`` when the basis has none."""
+        """The pico-dollars per token for the named rate, or ``None`` when the basis has none."""
         for row in self.rows:
             if row.key == (pricing_key, region, billing_mode, token_class):
-                return row.nano_usd_per_token
+                return row.pico_usd_per_token
         return None
 
 
@@ -364,7 +359,7 @@ class PricingSelection:
 
     A role's configuration names a model id, and a model id alone does not fix a
     Bedrock rate, so the selection is recorded beside it; with the basis's rows it is
-    what lets the evaluator reproduce every per-call cost.
+    what lets the evaluator reproduce every per-dispatch cost.
     """
 
     pricing_key: str
@@ -386,15 +381,32 @@ class RunRecord:
     Role-indexed collections are unique by their key and held in key order, so two
     equal records are equal in bytes; the roles that call a model are one set across the
     configurations, the pricing selections, the prompt digests and the tool surfaces.
-    ``failure`` is present exactly when
-    the status is failed. ``cost`` is ``None`` when no call was priced, never a zero.
+
+    How the attempt ended is held together by four ties. ``failure`` is present exactly
+    when the status is failed. ``abandonment`` is present exactly when the failure's site
+    is the abandoned one, which is an infrastructure failure. The approval follows the
+    status and not the claims, one way: a completed or cap-exhausted attempt holds an
+    approval of its frozen review payload, an abstention's empty one included. A failed
+    attempt states the approval as it stood, whatever that was: usually none, and a given
+    one when the attempt failed after it, at the terminal append or by an abandonment,
+    since an export that had to deny an approval the log holds would also have to drop the
+    worker's resume and misstate its active time. A worker's approval stamps in the timing
+    exist only where the approval says one was requested, or given; an attempt that did not
+    fail ended at a terminal event its worker wrote, so its last segment's end was recorded
+    and a stamped request has its stamped resume.
+
+    ``attribution_table`` is the digest of the registered table the dispatches' rules are
+    identifiers into, and ``reservation`` what became of the amount reserved at admission;
+    both are held exactly when a role calls a model. ``cost`` is ``None`` when no dispatch
+    was priced, never a zero.
     """
 
     observed_condition: RunCondition
     outage: OutageAssignment
-    harness: HarnessRevision
+    corpus_level: str
     preregistration_commit: str
-    model_configurations: tuple[tuple[str, ModelConfiguration], ...]
+    attribution_table: str | None
+    model_configurations: tuple[tuple[str, CallConfiguration], ...]
     pricing_selections: tuple[tuple[str, PricingSelection], ...]
     prompt_digests: tuple[tuple[str, str, str], ...]
     tool_surface_digests: tuple[tuple[str, str], ...]
@@ -404,19 +416,29 @@ class RunRecord:
     caps: Caps
     status: TerminalStatus
     failure: Failure | None
+    abandonment: Abandonment | None
+    timing: Timing
     usage: UsageAggregate
     cost: Cost | None
+    reservation: Reservation | None
+    approval: Approval
     pricing: PricingBasis
 
     def __post_init__(self) -> None:
+        require_opaque_id(self.corpus_level, "the assigned corpus level")
         require_commit(self.preregistration_commit, "the preregistration commit")
-        if (self.failure is not None) != (self.status is TerminalStatus.FAILED):
-            raise ValueError("a failure is recorded exactly when the status is failed")
+        self._require_a_coherent_ending()
         roles = [role for role, _ in self.model_configurations]
         if len(set(roles)) != len(roles):
             raise ValueError(f"a role calls one model configuration, got {roles}")
         for role in roles:
             require_opaque_id(role, "a role")
+        if (self.attribution_table is not None) != bool(roles):
+            raise ValueError("an attribution table is named exactly when a role calls a model")
+        if self.attribution_table is not None:
+            require_digest(self.attribution_table, "the attribution table digest")
+        if (self.reservation is not None) != bool(roles):
+            raise ValueError("a reservation is recorded exactly when a role calls a model")
         priced = [role for role, _ in self.pricing_selections]
         if len(set(priced)) != len(priced):
             raise ValueError(f"a role is priced under one selection, got {priced}")
@@ -476,6 +498,49 @@ class RunRecord:
         object.__setattr__(
             self, "tool_surface_digests", tuple(sorted(self.tool_surface_digests, key=_role))
         )
+
+    def _require_a_coherent_ending(self) -> None:
+        failed = self.status is TerminalStatus.FAILED
+        if (self.failure is not None) != failed:
+            raise ValueError("a failure is recorded exactly when the status is failed")
+        abandoned = self.failure is not None and self.failure.site == HarnessSite(
+            HarnessSiteName.ABANDONED
+        )
+        if (self.abandonment is not None) != abandoned:
+            raise ValueError(
+                "an abandonment is recorded exactly when the failure's site is the abandoned one"
+            )
+        if (
+            abandoned
+            and self.failure is not None
+            and self.failure.category is not FailureCategory.INFRASTRUCTURE
+        ):
+            raise ValueError("an abandoned attempt failed by infrastructure")
+        approved = self.approval.state is ApprovalState.APPROVED
+        if not failed and not approved:
+            raise ValueError(
+                "an attempt that completed or reported at its cap holds an approval of its "
+                f"review payload: status {self.status.value}, approval "
+                f"{self.approval.state.value}"
+            )
+        requested = self.approval.state is not ApprovalState.NOT_REQUESTED
+        if self.timing.approval_requested is not None and not requested:
+            raise ValueError("the timing stamps an approval request the approval does not hold")
+        if self.timing.approval_resumed is not None and not approved:
+            raise ValueError("the timing stamps a resume from an approval that was not given")
+        if failed:
+            return
+        # A terminal event a worker wrote is that worker's recorded end, and it wrote it
+        # after resuming from the approval it had stamped a request for.
+        if not self.timing.segments[-1].end_recorded:
+            raise ValueError(
+                "an attempt that did not fail ended at its terminal event, so its last "
+                "segment's end was recorded"
+            )
+        if self.timing.approval_requested is not None and self.timing.approval_resumed is None:
+            raise ValueError(
+                "an approved attempt whose worker stamped the request also stamped its resume"
+            )
 
 
 def _role(item: tuple[str, object]) -> str:

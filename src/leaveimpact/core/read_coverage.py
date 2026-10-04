@@ -75,7 +75,6 @@ from leaveimpact.core.entities import Document, WorkItem
 from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.refs import EntityRef, clause_ref, comment_ref
-from leaveimpact.core.run_export_json import thawed_json
 from leaveimpact.core.run_trace import (
     AbsentOutcome,
     Operation,
@@ -84,6 +83,7 @@ from leaveimpact.core.run_trace import (
     RecordsOutcome,
     RefusedCallOutcome,
     UnreachableOutcome,
+    thawed_json,
 )
 from leaveimpact.core.tools import (
     TOOL_SPECIFICATIONS,
