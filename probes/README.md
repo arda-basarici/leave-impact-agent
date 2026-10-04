@@ -42,6 +42,8 @@ The five day-one unknowns pass and the two day-two floors (**instance**,
 
 ## The LangGraph acceptance spike (written 2026-10-04, before any of it runs)
 
+> **Since export format 2 (2026-10-04) the scripts under `langgraph-spike/` no longer run at HEAD.** They build and assert format 1 exports through `core`'s format 1 types, which format 2 replaced. They are left as they ran: every execution FINDINGS cites is reproducible at `f2d1f28`, the commit it names, and the event log step rewrites this code against format 2 and reruns the crash, resume and export checks through it.
+
 The framework choice is provisional on this spike (DESIGN, "The loop runs on LangGraph").
 It has
 two halves. The provider probes run live against the `eu.` Haiku 4.5 and Nova Pro

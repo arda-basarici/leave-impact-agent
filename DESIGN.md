@@ -1547,40 +1547,110 @@ and the provenance the run record carries (the observed run condition and the
 assigned outage schedule, harness commit, model and inference settings, prompt
 digests, the tool-surface digest, the preregistration commit, observed usage and
 cost, any failure category); the evaluation artifact adds the export's key and
-version id beside the truth digest and version id. Its shape was ruled at the
-investigator milestone's second build step (2026-10-01) and lives in `core` as plain
-data with one codec, since the agent writes it and the evaluator reads it and neither
-may import the other. One immutable artifact per run attempt, self-identifying by run
-id and attempt beside a format version, projected from the event log once the attempt
-reaches the investigation's terminal state (the job's later approval state is no
-export status) and written once by conditional create; its digest is of its canonical
-bytes, computed by whoever cites it and never stored inside, and a reader accepts
-bytes only when their re-encoding reproduces them, so one export has one byte
-sequence. Three blocks: the context (what changes the evidence), the record
-(provenance: the observed condition as a claim the replay re-derives and verifies,
-the sources scheduled unreachable with the schedule's digest, the harness commit with
-its tree state, the preregistration commit, the model configuration, pricing
-selection, prompt digests and tool surface of every role as one role set, the system
-kind and variant, the retrieval implementation, the prefetch rule's identity, the
-cap with its finalization reserves inside the totals, a terminal status with a
-normalized failure pointing at the trace entry of its own kind, the usage aggregate
-with per-counter reporting coverage, the cumulative cost, and the embedded pricing
-rows that priced it), and the trace (compact model-call records, one per invocation
-with the exact request's digest and the usage reported; the attempted reads, each
-with its origin, its resolved source, its arguments exactly as accepted with no
-coercion or default, and one of six outcomes, a record, none, a possibly empty
-sequence, unreachable, a malformed record, or a call refused before any source was
-asked; the final claims in claim-id order). Absent is a different statement from
-empty throughout: a usage counter a provider did not report is unavailable and never
-zero, an aggregate row exists only for counters some call reported, and a cost is
-incomplete when a rate row under its selection was neither reported nor recorded in
-the price table as meaning nothing billed when absent, that policy being table data a
-probe earns per configuration rather than an assumption in code. Costs are exact
-integer nano-dollars from a committed table of integer rates, verified by the
-evaluator against the embedded rows, the basis never benchmark truth. Within a
-format, the structural fields are required and an incompatible change bumps the
-version, while the extensible blocks follow a declared append-only order so an entry
-appended later reads as absent from an older export. The validator re-reads the live systems and
+version id beside the truth digest and version id.
+
+Its shape was ruled at the investigator milestone's second build step (2026-10-01) and
+again at the contract step (2026-10-04), which made it format 2, and it lives in
+`core` as plain data with one codec, since the agent writes it and the evaluator reads
+it and neither may import the other. One immutable artifact per run attempt,
+self-identifying by run id and attempt beside a format version, projected from the
+event log once the attempt is terminal and written once by conditional create; a run
+paused at an approval or recoverable from a checkpoint is a state of the log and has
+no export. Its digest is of its canonical bytes, computed by whoever cites it and
+never stored inside, and a reader accepts bytes only when their re-encoding reproduces
+them, so one export has one byte sequence. Format 1 is not read: no export of record
+was written in it, and its bytes refuse by version.
+
+Three blocks. The context is what changes the evidence. The record is provenance: the
+observed condition as a claim the replay re-derives and verifies, the sources
+scheduled unreachable with the schedule's digest, the assigned corpus level, the
+preregistration commit, the digest of the attribution table, the model configuration,
+pricing selection, prompt digests and tool surface of every role as one role set, the
+system kind (four since full context joined) and variant, the retrieval
+implementation, the prefetch rule's identity, the cap with its finalization reserves
+inside the totals, a terminal status with a failure whose site is an operation, a
+model dispatch with its phase or a harness site from a closed list, an abandonment
+where an attempt was ended by decision, the segments the attempt ran in with each
+one's harness commit and tree state, the reservation and what became of it, the
+approval as it stood at termination, the usage aggregate with per-counter reporting
+coverage over dispatches, the cumulative cost, and the embedded pricing rows that
+priced it. The trace is what the run did: the model calls; the attempted reads, each
+with its origin (the prefetch, the harness under a registered policy, or a model
+call), its resolved source, its arguments exactly as accepted with no coercion or
+default, one of six outcomes (a record, none, a possibly empty sequence, unreachable,
+a malformed record, or a call refused before any source was asked) and its position in
+the attempt's event order; the final claims in claim-id order; and how they were
+composed, by the rules or by a model, under which policy, with what each admitted
+requirement's span bound to and which admitted statements the view left out.
+
+A model call holds its dispatches, and a dispatch permits at most one send: the SDK
+retries nothing, the graph retries nothing, and a retry is a new dispatch the harness
+makes under a registered bound, so every possible send has its own entry. A dispatch
+keeps what arrived (a complete response, a broken stream, a service error, a client
+error, a refusal before sending, or nothing recorded) and, separately, how the
+measurement attributes it by a registered rule: behaviour, infrastructure, defect or
+unresolved. Keeping the two apart lets a rule change before the freeze without
+rewriting what was observed: a service error the measurement reads as the model's
+behaviour is still recorded as a service error. A call's state is derived from its
+last dispatch and stored nowhere. An intent with no outcome is an unresolved send
+whose usage is unknown, so a call can be answered by a later dispatch while the run's
+cost stays a floor and the earlier allocation of its reservation is kept, and a
+reservation recorded as reconciled over such a history does not construct. A dispatch
+also holds the reads its request rendered, since who asked for a read does not say
+what a model was shown, and the positions of its intent and its outcome, which with
+the operations' positions give one event order, neither clock ordering events. What an
+answer carried is held apart from how the call ended: whether text was present, every
+tool call with one disposition (a read, handled by the harness as a fact batch,
+unparsed, undispatched with a reason, or unresolved), and the fact batches, each
+parsed into refused inputs and admitted or refused facts, or malformed. The raw
+payload of a malformed batch and the raw arguments of an unparsed call are kept with
+the identity of the parser and schema that refused them, the one exception to an
+export holding no model prose, so the classification can be checked from the export
+alone.
+
+Usage is the raw object the response carried, kept verbatim, and the four counters are
+read from it by one function the harness and the evaluator both run, each present only
+when reported: the chat client maps an omitted counter to zero, and whether a cache
+counter is omitted follows the model family and the streaming mode, not the caching
+state. A field the reading has no declaration for, a duplicate that disagrees with its
+twin, a total that is not the sum, or a cache write at a lifetime the one cache-write
+rate does not price makes the usage unfit to price completely; it raises nothing and
+removes nothing. Absent is a different statement from empty throughout: an aggregate
+row exists only for counters some dispatch reported, and a cost is incomplete when a
+rate row under its selection was neither reported nor recorded in the price table as
+meaning nothing billed when absent, that policy being table data a probe earns per
+configuration rather than an assumption in code. An error is not free because it
+returned no usage: a send with no usage has a cost only under a named zero-cost rule.
+Rates and costs are integer pico-dollars per token, exact from a committed table of
+integer rates and verified by the evaluator against the embedded rows, the basis never
+benchmark truth. Nano-dollars, format 1's unit, cannot state rates already paid (Nova
+Pro's published cache-read rate for Frankfurt is 262.5 nano-dollars a token); a test
+holds the published rows and shows each is an integer in the new unit.
+
+Time is stored as inputs and the two durations are functions over them, so no stored
+duration can disagree with the segments it was summed from. Evidenced active time is
+each segment's last durable offset less the approval wait that fell on that segment's
+clock, and elapsed time is the wall clock from admission to the terminal event. A
+segment whose end was never recorded was killed with an unknown tail, and the timing
+is then incomplete, a lower bound. The approval follows the terminal status and not
+the claims: a completed or cap-exhausted attempt holds an approval of its frozen
+review payload (the claims, the composing policy and its author, the requirements
+whose span did not bind, the statements the view left out), an abstention's empty
+payload included. The tie runs one way: a failed attempt states the approval as it
+stood, usually none and a given one when it failed after it (a terminal append that
+failed, an abandonment after a delivered approval), because an export made to deny an
+approval the log holds would have to drop the worker's resume and report the whole wait
+as waiting. The exporter projects the approval
+and does not make it: the rules-only run path applies the automatic policy before the
+export is built. A setting is any JSON value in one spelling, an integer-valued float
+normalized to the integer and a boolean never equal to a number, in a type of its own;
+the generator's provenance type keeps a float as written, because a sealed record
+holds `0.0` and has to decode to the bytes it was sealed with. Within a format, the
+structural fields are required and an incompatible change bumps the version, while the
+extensible blocks follow a declared append-only order so an entry appended later reads
+as absent from an older export.
+
+The validator re-reads the live systems and
 the evaluator does not: that is the difference between them. The evaluator on the
 instance under a second principal was rejected on the executor paragraph's own
 sentence, two principals on one host being two configurations and not a boundary;
@@ -2134,7 +2204,7 @@ are not built yet.
 **Ruled on 2026-10-04 and not yet built: the measurement changes shape before any model
 system is measured.** The paragraphs above describe the evaluator and the committed
 registration as they stand: three systems, fifteen arms, six tuned scenarios, two
-primary comparisons, export format 1. The rulings in the five paragraphs below replace
+primary comparisons. The rulings in the five paragraphs below replace
 those parts as the code for each lands, and this text is rewritten with it. Until then
 the registration stays a draft, and no reported measurement is made under what it
 states today.
@@ -2199,30 +2269,20 @@ printed as such with its reason and supports no statement that one system beats
 another. Under an outage correct whole is unchanged and the cells are descriptive,
 each reported with the number of scenarios rules only does not already get right.
 
-**Export format 2 records what happened apart from how it is read.** A model call
-holds its dispatches, and a dispatch permits at most one send: the SDK retries
-nothing, the graph retries nothing, and a retry is a new dispatch the harness makes
-under a registered bound, so every possible send has its own entry in the log. A
-dispatch keeps what arrived (a complete response, a broken stream, a service error, a
-client error, a refusal before sending, or nothing recorded) and, separately, how the
-measurement attributes it, by a registered rule: behaviour, infrastructure, defect or
-unresolved. An intent with no outcome is an unresolved send whose usage is unknown, so
-a call can be answered by a later dispatch while the run's cost stays a floor and the
-earlier allocation of its reservation is kept. A cost is complete only when every send
-has priced usage or an evidenced rule that it cost nothing. A request the harness
-built wrongly is a defect, named at its dispatch; a missing terminal event is not an
-abandonment, which is an explicit event carrying the ownership it ends. Rates and
-costs are integer pico-dollars per token, because nano-dollars cannot state rates
-already paid (Nova Pro's published cache-read rate for Frankfurt is 262.5 nano-dollars
-a token). Time is two numbers: evidenced active time, summed per process on that
-process's own clock, and elapsed time on the wall clock, with a killed process marked
-as a lower bound. Every tool call the model made has one disposition (a read, handled
-by the harness, unparsed, undispatched with a reason, or unresolved). An export is
-written only at a terminal state and says whether an approval was not requested,
-requested and unapproved, or given, by the automatic evaluation policy or by a person.
-It keeps the raw payload of a fact batch or a tool call that did not parse, the one
-exception to holding no model prose, so the classification can be checked from the
-export alone. Measurement runs are not streamed.
+**Export format 2 is built; what fills it is not.** The format, its codec and the
+twelve hand-built cases it was accepted on are described with the export above. Four
+things it names are still rulings with no code behind them. The attribution table is a
+registered artifact with a digest: a response under a registered stop reason is
+behaviour, a denial, a throttle, a server error and a timeout are infrastructure,
+Nova's model error is behaviour only under the evidenced signature of a tool call cut
+at the output limit, and anything unmatched is infrastructure and flagged; whether an
+observation may be re-dispatched inside the run and whether it makes the run eligible
+for a new attempt are two columns of it. The re-dispatch policy is the harness's: a
+registered maximum per call, the retryable categories, a bounded delay, dispatch
+numbers that survive restarts. The zero-cost rules and the price rows arrive with the
+first live run. And the dispositions a format can state are not yet produced by
+anything: the event log decides what durable evidence tells an undispatched tool call
+from an unresolved one. Measurement runs are not streamed.
 
 **Three grading rules change with it.** Reproduced whole also requires that no claim's
 premise is missing from the report, since a report otherwise gains by omitting a claim
