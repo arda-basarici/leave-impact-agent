@@ -2401,3 +2401,205 @@ so the strict reading of a streamed call's arguments is unproven for one. The of
 of the probes exercises the recorder and the checks against a canned answer and proves
 nothing about a provider. Regenerate the numbers above with
 `LEAVE_IMPACT_SPIKE_CAPTURES=<the captures> python probes/langgraph-spike/read_captures.py`.
+
+## langgraph-spike, the persistence half and the live path — PASS on the six checks it decides; with the provider half, every must-pass row of the spike holds (2026-10-04)
+
+The second half of the LangGraph acceptance spike (`README.md`, "The LangGraph acceptance
+spike"): a minimal graph (the prefetch, a model and tool loop, the approval interrupt, the
+terminal state) on `langgraph` 1.2.12 with the synchronous saver of
+`langgraph-checkpoint-postgres` 3.1.2 on its own autocommit connection, `durability="sync"`,
+no retry policy, `psycopg` 3.3.4, real PostgreSQL 16, and an event log beside the
+framework's checkpoints. The persistence checks run a scripted model over the in-memory
+ports of a throwaway world; the live path runs the same graph on the `eu.` Haiku 4.5
+profile. The code is `probes/langgraph-spike/`; the criteria were committed before any of
+it ran, and each script was committed before the execution cited for it.
+
+**The executions**, all on a clean tree at `f2d1f28`. Their summaries, rows and exports are
+held with the captures, outside the tree.
+
+| check | script | execution | result |
+|---|---|---|---|
+| export from the log | `run_uninterrupted.py` | `20261004T155622Z-442f38` | pass, 16 of 16 |
+| saver durability under a kill | `run_durability.py` | `20261004T155634Z-20d70d` | pass, 2 of 2 |
+| crash matrix, approval, same seam twice | `run_matrix.py` | `20261004T155751Z-9f36a4` | pass, 82 of 82 crossings |
+| invalid tool calls | `run_invalid_calls.py` | `20261004T155651Z-1c48bf` | pass, 3 of 3 cases |
+| live path | `run_live.py` | `20261004T155548Z-925dc1`, digest `cf95c1d3d361b7cf7b8d29f72b90e27d58ca329247a7a3f234dd1c755f978c47` | pass, 7 of 7 |
+| parser fixtures | `run_parser_fixtures.py` | at `f2d1f28` | measured, 17 fixtures |
+| failure-site catalogue | `run_catalogue.py` | at `f2d1f28` | measured, 8 rows |
+
+**The design under test.** A node appends to the event log before it returns and the
+framework writes its checkpoint afterwards, on another thread, so the log is ahead of the
+checkpoint by construction and the log wins. An event's identifier is the run, the attempt,
+the kind and a position, never a random value; an identical append is a no-op and the same
+identifier with different content raises. A node looks its result up in the log before it
+executes. Checkpointed state is a cursor: the completed model turns, where the loop goes
+next, and for each result its position and the digest of its logged event. The model
+request is rebuilt from the log at every model call. The approval node holds only the
+interrupt; whoever delivers the approval appends an event that names the outcome it
+approves, then resumes.
+
+**Must pass.**
+
+- **Export from the log.** One uninterrupted scripted run: 19 events (a segment's start,
+  the run's start, 9 tool results, 3 intents, 3 outcomes, the approval, the terminal
+  state). Both connections closed, the saver's four tables dropped, the events read by a
+  new connection: the format 1 export (59,494 bytes) is built from them alone, and its
+  bytes decode to an equal export that encodes to the same bytes. Because the export is
+  built by the codec's decoder, the round trip alone is a property of the codec, so the
+  content is also held to expectations that do not come from the log: the six prefetch
+  operations equal the rules-only baseline's own run, the three model reads have the
+  outcomes the script must produce, the claims are the script's final 59 and exclude the one
+  an earlier turn carried, each call's usage is its scripted turn's (input 6,200 and output
+  430, each over three calls), and the model was requested once per call.
+- **Saver durability.** A child killed the moment the first `put` returned, and one the
+  moment the first `put_writes` returned: once the dead child's sessions had ended, the
+  store held the checkpoint and the pending write. The saver has no commit of its own; on
+  an autocommit connection its writes are durable when the call returns.
+- **Crash matrix.** The scripted run crosses 82 seams: before and after each of 19 event
+  appends and 21 saver writes (10 checkpoints, 11 tasks' pending writes), and two further
+  points of the approval handoff. For each, a child process was killed at the seam by
+  `os._exit`, no exception raised, and the row went on only if the child exited with the
+  injector's code and its last recorded line was that crossing. At every boundary, read
+  once PostgreSQL showed no session of the dead child, each result any checkpoint or
+  pending write represented was in the log with the same digest, every stored pair checked
+  on its own. A fresh process then recovered each run to its end: the final checkpoint's
+  results equal the logged ones by position, no append by any child repeated an event the
+  log held, and the export's bytes equal the uninterrupted reference's with the duration
+  masked. The duration is positive, equals the per-segment sum the database computes from
+  the raw rows, and each segment's last offset is no later than the last line its own
+  process wrote to the injector's record.
+- **The expected triple.** The rule was written before any run and is applied to what was
+  witnessed at the boundary, the log's intents and outcomes and the injector's requests and
+  returned responses: recovery makes one more dispatch for each of the three calls with no
+  outcome. It held at all 82. At completion 76 crossings show 3 intents, 3 requests and 3
+  responses; 3 show a fourth intent and no fourth request (killed after an intent's
+  append, nothing sent); 3 show a fourth request and response (killed after the model
+  returned and before its outcome was appended, so the response was lost and the call made
+  again). Outcomes are 3 in every row.
+- **Approval.** A kill at each of the handoff's points (before the approval event's
+  commit, after it, before the resume is delivered, inside the node once resumed)
+  recovered with one approval event. After a kill between the commit and the resume, the
+  recovering process resumes with the logged approval and appends nothing.
+- **Same seam twice.** The kill repeated at the same crossing in the recovering process:
+  43 recovered after the second kill, 39 were not reached again because the recovery
+  reused what the log held, none failed. The split moves by one or two between executions,
+  since the order of a task's pending writes against the step's checkpoint is not fixed.
+- **Invalid tool calls.** An unknown tool name and schema-violating arguments each end as
+  an operation with a refused-call outcome and a reason, returned to the model as an error
+  result. Arguments that are not a JSON object have no truthful operation in format 1,
+  whose operations take a JSON object: the call is kept in the logged response as the
+  client returned it, the model call is recorded as tool calls with no operation, and the
+  next request, rebuilt from the log, answers it by its id with an error. In all three
+  cases the injector's record holds six dispatches, the prefetch's, and none after the
+  first model request.
+- **Live path.** One scenario, Haiku 4.5, the thirteen generated tools bound unchanged,
+  choice `auto`, temperature 0, an output limit of 512 tokens, a cap of 6 model calls: 2
+  sends. The first response held 133 characters of text beside two tool calls (`employee`,
+  `team`), both answered by their source; the captured body of the second request holds the
+  first read's exact rendering under its call's id, as a success. The second response
+  ended the run. One approval, 16 events, the export (25,139 bytes) built from the log and
+  round-tripped, each call's usage in the export equal to the usage in the captured
+  response's bytes. Nothing about claim quality is read from this run.
+
+**Measured.**
+
+- **The live ending.** The system prompt asked for a lookup and then the literal `[]`.
+  The model's last response was 1,332 characters ending on `end_turn`, which the claims
+  codec does not accept, so the run completed with outcome `invalid_output` and no claim
+  exported: the format's reading of a response that arrives and states nothing gradable.
+  One run; it says a scripted ending is not reliably followed and nothing about how often.
+- **Live usage**, from the captured bytes. Input 8,628 and 8,925 tokens, output 113 and
+  381, both cache counters an explicit zero on both calls. Request bodies of 29,790 and
+  30,939 bytes; provider latency 2,478 and 4,028 ms; evidenced active duration 9,334 ms.
+  The client's mapped usage did not differ from the raw one here, which with no caching it
+  would not. 102 sends in all across the spike against the cumulative stop at 1,000.
+- **Tool dispatch duplicates.** 73 crossings re-dispatch nothing; 9 re-dispatch one read,
+  the kills before a tool result's append. The log holds one result per read either way;
+  only the injector's record shows the second dispatch.
+- **Recovery, by what the stores held** (single kills): 5 runs restarted with no
+  checkpoint at all; 59 continued from a checkpoint before a node; 9 continued from a step
+  whose writes were saved and whose checkpoint was not; 5 resumed with the logged approval;
+  2 delivered the approval; 2 found the run complete.
+- **Parser fixtures**, crafted Converse responses through the pinned chat client's own
+  parser. An unknown name, schema-violating arguments and a surplus argument arrive as
+  ordinary tool calls, whole or streamed; the tool's own validation refuses each and no
+  port is called. Streamed arguments that are plain text, or a JSON array, arrive as an
+  invalid tool call beside no valid one, under a `tool_use` stop. A streamed argument
+  string cut mid-value (`{"id": "emp_0`) is repaired by the client into a call with
+  `{"id": "emp_0"}` under either stop reason. A streamed tool with no arguments arrives as
+  `{}` whether it sent no fragment, an empty one or `{}`, the same as a call cut at the
+  output limit; only the stop reason tells them apart.
+- **The failure-site catalogue.**
+
+  | site, as induced | the log holds | the checkpoint store holds | recovery |
+  |---|---|---|---|
+  | killed before the first durable event | nothing | no tables | not attempted; nothing in either store shows the attempt existed |
+  | killed after the third prefetch read's append | the starts and 3 tool results | the input checkpoint and the next | continues from the checkpoint, completes |
+  | killed after a model outcome's append, before the node could act on it | the outcome | no trace of it | continues from the checkpoint before the model node, reuses the outcome, no second request |
+  | killed after a model intent's append, never resumed | 2 intents, 1 outcome, no terminal event | 5 checkpoints | not attempted; no export can be built |
+  | the log's connection closed by the process before an append (a control) | 2 tool results, the third never landed | an error write for the prefetch task | `OperationalError` out of the graph; a new process completes |
+  | the log's session terminated by the server before an append | the same | the same | `AdminShutdown` out of the graph; a new process completes |
+  | the newest checkpoint row deleted, on a run paused at the approval (a control) | every result | one checkpoint fewer | continues from the one before, completes |
+  | the newest checkpoint row's stored state overwritten | every result | a row that fails every load, `KeyError: 'v'` | fails with the same error; a run from the start on a new thread completes from the log, adding the approval and the terminal event and no model request |
+
+**What this establishes about the framework.**
+
+- An empty `next` in a state snapshot does not mean the run is complete. The framework
+  lists as next only the tasks with no saved writes, so a step whose writes are saved and
+  whose checkpoint was never written also shows nothing next, and the snapshot's values
+  already show those writes applied. After a kill before the last checkpoint the snapshot
+  holds the terminal result while no durable checkpoint does. Recovery asks whether the
+  snapshot still has tasks before it asks whether the run is complete, and completeness is
+  the log's terminal event agreeing with the checkpoint's digest.
+- `sync` durability waits for a step's checkpoint and not for a task's pending writes, and
+  both are written on a background thread, so a saver seam can fire while the next node is
+  already running. A crossing is therefore named by what was being written, never by its
+  ordinal, and the expected counts are a rule over the witnessed boundary.
+- Nothing needed a private attribute, a patched internal or a fork. The one workaround is
+  the saver subclass that puts a seam before and after `put` and `put_writes`: public API,
+  one module, used by the crash check only.
+
+**What this changes for the harness.**
+
+- A request that must survive a restart is rebuilt from the log, so what the model is shown
+  is in whatever form the log returns. The spike's log holds sorted-key JSON, and the tool
+  result the model received is in that order, not the codec's field order. The rendering
+  the tool registry declares has to be one the log can reproduce byte for byte.
+- A tool call the client could not parse needs a state of its own in the export. The pinned
+  client sends only a message's parsed tool calls, so to answer the call the rebuilt
+  assistant turn carries it as a tool use holding its raw text under one key. That shape
+  was not sent to a provider: the live model made no unparseable call.
+- A tool call under a stop other than `tool_use` is never dispatched, and format 1 records
+  the response as a text. The spike lists such a call as undispatched and fails the live
+  row on one.
+- Format 1 cannot state: an intent and its dispatch attempt, the approval, a second
+  segment's commit and tree state, claims beside a tool call, an unparsed call, an
+  undispatched call, a run that raised and left no terminal event.
+- An attempt's first durable record cannot be the run's own first event: a process killed
+  before it leaves nothing. The record belongs with whatever admits the run.
+- A response returned and lost before its outcome was appended costs a second model call.
+  The log shows it as a second intent; that a response was returned the first time is
+  known only to instrumentation outside both stores.
+- Duration from the log is evidenced active execution, each segment's last durable offset.
+  It leaves out what a killed process did after its last durable event, and it counts the
+  wait for an approval when the process that delivers it is the one that ran the graph.
+
+**The reviews.** Each group of scripts was read by an independent reviewer before its
+commit and again after it. Thirty-six findings were fixed; none reopened the design, and
+most were checks that could not fail for the thing their label said: a duration compared
+with itself, an approval count the primary key made constant, a usage nobody read, a
+merged dictionary that let a right digest cover a wrong one, a refused call counted as a
+read. The checks cited above are the ones that were then shown failing on a planted fault
+or on a hand-built input. The driver's first version read an empty `next` as complete and
+refused eight crossings; the matrix found that, not a review.
+
+**Limits.** One scenario, one script of three turns, a single-task graph: nothing here
+exercises parallel tasks or a sub-graph, and the framework's skipping of a successful
+sibling on resume was not read or tested. The synchronous saver only. One live run of two
+calls, non-streamed, no caching; a live streamed call through the graph, the unparsed
+call's wire shape and a live refusal were not exercised. The classifier never produces a
+refusal: prose that declines reads as invalid output. A second process opening the same
+run at the same moment would take the same segment number; one writer per run is assumed.
+The permission denial of the provider half is still not tested and waits for a restricted
+principal. A pass accepts the pinned versions and the recorded configuration, and a change
+to `langgraph` or the saver reruns the scripted half.

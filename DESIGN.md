@@ -2302,6 +2302,29 @@ the complete export from the event log alone. A failure is attributed first: a
 persistence-design failure fixes the design, which a hand-rolled loop would share; an
 integration failure reopens the framework before any further harness code.
 
+**The acceptance spike passed, so the framework ruling stands for the versions and the
+configuration it ran on (2026-10-04).** Every must-pass check held (`probes/FINDINGS.md`,
+the two `langgraph-spike` entries): forced tool calls and the exact tool-result string
+on both model families, streamed and not; the complete export built from the event log
+with the checkpoint tables dropped; a process killed at each of the 82 seams of a
+scripted run and recovered with the two stores reconciled and one approval event;
+invalid tool calls disposed with no port called; one live run through the whole path.
+Accepted: `langgraph` 1.2.12 with the synchronous PostgreSQL saver on its own
+autocommit connection, `sync` durability, no node retry policy, and `langchain-aws`
+1.8.0 as the chat client. A change to the framework or the saver reruns the scripted
+checks; a change to the client reruns the provider probes and the live path. The
+asynchronous saver is not accepted by this and is a question for the demo milestone's
+entry. Three things the spike showed shape the harness that follows. The log is ahead
+of the checkpoint and wins: a node looks its result up in the log before executing,
+checkpointed state is a cursor of positions and digests, and the model request is
+rebuilt from the log, so what the model is shown has to be a rendering the log
+reproduces byte for byte. Recovery cannot read the framework's state alone: an empty
+list of next tasks also describes a step whose writes are saved and whose checkpoint is
+not, so completeness is the log's terminal event agreeing with the checkpoint. And
+export format 1 has no place for several things a real run produces (an intent with no
+outcome, the approval, a second process's revision, a tool call that did not parse or
+was never dispatched, a run that raised), which the contract step's format answers.
+
 **The investigator's runtime policy keeps the fault triad's meanings.** A missing
 record is evidence; the first unreachable source marks that source unreachable for
 the run and calls stop, facts already read standing; an unreadable leave record

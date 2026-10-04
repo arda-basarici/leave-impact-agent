@@ -7,6 +7,150 @@ decisions it feeds.
 
 ---
 
+## 2026-10-04 — Killing the process at every seam found the one design fault of the framework spike, and it was in the recovery driver's reading of "nothing next"
+
+*M2, the harness phase's first step: the acceptance spike that decides whether the
+agent loop stays on LangGraph. Its crash check kills a scripted run at each point where
+the event log or the checkpoint store is written, recovers it in a fresh process and
+reconciles the two stores. Feeds: the M2 report's harness section, on how recovery
+decides what state a run is in; and a possible post on crash-testing an agent loop.*
+
+**[One scripted scenario of three model turns, a single-task graph, the synchronous
+PostgreSQL saver, `langgraph` 1.2.12 and `langgraph-checkpoint-postgres` 3.1.2. The
+result holds for that configuration. What would revise it: a graph with parallel tasks,
+the asynchronous saver, or a change of either pinned version, each of which reruns the
+matrix.]**
+
+The spike's persistence design keeps two stores. Each node appends what it did to an
+event log before it returns, and the framework writes its checkpoint afterwards, on a
+background thread. The log is therefore ahead of the checkpoint, and the rule is that
+the log wins: a node looks its result up in the log before it executes anything, and
+the checkpoint holds only a cursor. Whether that survives a crash was the question. The
+check was built to be exhaustive about where a crash can fall. A hook sits before and
+after every event append and before and after both of the saver's write methods, plus
+the points of the approval handoff, and a scripted run crosses 82 of them (19 appends
+and 21 saver writes, each before and after, and two further handoff points;
+`probes/langgraph-spike/run_matrix.py`, execution `20261004T155751Z-9f36a4` at commit
+`f2d1f28`). For each crossing a child process is killed there with a hard exit, no
+exception raised, and a second process is started with no knowledge of what happened.
+
+The second process needs a driver: something that reads both stores, decides what
+state the run is in, and takes the next step. Its first version had a branch that
+looked obviously right. If a checkpoint exists and the framework's state snapshot lists
+nothing as next, the run is complete, and the driver checks that the log holds the
+terminal event the checkpoint names. On the first full run of the matrix, a development
+run on uncommitted code, that branch refused eight crossings with the message that the
+checkpoint was complete and the log held no terminal event. Every one of the eight was
+a kill just before a checkpoint's write. The refusal was the driver's own invariant
+doing its job: it would not call a run complete that the log said was unfinished.
+
+The first diagnosis was wrong. The saver writes a task's pending writes as several
+rows, and a kill in the middle of them seemed to explain a run the framework thought
+was finished: some rows saved, the one that names the next node lost. Reading the
+store at the boundary took a few minutes and showed the rows whole, the result and the
+next-node trigger both present, in every repetition. The second description was wrong
+too. It said that after a kill between the input's checkpoint and its pending writes
+the framework has nothing to continue and its own resume returns as if there were
+nothing to do, and a branch was written to restart the run in that case. An
+independent reviewer produced exactly that state, one input checkpoint and no writes,
+and the framework listed its start task as next and carried on. The branch had never
+run in any of the 82 rows. It was removed, and the claim was retracted in the record.
+
+What is true is simpler and is a property of how the framework reports state. A
+snapshot lists as next only the tasks that have no saved writes. A step whose task
+finished and saved its writes, but whose checkpoint was never written, has no such
+task, so it shows nothing next, exactly as a completed run does. The snapshot's values
+make it worse: they show the saved writes as already applied. After a kill just before
+the last checkpoint, the snapshot holds the run's terminal result while no durable
+checkpoint does. A driver that trusts "nothing next" stops there and reports a
+complete run whose final checkpoint does not exist. The fix is an order of questions.
+The driver first asks whether the snapshot still has tasks; if it does, the step's
+writes are saved and unapplied, and continuing the graph applies them and writes the
+checkpoint. Only with no tasks left does it ask about completeness, and completeness
+is the log's terminal event agreeing with the digest the checkpoint holds. With that
+order all 82 crossings recover and reconcile, and 9 of them take the new branch (the
+same execution). The variant that kills a second time at the same crossing in the
+recovering process ended recovered in 43 rows and was not reached again in 39, because
+the recovery reused what the log held; none failed. That split moved by one or two
+between executions, which is expected: the order of a task's pending writes against
+the step's checkpoint is not fixed, and it is the reason a crossing is named by what
+was being written and never by its position in the run.
+
+The reviews around the spike found something different, and the contrast is worth
+keeping. Each group of scripts was read by an independent reviewer before its commit
+and by a second one after it, and nearly all of what they found was a check that could
+not fail for the thing its label said. A duration was compared with the function that
+computed it. An approval count was asserted to be one where the log's primary key made
+any other value impossible. A boundary invariant merged a checkpoint's state and its
+pending writes into one dictionary before comparing digests, so a right digest stored
+later covered a wrong one stored earlier; one independent reader called that helper
+sound before the next caught it. None of these reopened the design. The design fault,
+the driver's reading of an empty list, was found by none of the readers. The matrix
+found it on its first complete run, because it puts a real process in each state and
+asks it to continue.
+
+Figure: the 82 crossings as a grid, seam kind (event append, checkpoint write,
+pending-write set, approval handoff; before and after) against the recovery branch the
+second process took (no checkpoint, continued from a checkpoint, writes saved and
+checkpoint not, resumed with the logged approval, delivered the approval, already
+complete), with the eight cells the first driver refused marked.
+
+## 2026-10-04 — A tool call cut at the output limit reaches the harness looking like a call, and the client repairs what was cut
+
+*M2, the same acceptance spike, its provider half and its parser fixtures: what the
+pinned chat client hands the harness when a model's tool call is truncated, malformed
+or empty. Feeds: the M2 report's harness section, on when a tool call may be
+dispatched; and a possible post on trusting a provider client's tool calls.*
+
+**[Two model families through one pinned client, `langchain-aws` 1.8.0 on
+`langchain-core` 1.6.6, against the `eu.` Haiku 4.5 and Nova Pro profiles; the fixture
+half is crafted responses through the client's parser with no network. The live run
+through the whole graph never had a call cut, so the rule below was not exercised on
+the live path. What would revise it: a client version change, which reruns both.]**
+
+The harness is going to run under a cap, and a run at its cap ends mid-response. So
+the spike asked what a tool call looks like when the output limit cuts it. A forced
+tool call was sent with an output limit of 8 tokens (FINDINGS, "langgraph-spike, the
+provider half", execution `20261004T120535Z-d40f6d` at commit `9d76213`). Haiku, not
+streamed, answered with HTTP 200, the stop reason `max_tokens`, and a tool call whose
+input was an empty object. Streamed, it sent one argument fragment, the empty string,
+and then `max_tokens`; the client reported a tool call with arguments `{}` and listed
+no invalid call. In both cases the message the harness receives holds a tool call. For
+a tool that takes an id, the tool's own validation would refuse the empty arguments.
+For a tool that takes no arguments at all, of which the surface has several, the cut
+call is a complete and valid call. Nova behaves differently: the same request, not
+streamed, came back as HTTP 424 with a `ModelErrorException`, the kind of error a retry
+policy treats as transient, although here it is a deterministic result of the limit.
+
+The parser fixtures were written to see how far the client goes
+(`probes/langgraph-spike/run_parser_fixtures.py` at commit `f2d1f28`). They put a stub
+where the client's network layer is and feed crafted responses through the client's
+own parser, because a bad call injected already parsed would skip whatever the client
+discards or repairs. A streamed argument string cut in the middle of a value,
+`{"id": "emp_0`, came out as a tool call with arguments `{"id": "emp_0"}`, under a
+`max_tokens` stop and under a `tool_use` stop alike. The client completes the JSON. A
+streamed tool with no arguments came out as `{}` whether the stream carried no
+argument fragment, an empty one, or the two characters `{}`, which is byte for byte
+what the cut call above looks like. Arguments that were plain text, or a JSON array
+where an object belongs, were the only shapes the client flagged: they arrive as an
+invalid tool call, beside no valid one.
+
+Neither provider guards the other side either. Asked for a call that breaks the
+tool's schema, both families produced one in 3 of 3 tries, `LIA-42` and `emp_42`
+arriving as an employee id against the schema's pattern (the same provider-half
+execution). The schema sent with the tools is a description the model reads, and what
+comes back is not checked against it.
+
+Three rules went into the harness from this. A tool call is dispatched only when the
+response stopped on `tool_use`; under any other stop reason the calls in the message
+are recorded and not executed, whatever their arguments look like. The tool's own
+validation is the only gate on arguments, since neither the provider nor the client
+is one. And the client's list of tool calls is not evidence of what the model sent:
+where that matters, the captured response is. The spike's graph applies the first
+rule, and beside the export it lists a call that was present and never dispatched as
+its own case, since the current export format can only record such a response as a
+text.
+
 ## 2026-10-04 — A one-day probe before the harness settled who writes the claims, and showed the benchmark is too small to separate the systems it compares
 
 *M2, between the evaluator phase and the harness phase: an outside review of the
