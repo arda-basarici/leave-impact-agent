@@ -43,7 +43,15 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
-from eventlog import MODEL_OUTCOME, RUN_STARTED, EventLog, connect, harness_revision, read_events
+from eventlog import (
+    MODEL_OUTCOME,
+    RUN_STARTED,
+    EventLog,
+    connect,
+    harness_revision,
+    read_events,
+    sorted_canonical,
+)
 from graph import Harness, build, saver_on
 from langchain_aws.chat_models.bedrock_converse import (
     _messages_to_bedrock,  # pyright: ignore[reportPrivateUsage]
@@ -59,7 +67,6 @@ from seamed import counted
 from seams import RECORD_VARIABLE, read_record
 
 from leaveimpact.core.claims_json import encode_claims
-from leaveimpact.core.jsonshape import canonical_json
 from leaveimpact.core.run_export_json import (
     _encode_context,  # pyright: ignore[reportPrivateUsage]
     _encode_operation,  # pyright: ignore[reportPrivateUsage]
@@ -199,7 +206,7 @@ def judged(
                 {
                     "tool_call_id": held[0]["id"] if held else None,
                     "status": "error",
-                    "content": canonical_json(UNPARSED_REPLY),
+                    "content": sorted_canonical(UNPARSED_REPLY),
                 }
             ],
             "the call is listed as unstated by format 1": [

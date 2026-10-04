@@ -25,8 +25,11 @@ report, never read off the message's mapped usage, where the client has already 
 cache counters into the input count and written absent counters as zero (the provider
 half's finding). Tool calls the client could not parse are logged as it returned them.
 
-The rendering of a tool result and of the opening message is the spike's own, the canonical
-JSON of the outcome the export codec writes; the tool registry step owns the real one.
+The rendering of a tool result and of the opening message is the spike's own: the outcome
+as the export codec writes it, in the log's sorted-key form. It cannot be the codec's own
+field order, because the request is rebuilt from the log and the log holds its content with
+sorted keys; a rendering that must survive a restart is whatever form the log returns. The
+tool registry step owns the real rendering and inherits that constraint.
 """
 
 from __future__ import annotations
@@ -39,8 +42,7 @@ from eventlog import MODEL_OUTCOME, TOOL_RESULT, Event, EventLog, digest_of, sor
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 
 from leaveimpact.agent.execution import Executor
-from leaveimpact.core.claims_json import decode_claims
-from leaveimpact.core.jsonshape import canonical_json
+from leaveimpact.core.claims_json import decode_claims, encode_claims
 from leaveimpact.core.run_export_json import (
     _decode_operation,  # pyright: ignore[reportPrivateUsage]
     _encode_operation,  # pyright: ignore[reportPrivateUsage]
@@ -156,7 +158,9 @@ class LoggedExecutor(Executor):
         return operation.outcome
 
 
-def conversation(context: RunContext, events: tuple[Event, ...], turns: int) -> list[BaseMessage]:
+def conversation(
+    context: RunContext, events: tuple[Event, ...], turns: int, system: str = SYSTEM
+) -> list[BaseMessage]:
     """The request the model call after ``turns`` completed turns is asked with, from the log.
 
     The opening message names the leave and ``now`` and carries the prefetch's reads; no
@@ -175,7 +179,7 @@ def conversation(context: RunContext, events: tuple[Event, ...], turns: int) -> 
         "reference_timezone": context.reference_timezone,
         "prefetch": prefetch,
     }
-    messages: list[BaseMessage] = [SystemMessage(SYSTEM), HumanMessage(canonical_json(opening))]
+    messages: list[BaseMessage] = [SystemMessage(system), HumanMessage(sorted_canonical(opening))]
     for turn in range(1, turns + 1):
         response = by_position.get((MODEL_OUTCOME, call_position(turn)))
         if response is None:
@@ -206,11 +210,13 @@ def conversation(context: RunContext, events: tuple[Event, ...], turns: int) -> 
             outcome = result.data["outcome"]
             status = "error" if outcome["kind"] == "refused_call" else "success"
             messages.append(
-                ToolMessage(canonical_json(outcome), tool_call_id=call["id"], status=status)
+                ToolMessage(sorted_canonical(outcome), tool_call_id=call["id"], status=status)
             )
         for call in unparsed:
             messages.append(
-                ToolMessage(canonical_json(UNPARSED_REPLY), tool_call_id=call["id"], status="error")
+                ToolMessage(
+                    sorted_canonical(UNPARSED_REPLY), tool_call_id=call["id"], status="error"
+                )
             )
     return messages
 
@@ -269,7 +275,8 @@ def outcome_content(
 def classified(text: str, stop_reason: str | None, has_tool_calls: bool) -> ModelCallOutcome:
     """How the harness reads a response. Tool calls, the ones the client could not parse
     included, count only under a ``tool_use`` stop, since a call cut at the output limit
-    arrives looking like one (the provider half's finding)."""
+    arrives looking like one (the provider half's finding). Nothing here detects a refusal,
+    so that outcome is never produced: a refusal in prose reads as invalid output."""
     if has_tool_calls and stop_reason == "tool_use":
         return ModelCallOutcome.TOOL_CALLS
     if not text.strip():
@@ -278,9 +285,12 @@ def classified(text: str, stop_reason: str | None, has_tool_calls: bool) -> Mode
 
 
 def carries_claims(text: str) -> bool:
-    """Whether ``text`` is a claims array the claims codec accepts."""
+    """Whether ``text``, apart from surrounding whitespace, is the claims codec's canonical
+    encoding of a claims array. The export reads a response's claims under the same
+    predicate, so a response classified as claims is always one the export can state."""
+    stripped = text.strip()
     try:
-        decode_claims(text)
+        claims = decode_claims(stripped)
     except ValueError:
         return False
-    return True
+    return encode_claims(claims) == stripped

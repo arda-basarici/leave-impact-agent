@@ -54,6 +54,7 @@ from psycopg.conninfo import make_conninfo
 from psycopg.rows import DictRow, dict_row
 from replay import (
     PREFETCH_PREFIX,
+    SYSTEM,
     LoggedExecutor,
     call_position,
     conversation,
@@ -91,15 +92,16 @@ INITIAL: State = {"turn": 0, "route": "", "results": {}}
 
 @dataclass(frozen=True)
 class Harness:
-    """What the nodes work with: the log, the ports, the model, the run's context, and how
-    the usage the provider reported for an answer is read (the scripted model's own report
-    here, the capture recorder's raw response on the live path)."""
+    """What the nodes work with: the log, the ports, the model, the run's context, how the
+    usage the provider reported for an answer is read (the scripted model's own report here,
+    the capture recorder's raw response on the live path), and the system prompt."""
 
     log: EventLog
     ports: ReadPorts
     model: BaseChatModel
     context: RunContext
     usage_of: Callable[[AIMessage], dict[str, int] | None]
+    system: str = SYSTEM
 
 
 def saver_on(
@@ -138,7 +140,7 @@ def build(harness: Harness, saver: PostgresSaver) -> Any:
         call = call_position(turn)
         held = log.find(MODEL_OUTCOME, call)
         if held is None:
-            messages = conversation(harness.context, log.events(), state["turn"])
+            messages = conversation(harness.context, log.events(), state["turn"], harness.system)
             digest = request_digest(messages)
             dispatch = 1 + sum(e.data["call"] == call for e in log.events(MODEL_INTENT))
             log.append(
@@ -152,14 +154,10 @@ def build(harness: Harness, saver: PostgresSaver) -> Any:
             content = outcome_content(call, dispatch, digest, answer, harness.usage_of(answer))
             held = log.append(MODEL_OUTCOME, call, content)
         outcome = ModelCallOutcome(held.data["outcome"])
-        if outcome is ModelCallOutcome.TOOL_CALLS:
-            route = "tools"
-        elif outcome is ModelCallOutcome.CLAIMS:
-            route = "approval"
-        else:
-            raise RuntimeError(
-                f"{call} ended as {outcome.value}, which the spike's loop does not take"
-            )
+        # Any answered response that asks for no read ends the loop: claims, and equally a
+        # text, a refusal or an output the claims codec rejects, each a completed run that
+        # states no claim (the export format's reading of them).
+        route = "tools" if outcome is ModelCallOutcome.TOOL_CALLS else "approval"
         return {"turn": turn, "route": route, "results": {call: held.digest}}
 
     def tools(state: State) -> dict[str, Any]:

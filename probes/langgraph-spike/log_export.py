@@ -17,7 +17,9 @@ and 5):
 - the failure, the cost and each call's fault: absent, which is what a completed run with no
   call priced and no provider fault states;
 - the operations: the ``tool_result`` events in append order;
-- the claims: the last model outcome's, through the claims codec;
+- the claims: the last model outcome's, through the claims codec, when that response
+  carried claims; none when it ended as a text, a refusal or an output the codec rejects,
+  which the format reads as a completed run that states no claim;
 - the duration: evidenced active execution, each segment contributing the offset of its last
   durable event.
 
@@ -28,8 +30,10 @@ What the log holds and format 1 cannot state is read by ``unstated_by_format_1``
 measured cases for the contract step and never exported: the intents and their dispatch
 attempts, the approval, a segment beyond the first with its own commit and tree state,
 claims a response carried beside a tool call, which the format's one outcome per call
-records as tool calls only, and a tool call whose arguments the client could not parse,
-which has no operation because an operation's arguments are a JSON object.
+records as tool calls only, a tool call whose arguments the client could not parse,
+which has no operation because an operation's arguments are a JSON object, and a tool call
+a response held under a stop other than ``tool_use``, which was never dispatched and which
+the format records as a text.
 """
 
 from __future__ import annotations
@@ -69,14 +73,15 @@ class Unstated:
     segments: tuple[dict[str, Any], ...]
     claims_beside_tool_calls: tuple[str, ...]
     unparsed_tool_calls: tuple[dict[str, Any], ...]
+    undispatched_tool_calls: tuple[dict[str, Any], ...]
 
 
 def export_from_log(events: tuple[Event, ...]) -> RunExport:
     """The export of the completed run attempt ``events`` record.
 
     Raises ``ValueError`` when the events are not one completed run: no start, no terminal
-    state, or a last response that carried no claims; and for anything the export's own
-    constructors refuse.
+    state, no model call, or a last response that still asks for a read; and for anything
+    the export's own constructors refuse.
     """
     started = _only(events, RUN_STARTED)
     terminal = _only(events, RUN_TERMINAL)
@@ -85,8 +90,11 @@ def export_from_log(events: tuple[Event, ...]) -> RunExport:
         raise ValueError("the log holds no segment")
     answers = _of(events, MODEL_OUTCOME)
     reads = [event.data for event in _of(events, TOOL_RESULT)]
-    if not answers or ModelCallOutcome(answers[-1].data["outcome"]) is not ModelCallOutcome.CLAIMS:
-        raise ValueError("a completed run's last response carries its claims")
+    if not answers:
+        raise ValueError("a completed run made at least one model call")
+    ending = ModelCallOutcome(answers[-1].data["outcome"])
+    if ending is ModelCallOutcome.TOOL_CALLS:
+        raise ValueError("a completed run's last response asks for no read")
     condition = observed_condition(_decode_operation(read) for read in reads).condition
     record = {
         **started.data["provenance"],
@@ -104,7 +112,7 @@ def export_from_log(events: tuple[Event, ...]) -> RunExport:
     trace = {
         "model_calls": [_model_call(answer.data) for answer in answers],
         "operations": reads,
-        "claims": _json(answers[-1].data["text"]),
+        "claims": _json(answers[-1].data["text"]) if ending is ModelCallOutcome.CLAIMS else [],
     }
     return decode_run_export(
         {
@@ -135,6 +143,17 @@ def unstated_by_format_1(events: tuple[Event, ...]) -> Unstated:
             {"call": answer.data["call"], **call}
             for answer in _of(events, MODEL_OUTCOME)
             for call in answer.data["invalid_tool_calls"]
+        ),
+        tuple(
+            {
+                "call": answer.data["call"],
+                "stop_reason": answer.data["stop_reason"],
+                "tool_calls": len(answer.data["tool_calls"])
+                + len(answer.data["invalid_tool_calls"]),
+            }
+            for answer in _of(events, MODEL_OUTCOME)
+            if ModelCallOutcome(answer.data["outcome"]) is not ModelCallOutcome.TOOL_CALLS
+            and (answer.data["tool_calls"] or answer.data["invalid_tool_calls"])
         ),
     )
 
@@ -195,6 +214,7 @@ def _only(events: tuple[Event, ...], kind: str) -> Event:
 
 
 def _json(text: str) -> Any:
+    text = text.strip()
     value = json.loads(text)
     if canonical_json(value) != text:
         raise ValueError("the claims text is not the claims codec's canonical encoding")
