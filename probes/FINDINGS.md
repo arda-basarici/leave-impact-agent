@@ -2260,3 +2260,144 @@ Not shown by this run, and said so:
   world. The draw reads tier alone, class is sealed, and the job cannot print it.
 - The six ids are the ones the same draw gives on the tests' throwaway world, the
   golden plan laying tiers out by id the same way in both.
+
+## langgraph-spike, the provider half — PASS on the three checks it decides: the capture, the forced-choice matrix, the tool-result string (2026-10-04)
+
+The first half of the LangGraph acceptance spike (`README.md`, "The LangGraph acceptance
+spike", criteria committed at `73ba87f` before the first send): the pinned chat client,
+`langchain-aws` 1.8.0 on `langchain-core` 1.6.6 and `botocore` 1.43.93, against the `eu.`
+Haiku 4.5 and Nova Pro inference profiles in `eu-central-1`, no persistence. Run from a
+workstation under an administrative principal, so nothing here says anything about the
+deployed role's grant. The persistence half (the crash matrix, the approval handoff, the
+export from the log, invalid tool calls, the bounded live path) has not run; the spike's
+verdict waits for it.
+
+**The executions.** Captures are held outside the tree. An execution is cited by its
+identifier and the digest `probes/langgraph-spike/read_captures.py` prints for it, which
+covers its lines of the send record and every capture file.
+
+| execution | script commit | sends | digest |
+|---|---|---|---|
+| `20261004T120535Z-d40f6d` | `9d76213`, clean tree | 49 | `e075e6788d1202d3684be028b8fb2f0bfc43109c713e0e0b21813d40a53e2f60` |
+| `20261004T114954Z-b705ab` | `73ba87f` | 10 | `9463fa3201471894caa36b8ae606bc0dec55afced7b6d082322b49af3d53646b` |
+| `20261004T115021Z-bbc623` | `73ba87f` | 37 | `efec1d62955daaba4b1379d0104b12f929c82a563777a5dc62a3505124eb2138` |
+| `20261004T115351Z-50db7d` | the tree that became `9d76213`, before its commit | 4 | `07f6655ce90290aaabcb78f0279052b278abb0f8b05ffeca503c275efea38ccd` |
+
+The first row is the one the verdicts below are read from: the whole provider half in one
+execution, on the committed script, after the review described at the end. The other three
+ran earlier the same day and agree with it wherever they overlap. 100 sends in all against
+a cumulative stop at 1,000; no execution reached its guard of 150.
+
+**Must pass.**
+
+- **Forced choice: 8 of 8 cells.** Two families, forced by `any` and by the named tool
+  `employee`, streamed and not, all thirteen generated tool definitions bound through
+  `toolConfig`. In every cell the definitions and the choice in the captured request equal
+  what was bound, the send used the operation the cell names, the captured answer stopped
+  on `tool_use` with arguments that parse whole, the client's tool calls equal the captured
+  ones with no invalid call, and the arguments pass the tool's own validation. Every cell
+  called `employee`; a tool with no arguments was not exercised.
+- **Tool result: exact, both families.** A result rendered by the canonical serializer
+  (278 bytes) went back as a string tool message; the captured request holds one tool
+  result whose content is one text block equal to that string.
+- **Capture: every send.** Each of the 49 sends left its request body as sent. 47 have an
+  outcome with a response body that parses or a stream's parsed events opening on
+  `messageStart`; the 2 without one are the read-timeout probe's, unresolved by design.
+  Tracing variables were asserted unset before the first send.
+
+**Measured.**
+
+- **The generated schema, unchanged.** Both families accepted the thirteen definitions as
+  generated, compared for equality with the captured request. Nova documents a narrower
+  top-level object (`type`, `properties`, `required` only); the endpoint took
+  `additionalProperties: false` there all the same. No translation was needed, so every
+  cell above ran on the unchanged surface.
+- **Request digest.** One logical request sent twice has one body digest. The digest is
+  also equal across the two families: the body does not name the model, the URL does, so a
+  request's identity is the body digest with the operation, the profile and the region.
+- **Usage fields** (all four executions). Non-streamed responses carry `inputTokens`,
+  `outputTokens`, `totalTokens`, `cacheReadInputTokens`, `cacheWriteInputTokens`, the last
+  two again as `cacheReadInputTokenCount` and `cacheWriteInputTokenCount`, and
+  `serverToolUsage`; Haiku adds `cacheDetails` on a cache write. Streamed responses carried
+  `inputTokens`, `outputTokens` and `totalTokens` only; no streamed call here involved
+  caching.
+- **Absent against zero** (all four executions, sends that returned usage). With nothing
+  cached, Haiku non-streamed returns both cache counters as explicit zero (33 sends) and
+  Haiku streamed omits them (8); Nova omits them both ways (31 non-streamed, 6 streamed).
+  So whether a cache counter is absent follows the family and the streaming mode, not the
+  caching state. The chat client maps an absent counter to 0, which erases the difference;
+  the captured bytes are the only place it survives.
+- **Caching.** Implicit: no hit in three identical sends for either family, in either of
+  the two executions that ran it. Explicit, with one cache point after a prefix of about
+  7,300 tokens: accepted by both families; in each execution one write, then two reads of
+  the same size (Haiku 7,272, Nova 7,421 in the cited execution). `inputTokens` is the
+  non-cached part only (13 and 8), and the reported total equals the sum of the reported
+  counters in all 24 caching calls. A hit was observed on every explicit repeat here; AWS
+  guarantees none.
+- **Streamed and not, one request.** The input token count is the same both ways: 2,049
+  and 2,052 for Haiku (forced by `any` and by name), 1,672 for Nova, in both executions
+  that ran the matrix. That is the size of the thirteen-tool surface with a one-line
+  prompt.
+- **A forced call cut by the output limit** (an output limit of 8 tokens). Haiku
+  non-streamed: the service returns HTTP 200, `stopReason: max_tokens`, and a tool call
+  whose `input` is `{}`. Haiku streamed: one argument fragment, the empty string, then
+  `max_tokens`; the client reports a tool call with arguments `{}` and no invalid call.
+  Either way a cut call reaches the caller looking like a call, and only the stop reason
+  says otherwise. Nova non-streamed: HTTP 424, `ModelErrorException`, "Model produced
+  invalid sequence as part of ToolUse", no usage returned. Nova streamed: HTTP 200, then a
+  `modelStreamErrorException` before any event.
+- **Schema violation.** Elicited in 3 of 3 tries for both families: `LIA-42` twice and
+  `emp_42` once arrived as the `employee` tool's id, against the schema's pattern. Neither
+  provider enforces the schema on what the model emits; the tool's own validation refused
+  all six.
+- **Response shapes.** Asked for a sentence and two lookups in one reply: Haiku returned
+  one text block beside two tool calls, Nova two tool calls and no text, both stopping on
+  `tool_use`. Turning parallel calls off was not sent: the Converse tool choice documents
+  `auto`, `any` and `tool` and no such switch, and a model-specific request field was not
+  tried.
+- **Serving identity.** A response names neither the region nor the model that served it.
+  The body holds `output`, `stopReason`, `usage` and `metrics`; the headers are
+  `connection`, `content-type`, `date`, `x-amzn-requestid`, and `content-length` or
+  `transfer-encoding`, with `x-amzn-errortype` on an error. For a call through an `eu.`
+  profile the serving region is unknown from the client.
+- **Provoked faults**, Haiku, each with the attempt ceiling it ran under; observed sends
+  never exceeded a ceiling.
+  A read timeout of 0.2 s, ceiling 2: `ReadTimeoutError`, 2 sends, neither answered.
+  Whether the model ran or usage was incurred for them is unknown.
+  A request the SDK's validation refuses, ceiling 1: `ParamValidationError`, no send.
+  A tool choice naming an undefined tool, ceiling 1: `ValidationException`, HTTP 400, one
+  send.
+  Permission denial: not tested under this principal.
+- **Known usage** (all four executions; a sum, the sends that reported the counter).
+  Haiku: input 107,589 (47), output 1,378 (47), cache read 29,084 (39), cache write 14,542
+  (39); 6 sends returned no usage. Nova: input 90,172 (43), output 772 (43), cache read
+  29,680 (6), cache write 14,840 (6); 4 sends returned no usage. The ten without usage are
+  the four timeout sends, the two service rejections and the four cut Nova calls. These are
+  not totals, and no dollar figure is derived here.
+
+**What this changes for the harness.**
+
+- A tool call is dispatched only under a `tool_use` stop. A call cut at the output limit
+  arrives with empty arguments, and for a tool that takes none it would be
+  indistinguishable from a real call. The chat client also repairs cut argument text when
+  it assembles a stream, so its tool-call list alone cannot be trusted either.
+- The tool's own validation is the only gate on arguments.
+- The usage record has to accept the names the raw response returns, the two `...Count`
+  duplicates, `serverToolUsage` and `cacheDetails` among them, and has to be filled from
+  the raw response, since the client's mapping loses absent against zero.
+- Nova's cut call surfaces as a model error from the service, the kind of code a retry
+  policy treats as transient, while here it is a deterministic result of the cap.
+
+**The review.** The probe code was reviewed by an independent read after the first three
+executions, and ten findings were fixed in `9d76213` before the cited execution. The two
+that bore on a verdict: the capture check had passed with unresolved sends of any cause,
+and a streamed forced-choice cell could have passed on arguments the client repaired. The
+four streamed cells of the earlier execution were re-judged from their captures under the
+stricter rule and hold.
+
+**Limits.** A one-line prompt and one tool (`employee`) in the matrix. No
+streamed call with caching. The streamed shape of a tool with no arguments is not known,
+so the strict reading of a streamed call's arguments is unproven for one. The offline mode
+of the probes exercises the recorder and the checks against a canned answer and proves
+nothing about a provider. Regenerate the numbers above with
+`LEAVE_IMPACT_SPIKE_CAPTURES=<the captures> python probes/langgraph-spike/read_captures.py`.
