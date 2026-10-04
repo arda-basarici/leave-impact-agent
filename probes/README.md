@@ -39,3 +39,68 @@ its auth model is the least certain unknown.
 
 The five day-one unknowns pass and the two day-two floors (**instance**,
 **oidc-deploy**) pass. **bedrock** and **slack** may trail into the world milestone.
+
+## The LangGraph acceptance spike (written 2026-10-04, before any of it runs)
+
+The framework choice is provisional on this spike (DESIGN, "The loop runs on LangGraph").
+It has
+two halves. The provider probes run live against the `eu.` Haiku 4.5 and Nova Pro
+inference profiles with no persistence. The persistence checks run a minimal graph
+(prefetch, a model and tool loop, the approval interrupt, the terminal state) on a
+scripted model against real PostgreSQL, with an event log beside the framework's
+checkpoints. The code lives under `probes/`; what is accepted is rewritten into the
+package afterwards.
+
+**What a pass accepts.** The locked versions and the recorded configuration, nothing
+wider: `langgraph` 1.2.12, `langgraph-checkpoint-postgres` 3.1.2, `langchain-aws` 1.8.0,
+`langchain-core` 1.6.6, `botocore` 1.43.93, `psycopg` 3.3.4; the synchronous saver on
+its own autocommit connection; `durability="sync"`; no node retry policy; client retries
+set explicitly with `total_max_attempts`; temperature 0 and an explicit output limit on
+every request. The provider probes run from a workstation under an administrative
+principal, so they prove nothing about the deployed role's grant.
+
+**Captures.** Unlike the probes above, this spike's captures are held outside the tree:
+they contain model requests and responses. A FINDINGS row carries an opaque capture
+identifier, the capture's digest, the script's commit and the dependency versions. The
+scripts reproduce the procedure, not the responses.
+
+**Must pass.** Each is a criterion; a failure is attributed (below) before anything is
+changed.
+
+| check | pass criterion |
+|---|---|
+| **capture** | for every live call the request body is recorded as sent and the stream as parsed events, in order, partial streams and exceptions included, while the client consumes the response normally; tracing to any third party is asserted off before the first send |
+| **forced choice** | all eight cells (two model families × forced by `any` and by a named tool × streamed and not): the response carries a tool call whose arguments reconstruct and pass the tool's own validation. The generated tool definitions are sent unchanged first and compared for equality with the definitions in the captured request; where a family rejects them, the smallest translation that passes is used, captured and named, and the cell is judged on it |
+| **tool result** | a result rendered by the canonical serializer is returned in one exchange, and the captured request body, JSON-decoded, holds that exact string |
+| **crash matrix** | the run executes in a child process that is killed, not interrupted by an exception, at every seam crossing a scripted run makes; seams sit around every event append, both saver write methods and the approval handoff's three points. At each crash boundary, before recovery, every result in a durable checkpoint (pending writes included) already exists in the event log with identical content. After recovery runs to completion the log holds each logical operation exactly once, the final checkpoint's results equal the logged ones by identifier, and the export is byte-equal to an uninterrupted run's with the duration field masked. Per crossing, intents ≥ observed model requests ≥ confirmed responses, with the expected values asserted |
+| **approval** | one approval event per run; a kill at each of the handoff's three points recovers with no second approval event |
+| **same seam twice** | the kill repeated at the same crossing in the recovering process ends recovered or not reached again, never failed |
+| **export from the log** | a completed run's export is built with the checkpoint tables dropped, then encoded, decoded and compared equal through the package's export codec |
+| **invalid tool calls** | an unknown tool name, unparseable arguments and schema-violating arguments each end in an observable disposition, and the injector's dispatch record shows no port was called for any of them |
+| **live path** | one bounded live run (one scenario of a throwaway world, Haiku 4.5, a small call cap) goes through the graph, a tool-result round trip, the approval and persistence, and completes. Nothing about claim quality is read from it |
+
+**Measured.** Any result is a finding, none is a pass or a fail: cache counter states
+per call (present, absent, zero) and hits in a bounded number of repeats; request digest
+stability across two sends of one logical request; whether Nova Pro takes the generated
+schema unchanged; the serving identity a response returns; every usage field the raw
+response carries; tool dispatch duplicates per crossing; the failure-site catalogue
+(what each store holds and what recovery can establish at each site); the shapes of four
+provoked provider faults (a read timeout, a request refused before sending, a request
+AWS rejects, a denial, the last recorded as not run if no restricted principal is
+reachable); how a disposed invalid call is represented; streamed and non-streamed input
+counts side by side; text beside a tool call and several tool calls in one response.
+
+**Attribution.** A failed must-pass check is assigned to one of three layers: this
+project's persistence design, the chat client, the graph framework. Where a failure
+appears does not settle its cause, so a minimal reproduction substitutes one layer with
+the rest held fixed, and the layer whose substitution removes the fault is the one
+reopened. A design fault is fixed here and the check rerun; a client fault reopens the
+client with the framework standing; a framework fault reopens the framework choice
+before any further harness code. A workaround is accepted only on public API, in one
+module, with its own check, and FINDINGS names what it supplies and what it costs to
+maintain; a private attribute, a patched internal or a fork is a fault at its level.
+
+**Guards.** Against a loop bug, not a budget: 150 sends per execution with retries
+counted, a request-size ceiling and an output limit at the send hook, and a cumulative
+stop at 1,000 sends across executions unless deliberately overridden. Every send's raw
+usage is recorded; an unresolved outcome stays unknown and is never counted as zero.
