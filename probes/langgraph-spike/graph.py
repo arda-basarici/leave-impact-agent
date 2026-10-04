@@ -13,7 +13,9 @@ that carries it, and then resumes. ``deliver_approval`` refuses to append unless
 is paused at the approval, so an approval cannot enter the log before the claims it approves
 exist, and the node refuses a resume whose approval event does not name the outcome the log
 holds. The event's identifier is deterministic and so guessable; what binds an approval to
-a run's claims is its content, never its identifier.
+a run's claims is its content, never its identifier. The handoff has three seams: before the
+approval event's commit (the append's own), after the commit and before the resume is
+delivered, and inside the node once the resume has arrived.
 
 Checkpointed state is the cursor and nothing a result could be rebuilt from: the number of
 completed model turns, where the loop goes next, and for every result a node reached its
@@ -35,7 +37,14 @@ from dataclasses import dataclass
 from typing import Annotated, Any, TypedDict
 
 import psycopg
-from eventlog import APPROVAL, MODEL_INTENT, MODEL_OUTCOME, RUN_TERMINAL, EventLog
+from eventlog import (
+    APPLICATION,
+    APPROVAL,
+    MODEL_INTENT,
+    MODEL_OUTCOME,
+    RUN_TERMINAL,
+    EventLog,
+)
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.postgres import PostgresSaver
@@ -53,6 +62,7 @@ from replay import (
     request_digest,
     tool_prefix,
 )
+from seams import cross
 
 from leaveimpact.agent.execution import ReadPorts, run_prefetch
 from leaveimpact.core.run_trace import ModelCallId, ModelCallOutcome, ModelOrigin
@@ -92,15 +102,21 @@ class Harness:
     usage_of: Callable[[AIMessage], dict[str, int] | None]
 
 
-def saver_on(url: str, schema: str) -> PostgresSaver:
-    """The synchronous saver on a connection of its own, its tables created in ``schema``."""
+def saver_on(
+    url: str,
+    schema: str,
+    saver_class: type[PostgresSaver] = PostgresSaver,
+    application: str = APPLICATION,
+) -> PostgresSaver:
+    """The synchronous saver, or the subclass ``saver_class`` of it, on a connection of its
+    own named ``application``, its tables created in ``schema``."""
     connection = psycopg.Connection[DictRow].connect(
-        make_conninfo(url, options=f"-c search_path={schema}"),
+        make_conninfo(url, options=f"-c search_path={schema}", application_name=application),
         autocommit=True,
         prepare_threshold=0,
         row_factory=dict_row,
     )
-    saver = PostgresSaver(connection)
+    saver = saver_class(connection)
     saver.setup()
     return saver
 
@@ -162,6 +178,7 @@ def build(harness: Harness, saver: PostgresSaver) -> Any:
     def approval(state: State) -> dict[str, Any]:
         call = call_position(state["turn"])
         delivered = interrupt({"approves": call, "outcome_digest": state["results"][call]})
+        cross("approval", "node:resumed")
         held = log.find(APPROVAL, "1")
         claims = log.find(MODEL_OUTCOME, call)
         if held is None or claims is None or held.event_id != delivered:
@@ -176,7 +193,7 @@ def build(harness: Harness, saver: PostgresSaver) -> Any:
         return {"results": {APPROVAL: held.digest}}
 
     def terminal(state: State) -> dict[str, Any]:
-        held = log.append(RUN_TERMINAL, "1", {"status": "completed"})
+        held = log.find(RUN_TERMINAL, "1") or log.append(RUN_TERMINAL, "1", {"status": "completed"})
         return {"results": {RUN_TERMINAL: held.digest}}
 
     builder = StateGraph(State)
@@ -227,7 +244,13 @@ def deliver_approval(graph: Any, log: EventLog, thread: str) -> dict[str, Any]:
         )
     asked = paused.interrupts[0].value
     held = log.append(APPROVAL, "1", {"decision": "approved", **asked})
-    return graph.invoke(Command(resume=held.event_id), _config(thread), durability=DURABILITY)
+    return resume_with(graph, held.event_id, thread)
+
+
+def resume_with(graph: Any, approval_event: str, thread: str) -> dict[str, Any]:
+    """Resume the paused graph with an approval event the log already holds."""
+    cross("approval", "delivery:before")
+    return graph.invoke(Command(resume=approval_event), _config(thread), durability=DURABILITY)
 
 
 def _config(thread: str) -> dict[str, Any]:

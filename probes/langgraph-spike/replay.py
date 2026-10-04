@@ -64,6 +64,19 @@ SYSTEM = (
     "given, and end with your claims."
 )
 PREFETCH_PREFIX = "pf-"
+UNPARSED_REPLY = {
+    "kind": "refused_call",
+    "reason": "the arguments of this tool call are not a JSON object",
+}
+"""What a tool call the client could not parse is answered with. No operation is made for
+it, since an operation's arguments are a JSON object and these are not one; the reply is
+rebuilt from the logged response alone, so a restarted process asks the same next request."""
+UNPARSED_ARGUMENTS = "unparsed_arguments"
+"""The one key of the object an unparsed call's raw argument text is replayed under. The
+provider pairs a tool result with a tool use by id and takes a tool use's input as an
+object, and the pinned client sends only a message's parsed tool calls, so the assistant
+turn is rebuilt with the call as a tool use holding its raw text under this key: the reply
+then has a tool use to answer, and the model is shown what it wrote."""
 
 
 class ReplayDiverged(RuntimeError):
@@ -168,12 +181,21 @@ def conversation(context: RunContext, events: tuple[Event, ...], turns: int) -> 
         if response is None:
             raise RuntimeError(f"graph state is at turn {turns}, the log holds no turn {turn}")
         calls = response.data["tool_calls"]
+        unparsed = response.data["invalid_tool_calls"]
         messages.append(
             AIMessage(
                 content=response.data["text"],
                 tool_calls=[
                     {"name": call["tool"], "args": call["arguments"], "id": call["id"]}
                     for call in calls
+                ]
+                + [
+                    {
+                        "name": call["name"],
+                        "args": {UNPARSED_ARGUMENTS: call["args"]},
+                        "id": call["id"],
+                    }
+                    for call in unparsed
                 ],
             )
         )
@@ -181,8 +203,14 @@ def conversation(context: RunContext, events: tuple[Event, ...], turns: int) -> 
             result = by_position.get((TOOL_RESULT, f"{tool_prefix(turn)}{index}"))
             if result is None:
                 raise RuntimeError(f"the log holds no result for tool call {index} of turn {turn}")
+            outcome = result.data["outcome"]
+            status = "error" if outcome["kind"] == "refused_call" else "success"
             messages.append(
-                ToolMessage(canonical_json(result.data["outcome"]), tool_call_id=call["id"])
+                ToolMessage(canonical_json(outcome), tool_call_id=call["id"], status=status)
+            )
+        for call in unparsed:
+            messages.append(
+                ToolMessage(canonical_json(UNPARSED_REPLY), tool_call_id=call["id"], status="error")
             )
     return messages
 
@@ -223,7 +251,9 @@ def outcome_content(
         "role": ROLE,
         "dispatch_attempt": dispatch_attempt,
         "request_digest": digest,
-        "outcome": classified(text, stop_reason, bool(message.tool_calls)).value,
+        "outcome": classified(
+            text, stop_reason, bool(message.tool_calls or message.invalid_tool_calls)
+        ).value,
         "stop_reason": stop_reason,
         "provider_latency_ms": latency[0] if isinstance(latency, list) and latency else latency,
         "usage": usage,
@@ -237,8 +267,9 @@ def outcome_content(
 
 
 def classified(text: str, stop_reason: str | None, has_tool_calls: bool) -> ModelCallOutcome:
-    """How the harness reads a response. Tool calls count only under a ``tool_use`` stop, since
-    a call cut at the output limit arrives looking like one (the provider half's finding)."""
+    """How the harness reads a response. Tool calls, the ones the client could not parse
+    included, count only under a ``tool_use`` stop, since a call cut at the output limit
+    arrives looking like one (the provider half's finding)."""
     if has_tool_calls and stop_reason == "tool_use":
         return ModelCallOutcome.TOOL_CALLS
     if not text.strip():

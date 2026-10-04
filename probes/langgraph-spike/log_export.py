@@ -26,9 +26,10 @@ decoder, so every validating constructor runs on it.
 
 What the log holds and format 1 cannot state is read by ``unstated_by_format_1``,
 measured cases for the contract step and never exported: the intents and their dispatch
-attempts, the approval, a segment beyond the first with its own commit and tree state, and
+attempts, the approval, a segment beyond the first with its own commit and tree state,
 claims a response carried beside a tool call, which the format's one outcome per call
-records as tool calls only.
+records as tool calls only, and a tool call whose arguments the client could not parse,
+which has no operation because an operation's arguments are a JSON object.
 """
 
 from __future__ import annotations
@@ -67,6 +68,7 @@ class Unstated:
     approvals: tuple[dict[str, Any], ...]
     segments: tuple[dict[str, Any], ...]
     claims_beside_tool_calls: tuple[str, ...]
+    unparsed_tool_calls: tuple[dict[str, Any], ...]
 
 
 def export_from_log(events: tuple[Event, ...]) -> RunExport:
@@ -129,6 +131,11 @@ def unstated_by_format_1(events: tuple[Event, ...]) -> Unstated:
         tuple(event.data for event in _of(events, APPROVAL)),
         tuple(event.data for event in _of(events, SEGMENT_STARTED)[1:]),
         beside,
+        tuple(
+            {"call": answer.data["call"], **call}
+            for answer in _of(events, MODEL_OUTCOME)
+            for call in answer.data["invalid_tool_calls"]
+        ),
     )
 
 

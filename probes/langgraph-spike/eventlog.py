@@ -6,9 +6,9 @@ acceptance spike's rulings 1, 3 and 5). A node appends what it did before it ret
 framework writes its checkpoint afterwards on another thread, so the log is ahead of the
 checkpoint by construction and the log wins. Everything an export needs is therefore an
 event: the run's context and provenance (``run_started``), the process that executed a
-stretch of it (``segment_started``, with the harness commit and the tree state), each read
-(``tool_result``), each possible and each confirmed model invocation (``model_intent``,
-``model_outcome``), the approval, and the terminal state.
+stretch of it (``segment_started``, with the process id, the harness commit and the tree
+state), each read (``tool_result``), each possible and each confirmed model invocation
+(``model_intent``, ``model_outcome``), the approval, and the terminal state.
 
 An event's identifier is deterministic: the run, the attempt, the kind and a position the
 writer derives from what it is doing, never a random value, so a replay that reaches the same
@@ -24,7 +24,8 @@ process never records its end, so a run's duration is evidenced active execution
 segment contributes the offset of its last durable event.
 
 The log has its own autocommit connection, apart from the saver's: one append is one
-statement and is durable when it returns. One writer per run is assumed; two processes
+statement and is durable when it returns. The crash check's seams sit on either side of that
+statement, named by the event's kind and position. One writer per run is assumed; two processes
 resuming one run is the event log step's question, not the spike's.
 """
 
@@ -32,6 +33,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import subprocess
 import time
 from dataclasses import dataclass, field
@@ -39,6 +41,7 @@ from pathlib import Path
 from typing import Any
 
 import psycopg
+from seams import cross, witness
 
 REPOSITORY = Path(__file__).resolve().parents[2]
 
@@ -122,9 +125,17 @@ def _git(*arguments: str) -> str:
     return done.stdout.strip()
 
 
-def connect(url: str, schema: str) -> psycopg.Connection[tuple[Any, ...]]:
-    """An autocommit connection whose unqualified names resolve in ``schema``."""
-    return psycopg.connect(url, autocommit=True, options=f"-c search_path={schema}")
+APPLICATION = "leave-impact-spike"
+
+
+def connect(
+    url: str, schema: str, application: str = APPLICATION
+) -> psycopg.Connection[tuple[Any, ...]]:
+    """An autocommit connection whose unqualified names resolve in ``schema``, its session
+    named ``application`` so a parent can tell when a killed child's sessions have ended."""
+    return psycopg.connect(
+        url, autocommit=True, options=f"-c search_path={schema}", application_name=application
+    )
 
 
 def read_events(
@@ -167,7 +178,9 @@ class EventLog:
         earlier = sum(e.kind == SEGMENT_STARTED for e in read_events(connection, run_id, attempt))
         log = cls(connection, run_id, attempt, earlier + 1, time.monotonic_ns())
         log.append(
-            SEGMENT_STARTED, str(log.segment), {"segment": log.segment, **harness_revision()}
+            SEGMENT_STARTED,
+            str(log.segment),
+            {"segment": log.segment, "pid": os.getpid(), **harness_revision()},
         )
         return log
 
@@ -185,6 +198,7 @@ class EventLog:
         digest = digest_of(text)
         identifier = self.event_id(kind, position)
         offset_ms = (time.monotonic_ns() - self.started_ns) // 1_000_000
+        cross(f"{kind}/{position}", "append:before")
         inserted = self.connection.execute(
             f"INSERT INTO {TABLE} (event_id, run_id, attempt, kind, position, segment, "
             "offset_ms, content, content_sha256) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
@@ -201,8 +215,10 @@ class EventLog:
                 digest,
             ),
         ).fetchone()
+        cross(f"{kind}/{position}", "append:after")
         if inserted is None:
             self.held_again.append(identifier)
+            witness("repeated_append", event=identifier)
         held = self.find(kind, position)
         if held is None:
             raise RuntimeError(f"{identifier} was appended and cannot be read back")

@@ -11,9 +11,13 @@ the same answer, in this process or a later one. That is also why equality of tw
 proves nothing about how many times the model ran. Each invocation therefore appends one
 line to a count file, flushed and synced before the answer is returned, so the count survives
 a killed process. The file is the injector's own record: the graph and recovery never read it.
+Under the crash check the injector's record also gets a line when a request arrives and one
+just before its response is returned, so a response that was returned and then lost before
+its outcome was appended is counted as a response.
 
 The message has the shape the pinned Bedrock client gives one, where that differs from the
-plain shape: the content is a list of blocks whenever a tool call is present, and the reported
+plain shape: the content is a list of blocks whenever a tool call is present, a call the
+client could not parse included, whose block holds the raw argument text, and the reported
 latency is a one-item list. A response adapter that handles only the plain shape would pass
 here and fail on the live path.
 
@@ -33,6 +37,7 @@ from langchain_core.callbacks import CallbackManagerForLLMRun
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
+from seams import witness
 
 MODEL_ID = "scripted"
 
@@ -54,10 +59,13 @@ class Turn:
     input_tokens: int
     output_tokens: int
     latency_ms: int
+    unparsed: tuple[tuple[str, str], ...] = ()
+    """Tool calls whose arguments are not a JSON object, each the tool's name and the raw
+    text, as the pinned client hands on a streamed call it could not parse."""
 
     @property
     def stop_reason(self) -> str:
-        return "tool_use" if self.tool_calls else "end_turn"
+        return "tool_use" if self.tool_calls or self.unparsed else "end_turn"
 
 
 class ScriptedChatModel(BaseChatModel):
@@ -82,6 +90,7 @@ class ScriptedChatModel(BaseChatModel):
             raise ValueError(f"the script holds {len(self.turns)} turns, turn {answered + 1} asked")
         turn = self.turns[answered]
         self._count(answered + 1)
+        witness("model_request", turn=answered + 1)
         calls = [
             {"name": call.tool, "args": call.arguments, "id": f"tooluse_{answered + 1}_{index}"}
             for index, call in enumerate(turn.tool_calls, start=1)
@@ -93,9 +102,24 @@ class ScriptedChatModel(BaseChatModel):
             {"type": "tool_use", "name": call["name"], "input": call["args"], "id": call["id"]}
             for call in calls
         ]
+        unparsed = [
+            {
+                "type": "invalid_tool_call",
+                "name": name,
+                "args": raw,
+                "id": f"tooluse_{answered + 1}_u{index}",
+                "error": None,
+            }
+            for index, (name, raw) in enumerate(turn.unparsed, start=1)
+        ]
+        blocks += [
+            {"type": "tool_use", "name": call["name"], "input": call["args"], "id": call["id"]}
+            for call in unparsed
+        ]
         message = AIMessage(
-            content=blocks if calls else turn.text,
+            content=blocks if calls or unparsed else turn.text,
             tool_calls=calls,
+            invalid_tool_calls=unparsed,
             response_metadata={
                 "stopReason": turn.stop_reason,
                 "metrics": {"latencyMs": [turn.latency_ms]},
@@ -106,6 +130,7 @@ class ScriptedChatModel(BaseChatModel):
                 "total_tokens": turn.input_tokens + turn.output_tokens,
             },
         )
+        witness("model_response", turn=answered + 1)
         return ChatResult(generations=[ChatGeneration(message=message)])
 
     def _count(self, turn: int) -> None:
