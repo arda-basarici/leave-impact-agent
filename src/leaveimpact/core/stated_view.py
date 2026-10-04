@@ -47,17 +47,23 @@ to the binding and neither is a second value; they make one fact in the view.
 Every stated fact is dated to the run's day, as every structured one is: the view drops
 what is dated after the day, and a carrier another scenario planted later is still a
 record the run read.
+
+Two more reasons are composition's and are only applied here. Once the join has said which
+requirements stand, their spans are bound and scoped (``scoping``), and a requirement whose
+scope cannot be used is ``withheld`` on a second call: its clause was read with two scopes,
+or its span named a document of several sections. A withheld statement leaves the view like
+any other excluded one, and a reason the join itself found is never replaced by one.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.enums import Source, require_member
 from leaveimpact.core.facts import FactBase, FactKey, FactView
-from leaveimpact.core.predicates import predicate
+from leaveimpact.core.predicates import PredicateName, predicate
 from leaveimpact.core.read_projection import StructuredReads
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.stated import StatedFact
@@ -78,6 +84,11 @@ class Exclusion(StrEnum):
     """A structured field of the same source holds another value, or holds none."""
     CONFLICTING_CARRIERS = "conflicting_carriers"
     """Carriers of one source were read as stating different values."""
+    CONFLICTING_SCOPES = "conflicting_scopes"
+    """Its clause's requirement was stated with spans that bound two artifacts."""
+    SCOPE_WITHOUT_ONE_SECTION = "scope_without_one_section"
+    """Its span bound a document that does not hold exactly one section, so nothing says
+    which section the requirement governs."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,10 +105,19 @@ class Excluded:
                 f"{self.fact.predicate.value} holds a set: nothing stated of it is "
                 f"{self.reason.value}"
             )
+        if self.reason in SCOPE_REASONS and self.fact.predicate is not PredicateName.REQUIRES:
+            raise ValueError(
+                f"only a requirement has a scope: {self.fact.predicate.value} is not "
+                f"{self.reason.value}"
+            )
 
 
 _OF_ONE_VALUE = frozenset({Exclusion.CONFLICTING_READINGS, Exclusion.CONFLICTING_CARRIERS})
 """The reasons that exist only for a predicate that holds one value."""
+
+SCOPE_REASONS = frozenset({Exclusion.CONFLICTING_SCOPES, Exclusion.SCOPE_WITHOUT_ONE_SECTION})
+"""The reasons composition gives a requirement whose scope cannot be used; the join applies
+them and never finds them."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,11 +137,16 @@ class StatedView:
     excluded: tuple[Excluded, ...]
 
 
-def view_with_stated(reads: StructuredReads, admitted: Iterable[StatedFact]) -> StatedView:
-    """The view of ``reads`` with the ``admitted`` statements joined in.
+def view_with_stated(
+    reads: StructuredReads,
+    admitted: Iterable[StatedFact],
+    withheld: Mapping[StatedFact, Exclusion] | None = None,
+) -> StatedView:
+    """The view of ``reads`` with the ``admitted`` statements joined in, less the ``withheld``
+    ones, each left out under the scope reason given for it unless the join has its own.
 
-    Raises nothing for what a model stated. With no statement the view is the projection's
-    own.
+    Raises nothing for what a model stated; ``ValueError`` for a withheld reason that is
+    not a scope's, the caller's error. With no statement the view is the projection's own.
 
     >>> from datetime import date
     >>> from leaveimpact.core.read_projection import project_reads
@@ -135,6 +160,12 @@ def view_with_stated(reads: StructuredReads, admitted: Iterable[StatedFact]) -> 
             (_key(stated), stated.value, stated.carrier, stated.target_span), stated
         )
     reasons = _exclusions(reads, tuple(distinct.values()))
+    joined = frozenset(distinct.values())
+    for stated, reason in (withheld or {}).items():
+        if reason not in SCOPE_REASONS:
+            raise ValueError(f"{reason.value} is the join's to find, not a caller's to give")
+        if stated in joined:
+            reasons.setdefault(stated, reason)
     included = tuple(stated for stated in distinct.values() if stated not in reasons)
     excluded = tuple(
         Excluded(stated, reasons[stated]) for stated in distinct.values() if stated in reasons
@@ -190,4 +221,4 @@ def _exclusions(
     return reasons
 
 
-__all__ = ["Excluded", "Exclusion", "StatedView", "view_with_stated"]
+__all__ = ["SCOPE_REASONS", "Excluded", "Exclusion", "StatedView", "view_with_stated"]
