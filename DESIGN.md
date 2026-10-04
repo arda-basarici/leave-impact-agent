@@ -2098,6 +2098,39 @@ scenarios share the organization and the generator's conventions with the others
 this is held out from scenario-specific tuning and not an independent sample; a world
 from another seed is the stronger design and is reopened if the budget leaves room.
 
+**What a model states exists as types in `core`, ahead of any system that states it.**
+A stated fact is a predicate from a closed list of five, a subject and a value in the
+registry's shapes, the comment or the section that carries it, a verbatim quote, and for
+a requirement the span inside the quote that names its target. Everything that needs no
+read is held at construction: the carrier's source is inside the predicate's evidence
+domain, a fact about a clause is carried by that clause, the span is a substring of the
+quote. An input that breaks one of these never becomes a stated fact and is kept as raw
+text with a reason. Three statuses are three types, so none can be read as another: what
+was emitted, whether it was admitted, and where a requirement's span was placed. The
+anchor table moved out of the benchmark's prose vocabulary into `core`, since the harness
+may not import the benchmark and has to ask the same question of a quote that the
+generator asks of a draft. The two readings differ in the first person: the generator
+knows the fact it required and drops the author's group, and the quote guard keeps every
+group and lets the author's be met by "I", so the same words in another person's comment
+anchor nobody. The table's digest is a function of its rows, spellings and presence rule,
+for the registration to record.
+
+**The view a run concludes from is a total function of what was admitted.** The fact base
+refuses one source holding two values for a single-valued fact, and a statement's source
+is its carrier's, so a comment read as naming an owner other than the ticket's own field
+would have stopped the harness on a model's misreading. No sealed world plants such a
+pair; a misreading can make one. Within one source the join therefore settles it: a
+statement quoted from a record the run's own reads returned two ways is left out, as
+nothing else is concluded from that record; two readings of one carrier that differ are
+both left out; a statement against a structured field of the same source loses to the
+field; and carriers of one source that still disagree are all left out. Each stays
+admitted in the trace with the reason it was left out. Statements that agree stay as
+corroboration, and a disagreement between sources is still the authority table's. A
+stated fact is dated to the run's day like every fact a run derives: the view drops what
+is dated later, and a carrier planted for a later scenario is still a record the run
+read. The gates that admit a statement and the composer that turns the view into claims
+are not built yet.
+
 **Ruled on 2026-10-04 and not yet built: the measurement changes shape before any model
 system is measured.** The paragraphs above describe the evaluator and the committed
 registration as they stand: three systems, fifteen arms, six tuned scenarios, two
