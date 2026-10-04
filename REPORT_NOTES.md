@@ -7,6 +7,110 @@ decisions it feeds.
 
 ---
 
+## 2026-10-04 — A model's misreading would have crashed the harness through the fact base, and both reviews of the fix found a further hole in it
+
+*M2, the contract step's first build group: the types in `core` for facts a model states
+from free text (the stated fact, the anchor table, the span binding, the view the rules
+conclude from). Feeds: the M2 report's harness section, on what separates a model's
+behaviour from a failure of the system that measures it; and the methodology section, on
+reading a ruling against the code before building on it.*
+
+**[Types and pure functions only. No model system ran through them and nothing here is a
+measurement. The counts are from one throwaway world (seed 23, the earlier shape
+probe's cached one) and the replays are of answers saved by two development probes.
+What would revise it: the composer that consumes these types, which is not built, and
+the first run of a real system over them.]**
+
+The contract was fully ruled before this group started: a model states facts with a
+carrier and a verbatim quote, the shared rules conclude from them, and two readings of
+one passage that disagree are both left out. The group's design pass was meant to be
+mechanical, a reading of the existing code to decide where each type goes. It turned up
+two places where a ruling met the code and lost.
+
+The first was in the fact base. It refuses, at construction, one source holding two
+values for a single-valued predicate of one subject. That refusal is right for a sealed
+world, where it means the generator contradicted itself. A stated fact takes its source
+from its carrier, the tracker for a ticket comment and the corpus for a document
+section. So a comment read as naming an owner other than the ticket's own owner field is
+the tracker holding two values, and two runbook sections read as naming two owners is
+the corpus holding two. The ruling covered two readings of one carrier and said nothing
+about these. Built as ruled, the harness would have raised a `ValueError` in the middle
+of a run because a model misread a sentence.
+
+Whether that could happen on the worlds the generator makes was a one-minute count, and
+the count is what shaped the fix (`probe_stated_collisions.py`, among the stream's
+scratch scripts). The world plants no single-valued fact in a comment at all, and of 21
+subject-and-predicate pairs carried by sections none holds two values. No sealed world
+can trigger the refusal. Only a model can, or filler nobody vetted. That made the
+question one of classification: a misreading is behaviour to export and grade, and a
+crash would have filed it as a harness failure. The ruling that followed made the view a
+total function of what was admitted. Within one source a structured field stands against
+a statement that contradicts it, and statements from several carriers of one source that
+disagree are all left out, each still admitted in the trace with the reason. Between
+sources nothing changed; a runbook against the tracker is still the authority table's.
+
+The second was a date. The ruling said a stated fact's observation date is its
+carrier's. Every other fact a run derives is dated to the run's day, the evaluator
+re-dates sealed prose facts the same way, and the view drops anything dated later. On
+the same world all 29 prose carriers are dated after the earliest scenario's day (the
+same script). A scenario's own facts never sit on a later carrier, so on those the two
+datings agree. They part on a carrier planted for a later scenario, which the live
+systems return to an earlier run all the same: dated by its carrier, the fact leaves the
+harness's view while the oracle, which reads runtime truth, keeps it. The sentence was
+amended to the run's day. Its intent, that the model never states a date, was untouched.
+
+The build then took six commits (`6dfaf19` to `bc7a387`), and before review the built
+code was shown real model output. The span binding replayed over the 182 rows saved by
+the span probe's second pass placed 141, left 38 unplaced and 3 ambiguous, with no
+difference from what the probe's own scratch function had recorded (`replay_binding.py`).
+The anchor guard replayed over the shape probe's saved answers agreed with the rough
+version it replaced where it mattered: 420 of 420 and 134 of 134 planted facts pass at
+the two smaller corpus sizes, and all 29 inventions are refused at the largest
+(`replay_anchor_guard.py`). At the largest size it passes 107 of 126 where the rough
+check passed 120. Sixteen of the difference cannot be constructed, each because the model
+gave a document id where a section id belongs, which the contract refuses before any
+anchor is looked at and the rough check had ignored. Three are refused for an anchor, and
+they are one case: an ownership statement in a comment on the ticket itself, "I own this
+work on the Payments API component". The table asks an ownership quote to name the
+ticket by title, and a comment on its own ticket never writes its title. This was kept as
+a known cost. No conclusion moves, since the ticket's owner field is the same source's
+record and stands whatever the comment says; the cost is a higher refusal count on text
+the generator did not plant.
+
+Then the fix was reviewed twice and each review found a hole in it. A reviewer run
+inside the build session, read-only and asked to break the code, compared the moved
+anchor table with the old one over a 643-probe battery and threw 30,000 random sets of
+statements at the join; the bare fact base refused 19,418 of them and the join raised on
+none (both are the reviewer's own scratch runs and are not in the repository). Totality
+held. What it found was a case the three rules did not reach. A ticket returned with
+different contents by two reads is withdrawn by the projection and derives nothing, its
+owner field included. A statement quoted from that ticket's own comment then had no
+field to contradict, entered the view as the tracker's value and outranked the runbook
+by authority. The crash had been closed and a wrong conclusion left open beside it. A
+fourth reason now leaves out any statement whose carrier the reads withdrew, checked
+before the other three.
+
+The external read of the six commits found the other. The join counted a statement once
+by subject, predicate, value and carrier. Two admitted requirements of one clause that
+agree on the count and the criteria and name different target spans therefore collapsed
+to whichever the model emitted first, with nothing recorded. The span is the only input
+the binding has, so a requirement's scope followed emission order. It was reproduced
+both ways round and fixed by putting the span in the statement's identity (`4628239`):
+both statements reach the binding and make one fact in the view. Nothing consumed the
+join's output yet, so this was caught as a defect of the foundation and never as a wrong
+report. What several spans of one clause should compose to, an overrun beside a placed
+one or two placed on two artifacts, is not ruled and waits for the composer.
+
+All three came from one place. Each rule was written for the sealed world's guarantees
+and then handed inputs a model can produce and a generator cannot: two values from one
+source, a statement from a record the run cannot vouch for, one requirement emitted
+twice with different scopes. The join's tests now run every subset of a small pool of
+statements, the check that would have caught the first of them before a reviewer did.
+
+Figure: a three-row table of the holes, each with the input a model can produce, what
+the code did with it before, and what it does now (crash; wrong authority; scope by
+emission order).
+
 ## 2026-10-04 — Killing the process at every seam found the one design fault of the framework spike, and it was in the recovery driver's reading of "nothing next"
 
 *M2, the harness phase's first step: the acceptance spike that decides whether the
