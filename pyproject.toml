@@ -24,6 +24,11 @@ dev = [
     "ruff",
     "vcrpy>=8.3.0",
 ]
+harness = [
+    "langchain-aws>=1.8.0",
+    "langgraph>=1.2.12",
+    "langgraph-checkpoint-postgres>=3.1.2",
+]
 
 [build-system]
 requires = ["uv_build>=0.11.26,<0.12.0"]
