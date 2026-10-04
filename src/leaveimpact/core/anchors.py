@@ -23,6 +23,19 @@ harness knows only what a model stated, so ``quote_anchors`` keeps every group a
 the author's with the first-person words: a quote from the author's comment that names
 nobody and says "I" still anchors the author, and one that says neither anchors no one.
 
+They differ in a second respect, the count of one. A clause that asks for one person
+seldom writes the number: "needs an engineer with Go experience", "the contact named in
+the account notes needs React experience". The generator never asks a model to write a
+requirement, so its reading has no such text to meet. A harness meets it in every clause of
+that kind: with the count anchored, the guard refused 15 of the 17 requirements a truthful
+reading of the suite's throwaway world holds, every one a count of one (the composer's
+tests hold the count). So ``quote_anchors`` asks a requirement of one for its criteria
+only, and a requirement of two or more for its number as well. A clause that names no
+number asks for one, which is the plan rule's own default. The guard stays lexical: a
+model that reads "two engineers" as one is admitted and graded wrong, and a requirement
+of one with no criterion has no anchor at all, so what it composes is judged like any
+other constraint and admission says nothing of whether it is right.
+
 A ``Lexicon`` is the lookup both read display forms through, and where its forms come from
 is the caller's and is the boundary that matters. The generator builds one from its
 organization. A harness builds one from the records its run read and from the public skill
@@ -199,6 +212,11 @@ this name and not ``word_pattern``'s code, so whoever changes how a spelling is 
 renames the rule with it, and the pinned digest in the tests is what makes that a decision."""
 
 
+REQUIREMENT_OF_ONE = "count_not_anchored_in_a_quote"
+"""The name of the quote guard's rule for a requirement that asks for one person, held by the
+table's digest as the presence rule's name is."""
+
+
 def anchor_table_digest() -> str:
     """The SHA-256 of the table as data: the rows, the spellings, the first-person words and
     the presence rule, in canonical JSON. What a registration records beside the fact
@@ -213,6 +231,7 @@ def anchor_table_digest() -> str:
         "employment_forms": {kind.value: list(forms) for kind, forms in EMPLOYMENT_FORMS.items()},
         "first_person": list(FIRST_PERSON),
         "presence": PRESENCE_RULE,
+        "requirement_of_one": REQUIREMENT_OF_ONE,
     }
     return hashlib.sha256(canonical_bytes(table)).hexdigest()
 
@@ -292,9 +311,11 @@ def quote_anchors(
     """The anchors the quote given for ``statement`` must contain, when the quote's carrier was
     written by ``author`` (a comment's; ``None`` for a section).
 
-    Every group of the table stays. A group that names ``author``, as the subject or as the
-    value, also admits the first-person words, so "I have run Kafka for years" anchors its
-    author and the same words in anyone else's comment anchor nobody. ``ValueError`` when
+    Every group of the table stays, but for the count of a requirement that asks for one
+    person, which such a clause seldom writes. A group that names ``author``, as the
+    subject or as the value, also admits the first-person words, so "I have run Kafka for
+    years" anchors its author and the same words in anyone else's comment anchor nobody.
+    ``ValueError`` when
     the lexicon holds no form for something the statement names: the caller's lexicon is
     what the run read, and a statement about a thing it did not read is refused there.
 
@@ -307,20 +328,22 @@ def quote_anchors(
     (('Deniz Kaya', 'I', 'my', 'me'), ('Kafka',))
     """
     groups = _groups(statement, lexicon)
+    subject, name, value = statement
+    if isinstance(value, Requirement):
+        # A requirement names no person, so it has no first person, whoever wrote it. The
+        # count's group is the first; one person is asked for without a number.
+        return groups[1:] if value.count == 1 else groups
     if author is None:
         return groups
-    subject, name, value = statement
     named: tuple[object, ...]
     match ANCHOR_ROWS[name]:
         case AnchorShape.SUBJECT_AND_ENTITY:
             named = (subject, value)
         case AnchorShape.SUBJECT_AND_SKILL:
             named = (subject, None)
-        case AnchorShape.NAMED_ENTITY:
+        case AnchorShape.NAMED_ENTITY | AnchorShape.REQUIREMENT:
+            # A requirement returned above; its row is named here for the match to be whole.
             named = (value,)
-        case AnchorShape.REQUIREMENT:
-            # A requirement names no person: a count and criteria have no first person.
-            return groups
     return tuple(
         (*group, *FIRST_PERSON) if who == author else group
         for group, who in zip(groups, named, strict=True)
@@ -357,6 +380,7 @@ __all__ = [
     "GIVEN_NAME_KIND",
     "NUMBER_WORDS",
     "PRESENCE_RULE",
+    "REQUIREMENT_OF_ONE",
     "SKILL_KIND",
     "Anchor",
     "AnchorShape",

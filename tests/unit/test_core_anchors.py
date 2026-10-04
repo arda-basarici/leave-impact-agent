@@ -29,7 +29,14 @@ from leaveimpact.core.anchors import (
     record_forms,
 )
 from leaveimpact.core.entities import CalendarEvent, Leave, Team
-from leaveimpact.core.enums import LeaveKind, LeaveStatus
+from leaveimpact.core.enums import EmploymentType, LeaveKind, LeaveStatus
+from leaveimpact.core.ids import SkillId
+from leaveimpact.core.values import (
+    Criterion,
+    EmploymentTypeCriterion,
+    Requirement,
+    SkillCriterion,
+)
 from leaveimpact.world import prose as world_prose
 from tests.unit import world_fixture as w
 
@@ -146,5 +153,72 @@ def test_the_tables_digest_is_pinned() -> None:
     # A changed row, spelling, first-person word or presence rule is a changed registration:
     # this value moves only with a deliberate change to the guard.
     assert anchor_table_digest() == (
-        "108ae9635f548534d78624b6c241ce194b2d07609fabecfdbd2ef4b07cc76350"
+        "29679e4f58a0ade632c1c3a29dcdb6da0a01467e92b482595140aa28967bafbb"
     )
+
+
+# --- A requirement of one: the quote guard asks for its criteria, not its number --------------
+
+
+def requirement(count: int, *skills: str, employee: bool = False) -> Requirement:
+    criteria: list[Criterion] = [SkillCriterion(SkillId(skill)) for skill in skills]
+    if employee:
+        criteria.append(EmploymentTypeCriterion(EmploymentType.EMPLOYEE))
+    return Requirement(count, tuple(criteria))
+
+
+def unanchored(value: Requirement, quote: str) -> tuple[tuple[str, ...], ...]:
+    """The groups the quote guard misses in ``quote`` for a clause stated to require ``value``."""
+    return missing_anchors(quote, quote_anchors((CLAUSE, PredicateName.REQUIRES, value), LEXICON))
+
+
+def test_a_requirement_of_one_is_anchored_by_its_criteria_with_an_article_or_without() -> None:
+    one_with_kafka = requirement(1, "kafka")
+    # The two ways a clause asks for one person, neither writing the number.
+    assert unanchored(one_with_kafka, "The release needs an engineer with Kafka experience.") == ()
+    assert unanchored(
+        one_with_kafka, "The contact named in the Northwind account notes needs Kafka experience."
+    ) == ()
+    # Every criterion still has to be named: the count is the only group set aside.
+    assert unanchored(one_with_kafka, "The release needs an engineer.") == (("Kafka",),)
+    assert unanchored(
+        requirement(1, "kafka", employee=True), "The release needs Kafka experience."
+    ) == (("employee", "employees"),)
+
+
+def test_a_requirement_of_two_or_more_is_anchored_by_its_number_as_well() -> None:
+    two = requirement(2, "kafka")
+    assert unanchored(two, "The release needs two engineers with Kafka experience.") == ()
+    assert unanchored(two, "The release needs 2 engineers with Kafka experience.") == ()
+    assert unanchored(two, "The release needs engineers with Kafka experience.") == (
+        ("2", "two"),
+    )
+
+
+def test_one_stated_from_a_text_that_says_two_passes_the_guard_and_is_still_wrong() -> None:
+    # Presence, never entailment: the guard cannot see that the clause asks for two. The
+    # statement is admitted and graded as the model's wrong reading.
+    assert unanchored(
+        requirement(1, "kafka"), "The release needs two engineers with Kafka experience."
+    ) == ()
+
+
+def test_a_requirement_of_one_with_no_criterion_has_no_anchor() -> None:
+    assert quote_anchors((CLAUSE, PredicateName.REQUIRES, requirement(1)), LEXICON) == ()
+    # It asks for no more than an unconstrained impact does, and a constraint composed from
+    # it is still a claim a grader judges: admission says nothing of whether it is right.
+    assert quote_anchors((CLAUSE, PredicateName.REQUIRES, requirement(3)), LEXICON) == (
+        ("3", "three"),
+    )
+
+
+def test_the_generators_reading_of_a_requirement_keeps_the_count_at_one() -> None:
+    fact = Fact(
+        CLAUSE,
+        PredicateName.REQUIRES,
+        requirement(1, "kafka"),
+        EvidenceRef(Source.CORPUS, CLAUSE),
+        date(2026, 3, 1),
+    )
+    assert lexical_anchors(fact, LEXICON) == (("1", "one"), ("Kafka",))
+    assert core_anchors.REQUIREMENT_OF_ONE == "count_not_anchored_in_a_quote"
