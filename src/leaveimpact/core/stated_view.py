@@ -39,6 +39,11 @@ Nothing is dropped silently. Every admitted statement is in ``included`` or in
 fourth fact about a statement, after emission, admission and placement, and is decided
 only here.
 
+What is counted once is a statement repeated whole: the same subject, predicate, value,
+carrier and target span, whatever its quote. Two requirements of one clause that agree on
+the count and the criteria and name different spans both stay, since each span is an input
+to the binding and neither is a second value; they make one fact in the view.
+
 Every stated fact is dated to the run's day, as every structured one is: the view drops
 what is dated after the day, and a carrier another scenario planted later is still a
 record the run read.
@@ -101,7 +106,10 @@ class StatedView:
 
     ``view`` is what the rules are asked over. ``included`` are the statements in it and
     ``excluded`` the ones left out, each in the order admitted, a statement admitted twice
-    from one carrier counted once.
+    from one carrier counted once. A requirement admitted with two target spans is two
+    statements here and one fact in the view: the span is the binding's only input, so a
+    span dropped at the join would make a requirement's scope depend on the order the model
+    emitted in. What two spans of one clause bind to together is composition's to resolve.
     """
 
     view: FactView
@@ -121,9 +129,11 @@ def view_with_stated(reads: StructuredReads, admitted: Iterable[StatedFact]) -> 
     >>> (joined.view.facts, joined.included, joined.excluded)
     ((), (), ())
     """
-    distinct: dict[tuple[FactKey, FactValue, EntityRef], StatedFact] = {}
+    distinct: dict[tuple[FactKey, FactValue, EntityRef, str | None], StatedFact] = {}
     for stated in admitted:
-        distinct.setdefault((_key(stated), stated.value, stated.carrier), stated)
+        distinct.setdefault(
+            (_key(stated), stated.value, stated.carrier, stated.target_span), stated
+        )
     reasons = _exclusions(reads, tuple(distinct.values()))
     included = tuple(stated for stated in distinct.values() if stated not in reasons)
     excluded = tuple(

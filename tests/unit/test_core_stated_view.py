@@ -16,12 +16,13 @@ from leaveimpact.core import (
     Source,
     conflicts_in,
 )
+from leaveimpact.core.binding import bind_span, titled_artifacts
 from leaveimpact.core.entities import Document, DocumentSection
 from leaveimpact.core.enums import DocumentKind
 from leaveimpact.core.ids import clause_id, document_id, skill_id
 from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.refs import clause_ref
-from leaveimpact.core.stated import StatedFact
+from leaveimpact.core.stated import PlacementState, StatedFact
 from leaveimpact.core.stated_view import Excluded, Exclusion, view_with_stated
 from tests.unit import stated_fixture as f
 from tests.unit.reads_fixture import Recorder, Systems
@@ -225,3 +226,45 @@ def test_an_exclusion_holds_a_reason_its_fact_can_have() -> None:
     with pytest.raises(ValueError, match="has_skill holds a set"):
         Excluded(SKILL, Exclusion.CONFLICTING_CARRIERS)
     Excluded(SKILL, Exclusion.CARRIER_WITHDRAWN)
+
+
+def test_a_requirement_stated_with_two_spans_keeps_both_whatever_the_order() -> None:
+    # The span is the binding's one input. Dropped at the join, the requirement's scope would
+    # follow the order the model emitted in.
+    text = f"The {f.TITLE} release and {f.REGIONAL_TITLE} need two people with Kafka experience."
+    plain = StatedFact(PredicateName.REQUIRES, f.CLAUSE_REF, TWO_KAFKA, f.CLAUSE_REF, text, f.TITLE)
+    regional = StatedFact(
+        PredicateName.REQUIRES, f.CLAUSE_REF, TWO_KAFKA, f.CLAUSE_REF, text, f.REGIONAL_TITLE
+    )
+    for order in ((plain, regional), (regional, plain)):
+        joined = view_with_stated(f.reads_of(), order)
+        assert joined.included == order
+        assert joined.excluded == ()
+        assert len(joined.view.facts_about(f.CLAUSE_REF, PredicateName.REQUIRES)) == 1
+
+
+def test_a_span_that_ran_long_does_not_hide_the_right_one_stated_after_it() -> None:
+    quote = f"The {f.TITLE} release needs two people"
+    overrun = StatedFact(
+        PredicateName.REQUIRES, f.CLAUSE_REF, TWO_KAFKA, f.CLAUSE_REF, quote, f"{f.TITLE} release"
+    )
+    right = StatedFact(
+        PredicateName.REQUIRES, f.CLAUSE_REF, TWO_KAFKA, f.CLAUSE_REF, quote, f.TITLE
+    )
+    joined = view_with_stated(f.reads_of(), (overrun, right))
+    assert joined.included == (overrun, right)
+    titled = titled_artifacts(f.reads_of())
+    spans = [stated.target_span for stated in joined.included]
+    assert spans == [f"{f.TITLE} release", f.TITLE]
+    assert [bind_span(span, f.CLAUSE_TEXT, titled).state for span in spans if span] == [
+        PlacementState.UNPLACED,
+        PlacementState.PLACED,
+    ]
+
+
+def test_the_same_span_stated_twice_in_other_words_is_still_one_statement() -> None:
+    first = requires(TWO_KAFKA)
+    again = StatedFact(
+        PredicateName.REQUIRES, f.CLAUSE_REF, TWO_KAFKA, f.CLAUSE_REF, f"The {f.TITLE}", f.TITLE
+    )
+    assert view_with_stated(f.reads_of(), (first, again)).included == (first,)
