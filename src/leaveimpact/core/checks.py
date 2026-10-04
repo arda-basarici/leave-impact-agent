@@ -20,6 +20,16 @@ oracle expects uncovered or unknown or the report concludes so (the fifth build 
 first ruling); an unconditional form of it lived here until that step's close and had
 no caller.
 
+An uncovered action beside a viable assessment is incoherent only when nothing in the
+report could ask for more than one person. Under a clause asking for two, one viable
+candidate and no second is uncovered by the plan rule, and no other action is right; so
+the finding is made only when no constraint claim of the report could apply to the impact,
+by the same conservative reading used for an unknown's clause: the artifact itself, or any
+component when the artifact is a work item, that uncertainty never being read as "none
+applies" (the contract step's ruling on the chain check). Whether the viable candidates
+meet a constraint's count is the replay's question, which holds the clause's requirement;
+a report states which clause applies and never its number.
+
 An unknown assessment's unknown claims are checked for shape, not for truth: each is
 about the candidate, or about the impact's artifact, or about a clause, on a predicate
 the viability rule reads for that subject — and a clause only when the report's own
@@ -76,7 +86,8 @@ def chain_problems(claims: Sequence[Claim]) -> tuple[str, ...]:
     at least one unknown claim and only from ones shaped as the rule emits; an unknown
     action derives from at least one unknown assessment for its impact; an assign
     action's assignees each hold a viable assessment for its impact; an uncovered action
-    holds no viable assessment for its impact; a conflict resolved to the system of
+    holds no viable assessment for its impact, unless a constraint of the report could
+    apply to that impact; a conflict resolved to the system of
     record's observation under the rule it cites; every impact has exactly one coverage
     action and every action an impact.
     """
@@ -89,7 +100,7 @@ def chain_problems(claims: Sequence[Claim]) -> tuple[str, ...]:
     for assessment in assessments:
         problems.extend(_unknown_assessment_problems(assessment, by_id, constraints))
     for action in actions:
-        problems.extend(_action_problems(action, assessments, by_id))
+        problems.extend(_action_problems(action, assessments, by_id, constraints))
     for claim in claims:
         if isinstance(claim, SourceConflict):
             problems.extend(_conflict_problems(claim))
@@ -151,6 +162,7 @@ def _action_problems(
     action: CoverageAction,
     assessments: Sequence[CandidateAssessment],
     by_id: Mapping[ClaimId, Claim],
+    constraints: Sequence[Constraint],
 ) -> list[str]:
     for_impact = {
         assessment.employee_id: assessment
@@ -170,7 +182,11 @@ def _action_problems(
                 for who, assessment in for_impact.items()
                 if assessment.verdict is Verdict.VIABLE
             )
-            if viable:
+            governed = any(
+                _could_apply(constraint.applies_to, action.impact_key.artifact)
+                for constraint in constraints
+            )
+            if viable and not governed:
                 return [
                     f"{action.claim_id} is uncovered while {', '.join(viable)} "
                     f"{'is' if len(viable) == 1 else 'are'} assessed viable"

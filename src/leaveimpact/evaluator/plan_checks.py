@@ -20,6 +20,11 @@ assignee set is truth, so nothing is compared with an expected set.
   from the fact base, since a report states which clause applies and never transcribes
   it, which is why the name does not say "internal". A report that missed a constraint
   fails validity and stays consistent; one that contradicts a clause it cited fails here.
+  What it reports is the count: an assignee the report does not assess viable is the
+  chain's finding and is not repeated here, since this check goes uncheckable when a cited
+  clause cannot be read and the chain reads the report alone and always runs (the contract
+  step's ruling on the doubled diagnostic). The count still counts viable assignees only,
+  so an invalid assignee and a count it leaves unmet are two findings, one in each family.
   A cited clause whose content cannot be read (the fact base holds no requirement for it,
   or its source is unreachable) makes the check *uncheckable* for that action, whatever
   kind of action it is: the clauses are resolved before the plan rule is asked anything,
@@ -43,8 +48,8 @@ nobody is left out, since the gap is then the omission's only record.
 
 So each omission has one home: a probed candidate of an expected impact unassessed is a
 recall miss; anyone else unassessed where everyone is called for is a coverage gap; an
-assignee with no reported assessment is a consistency finding; an unknown assessment with
-no unknown claim behind it is a chain finding.
+assignee with no viable assessment in the report is a chain finding; an unknown assessment
+with no unknown claim behind it is a chain finding.
 
 A finding is a small envelope: the check family, the impact it concerns when it concerns
 one, the people it names, and the result itself, the plan rule's typed violation where it
@@ -78,6 +83,10 @@ from leaveimpact.world.scenario import Scenario
 
 UNIVERSAL = (CoverageActionKind.UNCOVERED, CoverageActionKind.UNKNOWN)
 """The outcomes that conclude something about every candidate."""
+
+_THE_CHAINS = frozenset({ViolationKind.MISSING_ASSESSMENT, ViolationKind.NON_VIABLE_ASSIGNEE})
+"""The plan rule's violations about one assignee, which the chain check reports from the
+report alone; the declared-constraint findings leave them to it."""
 
 
 class CheckFamily(StrEnum):
@@ -241,6 +250,7 @@ def _declared_constraints(
         findings.extend(
             CheckFinding(CheckFamily.DECLARED_CONSTRAINT, impact, violation)
             for violation in plan.violations
+            if violation.kind not in _THE_CHAINS
         )
     return findings
 

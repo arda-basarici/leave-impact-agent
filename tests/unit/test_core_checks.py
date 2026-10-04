@@ -143,8 +143,16 @@ def test_an_assign_names_only_the_viable_and_an_uncovered_names_nobody_viable(
     viable = replace(unskilled, verdict=Verdict.VIABLE, reasons=())
     uncovered = replace(action, action=CoverageActionKind.UNCOVERED)
     with_viable = _swap(_swap(sample_claims, unskilled, viable), action, uncovered)
-    assert chain_problems(with_viable) == (
-        "claim_007 is uncovered while emp_031 is assessed viable",
+    # The report cites a clause that could apply to the impact, and a clause may ask for
+    # more people than are viable: uncovered beside one viable candidate is then what the
+    # plan rule itself concludes, and the chain says nothing.
+    assert any(isinstance(claim, Constraint) for claim in with_viable)
+    assert chain_problems(with_viable) == ()
+    # With no constraint that could apply, one viable candidate is enough and uncovered
+    # contradicts the report's own assessment.
+    ungoverned = tuple(claim for claim in with_viable if not isinstance(claim, Constraint))
+    assert "claim_007 is uncovered while emp_031 is assessed viable" in chain_problems(
+        ungoverned
     )
     # The weak form, by design: uncovered with no viable assessment in the report passes.
     assert chain_problems(_swap(sample_claims, action, uncovered)) == ()

@@ -18,7 +18,10 @@ whole, through the oracle's plan findings. A structurally invalid report fails: 
 that cannot be read stated no action.
 
 *Reproduced whole* asks whether a run's own reads support its whole report: a structurally
-valid report, every claim's replay standing reproduced. It needs no expected answer, so it
+valid report, every claim's replay standing reproduced and no claim resting on a premise
+the report does not hold. Without the second half a report gains by leaving out a claim
+that would have been contradicted: the claims that rested on it stay reproduced, each with
+a missing premise nothing read (the contract step's ruling). It needs no expected answer, so it
 applies to a limited run as it does to a graded one. A structurally invalid report fails.
 An empty report is outside it: there is nothing to reproduce, which is a different
 statement from everything reproduced, so it is counted apart and does not pass end to end.
@@ -64,7 +67,10 @@ def _reproduced_whole(evaluation: Evaluation) -> bool | None:
         return False
     if not grounding.claims:
         return None
-    return all(claim.standing is Standing.REPRODUCED for claim in grounding.claims)
+    return all(
+        claim.standing is Standing.REPRODUCED and not claim.missing_premises
+        for claim in grounding.claims
+    )
 
 
 CORRECT_WHOLE = Check("correct_whole", _correct_whole)

@@ -195,10 +195,13 @@ def test_an_assignee_outside_the_organization_is_named_as_a_stranger_once(
     assert named.people == (stranger,) and named.result == (
         "emp_999 is assigned and is not in the organization"
     )
-    # The report holds no assessment of the stranger either, which is its own inconsistency.
-    assert ViolationKind.MISSING_ASSESSMENT in kinds(
-        coherence(oracle, outside), CheckFamily.DECLARED_CONSTRAINT
-    )
+    # The report holds no assessment of the stranger either, which is its own inconsistency:
+    # the chain's finding, made once, and not repeated by the declared-constraint check.
+    within = coherence(oracle, outside)
+    assert [f.result for f in within if f.family is CheckFamily.CHAIN] == [
+        f"{action.claim_id} assigns emp_999 without a viable assessment"
+    ]
+    assert kinds(within, CheckFamily.DECLARED_CONSTRAINT) == []
 
 
 def test_an_assignee_the_report_never_assessed_is_incoherent_and_not_invalid(
@@ -211,12 +214,15 @@ def test_an_assignee_the_report_never_assessed_is_incoherent_and_not_invalid(
     # The person is viable in truth, so the plan is valid.
     assert oracle_checks(oracle, silent) == ()
     findings = coherence(oracle, silent)
-    # Nobody the report assessed is assigned, so the plan names no viable person either.
+    # Two findings, one in each family. The assignee with no assessment is the chain's, said
+    # once. And nobody the report assessed viable is assigned, so the count is unmet: the
+    # declared-constraint check's, which still counts viable assignees only.
     assert kinds(findings, CheckFamily.DECLARED_CONSTRAINT) == [
-        ViolationKind.MISSING_ASSESSMENT,
-        ViolationKind.INSUFFICIENT_CARDINALITY,
+        ViolationKind.INSUFFICIENT_CARDINALITY
     ]
-    assert CheckFamily.CHAIN in families(findings)
+    assert [f.result for f in findings if f.family is CheckFamily.CHAIN] == [
+        f"{action_on(report, truth).claim_id} assigns {assignee} without a viable assessment"
+    ]
 
 
 def test_a_cited_clause_nobody_can_read_makes_the_check_uncheckable_and_never_a_pass(
