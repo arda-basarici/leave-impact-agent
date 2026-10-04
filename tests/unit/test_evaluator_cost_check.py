@@ -11,11 +11,13 @@ import pytest
 
 from leaveimpact.core import (
     AbsentMeaning,
+    AttributionKind,
     Cost,
     ModelCall,
     ModelCallId,
     PricingBasis,
     PricingRow,
+    RefusedBeforeSend,
     ReportedUsage,
     RunExport,
     UsageAggregate,
@@ -27,9 +29,11 @@ from tests.unit.export_fixture import (
     BASIS,
     DIGEST,
     DURATION_MS,
+    ROLE,
     SELECTION,
     agent_export,
     answered_call,
+    dispatch,
     failed_call,
     provider_failed_export,
     run_export,
@@ -114,6 +118,18 @@ def test_a_run_that_called_no_model_or_priced_nothing_has_no_cost_and_no_finding
         check = check_cost(export)
         assert (check.cost, check.findings) == (None, ())
         assert check.usage == export.record.usage
+    # The two absent costs differ in what was possibly sent: nothing, and one unpriced send.
+    assert check_cost(run_export(world, scenario)).possible_sends == 0
+    assert check_cost(provider_failed_export(world, scenario)).possible_sends == 1
+    refused = ModelCall(
+        ModelCallId("call-1"),
+        ROLE,
+        (dispatch(1, RefusedBeforeSend("ParamValidationError"), AttributionKind.DEFECT),),
+        None,
+    )
+    never_sent = check_cost(agent_export(world, scenario, (refused,)))
+    assert (never_sent.cost, never_sent.findings, never_sent.possible_sends) == (None, (), 0)
+    assert (never_sent.usage.model_calls, never_sent.usage.dispatches) == (1, 1)
 
 
 def test_the_usage_layer_finds_a_counter_or_a_call_count_that_is_not_the_traces(

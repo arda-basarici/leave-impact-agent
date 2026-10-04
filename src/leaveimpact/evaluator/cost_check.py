@@ -89,10 +89,14 @@ class CostCheck:
     recomputed cost in the trace's order, the sum over its dispatches that stand for a
     send, ``None`` for a call none of whose sends could be priced. ``cost`` is the sum over
     every such dispatch of the run, ``None`` when none could be priced, complete only when
-    every one was.
+    every one was. ``possible_sends`` is how many dispatches stand for a send or may, which
+    is what tells the two meanings of an absent cost apart: with none, nothing was sent and
+    nothing is owed (no model called, or every request refused before sending); with some,
+    a send went unpriced and the cost is unknown.
     """
 
     usage: UsageAggregate
+    possible_sends: int
     duration_ms: int
     call_costs: tuple[tuple[ModelCallId, Cost | None], ...]
     cost: Cost | None
@@ -145,7 +149,12 @@ def check_cost(export: RunExport) -> CostCheck:
     if cost != record.cost:
         findings.append(CostFinding(CostFindingKind.CUMULATIVE_COST_DIFFERS))
     return CostCheck(
-        usage, evidenced_active_ms(record.timing), tuple(call_costs), cost, tuple(findings)
+        usage,
+        len(recomputed_costs),
+        evidenced_active_ms(record.timing),
+        tuple(call_costs),
+        cost,
+        tuple(findings),
     )
 
 

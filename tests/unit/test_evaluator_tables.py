@@ -10,7 +10,11 @@ from dataclasses import replace
 import pytest
 
 from leaveimpact.core import (
+    AttributionKind,
     CandidateAssessment,
+    ModelCall,
+    ModelCallId,
+    RefusedBeforeSend,
     ReportedUsage,
     RunCondition,
     ScenarioId,
@@ -59,9 +63,11 @@ from leaveimpact.world.scenario import Tier
 from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
 from tests.unit.export_fixture import (
     BASIS,
+    ROLE,
     SELECTION,
     agent_export,
     answered_call,
+    dispatch,
     provider_failed_export,
 )
 from tests.unit.report_fixture import of_type, without
@@ -519,3 +525,18 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
     assert whole.pico_usd == ledger.pico_usd + 2_000 * 1_100_000 + 100 * 5_500_000
     tiers = [cell for cell in cells_of(agent) if cell.stratum.kind is StratumKind.TIER]
     assert sum(cost_ledger(cell).pico_usd for cell in tiers) == ledger.pico_usd
+
+    # A run whose every request was refused before sending sent nothing: a complete cost of
+    # zero, where a send that timed out is a floor.
+    refused = ModelCall(
+        ModelCallId("call-1"),
+        ROLE,
+        (dispatch(1, RefusedBeforeSend("ParamValidationError"), AttributionKind.DEFECT),),
+        None,
+    )
+    never_sent = evaluate_run(world, agent_export(world, one, (refused,)))
+    (agent,) = arms(world, [never_sent], agents)
+    unsent = cost_ledger(cell_of(agent))
+    assert (unsent.runs, unsent.pico_usd, unsent.floors) == (1, 0, 0)
+    (agent,) = arms(world, [failed_first], agents)
+    assert cost_ledger(cell_of(agent)).floors == 1

@@ -238,6 +238,7 @@ inventory[].cost.duration_ms
 inventory[].cost.findings
 inventory[].cost.findings[].at
 inventory[].cost.findings[].kind
+inventory[].cost.possible_sends
 inventory[].cost.usage
 inventory[].cost.usage.counters
 inventory[].cost.usage.dispatches

@@ -40,7 +40,8 @@ never being paired slot to slot.
 retries included, with the median and the range per run and the number of runs whose cost
 is a floor: a run with a send the provider reported no usage for, one nobody can prove
 was not sent, or one the embedded rates could not price. Costs are in pico-dollars and a
-duration is evidenced active time. A run that called no model cost nothing, and that is a
+duration is evidenced active time. A run with no possible send, because it called no model
+or every request was refused before sending, cost nothing, and that is a
 complete
 cost of zero. The whole's ledger also holds the arm's attempts that no scenario of the
 world could place: they belong to no tier and were paid for all the same.
@@ -518,11 +519,12 @@ def _pico_usd(attempt: Evaluation) -> int:
 
 
 def _cost_is_complete(attempt: Evaluation) -> bool:
-    """Whether the attempt's recomputed cost is a total: every call priced in full, or no
-    model called at all."""
+    """Whether the attempt's recomputed cost is a total: every possible send priced in
+    full, or no possible send at all (no model called, or every request refused before it
+    was sent)."""
     check = attempt.metrics.cost
     if check.cost is None:
-        return check.usage.model_calls == 0
+        return check.possible_sends == 0
     return check.cost.complete
 
 
