@@ -456,6 +456,16 @@ def test_a_model_originated_read_and_the_tool_call_that_asked_for_it_name_each_o
         _trace(operations=(_operation(origin=ModelOrigin(CALL)),))
     with pytest.raises(ValueError, match="became operation op-2, which the trace does not hold"):
         _trace(calls=(_asking(),))
+    # The two name one tool: a call of one routed to a read of another is not a history.
+    searched = Answer(False, (ToolCall("tu_1", "search", AsOperation(OperationId("op-2"))),), ())
+    misrouted = _call(
+        "call-1", "investigator",
+        _dispatch(observation=CompleteResponse("tool_use", 840, 0)), answer=searched,
+    )  # fmt: skip
+    with pytest.raises(
+        ValueError, match="is a call of 'leave' and the tool call that became it names 'search'"
+    ):
+        _trace(calls=(misrouted,), operations=(_operation(), read))
     with pytest.raises(ValueError, match="became operation op-1, which no model call asked for"):
         _trace(calls=(_asking("op-1"),))
     twice = Answer(

@@ -55,10 +55,10 @@ REFUSED = RefusedCallOutcome("not an id of that kind")
 Read = tuple[Origin, str, Source | None, Mapping[str, object], Outcome]
 
 
-def asking(*operations: OperationId) -> ModelCall:
+def asking(*operations: Operation) -> ModelCall:
     """The first model call, answered with one tool call for each of ``operations``."""
     asked = tuple(
-        ToolCall(f"tu_{number}", "a_tool", AsOperation(operation))
+        ToolCall(f"tu_{number}", operation.tool, AsOperation(operation.id))
         for number, operation in enumerate(operations, start=1)
     )
     return answered_call(1, None, None, stop_reason="tool_use", answer=Answer(False, asked, ()))
@@ -73,7 +73,7 @@ def discipline_of(*reads: Read, calls: tuple[ModelCall, ...] | None = None) -> S
         )
         for number, (origin, tool, source, arguments, outcome) in enumerate(reads, start=1)
     )
-    asked = tuple(op.id for op in operations if isinstance(op.origin, ModelOrigin))
+    asked = tuple(op for op in operations if isinstance(op.origin, ModelOrigin))
     held = (asking(*asked), *(() if calls is None else calls)) if asked or calls else ()
     return source_discipline(RunTrace(held, operations, (), COMPOSITION))
 

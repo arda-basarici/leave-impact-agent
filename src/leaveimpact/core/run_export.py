@@ -94,7 +94,8 @@ class RunTrace:
     operations are in position order, and so are the calls' first intents. A read the
     model asked for and the tool call that asked for it name each other: the operation's
     origin is a call this trace holds, whose answer has exactly one tool call that became
-    that operation, and the read was logged after that call's answer. An input read of a
+    that operation and names the tool the operation is a call of, and the read was logged
+    after that call's answer. An input read of a
     dispatch is an operation the trace holds, logged before the dispatch's intent.
 
     What the record block claims about the trace (the cumulative usage, the observed
@@ -147,6 +148,7 @@ class RunTrace:
 
     def _require_tool_calls_and_operations_to_agree(self) -> None:
         asked: dict[OperationId, ModelCallId] = {}
+        named: dict[OperationId, str] = {}
         for call in self.model_calls:
             if call.answer is None:
                 continue
@@ -157,6 +159,7 @@ class RunTrace:
                 if operation in asked:
                     raise ValueError(f"operation {operation} is the disposition of two tool calls")
                 asked[operation] = call.id
+                named[operation] = tool_call.name
         for operation in self.operations:
             origin = operation.origin
             if not isinstance(origin, ModelOrigin):
@@ -175,6 +178,11 @@ class RunTrace:
                 raise ValueError(
                     f"operation {operation.id} answers model call {origin.model_call!r}, "
                     "whose answer holds no tool call that became it"
+                )
+            if named[operation.id] != operation.tool:
+                raise ValueError(
+                    f"operation {operation.id} is a call of {operation.tool!r} and the tool "
+                    f"call that became it names {named[operation.id]!r}"
                 )
         held = set(operation.id for operation in self.operations)
         for operation, call_id in asked.items():
