@@ -112,6 +112,7 @@ def _dispatch(
         cost=cost,
         zero_cost_rule=None,
         allocation=0,
+        allocation_tokens=0,
     )
 
 

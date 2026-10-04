@@ -1595,7 +1595,12 @@ behaviour is still recorded as a service error. A call's state is derived from i
 last dispatch and stored nowhere. An intent with no outcome is an unresolved send
 whose usage is unknown, so a call can be answered by a later dispatch while the run's
 cost stays a floor and the earlier allocation of its reservation is kept, and a
-reservation recorded as reconciled over such a history does not construct. A dispatch
+reservation recorded as reconciled over such a history does not construct. The
+allocation is two numbers, pico-dollars and the worst-case tokens counted against the
+run's cap, because money does not determine a token count when the rates differ by
+class and the cap is in tokens. An error keeps the SDK's retry count and the provider's
+request id where its response carried them, as a complete response does: several sends
+beneath one dispatch show there or nowhere. A dispatch
 also holds the reads its request rendered, since who asked for a read does not say
 what a model was shown, and the positions of its intent and its outcome, which with
 the operations' positions give one event order, neither clock ordering events. What an

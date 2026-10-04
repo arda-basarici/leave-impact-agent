@@ -112,6 +112,9 @@ ADMITTED = datetime(2026, 10, 4, 12, 0, 0, tzinfo=UTC)
 DURATION_MS = 1_200
 REQUEST = RequestIdentity(DIGEST, "Converse", "eu.model", "eu-central-1", None)
 ALLOCATION = 5_000_000_000
+ALLOCATION_TOKENS = 4_608
+"""The worst case one dispatch is counted for against the token cap: its input and
+its output limit."""
 FIRST_READ = 10_001
 """Where the fixture logs its first read."""
 
@@ -194,6 +197,7 @@ def dispatch(
         cost=cost,
         zero_cost_rule=None,
         allocation=ALLOCATION,
+        allocation_tokens=ALLOCATION_TOKENS,
     )
 
 

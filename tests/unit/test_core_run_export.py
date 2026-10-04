@@ -174,6 +174,7 @@ def _dispatch(
         cost=PRICED if answered else None,
         zero_cost_rule=None,
         allocation=5_000_000_000,
+        allocation_tokens=4_608,
     )
 
 

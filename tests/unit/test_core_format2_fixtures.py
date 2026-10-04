@@ -166,6 +166,12 @@ def test_an_unresolved_dispatch_leaves_the_cost_a_floor_and_the_reservation_kept
     assert (lost.number, again.number, lost.segment, again.segment) == (1, 2, 1, 2)
     assert lost.attribution.kind is AttributionKind.UNRESOLVED and lost.outcome_position is None
     assert (lost.usage, lost.cost) == (None, None) and lost.allocation == cases.ALLOCATION
+    # The token cap is auditable from the export: what the answered dispatch reported, plus
+    # the worst case the unresolved one was counted for, against the cap the run ran under.
+    assert again.usage is not None
+    known = sum(value for _, value in again.usage.counters.counters)
+    assert (known, lost.allocation_tokens) == (150, cases.ALLOCATION_TOKENS)
+    assert known + lost.allocation_tokens <= export.record.caps.token_cap
     assert the_call(export).state is CallState.ANSWERED
     record = export.record
     assert (record.usage.model_calls, record.usage.dispatches) == (1, 2)
@@ -189,6 +195,12 @@ def test_the_nova_signature_is_behaviour_and_another_model_error_is_infrastructu
     assert isinstance(second.observation, ServiceError)
     assert first.observation.code == second.observation.code == "ModelErrorException"
     assert first.observation.message_signature == cases.NOVA_CUT
+    # Neither error was retried beneath its dispatch, and each names its own send.
+    assert (first.observation.sdk_retries, second.observation.sdk_retries) == (0, 0)
+    assert (first.observation.provider_request_id, second.observation.provider_request_id) == (
+        "req-nova-1",
+        "req-nova-2",
+    )
     assert (first.attribution.kind, first.attribution.rule) == (
         AttributionKind.BEHAVIOUR,
         "nova-cut-tool-use",

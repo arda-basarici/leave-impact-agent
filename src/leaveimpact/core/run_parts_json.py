@@ -194,6 +194,7 @@ _DISPATCH_FIELDS = (
     "cost",
     "zero_cost_rule",
     "allocation_pico_usd",
+    "allocation_tokens",
 )
 
 
@@ -221,6 +222,7 @@ def _encode_dispatch(dispatch: Dispatch) -> JsonObject:
         "cost": encode_cost(dispatch.cost),
         "zero_cost_rule": dispatch.zero_cost_rule,
         "allocation_pico_usd": dispatch.allocation,
+        "allocation_tokens": dispatch.allocation_tokens,
     }
 
 
@@ -260,6 +262,7 @@ def _decode_dispatch(item: object) -> Dispatch:
         cost=decode_cost(field_of(data, "cost")),
         zero_cost_rule=optional_string_field(data, "zero_cost_rule"),
         allocation=integer_field(data, "allocation_pico_usd"),
+        allocation_tokens=integer_field(data, "allocation_tokens"),
     )
 
 
@@ -271,9 +274,15 @@ def _encode_observation(observation: Observation) -> JsonObject:
                 "stop_reason": observation.stop_reason,
                 "provider_latency_ms": observation.provider_latency_ms,
                 "sdk_retries": observation.sdk_retries,
+                "provider_request_id": observation.provider_request_id,
             }
         case BrokenStream():
-            return {"kind": "broken_stream", "reason": observation.reason}
+            return {
+                "kind": "broken_stream",
+                "reason": observation.reason,
+                "sdk_retries": observation.sdk_retries,
+                "provider_request_id": observation.provider_request_id,
+            }
         case ServiceError():
             return {
                 "kind": "service_error",
@@ -281,6 +290,8 @@ def _encode_observation(observation: Observation) -> JsonObject:
                 "code": observation.code,
                 "original_status": observation.original_status,
                 "message_signature": observation.message_signature,
+                "sdk_retries": observation.sdk_retries,
+                "provider_request_id": observation.provider_request_id,
             }
         case ClientError():
             return {
@@ -301,21 +312,36 @@ def _decode_observation(data: Mapping[str, object]) -> Observation:
     if kind == "complete_response":
         expect_fields(
             data,
-            ("kind", "stop_reason", "provider_latency_ms", "sdk_retries"),
+            ("kind", "stop_reason", "provider_latency_ms", "sdk_retries", "provider_request_id"),
             "a complete response",
         )
         return CompleteResponse(
             string_field(data, "stop_reason"),
             integer_field(data, "provider_latency_ms"),
             _optional_integer(data, "sdk_retries"),
+            optional_string_field(data, "provider_request_id"),
         )
     if kind == "broken_stream":
-        expect_fields(data, ("kind", "reason"), "a broken stream")
-        return BrokenStream(string_field(data, "reason"))
+        expect_fields(
+            data, ("kind", "reason", "sdk_retries", "provider_request_id"), "a broken stream"
+        )
+        return BrokenStream(
+            string_field(data, "reason"),
+            _optional_integer(data, "sdk_retries"),
+            optional_string_field(data, "provider_request_id"),
+        )
     if kind == "service_error":
         expect_fields(
             data,
-            ("kind", "http_status", "code", "original_status", "message_signature"),
+            (
+                "kind",
+                "http_status",
+                "code",
+                "original_status",
+                "message_signature",
+                "sdk_retries",
+                "provider_request_id",
+            ),
             "a service error",
         )
         return ServiceError(
@@ -323,6 +349,8 @@ def _decode_observation(data: Mapping[str, object]) -> Observation:
             string_field(data, "code"),
             _optional_integer(data, "original_status"),
             string_field(data, "message_signature"),
+            _optional_integer(data, "sdk_retries"),
+            optional_string_field(data, "provider_request_id"),
         )
     if kind == "client_error":
         expect_fields(data, ("kind", "error", "reason"), "a client error")

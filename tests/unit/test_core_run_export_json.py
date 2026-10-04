@@ -179,6 +179,7 @@ def _dispatch(
         cost=cost,
         zero_cost_rule=None,
         allocation=5_000_000_000,
+        allocation_tokens=4_608,
     )
 
 
@@ -447,6 +448,8 @@ def test_absent_and_empty_stay_distinct_in_the_bytes() -> None:
     assert _nested(calls, 0, "dispatches", 0, "observation")["sdk_retries"] == 0
     assert _nested(calls, 0, "dispatches", 0)["input_reads"] == ["op-1"]
     assert _nested(calls, 0, "dispatches", 0, "request")["sent_body_digest"] is None
+    assert _nested(calls, 0, "dispatches", 0, "observation")["provider_request_id"] is None
+    assert _nested(calls, 0, "dispatches", 0)["allocation_tokens"] == 4_608
     operations = cast(list[JsonObject], data["operations"])
     assert operations[1]["outcome"] == {"kind": "records", "records": []}
     assert operations[3]["outcome"] == {"kind": "absent"}
@@ -485,6 +488,12 @@ def test_a_surplus_or_missing_field_deep_in_the_tree_refuses_naming_the_object()
     data = _reparsed(_export())
     del _nested(data, "trace", "model_calls", 0)["answer"]
     with pytest.raises(ValueError, match=r"a model call has fields .*missing \['answer'\]"):
+        decode_run_export(data)
+    data = _reparsed(_export())
+    del _nested(data, "trace", "model_calls", 0, "dispatches", 0)["allocation_tokens"]
+    with pytest.raises(
+        ValueError, match=r"a dispatch has fields .*missing \['allocation_tokens'\]"
+    ):
         decode_run_export(data)
     data = _reparsed(_export())
     _nested(data, "trace", "model_calls", 0, "dispatches", 0)["retries"] = 2

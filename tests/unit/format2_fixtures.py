@@ -148,6 +148,9 @@ ADMITTED = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 REPORTED = {"inputTokens": 120, "outputTokens": 30, "totalTokens": 150}
 PRICED = Cost(120 * 1_100_000 + 30 * 5_500_000, True)
 ALLOCATION = 5_000_000_000
+ALLOCATION_TOKENS = 4_608
+"""The worst case one dispatch is counted for against the token cap: its input and
+its output limit."""
 RULES = Composition(ClaimAuthor.RULES, ComposingPolicy("stated-fact-composer", DIGEST), (), ())
 PARSER = RefusedBy("fact-batch-parser-v1", "c" * 64)
 ARGUMENT_PARSER = RefusedBy("tool-argument-parser-v1", "d" * 64)
@@ -202,6 +205,7 @@ def dispatch(
         cost=PRICED if answered else None,
         zero_cost_rule=None,
         allocation=ALLOCATION,
+        allocation_tokens=ALLOCATION_TOKENS,
     )
 
 
@@ -428,7 +432,7 @@ def nova_signature_beside_another() -> RunExport:
         (
             dispatch(
                 2,
-                ServiceError(424, "ModelErrorException", None, NOVA_CUT),
+                ServiceError(424, "ModelErrorException", None, NOVA_CUT, 0, "req-nova-1"),
                 AttributionKind.BEHAVIOUR,
                 rule="nova-cut-tool-use",
             ),
@@ -441,7 +445,14 @@ def nova_signature_beside_another() -> RunExport:
         (
             dispatch(
                 4,
-                ServiceError(424, "ModelErrorException", None, "Model timed out mid-generation"),
+                ServiceError(
+                    424,
+                    "ModelErrorException",
+                    None,
+                    "Model timed out mid-generation",
+                    0,
+                    "req-nova-2",
+                ),
                 AttributionKind.INFRASTRUCTURE,
                 rule="unmatched",
             ),

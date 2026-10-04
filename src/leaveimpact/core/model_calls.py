@@ -95,45 +95,66 @@ class RequestIdentity:
 # --- What arrived --------------------------------------------------------------------------
 
 
+def _require_response_metadata(sdk_retries: int | None, provider_request_id: str | None) -> None:
+    if sdk_retries is not None:
+        require_integer(sdk_retries, "the SDK's retry count")
+    if provider_request_id is not None:
+        require_opaque_id(provider_request_id, "a provider request id")
+
+
 @dataclass(frozen=True, slots=True)
 class CompleteResponse:
     """A whole response arrived. ``sdk_retries`` is the retry count the response's metadata
     shows, ``None`` when it shows none; above zero it is a finding, since nothing retries
-    beneath a dispatch."""
+    beneath a dispatch. ``provider_request_id`` is the service's id for the request, from
+    the response's headers, ``None`` when none was recorded."""
 
     stop_reason: str
     provider_latency_ms: int
     sdk_retries: int | None
+    provider_request_id: str | None = None
 
     def __post_init__(self) -> None:
         require_opaque_id(self.stop_reason, "a stop reason")
         require_integer(self.provider_latency_ms, "provider latency in ms")
-        if self.sdk_retries is not None:
-            require_integer(self.sdk_retries, "the SDK's retry count")
+        _require_response_metadata(self.sdk_retries, self.provider_request_id)
 
 
 @dataclass(frozen=True, slots=True)
 class BrokenStream:
-    """A stream opened and did not complete; ``reason`` is the error it ended on."""
+    """A stream opened and did not complete; ``reason`` is the error it ended on. A stream
+    that opened carried response metadata, so the retry count and the request id are held
+    as on a complete response."""
 
     reason: str
+    sdk_retries: int | None = None
+    provider_request_id: str | None = None
+
+    def __post_init__(self) -> None:
+        _require_response_metadata(self.sdk_retries, self.provider_request_id)
 
 
 @dataclass(frozen=True, slots=True)
 class ServiceError:
     """The service answered with an error: its HTTP status, its error code, the status of
-    the model's own error when the service relays one, and a signature of the message."""
+    the model's own error when the service relays one, and a signature of the message. An
+    error is a response and carries metadata: a retry count above zero shows several sends
+    beneath one dispatch as plainly as it does on a success, and the request id names the
+    send to the provider."""
 
     http_status: int
     code: str
     original_status: int | None
     message_signature: str
+    sdk_retries: int | None = None
+    provider_request_id: str | None = None
 
     def __post_init__(self) -> None:
         require_integer(self.http_status, "an HTTP status", minimum=100)
         require_opaque_id(self.code, "a service error code")
         if self.original_status is not None:
             require_integer(self.original_status, "an original status", minimum=100)
+        _require_response_metadata(self.sdk_retries, self.provider_request_id)
 
 
 class ClientErrorKind(StrEnum):
@@ -145,7 +166,8 @@ class ClientErrorKind(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class ClientError:
-    """The client gave up with no answer: whether the request ran is unknown."""
+    """The client gave up with no answer: whether the request ran is unknown, and with no
+    response there is no metadata, so how many times the SDK sent is unknown too."""
 
     kind: ClientErrorKind
     reason: str
@@ -218,7 +240,11 @@ class Dispatch:
     logged in. ``input_reads`` are the operations whose returned records the request
     rendered, in order: the origin of a read says who asked for it, and this says what the
     model was shown. ``allocation`` is this dispatch's share of the run's reservation, in
-    pico-dollars; an unresolved dispatch keeps it.
+    pico-dollars, and ``allocation_tokens`` the worst-case tokens it was counted for against
+    the run's token cap, under the registered counting rule; an unresolved dispatch keeps
+    both. They are two numbers because money does not determine a token count when the
+    rates differ by class, and the cap an auditor checks known tokens plus retained
+    allocations against is in tokens.
 
     Usage is the raw object a response carried and exists only where something arrived.
     ``cost`` prices it. ``zero_cost_rule`` names the evidenced rule under which a send that
@@ -238,12 +264,14 @@ class Dispatch:
     cost: Cost | None
     zero_cost_rule: str | None
     allocation: int
+    allocation_tokens: int
 
     def __post_init__(self) -> None:
         require_integer(self.number, "a dispatch number", minimum=1)
         require_integer(self.segment, "a segment number", minimum=1)
         require_integer(self.intent_position, "an intent position", minimum=1)
         require_integer(self.allocation, "an allocation in pico-dollars")
+        require_integer(self.allocation_tokens, "an allocation in tokens")
         for operation in self.input_reads:
             require_opaque_id(operation, "an input read's operation id")
         if len(set(self.input_reads)) != len(self.input_reads):

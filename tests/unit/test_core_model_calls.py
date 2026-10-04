@@ -59,6 +59,7 @@ def answered(number: int = 1, intent: int = 7, stop_reason: str = "tool_use") ->
         cost=Cost(297_000, True),
         zero_cost_rule=None,
         allocation=5_000_000,
+        allocation_tokens=4_608,
     )
 
 
@@ -77,6 +78,7 @@ def observed(observation: Observation, attribution: Attribution, number: int = 1
         cost=None,
         zero_cost_rule=None,
         allocation=5_000_000,
+        allocation_tokens=4_608,
     )
 
 
@@ -148,6 +150,40 @@ def test_an_error_is_free_only_under_a_named_zero_cost_rule() -> None:
         )
     with pytest.raises(ValueError, match="at a complete zero"):
         replace(answered(), zero_cost_rule="validation-400")
+
+
+def test_an_error_keeps_the_retry_count_and_the_request_id_its_response_carried() -> None:
+    """A wrongly configured SDK that retried and ended on an error sent more than once
+    beneath one dispatch; only the error's own metadata shows it."""
+    retried = ServiceError(
+        503, "ServiceUnavailableException", None, "unavailable", 2, "57d2f9e6-c267-4d92"
+    )
+    sent = observed(retried, INFRASTRUCTURE)
+    assert isinstance(sent.observation, ServiceError)
+    assert (sent.observation.sdk_retries, sent.observation.provider_request_id) == (
+        2,
+        "57d2f9e6-c267-4d92",
+    )
+    broken = BrokenStream("modelStreamErrorException", 0, "8a1e-4f")
+    assert (broken.sdk_retries, broken.provider_request_id) == (0, "8a1e-4f")
+    # With nothing recorded both are absent, which is not a count of zero.
+    bare = ServiceError(424, "ModelErrorException", None, "x")
+    assert (bare.sdk_retries, bare.provider_request_id) == (None, None)
+    assert CompleteResponse("end_turn", 840, 0, "req-1").provider_request_id == "req-1"
+    assert not hasattr(ClientError(ClientErrorKind.TIMEOUT, "ReadTimeoutError"), "sdk_retries")
+    with pytest.raises(ValueError, match="the SDK's retry count is at least 0, got -1"):
+        ServiceError(503, "X", None, "x", -1)
+    with pytest.raises(ValueError, match="a provider request id is a non-empty identifier"):
+        BrokenStream("x", None, " ")
+
+
+def test_a_dispatch_holds_the_tokens_it_was_counted_for_beside_the_money() -> None:
+    lost = observed(NoRecordedOutcome(), UNRESOLVED)
+    assert (lost.allocation, lost.allocation_tokens) == (5_000_000, 4_608)
+    with pytest.raises(ValueError, match="an allocation in tokens is an integer, got 1.5"):
+        replace(lost, allocation_tokens=1.5)  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="an allocation in tokens is at least 0, got -1"):
+        replace(lost, allocation_tokens=-1)
 
 
 def test_a_dispatch_names_each_input_read_once() -> None:
