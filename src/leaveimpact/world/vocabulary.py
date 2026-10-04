@@ -10,6 +10,9 @@ A change here that can alter a generated world therefore bumps ``GENERATOR_VERSI
 a test until that file is touched, so the version bump is visible in the same diff
 instead of every world built from an old seed being silently re-cut.
 
+The skill table is ``core``'s since a harness needed it for the anchor guard and may not
+import this package; it is named here from there, and the digest reads it as before.
+
 Curated tables replaced a faker library on purpose. The tables are a few dozen entries,
 a library's seeded output has changed across its releases (which would put the
 reproducibility claim at the mercy of a pin), and benchmark vocabulary should be small,
@@ -29,7 +32,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 
-from leaveimpact.core.ids import SkillId, skill_id
+from leaveimpact.core.skills import SKILLS, Skill
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,14 +42,6 @@ class City:
     name: str
     country: str
     timezone: str
-
-
-@dataclass(frozen=True, slots=True)
-class Skill:
-    """A skill in the closed vocabulary: the id the domain keys on and a display name for prose."""
-
-    id: SkillId
-    name: str
 
 
 GIVEN_NAMES: tuple[str, ...] = (
@@ -73,29 +68,6 @@ CITIES: tuple[City, ...] = (
     City("Lisbon", "PT", "Europe/Lisbon"),
     City("Toronto", "CA", "America/Toronto"),
     City("Bangalore", "IN", "Asia/Kolkata"),
-)
-
-SKILLS: tuple[Skill, ...] = (
-    Skill(skill_id("kafka"), "Kafka"),
-    Skill(skill_id("postgresql"), "PostgreSQL"),
-    Skill(skill_id("kubernetes"), "Kubernetes"),
-    Skill(skill_id("terraform"), "Terraform"),
-    Skill(skill_id("aws"), "AWS"),
-    Skill(skill_id("gcp"), "Google Cloud"),
-    Skill(skill_id("python"), "Python"),
-    Skill(skill_id("go"), "Go"),
-    Skill(skill_id("java"), "Java"),
-    Skill(skill_id("typescript"), "TypeScript"),
-    Skill(skill_id("react"), "React"),
-    Skill(skill_id("graphql"), "GraphQL"),
-    Skill(skill_id("redis"), "Redis"),
-    Skill(skill_id("elasticsearch"), "Elasticsearch"),
-    Skill(skill_id("grafana"), "Grafana"),
-    Skill(skill_id("airflow"), "Airflow"),
-    Skill(skill_id("spark"), "Spark"),
-    Skill(skill_id("dbt"), "dbt"),
-    Skill(skill_id("ios"), "iOS"),
-    Skill(skill_id("android"), "Android"),
 )
 
 TEAM_NAMES: tuple[str, ...] = ("Payments", "Platform", "Data", "Mobile", "Growth", "Identity")
@@ -249,3 +221,24 @@ def vocabulary_digest() -> str:
     }
     canonical = json.dumps(tables, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+__all__ = [
+    "CITIES",
+    "CLIENT_NAMES",
+    "COMPONENT_NAMES",
+    "FAMILY_NAMES",
+    "GIVEN_NAMES",
+    "LOOK_ALIKE_MEETING_PHRASES",
+    "LOOK_ALIKE_TICKET_PHRASES",
+    "MEETING_PHRASES",
+    "MEETING_QUALIFIERS",
+    "SKILLS",
+    "TEAM_NAMES",
+    "TICKET_PHRASES",
+    "TICKET_QUALIFIERS",
+    "City",
+    "Skill",
+    "titles",
+    "vocabulary_digest",
+]
