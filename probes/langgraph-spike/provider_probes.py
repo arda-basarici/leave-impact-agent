@@ -11,8 +11,9 @@ a private capture directory outside the tree:
         uv run --group harness python probes/langgraph-spike/provider_probes.py
 
 ``--only <probe>`` runs a subset, ``--offline`` runs against a canned answer with no send.
-Every probe needs each family's effective surface, so the schema acceptance runs first in
-every execution. A full execution makes about fifty sends against a guard of 150.
+A probe that binds tools needs each family's effective surface, so the schema acceptance
+runs first in any execution that includes one. A full execution makes about fifty-five
+sends against a guard of 150.
 """
 
 from __future__ import annotations
@@ -36,6 +37,8 @@ from leaveimpact.core.tools import specification_named, validate_arguments
 FAMILIES = tuple(PROFILES)
 CACHE_REPEATS = 3
 VIOLATION_TRIES = 3
+SURFACE_FREE = frozenset({"caching", "serving-identity"})
+"""The probes that bind no tool, so an execution of only these skips the schema acceptance."""
 
 
 def _opening(text: str) -> list[Any]:
@@ -57,6 +60,48 @@ def _refusals(message: AIMessage) -> list[str]:
     return reasons
 
 
+def _wire_answer(bench: Bench, send: str) -> dict[str, Any]:
+    """What the captured bytes of ``send`` hold: the operation, the stop reason, and each tool
+    call with its arguments parsed strictly.
+
+    The chat client assembles a streamed call's arguments with a parser that repairs cut JSON,
+    so a call it reports can rest on arguments that never arrived whole. Here a streamed call's
+    argument fragments are joined per content block and parsed by ``json.loads``; ``complete``
+    is false for a call whose fragments do not parse, and its ``input`` is ``None``.
+    """
+    operation = bench.recorder.lines_of(send)[0]["operation"]
+    calls: list[dict[str, Any]] = []
+    stop: Any = None
+    if (whole := bench.recorder.response_of(send)) is not None:
+        stop = whole.get("stopReason")
+        for block in whole.get("output", {}).get("message", {}).get("content", []):
+            if "toolUse" in block:
+                use = block["toolUse"]
+                calls.append({"name": use.get("name"), "input": use.get("input"), "complete": True})
+    elif (stream := bench.recorder.stream_of(send)) is not None:
+        names: dict[int, Any] = {}
+        fragments: dict[int, str] = {}
+        for event in stream["events"]:
+            if "contentBlockStart" in event and "toolUse" in event["contentBlockStart"]["start"]:
+                index = event["contentBlockStart"]["contentBlockIndex"]
+                names[index] = event["contentBlockStart"]["start"]["toolUse"].get("name")
+                fragments[index] = ""
+            elif "contentBlockDelta" in event and "toolUse" in event["contentBlockDelta"]["delta"]:
+                index = event["contentBlockDelta"]["contentBlockIndex"]
+                piece = event["contentBlockDelta"]["delta"]["toolUse"].get("input", "")
+                fragments[index] = fragments.get(index, "") + piece
+            elif "messageStop" in event:
+                stop = event["messageStop"].get("stopReason")
+        for index in sorted(names):
+            try:
+                calls.append(
+                    {"name": names[index], "input": json.loads(fragments[index]), "complete": True}
+                )
+            except ValueError:
+                calls.append({"name": names[index], "input": None, "complete": False})
+    return {"operation": operation, "stop_reason": stop, "calls": calls}
+
+
 def _usage(bench: Bench, asked: Asked) -> dict[str, Any]:
     """The raw usage and counter states of the last send of ``asked``, as captured."""
     outcome = bench.recorder.outcome_of(asked.sends[-1]) if asked.sends else None
@@ -73,7 +118,13 @@ def _usage(bench: Bench, asked: Asked) -> dict[str, Any]:
 
 
 def schema_acceptance(bench: Bench, employee: str) -> None:
-    """Measured: which rung of the ladder each family's endpoint accepts, unchanged first."""
+    """Measured: which rung of the ladder each family's endpoint accepts, unchanged first.
+
+    Each rung's captured request is compared with the definitions bound, the rejected ones
+    too, so a rejection is the family's answer to exactly those definitions. A validation
+    rejection is read as the surface's; its message is kept in the row, since the service
+    uses the same code for any invalid request.
+    """
     for family in FAMILIES:
         for translation in LADDER:
             bench.surfaces[family] = translation
@@ -84,6 +135,10 @@ def schema_acceptance(bench: Bench, employee: str) -> None:
                 _opening(f"Look up the employee {employee}."),
             )
             accepted = asked.error is None
+            sent_as_bound = bool(asked.sends) and (
+                bench.recorder.request_of(asked.sends[-1])["toolConfig"]["tools"]
+                == tools_under(translation)
+            )
             bench.add(
                 Row(
                     "schema-acceptance",
@@ -93,6 +148,7 @@ def schema_acceptance(bench: Bench, employee: str) -> None:
                     "finding",
                     {
                         "accepted": accepted,
+                        "sent_as_bound": sent_as_bound,
                         "translation_version": translation.version,
                         "error": asked.error_code,
                         "message": str(asked.error)[:300] if asked.error else "",
@@ -100,6 +156,10 @@ def schema_acceptance(bench: Bench, employee: str) -> None:
                     asked.sends,
                 )
             )
+            if not sent_as_bound:
+                # An acceptance or a rejection of definitions the client altered on the way
+                # says nothing about the family.
+                raise SystemExit(f"{family}: the request did not carry the surface bound")
             if accepted:
                 break
             if asked.error_code != "ValidationException":
@@ -116,9 +176,12 @@ def schema_acceptance(bench: Bench, employee: str) -> None:
 def forced_choice(bench: Bench, employee: str) -> None:
     """Must pass, eight cells: forced by ``any`` and by name, streamed and not, per family.
 
-    A cell passes when the definitions and the choice in the captured request equal the
-    effective surface bound, the answer carries at least one tool call, a named choice is
-    answered with that tool, and every call's arguments pass the original validation.
+    A cell passes when all of these hold. The definitions and the choice in the captured
+    request equal the effective surface bound. The send used the operation the cell names.
+    The captured answer stopped on ``tool_use`` and every tool call in it has arguments that
+    parse whole. The client's message carries at least one tool call and no invalid one, its
+    calls are the captured ones, a named choice is answered with that tool, and every call's
+    arguments pass the original validation.
     """
     for family in FAMILIES:
         translation = bench.surfaces[family]
@@ -141,11 +204,17 @@ def forced_choice(bench: Bench, employee: str) -> None:
                 passed = False
                 if asked.message is not None and asked.sends:
                     sent = bench.recorder.request_of(asked.sends[-1])["toolConfig"]
+                    wire = _wire_answer(bench, asked.sends[-1])
                     calls = asked.message.tool_calls
                     refusals = _refusals(asked.message)
                     detail |= {
                         "definitions_equal": sent["tools"] == tools_under(translation),
                         "choice_equal": sent["toolChoice"] == tool_choice(choice),
+                        "operation": wire["operation"],
+                        "stop_reason": wire["stop_reason"],
+                        "wire_calls_complete": all(call["complete"] for call in wire["calls"]),
+                        "message_equals_wire": [(c["name"], c["args"]) for c in calls]
+                        == [(c["name"], c["input"]) for c in wire["calls"]],
                         "calls": [call["name"] for call in calls],
                         "invalid_tool_calls": len(asked.message.invalid_tool_calls),
                         "refusals": refusals,
@@ -153,7 +222,12 @@ def forced_choice(bench: Bench, employee: str) -> None:
                     passed = (
                         detail["definitions_equal"]
                         and detail["choice_equal"]
+                        and wire["operation"] == ("ConverseStream" if streamed else "Converse")
+                        and wire["stop_reason"] == "tool_use"
+                        and detail["wire_calls_complete"]
+                        and detail["message_equals_wire"]
                         and len(calls) >= 1
+                        and not asked.message.invalid_tool_calls
                         and not refusals
                         and (choice == "any" or all(call["name"] == choice for call in calls))
                     )
@@ -213,33 +287,57 @@ def tool_result(bench: Bench, employee: str, rendered: str) -> None:
 
 
 def capture_check(bench: Bench) -> None:
-    """Must pass: every send of this execution left a request body as sent, and every send
-    that was answered left the response body or the parsed events of its stream."""
+    """Must pass: every send left its request body as sent, and every send has an outcome
+    whose answer was recorded: a response body that parses, or a stream's parsed events in
+    the order a stream has (it opens on ``messageStart``, and one recorded as complete holds
+    ``messageStop`` once).
+
+    A send with no outcome fails the check, with one exception named here: the read-timeout
+    probe's sends, which are unresolved by design. An unresolved send anywhere else is a
+    request whose answer the recorder lost or never saw.
+    """
     missing: list[str] = []
+    malformed: list[str] = []
     unresolved: list[str] = []
+    unexpected: list[str] = []
     for invocation in bench.recorder.finished:
+        timeout = (invocation.probe, invocation.label) == ("faults", "read timeout")
         for send in invocation.sends:
-            folder = bench.recorder.directory
-            if not (folder / f"{send}.request.json").exists():
+            try:
+                bench.recorder.request_of(send)
+            except (OSError, ValueError):
                 missing.append(f"{send} request")
             outcome = bench.recorder.outcome_of(send)
             if outcome is None:
-                unresolved.append(send)
-            elif not any(
-                (folder / f"{send}.{kind}.json").exists() for kind in ("response", "stream")
-            ):
-                missing.append(f"{send} response")
+                (unresolved if timeout else unexpected).append(send)
+                continue
+            stream = bench.recorder.stream_of(send)
+            if stream is not None:
+                events = stream["events"]
+                stops = sum(1 for event in events if "messageStop" in event)
+                opened = bool(events) and "messageStart" in events[0]
+                if outcome["outcome"] == "response" and not (opened and stops == 1):
+                    malformed.append(f"{send} stream")
+                continue
+            try:
+                if bench.recorder.response_of(send) is None:
+                    missing.append(f"{send} response")
+            except ValueError:
+                malformed.append(f"{send} response")
+    failed = bool(missing or malformed or unexpected)
     bench.add(
         Row(
             "capture",
             "both",
             "every send",
             "must-pass",
-            "fail" if missing else "pass",
+            "fail" if failed else "pass",
             {
                 "sends": bench.recorder.sends_made,
                 "missing": missing,
-                "unresolved": unresolved,
+                "malformed": malformed,
+                "unresolved_timeout_sends": unresolved,
+                "unresolved_unexpected": unexpected,
                 "cumulative_sends": bench.recorder.cumulative_sends(),
             },
         )
@@ -354,6 +452,7 @@ def truncated_call(bench: Bench) -> None:
                 detail["message"] = str(asked.error)[:300]
             if asked.message is not None:
                 detail |= {
+                    "wire": _wire_answer(bench, asked.sends[-1]) if asked.sends else None,
                     "stop_reason": asked.message.response_metadata.get("stopReason"),
                     "tool_calls": [dict(call) for call in asked.message.tool_calls],
                     "invalid_tool_calls": [dict(c) for c in asked.message.invalid_tool_calls],
@@ -452,6 +551,50 @@ def response_shapes(bench: Bench, employee: str, second_employee: str) -> None:
     )
 
 
+def serving_identity(bench: Bench) -> None:
+    """Measured: what a response says about where it was served, streamed and not.
+
+    The request names an inference profile and a client region; the body of a response names
+    neither. Whatever identifies the serving side is in the response headers, kept whole in
+    the record's outcome line. The row lists the header names and the values of the ones the
+    service adds, the request id left out.
+    """
+    for family in FAMILIES:
+        for streamed in (False, True):
+            if streamed and bench.offline:
+                continue
+            asked = bench.ask(
+                "serving-identity",
+                f"{family} {'streamed' if streamed else 'whole'}",
+                bench.chat(family, max_tokens=16),
+                [HumanMessage("Reply with the single word: ok")],
+                streamed=streamed,
+            )
+            outcome = bench.recorder.outcome_of(asked.sends[-1]) if asked.sends else None
+            headers: dict[str, str] = (outcome or {}).get("response_headers", {})
+            bench.add(
+                Row(
+                    "serving-identity",
+                    family,
+                    "streamed" if streamed else "whole",
+                    "measured",
+                    "finding",
+                    {
+                        "requested_profile": PROFILES[family],
+                        "client_region": bench.recorder.region,
+                        "header_names": sorted(headers),
+                        "service_headers": {
+                            name: value
+                            for name, value in sorted(headers.items())
+                            if name.startswith("x-amz") and name != "x-amzn-requestid"
+                        },
+                        "error": asked.error_code,
+                    },
+                    asked.sends,
+                )
+            )
+
+
 # --- The command ----------------------------------------------------------------------------
 
 
@@ -471,7 +614,7 @@ def main() -> int:
     employee, second = employees[0].id, employees[1].id
     rendered = canonical_json(encode_observed(Observed(employees[0], Source.FRAPPE)))
 
-    recorder = Recorder(root, arguments.region)
+    recorder = Recorder(root, arguments.region, offline=arguments.offline)
     bench = open_bench(recorder, offline=arguments.offline, employee=employee)
     print(f"execution {recorder.execution}; {recorder.cumulative_sends()} sends recorded before it")
 
@@ -484,12 +627,14 @@ def main() -> int:
         "schema-violation": lambda: schema_violation(bench),
         "response-shapes": lambda: response_shapes(bench, employee, second),
         "faults": lambda: provoked_faults(bench, employee),
+        "serving-identity": lambda: serving_identity(bench),
     }
     unknown = [name for name in arguments.only if name not in probes]
     if unknown:
         parser.error(f"no probe named {', '.join(unknown)}; the probes are {', '.join(probes)}")
 
-    schema_acceptance(bench, employee)
+    if not arguments.only or any(name not in SURFACE_FREE for name in arguments.only):
+        schema_acceptance(bench, employee)
     for name, probe in probes.items():
         if not arguments.only or name in arguments.only:
             probe()

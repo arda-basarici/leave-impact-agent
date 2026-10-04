@@ -87,8 +87,6 @@ def counter_states(usage: object) -> dict[str, str]:
     'zero'
     >>> counter_states({"inputTokens": 12})["cacheReadInputTokens"]
     'absent'
-    >>> counter_states(None)["inputTokens"]
-    'absent'
     """
     held = usage if isinstance(usage, dict) else {}
     states: dict[str, str] = {}
@@ -159,6 +157,7 @@ class Recorder:
             datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:6]
         )
     )
+    offline: bool = False
     sends_made: int = 0
     _invocations: int = 0
     _current: tuple[str, str, str] | None = None
@@ -178,11 +177,15 @@ class Recorder:
         return self.root / "sends.jsonl"
 
     def cumulative_sends(self) -> int:
-        """Sends recorded by every execution so far, this one included."""
+        """Live sends recorded by every execution so far, this one included. A send an
+        offline execution answered itself never left the machine and is not counted."""
         if not self.record.exists():
             return 0
         with self.record.open(encoding="utf-8") as lines:
-            return sum(1 for line in lines if json.loads(line).get("event") == "send")
+            held = map(json.loads, lines)
+            return sum(
+                1 for line in held if line.get("event") == "send" and not line.get("offline")
+            )
 
     @contextmanager
     def invocation(self, probe: str, label: str) -> Iterator[list[str]]:
@@ -227,6 +230,7 @@ class Recorder:
                 "invocation": identifier,
                 "attempt": len(self._current_sends),
                 "execution": self.execution,
+                "offline": self.offline,
                 "probe": probe,
                 "label": label,
                 "at": datetime.now(UTC).isoformat(),
@@ -277,7 +281,10 @@ class Recorder:
         status = int(metadata.get("HTTPStatusCode", 0))
         headers = {str(k).lower(): str(v) for k, v in metadata.get("HTTPHeaders", {}).items()}
         parsed["stream"] = RecordedStream(
-            stream, lambda events, error: self._stream_ended(send, status, headers, events, error)
+            stream,
+            lambda events, error, stopped: self._stream_ended(
+                send, status, headers, events, error, stopped
+            ),
         )
 
     def _stream_ended(
@@ -287,11 +294,13 @@ class Recorder:
         headers: dict[str, str],
         events: list[dict[str, Any]],
         error: BaseException | None,
+        stopped: bool,
     ) -> None:
         document = {
             "events": events,
             "complete": any("messageStop" in event for event in events),
             "exception": None if error is None else f"{type(error).__name__}: {error}",
+            "consumer_stopped": stopped,
         }
         text = json.dumps(document, ensure_ascii=False, default=repr)
         (self.directory / f"{send}.stream.json").write_text(text, encoding="utf-8")
@@ -310,8 +319,9 @@ class Recorder:
                 "at": datetime.now(UTC).isoformat(),
                 "http_status": status,
                 "request_id": headers.get("x-amzn-requestid"),
+                "response_headers": headers,
                 "usage": usage,
-                "counters": counter_states(usage),
+                "counters": counter_states(usage) if isinstance(usage, dict) else None,
             }
         )
 
@@ -327,6 +337,16 @@ class Recorder:
         """The request body of ``send``, JSON-decoded from the bytes that left."""
         return json.loads((self.directory / f"{send}.request.json").read_bytes())
 
+    def response_of(self, send: str) -> dict[str, Any] | None:
+        """The non-streamed response body of ``send`` as received, or ``None`` if there is none."""
+        file = self.directory / f"{send}.response.json"
+        return json.loads(file.read_bytes()) if file.exists() else None
+
+    def stream_of(self, send: str) -> dict[str, Any] | None:
+        """The recorded stream of ``send`` (its events and how it ended), or ``None``."""
+        file = self.directory / f"{send}.stream.json"
+        return json.loads(file.read_text(encoding="utf-8")) if file.exists() else None
+
     def lines_of(self, send: str) -> list[dict[str, Any]]:
         """The record's lines about ``send``: its ``send`` line, then its outcome if known."""
         with self.record.open(encoding="utf-8") as record:
@@ -341,14 +361,16 @@ class RecordedStream:
     """An event stream that copies each parsed event as its consumer reads it.
 
     The copy is taken before the event is handed over, so nothing the consumer does to an
-    event changes the record. ``ended`` is called once, with the events seen and the exception
-    that ended the stream if one did, when the stream is exhausted, raises or is closed.
+    event changes the record. ``ended`` is called once, when the stream is exhausted, raises,
+    or is left: with the events seen, the exception that ended the stream if one did, and
+    whether it was the consumer that stopped reading before the stream ran out. A consumer
+    that stops is not a fault of the stream and is never recorded as its exception.
     """
 
     def __init__(
         self,
         stream: Any,
-        ended: Callable[[list[dict[str, Any]], BaseException | None], None],
+        ended: Callable[[list[dict[str, Any]], BaseException | None, bool], None],
     ) -> None:
         self._stream = stream
         self._ended = ended
@@ -360,20 +382,23 @@ class RecordedStream:
             for event in self._stream:
                 self._events.append(copy.deepcopy(event))
                 yield event
-        except BaseException as error:
-            self._report(error)
+        except GeneratorExit:
+            self._report(None, stopped=True)
             raise
-        self._report(None)
+        except BaseException as error:
+            self._report(error, stopped=False)
+            raise
+        self._report(None, stopped=False)
 
     def close(self) -> None:
-        self._report(None)
+        self._report(None, stopped=True)
         if hasattr(self._stream, "close"):
             self._stream.close()
 
-    def _report(self, error: BaseException | None) -> None:
+    def _report(self, error: BaseException | None, *, stopped: bool) -> None:
         if not self._reported:
             self._reported = True
-            self._ended(self._events, error)
+            self._ended(self._events, error, stopped)
 
 
 # --- The clients ----------------------------------------------------------------------------
