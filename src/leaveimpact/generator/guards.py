@@ -49,6 +49,7 @@ from collections import Counter
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from leaveimpact.core.anchors import missing_anchors, word_pattern
 from leaveimpact.core.refs import employee_ref
 from leaveimpact.generator.prose.schema import Extraction
 from leaveimpact.world.briefs import Brief, CommentTarget
@@ -108,7 +109,9 @@ def namespace_findings(
     # one it sits inside ("Deniz Kowalski") before the foreign form could match.
     for form in _longest_first(tuple(brief.namespace.forms) + tuple(world_forms)):
         admitted = (form.kind, form.id) in allowed or form.form.casefold() in allowed_spellings
-        pattern = _word(form.form, re.IGNORECASE if admitted else _disallowed_flags(form.form))
+        pattern = word_pattern(
+            form.form, re.IGNORECASE if admitted else _disallowed_flags(form.form)
+        )
         hits = len(pattern.findall(masked))
         if not hits:
             continue
@@ -149,15 +152,15 @@ def required_fact_findings(text: str, brief: Brief, lexicon: Lexicon) -> tuple[F
         else None
     )
     for required in brief.required:
-        for group in lexical_anchors(required.fact, lexicon, first_person=speaker):
-            if not any(_word(spelling, re.IGNORECASE).search(text) for spelling in group):
-                findings.append(
-                    Finding(
-                        RefusalReason.MISSING_ANCHOR,
-                        f"{required.fact.predicate.value} of {required.fact.subject.id}: "
-                        f"none of {group} appears",
-                    )
+        anchors = lexical_anchors(required.fact, lexicon, first_person=speaker)
+        for group in missing_anchors(text, anchors):
+            findings.append(
+                Finding(
+                    RefusalReason.MISSING_ANCHOR,
+                    f"{required.fact.predicate.value} of {required.fact.subject.id}: "
+                    f"none of {group} appears",
                 )
+            )
     return tuple(findings)
 
 
@@ -240,10 +243,6 @@ def _disallowed_flags(spelling: str) -> int:
 
 def _longest_first(forms: Sequence[SurfaceForm]) -> list[SurfaceForm]:
     return sorted(forms, key=lambda form: (-len(form.form), form.kind, form.id))
-
-
-def _word(spelling: str, flags: int) -> re.Pattern[str]:
-    return re.compile(rf"(?<!\w){re.escape(spelling)}(?!\w)", flags)
 
 
 def _mask(text: str, pattern: re.Pattern[str]) -> str:

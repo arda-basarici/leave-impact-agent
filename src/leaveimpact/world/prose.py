@@ -18,9 +18,12 @@ from the facts through the closed vocabulary rather than authored by a scenario 
 class cannot forget a name or leak one. The *lexical anchors* are the cheap presence check a
 required fact affords before a checker is paid: per predicate, the surface forms a text
 stating that fact cannot avoid. The registry stays the authority on what a predicate is;
-this table is the world's authority on how one of its facts can surface, which is why it
-lives here and not in ``core``. A predicate with no row here cannot be carried by prose, and
-a brief that requires one is refused at construction rather than at the first live run.
+the anchor table says how a fact can surface. It was this module's until a harness had to
+ask the same question of a model's quote without importing the benchmark; it is ``core``'s
+``anchors`` now, with the surface form and the lexicon it reads, and this module names them
+again so the world's surface is what it was. A predicate with no row there cannot be carried
+by prose, and a brief that requires one is refused at construction rather than at the first
+live run.
 
 The *materialization record* is the provenance of every accepted text: the writer and the
 checker with their inference settings serialized whole, the digests of the prompt assets,
@@ -36,20 +39,30 @@ discarded artifact needs nothing, and a public job log is not a place for one.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
 from re import fullmatch
 
-from leaveimpact.core.enums import EmploymentType, EntityKind
-from leaveimpact.core.facts import Fact
-from leaveimpact.core.ids import SkillId, skill_id
+from leaveimpact.core.anchors import (
+    ANCHOR_ROWS,
+    EMPLOYMENT_FORMS,
+    GIVEN_NAME_KIND,
+    NUMBER_WORDS,
+    SKILL_KIND,
+    Anchor,
+    Lexicon,
+    SurfaceForm,
+    lexical_anchors,
+)
+from leaveimpact.core.enums import EntityKind
+from leaveimpact.core.facts import Fact, Statement, statement_of
+from leaveimpact.core.ids import SkillId
 from leaveimpact.core.predicates import PredicateName, predicate
 from leaveimpact.core.provenance import ModelConfiguration
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.values import (
-    EmploymentTypeCriterion,
     FactValue,
     Requirement,
     SkillCriterion,
@@ -118,15 +131,6 @@ class Proposition:
         return (self.subject, self.predicate, self.value)
 
 
-Statement = tuple[EntityRef, PredicateName, FactValue]
-"""The comparable content of a fact or a proposition: subject, predicate, value."""
-
-
-def statement_of(fact: Fact) -> Statement:
-    """``fact`` as the statement containment compares — evidence and date deliberately dropped."""
-    return (fact.subject, fact.predicate, fact.value)
-
-
 PROSE_RECORD_KINDS: frozenset[EntityKind] = frozenset({EntityKind.COMMENT, EntityKind.CLAUSE})
 """The record kinds a prose target realizes. A fact evidenced by one is established by text
 alone; every other evidence record is a structured field a reader checks without reading."""
@@ -145,19 +149,6 @@ class FactRole(StrEnum):
 
     ANSWER_CHANGING = "answer_changing"
     CONTEXT = "context"
-
-
-@dataclass(frozen=True, slots=True)
-class SurfaceForm:
-    """One thing a text may name and the spelling it names it by: a person, a skill, a title."""
-
-    kind: str
-    id: str
-    form: str
-
-    def __post_init__(self) -> None:
-        if not self.form.strip():
-            raise ValueError(f"a surface form for {self.kind} {self.id} is not blank")
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,60 +181,14 @@ class Namespace:
         raise ValueError(f"{kind} {id} is outside the namespace")
 
 
-SKILL_KIND = "skill"
-"""The surface-form kind of a skill, which is a vocabulary term and not an entity."""
-
-GIVEN_NAME_KIND = "given_name"
-
 CLIENT_KIND = "client"
 """A client is a name and nothing more: the responsibility class's note is titled by it and
 its procedure clause names that title. Every client name is a world form, so a text naming
 another client is refused by the namespace scanner rather than left to the checker (the
 15.2 review); a section's brief admits the one client its own document's title names."""
-"""The surface-form kind of an employee's given name alone, keyed by the employee's id: a text
-names a colleague by first name, and a guard that knew only full names would not see it."""
 
 CARRIER_KINDS: frozenset[EntityKind] = frozenset({EntityKind.COMMENT, EntityKind.CLAUSE})
 """The kinds of thing prose is written into; they have no display form and name nothing."""
-
-
-class Lexicon:
-    """Every display form a world affords, by kind and id — what a namespace is derived through.
-
-    Built by the world from its organization and plantings (``briefs.lexicon_of``); held
-    here as the pure lookup the anchors and the namespace derivation read.
-    """
-
-    def __init__(self, forms: Iterable[SurfaceForm]) -> None:
-        self._forms: dict[tuple[str, str], str] = {}
-        for form in forms:
-            key = (form.kind, form.id)
-            if key in self._forms and self._forms[key] != form.form:
-                raise ValueError(f"{form.kind} {form.id} has two display forms")
-            self._forms[key] = form.form
-
-    def forms(self) -> tuple[SurfaceForm, ...]:
-        """Every form held, in (kind, id) order — the scanner's list of what a world can name."""
-        return tuple(
-            SurfaceForm(kind, id, form) for (kind, id), form in sorted(self._forms.items())
-        )
-
-    def form_of(self, ref: EntityRef) -> SurfaceForm:
-        return self._surface(ref.kind.value, ref.id)
-
-    def alias(self, kind: str, id: str) -> SurfaceForm | None:
-        """The form of ``kind`` for ``id`` when the world has one (a given name); else ``None``."""
-        form = self._forms.get((kind, id))
-        return None if form is None else SurfaceForm(kind, id, form)
-
-    def skill(self, skill: SkillId) -> SurfaceForm:
-        return self._surface(SKILL_KIND, skill_id(skill))
-
-    def _surface(self, kind: str, id: str) -> SurfaceForm:
-        try:
-            return SurfaceForm(kind, id, self._forms[(kind, id)])
-        except KeyError:
-            raise ValueError(f"{kind} {id} has no display form in this world") from None
 
 
 def derive_namespace(
@@ -315,110 +260,7 @@ def _collect(
             pass
 
 
-# --- Lexical anchors ------------------------------------------------------------------------
-
-Anchor = tuple[str, ...]
-"""One thing a text stating a fact cannot avoid, as its alternative spellings; one must appear."""
-
-NUMBER_WORDS: Mapping[int, str] = {
-    1: "one",
-    2: "two",
-    3: "three",
-    4: "four",
-    5: "five",
-    6: "six",
-    7: "seven",
-    8: "eight",
-    9: "nine",
-    10: "ten",
-}
-"""A count may be written as a digit or a word; a text is not refused for choosing either."""
-
-EMPLOYMENT_FORMS: Mapping[EmploymentType, Anchor] = {
-    EmploymentType.EMPLOYEE: ("employee", "employees"),
-    EmploymentType.CONTRACTOR: ("contractor", "contractors"),
-}
-
-
-def lexical_anchors(
-    fact: Fact, lexicon: Lexicon, *, first_person: EntityRef | None = None
-) -> tuple[Anchor, ...]:
-    """The anchors a text carrying ``fact`` must contain, one alternative group per named thing.
-
-    Lexical only: presence proves no relation ("Deniz has never worked with Kafka" carries
-    both anchors), which is the extraction check's job; absence proves the fact vanished
-    in the writing, which is worth catching before a checker is paid. ``first_person``
-    is the text's author when it has one — a comment's. When a required fact's subject
-    is that author, the target supplies the subject's identity and the anchors are the
-    fact's value-side groups only, since the author writes "I" and never their own name:
-    the first measurement world refused twelve of twelve attempts on exactly that anchor
-    (2026-09-14). The exemption is that narrow on purpose: a fact about anyone else keeps
-    its subject anchor, and a row whose subject is a clause or the carrier never matches
-    an author. The drop is positional, so every row with an employee subject puts the
-    subject's group first; a row that broke that order would drop a value anchor
-    unnoticed.
-
-    >>> from datetime import date
-    >>> from leaveimpact.core.enums import Source
-    >>> from leaveimpact.core.ids import comment_id, employee_id
-    >>> from leaveimpact.core.refs import EvidenceRef, comment_ref, employee_ref
-    >>> deniz = employee_ref(employee_id(23))
-    >>> lexicon = Lexicon([SurfaceForm("employee", "emp_023", "Deniz Kaya"),
-    ...                    SurfaceForm(SKILL_KIND, "kafka", "Kafka")])
-    >>> fact = Fact(deniz, PredicateName.HAS_SKILL, "kafka",
-    ...             EvidenceRef(Source.JIRA, comment_ref(comment_id(5))), date(2026, 3, 1))
-    >>> lexical_anchors(fact, lexicon)
-    (('Deniz Kaya',), ('Kafka',))
-    """
-    row = _ANCHOR_ROWS.get(fact.predicate)
-    if row is None:
-        raise ValueError(f"{fact.predicate.value} cannot be carried by prose: no anchor row")
-    anchors = row(fact, lexicon)
-    if first_person is not None and fact.subject == first_person:
-        return anchors[1:]
-    return anchors
-
-
-def _subject_and_entity(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
-    assert isinstance(fact.value, EntityRef)
-    return ((lexicon.form_of(fact.subject).form,), (lexicon.form_of(fact.value).form,))
-
-
-def _subject_and_skill(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
-    assert isinstance(fact.value, str)
-    return ((lexicon.form_of(fact.subject).form,), (lexicon.skill(SkillId(fact.value)).form,))
-
-
-def _named_entity(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
-    """A fact whose subject is the carrier itself: the named entity is the only anchor."""
-    assert isinstance(fact.value, EntityRef)
-    return ((lexicon.form_of(fact.value).form,),)
-
-
-def _requirement(fact: Fact, lexicon: Lexicon) -> tuple[Anchor, ...]:
-    """A clause's requirement: its count in either spelling and every criterion's form."""
-    assert isinstance(fact.value, Requirement)
-    count = fact.value.count
-    spellings = (str(count), NUMBER_WORDS[count]) if count in NUMBER_WORDS else (str(count),)
-    anchors: list[Anchor] = [spellings]
-    for criterion in fact.value.criteria:
-        match criterion:
-            case SkillCriterion():
-                anchors.append((lexicon.skill(criterion.skill).form,))
-            case EmploymentTypeCriterion():
-                anchors.append(EMPLOYMENT_FORMS[criterion.employment_type])
-    return tuple(anchors)
-
-
-_ANCHOR_ROWS: Mapping[PredicateName, Callable[[Fact, Lexicon], tuple[Anchor, ...]]] = {
-    PredicateName.HAS_SKILL: _subject_and_skill,
-    PredicateName.MEMBER_OF_COMPONENT: _subject_and_entity,
-    PredicateName.OWNS_WORK_ITEM: _subject_and_entity,
-    PredicateName.REQUIRES: _requirement,
-    PredicateName.NAMES_RESPONSIBLE: _named_entity,
-}
-
-PROSE_CAPABLE: frozenset[PredicateName] = frozenset(_ANCHOR_ROWS)
+PROSE_CAPABLE: frozenset[PredicateName] = frozenset(ANCHOR_ROWS)
 """The predicates a brief may require: exactly those with an anchor row."""
 
 

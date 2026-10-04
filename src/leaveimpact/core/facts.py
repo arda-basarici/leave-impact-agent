@@ -50,6 +50,9 @@ from leaveimpact.core.values import FactValue
 FactKey = tuple[EntityRef, PredicateName]
 """What a fact or a gap is about: the subject and the predicate."""
 
+Statement = tuple[EntityRef, PredicateName, FactValue]
+"""The comparable content of a fact, a proposition or a stated fact: subject, predicate, value."""
+
 
 @dataclass(frozen=True, slots=True)
 class RunCondition:
@@ -133,6 +136,11 @@ class Fact:
     @property
     def key(self) -> FactKey:
         return (self.subject, self.predicate)
+
+
+def statement_of(fact: Fact) -> Statement:
+    """``fact`` as the statement containment compares — evidence and date deliberately dropped."""
+    return (fact.subject, fact.predicate, fact.value)
 
 
 @dataclass(frozen=True, slots=True)
