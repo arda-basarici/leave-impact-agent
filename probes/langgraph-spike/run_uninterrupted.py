@@ -226,7 +226,8 @@ def main() -> int:
             },
         )
         saver = saver_on(url, schema)
-        model = ScriptedChatModel(turns=script(claims, leaver), count_file=count_file)
+        turns = script(claims, leaver)
+        model = ScriptedChatModel(turns=turns, count_file=count_file)
         ports = systems_holding(world).ports
         graph = build(Harness(log, ports, model, context, reported_usage), saver)
         policies = retry_policies(graph)
@@ -298,6 +299,18 @@ def main() -> int:
         "three model calls, each requested once": requests == [1, 2, 3]
         and [call.id for call in export.trace.model_calls] == ["mc-1", "mc-2", "mc-3"]
         and [intent["dispatch_attempt"] for intent in unstated.intents] == [1, 1, 1],
+        "each call's usage is its scripted turn's, and the aggregate their sum": [
+            None if call.usage is None else call.usage.counters for call in export.trace.model_calls
+        ]
+        == [
+            (("input_tokens", turn.input_tokens), ("output_tokens", turn.output_tokens))
+            for turn in turns
+        ]
+        and export.record.usage.counters
+        == (
+            ("input_tokens", sum(turn.input_tokens for turn in turns), len(turns)),
+            ("output_tokens", sum(turn.output_tokens for turn in turns), len(turns)),
+        ),
         "the export's claims are the script's final claims": export.trace.claims
         == tuple(sorted(claims[1:], key=lambda claim: claim.claim_id)),
         "turn 2's claim is recorded and not exported": unstated.claims_beside_tool_calls
@@ -328,6 +341,7 @@ def main() -> int:
         ],
         "claims": {"exported": len(export.trace.claims), "baseline": len(claims)},
         "model_requests_counted": requests,
+        "usage": [list(counter) for counter in export.record.usage.counters],
         "appends_that_repeated_a_held_event": held_again,
         "checkpoint_rows_before_drop": checkpoint_rows,
         "tables_dropped": tables,
