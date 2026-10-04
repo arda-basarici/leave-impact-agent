@@ -17,7 +17,7 @@ by the same policy at the approval interrupt, and reaches the exporter the same 
 
 from __future__ import annotations
 
-from leaveimpact.agent.report import rules_only_composition
+from leaveimpact.agent.composer import rules_only_composition
 from leaveimpact.agent.rules_only import RulesOnlyRun
 from leaveimpact.core.run_ending import Approval, ApprovalState, Approver
 from leaveimpact.core.run_parts_json import review_payload_digest

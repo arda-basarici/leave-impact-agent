@@ -19,7 +19,8 @@ tool-surface digest, no attribution table, no usage counter, no cost and no rese
 since no model is called; the caps are recorded all the same, as the preregistration's.
 It ran in one process, so its timing is one segment whose end was recorded, and it paused
 for nothing, so no approval stamp exists. Its claims were composed by the rules under the
-reporting policy. A failed run records its failure at the operation the fault was found
+composing policy every rules-composed system shares, with nothing placed and nothing left
+out. A failed run records its failure at the operation the fault was found
 at, which the export's own rule checks; an abstention is a completed run with no claims
 and says nothing more, the trace saying it to the evaluator.
 """
@@ -29,7 +30,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from leaveimpact.agent.report import rules_only_composition
+from leaveimpact.agent.composer import rules_only_composition
 from leaveimpact.agent.rules_only import RulesOnlyRun
 from leaveimpact.core.prefetch import prefetch_rule
 from leaveimpact.core.run_ending import Approval

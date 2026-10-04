@@ -16,18 +16,23 @@ nothing stated in prose enters it. Then the preconditions:
 
 - *A defect fails the run at its operation*, ahead of everything: a read that returned a
   malformed record; the opening read answered with a leave of another id; the employee
-  enumeration completed without the leaver; a returned record no fact could be made from.
-  Each is the HR system or an adapter contradicting itself, and a degrade would fold a
-  defect into a legitimate unknown (DESIGN's runtime policy).
+  enumeration completed without the leaver; a returned record no fact could be made from;
+  two complete reads of one structured source that cannot both be true
+  (``core.contradictions``: one record with two contents, a record a read by id returned
+  that an enumeration or a window over its span omits, or the reverse), at the later of
+  the two, or at the earlier when the later one answered "no such record", since an
+  absent answer anchors no defect. Each is a source or an adapter contradicting itself,
+  and a degrade would fold a defect into a legitimate unknown (DESIGN's runtime policy).
 - *Abstention*, a completed run with no claims: the leave was not returned (absent, or its
   source unreachable), or the employee-kind slice was not covered, so the candidate
   universe is unknown. The plan rule is never run over a universe the run did not read.
   No claim type, status or field says why; the evaluator derives the degraded state from
   the trace, and the reason here is for tests and logs.
 - *Else conclude.* The universe is the distinct employee ids the enumeration returned, in
-  the code-point order of the ids; the impacts are the ones the rules ground for the
-  leaver over the returned leave's span; the conclusions are ``core``'s composing pass
-  with no constraint; the claims are the report's.
+  the code-point order of the ids; the rest is the composer's, the path every
+  rules-composed system shares, given no stated fact: the impacts the rules ground for
+  the leaver over the returned leave's span, ``core``'s composing pass with no
+  constraint, the report's claims.
 """
 
 from __future__ import annotations
@@ -36,18 +41,17 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 
+from leaveimpact.agent.composer import compose
 from leaveimpact.agent.execution import Executor, ReadPorts, run_prefetch
-from leaveimpact.agent.report import rules_only_report
 from leaveimpact.core.claims import Claim
+from leaveimpact.core.contradictions import self_contradictions
 from leaveimpact.core.coverage import KindSlice, SliceStatus
 from leaveimpact.core.entities import Leave
 from leaveimpact.core.enums import EntityKind
-from leaveimpact.core.grounding import derive_impacts
 from leaveimpact.core.ids import EmployeeId
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.read_condition import ObservedCondition
 from leaveimpact.core.read_projection import StructuredReads, project_reads
-from leaveimpact.core.readings import conclude_impacts
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.run_ending import OperationSite
 from leaveimpact.core.run_record import Failure, FailureCategory
@@ -115,16 +119,8 @@ def investigate(
             operations, (), projection.condition, None, Abstention.UNIVERSE_NOT_COVERED
         )
 
-    view = projection.view()
-    universe = _universe(projection)
-    grounded = derive_impacts(
-        view, context.leave_id, leave.employee_id, leave.span, context.reference_timezone
-    ).grounded
-    conclusions = conclude_impacts(
-        view, grounded, (), leave.employee_id, leave.span, context.reference_timezone, universe
-    )
-    claims = rules_only_report(conclusions, view)
-    return RulesOnlyRun(operations, claims, projection.condition, None, None)
+    composed = compose(projection, (), context, leave, _universe(projection))
+    return RulesOnlyRun(operations, composed.claims, projection.condition, None, None)
 
 
 def _universe(projection: StructuredReads) -> tuple[EmployeeId, ...]:
@@ -185,6 +181,24 @@ def _defect(
                     (index, _failure(operation, f"no fact could be made from {_named(ref)}"))
                 )
                 break
+    placed = {operation.id: index for index, operation in enumerate(operations)}
+    for contradiction in self_contradictions(operations):
+        # Found once the later read is logged, whichever of the two the failure names.
+        other = (
+            contradiction.later
+            if contradiction.site == contradiction.earlier
+            else contradiction.earlier
+        )
+        found.append(
+            (
+                placed[contradiction.later],
+                _failure(
+                    operations[placed[contradiction.site]],
+                    f"{contradiction.kind.value}: this read and {other} disagree about "
+                    f"{_named(contradiction.record)}",
+                ),
+            )
+        )
     if not found:
         return None
     return min(found, key=lambda item: item[0])[1]

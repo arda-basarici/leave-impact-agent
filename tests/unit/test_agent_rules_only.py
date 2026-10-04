@@ -61,6 +61,7 @@ from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import EmployeeId, LeaveId, claim_id, employee_id, leave_id
 from leaveimpact.core.run_ending import OperationSite
 from leaveimpact.core.run_trace import OperationId
+from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.evaluator.observed_view import observe
 from leaveimpact.evaluator.oracle import (
     Answerable,
@@ -329,6 +330,45 @@ class _PeopleWithoutAnEnumeration(InMemoryPeople):
         raise SourceUnreachable(self.source, "the list endpoint timed out")
 
 
+@dataclass
+class _PeopleWhoseWindowOmitsTheLeave(InMemoryPeople):
+    def leaves_within(self, span: DateSpan) -> tuple[Observed[Leave], ...]:
+        return ()
+
+
+def test_a_window_that_omits_the_leave_read_by_id_is_a_defect_at_the_window(
+    world: SealedWorld, systems: Systems, scenario: Scenario
+) -> None:
+    # The prefetch reads the leave by id and then every leave over its span: a window that
+    # does not hold it contradicts the first read, and the run fails where that showed.
+    people = _PeopleWhoseWindowOmitsTheLeave(
+        people=systems.people.people, leaves=systems.people.leaves, teams=systems.people.teams
+    )
+    result = investigate(world.context_of(scenario), replace(systems.ports, people=people))
+    window = next(op for op in result.operations if op.tool == "leaves_within")
+    assert result.failure is not None and result.claims == ()
+    assert result.failure.site == OperationSite(window.id)
+    assert result.failure.reason == (
+        f"omitted_by_window: this read and {result.operations[0].id} disagree about "
+        f"leave {scenario.spec.leave_id}"
+    )
+
+
+def test_an_earlier_defect_still_outranks_a_later_contradiction(
+    world: SealedWorld, systems: Systems, scenario: Scenario
+) -> None:
+    leave = scenario.investigated_leave
+    people = _PeopleWhoseWindowOmitsTheLeave(
+        people={k: v for k, v in systems.people.people.items() if k != leave.employee_id},
+        leaves=systems.people.leaves,
+        teams=systems.people.teams,
+    )
+    result = investigate(world.context_of(scenario), replace(systems.ports, people=people))
+    assert result.failure is not None
+    enumeration = next(op for op in result.operations if op.tool == "employees")
+    assert result.failure.site == OperationSite(enumeration.id)
+
+
 def test_an_uncovered_universe_is_an_abstention_and_the_plan_rule_never_runs(
     world: SealedWorld, systems: Systems, scenario: Scenario
 ) -> None:
@@ -473,8 +513,20 @@ def test_every_way_a_run_ends_is_exportable(
     blank = systems_holding(world)
     blank.people.people[world.org.employees[1].id] = replace(world.org.employees[1], location="  ")
     ways["defect, underivable record"] = investigate(context, blank.ports)
+    omitting = systems_holding(world)
+    ways["defect, a window without the leave"] = investigate(
+        context,
+        replace(
+            omitting.ports,
+            people=_PeopleWhoseWindowOmitsTheLeave(
+                people=omitting.people.people,
+                leaves=omitting.people.leaves,
+                teams=omitting.people.teams,
+            ),
+        ),
+    )
 
-    assert sum(way.failure is not None for way in ways.values()) == 4
+    assert sum(way.failure is not None for way in ways.values()) == 5
     assert sum(way.abstention is not None for way in ways.values()) == 2
     for name, way in ways.items():
         export = exported(world, scenario, way)

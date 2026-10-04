@@ -1,8 +1,10 @@
-"""The rules-only report: the rules' conclusions written as claims, under the one reporting
-policy the baseline is frozen to.
+"""The report: the rules' conclusions written as claims, under the one reporting policy every
+rules-composed system is frozen to.
 
-The baseline emits what the shared rules conclude over its own view and nothing it decided
-itself (the investigator milestone's fifth build step, rulings 2 and 6). For every impact
+A system whose claims the rules write states what the shared rules conclude over its own
+view and nothing it decided itself (the investigator milestone's fifth build step, rulings
+2 and 6; the contract step made the path every model system's, the baseline being the same
+path with no stated fact and so no constraint). For every impact
 the view grounds: one impact claim; one assessment of every employee in the candidate
 universe, exactly as the viability rule returned it; and exactly one coverage action, the
 plan rule's result over the complete assessment set, an assign naming the first viable
@@ -15,16 +17,23 @@ The unknown claims are the ones the assessments derive from: one per subject and
 each assessment linked to the unknowns its open questions name, and the report refused
 when one such key would need two reasons, which no reading of the rules produces. The
 conflicts are those met while resolving the evidence an emitted impact or assessment
-used, and no other. No constraint is stated: the baseline reads no clause, and its empty
-constraint list is a premise the record declares.
+used, and no other.
+
+A constraint is stated for each scope pairing the rules were given whose clause states a
+requirement the view can read and whose target lies inside the scope of a reported impact:
+the impact's artifact, or its component when that could be read. That is the set an answer
+key expects, so a requirement bound to something the leave does not touch is applied by
+the rules to nothing, stated as no claim, and counted against nobody. The baseline is
+given no pairing and states none; its empty constraint list is a premise its record
+declares.
 
 Each claim cites the directly citable records of its own proof: a fact's or a gap's
 record, and the record whose return settled a negative. An enumeration, a window and a
 source left unclosed name no record, and an action copies none of its premises' evidence.
 
-Claims are ordered by type (impacts, unknowns, assessments, actions, conflicts) and by
-grading key within a type, and ids are assigned after that ordering, so identical
-observations give an identical report, byte for byte once exported.
+Claims are ordered by type (impacts, constraints, unknowns, assessments, actions,
+conflicts) and by grading key within a type, and ids are assigned after that ordering, so
+identical observations give an identical report, byte for byte once exported.
 
 The policy has a declared identity, ``REPORTING_POLICY``: an identifier, a version and the
 tie-break by name. The version is a semantic version kept by hand, raised whenever what
@@ -37,7 +46,6 @@ and the construction gate that grades the baseline end to end.
 
 from __future__ import annotations
 
-import hashlib
 from collections.abc import Iterable, Sequence
 
 from leaveimpact.core.authority import conflicts_on
@@ -45,6 +53,8 @@ from leaveimpact.core.claims import (
     CandidateAssessment,
     Claim,
     ConflictKey,
+    Constraint,
+    ConstraintKey,
     CoverageAction,
     CoverageActionKind,
     Impact,
@@ -54,38 +64,31 @@ from leaveimpact.core.claims import (
     Verdict,
     key_order,
 )
-from leaveimpact.core.closure import Unresolved, Witness, citable_record
+from leaveimpact.core.closure import KnownTrue, Unresolved, Witness, citable_record, establish
 from leaveimpact.core.facts import Fact, FactView
 from leaveimpact.core.grounding import Grounded
 from leaveimpact.core.ids import ClaimId, claim_id
-from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
+from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.readings import ImpactConclusion
-from leaveimpact.core.refs import SOURCE_BY_TARGET_KIND, EvidenceRef
+from leaveimpact.core.refs import SOURCE_BY_TARGET_KIND, EntityRef, EvidenceRef, clause_ref
 from leaveimpact.core.registration import ReportingPolicy
-from leaveimpact.core.run_ending import ClaimAuthor, ComposingPolicy, Composition
+from leaveimpact.core.viability import Need
 
 REPORTING_POLICY = ReportingPolicy("rules-only-report", 1, "first_viable_in_id_code_point_order")
 """The policy this module implements, as the preregistration names it."""
 
 
-def rules_only_composition() -> Composition:
-    """How a rules-only run's claims were composed, as its export states it: by the rules,
-    under the reporting policy, with nothing placed and nothing left out, since the
-    baseline's view holds no stated fact. The policy's digest is of its three declared
-    values, so a change of version or tie-break is a change of the composing policy."""
-    declared: JsonObject = {
-        "identifier": REPORTING_POLICY.identifier,
-        "version": REPORTING_POLICY.version,
-        "tie_break": REPORTING_POLICY.tie_break,
-    }
-    digest = hashlib.sha256(canonical_bytes(declared)).hexdigest()
-    return Composition(
-        ClaimAuthor.RULES, ComposingPolicy(REPORTING_POLICY.identifier, digest), (), ()
-    )
-
-
 def rules_only_report(conclusions: Sequence[ImpactConclusion], view: FactView) -> tuple[Claim, ...]:
-    """The claims the reporting policy makes of ``conclusions`` over ``view``.
+    """The claims the reporting policy makes of ``conclusions`` reached with no constraint:
+    the baseline's report."""
+    return compose_report(conclusions, view, ())
+
+
+def compose_report(
+    conclusions: Sequence[ImpactConclusion], view: FactView, constraints: Sequence[ConstraintKey]
+) -> tuple[Claim, ...]:
+    """The claims the reporting policy makes of ``conclusions`` over ``view``, the rules having
+    been given ``constraints`` as the scope pairings in force.
 
     Only an impact the rules ground is reported; a conclusion whose grounding is open or
     negative contributes nothing, since silence is never a negative here. Raises
@@ -110,6 +113,15 @@ def rules_only_report(conclusions: Sequence[ImpactConclusion], view: FactView) -
             artifact=c.impact.artifact,
         )
         for c in grounded
+    ]
+    stated = [
+        Constraint(
+            claim_id=mint(),
+            evidence_refs=_cites(requirement.proof),
+            clause_id=key.clause_id,
+            applies_to=key.applies_to,
+        )
+        for key, requirement in _stated_constraints(grounded, view, constraints)
     ]
     questions = _open_questions(grounded)
     unknowns = {
@@ -172,7 +184,28 @@ def rules_only_report(conclusions: Sequence[ImpactConclusion], view: FactView) -
             key=lambda f: key_order(ConflictKey(f.subject, f.predicate)),
         )
     ]
-    return (*impacts, *unknowns.values(), *assessments, *actions, *conflicts)
+    return (*impacts, *stated, *unknowns.values(), *assessments, *actions, *conflicts)
+
+
+def _stated_constraints(
+    grounded: Sequence[ImpactConclusion], view: FactView, constraints: Sequence[ConstraintKey]
+) -> list[tuple[ConstraintKey, KnownTrue]]:
+    """The pairings a report states, each with the reading of its clause's requirement: those
+    whose target is inside a reported impact's scope and whose clause the view can read,
+    in key order, each once."""
+    in_scope: set[EntityRef] = set()
+    for c in grounded:
+        in_scope.add(c.impact.artifact)
+        if isinstance(c.need, Need) and isinstance(c.need.component, EntityRef):
+            in_scope.add(c.need.component)
+    stated: list[tuple[ConstraintKey, KnownTrue]] = []
+    for key in sorted(dict.fromkeys(constraints), key=key_order):
+        if key.applies_to not in in_scope:
+            continue
+        requirement = establish(view, clause_ref(key.clause_id), PredicateName.REQUIRES)
+        if isinstance(requirement, KnownTrue):
+            stated.append((key, requirement))
+    return stated
 
 
 def _open_questions(grounded: Iterable[ImpactConclusion]) -> dict[UnknownKey, Unresolved]:
@@ -219,4 +252,4 @@ def _cites(proof: Iterable[Witness]) -> tuple[EvidenceRef, ...]:
     return tuple(EvidenceRef(SOURCE_BY_TARGET_KIND[target.kind], target) for target in targets)
 
 
-__all__ = ["REPORTING_POLICY", "rules_only_composition", "rules_only_report"]
+__all__ = ["REPORTING_POLICY", "compose_report", "rules_only_report"]
