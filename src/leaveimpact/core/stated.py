@@ -35,9 +35,10 @@ Three statuses are kept apart, because each answers a different question about a
   A correctly extracted requirement can be admitted and unplaced, and a wrong binding is
   not an invention.
 
-The gates and the binding themselves are functions over a run's reads and live with what
-they read (the binding module here, the gates with the composer); this module is the
-vocabulary they speak.
+The gates and the binding themselves are functions over a run's reads, each in its own
+module here (``admission``, ``binding``, and ``scoping`` for what several placements of one
+clause come to), since a harness runs them and the evaluator reruns them and the two may
+not import each other; this module is the vocabulary they speak.
 """
 
 from __future__ import annotations

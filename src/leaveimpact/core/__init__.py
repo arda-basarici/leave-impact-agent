@@ -33,6 +33,7 @@ the import law enforces read-only on that path and a re-export here would launde
 """
 
 from leaveimpact.core import (
+    admission,
     anchors,
     authority,
     binding,
@@ -41,6 +42,7 @@ from leaveimpact.core import (
     claims,
     claims_json,
     closure,
+    contradictions,
     coverage,
     derivation,
     entities,
@@ -71,6 +73,8 @@ from leaveimpact.core import (
     run_record,
     run_timing,
     run_trace,
+    scoping,
+    skills,
     stated,
     stated_json,
     stated_view,
@@ -82,12 +86,14 @@ from leaveimpact.core import (
     viability,
     worldtime,
 )
+from leaveimpact.core.admission import CarrierText, admit, carriers_read, run_lexicon
 from leaveimpact.core.anchors import (
     ANCHOR_ROWS,
     EMPLOYMENT_FORMS,
     FIRST_PERSON,
     GIVEN_NAME_KIND,
     NUMBER_WORDS,
+    REQUIREMENT_OF_ONE,
     SKILL_KIND,
     Anchor,
     AnchorShape,
@@ -163,6 +169,11 @@ from leaveimpact.core.closure import (
     proof_of,
 )
 from leaveimpact.core.comments import comment_body, comment_text, parse_comment
+from leaveimpact.core.contradictions import (
+    Contradiction,
+    ContradictionKind,
+    self_contradictions,
+)
 from leaveimpact.core.coverage import (
     PLACEMENTS,
     WINDOWED_KINDS,
@@ -492,6 +503,8 @@ from leaveimpact.core.run_trace import (
     is_failed_read,
     require_integer,
 )
+from leaveimpact.core.scoping import Scoped, scope_requirements
+from leaveimpact.core.skills import SKILLS, Skill
 from leaveimpact.core.stated import (
     CARRIER_KINDS,
     CONSTRUCTION_REFUSALS,
@@ -520,7 +533,13 @@ from leaveimpact.core.stated_json import (
     encode_placement,
     encode_stated_fact,
 )
-from leaveimpact.core.stated_view import Excluded, Exclusion, StatedView, view_with_stated
+from leaveimpact.core.stated_view import (
+    SCOPE_REASONS,
+    Excluded,
+    Exclusion,
+    StatedView,
+    view_with_stated,
+)
 from leaveimpact.core.tools import (
     METHOD_TABLE,
     RESULT_CODEC,
@@ -584,6 +603,7 @@ from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_
 # The submodules are listed so the rendered reference keeps their docstrings — each
 # carries the why of its part — beside the public names.
 __all__ = [
+    "admission",
     "anchors",
     "authority",
     "binding",
@@ -592,6 +612,7 @@ __all__ = [
     "claims",
     "claims_json",
     "closure",
+    "contradictions",
     "coverage",
     "derivation",
     "entities",
@@ -622,6 +643,8 @@ __all__ = [
     "run_record",
     "run_timing",
     "run_trace",
+    "scoping",
+    "skills",
     "stated",
     "stated_json",
     "stated_view",
@@ -664,7 +687,10 @@ __all__ = [
     "REGISTRATION_FORMAT_VERSION",
     "REGISTRY",
     "RESULT_CODEC",
+    "REQUIREMENT_OF_ONE",
     "REQUIREMENT_VALUE",
+    "SCOPE_REASONS",
+    "SKILLS",
     "SCHEDULE_ENVELOPE_VERSION",
     "SEARCH_LIMIT",
     "SKILL_KIND",
@@ -931,6 +957,11 @@ __all__ = [
     "ScenarioId",
     "Scope",
     "Setting",
+    "CarrierText",
+    "Contradiction",
+    "ContradictionKind",
+    "Scoped",
+    "Skill",
     "SkillCriterion",
     "SkillId",
     "Slice",
@@ -988,7 +1019,12 @@ __all__ = [
     "cumulative_cost",
     "billed_dispatches",
     "cost_of_reported",
+    "admit",
+    "carriers_read",
     "run_cost",
+    "run_lexicon",
+    "scope_requirements",
+    "self_contradictions",
     "decode_call_configuration",
     "encode_call_configuration",
     "normalized_setting_value",

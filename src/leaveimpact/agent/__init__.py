@@ -15,10 +15,16 @@ the write ports are unreachable by module path.
 ``execution`` is the one path for a declared tool call, the frozen prefetch's now and
 the model's when the registry arrives: validation, the port and the method, one
 recorded operation with one of the six outcomes, the per-source stop state, and the
-prefetch run over it. ``rules_only`` is the first system: the prefetch, the structured
-projection as its whole view, ruling 4's preconditions (a defect at its operation, or an
-abstention with no claims), the shared rules through ``core``'s composing pass, and
-``report``, the one reporting policy that writes the rules' conclusions as claims;
+prefetch run over it. ``composer`` is the one path from a run's reads and the facts a
+model stated to claims, shared by every system whose claims the rules write: the join, the
+span binding and the scope rules from ``core``, the shared rules through ``core``'s
+composing pass, and ``report``, the one reporting policy that writes the rules'
+conclusions as claims, constraints among them; it carries the composing policy every such
+export records. ``fact_entries`` parses a model's fact entries into stated facts, or keeps
+an unreadable one whole beside its reason. ``rules_only`` is the first system: the
+prefetch, the structured projection as its whole view, ruling 4's preconditions (a defect
+at its operation, a source that contradicts itself among them, or an abstention with no
+claims), and the composer given no statement;
 ``export`` writes a run as the artifact the evaluator grades, under the provenance the
 harness around it supplies; ``registered`` builds that provenance from the preregistration
 and refuses a run whose registration differs from what this code computes or declares.

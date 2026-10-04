@@ -727,8 +727,10 @@ def _decode_requirement(data: Mapping[str, object]) -> RequirementPlacement:
 def review_payload(claims: Sequence[Claim], composition: Composition) -> JsonObject:
     """What an approval is asked over, frozen: the claims in claim-id order, who composed
     them under which policy, the requirements whose span did not bind, and the statements
-    the view left out. A placed requirement is in the claims it composed and is not
-    repeated; an abstention's payload holds no claim and is a payload all the same."""
+    the view left out, a requirement withheld for its scope among them. A placed
+    requirement is not repeated: it is in the constraint claim it composed, or it was
+    bound to something the leave does not touch and composed none, which is no diagnostic.
+    An abstention's payload holds no claim and is a payload all the same."""
     return {
         "claims": [
             encode_claim(claim) for claim in sorted(claims, key=lambda claim: claim.claim_id)

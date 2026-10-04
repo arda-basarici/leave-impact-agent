@@ -26,7 +26,8 @@ unplaced even when its target was read: the diagnostic shows the loss and does n
 the constraint.
 
 A span bound to a document says nothing here about which of the document's sections a
-constraint applies to; that step is the composer's.
+constraint applies to; that step, and what several spans of one clause come to together,
+is ``scoping``'s.
 """
 
 from __future__ import annotations

@@ -194,7 +194,8 @@ assessment derives from unknown claims shaped as the rule emits them (about the
 candidate, the impact's artifact, or a clause the report's own constraints cite for
 something that could apply to the impact, on a predicate the rule reads for that
 subject); an unknown action from an unknown assessment; an assign action's assignees
-each hold a viable assessment; an uncovered action holds no viable one; a conflict
+each hold a viable assessment; an uncovered action holds no viable one, unless a
+constraint of the report could apply to the impact; a conflict
 resolves to the system of record's observation under the rule it cites; every impact
 has exactly one coverage action and every action an impact. Completeness is the
 coverage check below: a conclusion of uncovered or unknown calls for everyone's
@@ -2203,16 +2204,7 @@ admitted in the trace with the reason it was left out. Statements that agree sta
 corroboration, and a disagreement between sources is still the authority table's. A
 stated fact is dated to the run's day like every fact a run derives: the view drops what
 is dated later, and a carrier planted for a later scenario is still a record the run
-read. The gates that admit a statement and the composer that turns the view into claims
-are not built yet.
-
-**Ruled on 2026-10-04 and not yet built: the measurement changes shape before any model
-system is measured.** The paragraphs above describe the evaluator and the committed
-registration as they stand: three systems, fifteen arms, six tuned scenarios, two
-primary comparisons. The rulings in the five paragraphs below replace
-those parts as the code for each lands, and this text is rewritten with it. Until then
-the registration stays a draft, and no reported measurement is made under what it
-states today.
+read.
 
 **The model states facts and the shared rules conclude, for every model system.** A
 model decides what to read and states what free text asserts, each fact with its
@@ -2248,6 +2240,105 @@ still bind the wrong artifact, and one that runs long leaves a read requirement
 unapplied; both are the system's measured behaviour. An unplaced or ambiguous
 requirement composes no constraint and no unknown, is shown in the report as a
 diagnostic, and is inside what an approval covers.
+
+**A statement is admitted over the reads logged before it, by five gates asked in one
+order.** The carrier is inside a record a read of the run returned; the quote is an exact
+substring of the carrier as read, with no normalization; the subject is a record the run
+returned; the value has a form the run can look for, an entity it returned or a skill of
+the public vocabulary; and the quote holds the anchors the table asks of that predicate.
+The first that fails refuses the statement under its reason, so one statement is counted
+once. The decision is made when the answer that carried the statement is recorded, over
+the reads logged before it: a later read never rescues a refusal, a restatement can be
+admitted, and the evaluator can rerun any admission from the export. A requirement's
+target is no gate's business, so a requirement is admitted on its own carrier and quote
+and bound when its target has been read. The lexicon the anchors are looked up in is the
+public skill table, which moved into `core` for this, and the names and titles of the
+records the run returned, never anything sealed. The gates live in `core` because the
+harness admits with them and the evaluator reruns them, and the two may not import each
+other.
+
+**A requirement of one is anchored by its criteria and not by its number.** A clause
+that asks for one person seldom writes the number: "needs an engineer with Go
+experience", "the contact named in the account notes needs React experience". With the
+count anchored the guard refused 15 of the 17 requirements a truthful reading of the
+suite's throwaway world holds, every one a count of one.
+The quote guard therefore asks a requirement of one for its criteria only and a
+requirement of two or more for its number as well; the generator's reading of the same
+table is unchanged, and the rule is a named entry of the table's digest. The guard stays
+lexical. A model that reads "two engineers" as one is admitted and graded wrong, and a
+requirement of one with no criterion has no anchor left, so what it composes is judged
+like any other constraint.
+
+**A clause governs one artifact, and composition says which.** Every requirement the
+join left standing has its span bound once, over everything the run read. A clause whose
+spans placed on one artifact governs it, whatever else was stated beside them: a span
+that ran long costs nothing when another emission of the same requirement placed. A
+clause whose spans placed on two artifacts was read with two scopes and has one, so
+neither is used and every statement of that requirement is left out of the view: using
+both would lay a constraint on something the clause never governed, and taking the first
+would make a report depend on emission order. A span that names a document means the
+document's one section, since a responsibility that lives in a document is an impact on
+its section; a document holding any other number of sections gives no constraint. Both
+leave the placement on record and add a reason beside it. A single wrong span is still
+bound and used: that is the model's wrong binding, and it shows as a contradicted
+constraint in the replay. The rules are given every composed pairing and select by the
+need; a constraint is stated as a claim only where its target lies in the scope of a
+reported impact, the artifact or its readable component, which is the set an answer key
+expects. A requirement bound to something the leave does not touch is stated as no claim
+and is no error.
+
+**One composing path and one composing policy, for every system whose claims the rules
+write.** The path is the join, the binding and the scope rules, the shared rules, and the
+reporting policy; the baseline is that path given no statement, and its claims are the
+same claim for claim as before the path existed. The policy an export records is an
+identifier and the digest of a specification: a version kept by hand, the reporting
+policy's three values, the five predicates, the anchor table's digest, the binding rule,
+the exclusion reasons, the scope rules and the rule for which constraints are stated. A
+truthful reading of the throwaway world's prose, composed this way, is graded correct
+whole on all thirty scenarios under the normal condition and under the tracker and the
+calendar outage, with every claim reproduced by the replay. With the tracker down a true
+requirement about a ticket is unplaced and a runbook's statement about a ticket is
+refused for its unread subject, and no report moves by either. The parser of a model's
+entries reads the one shape a model has been shown to fill and keeps an unreadable entry
+whole beside its reason; how a model is asked for entries is the graph's.
+
+**A structured source that contradicts itself within a run fails the run by defect.**
+The world is static while a run reads it, so two complete reads that cannot both be true
+are never a state to conclude from, and a degrade would pass a broken vendor off as
+unknowns a model is then graded on. Four shapes, between two operations in either order:
+one record returned with two contents; a read by id answered "no such record" for a
+record another read returned; an enumeration that omits a record of its kind another read
+returned; a window that omits a leave or an event another read returned and whose own
+span overlaps it by that port's rule. A failed or refused read, a capped search, a window
+the record's span does not overlap and an operation that is not what its tool declares
+establish nothing. The failure is sited at the later operation and names the earlier one,
+and the finder returns both typed. When the later read is the one that answered "no such
+record" the site is the earlier one, since an absent answer anchors no defect and the
+read that returned the record is the one the harness could not accept.
+The two HR cases above are the same rule. The corpus
+is outside it: a document returned two ways is withdrawn, with what was stated from it,
+and a malformed record of any source still fails a run at its own operation. The coverage
+mapping still withdraws such a record, because a replay must be total over any export.
+Whether a port's sequence is the whole answer cannot be seen from a trace, so a lagging
+index shows here as an omission and stops runs loudly.
+
+**Two checks changed meaning before any system was measured.** Reproduced whole also
+requires that no claim rests on a premise the report does not hold, since a report
+otherwise gains by leaving out a claim that would be contradicted. And the chain check
+calls an uncovered action beside a viable assessment incoherent only when no constraint
+of the report could apply to the impact: under a clause asking for two, one viable
+candidate is uncovered by the plan rule and no other action is right. An assignee the
+report does not assess viable is the chain's finding alone; the declared-constraint
+check reports the count and leaves the assignee to it, since that check goes uncheckable
+when a cited clause cannot be read and the chain reads the report alone.
+
+**Ruled on 2026-10-04 and not yet built: the measurement changes shape before any model
+system is measured.** The paragraphs above describe the evaluator and the committed
+registration as they stand: three systems, fifteen arms, six tuned scenarios, two
+primary comparisons. The rulings in the three paragraphs below replace
+those parts as the code for each lands, and this text is rewritten with it. Until then
+the registration stays a draft, and no reported measurement is made under what it
+states today.
 
 **Four systems at two corpus sizes, one primary comparison.** The measured world is a
 new one from a seed drawn from a secret, with answer-neutral documents sealed into it
@@ -2289,12 +2380,7 @@ first live run. And the dispositions a format can state are not yet produced by
 anything: the event log decides what durable evidence tells an undispatched tool call
 from an unresolved one. Measurement runs are not streamed.
 
-**Three grading rules change with it.** Reproduced whole also requires that no claim's
-premise is missing from the report, since a report otherwise gains by omitting a claim
-that would be contradicted. A structured source that contradicts itself within a run,
-one record returned two ways or a record a complete enumeration over the same span
-omits, fails the run by defect on equivalent complete reads, with both reads recorded;
-the two HR cases above are instances. The counted attempt is chosen only among the
+**Run accounting changes with it.** The counted attempt is chosen only among the
 attempts the registration allows, so an attempt past the maximum never counts.
 Comparisons beyond the primary and its named secondaries (vector retrieval, a
 multi-agent layout, a second model, a model-authored report) are a list fixed with
