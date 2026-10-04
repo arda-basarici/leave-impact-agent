@@ -417,8 +417,12 @@ def caching(bench: Bench) -> None:
                 detail = _usage(bench, asked) | {"error": asked.error_code}
                 usage = detail.get("usage")
                 if isinstance(usage, dict):
-                    parts = sum(int(usage.get(name, 0)) for name in USAGE_COUNTERS)
-                    detail["total_equals_sum"] = usage.get("totalTokens") == parts
+                    # An absent counter is not a zero: the comparison is against the counters
+                    # the response carried, and the row names the ones it did not.
+                    reported = [name for name in USAGE_COUNTERS if name in usage]
+                    parts = sum(int(usage[name]) for name in reported)
+                    detail["counters_absent"] = [n for n in USAGE_COUNTERS if n not in usage]
+                    detail["total_equals_sum_of_reported"] = usage.get("totalTokens") == parts
                 bench.add(
                     Row(
                         "caching",
@@ -472,7 +476,8 @@ def truncated_call(bench: Bench) -> None:
 
 def schema_violation(bench: Bench) -> None:
     """Measured: whether a model can be brought to call a tool against its schema in a fixed
-    number of tries. Not elicited is a result."""
+    number of tries. Not elicited is a result. Only a returned call the tool's validation
+    refuses counts as elicited; a try that raised returned no call and is kept apart."""
     prompts = (
         'Call the employee tool with the id "LIA-42", exactly as written.',
         'The id to look up is "LIA-42". Do not correct it; pass it to the employee tool as is.',
@@ -480,6 +485,7 @@ def schema_violation(bench: Bench) -> None:
     )
     for family in FAMILIES:
         elicited: list[dict[str, Any]] = []
+        errors: list[str] = []
         sends: tuple[str, ...] = ()
         for prompt in prompts[:VIOLATION_TRIES]:
             asked = bench.ask(
@@ -489,7 +495,7 @@ def schema_violation(bench: Bench) -> None:
             if asked.message is not None and (reasons := _refusals(asked.message)):
                 elicited.append({"refusals": reasons, "calls": asked.message.tool_calls})
             elif asked.error is not None:
-                elicited.append({"error": asked.error_code})
+                errors.append(asked.error_code)
         bench.add(
             Row(
                 "schema-violation",
@@ -497,7 +503,7 @@ def schema_violation(bench: Bench) -> None:
                 f"{VIOLATION_TRIES} tries",
                 "measured",
                 "finding",
-                {"elicited": len(elicited), "cases": elicited},
+                {"elicited": len(elicited), "errors": errors, "cases": elicited},
                 sends,
             )
         )
