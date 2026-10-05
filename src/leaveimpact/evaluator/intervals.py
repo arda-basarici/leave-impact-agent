@@ -33,6 +33,15 @@ read as certainty where the method has only run out of variation. The point esti
 stands beside the reason. An unresolved interval supports no statement that one system
 beats another, whatever the point difference, and no other method is substituted for it.
 
+That last reason has to be decided exactly, so a cluster holds whole numbers and the
+arithmetic stays in whole numbers until one division at the end. Summed as floats, ten
+scenarios that each gain exactly one repeat in ten resample to differences a rounding
+error apart, and the noise comes back as an interval 3e-16 wide that resolves a positive
+difference. With integer sums every resample of one mathematical value divides to one
+float, since the division of two integers is correctly rounded. A pass fraction is
+therefore given as counts over a common denominator, by the caller, and a cluster that
+holds anything but integers is refused.
+
 A *paired* difference between two systems resamples the same scenarios for both and
 recomputes each system's ratio of sums, then subtracts. The mean of per-scenario ratio
 differences is a different quantity and is not computed: a ratio of sums is not a mean of
@@ -61,14 +70,16 @@ from enum import StrEnum
 from math import floor, sqrt
 from statistics import NormalDist
 
+from leaveimpact.core.run_trace import require_integer
+
 QUANTILE_RULE = "linear interpolation between order statistics"
 """How a percentile is read off the sorted replicates: position ``(m - 1) * q`` among ``m``
 values, interpolated between its neighbours."""
 
 STRATIFICATION = "clusters resampled with replacement within each stratum"
 
-Cluster = tuple[float, float]
-"""One scenario's contribution to a ratio: its numerator and its denominator."""
+Cluster = tuple[int, int]
+"""One scenario's contribution to a ratio: its numerator and its denominator, whole numbers."""
 
 Paired = tuple[Cluster, Cluster]
 """One scenario's contribution to a comparison: the first system's cluster and the second's."""
@@ -156,7 +167,7 @@ def bootstrap_ratio(
     """The interval of the ratio of sums over ``strata``, each a group of clusters resampled
     within itself, or why the bootstrap resolves none.
 
-    >>> bootstrap_ratio([[(1.0, 1.0)] * 10], confidence=0.95, seed=7, resamples=200).value
+    >>> bootstrap_ratio([[(1, 1)] * 10], confidence=0.95, seed=7, resamples=200).value
     'every_resample_equal'
     """
     observed = sum(denominator for stratum in strata for _, denominator in stratum)
@@ -203,8 +214,8 @@ def derived_seed(seed: int, *names: str) -> int:
 
 
 def _bootstrap(
-    strata: Sequence[Sequence[tuple[float, ...]]],
-    statistic: Callable[[Sequence[float]], float | None],
+    strata: Sequence[Sequence[tuple[int, ...]]],
+    statistic: Callable[[Sequence[int]], float | None],
     confidence: float,
     seed: int,
     resamples: int,
@@ -213,12 +224,18 @@ def _bootstrap(
 ) -> BootstrapInterval | Unresolved:
     """The percentile interval of ``statistic`` over the sums of resampled clusters, or the
     first reason there is none. ``zero`` says an observed denominator is zero. Resamples
-    are equal when their statistics are equal as computed, with no tolerance: identical
-    clusters sum identically in any order drawn."""
+    are equal when their statistics are equal, with no tolerance: the sums are integers
+    and each statistic is one correctly rounded division of two of them, so one
+    mathematical value is one float."""
     _require_confidence(confidence)
     if resamples < 1:
         raise ValueError(f"a bootstrap draws at least one resample, got {resamples}")
     held = [stratum for stratum in strata if stratum]
+    for stratum in held:
+        for cluster in stratum:
+            for count in cluster:
+                # A fraction is given as counts over a common denominator, never as a float.
+                require_integer(count, "a cluster's count")
     if not held:
         return Unresolved.NO_ELIGIBLE_SCENARIO
     if zero:
@@ -229,7 +246,7 @@ def _bootstrap(
     rng = random.Random(seed)
     values: list[float] = []
     for _ in range(resamples):
-        sums = [0.0] * width
+        sums = [0] * width
         for stratum in held:
             size = len(stratum)
             for _ in range(size):
@@ -248,16 +265,17 @@ def _bootstrap(
     return BootstrapInterval(low, high, confidence, seed, resamples, len(values))
 
 
-def _ratio(sums: Sequence[float]) -> float | None:
+def _ratio(sums: Sequence[int]) -> float | None:
     numerator, denominator = sums
     return numerator / denominator if denominator > 0 else None
 
 
-def _difference(sums: Sequence[float]) -> float | None:
+def _difference(sums: Sequence[int]) -> float | None:
     first, first_of, second, second_of = sums
     if first_of <= 0 or second_of <= 0:
         return None
-    return first / first_of - second / second_of
+    # One division of exact integers, never the difference of two rounded quotients.
+    return (first * second_of - second * first_of) / (first_of * second_of)
 
 
 def _quantile(ordered: Sequence[float], share: float) -> float:

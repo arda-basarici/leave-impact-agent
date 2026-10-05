@@ -61,6 +61,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
+from math import lcm
 from statistics import median
 
 from leaveimpact.core.ids import ScenarioId
@@ -282,7 +283,15 @@ def estimate_check(
         else:
             interval_b, unresolved = _resolved(
                 bootstrap_ratio(
-                    _by_tier([(runs.tier, (each.fraction, 1.0)) for runs, each in counted]),
+                    _by_tier(
+                        list(
+                            zip(
+                                (runs.tier for runs, _ in counted),
+                                _over_one_denominator([each for _, each in counted]),
+                                strict=True,
+                            )
+                        )
+                    ),
                     confidence=plan.confidence,
                     seed=derived_seed(
                         plan.seed, cell.arm.name, *_names(cell.stratum), check.name, reading.value
@@ -377,12 +386,7 @@ def compare_check(
     if first.stratum.estimated:
         interval, unresolved = _resolved(
             bootstrap_difference(
-                _by_tier(
-                    [
-                        (tier, ((mine.fraction, 1.0), (yours.fraction, 1.0)))
-                        for tier, mine, yours in paired
-                    ]
-                ),
+                _by_tier(_paired_over_one_denominator(paired)),
                 confidence=plan.confidence,
                 seed=derived_seed(
                     plan.seed,
@@ -465,7 +469,7 @@ def _by_tier[T](held: list[tuple[Tier, T]]) -> list[list[T]]:
 
 
 def _as_cluster(counts: tuple[int, int]) -> Cluster:
-    return (float(counts[0]), float(counts[1]))
+    return (int(counts[0]), int(counts[1]))
 
 
 def _ratio(clusters: list[Cluster]) -> float | None:
@@ -531,6 +535,25 @@ def _trials(runs: ScenarioRuns, check: Check, reading: Reading, plan: Preregiste
     # end to end whatever the missing-run rule says, being made and not missing.
     of = len(answers) + missed + runs.unverifiable
     return _Trials(passes, of, len(answers), not_checked, made, plan.intended_repeats)
+
+
+def _over_one_denominator(trials: list[_Trials]) -> list[Cluster]:
+    """Each scenario's pass fraction as whole counts over one denominator shared by all of
+    them, so that the ratio of the clusters' sums is the mean pass fraction and the
+    bootstrap's arithmetic is exact. Every one of ``trials`` has at least one trial."""
+    shared = lcm(*(each.of for each in trials)) if trials else 1
+    return [(each.passes * (shared // each.of), shared) for each in trials]
+
+
+def _paired_over_one_denominator(
+    paired: list[tuple[Tier, _Trials, _Trials]],
+) -> list[tuple[Tier, tuple[Cluster, Cluster]]]:
+    """The paired scenarios' pass fractions, both systems' over one shared denominator."""
+    exact = _over_one_denominator([each for _, mine, yours in paired for each in (mine, yours)])
+    return [
+        (tier, (exact[2 * position], exact[2 * position + 1]))
+        for position, (tier, _, _) in enumerate(paired)
+    ]
 
 
 def _require_paired(first: Cell, second: Cell) -> None:

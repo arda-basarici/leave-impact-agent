@@ -76,10 +76,10 @@ def test_wilson_has_nothing_to_say_of_no_trial_and_refuses_an_impossible_count()
 
 
 def test_a_percentile_is_interpolated_between_order_statistics() -> None:
-    assert percentile_interval(range(101), 0.5) == (25.0, 75.0)
+    assert percentile_interval(range(101), 0.5) == (25, 75)
     assert percentile_interval(range(101), 0.95) == pytest.approx((2.5, 97.5))
     assert percentile_interval([3.0, 1.0, 2.0], 0.5) == (1.5, 2.5)  # sorted first
-    assert percentile_interval([4.0], 0.95) == (4.0, 4.0)
+    assert percentile_interval([4.0], 0.95) == (4, 4)
 
 
 def test_a_seeded_interval_reproduces_exactly_and_records_what_produced_it() -> None:
@@ -103,12 +103,12 @@ def test_every_replicate_keeps_each_stratums_size() -> None:
     # One stratum always right, one always wrong: stratified, every replicate is ten of each
     # and the ratio is one half exactly, so no resample differs from another. Drawn from
     # the twenty together it would wander.
-    right, wrong = tuple((1.0, 1.0) for _ in range(10)), tuple((0.0, 1.0) for _ in range(10))
+    right, wrong = tuple((1, 1) for _ in range(10)), tuple((0, 1) for _ in range(10))
     assert ratio((right, wrong)) is Unresolved.EVERY_RESAMPLE_EQUAL
     pooled = ratio(((*right, *wrong),))
     assert isinstance(pooled, BootstrapInterval) and pooled.low < 0.5 < pooled.high
     # An empty stratum contributes nothing and breaks nothing.
-    uneven = ((*right[:9], (0.0, 1.0)), wrong)
+    uneven = ((*right[:9], (0, 1)), wrong)
     assert ratio((uneven[0], (), uneven[1])) == ratio(uneven)
     assert isinstance(ratio(uneven), BootstrapInterval)
 
@@ -116,7 +116,7 @@ def test_every_replicate_keeps_each_stratums_size() -> None:
 def test_a_replicate_with_a_zero_denominator_is_left_out_and_counted_never_read_as_zero() -> None:
     # Three scenarios, one of which made no claim of the kind: the replicates that draw it
     # three times have no ratio, one in twenty-seven.
-    sparse = (((3.0, 3.0), (1.0, 3.0), (0.0, 0.0)),)
+    sparse = (((3, 3), (1, 3), (0, 0)),)
     interval = ratio(sparse)
     assert isinstance(interval, BootstrapInterval)
     assert interval.conditional
@@ -128,16 +128,16 @@ def test_a_replicate_with_a_zero_denominator_is_left_out_and_counted_never_read_
 def test_each_reason_a_bootstrap_resolves_no_interval() -> None:
     assert ratio(((), ())) is Unresolved.NO_ELIGIBLE_SCENARIO
     assert ratio(()) is Unresolved.NO_ELIGIBLE_SCENARIO
-    assert ratio((((0.0, 0.0), (0.0, 0.0)),)) is Unresolved.ZERO_DENOMINATOR
-    assert ratio((((2.0, 3.0),),)) is Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
+    assert ratio((((0, 0), (0, 0)),)) is Unresolved.ZERO_DENOMINATOR
+    assert ratio((((2, 3),),)) is Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
     # Ten scenarios that all pass: every resample is 1.0, and "[1.0, 1.0]" would read as
     # certainty where Wilson still allows a rate of 72 percent.
-    assert ratio((tuple((1.0, 1.0) for _ in range(10)),)) is Unresolved.EVERY_RESAMPLE_EQUAL
+    assert ratio((tuple((1, 1) for _ in range(10)),)) is Unresolved.EVERY_RESAMPLE_EQUAL
     # The order the reasons are tried in: a lone scenario with nothing to divide by has no
     # statistic at all, which says more than that it is alone.
-    assert ratio((((0.0, 0.0),),)) is Unresolved.ZERO_DENOMINATOR
+    assert ratio((((0, 0),),)) is Unresolved.ZERO_DENOMINATOR
     # Two scenarios in two strata are two scenarios, and each stratum resamples to itself.
-    assert ratio((((1.0, 2.0),), ((2.0, 2.0),))) is Unresolved.EVERY_RESAMPLE_EQUAL
+    assert ratio((((1, 2),), ((2, 2),))) is Unresolved.EVERY_RESAMPLE_EQUAL
     assert [reason.value for reason in Unresolved] == [
         "no_eligible_scenario",
         "zero_denominator",
@@ -146,16 +146,49 @@ def test_each_reason_a_bootstrap_resolves_no_interval() -> None:
     ]
 
 
+def test_equal_differences_resolve_no_interval_whatever_fractions_they_are_between() -> None:
+    # Ten scenarios of ten repeats, the first system passing n of them and the second n - 1:
+    # every scenario's gain is exactly one in ten, so every resample is the same difference.
+    # Summed as floats the resamples differed by rounding, and the noise came back as an
+    # interval 3e-16 wide that resolved a positive difference (the external read's case).
+    gains = (tuple(((n, 10), (n - 1, 10)) for n in range(1, 11)),)
+    found = bootstrap_difference(gains, confidence=0.95, seed=20_261_003, resamples=10_000)
+    assert found is Unresolved.EVERY_RESAMPLE_EQUAL
+    # The same gain over other denominators is the same difference.
+    thirds = tuple(((3 * n, 30), (3 * n - 3, 30)) for n in range(1, 6))
+    mixed = ((*thirds, *gains[0][5:]),)
+    assert difference(mixed) is Unresolved.EVERY_RESAMPLE_EQUAL
+    # One scenario gaining two in ten is variation, and resolves.
+    uneven = (((*gains[0][:9], ((10, 10), (8, 10)))),)
+    resolved = difference(uneven)
+    assert isinstance(resolved, BootstrapInterval) and 0.1 <= resolved.low < resolved.high
+
+
+def test_a_cluster_holds_whole_numbers() -> None:
+    with pytest.raises(ValueError, match=r"a cluster's count is an integer, got 0\.5"):
+        ratio((((0.5, 1), (1, 1)),))  # pyright: ignore[reportArgumentType]
+    with pytest.raises(ValueError, match="a cluster's count is an integer, got True"):
+        ratio((((True, 1), (1, 1)),))
+
+
 def test_a_system_compared_with_itself_resolves_no_interval() -> None:
     paired = tuple(tuple((cluster, cluster) for cluster in tier) for tier in TIERS)
     assert difference(paired) is Unresolved.EVERY_RESAMPLE_EQUAL
 
 
 def test_a_paired_difference_resamples_the_same_scenarios_for_both_systems() -> None:
-    # The second system gets one claim fewer right in every scenario of the last two tiers.
+    # The second system gets one claim fewer right in every other scenario. One fewer in
+    # every scenario would be the same loss in every resample, each tier's denominators
+    # being equal, and no interval: this test once passed on that case's rounding noise.
     behind = tuple(
-        tuple((cluster, (max(cluster[0] - 1, 0), cluster[1])) for cluster in tier) for tier in TIERS
+        tuple(
+            (cluster, (max(cluster[0] - position % 2, 0), cluster[1]))
+            for position, cluster in enumerate(tier)
+        )
+        for tier in TIERS
     )
+    even = tuple(tuple((c, (max(c[0] - 1, 0), c[1])) for c in tier) for tier in TIERS[1:])
+    assert difference(even) is Unresolved.EVERY_RESAMPLE_EQUAL
     ahead = difference(behind)
     assert isinstance(ahead, BootstrapInterval) and 0 < ahead.low < ahead.high
     # Paired, the scenario-to-scenario spread the two systems share cancels: the interval
@@ -164,7 +197,7 @@ def test_a_paired_difference_resamples_the_same_scenarios_for_both_systems() -> 
     assert isinstance(alone, BootstrapInterval)
     assert ahead.high - ahead.low < (alone.high - alone.low) / 5
     # Either side with nothing to divide by: no comparison.
-    silent = tuple(tuple((cluster, (0.0, 0.0)) for cluster in tier) for tier in TIERS)
+    silent = tuple(tuple((cluster, (0, 0)) for cluster in tier) for tier in TIERS)
     assert difference(silent) is Unresolved.ZERO_DENOMINATOR
 
 
