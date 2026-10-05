@@ -43,6 +43,7 @@ from leaveimpact.evaluator.evidence_measures import (
     strictly_grounded_share,
 )
 from leaveimpact.evaluator.grading import Graded, Limited
+from leaveimpact.evaluator.intervals import Unresolved
 from leaveimpact.evaluator.measures import ANSWER_MEASURES, recall, strict_precision
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.replay import Standing
@@ -169,11 +170,13 @@ def test_truthful_reports_put_every_answer_measure_at_its_ceiling_and_the_accoun
             assert estimate.value == 1.0, (cell.stratum.name, measure.name)
             assert estimate.scenarios == len(cell.scenarios)
             if cell.stratum.estimated:
-                assert estimate.interval is not None
-                assert (estimate.interval.low, estimate.interval.high) == (1.0, 1.0)
-            else:
-                # A class shows its raw counts and no interval.
+                # At the ceiling every resample is 1.0: the bootstrap resolves nothing, and
+                # says so instead of printing an interval of no width.
                 assert estimate.interval is None
+                assert estimate.unresolved is Unresolved.EVERY_RESAMPLE_EQUAL
+            else:
+                # A class shows its raw counts, no interval and no reason for lacking one.
+                assert (estimate.interval, estimate.unresolved) == (None, None)
     overall = estimate_ratio(cell_of(arm), recall(), plan())
     assert (overall.numerator, overall.denominator, overall.scenarios) == (161, 161, 30)
 
@@ -204,17 +207,18 @@ def test_a_zero_denominator_is_not_estimable_and_never_a_zero(
     uncited = estimate_ratio(overall, resolving_share(Graded), plan())
     assert (uncited.numerator, uncited.denominator) == (0, 0)
     assert (uncited.value, uncited.interval) == (None, None)
+    assert uncited.unresolved is Unresolved.ZERO_DENOMINATOR
     assert (uncited.scenarios, uncited.empty) == (30, 30)
     # No limited run in the cell: no scenario is in the measure's scope at all.
     of_limited = estimate_ratio(overall, grounded_end_to_end_share(Limited), plan())
     assert (of_limited.scenarios, of_limited.value, of_limited.interval) == (0, None, None)
-    # Conflicts are expected in a few scenarios only: the replicates that drew none of them
-    # are left out and counted, and the interval says it is conditional.
+    assert of_limited.unresolved is Unresolved.NO_ELIGIBLE_SCENARIO
+    # Conflicts are expected in a few scenarios only: a replicate that drew none of them has
+    # no ratio and is left out, never read as zero, and the ones that remain are all 1.0.
     conflicts = next(m for m in ANSWER_MEASURES if m.name == "recall: source_conflict")
     sparse = estimate_ratio(tier_of(arm, Tier.ADVERSARIAL), conflicts, plan())
     assert sparse.value == 1.0 and 0 < sparse.empty < sparse.scenarios
-    assert sparse.interval is not None and sparse.interval.conditional
-    assert (sparse.interval.low, sparse.interval.high) == (1.0, 1.0)
+    assert (sparse.interval, sparse.unresolved) == (None, Unresolved.EVERY_RESAMPLE_EQUAL)
 
 
 def test_a_seeded_interval_reproduces_whatever_was_computed_before_it(
@@ -232,9 +236,10 @@ def test_a_seeded_interval_reproduces_whatever_was_computed_before_it(
     assert interval is not None and first.value is not None
     assert interval.low < first.value < interval.high
     assert (interval.confidence, interval.resamples, interval.valid) == (0.95, 2_000, 2_000)
-    # Its own stream: another stratum or another measure draws from another seed.
+    # Its own stream: another stratum draws from another seed, and so does another measure,
+    # which the seed test of the intervals holds by name.
     by_tier = estimate_ratio(tier_of(arm, Tier.FRAGMENTED), strict, plan()).interval
-    other = estimate_ratio(overall, grounded_end_to_end_share(Graded), plan()).interval
+    other = estimate_ratio(tier_of(arm, Tier.ADVERSARIAL), strict, plan()).interval
     assert by_tier is not None and other is not None
     assert len({interval.seed, by_tier.seed, other.seed}) == 3
     # Another seed in the plan, another interval.
@@ -242,7 +247,7 @@ def test_a_seeded_interval_reproduces_whatever_was_computed_before_it(
     assert reseeded is not None and (reseeded.low, reseeded.high) != (interval.low, interval.high)
 
 
-def test_a_system_compared_with_itself_differs_by_exactly_nothing(
+def test_a_system_compared_with_itself_differs_by_nothing_and_resolves_no_interval(
     world: SealedWorld, truthful_runs: list[Evaluation]
 ) -> None:
     twin = [relabelled(run, system=OTHER) for run in truthful_runs]
@@ -252,12 +257,8 @@ def test_a_system_compared_with_itself_differs_by_exactly_nothing(
         same = compare_ratio(first, second, strict, plan())
         assert same.paired == len(first.scenarios)
         assert same.difference == 0.0
-        if first.stratum.estimated:
-            assert same.interval is not None
-            assert (same.interval.low, same.interval.high) == (0.0, 0.0)
-            assert same.interval.valid == same.interval.resamples
-        else:
-            assert same.interval is None
+        expected = Unresolved.EVERY_RESAMPLE_EQUAL if first.stratum.estimated else None
+        assert (same.interval, same.unresolved) == (None, expected)
 
 
 # --- The two readings of a check ------------------------------------------------------------
@@ -354,7 +355,8 @@ def test_repeats_are_bundled_in_their_scenario_and_estimated_by_the_bootstrap(
     (mixed,) = arms(world, [*truthful_runs, *limited_second], two_runs)
     half_checked = estimate_check(cell_of(mixed), graded_only, CONDITIONAL, two_runs)
     assert (half_checked.scenarios, half_checked.runs, half_checked.not_checked) == (30, 60, 1)
-    assert half_checked.wilson is None and half_checked.bootstrap is not None
+    # Every scenario passes, so the bootstrap it is read by resolves no interval.
+    assert (half_checked.wilson, half_checked.unresolved) == (None, Unresolved.EVERY_RESAMPLE_EQUAL)
     # A ratio pools a scenario's repeats before any ratio is taken.
     pooled = estimate_ratio(cell_of(arm), recall(), two_runs)
     assert (pooled.numerator, pooled.denominator, pooled.scenarios) == (322, 322, 30)
@@ -400,7 +402,7 @@ def test_a_comparison_is_paired_on_the_scenarios_both_systems_have_in_scope(
     assert by_tier.paired == 9 and by_tier.interval is not None and by_tier.interval.low > 0
 
     # One run per scenario on each side: the two-by-two table (both, ours only, theirs only,
-    # neither).
+    # neither) beside the interval, which is the same method as with repeats.
     full_recall = Check(
         "every required claim held",
         lambda e: (counts := recall().of(e)) and counts[0] == counts[1],
@@ -412,8 +414,11 @@ def test_a_comparison_is_paired_on_the_scenarios_both_systems_have_in_scope(
         CONDITIONAL,
         plan(),
     )
-    assert (table.paired, table.two_by_two, table.interval) == (9, (6, 3, 0, 0), None)
+    assert (table.paired, table.two_by_two, table.unresolved) == (9, (6, 3, 0, 0), None)
     assert (table.first, table.second) == (1.0, 6 / 9)
+    assert table.interval is not None
+    assert 0 <= table.interval.low < 3 / 9 < table.interval.high
+    assert table.interval.valid == table.interval.resamples
     # End to end the limited run stays, as a scenario that did not pass.
     kept = compare_check(
         tier_of(ours, Tier.FRAGMENTED),
@@ -423,6 +428,7 @@ def test_a_comparison_is_paired_on_the_scenarios_both_systems_have_in_scope(
         plan(),
     )
     assert (kept.paired, kept.two_by_two) == (10, (6, 4, 0, 0))
+    assert kept.interval is not None and kept.interval.low < 4 / 10 < kept.interval.high
 
 
 def test_a_comparison_refuses_cells_that_are_not_paired(
@@ -470,6 +476,7 @@ def test_repeated_runs_are_compared_by_the_difference_of_pass_fractions(
     assert (found.paired, found.first, found.second) == (10, 1.0, 0.8)
     # Repeats have no slot to pair: no two-by-two, the bootstrap of the difference instead.
     assert found.two_by_two is None and found.interval is not None
+    assert found.unresolved is None
     assert 0 < found.interval.low < 0.2 < found.interval.high
 
 

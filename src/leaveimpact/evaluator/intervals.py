@@ -23,7 +23,15 @@ mostly one tier by chance.
 A replicate whose denominator is zero has no ratio. It is never read as zero: it is left
 out and counted, and an interval over the ones that remain says how many there were
 (``valid`` against ``resamples``), which makes it an interval conditional on a positive
-denominator. An observed zero denominator has no interval at all.
+denominator.
+
+A bootstrap cannot always say anything, and when it cannot the result is ``Unresolved``
+with the reason, never an absent value and never an interval of no width: no scenario to
+resample, fewer than two, an observed zero denominator, or every resample giving the same
+statistic. Ten scenarios that all pass resample to 1.0 every time, and "[1.0, 1.0]" would
+read as certainty where the method has only run out of variation. The point estimate
+stands beside the reason. An unresolved interval supports no statement that one system
+beats another, whatever the point difference, and no other method is substituted for it.
 
 A *paired* difference between two systems resamples the same scenarios for both and
 recomputes each system's ratio of sums, then subtracts. The mean of per-scenario ratio
@@ -49,6 +57,7 @@ import hashlib
 import random
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 from math import floor, sqrt
 from statistics import NormalDist
 
@@ -72,6 +81,21 @@ class WilsonInterval:
     low: float
     high: float
     confidence: float
+
+
+class Unresolved(StrEnum):
+    """Why a bootstrap gave no interval; a member is the wire format.
+
+    The reasons are tried in this order, so a result names the first that holds: nothing
+    to resample; an observed denominator of zero, which has no statistic at all; one
+    scenario, which has no between-scenario variation to resample; and resamples that all
+    gave one value.
+    """
+
+    NO_ELIGIBLE_SCENARIO = "no_eligible_scenario"
+    ZERO_DENOMINATOR = "zero_denominator"
+    FEWER_THAN_TWO_ELIGIBLE_SCENARIOS = "fewer_than_two_eligible_scenarios"
+    EVERY_RESAMPLE_EQUAL = "every_resample_equal"
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,24 +152,27 @@ def wilson(successes: int, trials: int, confidence: float) -> WilsonInterval | N
 
 def bootstrap_ratio(
     strata: Sequence[Sequence[Cluster]], *, confidence: float, seed: int, resamples: int
-) -> BootstrapInterval | None:
+) -> BootstrapInterval | Unresolved:
     """The interval of the ratio of sums over ``strata``, each a group of clusters resampled
-    within itself. ``None`` when the observed denominator is zero: nothing to estimate."""
-    if sum(denominator for stratum in strata for _, denominator in stratum) <= 0:
-        return None
-    return _bootstrap(strata, _ratio, confidence, seed, resamples)
+    within itself, or why the bootstrap resolves none.
+
+    >>> bootstrap_ratio([[(1.0, 1.0)] * 10], confidence=0.95, seed=7, resamples=200).value
+    'every_resample_equal'
+    """
+    observed = sum(denominator for stratum in strata for _, denominator in stratum)
+    return _bootstrap(strata, _ratio, confidence, seed, resamples, zero=observed <= 0)
 
 
 def bootstrap_difference(
     strata: Sequence[Sequence[Paired]], *, confidence: float, seed: int, resamples: int
-) -> BootstrapInterval | None:
+) -> BootstrapInterval | Unresolved:
     """The interval of the first system's ratio of sums less the second's, the same clusters
-    resampled for both. ``None`` when either observed denominator is zero."""
+    resampled for both, or why the bootstrap resolves none; a zero denominator is either
+    system's."""
     flat = [(*first, *second) for stratum in strata for first, second in stratum]
-    if sum(row[1] for row in flat) <= 0 or sum(row[3] for row in flat) <= 0:
-        return None
+    zero = sum(row[1] for row in flat) <= 0 or sum(row[3] for row in flat) <= 0
     joined = [[(*first, *second) for first, second in stratum] for stratum in strata]
-    return _bootstrap(joined, _difference, confidence, seed, resamples)
+    return _bootstrap(joined, _difference, confidence, seed, resamples, zero=zero)
 
 
 def percentile_interval(values: Sequence[float], confidence: float) -> tuple[float, float]:
@@ -181,14 +208,23 @@ def _bootstrap(
     confidence: float,
     seed: int,
     resamples: int,
-) -> BootstrapInterval | None:
-    """The percentile interval of ``statistic`` over the sums of resampled clusters."""
+    *,
+    zero: bool,
+) -> BootstrapInterval | Unresolved:
+    """The percentile interval of ``statistic`` over the sums of resampled clusters, or the
+    first reason there is none. ``zero`` says an observed denominator is zero. Resamples
+    are equal when their statistics are equal as computed, with no tolerance: identical
+    clusters sum identically in any order drawn."""
     _require_confidence(confidence)
     if resamples < 1:
         raise ValueError(f"a bootstrap draws at least one resample, got {resamples}")
     held = [stratum for stratum in strata if stratum]
     if not held:
-        return None
+        return Unresolved.NO_ELIGIBLE_SCENARIO
+    if zero:
+        return Unresolved.ZERO_DENOMINATOR
+    if sum(len(stratum) for stratum in held) < 2:
+        return Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
     width = len(held[0][0])
     rng = random.Random(seed)
     values: list[float] = []
@@ -205,7 +241,9 @@ def _bootstrap(
         if value is not None:
             values.append(value)
     if not values:
-        return None
+        return Unresolved.ZERO_DENOMINATOR
+    if min(values) == max(values):
+        return Unresolved.EVERY_RESAMPLE_EQUAL
     low, high = percentile_interval(values, confidence)
     return BootstrapInterval(low, high, confidence, seed, resamples, len(values))
 
@@ -241,6 +279,7 @@ __all__ = [
     "BootstrapInterval",
     "Cluster",
     "Paired",
+    "Unresolved",
     "WilsonInterval",
     "bootstrap_difference",
     "bootstrap_ratio",

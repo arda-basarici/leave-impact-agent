@@ -1,8 +1,9 @@
 """Wilson for a proportion of scenarios; a seeded, stratified percentile bootstrap for a ratio of
 sums over scenarios, and for the paired difference of two. Eight of ten is 49 to 94 percent. A
 seeded interval reproduces exactly, every replicate keeps each stratum's size, a replicate
-with a zero denominator is left out and counted and never read as zero, and a system compared
-with itself differs by exactly nothing."""
+with a zero denominator is left out and counted and never read as zero, and a bootstrap that
+cannot resolve an interval says which of four reasons holds instead of giving none or one of
+no width."""
 
 from collections.abc import Sequence
 
@@ -14,6 +15,7 @@ from leaveimpact.evaluator.intervals import (
     BootstrapInterval,
     Cluster,
     Paired,
+    Unresolved,
     bootstrap_difference,
     bootstrap_ratio,
     derived_seed,
@@ -26,12 +28,12 @@ SEED, RESAMPLES = 20_261_002, 2_000
 
 def ratio(
     strata: Sequence[Sequence[Cluster]], seed: int = SEED
-) -> BootstrapInterval | None:
+) -> BootstrapInterval | Unresolved:
     """The 95 percent interval of ``strata``'s ratio of sums, as every test here draws it."""
     return bootstrap_ratio(strata, confidence=0.95, seed=seed, resamples=RESAMPLES)
 
 
-def difference(strata: Sequence[Sequence[Paired]]) -> BootstrapInterval | None:
+def difference(strata: Sequence[Sequence[Paired]]) -> BootstrapInterval | Unresolved:
     return bootstrap_difference(strata, confidence=0.95, seed=SEED, resamples=RESAMPLES)
 
 # Three strata of ten clusters: claims correct of claims made, uneven on purpose.
@@ -83,7 +85,7 @@ def test_a_percentile_is_interpolated_between_order_statistics() -> None:
 def test_a_seeded_interval_reproduces_exactly_and_records_what_produced_it() -> None:
     first = ratio(TIERS)
     again = ratio(TIERS)
-    assert first is not None and first == again
+    assert isinstance(first, BootstrapInterval) and first == again
     assert first == BootstrapInterval(
         first.low, first.high, 0.95, 20_261_002, 2_000, 2_000, QUANTILE_RULE, STRATIFICATION
     )
@@ -93,40 +95,60 @@ def test_a_seeded_interval_reproduces_exactly_and_records_what_produced_it() -> 
     observed = sum(n for tier in TIERS for n, _ in tier) / sum(d for tier in TIERS for _, d in tier)
     assert first.low < observed < first.high
     other = ratio(TIERS, seed=1)
-    assert other is not None and (other.low, other.high) != (first.low, first.high)
+    assert isinstance(other, BootstrapInterval)
+    assert (other.low, other.high) != (first.low, first.high)
 
 
 def test_every_replicate_keeps_each_stratums_size() -> None:
     # One stratum always right, one always wrong: stratified, every replicate is ten of each
-    # and the ratio is one half exactly. Drawn from the thirty together it would wander.
+    # and the ratio is one half exactly, so no resample differs from another. Drawn from
+    # the twenty together it would wander.
     right, wrong = tuple((1.0, 1.0) for _ in range(10)), tuple((0.0, 1.0) for _ in range(10))
-    stratified = ratio((right, wrong))
-    assert stratified is not None and (stratified.low, stratified.high) == (0.5, 0.5)
+    assert ratio((right, wrong)) is Unresolved.EVERY_RESAMPLE_EQUAL
     pooled = ratio(((*right, *wrong),))
-    assert pooled is not None and pooled.low < 0.5 < pooled.high
+    assert isinstance(pooled, BootstrapInterval) and pooled.low < 0.5 < pooled.high
     # An empty stratum contributes nothing and breaks nothing.
-    assert ratio((right, (), wrong)) == stratified
+    uneven = ((*right[:9], (0.0, 1.0)), wrong)
+    assert ratio((uneven[0], (), uneven[1])) == ratio(uneven)
+    assert isinstance(ratio(uneven), BootstrapInterval)
 
 
 def test_a_replicate_with_a_zero_denominator_is_left_out_and_counted_never_read_as_zero() -> None:
-    # Two scenarios, one of which made no claim of the kind: a quarter of the replicates
-    # draw it twice and have no ratio.
-    sparse = (((3.0, 3.0), (0.0, 0.0)),)
+    # Three scenarios, one of which made no claim of the kind: the replicates that draw it
+    # three times have no ratio, one in twenty-seven.
+    sparse = (((3.0, 3.0), (1.0, 3.0), (0.0, 0.0)),)
     interval = ratio(sparse)
-    assert interval is not None
-    assert (interval.low, interval.high) == (1.0, 1.0)  # read as zero, the low end would be 0
+    assert isinstance(interval, BootstrapInterval)
     assert interval.conditional
-    assert 0.20 < 1 - interval.valid / interval.resamples < 0.30
-    # An observed zero denominator is not estimable at all.
-    assert ratio((((0.0, 0.0), (0.0, 0.0)),)) is None
-    assert ratio(((), ())) is None
+    assert 0.02 < 1 - interval.valid / interval.resamples < 0.06
+    # Read as zero, the silent scenario would pull the low end to zero.
+    assert interval.low >= 1 / 3
 
 
-def test_a_system_compared_with_itself_differs_by_exactly_nothing() -> None:
+def test_each_reason_a_bootstrap_resolves_no_interval() -> None:
+    assert ratio(((), ())) is Unresolved.NO_ELIGIBLE_SCENARIO
+    assert ratio(()) is Unresolved.NO_ELIGIBLE_SCENARIO
+    assert ratio((((0.0, 0.0), (0.0, 0.0)),)) is Unresolved.ZERO_DENOMINATOR
+    assert ratio((((2.0, 3.0),),)) is Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
+    # Ten scenarios that all pass: every resample is 1.0, and "[1.0, 1.0]" would read as
+    # certainty where Wilson still allows a rate of 72 percent.
+    assert ratio((tuple((1.0, 1.0) for _ in range(10)),)) is Unresolved.EVERY_RESAMPLE_EQUAL
+    # The order the reasons are tried in: a lone scenario with nothing to divide by has no
+    # statistic at all, which says more than that it is alone.
+    assert ratio((((0.0, 0.0),),)) is Unresolved.ZERO_DENOMINATOR
+    # Two scenarios in two strata are two scenarios, and each stratum resamples to itself.
+    assert ratio((((1.0, 2.0),), ((2.0, 2.0),))) is Unresolved.EVERY_RESAMPLE_EQUAL
+    assert [reason.value for reason in Unresolved] == [
+        "no_eligible_scenario",
+        "zero_denominator",
+        "fewer_than_two_eligible_scenarios",
+        "every_resample_equal",
+    ]
+
+
+def test_a_system_compared_with_itself_resolves_no_interval() -> None:
     paired = tuple(tuple((cluster, cluster) for cluster in tier) for tier in TIERS)
-    same = difference(paired)
-    assert same is not None
-    assert (same.low, same.high, same.valid) == (0.0, 0.0, 2_000)
+    assert difference(paired) is Unresolved.EVERY_RESAMPLE_EQUAL
 
 
 def test_a_paired_difference_resamples_the_same_scenarios_for_both_systems() -> None:
@@ -135,15 +157,15 @@ def test_a_paired_difference_resamples_the_same_scenarios_for_both_systems() -> 
         tuple((cluster, (max(cluster[0] - 1, 0), cluster[1])) for cluster in tier) for tier in TIERS
     )
     ahead = difference(behind)
-    assert ahead is not None and 0 < ahead.low < ahead.high
+    assert isinstance(ahead, BootstrapInterval) and 0 < ahead.low < ahead.high
     # Paired, the scenario-to-scenario spread the two systems share cancels: the interval
     # of the difference is far narrower than either system's own.
     alone = ratio(TIERS)
-    assert alone is not None
+    assert isinstance(alone, BootstrapInterval)
     assert ahead.high - ahead.low < (alone.high - alone.low) / 5
     # Either side with nothing to divide by: no comparison.
     silent = tuple(tuple((cluster, (0.0, 0.0)) for cluster in tier) for tier in TIERS)
-    assert difference(silent) is None
+    assert difference(silent) is Unresolved.ZERO_DENOMINATOR
 
 
 def test_an_intervals_seed_depends_on_its_names_and_on_nothing_computed_before() -> None:

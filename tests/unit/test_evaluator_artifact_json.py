@@ -216,7 +216,10 @@ def artifact(world: SealedWorld) -> EvaluationArtifact:
 def three_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
     """An artifact whose analysis compares three named systems, ``repeats`` runs a scenario:
     one run gives the two-by-two counts and Wilson's interval, two the bootstrap's and the
-    repeat-consistency diagnostic."""
+    repeat-consistency diagnostic. The baseline's wrong reports fall on every third
+    scenario, shifted by the run, so the two systems differ by scenario at either count: a
+    difference that is the same in every scenario resamples to one value, and the walk
+    would then never reach a comparison's interval."""
     agent, single_shot = (
         System(SystemKind.AGENT, "graph"),
         System(SystemKind.SINGLE_SHOT, "one-call"),
@@ -236,7 +239,7 @@ def three_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
         scenario_sets=replace(DRAFT.scenario_sets, development=development_selection(world, DRAFT)),
     )
     runs: list[Evaluation] = []
-    for scenario in world.scenarios:
+    for position, scenario in enumerate(world.scenarios):
         right = evaluated(world, scenario)
         report = truthful(world, scenario, NORMAL)
         actions = of_type(report, CoverageAction)
@@ -244,7 +247,8 @@ def three_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
         for number in range(repeats):
             name = f"run-{number}"
             runs.append(relabelled(right, run_id=name, system=agent))
-            runs.append(relabelled(wrong if number else right, run_id=name))
+            missed = (position + number) % 3 == 0
+            runs.append(relabelled(wrong if missed else right, run_id=name))
     return replace(artifact_of_none(world), analysis=analyse(world, runs, registration))
 
 
@@ -291,7 +295,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "inventory",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (2, "development")
+    assert (decoded["format_version"], decoded["label"]) == (3, "development")
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,

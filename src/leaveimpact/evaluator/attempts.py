@@ -10,21 +10,30 @@ infrastructure retries: the earliest attempt that did not fail by infrastructure
 last. A defect is a stopping outcome like any other: it is not retried because a retry
 could conceal it.
 
+Only an *eligible* attempt can be the run: one numbered within the registered maximum. The
+estimand is the system with that many attempts, so when every one of them failed by
+infrastructure the run is the last of them, an infrastructure failure, whatever an attempt
+beyond the maximum went on to do. An excess attempt is kept, paid for and reported, and
+never counted.
+
 Selection and conformance read the same attempts and share one notion of a stopping
 outcome, so both are here. Three things a conforming harness never produces are findings
 on the run:
 
-- a *gap*: the attempt numbers are not exactly one to the number of attempts. An attempt
-  is absent, and which attempt would have been counted cannot be known, under any rule:
+- a *gap*: an eligible attempt is absent. The eligible attempts a history must hold are
+  numbered from one to the highest number present, or to the maximum when that is lower:
+  an attempt numbered five shows that a third was made, under a maximum of three as under
+  any other. Which attempt would have been counted cannot then be known, under any rule:
   the absent one may be the first, or a stopping outcome before the ones present. The run
   has no counted attempt. It keeps its grades and its costs, is counted as made, and
-  enters no quality estimate until its history is repaired.
+  enters no quality estimate until its history is repaired. An absence among the excess
+  attempts alone is no gap, since none of them could have been counted.
 - an *excess attempt*: an attempt numbered above the registered maximum.
 - an *attempt after a stopping outcome*: an attempt whose predecessor is present and did
   not fail by infrastructure.
 
-The last two leave the selection well defined, so the run is counted by the rule and the
-finding is counted beside it.
+The last two leave the selection well defined, so the run is counted by the rule among its
+eligible attempts and the finding is counted beside it.
 """
 
 from __future__ import annotations
@@ -67,7 +76,8 @@ class RunHistory:
     """One run's attempts in attempt order, the one that counts, and what the history shows.
 
     ``counted`` is ``None`` exactly when the history has a gap: the selection is
-    unverifiable and the run enters no estimate.
+    unverifiable and the run enters no estimate. Otherwise it is one of the attempts
+    numbered within the registered maximum.
     """
 
     run_id: str
@@ -108,7 +118,11 @@ def run_history(
     if not held or len(set(numbers)) != len(numbers):
         raise ValueError(f"run {run_id} has attempts, each number once, got {numbers}")
     findings: list[HistoryFinding] = []
-    gapped = numbers != list(range(1, len(numbers) + 1))
+    eligible = tuple(
+        attempt for attempt in held if attempt.outcome.header.attempt <= max_attempts
+    )
+    owed = range(1, min(numbers[-1], max_attempts) + 1)
+    gapped = [attempt.outcome.header.attempt for attempt in eligible] != list(owed)
     if gapped:
         findings.append(HistoryFinding.GAP)
     if numbers[-1] > max_attempts:
@@ -119,11 +133,12 @@ def run_history(
         for earlier, later in zip(held, held[1:], strict=False)
     ):
         findings.append(HistoryFinding.ATTEMPT_AFTER_STOPPING_OUTCOME)
-    counted = None if gapped else _counted(held, rule)
+    counted = None if gapped else _counted(eligible, rule)
     return RunHistory(run_id, held, counted, tuple(findings))
 
 
 def _counted(attempts: tuple[Evaluation, ...], rule: CountedAttempt) -> Evaluation:
+    """The attempt ``rule`` counts among ``attempts``, the eligible ones, none absent."""
     match rule:
         case CountedAttempt.FIRST:
             return attempts[0]

@@ -1,5 +1,6 @@
 """A run's attempt history: the earliest attempt that did not fail by infrastructure is the
-run, else the last; a gap in the attempt numbers leaves no counted attempt under any rule,
+run, else the last, chosen among the attempts numbered within the registered maximum, so an
+excess attempt never counts; a gap among those leaves no counted attempt under any rule,
 the run made, unverifiable, not passed end to end and absent from the conditional reading,
 its attempts still paid for; an attempt above the maximum and an attempt after a stopping
 outcome are findings on a run still counted; and the attempt summary shows the
@@ -25,6 +26,7 @@ from leaveimpact.evaluator.cells import (
     cells_of,
 )
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded
+from leaveimpact.evaluator.intervals import Unresolved
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.tables import (
     Check,
@@ -43,6 +45,7 @@ GAP = HistoryFinding.GAP
 EXCESS = HistoryFinding.EXCESS_ATTEMPT
 AFTER_STOP = HistoryFinding.ATTEMPT_AFTER_STOPPING_OUTCOME
 RUN = "run-8"
+LONE = Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
 PASSES = Check("graded", lambda e: True if isinstance(e.outcome, Graded) else None)
 
 
@@ -149,9 +152,47 @@ def test_each_history_finding_fires_alone_and_a_conforming_history_has_none(
     assert run_history(RUN, [numbered(good, 2)], EARLIEST, 3).findings == (GAP,)
     four = [failed, numbered(failed, 2), numbered(failed, 3), numbered(good, 4)]
     excess = run_history(RUN, four, EARLIEST, 3)
-    assert (excess.findings, excess.counted) == ((EXCESS,), numbered(good, 4))
+    assert (excess.findings, excess.counted) == ((EXCESS,), numbered(failed, 3))
     after = run_history(RUN, [good, numbered(good, 2)], EARLIEST, 3)
     assert (after.findings, after.counted) == ((AFTER_STOP,), good)
+
+
+@pytest.mark.parametrize("rule", list(CountedAttempt))
+def test_an_excess_attempt_never_counts_under_any_rule(
+    failed: Evaluation, good: Evaluation, rule: CountedAttempt
+) -> None:
+    # Three infrastructure failures and a fourth attempt that passed: the registered system
+    # has three attempts, and none of them is the fourth.
+    four = [failed, numbered(failed, 2), numbered(failed, 3), numbered(good, 4)]
+    history = run_history(RUN, four, rule, 3)
+    assert history.counted is not None
+    assert history.counted.outcome.header.attempt <= 3
+    assert failed_by_infrastructure(history.counted)
+    assert history.findings == (EXCESS,)
+    assert history.attempts[-1] == numbered(good, 4)
+    assert not history.recovered
+
+
+def test_a_gap_is_an_eligible_attempt_absent_and_nothing_else(
+    failed: Evaluation, good: Evaluation
+) -> None:
+    # Attempt five shows a third was made: the last eligible attempt is absent.
+    absent_third = run_history(RUN, [failed, numbered(failed, 2), numbered(good, 5)], EARLIEST, 3)
+    assert (absent_third.counted, absent_third.findings) == (None, (GAP, EXCESS))
+    # Every eligible attempt present, an excess one beyond a hole among the excess: no gap.
+    whole = [failed, numbered(failed, 2), numbered(failed, 3), numbered(good, 5)]
+    beyond = run_history(RUN, whole, EARLIEST, 3)
+    assert (beyond.counted, beyond.findings) == (numbered(failed, 3), (EXCESS,))
+    # Two attempts and nothing after them owe no third.
+    short = run_history(RUN, [failed, numbered(failed, 2)], EARLIEST, 3)
+    assert (short.counted, short.findings) == (numbered(failed, 2), ())
+    # Only excess attempts present: every eligible one is absent.
+    only_excess = run_history(RUN, [numbered(good, 4)], EARLIEST, 3)
+    assert (only_excess.counted, only_excess.findings) == (None, (GAP, EXCESS))
+    # An absent eligible attempt is a gap even behind a stopping outcome: a gap is defined
+    # once, for every counting rule, and under the last-attempt rule the third would count.
+    stopped = run_history(RUN, [failed, numbered(good, 2), numbered(good, 4)], EARLIEST, 3)
+    assert (stopped.counted, stopped.findings) == (None, (GAP, EXCESS))
 
 
 @pytest.mark.parametrize("rule", list(CountedAttempt))
@@ -219,10 +260,11 @@ def test_a_gapped_repeat_keeps_its_scenario_a_repeated_one_in_both_readings(
     for reading in Reading:
         estimate = estimate_check(held, PASSES, reading, two_runs)
         assert (estimate.wilson, estimate.runs) == (None, 1), reading
-        assert estimate.bootstrap is not None, reading
+        # The bootstrap's form, which one scenario alone cannot resolve.
+        assert (estimate.bootstrap, estimate.unresolved) == (None, LONE), reading
 
     # Against an arm with one clean run of the scenario, the comparison is of a repeated
-    # design: an interval, never the two-by-two counts of single runs.
+    # design: never the two-by-two counts of single runs.
     other = System(system.kind, "other")
     both = replace(two_runs, arms=((system, NORMAL), (other, NORMAL)))
     clean = relabelled(good, run_id="run-c", system=other)
@@ -232,7 +274,7 @@ def test_a_gapped_repeat_keeps_its_scenario_a_repeated_one_in_both_readings(
     second = replace(cells_of(theirs)[0], scenarios=(theirs.scenarios[0],))
     comparison = compare_check(first, second, PASSES, Reading.CONDITIONAL, both)
     assert comparison.two_by_two is None
-    assert comparison.interval is not None
+    assert (comparison.interval, comparison.unresolved) == (None, LONE)
 
 
 def test_a_record_disagreement_on_a_gapped_run_shows_in_the_summary_alone(

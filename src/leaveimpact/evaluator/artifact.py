@@ -78,9 +78,9 @@ from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 2
-"""The format of the evaluation artifact as this code writes it; 2 since the run export's
-format 2 moved costs to pico-dollars and a run's duration out of its usage."""
+ARTIFACT_FORMAT_VERSION = 3
+"""The format of the evaluation artifact as this code writes it; 3 since an estimate states
+why a bootstrap resolved no interval and a comparison of single runs carries one."""
 
 
 class Label(StrEnum):

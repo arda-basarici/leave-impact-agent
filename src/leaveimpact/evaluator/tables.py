@@ -13,6 +13,11 @@ one the measure applies to, and the count of scenarios it rests on is shown besi
 observed zero denominator is ``0/0``, not estimable, with no value and no interval, and
 the scenarios in scope that had nothing to count are counted.
 
+Wherever a bootstrap interval is asked for, the estimate holds either the interval or the
+reason the bootstrap resolved none (``intervals.Unresolved``), never neither: an absent
+interval with no reason reads as an omission, and one of no width as certainty. The point
+estimate and its counts are there in both cases.
+
 *A yes-or-no check* is read two ways, and a table shows both. *Conditional* quality is
 over the runs the check applies to. *End to end* is over every run a scenario was meant to
 have: a limited or an excluded run does not pass, and is counted apart from a run that was
@@ -31,10 +36,12 @@ never how many answers happened to arrive.
 *A comparison* is paired on scenario and assigned condition: the same stratum of two
 systems' arms under one condition, over the scenarios both have in scope, the paired
 count stated. For a ratio every resample draws the same scenarios for both systems and
-takes the difference of the two ratios of sums. For a check with one run per scenario on
-each side the result is the two-by-two table: both passed, the first only, the second
-only, neither. With repeats it is the difference of the mean pass fractions, repeats
-never being paired slot to slot.
+takes the difference of the two ratios of sums. For a check it is the difference of the
+mean pass fractions, by the same resampling at any number of runs per scenario: whole
+scenarios within their tiers, a scenario's repeats kept together and never paired slot to
+slot. With one run per scenario on each side a pass fraction is nought or one, the same
+method applies, and the two-by-two table is given beside the interval: both passed, the
+first only, the second only, neither.
 
 *Cost and duration carry no interval.* A cell's cost is the total over every attempt,
 retries included, with the median and the range per run and the number of runs whose cost
@@ -61,6 +68,7 @@ from leaveimpact.evaluator.cells import Cell, MissingRepeat, Preregistered, Scen
 from leaveimpact.evaluator.intervals import (
     BootstrapInterval,
     Cluster,
+    Unresolved,
     WilsonInterval,
     bootstrap_difference,
     bootstrap_ratio,
@@ -93,8 +101,8 @@ class RatioEstimate:
     """A measure in a cell: the two sums, the scenarios they are over, and the interval.
 
     ``scenarios`` had a run in the measure's scope and are what the interval resamples;
-    ``empty`` of them had nothing to count. ``interval`` is ``None`` for a class stratum
-    and for an observed zero denominator.
+    ``empty`` of them had nothing to count. A tier and the whole hold ``interval`` or
+    ``unresolved``, the reason the bootstrap gave none; a class stratum holds neither.
     """
 
     measure: str
@@ -105,6 +113,7 @@ class RatioEstimate:
     scenarios: int
     empty: int
     interval: BootstrapInterval | None
+    unresolved: Unresolved | None
 
     @property
     def value(self) -> float | None:
@@ -121,9 +130,10 @@ class CheckEstimate:
     value. ``runs`` were looked at; ``not_checked`` of them the check did not apply to,
     which under the end-to-end reading count as not passed; ``missing`` intended runs were
     never made and count as the plan says; ``unverifiable`` runs were made with a gap in
-    their attempt history, have no counted attempt, and did not pass end to end. One of
-    the two intervals is set for a tier and for the whole: Wilson's when every scenario
-    rests on exactly one run, the bootstrap otherwise.
+    their attempt history, have no counted attempt, and did not pass end to end. For a
+    tier and for the whole exactly one of three is set: Wilson's interval when every
+    scenario rests on exactly one run, the bootstrap's otherwise, or ``unresolved``, the
+    reason the bootstrap gave none.
     """
 
     check: str
@@ -138,6 +148,7 @@ class CheckEstimate:
     unverifiable: int
     wilson: WilsonInterval | None
     bootstrap: BootstrapInterval | None
+    unresolved: Unresolved | None
 
     @property
     def value(self) -> float | None:
@@ -150,7 +161,8 @@ class RatioComparison:
     """A measure in the same stratum of two arms, over the scenarios both have in scope.
 
     ``first`` and ``second`` are each arm's ratio of sums over those ``paired`` scenarios,
-    ``None`` when its denominator there is zero; the interval is of ``first - second``.
+    ``None`` when its denominator there is zero; the interval is of ``first - second``, and
+    a tier and the whole hold it or ``unresolved``, the reason the bootstrap gave none.
     """
 
     measure: str
@@ -161,6 +173,7 @@ class RatioComparison:
     first: float | None
     second: float | None
     interval: BootstrapInterval | None
+    unresolved: Unresolved | None
 
     @property
     def difference(self) -> float | None:
@@ -174,10 +187,11 @@ class CheckComparison:
     """A check in the same stratum of two arms under one reading, over the scenarios both
     count.
 
-    ``first`` and ``second`` are the mean pass fractions over the ``paired`` scenarios.
-    With one run per scenario on each side, ``two_by_two`` holds the scenarios where both
-    passed, the first only, the second only and neither, and no interval; with repeats it
-    is ``None`` and the interval is of ``first - second``.
+    ``first`` and ``second`` are the mean pass fractions over the ``paired`` scenarios and
+    the interval is of ``first - second``, by one method at any number of runs; a tier and
+    the whole hold it or ``unresolved``, the reason the bootstrap gave none. With one run
+    per scenario on each side, ``two_by_two`` also holds the scenarios where both passed,
+    the first only, the second only and neither; with repeats it is ``None``.
     """
 
     check: str
@@ -190,6 +204,7 @@ class CheckComparison:
     second: float | None
     two_by_two: tuple[int, int, int, int] | None
     interval: BootstrapInterval | None
+    unresolved: Unresolved | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -226,13 +241,15 @@ def estimate_ratio(cell: Cell, measure: Measure, plan: Preregistered) -> RatioEs
     clusters = _clusters(cell, measure)
     numerator = sum(counts[0] for _, counts in clusters)
     denominator = sum(counts[1] for _, counts in clusters)
-    interval = None
+    interval, unresolved = None, None
     if cell.stratum.estimated:
-        interval = bootstrap_ratio(
-            _by_tier(clusters),
-            confidence=plan.confidence,
-            seed=derived_seed(plan.seed, cell.arm.name, *_names(cell.stratum), measure.name),
-            resamples=plan.resamples,
+        interval, unresolved = _resolved(
+            bootstrap_ratio(
+                _by_tier(clusters),
+                confidence=plan.confidence,
+                seed=derived_seed(plan.seed, cell.arm.name, *_names(cell.stratum), measure.name),
+                resamples=plan.resamples,
+            )
         )
     return RatioEstimate(
         measure.name,
@@ -243,6 +260,7 @@ def estimate_ratio(cell: Cell, measure: Measure, plan: Preregistered) -> RatioEs
         len(clusters),
         sum(counts[1] == 0 for _, counts in clusters),
         interval,
+        unresolved,
     )
 
 
@@ -257,17 +275,20 @@ def estimate_check(
     single = all(each.single for _, each in counted)
     interval_w: WilsonInterval | None = None
     interval_b: BootstrapInterval | None = None
-    if cell.stratum.estimated and counted:
-        if single:
+    unresolved: Unresolved | None = None
+    if cell.stratum.estimated:
+        if counted and single:
             interval_w = wilson(round(passed), len(counted), plan.confidence)
         else:
-            interval_b = bootstrap_ratio(
-                _by_tier([(runs.tier, (each.fraction, 1.0)) for runs, each in counted]),
-                confidence=plan.confidence,
-                seed=derived_seed(
-                    plan.seed, cell.arm.name, *_names(cell.stratum), check.name, reading.value
-                ),
-                resamples=plan.resamples,
+            interval_b, unresolved = _resolved(
+                bootstrap_ratio(
+                    _by_tier([(runs.tier, (each.fraction, 1.0)) for runs, each in counted]),
+                    confidence=plan.confidence,
+                    seed=derived_seed(
+                        plan.seed, cell.arm.name, *_names(cell.stratum), check.name, reading.value
+                    ),
+                    resamples=plan.resamples,
+                )
             )
     return CheckEstimate(
         check.name,
@@ -282,6 +303,7 @@ def estimate_check(
         sum(runs.unverifiable for runs in cell.scenarios),
         interval_w,
         interval_b,
+        unresolved,
     )
 
 
@@ -298,15 +320,17 @@ def compare_ratio(
         for runs in first.scenarios
         if runs.scenario_id in ours and runs.scenario_id in theirs
     ]
-    interval = None
+    interval, unresolved = None, None
     if first.stratum.estimated:
-        interval = bootstrap_difference(
-            _by_tier(paired),
-            confidence=plan.confidence,
-            seed=derived_seed(
-                plan.seed, first.arm.name, second.arm.name, *_names(first.stratum), measure.name
-            ),
-            resamples=plan.resamples,
+        interval, unresolved = _resolved(
+            bootstrap_difference(
+                _by_tier(paired),
+                confidence=plan.confidence,
+                seed=derived_seed(
+                    plan.seed, first.arm.name, second.arm.name, *_names(first.stratum), measure.name
+                ),
+                resamples=plan.resamples,
+            )
         )
     return RatioComparison(
         measure.name,
@@ -317,6 +341,7 @@ def compare_ratio(
         _ratio([pair[0] for _, pair in paired]),
         _ratio([pair[1] for _, pair in paired]),
         interval,
+        unresolved,
     )
 
 
@@ -340,6 +365,7 @@ def compare_check(
     single = all(mine.single and yours.single for _, mine, yours in paired)
     two_by_two: tuple[int, int, int, int] | None = None
     interval: BootstrapInterval | None = None
+    unresolved: Unresolved | None = None
     if paired and single:
         outcomes = [(mine.fraction == 1, yours.fraction == 1) for _, mine, yours in paired]
         two_by_two = (
@@ -348,24 +374,26 @@ def compare_check(
             outcomes.count((False, True)),
             outcomes.count((False, False)),
         )
-    elif paired and first.stratum.estimated:
-        interval = bootstrap_difference(
-            _by_tier(
-                [
-                    (tier, ((mine.fraction, 1.0), (yours.fraction, 1.0)))
-                    for tier, mine, yours in paired
-                ]
-            ),
-            confidence=plan.confidence,
-            seed=derived_seed(
-                plan.seed,
-                first.arm.name,
-                second.arm.name,
-                *_names(first.stratum),
-                check.name,
-                reading.value,
-            ),
-            resamples=plan.resamples,
+    if first.stratum.estimated:
+        interval, unresolved = _resolved(
+            bootstrap_difference(
+                _by_tier(
+                    [
+                        (tier, ((mine.fraction, 1.0), (yours.fraction, 1.0)))
+                        for tier, mine, yours in paired
+                    ]
+                ),
+                confidence=plan.confidence,
+                seed=derived_seed(
+                    plan.seed,
+                    first.arm.name,
+                    second.arm.name,
+                    *_names(first.stratum),
+                    check.name,
+                    reading.value,
+                ),
+                resamples=plan.resamples,
+            )
         )
     count = len(paired)
     return CheckComparison(
@@ -379,6 +407,7 @@ def compare_check(
         sum(yours.fraction for _, _, yours in paired) / count if count else None,
         two_by_two,
         interval,
+        unresolved,
     )
 
 
@@ -446,6 +475,15 @@ def _ratio(clusters: list[Cluster]) -> float | None:
 
 def _names(stratum: Stratum) -> tuple[str, str]:
     return (stratum.kind.value, stratum.name)
+
+
+def _resolved(
+    result: BootstrapInterval | Unresolved,
+) -> tuple[BootstrapInterval | None, Unresolved | None]:
+    """A bootstrap's result as the two fields an estimate holds, exactly one of them set."""
+    if isinstance(result, Unresolved):
+        return None, result
+    return result, None
 
 
 # --- Checks ------------------------------------------------------------------------------

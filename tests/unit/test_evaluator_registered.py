@@ -49,6 +49,7 @@ from leaveimpact.evaluator.cells import (
     within,
 )
 from leaveimpact.evaluator.grading import Graded, correct_whole
+from leaveimpact.evaluator.intervals import Unresolved
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.registered import (
     CHECKS,
@@ -71,6 +72,7 @@ from tests.unit.export_fixture import provider_failed_export
 from tests.unit.report_fixture import of_type, renumbered, swapped, without
 from tests.unit.throwaway_world import loaded_world
 
+LONE = Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
 DRAFT = decode_registration_bytes(
     (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
 )
@@ -482,9 +484,10 @@ def test_a_repeat_intended_and_never_made_keeps_its_scenario_a_repeated_one(
     for reading in Reading:
         estimate = estimate_check(first, CORRECT_WHOLE, reading, two_runs)
         assert (estimate.runs, estimate.missing, estimate.unverifiable) == (1, 1, 0)
-        assert estimate.wilson is None and estimate.bootstrap is not None, reading
+        # The bootstrap's form, which one scenario alone cannot resolve.
+        assert (estimate.wilson, estimate.unresolved) == (None, LONE), reading
         comparison = compare_check(first, second, CORRECT_WHOLE, reading, two_runs)
-        assert comparison.two_by_two is None and comparison.interval is not None, reading
+        assert (comparison.two_by_two, comparison.unresolved) == (None, LONE), reading
 
     # With one run intended and one made, the scenario is a single trial as before.
     one_run = replace(two_runs, intended_repeats=1)
@@ -495,3 +498,5 @@ def test_a_repeat_intended_and_never_made_keeps_its_scenario_a_repeated_one(
     assert estimate.wilson is not None and estimate.bootstrap is None
     comparison = compare_check(first, second, CORRECT_WHOLE, Reading.CONDITIONAL, one_run)
     assert comparison.two_by_two == (1, 0, 0, 0)
+    # One method at any repeat count: the single trial has its counts and the same state.
+    assert (comparison.interval, comparison.unresolved) == (None, LONE)

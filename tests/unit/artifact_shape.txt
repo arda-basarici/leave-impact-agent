@@ -76,6 +76,7 @@ analysis.sets[].arms[].cells[].checks[].scenarios
 analysis.sets[].arms[].cells[].checks[].stratum
 analysis.sets[].arms[].cells[].checks[].stratum.kind
 analysis.sets[].arms[].cells[].checks[].stratum.name
+analysis.sets[].arms[].cells[].checks[].unresolved
 analysis.sets[].arms[].cells[].checks[].unverifiable
 analysis.sets[].arms[].cells[].checks[].wilson
 analysis.sets[].arms[].cells[].checks[].wilson.confidence
@@ -124,6 +125,7 @@ analysis.sets[].arms[].cells[].measures[].scenarios
 analysis.sets[].arms[].cells[].measures[].stratum
 analysis.sets[].arms[].cells[].measures[].stratum.kind
 analysis.sets[].arms[].cells[].measures[].stratum.name
+analysis.sets[].arms[].cells[].measures[].unresolved
 analysis.sets[].arms[].cells[].stratum
 analysis.sets[].arms[].cells[].stratum.kind
 analysis.sets[].arms[].cells[].stratum.name
@@ -162,6 +164,7 @@ analysis.sets[].descriptive[].checks[].stratum
 analysis.sets[].descriptive[].checks[].stratum.kind
 analysis.sets[].descriptive[].checks[].stratum.name
 analysis.sets[].descriptive[].checks[].two_by_two
+analysis.sets[].descriptive[].checks[].unresolved
 analysis.sets[].descriptive[].condition
 analysis.sets[].descriptive[].measures
 analysis.sets[].descriptive[].measures[].first
@@ -182,6 +185,7 @@ analysis.sets[].descriptive[].measures[].second_arm
 analysis.sets[].descriptive[].measures[].stratum
 analysis.sets[].descriptive[].measures[].stratum.kind
 analysis.sets[].descriptive[].measures[].stratum.name
+analysis.sets[].descriptive[].measures[].unresolved
 analysis.sets[].descriptive[].systems
 analysis.sets[].descriptive[].unavailable
 analysis.sets[].name
@@ -214,6 +218,7 @@ analysis.sets[].primary[].results[].stratum
 analysis.sets[].primary[].results[].stratum.kind
 analysis.sets[].primary[].results[].stratum.name
 analysis.sets[].primary[].results[].two_by_two
+analysis.sets[].primary[].results[].unresolved
 analysis.sets[].primary[].unavailable
 analysis.sets[].scenarios
 analysis.sets[].unavailable
