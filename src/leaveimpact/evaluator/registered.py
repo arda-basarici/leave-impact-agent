@@ -23,9 +23,8 @@ nothing is reported for it. Or its system has a value pending that an execution 
 (``core.registration.blocking``), the one reading the harness and the eligibility check
 share. Nothing is left to project when every cell is left out, and that is refused.
 
-What is refused whole, because tables cut under it would be about something else: a retry
-rule other than the one the attempt histories are read under, retries after an
-infrastructure failure only; a registered prefetch that is not the one this code plans, by
+What is refused whole, because tables cut under it would be about something else: a
+registered prefetch that is not the one this code plans, by
 identifier, protocol version or digest, since the conformance check would manufacture
 findings from a planner the registration never named; a registered anchor table that is
 not ``core``'s, the one part of the stated-fact contract this package can compute; and a
@@ -50,7 +49,7 @@ from leaveimpact.core.registration import (
     Registration,
     blocking,
 )
-from leaveimpact.core.run_record import FailureCategory, System
+from leaveimpact.core.run_record import System
 from leaveimpact.evaluator.cells import CountedAttempt, MissingRepeat, Preregistered
 from leaveimpact.evaluator.evidence_measures import (
     RETRIEVAL_MEASURES,
@@ -202,11 +201,6 @@ def preregistered(registration: Registration) -> Projection:
         )
     mechanism_pending(registration)
     accounting = registration.run_accounting
-    if accounting.retry.after is not FailureCategory.INFRASTRUCTURE:
-        raise ValueError(
-            "attempt histories are read under retries after an infrastructure failure, "
-            f"the registration retries after {accounting.retry.after.value}"
-        )
     arms: list[tuple[System, RunCondition, str]] = []
     unbuilt: list[Unbuilt] = []
     for cell in registration.cells:

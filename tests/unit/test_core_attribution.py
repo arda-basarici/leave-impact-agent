@@ -355,7 +355,7 @@ def test_the_redispatch_policy_is_bounded_and_round_trips() -> None:
     assert decode_redispatch_policy(encode_redispatch_policy(policy)) == policy
     with pytest.raises(ValueError, match="max_dispatches is at least 1"):
         RedispatchPolicy(0, 2000)
-    with pytest.raises(ValueError, match="max_delay_ms is at least 0"):
+    with pytest.raises(ValueError, match="delay_ms is at least 0"):
         RedispatchPolicy(1, -1)
     with pytest.raises(ValueError, match="a re-dispatch policy"):
         decode_redispatch_policy({"max_dispatches": 3})

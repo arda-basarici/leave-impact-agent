@@ -54,6 +54,7 @@ ROLE = RegisteredRole(
     CallConfiguration("eu.some-model", (CallSetting("temperature", 0),)),
     (("system", DIGEST),),
     DIGEST,
+    "some-model",
 )
 TABLE = AttributionTable(
     tuple(

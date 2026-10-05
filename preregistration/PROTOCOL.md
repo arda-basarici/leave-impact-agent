@@ -10,8 +10,8 @@ One JSON file with a format version, decoded strictly: every field required, an 
 key refused, and the bytes accepted only if they are the one form the encoder writes. It
 is changed through the encoder and never by hand, and a line in `.gitattributes` keeps a
 checkout from rewriting its line endings, so the bytes at a commit are the bytes that were
-registered. The file is at format 2. Nothing reads format 1, and no run was made under it
-that a report could cite.
+registered. The file is at format 3. Nothing reads format 1 or 2, and no run was made under
+either that a report could cite.
 
 Names live in the file and behaviour lives in code. The file names a check, a measure, an
 interval method, a prefetch rule, an outage protocol, a composing policy; the code holds

@@ -1,5 +1,5 @@
 {
-  "format_version": 2,
+  "format_version": 3,
   "status": "draft",
   "amendment": {
     "amends": null,
@@ -31,7 +31,11 @@
         "token_cap": 400000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
-        "counting_rule": "input_plus_output_cached_included"
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
       }
     },
     {
@@ -49,7 +53,11 @@
         "token_cap": 400000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
-        "counting_rule": "input_plus_output_cached_included"
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
       }
     },
     {
@@ -76,7 +84,11 @@
         "token_cap": 400000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
-        "counting_rule": "input_plus_output_cached_included"
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
       }
     },
     {
@@ -97,7 +109,11 @@
         "token_cap": 400000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
-        "counting_rule": "input_plus_output_cached_included"
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
       }
     }
   ],
@@ -316,8 +332,9 @@
     },
     "counted_attempt": "earliest_not_infrastructure",
     "redispatch": {
-      "pending": "the most dispatches of a logical call and the longest delay, set at the procedure freeze"
+      "pending": "the most dispatches of a logical call and the backoff before each later one, set at the procedure freeze"
     },
+    "count_retry": "redispatch_policy",
     "estimand": "the registered system with up to two retries after an infrastructure failure"
   },
   "attribution": {

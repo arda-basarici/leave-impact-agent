@@ -580,7 +580,7 @@ def test_another_format_refuses_before_anything_else() -> None:
     data = _draft_tree()
     data["format_version"] = 1
     del data["cells"]
-    with pytest.raises(ValueError, match="this code reads registration format 2, got 1"):
+    with pytest.raises(ValueError, match="this code reads registration format 3, got 1"):
         decode_registration(data)
     data["format_version"] = True
     with pytest.raises(ValueError, match="format_version is an integer, got True"):
@@ -665,3 +665,92 @@ def test_an_amending_registration_names_the_commit_it_amends() -> None:
     data["amendment"] = {"amends": COMMIT, "prior_full_set_results": True}
     amended = decode_registration(data)
     assert (amended.amendment.amends, amended.amendment.prior_full_set_results) == (COMMIT, True)
+
+
+# --- Format 3: the input bound, the counting model, the count's retries --------------------
+
+
+def test_every_system_registers_the_one_input_bound_method() -> None:
+    for system in DRAFT.systems:
+        bound = system.caps.input_bound
+        assert (bound.name, bound.version) == ("provider_count", 1)
+    for index in range(len(DRAFT.systems)):
+        assert _nested(_draft_tree(), "systems", index, "caps")["input_bound"] == {
+            "method": "provider_count",
+            "version": 1,
+        }
+
+
+@pytest.mark.parametrize(
+    ("bound", "message"),
+    [
+        ({"method": "request_bytes", "version": 1}, "an input-bound method is a registered one"),
+        ({"method": "provider_count", "version": 2}, "registered at version 1, got 2"),
+        ({"method": "provider_count"}, "the input bound"),
+        ("provider_count", "input_bound is a JSON object"),
+    ],
+)
+def test_caps_naming_a_method_the_registry_lacks_are_refused(bound: object, message: str) -> None:
+    data = _draft_tree()
+    _nested(data, "systems", 0, "caps")["input_bound"] = bound
+    with pytest.raises(ValueError, match=message):
+        decode_registration(data)
+
+
+def test_caps_without_an_input_bound_are_another_format() -> None:
+    data = _draft_tree()
+    del _nested(data, "systems", 2, "caps")["input_bound"]
+    with pytest.raises(ValueError, match="the caps"):
+        decode_registration(data)
+
+
+def test_a_role_names_the_model_its_requests_are_counted_against() -> None:
+    tree = _tree(named())
+    roles = cast("list[dict[str, object]]", _nested(tree, "systems", 0, "roles")["value"])
+    assert roles[0]["counting_model_id"] == ROLE.counting_model_id == "some-model"
+    assert decode_registration(tree) == named()
+    del roles[0]["counting_model_id"]
+    with pytest.raises(ValueError, match="a role"):
+        decode_registration(tree)
+    with pytest.raises(ValueError, match="the investigator counting model"):
+        replace(ROLE, counting_model_id="")
+
+
+def test_the_counts_retries_are_registered_by_reference_to_the_redispatch_policy() -> None:
+    assert DRAFT.run_accounting.count_retry.value == "redispatch_policy"
+    data = _draft_tree()
+    _nested(data, "run_accounting")["count_retry"] = "three_times"
+    with pytest.raises(ValueError, match="'three_times' is not a valid CountRetryRule"):
+        decode_registration(data)
+    data = _draft_tree()
+    del _nested(data, "run_accounting")["count_retry"]
+    with pytest.raises(ValueError, match="run accounting"):
+        decode_registration(data)
+
+
+def test_a_registration_never_retries_after_a_defect() -> None:
+    data = _draft_tree()
+    _nested(data, "run_accounting", "retry")["after"] = "defect"
+    with pytest.raises(ValueError, match="never retried after a defect"):
+        decode_registration(data)
+
+
+def test_the_redispatch_policy_states_its_backoff_as_delay_ms() -> None:
+    tree = _tree(named())
+    assert _nested(tree, "run_accounting", "redispatch")["value"] == {
+        "max_dispatches": 2,
+        "delay_ms": 1_000,
+    }
+    _nested(tree, "run_accounting", "redispatch")["value"] = {
+        "max_dispatches": 2,
+        "max_delay_ms": 1_000,
+    }
+    with pytest.raises(ValueError, match="a re-dispatch policy"):
+        decode_registration(tree)
+
+
+def test_a_format_2_file_is_refused_by_its_version() -> None:
+    data = _draft_tree()
+    data["format_version"] = 2
+    with pytest.raises(ValueError, match="this code reads registration format 3, got 2"):
+        decode_registration(data)

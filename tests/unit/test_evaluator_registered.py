@@ -403,11 +403,10 @@ def test_the_projection_refuses_what_this_evaluator_does_not_implement() -> None
     waiting = replace(DRAFT, statistics=replace(statistics, mechanism=Pending("not yet")))
     assert mechanism_pending(waiting) == "not yet"
 
-    accounting = DRAFT.run_accounting
-    retry = replace(accounting.retry, after=FailureCategory.DEFECT)
-    after_defect = replace(accounting, retry=retry)
-    with pytest.raises(ValueError, match="the registration retries after defect"):
-        preregistered(replace(DRAFT, run_accounting=after_defect))
+    # Attempt histories are read under retries after an infrastructure failure, and no
+    # registration can say otherwise: the retry rule refuses a defect where it is built.
+    with pytest.raises(ValueError, match="never retried after a defect"):
+        replace(DRAFT.run_accounting.retry, after=FailureCategory.DEFECT)
 
     # The anchor table is the one part of the stated-fact contract this package computes.
     stated = replace(DRAFT.stated_facts, anchor_table="0" * 64)

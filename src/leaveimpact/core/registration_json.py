@@ -46,6 +46,7 @@ from leaveimpact.core.attribution import (
 )
 from leaveimpact.core.call_settings import decode_call_configuration, encode_call_configuration
 from leaveimpact.core.enums import Source
+from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.jsonshape import (
     JsonObject,
     array_field,
@@ -70,6 +71,7 @@ from leaveimpact.core.registration import (
     ConditionalGroup,
     CorpusLevel,
     CountedAttemptRule,
+    CountRetryRule,
     DescriptiveComparisons,
     EntrySchema,
     FullContextSystem,
@@ -153,6 +155,7 @@ _CAPS_FIELDS = (
     "finalization_call_reserve",
     "finalization_token_reserve",
     "counting_rule",
+    "input_bound",
 )
 _COMPARISON_FIELDS = ("check", "reading", "condition", "level", "systems", "breakdowns")
 
@@ -217,6 +220,7 @@ def encode_registration(registration: Registration) -> JsonObject:
             },
             "counted_attempt": accounting.counted_attempt.value,
             "redispatch": _encode_pendable(accounting.redispatch, encode_redispatch_policy),
+            "count_retry": accounting.count_retry.value,
             "estimand": accounting.estimand,
         },
         "attribution": _encode_pendable(registration.attribution, encode_attribution_table),
@@ -294,6 +298,10 @@ def _encode_caps(registered: RegisteredCaps) -> JsonObject:
         "finalization_call_reserve": caps.finalization_call_reserve,
         "finalization_token_reserve": caps.finalization_token_reserve,
         "counting_rule": caps.counting_rule,
+        "input_bound": {
+            "method": registered.input_bound.name,
+            "version": registered.input_bound.version,
+        },
     }
 
 
@@ -306,6 +314,7 @@ def _encode_roles(roles: Roles) -> list[JsonObject]:
                 {"name": name, "digest": digest} for name, digest in role.prompt_digests
             ],
             "tool_surface_digest": role.tool_surface_digest,
+            "counting_model_id": role.counting_model_id,
         }
         for role in roles
     ]
@@ -445,7 +454,7 @@ def decode_registration_bytes(content: bytes | str) -> Registration:
     >>> decode_registration_bytes(b'{"format_version": 1}')
     Traceback (most recent call last):
     ...
-    ValueError: this code reads registration format 2, got 1
+    ValueError: this code reads registration format 3, got 1
     """
     raw = content.encode("utf-8") if isinstance(content, str) else content
     registration = decode_registration(json.loads(raw))
@@ -564,6 +573,8 @@ def _decode_retrieval(data: Mapping[str, object]) -> Retrieval:
 
 def _decode_caps(data: Mapping[str, object]) -> RegisteredCaps:
     expect_fields(data, _CAPS_FIELDS, "the caps")
+    bound = object_field(data, "input_bound")
+    expect_fields(bound, ("method", "version"), "the input bound")
     return RegisteredCaps(
         Basis(string_field(data, "basis")),
         Caps(
@@ -573,6 +584,7 @@ def _decode_caps(data: Mapping[str, object]) -> RegisteredCaps:
             integer_field(data, "finalization_token_reserve"),
             string_field(data, "counting_rule"),
         ),
+        RegisteredInputBound(string_field(bound, "method"), integer_field(bound, "version")),
     )
 
 
@@ -581,7 +593,15 @@ def _decode_roles(value: object) -> Roles:
     for item in _as_array(value, "roles"):
         role = as_object(item, "a role")
         expect_fields(
-            role, ("name", "configuration", "prompt_digests", "tool_surface_digest"), "a role"
+            role,
+            (
+                "name",
+                "configuration",
+                "prompt_digests",
+                "tool_surface_digest",
+                "counting_model_id",
+            ),
+            "a role",
         )
         prompts: list[tuple[str, str]] = []
         for entry in array_field(role, "prompt_digests"):
@@ -594,6 +614,7 @@ def _decode_roles(value: object) -> Roles:
                 decode_call_configuration(field_of(role, "configuration")),
                 tuple(prompts),
                 string_field(role, "tool_surface_digest"),
+                string_field(role, "counting_model_id"),
             )
         )
     return tuple(roles)
@@ -687,7 +708,15 @@ def _decode_cell(item: object) -> RegisteredCell:
 def _decode_accounting(data: Mapping[str, object]) -> RunAccounting:
     expect_fields(
         data,
-        ("repeats", "missing_run", "retry", "counted_attempt", "redispatch", "estimand"),
+        (
+            "repeats",
+            "missing_run",
+            "retry",
+            "counted_attempt",
+            "redispatch",
+            "count_retry",
+            "estimand",
+        ),
         "run accounting",
     )
     retry = object_field(data, "retry")
@@ -700,6 +729,7 @@ def _decode_accounting(data: Mapping[str, object]) -> RunAccounting:
         ),
         CountedAttemptRule(string_field(data, "counted_attempt")),
         _pendable(data, "redispatch", decode_redispatch_policy),
+        CountRetryRule(string_field(data, "count_retry")),
         string_field(data, "estimand"),
     )
 

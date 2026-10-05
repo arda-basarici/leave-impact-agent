@@ -34,8 +34,8 @@ one, and its reading is always unresolved (``UNRESOLVED_RULE``, which lives with
 dispatch that must name it and is named again from here).
 
 ``RedispatchPolicy`` is the bound the harness dispatches under: no layer beneath a dispatch
-retries, so a second send of a logical call is a new dispatch, at most this many, after at
-most this delay.
+retries, so a second send of a logical call is a new dispatch, at most this many, each
+after the registered backoff.
 """
 
 from __future__ import annotations
@@ -323,7 +323,12 @@ def attribution_table_digest(table: AttributionTable) -> str:
 @dataclass(frozen=True, slots=True)
 class RedispatchPolicy:
     """The bound a logical call is dispatched under: at most ``max_dispatches`` dispatches,
-    the first included, each later one after a delay of at most ``max_delay_ms``.
+    the first included, each later one after a backoff of ``delay_ms``.
+
+    The backoff is fixed, with no jitter: one serialized client has no herd to spread, and
+    a fixed wait reproduces. It is the deliberate wait and not a bound on the interval
+    between an outcome and the next dispatch, which also holds the request's preparation,
+    its count and the attempt's lock.
 
     >>> RedispatchPolicy(0, 1000)
     Traceback (most recent call last):
@@ -332,11 +337,11 @@ class RedispatchPolicy:
     """
 
     max_dispatches: int
-    max_delay_ms: int
+    delay_ms: int
 
     def __post_init__(self) -> None:
         require_integer(self.max_dispatches, "max_dispatches", minimum=1)
-        require_integer(self.max_delay_ms, "max_delay_ms")
+        require_integer(self.delay_ms, "delay_ms")
 
 
 # --- JSON ----------------------------------------------------------------------------------
@@ -438,16 +443,14 @@ def _boolean(data: Mapping[str, object], key: str) -> bool:
 
 def encode_redispatch_policy(policy: RedispatchPolicy) -> JsonObject:
     """The JSON object of a re-dispatch policy."""
-    return {"max_dispatches": policy.max_dispatches, "max_delay_ms": policy.max_delay_ms}
+    return {"max_dispatches": policy.max_dispatches, "delay_ms": policy.delay_ms}
 
 
 def decode_redispatch_policy(value: object) -> RedispatchPolicy:
     """The re-dispatch policy ``value`` encodes; ``ValueError`` names what is malformed."""
     data = as_object(value, "a re-dispatch policy")
-    expect_fields(data, ("max_dispatches", "max_delay_ms"), "a re-dispatch policy")
-    return RedispatchPolicy(
-        integer_field(data, "max_dispatches"), integer_field(data, "max_delay_ms")
-    )
+    expect_fields(data, ("max_dispatches", "delay_ms"), "a re-dispatch policy")
+    return RedispatchPolicy(integer_field(data, "max_dispatches"), integer_field(data, "delay_ms"))
 
 
 __all__ = [

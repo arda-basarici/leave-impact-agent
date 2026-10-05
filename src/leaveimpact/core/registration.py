@@ -52,7 +52,8 @@ from enum import StrEnum
 
 from leaveimpact.core.attribution import AttributionTable, RedispatchPolicy
 from leaveimpact.core.call_settings import CallConfiguration
-from leaveimpact.core.enums import Source
+from leaveimpact.core.enums import Source, require_member
+from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.run_ending import ComposingPolicy
 from leaveimpact.core.run_record import (
@@ -67,7 +68,7 @@ from leaveimpact.core.run_record import (
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
 from leaveimpact.core.tools import SEARCH_LIMIT
 
-REGISTRATION_FORMAT_VERSION = 2
+REGISTRATION_FORMAT_VERSION = 3
 """The one format this code reads; a decoder refuses any other."""
 
 OUTAGE_PROTOCOL = ("whole-run-read-port-outage", 1)
@@ -166,25 +167,39 @@ class MeasuredWorld:
 
 @dataclass(frozen=True, slots=True)
 class RegisteredCaps:
-    """The per-run caps a system runs under, and what stands behind the numbers."""
+    """The per-run caps a system runs under, what stands behind the numbers, and the method
+    a dispatch's input is bounded by before it is authorized against them.
+
+    The method decides when a run stops at its token cap, which is graded, so it is
+    registered beside the counting rule. It sits here and not in ``Caps`` until the run
+    record states it too, with the export's next format.
+    """
 
     basis: Basis
     caps: Caps
+    input_bound: RegisteredInputBound
 
 
 @dataclass(frozen=True, slots=True)
 class RegisteredRole:
     """One role of a system that calls a model, by name: the configuration its calls run
     under, its prompts by name and digest, and the digest of the tool surface it is shown.
-    A run records all three of every role, and the two are compared role by role."""
+    A run records all three of every role, and the two are compared role by role.
+
+    ``counting_model_id`` is the model the role's requests are counted against before they
+    are sent. It is named and never derived from the configuration's model: the counting
+    call is served for a base model and refused for the inference profile in front of it.
+    """
 
     name: str
     configuration: CallConfiguration
     prompt_digests: tuple[tuple[str, str], ...]
     tool_surface_digest: str
+    counting_model_id: str
 
     def __post_init__(self) -> None:
         require_opaque_id(self.name, "a role")
+        require_opaque_id(self.counting_model_id, f"the {self.name} counting model")
         names = [name for name, _ in self.prompt_digests]
         if len(set(names)) != len(names):
             raise ValueError(f"a prompt is digested once per name, got {names}")
@@ -536,29 +551,55 @@ class CountedAttemptRule(StrEnum):
 @dataclass(frozen=True, slots=True)
 class RetryRule:
     """The one failure category an attempt is retried after, and the most attempts a run has,
-    the first execution included."""
+    the first execution included.
+
+    A defect is never the category: a retry could hide it.
+
+    >>> RetryRule(FailureCategory.DEFECT, 3)
+    Traceback (most recent call last):
+    ...
+    ValueError: an attempt is never retried after a defect, which a retry could hide
+    """
 
     after: FailureCategory
     max_attempts: int
 
     def __post_init__(self) -> None:
+        require_member(self.after, FailureCategory, "the category retried after")
+        if self.after is FailureCategory.DEFECT:
+            raise ValueError("an attempt is never retried after a defect, which a retry could hide")
         require_integer(self.max_attempts, "max_attempts", minimum=1)
+
+
+class CountRetryRule(StrEnum):
+    """Where the bound on asking a request's input count again is registered; a member is
+    the wire form.
+
+    ``REDISPATCH_POLICY``: a request's input count is asked at most as many times as a
+    logical call is dispatched, each later time after the same backoff, on a count of its
+    own. The numbers are the re-dispatch policy's and are stated once.
+    """
+
+    REDISPATCH_POLICY = "redispatch_policy"
 
 
 @dataclass(frozen=True, slots=True)
 class RunAccounting:
     """How runs are repeated, retried and counted, the bound a logical call is re-dispatched
-    under inside a run, and the estimand that follows in words."""
+    under inside a run, the bound a request's input count is asked again under, and the
+    estimand that follows in words."""
 
     repeats: int
     missing_run: MissingRunRule
     retry: RetryRule
     counted_attempt: CountedAttemptRule
     redispatch: RedispatchPolicy | Pending
+    count_retry: CountRetryRule
     estimand: str
 
     def __post_init__(self) -> None:
         require_integer(self.repeats, "repeats", minimum=1)
+        require_member(self.count_retry, CountRetryRule, "the count retry rule")
         if not self.estimand.strip():
             raise ValueError("the estimand is stated")
 
@@ -1191,6 +1232,7 @@ __all__ = [
     "Comparison",
     "ConditionalGroup",
     "CorpusLevel",
+    "CountRetryRule",
     "CountedAttemptRule",
     "DescriptiveComparisons",
     "EntrySchema",
