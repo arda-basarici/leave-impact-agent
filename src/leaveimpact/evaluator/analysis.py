@@ -29,6 +29,8 @@ measured world is tuned on, so none is held apart.
 - the headroom at each place the reference system runs under an answer-quality condition,
   and the incidents: the scenarios where a source contradicted itself in some run, the
   runs that are out of the tables read for it like the ones that are in.
+- the provenance incidents: every attempt that ran on more than one harness commit, in or
+  out of the tables, listed apart and counted in no comparison.
 - the mechanism measure: what it is pending on, until it is resolved; then, for every
   scored arm of a system that states facts, the four stages at the whole and at each tier
   with the stages by predicate and the supporting detail, and the stages contrasted on the
@@ -85,7 +87,13 @@ from leaveimpact.evaluator.diagnostics import (
     repeat_consistency,
 )
 from leaveimpact.evaluator.headroom import Headroom, headroom_at
-from leaveimpact.evaluator.incidents import Incident, incident_scenarios, incidents_of
+from leaveimpact.evaluator.incidents import (
+    Incident,
+    ProvenanceIncident,
+    incident_scenarios,
+    incidents_of,
+    provenance_incidents_of,
+)
 from leaveimpact.evaluator.mechanism import (
     STAGE_MEASURES,
     STAGE_MEASURES_BY_PREDICATE,
@@ -260,6 +268,7 @@ class Analysis:
     mechanism: MechanismAnalysis | None
     headroom: tuple[Headroom, ...]
     incidents: tuple[Incident, ...]
+    provenance_incidents: tuple[ProvenanceIncident, ...]
 
 
 def analyse(
@@ -312,6 +321,7 @@ def analyse(
         mechanism=reading.mechanism() if pending is None else None,
         headroom=reading.headroom(),
         incidents=incidents,
+        provenance_incidents=provenance_incidents_of(built, outside),
     )
 
 

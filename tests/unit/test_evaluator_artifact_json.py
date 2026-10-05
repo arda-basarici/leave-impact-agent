@@ -36,6 +36,7 @@ from leaveimpact.core import (
     RecordOutcome,
     ReportedUsage,
     RunExport,
+    Segment,
     Source,
     StratumLevel,
     System,
@@ -185,8 +186,9 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
     tool nobody declared gives an operation finding; an enumeration short of one employee
     an integrity finding; a model call priced and one left unpriced a cost and a cost
     finding; a stating run whose record lets in what the gates refuse a recheck finding;
-    the same run shown a document the world does not seal a level finding; and a response
-    whose metadata shows an SDK retry a retried send.
+    the same run shown a document the world does not seal a level finding; a response
+    whose metadata shows an SDK retry a retried send; and an attempt recovered by a process
+    on another commit a provenance incident.
     """
     found: dict[str, RunExport] = {}
     for scenario in world.scenarios:
@@ -217,6 +219,11 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
     twice = dispatch(1, CompleteResponse("end_turn", 840, 1), AttributionKind.BEHAVIOUR)
     retried = ModelCall(ModelCallId("call-1"), ROLE, (twice,), Answer(True, (), ()))
     found["retried"] = agent_export(world, first, (retried,))
+    whole = run_export(world, first)
+    (finished,) = whole.record.timing.segments
+    killed = Segment(1, HarnessRevision("e" * 40, TreeState.CLEAN), 300, False)
+    timing = replace(whole.record.timing, segments=(killed, replace(finished, number=2)))
+    found["mixed"] = replace(whole, record=replace(whole.record, timing=timing))
     stated = stating_export(world, world.scenarios[10], gated=False)
     found["stated"] = stated
     found["strayed"] = replace(
@@ -433,6 +440,7 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
         "segments": 1,
         "timing_complete": True,
         "elapsed_ms": 1_200,
+        "commits": [COMMIT],
         "findings": [],
     }
     # The draft's attribution table is pending: held to none, which is not an empty finding.

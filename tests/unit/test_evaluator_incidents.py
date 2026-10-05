@@ -3,7 +3,9 @@ evaluation, recomputed from the trace whatever the run then did. The incident is
 scenario: its shapes once each, and every arm with the attempts that met it, the ones that
 did not, and its counted runs there. An attempt a retry replaced and one no scenario of the
 world could place are read like any other, and so is an export that is out of the tables,
-named by its key; with no contradiction there is no incident."""
+named by its key; with no contradiction there is no incident. An attempt that ran on
+more than one harness commit is a provenance incident of its own kind: listed once per
+attempt with its commits, in or out of the tables, and no scenario's flag."""
 
 from dataclasses import replace
 
@@ -19,10 +21,12 @@ from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded
 from leaveimpact.evaluator.incidents import (
     Incident,
     IncidentArm,
+    ProvenanceIncident,
     RunRef,
     Shape,
     incident_scenarios,
     incidents_of,
+    provenance_incidents_of,
 )
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
@@ -54,6 +58,44 @@ def contradicting(evaluation: Evaluation, kind: ContradictionKind = DIFFER) -> E
         OperationId("op-2"),
     )  # fmt: skip
     return replace(evaluation, contradictions=(*evaluation.contradictions, found))
+
+
+def on_commits(evaluation: Evaluation, *commits: str) -> Evaluation:
+    """``evaluation`` as an attempt whose segments ran on ``commits``."""
+    ending = replace(evaluation.metrics.ending, commits=commits)
+    return replace(evaluation, metrics=replace(evaluation.metrics, ending=ending))
+
+
+def test_an_attempt_on_two_commits_is_a_provenance_incident_in_or_out_of_the_tables(
+    world: SealedWorld,
+) -> None:
+    first, second = world.scenarios[:2]
+    old, new = "c" * 40, "d" * 40
+    retried = relabelled(on_commits(evaluated(world, first), old, new), run_id="run-a")
+    retried = replace(
+        retried, outcome=replace(retried.outcome, header=replace(retried.outcome.header, attempt=2))
+    )
+    runs = [
+        relabelled(evaluated(world, first), run_id="run-a"),
+        retried,
+        relabelled(evaluated(world, second), run_id="run-b"),
+    ]
+    (arm,) = arms(world, runs, plan())
+    outside = [
+        ("runs/z", relabelled(on_commits(evaluated(world, first), new, old), run_id="run-z")),
+        ("runs/y", relabelled(evaluated(world, second), run_id="run-y")),
+    ]
+    assert provenance_incidents_of([arm]) == (
+        ProvenanceIncident(first.spec.id, "run-a", 2, None, (old, new)),
+    )
+    assert provenance_incidents_of([arm], outside) == (
+        ProvenanceIncident(first.spec.id, "run-a", 2, None, (old, new)),
+        ProvenanceIncident(first.spec.id, "run-z", 1, "runs/z", (new, old)),
+    )
+    # Another kind than a source contradicting itself: no scenario carries a flag for it.
+    assert incidents_of([arm], outside) == ()
+    (clean,) = arms(world, [evaluated(world, first)], plan())
+    assert provenance_incidents_of([clean]) == ()
 
 
 def test_a_run_whose_reads_contradict_each_other_carries_it_on_its_evaluation(

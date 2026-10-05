@@ -286,6 +286,11 @@ it like the ones that are in. Each comparison says how many of the scenarios it 
 carry one. Nothing is excluded for it; whether a world is compromised is a person's
 decision the section exists to inform.
 
+A second incident is about an attempt and no scenario. An attempt whose segments ran on
+more than one harness commit is listed with its run, its attempt and the commits, whether
+its run is in the tables or out of them for any reason. It marks no scenario and enters no
+comparison's count.
+
 A change to the registration after full-set results exist is an amendment: the old
 numbers stay, further results on the same world are exploratory, and confirmation needs
 a world from a new seed.

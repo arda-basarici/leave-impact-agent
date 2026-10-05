@@ -432,6 +432,12 @@ analysis.primary.registered.level
 analysis.primary.registered.reading
 analysis.primary.registered.systems
 analysis.primary.unavailable
+analysis.provenance_incidents
+analysis.provenance_incidents[].attempt
+analysis.provenance_incidents[].commits
+analysis.provenance_incidents[].outside
+analysis.provenance_incidents[].run_id
+analysis.provenance_incidents[].scenario_id
 analysis.scenarios
 analysis.secondary
 analysis.secondary[].breakdowns
@@ -539,6 +545,7 @@ inventory[].run.attribution.findings[].kind
 inventory[].run.attribution.findings[].model_call
 inventory[].run.contradiction_not_failed
 inventory[].run.ending
+inventory[].run.ending.commits
 inventory[].run.ending.elapsed_ms
 inventory[].run.ending.findings
 inventory[].run.ending.segments

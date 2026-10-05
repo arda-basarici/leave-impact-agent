@@ -1,4 +1,5 @@
-"""Incidents: the scenarios on which some run met a source that contradicted itself.
+"""Incidents: the scenarios on which some run met a source that contradicted itself, and
+the attempts that ran on more than one harness commit.
 
 Two complete reads of one structured source that cannot both be true end an attempt by
 defect (``core.contradictions``). The run that met it is one run of one system, and the
@@ -28,6 +29,16 @@ amended registration, a person's decision this section exists to inform.
 
 The contradictions are recomputed from each trace when the run is evaluated and are not
 read from a failure's reason, so a run that met one and did not fail shows here too.
+
+*A provenance incident* is another kind and is kept apart. An attempt whose segments ran
+on more than one harness commit is one export of two programs (the contract step's ruling
+on segments and commits: a finding and an incident, the run not silently removed). It is
+about that attempt and nothing else: no source and no scenario is implicated, no other run
+is touched, and so it sets no scenario flag and enters no comparison's count. It is listed
+once per attempt, with the identity its export carries and the commits, read from every
+evaluated export of the world like a contradiction and for the same reason: what removes a
+run from the tables, a dirty tree or differing settings as much as the two commits, must
+not also remove it from the report of what went wrong.
 """
 
 from __future__ import annotations
@@ -80,6 +91,51 @@ class Incident:
     shapes: tuple[Shape, ...]
     arms: tuple[IncidentArm, ...]
     outside: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ProvenanceIncident:
+    """One attempt whose segments ran on more than one harness commit: the scenario and the
+    identity its export carries, its key in the store when the export is out of the tables
+    (``None`` for one in them, which an arm holds), and the commits in the order the
+    segments first ran on them."""
+
+    scenario_id: ScenarioId
+    run_id: str
+    attempt: int
+    outside: str | None
+    commits: tuple[str, ...]
+
+
+def provenance_incidents_of(
+    arms: Sequence[Arm], outside: Sequence[tuple[str, Evaluation]] = ()
+) -> tuple[ProvenanceIncident, ...]:
+    """The attempts among those ``arms`` hold and the evaluated exports ``outside`` the
+    tables that ran on more than one harness commit, in scenario, run and attempt order;
+    empty when every attempt ran on one."""
+    held: list[tuple[str | None, Evaluation]] = [
+        (None, attempt)
+        for arm in arms
+        for attempts in _attempts_by_scenario(arm).values()
+        for attempt in attempts
+    ]
+    found = [
+        ProvenanceIncident(
+            evaluation.outcome.header.scenario_id,
+            evaluation.outcome.header.run_id,
+            evaluation.outcome.header.attempt,
+            key,
+            evaluation.metrics.ending.commits,
+        )
+        for key, evaluation in (*held, *outside)
+        if len(evaluation.metrics.ending.commits) > 1
+    ]
+    return tuple(
+        sorted(
+            found,
+            key=lambda each: (each.scenario_id, each.run_id, each.attempt, each.outside or ""),
+        )
+    )
 
 
 def incidents_of(
@@ -154,4 +210,13 @@ def _at(arm: Arm, scenario: ScenarioId, attempts: Sequence[Evaluation]) -> Incid
     )
 
 
-__all__ = ["Incident", "IncidentArm", "RunRef", "Shape", "incident_scenarios", "incidents_of"]
+__all__ = [
+    "Incident",
+    "IncidentArm",
+    "ProvenanceIncident",
+    "RunRef",
+    "Shape",
+    "incident_scenarios",
+    "incidents_of",
+    "provenance_incidents_of",
+]

@@ -66,6 +66,7 @@ from leaveimpact.evaluator.attribution_check import AttributionFindingKind
 from leaveimpact.evaluator.cells import StratumKind
 from leaveimpact.evaluator.ending_check import EndingFinding
 from leaveimpact.evaluator.grading import Graded
+from leaveimpact.evaluator.incidents import ProvenanceIncident
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
@@ -574,10 +575,17 @@ def test_a_bound_registration_refuses_a_run_whose_segments_ran_on_two_commits(
     assert refused.evaluation is not None
     assert refused.evaluation.metrics.ending.findings == (EndingFinding.COMMITS_DIFFER,)
     assert made(artifact) == 0
+    # And reported as a provenance incident, by the identity its export carries, its key
+    # and its commits: out of the tables is not out of the report of what went wrong.
+    scenario = world.scenarios[0].spec.id
+    listed = ProvenanceIncident(scenario, "run-1", 1, "runs/a", (OTHER_COMMIT, COMMIT))
+    assert artifact.analysis.provenance_incidents == (listed,)
     # Under a draft it is a development run like any other, and carries the finding.
     drafted = recovered_elsewhere(exported(world, world.scenarios[0]))
-    under_draft = only(artifact_of(world, stored("runs/a", drafted)))
+    draft_artifact = artifact_of(world, stored("runs/a", drafted))
+    under_draft = only(draft_artifact)
     assert under_draft.disposition is Disposition.ELIGIBLE
+    assert draft_artifact.analysis.provenance_incidents == (replace(listed, outside=None),)
     assert under_draft.evaluation is not None
     assert under_draft.evaluation.metrics.ending.findings == (EndingFinding.COMMITS_DIFFER,)
     # A run that is both is refused for its tree, the reason checked first, and keeps the
@@ -585,12 +593,20 @@ def test_a_bound_registration_refuses_a_run_whose_segments_ran_on_two_commits(
     both = recovered_elsewhere(
         exported(world, world.scenarios[0], registration=registration, tree=TreeState.DIRTY)
     )
-    dirty = only(
-        artifact_of(world, stored("runs/a", both), registration=registration_bytes(registration))
+    dirty_artifact = artifact_of(
+        world, stored("runs/a", both), registration=registration_bytes(registration)
     )
+    dirty = only(dirty_artifact)
     assert dirty.disposition is Disposition.DIRTY_HARNESS
     assert dirty.evaluation is not None
     assert dirty.evaluation.metrics.ending.findings == (EndingFinding.COMMITS_DIFFER,)
+    # The incident does not follow the disposition: refused for its tree, or for its
+    # settings, the attempt on two commits is listed all the same.
+    assert dirty_artifact.analysis.provenance_incidents == (listed,)
+    foreign = with_record(drafted, prefetch_rule=PrefetchRule("another", DIGEST))
+    differing = artifact_of(world, stored("runs/a", foreign))
+    assert only(differing).disposition is Disposition.SETTINGS_DIFFER
+    assert differing.analysis.provenance_incidents == (listed,)
 
 
 def test_a_stored_runs_dispatches_are_held_to_the_registrations_table_once_it_is_set(

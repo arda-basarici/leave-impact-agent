@@ -87,7 +87,7 @@ def test_the_real_baselines_approval_is_over_the_payload_it_exports(
     # clock yet, so the elapsed time here shows the arithmetic and no harness's timing.
     for scenario in world.scenarios:
         ending = check_ending(baseline(world, scenario, *down))
-        assert ending == EndingCheck(1, True, 1_200, ()), scenario.spec.id
+        assert ending == EndingCheck(1, True, 1_200, (COMMIT,), ()), scenario.spec.id
 
 
 def test_the_truthful_staters_approval_is_over_the_payload_it_exports() -> None:
@@ -128,9 +128,13 @@ def test_segments_on_two_commits_are_a_finding_and_a_tree_state_alone_is_not() -
     recovered = recovered_attempt()
     first, second = recovered.record.timing.segments
     elsewhere = replace(second, harness=HarnessRevision(ANOTHER_COMMIT, TreeState.CLEAN))
-    assert check_ending(retimed(recovered, segments=(first, elsewhere))).findings == (
-        EndingFinding.COMMITS_DIFFER,
-    )
+    mixed = check_ending(retimed(recovered, segments=(first, elsewhere)))
+    assert mixed.findings == (EndingFinding.COMMITS_DIFFER,)
+    # Each commit once, in the order the segments first ran on them.
+    assert mixed.commits == (first.harness.commit, ANOTHER_COMMIT)
+    back = replace(first, number=3, end_recorded=True)
+    thrice = check_ending(retimed(recovered, segments=(first, elsewhere, back)))
+    assert thrice.commits == (first.harness.commit, ANOTHER_COMMIT)
     # One commit, the second process from uncommitted changes over it: the tree's state is
     # read where eligibility is decided, and the commits agree.
     dirty = replace(second, harness=HarnessRevision(first.harness.commit, TreeState.DIRTY))

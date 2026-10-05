@@ -24,7 +24,8 @@ finding about the harness, never about the system it ran.
 - *Commits differ.* A run a report may use ran every segment on one commit. An attempt
   recovered by a process on another commit is one export of two programs. Whether such a
   run leaves the tables is the artifact's to say, under a bound registration; the finding
-  is made for every run.
+  is made for every run, with the commits, and the analysis reports each such attempt
+  as a provenance incident whatever became of the run (``incidents``).
 - *The approval's digest.* An approval that was requested holds the digest of its frozen
   review payload: the claims, who composed them under which policy, and the diagnostics
   the composition left. An export is terminal-only and holds all of it, so the digest is
@@ -63,18 +64,25 @@ class EndingCheck:
 
     ``timing_complete`` is false when a segment's end was never recorded, and the run's
     evidenced active time (the cost check's ``duration_ms``) is then a lower bound.
-    ``findings`` are in the declared order of the kinds.
+    ``commits`` are the harness commits the segments ran on, each once, in the order the
+    segments first ran on them. ``findings`` are in the declared order of the kinds.
     """
 
     segments: int
     timing_complete: bool
     elapsed_ms: int
+    commits: tuple[str, ...]
     findings: tuple[EndingFinding, ...]
+
+
+def commits_of(timing: Timing) -> tuple[str, ...]:
+    """The harness commits the segments of ``timing`` ran on, each once, in segment order."""
+    return tuple(dict.fromkeys(segment.harness.commit for segment in timing.segments))
 
 
 def commits_differ(timing: Timing) -> bool:
     """Whether the segments of ``timing`` ran on more than one harness commit."""
-    return len({revision.commit for revision in timing.harness_revisions}) > 1
+    return len(commits_of(timing)) > 1
 
 
 def check_ending(export: RunExport) -> EndingCheck:
@@ -96,8 +104,9 @@ def check_ending(export: RunExport) -> EndingCheck:
         len(timing.segments),
         timing_complete(timing),
         elapsed,
+        commits_of(timing),
         tuple(kind for kind, holds in found.items() if holds),
     )
 
 
-__all__ = ["EndingCheck", "EndingFinding", "check_ending", "commits_differ"]
+__all__ = ["EndingCheck", "EndingFinding", "check_ending", "commits_differ", "commits_of"]

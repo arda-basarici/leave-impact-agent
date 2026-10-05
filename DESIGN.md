@@ -2494,6 +2494,11 @@ run beside the durations, so an interrupted run never reads as a fast one. Under
 bound registration a run whose segments ran on two commits leaves the tables as a run
 from a dirty tree does, named in the inventory with its grade; one export of two
 programs is not a run of the registered harness.
+Every such attempt is also a provenance incident in the analysis, by the identity its
+export carries and its commits, read from every evaluated export of the world before
+any reason removes a run from a table, so one refused for its tree or its settings is
+listed all the same. It is kept apart from a source that contradicted itself: it is
+about one attempt, implicates no scenario and enters no comparison's count.
 
 **Each dispatch's reading is held to the registered table, and what the export cannot
 give back is said.** The evaluator reads every observation again by the table's own
