@@ -7,6 +7,147 @@ decisions it feeds.
 
 ---
 
+## 2026-10-05 — The durable checkpoint was kept and stopped being what recovery reads
+
+*M2, the design interview for the event log and job seam: how a run attempt is recovered
+after its process dies, and what a worker that lost ownership can still write. Feeds: the
+M2 report's harness section, on recovery from the log and what the framework's checkpoint
+is for; and the methodology section, on a recommendation withdrawn before any code.*
+
+**[RULED, NOT BUILT. This is a design ruling with no production code behind it. The two
+measurements cited are the acceptance spike's, on its prototype log. What would revise
+it: the build's crash matrix, which has to pass on the new recovery path, and any replay
+from the log that turns out to repeat a model request.]**
+
+The harness keeps two stores for a run attempt. The event log is the audit authority and
+the only thing an export is built from. The framework's checkpoint is the execution
+cursor. Every node looks in the log before it does anything, so a result already logged
+is reused and nothing is executed twice. The acceptance spike proved recovery on that
+arrangement by killing a child process at 82 points around the appends and the checkpoint
+writes, all 82 recovering (the spike's crash matrix, cited at commit `f2d1f28`).
+
+The spike assumed one writer per run. The interview replaced that with ownership: an
+attempt has a generation, a worker claims it, and a later claim fences the earlier worker
+so that its next append is refused. That left a question the spike never had to ask. The
+framework writes checkpoints on a background thread after a node returns, so a fenced
+worker can still write one after the new owner has resumed, and no check against the
+log's generation can be made atomic with a write to another store.
+
+The proposal was to leave both workers on one checkpoint thread and rely on the log. The
+argument was that a stale checkpoint is only an older cursor whose content the log
+already holds, and the spike had measured recovery from an older checkpoint. A probe in
+the build would confirm it by making a fenced worker write a checkpoint late.
+
+An outside read of the proposal objected that a checkpoint is more than a position. The
+framework also saves each task's pending writes and uses them to decide which tasks to
+skip on resume, so "every node checks the log" does not protect a node that recovery
+decides not to run. That connected to something the spike had already recorded for
+another reason: when a node raises, the framework saves an error write for it. A fenced
+worker's node raises at exactly that moment, on its refused append. A late error write
+against a checkpoint the new owner also resumed from is therefore a concrete path, and
+the "older cursor" argument did not cover it.
+
+Nothing was shown to corrupt a recovery, by the review or by anyone else. What changed
+was the cost of being sure. The probe that would clear the shared thread had grown from
+one case to three classes of hazard: late pending writes, two workers creating different
+descendants of one checkpoint, and stale interrupt state surviving an approval. The
+alternative excludes all three by construction. The checkpoint thread is derived from the
+run, the attempt and the generation, so everything a fenced worker writes lands where no
+later owner reads, and every claim starts on a fresh thread and replays from the log. The
+spike had measured that path too: a run restarted from the beginning on a new thread
+completed from the log with no model request (the spike's catalogue, the unloadable
+checkpoint row, same commit). The recommendation was withdrawn and the thread per
+generation ruled.
+
+The consequence is the part worth telling plainly. A generation is one claim by one
+process, so no process ever reads another's checkpoints. The PostgreSQL saver's
+durability now serves inspection, and the system behaves as it would with an in-memory
+saver. Recovery is from the log. The saver was kept anyway, with the accepted
+configuration and the pinned versions unchanged, because dropping it is a cheap later
+decision and reopening the framework ruling in the middle of this one was not.
+
+A third option was on the table and was the simplest: no durable checkpoint at all, the
+log as the only store. Once every node replays from the log a durable checkpoint is
+largely redundant, and the ruled design is one configuration change away from that. It
+was not taken, for reasons that are partly engineering and partly about what the project
+shows: the spike's must-pass rows were accepted on the PostgreSQL saver, the demo
+milestone plans its asynchronous variant, and a reader judging the framework work would
+look for durable checkpointing. The weighing shifted during the discussion. Recovery by
+replaying an append-only log under generation fencing, held by a crash matrix, came to
+look like the stronger thing to show than a checkpoint that resumes.
+
+It also made the recovery driver smaller. Across processes there is one path, a fresh
+thread and a replay. The spike's other recovery states still exist, but only inside a
+process that is alive.
+
+Figure: the two stores before and after the ruling, with which process reads which
+checkpoint thread across a takeover.
+
+## 2026-10-05 — An operator could have chosen which attempt counts, and the guard that closed it reads the log instead of the reason
+
+*M2, the design interview for the event log and job seam: when a failed run may be
+attempted again. Feeds: the M2 report's methodology section, on attempt accounting and
+selection effects; and the limitations section, for the residual stated below.*
+
+**[RULED, NOT BUILT. A design ruling; the eligibility function and its audit do not exist
+yet. No count of abandonments exists either, since no reported run has been made. What
+would revise it: the first reported runs, if attempts that cannot be resumed after their
+first model call turn out to be common enough that losing them distorts a comparison.]**
+
+The fork opened on a finding in the tree. The question "may this run be attempted again"
+was answered in two places that had never been reconciled. The attribution table, which
+fixes before any result how each model-call failure is read, carries a per-row flag
+saying whether a failure on that reading makes the run eligible for a new attempt. The
+registration's run accounting carries a retry rule: one failure category an attempt is
+retried after, and a maximum number of attempts. Neither said anything about a failure
+that is not at a model call.
+
+Reconciling them was straightforward. Eligibility became a conjunction: the predecessor
+closed, the maximum not reached, the category the registered one, and a named rule
+granting it, with any ending no rule names not eligible. The harder problem appeared
+while writing the row for abandonment.
+
+The registered rule for which attempt of a run is counted takes the earliest attempt
+that is not an infrastructure failure. An abandonment is an infrastructure failure, and
+it happens by an operator's decision. So an operator watching a run go badly could
+abandon it and have a fresh attempt counted in its place. The proposal said so and
+offered only evidence against it: the abandoned attempt still exports with everything it
+did, and a report lists attempts and failures beside the metrics.
+
+An outside read answered that listing the history exposes a selection without
+neutralizing it. A replacement that succeeds improves the end-to-end result, and even
+without one the excluded attempts move the denominators of the quality measures. It
+proposed that eligibility be governed by a registered reason with supporting evidence,
+and in the same reply conceded the weakness of both obvious mechanisms: a reason the
+operator picks is not evidence, and refusing abandonment while a worker is "live" fails
+because ownership does not prove liveness and stopping the process first walks around it.
+
+The rule adopted is mechanical and does not read the reason at all. An abandonment
+permits a new attempt only when the attempt's log holds no dispatch intent, the event
+that authorizes a model call. With no intent in the log, no model output ever existed, so
+there was no answer quality to select on, and the evidence is the log's and not anyone's
+account of why. That covers an attempt nobody ever claimed, one that died in the
+prefetch, and one whose resume was refused before its first call.
+
+It works only because of how recovery was already designed. A killed worker's attempt
+stays open, and whoever resumes it replays from the log and reuses every model outcome
+already recorded. Killing a process rerolls nothing except the one call in flight. A lost
+worker is recovered by a new claim, so abandoning is rarely the necessary move, and after
+the first intent it no longer buys a fresh attempt.
+
+Two things are left, and both are stated in the ruling. The residual is that one
+in-flight call: a kill during a dispatch leaves it unresolved, and its re-dispatch is a
+new sample. Nobody can know that call's quality before it returns, so no path for
+selecting on it was found, but it is a sample taken twice. The cost is that an attempt
+which cannot be resumed after its first intent is lost, and its run reports an
+infrastructure failure where a more permissive rule would have allowed a replacement.
+
+The abandonment still records a reason from a closed list, so a report can tell an
+operator's cancellation from an interruption. Eligibility does not consult it. The same
+function is called in two places: at admission, on the previous attempt's log, and by
+the evaluator over a run's exported attempts, where an attempt its predecessor did not
+permit keeps its export, grade and cost and is never the counted one.
+
 ## 2026-10-05 — Three comparisons in one day held two different things equal or two equal things different, and none was found by reading the code
 
 *M2, the contract step's fourth build group: the preregistration at format 2 (cells with a
