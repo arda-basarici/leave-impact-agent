@@ -36,7 +36,10 @@ graded, limited by reason, excluded by reason; the conditions the runs observed 
 the one assigned, with the assigned outages a run never exercised and the faults nobody
 scheduled; the runs whose record disagreed with their trace, and the ones that carry an
 integrity, an operation, a cost or a prefetch finding, with the runs whose prefetch was
-planned under another rule and so not held to this one. Whether a run with a finding
+planned under another rule and so not held to this one; the runs whose recorded admissions
+or composition the rerun disputes, the ones shown a document outside their corpus level or
+held to no level, and the ones that met a contradiction and did not fail by defect.
+Whether a run with a finding
 enters a reported table is the preregistration's; here it is counted.
 
 An attempt whose scenario the sealed world does not hold cannot be placed in a tier or a
@@ -235,6 +238,12 @@ class Accounting:
     rule, which carry no such finding because they were held to no plan.
     ``unplaced`` counts the attempts of the arm that no scenario of the world could place,
     in the whole only; they are in no other count here.
+    ``with_fact_findings`` counts the runs whose recorded admissions or composition are not
+    what the gates and the composing rules give again; ``with_level_findings`` the runs
+    shown a document outside their corpus level and ``level_not_evaluated`` the ones held
+    to no level, the world sealing no membership for theirs;
+    ``contradiction_not_failed`` the runs that met a source contradicting itself and did
+    not fail by defect.
     """
 
     scenarios: int
@@ -259,14 +268,22 @@ class Accounting:
     unverifiable_history: int
     with_prefetch_findings: int
     prefetch_not_evaluated: int
+    with_fact_findings: int
+    with_level_findings: int
+    level_not_evaluated: int
+    contradiction_not_failed: int
 
 
 @dataclass(frozen=True, slots=True)
 class AttemptSummary:
     """What happened to every attempt of a cell's runs, the ones a retry replaced included.
 
-    The outcome and finding counts are ``Accounting``'s, the two prefetch counts among
-    them, over all attempts instead of the counted ones. ``runs_retried`` are the runs with
+    The outcome and finding counts are ``Accounting``'s, the two prefetch counts, the fact
+    and level counts and the contradiction count among them, over all attempts instead of
+    the counted ones. What ``Accounting`` holds and this does not is what only a run has
+    and an attempt has not: the intended, made, missing and surplus runs, the observed
+    conditions, the structurally invalid reports, the unplaced attempts and the
+    unverifiable histories. ``runs_retried`` are the runs with
     more than one attempt and ``runs_recovered`` those where an attempt before the counted
     one failed by infrastructure and the counted one did not; ``history`` is how many runs
     carry each history finding. The attempts no
@@ -286,6 +303,10 @@ class AttemptSummary:
     history: tuple[tuple[HistoryFinding, int], ...]
     with_prefetch_findings: int
     prefetch_not_evaluated: int
+    with_fact_findings: int
+    with_level_findings: int
+    level_not_evaluated: int
+    contradiction_not_failed: int
 
 
 def condition_name(condition: RunCondition) -> str:
@@ -401,6 +422,7 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
         prefetch_not_evaluated=sum(
             not evaluation.metrics.prefetch.evaluated for evaluation in counted
         ),
+        **_fact_and_level_counts(counted),
     )
 
 
@@ -426,7 +448,24 @@ def attempt_summary_of(cell: Cell) -> AttemptSummary:
         history=_tally(finding for history in histories for finding in history.findings),
         with_prefetch_findings=sum(bool(attempt.metrics.prefetch.findings) for attempt in attempts),
         prefetch_not_evaluated=sum(not attempt.metrics.prefetch.evaluated for attempt in attempts),
+        **_fact_and_level_counts(attempts),
     )
+
+
+def _fact_and_level_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
+    """The four counts the accounting and the attempt summary share, over ``evaluations``:
+    one function so the two cannot count them differently."""
+    levels = [evaluation.metrics.level for evaluation in evaluations]
+    return {
+        "with_fact_findings": sum(
+            bool(evaluation.metrics.recheck.findings) for evaluation in evaluations
+        ),
+        "with_level_findings": sum(level is not None and bool(level.findings) for level in levels),
+        "level_not_evaluated": sum(level is None for level in levels),
+        "contradiction_not_failed": sum(
+            evaluation.contradiction_not_failed for evaluation in evaluations
+        ),
+    }
 
 
 def _scenario_runs(

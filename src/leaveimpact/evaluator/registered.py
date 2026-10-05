@@ -29,8 +29,9 @@ infrastructure failure only; a registered prefetch that is not the one this code
 identifier, protocol version or digest, since the conformance check would manufacture
 findings from a planner the registration never named; a registered anchor table that is
 not ``core``'s, the one part of the stated-fact contract this package can compute; and a
-resolved mechanism measure this evaluator does not hold. While the mechanism measure is
-pending the analysis says so with its reason and computes none.
+resolved mechanism measure this evaluator does not hold, by its name or by its stages.
+While the mechanism measure is pending the analysis says so with its reason and computes
+none.
 """
 
 from __future__ import annotations
@@ -65,8 +66,10 @@ from leaveimpact.evaluator.evidence_measures import (
     strictly_grounded_share,
     used_share,
 )
+from leaveimpact.evaluator.fact_stages import STAGES
 from leaveimpact.evaluator.grading import Graded, Limited
 from leaveimpact.evaluator.measures import ANSWER_MEASURES, Measure, conflict_observations
+from leaveimpact.evaluator.mechanism import NEEDED_PROSE_FACTS
 from leaveimpact.evaluator.replay import Standing
 from leaveimpact.evaluator.run_checks import CORRECT_WHOLE, EXPECTED_ACTION, REPRODUCED_WHOLE
 from leaveimpact.evaluator.tables import Check
@@ -128,9 +131,10 @@ INTERVAL_METHODS: tuple[str, ...] = ("paired_scenario_bootstrap_within_tier",)
 scenarios resampled within their tier, a scenario's repeats kept together, two arms paired
 on the scenario, by one method at any repeat count."""
 
-MECHANISM_MEASURES: tuple[str, ...] = ()
-"""The mechanism measures a registration can name; none until the fact-stage measures are
-built, so a registration holds its mechanism measure pending until then."""
+MECHANISM_MEASURES: dict[str, tuple[str, ...]] = {NEEDED_PROSE_FACTS: STAGES}
+"""The mechanism measures a registration can name, each with the stages it has, in order. A
+registration names the stages too, so a file that lists other stages than the ones computed
+is refused and not read as this measure."""
 
 
 def registered_measures(name: str) -> tuple[Measure, ...]:
@@ -239,8 +243,9 @@ def preregistered(registration: Registration) -> Projection:
 
 def mechanism_pending(registration: Registration) -> str | None:
     """What the registered mechanism measure is pending on, or ``None`` when it is resolved
-    to a measure this evaluator holds. A resolved name it does not hold raises
-    ``ValueError``, like any other registered name."""
+    to a measure this evaluator holds. A resolved name it does not hold, or one registered
+    with other stages than the ones this evaluator computes, raises ``ValueError``, like any
+    other registered name."""
     mechanism = registration.statistics.mechanism
     if isinstance(mechanism, Pending):
         return mechanism.awaiting
@@ -249,6 +254,12 @@ def mechanism_pending(registration: Registration) -> str | None:
         raise ValueError(
             f"no mechanism measure is registered as {mechanism.name!r}; this evaluator "
             f"holds {list(MECHANISM_MEASURES)}"
+        )
+    held = MECHANISM_MEASURES[mechanism.name]
+    if mechanism.stages != held:
+        raise ValueError(
+            f"the mechanism measure {mechanism.name!r} is registered with the stages "
+            f"{list(mechanism.stages)}; this evaluator computes {list(held)}"
         )
     return None
 

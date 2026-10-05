@@ -43,7 +43,6 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.evaluator import __main__ as job
-from leaveimpact.evaluator import registered as registries
 from leaveimpact.evaluator.entrypoint import Command, parse_request, prove
 from leaveimpact.evaluator.repository import (
     IMPLEMENTATION,
@@ -58,7 +57,7 @@ from leaveimpact.world.scenario import ScenarioClassName, Tier
 from tests.unit.export_fixture import export_baseline
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
-from tests.unit.registration_fixture import MECHANISM, bound, frozen, light
+from tests.unit.registration_fixture import bound, frozen, light
 from tests.unit.throwaway_world import composed_world, loaded_world
 
 DIGEST = "a" * 64
@@ -367,14 +366,6 @@ def commit_registration(checkout: Repository, registration: Registration, messag
     return checkout.head()
 
 
-@pytest.fixture
-def resolved_mechanism(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mechanism measure held by the evaluator, as it is once the fact-stage measures
-    exist: a frozen registration names it, and until then the evaluator holds none."""
-    monkeypatch.setattr(registries, "MECHANISM_MEASURES", (MECHANISM.name,))
-
-
-@pytest.mark.usefixtures("resolved_mechanism")
 def test_a_bound_registration_is_evaluated_when_its_procedure_is_the_frozen_one(
     world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -397,7 +388,6 @@ def test_a_bound_registration_is_evaluated_when_its_procedure_is_the_frozen_one(
     assert (read["status"], read["frozen_commit"]) == ("bound", frozen_at)
 
 
-@pytest.mark.usefixtures("resolved_mechanism")
 def test_a_bound_registration_is_refused_unless_it_binds_this_world_and_the_frozen_procedure(
     world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
 ) -> None:

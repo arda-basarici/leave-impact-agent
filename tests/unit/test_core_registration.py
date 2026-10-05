@@ -51,6 +51,7 @@ from tests.unit.registration_fixture import (
     DIGEST,
     DRAFT,
     DRAFT_FILE,
+    MECHANISM,
     ROLE,
     TABLE,
     bound,
@@ -175,7 +176,7 @@ def test_the_draft_registers_one_primary_and_what_is_named_beside_it() -> None:
     ]
     assert statistics.interval_method == "paired_scenario_bootstrap_within_tier"
     assert statistics.headroom.reference is SystemKind.RULES_ONLY
-    assert isinstance(statistics.mechanism, Pending)
+    assert statistics.mechanism == MECHANISM
     assert [entry.identifier for entry in DRAFT.supporting] == [
         "vector_retrieval",
         "multi_agent",
@@ -201,7 +202,6 @@ def test_the_drafts_pending_values_in_the_files_order() -> None:
         "run_accounting.redispatch",
         "attribution",
         "stated_facts.entry_schema",
-        "statistics.mechanism",
         "supporting.vector_retrieval.inclusion",
         "supporting.multi_agent.inclusion",
         "supporting.second_model.other_model",

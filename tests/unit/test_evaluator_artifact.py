@@ -23,6 +23,7 @@ from leaveimpact.core import (
     CallSetting,
     Caps,
     HarnessRevision,
+    MechanismMeasure,
     OutageAssignment,
     PrefetchRule,
     PricingBasis,
@@ -42,7 +43,6 @@ from leaveimpact.core import (
 from leaveimpact.core.attribution import attribution_table_digest
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.run_ending import ComposingPolicy
-from leaveimpact.evaluator import registered as registries
 from leaveimpact.evaluator.artifact import (
     ARTIFACT_FORMAT_VERSION,
     AmbiguousRuns,
@@ -67,7 +67,7 @@ from leaveimpact.world.artifacts import digest
 from tests.unit.export_fixture import ROLE, agent_export, export_baseline
 from tests.unit.reads_fixture import Recorder, full_read, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
-from tests.unit.registration_fixture import MECHANISM, TABLE, bound, frozen, light, named
+from tests.unit.registration_fixture import TABLE, bound, frozen, light, named
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
@@ -87,13 +87,6 @@ MODEL_SIDE = {RecordedSetting.MODEL, RecordedSetting.PROMPTS, RecordedSetting.TO
 @pytest.fixture(scope="module")
 def world() -> SealedWorld:
     return loaded_world("golden")
-
-
-@pytest.fixture
-def resolved_mechanism(monkeypatch: pytest.MonkeyPatch) -> None:
-    """The mechanism measure held by the evaluator, as it is once the fact-stage measures
-    exist: a frozen registration names it, and until then the evaluator holds none."""
-    monkeypatch.setattr(registries, "MECHANISM_MEASURES", (MECHANISM.name,))
 
 
 def exported(
@@ -503,7 +496,6 @@ def test_every_role_holds_its_own_registered_prompt_set(world: SealedWorld) -> N
 # --- Under a bound registration ----------------------------------------------------------------
 
 
-@pytest.mark.usefixtures("resolved_mechanism")
 def test_a_bound_registration_reports_and_refuses_a_dirty_harness_tree(
     world: SealedWorld,
 ) -> None:
@@ -547,7 +539,6 @@ def test_a_bound_registration_reports_and_refuses_a_dirty_harness_tree(
     assert only(frozen_artifact).disposition is Disposition.ELIGIBLE
 
 
-@pytest.mark.usefixtures("resolved_mechanism")
 def test_the_label_follows_what_the_registration_declares_and_says_when_the_code_changed(
     world: SealedWorld,
 ) -> None:
@@ -575,7 +566,6 @@ def test_the_label_follows_what_the_registration_declares_and_says_when_the_code
         assert artifact.evaluator == changed
 
 
-@pytest.mark.usefixtures("resolved_mechanism")
 def test_a_bound_registration_evaluated_against_another_world_refuses(world: SealedWorld) -> None:
     elsewhere = bound("e" * 64, FROZEN, frozen_commit=FROZEN_COMMIT)
     with pytest.raises(ValueError, match=f"bound to the world {'e' * 64}, and this evaluation"):
@@ -651,10 +641,10 @@ def test_a_registration_this_evaluator_cannot_read_as_a_plan_refuses(world: Seal
     other = registration_bytes(replace(DRAFT, prefetch=prefetch))
     with pytest.raises(ValueError, match="this evaluator checks conformance to"):
         artifact_of(world, registration=other)
-    # A frozen registration names the mechanism measure, which this evaluator does not
-    # hold until the fact-stage measures are built.
-    with pytest.raises(ValueError, match="no mechanism measure is registered as"):
-        artifact_of(world, registration=registration_bytes(FROZEN))
+    # A mechanism measure under a name this evaluator does not hold.
+    renamed = replace(FROZEN.statistics, mechanism=MechanismMeasure("another", ("found",)))
+    with pytest.raises(ValueError, match="no mechanism measure is registered as 'another'"):
+        artifact_of(world, registration=registration_bytes(replace(FROZEN, statistics=renamed)))
 
 
 # --- The commits to resolve --------------------------------------------------------------------

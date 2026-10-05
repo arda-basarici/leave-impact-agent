@@ -89,9 +89,11 @@ from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 3
+ARTIFACT_FORMAT_VERSION = 4
 """The format of the evaluation artifact as this code writes it; 3 since an estimate states
-why a bootstrap resolved no interval and a comparison of single runs carries one."""
+why a bootstrap resolved no interval and a comparison of single runs carries one, 4 since
+the analysis holds the mechanism measure and a run its fact recheck, its level check and
+whether it met a contradiction without failing by defect."""
 
 
 class Label(StrEnum):

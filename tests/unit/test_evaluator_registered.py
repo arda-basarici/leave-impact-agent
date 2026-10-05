@@ -24,6 +24,7 @@ from leaveimpact.core import (
     CoverageActionKind,
     FailureCategory,
     Impact,
+    MechanismMeasure,
     Pending,
     RunCondition,
     Source,
@@ -348,7 +349,7 @@ def test_the_draft_projects_the_rules_only_cells_and_names_the_eighteen_it_left_
     assert {left.detail for left in projection.unbuilt if left.why is WhyUnbuilt.GROUP_NOT_RUN} == {
         GROUP
     }
-    assert mechanism_pending(DRAFT) == "resolved when the evaluator's fact-stage measures are built"
+    assert mechanism_pending(DRAFT) is None
 
 
 def test_a_cell_is_built_once_its_system_is_resolved_and_its_group_decided_as_run() -> None:
@@ -386,14 +387,21 @@ def test_the_projection_refuses_what_this_evaluator_does_not_implement() -> None
     with pytest.raises(ValueError, match="no interval method is registered as 'wilson_per_tier'"):
         preregistered(other)
 
-    # The mechanism measure is not built yet: pending it is shown as pending, and a
-    # resolved name is one more name this evaluator does not hold.
-    assert MECHANISM_MEASURES == ()
-    resolved = replace(DRAFT, statistics=replace(statistics, mechanism=MECHANISM))
-    with pytest.raises(ValueError, match="no mechanism measure is registered as 'needed_prose_f"):
-        preregistered(resolved)
-    with pytest.raises(ValueError, match="no mechanism measure is registered as"):
-        preregistered(frozen())
+    # The mechanism measure is held under its name with its stages: another name, or the
+    # name with other stages, is refused, and one held pending is shown as pending.
+    assert {MECHANISM.name: MECHANISM.stages} == MECHANISM_MEASURES
+    assert statistics.mechanism == MECHANISM
+    preregistered(frozen())
+    renamed = MechanismMeasure("prose_facts_found", MECHANISM.stages)
+    other = replace(DRAFT, statistics=replace(statistics, mechanism=renamed))
+    with pytest.raises(ValueError, match="no mechanism measure is registered as 'prose_facts_f"):
+        preregistered(other)
+    reordered = MechanismMeasure(MECHANISM.name, MECHANISM.stages[::-1])
+    other = replace(DRAFT, statistics=replace(statistics, mechanism=reordered))
+    with pytest.raises(ValueError, match="registered with the stages .'usable', 'admitted'"):
+        preregistered(other)
+    waiting = replace(DRAFT, statistics=replace(statistics, mechanism=Pending("not yet")))
+    assert mechanism_pending(waiting) == "not yet"
 
     accounting = DRAFT.run_accounting
     retry = replace(accounting.retry, after=FailureCategory.DEFECT)

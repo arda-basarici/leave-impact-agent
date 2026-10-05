@@ -32,7 +32,9 @@ conclusions about this world cannot be trusted either, so the whole world is ref
 the one scenario.
 
 Then the world is indexed by identity (``world_index``): every record, every comment and
-section, what each carries, what each requirement clause is scoped to. A run is graded on
+section, what each carries, what each requirement clause is scoped to. The world also says
+which documents belong to a corpus level (``level_documents``), for the check of what a
+run was shown against the level it was assigned. A run is graded on
 what it read, and what it read is checked against this index, so a world that cannot be
 indexed cannot have a run checked against it: a record or a part sealed twice, an authored
 fact whose carrier no record holds, a requirement clause that is not scoped exactly once
@@ -71,8 +73,11 @@ from leaveimpact.adapters.object_store.layout import (
     world_spec_key,
 )
 from leaveimpact.adapters.object_store.read import ObjectReader, StoredObject
+from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import FactBase
 from leaveimpact.core.ids import ScenarioId, WorldVersion
+from leaveimpact.core.refs import EntityRef
+from leaveimpact.core.registration import BASE_CORPUS_LEVEL
 from leaveimpact.core.worldtime import DateSpan, RunContext
 from leaveimpact.evaluator.world_index import IndexProblem, WorldIndex, index_world
 from leaveimpact.world.artifacts import (
@@ -189,6 +194,18 @@ class SealedWorld:
         """The context a run of ``scenario`` on this world must carry, built from sealed data."""
         spec = scenario.spec
         return RunContext(spec.id, self.version, spec.leave_id, spec.now, spec.reference_timezone)
+
+    def level_documents(self, level: str) -> frozenset[EntityRef] | None:
+        """The documents that belong to the corpus level ``level``, or ``None`` when the world
+        seals no membership for it.
+
+        A world sealed without filler holds one level: every document it seals is the base
+        level's, and nothing says what any other level holds. ``None`` is that statement,
+        which is not an empty level.
+        """
+        if level != BASE_CORPUS_LEVEL:
+            return None
+        return frozenset(ref for ref in self.index.records if ref.kind is EntityKind.DOCUMENT)
 
 
 def load_sealed_world(

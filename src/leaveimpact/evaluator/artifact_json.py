@@ -24,9 +24,12 @@ Three things are written differently from their type, each on purpose:
 - *A run* is written as its outcome and its findings, not as its whole evaluation: the
   condition and the corpus level it was assigned, the header, how it ended and why, the
   claim rows, the plan findings and coverage gaps, each claim's replay standing, the
-  integrity, operation and prefetch findings, and the disagreements between record and
-  trace. Proofs, premises, citations, retrieval rows, the per-operation rows and the
-  contradictions among its reads are left out: each is recomputed from the stored export,
+  integrity, operation and prefetch findings, the disagreements between record and
+  trace, what the rerun of admission and composition disputes, the documents outside its
+  level, and whether it met a contradiction without failing by defect. Proofs, premises,
+  citations, retrieval rows, the per-operation rows, the fact stages with every emission's
+  class and the contradictions among its reads are left out: each is recomputed from the
+  stored export,
   which the inventory names by key, version id and digest; the contradictions reach the
   artifact through the analysis's incidents.
 - *An inventory entry* holds that run under ``run`` and its recomputed cost beside it,
@@ -123,6 +126,9 @@ def _run(evaluation: Evaluation) -> JsonObject:
         "outcome": _outcome(evaluation.outcome),
         "operation_findings": _written(metrics.discipline.findings),
         "prefetch": _written(metrics.prefetch),
+        "fact_recheck": _written(metrics.recheck),
+        "level_check": _written(metrics.level),
+        "contradiction_not_failed": evaluation.contradiction_not_failed,
     }
 
 

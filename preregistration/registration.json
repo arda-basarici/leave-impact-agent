@@ -518,7 +518,15 @@
       }
     ],
     "mechanism": {
-      "pending": "resolved when the evaluator's fact-stage measures are built"
+      "value": {
+        "name": "needed_prose_facts",
+        "stages": [
+          "returned",
+          "emitted",
+          "admitted",
+          "usable"
+        ]
+      }
     },
     "headroom": {
       "reference": "rules_only",

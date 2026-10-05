@@ -29,7 +29,12 @@ measured world is tuned on, so none is held apart.
 - the headroom at each place the reference system runs under an answer-quality condition,
   and the incidents: the scenarios where a source contradicted itself in some run, the
   runs that are out of the tables read for it like the ones that are in.
-- the mechanism measure's state: what it is pending on, until it is resolved.
+- the mechanism measure: what it is pending on, until it is resolved; then, for every
+  scored arm of a system that states facts, the four stages at the whole and at each tier
+  with the stages by predicate and the supporting detail, and the stages contrasted on the
+  pairs the registration already compares, the primary's, each secondary's and each level
+  contrast's, at the strata each of those names. It is contrasted nowhere else: the
+  descriptive product has no registered reading of a stage.
 
 Nothing registered is dropped. A comparison one of whose arms could not be built, its
 system still pending or its conditional group not decided as run, is kept and says so,
@@ -45,6 +50,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
+from enum import StrEnum
 
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
@@ -52,6 +58,7 @@ from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.registration import (
     Comparison,
     LevelContrast,
+    MechanismMeasure,
     Registration,
     ReportingScope,
     StratumLevel,
@@ -79,6 +86,12 @@ from leaveimpact.evaluator.diagnostics import (
 )
 from leaveimpact.evaluator.headroom import Headroom, headroom_at
 from leaveimpact.evaluator.incidents import Incident, incident_scenarios, incidents_of
+from leaveimpact.evaluator.mechanism import (
+    STAGE_MEASURES,
+    STAGE_MEASURES_BY_PREDICATE,
+    FactDetail,
+    fact_detail,
+)
 from leaveimpact.evaluator.registered import (
     Unbuilt,
     mechanism_pending,
@@ -172,11 +185,68 @@ class DescriptiveResult:
 
 
 @dataclass(frozen=True, slots=True)
+class ArmRef:
+    """A registered arm by its system's kind, its condition's identifier and its level."""
+
+    system: SystemKind
+    condition: str
+    level: str
+
+
+@dataclass(frozen=True, slots=True)
+class MechanismArm:
+    """The mechanism measure in one arm: the four stages at the whole and at each tier, a
+    stratum's four together in the funnel's order; the stages by predicate at the whole; and
+    the supporting detail at the whole and at each tier."""
+
+    system: System
+    condition: str
+    level: str
+    stages: tuple[RatioEstimate, ...]
+    by_predicate: tuple[RatioEstimate, ...]
+    detail: tuple[FactDetail, ...]
+
+
+class ContrastOf(StrEnum):
+    """Which registered comparison a contrast of the stages rides on; a member is the wire
+    format."""
+
+    PRIMARY = "primary"
+    SECONDARY = "secondary"
+    LEVEL_CONTRAST = "level_contrast"
+
+
+@dataclass(frozen=True, slots=True)
+class MechanismContrast:
+    """The four stages in one arm less another, on a pair the registration compares: at the
+    whole and at each registered breakdown, a stratum's four together. ``unavailable`` says
+    why when an arm of the pair could not be built."""
+
+    of: ContrastOf
+    first: ArmRef
+    second: ArmRef
+    stages: tuple[RatioComparison, ...]
+    unavailable: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class MechanismAnalysis:
+    """The mechanism measure as registered, by its name and its stages, with every arm it
+    applies to and every contrast of it. It explains where a system gained or lost on the
+    way to its report and carries no claim of its own."""
+
+    name: str
+    stages: tuple[str, ...]
+    arms: tuple[MechanismArm, ...]
+    contrasts: tuple[MechanismContrast, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Analysis:
     """The registered analysis of a set of runs: the plan it was cut under, the registered
     cells that plan does not hold, the world's scenarios, and everything registered over
     them. ``mechanism_pending`` is what the mechanism measure waits on, ``None`` once it
-    is resolved."""
+    is resolved, and ``mechanism`` is set exactly then."""
 
     plan: Preregistered
     unbuilt: tuple[Unbuilt, ...]
@@ -187,6 +257,7 @@ class Analysis:
     descriptive: tuple[DescriptiveResult, ...]
     level_contrasts: tuple[LevelContrastResult, ...]
     mechanism_pending: str | None
+    mechanism: MechanismAnalysis | None
     headroom: tuple[Headroom, ...]
     incidents: tuple[Incident, ...]
 
@@ -223,6 +294,7 @@ def analyse(
         incident_scenarios(incidents),
     )
     statistics = registration.statistics
+    pending = mechanism_pending(registration)
     return Analysis(
         plan=plan,
         unbuilt=projection.unbuilt,
@@ -236,7 +308,8 @@ def analyse(
             for pair in statistics.descriptive.pairs
         ),
         level_contrasts=tuple(reading.level_contrast(each) for each in statistics.level_contrasts),
-        mechanism_pending=mechanism_pending(registration),
+        mechanism_pending=pending,
+        mechanism=reading.mechanism() if pending is None else None,
         headroom=reading.headroom(),
         incidents=incidents,
     )
@@ -424,6 +497,93 @@ class _Reading:
         )
         return DescriptiveResult(systems, condition, level, checks, measures, None)
 
+    def mechanism(self) -> MechanismAnalysis:
+        """The resolved mechanism measure: per arm, and contrasted on the registered pairs."""
+        registered = self.registration.statistics.mechanism
+        assert isinstance(registered, MechanismMeasure)
+        statistics = self.registration.statistics
+        contrasts: list[MechanismContrast] = []
+        for of, compared in (
+            (ContrastOf.PRIMARY, (statistics.primary,)),
+            (ContrastOf.SECONDARY, statistics.secondary),
+        ):
+            for each in compared:
+                first, second = ((system, each.condition, each.level) for system in each.systems)
+                contrasts.append(self._stage_contrast(of, first, second, each.breakdowns))
+        for contrast in statistics.level_contrasts:
+            first, second = (
+                (contrast.system, contrast.condition, level) for level in contrast.levels
+            )
+            contrasts.append(
+                self._stage_contrast(ContrastOf.LEVEL_CONTRAST, first, second, contrast.breakdowns)
+            )
+        return MechanismAnalysis(
+            registered.name,
+            registered.stages,
+            tuple(
+                self._mechanism_arm(key, arm)
+                for key, arm in self.built.items()
+                if self._states_and_is_scored(key)
+            ),
+            tuple(contrasts),
+        )
+
+    def _states_and_is_scored(self, key: _ArmKey) -> bool:
+        """Whether the mechanism measure applies to the arm ``key`` names: a system that
+        states facts, under a condition whose answers are scored."""
+        system, condition, _ = key
+        registered = self.registration.outage.condition(condition)
+        return (
+            system is not SystemKind.RULES_ONLY
+            and registered is not None
+            and registered.reporting is ReportingScope.ANSWER_QUALITY
+        )
+
+    def _mechanism_arm(self, key: _ArmKey, arm: Arm) -> MechanismArm:
+        strata = _strata(arm, (StratumLevel.OVERALL, StratumLevel.TIER))
+        whole = cells_of(arm)[0]
+        return MechanismArm(
+            arm.system,
+            key[1],
+            arm.level,
+            tuple(
+                estimate_ratio(cell, measure, self.plan)
+                for cell in strata.values()
+                for measure in STAGE_MEASURES
+            ),
+            tuple(
+                estimate_ratio(whole, measure, self.plan) for measure in STAGE_MEASURES_BY_PREDICATE
+            ),
+            tuple(fact_detail(cell) for cell in strata.values()),
+        )
+
+    def _stage_contrast(
+        self,
+        of: ContrastOf,
+        first: _ArmKey,
+        second: _ArmKey,
+        breakdowns: tuple[StratumLevel, ...],
+    ) -> MechanismContrast:
+        reason = self.absent(first, second)
+        if reason is not None:
+            return MechanismContrast(of, ArmRef(*first), ArmRef(*second), (), reason)
+        levels = (StratumLevel.OVERALL, *breakdowns)
+        ours, theirs = (_strata(self.built[key], levels) for key in (first, second))
+        return MechanismContrast(
+            of,
+            ArmRef(*first),
+            ArmRef(*second),
+            tuple(
+                compare_ratio(
+                    ours[stratum], theirs[stratum], measure, self.plan, incidents=self.incidents
+                )
+                for stratum in ours
+                if stratum in theirs
+                for measure in STAGE_MEASURES
+            ),
+            None,
+        )
+
     def headroom(self) -> tuple[Headroom, ...]:
         """The headroom at each place the reference system has a registered cell under an
         answer-quality condition, in the registration's order."""
@@ -454,9 +614,14 @@ class _Reading:
 __all__ = [
     "Analysis",
     "ArmAnalysis",
+    "ArmRef",
     "CellAnalysis",
     "ComparisonResult",
+    "ContrastOf",
     "DescriptiveResult",
     "LevelContrastResult",
+    "MechanismAnalysis",
+    "MechanismArm",
+    "MechanismContrast",
     "analyse",
 ]

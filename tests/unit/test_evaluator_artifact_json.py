@@ -21,11 +21,14 @@ from leaveimpact.core import (
     Comparison,
     Component,
     CoverageAction,
+    Document,
     HarnessRevision,
     MalformedRecord,
     Observed,
+    Operation,
     PrefetchRule,
     PricingBasis,
+    RecordOutcome,
     ReportedUsage,
     RunExport,
     Source,
@@ -40,7 +43,7 @@ from leaveimpact.core import (
     registration_bytes,
 )
 from leaveimpact.core.contradictions import Contradiction, ContradictionKind
-from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.ids import WorldVersion, document_id
 from leaveimpact.core.run_trace import OperationId
 from leaveimpact.evaluator.analysis import analyse
 from leaveimpact.evaluator.artifact import (
@@ -51,6 +54,7 @@ from leaveimpact.evaluator.artifact import (
     evaluation_artifact,
 )
 from leaveimpact.evaluator.artifact_json import artifact_bytes, encode_artifact
+from leaveimpact.evaluator.fact_stages import FactStages
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
 from leaveimpact.world import Scenario
@@ -70,6 +74,7 @@ from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holdi
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import decided, light, named
 from tests.unit.report_fixture import of_type, without
+from tests.unit.stating_fixture import stating_export, truthful_stater_runs
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
@@ -171,7 +176,8 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
     same report without its assessments gives plan findings and coverage gaps; a read by a
     tool nobody declared gives an operation finding; an enumeration short of one employee
     an integrity finding; a model call priced and one left unpriced a cost and a cost
-    finding.
+    finding; a stating run whose record lets in what the gates refuse a recheck finding;
+    and the same run shown a document the world does not seal a level finding.
     """
     found: dict[str, RunExport] = {}
     for scenario in world.scenarios:
@@ -199,7 +205,24 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
         for number, cost in ((1, priced), (2, None))
     )
     found["priced"] = agent_export(world, first, calls)
+    stated = stating_export(world, world.scenarios[10], gated=False)
+    found["stated"] = stated
+    found["strayed"] = replace(
+        stated,
+        trace=replace(
+            stated.trace, operations=tuple(_strayed(op) for op in stated.trace.operations)
+        ),
+    )
     return found
+
+
+def _strayed(operation: Operation) -> Operation:
+    """``operation`` with any document it returned by id under an id no world seals."""
+    outcome = operation.outcome
+    if not isinstance(outcome, RecordOutcome) or not isinstance(outcome.record.value, Document):
+        return operation
+    unsealed = replace(outcome.record.value, id=document_id(999))
+    return replace(operation, outcome=RecordOutcome(Observed(unsealed, outcome.record.source)))
 
 
 def artifact_of(world: SealedWorld) -> EvaluationArtifact:
@@ -228,6 +251,11 @@ def named_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
     would then never reach a comparison's interval. One of the agent's runs met a source
     that contradicted itself, so there is an incident with a run that met it and runs that
     did not.
+
+    The model systems' runs carry a truthful stater's fact stages, grafted on: let in whole
+    for one arm and through the gates for another, and the two alternating by scenario for
+    the padded full-context arm, so that a stage's interval resolves in an arm, by
+    predicate and in a contrast.
     """
     agent, full_context = (
         System(SystemKind.AGENT, "graph"),
@@ -273,17 +301,29 @@ def named_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
                 return relabelled(made, run_id=name, system=system, level=level)  # noqa: B023
 
             turn = position + number
-            padded_agent = run(turn % 4 == 0, system=agent, level=PADDED)
+            whole, gated = (
+                truthful_stater_runs(gated=layer)[position].metrics.facts
+                for layer in (False, True)
+            )
+            padded_agent = stating(run(turn % 4 == 0, system=agent, level=PADDED), whole)
             if scenario is struck and number == 0:
                 padded_agent = replace(padded_agent, contradictions=(contradiction,))
             runs += [
                 run(turn % 3 == 0),
-                run(False, system=agent),
+                stating(run(False, system=agent), gated),
                 padded_agent,
-                run(False, system=full_context),
-                run(turn % 3 == 1, system=full_context, level=PADDED),
+                stating(run(False, system=full_context), whole),
+                stating(
+                    run(turn % 3 == 1, system=full_context, level=PADDED),
+                    gated if turn % 2 else whole,
+                ),
             ]
     return replace(artifact_of_none(world), analysis=analyse(world, runs, registration))
+
+
+def stating(evaluation: Evaluation, facts: FactStages | None) -> Evaluation:
+    """``evaluation`` as a run that stated facts with the stages ``facts`` holds."""
+    return replace(evaluation, metrics=replace(evaluation.metrics, facts=facts))
 
 
 def artifact_of_none(world: SealedWorld) -> EvaluationArtifact:
@@ -329,7 +369,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "inventory",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (3, "development")
+    assert (decoded["format_version"], decoded["label"]) == (4, "development")
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,
@@ -350,7 +390,19 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
     written = encode_artifact(artifact)
     graded = entry(written, "runs/1")
     run = cast("dict[str, dict[str, object]]", graded["run"])
-    assert list(run) == ["assigned", "level", "outcome", "operation_findings", "prefetch"]
+    assert list(run) == [
+        "assigned",
+        "level",
+        "outcome",
+        "operation_findings",
+        "prefetch",
+        "fact_recheck",
+        "level_check",
+        "contradiction_not_failed",
+    ]
+    assert run["fact_recheck"] == {"admissions": 0, "composition_evaluated": True, "findings": []}
+    assert run["level_check"] == {"level": "base", "documents": 0, "findings": []}
+    assert run["contradiction_not_failed"] is False
     assert run["level"] == "base"
     outcome = run["outcome"]
     assert (outcome["kind"], outcome["condition"]) == ("graded", {"unreachable": []})

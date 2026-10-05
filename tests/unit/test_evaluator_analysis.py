@@ -202,9 +202,20 @@ def test_the_draft_scores_the_rules_only_arms_and_keeps_what_it_cannot_compute(
         SystemKind.FULL_CONTEXT,
     ]
     assert all(c.overall is None and c.unavailable for c in analysis.level_contrasts)
-    assert analysis.mechanism_pending == (
-        "resolved when the evaluator's fact-stage measures are built"
-    )
+    # The mechanism measure is resolved, and the arms it applies to are not built: no arm
+    # of it, and every contrast of it kept with why it could not be made.
+    mechanism = analysis.mechanism
+    assert analysis.mechanism_pending is None and mechanism is not None
+    assert (mechanism.name, mechanism.arms) == ("needed_prose_facts", ())
+    assert [contrast.of.value for contrast in mechanism.contrasts] == [
+        "primary",
+        "secondary",
+        "secondary",
+        "level_contrast",
+        "level_contrast",
+        "level_contrast",
+    ]
+    assert all(c.unavailable and not c.stages for c in mechanism.contrasts)
     assert analysis.incidents == ()
 
 
