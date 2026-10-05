@@ -1,47 +1,48 @@
 """The evaluation artifact. Every listed object comes back in the inventory with one reason: an
 eligible run enters the tables; an object that is no export, an export of another world, a
-run whose registration does not resolve, was another one, or whose recorded settings differ,
-and under a frozen registration a run from a dirty tree, each keep what can be said of them
-and enter none. The label follows the registration's status and what it declares. A short
-set shows its shortfall; an ambiguous set and an incompatible registration refuse."""
+run whose registration does not resolve, was another one (a file of an older format at the
+cited commit included, never decoded), or whose recorded settings differ, and under a bound
+registration a run from a dirty tree, each keep what can be said of them and enter none. A
+model system's roles are compared by name. The label follows the registration's status and
+what it declares: development under a draft and under a frozen registration, reported or
+exploratory under a bound one. A bound registration is held to its world and to the frozen
+procedure it names. A short set shows its shortfall; an ambiguous set and an incompatible
+registration refuse."""
 
 from collections.abc import Mapping
 from dataclasses import replace
 from datetime import date
-from pathlib import Path
 
 import pytest
 
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
-    AgentSystem,
     Amendment,
-    Basis,
+    CallConfiguration,
+    CallSetting,
     Caps,
     HarnessRevision,
-    ModelConfiguration,
     OutageAssignment,
     PrefetchRule,
     PricingBasis,
-    RegisteredArm,
+    RegisteredRole,
     Registration,
     RegistrationStatus,
-    RulesOnlySystem,
     RunExport,
-    RunRecord,
-    ScenarioSetName,
-    Setting,
     Source,
     System,
     SystemKind,
     TreeState,
     condition_id,
-    decode_registration_bytes,
     export_bytes,
+    procedure_digest,
     registration_bytes,
 )
+from leaveimpact.core.attribution import attribution_table_digest
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.run_ending import ComposingPolicy
+from leaveimpact.evaluator import registered as registries
 from leaveimpact.evaluator.artifact import (
     ARTIFACT_FORMAT_VERSION,
     AmbiguousRuns,
@@ -55,31 +56,32 @@ from leaveimpact.evaluator.artifact import (
     StoredRun,
     cited_commits,
     evaluation_artifact,
+    require_binding,
     setting_differences,
 )
 from leaveimpact.evaluator.cells import StratumKind
 from leaveimpact.evaluator.grading import Graded
-from leaveimpact.evaluator.registered import development_selection
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
-from tests.unit.export_fixture import agent_export, export_baseline
+from tests.unit.export_fixture import ROLE, agent_export, export_baseline
 from tests.unit.reads_fixture import systems_holding
+from tests.unit.registration_fixture import DRAFT as COMMITTED
+from tests.unit.registration_fixture import MECHANISM, TABLE, bound, frozen, light, named
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
 COMMIT = "b" * 40
 OTHER_COMMIT = "c" * 40
+FROZEN_COMMIT = "d" * 40
 UNCHANGED = EvaluatorRevision(COMMIT, COMMIT, ())
 FIRST = Amendment(None, False)
 """What a first registration declares: it amends none and no result existed."""
 
-_COMMITTED = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
-# The registered resample count buys precision these tests do not need.
-DRAFT = replace(_COMMITTED, statistics=replace(_COMMITTED.statistics, resamples=200))
+DRAFT = light(COMMITTED)
 DRAFT_BYTES = registration_bytes(DRAFT)
+FROZEN = light(frozen())
+MODEL_SIDE = {RecordedSetting.MODEL, RecordedSetting.PROMPTS, RecordedSetting.TOOL_SURFACE}
 
 
 @pytest.fixture(scope="module")
@@ -87,15 +89,23 @@ def world() -> SealedWorld:
     return loaded_world("golden")
 
 
+@pytest.fixture
+def resolved_mechanism(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mechanism measure held by the evaluator, as it is once the fact-stage measures
+    exist: a frozen registration names it, and until then the evaluator holds none."""
+    monkeypatch.setattr(registries, "MECHANISM_MEASURES", (MECHANISM.name,))
+
+
 def exported(
     world: SealedWorld,
     scenario: Scenario,
     *down: Source,
     registration: Registration = DRAFT,
+    level: str = "base",
     run_id: str = "run-1",
     tree: TreeState = TreeState.CLEAN,
 ) -> RunExport:
-    """The real baseline's export of ``scenario`` under ``registration``."""
+    """The real baseline's export of ``scenario`` under ``registration`` at ``level``."""
     systems = systems_holding(world)
     for port in (systems.people, systems.work, systems.calendar, systems.documents):
         port.reachable = port.source not in down
@@ -103,6 +113,7 @@ def exported(
     provenance = rules_only_provenance(
         registration,
         condition_id(down),
+        level,
         harness=HarnessRevision(COMMIT, tree),
         preregistration_commit=COMMIT,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
@@ -138,11 +149,10 @@ def only(artifact: EvaluationArtifact) -> InventoryEntry:
 
 
 def made(artifact: EvaluationArtifact) -> int:
-    """The runs the full set's tables hold, over every arm."""
-    full = next(held for held in artifact.analysis.sets if held.name is ScenarioSetName.FULL)
+    """The runs the tables hold, over every arm."""
     return sum(
         cell.accounting.made
-        for arm in full.arms
+        for arm in artifact.analysis.arms
         for cell in arm.cells
         if cell.stratum.kind is StratumKind.OVERALL
     )
@@ -152,23 +162,9 @@ def with_record(export: RunExport, **changes: object) -> RunExport:
     return replace(export, record=replace(export.record, **changes))
 
 
-def frozen(world: SealedWorld, amendment: Amendment = FIRST) -> Registration:
-    """A frozen registration of the rules-only system alone: nothing pending, the numbers
-    calibrated, the development scenarios listed, no comparison left to name another system."""
-    statistics = DRAFT.statistics
-    return replace(
-        DRAFT,
-        status=RegistrationStatus.FROZEN,
-        amendment=amendment,
-        systems=tuple(s for s in DRAFT.systems if isinstance(s, RulesOnlySystem)),
-        arms=tuple(arm for arm in DRAFT.arms if arm.system is SystemKind.RULES_ONLY),
-        statistics=replace(
-            statistics, primary=(), descriptive=replace(statistics.descriptive, pairs=())
-        ),
-        caps=replace(DRAFT.caps, basis=Basis.CALIBRATED),
-        budget=replace(DRAFT.budget, basis=Basis.CALIBRATED),
-        scenario_sets=replace(DRAFT.scenario_sets, development=development_selection(world, DRAFT)),
-    )
+def bound_to(world: SealedWorld, amendment: Amendment = FIRST) -> Registration:
+    """A registration bound to ``world``, declaring ``amendment``."""
+    return bound(world.version, replace(FROZEN, amendment=amendment), frozen_commit=FROZEN_COMMIT)
 
 
 # --- An eligible set ---------------------------------------------------------------------------
@@ -189,6 +185,8 @@ def test_eligible_runs_enter_the_tables_and_the_artifact_says_what_it_read(
     assert artifact.world.truth_manifest == world.truth_manifest
     assert artifact.registration.digest == digest(DRAFT_BYTES)
     assert artifact.registration.status is RegistrationStatus.DRAFT
+    assert artifact.registration.procedure == procedure_digest(DRAFT)
+    assert artifact.registration.frozen_commit is None
     assert artifact.registration.declared == Amendment(None, False)
     assert artifact.evaluator == UNCHANGED
     # In key order, each with the version id read and the digest of its bytes.
@@ -202,12 +200,35 @@ def test_eligible_runs_enter_the_tables_and_the_artifact_says_what_it_read(
     assert made(artifact) == 2
 
 
+def test_the_baseline_at_each_level_is_a_run_of_its_own_cell(world: SealedWorld) -> None:
+    scenario = world.scenarios[0]
+    artifact = artifact_of(
+        world,
+        stored("runs/a", exported(world, scenario)),
+        stored("runs/b", exported(world, scenario, level="padded", run_id="run-2")),
+    )
+    assert [entry.disposition for entry in artifact.inventory] == [Disposition.ELIGIBLE] * 2
+    by_level = {
+        arm.level: arm.cells[0].accounting.made
+        for arm in artifact.analysis.arms
+        if arm.condition == "normal"
+    }
+    assert by_level == {"base": 1, "padded": 1}
+    # The two exports are graded alike: the baseline reads no document.
+    base, padded = (entry.evaluation for entry in artifact.inventory)
+    assert base is not None and padded is not None
+    assert (base.level, padded.level) == ("base", "padded")
+    assert isinstance(base.outcome, Graded) and isinstance(padded.outcome, Graded)
+    assert base.outcome.rows == padded.outcome.rows
+
+
 def test_a_short_set_shows_its_shortfall_and_an_empty_one_every_run_missing(
     world: SealedWorld,
 ) -> None:
     one = artifact_of(world, stored("runs/a", exported(world, world.scenarios[0])))
-    full = next(held for held in one.analysis.sets if held.name is ScenarioSetName.FULL)
-    normal = next(arm for arm in full.arms if arm.condition == "normal")
+    normal = next(
+        arm for arm in one.analysis.arms if (arm.condition, arm.level) == ("normal", "base")
+    )
     assert (normal.cells[0].accounting.made, normal.cells[0].accounting.missing) == (1, 29)
     none = artifact_of(world)
     assert none.inventory == () and made(none) == 0
@@ -255,12 +276,15 @@ def test_a_run_made_under_another_registration_keeps_its_grade_and_enters_no_tab
     world: SealedWorld,
 ) -> None:
     run = stored("runs/x", exported(world, world.scenarios[0]))
-    other = registration_bytes(replace(DRAFT, statistics=replace(DRAFT.statistics, seed=8)))
-    artifact = artifact_of(world, run, at={COMMIT: other})
-    entry = only(artifact)
-    assert entry.disposition is Disposition.ANOTHER_REGISTRATION
-    assert entry.evaluation is not None and entry.cost is not None and entry.label is None
-    assert made(artifact) == 0
+    reseeded = registration_bytes(replace(DRAFT, statistics=replace(DRAFT.statistics, seed=8)))
+    # A file of the format this one replaced, and bytes that are no registration at all:
+    # the comparison is of bytes, and nothing at the cited commit is decoded.
+    for other in (reseeded, b'{\n  "format_version": 1\n}\n', b"not a registration"):
+        artifact = artifact_of(world, run, at={COMMIT: other})
+        entry = only(artifact)
+        assert entry.disposition is Disposition.ANOTHER_REGISTRATION
+        assert entry.evaluation is not None and entry.cost is not None and entry.label is None
+        assert made(artifact) == 0
 
 
 def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
@@ -268,6 +292,8 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
 ) -> None:
     export = exported(world, world.scenarios[0])
     record = export.record
+    other_policy = ComposingPolicy("rules-composer", DIGEST)
+    composition = replace(export.trace.composition, policy=other_policy)
     cases: list[tuple[RunExport, tuple[RecordedSetting, ...]]] = [
         (
             with_record(export, caps=Caps(21, 400_000, 2, 20_000, record.caps.counting_rule)),
@@ -284,7 +310,17 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
                     frozenset({Source.JIRA, Source.CALENDAR}), record.outage.schedule_digest
                 ),
             ),
-            (RecordedSetting.ARM,),
+            (RecordedSetting.CELL,),
+        ),
+        # A level nobody registered is no cell, and neither is an outage at the padded level.
+        (with_record(export, corpus_level="doubled"), (RecordedSetting.CELL,)),
+        (
+            with_record(
+                export,
+                corpus_level="padded",
+                outage=OutageAssignment(frozenset({Source.JIRA}), record.outage.schedule_digest),
+            ),
+            (RecordedSetting.CELL,),
         ),
         (
             with_record(export, outage=OutageAssignment(frozenset(), DIGEST)),
@@ -293,6 +329,11 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
         (
             with_record(export, prefetch_rule=PrefetchRule("another-prefetch", DIGEST)),
             (RecordedSetting.PREFETCH,),
+        ),
+        # Claims composed under a policy other than the registered one.
+        (
+            replace(export, trace=replace(export.trace, composition=composition)),
+            (RecordedSetting.COMPOSING_POLICY,),
         ),
         (
             with_record(
@@ -311,6 +352,22 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
         assert made(artifact) == 0
 
 
+def test_a_run_in_a_cell_whose_group_is_not_decided_as_run_is_not_a_run_of_the_plan(
+    world: SealedWorld,
+) -> None:
+    record = agent_export(world, world.scenarios[0], ()).record
+    under_outage = replace(
+        agent_export(world, world.scenarios[0], ()),
+        record=replace(
+            record,
+            system=System(SystemKind.FULL_CONTEXT, "all-documents"),
+            outage=OutageAssignment(frozenset({Source.JIRA}), record.outage.schedule_digest),
+        ),
+    )
+    # Named, with the group still pending: the cell is registered and nobody runs it.
+    assert RecordedSetting.CELL in setting_differences(named(DRAFT), under_outage)
+
+
 def test_a_run_of_a_system_still_pending_has_nothing_to_be_compared_with(
     world: SealedWorld,
 ) -> None:
@@ -318,90 +375,92 @@ def test_a_run_of_a_system_still_pending_has_nothing_to_be_compared_with(
     entry = only(artifact_of(world, run))
     assert entry.disposition is Disposition.SETTINGS_DIFFER
     assert entry.differing == (RecordedSetting.PENDING,)
+    # Named and given its roles, the agent still has nothing to be compared with while the
+    # table its dispatches are read by is pending.
+    export = agent_export(world, world.scenarios[0], ())
+    untabled = replace(named(DRAFT), attribution=DRAFT.attribution)
+    assert setting_differences(untabled, export) == (RecordedSetting.PENDING,)
 
 
-def test_a_model_systems_configuration_prompts_and_surface_are_compared_per_role(
+def test_a_model_systems_roles_are_compared_by_name_each_with_its_three_settings(
     world: SealedWorld,
 ) -> None:
-    record = agent_export(world, world.scenarios[0], ()).record
+    export = agent_export(world, world.scenarios[0], ())
+    record = export.record
     ((_, model),) = record.model_configurations
-    agent = next(system for system in DRAFT.systems if isinstance(system, AgentSystem))
+    role = RegisteredRole(ROLE, model, (("system", DIGEST),), DIGEST)
 
-    def registered(**changes: object) -> Registration:
-        named = replace(
-            agent,
-            variant=record.system.variant,
-            model=model,
-            prompt_digests=(("system", DIGEST),),
-            tool_surface_digest=DIGEST,
-        )
-        named = replace(named, **changes)
-        systems = tuple(named if system is agent else system for system in DRAFT.systems)
-        return replace(DRAFT, systems=systems)
+    def differing(*roles: RegisteredRole, of: RunExport = export) -> set[RecordedSetting]:
+        registration = named(DRAFT, agent=record.system.variant, roles=roles)
+        return set(setting_differences(registration, of))
 
-    model_side = {RecordedSetting.MODEL, RecordedSetting.PROMPTS, RecordedSetting.TOOL_SURFACE}
-    assert not model_side & set(setting_differences(registered(), record))
-    other = ModelConfiguration(model.model_id, (Setting("temperature", 1),))
-    for changes, setting in (
-        ({"model": other}, RecordedSetting.MODEL),
-        ({"prompt_digests": (("system", "c" * 64),)}, RecordedSetting.PROMPTS),
-        ({"prompt_digests": (("system", DIGEST), ("report", DIGEST))}, RecordedSetting.PROMPTS),
-        ({"tool_surface_digest": "c" * 64}, RecordedSetting.TOOL_SURFACE),
+    assert not MODEL_SIDE & differing(role)
+    other = CallConfiguration(model.model_id, (CallSetting("temperature", 1),))
+    for changed, setting in (
+        (replace(role, configuration=other), RecordedSetting.MODEL),
+        (replace(role, prompt_digests=(("system", "c" * 64),)), RecordedSetting.PROMPTS),
+        (
+            replace(role, prompt_digests=(("system", DIGEST), ("report", DIGEST))),
+            RecordedSetting.PROMPTS,
+        ),
+        (replace(role, tool_surface_digest="c" * 64), RecordedSetting.TOOL_SURFACE),
     ):
-        differing = set(setting_differences(registered(**changes), record))
-        assert differing & model_side == {setting}
-    # A system the registration does not hold at all.
-    without_agent = replace(frozen(world), status=RegistrationStatus.DRAFT)
-    assert setting_differences(without_agent, record) == (RecordedSetting.SYSTEM,)
+        assert differing(changed) & MODEL_SIDE == {setting}
+    # The same three settings under another role's name are another role's: a role the
+    # registration does not name, and one it names that the run did not record.
+    assert differing(replace(role, name="checker")) & MODEL_SIDE == MODEL_SIDE
+    assert differing(role, replace(role, name="checker")) & MODEL_SIDE == MODEL_SIDE
+
+    # The attribution table the dispatches were read by is the registered one's digest.
+    assert RecordedSetting.ATTRIBUTION_TABLE in differing(role)
+    tabled = with_record(export, attribution_table=attribution_table_digest(TABLE))
+    assert RecordedSetting.ATTRIBUTION_TABLE not in differing(role, of=tabled)
+
+    # A system the registration does not hold at all: the frozen fixture has no single-shot.
+    stranger = with_record(export, system=System(SystemKind.SINGLE_SHOT, "one-call"))
+    assert setting_differences(FROZEN, stranger) == (RecordedSetting.SYSTEM,)
 
 
-def test_every_role_holds_the_whole_registered_prompt_set(world: SealedWorld) -> None:
+def test_every_role_holds_its_own_registered_prompt_set(world: SealedWorld) -> None:
     # Two roles that hold one registered prompt each cover the set between them and
     # neither ran under it.
-    record = agent_export(world, world.scenarios[0], ()).record
-    ((role, model),) = record.model_configurations
+    export = agent_export(world, world.scenarios[0], ())
+    record = export.record
+    ((_, model),) = record.model_configurations
     ((_, selection),) = record.pricing_selections
-    agent = next(system for system in DRAFT.systems if isinstance(system, AgentSystem))
-    named = replace(
-        agent,
-        variant=record.system.variant,
-        model=model,
-        prompt_digests=(("report", DIGEST), ("system", DIGEST)),
-        tool_surface_digest=DIGEST,
-    )
-    registration = replace(
-        DRAFT, systems=tuple(named if system is agent else system for system in DRAFT.systems)
-    )
-    assert role > "checker"
+    both = (("report", DIGEST), ("system", DIGEST))
+    roles = tuple(RegisteredRole(name, model, both, DIGEST) for name in ("checker", ROLE))
+    registration = named(DRAFT, agent=record.system.variant, roles=roles)
+    assert ROLE > "checker"
 
-    def two_roles(*prompts: tuple[str, str, str]) -> RunRecord:
-        return replace(
-            record,
-            model_configurations=(("checker", model), (role, model)),
-            pricing_selections=(("checker", selection), (role, selection)),
-            tool_surface_digests=(("checker", DIGEST), (role, DIGEST)),
+    def two_roles(*prompts: tuple[str, str, str]) -> RunExport:
+        return with_record(
+            export,
+            model_configurations=(("checker", model), (ROLE, model)),
+            pricing_selections=(("checker", selection), (ROLE, selection)),
+            tool_surface_digests=(("checker", DIGEST), (ROLE, DIGEST)),
             prompt_digests=prompts,
         )
 
-    split = two_roles(("checker", "report", DIGEST), (role, "system", DIGEST))
-    assert RecordedSetting.PROMPTS in setting_differences(registration, split)
+    split = two_roles(("checker", "report", DIGEST), (ROLE, "system", DIGEST))
+    assert set(setting_differences(registration, split)) & MODEL_SIDE == {RecordedSetting.PROMPTS}
     whole = two_roles(
         ("checker", "report", DIGEST),
         ("checker", "system", DIGEST),
-        (role, "report", DIGEST),
-        (role, "system", DIGEST),
+        (ROLE, "report", DIGEST),
+        (ROLE, "system", DIGEST),
     )
-    model_side = {RecordedSetting.MODEL, RecordedSetting.PROMPTS, RecordedSetting.TOOL_SURFACE}
-    assert not model_side & set(setting_differences(registration, whole))
+    assert not MODEL_SIDE & set(setting_differences(registration, whole))
 
 
-# --- Under a frozen registration ---------------------------------------------------------------
+# --- Under a bound registration ----------------------------------------------------------------
 
 
-def test_a_frozen_registration_reports_and_refuses_a_dirty_harness_tree(
+@pytest.mark.usefixtures("resolved_mechanism")
+def test_a_bound_registration_reports_and_refuses_a_dirty_harness_tree(
     world: SealedWorld,
 ) -> None:
-    registration = frozen(world)
+    registration = bound_to(world)
     content = registration_bytes(registration)
     clean = stored("runs/a", exported(world, world.scenarios[0], registration=registration))
     dirty = stored(
@@ -416,18 +475,32 @@ def test_a_frozen_registration_reports_and_refuses_a_dirty_harness_tree(
     )
     artifact = artifact_of(world, clean, dirty, registration=content)
     assert artifact.label is Label.REPORTED
+    assert artifact.registration.status is RegistrationStatus.BOUND
+    assert artifact.registration.frozen_commit == FROZEN_COMMIT
+    assert artifact.registration.procedure == procedure_digest(FROZEN)
     eligible, refused = artifact.inventory
     assert (eligible.disposition, eligible.label) == (Disposition.ELIGIBLE, Label.REPORTED)
     assert (refused.disposition, refused.label) == (Disposition.DIRTY_HARNESS, None)
     assert refused.evaluation is not None
     assert made(artifact) == 1
-    # Under a draft the same dirty run is a development run like any other.
+    # Under a draft the same dirty run is a development run like any other, and so it is
+    # under a frozen registration, whose world does not exist yet.
     under_draft = stored(
         "runs/b", exported(world, world.scenarios[1], run_id="run-2", tree=TreeState.DIRTY)
     )
     assert only(artifact_of(world, under_draft)).disposition is Disposition.ELIGIBLE
+    under_frozen = stored(
+        "runs/b",
+        exported(
+            world, world.scenarios[1], registration=FROZEN, run_id="run-2", tree=TreeState.DIRTY
+        ),
+    )
+    frozen_artifact = artifact_of(world, under_frozen, registration=registration_bytes(FROZEN))
+    assert frozen_artifact.label is Label.DEVELOPMENT
+    assert only(frozen_artifact).disposition is Disposition.ELIGIBLE
 
 
+@pytest.mark.usefixtures("resolved_mechanism")
 def test_the_label_follows_what_the_registration_declares_and_says_when_the_code_changed(
     world: SealedWorld,
 ) -> None:
@@ -441,16 +514,56 @@ def test_the_label_follows_what_the_registration_declares_and_says_when_the_code
         Amendment(OTHER_COMMIT, True): Label.EXPLORATORY,
     }
     for amendment, label in declared.items():
-        content = registration_bytes(frozen(world, amendment))
+        content = registration_bytes(bound_to(world, amendment))
         artifact = artifact_of(world, registration=content, evaluator=changed)
         assert (artifact.label, artifact.registration.declared) == (label, amendment)
         assert artifact.evaluated_by_changed_code
         assert not artifact_of(world, registration=content).evaluated_by_changed_code
-    # A draft is development whatever it declares, and changed code is expected of it.
-    draft = registration_bytes(replace(DRAFT, amendment=Amendment(OTHER_COMMIT, True)))
-    artifact = artifact_of(world, registration=draft, evaluator=changed)
-    assert (artifact.label, artifact.evaluated_by_changed_code) == (Label.DEVELOPMENT, False)
-    assert artifact.evaluator == changed
+    # A draft and a frozen registration are development whatever they declare, and changed
+    # code is expected of them.
+    for unbound in (DRAFT, FROZEN):
+        content = registration_bytes(replace(unbound, amendment=Amendment(OTHER_COMMIT, True)))
+        artifact = artifact_of(world, registration=content, evaluator=changed)
+        assert (artifact.label, artifact.evaluated_by_changed_code) == (Label.DEVELOPMENT, False)
+        assert artifact.evaluator == changed
+
+
+@pytest.mark.usefixtures("resolved_mechanism")
+def test_a_bound_registration_evaluated_against_another_world_refuses(world: SealedWorld) -> None:
+    elsewhere = bound("e" * 64, FROZEN, frozen_commit=FROZEN_COMMIT)
+    with pytest.raises(ValueError, match=f"bound to the world {'e' * 64}, and this evaluation"):
+        artifact_of(world, registration=registration_bytes(elsewhere))
+
+
+def test_a_bound_registration_is_held_to_the_frozen_one_it_names(world: SealedWorld) -> None:
+    made_bound = bound_to(world)
+    frozen_bytes = registration_bytes(FROZEN)
+    require_binding(made_bound, frozen_bytes)
+    # A registration that is not bound binds nothing.
+    require_binding(DRAFT, None)
+    require_binding(FROZEN, None)
+    with pytest.raises(ValueError, match=f"the frozen commit {FROZEN_COMMIT} holds no registr"):
+        require_binding(made_bound, None)
+    with pytest.raises(ValueError, match="does not decode: this code reads registration format"):
+        require_binding(made_bound, b'{"format_version": 1}')
+    with pytest.raises(ValueError, match=f"at the frozen commit {FROZEN_COMMIT} is draft, not"):
+        require_binding(made_bound, DRAFT_BYTES)
+    # A bound file is not a frozen one, even its own.
+    with pytest.raises(ValueError, match="is bound, not frozen"):
+        require_binding(made_bound, registration_bytes(made_bound))
+    # Binding changes the status, the world's version and the commit named, nothing else:
+    # each other change is named by the section it is in.
+    accounting = replace(made_bound.run_accounting, repeats=made_bound.run_accounting.repeats + 1)
+    for changed, section in (
+        (replace(made_bound, run_accounting=accounting), "run_accounting"),
+        (replace(made_bound, amendment=Amendment(OTHER_COMMIT, True)), "amendment"),
+        (
+            replace(made_bound, budget=replace(made_bound.budget, ceiling_usd=299)),
+            "budget",
+        ),
+    ):
+        with pytest.raises(ValueError, match=f"they differ in {section}$"):
+            require_binding(changed, frozen_bytes)
 
 
 # --- What refuses the whole evaluation ---------------------------------------------------------
@@ -481,7 +594,10 @@ def test_a_registration_this_evaluator_cannot_read_as_a_plan_refuses(world: Seal
     other = registration_bytes(replace(DRAFT, prefetch=prefetch))
     with pytest.raises(ValueError, match="this evaluator checks conformance to"):
         artifact_of(world, registration=other)
-    assert RegisteredArm(SystemKind.RULES_ONLY, "normal") in DRAFT.arms
+    # A frozen registration names the mechanism measure, which this evaluator does not
+    # hold until the fact-stage measures are built.
+    with pytest.raises(ValueError, match="no mechanism measure is registered as"):
+        artifact_of(world, registration=registration_bytes(FROZEN))
 
 
 # --- The commits to resolve --------------------------------------------------------------------

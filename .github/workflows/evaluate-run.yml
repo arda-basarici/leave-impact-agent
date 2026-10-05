@@ -6,14 +6,14 @@
 # secret; its reviewer rule and its `main`-only rule are what stand between a dispatch
 # and the answer key.
 #
-# Two commands. `prove` loads the world, gives the development scenarios (the registered
-# ones, or a draw by tier alone while none is registered) and counts the retrieval targets
-# per registered condition; it writes nothing, and it is what the first dispatch runs. `evaluate` lists every object under the world's runs
+# Two commands. `prove` loads the world and counts the retrieval targets per registered
+# condition; it draws no scenario, the registration tuning on none of its world's; it
+# writes nothing, and it is what the first dispatch runs. `evaluate` lists every object under the world's runs
 # prefix, grades each export, and publishes the artifact; it refuses an empty listing and
 # a dirty checkout.
 #
 # The log of this job is public and the world is sealed. The entry point prints a world
-# version, scenario ids as a flat list, totals, keys and labels; a refusal by its message,
+# version, totals, keys and labels; a refusal by its message,
 # written to name nothing sealed; and any other failure by its type alone, with no
 # traceback. Nothing in this file prints an object's content.
 #

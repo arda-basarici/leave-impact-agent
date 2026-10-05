@@ -37,16 +37,18 @@ identical observations give an identical report, byte for byte once exported.
 
 The policy has a declared identity, ``REPORTING_POLICY``: an identifier, a version and the
 tie-break by name. The version is a semantic version kept by hand, raised whenever what
-this module reports for the same conclusions changes; nothing derives it. The
-preregistration names the three, and the harness refuses to run when they differ from
-these. The evaluator cannot import this package and does not verify the value: what binds
-a run to the policy is the clean harness commit its record names, the claims it exported,
-and the construction gate that grades the baseline end to end.
+this module reports for the same conclusions changes; nothing derives it. The three are
+inside the composing policy's specification (``composer``), whose digest the
+preregistration binds, and the harness refuses to run when the registered digest differs
+from the one it computes. The evaluator cannot import this package and does not verify
+the value: what binds a run to the policy is the clean harness commit its record names,
+the claims it exported, and the construction gate that grades the baseline end to end.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass
 
 from leaveimpact.core.authority import conflicts_on
 from leaveimpact.core.claims import (
@@ -71,8 +73,25 @@ from leaveimpact.core.ids import ClaimId, claim_id
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.readings import ImpactConclusion
 from leaveimpact.core.refs import SOURCE_BY_TARGET_KIND, EntityRef, EvidenceRef, clause_ref
-from leaveimpact.core.registration import ReportingPolicy
+from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.viability import Need
+
+
+@dataclass(frozen=True, slots=True)
+class ReportingPolicy:
+    """The reporting policy by its declared identifier and version, with the tie-break among
+    viable assignees by name. The version is a declared semantic version kept by hand;
+    nothing derives it."""
+
+    identifier: str
+    version: int
+    tie_break: str
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.identifier, "a reporting policy identifier")
+        require_integer(self.version, "a reporting policy version", minimum=1)
+        require_opaque_id(self.tie_break, "a tie-break rule")
+
 
 REPORTING_POLICY = ReportingPolicy("rules-only-report", 1, "first_viable_in_id_code_point_order")
 """The policy this module implements, as the preregistration names it."""

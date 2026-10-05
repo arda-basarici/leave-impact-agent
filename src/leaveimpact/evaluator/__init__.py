@@ -53,27 +53,32 @@ frozen plan obliged, the obligations reconstructed here from what each read retu
 condition, by removal through the oracle) and ``retrieval`` (which of them a run's reads
 returned, and through which search at what rank).
 
-Tables are a reading of evaluated runs, never stored. ``cells`` groups them by system and
-assigned condition, the scenario with all its runs as the unit, cuts each arm at the whole,
-each tier and each scenario class, and keeps the accounting every table shows: what was
+Tables are a reading of evaluated runs, never stored. ``cells`` groups them by system,
+assigned condition and assigned corpus level, the scenario with all its runs as the unit,
+cuts each arm at the whole, each tier and each scenario class, and keeps the accounting
+every table shows: what was
 intended, made and missing, and how each run ended, with the same tallies over every
 attempt beside it. ``attempts`` reads a run's attempts as a history: the attempt the
 plan's rule counts, and the gap, the excess attempt and the attempt after a stopping
 outcome a conforming harness never produces. ``run_checks`` holds the three checks a
 registration can name, and ``registered`` reads the registration for this package: its
-names resolved against the registries here, the plan the tables are cut under, the
-scenario sets and the seeded development selection. ``diagnostics`` holds the two readings
-that are raw counts, whether a scenario's repeats agree and what a degraded-condition
-arm's runs did, and ``analysis`` computes every table the registration names from a set
-of evaluated runs in one pure pass. ``measures`` and ``evidence_measures``
+names resolved against the registries here, the plan the tables are cut under, and the
+registered cells that plan does not hold, each with why. ``diagnostics`` holds the two
+readings that are raw counts, whether a scenario's repeats agree and what a
+degraded-condition arm's runs did. ``headroom`` counts, per place, the scenarios the
+registered reference system does not already pass, and ``incidents`` reports by scenario
+the runs that met a source contradicting itself; neither removes anything from a table.
+``analysis`` computes every table the registration names from a set of evaluated runs in
+one pure pass. ``measures`` and ``evidence_measures``
 state each claim-level ratio as the numerator and the denominator of one run, with its
 scope: the two precisions, recall and payload accuracy on the answer side; grounding,
 citations, source discipline and retrieval on the other. ``intervals`` holds the two
 intervals and knows nothing of claims: Wilson's for a proportion of scenarios, and a
 seeded bootstrap over whole scenarios, drawn within tiers, for a ratio of sums and for the
 paired difference of two. ``tables`` estimates a measure or a yes-or-no check in a cell,
-conditionally and end to end, pairs two systems on scenario and assigned condition, and
-keeps the cost ledger. What the preregistration fixes (the arms, the confidence level, the
+conditionally and end to end, pairs two systems, or two corpus levels of one, on scenario
+and assigned condition, and keeps the cost ledger. What the preregistration fixes (the
+arms, the confidence level, the
 seed, the repeats, the retry rule, the named checks) is given to these as arguments and
 chosen nowhere here.
 
@@ -81,14 +86,15 @@ chosen nowhere here.
 stored object given to it listed with its version, its digest, its cost and the one reason
 it is in or out of the tables, a run eligible when the registration it cites has this
 evaluation's bytes and its recorded settings are the registered ones, the label derived
-from the registration's status, and the registered analysis over the eligible runs.
+from the registration's status, a bound registration held to its world and to the frozen
+procedure it names, and the registered analysis over the eligible runs.
 
 ``artifact_json`` is its written form, an encoder derived from the types with no decoder,
 a run written as its outcome and findings and nothing the stored export gives back.
 
 ``entrypoint`` holds the job's two commands as compositions over readers: prove a world
-from its three objects, with the development scenarios given and the retrieval targets
-counted, and evaluate every object stored for a world's runs into one published artifact.
+from its three objects, with the retrieval targets counted, and evaluate every object
+stored for a world's runs into one published artifact.
 ``repository`` is the job's own checkout read through git: a clean tree, the registration
 at a cited commit, the implementation paths that changed since the registration.
 ``__main__`` composes them from the environment and prints what a public log may hold.

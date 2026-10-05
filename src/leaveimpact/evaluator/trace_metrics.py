@@ -33,11 +33,16 @@ nothing:
   what it retrieved; not evaluated for a mixed condition or one with no answer. Whether
   the report concluded what a target moves is filled in for a graded run only.
 
-The pair also holds the condition the run was *assigned*: the outage its record says was
-scheduled for it, whatever its reads then met. A run is graded against the condition its
-trace shows, and it is counted in the arm it was assigned to, so that a system's own
-behaviour never chooses its arm: one that never called the failed source ran under no
-outage, and is still a run of the outage arm (ruling 6).
+The pair also holds what the run was *assigned*: the outage its record says was scheduled
+for it, whatever its reads then met, and the corpus level. A run is graded against the
+condition its trace shows, and it is counted in the arm it was assigned to, so that a
+system's own behaviour never chooses its arm: one that never called the failed source ran
+under no outage, and is still a run of the outage arm (ruling 6).
+
+And it holds the contradictions among the run's own reads (``core.contradictions``),
+recomputed from the trace whether or not the run failed on them: two complete reads of one
+structured source that cannot both be true are evidence about the world or the execution,
+never about the system, and the analysis reports them for the whole measurement.
 
 Nothing a run did raises here. What can raise is the sealed world against today's rules:
 the oracle disagreeing with a sealed key, or a statement whose removal the rules cannot
@@ -49,6 +54,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from leaveimpact.core.contradictions import Contradiction, self_contradictions
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.run_export import RunExport
@@ -88,12 +94,15 @@ class TraceMetrics:
 
 @dataclass(frozen=True, slots=True)
 class Evaluation:
-    """One run evaluated: how its report fared, what the run did, and the condition it was
-    assigned, every source reachable but the ones its record says were scheduled out."""
+    """One run evaluated: how its report fared, what the run did, the condition it was
+    assigned, every source reachable but the ones its record says were scheduled out, the
+    corpus level it was assigned, and the contradictions among its own reads."""
 
     outcome: RunOutcome
     metrics: TraceMetrics
     assigned: RunCondition
+    level: str
+    contradictions: tuple[Contradiction, ...]
 
 
 def evaluate_run(world: SealedWorld, export: RunExport) -> Evaluation:
@@ -104,7 +113,13 @@ def evaluate_run(world: SealedWorld, export: RunExport) -> Evaluation:
     """
     outcome = grade_run(world, export)
     assigned = RunCondition.all_reachable().without(*export.record.outage.scheduled_unreachable)
-    return Evaluation(outcome, trace_metrics(world, export, outcome), assigned)
+    return Evaluation(
+        outcome,
+        trace_metrics(world, export, outcome),
+        assigned,
+        export.record.corpus_level,
+        self_contradictions(export.trace.operations),
+    )
 
 
 def trace_metrics(world: SealedWorld, export: RunExport, outcome: RunOutcome) -> TraceMetrics:

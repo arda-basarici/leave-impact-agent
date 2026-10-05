@@ -27,7 +27,7 @@ from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded, Limi
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world.scenario import Tier
-from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
+from tests.unit.evaluation_fixture import BASE, NORMAL, REFERENCE, evaluated, relabelled, truthful
 from tests.unit.export_fixture import provider_failed_export
 from tests.unit.report_fixture import renumbered
 from tests.unit.throwaway_world import loaded_world
@@ -39,7 +39,7 @@ TRACKER_DOWN = NORMAL.without(Source.JIRA)
 def plan(
     intended_repeats: int = 1,
     counted_attempt: CountedAttempt = CountedAttempt.FIRST,
-    registered: tuple[tuple[System, RunCondition], ...] = ((REFERENCE, NORMAL),),
+    registered: tuple[tuple[System, RunCondition, str], ...] = ((REFERENCE, NORMAL, BASE),),
 ) -> Preregistered:
     return Preregistered(
         0.95, 7, 1_000, intended_repeats, counted_attempt, MissingRepeat.NOT_PASSED, registered, 3
@@ -61,9 +61,12 @@ def test_every_arm_holds_every_scenario_and_is_cut_at_the_whole_each_tier_and_ea
         for evaluation, scenario in zip(reference, world.scenarios, strict=True)
         if scenario.key.tier is Tier.STRUCTURED
     ]
-    both = plan(registered=((OTHER, NORMAL), (REFERENCE, NORMAL)))
+    both = plan(registered=((OTHER, NORMAL, BASE), (REFERENCE, NORMAL, BASE)))
     first, second = arms(world, [*partial, *reference], both)
-    assert (first.name, second.name) == ("rules_only/other normal", "rules_only/reference normal")
+    assert (first.name, second.name) == (
+        "rules_only/other normal at base",
+        "rules_only/reference normal at base",
+    )
     for arm in (first, second):
         assert [runs.scenario_id for runs in arm.scenarios] == [s.spec.id for s in world.scenarios]
         assert arm.unplaced == ()
@@ -103,7 +106,8 @@ def test_the_arm_is_the_condition_assigned_whatever_the_reads_met(world: SealedW
     assert never_met.assigned == TRACKER_DOWN
 
     two_arms = plan(
-        intended_repeats=2, registered=((REFERENCE, NORMAL), (REFERENCE, TRACKER_DOWN))
+        intended_repeats=2,
+        registered=((REFERENCE, NORMAL, BASE), (REFERENCE, TRACKER_DOWN, BASE)),
     )
     normal, tracker_down = arms(world, [never_met, unscheduled, met], two_arms)
     assert normal.registered and tracker_down.registered
@@ -134,7 +138,7 @@ def test_a_retried_run_is_one_run_and_the_plan_says_which_attempt_counts(
     ):
         chosen = plan(
             counted_attempt=counted_attempt,
-            registered=((failed.outcome.header.system, NORMAL),),
+            registered=((failed.outcome.header.system, NORMAL, BASE),),
         )
         (arm,) = arms(world, [retried, failed], chosen)
         runs = arm.scenarios[0]
@@ -225,7 +229,9 @@ def test_a_registered_arm_with_no_export_is_built_with_every_run_missing(
 ) -> None:
     # The second system never produced an export: its arm must not vanish from the tables.
     runs = [evaluated(world, scenario) for scenario in world.scenarios]
-    registered = plan(intended_repeats=2, registered=((OTHER, NORMAL), (REFERENCE, NORMAL)))
+    registered = plan(
+        intended_repeats=2, registered=((OTHER, NORMAL, BASE), (REFERENCE, NORMAL, BASE))
+    )
     silent, reference = arms(world, runs, registered)
     assert (silent.system, silent.assigned, silent.registered) == (OTHER, NORMAL, True)
     assert [runs.scenario_id for runs in silent.scenarios] == [s.spec.id for s in world.scenarios]
@@ -235,6 +241,23 @@ def test_a_registered_arm_with_no_export_is_built_with_every_run_missing(
     assert accounting_of(cells_of(reference)[0], registered).missing == 30
     # With nothing registered but the reference, the silent arm has no row to be missing from.
     assert len(arms(world, runs, plan())) == 1
+
+
+def test_a_system_under_one_condition_at_two_levels_is_two_arms(world: SealedWorld) -> None:
+    scenario = world.scenarios[0]
+    run = evaluated(world, scenario)
+    assert run.level == BASE
+    levels = plan(registered=((REFERENCE, NORMAL, BASE), (REFERENCE, NORMAL, "padded")))
+    at_base, at_padded = arms(world, [run, relabelled(run, level="padded")], levels)
+    assert (at_base.level, at_padded.level) == (BASE, "padded")
+    assert (at_base.assigned, at_padded.assigned) == (NORMAL, NORMAL)
+    # One export is one run of one arm: neither level's arm holds the other's.
+    for arm in (at_base, at_padded):
+        assert accounting_of(cells_of(arm)[0], levels).made == 1
+    assert at_base.name != at_padded.name and at_padded.name.endswith("normal at padded")
+    # A level nobody registered arrives like any other unregistered arm.
+    (reference, stray) = arms(world, [run, relabelled(run, level="doubled")], plan())
+    assert (reference.registered, stray.registered, stray.level) == (True, False, "doubled")
 
 
 def test_an_arm_that_arrived_unregistered_is_built_and_says_so(world: SealedWorld) -> None:
@@ -268,11 +291,11 @@ def test_a_structurally_invalid_report_is_counted_where_its_run_ended(world: Sea
 
 
 def test_the_plan_refuses_what_no_preregistration_could_mean() -> None:
-    kept = (CountedAttempt.FIRST, MissingRepeat.LEFT_OUT, ((REFERENCE, NORMAL),), 3)
+    kept = (CountedAttempt.FIRST, MissingRepeat.LEFT_OUT, ((REFERENCE, NORMAL, BASE),), 3)
     with pytest.raises(ValueError, match="at least one arm is registered"):
         Preregistered(0.95, 7, 1_000, 1, *kept[:2], (), 3)
     with pytest.raises(ValueError, match="registered once"):
-        Preregistered(0.95, 7, 1_000, 1, *kept[:2], ((REFERENCE, NORMAL), (REFERENCE, NORMAL)), 3)
+        Preregistered(0.95, 7, 1_000, 1, *kept[:2], (kept[2][0], kept[2][0]), 3)
     with pytest.raises(ValueError, match="strictly between 0 and 1"):
         Preregistered(1.0, 7, 1_000, 1, *kept)
     with pytest.raises(ValueError, match="at least one resample"):

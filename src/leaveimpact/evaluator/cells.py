@@ -1,12 +1,14 @@
 """Cells: evaluated runs grouped into what a table reports, with the accounting every table
 carries.
 
-A *cell* is one system, one assigned condition and one stratum, and nothing is pooled
-across systems or conditions (the investigator milestone's fourth build step, ruling 6).
-The arm is the condition a run was *assigned*, never the one it observed, so a system's
-own behaviour cannot choose its arm. The strata are the whole set, each tier, and each
-scenario class; a tier and the whole carry intervals, a class only its raw counts, one to
-four scenarios being enough to localize a failure and not to estimate a rate.
+An *arm* is one system under one assigned condition at one assigned corpus level: what
+the preregistration calls a cell. Here a *cell* is an arm cut at one stratum, and nothing
+is pooled across systems, conditions or levels (the investigator milestone's fourth build
+step, ruling 6; the level joined with the contract step). The arm is the condition and the
+level a run was *assigned*, never what it observed, so a system's own behaviour cannot
+choose its arm. The strata are the whole set, each tier, and each scenario class; a tier
+and the whole carry intervals, a class only its raw counts, one to four scenarios being
+enough to localize a failure and not to estimate a rate.
 
 The unit is the scenario with all its runs. A scenario run several times is one cluster
 holding several runs, never several scenarios, and the repeats of two systems are never
@@ -19,8 +21,8 @@ Nothing the preregistration owns is chosen here. ``Preregistered`` is the one re
 what it fixes for estimation: the confidence level, the seed and the number of resamples,
 how many runs of each scenario were intended, which attempt of a retried run counts, how
 an intended run that was never made counts toward end-to-end success, and the arms that
-were registered, each a system under an assigned condition. It has no default anywhere; a
-table records the plan it was cut under.
+were registered, each a system under an assigned condition at a corpus level. It has no
+default anywhere; a table records the plan it was cut under.
 
 The arms come from the registration and not from what arrived. An arm that produced no
 export at all is built all the same, every scenario with its intended runs missing: a
@@ -95,12 +97,14 @@ class Preregistered:
     intended_repeats: int
     counted_attempt: CountedAttempt
     missing_repeat: MissingRepeat
-    arms: tuple[tuple[System, RunCondition], ...]
+    arms: tuple[tuple[System, RunCondition, str], ...]
     max_attempts: int
 
     def __post_init__(self) -> None:
         if not self.arms:
-            raise ValueError("at least one arm is registered: a system under an assigned condition")
+            raise ValueError(
+                "at least one arm is registered: a system under an assigned condition at a level"
+            )
         if len(set(self.arms)) != len(self.arms):
             raise ValueError("an arm is registered once")
         if not 0 < self.confidence < 1:
@@ -167,20 +171,24 @@ class ScenarioRuns:
 
 @dataclass(frozen=True, slots=True)
 class Arm:
-    """One system under one assigned condition: every scenario of the world in the plan's
-    order, with the runs it has, and the attempts no scenario of the world could place.
-    ``registered`` says the plan names the arm; one that only arrived is built and says not."""
+    """One system under one assigned condition at one corpus level: every scenario of the
+    world in the plan's order, with the runs it has, and the attempts no scenario of the
+    world could place. ``registered`` says the plan names the arm; one that only arrived is
+    built and says not."""
 
     system: System
     assigned: RunCondition
+    level: str
     scenarios: tuple[ScenarioRuns, ...]
     unplaced: tuple[Evaluation, ...]
     registered: bool
 
     @property
     def name(self) -> str:
-        """The arm by its system and its assigned condition, as an interval's seed names it."""
-        return f"{self.system.kind.value}/{self.system.variant} {condition_name(self.assigned)}"
+        """The arm by its system, its assigned condition and its level, as an interval's
+        seed names it."""
+        system = f"{self.system.kind.value}/{self.system.variant}"
+        return f"{system} {condition_name(self.assigned)} at {self.level}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -294,18 +302,21 @@ def arms(
     world: SealedWorld, evaluations: Iterable[Evaluation], plan: Preregistered
 ) -> tuple[Arm, ...]:
     """``evaluations`` grouped into arms: by system, and within a system the normal condition
-    first, then the outages by how many sources they take and by name.
+    first, then the outages by how many sources they take and by name, a condition's levels
+    by name.
 
     Every arm the plan registers is built, with or without a run, and every arm holds every
     scenario of ``world``: a scenario a system never ran is a missing run of that arm, and
     an arm that never ran is thirty of them, not an absent table.
     """
-    by_arm: dict[tuple[System, RunCondition], list[Evaluation]] = {arm: [] for arm in plan.arms}
+    by_arm: dict[tuple[System, RunCondition, str], list[Evaluation]] = {
+        arm: [] for arm in plan.arms
+    }
     for evaluation in evaluations:
-        key = (evaluation.outcome.header.system, evaluation.assigned)
+        key = (evaluation.outcome.header.system, evaluation.assigned, evaluation.level)
         by_arm.setdefault(key, []).append(evaluation)
     built: list[Arm] = []
-    for (system, assigned), held in by_arm.items():
+    for (system, assigned, level), held in by_arm.items():
         by_scenario: dict[ScenarioId, list[Evaluation]] = {}
         for evaluation in held:
             by_scenario.setdefault(evaluation.outcome.header.scenario_id, []).append(evaluation)
@@ -320,23 +331,9 @@ def arms(
             for scenario in world.scenarios
         )
         unplaced = tuple(each for left in by_scenario.values() for each in _in_order(left))
-        registered = (system, assigned) in plan.arms
-        built.append(Arm(system, assigned, scenarios, unplaced, registered))
+        registered = (system, assigned, level) in plan.arms
+        built.append(Arm(system, assigned, level, scenarios, unplaced, registered))
     return tuple(sorted(built, key=_arm_order))
-
-
-def within(arm: Arm, scenarios: Iterable[ScenarioId]) -> Arm:
-    """``arm`` cut to ``scenarios``, a scenario set of the registration, in the arm's order.
-
-    The attempts no scenario of the world could place belong to no set and are left with
-    the whole arm; a set that names a scenario the arm does not hold is refused.
-    """
-    kept = set(scenarios)
-    strangers = sorted(kept - {runs.scenario_id for runs in arm.scenarios})
-    if strangers:
-        raise ValueError(f"the arm holds no scenario {', '.join(strangers)}")
-    held = tuple(runs for runs in arm.scenarios if runs.scenario_id in kept)
-    return Arm(arm.system, arm.assigned, held, (), arm.registered)
 
 
 def cells_of(arm: Arm) -> tuple[Cell, ...]:
@@ -466,9 +463,15 @@ def _scenario_runs(
     )
 
 
-def _arm_order(arm: Arm) -> tuple[str, str, int, str]:
+def _arm_order(arm: Arm) -> tuple[str, str, int, str, str]:
     down = len(Source) - len(arm.assigned.reachable)
-    return (arm.system.kind.value, arm.system.variant, down, condition_name(arm.assigned))
+    return (
+        arm.system.kind.value,
+        arm.system.variant,
+        down,
+        condition_name(arm.assigned),
+        arm.level,
+    )
 
 
 def _in_order(evaluations: Sequence[Evaluation]) -> list[Evaluation]:
@@ -504,5 +507,4 @@ __all__ = [
     "attempt_summary_of",
     "cells_of",
     "condition_name",
-    "within",
 ]

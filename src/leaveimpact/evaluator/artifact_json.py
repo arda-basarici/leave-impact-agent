@@ -22,11 +22,13 @@ Three things are written differently from their type, each on purpose:
 - *A condition* is written as the sources it cannot reach, the way the registration names
   one, not as the ones it can.
 - *A run* is written as its outcome and its findings, not as its whole evaluation: the
-  header, how it ended and why, the claim rows, the plan findings and coverage gaps, each
-  claim's replay standing, the integrity, operation and prefetch findings, and the
-  disagreements between record and trace. Proofs, premises, citations, retrieval rows and
-  the per-operation rows are left out: each is recomputed from the stored export, which
-  the inventory names by key, version id and digest.
+  condition and the corpus level it was assigned, the header, how it ended and why, the
+  claim rows, the plan findings and coverage gaps, each claim's replay standing, the
+  integrity, operation and prefetch findings, and the disagreements between record and
+  trace. Proofs, premises, citations, retrieval rows, the per-operation rows and the
+  contradictions among its reads are left out: each is recomputed from the stored export,
+  which the inventory names by key, version id and digest; the contradictions reach the
+  artifact through the analysis's incidents.
 - *An inventory entry* holds that run under ``run`` and its recomputed cost beside it,
   since an export of another world has a cost and no run.
 
@@ -117,6 +119,7 @@ def _run(evaluation: Evaluation) -> JsonObject:
     metrics = evaluation.metrics
     return {
         "assigned": _written(evaluation.assigned),
+        "level": evaluation.level,
         "outcome": _outcome(evaluation.outcome),
         "operation_findings": _written(metrics.discipline.findings),
         "prefetch": _written(metrics.prefetch),

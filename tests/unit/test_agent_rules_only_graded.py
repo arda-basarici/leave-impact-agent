@@ -79,6 +79,7 @@ def provenance(*down: Source) -> RunProvenance:
     return rules_only_provenance(
         REGISTRATION,
         condition_id(down),
+        "base",
         harness=HarnessRevision(COMMIT, TreeState.CLEAN),
         preregistration_commit=COMMIT,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),

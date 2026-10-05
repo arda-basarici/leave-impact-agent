@@ -1,12 +1,15 @@
 """The evaluation job's entry point. A request takes a command, a world version and the runner's
-identifiers. Proving a world returns the development scenarios as a flat list and one total
-of retrieval targets per registered condition, and the job prints those and nothing sealed,
-writing nothing. Evaluating publishes one artifact over every object stored for the world's
-runs, from a clean checkout, each cited commit resolved in the checkout's own history; a
-dirty tree, an empty listing and a world that is not there are refused by name, and an
-unexpected failure prints its type and no traceback. The checkout is read through git: a
-file at a commit as committed, absent for a commit or a path that is not there, and the
-implementation paths that changed between two commits."""
+identifiers. Proving a world returns one total of retrieval targets per registered
+condition, and the job prints those and nothing sealed, writing nothing. Evaluating
+publishes one artifact over every object stored for the world's runs, from a clean
+checkout, each cited commit resolved in the checkout's own history; a dirty tree, an empty
+listing and a world that is not there are refused by name, and an unexpected failure prints
+its type and no traceback. A bound registration is held to the frozen one at the commit it
+names before anything is listed: evaluated when its procedure is that one's, refused when
+the commit holds no frozen registration, a procedure that differs, or when it binds another
+world. The checkout is read through git: a file at a commit as committed, absent for a
+commit or a path that is not there, and the implementation paths that changed between two
+commits."""
 
 import json
 import subprocess
@@ -31,18 +34,17 @@ from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
     HarnessRevision,
-    Pending,
     PricingBasis,
+    Registration,
     TreeState,
     condition_id,
-    decode_registration_bytes,
     export_bytes,
     registration_bytes,
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.evaluator import __main__ as job
+from leaveimpact.evaluator import registered as registries
 from leaveimpact.evaluator.entrypoint import Command, parse_request, prove
-from leaveimpact.evaluator.registered import development_selection
 from leaveimpact.evaluator.repository import (
     IMPLEMENTATION,
     REGISTRATION_PATH,
@@ -55,17 +57,15 @@ from leaveimpact.world import Scenario, bundle
 from leaveimpact.world.scenario import ScenarioClassName, Tier
 from tests.unit.export_fixture import export_baseline
 from tests.unit.reads_fixture import systems_holding
+from tests.unit.registration_fixture import DRAFT as COMMITTED
+from tests.unit.registration_fixture import MECHANISM, bound, frozen, light
 from tests.unit.throwaway_world import composed_world, loaded_world
 
 DIGEST = "a" * 64
 ABSENT_COMMIT = "c" * 40
 RUNNER = {"GITHUB_RUN_ID": "77", "GITHUB_RUN_ATTEMPT": "1"}
 
-_COMMITTED = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / REGISTRATION_PATH).read_bytes()
-)
-# The registered resample count buys precision these tests do not need.
-DRAFT = replace(_COMMITTED, statistics=replace(_COMMITTED.statistics, resamples=200))
+DRAFT = light(COMMITTED)
 DRAFT_BYTES = registration_bytes(DRAFT)
 
 
@@ -123,12 +123,20 @@ def stores(twin: Path) -> ObjectReaders:
     return ObjectReaders(LocalObjectReader(twin / "truth"), LocalObjectReader(twin / "world"))
 
 
-def export_of(world: SealedWorld, scenario: Scenario, commit: str, run_id: str) -> bytes:
-    """The real baseline's export of ``scenario``, citing the registration at ``commit``."""
+def export_of(
+    world: SealedWorld,
+    scenario: Scenario,
+    commit: str,
+    run_id: str,
+    registration: Registration = DRAFT,
+) -> bytes:
+    """The real baseline's export of ``scenario`` under ``registration``, citing the
+    registration at ``commit``."""
     context = world.context_of(scenario)
     provenance = rules_only_provenance(
-        DRAFT,
+        registration,
         condition_id(()),
+        "base",
         harness=HarnessRevision(commit, TreeState.CLEAN),
         preregistration_commit=commit,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
@@ -178,13 +186,11 @@ def test_a_request_takes_a_command_the_version_and_the_runners_identifiers() -> 
 # --- Proving a world ---------------------------------------------------------------------------
 
 
-def test_proving_a_world_selects_the_development_scenarios_and_counts_the_targets(
+def test_proving_a_world_counts_the_targets_and_draws_no_scenario(
     world: SealedWorld, twin: Path
 ) -> None:
     proven = prove(world.version, stores(twin), DRAFT)
     assert (proven.world_version, proven.scenarios) == (world.version, 30)
-    assert proven.development == development_selection(world, DRAFT)
-    assert len(proven.development) == 6
     targets = dict(proven.targets)
     assert list(targets) == [condition.id for condition in DRAFT.outage.conditions]
     normal = targets["normal"]
@@ -203,7 +209,9 @@ def test_the_job_prints_what_it_proved_and_nothing_sealed_and_writes_nothing(
     lines = dict(line.split("=", 1) for line in out.splitlines())
     assert lines["world_version"] == world.version
     assert lines["scenarios"] == "30"
-    assert lines["development_scenarios"] == ",".join(development_selection(world, DRAFT))
+    # The registration tunes on no scenario of its world, so none is drawn or printed.
+    assert not [name for name in lines if "scenario_" in name or "development" in name]
+    assert "scenario_0" not in out
     assert lines["retrieval_targets[frappe_down]"] == "no answer"
     assert int(lines["retrieval_targets[normal]"]) > 0
     assert lines["wrote"] == "nothing"
@@ -349,27 +357,74 @@ def test_a_file_is_read_at_a_commit_as_committed_and_is_absent_where_it_is_not(
     checkout.require_clean()
 
 
-def test_a_registered_selection_is_what_proving_returns_whatever_the_seed_would_draw(
-    world: SealedWorld, twin: Path
+# --- A bound registration ----------------------------------------------------------------------
+
+
+def commit_registration(checkout: Repository, registration: Registration, message: str) -> str:
+    (checkout.root / REGISTRATION_PATH).write_bytes(registration_bytes(registration))
+    git(checkout.root, "add", ".")
+    git(checkout.root, "commit", "--quiet", "-m", message)
+    return checkout.head()
+
+
+@pytest.fixture
+def resolved_mechanism(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The mechanism measure held by the evaluator, as it is once the fact-stage measures
+    exist: a frozen registration names it, and until then the evaluator holds none."""
+    monkeypatch.setattr(registries, "MECHANISM_MEASURES", (MECHANISM.name,))
+
+
+@pytest.mark.usefixtures("resolved_mechanism")
+def test_a_bound_registration_is_evaluated_when_its_procedure_is_the_frozen_one(
+    world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    # The registered list survives a change of seed: the tuning was done on those
-    # scenarios, and a fresh draw would name ones the evaluator holds out.
-    registered = DRAFT.scenario_sets.development
-    assert isinstance(registered, tuple)
-    reseeded = replace(DRAFT, statistics=replace(DRAFT.statistics, seed=DRAFT.statistics.seed + 1))
-    assert development_selection(world, reseeded) != registered
-    proven = prove(world.version, stores(twin), reseeded)
-    assert (proven.development, proven.registered) == (registered, True)
-
-    pending = replace(
-        reseeded,
-        scenario_sets=replace(reseeded.scenario_sets, development=Pending("not yet selected")),
+    procedure = light(frozen())
+    frozen_at = commit_registration(checkout, procedure, "the procedure, frozen")
+    made = bound(world.version, procedure, frozen_commit=frozen_at)
+    head = commit_registration(checkout, made, "the world, bound")
+    store_runs(
+        twin,
+        world,
+        **{"run-1-1": export_of(world, world.scenarios[0], head, "run-1", registration=made)},
     )
-    drawn = prove(world.version, stores(twin), pending)
-    assert (drawn.development, drawn.registered) == (development_selection(world, reseeded), False)
+    status, out, err = run_job(capsys, twin, checkout, "evaluate", "--world-version", world.version)
+    assert (status, err) == (0, "")
+    lines = dict(line.split("=", 1) for line in out.splitlines())
+    assert (lines["label"], lines["inventory[eligible]"]) == ("reported", "1")
+    stored = LocalObjectReader(twin / "truth").get(lines["evaluation_key"])
+    assert stored is not None
+    read = json.loads(stored.content)["registration"]
+    assert (read["status"], read["frozen_commit"]) == ("bound", frozen_at)
 
-    # A registered list the world's tiers do not fit is refused, not replaced by a draw.
-    unbalanced = tuple(scenario.spec.id for scenario in world.scenarios[:6])
-    misfit = replace(DRAFT, scenario_sets=replace(DRAFT.scenario_sets, development=unbalanced))
-    with pytest.raises(ValueError, match="from each tier"):
-        prove(world.version, stores(twin), misfit)
+
+@pytest.mark.usefixtures("resolved_mechanism")
+def test_a_bound_registration_is_refused_unless_it_binds_this_world_and_the_frozen_procedure(
+    world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
+) -> None:
+    arguments = ("evaluate", "--world-version", world.version)
+    draft_at = checkout.head()
+    procedure = light(frozen())
+    frozen_at = commit_registration(checkout, procedure, "the procedure, frozen")
+
+    def refused(registration: Registration, message: str) -> str:
+        head = commit_registration(checkout, registration, message)
+        store = {f"run-{head[:7]}": export_of(world, world.scenarios[0], head, f"run-{head[:7]}")}
+        store_runs(twin, world, **store)
+        status, out, err = run_job(capsys, twin, checkout, *arguments)
+        assert (status, out) == (1, "")
+        assert err.startswith("leaveimpact.evaluator: refused: ") and "Traceback" not in err
+        return err
+
+    # A changed seed is a changed procedure, whatever else the file says.
+    reseeded = replace(procedure.statistics, seed=procedure.statistics.seed + 1)
+    changed = bound(world.version, replace(procedure, statistics=reseeded), frozen_commit=frozen_at)
+    err = refused(changed, "bound, with another seed")
+    assert f"is not the frozen one's at {frozen_at}; they differ in statistics" in err
+    # The commit named holds the draft, which nobody froze.
+    err = refused(bound(world.version, procedure, frozen_commit=draft_at), "bound to a draft")
+    assert f"the registration at the frozen commit {draft_at} is draft, not frozen" in err
+    err = refused(bound(world.version, procedure, frozen_commit=ABSENT_COMMIT), "bound to nothing")
+    assert f"the frozen commit {ABSENT_COMMIT} holds no registration" in err
+    err = refused(bound("e" * 64, procedure, frozen_commit=frozen_at), "bound to another world")
+    assert f"is bound to the world {'e' * 64}" in err and world.version in err
+    assert LocalObjectReader(twin / "truth").list_keys(evaluations_prefix(world.version)) == ()

@@ -3,33 +3,41 @@ evaluated runs in one pure pass.
 
 The registration says what is reported and the tables say how each number is computed;
 this module is the reading of the one through the other (the investigator milestone's
-sixth build step, rulings 2, 4 and 6), so that what an evaluation artifact holds is what
-was registered and nothing chosen after the runs were seen. Nothing here is stored or
-printed; the artifact and its codec are a later module's.
+sixth build step, rulings 2, 4 and 6; the contract step's rulings on the registration), so
+that what an evaluation artifact holds is what was registered and nothing chosen after the
+runs were seen. Nothing here is stored or printed; the artifact and its codec are another
+module's.
 
-Per scenario set, the full set and the primary one:
+Over every scenario of the world, there being one scenario set: no scenario of the
+measured world is tuned on, so none is held apart.
 
-- every arm, at the whole, each tier and each class: the accounting, the attempt summary
-  and the cost ledger. An arm under an answer-quality condition also carries the
-  registered checks in the registered readings and every row of every registered
-  measure: the answer side over all claims and per claim type, grounding and citations
-  over graded and over limited runs apart, source discipline and retrieval. An arm under
-  a degraded-condition assignment carries the
-  degraded table instead: there is no claim-level answer to score it against. An arm that
-  arrived without being registered is described like a degraded one, never scored.
-- the primary comparisons registered for the set, and the descriptive product. A
-  comparison is made on a measure's leading row, and only on the measures the
-  registration lists for comparison; the rest are reported per arm. A
-  comparison one of whose arms cannot be built, its system's variant still pending, is
-  kept and says so; it is never dropped, since a missing row would read as a smaller plan.
-- the repeat-consistency diagnostic on each primary check, when the plan repeats runs.
+- every arm, a system under a condition at a corpus level, at the whole, each tier and
+  each class: the accounting, the attempt summary and the cost ledger. An arm under an
+  answer-quality condition also carries the registered checks in both readings and every
+  row of every registered measure: the answer side over all claims and per claim type,
+  grounding and citations over graded and over limited runs apart, source discipline and
+  retrieval. An arm under a degraded-condition assignment carries the degraded table
+  instead: there is no claim-level answer to score it against. An arm that arrived without
+  being registered is described like a degraded one, never scored.
+- the primary comparison, the one a claim is made from, and the secondary ones: each the
+  overall contrast with the breakdowns named in advance beside it.
+- the descriptive comparisons: every registered pair at every registered place. A
+  comparison is made on a measure's leading row, and only on the measures the registration
+  lists for comparison; the rest are reported per arm.
+- the level contrasts: one system against itself across two corpus levels.
+- the repeat-consistency diagnostic on the primary check, when the plan repeats runs.
+- the headroom at each place the reference system runs under an answer-quality condition,
+  and the incidents: the scenarios where a source contradicted itself in some run.
+- the mechanism measure's state: what it is pending on, until it is resolved.
 
-The primary set exists once the development scenarios are registered; until then the set
-is reported as unavailable with the reason, the comparisons registered on it are kept
-with that reason, and the full set stands alone.
+Nothing registered is dropped. A comparison one of whose arms could not be built, its
+system still pending or its conditional group not decided as run, is kept and says so,
+since a missing row would read as a smaller plan; so are a level contrast and a place's
+headroom.
 
 A system's normal and outage arms are side by side here and never differenced: their
-oracles differ, so a difference between them would compare two questions.
+oracles differ, so a difference between them would compare two questions. Two levels of one
+system under one condition are differenced, the answers being the same at both.
 """
 
 from __future__ import annotations
@@ -41,12 +49,10 @@ from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.registration import (
-    Pending,
-    PrimaryComparison,
-    RegisteredArm,
+    Comparison,
+    LevelContrast,
     Registration,
     ReportingScope,
-    ScenarioSetName,
     StratumLevel,
     condition_id,
 )
@@ -63,7 +69,6 @@ from leaveimpact.evaluator.cells import (
     arms,
     attempt_summary_of,
     cells_of,
-    within,
 )
 from leaveimpact.evaluator.diagnostics import (
     DegradedRow,
@@ -71,11 +76,14 @@ from leaveimpact.evaluator.diagnostics import (
     degraded_table,
     repeat_consistency,
 )
+from leaveimpact.evaluator.headroom import Headroom, headroom_at
+from leaveimpact.evaluator.incidents import Incident, incident_scenarios, incidents_of
 from leaveimpact.evaluator.registered import (
+    Unbuilt,
+    mechanism_pending,
     preregistered,
     registered_check,
     registered_measures,
-    scenario_set,
 )
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.tables import (
@@ -92,6 +100,9 @@ from leaveimpact.evaluator.tables import (
     estimate_ratio,
 )
 from leaveimpact.evaluator.trace_metrics import Evaluation
+
+_ArmKey = tuple[SystemKind, str, str]
+"""A registered arm by its system's kind, its condition's identifier and its level."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -110,61 +121,73 @@ class CellAnalysis:
 
 @dataclass(frozen=True, slots=True)
 class ArmAnalysis:
-    """One system under one assigned condition: the condition by its registered
-    identifier, how the registration reports it (``None`` when the arm is not registered),
-    its cells, and the repeat-consistency diagnostic on each primary check where the plan
-    repeats runs and the arm is scored."""
+    """One system under one assigned condition at one corpus level: the condition by its
+    registered identifier, how the registration reports it (``None`` when the arm is not
+    registered), its cells, and the repeat-consistency diagnostic on the primary check
+    where the plan repeats runs and the arm is scored."""
 
     system: System
     condition: str
+    level: str
     reporting: ReportingScope | None
     cells: tuple[CellAnalysis, ...]
     consistency: tuple[RepeatConsistency, ...]
 
 
 @dataclass(frozen=True, slots=True)
-class PrimaryResult:
-    """One registered primary comparison: its result at each stratum of the registered
-    level, one for the whole, or why it could not be computed."""
+class ComparisonResult:
+    """One registered comparison between two systems: the overall contrast, which is the
+    comparison, the registered breakdowns beside it, or why it could not be computed."""
 
-    registered: PrimaryComparison
-    results: tuple[CheckComparison, ...]
+    registered: Comparison
+    overall: CheckComparison | None
+    breakdowns: tuple[CheckComparison, ...]
+    unavailable: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class LevelContrastResult:
+    """One registered contrast of a system with itself across two corpus levels: the
+    overall contrast, the registered breakdowns, or why it could not be computed."""
+
+    registered: LevelContrast
+    overall: CheckComparison | None
+    breakdowns: tuple[CheckComparison, ...]
     unavailable: str | None
 
 
 @dataclass(frozen=True, slots=True)
 class DescriptiveResult:
-    """The descriptive comparisons of one pair of systems under one condition, at every
-    registered stratum: the checks in the registered readings and the measures over all
-    claims. ``unavailable`` says why when an arm of the pair cannot be built."""
+    """The descriptive comparisons of one pair of systems at one place, at every registered
+    stratum: the checks in the registered readings and the measures over all claims.
+    ``unavailable`` says why when an arm of the pair could not be built."""
 
     systems: tuple[SystemKind, SystemKind]
     condition: str
+    level: str
     checks: tuple[CheckComparison, ...]
     measures: tuple[RatioComparison, ...]
     unavailable: str | None
 
 
 @dataclass(frozen=True, slots=True)
-class SetAnalysis:
-    """Everything registered over one scenario set, or why the set could not be cut."""
-
-    name: ScenarioSetName
-    scenarios: tuple[ScenarioId, ...]
-    arms: tuple[ArmAnalysis, ...]
-    primary: tuple[PrimaryResult, ...]
-    descriptive: tuple[DescriptiveResult, ...]
-    unavailable: str | None
-
-
-@dataclass(frozen=True, slots=True)
 class Analysis:
     """The registered analysis of a set of runs: the plan it was cut under, the registered
-    arms that could not be built, and each scenario set, the full one first."""
+    cells that plan does not hold, the world's scenarios, and everything registered over
+    them. ``mechanism_pending`` is what the mechanism measure waits on, ``None`` once it
+    is resolved."""
 
     plan: Preregistered
-    pending_arms: tuple[RegisteredArm, ...]
-    sets: tuple[SetAnalysis, ...]
+    unbuilt: tuple[Unbuilt, ...]
+    scenarios: tuple[ScenarioId, ...]
+    arms: tuple[ArmAnalysis, ...]
+    primary: ComparisonResult
+    secondary: tuple[ComparisonResult, ...]
+    descriptive: tuple[DescriptiveResult, ...]
+    level_contrasts: tuple[LevelContrastResult, ...]
+    mechanism_pending: str | None
+    headroom: tuple[Headroom, ...]
+    incidents: tuple[Incident, ...]
 
 
 def analyse(
@@ -172,62 +195,41 @@ def analyse(
 ) -> Analysis:
     """What ``registration`` reports of ``evaluations`` against ``world``.
 
-    Raises ``ValueError`` for what the projection and the scenario sets refuse: a name
-    this evaluator does not hold, no arm that can be built, a registered development list
-    that does not fit the world.
+    Raises ``ValueError`` for what the projection refuses: a name this evaluator does not
+    hold, a prefetch or an anchor table that is not this code's, no cell that can be built.
     """
     projection = preregistered(registration)
     plan = projection.plan
     built = arms(world, evaluations, plan)
-    sets: list[SetAnalysis] = []
-    for name in (ScenarioSetName.FULL, ScenarioSetName.PRIMARY):
-        development = registration.scenario_sets.development
-        if name is ScenarioSetName.PRIMARY and isinstance(development, Pending):
-            reason = f"the development scenarios are pending ({development.awaiting})"
-            kept = tuple(
-                PrimaryResult(comparison, (), reason)
-                for comparison in registration.statistics.primary
-                if comparison.scenario_set is name
-            )
-            sets.append(SetAnalysis(name, (), (), kept, (), reason))
-            continue
-        scenarios = scenario_set(world, registration, name)
-        whole = name is ScenarioSetName.FULL
-        cut = tuple(arm if whole else within(arm, scenarios) for arm in built)
-        sets.append(_set_analysis(name, scenarios, cut, registration, plan))
-    return Analysis(plan, projection.pending_arms, tuple(sets))
-
-
-def _set_analysis(
-    name: ScenarioSetName,
-    scenarios: tuple[ScenarioId, ...],
-    built: tuple[Arm, ...],
-    registration: Registration,
-    plan: Preregistered,
-) -> SetAnalysis:
-    statistics = registration.statistics
-    by_arm = {
-        (arm.system.kind, _condition_of(arm.assigned)): arm for arm in built if arm.registered
-    }
-    primary = tuple(
-        _primary(comparison, by_arm, plan)
-        for comparison in statistics.primary
-        if comparison.scenario_set is name
+    incidents = incidents_of(built)
+    reading = _Reading(
+        registration,
+        plan,
+        {
+            (arm.system.kind, _condition_of(arm.assigned), arm.level): arm
+            for arm in built
+            if arm.registered
+        },
+        {unbuilt.cell.place: unbuilt for unbuilt in projection.unbuilt},
+        incident_scenarios(incidents),
     )
-    descriptive: tuple[DescriptiveResult, ...] = ()
-    if name in statistics.descriptive.scenario_sets:
-        descriptive = tuple(
-            _descriptive(pair, condition, by_arm, registration, plan)
+    statistics = registration.statistics
+    return Analysis(
+        plan=plan,
+        unbuilt=projection.unbuilt,
+        scenarios=tuple(scenario.spec.id for scenario in world.scenarios),
+        arms=tuple(_arm_analysis(arm, registration, plan) for arm in built),
+        primary=reading.comparison(statistics.primary),
+        secondary=tuple(reading.comparison(each) for each in statistics.secondary),
+        descriptive=tuple(
+            reading.descriptive(pair, place.condition, place.level)
+            for place in statistics.descriptive.places
             for pair in statistics.descriptive.pairs
-            for condition in statistics.descriptive.conditions
-        )
-    return SetAnalysis(
-        name,
-        scenarios,
-        tuple(_arm_analysis(arm, registration, plan) for arm in built),
-        primary,
-        descriptive,
-        None,
+        ),
+        level_contrasts=tuple(reading.level_contrast(each) for each in statistics.level_contrasts),
+        mechanism_pending=mechanism_pending(registration),
+        headroom=reading.headroom(),
+        incidents=incidents,
     )
 
 
@@ -240,15 +242,13 @@ def _arm_analysis(arm: Arm, registration: Registration, plan: Preregistered) -> 
     registered = registration.outage.condition(condition) if arm.registered else None
     reporting = registered.reporting if registered is not None else None
     scored = reporting is ReportingScope.ANSWER_QUALITY
-    statistics = registration.statistics
     cells = tuple(_cell_analysis(cell, scored, registration, plan) for cell in cells_of(arm))
-    consistency: list[RepeatConsistency] = []
+    consistency: tuple[RepeatConsistency, ...] = ()
     if scored:
-        for name in dict.fromkeys(comparison.check for comparison in statistics.primary):
-            found = repeat_consistency(cells_of(arm)[0], registered_check(name), plan)
-            if found is not None:
-                consistency.append(found)
-    return ArmAnalysis(arm.system, condition, reporting, cells, tuple(consistency))
+        check = registered_check(registration.statistics.primary.check)
+        found = repeat_consistency(cells_of(arm)[0], check, plan)
+        consistency = () if found is None else (found,)
+    return ArmAnalysis(arm.system, condition, arm.level, reporting, cells, consistency)
 
 
 def _cell_analysis(
@@ -292,78 +292,162 @@ def _strata(arm: Arm, levels: Iterable[StratumLevel]) -> dict[Stratum, Cell]:
     return {cell.stratum: cell for cell in cells_of(arm) if cell.stratum.kind in wanted}
 
 
-def _pending_reason(
-    systems: tuple[SystemKind, SystemKind],
-    condition: str,
-    by_arm: dict[tuple[SystemKind, str], Arm],
-) -> str | None:
-    absent = [system.value for system in systems if (system, condition) not in by_arm]
-    if not absent:
-        return None
-    return f"no arm could be built for {' and '.join(absent)} under {condition}"
+@dataclass(frozen=True, slots=True)
+class _Reading:
+    """What every comparison is read from: the registration, the plan, the registered arms
+    that were built, the registered cells that were not, and the scenarios with an incident."""
 
+    registration: Registration
+    plan: Preregistered
+    built: dict[_ArmKey, Arm]
+    unbuilt: dict[_ArmKey, Unbuilt]
+    incidents: frozenset[ScenarioId]
 
-def _primary(
-    comparison: PrimaryComparison,
-    by_arm: dict[tuple[SystemKind, str], Arm],
-    plan: Preregistered,
-) -> PrimaryResult:
-    reason = _pending_reason(comparison.systems, comparison.condition, by_arm)
-    if reason is not None:
-        return PrimaryResult(comparison, (), reason)
-    first, second = (
-        _strata(by_arm[system, comparison.condition], (comparison.stratum,))
-        for system in comparison.systems
-    )
-    check = registered_check(comparison.check)
-    reading = Reading(comparison.reading.value)
-    results = tuple(
-        compare_check(first[stratum], second[stratum], check, reading, plan)
-        for stratum in first
-        if stratum in second
-    )
-    return PrimaryResult(comparison, results, None)
+    def absent(self, *keys: _ArmKey) -> str | None:
+        """Why a comparison over the arms ``keys`` cannot be made, naming each arm that
+        could not be built with what the registration says of it; ``None`` when all were."""
+        missing = [
+            f"{system.value} under {condition} at {level}"
+            + (
+                f" ({self.unbuilt[system, condition, level].why.value}: "
+                f"{self.unbuilt[system, condition, level].detail})"
+                if (system, condition, level) in self.unbuilt
+                else ""
+            )
+            for system, condition, level in keys
+            if (system, condition, level) not in self.built
+        ]
+        return f"no arm could be built for {' and '.join(missing)}" if missing else None
 
+    def contrast(
+        self,
+        first: _ArmKey,
+        second: _ArmKey,
+        check: str,
+        reading: Reading,
+        breakdowns: tuple[StratumLevel, ...],
+    ) -> tuple[CheckComparison | None, tuple[CheckComparison, ...]]:
+        """``check`` in the arm ``first`` less the arm ``second``: at the whole, and at each
+        stratum of ``breakdowns`` both arms hold."""
+        levels = (StratumLevel.OVERALL, *breakdowns)
+        ours, theirs = (_strata(self.built[key], levels) for key in (first, second))
+        results = [
+            compare_check(
+                ours[stratum],
+                theirs[stratum],
+                registered_check(check),
+                reading,
+                self.plan,
+                incidents=self.incidents,
+            )
+            for stratum in ours
+            if stratum in theirs
+        ]
+        overall = [each for each in results if each.stratum.kind is StratumKind.OVERALL]
+        rest = tuple(each for each in results if each.stratum.kind is not StratumKind.OVERALL)
+        return (overall[0] if overall else None), rest
 
-def _descriptive(
-    systems: tuple[SystemKind, SystemKind],
-    condition: str,
-    by_arm: dict[tuple[SystemKind, str], Arm],
-    registration: Registration,
-    plan: Preregistered,
-) -> DescriptiveResult:
-    reason = _pending_reason(systems, condition, by_arm)
-    if reason is not None:
-        return DescriptiveResult(systems, condition, (), (), reason)
-    registered = registration.statistics.descriptive
-    first, second = (_strata(by_arm[system, condition], registered.strata) for system in systems)
-    shared = [stratum for stratum in first if stratum in second]
-    checks = tuple(
-        compare_check(
-            first[stratum],
-            second[stratum],
-            registered_check(name),
-            Reading(reading.value),
-            plan,
+    def comparison(self, registered: Comparison) -> ComparisonResult:
+        first, second = (
+            (system, registered.condition, registered.level) for system in registered.systems
         )
-        for stratum in shared
-        for name in registered.checks
-        for reading in registered.readings
-    )
-    measures = tuple(
-        compare_ratio(first[stratum], second[stratum], registered_measures(name)[0], plan)
-        for stratum in shared
-        for name in registered.measures
-    )
-    return DescriptiveResult(systems, condition, checks, measures, None)
+        reason = self.absent(first, second)
+        if reason is not None:
+            return ComparisonResult(registered, None, (), reason)
+        overall, breakdowns = self.contrast(
+            first,
+            second,
+            registered.check,
+            Reading(registered.reading.value),
+            registered.breakdowns,
+        )
+        return ComparisonResult(registered, overall, breakdowns, None)
+
+    def level_contrast(self, registered: LevelContrast) -> LevelContrastResult:
+        first, second = (
+            (registered.system, registered.condition, level) for level in registered.levels
+        )
+        reason = self.absent(first, second)
+        if reason is not None:
+            return LevelContrastResult(registered, None, (), reason)
+        overall, breakdowns = self.contrast(
+            first,
+            second,
+            registered.check,
+            Reading(registered.reading.value),
+            registered.breakdowns,
+        )
+        return LevelContrastResult(registered, overall, breakdowns, None)
+
+    def descriptive(
+        self, systems: tuple[SystemKind, SystemKind], condition: str, level: str
+    ) -> DescriptiveResult:
+        first, second = ((system, condition, level) for system in systems)
+        reason = self.absent(first, second)
+        if reason is not None:
+            return DescriptiveResult(systems, condition, level, (), (), reason)
+        registered = self.registration.statistics.descriptive
+        ours, theirs = (_strata(self.built[key], registered.strata) for key in (first, second))
+        shared = [stratum for stratum in ours if stratum in theirs]
+        checks = tuple(
+            compare_check(
+                ours[stratum],
+                theirs[stratum],
+                registered_check(name),
+                Reading(reading.value),
+                self.plan,
+                incidents=self.incidents,
+            )
+            for stratum in shared
+            for name in registered.checks
+            for reading in registered.readings
+        )
+        measures = tuple(
+            compare_ratio(
+                ours[stratum],
+                theirs[stratum],
+                registered_measures(name)[0],
+                self.plan,
+                incidents=self.incidents,
+            )
+            for stratum in shared
+            for name in registered.measures
+        )
+        return DescriptiveResult(systems, condition, level, checks, measures, None)
+
+    def headroom(self) -> tuple[Headroom, ...]:
+        """The headroom at each place the reference system has a registered cell under an
+        answer-quality condition, in the registration's order."""
+        procedure = self.registration.statistics.headroom
+        check = registered_check(procedure.check)
+        reading = Reading(procedure.reading.value)
+        found: list[Headroom] = []
+        for cell in self.registration.cells:
+            condition = self.registration.outage.condition(cell.condition)
+            assert condition is not None, cell
+            if (
+                cell.system is not procedure.reference
+                or condition.reporting is not ReportingScope.ANSWER_QUALITY
+            ):
+                continue
+            arm = self.built.get(cell.place)
+            if arm is None:
+                reason = self.absent(cell.place)
+                found.append(Headroom(cell.condition, cell.level, None, None, reason))
+                continue
+            whole = cells_of(arm)[0]
+            found.append(
+                headroom_at(cell.condition, cell.level, whole, check, reading, self.plan)
+            )
+        return tuple(found)
 
 
 __all__ = [
     "Analysis",
     "ArmAnalysis",
     "CellAnalysis",
+    "ComparisonResult",
     "DescriptiveResult",
-    "PrimaryResult",
-    "SetAnalysis",
+    "LevelContrastResult",
     "analyse",
 ]

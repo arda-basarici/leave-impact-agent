@@ -16,8 +16,9 @@ import pytest
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
-    AgentSystem,
     CandidateAssessment,
+    CheckReading,
+    Comparison,
     Component,
     CoverageAction,
     HarnessRevision,
@@ -25,21 +26,22 @@ from leaveimpact.core import (
     Observed,
     PrefetchRule,
     PricingBasis,
-    Registration,
     ReportedUsage,
     RunExport,
-    SingleShotSystem,
     Source,
+    StratumLevel,
     System,
     SystemKind,
     TreeState,
     condition_id,
     cost_of_reported,
-    decode_registration_bytes,
+    employee_ref,
     export_bytes,
     registration_bytes,
 )
+from leaveimpact.core.contradictions import Contradiction, ContradictionKind
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.run_trace import OperationId
 from leaveimpact.evaluator.analysis import analyse
 from leaveimpact.evaluator.artifact import (
     ChangedPath,
@@ -49,11 +51,10 @@ from leaveimpact.evaluator.artifact import (
     evaluation_artifact,
 )
 from leaveimpact.evaluator.artifact_json import artifact_bytes, encode_artifact
-from leaveimpact.evaluator.registered import development_selection
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
 from leaveimpact.world import Scenario
-from tests.unit.evaluation_fixture import NORMAL, evaluated, relabelled, truthful
+from tests.unit.evaluation_fixture import BASE, NORMAL, PADDED, evaluated, relabelled, truthful
 from tests.unit.export_fixture import (
     BASIS,
     SELECTION,
@@ -66,6 +67,8 @@ from tests.unit.export_fixture import (
 )
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holding
+from tests.unit.registration_fixture import DRAFT as COMMITTED
+from tests.unit.registration_fixture import decided, light, named
 from tests.unit.report_fixture import of_type, without
 from tests.unit.throwaway_world import loaded_world
 
@@ -76,11 +79,7 @@ REVISION = EvaluatorRevision(
     COMMIT, "c" * 40, (ChangedPath("src/leaveimpact/evaluator/tables.py", "1" * 40, None),)
 )
 
-_COMMITTED = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
-# The registered resample count buys precision these tests do not need.
-DRAFT = replace(_COMMITTED, statistics=replace(_COMMITTED.statistics, resamples=200))
+DRAFT = light(COMMITTED)
 DRAFT_BYTES = registration_bytes(DRAFT)
 
 
@@ -111,6 +110,7 @@ def exported(
     provenance = rules_only_provenance(
         DRAFT,
         condition_id(down),
+        "base",
         harness=HarnessRevision(COMMIT, TreeState.CLEAN),
         preregistration_commit=COMMIT,
         pricing=PricingBasis(DIGEST, "USD", date(2026, 9, 1), ()),
@@ -213,30 +213,49 @@ def artifact(world: SealedWorld) -> EvaluationArtifact:
     return artifact_of(world)
 
 
-def three_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
-    """An artifact whose analysis compares three named systems, ``repeats`` runs a scenario:
-    one run gives the two-by-two counts and Wilson's interval, two the bootstrap's and the
-    repeat-consistency diagnostic. The baseline's wrong reports fall on every third
-    scenario, shifted by the run, so the two systems differ by scenario at either count: a
+def named_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
+    """An artifact whose analysis compares named systems at two corpus levels, ``repeats``
+    runs a scenario: one run gives the two-by-two counts and Wilson's interval, two the
+    bootstrap's and the repeat-consistency diagnostic.
+
+    Chosen to reach every type the analysis holds. The agent and full context are named
+    and the conditional group decided, so the primary is computed; a secondary between the
+    agent and the baseline stands in for the registered ones, which need the single-shot
+    system this registration format cannot resolve. Each system's wrong reports fall on a
+    different stride of scenarios, shifted by the run, so every pair of arms that is
+    compared differs by scenario at either count, two systems or two levels of one: a
     difference that is the same in every scenario resamples to one value, and the walk
-    would then never reach a comparison's interval."""
-    agent, single_shot = (
+    would then never reach a comparison's interval. One of the agent's runs met a source
+    that contradicted itself, so there is an incident with a run that met it and runs that
+    did not.
+    """
+    agent, full_context = (
         System(SystemKind.AGENT, "graph"),
-        System(SystemKind.SINGLE_SHOT, "one-call"),
+        System(SystemKind.FULL_CONTEXT, "all-documents"),
     )
-    systems = tuple(
-        replace(system, variant=agent.variant)
-        if isinstance(system, AgentSystem)
-        else replace(system, variant=single_shot.variant)
-        if isinstance(system, SingleShotSystem)
-        else system
-        for system in DRAFT.systems
+    registration = decided(
+        named(DRAFT, agent=agent.variant, full_context=full_context.variant), True
     )
-    registration: Registration = replace(
-        DRAFT,
-        systems=systems,
-        run_accounting=replace(DRAFT.run_accounting, repeats=repeats),
-        scenario_sets=replace(DRAFT.scenario_sets, development=development_selection(world, DRAFT)),
+    against_rules = Comparison(
+        "correct_whole",
+        CheckReading.END_TO_END,
+        "normal",
+        BASE,
+        (SystemKind.AGENT, SystemKind.RULES_ONLY),
+        (StratumLevel.TIER,),
+    )
+    registration = replace(
+        registration,
+        run_accounting=replace(registration.run_accounting, repeats=repeats),
+        statistics=replace(registration.statistics, secondary=(against_rules,)),
+    )
+    struck = world.scenarios[3]
+    contradiction = Contradiction(
+        ContradictionKind.RETURNS_DIFFER,
+        employee_ref(struck.investigated_leave.employee_id),
+        OperationId("op-2"),
+        OperationId("op-9"),
+        OperationId("op-9"),
     )
     runs: list[Evaluation] = []
     for position, scenario in enumerate(world.scenarios):
@@ -246,9 +265,24 @@ def three_systems(world: SealedWorld, repeats: int) -> EvaluationArtifact:
         wrong = evaluated(world, scenario, claims=without(report, actions[0])) if actions else right
         for number in range(repeats):
             name = f"run-{number}"
-            runs.append(relabelled(right, run_id=name, system=agent))
-            missed = (position + number) % 3 == 0
-            runs.append(relabelled(wrong if missed else right, run_id=name))
+
+            def run(
+                missed: bool, system: System | None = None, level: str | None = None
+            ) -> Evaluation:
+                made = wrong if missed else right  # noqa: B023
+                return relabelled(made, run_id=name, system=system, level=level)  # noqa: B023
+
+            turn = position + number
+            padded_agent = run(turn % 4 == 0, system=agent, level=PADDED)
+            if scenario is struck and number == 0:
+                padded_agent = replace(padded_agent, contradictions=(contradiction,))
+            runs += [
+                run(turn % 3 == 0),
+                run(False, system=agent),
+                padded_agent,
+                run(False, system=full_context),
+                run(turn % 3 == 1, system=full_context, level=PADDED),
+            ]
     return replace(artifact_of_none(world), analysis=analyse(world, runs, registration))
 
 
@@ -316,7 +350,8 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
     written = encode_artifact(artifact)
     graded = entry(written, "runs/1")
     run = cast("dict[str, dict[str, object]]", graded["run"])
-    assert list(run) == ["assigned", "outcome", "operation_findings", "prefetch"]
+    assert list(run) == ["assigned", "level", "outcome", "operation_findings", "prefetch"]
+    assert run["level"] == "base"
     outcome = run["outcome"]
     assert (outcome["kind"], outcome["condition"]) == ("graded", {"unreachable": []})
     held = artifact.inventory[0].evaluation
@@ -397,7 +432,7 @@ def test_every_key_path_the_walk_writes_is_the_pinned_one(
     world: SealedWorld, artifact: EvaluationArtifact
 ) -> None:
     written: set[str] = set()
-    for held in (artifact, three_systems(world, 1), three_systems(world, 2)):
+    for held in (artifact, named_systems(world, 1), named_systems(world, 2)):
         written |= paths(encode_artifact(held))
     pinned = set(SHAPE.read_text(encoding="utf-8").split())
     assert written == pinned, (

@@ -1,50 +1,58 @@
 """A rules-only run's provenance comes from the registration: the assigned sources, the
-schedule's digest, the registered caps and variant under each of the five conditions, with
-the model systems still pending; and a registration this harness cannot execute as written
-refuses, naming what differs: an unregistered arm, another outage protocol, another
-prefetch, another reporting policy, a pending variant, no rules-only system."""
+schedule's digest, the corpus level, the registered caps and variant for each of the six
+cells the baseline has, with the model systems still pending; and a registration this
+harness cannot execute as written refuses, naming what differs: a cell that is not
+registered or whose group is not decided as run, another outage protocol, another prefetch,
+another composing policy or anchor table, a pending variant, no rules-only system."""
 
 from dataclasses import replace
 from datetime import date
-from pathlib import Path
 
 import pytest
 
+from leaveimpact.agent.composer import composing_policy
 from leaveimpact.agent.export import RunProvenance
 from leaveimpact.agent.registered import rules_only_provenance
-from leaveimpact.agent.report import REPORTING_POLICY
 from leaveimpact.core import (
     HarnessRevision,
     Pending,
     PricingBasis,
+    RegisteredCell,
     RegisteredPrefetch,
     Registration,
     RulesOnlySystem,
     Source,
     SystemKind,
     TreeState,
-    decode_registration_bytes,
     pending_fields,
     schedule_digest,
 )
+from tests.unit.registration_fixture import DRAFT, decided
 
-DRAFT = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
 HARNESS = HarnessRevision("b" * 40, TreeState.CLEAN)
 COMMIT = "c" * 40
 PRICING = PricingBasis("a" * 64, "USD", date(2026, 9, 1), ())
+GROUP = "full_context_under_outage"
 
 
-def provenance(registration: Registration, condition: str) -> RunProvenance:
+def provenance(registration: Registration, condition: str, level: str = "base") -> RunProvenance:
     return rules_only_provenance(
-        registration, condition, harness=HARNESS, preregistration_commit=COMMIT, pricing=PRICING
+        registration,
+        condition,
+        level,
+        harness=HARNESS,
+        preregistration_commit=COMMIT,
+        pricing=PRICING,
     )
 
 
 def with_rules_only(registration: Registration, system: RulesOnlySystem) -> Registration:
-    others = tuple(s for s in registration.systems if s.kind is not SystemKind.RULES_ONLY)
-    return replace(registration, systems=(*others, system))
+    return replace(
+        registration,
+        systems=tuple(
+            system if held.kind is SystemKind.RULES_ONLY else held for held in registration.systems
+        ),
+    )
 
 
 def rules_only_of(registration: Registration) -> RulesOnlySystem:
@@ -54,23 +62,25 @@ def rules_only_of(registration: Registration) -> RulesOnlySystem:
 
 
 @pytest.mark.parametrize(
-    ("condition", "down"),
+    ("condition", "level", "down"),
     [
-        ("normal", frozenset[Source]()),
-        ("jira_down", frozenset({Source.JIRA})),
-        ("calendar_down", frozenset({Source.CALENDAR})),
-        ("frappe_down", frozenset({Source.FRAPPE})),
-        ("corpus_down", frozenset({Source.CORPUS})),
+        ("normal", "base", frozenset[Source]()),
+        ("normal", "padded", frozenset[Source]()),
+        ("jira_down", "base", frozenset({Source.JIRA})),
+        ("calendar_down", "base", frozenset({Source.CALENDAR})),
+        ("frappe_down", "base", frozenset({Source.FRAPPE})),
+        ("corpus_down", "base", frozenset({Source.CORPUS})),
     ],
 )
-def test_the_draft_gives_a_rules_only_run_its_provenance_under_each_registered_condition(
-    condition: str, down: frozenset[Source]
+def test_the_draft_gives_a_rules_only_run_its_provenance_for_each_of_its_cells(
+    condition: str, level: str, down: frozenset[Source]
 ) -> None:
     assert pending_fields(DRAFT), "the model systems are still pending and do not block this"
-    built = provenance(DRAFT, condition)
+    built = provenance(DRAFT, condition, level)
     assert built.outage.scheduled_unreachable == down
     assert built.outage.schedule_digest == schedule_digest(DRAFT.outage)
-    assert built.caps == DRAFT.caps.caps
+    assert built.corpus_level == level
+    assert built.caps == rules_only_of(DRAFT).caps.caps
     assert built.variant == "reference"
     assert (built.harness, built.preregistration_commit, built.pricing) == (
         HARNESS,
@@ -79,24 +89,44 @@ def test_the_draft_gives_a_rules_only_run_its_provenance_under_each_registered_c
     )
 
 
-def test_the_registered_policy_is_the_one_declared_beside_the_policy() -> None:
-    assert rules_only_of(DRAFT).policy == REPORTING_POLICY
-
-
-def test_an_arm_that_is_not_registered_refuses() -> None:
-    with pytest.raises(ValueError, match="no arm is registered for rules_only under 'slack_down'"):
+def test_a_cell_that_is_not_registered_refuses() -> None:
+    refusal = "no cell is registered for rules_only under 'slack_down' at 'base'"
+    with pytest.raises(ValueError, match=refusal):
         provenance(DRAFT, "slack_down")
+    # No outage runs at the padded level, and a level nobody registered is no cell either.
+    with pytest.raises(ValueError, match="under 'jira_down' at 'padded'"):
+        provenance(DRAFT, "jira_down", "padded")
+    with pytest.raises(ValueError, match="under 'normal' at 'doubled'"):
+        provenance(DRAFT, "normal", "doubled")
     cut = replace(
         DRAFT,
-        arms=tuple(
-            arm
-            for arm in DRAFT.arms
-            if (arm.system, arm.condition) != (SystemKind.RULES_ONLY, "corpus_down")
+        cells=tuple(
+            cell
+            for cell in DRAFT.cells
+            if cell.place != (SystemKind.RULES_ONLY, "corpus_down", "base")
         ),
     )
-    with pytest.raises(ValueError, match="no arm is registered for rules_only under 'corpus_down'"):
+    with pytest.raises(ValueError, match="rules_only under 'corpus_down' at 'base'"):
         provenance(cut, "corpus_down")
     assert provenance(cut, "normal").variant == "reference"
+
+
+def test_a_cell_whose_group_is_not_decided_as_run_refuses() -> None:
+    # The baseline's corpus-outage cell put into the conditional group, for the test.
+    grouped = replace(
+        DRAFT,
+        cells=tuple(
+            RegisteredCell(cell.system, cell.condition, cell.level, GROUP)
+            if cell.place == (SystemKind.RULES_ONLY, "corpus_down", "base")
+            else cell
+            for cell in DRAFT.cells
+        ),
+    )
+    for undecided in (grouped, decided(grouped, False)):
+        with pytest.raises(ValueError, match=f"the group {GROUP}, which is not decided as run"):
+            provenance(undecided, "corpus_down")
+        assert provenance(undecided, "normal").variant == "reference"
+    assert provenance(decided(grouped, True), "corpus_down").corpus_level == "base"
 
 
 def test_another_outage_protocol_refuses() -> None:
@@ -117,32 +147,44 @@ def test_another_prefetch_refuses_in_each_of_its_three_parts() -> None:
             provenance(replace(DRAFT, prefetch=changed), "normal")
 
 
-def test_another_reporting_policy_refuses_in_each_of_its_three_parts() -> None:
-    system = rules_only_of(DRAFT)
+def test_another_composing_policy_or_anchor_table_refuses() -> None:
+    stated = DRAFT.stated_facts
+    assert stated.composing_policy == composing_policy()
     for changed in (
-        replace(system.policy, identifier="another-report"),
-        replace(system.policy, version=system.policy.version + 1),
-        replace(system.policy, tie_break="last_viable"),
+        replace(stated.composing_policy, identifier="another-composer"),
+        replace(stated.composing_policy, digest="0" * 64),
     ):
-        other = with_rules_only(DRAFT, replace(system, policy=changed))
-        with pytest.raises(ValueError, match="the registered reporting policy is .*this harness"):
+        other = replace(DRAFT, stated_facts=replace(stated, composing_policy=changed))
+        with pytest.raises(
+            ValueError, match="the registered composing policy is .*this harness composes under"
+        ):
             provenance(other, "normal")
+    other = replace(DRAFT, stated_facts=replace(stated, anchor_table="0" * 64))
+    with pytest.raises(ValueError, match="the registered anchor table is 0{64}, this harness"):
+        provenance(other, "normal")
 
 
 def test_a_pending_variant_or_no_rules_only_system_refuses() -> None:
     pending = with_rules_only(DRAFT, replace(rules_only_of(DRAFT), variant=Pending("not named")))
-    with pytest.raises(ValueError, match=r"the rules-only variant is pending \(not named\)"):
+    with pytest.raises(
+        ValueError,
+        match=r"the rules-only system has a value pending \(systems.rules_only.variant\)",
+    ):
         provenance(pending, "normal")
-    kept = tuple(s for s in DRAFT.systems if s.kind is SystemKind.AGENT)
-    agent_only = replace(
+    kept = SystemKind.RULES_ONLY
+    statistics = DRAFT.statistics
+    without = replace(
         DRAFT,
-        systems=kept,
-        arms=tuple(arm for arm in DRAFT.arms if arm.system is SystemKind.AGENT),
+        systems=tuple(system for system in DRAFT.systems if system.kind is not kept),
+        cells=tuple(cell for cell in DRAFT.cells if cell.system is not kept),
         statistics=replace(
-            DRAFT.statistics,
-            primary=(),
-            descriptive=replace(DRAFT.statistics.descriptive, pairs=()),
+            statistics,
+            descriptive=replace(
+                statistics.descriptive,
+                pairs=tuple(pair for pair in statistics.descriptive.pairs if kept not in pair),
+            ),
+            headroom=replace(statistics.headroom, reference=SystemKind.AGENT),
         ),
     )
     with pytest.raises(ValueError, match="the registration names no rules-only system"):
-        provenance(agent_only, "normal")
+        provenance(without, "normal")

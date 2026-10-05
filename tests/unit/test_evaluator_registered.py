@@ -6,16 +6,13 @@ conflict resolution or unknown reason, an unexpected claim, an invalid claim set
 the reads do not support fails the replay alone, an empty report is outside the replay
 check, and a run that was not graded is outside the other two. The registries resolve the
 registered names and refuse any other. The projection gives the plan the tables are cut
-under, over the arms whose variant is resolved, naming the ones it left out. The scenario
-sets and the development
-selection: two per tier, the same draw every time, by tier alone; the primary set is the
-rest, refused while the selection is pending. And a repeat the plan intended and nobody made
-keeps its scenario a repeated one."""
+under, a registered cell an arm of it unless its system has a value pending or its
+conditional group is not decided as run, and names each cell it left out with why; a
+prefetch or an anchor table that is not this code's, an interval method or a resolved
+mechanism measure this evaluator does not hold, refuse whole. And a repeat the plan
+intended and nobody made keeps its scenario a repeated one."""
 
-import re
 from dataclasses import replace
-from pathlib import Path
-from traceback import format_exception
 
 import pytest
 
@@ -28,10 +25,7 @@ from leaveimpact.core import (
     FailureCategory,
     Impact,
     Pending,
-    Registration,
     RunCondition,
-    ScenarioId,
-    ScenarioSetName,
     Source,
     SourceConflict,
     System,
@@ -39,26 +33,21 @@ from leaveimpact.core import (
     Unknown,
     UnknownReason,
     Verdict,
-    decode_registration_bytes,
 )
-from leaveimpact.evaluator.cells import (
-    CountedAttempt,
-    MissingRepeat,
-    arms,
-    cells_of,
-    within,
-)
+from leaveimpact.evaluator.cells import CountedAttempt, MissingRepeat, arms, cells_of
 from leaveimpact.evaluator.grading import Graded, correct_whole
 from leaveimpact.evaluator.intervals import Unresolved
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.registered import (
     CHECKS,
+    INTERVAL_METHODS,
     MEASURES,
-    development_selection,
+    MECHANISM_MEASURES,
+    WhyUnbuilt,
+    mechanism_pending,
     preregistered,
     registered_check,
     registered_measures,
-    scenario_set,
 )
 from leaveimpact.evaluator.rows import Expectation
 from leaveimpact.evaluator.run_checks import CORRECT_WHOLE, EXPECTED_ACTION, REPRODUCED_WHOLE
@@ -66,16 +55,14 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.tables import Reading, compare_check, estimate_check
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world import Scenario
-from leaveimpact.world.scenario import Tier
 from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
 from tests.unit.export_fixture import provider_failed_export
+from tests.unit.registration_fixture import DRAFT, MECHANISM, decided, frozen, named
 from tests.unit.report_fixture import of_type, renumbered, swapped, without
 from tests.unit.throwaway_world import loaded_world
 
 LONE = Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
-DRAFT = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
+GROUP = "full_context_under_outage"
 
 
 @pytest.fixture(scope="module")
@@ -108,17 +95,6 @@ def answers(evaluation: Evaluation) -> tuple[bool | None, bool | None, bool | No
 def graded(evaluation: Evaluation) -> Graded:
     assert isinstance(evaluation.outcome, Graded), type(evaluation.outcome).__name__
     return evaluation.outcome
-
-
-def selection_pending(registration: Registration) -> Registration:
-    """``registration`` as it stood before its development scenarios were selected."""
-    sets = replace(registration.scenario_sets, development=Pending("not yet selected"))
-    return replace(registration, scenario_sets=sets)
-
-
-def with_development(registration: Registration, *ids: str) -> Registration:
-    sets = replace(registration.scenario_sets, development=tuple(ScenarioId(i) for i in ids))
-    return replace(registration, scenario_sets=sets)
 
 
 # --- The three checks --------------------------------------------------------------------------
@@ -333,7 +309,7 @@ def test_every_name_the_draft_registers_resolves_and_any_other_is_refused() -> N
 # --- The projection ----------------------------------------------------------------------------
 
 
-def test_the_draft_projects_the_rules_only_arms_and_names_the_ten_it_left_out() -> None:
+def test_the_draft_projects_the_rules_only_cells_and_names_the_eighteen_it_left_out() -> None:
     projection = preregistered(DRAFT)
     plan = projection.plan
     assert (plan.confidence, plan.seed, plan.resamples) == (0.95, 20261003, 10_000)
@@ -342,26 +318,82 @@ def test_the_draft_projects_the_rules_only_arms_and_names_the_ten_it_left_out() 
     assert plan.missing_repeat is MissingRepeat.NOT_PASSED
     reference = System(SystemKind.RULES_ONLY, "reference")
     normal = RunCondition.all_reachable()
-    assert plan.arms == tuple(
-        (reference, normal.without(*down))
-        for down in ((), (Source.JIRA,), (Source.CALENDAR,), (Source.FRAPPE,), (Source.CORPUS,))
+    # The baseline at both levels under the normal condition, and under each outage at the
+    # base level: a pending padded size blocks no system.
+    assert plan.arms == (
+        (reference, normal, "base"),
+        (reference, normal, "padded"),
+        (reference, normal.without(Source.JIRA), "base"),
+        (reference, normal.without(Source.CALENDAR), "base"),
+        (reference, normal.without(Source.FRAPPE), "base"),
+        (reference, normal.without(Source.CORPUS), "base"),
     )
-    assert len(projection.pending_arms) == 10
-    assert {arm.system for arm in projection.pending_arms} == {
-        SystemKind.AGENT,
-        SystemKind.SINGLE_SHOT,
+    assert len(plan.arms) + len(projection.unbuilt) == len(DRAFT.cells) == 24
+    by_why = {
+        why: [left.cell for left in projection.unbuilt if left.why is why] for why in WhyUnbuilt
     }
+    # Full context under an outage waits on its group's one decision, whatever else it
+    # waits on; every other model cell on what its system's execution needs.
+    assert {(cell.system, cell.group) for cell in by_why[WhyUnbuilt.GROUP_NOT_RUN]} == {
+        (SystemKind.FULL_CONTEXT, GROUP)
+    }
+    assert len(by_why[WhyUnbuilt.GROUP_NOT_RUN]) == 4
+    pending = by_why[WhyUnbuilt.SYSTEM_PENDING]
+    assert [sum(cell.system is kind for cell in pending) for kind in SystemKind] == [6, 0, 6, 2]
+    details = {left.cell.system: left.detail for left in projection.unbuilt}
+    assert details[SystemKind.AGENT] == (
+        "systems.agent.variant, systems.agent.roles, run_accounting.redispatch, attribution, "
+        "stated_facts.entry_schema"
+    )
+    assert {left.detail for left in projection.unbuilt if left.why is WhyUnbuilt.GROUP_NOT_RUN} == {
+        GROUP
+    }
+    assert mechanism_pending(DRAFT) == "resolved when the evaluator's fact-stage measures are built"
+
+
+def test_a_cell_is_built_once_its_system_is_resolved_and_its_group_decided_as_run() -> None:
+    resolved = preregistered(named())
+    built = [(system.kind, level) for system, _, level in resolved.plan.arms]
+    # The agent's six, the baseline's six, full context under the normal condition at both.
+    assert [sum(kind is each for kind, _ in built) for each in SystemKind] == [6, 6, 0, 2]
+    assert (SystemKind.FULL_CONTEXT, "padded") in built
+    # Single-shot's query protocol can only be pending in this format: never built here.
+    assert {left.cell.system for left in resolved.unbuilt} == {
+        SystemKind.SINGLE_SHOT,
+        SystemKind.FULL_CONTEXT,
+    }
+    run = preregistered(decided(named(), True))
+    assert len(run.plan.arms) == 18
+    assert {left.why for left in run.unbuilt} == {WhyUnbuilt.SYSTEM_PENDING}
+    # Decided against, the four cells are left out for the group, with nothing pending.
+    not_run = preregistered(decided(named(), False))
+    assert len(not_run.plan.arms) == 14
+    assert sum(left.why is WhyUnbuilt.GROUP_NOT_RUN for left in not_run.unbuilt) == 4
 
 
 def test_the_projection_refuses_what_this_evaluator_does_not_implement() -> None:
     statistics = DRAFT.statistics
-    descriptive = replace(statistics.descriptive, checks=("plausible",))
-    unknown = replace(
-        DRAFT,
-        statistics=replace(statistics, checks=("plausible",), primary=(), descriptive=descriptive),
-    )
+    more_checks = replace(statistics, checks=(*statistics.checks, "plausible"))
+    unknown = replace(DRAFT, statistics=more_checks)
     with pytest.raises(ValueError, match="no check is registered as 'plausible'"):
         preregistered(unknown)
+    unknown = replace(DRAFT, statistics=replace(statistics, measures=(*statistics.measures, "f1")))
+    with pytest.raises(ValueError, match="no measure is registered as 'f1'"):
+        preregistered(unknown)
+
+    assert statistics.interval_method in INTERVAL_METHODS and len(INTERVAL_METHODS) == 1
+    other = replace(DRAFT, statistics=replace(statistics, interval_method="wilson_per_tier"))
+    with pytest.raises(ValueError, match="no interval method is registered as 'wilson_per_tier'"):
+        preregistered(other)
+
+    # The mechanism measure is not built yet: pending it is shown as pending, and a
+    # resolved name is one more name this evaluator does not hold.
+    assert MECHANISM_MEASURES == ()
+    resolved = replace(DRAFT, statistics=replace(statistics, mechanism=MECHANISM))
+    with pytest.raises(ValueError, match="no mechanism measure is registered as 'needed_prose_f"):
+        preregistered(resolved)
+    with pytest.raises(ValueError, match="no mechanism measure is registered as"):
+        preregistered(frozen())
 
     accounting = DRAFT.run_accounting
     retry = replace(accounting.retry, after=FailureCategory.DEFECT)
@@ -369,101 +401,19 @@ def test_the_projection_refuses_what_this_evaluator_does_not_implement() -> None
     with pytest.raises(ValueError, match="the registration retries after defect"):
         preregistered(replace(DRAFT, run_accounting=after_defect))
 
-    systems = tuple(
-        replace(system, variant=Pending("not named")) for system in DRAFT.systems
-    )
-    with pytest.raises(ValueError, match="every system's variant is pending"):
+    # The anchor table is the one part of the stated-fact contract this package computes.
+    stated = replace(DRAFT.stated_facts, anchor_table="0" * 64)
+    with pytest.raises(ValueError, match="the registered anchor table is 0{64}, this evaluator"):
+        preregistered(replace(DRAFT, stated_facts=stated))
+    # The composing policy is the harness's: an evaluator cannot compute it and does not
+    # refuse on it here. It holds each export's recorded policy to the registered one.
+    policy = replace(DRAFT.stated_facts.composing_policy, digest="0" * 64)
+    composed = replace(DRAFT, stated_facts=replace(DRAFT.stated_facts, composing_policy=policy))
+    assert len(preregistered(composed).plan.arms) == 6
+
+    systems = tuple(replace(system, variant=Pending("not named")) for system in DRAFT.systems)
+    with pytest.raises(ValueError, match="no registered cell can be built"):
         preregistered(replace(DRAFT, systems=systems))
-
-
-# --- The scenario sets -------------------------------------------------------------------------
-
-
-def test_the_development_selection_is_two_per_tier_and_the_same_every_time(
-    world: SealedWorld,
-) -> None:
-    selected = development_selection(world, DRAFT)
-    assert selected == development_selection(world, DRAFT)
-    assert len(selected) == len(set(selected)) == 6 and list(selected) == sorted(selected)
-    tiers = [scenario.key.tier for id in selected if (scenario := world.scenario(id))]
-    assert {tier: tiers.count(tier) for tier in Tier} == dict.fromkeys(Tier, 2)
-
-    # Another seed draws another selection: the draw is the registration's, not the code's.
-    reseeded = replace(DRAFT, statistics=replace(DRAFT.statistics, seed=DRAFT.statistics.seed + 1))
-    assert development_selection(world, reseeded) != selected
-
-    unselected = selection_pending(DRAFT).scenario_sets
-    three_each = replace(unselected, development_size=9, development_per_tier=3)
-    assert len(development_selection(world, replace(DRAFT, scenario_sets=three_each))) == 9
-    eight = replace(unselected, development_size=8, development_per_tier=2)
-    with pytest.raises(ValueError, match="need 4 tiers, the world has 3"):
-        development_selection(world, replace(DRAFT, scenario_sets=eight))
-
-
-def test_the_primary_set_is_the_rest_and_is_refused_while_the_selection_is_pending(
-    world: SealedWorld,
-) -> None:
-    every = tuple(scenario.spec.id for scenario in world.scenarios)
-    assert scenario_set(world, DRAFT, ScenarioSetName.FULL) == every
-    with pytest.raises(ValueError, match="the development scenarios are pending"):
-        scenario_set(world, selection_pending(DRAFT), ScenarioSetName.PRIMARY)
-
-    selected = development_selection(world, DRAFT)
-    resolved = with_development(DRAFT, *selected)
-    primary = scenario_set(world, resolved, ScenarioSetName.PRIMARY)
-    assert len(primary) == 24 and not set(primary) & set(selected)
-    assert set(primary) | set(selected) == set(every)
-    held_out = [scenario.key.tier for id in primary if (scenario := world.scenario(id))]
-    assert {tier: held_out.count(tier) for tier in Tier} == dict.fromkeys(Tier, 8)
-
-    strangers = with_development(DRAFT, *selected[:5], "scenario_999")
-    with pytest.raises(ValueError, match="the world holds no scenario scenario_999"):
-        scenario_set(world, strangers, ScenarioSetName.PRIMARY)
-
-
-def test_a_development_list_that_is_not_two_from_each_tier_is_refused_without_saying_which(
-    world: SealedWorld,
-) -> None:
-    structured = [s.spec.id for s in world.scenarios if s.key.tier is Tier.STRUCTURED]
-    selected = development_selection(world, DRAFT)
-    one_tier = with_development(DRAFT, *structured[:6])
-    # Balanced but for one scenario moved between tiers: three, one and two.
-    moved = with_development(
-        DRAFT, *selected[:2], next(s for s in structured if s not in selected), *selected[3:]
-    )
-    for lopsided in (one_tier, moved):
-        with pytest.raises(ValueError) as refused:
-            scenario_set(world, lopsided, ScenarioSetName.PRIMARY)
-        printed = "".join(format_exception(refused.value))
-        assert "are not 2 from each tier of the world" in printed
-        # Which listed scenarios share a tier is sealed: no tier, no id, no count per tier.
-        assert not any(tier.value in printed for tier in Tier)
-        assert re.search(r"scenario_\d", printed) is None
-        assert refused.value.__cause__ is None and refused.value.__context__ is None
-    # The full set never depended on the list.
-    assert len(scenario_set(world, one_tier, ScenarioSetName.FULL)) == 30
-
-
-def test_an_arm_cut_to_a_scenario_set_holds_those_scenarios_in_its_own_order(
-    world: SealedWorld,
-) -> None:
-    plan = preregistered(DRAFT).plan
-    runs = [evaluated(world, scenario) for scenario in world.scenarios]
-    stray = evaluated(world, world.scenarios[0])
-    header = replace(stray.outcome.header, scenario_id=ScenarioId("scn_999"), run_id="run-x")
-    stray = replace(stray, outcome=replace(stray.outcome, header=header))
-    arm = next(arm for arm in arms(world, [*runs, stray], plan) if arm.assigned == NORMAL)
-    assert len(arm.unplaced) == 1
-
-    selected = development_selection(world, DRAFT)
-    primary = scenario_set(world, with_development(DRAFT, *selected), ScenarioSetName.PRIMARY)
-    cut = within(arm, primary)
-    assert tuple(held.scenario_id for held in cut.scenarios) == primary
-    # An attempt no scenario could place belongs to no set.
-    assert cut.unplaced == () and cut.registered
-    assert len(cells_of(cut)[0].scenarios) == 24
-    with pytest.raises(ValueError, match="the arm holds no scenario scenario_999"):
-        within(arm, [ScenarioId("scenario_999")])
 
 
 # --- The form follows the plan -----------------------------------------------------------------
@@ -474,7 +424,9 @@ def test_a_repeat_intended_and_never_made_keeps_its_scenario_a_repeated_one(
 ) -> None:
     other = System(SystemKind.RULES_ONLY, "other")
     two_runs = replace(
-        preregistered(DRAFT).plan, intended_repeats=2, arms=((other, NORMAL), (REFERENCE, NORMAL))
+        preregistered(DRAFT).plan,
+        intended_repeats=2,
+        arms=((other, NORMAL, "base"), (REFERENCE, NORMAL, "base")),
     )
     scenario = world.scenarios[0]
     once = evaluated(world, scenario)

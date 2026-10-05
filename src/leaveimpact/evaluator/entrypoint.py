@@ -3,28 +3,25 @@ stored runs.
 
 *Prove* reads nothing but the sealed world and writes nothing. It loads the world from its
 three objects, which proves them to be the version named and every sealed key
-reproducible by today's rules; it gives the development scenarios, the registered ones
-once the registration lists them and the ones its rule draws, by tier alone, while the
-list is pending; and it counts, per registered condition, the statements the answers
-depend on. A registered list is never redrawn: it survives a change of seed on purpose,
-the tuning having been done on those scenarios, and a fresh draw would name scenarios the
-evaluator holds out as if they were free to tune on. It is what a first dispatch runs:
-the read boundary and the world shown to hold before any run exists to evaluate.
+reproducible by today's rules, and it counts, per registered condition, the statements the
+answers depend on. It draws no scenario: the registration tunes on none of its world's. It
+is what a first dispatch runs: the read boundary and the world shown to hold before any
+run exists to evaluate.
 
 *Evaluate* is the thin shell over the pure function (the investigator milestone's sixth
-build step, ruling 7). It refuses a dirty checkout; lists every object stored for the
-world's runs and reads each with the version id the store returns, which is the snapshot
-the artifact's inventory records; resolves each cited commit to the registration's bytes
-there; and publishes the one artifact through the one callable it is handed. A listing
-with nothing under it is refused: an evaluation of no run would be an immutable object
-that says nothing. An object listed and gone by the time it is read is refused too, the
-snapshot no longer being one.
+build step, ruling 7). It refuses a dirty checkout; holds a bound registration to its
+world and to the frozen registration it names, read at that commit, before anything is
+listed; lists every object stored for the world's runs and reads each with the version id
+the store returns, which is the snapshot the artifact's inventory records; resolves each
+cited commit to the registration's bytes there; and publishes the one artifact through the
+one callable it is handed. A listing with nothing under it is refused: an evaluation of no
+run would be an immutable object that says nothing. An object listed and gone by the time
+it is read is refused too, the snapshot no longer being one.
 
 What either command returns is what the job may print. The job's log is public and the
-world is sealed, so the results here hold a world version, scenario ids as a flat list,
-totals, keys and labels, and never a tier beside an id, a count per tier, a finding or a
-cause. The development scenarios are returned in id order with nothing beside them; the
-retrieval targets as one total per condition.
+world is sealed, so the results here hold a world version, totals, keys and labels, and
+never a scenario's tier, a count per tier, a finding or a cause. The retrieval targets are
+one total per condition.
 """
 
 from __future__ import annotations
@@ -38,8 +35,8 @@ from enum import StrEnum
 from leaveimpact.adapters.object_store.layout import evaluation_key, runs_prefix
 from leaveimpact.adapters.wiring import ConfigurationError, EvaluationPublisher, ObjectReaders
 from leaveimpact.core.facts import RunCondition
-from leaveimpact.core.ids import ScenarioId, WorldVersion
-from leaveimpact.core.registration import Pending, Registration, ScenarioSetName
+from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.registration import Registration, RegistrationStatus
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.evaluator.artifact import (
     Disposition,
@@ -47,10 +44,10 @@ from leaveimpact.evaluator.artifact import (
     StoredRun,
     cited_commits,
     evaluation_artifact,
+    require_binding,
 )
 from leaveimpact.evaluator.artifact_json import artifact_bytes
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
-from leaveimpact.evaluator.registered import development_selection, scenario_set
 from leaveimpact.evaluator.repository import (
     REGISTRATION_PATH,
     Repository,
@@ -81,16 +78,15 @@ class EvaluationRequest:
 
 
 class EvaluationRefused(Exception):
-    """The stored runs cannot be evaluated as a snapshot; the message names keys and counts."""
+    """The stored runs cannot be evaluated as a snapshot, or the registration is bound to
+    another world or to a procedure nobody froze; the message names keys, counts, commits,
+    world versions and the registration's sections."""
 
 
 @dataclass(frozen=True, slots=True)
 class Proven:
     """A world proven and read for what a first dispatch reports.
 
-    ``development`` are the development scenarios in id order: the registered list, held
-    to the registered number from each tier, when ``registered`` says so, and otherwise
-    what the registration's rule draws while its list is pending.
     ``targets`` holds, per registered condition in the registration's order, the number of
     statements the answers depend on over all scenarios, or ``None`` when some scenario
     has no answer under the condition, which is not a count of zero.
@@ -98,8 +94,6 @@ class Proven:
 
     world_version: WorldVersion
     scenarios: int
-    development: tuple[ScenarioId, ...]
-    registered: bool
     targets: tuple[tuple[str, int | None], ...]
 
 
@@ -150,12 +144,10 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> EvaluationRequ
 
 
 def prove(version: WorldVersion, stores: ObjectReaders, registration: Registration) -> Proven:
-    """The sealed world ``version`` loaded and proven, with the development scenarios
-    ``registration`` lists, or draws while its list is pending, and the retrieval targets
-    counted per registered condition.
+    """The sealed world ``version`` loaded and proven, with the retrieval targets counted
+    per condition ``registration`` holds.
 
-    Raises ``SealedWorldRefused`` when the three objects are not that world, and
-    ``ValueError`` for a registered development list the world's tiers do not fit.
+    Raises ``SealedWorldRefused`` when the three objects are not that world.
     """
     world = load_sealed_world(version, stores.truth, stores.world)
     targets = tuple(
@@ -165,14 +157,7 @@ def prove(version: WorldVersion, stores: ObjectReaders, registration: Registrati
         )
         for condition in registration.outage.conditions
     )
-    listed = registration.scenario_sets.development
-    if isinstance(listed, Pending):
-        development, registered = development_selection(world, registration), False
-    else:
-        # Cutting the primary set is what holds the list to the world and to its tiers.
-        scenario_set(world, registration, ScenarioSetName.PRIMARY)
-        development, registered = listed, True
-    return Proven(world.version, len(world.scenarios), development, registered, targets)
+    return Proven(world.version, len(world.scenarios), targets)
 
 
 def evaluate(
@@ -185,8 +170,10 @@ def evaluate(
     artifact.
 
     Raises ``RepositoryRefused`` for a dirty checkout or one with no registration,
-    ``EvaluationRefused`` for an empty or a moving listing, and whatever the artifact
-    refuses: a registration it cannot read as a plan, two eligible exports of one run.
+    ``EvaluationRefused`` for an empty or a moving listing and for a bound registration
+    that binds another world or a procedure other than the frozen one it names, and
+    whatever the artifact refuses: a registration it cannot read as a plan, two eligible
+    exports of one run.
     """
     repository.require_clean()
     head = repository.head()
@@ -194,6 +181,7 @@ def evaluate(
     if registration is None:
         raise RepositoryRefused(f"the checkout holds no {REGISTRATION_PATH}")
     version = request.world_version
+    _require_bound_as_frozen(decode_registration_bytes(registration), version, repository)
     world = load_sealed_world(version, stores.truth, stores.world)
     runs = _stored_runs(stores, version)
     registrations_at = {
@@ -221,6 +209,31 @@ def registration_of(repository: Repository) -> Registration:
     except OSError as error:
         raise RepositoryRefused(f"the checkout holds no readable {REGISTRATION_PATH}") from error
     return decode_registration_bytes(content)
+
+
+def _require_bound_as_frozen(
+    registration: Registration, version: WorldVersion, repository: Repository
+) -> None:
+    """Refuse a bound ``registration`` that binds a world other than ``version``, or whose
+    procedure is not the one frozen at the commit it names. Before anything is listed: an
+    evaluation under it would be labelled reported."""
+    commit = registration.world.frozen_commit
+    if registration.status is not RegistrationStatus.BOUND or commit is None:
+        return
+    if registration.world.version != version:
+        raise EvaluationRefused(
+            f"the registration is bound to the world {registration.world.version}, and the "
+            f"evaluation asked for is of {version}"
+        )
+    try:
+        require_binding(registration, repository.file_at(commit, REGISTRATION_PATH))
+    except ValueError as refused:
+        reason = str(refused)
+    else:
+        return
+    # Raised after the handler has ended, so the decoder's own exception, whose message may
+    # quote the file, is no part of what a traceback prints.
+    raise EvaluationRefused(reason)
 
 
 def _stored_runs(stores: ObjectReaders, version: WorldVersion) -> tuple[StoredRun, ...]:

@@ -87,7 +87,7 @@ def plan(
     counted_attempt: CountedAttempt = EARLIEST,
     missing_repeat: MissingRepeat = MissingRepeat.NOT_PASSED,
 ) -> Preregistered:
-    registered = ((failed.outcome.header.system, NORMAL),)
+    registered = ((failed.outcome.header.system, NORMAL, "base"),)
     return Preregistered(0.95, 7, 1_000, 1, counted_attempt, missing_repeat, registered, 3)
 
 
@@ -266,7 +266,7 @@ def test_a_gapped_repeat_keeps_its_scenario_a_repeated_one_in_both_readings(
     # Against an arm with one clean run of the scenario, the comparison is of a repeated
     # design: never the two-by-two counts of single runs.
     other = System(system.kind, "other")
-    both = replace(two_runs, arms=((system, NORMAL), (other, NORMAL)))
+    both = replace(two_runs, arms=((system, NORMAL, "base"), (other, NORMAL, "base")))
     clean = relabelled(good, run_id="run-c", system=other)
     theirs, mine = arms(world, [valid, gapped, clean], both)
     assert (mine.system, theirs.system) == (system, other)

@@ -1,9 +1,16 @@
 {
-  "format_version": 1,
+  "format_version": 2,
   "status": "draft",
   "amendment": {
     "amends": null,
     "prior_full_set_results": false
+  },
+  "world": {
+    "version": {
+      "pending": "bound after the measurement world is generated, validated and audited, the procedure frozen before it exists"
+    },
+    "frozen_commit": null,
+    "tuned_scenarios": 0
   },
   "systems": [
     {
@@ -15,14 +22,16 @@
         "kind": "full_text",
         "embedding_model": null
       },
-      "model": {
-        "pending": "the development model, named when the investigator first runs live; the reported model is named at the freeze"
-      },
-      "prompt_digests": {
+      "roles": {
         "pending": "set when the investigator's tool registry and graph are built"
       },
-      "tool_surface_digest": {
-        "pending": "set when the investigator's tool registry and graph are built"
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included"
       }
     },
     {
@@ -34,10 +43,13 @@
         "kind": "none",
         "embedding_model": null
       },
-      "policy": {
-        "identifier": "rules-only-report",
-        "version": 1,
-        "tie_break": "first_viable_in_id_code_point_order"
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included"
       }
     },
     {
@@ -49,17 +61,57 @@
         "kind": "full_text",
         "embedding_model": null
       },
-      "model": {
-        "pending": "the same model as the agent, held constant across the comparison"
-      },
-      "prompt_digests": {
+      "roles": {
         "pending": "set when the single-shot baseline is built"
       },
       "query_protocol": {
-        "pending": "chosen when the single-shot baseline is built, on development worlds from other seeds with the selection procedure fixed before any candidate is tried, never on the golden world"
+        "pending": "chosen when the single-shot baseline is built, on development worlds from other seeds with the selection procedure fixed before any candidate is tried, never on the measurement world"
       },
       "search_limit": {
         "pending": "chosen with the query protocol, by the same procedure"
+      },
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included"
+      }
+    },
+    {
+      "kind": "full_context",
+      "variant": {
+        "pending": "set when the full-context baseline is built"
+      },
+      "retrieval": {
+        "kind": "none",
+        "embedding_model": null
+      },
+      "roles": {
+        "pending": "set when the full-context baseline is built"
+      },
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included"
+      }
+    }
+  ],
+  "corpus_levels": [
+    {
+      "name": "base",
+      "filler_tokens": {
+        "value": 0
+      }
+    },
+    {
+      "name": "padded",
+      "filler_tokens": {
+        "pending": "set by the level-selection rule at the procedure freeze"
       }
     }
   ],
@@ -100,66 +152,159 @@
       }
     ]
   },
-  "arms": [
+  "cell_groups": [
+    {
+      "name": "full_context_under_outage",
+      "rule": "run only if the reforecast leaves budget for them, decided before any measurement result exists, all four or none",
+      "decision": {
+        "pending": "decided from the reforecast at the procedure freeze"
+      }
+    }
+  ],
+  "cells": [
     {
       "system": "agent",
-      "condition": "normal"
+      "condition": "normal",
+      "level": "base",
+      "group": null
     },
     {
       "system": "rules_only",
-      "condition": "normal"
+      "condition": "normal",
+      "level": "base",
+      "group": null
     },
     {
       "system": "single_shot",
-      "condition": "normal"
+      "condition": "normal",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "normal",
+      "level": "base",
+      "group": null
     },
     {
       "system": "agent",
-      "condition": "jira_down"
+      "condition": "normal",
+      "level": "padded",
+      "group": null
     },
     {
       "system": "rules_only",
-      "condition": "jira_down"
+      "condition": "normal",
+      "level": "padded",
+      "group": null
     },
     {
       "system": "single_shot",
-      "condition": "jira_down"
+      "condition": "normal",
+      "level": "padded",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "normal",
+      "level": "padded",
+      "group": null
     },
     {
       "system": "agent",
-      "condition": "calendar_down"
+      "condition": "jira_down",
+      "level": "base",
+      "group": null
     },
     {
       "system": "rules_only",
-      "condition": "calendar_down"
+      "condition": "jira_down",
+      "level": "base",
+      "group": null
     },
     {
       "system": "single_shot",
-      "condition": "calendar_down"
+      "condition": "jira_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "jira_down",
+      "level": "base",
+      "group": "full_context_under_outage"
     },
     {
       "system": "agent",
-      "condition": "frappe_down"
+      "condition": "calendar_down",
+      "level": "base",
+      "group": null
     },
     {
       "system": "rules_only",
-      "condition": "frappe_down"
+      "condition": "calendar_down",
+      "level": "base",
+      "group": null
     },
     {
       "system": "single_shot",
-      "condition": "frappe_down"
+      "condition": "calendar_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "calendar_down",
+      "level": "base",
+      "group": "full_context_under_outage"
     },
     {
       "system": "agent",
-      "condition": "corpus_down"
+      "condition": "frappe_down",
+      "level": "base",
+      "group": null
     },
     {
       "system": "rules_only",
-      "condition": "corpus_down"
+      "condition": "frappe_down",
+      "level": "base",
+      "group": null
     },
     {
       "system": "single_shot",
-      "condition": "corpus_down"
+      "condition": "frappe_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "frappe_down",
+      "level": "base",
+      "group": "full_context_under_outage"
+    },
+    {
+      "system": "agent",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": "full_context_under_outage"
     }
   ],
   "run_accounting": {
@@ -170,12 +315,29 @@
       "max_attempts": 3
     },
     "counted_attempt": "earliest_not_infrastructure",
+    "redispatch": {
+      "pending": "the most dispatches of a logical call and the longest delay, set at the procedure freeze"
+    },
     "estimand": "the registered system with up to two retries after an infrastructure failure"
+  },
+  "attribution": {
+    "pending": "the table's rows, set at the procedure freeze"
+  },
+  "stated_facts": {
+    "composing_policy": {
+      "identifier": "rules-composer",
+      "digest": "bbcdbd9e23b4f2da3b583e2ec141d000f583f8d0e1764c47686d448c8ceabdfa"
+    },
+    "anchor_table": "29679e4f58a0ade632c1c3a29dcdb6da0a01467e92b482595140aa28967bafbb",
+    "entry_schema": {
+      "pending": "settled when the investigator graph is built, under its own prompt check"
+    }
   },
   "statistics": {
     "confidence_percent": 95,
     "seed": 20261003,
     "resamples": 10000,
+    "interval_method": "paired_scenario_bootstrap_within_tier",
     "checks": [
       "correct_whole",
       "expected_action",
@@ -208,57 +370,95 @@
       "searches_with_a_hit",
       "targets_per_search"
     ],
-    "primary": [
+    "primary": {
+      "check": "correct_whole",
+      "reading": "end_to_end",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        "agent",
+        "full_context"
+      ],
+      "breakdowns": [
+        "tier"
+      ]
+    },
+    "secondary": [
       {
         "check": "correct_whole",
         "reading": "end_to_end",
         "condition": "normal",
-        "stratum": "overall",
-        "scenario_set": "primary",
+        "level": "base",
         "systems": [
           "agent",
-          "rules_only"
+          "single_shot"
+        ],
+        "breakdowns": [
+          "tier"
         ]
       },
       {
         "check": "correct_whole",
         "reading": "end_to_end",
         "condition": "normal",
-        "stratum": "overall",
-        "scenario_set": "primary",
+        "level": "padded",
         "systems": [
           "agent",
           "single_shot"
+        ],
+        "breakdowns": [
+          "tier"
         ]
       }
     ],
     "descriptive": {
+      "places": [
+        {
+          "condition": "normal",
+          "level": "base"
+        },
+        {
+          "condition": "normal",
+          "level": "padded"
+        },
+        {
+          "condition": "jira_down",
+          "level": "base"
+        },
+        {
+          "condition": "calendar_down",
+          "level": "base"
+        }
+      ],
       "pairs": [
+        [
+          "agent",
+          "full_context"
+        ],
+        [
+          "agent",
+          "single_shot"
+        ],
         [
           "agent",
           "rules_only"
         ],
         [
-          "agent",
+          "full_context",
           "single_shot"
+        ],
+        [
+          "full_context",
+          "rules_only"
         ],
         [
           "single_shot",
           "rules_only"
         ]
       ],
-      "conditions": [
-        "normal",
-        "jira_down",
-        "calendar_down"
-      ],
       "strata": [
         "overall",
         "tier"
-      ],
-      "scenario_sets": [
-        "primary",
-        "full"
       ],
       "checks": [
         "correct_whole",
@@ -275,20 +475,155 @@
         "recall",
         "payload_accuracy"
       ]
+    },
+    "level_contrasts": [
+      {
+        "system": "agent",
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "levels": [
+          "padded",
+          "base"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      },
+      {
+        "system": "single_shot",
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "levels": [
+          "padded",
+          "base"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      },
+      {
+        "system": "full_context",
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "levels": [
+          "padded",
+          "base"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      }
+    ],
+    "mechanism": {
+      "pending": "resolved when the evaluator's fact-stage measures are built"
+    },
+    "headroom": {
+      "reference": "rules_only",
+      "check": "correct_whole",
+      "reading": "end_to_end"
     }
   },
+  "supporting": [
+    {
+      "identifier": "vector_retrieval",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        {
+          "kind": "single_shot",
+          "variant": "vector"
+        },
+        {
+          "kind": "single_shot",
+          "variant": "full_text"
+        }
+      ],
+      "other_model": {
+        "value": null
+      },
+      "endpoint": "retrieval_target_coverage_within_limit",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from full-text coverage on the development worlds at the padded level"
+      }
+    },
+    {
+      "identifier": "multi_agent",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        {
+          "kind": "agent",
+          "variant": "by_source"
+        },
+        {
+          "kind": "agent",
+          "variant": "single"
+        }
+      ],
+      "other_model": {
+        "value": null
+      },
+      "endpoint": "correct_whole_end_to_end",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+      }
+    },
+    {
+      "identifier": "second_model",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        {
+          "kind": "agent",
+          "variant": "second_model"
+        },
+        {
+          "kind": "full_context",
+          "variant": "second_model"
+        }
+      ],
+      "other_model": {
+        "pending": "one model, named at the procedure freeze"
+      },
+      "endpoint": "correct_whole_end_to_end",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+      }
+    },
+    {
+      "identifier": "authoring",
+      "condition": "normal",
+      "level": "base",
+      "systems": [
+        {
+          "kind": "full_context",
+          "variant": "model_authored"
+        },
+        {
+          "kind": "full_context",
+          "variant": "rules_composed"
+        }
+      ],
+      "other_model": {
+        "value": null
+      },
+      "endpoint": "correct_whole_end_to_end",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+      }
+    }
+  ],
   "prefetch": {
     "identifier": "leave-span-prefetch",
     "protocol_version": 1,
     "digest": "492d59036eb457444dd0682baad4a33f4b9336fd98926d6e6ee8fcd3306f1504"
-  },
-  "caps": {
-    "basis": "unmeasured",
-    "call_cap": 20,
-    "token_cap": 400000,
-    "finalization_call_reserve": 2,
-    "finalization_token_reserve": 20000,
-    "counting_rule": "input_plus_output_cached_included"
   },
   "budget": {
     "basis": "unmeasured",
@@ -297,19 +632,5 @@
     "reforecast_after_runs": 10,
     "admission_threshold_usd": 50,
     "admission_threshold_limit_usd": 270
-  },
-  "scenario_sets": {
-    "development_size": 6,
-    "development_per_tier": 2,
-    "development": {
-      "value": [
-        "scenario_009",
-        "scenario_010",
-        "scenario_013",
-        "scenario_018",
-        "scenario_023",
-        "scenario_028"
-      ]
-    }
   }
 }

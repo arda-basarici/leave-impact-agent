@@ -81,9 +81,6 @@ def main(
             )
             print(f"world_version={proven.world_version}")
             print(f"scenarios={proven.scenarios}")
-            print(f"development_scenarios={','.join(proven.development)}")
-            source = "registered" if proven.registered else "drawn while the list is pending"
-            print(f"development_scenarios_are={source}")
             for condition, total in proven.targets:
                 print(f"retrieval_targets[{condition}]={'no answer' if total is None else total}")
             print("wrote=nothing")

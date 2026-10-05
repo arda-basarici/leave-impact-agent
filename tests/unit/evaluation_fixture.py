@@ -6,8 +6,8 @@ Test infrastructure. An evaluation is the whole grading of one export, seconds f
 worth, and the aggregation's tests need many that differ only in who ran what, when and how
 often. ``evaluated`` builds one through the real entry, and remembers the ones a truthful
 system makes over a full read, the common case; ``relabelled`` gives an evaluation another
-run identity, system or arm without grading it again, which is what a repeat or a second
-system with the same behaviour is.
+run identity, system, corpus level or arm without grading it again, which is what a
+repeat, a second system with the same behaviour or the same run at another level is.
 """
 
 from __future__ import annotations
@@ -34,6 +34,7 @@ from tests.unit.report_fixture import truthful_report
 
 NORMAL = RunCondition.all_reachable()
 REFERENCE = System(SystemKind.RULES_ONLY, "reference")
+BASE, PADDED = "base", "padded"
 
 _TRUTHFUL: dict[tuple[str, tuple[Source, ...], tuple[Source, ...]], Evaluation] = {}
 
@@ -89,9 +90,10 @@ def relabelled(
     run_id: str | None = None,
     attempt: int | None = None,
     system: System | None = None,
+    level: str | None = None,
 ) -> Evaluation:
-    """``evaluation`` as another run, attempt or system would have produced it: the same
-    outcome and metrics under another identity."""
+    """``evaluation`` as another run, attempt or system would have produced it, or the same
+    one at another corpus level: the same outcome and metrics under another identity."""
     header = evaluation.outcome.header
     header = replace(
         header,
@@ -99,7 +101,11 @@ def relabelled(
         attempt=header.attempt if attempt is None else attempt,
         system=header.system if system is None else system,
     )
-    return replace(evaluation, outcome=replace(evaluation.outcome, header=header))
+    return replace(
+        evaluation,
+        outcome=replace(evaluation.outcome, header=header),
+        level=evaluation.level if level is None else level,
+    )
 
 
-__all__ = ["NORMAL", "REFERENCE", "evaluated", "relabelled", "truthful"]
+__all__ = ["BASE", "NORMAL", "PADDED", "REFERENCE", "evaluated", "relabelled", "truthful"]

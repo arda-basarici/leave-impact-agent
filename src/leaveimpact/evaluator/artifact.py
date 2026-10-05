@@ -11,15 +11,20 @@ that only held the runs that counted would read as a smaller experiment.
 *Which runs enter the tables.* A run is eligible when it was made under the registration
 this evaluation reads, and that takes two things. The registration file at the commit the
 export cites has the same bytes as the evaluator's own, which shows the two were declared
-alike. And what the export records of its own execution is what the registration says: the
-system and its variant, an arm the registration holds, the outage schedule's digest, the
-caps, the prefetch rule, the retrieval, and for a system that calls a model its
-configuration, its prompts and its tool surface. Equal bytes alone would show matching
-declarations and nothing about what ran. A system with a value still pending has nothing to
-be compared with, so its runs are not eligible. Under a frozen registration the harness's
-tree is clean as well. A run that fails any of these keeps its grade and its cost in the
-inventory and enters no table; so does one whose cited commit resolves to no registration,
-which is classified unknown.
+alike; the comparison is of bytes, made before anything at that commit is decoded, so a
+file of an older format there is another registration and no error. And what the export
+records of its own execution is what the registration says: the system and its variant, a
+cell the registration holds and runs, the outage schedule's digest, the caps, the prefetch
+rule, the retrieval, the composing policy its claims were composed under, and for a system
+that calls a model its roles by name, each with its configuration, its prompts and its
+tool surface, and the attribution table its dispatches were read by. Equal bytes alone
+would show matching declarations and nothing about what ran; an equal composing policy
+shows the export recorded the registered identity and verifies no implementation. A system
+with a value still pending that its execution needs has nothing to be compared with, so
+its runs are not eligible. Under a bound registration the harness's tree is clean as well.
+A run that fails any of these keeps its grade and its cost in the inventory and enters no
+table; so does one whose cited commit resolves to no registration, which is classified
+unknown.
 
 Two things are not runs of this evaluation at all and are kept all the same: an object
 that does not decode as an export, with nothing more to say of it, and an export of another
@@ -28,22 +33,27 @@ world, with its cost.
 *What refuses the whole evaluation.* Two eligible exports that carry one run and attempt
 make the set ambiguous, and a registration this evaluator cannot read as a plan (a name it
 does not hold, a prefetch it does not plan) is incompatible; both raise, since tables cut
-from either would look complete and be about something else. A set that is merely short
-does not raise: the analysis builds every registered arm and scenario and shows the
-shortfall.
+from either would look complete and be about something else. So does a bound registration
+evaluated against a world other than the one it binds, and one whose procedure is not the
+frozen registration's it names (``require_binding``): binding a world changes nothing
+else, and a reader that could not hold it to that would report under a procedure nobody
+froze. A set that is merely short does not raise: the analysis builds every registered arm
+and scenario and shows the shortfall.
 
 *The label* is derived here and stored, never read from an export. A draft registration
-gives a development evaluation. A frozen one gives a reported evaluation, or an
-exploratory one when the registration declares that it amends an earlier one and that
-full-set results on this world existed when it was written. Those two statements are the
-registration's author's and nothing here can check them, so the artifact carries them as
-declared. An evaluation under a frozen registration by an evaluator whose implementation
-changed since the registration's commit says so beside its label; whether a change was
-maintenance or a change to a metric is a judgment for the report.
+gives a development evaluation, and so does a frozen one: its world does not exist yet,
+and a run names its own. A bound one gives a reported evaluation, or an exploratory one
+when the registration declares that it amends an earlier one and that full-set results on
+this world existed when it was written. Those two statements are the registration's
+author's and nothing here can check them, so the artifact carries them as declared. An
+evaluation under a bound registration by an evaluator whose implementation changed since
+the registration's commit says so beside its label; whether a change was maintenance or a
+change to a metric is a judgment for the report.
 
 Reading the store, resolving a commit and refusing a dirty evaluator tree are the entry
 point's. This module takes bytes and gives data; ``cited_commits`` says which commits the
-entry point must resolve before the artifact can be made.
+entry point must resolve before the artifact can be made, and a bound registration's
+frozen commit is one more.
 """
 
 from __future__ import annotations
@@ -52,25 +62,25 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
-from leaveimpact.core.call_settings import CallConfiguration, CallSetting
-from leaveimpact.core.provenance import ModelConfiguration
+from leaveimpact.core.attribution import attribution_table_digest
 from leaveimpact.core.registration import (
-    AgentSystem,
     Amendment,
     Pending,
-    RegisteredArm,
-    RegisteredSystem,
     Registration,
     RegistrationStatus,
-    RulesOnlySystem,
-    SingleShotSystem,
+    blocking,
     condition_id,
+    roles_of,
     schedule_digest,
 )
-from leaveimpact.core.registration_json import decode_registration_bytes
+from leaveimpact.core.registration_json import (
+    decode_registration_bytes,
+    procedure_digest,
+    procedure_projection,
+)
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_export_json import decode_export_bytes
-from leaveimpact.core.run_record import PrefetchRule, RunRecord
+from leaveimpact.core.run_record import PrefetchRule
 from leaveimpact.core.run_timing import TreeState
 from leaveimpact.evaluator.analysis import Analysis, analyse
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
@@ -109,16 +119,21 @@ class RecordedSetting(StrEnum):
     """What an export records of its execution that the registration fixes."""
 
     SYSTEM = "system"
-    ARM = "arm"
+    CELL = "cell"
+    """The system under the assigned condition at the assigned level is no registered cell,
+    or one whose conditional group is not decided as run."""
     OUTAGE_SCHEDULE = "outage_schedule"
     CAPS = "caps"
     PREFETCH = "prefetch"
     RETRIEVAL = "retrieval"
+    COMPOSING_POLICY = "composing_policy"
     MODEL = "model"
     PROMPTS = "prompts"
     TOOL_SURFACE = "tool_surface"
+    ATTRIBUTION_TABLE = "attribution_table"
     PENDING = "pending"
-    """The registered system has a value still pending, so nothing can be compared."""
+    """The registered system has a value still pending that its execution needs, so nothing
+    can be compared."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -180,10 +195,14 @@ class InventoryEntry:
 @dataclass(frozen=True, slots=True)
 class RegistrationRead:
     """The registration an evaluation was made under: its status, the SHA-256 of its bytes,
-    and what its author declares of its history, which nothing here verified."""
+    the digest of its procedure, which a frozen registration and the bound one made from it
+    share, the frozen commit a bound one names, and what its author declares of its
+    history, which nothing here verified."""
 
     status: RegistrationStatus
     digest: str
+    procedure: str
+    frozen_commit: str | None
     declared: Amendment
 
 
@@ -244,7 +263,12 @@ def evaluation_artifact(
     ``AmbiguousRuns`` for two eligible exports of one run and attempt.
     """
     registration = decode_registration_bytes(registration_content)
-    frozen = registration.status is RegistrationStatus.FROZEN
+    bound = registration.status is RegistrationStatus.BOUND
+    if bound and registration.world.version != world.version:
+        raise ValueError(
+            f"the registration is bound to the world {registration.world.version}, and this "
+            f"evaluation is against {world.version}"
+        )
     label = _label(registration)
     inventory = tuple(
         _entry(world, run, registration, registration_content, registrations_at, label)
@@ -256,104 +280,109 @@ def evaluation_artifact(
     return EvaluationArtifact(
         format_version=ARTIFACT_FORMAT_VERSION,
         label=label,
-        evaluated_by_changed_code=frozen and bool(evaluator.changed),
+        evaluated_by_changed_code=bound and bool(evaluator.changed),
         world=WorldRead(
             world.version, world.world_spec, world.scenario_specs, world.truth_manifest
         ),
         evaluator=evaluator,
         registration=RegistrationRead(
-            registration.status, digest(registration_content), registration.amendment
+            registration.status,
+            digest(registration_content),
+            procedure_digest(registration),
+            registration.world.frozen_commit,
+            registration.amendment,
         ),
         inventory=inventory,
         analysis=analyse(world, evaluations, registration),
     )
 
 
+def require_binding(registration: Registration, frozen_content: bytes | None) -> None:
+    """Hold a bound ``registration`` to the frozen one it names, whose file at that commit
+    has the bytes ``frozen_content`` (``None`` when the commit resolves to none).
+
+    Raises ``ValueError`` unless the file there decodes, is frozen, and has the procedure
+    the bound one has: binding a world changes the status, the world's version and the
+    frozen commit named, and nothing else. A registration that is not bound binds nothing
+    and passes.
+    """
+    commit = registration.world.frozen_commit
+    if registration.status is not RegistrationStatus.BOUND or commit is None:
+        return
+    if frozen_content is None:
+        raise ValueError(f"the frozen commit {commit} holds no registration")
+    try:
+        frozen = decode_registration_bytes(frozen_content)
+    except ValueError as error:
+        raise ValueError(
+            f"the registration at the frozen commit {commit} does not decode: {error}"
+        ) from error
+    if frozen.status is not RegistrationStatus.FROZEN:
+        raise ValueError(
+            f"the registration at the frozen commit {commit} is {frozen.status.value}, "
+            "not frozen"
+        )
+    ours, theirs = procedure_projection(registration), procedure_projection(frozen)
+    if ours != theirs:
+        changed = [key for key in ours if ours[key] != theirs.get(key)]
+        raise ValueError(
+            "the bound registration's procedure is not the frozen one's at "
+            f"{commit}; they differ in {', '.join(changed)}"
+        )
+
+
 def setting_differences(
-    registration: Registration, record: RunRecord
+    registration: Registration, export: RunExport
 ) -> tuple[RecordedSetting, ...]:
-    """The settings ``record`` states that are not what ``registration`` fixes, in the
+    """The settings ``export`` states that are not what ``registration`` fixes, in the
     declared order; empty when the run executed as registered."""
+    record = export.record
     system = registration.system(record.system.kind)
     if system is None:
         return (RecordedSetting.SYSTEM,)
-    model = _model_settings(system)
-    if isinstance(system.variant, Pending) or model is None:
+    roles = roles_of(system)
+    if blocking(registration, system.kind) or isinstance(roles, Pending):
         return (RecordedSetting.PENDING,)
     registered = registration.prefetch
     condition = condition_id(record.outage.scheduled_unreachable)
-    recorded = _ModelSettings(
-        frozenset(configuration for _, configuration in record.model_configurations),
-        frozenset(_prompts_by_role(record).values()),
-        frozenset(surface for _, surface in record.tool_surface_digests),
-    )
+    cell = registration.cell(system.kind, condition, record.corpus_level)
+    table = registration.attribution
     same = {
         RecordedSetting.SYSTEM: system.variant == record.system.variant,
-        RecordedSetting.ARM: RegisteredArm(record.system.kind, condition) in registration.arms,
+        RecordedSetting.CELL: cell is not None and registration.runs(cell),
         RecordedSetting.OUTAGE_SCHEDULE: (
             record.outage.schedule_digest == schedule_digest(registration.outage)
         ),
-        RecordedSetting.CAPS: record.caps == registration.caps.caps,
+        RecordedSetting.CAPS: record.caps == system.caps.caps,
         RecordedSetting.PREFETCH: (
             record.prefetch_rule == PrefetchRule(registered.identifier, registered.digest)
         ),
         RecordedSetting.RETRIEVAL: record.retrieval == system.retrieval,
-        RecordedSetting.MODEL: recorded.models == model.models,
-        RecordedSetting.PROMPTS: recorded.prompts == model.prompts,
-        RecordedSetting.TOOL_SURFACE: recorded.surfaces == model.surfaces,
+        RecordedSetting.COMPOSING_POLICY: (
+            export.trace.composition.policy == registration.stated_facts.composing_policy
+        ),
+        # Role by role, by name: a role the registration does not name, or one it names
+        # that the run did not record, makes all three differ.
+        RecordedSetting.MODEL: dict(record.model_configurations)
+        == {role.name: role.configuration for role in roles},
+        RecordedSetting.PROMPTS: _prompts_by_role(export)
+        == {role.name: frozenset(role.prompt_digests) for role in roles},
+        RecordedSetting.TOOL_SURFACE: dict(record.tool_surface_digests)
+        == {role.name: role.tool_surface_digest for role in roles},
+        RecordedSetting.ATTRIBUTION_TABLE: record.attribution_table
+        == (
+            attribution_table_digest(table)
+            if roles and not isinstance(table, Pending)
+            else None
+        ),
     }
     return tuple(setting for setting, holds in same.items() if not holds)
 
 
-@dataclass(frozen=True, slots=True)
-class _ModelSettings:
-    """What a system's model calls ran under, as sets over its roles: a record indexes them
-    by role and the registration holds one of each per system, so every role's must be the
-    registered one. ``prompts`` holds each role's whole prompt set as one member; pooled
-    over roles, two roles holding half the registered set each would pass for it."""
-
-    models: frozenset[CallConfiguration]
-    prompts: frozenset[frozenset[tuple[str, str]]]
-    surfaces: frozenset[str]
-
-
-def _model_settings(system: RegisteredSystem) -> _ModelSettings | None:
-    """The model settings ``system`` registers, none for a system that calls no model and no
-    tool surface for one that is given no tools; ``None`` while any of them is pending."""
-    match system:
-        case RulesOnlySystem():
-            return _ModelSettings(frozenset(), frozenset(), frozenset())
-        case AgentSystem():
-            surface = system.tool_surface_digest
-            if (
-                isinstance(system.model, Pending)
-                or isinstance(system.prompt_digests, Pending)
-                or isinstance(surface, Pending)
-            ):
-                return None
-            return _ModelSettings(
-                frozenset({_as_called(system.model)}),
-                frozenset({frozenset(system.prompt_digests)}),
-                frozenset({surface}),
-            )
-        case SingleShotSystem():
-            # Its query protocol is only ever pending in this registration format.
-            return None
-
-
-def _as_called(registered: ModelConfiguration) -> CallConfiguration:
-    """A registered model configuration in the type a run records one in, so the two compare
-    by their one encoding: the registration still holds the generator's provenance type,
-    whose values a run's settings include."""
-    return CallConfiguration(
-        registered.model_id,
-        tuple(CallSetting(setting.name, setting.value) for setting in registered.settings),
-    )
-
-
-def _prompts_by_role(record: RunRecord) -> dict[str, frozenset[tuple[str, str]]]:
-    """Each role's prompts as ``record`` states them, by name and digest; a role that calls a
-    model and records no prompt holds the empty set."""
+def _prompts_by_role(export: RunExport) -> dict[str, frozenset[tuple[str, str]]]:
+    """Each role's prompts as the record states them, by name and digest; a role that calls
+    a model and records no prompt holds the empty set."""
+    record = export.record
     held: dict[str, set[tuple[str, str]]] = {role: set() for role, _ in record.model_configurations}
     for role, name, value in record.prompt_digests:
         held.setdefault(role, set()).add((name, value))
@@ -394,14 +423,14 @@ def _entry(
         return entry(Disposition.REGISTRATION_NOT_RESOLVED, evaluation, cost, (), Label.UNKNOWN)
     if cited != registration_content:
         return entry(Disposition.ANOTHER_REGISTRATION, evaluation, cost)
-    differing = setting_differences(registration, record)
+    differing = setting_differences(registration, export)
     if differing:
         return entry(Disposition.SETTINGS_DIFFER, evaluation, cost, differing)
-    frozen = registration.status is RegistrationStatus.FROZEN
+    bound = registration.status is RegistrationStatus.BOUND
     dirty = any(
         revision.tree is not TreeState.CLEAN for revision in record.timing.harness_revisions
     )
-    if frozen and dirty:
+    if bound and dirty:
         return entry(Disposition.DIRTY_HARNESS, evaluation, cost)
     return entry(Disposition.ELIGIBLE, evaluation, cost, (), label)
 
@@ -415,7 +444,7 @@ def _decoded(run: StoredRun) -> RunExport | None:
 
 
 def _label(registration: Registration) -> Label:
-    if registration.status is RegistrationStatus.DRAFT:
+    if registration.status is not RegistrationStatus.BOUND:
         return Label.DEVELOPMENT
     declared = registration.amendment
     if declared.amends is not None and declared.prior_full_set_results:
@@ -451,5 +480,6 @@ __all__ = [
     "WorldRead",
     "cited_commits",
     "evaluation_artifact",
+    "require_binding",
     "setting_differences",
 ]

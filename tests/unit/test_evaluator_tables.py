@@ -61,7 +61,15 @@ from leaveimpact.evaluator.tables import (
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world import Scenario
 from leaveimpact.world.scenario import Tier
-from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
+from tests.unit.evaluation_fixture import (
+    BASE,
+    NORMAL,
+    PADDED,
+    REFERENCE,
+    evaluated,
+    relabelled,
+    truthful,
+)
 from tests.unit.export_fixture import (
     BASIS,
     ROLE,
@@ -81,7 +89,7 @@ CONDITIONAL, END_TO_END = Reading.CONDITIONAL, Reading.END_TO_END
 def plan(
     intended_repeats: int = 1,
     missing_repeat: MissingRepeat = MissingRepeat.NOT_PASSED,
-    registered: tuple[tuple[System, RunCondition], ...] = ((REFERENCE, NORMAL),),
+    registered: tuple[tuple[System, RunCondition, str], ...] = ((REFERENCE, NORMAL, BASE),),
 ) -> Preregistered:
     return Preregistered(
         0.95,
@@ -95,7 +103,7 @@ def plan(
     )
 
 
-TWO_SYSTEMS = ((OTHER, NORMAL), (REFERENCE, NORMAL))
+TWO_SYSTEMS = ((OTHER, NORMAL, BASE), (REFERENCE, NORMAL, BASE))
 
 
 @pytest.fixture(scope="module")
@@ -399,7 +407,11 @@ def test_a_comparison_is_paired_on_the_scenarios_both_systems_have_in_scope(
     by_tier = compare_ratio(
         tier_of(ours, Tier.FRAGMENTED), tier_of(theirs, Tier.FRAGMENTED), recall(), plan()
     )
-    assert by_tier.paired == 9 and by_tier.interval is not None and by_tier.interval.low > 0
+    # Three of the tier's nine paired scenarios differ, and a resample of nine holds none
+    # of the three in (6/9)^9 of draws, 2.6 percent: the lower end sits at nought or just
+    # above it by the seed, so what holds for every seed is that it is not below.
+    assert by_tier.paired == 9 and by_tier.interval is not None
+    assert by_tier.interval.low >= 0 and by_tier.interval.high > 0
 
     # One run per scenario on each side: the two-by-two table (both, ours only, theirs only,
     # neither) beside the interval, which is the same method as with repeats.
@@ -439,16 +451,56 @@ def test_a_comparison_refuses_cells_that_are_not_paired(
         relabelled(evaluated(world, scenario, down=(Source.JIRA,)), system=OTHER)
         for scenario in world.scenarios[:3]
     ]
-    registered = (*TWO_SYSTEMS, (OTHER, NORMAL.without(Source.JIRA)))
-    theirs, their_outage, ours = arms(
-        world, [*truthful_runs, *twin, *outage], plan(registered=registered)
+    padded = [relabelled(run, system=OTHER, level=PADDED) for run in truthful_runs]
+    registered = (*TWO_SYSTEMS, (OTHER, NORMAL, PADDED), (OTHER, NORMAL.without(Source.JIRA), BASE))
+    theirs, their_padded, their_outage, ours = arms(
+        world, [*truthful_runs, *twin, *padded, *outage], plan(registered=registered)
     )
     with pytest.raises(ValueError, match="within one stratum"):
         compare_ratio(cell_of(ours), tier_of(theirs, Tier.STRUCTURED), recall(), plan())
     with pytest.raises(ValueError, match="assigned condition"):
         compare_ratio(cell_of(ours), cell_of(their_outage), recall(), plan())
-    with pytest.raises(ValueError, match="between two systems"):
+    with pytest.raises(ValueError, match="both cells are one arm's"):
         compare_ratio(cell_of(ours), cell_of(ours), recall(), plan())
+    # Another system at another level is two differences at once, and neither is isolated.
+    with pytest.raises(ValueError, match="the two arms differ in both"):
+        compare_ratio(cell_of(ours), cell_of(their_padded), recall(), plan())
+
+
+def test_one_system_is_paired_with_itself_across_two_levels_and_incidents_are_counted(
+    world: SealedWorld, truthful_runs: list[Evaluation]
+) -> None:
+    # The padded level loses the action on the first four scenarios; the answers are the
+    # same at both levels, so the contrast is one question asked twice.
+    missed = {scenario.spec.id for scenario in world.scenarios[:4]}
+    padded = [
+        relabelled(
+            evaluated(world, scenario, claims=truthful(world, scenario, NORMAL)[:1])
+            if scenario.spec.id in missed
+            else run,
+            level=PADDED,
+        )
+        for scenario, run in zip(world.scenarios, truthful_runs, strict=True)
+    ]
+    levels = ((REFERENCE, NORMAL, BASE), (REFERENCE, NORMAL, PADDED))
+    at_base, at_padded = arms(world, [*truthful_runs, *padded], plan(registered=levels))
+    assert (at_base.level, at_padded.level) == (BASE, PADDED)
+    assert at_base.name == "rules_only/reference normal at base"
+    touched = [world.scenarios[0].spec.id, world.scenarios[10].spec.id]
+    whole = Check("full recall", lambda e: (c := recall().of(e)) and c[0] == c[1])
+    contrast = compare_check(
+        cell_of(at_padded), cell_of(at_base), whole, END_TO_END, plan(), incidents=touched
+    )
+    assert (contrast.first_arm, contrast.second_arm) == (at_padded.name, at_base.name)
+    assert (contrast.paired, contrast.two_by_two) == (30, (26, 0, 4, 0))
+    assert contrast.paired_with_incident == 2
+    assert contrast.interval is not None and contrast.interval.high < 0
+    # With no incident named, none is counted; a ratio counts the scenarios it paired.
+    assert compare_check(
+        cell_of(at_padded), cell_of(at_base), whole, END_TO_END, plan()
+    ).paired_with_incident == 0
+    ratio = compare_ratio(cell_of(at_padded), cell_of(at_base), recall(), plan(), incidents=touched)
+    assert (ratio.paired, ratio.paired_with_incident) == (30, 2)
 
 
 def test_repeated_runs_are_compared_by_the_difference_of_pass_fractions(
@@ -504,7 +556,7 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
     failed_first = evaluate_run(world, provider_failed_export(world, one))  # run-8, attempt 1
     retried = priced(one, 1_000, "run-8", 2)
     clean = priced(two, 3_000, "run-9", 1)
-    agents = plan(registered=((failed_first.outcome.header.system, NORMAL),))
+    agents = plan(registered=((failed_first.outcome.header.system, NORMAL, BASE),))
     (agent,) = arms(world, [failed_first, retried, clean], agents)
     ledger = cost_ledger(cell_of(agent))
     cost_of_retry = 1_000 * 1_100_000 + 100 * 5_500_000

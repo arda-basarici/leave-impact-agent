@@ -34,8 +34,13 @@ run, so the form of an interval and of a comparison follows the plan and the run
 never how many answers happened to arrive.
 
 *A comparison* is paired on scenario and assigned condition: the same stratum of two
-systems' arms under one condition, over the scenarios both have in scope, the paired
-count stated. For a ratio every resample draws the same scenarios for both systems and
+arms under one condition, over the scenarios both have in scope, the paired count stated.
+The two arms are two systems at one corpus level, or one system at two levels, the answers
+being the same at every level; never both at once, and never two conditions, whose
+oracles differ. Each comparison also says how many of its paired scenarios carry an
+incident, a source that contradicted itself in some run of the measurement, since such a
+scenario touches every arm that rests on it and not only the one that met it. For a ratio
+every resample draws the same scenarios for both systems and
 takes the difference of the two ratios of sums. For a check it is the difference of the
 mean pass fractions, by the same resampling at any number of runs per scenario: whole
 scenarios within their tiers, a scenario's repeats kept together and never paired slot to
@@ -58,7 +63,7 @@ A class stratum gets its raw counts and no interval, anywhere in this module.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass
 from enum import StrEnum
 from math import lcm
@@ -164,6 +169,7 @@ class RatioComparison:
     ``first`` and ``second`` are each arm's ratio of sums over those ``paired`` scenarios,
     ``None`` when its denominator there is zero; the interval is of ``first - second``, and
     a tier and the whole hold it or ``unresolved``, the reason the bootstrap gave none.
+    ``paired_with_incident`` of the paired scenarios carry an incident.
     """
 
     measure: str
@@ -171,6 +177,7 @@ class RatioComparison:
     second_arm: str
     stratum: Stratum
     paired: int
+    paired_with_incident: int
     first: float | None
     second: float | None
     interval: BootstrapInterval | None
@@ -193,6 +200,7 @@ class CheckComparison:
     the whole hold it or ``unresolved``, the reason the bootstrap gave none. With one run
     per scenario on each side, ``two_by_two`` also holds the scenarios where both passed,
     the first only, the second only and neither; with repeats it is ``None``.
+    ``paired_with_incident`` of the paired scenarios carry an incident.
     """
 
     check: str
@@ -201,6 +209,7 @@ class CheckComparison:
     stratum: Stratum
     reading: Reading
     paired: int
+    paired_with_incident: int
     first: float | None
     second: float | None
     two_by_two: tuple[int, int, int, int] | None
@@ -317,17 +326,25 @@ def estimate_check(
 
 
 def compare_ratio(
-    first: Cell, second: Cell, measure: Measure, plan: Preregistered
+    first: Cell,
+    second: Cell,
+    measure: Measure,
+    plan: Preregistered,
+    *,
+    incidents: Collection[ScenarioId] = (),
 ) -> RatioComparison:
     """``measure`` in ``first`` against ``second``, paired on scenario: the same stratum of two
-    arms under one assigned condition. ``ValueError`` when the two cells are not that."""
+    arms under one assigned condition. ``incidents`` are the scenarios that carry an
+    incident. ``ValueError`` when the two cells are not that."""
     _require_paired(first, second)
     ours = dict(_scenario_clusters(first, measure))
     theirs = dict(_scenario_clusters(second, measure))
+    shared = [
+        runs for runs in first.scenarios if runs.scenario_id in ours and runs.scenario_id in theirs
+    ]
     paired = [
         (runs.tier, (_as_cluster(ours[runs.scenario_id]), _as_cluster(theirs[runs.scenario_id])))
-        for runs in first.scenarios
-        if runs.scenario_id in ours and runs.scenario_id in theirs
+        for runs in shared
     ]
     interval, unresolved = None, None
     if first.stratum.estimated:
@@ -347,6 +364,7 @@ def compare_ratio(
         second.arm.name,
         first.stratum,
         len(paired),
+        sum(runs.scenario_id in incidents for runs in shared),
         _ratio([pair[0] for _, pair in paired]),
         _ratio([pair[1] for _, pair in paired]),
         interval,
@@ -355,14 +373,21 @@ def compare_ratio(
 
 
 def compare_check(
-    first: Cell, second: Cell, check: Check, reading: Reading, plan: Preregistered
+    first: Cell,
+    second: Cell,
+    check: Check,
+    reading: Reading,
+    plan: Preregistered,
+    *,
+    incidents: Collection[ScenarioId] = (),
 ) -> CheckComparison:
     """``check`` in ``first`` against ``second`` under ``reading``, paired on scenario.
-    ``ValueError`` when the two cells are not the same stratum of two arms under one
-    assigned condition."""
+    ``incidents`` are the scenarios that carry an incident. ``ValueError`` when the two
+    cells are not the same stratum of two arms under one assigned condition."""
     _require_paired(first, second)
     theirs = {runs.scenario_id: runs for runs in second.scenarios}
     paired: list[tuple[Tier, _Trials, _Trials]] = []
+    with_incident = 0
     for runs in first.scenarios:
         other = theirs.get(runs.scenario_id)
         if other is None:
@@ -371,6 +396,7 @@ def compare_check(
         yours = _trials(other, check, reading, plan)
         if mine.of and yours.of:
             paired.append((runs.tier, mine, yours))
+            with_incident += runs.scenario_id in incidents
     single = all(mine.single and yours.single for _, mine, yours in paired)
     two_by_two: tuple[int, int, int, int] | None = None
     interval: BootstrapInterval | None = None
@@ -407,11 +433,25 @@ def compare_check(
         first.stratum,
         reading,
         count,
+        with_incident,
         sum(mine.fraction for _, mine, _ in paired) / count if count else None,
         sum(yours.fraction for _, _, yours in paired) / count if count else None,
         two_by_two,
         interval,
         unresolved,
+    )
+
+
+def scenario_passes(
+    cell: Cell, check: Check, reading: Reading, plan: Preregistered
+) -> tuple[tuple[ScenarioId, int, int], ...]:
+    """Each scenario of ``cell`` with its passes and its trials on ``check`` under
+    ``reading``, the two whole numbers a pass fraction is made of; a scenario with no
+    trial is given with nought of nought."""
+    return tuple(
+        (runs.scenario_id, trials.passes, trials.of)
+        for runs in cell.scenarios
+        for trials in (_trials(runs, check, reading, plan),)
     )
 
 
@@ -567,8 +607,18 @@ def _require_paired(first: Cell, second: Cell) -> None:
             "a comparison is paired on the assigned condition; the two arms were assigned "
             "different ones"
         )
-    if first.arm.system == second.arm.system:
-        raise ValueError("a comparison is between two systems; both cells are one system's")
+    same_system = first.arm.system == second.arm.system
+    same_level = first.arm.level == second.arm.level
+    if same_system and same_level:
+        raise ValueError(
+            "a comparison is between two systems, or between two levels of one; both cells "
+            "are one arm's"
+        )
+    if not same_system and not same_level:
+        raise ValueError(
+            "a comparison is between two systems at one corpus level, or one system at two; "
+            "the two arms differ in both"
+        )
 
 
 # --- Cost --------------------------------------------------------------------------------
@@ -609,4 +659,5 @@ __all__ = [
     "cost_ledger",
     "estimate_check",
     "estimate_ratio",
+    "scenario_passes",
 ]
