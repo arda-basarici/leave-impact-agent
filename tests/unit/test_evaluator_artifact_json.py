@@ -402,7 +402,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "inventory",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (5, "development")
+    assert (decoded["format_version"], decoded["label"]) == (6, "development")
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,
