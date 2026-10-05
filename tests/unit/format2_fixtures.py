@@ -32,6 +32,7 @@ from datetime import UTC, date, datetime, timedelta
 
 from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
+    UNRESOLVED_RULE,
     Abandonment,
     AbsentOutcome,
     Admitted,
@@ -404,7 +405,7 @@ def handled_fact_tool() -> RunExport:
 def unresolved_then_answered() -> RunExport:
     """A process killed after a dispatch's intent was logged, and the recovery's second
     dispatch that answered: one logical call, two dispatches, the first zero sends or one."""
-    lost = dispatch(2, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule="no-outcome")
+    lost = dispatch(2, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule=UNRESOLVED_RULE)
     again = dispatch(
         4, CompleteResponse("end_turn", 840, 0), AttributionKind.BEHAVIOUR, number=2, segment=2
     )

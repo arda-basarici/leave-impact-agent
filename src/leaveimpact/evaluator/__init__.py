@@ -52,6 +52,10 @@ frozen plan obliged, the obligations reconstructed here from what each read retu
 ``retrieval_targets`` (the statements a scenario's answer depends on under a
 condition, by removal through the oracle) and ``retrieval`` (which of them a run's reads
 returned, and through which search at what rank).
+``ending_check`` holds what a record states of its own ending to its export (the
+segments and their commits, the elapsed time, the approval's digest), and
+``attribution_check`` holds each dispatch's recorded reading to the registered attribution
+table and each call to the re-dispatch bound.
 
 Tables are a reading of evaluated runs, never stored. ``cells`` groups them by system,
 assigned condition and assigned corpus level, the scenario with all its runs as the unit,

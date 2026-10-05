@@ -7,18 +7,24 @@ has reads to count. So the metrics are one record beside the outcome, never fiel
 its three types, and the entry here returns the pair (the investigator milestone's fourth
 build step, ruling 5).
 
-The record has nine parts, and each is evaluated only where what it needs exists. A part
+The record has eleven parts, and each is evaluated only where what it needs exists. A part
 that was not evaluated is ``None``, which is a different statement from a part that found
 nothing:
 
-- *Source discipline*, the *cost check*, *prefetch conformance* and the *fact recheck*
-  need the export alone and are always there: the reads by source, outcome and origin, the
-  refused calls, the model calls by how each ended, the repeats, the operations no
-  conforming harness records; the usage and the cost recomputed, with every disagreement
+- *Source discipline*, the *cost check*, *prefetch conformance*, the *fact recheck* and
+  the *ending check* need the export alone and are always there: the reads by source,
+  outcome and origin, the refused calls, the model calls by how each ended, the tool calls
+  by what became of each, the repeats, the operations no conforming harness records and
+  the sends an SDK retried; the usage and the cost recomputed, with every disagreement
   between them and the record; whether the prefetch reads recorded are the ones the frozen
   plan obliged, which says of itself when a run was planned under another rule and is held
-  to none; and the admission of every stated fact and the composition decided again, with
-  where the record says otherwise.
+  to none; the admission of every stated fact and the composition decided again, with
+  where the record says otherwise; and the segments, the elapsed time and the approval's
+  digest the record states of its ending, held to the export.
+- *The attribution check* needs the registered attribution table: every dispatch's
+  recorded reading held to it, and every call to the re-dispatch bound when that is set.
+  Evaluated when a table is given and the record names its digest; a rules-only record
+  names none, and a run made under another table is held to no rows.
 - *Required sources* need the sealed key: for each source the scenario's answer depends
   on, whether the run asked it and whether it answered. Evaluated when the export's
   context is the sealed scenario's; a run of another context keeps its raw tallies and
@@ -66,13 +72,20 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from leaveimpact.core.attribution import (
+    AttributionTable,
+    RedispatchPolicy,
+    attribution_table_digest,
+)
 from leaveimpact.core.contradictions import Contradiction, self_contradictions
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.run_ending import ClaimAuthor
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import FailureCategory, SystemKind
+from leaveimpact.evaluator.attribution_check import AttributionCheck, check_attributions
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
+from leaveimpact.evaluator.ending_check import EndingCheck, check_ending
 from leaveimpact.evaluator.fact_recheck import FactRecheck, recheck_facts
 from leaveimpact.evaluator.fact_stages import FactStages, fact_stages
 from leaveimpact.evaluator.grading import (
@@ -106,11 +119,13 @@ class TraceMetrics:
     cost: CostCheck
     prefetch: PrefetchConformance
     recheck: FactRecheck
+    ending: EndingCheck
     required_sources: tuple[RequiredSourceUse, ...] | None
     contribution: ProofContribution | None
     retrieval: RunRetrieval | None
     level: LevelCheck | None
     facts: FactStages | None
+    attribution: AttributionCheck | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -128,8 +143,18 @@ class Evaluation:
     contradiction_not_failed: bool = False
 
 
-def evaluate_run(world: SealedWorld, export: RunExport) -> Evaluation:
+def evaluate_run(
+    world: SealedWorld,
+    export: RunExport,
+    *,
+    table: AttributionTable | None = None,
+    redispatch: RedispatchPolicy | None = None,
+) -> Evaluation:
     """The outcome of the run ``export`` records against ``world``, and its trace metrics.
+
+    ``table`` and ``redispatch`` are the registration's attribution table and re-dispatch
+    policy, each ``None`` while it is pending or when no registration is at hand; the
+    attribution check is evaluated only with a table.
 
     Raises nothing for what the run did; see ``grade_run`` and the module for what the
     sealed world can make it raise.
@@ -141,7 +166,7 @@ def evaluate_run(world: SealedWorld, export: RunExport) -> Evaluation:
     by_defect = failure is not None and failure.category is FailureCategory.DEFECT
     return Evaluation(
         outcome,
-        trace_metrics(world, export, outcome),
+        trace_metrics(world, export, outcome, table=table, redispatch=redispatch),
         assigned,
         export.record.corpus_level,
         contradictions,
@@ -149,17 +174,29 @@ def evaluate_run(world: SealedWorld, export: RunExport) -> Evaluation:
     )
 
 
-def trace_metrics(world: SealedWorld, export: RunExport, outcome: RunOutcome) -> TraceMetrics:
-    """What the run ``export`` records did; ``outcome`` is ``grade_run``'s for the same export."""
+def trace_metrics(
+    world: SealedWorld,
+    export: RunExport,
+    outcome: RunOutcome,
+    *,
+    table: AttributionTable | None = None,
+    redispatch: RedispatchPolicy | None = None,
+) -> TraceMetrics:
+    """What the run ``export`` records did; ``outcome`` is ``grade_run``'s for the same
+    export, ``table`` and ``redispatch`` as ``evaluate_run`` takes them."""
     trace = export.trace
     discipline = source_discipline(trace)
     cost = check_cost(export)
     prefetch = prefetch_conformance(export)
     recheck = recheck_facts(export)
+    ending = check_ending(export)
+    attribution = _attribution(export, table, redispatch)
     scenario = world.scenario(export.context.scenario_id)
     mismatched = isinstance(outcome, Excluded) and outcome.reason is ExcludedReason.CONTEXT_MISMATCH
     if scenario is None or mismatched:
-        return TraceMetrics(discipline, cost, prefetch, recheck, None, None, None, None, None)
+        return TraceMetrics(
+            discipline, cost, prefetch, recheck, ending, None, None, None, None, None, attribution
+        )
     grounding = None if isinstance(outcome, Excluded) else outcome.grounding
     targets = _Targets(world, scenario)
     return TraceMetrics(
@@ -167,6 +204,7 @@ def trace_metrics(world: SealedWorld, export: RunExport, outcome: RunOutcome) ->
         cost=cost,
         prefetch=prefetch,
         recheck=recheck,
+        ending=ending,
         required_sources=discipline.required_source_use(scenario.key.required_sources),
         contribution=(
             None if grounding is None else proof_contribution(trace.operations, grounding.claims)
@@ -174,7 +212,18 @@ def trace_metrics(world: SealedWorld, export: RunExport, outcome: RunOutcome) ->
         retrieval=_retrieval(targets, export, outcome),
         level=level_check(world, export),
         facts=_facts(world, targets, export),
+        attribution=attribution,
     )
+
+
+def _attribution(
+    export: RunExport, table: AttributionTable | None, redispatch: RedispatchPolicy | None
+) -> AttributionCheck | None:
+    """The run's dispatches read again by ``table``, or ``None`` when there is no table or
+    the record does not name this one's digest."""
+    if table is None or export.record.attribution_table != attribution_table_digest(table):
+        return None
+    return check_attributions(table, redispatch, export.trace.model_calls)
 
 
 class _Targets:

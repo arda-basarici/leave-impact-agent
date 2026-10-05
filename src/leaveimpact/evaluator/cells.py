@@ -243,7 +243,14 @@ class Accounting:
     shown a document outside their corpus level and ``level_not_evaluated`` the ones held
     to no level, the world sealing no membership for theirs;
     ``contradiction_not_failed`` the runs that met a source contradicting itself and did
-    not fail by defect.
+    not fail by defect. ``with_ending_findings`` counts the runs whose record states of its
+    ending what the export does not bear out (an active time above the elapsed, segments
+    on more than one commit, an approval digest that is not the exported payload's);
+    ``with_attribution_findings`` the runs with a dispatch read otherwise than the
+    registered table reads it or dispatched again against it, and
+    ``attribution_not_evaluated`` the ones held to no table, the registration's being
+    pending or not the one the record names, a run that called no model among them;
+    ``with_retried_sends`` the runs with a response whose metadata shows an SDK retry.
     """
 
     scenarios: int
@@ -272,6 +279,10 @@ class Accounting:
     with_level_findings: int
     level_not_evaluated: int
     contradiction_not_failed: int
+    with_ending_findings: int
+    with_attribution_findings: int
+    attribution_not_evaluated: int
+    with_retried_sends: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -279,8 +290,9 @@ class AttemptSummary:
     """What happened to every attempt of a cell's runs, the ones a retry replaced included.
 
     The outcome and finding counts are ``Accounting``'s, the two prefetch counts, the fact
-    and level counts and the contradiction count among them, over all attempts instead of
-    the counted ones. What ``Accounting`` holds and this does not is what only a run has
+    and level counts, the contradiction count and the ending, attribution and retried-send
+    counts among them, over all attempts instead of the counted ones.
+    What ``Accounting`` holds and this does not is what only a run has
     and an attempt has not: the intended, made, missing and surplus runs, the observed
     conditions, the structurally invalid reports, the unplaced attempts and the
     unverifiable histories. ``runs_retried`` are the runs with
@@ -307,6 +319,10 @@ class AttemptSummary:
     with_level_findings: int
     level_not_evaluated: int
     contradiction_not_failed: int
+    with_ending_findings: int
+    with_attribution_findings: int
+    attribution_not_evaluated: int
+    with_retried_sends: int
 
 
 def condition_name(condition: RunCondition) -> str:
@@ -422,7 +438,7 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
         prefetch_not_evaluated=sum(
             not evaluation.metrics.prefetch.evaluated for evaluation in counted
         ),
-        **_fact_and_level_counts(counted),
+        **_shared_finding_counts(counted),
     )
 
 
@@ -448,14 +464,15 @@ def attempt_summary_of(cell: Cell) -> AttemptSummary:
         history=_tally(finding for history in histories for finding in history.findings),
         with_prefetch_findings=sum(bool(attempt.metrics.prefetch.findings) for attempt in attempts),
         prefetch_not_evaluated=sum(not attempt.metrics.prefetch.evaluated for attempt in attempts),
-        **_fact_and_level_counts(attempts),
+        **_shared_finding_counts(attempts),
     )
 
 
-def _fact_and_level_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
-    """The four counts the accounting and the attempt summary share, over ``evaluations``:
+def _shared_finding_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
+    """The eight counts the accounting and the attempt summary share, over ``evaluations``:
     one function so the two cannot count them differently."""
     levels = [evaluation.metrics.level for evaluation in evaluations]
+    attributions = [evaluation.metrics.attribution for evaluation in evaluations]
     return {
         "with_fact_findings": sum(
             bool(evaluation.metrics.recheck.findings) for evaluation in evaluations
@@ -464,6 +481,16 @@ def _fact_and_level_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
         "level_not_evaluated": sum(level is None for level in levels),
         "contradiction_not_failed": sum(
             evaluation.contradiction_not_failed for evaluation in evaluations
+        ),
+        "with_ending_findings": sum(
+            bool(evaluation.metrics.ending.findings) for evaluation in evaluations
+        ),
+        "with_attribution_findings": sum(
+            read is not None and bool(read.findings) for read in attributions
+        ),
+        "attribution_not_evaluated": sum(read is None for read in attributions),
+        "with_retried_sends": sum(
+            bool(evaluation.metrics.discipline.retried_sends) for evaluation in evaluations
         ),
     }
 

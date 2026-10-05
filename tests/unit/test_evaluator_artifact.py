@@ -2,7 +2,9 @@
 eligible run enters the tables; an object that is no export, an export of another world, a
 run whose registration does not resolve, was another one (a file of an older format at the
 cited commit included, never decoded), or whose recorded settings differ, and under a bound
-registration a run from a dirty tree, each keep what can be said of them and enter none. A
+registration a run from a dirty tree or one whose segments ran on two commits, each keep
+what can be said of them and enter none. A stored run's dispatches are held to the
+registration's attribution table once it is set. A
 model system's roles are compared by name. The label follows the registration's status and
 what it declares: development under a draft and under a frozen registration, reported or
 exploratory under a bound one. A bound registration is held to its world and to the frozen
@@ -11,7 +13,7 @@ registration refuse."""
 
 from collections.abc import Mapping
 from dataclasses import replace
-from datetime import date
+from datetime import date, timedelta
 
 import pytest
 
@@ -31,6 +33,7 @@ from leaveimpact.core import (
     Registration,
     RegistrationStatus,
     RunExport,
+    Segment,
     Source,
     System,
     SystemKind,
@@ -59,12 +62,14 @@ from leaveimpact.evaluator.artifact import (
     require_binding,
     setting_differences,
 )
+from leaveimpact.evaluator.attribution_check import AttributionFindingKind
 from leaveimpact.evaluator.cells import StratumKind
+from leaveimpact.evaluator.ending_check import EndingFinding
 from leaveimpact.evaluator.grading import Graded
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
-from tests.unit.export_fixture import ROLE, agent_export, export_baseline
+from tests.unit.export_fixture import ROLE, agent_export, answered_call, export_baseline
 from tests.unit.reads_fixture import Recorder, full_read, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import TABLE, bound, frozen, light, named
@@ -537,6 +542,90 @@ def test_a_bound_registration_reports_and_refuses_a_dirty_harness_tree(
     frozen_artifact = artifact_of(world, under_frozen, registration=registration_bytes(FROZEN))
     assert frozen_artifact.label is Label.DEVELOPMENT
     assert only(frozen_artifact).disposition is Disposition.ELIGIBLE
+
+
+def recovered_elsewhere(export: RunExport) -> RunExport:
+    """``export`` as an attempt a first process on another commit began and was killed in,
+    300 ms in, before the process the export names ran it to its end."""
+    timing = export.record.timing
+    (finished,) = timing.segments
+    killed = Segment(1, HarnessRevision(OTHER_COMMIT, TreeState.CLEAN), 300, False)
+    return with_record(
+        export,
+        timing=replace(
+            timing,
+            segments=(killed, replace(finished, number=2)),
+            terminal_at=timing.admitted_at + timedelta(seconds=2),
+        ),
+    )
+
+
+def test_a_bound_registration_refuses_a_run_whose_segments_ran_on_two_commits(
+    world: SealedWorld,
+) -> None:
+    registration = bound_to(world)
+    mixed = recovered_elsewhere(exported(world, world.scenarios[0], registration=registration))
+    artifact = artifact_of(
+        world, stored("runs/a", mixed), registration=registration_bytes(registration)
+    )
+    refused = only(artifact)
+    assert (refused.disposition, refused.label) == (Disposition.MIXED_HARNESS, None)
+    # Named in the inventory with its grade and its finding, and in no table.
+    assert refused.evaluation is not None
+    assert refused.evaluation.metrics.ending.findings == (EndingFinding.COMMITS_DIFFER,)
+    assert made(artifact) == 0
+    # Under a draft it is a development run like any other, and carries the finding.
+    drafted = recovered_elsewhere(exported(world, world.scenarios[0]))
+    under_draft = only(artifact_of(world, stored("runs/a", drafted)))
+    assert under_draft.disposition is Disposition.ELIGIBLE
+    assert under_draft.evaluation is not None
+    assert under_draft.evaluation.metrics.ending.findings == (EndingFinding.COMMITS_DIFFER,)
+    # A run that is both is refused for its tree, the reason checked first, and keeps the
+    # finding about its commits.
+    both = recovered_elsewhere(
+        exported(world, world.scenarios[0], registration=registration, tree=TreeState.DIRTY)
+    )
+    dirty = only(
+        artifact_of(world, stored("runs/a", both), registration=registration_bytes(registration))
+    )
+    assert dirty.disposition is Disposition.DIRTY_HARNESS
+    assert dirty.evaluation is not None
+    assert dirty.evaluation.metrics.ending.findings == (EndingFinding.COMMITS_DIFFER,)
+
+
+def test_a_stored_runs_dispatches_are_held_to_the_registrations_table_once_it_is_set(
+    world: SealedWorld,
+) -> None:
+    export = agent_export(world, world.scenarios[0], (answered_call(1, None, None),))
+    tabled = with_record(export, attribution_table=attribution_table_digest(TABLE))
+    registration = named(DRAFT, agent=export.record.system.variant)
+    held = only(
+        artifact_of(world, stored("runs/a", tabled), registration=registration_bytes(registration))
+    )
+    assert held.evaluation is not None
+    read = held.evaluation.metrics.attribution
+    # The fixture's dispatch names a rule the registered table does not hold, and the
+    # registration's re-dispatch bound is set, so the call was held to it as well.
+    assert read is not None and read.bound_evaluated
+    assert [finding.kind for finding in read.findings] == [
+        AttributionFindingKind.RULE_NOT_THE_TABLES
+    ]
+    # Under the committed draft the table is pending and the same run is held to none.
+    pending = only(artifact_of(world, stored("runs/a", tabled)))
+    assert pending.evaluation is not None
+    assert pending.evaluation.metrics.attribution is None
+    # A run made under another registration, or under one that does not resolve, is held
+    # to neither: its record names the table by digest and the re-dispatch bound not at
+    # all, so this registration's bound is not one it ran under.
+    content = registration_bytes(registration)
+    for cited in ({COMMIT: DRAFT_BYTES}, {}):
+        foreign = only(artifact_of(world, stored("runs/a", tabled), registration=content, at=cited))
+        assert foreign.disposition in (
+            Disposition.ANOTHER_REGISTRATION,
+            Disposition.REGISTRATION_NOT_RESOLVED,
+        )
+        assert foreign.evaluation is not None
+        assert foreign.evaluation.metrics.attribution is None
 
 
 def test_the_label_follows_what_the_registration_declares_and_says_when_the_code_changed(

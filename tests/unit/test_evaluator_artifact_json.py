@@ -16,14 +16,19 @@ import pytest
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
+    Answer,
+    AttributionKind,
     CandidateAssessment,
     CheckReading,
     Comparison,
+    CompleteResponse,
     Component,
     CoverageAction,
     Document,
     HarnessRevision,
     MalformedRecord,
+    ModelCall,
+    ModelCallId,
     Observed,
     Operation,
     PrefetchRule,
@@ -36,6 +41,7 @@ from leaveimpact.core import (
     System,
     SystemKind,
     TreeState,
+    attribution_table_digest,
     condition_id,
     cost_of_reported,
     employee_ref,
@@ -61,10 +67,12 @@ from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import BASE, NORMAL, PADDED, evaluated, relabelled, truthful
 from tests.unit.export_fixture import (
     BASIS,
+    ROLE,
     SELECTION,
     agent_export,
     answered,
     answered_call,
+    dispatch,
     export_baseline,
     reads,
     run_export,
@@ -72,7 +80,7 @@ from tests.unit.export_fixture import (
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
-from tests.unit.registration_fixture import decided, light, named
+from tests.unit.registration_fixture import TABLE, decided, light, named
 from tests.unit.report_fixture import of_type, without
 from tests.unit.stating_fixture import stating_export, truthful_stater_runs
 from tests.unit.throwaway_world import loaded_world
@@ -177,7 +185,8 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
     tool nobody declared gives an operation finding; an enumeration short of one employee
     an integrity finding; a model call priced and one left unpriced a cost and a cost
     finding; a stating run whose record lets in what the gates refuse a recheck finding;
-    and the same run shown a document the world does not seal a level finding.
+    the same run shown a document the world does not seal a level finding; and a response
+    whose metadata shows an SDK retry a retried send.
     """
     found: dict[str, RunExport] = {}
     for scenario in world.scenarios:
@@ -205,6 +214,9 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
         for number, cost in ((1, priced), (2, None))
     )
     found["priced"] = agent_export(world, first, calls)
+    twice = dispatch(1, CompleteResponse("end_turn", 840, 1), AttributionKind.BEHAVIOUR)
+    retried = ModelCall(ModelCallId("call-1"), ROLE, (twice,), Answer(True, (), ()))
+    found["retried"] = agent_export(world, first, (retried,))
     stated = stating_export(world, world.scenarios[10], gated=False)
     found["stated"] = stated
     found["strayed"] = replace(
@@ -330,6 +342,20 @@ def artifact_of_none(world: SealedWorld) -> EvaluationArtifact:
     return evaluation_artifact(world, DRAFT_BYTES, (), {}, REVISION)
 
 
+def held_to_a_table(world: SealedWorld) -> EvaluationArtifact:
+    """An artifact under a registration whose attribution table is set, holding one agent
+    run whose record names that table and whose dispatch names a rule it lacks: the one
+    way a stored run reaches the attribution check and a finding of it, the committed
+    draft's table being pending."""
+    registration = registration_bytes(named(DRAFT))
+    export = agent_export(world, world.scenarios[0], (answered_call(1, None, None),))
+    tabled = replace(
+        export, record=replace(export.record, attribution_table=attribution_table_digest(TABLE))
+    )
+    run = StoredRun("runs/tabled", "v-runs/tabled", export_bytes(tabled))
+    return evaluation_artifact(world, registration, (run,), {COMMIT: registration}, REVISION)
+
+
 def paths(value: object, at: str = "") -> set[str]:
     """Every key path of a JSON value, an array's members under ``[]``."""
     if isinstance(value, dict):
@@ -369,7 +395,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "inventory",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (4, "development")
+    assert (decoded["format_version"], decoded["label"]) == (5, "development")
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,
@@ -399,7 +425,18 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
         "fact_recheck",
         "level_check",
         "contradiction_not_failed",
+        "ending",
+        "attribution",
+        "retried_sends",
     ]
+    assert run["ending"] == {
+        "segments": 1,
+        "timing_complete": True,
+        "elapsed_ms": 1_200,
+        "findings": [],
+    }
+    # The draft's attribution table is pending: held to none, which is not an empty finding.
+    assert run["attribution"] is None and run["retried_sends"] == []
     assert run["fact_recheck"] == {"admissions": 0, "composition_evaluated": True, "findings": []}
     assert run["level_check"] == {"level": "base", "documents": 0, "findings": []}
     assert run["contradiction_not_failed"] is False
@@ -484,7 +521,12 @@ def test_every_key_path_the_walk_writes_is_the_pinned_one(
     world: SealedWorld, artifact: EvaluationArtifact
 ) -> None:
     written: set[str] = set()
-    for held in (artifact, named_systems(world, 1), named_systems(world, 2)):
+    for held in (
+        artifact,
+        named_systems(world, 1),
+        named_systems(world, 2),
+        held_to_a_table(world),
+    ):
         written |= paths(encode_artifact(held))
     pinned = set(SHAPE.read_text(encoding="utf-8").split())
     assert written == pinned, (

@@ -21,7 +21,9 @@ tool surface, and the attribution table its dispatches were read by. Equal bytes
 would show matching declarations and nothing about what ran; an equal composing policy
 shows the export recorded the registered identity and verifies no implementation. A system
 with a value still pending that its execution needs has nothing to be compared with, so
-its runs are not eligible. Under a bound registration the harness's tree is clean as well.
+its runs are not eligible. Under a bound registration the harness's tree is clean as
+well, and every segment the attempt ran in is on one commit: a run recovered by a process
+on another commit is one export of two programs.
 A run that fails any of these keeps its grade and its cost in the inventory and enters no
 table; so does one whose cited commit resolves to no registration, which is classified
 unknown.
@@ -85,15 +87,18 @@ from leaveimpact.core.run_record import PrefetchRule
 from leaveimpact.core.run_timing import TreeState
 from leaveimpact.evaluator.analysis import Analysis, analyse
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
+from leaveimpact.evaluator.ending_check import commits_differ
 from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 4
+ARTIFACT_FORMAT_VERSION = 5
 """The format of the evaluation artifact as this code writes it; 3 since an estimate states
 why a bootstrap resolved no interval and a comparison of single runs carries one, 4 since
 the analysis holds the mechanism measure and a run its fact recheck, its level check and
-whether it met a contradiction without failing by defect."""
+whether it met a contradiction without failing by defect, 5 since a run holds its ending
+check, its attribution check and its retried sends, and a cost ledger says which durations
+are lower bounds."""
 
 
 class Label(StrEnum):
@@ -116,6 +121,8 @@ class Disposition(StrEnum):
     ANOTHER_REGISTRATION = "another_registration"
     SETTINGS_DIFFER = "settings_differ"
     DIRTY_HARNESS = "dirty_harness"
+    MIXED_HARNESS = "mixed_harness"
+    """The attempt's segments ran on more than one harness commit."""
 
 
 class RecordedSetting(StrEnum):
@@ -434,10 +441,21 @@ def _entry(
         return entry(Disposition.NOT_AN_EXPORT, None, None)
     if export.context.world_version != world.version:
         return entry(Disposition.ANOTHER_WORLD, None, check_cost(export))
-    evaluation = evaluate_run(world, export)
-    cost = evaluation.metrics.cost
     record = export.record
     cited = registrations_at.get(record.preregistration_commit)
+    # A run is held to this registration's table and re-dispatch bound only when it was made
+    # under this registration. The record names the table by digest and the bound not at
+    # all, so a run of another registration with an equal table would be held to a bound
+    # it never ran under.
+    own = cited == registration_content
+    table, redispatch = registration.attribution, registration.run_accounting.redispatch
+    evaluation = evaluate_run(
+        world,
+        export,
+        table=None if not own or isinstance(table, Pending) else table,
+        redispatch=None if not own or isinstance(redispatch, Pending) else redispatch,
+    )
+    cost = evaluation.metrics.cost
     if cited is None:
         return entry(Disposition.REGISTRATION_NOT_RESOLVED, evaluation, cost, (), Label.UNKNOWN)
     if cited != registration_content:
@@ -451,6 +469,8 @@ def _entry(
     )
     if bound and dirty:
         return entry(Disposition.DIRTY_HARNESS, evaluation, cost)
+    if bound and commits_differ(record.timing):
+        return entry(Disposition.MIXED_HARNESS, evaluation, cost)
     return entry(Disposition.ELIGIBLE, evaluation, cost, (), label)
 
 

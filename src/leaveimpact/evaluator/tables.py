@@ -52,7 +52,10 @@ first only, the second only, neither.
 retries included, with the median and the range per run and the number of runs whose cost
 is a floor: a run with a send the provider reported no usage for, one nobody can prove
 was not sent, or one the embedded rates could not price. Costs are in pico-dollars and a
-duration is evidenced active time. A run with no possible send, because it called no model
+duration is evidenced active time, which is a lower bound for a run with an attempt whose
+segment was killed before its end was recorded: the ledger counts those runs and gives the
+segments per run beside the durations, so an interrupted run never reads as an unusually
+fast one. A run with no possible send, because it called no model
 or every request was refused before sending, cost nothing, and that is a
 complete
 cost of zero. The whole's ledger also holds the arm's attempts that no scenario of the
@@ -231,8 +234,10 @@ class CostLedger:
     """What a cell's runs cost and how long they took, every attempt counted.
 
     ``pico_usd`` is the total over every attempt and a floor when ``floors`` is not zero:
-    that many runs hold an attempt whose cost is unknown or incomplete. ``per_run`` and
-    ``duration_ms`` are over runs, a run's attempts summed, ``None`` with no run.
+    that many runs hold an attempt whose cost is unknown or incomplete. ``per_run``,
+    ``duration_ms`` and ``segments`` are over runs, a run's attempts summed, ``None`` with
+    no run. ``lower_bound_durations`` is how many runs hold an attempt whose timing is
+    incomplete, a segment's end never recorded: their durations are lower bounds.
     """
 
     arm: str
@@ -243,6 +248,8 @@ class CostLedger:
     floors: int
     per_run: Spread | None
     duration_ms: Spread | None
+    lower_bound_durations: int
+    segments: Spread | None
 
 
 def estimate_ratio(cell: Cell, measure: Measure, plan: Preregistered) -> RatioEstimate:
@@ -459,7 +466,9 @@ def cost_ledger(cell: Cell) -> CostLedger:
     """What ``cell``'s runs cost and how long they took, every attempt of every run counted."""
     costs: list[int] = []
     durations: list[int] = []
+    segments: list[int] = []
     floors = 0
+    lower_bounds = 0
     attempts = 0
     for held in (*(runs.attempts for runs in cell.scenarios), cell.unplaced):
         by_run: dict[tuple[str, str], list[Evaluation]] = {}
@@ -471,6 +480,8 @@ def cost_ledger(cell: Cell) -> CostLedger:
             costs.append(sum(_pico_usd(attempt) for attempt in made))
             durations.append(sum(attempt.metrics.cost.duration_ms for attempt in made))
             floors += any(not _cost_is_complete(attempt) for attempt in made)
+            segments.append(sum(attempt.metrics.ending.segments for attempt in made))
+            lower_bounds += any(not attempt.metrics.ending.timing_complete for attempt in made)
     return CostLedger(
         cell.arm.name,
         cell.stratum,
@@ -480,6 +491,8 @@ def cost_ledger(cell: Cell) -> CostLedger:
         floors,
         _spread(costs),
         _spread(durations),
+        lower_bounds,
+        _spread(segments),
     )
 
 

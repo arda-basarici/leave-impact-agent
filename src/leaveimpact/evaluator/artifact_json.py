@@ -26,7 +26,9 @@ Three things are written differently from their type, each on purpose:
   claim rows, the plan findings and coverage gaps, each claim's replay standing, the
   integrity, operation and prefetch findings, the disagreements between record and
   trace, what the rerun of admission and composition disputes, the documents outside its
-  level, and whether it met a contradiction without failing by defect. Proofs, premises,
+  level, whether it met a contradiction without failing by defect, what its record states
+  of its ending with where the export does not bear it out, its dispatches' readings held
+  to the registered table, and the sends an SDK retried. Proofs, premises,
   citations, retrieval rows, the per-operation rows, the fact stages with every emission's
   class and the contradictions among its reads are left out: each is recomputed from the
   stored export,
@@ -129,6 +131,9 @@ def _run(evaluation: Evaluation) -> JsonObject:
         "fact_recheck": _written(metrics.recheck),
         "level_check": _written(metrics.level),
         "contradiction_not_failed": evaluation.contradiction_not_failed,
+        "ending": _written(metrics.ending),
+        "attribution": _written(metrics.attribution),
+        "retried_sends": _written(metrics.discipline.retried_sends),
     }
 
 
