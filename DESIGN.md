@@ -2130,11 +2130,10 @@ registration without its status, its world's version and the frozen commit; a bo
 file checked against a digest it carried would show internal consistency only, and a
 comparison of decoded values would hold a setting of true equal to one of 1. A change
 after full-set results is an amendment, the old numbers kept, further results on the
-same world labeled exploratory, and confirmation needs a world from a new seed. Two
-limits of this format are known. The single-shot system's query protocol can only be
+same world labeled exploratory, and confirmation needs a world from a new seed. One
+limit of this format is known. The single-shot system's query protocol can only be
 pending, so that system is in no plan and no frozen file until its own step changes
-the format. And a frozen file names the mechanism measure, which the evaluator does
-not hold yet, so no frozen or bound registration is evaluated before it does.
+the format.
 
 **Four systems, two corpus levels and five assigned conditions make twenty-four cells,
 reported in two ways.** A cell is a system under a condition at a level. Full context
@@ -2212,8 +2211,8 @@ that one system beats another; the arithmetic stays in whole numbers until one
 division, so equal resamples are equal. One that crosses zero is said to include
 differences in either direction, never equivalence. The mechanism measure, of the
 prose statements a scenario's required rows depend on how many had their carrier
-returned, were stated, were admitted and were usable, is registered as pending until
-the evaluator computes it. Twenty-five measure families are registered, the
+returned, were stated, were admitted and were usable, is registered by its name and
+its four stages. Twenty-five measure families are registered, the
 answer side over all claims and per claim type, grounding and citations over graded
 and limited runs apart, source discipline and retrieval one row each; two systems are
 compared on a family's leading row and the rest is reported per arm. Ten thousand
@@ -2411,6 +2410,77 @@ report does not assess viable is the chain's finding alone; the declared-constra
 check reports the count and leaves the assignee to it, since that check goes uncheckable
 when a cited clause cannot be read and the chain reads the report alone.
 
+**The mechanism measure says where a needed statement was lost on the way to a
+report.** Some of what the rules conclude rests on facts only prose carries, and a
+system that reads prose has a model state them. The statements a scenario needs are
+fixed by the sealed scenario and the condition a run was assigned, never by the run:
+the ones whose removal moves a key every report must hold. On the suite's throwaway
+world that is 31 statements in 20 of 30 scenarios under the normal condition, none in
+the structured tier, 15 in 8 with the tracker down and 25 in 17 with the calendar
+down. Four stages are counted over that one denominator, each requiring the one
+before it, so a drop between two neighbours is a count of statements lost at that
+step. Returned: a completed read returned a sealed carrier of the statement. Emitted:
+an answer states it, subject, predicate and value, from a sealed carrier that had
+come back with the sealed text before that answer. Admitted: the record admitted such
+an emission. Usable: the composed view keeps it, and for a requirement a span of it
+is bound to what the sealed world scopes the clause to. A requirement bound to
+another artifact is composed and graded as the model's wrong binding, and it is not
+the needed fact in the view; read as usable it would let a run hold every stage and
+fail with no stage saying where. A failed attempt keeps its denominator and whatever
+its trace shows of the first three stages, and nothing of it is usable: a system that
+fails often must not show better stages than one that finishes. A scenario that needs
+no prose statement is in scope with nothing to count, in no ratio and never read as
+perfect. The measure does not apply to the rules-only system, to a claim set a model
+authored, or under an assigned condition with no answer. It is reported for every
+scored arm of a system that states facts, at the whole and at each tier, with the
+stages by predicate at the whole, and contrasted on the pairs the registration already
+compares, the primary's, each secondary's and each level contrast's; the descriptive
+product has no registered reading of a stage and holds none. It carries no claim.
+
+**Every statement a model made is put in one class, and a true statement is not
+always one the text makes.** Beside the stages a table counts each entry of each
+batch once: malformed; on a carrier the world does not seal; on a carrier no read had
+returned by that answer; on a carrier that came back with other content; needed; true
+and unneeded, which is valid context; true and stated by other prose than the carrier
+named; true in a structured record and stated by no prose; false. The last but one
+exists because of what a model does with a comment on a ticket: it reads the comment
+as naming the ticket's owner, which the ticket's own field holds and no sentence
+says. The anchor guard refuses such a statement and it is not an invention, so it is
+counted apart from one. The counts are given as emissions and as distinct statements,
+with the recorded refusals and exclusions by reason and each recorded placement
+against the sealed scope. A truthful stater on the throwaway world shows the layers
+apart: let in whole it reaches every stage on every needed statement, and through the
+gates only its requirements are admitted, 17 of the 31, because that world's
+model-written prose is stand-in text that names nobody and only the class-written
+clauses carry their anchors.
+
+**What a harness recorded about stated facts is decided again from the export.** The
+gates, the join and the scope rules are shared code, so the evaluator reruns
+admission for every stated fact over the reads logged before the answer that carried
+it, and reruns composing over the admitted statements and all the run's reads. A
+difference is a finding about the harness: an admission the gates refuse or a refusal
+they admit, a refusal under another reason, placements or exclusions that are not the
+recomputed ones, or admissions that cannot be composed again at all. The stages read
+the record and not the rerun. The claims were composed from what the record admitted,
+and a measure read from recomputed admissions would describe another run than the
+report does; so a run the rerun disputes is counted as one and stays in its tables.
+A composition is rerun only where one was made, by the rules, in an attempt that did
+not fail.
+
+**Every document a run was shown is held to its level, and a run that went on past a
+contradiction says so.** The level is read off the record and never inferred from the
+reads. Shown is every document any operation returned, whoever asked: a search, a
+read by id, the documents a harness puts before a full-context call, which are
+operations of the trace like the rest. A document outside the level's sealed
+membership is a finding naming the operation and the document. The membership is the
+sealed world's, and a world sealed without filler has one level, the base one, every
+document it seals; a run assigned any other level is not evaluated for it, which is
+counted apart from a run with no finding. A run whose reads contradicted each other
+and that did not fail by defect, because it reported or because it failed later for
+another reason, went on where the rule stops a harness, and is counted. The
+accounting and the attempt summary hold the four counts from one function, over the
+counted runs and over every attempt.
+
 **Ruled on 2026-10-04 and not yet built: what the measurement still lacks before any
 model system is measured.** The paragraphs above describe the evaluator and the
 committed registration as they stand. The rulings in the two paragraphs below have no
@@ -2418,14 +2488,10 @@ code yet, or code with nothing to fill it, and this text is rewritten as each la
 Until then the registration stays a draft, and no reported measurement is made under
 it.
 
-**The measurement world, the mechanism measure and the level check.** The measured
-world is a new one from a seed drawn from a secret, with answer-neutral documents
-sealed into it at nested levels, and the generator does not produce it yet. The
-mechanism measure is registered as pending: its denominator is fixed by the sealed
-scenario (on the suite's throwaway world, 31 statements in 20 of 30 scenarios, none in
-the structured tier) and its four stages are not computed. Nor does the evaluator yet
-check every document a run was shown against the level's sealed membership, rerun
-admission from an export, or report a run that met a contradiction and did not fail.
+**The measurement world.** The measured world is a new one from a seed drawn from a
+secret, with answer-neutral documents sealed into it at nested levels, and the
+generator does not produce it yet. Until it does, no level but the base one has a
+sealed membership for the level check to hold a run to.
 
 **Export format 2 is built; what fills it is not.** The format, its codec and the
 twelve hand-built cases it was accepted on are described with the export above. Four
