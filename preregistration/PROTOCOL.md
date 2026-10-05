@@ -10,73 +10,144 @@ One JSON file with a format version, decoded strictly: every field required, an 
 key refused, and the bytes accepted only if they are the one form the encoder writes. It
 is changed through the encoder and never by hand, and a line in `.gitattributes` keeps a
 checkout from rewriting its line endings, so the bytes at a commit are the bytes that were
-registered.
+registered. The file is at format 2. Nothing reads format 1, and no run was made under it
+that a report could cite.
 
-Names live in the file and behaviour lives in code. The file names a check, a measure, a
-prefetch rule, an outage protocol, a reporting policy; the code holds what each name
-means. Each consumer compares what the file names with what its own code computes and
-refuses to run on a difference. Neither side is ever substituted for the other: a run
-that quietly used today's value would cite a registration it did not follow.
+Names live in the file and behaviour lives in code. The file names a check, a measure, an
+interval method, a prefetch rule, an outage protocol, a composing policy; the code holds
+what each name means. Each consumer compares what the file names with what its own code
+computes and refuses to run on a difference. Neither side is ever substituted for the
+other: a run that quietly used today's value would cite a registration it did not follow.
 
-## Draft and frozen
+## Draft, frozen, bound
 
-The file has a status. A *draft* may hold values that are not chosen yet. Each such value
-is written as pending, with a sentence saying what will resolve it, and a pending value
-blocks only the execution that needs it: the rules-only baseline runs while the model
-systems' entries are still pending. No entry point fills a pending value with a literal.
+The file has a status, and there are three.
 
-A draft can have nothing pending and still be a draft. *Frozen* is a statement that the
-reporting design is fixed: it refuses any pending value, and it refuses caps and a budget
-whose basis is still unmeasured. The freeze comes before the first full-set measurement
-and after the calibration runs, when the forecast of the whole registered workload fits
-under the spending threshold with what has already been spent. If it does not fit, the
-repeat count is cut first, then the two model arms under a corpus outage; the
-answer-quality arms are not cut. If it still does not fit, the file stays a draft and the
-measurement does not start.
+A *draft* may hold values that are not chosen yet. Each such value is written as pending,
+with a sentence saying what will resolve it, and a pending value blocks only the execution
+that needs it: the rules-only baseline runs while the model systems' entries are still
+pending. A model system needs more than its own entry. Its runs are read by the
+attribution table, dispatched under the re-dispatch policy and parsed by the entry schema,
+so it stays blocked while any of the three is pending. No entry point fills a pending
+value with a literal.
+
+*Frozen* says the procedure is fixed, and it is fixed before the world it will be measured
+on exists. A frozen file has exactly one value pending, the world's version. It refuses
+any other, it refuses caps and a budget whose basis is still unmeasured, and it refuses a
+world any scenario of which was tuned on.
+
+*Bound* is the frozen procedure with its world. It holds the world's version and names
+the commit of the frozen file it binds. Binding changes those two values and the status
+and nothing else. The evaluator checks this instead of trusting it: it reads the file at
+the named commit, requires it to be frozen there, and compares the two procedures as
+written. A bound file whose procedure differs from the frozen one's, or that is evaluated
+against another world, refuses the whole evaluation.
+
+The freeze comes after the calibration runs, when the forecast of the whole registered
+workload fits under the spending threshold with what has already been spent. What the
+freeze sets is in the file as pending today: the padded level's size, the repeat count,
+the caps, the attribution table's rows, the re-dispatch bound, the decision on the
+conditional cells and the inclusion of each supporting comparison. If the forecast does
+not fit, the file stays a draft and the measurement does not start.
 
 Every dollar figure in the file is a placeholder carried from the design, cumulative over
 the milestone, and marked unmeasured. None is a target or an accepted spend. They are set
 again from real usage before the freeze.
 
+## The world
+
+The measured world does not exist yet. It is generated from a seed drawn from a secret
+after the procedure is frozen, and bound once it has been validated and audited. No prompt
+and no setting is tuned on any of its scenarios, and the file says so in a field a frozen
+registration requires to be zero. That zero is the measurement world's. Development
+happens on other worlds, and a development run names its world itself: under a draft or a
+frozen file an evaluation is labelled development whatever world it is of.
+
+The world generated first, version
+`7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4`, is a development
+world. Its recipe is public and its corpus is small enough that one call shown every
+document reaches the ceiling, so it separates no model systems. Six of its scenarios are
+the live-iteration subset, the ones prompts are tried on first: `scenario_009`,
+`scenario_010`, `scenario_013`, `scenario_018`, `scenario_023`, `scenario_028`. They were
+drawn two from each tier by a seeded draw that read no expected answer, and are listed
+here as bare ids because a scenario's tier is sealed and this repository is public. The
+registration no longer holds them, and nothing in the evaluator treats them differently.
+
 ## What is measured
 
-Three systems, each registered by kind and variant: the investigator, a rules-only
-baseline that calls no model and reads no prose, and a single-shot baseline that makes
-one model call over the shared prefetch and one fixed retrieval. Each runs under every
-registered condition, and a system under a condition is an *arm*.
+Four systems, each registered by kind and variant: the investigator; a rules-only baseline
+that calls no model and reads no prose; a single-shot baseline that makes one model call
+over the shared prefetch and one fixed retrieval; and full context, the same single call
+shown every document instead of a retrieval's hits. A system that calls a model registers
+its roles by name, each with its model configuration, its prompts and its tool surface, and
+a run is compared with them role by role.
 
-A condition is the set of sources scheduled unreachable for a whole run, injected where
+A *condition* is the set of sources scheduled unreachable for a whole run, injected where
 the system reads. Conditions are reported in one of two ways, and the name describes the
 assignment and its reporting, never how a run turned out:
 
 - *Answer quality.* Every source reachable, or one whose outage still leaves an expected
-  answer. These arms carry the full tables and the comparisons between systems.
+  answer. These carry the full tables and the comparisons between systems.
 - *Degraded condition.* The outage leaves the leave or the policy unreadable, so no
-  claim-level answer exists. These arms carry the accounting, the cost and a table of what
-  the runs did: whether the run met its outage, how it ended, whether it reported
-  anything, and what its own reads make of what it reported.
+  claim-level answer exists. These carry the accounting, the cost and a table of what the
+  runs did: whether the run met its outage, how it ended, whether it reported anything,
+  and what its own reads make of what it reported.
 
-A run is counted in the arm it was assigned to and graded against the condition its own
+A *corpus level* is how much answer-neutral filler the world's documents are padded with.
+There are two, the base level with none and a padded one. The answers are the same at
+both. Which documents a level holds is sealed with the world.
+
+A *cell* is one system under one condition at one level. Every system runs the normal
+condition at both levels. The outages run at the base level only, so no outage is crossed
+with a size. Rules only reads no document and gives the same answers at both levels; it is
+run at each all the same, so that each cell has its own runs and the report can show they
+are equal.
+
+Four cells are conditional: full context under each outage. They form one group with one
+rule and one decision, all four or none, taken from the cost forecast before any
+measurement result exists. Until the group is decided as run nobody executes those cells
+and nothing is reported for them.
+
+A run is counted in the cell it was assigned to and graded against the condition its own
 reads show. A system that never called the failed source ran under no outage and is still
-a run of the outage arm, counted there as unexercised.
+a run of the outage cell, counted there as unexercised.
 
 ## How a run is counted
 
-Every arm runs each scenario the registered number of times. A run that was intended and
+Every cell runs each scenario the registered number of times. A run that was intended and
 never made does not pass in the end-to-end reading; it is not left out.
 
 A run is retried after an infrastructure failure and after nothing else. A defect is not
-retried, because a retry could hide it. The attempt that counts is the earliest one that
-did not fail by infrastructure, or the last when all did. Every attempt is kept and
-summarized beside the counted ones, so a failure a retry recovered from still shows. A
-run whose attempt numbers have a gap has no attempt that can be shown to be the counted
-one: it keeps its grade and its cost, enters no quality estimate, and is counted under
-its own reason.
+retried, because a retry could hide it. The attempt that counts is chosen among the
+attempts numbered within the registered maximum: the earliest one that did not fail by
+infrastructure, or the last when all did. An attempt past the maximum is kept with its
+cost and never counts. Every attempt is summarized beside the counted ones, so a failure a
+retry recovered from still shows. A run whose attempt numbers have a gap within that range
+has no attempt that can be shown to be the counted one: it keeps its grade and its cost,
+enters no quality estimate, and is counted under its own reason.
+
+What a model dispatch observed and how the measurement reads it are recorded apart. The
+reading is the attribution table's: behaviour of the system, an infrastructure fault, or a
+defect of the harness, with whether the call may be dispatched again inside the run and
+whether a failure there allows a new attempt. The table is registered so that which
+failures count against a system is fixed before any result exists.
 
 A run that carries a finding (its reads differ from the sealed world, an operation no
 conforming harness records, a cost that does not add up, a prefetch that is not the
 registered plan) stays in the tables and is counted beside them. Keeping a run is not
 vouching for it.
+
+## How stated facts become claims
+
+No model writes a verdict. A model states facts with the words it read them from, and the
+rules compose the claims, for every system including the baseline, which states none. The
+file binds three things about this. The composing policy, which names everything that
+decides a composed report. The anchor table the guard on stated facts is read from. And
+the entry schema a model's facts are parsed by, pending until the investigator is built.
+
+The harness computes the composing policy and refuses to run under another. The evaluator
+cannot compute it, and holds each run's recorded policy to the registered one. An equal
+value there shows the run recorded the registered identity. It verifies no implementation.
 
 ## How the result is read
 
@@ -86,43 +157,77 @@ its coverage actions are the expected kind, and whether the system's own reads r
 every claim it made. Each is read two ways: over the runs the check applies to, and end
 to end over every run a scenario was meant to have.
 
-The primary comparisons are the investigator against each baseline on the first check,
-end to end, under the normal condition, over the primary scenario set. Tier breakdowns
-are supporting results named in advance. Everything else is descriptive. No comparison
-is registered as a test of superiority: a difference is reported with its interval, and
-when the interval crosses zero the report says it includes differences in either
-direction. It never says the systems are equivalent. The intervals are wide at this size.
+There is one primary comparison: the investigator against full context, under the normal
+condition at the padded level, on the first check read end to end, over all scenarios.
+The overall contrast is the claim. Tier contrasts are breakdowns named in advance and
+shown beside it, and no claim of success is made from a tier, an outage cell or any other
+comparison.
+
+Named in advance beside the primary, and carrying no claim:
+
+- *Secondary.* The investigator against single-shot, at both levels.
+- *Descriptive.* Every pair of systems at each named place: the normal condition at both
+  levels, and the two answer-quality outages at the base level.
+- *Level contrasts.* One system against itself, padded less base, under the normal
+  condition, for each system that reads documents. This measures sensitivity to the
+  padding. It does not say why a system changed.
+- *The mechanism measure.* Of the prose statements a scenario's required rows depend on,
+  how many had their carrier returned to the run, were stated correctly, were admitted,
+  and were usable in the composed view: four stages over one denominator, which the sealed
+  scenario fixes. It says where a system succeeded or failed on the way to its report. It
+  is pending in the file until the evaluator computes it.
+
+Every interval is from one method at any repeat count: whole scenarios resampled within
+their tiers, a scenario's repeats kept together, two cells paired on the scenario. With
+one run a scenario the two-by-two counts are printed beside the interval. An interval the
+method cannot resolve is printed as unresolved with its reason: no eligible scenario,
+fewer than two, a zero denominator, or every resample equal. The point estimate is still
+shown, and an unresolved interval supports no statement that one system beats another.
+No comparison is registered as a test of superiority: a difference is reported with its
+interval, and when the interval crosses zero the report says it includes differences in
+either direction. It never says the systems are equivalent. The uncertainty is about new
+scenarios from this generator in this one organization, and the intervals are wide at this
+size.
+
+A system's normal and outage cells are shown side by side and never differenced. Their
+expected answers differ, so a difference between them would compare two questions.
 
 The measures are registered by name too, in families: the answer side over all claims
 and per claim type, grounding and citations over graded and limited runs apart, source
 discipline, retrieval. A comparison between two systems is made on a family's leading
-row; the rest are reported per arm.
+row; the rest are reported per cell.
 
-## The scenario sets
+## Headroom
 
-A small number of scenarios from each tier are *development* scenarios: the ones prompts
-and settings are tuned on. They were selected by tier alone, by a draw seeded from the
-file, with no expected answer read, and are listed in the file as bare ids. The file
-carries no tier beside an id, because a scenario's tier is sealed and this repository is
-public.
+Under an outage the expected answer asks for less, and a system that states little is
+right more often. The file registers a procedure that characterizes this: per place, the
+number of scenarios the rules-only baseline does not already pass, of how many. It is two
+counts and names no scenario. It is computed on the measurement world after the freeze
+and disclosed in the report, and it never becomes a reason to change a cell or leave a
+scenario out. It is a diagnostic, not the most a system could improve by.
 
-Every other scenario is in the *primary* set, held out from scenario-specific tuning.
-The primary results are over that set. All scenarios are also run and reported together
-as a supporting summary. The held-out scenarios share the organization and the
-generator's conventions with the development ones, and the report says so; a world from
-another seed is the stronger design and is reopened if the budget leaves room.
+## Supporting comparisons
 
-Once listed, the development scenarios are not redrawn. A later change of seed must not
-disown the scenarios the tuning was done on.
+Four comparisons are declared with their place, their two systems, their endpoint and
+their analysis: vector retrieval against full-text retrieval in single-shot, a multi-agent
+layout against the single investigator, the primary contrast under a second model, and a
+model-authored report against rule composition. Whether each is built is decided at the
+freeze, from time and cost, before any measurement result is seen. The list closes there.
+A comparison on it is prespecified whenever it runs; anything added later is exploratory
+and says so.
+
+This format registers one system of each kind, so it can declare a supporting comparison
+and cannot yet register the second system one would run. That arrives with the first one
+that is built.
 
 ## What an evaluation is labeled
 
 The label is derived by the evaluator from the registration it reads and stored in the
 evaluation; no run labels itself.
 
-- Under a draft, an evaluation is *development*.
-- Under a frozen registration it is *reported*.
-- A frozen registration that says it amends an earlier one, and that full-set results on
+- Under a draft or a frozen registration, an evaluation is *development*.
+- Under a bound registration it is *reported*.
+- A bound registration that says it amends an earlier one, and that full-set results on
   this world existed when it was written, gives *exploratory* evaluations. Those two
   statements are the registration author's. No job can read earlier evaluations to check
   them, so an evaluation carries them as declared.
@@ -132,7 +237,8 @@ evaluation; no run labels itself.
 A run enters the tables only when the registration at the commit it cites has the same
 bytes as the evaluator's own, and what the run recorded of its own execution is what the
 registration says. A run that fails either keeps its grade and its cost in the
-evaluation's inventory and enters no table.
+evaluation's inventory and enters no table. Under a bound registration a run from a
+harness with uncommitted changes stays out as well.
 
 ## When something goes wrong
 
@@ -142,6 +248,15 @@ defect, the same stored runs are evaluated again and both evaluations are kept. 
 execution or the world was compromised, the measurement is run again under an amended
 registration and both sets are kept. A set is invalid because a stated condition of the
 measurement was breached, never because of its scores.
+
+One incident is computed by the evaluator itself. When two complete reads of one
+structured source cannot both be true, the attempt that met them ends by defect, and the
+fault is the world's or the execution's and not the system's. A system that reads more is
+likelier to meet it. So it is reported by scenario for the whole measurement: which runs
+met it and which did not, in every cell, with the runs that are out of the tables read for
+it like the ones that are in. Each comparison says how many of the scenarios it paired
+carry one. Nothing is excluded for it; whether a world is compromised is a person's
+decision the section exists to inform.
 
 A change to the registration after full-set results exist is an amendment: the old
 numbers stay, further results on the same world are exploratory, and confirmation needs
