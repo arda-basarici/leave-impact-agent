@@ -16,7 +16,10 @@ that both refuse and name different reasons; a refusal's detail text is not comp
 
 *Composition* is rerun over all the run's reads and the statements its record admitted, in
 the order stated: the join, the scope rules, and the join again without what they withhold,
-which is the composer's own sequence. A finding says the placements or the exclusions
+which is the composer's own sequence. The order stated is the order the answers were
+logged in, a batch's entries in their own, and not the order the calls were asked in: two
+calls that overlap can answer the other way round, and the join keeps the first of two
+equal statements. A finding says the placements or the exclusions
 recorded are not the ones recomputed; the two are compared as sets, an order being no part
 of what was composed. It is evaluated for a claim set the rules composed in an attempt
 that did not fail: a failed attempt composed nothing, and a model-authored claim set has
@@ -36,11 +39,12 @@ the registration is read, so the gates run here are the registered ones.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.admission import admit, run_lexicon
-from leaveimpact.core.model_calls import ParsedBatch
+from leaveimpact.core.model_calls import ModelCall, ParsedBatch
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.run_ending import ClaimAuthor
@@ -80,7 +84,7 @@ class RecheckFinding:
 @dataclass(frozen=True, slots=True)
 class FactRecheck:
     """What the rerun found: how many admissions were decided again, whether the composition
-    was, and every difference, admissions first in the trace's order."""
+    was, and every difference, admissions first in the order the answers were logged."""
 
     admissions: int
     composition_evaluated: bool
@@ -95,7 +99,7 @@ def recheck_facts(export: RunExport) -> FactRecheck:
     findings: list[RecheckFinding] = []
     admitted: list[StatedFact] = []
     decided = 0
-    for call in trace.model_calls:
+    for call in _in_answer_order(trace.model_calls):
         if call.answer is None:
             continue
         entries = [
@@ -143,6 +147,19 @@ def recheck_facts(export: RunExport) -> FactRecheck:
     if composed:
         findings.extend(_composition_findings(export, admitted))
     return FactRecheck(decided, composed, tuple(findings))
+
+
+def _in_answer_order(calls: Sequence[ModelCall]) -> list[ModelCall]:
+    """The answered calls of ``calls`` in the order their answers were logged.
+
+    A trace holds its calls in the order they were first asked, and two calls that overlap
+    can answer the other way round. Statements were made when an answer was logged, so
+    that is their order: a composer takes them in it, and which of two equal statements
+    the join keeps, with its quote, follows from it.
+    """
+    answered = [call for call in calls if call.answer is not None]
+    # An answer is what a recorded response carried, so its position is always held.
+    return sorted(answered, key=lambda call: call.dispatches[-1].outcome_position or 0)
 
 
 def _composition_findings(export: RunExport, admitted: list[StatedFact]) -> list[RecheckFinding]:

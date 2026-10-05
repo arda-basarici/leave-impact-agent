@@ -7,7 +7,7 @@ from dataclasses import replace
 
 import pytest
 
-from leaveimpact.agent.composer import rules_only_composition
+from leaveimpact.agent.composer import compose, rules_only_composition
 from leaveimpact.core import (
     ClaimAuthor,
     Failure,
@@ -18,7 +18,8 @@ from leaveimpact.core import (
     RunExport,
     TerminalStatus,
 )
-from leaveimpact.core.model_calls import ParsedBatch
+from leaveimpact.core.admission import admit, run_lexicon
+from leaveimpact.core.model_calls import Answer, FactBatch, ParsedBatch
 from leaveimpact.core.read_coverage import supplied_by
 from leaveimpact.core.run_ending import RequirementPlacement
 from leaveimpact.core.stated import (
@@ -37,9 +38,9 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import evaluated
-from tests.unit.export_fixture import approval
+from tests.unit.export_fixture import agent_export, answered_call, approval
 from tests.unit.registration_fixture import DRAFT, decided, light, named
-from tests.unit.stating_fixture import ANSWERED_AT, stating_export
+from tests.unit.stating_fixture import ANSWERED_AT, read_everything, restated, stating_export
 from tests.unit.throwaway_world import loaded_world
 
 CALL = "call-1"
@@ -65,6 +66,10 @@ def entries_of(export: RunExport) -> tuple[Admitted | Refused, ...]:
     (batch,) = export.trace.model_calls[0].answer.fact_batches  # type: ignore[union-attr]
     assert isinstance(batch, ParsedBatch)
     return tuple(entry for entry in batch.entries if isinstance(entry, Admitted | Refused))
+
+
+def batch(*entries: Admitted | Refused) -> FactBatch:
+    return ParsedBatch(tuple(entries))
 
 
 def kinds(export: RunExport) -> list[RecheckKind]:
@@ -247,6 +252,50 @@ def test_a_composition_is_rerun_only_where_one_was_made(truthful: RunExport) -> 
     authored = replace(truthful.trace.composition, author=ClaimAuthor.MODEL, placements=())
     by_a_model = replace(truthful, trace=replace(truthful.trace, composition=authored))
     assert not recheck_facts(by_a_model).composition_evaluated
+
+
+def test_statements_are_composed_again_in_the_order_their_answers_were_logged(
+    world: SealedWorld, scenario: Scenario, truthful: RunExport
+) -> None:
+    # Two calls that overlap: the first asked answers last. Both state one requirement with
+    # one span, in different words, so the join keeps the one stated first, and stated
+    # first is answered first, whichever call was asked first.
+    operations, reads, leave, universe = read_everything(world, scenario, ())
+    logged = tuple(
+        replace(operation, position=number) for number, operation in enumerate(operations, start=1)
+    )
+    recorded = entries_of(truthful)
+    requirement = next(entry.fact for entry in recorded if isinstance(entry, Admitted))
+    shorter = replace(requirement, quote=requirement.quote[:-1])
+    assert isinstance(admit(shorter, reads, run_lexicon(reads)), Admitted)
+
+    restatement = Answer(False, (), (batch(Admitted(shorter)),))
+    asked_first = answered_call(1, None, None, answer=restatement)
+    sent = replace(asked_first.dispatches[0], outcome_position=ANSWERED_AT + 500)
+    asked_first = replace(asked_first, dispatches=(sent,))
+    asked_second = answered_call(2, None, None, answer=Answer(False, (), (batch(*recorded),)))
+    intent, answer = (
+        asked_second.dispatches[0].intent_position,
+        asked_second.dispatches[0].outcome_position,
+    )
+    assert answer is not None
+    assert asked_first.dispatches[0].intent_position < intent < answer < ANSWERED_AT + 500
+
+    in_emission_order = [
+        *(entry.fact for entry in recorded if isinstance(entry, Admitted)),
+        shorter,
+    ]
+    composed = compose(reads, in_emission_order, world.context_of(scenario), leave, universe)
+    placed = [entry.fact.quote for entry in composed.composition.placements]
+    assert requirement.quote in placed and shorter.quote not in placed
+    export = restated(
+        agent_export(world, scenario, (asked_first, asked_second)),
+        logged,
+        composed.claims,
+        composed.composition,
+    )
+    recheck = recheck_facts(export)
+    assert (recheck.admissions, recheck.findings) == (len(recorded) + 1, ())
 
 
 # --- Counted ---------------------------------------------------------------------------------
