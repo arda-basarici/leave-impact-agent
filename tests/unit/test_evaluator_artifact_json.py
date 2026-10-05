@@ -7,7 +7,7 @@ a path that appears or disappears is a change of format, made with the format ve
 
 import json
 from dataclasses import dataclass, replace
-from datetime import date
+from datetime import date, timedelta
 from pathlib import Path
 from typing import cast
 
@@ -78,6 +78,7 @@ from tests.unit.export_fixture import (
     reads,
     run_export,
 )
+from tests.unit.format_fixtures import never_claimed
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
@@ -187,8 +188,10 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
     an integrity finding; a model call priced and one left unpriced a cost and a cost
     finding; a stating run whose record lets in what the gates refuse a recheck finding;
     the same run shown a document the world does not seal a level finding; a response
-    whose metadata shows an SDK retry a retried send; and an attempt recovered by a process
-    on another commit a provenance incident.
+    whose metadata shows an SDK retry a retried send; an attempt recovered by a process on
+    another commit a provenance incident; an attempt admitted and never claimed a run of
+    zero segments; and a log clock stepped back between admission and the terminal event an
+    ending with no elapsed time.
     """
     found: dict[str, RunExport] = {}
     for scenario in world.scenarios:
@@ -232,6 +235,12 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
             stated.trace, operations=tuple(_strayed(op) for op in stated.trace.operations)
         ),
     )
+    found["never-claimed"] = replace(never_claimed(), context=whole.context)
+    stepped = replace(
+        whole.record.timing,
+        terminal_at=whole.record.timing.admitted_at - timedelta(milliseconds=300),
+    )
+    found["stepped-back"] = replace(whole, record=replace(whole.record, timing=stepped))
     return found
 
 
