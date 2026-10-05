@@ -63,6 +63,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.attribution import attribution_table_digest
+from leaveimpact.core.jsonshape import canonical_bytes
 from leaveimpact.core.registration import (
     Amendment,
     Pending,
@@ -277,6 +278,13 @@ def evaluation_artifact(
     eligible = [entry for entry in inventory if entry.disposition is Disposition.ELIGIBLE]
     _require_unambiguous(eligible)
     evaluations = [entry.evaluation for entry in eligible if entry.evaluation is not None]
+    # Out of the tables and still a trace of this world: what its reads show of a source
+    # contradicting itself is evidence about the world, whatever kept it out of an estimate.
+    outside = [
+        (entry.key, entry.evaluation)
+        for entry in inventory
+        if entry.evaluation is not None and entry.disposition is not Disposition.ELIGIBLE
+    ]
     return EvaluationArtifact(
         format_version=ARTIFACT_FORMAT_VERSION,
         label=label,
@@ -293,7 +301,7 @@ def evaluation_artifact(
             registration.amendment,
         ),
         inventory=inventory,
-        analysis=analyse(world, evaluations, registration),
+        analysis=analyse(world, evaluations, registration, outside=outside),
     )
 
 
@@ -305,6 +313,10 @@ def require_binding(registration: Registration, frozen_content: bytes | None) ->
     the bound one has: binding a world changes the status, the world's version and the
     frozen commit named, and nothing else. A registration that is not bound binds nothing
     and passes.
+
+    The two procedures are compared in their canonical bytes, section by section, never as
+    decoded values: Python holds ``True`` equal to ``1``, and a setting changed from the
+    one to the other is a changed procedure.
     """
     commit = registration.world.frozen_commit
     if registration.status is not RegistrationStatus.BOUND or commit is None:
@@ -323,8 +335,13 @@ def require_binding(registration: Registration, frozen_content: bytes | None) ->
             "not frozen"
         )
     ours, theirs = procedure_projection(registration), procedure_projection(frozen)
-    if ours != theirs:
-        changed = [key for key in ours if ours[key] != theirs.get(key)]
+    # Both are this code's encoding of a registration, so they hold the same sections.
+    changed = [
+        key
+        for key in ours
+        if canonical_bytes({key: ours[key]}) != canonical_bytes({key: theirs[key]})
+    ]
+    if changed:
         raise ValueError(
             "the bound registration's procedure is not the frozen one's at "
             f"{commit}; they differ in {', '.join(changed)}"

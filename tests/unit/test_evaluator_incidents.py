@@ -2,7 +2,8 @@
 evaluation, recomputed from the trace whatever the run then did. The incident is by
 scenario: its shapes once each, and every arm with the attempts that met it, the ones that
 did not, and its counted runs there. An attempt a retry replaced and one no scenario of the
-world could place are read like any other, and with no contradiction there is no incident."""
+world could place are read like any other, and so is an export that is out of the tables,
+named by its key; with no contradiction there is no incident."""
 
 from dataclasses import replace
 
@@ -129,6 +130,7 @@ def test_an_incident_lists_every_arm_with_the_attempts_that_met_it_and_those_tha
             ),
             IncidentArm("rules_only/reference normal at base", (RunRef("run-a", 1),), (), 1),
         ),
+        (),
     )
     assert incident_scenarios([incident]) == {first.spec.id}
     assert incidents_of(arms(world, runs[2:], both)) == ()
@@ -168,3 +170,32 @@ def test_a_shape_is_listed_once_and_an_unplaced_attempt_is_read_like_any_other(
     assert placed.arms[0].met == (RunRef("run-a", 1), RunRef("run-b", 1))
     # No scenario of the world holds it, so no counted run rests there; it is reported.
     assert unplaced.arms == (IncidentArm(arm.name, (RunRef("run-x", 1),), (), 0),)
+
+
+def test_an_export_outside_the_tables_is_read_for_a_contradiction_like_any_other(
+    world: SealedWorld,
+) -> None:
+    first, second, third = world.scenarios[:3]
+    (arm,) = arms(world, [evaluated(world, first), evaluated(world, second)], plan())
+    outside = [
+        # Out of the tables for whatever reason, and its reads met a contradiction: on a
+        # scenario the arm rests on, and on one no eligible run was made of.
+        ("runs/z", contradicting(evaluated(world, first))),
+        ("runs/b", contradicting(evaluated(world, first), ContradictionKind.RETURNED_AND_ABSENT)),
+        ("runs/c", contradicting(evaluated(world, third))),
+        # One that met none says nothing.
+        ("runs/d", evaluated(world, second)),
+    ]
+    assert incidents_of([arm]) == ()
+    on_first, on_third = incidents_of([arm], outside)
+    assert (on_first.scenario_id, on_first.outside) == (first.spec.id, ("runs/b", "runs/z"))
+    assert on_first.shapes == (
+        Shape(Source.FRAPPE, ContradictionKind.RETURNED_AND_ABSENT),
+        Shape(Source.FRAPPE, DIFFER),
+    )
+    # The arm's own run did not meet it, and its estimate rests on the scenario all the same.
+    (held,) = on_first.arms
+    assert (held.met, len(held.not_met), held.counted) == ((), 1, 1)
+    assert (on_third.scenario_id, on_third.outside) == (third.spec.id, ("runs/c",))
+    assert on_third.arms == (IncidentArm(arm.name, (), (), 0),)
+    assert incident_scenarios([on_first, on_third]) == {first.spec.id, third.spec.id}

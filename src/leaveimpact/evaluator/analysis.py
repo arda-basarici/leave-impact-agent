@@ -27,7 +27,8 @@ measured world is tuned on, so none is held apart.
 - the level contrasts: one system against itself across two corpus levels.
 - the repeat-consistency diagnostic on the primary check, when the plan repeats runs.
 - the headroom at each place the reference system runs under an answer-quality condition,
-  and the incidents: the scenarios where a source contradicted itself in some run.
+  and the incidents: the scenarios where a source contradicted itself in some run, the
+  runs that are out of the tables read for it like the ones that are in.
 - the mechanism measure's state: what it is pending on, until it is resolved.
 
 Nothing registered is dropped. A comparison one of whose arms could not be built, its
@@ -42,7 +43,7 @@ system under one condition are differenced, the answers being the same at both.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from leaveimpact.core.enums import Source
@@ -191,9 +192,17 @@ class Analysis:
 
 
 def analyse(
-    world: SealedWorld, evaluations: Iterable[Evaluation], registration: Registration
+    world: SealedWorld,
+    evaluations: Iterable[Evaluation],
+    registration: Registration,
+    *,
+    outside: Sequence[tuple[str, Evaluation]] = (),
 ) -> Analysis:
     """What ``registration`` reports of ``evaluations`` against ``world``.
+
+    ``outside`` are the evaluated exports of this world that are out of the tables, each
+    with its key in the store. They enter no arm and no estimate; the incidents are read
+    from them as from every other trace.
 
     Raises ``ValueError`` for what the projection refuses: a name this evaluator does not
     hold, a prefetch or an anchor table that is not this code's, no cell that can be built.
@@ -201,7 +210,7 @@ def analyse(
     projection = preregistered(registration)
     plan = projection.plan
     built = arms(world, evaluations, plan)
-    incidents = incidents_of(built)
+    incidents = incidents_of(built, outside)
     reading = _Reading(
         registration,
         plan,

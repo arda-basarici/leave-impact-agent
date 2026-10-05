@@ -192,6 +192,7 @@ analysis.incidents[].arms[].met[].run_id
 analysis.incidents[].arms[].not_met
 analysis.incidents[].arms[].not_met[].attempt
 analysis.incidents[].arms[].not_met[].run_id
+analysis.incidents[].outside
 analysis.incidents[].scenario_id
 analysis.incidents[].shapes
 analysis.incidents[].shapes[].kind

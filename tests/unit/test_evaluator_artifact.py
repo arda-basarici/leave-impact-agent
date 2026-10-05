@@ -65,7 +65,7 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
 from tests.unit.export_fixture import ROLE, agent_export, export_baseline
-from tests.unit.reads_fixture import systems_holding
+from tests.unit.reads_fixture import Recorder, full_read, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import MECHANISM, TABLE, bound, frozen, light, named
 from tests.unit.throwaway_world import loaded_world
@@ -160,6 +160,20 @@ def made(artifact: EvaluationArtifact) -> int:
 
 def with_record(export: RunExport, **changes: object) -> RunExport:
     return replace(export, record=replace(export.record, **changes))
+
+
+def with_setting(registration: Registration, value: object) -> Registration:
+    """``registration`` with every model system's one role calling under ``value``."""
+    role = RegisteredRole(
+        ROLE, CallConfiguration("eu.some-model", (CallSetting("option", value),)), (), DIGEST
+    )
+    return replace(
+        registration,
+        systems=tuple(
+            system if system.kind is SystemKind.RULES_ONLY else replace(system, roles=(role,))
+            for system in registration.systems
+        ),
+    )
 
 
 def bound_to(world: SealedWorld, amendment: Amendment = FIRST) -> Registration:
@@ -350,6 +364,39 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
         assert (entry.disposition, entry.differing) == (Disposition.SETTINGS_DIFFER, differing)
         assert entry.evaluation is not None and entry.label is None
         assert made(artifact) == 0
+
+
+def test_a_run_out_of_the_tables_is_still_read_for_a_source_that_contradicted_itself(
+    world: SealedWorld,
+) -> None:
+    scenario = world.scenarios[0]
+    systems = systems_holding(world)
+    reads = Recorder(systems)
+    full_read(reads, world, scenario)
+    leaver = scenario.investigated_leave.employee_id
+    systems.people.people[leaver] = replace(systems.people.people[leaver], location="Elsewhere")
+    reads.read("employee", {"id": leaver})
+    export = exported(world, scenario)
+    export = replace(export, trace=replace(export.trace, operations=tuple(reads.operations)))
+    eligible = artifact_of(world, stored("runs/x", export))
+    (incident,) = eligible.analysis.incidents
+    assert (incident.scenario_id, incident.outside) == (scenario.spec.id, ())
+    assert [len(arm.met) for arm in incident.arms if arm.met] == [1]
+
+    # The same export under another variant is out of the tables for its settings. Its
+    # trace is still a trace of this world, and the incident is still reported.
+    other = with_record(export, system=System(SystemKind.RULES_ONLY, "another"))
+    artifact = artifact_of(world, stored("runs/x", other))
+    assert only(artifact).disposition is Disposition.SETTINGS_DIFFER and made(artifact) == 0
+    (incident,) = artifact.analysis.incidents
+    assert (incident.scenario_id, incident.outside) == (scenario.spec.id, ("runs/x",))
+    assert incident.shapes == eligible.analysis.incidents[0].shapes
+    assert not any(arm.met or arm.not_met for arm in incident.arms)
+    # An export of another world is no trace of this one.
+    elsewhere = replace(
+        export, context=replace(export.context, world_version=WorldVersion("f" * 64))
+    )
+    assert artifact_of(world, stored("runs/x", elsewhere)).analysis.incidents == ()
 
 
 def test_a_run_in_a_cell_whose_group_is_not_decided_as_run_is_not_a_run_of_the_plan(
@@ -551,6 +598,16 @@ def test_a_bound_registration_is_held_to_the_frozen_one_it_names(world: SealedWo
     # A bound file is not a frozen one, even its own.
     with pytest.raises(ValueError, match="is bound, not frozen"):
         require_binding(made_bound, registration_bytes(made_bound))
+    # A setting changed from true to 1 is a changed procedure, at any depth: the two are
+    # compared as written, and Python's own equality would hold them equal.
+    nested = ({"tool_choice": {"parallel": False}}, {"tool_choice": {"parallel": 0}})
+    for was, now in ((True, 1), nested):
+        truthy, numbered = (with_setting(FROZEN, value) for value in (was, now))
+        assert procedure_digest(truthy) != procedure_digest(numbered)
+        rebound = bound(world.version, numbered, frozen_commit=FROZEN_COMMIT)
+        require_binding(rebound, registration_bytes(numbered))
+        with pytest.raises(ValueError, match="they differ in systems$"):
+            require_binding(rebound, registration_bytes(truthy))
     # Binding changes the status, the world's version and the commit named, nothing else:
     # each other change is named by the section it is in.
     accounting = replace(made_bound.run_accounting, repeats=made_bound.run_accounting.repeats + 1)

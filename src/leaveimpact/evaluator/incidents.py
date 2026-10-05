@@ -13,6 +13,13 @@ contradiction, the ones that did not, and how many counted runs the arm rests on
 incident at a scenario is no statement that every arm observed it, which is why the arms
 are listed apart.
 
+Every trace of the world is read, and not only the ones in the tables. An export that is
+out of them, for its settings, for another registration or for a dirty tree, was still a
+run against this world, and a contradiction its reads met touches every arm that rests on
+the scenario. Such an export is in no arm, so it is named by its key in the store, under
+``outside``; its shapes join the incident's, and a scenario only it met is an incident
+all the same.
+
 Nothing is excluded here or because of this. Every attempt is read, counted or not, an
 attempt no scenario of the world could place included, and no run and no scenario leaves a
 table: a set is invalid because a stated condition of the measurement was breached, never
@@ -66,17 +73,27 @@ class IncidentArm:
 @dataclass(frozen=True, slots=True)
 class Incident:
     """A scenario on which at least one attempt met a contradiction: the shapes found, in
-    source and kind order, and every arm, in the arms' order."""
+    source and kind order, every arm, in the arms' order, and the exports outside the
+    tables that met one there, by their keys in the store, in key order."""
 
     scenario_id: ScenarioId
     shapes: tuple[Shape, ...]
     arms: tuple[IncidentArm, ...]
+    outside: tuple[str, ...]
 
 
-def incidents_of(arms: Sequence[Arm]) -> tuple[Incident, ...]:
-    """The incidents among the attempts ``arms`` hold, in scenario id order; empty when no
-    read contradicted another."""
+def incidents_of(
+    arms: Sequence[Arm], outside: Sequence[tuple[str, Evaluation]] = ()
+) -> tuple[Incident, ...]:
+    """The incidents among the attempts ``arms`` hold and the evaluated exports ``outside``
+    the tables, each with its key in the store, in scenario id order; empty when no read
+    contradicted another."""
     by_arm = [(arm, _attempts_by_scenario(arm)) for arm in arms]
+    met_outside: dict[ScenarioId, list[tuple[str, Evaluation]]] = {}
+    for key, evaluation in outside:
+        if evaluation.contradictions:
+            scenario = evaluation.outcome.header.scenario_id
+            met_outside.setdefault(scenario, []).append((key, evaluation))
     touched = sorted(
         {
             scenario
@@ -84,13 +101,17 @@ def incidents_of(arms: Sequence[Arm]) -> tuple[Incident, ...]:
             for scenario, attempts in held.items()
             if any(attempt.contradictions for attempt in attempts)
         }
+        | set(met_outside)
     )
     found: list[Incident] = []
     for scenario in touched:
+        elsewhere = met_outside.get(scenario, [])
         shapes = {
             Shape(SOURCE_BY_TARGET_KIND[contradiction.record.kind], contradiction.kind)
-            for _, held in by_arm
-            for attempt in held.get(scenario, ())
+            for attempt in (
+                *(each for _, held in by_arm for each in held.get(scenario, ())),
+                *(evaluation for _, evaluation in elsewhere),
+            )
             for contradiction in attempt.contradictions
         }
         found.append(
@@ -98,6 +119,7 @@ def incidents_of(arms: Sequence[Arm]) -> tuple[Incident, ...]:
                 scenario,
                 tuple(sorted(shapes, key=lambda shape: (shape.source.value, shape.kind.value))),
                 tuple(_at(arm, scenario, held.get(scenario, ())) for arm, held in by_arm),
+                tuple(sorted(key for key, _ in elsewhere)),
             )
         )
     return tuple(found)
