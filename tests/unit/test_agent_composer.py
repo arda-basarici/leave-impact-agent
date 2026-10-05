@@ -18,20 +18,18 @@ from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
     ClaimAuthor,
     Constraint,
-    Leave,
     Operation,
     PredicateName,
     Source,
     derive_impacts,
 )
-from leaveimpact.core.admission import admit, carriers_read, run_lexicon
+from leaveimpact.core.admission import admit, run_lexicon
 from leaveimpact.core.anchors import lexical_anchors, missing_anchors
 from leaveimpact.core.binding import titled_artifacts
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import ClauseId, EmployeeId
 from leaveimpact.core.read_projection import StructuredReads, project_reads
 from leaveimpact.core.readings import conclude_impacts
-from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.stated import (
     STATED_PREDICATES,
     Admitted,
@@ -46,7 +44,8 @@ from leaveimpact.evaluator.replay import Standing
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import evaluated
-from tests.unit.reads_fixture import reads_of_everything, systems_holding
+from tests.unit.reads_fixture import systems_holding
+from tests.unit.stating_fixture import read_everything, truthful_statements
 from tests.unit.throwaway_world import loaded_world
 
 GRADED_UNDER: tuple[tuple[Source, ...], ...] = ((), (Source.JIRA,), (Source.CALENDAR,))
@@ -59,48 +58,8 @@ def world() -> SealedWorld:
     return loaded_world("golden")
 
 
-def title_of(world: SealedWorld, target: EntityRef) -> str:
-    """The title prose names ``target`` by: its own, or its document's for a section."""
-    index = world.index
-    named = index.parts[target].parent if target.kind is EntityKind.CLAUSE else target
-    return index.records[named].title  # type: ignore[union-attr]
-
-
-def truthful_statements(world: SealedWorld, reads: StructuredReads) -> tuple[StatedFact, ...]:
-    """Every sealed prose fact of a carrier ``reads`` returned, stated as a truthful model
-    would: quoting the carrier's whole text, a requirement's span the title of what the
-    sealed world scopes its clause to."""
-    stated: list[StatedFact] = []
-    for carrier, read in carriers_read(reads).items():
-        for fact in world.index.carried.get(carrier, ()):
-            span = None
-            if fact.predicate is PredicateName.REQUIRES:
-                span = title_of(world, world.index.scope[ClauseId(fact.subject.id)])
-            stated.append(
-                StatedFact(fact.predicate, fact.subject, fact.value, carrier, read.text, span)
-            )
-    return tuple(stated)
-
-
 def project(world: SealedWorld, scenario: Scenario, operations: list[Operation]) -> StructuredReads:
     return project_reads(operations, world.context_of(scenario).today)
-
-
-def read_everything(
-    world: SealedWorld, scenario: Scenario, down: tuple[Source, ...]
-) -> tuple[list[Operation], StructuredReads, Leave, tuple[EmployeeId, ...]]:
-    operations = reads_of_everything(world, scenario, *down)
-    context = world.context_of(scenario)
-    reads = project_reads(operations, context.today)
-    leave = next(
-        record.value
-        for record in reads.returned
-        if isinstance(record.value, Leave) and record.value.id == context.leave_id
-    )
-    universe = tuple(
-        sorted(EmployeeId(r.ref.id) for r in reads.returned if r.ref.kind is EntityKind.EMPLOYEE)
-    )
-    return operations, reads, leave, universe
 
 
 def composed_truthfully(
