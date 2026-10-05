@@ -251,17 +251,21 @@ def worst_case_cost(
     input_tokens: int, output_maximum: int, selection: PricingSelection, basis: PricingBasis
 ) -> int:
     """The most a dispatch can cost, in pico-dollars, given a bound of its input tokens and
-    the most it may generate: every input token at the highest input-side rate the
-    selection can be billed, a cache write included where the basis prices one, and every
-    output token at the output rate. What a dispatch's money allocation is until its usage
-    is priced.
+    the most it may generate: every input token at the highest of the three input-side
+    rates and every output token at the output rate. What a dispatch's money allocation
+    is until its usage is priced.
+
+    The basis must price all three input-side classes and output under the selection. A
+    class with no rate is not a class that cannot be billed: nothing was recorded about
+    it, an outcome reporting it could not be priced at all, and a maximum taken over the
+    rates that happen to be present would be no bound.
 
     >>> from datetime import date
-    >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), (
-    ...     PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_000_000),
-    ...     PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_000_000),
-    ...     PricingRow("model-a", "eu-central-1", "on_demand", "cache_write_input_tokens",
-    ...                1_250_000)))
+    >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), tuple(
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", name, rate)
+    ...     for name, rate in (("input_tokens", 1_000_000), ("output_tokens", 5_000_000),
+    ...                        ("cache_read_input_tokens", 100_000),
+    ...                        ("cache_write_input_tokens", 1_250_000))))
     >>> worst_case_cost(100, 10, PricingSelection("model-a", "eu-central-1", "on_demand"), basis)
     175000000
     """
@@ -273,14 +277,17 @@ def worst_case_cost(
             selection.pricing_key, selection.region, selection.billing_mode, token_class
         )
 
-    output_rate = rate("output_tokens")
-    input_rates = [held for name in INPUT_SIDE_CLASSES if (held := rate(name)) is not None]
-    if output_rate is None or rate("input_tokens") is None:
+    rates = {name: rate(name) for name in (*INPUT_SIDE_CLASSES, "output_tokens")}
+    unpriced = [name for name, held in rates.items() if held is None]
+    if unpriced:
         raise ValueError(
-            f"the basis holds no input and output rate under {selection.pricing_key} in "
-            f"{selection.region} {selection.billing_mode}; no worst case can be priced"
+            f"the basis holds no rate for {', '.join(unpriced)} under "
+            f"{selection.pricing_key} in {selection.region} {selection.billing_mode}; no "
+            "worst case can be priced"
         )
-    return input_tokens * max(input_rates) + output_maximum * output_rate
+    priced = {name: held for name, held in rates.items() if held is not None}
+    dearest_input = max(priced[name] for name in INPUT_SIDE_CLASSES)
+    return input_tokens * dearest_input + output_maximum * priced["output_tokens"]
 
 
 def cost_of_reported(

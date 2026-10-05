@@ -25,9 +25,13 @@ registration names both and nothing derives one from the other.
 A method's specification is closed. It lists the request fields its count covers and the
 fields outside the count it tolerates because they add no input; a request holding any
 other field is refused a bound, since the count would be of a different request than the
-one sent. It lists the error codes that say the model or the request cannot be counted at
-all, which is a wrong configuration and so a defect, apart from every other failure of the
-counting call, which is the provider's and transient.
+one sent. And it classifies a failed counting call three ways, by lists it holds: the
+codes that are the provider's passing condition (throttled, unavailable, an internal
+error), which with a client timeout or a lost connection are transient; the codes that
+say the configuration is wrong (the request or the model cannot be counted, the principal
+is not allowed to count, the model is not found), which are a defect; and everything
+else, which is unclassified. An error arriving from the provider does not make it the
+provider's fault, so nothing is transient by default.
 
 What the ledger takes is an *established bound* or nothing: the method and its version, the
 identifier the count was asked of, the digest of the request it covers, the number, and
@@ -48,6 +52,7 @@ from enum import StrEnum
 from types import MappingProxyType
 
 from leaveimpact.core.call_settings import CallConfiguration
+from leaveimpact.core.model_calls import ClientErrorKind
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
 
 PROVIDER_COUNT = "provider_count"
@@ -64,17 +69,19 @@ worst case and is refused one."""
 @dataclass(frozen=True, slots=True)
 class InputBoundMethod:
     """One method's frozen specification: what its count covers, what it tolerates outside
-    the count, and which errors of the counting call say the request cannot be counted.
+    the count, which error codes of the counting call are transient and which say the
+    configuration is wrong. A code in neither list is unclassified.
 
-    A change to any of the three is a new ``version``: a run's evidence names the version
-    it was bounded under.
+    A change to any of these is a new ``version``: a run's evidence names the version it
+    was bounded under.
     """
 
     name: str
     version: int
     counted_fields: tuple[str, ...]
     uncounted_fields: tuple[str, ...]
-    refusal_codes: tuple[str, ...]
+    transient_codes: tuple[str, ...]
+    configuration_codes: tuple[str, ...]
 
 
 INPUT_BOUND_METHODS: Mapping[str, InputBoundMethod] = MappingProxyType(
@@ -84,7 +91,16 @@ INPUT_BOUND_METHODS: Mapping[str, InputBoundMethod] = MappingProxyType(
             version=1,
             counted_fields=("messages", "system", "toolConfig", "additionalModelRequestFields"),
             uncounted_fields=("inferenceConfig",),
-            refusal_codes=("ValidationException",),
+            transient_codes=(
+                "ThrottlingException",
+                "ServiceUnavailableException",
+                "InternalServerException",
+            ),
+            configuration_codes=(
+                "ValidationException",
+                "AccessDeniedException",
+                "ResourceNotFoundException",
+            ),
         )
     }
 )
@@ -234,26 +250,48 @@ class CountResult(StrEnum):
 
     COUNTED = "counted"
     FAILED = "failed"
-    """The counting call failed for a reason that is the provider's or the network's:
-    throttled, unavailable, denied, timed out."""
+    """The counting call failed on a transient cause: a code the method lists as one, a
+    client timeout, a lost connection."""
     REFUSED = "refused"
-    """The service said the model or the request cannot be counted."""
+    """The service's error says the configuration is wrong: the model or the request cannot
+    be counted, the principal may not count, the model is not found."""
+    UNCLASSIFIED = "unclassified"
+    """The counting call failed in a way the method's specification does not classify."""
     UNRESOLVED = "unresolved"
     """The request was started and no outcome was recorded."""
 
 
-def result_of_error(method: RegisteredInputBound, code: str | None) -> CountResult:
-    """How a failed counting request is read: refused when the service's error code is one
-    the method's specification lists, failed otherwise. ``code`` is ``None`` when the client
-    gave up with no answer, which is never a refusal.
+def result_of_error(
+    method: RegisteredInputBound,
+    *,
+    code: str | None = None,
+    client_error: ClientErrorKind | None = None,
+) -> CountResult:
+    """How a failed counting request is read.
+
+    ``code`` is the service's error code when the service answered. ``client_error`` is how
+    the client gave up when it did not: a timeout or a lost connection, the two the client
+    names. With neither, the failure is some other local exception, which is no network
+    fault and is not read as one.
 
     >>> method = RegisteredInputBound("provider_count", 1)
-    >>> result_of_error(method, "ValidationException").value, result_of_error(method, None).value
-    ('refused', 'failed')
+    >>> result_of_error(method, code="AccessDeniedException").value
+    'refused'
+    >>> result_of_error(method, client_error=ClientErrorKind.TIMEOUT).value
+    'failed'
+    >>> result_of_error(method, code="ModelStreamErrorException").value
+    'unclassified'
+    >>> result_of_error(method).value
+    'unclassified'
     """
-    if code is not None and code in method.specification.refusal_codes:
-        return CountResult.REFUSED
-    return CountResult.FAILED
+    specification = method.specification
+    if code is not None:
+        if code in specification.configuration_codes:
+            return CountResult.REFUSED
+        if code in specification.transient_codes:
+            return CountResult.FAILED
+        return CountResult.UNCLASSIFIED
+    return CountResult.UNCLASSIFIED if client_error is None else CountResult.FAILED
 
 
 class CountDecision(StrEnum):
@@ -264,28 +302,38 @@ class CountDecision(StrEnum):
     COUNT = "count"
     """No count yet and the maximum is not reached: a counting request may be made."""
     EXHAUSTED = "exhausted"
-    """The maximum was reached with no count: the attempt ends, by infrastructure."""
+    """The maximum was reached on transient failures with no count: the attempt ends by
+    infrastructure, and a new attempt may follow it."""
     DEFECT = "defect"
-    """The request cannot be counted: the attempt ends, by defect."""
+    """The configuration is wrong: the attempt ends, by defect."""
+    UNCLASSIFIED = "unclassified"
+    """A counting request failed in an unclassified way: the attempt ends at once, by
+    infrastructure, and no rule permits a new attempt after it. Nothing shows the failure
+    would pass, and nothing shows it is the harness's."""
 
 
 def count_decision(results: Sequence[CountResult], max_requests: int) -> CountDecision:
     """What follows from the counting requests logged so far for one request, in order.
 
     A refusal decides first, since a recorded defect keeps precedence over whatever came
-    after it. A request with no recorded outcome counts toward the maximum like a failed
-    one. ``max_requests`` is the re-dispatch policy's maximum, which a registration applies
-    to counting by reference.
+    after it; an unclassified failure next, since it ends the attempt where it happened. A
+    request with no recorded outcome counts toward the maximum like a transient failure.
+    ``max_requests`` is the re-dispatch policy's maximum, which a registration applies to
+    counting by reference.
 
     >>> failed, unresolved = CountResult.FAILED, CountResult.UNRESOLVED
     >>> count_decision([], 3).value, count_decision([failed, unresolved], 3).value
     ('count', 'count')
     >>> count_decision([failed, unresolved, failed], 3).value
     'exhausted'
+    >>> count_decision([failed, CountResult.UNCLASSIFIED], 3).value
+    'unclassified'
     """
     require_integer(max_requests, "the most counting requests", minimum=1)
     if CountResult.REFUSED in results:
         return CountDecision.DEFECT
+    if CountResult.UNCLASSIFIED in results:
+        return CountDecision.UNCLASSIFIED
     if CountResult.COUNTED in results:
         return CountDecision.USE
     return CountDecision.EXHAUSTED if len(results) >= max_requests else CountDecision.COUNT

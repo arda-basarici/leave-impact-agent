@@ -23,16 +23,18 @@ from leaveimpact.core.input_bound import (
     result_of_error,
     worst_case_tokens,
 )
+from leaveimpact.core.model_calls import ClientErrorKind
 from leaveimpact.core.pricing import worst_case_cost
 from leaveimpact.core.run_record import PricingBasis, PricingRow, PricingSelection
 
 METHOD = RegisteredInputBound(PROVIDER_COUNT, 1)
 BASE_MODEL = "anthropic.claude-haiku-4-5-20251001-v1:0"
 DIGEST = "a" * 64
-COUNTED, FAILED, REFUSED, UNRESOLVED = (
+COUNTED, FAILED, REFUSED, UNCLASSIFIED, UNRESOLVED = (
     CountResult.COUNTED,
     CountResult.FAILED,
     CountResult.REFUSED,
+    CountResult.UNCLASSIFIED,
     CountResult.UNRESOLVED,
 )
 
@@ -188,21 +190,40 @@ def test_the_money_worst_case_prices_input_at_the_dearest_input_side_rate() -> N
     assert worst_case_cost(1_000, 100, SELECTION, basis) == 1_000 * 1_250_000 + 100 * 5_000_000
 
 
-def test_with_no_cache_rate_the_input_rate_is_the_dearest() -> None:
-    basis = _basis(("input_tokens", 1_000_000), ("output_tokens", 5_000_000))
-    assert worst_case_cost(1_000, 100, SELECTION, basis) == 1_000 * 1_000_000 + 100 * 5_000_000
-
-
-@pytest.mark.parametrize(
-    "classes",
-    [(("input_tokens", 1_000_000),), (("output_tokens", 5_000_000),)],
-    ids=["no output rate", "no input rate"],
+ALL_RATES = (
+    ("input_tokens", 1_000_000),
+    ("output_tokens", 5_000_000),
+    ("cache_read_input_tokens", 100_000),
+    ("cache_write_input_tokens", 1_250_000),
 )
-def test_a_basis_without_the_two_rates_every_call_is_billed_prices_no_worst_case(
-    classes: tuple[tuple[str, int], ...],
-) -> None:
-    with pytest.raises(ValueError, match="no worst case can be priced"):
-        worst_case_cost(1_000, 100, SELECTION, _basis(*classes))
+
+
+@pytest.mark.parametrize("missing", [name for name, _ in ALL_RATES])
+def test_a_basis_that_leaves_any_class_unpriced_prices_no_worst_case(missing: str) -> None:
+    """A missing rate is no evidence the class cannot be billed. Without a cache-write rate
+    the plain input rate would pass for the dearest, and the outcome that reported a cache
+    write could not be priced at all."""
+    basis = _basis(*(held for held in ALL_RATES if held[0] != missing))
+    with pytest.raises(ValueError, match=f"no rate for {missing} .*no worst case can be priced"):
+        worst_case_cost(1_000, 100, SELECTION, basis)
+
+
+def test_every_unpriced_class_is_named() -> None:
+    basis = _basis(("input_tokens", 1_000_000), ("output_tokens", 5_000_000))
+    with pytest.raises(
+        ValueError, match="no rate for cache_read_input_tokens, cache_write_input_tokens"
+    ):
+        worst_case_cost(1_000, 1, SELECTION, basis)
+
+
+def test_the_dearest_input_side_rate_need_not_be_the_cache_write() -> None:
+    basis = _basis(
+        ("input_tokens", 3_000_000),
+        ("output_tokens", 5_000_000),
+        ("cache_read_input_tokens", 100_000),
+        ("cache_write_input_tokens", 1_250_000),
+    )
+    assert worst_case_cost(1_000, 100, SELECTION, basis) == 1_000 * 3_000_000 + 100 * 5_000_000
 
 
 def test_a_worst_case_is_never_priced_below_what_the_usage_could_cost() -> None:
@@ -237,17 +258,53 @@ def test_a_worst_case_is_never_priced_below_what_the_usage_could_cost() -> None:
 @pytest.mark.parametrize(
     ("code", "expected"),
     [
-        ("ValidationException", REFUSED),
         ("ThrottlingException", FAILED),
         ("ServiceUnavailableException", FAILED),
-        ("AccessDeniedException", FAILED),
-        (None, FAILED),
+        ("InternalServerException", FAILED),
+        ("ValidationException", REFUSED),
+        ("AccessDeniedException", REFUSED),
+        ("ResourceNotFoundException", REFUSED),
+        ("ModelStreamErrorException", UNCLASSIFIED),
+        ("SomethingNobodyDeclared", UNCLASSIFIED),
     ],
 )
-def test_only_a_listed_code_reads_as_a_refusal_to_count(
-    code: str | None, expected: CountResult
+def test_a_service_error_is_read_by_the_methods_two_lists_and_by_nothing_else(
+    code: str, expected: CountResult
 ) -> None:
-    assert result_of_error(METHOD, code) is expected
+    assert result_of_error(METHOD, code=code) is expected
+
+
+def test_the_two_lists_are_the_errors_the_counting_call_declares() -> None:
+    """The six errors the locked SDK's service model declares for the counting call, each
+    in exactly one list; held here as literals so the test needs no client."""
+    specification = INPUT_BOUND_METHODS[PROVIDER_COUNT]
+    declared = {
+        "AccessDeniedException",
+        "ResourceNotFoundException",
+        "ThrottlingException",
+        "InternalServerException",
+        "ServiceUnavailableException",
+        "ValidationException",
+    }
+    transient, configuration = specification.transient_codes, specification.configuration_codes
+    assert set(transient) | set(configuration) == declared
+    assert not set(transient) & set(configuration)
+
+
+@pytest.mark.parametrize("kind", list(ClientErrorKind))
+def test_a_timeout_and_a_lost_connection_are_transient(kind: ClientErrorKind) -> None:
+    assert result_of_error(METHOD, client_error=kind) is FAILED
+
+
+def test_a_local_failure_that_is_neither_is_not_read_as_a_network_fault() -> None:
+    assert result_of_error(METHOD) is UNCLASSIFIED
+
+
+def test_a_service_code_decides_before_how_the_client_failed() -> None:
+    read = result_of_error(
+        METHOD, code="AccessDeniedException", client_error=ClientErrorKind.TIMEOUT
+    )
+    assert read is REFUSED
 
 
 @pytest.mark.parametrize(
@@ -263,12 +320,24 @@ def test_only_a_listed_code_reads_as_a_refusal_to_count(
         ([REFUSED], CountDecision.DEFECT),
         ([FAILED, REFUSED], CountDecision.DEFECT),
         ([REFUSED, COUNTED], CountDecision.DEFECT),
+        ([UNCLASSIFIED], CountDecision.UNCLASSIFIED),
+        ([FAILED, UNCLASSIFIED], CountDecision.UNCLASSIFIED),
+        ([UNCLASSIFIED, COUNTED], CountDecision.UNCLASSIFIED),
+        ([UNCLASSIFIED, REFUSED], CountDecision.DEFECT),
     ],
 )
 def test_what_follows_from_the_counting_requests_logged(
     results: list[CountResult], expected: CountDecision
 ) -> None:
     assert count_decision(results, 3) is expected
+
+
+def test_a_denied_count_is_a_defect_at_once_and_never_an_exhaustion() -> None:
+    """The reviewed defect: three denials read as transient exhausted the maximum, and the
+    exhaustion permitted a new attempt that the same missing grant would fail again."""
+    denied = result_of_error(METHOD, code="AccessDeniedException")
+    assert count_decision([denied], 3) is CountDecision.DEFECT
+    assert count_decision([denied] * 3, 3) is CountDecision.DEFECT
 
 
 def test_a_count_made_on_the_last_permitted_request_is_used() -> None:

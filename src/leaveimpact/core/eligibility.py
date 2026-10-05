@@ -17,8 +17,9 @@ The endings are a closed vocabulary, and every one has a rule:
   row's flag, whether or not the call's dispatches were exhausted.
 - *the call's dispatches exhausted and the last one unresolved*: yes. No row read it, and
   nothing shows the request ever ran.
-- *the input bound exhausted*: yes. The counting requests failed for reasons that are the
-  provider's, and the request they were for was never sent.
+- *the input bound exhausted*: yes. The counting requests failed on causes classified as
+  transient, and the request they were for was never sent. A counting failure nothing
+  classifies is not this ending: it is an infrastructure ending no rule names.
 - *abandoned, with no dispatch ever authorized*: yes. No model output existed, so there was
   no answer whose quality a decision to abandon could have been made on.
 - *abandoned after a dispatch was authorized*: no. The evidence is the log's and not the
@@ -84,7 +85,8 @@ class UnresolvedAtMaximum:
 
 @dataclass(frozen=True, slots=True)
 class InputBoundExhausted:
-    """The counting requests for a model request were exhausted without a count."""
+    """The counting requests for a model request were exhausted on transient failures,
+    without a count."""
 
 
 @dataclass(frozen=True, slots=True)

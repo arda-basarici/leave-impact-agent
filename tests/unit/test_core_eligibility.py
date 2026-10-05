@@ -41,6 +41,9 @@ DENIED: tuple[tuple[Ending, EligibilityRule], ...] = (
     (OtherInfrastructure("event_append"), EligibilityRule.NO_RULE_NAMES_THE_ENDING),
     (OtherInfrastructure("checkpoint_resume"), EligibilityRule.NO_RULE_NAMES_THE_ENDING),
     (OtherInfrastructure("composition"), EligibilityRule.NO_RULE_NAMES_THE_ENDING),
+    # A counting failure nothing classifies ends at the input bound's site and is not
+    # the exhausted ending: no rule names it.
+    (OtherInfrastructure("input_bound"), EligibilityRule.NO_RULE_NAMES_THE_ENDING),
 )
 
 

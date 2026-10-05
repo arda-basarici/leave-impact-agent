@@ -176,7 +176,7 @@ def test_the_maximum_reached_on_an_unresolved_dispatch_fails_by_infrastructure()
 
 
 def test_only_the_last_dispatch_decides() -> None:
-    assert standing(DENIAL, ANSWER).decision is CallDecision.ANSWERED
+    assert standing(THROTTLE, ANSWER).decision is CallDecision.ANSWERED
     assert standing(LOST, THROTTLE).decision is CallDecision.DISPATCH_AGAIN
 
 
