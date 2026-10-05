@@ -2711,3 +2711,23 @@ inference send in all.
   the counting call is not billed was not checked and is read from the bill. The principal
   was administrative: whether the deployed role may call `CountTokens` on the base model's
   resource is not known. One region, the locked `botocore` 1.43.93.
+
+**Checked afterwards (2026-10-06), before the method was ruled.** A second execution
+(`20261005T210156Z-d0302f`, record SHA-256 `1011aeb2…29fc7135`) counted the 16 captured
+Haiku bodies again and returned the same 16 numbers; the large request was counted once.
+Successive counts were about 100 ms apart from the workstation, the client's own work
+included. `GetInferenceProfile` on the `eu.` Haiku 4.5 profile lists six constituent
+models, every one `anthropic.claude-haiku-4-5-20251001-v1:0`, the identifier the count was
+served under. AWS's user guide for the call says that using it "doesn't incur charges" and
+that its count "will match the token count that would be charged if the same input were
+sent to the model to run inference" (read 2026-10-06); the measured count did not equal
+the input inference reported, so the documented match and this entry's table disagree, in
+the direction that keeps the count a bound. Whether the reported input or the charged
+input is what the count matches is not known.
+
+**Ruled on this entry.** The provider's count is the one registered input-bound method,
+taken with no margin; its basis is the provider's statement, the profile's constituents
+and the 17 requests, and none of the three is a proof. A request's byte length is not
+registered: the inequality held on the request shapes measured and nothing establishes it
+for the input the provider constructs from a body. A model family with no counting call
+therefore has no method and is no registered model-calling cell.
