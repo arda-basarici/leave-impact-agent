@@ -2481,6 +2481,39 @@ another reason, went on where the rule stops a harness, and is counted. The
 accounting and the attempt summary hold the four counts from one function, over the
 counted runs and over every attempt.
 
+**What a record states about its own ending is held to its export.** Format 2 lets a
+record say how many segments an attempt ran in and on which commits, between which
+two instants, and over which payload its approval was asked, and nothing recomputed
+any of it. Three findings, each the harness's: an evidenced active time above the
+elapsed time, which the record admits because a wall clock can step; segments on more
+than one commit; and an approval digest that is not the digest of the claims and the
+composition the export holds, computed by the function the harness computed it with.
+A run whose timing is incomplete, a segment's end never recorded, has a duration that
+is a lower bound: a cell's cost ledger counts those runs and gives the segments per
+run beside the durations, so an interrupted run never reads as a fast one. Under a
+bound registration a run whose segments ran on two commits leaves the tables as a run
+from a dirty tree does, named in the inventory with its grade; one export of two
+programs is not a run of the registered harness.
+
+**Each dispatch's reading is held to the registered table, and what the export cannot
+give back is said.** The evaluator reads every observation again by the table's own
+function and compares the rule and the kind recorded. A dispatch records the rule and
+not the cause the harness supplied, so the observation is read under no cause and
+under each cause of the closed list, and the recorded rule must be one of those: a
+record that names a defect row is held to the row's match and taken at its word for
+the cause, the failure at that dispatch saying where and why. A dispatch that was
+followed by another must have been read by a row that allows one, the table's row
+for the observation whatever rule the record names, an unresolved dispatch always
+may be followed, and a call holds no more dispatches than the registered bound. The
+check is evaluated only for a run made under the registration read, whose record
+names the registered table's digest: a record names the table and not the bound, so
+a run of another registration is held to neither.
+A run held to no table is counted apart from one with no finding; while the
+table's rows are pending that is every run. A response whose metadata shows the SDK
+sent more than once is a finding wherever a response carried the count, nothing being
+allowed to retry beneath a dispatch. The tool calls a model made are tallied by what
+became of each, the undispatched ones by reason.
+
 **Ruled on 2026-10-04 and not yet built: what the measurement still lacks before any
 model system is measured.** The paragraphs above describe the evaluator and the
 committed registration as they stand. The rulings in the two paragraphs below have no
@@ -2509,6 +2542,14 @@ numbers that survive restarts. The zero-cost rules and the price rows arrive wit
 first live run. And the dispositions a format can state are not yet produced by
 anything: the event log decides what durable evidence tells an undispatched tool call
 from an unresolved one. Measurement runs are not streamed.
+
+Two audits of what format 2 states wait for the event log's ledger, because the
+ledger defines their terms: that known consumption plus retained allocations stayed
+inside the reservation, which needs what an allocation retains and when it is
+released, and the same in tokens against the run's cap, which needs which token
+classes a counting rule counts. The counting rule is a registered name today and no
+code gives it a meaning. An audit written before the ledger would fix a reading of it
+that nothing had produced.
 
 **Whether a run's prefetch is the registered plan is checked from its trace, for every
 system and every export that decodes.** The planner and the chunking are `core`'s,

@@ -144,6 +144,18 @@ being held to the level's sealed membership; a level the world seals no membersh
 counted as not evaluated, which is not a run with no finding. And a run whose reads
 contradicted each other and that did not fail by defect.
 
+And three about what a record states of itself. A run whose record gives an active time
+above its elapsed time, segments on more than one harness commit, or an approval digest
+that is not the digest of the claims it exports. A run with a dispatch whose recorded
+reading is not the registered table's, or that was dispatched again where its row allows
+none or beyond the registered bound; a run held to no table, because the table's rows are
+not set or the record names another, is counted as not evaluated. And a run with a response
+whose metadata shows the SDK sent more than once, nothing being allowed to retry beneath a
+dispatch. One of these also decides eligibility: under a bound registration a run whose
+segments ran on more than one commit enters no table, as a run from a dirty tree does, and
+is listed with its grade. A duration is evidenced active time, a lower bound for a run with
+a segment whose end was never recorded; a cost table says how many of its runs those are.
+
 ## How stated facts become claims
 
 No model writes a verdict. A model states facts with the words it read them from, and the
