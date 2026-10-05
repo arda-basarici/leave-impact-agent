@@ -30,7 +30,8 @@ new attempt. They are set only on an infrastructure row. Behaviour is the graded
 a defect is never retried, since a retry could hide it.
 
 An intent with no recorded outcome is not a row. Nothing was observed, the send is zero or
-one, and its reading is always unresolved (``UNRESOLVED_RULE``).
+one, and its reading is always unresolved (``UNRESOLVED_RULE``, which lives with the
+dispatch that must name it and is named again from here).
 
 ``RedispatchPolicy`` is the bound the harness dispatches under: no layer beneath a dispatch
 retries, so a second send of a logical call is a new dispatch, at most this many, after at
@@ -59,6 +60,7 @@ from leaveimpact.core.jsonshape import (
     string_item,
 )
 from leaveimpact.core.model_calls import (
+    UNRESOLVED_RULE,
     Attribution,
     AttributionKind,
     BrokenStream,
@@ -78,10 +80,6 @@ TABLE_ENVELOPE_VERSION = 1
 MATCHING_RULE = "first_match_in_row_order"
 """The name of how a row is chosen, held by the digest: whoever changes ``attribute`` renames
 the rule with it, and a registered digest stops matching."""
-
-UNRESOLVED_RULE = "no_recorded_outcome"
-"""The rule an unresolved dispatch names. It is no row of any table: with no outcome recorded
-there is nothing to match."""
 
 
 class ObservationKind(StrEnum):

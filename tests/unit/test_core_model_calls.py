@@ -7,6 +7,7 @@ from dataclasses import replace
 import pytest
 
 from leaveimpact.core.model_calls import (
+    UNRESOLVED_RULE,
     Answer,
     AsOperation,
     Attribution,
@@ -40,7 +41,7 @@ from leaveimpact.core.usage import ReportedUsage
 REQUEST = RequestIdentity("a" * 64, "Converse", "eu.model", "eu-central-1", None)
 BEHAVIOUR = Attribution(AttributionKind.BEHAVIOUR, "registered-stop-reason")
 INFRASTRUCTURE = Attribution(AttributionKind.INFRASTRUCTURE, "service-error")
-UNRESOLVED = Attribution(AttributionKind.UNRESOLVED, "no-outcome")
+UNRESOLVED = Attribution(AttributionKind.UNRESOLVED, UNRESOLVED_RULE)
 USAGE = ReportedUsage({"inputTokens": 120, "outputTokens": 30, "totalTokens": 150})
 REFUSED_BY = RefusedBy("fact-batch-parser-v1", "b" * 64)
 
@@ -98,6 +99,10 @@ def test_no_recorded_outcome_is_unresolved_and_nothing_else_is() -> None:
         observed(NoRecordedOutcome(), INFRASTRUCTURE)
     with pytest.raises(ValueError, match="unresolved exactly when no outcome was recorded"):
         replace(answered(), attribution=UNRESOLVED)
+    # The reading of nothing has one name, which no table holds: a harness cannot spell it
+    # its own way, or record it under a row's.
+    with pytest.raises(ValueError, match="an unresolved dispatch names the rule"):
+        observed(NoRecordedOutcome(), Attribution(AttributionKind.UNRESOLVED, "no-outcome"))
     with pytest.raises(ValueError, match="outcome position is held exactly when"):
         replace(answered(), outcome_position=None)
     with pytest.raises(ValueError, match="logged after its intent"):

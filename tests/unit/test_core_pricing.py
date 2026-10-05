@@ -13,6 +13,7 @@ from fractions import Fraction
 import pytest
 
 from leaveimpact.core import (
+    UNRESOLVED_RULE,
     AbsentMeaning,
     Attribution,
     AttributionKind,
@@ -107,7 +108,9 @@ def _dispatch(
         request=REQUEST,
         input_reads=(),
         observation=observation,
-        attribution=Attribution(read_as, "a-rule"),
+        attribution=Attribution(
+            read_as, UNRESOLVED_RULE if read_as is AttributionKind.UNRESOLVED else "a-rule"
+        ),
         usage=None if usage is None else ReportedUsage(usage),
         cost=cost,
         zero_cost_rule=None,

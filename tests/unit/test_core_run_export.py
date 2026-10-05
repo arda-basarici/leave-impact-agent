@@ -14,6 +14,7 @@ import pytest
 
 from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
+    UNRESOLVED_RULE,
     Abandonment,
     AbsentOutcome,
     Answer,
@@ -169,7 +170,9 @@ def _dispatch(
         request=REQUEST,
         input_reads=tuple(OperationId(read) for read in input_reads),
         observation=observation,
-        attribution=Attribution(read_as, "a-rule"),
+        attribution=Attribution(
+            read_as, UNRESOLVED_RULE if read_as is AttributionKind.UNRESOLVED else "a-rule"
+        ),
         usage=ReportedUsage(REPORTED) if answered else None,
         cost=PRICED if answered else None,
         zero_cost_rule=None,

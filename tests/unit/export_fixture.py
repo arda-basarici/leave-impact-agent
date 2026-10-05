@@ -27,6 +27,7 @@ from leaveimpact.agent.export import RunProvenance, export_rules_only_run
 from leaveimpact.agent.rules_only import RulesOnlyRun
 from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
+    UNRESOLVED_RULE,
     Approval,
     ApprovalState,
     Approver,
@@ -192,7 +193,7 @@ def dispatch(
         request=REQUEST,
         input_reads=(),
         observation=observation,
-        attribution=Attribution(attribution, "a-rule"),
+        attribution=Attribution(attribution, "a-rule" if recorded else UNRESOLVED_RULE),
         usage=None if usage is None else ReportedUsage(usage),
         cost=cost,
         zero_cost_rule=None,

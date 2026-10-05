@@ -61,6 +61,11 @@ TOOL_USE_STOP = "tool_use"
 """The stop reason under which a tool call is dispatched; under any other, a tool call in
 the response was cut or abandoned by the model and is never dispatched."""
 
+UNRESOLVED_RULE = "no_recorded_outcome"
+"""The rule an unresolved dispatch names. It is no row of any attribution table: with no
+outcome recorded there is nothing to match, so the reading has one name and a dispatch
+holds it."""
+
 
 # --- The request ---------------------------------------------------------------------------
 
@@ -210,7 +215,8 @@ class AttributionKind(StrEnum):
 @dataclass(frozen=True, slots=True)
 class Attribution:
     """The reading of one observation and the registered rule that decided it. The rule is
-    an identifier into the attribution table the record names by digest."""
+    an identifier into the attribution table the record names by digest, or
+    ``UNRESOLVED_RULE`` for the reading of no recorded outcome, which no table holds."""
 
     kind: AttributionKind
     rule: str
@@ -285,6 +291,11 @@ class Dispatch:
                 raise ValueError("a dispatch's outcome is logged after its intent")
         if (self.attribution.kind is AttributionKind.UNRESOLVED) != unrecorded:
             raise ValueError("a dispatch is unresolved exactly when no outcome was recorded")
+        if unrecorded and self.attribution.rule != UNRESOLVED_RULE:
+            raise ValueError(
+                f"an unresolved dispatch names the rule {UNRESOLVED_RULE}, which no table "
+                f"holds, got {self.attribution.rule!r}"
+            )
         if self.sends is not Sends.ONE and (self.usage is not None or self.cost is not None):
             raise ValueError("usage and cost are recorded for a send whose outcome arrived")
         if self.zero_cost_rule is not None:
@@ -555,6 +566,7 @@ class ModelCall:
 
 __all__ = [
     "TOOL_USE_STOP",
+    "UNRESOLVED_RULE",
     "Answer",
     "AsOperation",
     "Attribution",

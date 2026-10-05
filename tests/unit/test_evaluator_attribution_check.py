@@ -159,9 +159,9 @@ def test_a_kind_that_is_not_its_rows_reading_is_a_finding() -> None:
 
 def test_no_recorded_outcome_is_read_by_no_row_under_its_own_rule() -> None:
     assert findings(sent(1, NoRecordedOutcome(), UNRESOLVED, UNRESOLVED_RULE)) == []
-    assert findings(sent(1, NoRecordedOutcome(), UNRESOLVED, "lost")) == [
-        (KINDS.RULE_NOT_THE_TABLES, 1)
-    ]
+    # Under any other rule it does not construct, so there is no such record to find.
+    with pytest.raises(ValueError, match="an unresolved dispatch names the rule"):
+        sent(1, NoRecordedOutcome(), UNRESOLVED, "never_sent")
 
 
 # --- What followed ---------------------------------------------------------------------------
@@ -187,10 +187,6 @@ def test_a_dispatch_followed_by_another_names_a_row_that_allows_one() -> None:
         (KINDS.REDISPATCHED_AGAINST_ITS_ROW, 1),
     ]
     assert findings(sent(1, THROTTLE, INFRASTRUCTURE, "any_error"), again) == [
-        (KINDS.RULE_NOT_THE_TABLES, 1)
-    ]
-    # An unresolved dispatch misrecorded under a row's name is read by no row all the same.
-    assert findings(sent(1, NoRecordedOutcome(), UNRESOLVED, "never_sent"), again) == [
         (KINDS.RULE_NOT_THE_TABLES, 1)
     ]
     # The last dispatch was followed by nothing, whatever its row allows.

@@ -33,7 +33,8 @@ a new dispatch the table has to allow:
   whatever the record names: the recorded rule where it is one the table gives, and
   otherwise the row the table gives under no cause, so a misnamed rule neither hides a
   re-dispatch the table forbids nor invents one it allows. A dispatch with no recorded
-  outcome is read by no row and may always be followed: nothing shows it was sent.
+  outcome is read by no row and may always be followed: nothing shows it was sent. Its
+rule is the one name the dispatch type admits for it, so no finding is made of it here.
 - *More dispatches than the bound.* A logical call holds more dispatches than the
   registered re-dispatch policy's maximum. Evaluated when the policy is set
   (``bound_evaluated``); the policy and the table are two values of the registration and
