@@ -30,6 +30,12 @@ reading of the rows, as the claim tables are of theirs:
   names the first such read. Whether a repeat was wasteful is not judged here: a second
   read after a suspected change is a legitimate pattern, and the count is what a table
   shows.
+- *Tool calls* by what became of each one a model made: an operation, a fact batch the
+  harness took itself, arguments that could not be parsed, a call never dispatched, or one
+  unresolved, every disposition present; and the undispatched ones by reason. How often
+  a model's requests were cut, capped or lost is read off these; no registered table
+  reads them yet, and like the rows they are recomputed from the export and not written
+  to an artifact.
 
 *Findings* name the operations a conforming harness cannot record. The operation type
 holds no agreement between a tool and what was recorded for it, so that a broken export
@@ -37,6 +43,12 @@ decodes and can be reported; the coverage mapping refuses to credit such an oper
 and this is where it is said (``tool_mismatches``, the same checks). Two more that the
 method table cannot state: a search that returned more documents than its limit, and a
 refused prefetch call. Each names the operation and a kind, never content.
+
+*Retried sends* are the dispatches whose response metadata shows the SDK sent more than
+once. Nothing retries beneath a dispatch, which is what makes it the unit a cost and a cap
+are counted in, so a retry count above zero is a harness finding wherever a response
+carried one: on a complete response, a broken stream or a service error. A client error
+has no response and so no metadata, and compliance cannot be shown for it.
 """
 
 from __future__ import annotations
@@ -48,7 +60,21 @@ from typing import cast
 
 from leaveimpact.core.enums import Source
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
-from leaveimpact.core.model_calls import AttributionKind, CallState
+from leaveimpact.core.model_calls import (
+    AsOperation,
+    AttributionKind,
+    BrokenStream,
+    CallState,
+    CompleteResponse,
+    Disposition,
+    HandledAsBatch,
+    ModelCall,
+    ServiceError,
+    Undispatched,
+    UndispatchedReason,
+    Unparsed,
+    UnresolvedToolCall,
+)
 from leaveimpact.core.read_coverage import ToolMismatch, tool_mismatches
 from leaveimpact.core.run_export import RunTrace
 from leaveimpact.core.run_export_json import thawed_json
@@ -56,6 +82,7 @@ from leaveimpact.core.run_trace import (
     AbsentOutcome,
     DefectOutcome,
     HarnessOrigin,
+    ModelCallId,
     ModelOrigin,
     Operation,
     OperationId,
@@ -157,6 +184,26 @@ class OperationFinding:
     kind: OperationFindingKind
 
 
+class ToolCallEnded(StrEnum):
+    """What became of a tool call a model made, the export's five dispositions by the names
+    its codec gives them."""
+
+    OPERATION = "operation"
+    HANDLED = "handled"
+    UNPARSED = "unparsed"
+    UNDISPATCHED = "undispatched"
+    UNRESOLVED = "unresolved"
+
+
+@dataclass(frozen=True, slots=True)
+class RetriedSend:
+    """One dispatch whose response metadata shows more than one send beneath it: a harness
+    finding, by the call and the dispatch's number."""
+
+    model_call: ModelCallId
+    dispatch: int
+
+
 @dataclass(frozen=True, slots=True)
 class OriginCount:
     """A count split by who asked."""
@@ -206,12 +253,18 @@ class SourceDiscipline:
     ``operations`` holds one row per operation in the trace's order; ``model_calls`` the
     number of logical calls by state and by the attribution of the last dispatch, every
     pair present, in the declared order of both; ``findings`` are in the trace's order, an
-    operation's own in the order of the kinds.
+    operation's own in the order of the kinds. ``tool_calls`` holds the number of tool
+    calls the model made by what became of each, and ``undispatched`` the ones never
+    dispatched by reason, every member present in its declared order; ``retried_sends``
+    are in the trace's order.
     """
 
     operations: tuple[OperationRow, ...]
     model_calls: tuple[tuple[CallState, AttributionKind, int], ...]
     findings: tuple[OperationFinding, ...]
+    tool_calls: tuple[tuple[ToolCallEnded, int], ...]
+    undispatched: tuple[tuple[UndispatchedReason, int], ...]
+    retried_sends: tuple[RetriedSend, ...]
 
     def tally(self, source: Source) -> SourceTally:
         """The reads recorded against ``source``."""
@@ -291,7 +344,52 @@ def source_discipline(trace: RunTrace) -> SourceDiscipline:
         for state in CallState
         for read_as in AttributionKind
     )
-    return SourceDiscipline(tuple(rows), calls, tuple(findings))
+    dispositions = [
+        tool_call.disposition
+        for call in trace.model_calls
+        if call.answer is not None
+        for tool_call in call.answer.tool_calls
+    ]
+    became = [_tool_call_ended(disposition) for disposition in dispositions]
+    reasons = [
+        disposition.reason for disposition in dispositions if isinstance(disposition, Undispatched)
+    ]
+    return SourceDiscipline(
+        tuple(rows),
+        calls,
+        tuple(findings),
+        tuple((ended, became.count(ended)) for ended in ToolCallEnded),
+        tuple((reason, reasons.count(reason)) for reason in UndispatchedReason),
+        _retried_sends(trace.model_calls),
+    )
+
+
+def _tool_call_ended(disposition: Disposition) -> ToolCallEnded:
+    match disposition:
+        case AsOperation():
+            return ToolCallEnded.OPERATION
+        case HandledAsBatch():
+            return ToolCallEnded.HANDLED
+        case Unparsed():
+            return ToolCallEnded.UNPARSED
+        case Undispatched():
+            return ToolCallEnded.UNDISPATCHED
+        case UnresolvedToolCall():
+            return ToolCallEnded.UNRESOLVED
+
+
+def _retried_sends(calls: Sequence[ModelCall]) -> tuple[RetriedSend, ...]:
+    """The dispatches of ``calls`` whose response metadata shows an SDK retry."""
+    found: list[RetriedSend] = []
+    for call in calls:
+        for dispatch in call.dispatches:
+            observation = dispatch.observation
+            if (
+                isinstance(observation, CompleteResponse | BrokenStream | ServiceError)
+                and observation.sdk_retries
+            ):
+                found.append(RetriedSend(call.id, dispatch.number))
+    return tuple(found)
 
 
 def _ended(outcome: Outcome) -> Ended:
@@ -332,8 +430,10 @@ __all__ = [
     "OriginCount",
     "OriginKind",
     "RequiredSourceUse",
+    "RetriedSend",
     "SourceDiscipline",
     "SourceTally",
+    "ToolCallEnded",
     "origin_kind",
     "source_discipline",
 ]

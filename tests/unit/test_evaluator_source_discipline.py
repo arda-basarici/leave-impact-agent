@@ -1,10 +1,12 @@
 """Source discipline is read off the trace alone: every read counts for the source it was
 recorded against by how it ended and who asked, a refused call for none; the model's refused
 tool requests are counted over the operations it asked for and apart from the model calls,
-which are counted by how each stands and how its last dispatch was read; a completed read
-with an earlier one's tool and arguments names it; and an operation that a conforming harness
-could not have recorded is a finding. The reads of a full investigation of a sealed scenario
-carry no finding."""
+which are counted by how each stands and how its last dispatch was read; the tool calls a
+model made are counted by what became of each, the undispatched ones by reason; a completed
+read with an earlier one's tool and arguments names it; an operation that a conforming
+harness could not have recorded is a finding, and so is a response whose metadata shows the
+SDK sent more than once. The reads of a full investigation of a sealed scenario carry no
+finding."""
 
 from collections.abc import Mapping
 
@@ -13,8 +15,11 @@ from leaveimpact.core import (
     Answer,
     AsOperation,
     AttributionKind,
+    BrokenStream,
     CallState,
+    CompleteResponse,
     DefectOutcome,
+    HandledAsBatch,
     HarnessOrigin,
     ModelCall,
     ModelCallId,
@@ -23,15 +28,21 @@ from leaveimpact.core import (
     OperationId,
     Origin,
     Outcome,
+    ParsedBatch,
     PrefetchOrigin,
     RecordOutcome,
     RecordsOutcome,
+    RefusedBy,
     RefusedCallOutcome,
     RunTrace,
     ServiceError,
     Source,
     ToolCall,
+    Undispatched,
+    UndispatchedReason,
+    Unparsed,
     UnreachableOutcome,
+    UnresolvedToolCall,
 )
 from leaveimpact.evaluator.source_discipline import (
     Ended,
@@ -39,7 +50,9 @@ from leaveimpact.evaluator.source_discipline import (
     OperationFindingKind,
     OriginCount,
     RequiredSourceUse,
+    RetriedSend,
     SourceDiscipline,
+    ToolCallEnded,
     source_discipline,
 )
 from tests.unit.export_fixture import COMPOSITION, answered_call, dispatch, failed_call
@@ -203,6 +216,78 @@ def test_model_calls_are_counted_by_state_and_reading_apart_from_refused_operati
     assert seen.refused_by_the_wrapper == 1
     # A rules-only trace calls no model and every pair is still there, at zero.
     assert all(count == 0 for _, _, count in discipline_of().model_calls)
+
+
+def test_tool_calls_are_counted_by_what_became_of_each_and_the_undispatched_by_reason() -> None:
+    """One answer asked for a read that became an operation. A second held five more calls:
+    a fact submission the harness took as a batch, arguments that were no JSON object, two
+    never dispatched (the cap, a source already unreachable) and one with no logged result."""
+    unreadable = Unparsed("{", RefusedBy("tool-argument-parser-v1", "d" * 64))
+    more = (
+        ToolCall("tu_a", "state_facts", HandledAsBatch(0)),
+        ToolCall("tu_b", "work_item", unreadable),
+        ToolCall("tu_c", "work_item", Undispatched(UndispatchedReason.CAP)),
+        ToolCall("tu_d", "events", Undispatched(UndispatchedReason.SOURCE_UNREACHABLE)),
+        ToolCall("tu_e", "employee", UnresolvedToolCall()),
+    )
+    second = answered_call(
+        2, None, None, stop_reason="tool_use", answer=Answer(False, more, (ParsedBatch(()),))
+    )
+    seen = discipline_of((MODEL, "work_items", Source.JIRA, {}, NOTHING), calls=(second,))
+    assert seen.tool_calls == (
+        (ToolCallEnded.OPERATION, 1),
+        (ToolCallEnded.HANDLED, 1),
+        (ToolCallEnded.UNPARSED, 1),
+        (ToolCallEnded.UNDISPATCHED, 2),
+        (ToolCallEnded.UNRESOLVED, 1),
+    )
+    assert dict(seen.undispatched) == {
+        UndispatchedReason.STOP_REASON_NOT_TOOL_USE: 0,
+        UndispatchedReason.CAP: 1,
+        UndispatchedReason.SOURCE_UNREACHABLE: 1,
+        UndispatchedReason.ATTEMPT_ENDED_FIRST: 0,
+    }
+    # Every tool call is counted once, and only an operation is also a row of the reads.
+    assert sum(count for _, count in seen.tool_calls) == 6
+    assert seen.model_operations == 1
+    # A trace with no model call holds every disposition and every reason, at zero.
+    quiet = discipline_of()
+    assert all(count == 0 for _, count in (*quiet.tool_calls, *quiet.undispatched))
+    assert len(quiet.tool_calls) == len(ToolCallEnded) == 5
+
+
+def test_a_response_whose_metadata_shows_an_sdk_retry_is_a_harness_finding() -> None:
+    """Nothing retries beneath a dispatch. A retry count above zero is found wherever a
+    response carried one; a count of zero, a count the metadata did not show and a client
+    error, which has no response, are not."""
+
+    def call(number: int, *observations: BrokenStream | ServiceError) -> ModelCall:
+        sent = tuple(
+            dispatch(number, observation, AttributionKind.INFRASTRUCTURE, number=at)
+            for at, observation in enumerate(observations, start=1)
+        )
+        return ModelCall(ModelCallId(f"call-{number}"), "investigator", sent, None)
+
+    throttled = ServiceError(429, "ThrottlingException", None, "too many requests", sdk_retries=2)
+    calls = (
+        call(2, BrokenStream("reset"), throttled, BrokenStream("reset", sdk_retries=1)),
+        call(3, ServiceError(500, "InternalServerException", None, "an error", sdk_retries=0)),
+        ModelCall(
+            ModelCallId("call-4"),
+            "investigator",
+            (dispatch(4, CompleteResponse("end_turn", 840, 1), AttributionKind.BEHAVIOUR),),
+            Answer(True, (), ()),
+        ),
+        failed_call(5),
+        answered_call(6, None, None),
+    )
+    seen = discipline_of(calls=calls)
+    assert seen.retried_sends == (
+        RetriedSend(ModelCallId("call-2"), 2),
+        RetriedSend(ModelCallId("call-2"), 3),
+        RetriedSend(ModelCallId("call-4"), 1),
+    )
+    assert discipline_of().retried_sends == ()
 
 
 def test_a_completed_read_with_an_earlier_ones_tool_and_arguments_names_it() -> None:
