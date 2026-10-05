@@ -137,6 +137,13 @@ conforming harness records, a cost that does not add up, a prefetch that is not 
 registered plan) stays in the tables and is counted beside them. Keeping a run is not
 vouching for it.
 
+Three more findings are counted the same way. A run whose recorded admissions or
+composition are not what the gates and the composing rules give again. A run shown a
+document outside the corpus level its record assigns, every document any read returned
+being held to the level's sealed membership; a level the world seals no membership for is
+counted as not evaluated, which is not a run with no finding. And a run whose reads
+contradicted each other and that did not fail by defect.
+
 ## How stated facts become claims
 
 No model writes a verdict. A model states facts with the words it read them from, and the
@@ -174,8 +181,17 @@ Named in advance beside the primary, and carrying no claim:
 - *The mechanism measure.* Of the prose statements a scenario's required rows depend on,
   how many had their carrier returned to the run, were stated correctly, were admitted,
   and were usable in the composed view: four stages over one denominator, which the sealed
-  scenario fixes. It says where a system succeeded or failed on the way to its report. It
-  is pending in the file until the evaluator computes it.
+  scenario and the assigned condition fix. It says where a system succeeded or failed on
+  the way to its report. Each stage requires the one before it. A statement is stated
+  correctly when its subject, predicate and value are the needed ones, read from a sealed
+  carrier the run had already been returned. It is usable when the composed view keeps it
+  and, for a requirement, its span is bound to what the sealed world scopes the clause to.
+  A failed attempt keeps its denominator and nothing of it is usable. A scenario whose
+  answer needs no prose statement enters no ratio. The measure is reported for each system
+  that states facts, at the whole, by tier and by predicate, and contrasted on the
+  primary's pair, the secondary pairs and the level contrasts, nowhere else. It is read
+  from what a run's export records, and the evaluator decides the recorded admissions and
+  the composition again and counts the runs where the two differ.
 
 Every interval is from one method at any repeat count: whole scenarios resampled within
 their tiers, a scenario's repeats kept together, two cells paired on the scenario. With
