@@ -23,7 +23,13 @@ operation with no recorded outcome as unresolved.
 
 A local error is an exception raised on the worker's side that is neither a timeout nor a
 lost connection; it is recorded by its qualified type alone, no message, since a message
-may hold scenario content and a job's log is public.
+may hold scenario content and a job's log is public. It is read as unclassified, and the
+attempt then ends by infrastructure at the input bound with no new attempt permitted
+(the counting ruling as amended at the first build group's review): nothing shows the
+failure would pass on a retry, and nothing shows it is the harness's. The counting call's
+own handler catches it and records it as this outcome, so it never reaches the driver,
+whose catch-all for an exception that escaped everything is the ``unhandled`` defect
+(``run_ending``); the two sites do not overlap.
 
 Positions are the attempt's global event order: the start, committed before the remote
 call so that a worker killed mid-count is seen to have consumed one of the maximum, and
