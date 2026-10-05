@@ -308,8 +308,9 @@ def authorize(
     and the append that records it. A request the decision does not authorize is never
     appended. The request's dispatch number is the account's to check when it is applied.
 
+    >>> from leaveimpact.core.input_bound import RegisteredInputBound
     >>> rule = "input_plus_output_cached_included"
-    >>> caps = Caps(4, 1_000, 1, 200, rule)
+    >>> caps = Caps(4, 1_000, 1, 200, rule, RegisteredInputBound("provider_count", 1))
     >>> loop = AccountIntent("call_001", 1, CallPurpose.LOOP, 900, 50)
     >>> authorize(RunAccount(), caps, 1_000, loop).decision.value
     'enter_finalization'

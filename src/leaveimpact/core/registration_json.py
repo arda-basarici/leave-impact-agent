@@ -299,8 +299,8 @@ def _encode_caps(registered: RegisteredCaps) -> JsonObject:
         "finalization_token_reserve": caps.finalization_token_reserve,
         "counting_rule": caps.counting_rule,
         "input_bound": {
-            "method": registered.input_bound.name,
-            "version": registered.input_bound.version,
+            "method": caps.input_bound.name,
+            "version": caps.input_bound.version,
         },
     }
 
@@ -583,8 +583,8 @@ def _decode_caps(data: Mapping[str, object]) -> RegisteredCaps:
             integer_field(data, "finalization_call_reserve"),
             integer_field(data, "finalization_token_reserve"),
             string_field(data, "counting_rule"),
+            RegisteredInputBound(string_field(bound, "method"), integer_field(bound, "version")),
         ),
-        RegisteredInputBound(string_field(bound, "method"), integer_field(bound, "version")),
     )
 
 

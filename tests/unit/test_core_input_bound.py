@@ -23,9 +23,9 @@ from leaveimpact.core.input_bound import (
     result_of_error,
     worst_case_tokens,
 )
-from leaveimpact.core.model_calls import ClientErrorKind
 from leaveimpact.core.pricing import worst_case_cost
 from leaveimpact.core.run_record import PricingBasis, PricingRow, PricingSelection
+from leaveimpact.core.run_trace import ClientErrorKind, CountingOperationId
 
 METHOD = RegisteredInputBound(PROVIDER_COUNT, 1)
 BASE_MODEL = "anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -42,7 +42,7 @@ COUNTED, FAILED, REFUSED, UNCLASSIFIED, UNRESOLVED = (
 def bound(
     tokens: int = 2_066, digest: str = DIGEST, identifier: str = BASE_MODEL
 ) -> EstablishedBound:
-    return EstablishedBound(METHOD, identifier, digest, tokens, "count_001")
+    return EstablishedBound(METHOD, identifier, digest, tokens, CountingOperationId("count_001"))
 
 
 # --- The registry --------------------------------------------------------------------------

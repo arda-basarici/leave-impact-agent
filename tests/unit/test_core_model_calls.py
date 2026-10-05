@@ -6,6 +6,7 @@ from dataclasses import replace
 
 import pytest
 
+from leaveimpact.core.input_bound import EstablishedBound, RegisteredInputBound
 from leaveimpact.core.model_calls import (
     UNRESOLVED_RULE,
     Answer,
@@ -35,10 +36,17 @@ from leaveimpact.core.model_calls import (
     Unparsed,
     UnresolvedToolCall,
 )
-from leaveimpact.core.run_trace import Cost, ModelCallId, OperationId
+from leaveimpact.core.run_trace import Cost, CountingOperationId, ModelCallId, OperationId
 from leaveimpact.core.usage import ReportedUsage
 
 REQUEST = RequestIdentity("a" * 64, "Converse", "eu.model", "eu-central-1", None)
+BOUND = EstablishedBound(
+    RegisteredInputBound("provider_count", 1),
+    "model-a-base",
+    "a" * 64,
+    4_096,
+    CountingOperationId("count-1"),
+)
 BEHAVIOUR = Attribution(AttributionKind.BEHAVIOUR, "registered-stop-reason")
 INFRASTRUCTURE = Attribution(AttributionKind.INFRASTRUCTURE, "service-error")
 UNRESOLVED = Attribution(AttributionKind.UNRESOLVED, UNRESOLVED_RULE)
@@ -61,6 +69,8 @@ def answered(number: int = 1, intent: int = 7, stop_reason: str = "tool_use") ->
         zero_cost_rule=None,
         allocation=5_000_000,
         allocation_tokens=4_608,
+        bound=BOUND,
+        output_maximum=512,
     )
 
 
@@ -80,6 +90,8 @@ def observed(observation: Observation, attribution: Attribution, number: int = 1
         zero_cost_rule=None,
         allocation=5_000_000,
         allocation_tokens=4_608,
+        bound=BOUND,
+        output_maximum=512,
     )
 
 

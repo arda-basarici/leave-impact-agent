@@ -21,7 +21,9 @@ from leaveimpact.core import (
     ClientErrorKind,
     CompleteResponse,
     Cost,
+    CountingOperationId,
     Dispatch,
+    EstablishedBound,
     ModelCall,
     ModelCallId,
     NoRecordedOutcome,
@@ -30,6 +32,7 @@ from leaveimpact.core import (
     PricingRow,
     PricingSelection,
     RefusedBeforeSend,
+    RegisteredInputBound,
     ReportedUsage,
     RequestIdentity,
     Usage,
@@ -116,6 +119,14 @@ def _dispatch(
         zero_cost_rule=None,
         allocation=0,
         allocation_tokens=0,
+        bound=EstablishedBound(
+            RegisteredInputBound("provider_count", 1),
+            "model-a-base",
+            DIGEST,
+            4_096,
+            CountingOperationId("count-1"),
+        ),
+        output_maximum=512,
     )
 
 

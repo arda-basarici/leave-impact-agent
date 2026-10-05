@@ -51,7 +51,7 @@ from leaveimpact.evaluator.registered import preregistered
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from tests.unit.export_fixture import ROLE, agent_export, dispatch, run_export
-from tests.unit.format2_fixtures import FIXTURES, NOVA_CUT
+from tests.unit.format_fixtures import FIXTURES, NOVA_CUT
 from tests.unit.registration_fixture import DRAFT, decided, light, named
 from tests.unit.throwaway_world import loaded_world
 
@@ -207,7 +207,7 @@ def test_a_call_holds_no_more_dispatches_than_the_bound_when_one_is_set() -> Non
     assert (unbounded.bound_evaluated, unbounded.findings) == (False, ())
 
 
-def test_the_format_2_cases_carry_no_finding_under_a_table_holding_their_rules() -> None:
+def test_the_format_cases_carry_no_finding_under_a_table_holding_their_rules() -> None:
     behaviour = AttributionKind.BEHAVIOUR
     cases = AttributionTable(
         (
@@ -238,8 +238,9 @@ def test_the_format_2_cases_carry_no_finding_under_a_table_holding_their_rules()
         check = check_attributions(cases, RedispatchPolicy(2, 0), build().trace.model_calls)
         assert check.findings == (), name
         read += check.dispatches
-    # Thirteen exports, one of them two dispatches of one call and one three of one.
-    assert read == 16
+    # Sixteen exports, two with no dispatch, one with two dispatches of one call and one with
+    # three dispatches over two calls.
+    assert read == 17
 
 
 # --- Where it is evaluated -------------------------------------------------------------------

@@ -47,6 +47,7 @@ from leaveimpact.core import (
     claims_json,
     closure,
     contradictions,
+    counting_operations,
     coverage,
     derivation,
     eligibility,
@@ -198,6 +199,15 @@ from leaveimpact.core.contradictions import (
     Contradiction,
     ContradictionKind,
     self_contradictions,
+)
+from leaveimpact.core.counting_operations import (
+    CountClientError,
+    Counted,
+    CountingOperation,
+    CountLocalError,
+    CountOutcome,
+    CountServiceError,
+    read_outcome,
 )
 from leaveimpact.core.coverage import (
     PLACEMENTS,
@@ -505,6 +515,7 @@ from leaveimpact.core.run_account import (
 )
 from leaveimpact.core.run_ending import (
     Abandonment,
+    AbandonmentReason,
     Approval,
     ApprovalState,
     Approver,
@@ -516,6 +527,7 @@ from leaveimpact.core.run_ending import (
     FailureSite,
     HarnessSite,
     HarnessSiteName,
+    InputBoundSite,
     KeptReason,
     OperationSite,
     RequirementPlacement,
@@ -566,12 +578,14 @@ from leaveimpact.core.run_timing import (
     approval_wait_ms,
     elapsed_ms,
     evidenced_active_ms,
+    signed_elapsed_ms,
     timing_complete,
 )
 from leaveimpact.core.run_trace import (
     USAGE_COUNTER_NAMES,
     AbsentOutcome,
     Cost,
+    CountingOperationId,
     DefectOutcome,
     HarnessOrigin,
     ModelCallId,
@@ -710,6 +724,7 @@ __all__ = [
     "claims_json",
     "closure",
     "contradictions",
+    "counting_operations",
     "coverage",
     "derivation",
     "eligibility",
@@ -1298,4 +1313,15 @@ __all__ = [
     "UnresolvedAtMaximum",
     "new_attempt_eligibility",
     "CountRetryRule",
+    "CountClientError",
+    "CountLocalError",
+    "CountOutcome",
+    "CountServiceError",
+    "Counted",
+    "CountingOperation",
+    "read_outcome",
+    "AbandonmentReason",
+    "InputBoundSite",
+    "CountingOperationId",
+    "signed_elapsed_ms",
 ]

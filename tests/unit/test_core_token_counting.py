@@ -7,6 +7,7 @@ from datetime import date
 
 import pytest
 
+from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.pricing import absent_as_zero
 from leaveimpact.core.run_record import (
     AbsentMeaning,
@@ -24,6 +25,8 @@ from leaveimpact.core.token_counting import (
     require_counting_rule,
 )
 from leaveimpact.core.usage import ReportedUsage
+
+METHOD = RegisteredInputBound("provider_count", 1)
 
 RULE = INPUT_PLUS_OUTPUT_CACHED_INCLUDED
 CACHE = frozenset({"cache_read_input_tokens", "cache_write_input_tokens"})
@@ -46,9 +49,9 @@ def test_the_registry_cannot_be_changed_by_a_caller() -> None:
 
 
 def test_a_cap_refuses_a_rule_the_registry_lacks() -> None:
-    assert Caps(20, 100_000, 2, 5_000, RULE).counting_rule == RULE
+    assert Caps(20, 100_000, 2, 5_000, RULE, METHOD).counting_rule == RULE
     with pytest.raises(ValueError, match="the counting rule is a registered one"):
-        Caps(20, 100_000, 2, 5_000, "input_output")
+        Caps(20, 100_000, 2, 5_000, "input_output", METHOD)
 
 
 def test_counting_under_an_unregistered_rule_is_refused() -> None:

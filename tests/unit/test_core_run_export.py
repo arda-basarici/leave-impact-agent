@@ -16,6 +16,7 @@ from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
     UNRESOLVED_RULE,
     Abandonment,
+    AbandonmentReason,
     AbsentOutcome,
     Answer,
     Approval,
@@ -34,17 +35,24 @@ from leaveimpact.core import (
     ComposingPolicy,
     Composition,
     Cost,
+    Counted,
+    CountingOperation,
+    CountingOperationId,
+    CountResult,
+    CountServiceError,
     DefectOutcome,
     Dispatch,
     DispatchPhase,
     DispatchSite,
     Entity,
+    EstablishedBound,
     Failure,
     FailureCategory,
     HarnessOrigin,
     HarnessRevision,
     HarnessSite,
     HarnessSiteName,
+    InputBoundSite,
     KeptReason,
     Leave,
     LeaveKind,
@@ -67,6 +75,7 @@ from leaveimpact.core import (
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
+    RegisteredInputBound,
     ReportedUsage,
     RequestIdentity,
     Reservation,
@@ -147,8 +156,12 @@ REVISION = HarnessRevision(COMMIT, TreeState.CLEAN)
 TIMING = Timing((Segment(1, REVISION, 12_000, True),), ADMITTED, ADMITTED, None, None)
 APPROVED = Approval(ApprovalState.APPROVED, Approver.AUTOMATIC, DIGEST)
 NOT_REQUESTED = Approval(ApprovalState.NOT_REQUESTED, None, None)
-RECONCILED = Reservation(5_000_000_000, ReservationState.RECONCILED, None, 3)
-KEPT = Reservation(5_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 3)
+METHOD = RegisteredInputBound("provider_count", 1)
+CAPS = Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", METHOD)
+RECONCILED = Reservation(5_000_000_000, ReservationState.RECONCILED, None, 3, 297_000_000)
+KEPT = Reservation(
+    5_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 3, 5_000_000_000
+)
 
 
 def _dispatch(
@@ -159,8 +172,10 @@ def _dispatch(
     number: int = 1,
     segment: int = 1,
     input_reads: tuple[str, ...] = (),
+    count: str = "count-1",
 ) -> Dispatch:
-    """A dispatch whose usage and cost are the priced ones exactly when a response arrived."""
+    """A dispatch whose usage and cost are the priced ones exactly when a response arrived,
+    resting on the counting operation ``count``, which ``_trace`` holds for it."""
     answered = isinstance(observation, CompleteResponse)
     return Dispatch(
         number=number,
@@ -178,7 +193,30 @@ def _dispatch(
         zero_cost_rule=None,
         allocation=5_000_000_000,
         allocation_tokens=4_608,
+        bound=EstablishedBound(METHOD, "model-a-base", DIGEST, 4_096, CountingOperationId(count)),
+        output_maximum=512,
     )
+
+
+def _count(id: str = "count-1", start: int = 90_000, segment: int = 1) -> CountingOperation:
+    """A successful count at positions no dispatch or read of these tests reaches."""
+    return CountingOperation(
+        CountingOperationId(id),
+        METHOD,
+        "model-a-base",
+        DIGEST,
+        segment,
+        start,
+        start + 1,
+        Counted(4_096, None, 100),
+        CountResult.COUNTED,
+    )
+
+
+def _counts_for(calls: tuple[ModelCall, ...]) -> tuple[CountingOperation, ...]:
+    """One count per distinct counting operation the calls' dispatches rest on."""
+    named = dict.fromkeys(d.bound.evidence for call in calls for d in call.dispatches)
+    return tuple(_count(id, 90_000 + 10 * index) for index, id in enumerate(named))
 
 
 def _call(
@@ -235,11 +273,14 @@ def _trace(
     operations: tuple[Operation, ...] | None = None,
     claims: tuple[Unknown, ...] | None = None,
 ) -> RunTrace:
+    held = (_call(),) if calls is None else calls
     return RunTrace(
-        (_call(),) if calls is None else calls,
+        held,
         (_operation(),) if operations is None else operations,
         (_claim(),) if claims is None else claims,
         COMPOSITION,
+        _counts_for(held),
+        None,
     )
 
 
@@ -272,7 +313,7 @@ def _record(
         system=system,
         retrieval=retrieval,
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
+        caps=CAPS,
         status=status,
         failure=failure,
         abandonment=None,
@@ -555,23 +596,125 @@ def test_an_approval_follows_the_status_and_not_the_claims() -> None:
     assert replace(failed, timing=killed).timing is killed
 
 
-def test_an_abandonment_is_recorded_exactly_at_the_abandoned_site() -> None:
+def test_an_abandon_command_is_held_at_the_abandoned_site_or_beside_a_defect() -> None:
     abandoned = Failure(
         FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.ABANDONED), "no owner"
     )
     at_prefetch = Failure(
         FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.PREFETCH), "the store"
     )
-    decision = Abandonment("operator", 3)
-    with pytest.raises(ValueError, match="exactly when the failure's site is the abandoned one"):
+    decision = Abandonment("operator", 1, AbandonmentReason.CANCELLED)
+    with pytest.raises(ValueError, match="holds the abandon command that closed it"):
         _record(status=TerminalStatus.FAILED, failure=abandoned)
     elsewhere = _record(status=TerminalStatus.FAILED, failure=at_prefetch, reservation=KEPT)
-    with pytest.raises(ValueError, match="exactly when the failure's site is the abandoned one"):
+    with pytest.raises(ValueError, match="finalized a recorded defect; the failure is by defect"):
         replace(elsewhere, abandonment=decision)
     kept = replace(elsewhere, failure=abandoned, abandonment=decision)
     assert kept.abandonment is decision
     with pytest.raises(ValueError, match="an abandoned attempt failed by infrastructure"):
         replace(kept, failure=replace(abandoned, category=FailureCategory.DEFECT))
+    # The command that closed an attempt whose log already held a defect is who closed, and
+    # the ending stays the defect's.
+    defect = Failure(FailureCategory.DEFECT, OperationSite(OperationId("op-1")), "malformed")
+    finalized = replace(elsewhere, failure=defect, abandonment=decision)
+    assert (finalized.failure, finalized.abandonment) == (defect, decision)
+
+
+def test_the_unhandled_site_is_a_defect() -> None:
+    unhandled = Failure(
+        FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.UNHANDLED), "KeyError"
+    )
+    with pytest.raises(ValueError, match="a failure at the unhandled site is a defect"):
+        _record(status=TerminalStatus.FAILED, failure=unhandled, reservation=KEPT)
+    record = _record(
+        status=TerminalStatus.FAILED,
+        failure=replace(unhandled, category=FailureCategory.DEFECT),
+        reservation=KEPT,
+    )
+    assert record.failure is not None and record.failure.category is FailureCategory.DEFECT
+
+
+def test_an_attempt_with_no_segment_was_never_claimed() -> None:
+    """Zero segments is one history: closed by an abandon command before any worker, fencing
+    generation 0, nothing requested; its trace is empty (the event log step's ruling on
+    admission)."""
+    never = Timing((), ADMITTED, ADMITTED, None, None)
+    abandoned = Failure(
+        FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.ABANDONED), "no claim"
+    )
+    command = Abandonment("operator", 0, AbandonmentReason.CANCELLED)
+    at_prefetch = Failure(
+        FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.PREFETCH), "the store"
+    )
+    base = _record(status=TerminalStatus.FAILED, failure=at_prefetch, reservation=KEPT)
+    with pytest.raises(ValueError, match="its failure is at the abandoned site"):
+        replace(base, timing=never)
+    with pytest.raises(ValueError, match="fenced generation 0, got 1"):
+        replace(
+            base,
+            timing=never,
+            failure=abandoned,
+            abandonment=replace(command, ownership_generation=1),
+        )
+    record = replace(base, timing=never, failure=abandoned, abandonment=command)
+    assert record.timing.segments == ()
+    with pytest.raises(ValueError, match="so its trace is empty"):
+        _export(record=record)
+    empty = RunTrace((), (), (), COMPOSITION, (), None)
+    export = _export(record=replace(record, usage=UsageAggregate((), 0, 0), cost=None), trace=empty)
+    assert export.trace.counting_operations == ()
+
+
+def test_a_dispatch_rests_on_a_held_count_and_a_failure_at_the_bound_names_one() -> None:
+    orphan = _call("call-1", "investigator", _dispatch(count="count-9"))
+    with pytest.raises(ValueError, match="rests on counting operation count-9, which the trace"):
+        RunTrace((orphan,), (_operation(),), (_claim(),), COMPOSITION, (_count(),), None)
+    with pytest.raises(ValueError, match="counting operation ids are unique"):
+        RunTrace((), (), (), COMPOSITION, (_count(), _count()), None)
+    with pytest.raises(ValueError, match="held in the order of their starts"):
+        RunTrace((), (), (), COMPOSITION, (_count("count-2", 200), _count("count-1", 100)), None)
+    with pytest.raises(ValueError, match="no two events of a trace share a position"):
+        RunTrace((), (_operation(),), (), COMPOSITION, (_count(start=1),), None)
+    with pytest.raises(ValueError, match="no two events of a trace share a position"):
+        RunTrace((), (_operation(),), (), COMPOSITION, (), 1)
+    refused = CountingOperation(
+        CountingOperationId("count-1"),
+        METHOD,
+        "model-a-base",
+        DIGEST,
+        1,
+        5,
+        6,
+        CountServiceError(403, "AccessDeniedException", "denied", None, 90),
+        CountResult.REFUSED,
+    )
+    trace = RunTrace((), (_operation(),), (), COMPOSITION, (refused,), None)
+    record = _record(
+        status=TerminalStatus.FAILED,
+        failure=Failure(
+            FailureCategory.DEFECT, InputBoundSite(CountingOperationId("count-1")), "denied"
+        ),
+        reservation=KEPT,
+        cost=None,
+    )
+    record = replace(record, usage=UsageAggregate((), 0, 0))
+    at_the_bound = record.failure
+    assert at_the_bound is not None
+    assert _export(record=record, trace=trace).record.failure is at_the_bound
+    infrastructure = replace(
+        record, failure=replace(at_the_bound, category=FailureCategory.INFRASTRUCTURE)
+    )
+    with pytest.raises(ValueError, match="whose last count was refused is by defect"):
+        _export(record=infrastructure, trace=trace)
+    elsewhere = replace(
+        record,
+        failure=replace(at_the_bound, site=InputBoundSite(CountingOperationId("count-2"))),
+    )
+    with pytest.raises(ValueError, match="which the trace does not hold"):
+        _export(record=elsewhere, trace=trace)
+    counted = RunTrace((), (_operation(),), (), COMPOSITION, (_count(start=5),), None)
+    with pytest.raises(ValueError, match="names a counting operation that did not count"):
+        _export(record=record, trace=counted)
 
 
 def test_rules_only_calls_no_model_and_retrieves_nothing() -> None:
@@ -639,11 +782,11 @@ def test_every_role_that_calls_a_model_names_the_rate_it_was_priced_under() -> N
 
 def test_the_reserves_sit_inside_the_caps_and_an_embedding_model_names_vector_retrieval() -> None:
     with pytest.raises(ValueError, match="call reserve sits inside the call cap, got 20 of 20"):
-        Caps(20, 100_000, 20, 5_000, "input_plus_output_cached_included")
+        Caps(20, 100_000, 20, 5_000, "input_plus_output_cached_included", METHOD)
     with pytest.raises(ValueError, match="token reserve sits inside the token cap"):
-        Caps(20, 100_000, 2, 100_000, "input_plus_output_cached_included")
+        Caps(20, 100_000, 2, 100_000, "input_plus_output_cached_included", METHOD)
     with pytest.raises(ValueError, match="call_cap is positive"):
-        Caps(0, 100_000, 0, 5_000, "input_plus_output_cached_included")
+        Caps(0, 100_000, 0, 5_000, "input_plus_output_cached_included", METHOD)
     with pytest.raises(ValueError, match="exactly for vector retrieval"):
         Retrieval(RetrievalKind.VECTOR, None)
     assert Retrieval(RetrievalKind.VECTOR, "eu.embedder").embedding_model == "eu.embedder"
@@ -671,9 +814,9 @@ def test_the_export_is_this_formats_self_identifying_tree() -> None:
         "run-7",
         1,
     )
-    assert EXPORT_FORMAT_VERSION == 2
-    with pytest.raises(ValueError, match="builds export format 2, got 1"):
-        replace(export, format_version=1)
+    assert EXPORT_FORMAT_VERSION == 3
+    with pytest.raises(ValueError, match="builds export format 3, got 2"):
+        replace(export, format_version=2)
     with pytest.raises(ValueError, match="an attempt is at least 1, got 0"):
         replace(export, attempt=0)
     with pytest.raises(ValueError, match="an attempt is an integer, got 1.5"):
@@ -876,7 +1019,7 @@ def test_a_rules_only_export_holds_no_model_call() -> None:
         _export(record=record, trace=_trace(calls=(), operations=(issued,)))
     by_a_model = Composition(ClaimAuthor.MODEL, COMPOSITION.policy, (), ())
     with pytest.raises(ValueError, match="claims were composed by the rules"):
-        _export(record=record, trace=RunTrace((), (_operation(),), (), by_a_model))
+        _export(record=record, trace=RunTrace((), (_operation(),), (), by_a_model, (), None))
 
 
 def test_the_approvals_stamps_are_events_of_the_same_order_as_reads_and_dispatches() -> None:

@@ -31,6 +31,10 @@ from leaveimpact.core import (
     ComposingPolicy,
     Composition,
     Cost,
+    Counted,
+    CountingOperation,
+    CountingOperationId,
+    CountResult,
     DefectOutcome,
     Dispatch,
     DispatchPhase,
@@ -39,6 +43,7 @@ from leaveimpact.core import (
     DocumentKind,
     DocumentSection,
     Entity,
+    EstablishedBound,
     Failure,
     FailureCategory,
     HarnessRevision,
@@ -63,6 +68,7 @@ from leaveimpact.core import (
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
+    RegisteredInputBound,
     ReportedUsage,
     RequestIdentity,
     Reservation,
@@ -156,6 +162,23 @@ PRICING = PricingBasis(
 COMPOSITION = Composition(ClaimAuthor.RULES, ComposingPolicy("a-policy", DIGEST), (), ())
 REQUEST = RequestIdentity(DIGEST, "Converse", "eu.model", "eu-central-1", None)
 ADMITTED = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
+METHOD = RegisteredInputBound("provider_count", 1)
+CAPS = Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", METHOD)
+
+
+def _count(call: int) -> CountingOperation:
+    """The successful count of the ``call``-th call's request, at positions past every read."""
+    return CountingOperation(
+        CountingOperationId(f"count-{call}"),
+        METHOD,
+        "model-a-base",
+        DIGEST,
+        1,
+        100 + 2 * call,
+        101 + 2 * call,
+        Counted(4_096, f"req-count-{call}", 100),
+        CountResult.COUNTED,
+    )
 
 
 def _dispatch(
@@ -165,6 +188,7 @@ def _dispatch(
     usage: dict[str, object] | None,
     cost: Cost | None,
     shown: tuple[str, ...] = (),
+    call: int = 1,
 ) -> Dispatch:
     return Dispatch(
         number=1,
@@ -180,6 +204,10 @@ def _dispatch(
         zero_cost_rule=None,
         allocation=5_000_000_000,
         allocation_tokens=4_608,
+        bound=EstablishedBound(
+            METHOD, "model-a-base", DIGEST, 4_096, CountingOperationId(f"count-{call}")
+        ),
+        output_maximum=512,
     )
 
 
@@ -228,6 +256,7 @@ def _calls() -> tuple[ModelCall, ...]:
                     AttributionKind.INFRASTRUCTURE,
                     None,
                     None,
+                    call=2,
                 ),
             ),
             None,
@@ -242,6 +271,7 @@ def _calls() -> tuple[ModelCall, ...]:
                     AttributionKind.BEHAVIOUR,
                     {},
                     Cost(0, False),
+                    call=3,
                 ),
             ),
             Answer(False, (), ()),
@@ -353,7 +383,7 @@ def _record(status: TerminalStatus, failure: Failure | None) -> RunRecord:
         system=System(SystemKind.AGENT, "reference"),
         retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
+        caps=CAPS,
         status=status,
         failure=failure,
         abandonment=None,
@@ -367,7 +397,7 @@ def _record(status: TerminalStatus, failure: Failure | None) -> RunRecord:
         usage=UsageAggregate((("input_tokens", 120, 1), ("output_tokens", 30, 1)), 3, 3),
         cost=Cost(297_000_000, False),
         reservation=Reservation(
-            15_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 4
+            15_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 4, 10_297_000_000
         ),
         approval=(
             Approval(ApprovalState.NOT_REQUESTED, None, None)
@@ -387,7 +417,9 @@ def _export(
         2,
         CONTEXT,
         _record(status, failure),
-        RunTrace(_calls(), _operations(), _claims(), COMPOSITION),
+        RunTrace(
+            _calls(), _operations(), _claims(), COMPOSITION, (_count(1), _count(2), _count(3)), None
+        ),
     )
 
 
@@ -466,14 +498,14 @@ def test_absent_and_empty_stay_distinct_in_the_bytes() -> None:
 def test_the_tree_opens_with_the_format_version_and_the_identity() -> None:
     encoded = encode_run_export(_export())
     assert list(encoded)[:3] == ["format_version", "run_id", "attempt"]
-    assert canonical_json(encoded).startswith('{"format_version":2,"run_id":"run-7","attempt":2,')
+    assert canonical_json(encoded).startswith('{"format_version":3,"run_id":"run-7","attempt":2,')
 
 
 def test_another_format_refuses_before_anything_else() -> None:
     data = cast(JsonObject, _reparsed(_export()))
-    data["format_version"] = 1
+    data["format_version"] = 2
     del data["trace"]
-    with pytest.raises(ValueError, match="this code reads export format 2, got 1"):
+    with pytest.raises(ValueError, match="this code reads export format 3, got 2"):
         decode_run_export(data)
     data["format_version"] = True
     with pytest.raises(ValueError, match="format_version is an integer, got True"):
@@ -581,10 +613,12 @@ def _reading_only(operation: Operation) -> RunExport:
     record = replace(
         base.record,
         cost=None,
-        reservation=Reservation(0, ReservationState.RECONCILED, None, 4),
+        reservation=Reservation(0, ReservationState.RECONCILED, None, 4, 0),
         usage=UsageAggregate((), 0, 0),
     )
-    return replace(base, record=record, trace=RunTrace((), (operation,), (), COMPOSITION))
+    return replace(
+        base, record=record, trace=RunTrace((), (operation,), (), COMPOSITION, (), None)
+    )
 
 
 def test_equal_arguments_spelled_in_another_key_order_are_the_same_bytes() -> None:

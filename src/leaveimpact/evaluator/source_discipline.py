@@ -312,7 +312,7 @@ def source_discipline(trace: RunTrace) -> SourceDiscipline:
 
     >>> from leaveimpact.core.run_ending import ClaimAuthor, ComposingPolicy, Composition
     >>> composed = Composition(ClaimAuthor.RULES, ComposingPolicy("policy", "0" * 64), (), ())
-    >>> source_discipline(RunTrace((), (), (), composed)).tally(Source.JIRA).attempted
+    >>> source_discipline(RunTrace((), (), (), composed, (), None)).tally(Source.JIRA).attempted
     False
     """
     rows: list[OperationRow] = []

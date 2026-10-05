@@ -1,4 +1,4 @@
-"""JSON for the run export: one canonical tree under the one byte rule, format version 2.
+"""JSON for the run export: one canonical tree under the one byte rule, format version 3.
 
 The export is written once by the agent and read by the evaluator, so its codec sits
 here with the types, the only package both reach (the investigator milestone's second
@@ -21,7 +21,7 @@ failure, no answer), an empty list where it had none of a thing.
 
 Observed records travel through the entity codec, claims through the claim codec,
 call configurations through their own codec, rates through the pricing codec, and the
-parts format 2 added (model calls, usage, timing, the attempt's ending) through
+rest (model calls and counting operations, usage, timing, the attempt's ending) through
 ``run_parts_json``, each the one encoding its type has in this project.
 """
 
@@ -41,6 +41,7 @@ from leaveimpact.core.entities_json import decode_observed, encode_observed
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, is_numbered_id
+from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.jsonshape import (
     JsonObject,
     array_field,
@@ -61,6 +62,7 @@ from leaveimpact.core.run_parts_json import (
     decode_approval,
     decode_composition,
     decode_cost,
+    decode_counting_operation,
     decode_failure_site,
     decode_model_call,
     decode_reservation,
@@ -69,6 +71,7 @@ from leaveimpact.core.run_parts_json import (
     encode_approval,
     encode_composition,
     encode_cost,
+    encode_counting_operation,
     encode_failure_site,
     encode_model_call,
     encode_reservation,
@@ -192,6 +195,10 @@ def encode_run_record(record: RunRecord) -> JsonObject:
             "finalization_call_reserve": record.caps.finalization_call_reserve,
             "finalization_token_reserve": record.caps.finalization_token_reserve,
             "counting_rule": record.caps.counting_rule,
+            "input_bound": {
+                "method": record.caps.input_bound.name,
+                "version": record.caps.input_bound.version,
+            },
         },
         "status": record.status.value,
         "failure": None if record.failure is None else _encode_failure(record.failure),
@@ -226,13 +233,17 @@ def _encode_failure(failure: Failure) -> JsonObject:
 
 
 def encode_run_trace(trace: RunTrace) -> JsonObject:
-    """The JSON object of the trace: model calls, operations and claims in the trace's order,
-    then how the claims were composed."""
+    """The JSON object of the trace: model calls, counting operations, operations and claims
+    in the trace's order, how the claims were composed, where finalization began."""
     return {
         "model_calls": [encode_model_call(call) for call in trace.model_calls],
+        "counting_operations": [
+            encode_counting_operation(count) for count in trace.counting_operations
+        ],
         "operations": [_encode_operation(operation) for operation in trace.operations],
         "claims": [encode_claim(claim) for claim in trace.claims],
         "composition": encode_composition(trace.composition),
+        "finalization_entered": trace.finalization_entered,
     }
 
 
@@ -296,10 +307,10 @@ def decode_export_bytes(content: bytes | str) -> RunExport:
     a role-indexed entry out of order) is refused as not canonical, since accepting it
     would let two byte sequences stand for one export and the cited digest name neither.
 
-    >>> decode_export_bytes(b'{"format_version": 1}')
+    >>> decode_export_bytes(b'{"format_version": 2}')
     Traceback (most recent call last):
     ...
-    ValueError: this code reads export format 2, got 1
+    ValueError: this code reads export format 3, got 2
     """
     raw = content.encode("utf-8") if isinstance(content, str) else content
     export = decode_run_export(json.loads(raw))
@@ -397,9 +408,12 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
             "finalization_call_reserve",
             "finalization_token_reserve",
             "counting_rule",
+            "input_bound",
         ),
         "the caps",
     )
+    bound = object_field(caps, "input_bound")
+    expect_fields(bound, ("method", "version"), "the input-bound method")
     usage = object_field(data, "usage")
     expect_fields(usage, ("counters", "model_calls", "dispatches"), "the usage")
     pricing = object_field(data, "pricing")
@@ -437,6 +451,7 @@ def decode_run_record(data: Mapping[str, object]) -> RunRecord:
             integer_field(caps, "finalization_call_reserve"),
             integer_field(caps, "finalization_token_reserve"),
             string_field(caps, "counting_rule"),
+            RegisteredInputBound(string_field(bound, "method"), integer_field(bound, "version")),
         ),
         status=TerminalStatus(string_field(data, "status")),
         failure=None if failure is None else _decode_failure(as_object(failure, "the failure")),
@@ -512,12 +527,28 @@ def _decode_aggregate_counter(item: object) -> tuple[str, int, int]:
 
 def decode_run_trace(data: Mapping[str, object]) -> RunTrace:
     """The trace ``data`` encodes, through every constructor invariant."""
-    expect_fields(data, ("model_calls", "operations", "claims", "composition"), "the trace")
+    expect_fields(
+        data,
+        (
+            "model_calls",
+            "counting_operations",
+            "operations",
+            "claims",
+            "composition",
+            "finalization_entered",
+        ),
+        "the trace",
+    )
+    entered = field_of(data, "finalization_entered")
     return RunTrace(
         tuple(decode_model_call(item) for item in array_field(data, "model_calls")),
         tuple(_decode_operation(item) for item in array_field(data, "operations")),
         tuple(decode_claim(as_object(item, "a claim")) for item in array_field(data, "claims")),
         decode_composition(object_field(data, "composition")),
+        tuple(
+            decode_counting_operation(item) for item in array_field(data, "counting_operations")
+        ),
+        None if entered is None else integer_field(data, "finalization_entered"),
     )
 
 

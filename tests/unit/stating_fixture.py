@@ -168,7 +168,14 @@ def restated(
 ) -> RunExport:
     """``export`` with these reads, claims and composition in its trace, approved over them,
     and ``down`` as the outage both scheduled and observed."""
-    trace = RunTrace(export.trace.model_calls, tuple(operations), tuple(claims), composition)
+    trace = RunTrace(
+        export.trace.model_calls,
+        tuple(operations),
+        tuple(claims),
+        composition,
+        export.trace.counting_operations,
+        export.trace.finalization_entered,
+    )
     approved = approval(claims, failed=export.record.failure is not None)
     if approved.payload_digest is not None:
         approved = replace(approved, payload_digest=review_payload_digest(claims, composition))

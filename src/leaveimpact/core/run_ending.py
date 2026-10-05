@@ -6,21 +6,32 @@ These are the statements an export makes about its own ending that format 1 coul
 
 *Where a failure is.* Format 1 anchored a failure at an operation or at a model call the
 provider failed, and a database outage, a checkpoint that will not resume or an abandoned
-attempt had no truthful place. A site is now one of three: an operation; a model dispatch,
-by its call, its number and the phase the fault was found in; or a harness site from a
-closed list. Admission is not on the list: a refused admission creates no attempt and is
-the ledger's record.
+attempt had no truthful place. A site is now one of four: an operation; a model dispatch,
+by its call, its number and the phase the fault was found in; a counting request, by the
+counting operation that was the last one made for the request it could not bound (the
+event log step's ruling on counting); or a harness site from a closed list. Admission is
+not on the list: a refused admission creates no attempt and is the ledger's record. The
+``unhandled`` harness site is an exception nobody classified, caught at the driver: a
+harness fault that stops the run as a defect rather than replaying into the same crash.
 
 *Abandonment is a decision, not an absence.* A run paused at an approval or recoverable
-from a checkpoint has no terminal event and is not abandoned. An attempt is abandoned by
-an explicit event naming the authority that decided it and the ownership generation it
-fenced, so a stale worker can neither dispatch nor append afterwards.
+from a checkpoint has no terminal event and is not abandoned. An attempt is closed by an
+explicit abandon command naming the authority that decided it, the ownership generation it
+fenced and a reason from a closed list, so a cancellation is told from an interruption.
+After the fence the displaced worker authorizes no dispatch and appends no outcome; a
+dispatch it had authorized before may still be sent, its allocation accounted and its
+outcome never accepted, so it stays unresolved (the event log step's ruling on one
+writer). The command's record is kept whenever one closed the attempt, which is also the
+case where it finalized a recorded defect and abandoned nothing: the ending is then the
+defect's and the command is who closed.
 
 *The reservation.* A run is admitted against a reserved worst-case amount, allocated to
-its dispatches. The export says what became of it: reconciled against the observed cost,
-or kept with the reason, under the ledger revision it was settled at. Keeping and
-reconciling are the ledger's; this is where the export states the result, so an auditor
-can check that known consumption plus retained allocations stayed inside the allowance.
+its dispatches. The export says what became of it: the amount admitted, whether it was
+reconciled against the observed cost or kept with the reason, the amount the ledger
+charged in its place (the observed costs with every retained allocation), under the
+ledger revision it was settled at. Keeping and reconciling are the ledger's; this is where
+the export states the result, so an auditor can check that known consumption plus
+retained allocations stayed inside the allowance.
 
 *The approval.* An export is terminal-only, so its approval is one of three states: not
 requested; requested and unapproved at termination; approved, by the automatic policy or a
@@ -43,6 +54,7 @@ from enum import StrEnum
 from leaveimpact.core.enums import require_member
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.run_trace import (
+    CountingOperationId,
     ModelCallId,
     OperationId,
     require_digest,
@@ -101,6 +113,8 @@ class HarnessSiteName(StrEnum):
     CHECKPOINT_RESUME = "checkpoint_resume"
     COMPOSITION = "composition"
     ABANDONED = "abandoned"
+    UNHANDLED = "unhandled"
+    """An exception the driver caught that nothing classified: always a defect."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -113,20 +127,45 @@ class HarnessSite:
         require_member(self.site, HarnessSiteName, "a harness site")
 
 
-type FailureSite = OperationSite | DispatchSite | HarnessSite
+@dataclass(frozen=True, slots=True)
+class InputBoundSite:
+    """The attempt ended because a request's input could not be bounded: the counting
+    requests for it were exhausted, one was refused as a misconfiguration, or one failed in
+    an unclassified way. ``counting_operation`` is the last counting operation made for that
+    request, which the trace holds."""
+
+    counting_operation: CountingOperationId
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.counting_operation, "the last counting operation's id")
+
+
+type FailureSite = OperationSite | DispatchSite | InputBoundSite | HarnessSite
+
+
+class AbandonmentReason(StrEnum):
+    """Why an abandon command was issued; a member is the wire format. Recorded so the two
+    are told apart, and read by nothing that decides."""
+
+    CANCELLED = "cancelled"
+    """An operator stopped an attempt that could have continued."""
+    INTERRUPTED = "interrupted"
+    """The attempt lost its worker and was judged not resumable."""
 
 
 @dataclass(frozen=True, slots=True)
 class Abandonment:
-    """The decision that ended an attempt nobody was going to finish: who decided, and the
-    ownership generation the decision fenced."""
+    """The abandon command that closed an attempt: who decided, the ownership generation the
+    decision fenced, and why."""
 
     authority: str
     ownership_generation: int
+    reason: AbandonmentReason
 
     def __post_init__(self) -> None:
         require_opaque_id(self.authority, "the abandoning authority")
         require_integer(self.ownership_generation, "an ownership generation")
+        require_member(self.reason, AbandonmentReason, "an abandonment's reason")
 
 
 # --- The reservation -----------------------------------------------------------------------
@@ -148,9 +187,14 @@ class KeptReason(StrEnum):
 
 @dataclass(frozen=True, slots=True)
 class Reservation:
-    """The amount reserved at admission, in pico-dollars, and what became of it.
+    """The amount reserved at admission, in pico-dollars, what became of it, and the amount
+    the ledger charged in its place at closure.
 
-    >>> Reservation(5_000_000, ReservationState.KEPT, None, 12)
+    ``charged_pico_usd`` is the settlement's sum over the dispatches, each contributing its
+    observed cost when that is complete and its allocation otherwise (``run_account.settle``);
+    it is not bounded by ``pico_usd``, since a breached allocation is charged as observed.
+
+    >>> Reservation(5_000_000, ReservationState.KEPT, None, 12, 0)
     Traceback (most recent call last):
     ...
     ValueError: a reason is given exactly for a kept reservation
@@ -160,6 +204,7 @@ class Reservation:
     state: ReservationState
     kept_reason: KeptReason | None
     ledger_revision: int
+    charged_pico_usd: int
 
     def __post_init__(self) -> None:
         require_integer(self.pico_usd, "a reservation in pico-dollars")
@@ -169,6 +214,7 @@ class Reservation:
         if self.kept_reason is not None:
             require_member(self.kept_reason, KeptReason, "a kept reservation's reason")
         require_integer(self.ledger_revision, "a ledger revision")
+        require_integer(self.charged_pico_usd, "the amount charged in pico-dollars")
 
 
 # --- The approval --------------------------------------------------------------------------
@@ -281,6 +327,7 @@ class Composition:
 
 __all__ = [
     "Abandonment",
+    "AbandonmentReason",
     "Approval",
     "ApprovalState",
     "Approver",
@@ -292,6 +339,7 @@ __all__ = [
     "FailureSite",
     "HarnessSite",
     "HarnessSiteName",
+    "InputBoundSite",
     "KeptReason",
     "OperationSite",
     "RequirementPlacement",

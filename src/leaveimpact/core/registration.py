@@ -53,7 +53,6 @@ from enum import StrEnum
 from leaveimpact.core.attribution import AttributionTable, RedispatchPolicy
 from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.enums import Source, require_member
-from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.run_ending import ComposingPolicy
 from leaveimpact.core.run_record import (
@@ -167,17 +166,12 @@ class MeasuredWorld:
 
 @dataclass(frozen=True, slots=True)
 class RegisteredCaps:
-    """The per-run caps a system runs under, what stands behind the numbers, and the method
-    a dispatch's input is bounded by before it is authorized against them.
-
-    The method decides when a run stops at its token cap, which is graded, so it is
-    registered beside the counting rule. It sits here and not in ``Caps`` until the run
-    record states it too, with the export's next format.
-    """
+    """The per-run caps a system runs under and what stands behind the numbers. The counting
+    rule and the method a dispatch's input is bounded by are inside ``Caps``, since a run's
+    record states both as it ran under them."""
 
     basis: Basis
     caps: Caps
-    input_bound: RegisteredInputBound
 
 
 @dataclass(frozen=True, slots=True)

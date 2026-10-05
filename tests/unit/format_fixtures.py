@@ -1,11 +1,12 @@
-"""The twelve hand-built exports export format 2 is accepted on, one per case format 1 could
-not state.
+"""The hand-built exports the export format is accepted on, one per case an earlier format
+could not state.
 
 Test infrastructure, built on ``core`` alone so that every later group can import it: the
 composer's tests, the evaluator's fact-stage measures and the event log's export reader
 all need exports of these shapes before any harness produces one. Each function returns
 one whole ``RunExport`` of an agent's attempt on the stated-fact fixture's small world.
-The cases are the contract step's (its ruling on time, answers, tool calls and approval):
+The first twelve cases are the contract step's (its ruling on time, answers, tool calls
+and approval), the cases format 1 had no value for:
 
 1. facts beside tools in one answer
 2. a malformed fact batch
@@ -20,9 +21,18 @@ The cases are the contract step's (its ruling on time, answers, tool calls and a
 11. a multi-tool answer whose first call ends the attempt
 12. a tool call whose result was lost before it was logged
 
+Three more are the event log step's, the histories format 2 could not hold:
+
+13. an attempt admitted and never claimed, closed by an abandon command
+14. a recorded defect an operator's command finalized
+15. a request whose input bound was never established
+
 The provenance around each is inert and the same: one role, one priced selection, the
-usage and the cumulative cost summed from the dispatches as a harness sums them, and the
-reservation settled as a ledger settles it. What a case is about is in its own function.
+usage and the cumulative cost summed from the dispatches as a harness sums them, the
+reservation settled as a ledger settles it, and every dispatch resting on its call's one
+counting operation, a re-dispatch reusing the count. Positions are on a scale of ten: slot
+``n`` of a case is position ``10 n``, so a call's count has its two positions just before
+its first intent. What a case is about is in its own function.
 """
 
 from __future__ import annotations
@@ -34,6 +44,8 @@ from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
     UNRESOLVED_RULE,
     Abandonment,
+    AbandonmentReason,
+    AbsentMeaning,
     AbsentOutcome,
     Admitted,
     Answer,
@@ -52,8 +64,15 @@ from leaveimpact.core import (
     ComposingPolicy,
     Composition,
     Cost,
+    CountClientError,
+    Counted,
+    CountingOperation,
+    CountingOperationId,
+    CountResult,
+    CountServiceError,
     DefectOutcome,
     Dispatch,
+    EstablishedBound,
     FactRefusal,
     Failure,
     FailureCategory,
@@ -61,6 +80,7 @@ from leaveimpact.core import (
     HarnessRevision,
     HarnessSite,
     HarnessSiteName,
+    InputBoundSite,
     KeptReason,
     MalformedBatch,
     ModelCall,
@@ -83,6 +103,7 @@ from leaveimpact.core import (
     Refused,
     RefusedBy,
     RefusedInput,
+    RegisteredInputBound,
     ReportedUsage,
     RequestIdentity,
     Requirement,
@@ -121,12 +142,16 @@ from leaveimpact.core import (
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, skill_id
 from leaveimpact.core.jsonshape import canonical_json
 from leaveimpact.core.model_calls import FactBatch, Observation
+from leaveimpact.core.run_trace import ClientErrorKind
 from tests.unit import stated_fixture as f
 
 DIGEST = "a" * 64
 COMMIT = "b" * 40
 ROLE = "investigator"
 SELECTION = PricingSelection("model-a", "eu-central-1", "on_demand")
+ZERO = AbsentMeaning.ZERO
+"""The cache counters are omitted exactly when a call had no token of the class, as the
+spike proved for both supported families; so a usage without them still prices whole."""
 BASIS = PricingBasis(
     DIGEST,
     "USD",
@@ -134,8 +159,16 @@ BASIS = PricingBasis(
     (
         PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100_000),
         PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500_000),
+        PricingRow(
+            "model-a", "eu-central-1", "on_demand", "cache_read_input_tokens", 110_000, ZERO
+        ),
+        PricingRow(
+            "model-a", "eu-central-1", "on_demand", "cache_write_input_tokens", 1_375_000, ZERO
+        ),
     ),
 )
+"""Every class priced, so the money worst case can be computed over these exports: the
+cache write is the dearest input-side rate."""
 CONTEXT = RunContext(
     ScenarioId("scenario_003"),
     WorldVersion("7b806ed6"),
@@ -148,10 +181,18 @@ REVISION = HarnessRevision(COMMIT, TreeState.CLEAN)
 ADMITTED = datetime(2026, 10, 4, 12, 0, tzinfo=UTC)
 REPORTED = {"inputTokens": 120, "outputTokens": 30, "totalTokens": 150}
 PRICED = Cost(120 * 1_100_000 + 30 * 5_500_000, True)
-ALLOCATION = 5_000_000_000
-ALLOCATION_TOKENS = 4_608
-"""The worst case one dispatch is counted for against the token cap: its input and
-its output limit."""
+METHOD = RegisteredInputBound("provider_count", 1)
+COUNTING_MODEL = "model-a-base"
+"""The identifier the count is asked of: the base model behind the ``eu.`` profile."""
+INPUT_BOUND = 4_096
+OUTPUT_MAXIMUM = 512
+ALLOCATION_TOKENS = INPUT_BOUND + OUTPUT_MAXIMUM
+"""The worst case one dispatch is counted for against the token cap: its input bound and
+its output maximum."""
+ALLOCATION = INPUT_BOUND * 1_375_000 + OUTPUT_MAXIMUM * 5_500_000
+"""The money worst case of one dispatch: the bound at the dearest input-side rate and the
+output maximum at the output rate, 8,448,000,000 pico-dollars."""
+LEDGER_REVISION = 7
 RULES = Composition(ClaimAuthor.RULES, ComposingPolicy("stated-fact-composer", DIGEST), (), ())
 PARSER = RefusedBy("fact-batch-parser-v1", "c" * 64)
 ARGUMENT_PARSER = RefusedBy("tool-argument-parser-v1", "d" * 64)
@@ -180,8 +221,47 @@ def requirement(span: str) -> StatedFact:
     )
 
 
+def at(slot: int) -> int:
+    """The position of slot ``slot``: ten a slot, so a count fits before an intent."""
+    return slot * 10
+
+
+def count_id(call: str) -> CountingOperationId:
+    return CountingOperationId(f"count-{call}")
+
+
+def bound_of(call: str) -> EstablishedBound:
+    """The bound every dispatch of ``call`` rests on: the provider's count of its request."""
+    return EstablishedBound(METHOD, COUNTING_MODEL, DIGEST, INPUT_BOUND, count_id(call))
+
+
+def counted(call: str, slot: int, *, segment: int = 1) -> CountingOperation:
+    """The one successful count of ``call``'s request, in the two positions before slot
+    ``slot``, where its first intent is logged."""
+    return CountingOperation(
+        count_id(call),
+        METHOD,
+        COUNTING_MODEL,
+        DIGEST,
+        segment,
+        at(slot) - 2,
+        at(slot) - 1,
+        Counted(INPUT_BOUND, f"req-{count_id(call)}", 100),
+        CountResult.COUNTED,
+    )
+
+
+def counts_of(calls: Sequence[ModelCall]) -> tuple[CountingOperation, ...]:
+    """One count per call, each just before the call's first intent."""
+    return tuple(
+        counted(call.id, first.intent_position // 10, segment=first.segment)
+        for call in calls
+        for first in (call.dispatches[0],)
+    )
+
+
 def dispatch(
-    intent: int,
+    slot: int,
     observation: Observation,
     read_as: AttributionKind,
     *,
@@ -189,10 +269,13 @@ def dispatch(
     number: int = 1,
     segment: int = 1,
     shown: Sequence[str] = (),
+    call: str = "call-1",
 ) -> Dispatch:
-    """One dispatch logged at ``intent``; usage and cost are the priced ones exactly when a
-    complete response arrived, and its outcome follows its intent unless none was recorded."""
+    """One dispatch of ``call`` whose intent is logged at slot ``slot``; usage and cost are
+    the priced ones exactly when a complete response arrived, and its outcome follows its
+    intent unless none was recorded."""
     answered = isinstance(observation, CompleteResponse)
+    intent = at(slot)
     return Dispatch(
         number=number,
         segment=segment,
@@ -207,44 +290,47 @@ def dispatch(
         zero_cost_rule=None,
         allocation=ALLOCATION,
         allocation_tokens=ALLOCATION_TOKENS,
+        bound=bound_of(call),
+        output_maximum=OUTPUT_MAXIMUM,
     )
 
 
 def answered(
     call: str,
-    intent: int,
+    slot: int,
     answer: Answer,
     *,
     stop_reason: str = "end_turn",
     segment: int = 1,
     shown: Sequence[str] = (),
 ) -> ModelCall:
-    """A call answered on its first dispatch, carrying ``answer``."""
+    """A call answered on its first dispatch, logged at slot ``slot``, carrying ``answer``."""
     sent = dispatch(
-        intent,
+        slot,
         CompleteResponse(stop_reason, 840, 0),
         AttributionKind.BEHAVIOUR,
         segment=segment,
         shown=shown,
+        call=call,
     )
     return ModelCall(ModelCallId(call), ROLE, (sent,), answer)
 
 
-def prefetched(position: int = 1) -> Operation:
-    """The prefetch's read of the tickets, which came back empty."""
+def prefetched(slot: int = 1) -> Operation:
+    """The prefetch's read of the tickets, which came back empty, logged at slot ``slot``."""
     return Operation(
-        OperationId(f"op-{position}"),
+        OperationId(f"op-{slot}"),
         PrefetchOrigin(),
         "work_items",
         Source.JIRA,
         {},
         RecordsOutcome(()),
-        position,
+        at(slot),
     )
 
 
-def asked(operation: str, call: str, position: int, outcome: object = None) -> Operation:
-    """A ticket read the model call ``call`` asked for, logged at ``position``."""
+def asked(operation: str, call: str, slot: int, outcome: object = None) -> Operation:
+    """A ticket read the model call ``call`` asked for, logged at slot ``slot``."""
     return Operation(
         OperationId(operation),
         ModelOrigin(ModelCallId(call)),
@@ -252,7 +338,7 @@ def asked(operation: str, call: str, position: int, outcome: object = None) -> O
         Source.JIRA,
         {"id": "ticket_042"},
         AbsentOutcome() if outcome is None else outcome,  # type: ignore[arg-type]
-        position,
+        at(slot),
     )
 
 
@@ -268,15 +354,21 @@ def one_segment(last_offset_ms: int = 9_000) -> Timing:
 
 def settled(calls: Sequence[ModelCall]) -> Reservation:
     """The reservation as a ledger settles it: reconciled when every send was priced whole,
-    kept with the reason otherwise."""
+    kept with the reason otherwise; charged the observed cost of every dispatch priced whole
+    and the allocation of every other one that was sent."""
     dispatches = [d for call in calls for d in call.dispatches]
     amount = ALLOCATION * len(dispatches)
     sent = [d for d in dispatches if d.sends is not Sends.NONE]
+    charged = sum(
+        d.cost.pico_usd if d.cost is not None and d.cost.complete else ALLOCATION for d in sent
+    )
     if any(d.sends is Sends.UNRESOLVED for d in sent):
-        return Reservation(amount, ReservationState.KEPT, KeptReason.UNRESOLVED_DISPATCH, 7)
-    if any(d.cost is None or not d.cost.complete for d in sent):
-        return Reservation(amount, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 7)
-    return Reservation(amount, ReservationState.RECONCILED, None, 7)
+        reason = KeptReason.UNRESOLVED_DISPATCH
+    elif any(d.cost is None or not d.cost.complete for d in sent):
+        reason = KeptReason.USAGE_INCOMPLETE
+    else:
+        return Reservation(amount, ReservationState.RECONCILED, None, LEDGER_REVISION, charged)
+    return Reservation(amount, ReservationState.KEPT, reason, LEDGER_REVISION, charged)
 
 
 def automatic(claims: Sequence[Claim], composition: Composition) -> Approval:
@@ -299,10 +391,14 @@ def export(
     abandonment: Abandonment | None = None,
     timing: Timing | None = None,
     approval: Approval | None = None,
+    counting_operations: Sequence[CountingOperation] | None = None,
+    reservation: Reservation | None = None,
 ) -> RunExport:
     """An agent's export around ``calls``. The attempt completed unless ``failure`` says how
     it failed; it is approved automatically when it completed and requested no approval when
-    it failed, unless ``approval`` says otherwise."""
+    it failed, unless ``approval`` says otherwise. Each call rests on one successful count
+    unless ``counting_operations`` says otherwise, and the reservation is settled over the
+    calls unless ``reservation`` says otherwise."""
     if approval is None:
         approval = NOT_REQUESTED if failure is not None else automatic(claims, composition)
     record = RunRecord(
@@ -312,7 +408,13 @@ def export(
         preregistration_commit=COMMIT,
         attribution_table=DIGEST,
         model_configurations=(
-            (ROLE, CallConfiguration("eu.model", (CallSetting("temperature", 0),))),
+            (
+                ROLE,
+                CallConfiguration(
+                    "eu.model",
+                    (CallSetting("max_tokens", OUTPUT_MAXIMUM), CallSetting("temperature", 0)),
+                ),
+            ),
         ),
         pricing_selections=((ROLE, SELECTION),),
         prompt_digests=((ROLE, "system", DIGEST),),
@@ -320,14 +422,14 @@ def export(
         system=System(SystemKind.AGENT, "reference"),
         retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
+        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", METHOD),
         status=TerminalStatus.COMPLETED if failure is None else TerminalStatus.FAILED,
         failure=failure,
         abandonment=abandonment,
         timing=timing if timing is not None else one_segment(),
         usage=aggregate_usage(calls),
         cost=run_cost(calls),
-        reservation=settled(calls),
+        reservation=settled(calls) if reservation is None else reservation,
         approval=approval,
         pricing=BASIS,
     )
@@ -337,7 +439,14 @@ def export(
         1,
         CONTEXT,
         record,
-        RunTrace(tuple(calls), tuple(operations), tuple(claims), composition),
+        RunTrace(
+            tuple(calls),
+            tuple(operations),
+            tuple(claims),
+            composition,
+            counts_of(calls) if counting_operations is None else tuple(counting_operations),
+            None,
+        ),
     )
 
 
@@ -345,7 +454,7 @@ def batch(*entries: Admitted | Refused | RefusedInput) -> FactBatch:
     return ParsedBatch(tuple(entries))
 
 
-# --- The twelve ------------------------------------------------------------------------------
+# --- The contract step's twelve ---------------------------------------------------------------
 
 
 def facts_beside_tools() -> RunExport:
@@ -406,6 +515,7 @@ def unresolved_then_answered() -> RunExport:
     """A process killed after a dispatch's intent was logged, and the recovery's second
     dispatch that answered: one logical call, two dispatches, the first zero sends or one."""
     lost = dispatch(2, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule=UNRESOLVED_RULE)
+    # The same request asked again: its count is durable and reused, nothing is counted.
     again = dispatch(
         4, CompleteResponse("end_turn", 840, 0), AttributionKind.BEHAVIOUR, number=2, segment=2
     )
@@ -436,6 +546,7 @@ def nova_signature_beside_another() -> RunExport:
                 ServiceError(424, "ModelErrorException", None, NOVA_CUT, 0, "req-nova-1"),
                 AttributionKind.BEHAVIOUR,
                 rule="nova-cut-tool-use",
+                call="call-1",
             ),
         ),
         None,
@@ -456,8 +567,15 @@ def nova_signature_beside_another() -> RunExport:
                 ),
                 AttributionKind.INFRASTRUCTURE,
                 rule="unmatched",
+                call="call-2",
             ),
-            dispatch(6, CompleteResponse("end_turn", 840, 0), AttributionKind.BEHAVIOUR, number=2),
+            dispatch(
+                6,
+                CompleteResponse("end_turn", 840, 0),
+                AttributionKind.BEHAVIOUR,
+                number=2,
+                call="call-2",
+            ),
         ),
         Answer(True, (), ()),
     )
@@ -491,7 +609,7 @@ def abandoned_attempt() -> RunExport:
         (Segment(1, REVISION, 5_000, False),),
         ADMITTED,
         ADMITTED + timedelta(days=2),
-        Stamp(1, 4_800, 4),
+        Stamp(1, 4_800, at(4)),
         None,
     )
     waiting = Approval(ApprovalState.REQUESTED_UNAPPROVED, None, review_payload_digest((), RULES))
@@ -499,7 +617,7 @@ def abandoned_attempt() -> RunExport:
         (call,),
         (prefetched(),),
         failure=failure,
-        abandonment=Abandonment("operator", 3),
+        abandonment=Abandonment("operator", 1, AbandonmentReason.CANCELLED),
         timing=timing,
         approval=waiting,
     )
@@ -518,8 +636,8 @@ def approval_wait_across_restart() -> RunExport:
         ),
         ADMITTED,
         ADMITTED + timedelta(hours=2),
-        Stamp(1, 7_000, 4),
-        Stamp(3, 50, 5),
+        Stamp(1, 7_000, at(4)),
+        Stamp(3, 50, at(5)),
     )
     return export((call,), (prefetched(),), timing=timing)
 
@@ -585,8 +703,124 @@ def tool_result_lost() -> RunExport:
         (call,),
         (prefetched(),),
         failure=failure,
-        abandonment=Abandonment("recovery", 2),
+        abandonment=Abandonment("recovery", 1, AbandonmentReason.INTERRUPTED),
         timing=timing,
+    )
+
+
+# --- The event log step's three ---------------------------------------------------------------
+
+
+def never_claimed() -> RunExport:
+    """Admitted at noon, claimed by nobody, closed by an operator's abandon command two hours
+    later: no segment, so no active time and a complete timing; an empty trace; the
+    reservation reconciled with nothing charged; the command fenced generation 0."""
+    failure = Failure(
+        FailureCategory.INFRASTRUCTURE,
+        HarnessSite(HarnessSiteName.ABANDONED),
+        "no worker claimed the attempt",
+    )
+    timing = Timing((), ADMITTED, ADMITTED + timedelta(hours=2), None, None)
+    return export(
+        (),
+        failure=failure,
+        abandonment=Abandonment("operator", 0, AbandonmentReason.CANCELLED),
+        timing=timing,
+        reservation=Reservation(
+            ALLOCATION, ReservationState.RECONCILED, None, LEDGER_REVISION, 0
+        ),
+    )
+
+
+def defect_finalized_by_operator() -> RunExport:
+    """The first of two reads returned a record the adapter could not translate, a recorded
+    defect; the worker died before writing the terminal event; an operator's abandon command
+    closed the attempt the next day. The ending is the defect's, at the operation, and the
+    command is who closed: an abandonment beside a failure at another site."""
+    answer = Answer(
+        False,
+        (
+            ToolCall("tu_1", "work_item", AsOperation(OperationId("op-2"))),
+            ToolCall("tu_2", "employee", Undispatched(UndispatchedReason.ATTEMPT_ENDED_FIRST)),
+        ),
+        (),
+    )
+    call = answered("call-1", 2, answer, stop_reason="tool_use")
+    malformed = asked("op-2", "call-1", 4, DefectOutcome(Source.JIRA, "LIA-42", "no world id"))
+    failure = Failure(
+        FailureCategory.DEFECT, OperationSite(OperationId("op-2")), "a malformed record"
+    )
+    timing = Timing(
+        (Segment(1, REVISION, 1_600, False),), ADMITTED, ADMITTED + timedelta(days=1), None, None
+    )
+    return export(
+        (call,),
+        (prefetched(), malformed),
+        failure=failure,
+        abandonment=Abandonment("operator", 1, AbandonmentReason.INTERRUPTED),
+        timing=timing,
+    )
+
+
+def input_bound_exhausted() -> RunExport:
+    """Three counting requests for the first model request, none a count: throttled, a
+    client timeout, and one the worker died inside, which consumed the maximum all the same.
+    No dispatch was ever authorized; the attempt ended by infrastructure at the input bound,
+    naming the last counting operation, and a new attempt is permitted after it."""
+    throttled = CountingOperation(
+        CountingOperationId("count-1"),
+        METHOD,
+        COUNTING_MODEL,
+        DIGEST,
+        1,
+        at(2),
+        at(2) + 1,
+        CountServiceError(429, "ThrottlingException", "rate exceeded", "req-count-1", 80),
+        CountResult.FAILED,
+    )
+    timed_out = CountingOperation(
+        CountingOperationId("count-2"),
+        METHOD,
+        COUNTING_MODEL,
+        DIGEST,
+        1,
+        at(3),
+        at(3) + 1,
+        CountClientError(ClientErrorKind.TIMEOUT, 30_000),
+        CountResult.FAILED,
+    )
+    died_inside = CountingOperation(
+        CountingOperationId("count-3"),
+        METHOD,
+        COUNTING_MODEL,
+        DIGEST,
+        2,
+        at(4),
+        None,
+        NoRecordedOutcome(),
+        CountResult.UNRESOLVED,
+    )
+    failure = Failure(
+        FailureCategory.INFRASTRUCTURE,
+        InputBoundSite(CountingOperationId("count-3")),
+        "the counting requests were exhausted without a count",
+    )
+    timing = Timing(
+        (Segment(1, REVISION, 31_000, False), Segment(2, REVISION, 900, True)),
+        ADMITTED,
+        ADMITTED + timedelta(minutes=5),
+        None,
+        None,
+    )
+    return export(
+        (),
+        (prefetched(),),
+        failure=failure,
+        timing=timing,
+        counting_operations=(throttled, timed_out, died_inside),
+        reservation=Reservation(
+            ALLOCATION, ReservationState.RECONCILED, None, LEDGER_REVISION, 0
+        ),
     )
 
 
@@ -604,6 +838,9 @@ FIXTURES: dict[str, Callable[[], RunExport]] = {
     "a wrong scope beside an unplaced one": wrong_scope_beside_unplaced,
     "a multi-tool answer whose first call ends the attempt": first_tool_call_ends_the_attempt,
     "a tool call whose result was lost before it was logged": tool_result_lost,
+    "an attempt admitted and never claimed": never_claimed,
+    "a recorded defect an operator finalized": defect_finalized_by_operator,
+    "a request whose input bound was never established": input_bound_exhausted,
 }
 """Each case by its name in the ruling; the eighth is two exports, a paused attempt having
 none."""

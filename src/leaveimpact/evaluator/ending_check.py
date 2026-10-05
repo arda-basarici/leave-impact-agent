@@ -50,11 +50,18 @@ from leaveimpact.core.run_timing import Timing, elapsed_ms, evidenced_active_ms,
 
 class EndingFinding(StrEnum):
     """What a record's ending can state that its export does not bear out; a member is the
-    wire format."""
+    wire format. The order is append-only: a finding added later sits after every earlier
+    one, so an older artifact's findings read under the same order."""
 
     ACTIVE_EXCEEDS_ELAPSED = "active_exceeds_elapsed"
     COMMITS_DIFFER = "commits_differ"
     APPROVAL_DIGEST_DIFFERS = "approval_digest_differs"
+    TERMINAL_BEFORE_ADMISSION = "terminal_before_admission"
+    """The log's clock read an earlier instant at the terminal event than at the admission;
+    no elapsed duration is stated and the comparison with active time is not made."""
+    ABANDONMENT_GENERATION_DIFFERS = "abandonment_generation_differs"
+    """The abandon command fenced another generation than the number of segments the record
+    holds, though a claim is the only thing that raises either."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -64,13 +71,15 @@ class EndingCheck:
 
     ``timing_complete`` is false when a segment's end was never recorded, and the run's
     evidenced active time (the cost check's ``duration_ms``) is then a lower bound.
-    ``commits`` are the harness commits the segments ran on, each once, in the order the
-    segments first ran on them. ``findings`` are in the declared order of the kinds.
+    ``elapsed_ms`` is ``None`` when the terminal instant is before the admission, which the
+    findings then say. ``commits`` are the harness commits the segments ran on, each once,
+    in the order the segments first ran on them. ``findings`` are in the declared order of
+    the kinds.
     """
 
     segments: int
     timing_complete: bool
-    elapsed_ms: int
+    elapsed_ms: int | None
     commits: tuple[str, ...]
     findings: tuple[EndingFinding, ...]
 
@@ -92,12 +101,19 @@ def check_ending(export: RunExport) -> EndingCheck:
     timing = record.timing
     elapsed = elapsed_ms(timing)
     recorded = record.approval.payload_digest
+    abandonment = record.abandonment
     found = {
-        EndingFinding.ACTIVE_EXCEEDS_ELAPSED: evidenced_active_ms(timing) > elapsed,
+        EndingFinding.ACTIVE_EXCEEDS_ELAPSED: (
+            elapsed is not None and evidenced_active_ms(timing) > elapsed
+        ),
         EndingFinding.COMMITS_DIFFER: commits_differ(timing),
         EndingFinding.APPROVAL_DIGEST_DIFFERS: (
             recorded is not None
             and recorded != review_payload_digest(trace.claims, trace.composition)
+        ),
+        EndingFinding.TERMINAL_BEFORE_ADMISSION: elapsed is None,
+        EndingFinding.ABANDONMENT_GENERATION_DIFFERS: (
+            abandonment is not None and abandonment.ownership_generation != len(timing.segments)
         ),
     }
     return EndingCheck(

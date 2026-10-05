@@ -28,6 +28,7 @@ from leaveimpact.agent.rules_only import RulesOnlyRun
 from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
     UNRESOLVED_RULE,
+    AbsentMeaning,
     Approval,
     ApprovalState,
     Approver,
@@ -44,10 +45,15 @@ from leaveimpact.core import (
     ComposingPolicy,
     Composition,
     Cost,
+    Counted,
+    CountingOperation,
+    CountingOperationId,
+    CountResult,
     DefectOutcome,
     Dispatch,
     DispatchPhase,
     DispatchSite,
+    EstablishedBound,
     Failure,
     FailureCategory,
     HarnessRevision,
@@ -65,6 +71,7 @@ from leaveimpact.core import (
     PricingRow,
     PricingSelection,
     RecordsOutcome,
+    RegisteredInputBound,
     ReportedUsage,
     RequestIdentity,
     Reservation,
@@ -99,6 +106,9 @@ COMMIT = "b" * 40
 NORMAL = RunCondition.all_reachable()
 ROLE = "investigator"
 SELECTION = PricingSelection("model-a", "eu-central-1", "on_demand")
+ZERO = AbsentMeaning.ZERO
+"""The cache counters are omitted exactly when a call had no token of the class, as the
+spike proved for both supported families; so a usage without them still prices whole."""
 BASIS = PricingBasis(
     DIGEST,
     "USD",
@@ -106,14 +116,25 @@ BASIS = PricingBasis(
     (
         PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100_000),
         PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_500_000),
+        PricingRow(
+            "model-a", "eu-central-1", "on_demand", "cache_read_input_tokens", 110_000, ZERO
+        ),
+        PricingRow(
+            "model-a", "eu-central-1", "on_demand", "cache_write_input_tokens", 1_375_000, ZERO
+        ),
     ),
 )
 COMPOSITION = Composition(ClaimAuthor.RULES, ComposingPolicy("rules-only-report", DIGEST), (), ())
 ADMITTED = datetime(2026, 10, 4, 12, 0, 0, tzinfo=UTC)
 DURATION_MS = 1_200
 REQUEST = RequestIdentity(DIGEST, "Converse", "eu.model", "eu-central-1", None)
-ALLOCATION = 5_000_000_000
-ALLOCATION_TOKENS = 4_608
+METHOD = RegisteredInputBound("provider_count", 1)
+COUNTING_MODEL = "model-a-base"
+INPUT_BOUND = 4_096
+OUTPUT_MAXIMUM = 512
+ALLOCATION_TOKENS = INPUT_BOUND + OUTPUT_MAXIMUM
+ALLOCATION = INPUT_BOUND * 1_375_000 + OUTPUT_MAXIMUM * 5_500_000
+CAPS = Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", METHOD)
 """The worst case one dispatch is counted for against the token cap: its input and
 its output limit."""
 FIRST_READ = 10_001
@@ -182,7 +203,8 @@ def dispatch(
     cost: Cost | None = None,
     number: int = 1,
 ) -> Dispatch:
-    """Dispatch ``number`` of the ``call``-th model call, logged at the call's own positions."""
+    """Dispatch ``number`` of the ``call``-th model call, logged at the call's own positions,
+    resting on the call's one count (``count_of``)."""
     intent = 1_000 + 100 * call + 2 * number
     recorded = attribution is not AttributionKind.UNRESOLVED
     return Dispatch(
@@ -199,7 +221,35 @@ def dispatch(
         zero_cost_rule=None,
         allocation=ALLOCATION,
         allocation_tokens=ALLOCATION_TOKENS,
+        bound=EstablishedBound(METHOD, COUNTING_MODEL, DIGEST, INPUT_BOUND, _count_id(call)),
+        output_maximum=OUTPUT_MAXIMUM,
     )
+
+
+def _count_id(call: int) -> CountingOperationId:
+    return CountingOperationId(f"count-{call}")
+
+
+def count_of(call: int) -> CountingOperation:
+    """The one successful count of the ``call``-th model call's request, in the two positions
+    before its first intent."""
+    start = 1_000 + 100 * call
+    return CountingOperation(
+        _count_id(call),
+        METHOD,
+        COUNTING_MODEL,
+        DIGEST,
+        1,
+        start,
+        start + 1,
+        Counted(INPUT_BOUND, f"req-count-{call}", 100),
+        CountResult.COUNTED,
+    )
+
+
+def counts_of(calls: Sequence[ModelCall]) -> tuple[CountingOperation, ...]:
+    """One count per call, by the call's number inside its id."""
+    return tuple(count_of(int(call.id.rsplit("-", 1)[1])) for call in calls)
 
 
 def answered_call(
@@ -241,11 +291,16 @@ def reservation(calls: Sequence[ModelCall]) -> Reservation:
     was priced whole, kept otherwise."""
     amount = ALLOCATION * sum(len(call.dispatches) for call in calls)
     sent = [d for call in calls for d in call.dispatches if d.sends is not Sends.NONE]
+    charged = sum(
+        d.cost.pico_usd if d.cost is not None and d.cost.complete else ALLOCATION for d in sent
+    )
     if any(d.sends is Sends.UNRESOLVED for d in sent):
-        return Reservation(amount, ReservationState.KEPT, KeptReason.UNRESOLVED_DISPATCH, 1)
+        return Reservation(
+            amount, ReservationState.KEPT, KeptReason.UNRESOLVED_DISPATCH, 1, charged
+        )
     if any(d.cost is None or not d.cost.complete for d in sent):
-        return Reservation(amount, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 1)
-    return Reservation(amount, ReservationState.RECONCILED, None, 1)
+        return Reservation(amount, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 1, charged)
+    return Reservation(amount, ReservationState.RECONCILED, None, 1, charged)
 
 
 def export_baseline(
@@ -306,7 +361,7 @@ def run_export(
         system=System(SystemKind.RULES_ONLY, "reference"),
         retrieval=Retrieval(RetrievalKind.NONE, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
+        caps=CAPS,
         status=status,
         failure=failure,
         abandonment=None,
@@ -323,7 +378,7 @@ def run_export(
         1,
         context if context is not None else world.context_of(scenario),
         record,
-        RunTrace((), logged_in_order(operations), tuple(claims), COMPOSITION),
+        RunTrace((), logged_in_order(operations), tuple(claims), COMPOSITION, (), None),
     )
 
 
@@ -351,7 +406,13 @@ def agent_export(
         preregistration_commit=COMMIT,
         attribution_table=DIGEST,
         model_configurations=(
-            (ROLE, CallConfiguration("eu.model", (CallSetting("temperature", 0),))),
+            (
+                ROLE,
+                CallConfiguration(
+                    "eu.model",
+                    (CallSetting("max_tokens", OUTPUT_MAXIMUM), CallSetting("temperature", 0)),
+                ),
+            ),
         ),
         pricing_selections=((ROLE, SELECTION),),
         prompt_digests=((ROLE, "system", DIGEST),),
@@ -359,7 +420,7 @@ def agent_export(
         system=System(SystemKind.AGENT, "reference"),
         retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
+        caps=CAPS,
         status=TerminalStatus.COMPLETED if failure is None else TerminalStatus.FAILED,
         failure=failure,
         abandonment=None,
@@ -376,7 +437,14 @@ def agent_export(
         1,
         world.context_of(scenario),
         record,
-        RunTrace(tuple(calls), logged_in_order(operations), tuple(claims), COMPOSITION),
+        RunTrace(
+            tuple(calls),
+            logged_in_order(operations),
+            tuple(claims),
+            COMPOSITION,
+            counts_of(calls),
+            None,
+        ),
     )
 
 
@@ -401,6 +469,8 @@ __all__ = [
     "answered",
     "answered_call",
     "approval",
+    "count_of",
+    "counts_of",
     "dispatch",
     "export_baseline",
     "failed_call",

@@ -6,6 +6,7 @@ checked and not the final balance; and a closed attempt is charged its contribut
 
 import pytest
 
+from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.run_account import (
     AccountIntent,
     AccountOutcome,
@@ -27,7 +28,8 @@ from leaveimpact.core.token_counting import INPUT_PLUS_OUTPUT_CACHED_INCLUDED, T
 LOOP, FINAL = CallPurpose.LOOP, CallPurpose.FINALIZATION
 CALLS, TOKENS, MONEY = CapResource.CALLS, CapResource.TOKENS, CapResource.MONEY
 AUTHORIZED = AuthorizationDecision.AUTHORIZED
-CAPS = Caps(5, 10_000, 2, 2_000, INPUT_PLUS_OUTPUT_CACHED_INCLUDED)
+METHOD = RegisteredInputBound("provider_count", 1)
+CAPS = Caps(5, 10_000, 2, 2_000, INPUT_PLUS_OUTPUT_CACHED_INCLUDED, METHOD)
 """Five calls and 10,000 tokens, two calls and 2,000 tokens of them the finalization's: the
 loop has three calls and 8,000 tokens."""
 ALLOWANCE = 1_000_000

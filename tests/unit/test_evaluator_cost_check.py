@@ -47,6 +47,14 @@ from tests.unit.throwaway_world import loaded_world
 KINDS = CostFindingKind
 INPUT, OUTPUT = 1_100_000, 5_500_000
 """The fixture's rates in pico-dollars per token."""
+UNCACHED = PricingBasis(
+    DIGEST,
+    "USD",
+    date(2026, 9, 1),
+    tuple(row for row in BASIS.rows if row.token_class in ("input_tokens", "output_tokens")),
+)
+"""The basis with the two rates every answered call is billed for and no cache rate: what a
+table that has not priced a class looks like."""
 CACHE_READ = PricingRow(
     "model-a", "eu-central-1", "on_demand", "cache_read_input_tokens", 110_000
 )
@@ -226,7 +234,12 @@ def test_a_reported_class_the_basis_holds_no_rate_for_is_a_pricing_finding_and_n
 ) -> None:
     # The harness could not price the call either.
     cached = answered_call(2, usage(500, 60, cache_read=2_000), None)
-    export = agent_export(world, world.scenarios[0], (answered(1, usage(300, 40)), cached))
+    export = agent_export(
+        world,
+        world.scenarios[0],
+        (answered(1, usage(300, 40), UNCACHED), cached),
+        basis=UNCACHED,
+    )
     check = check_cost(export)
     assert check.findings == (CostFinding(KINDS.RATE_MISSING, "call-2"),)
     assert check.findings[0].kind.is_pricing
@@ -258,7 +271,7 @@ def test_a_counter_not_reported_keeps_the_cost_a_floor_unless_the_rate_says_abse
     world: SealedWorld,
 ) -> None:
     def basis(cache: PricingRow) -> PricingBasis:
-        return PricingBasis(DIGEST, "USD", date(2026, 9, 1), (*BASIS.rows, cache))
+        return PricingBasis(DIGEST, "USD", date(2026, 9, 1), (*UNCACHED.rows, cache))
 
     for when_absent, complete in ((AbsentMeaning.UNKNOWN, False), (AbsentMeaning.ZERO, True)):
         rates = basis(replace(CACHE_READ, when_absent=when_absent))

@@ -55,7 +55,13 @@ from leaveimpact.evaluator.source_discipline import (
     ToolCallEnded,
     source_discipline,
 )
-from tests.unit.export_fixture import COMPOSITION, answered_call, dispatch, failed_call
+from tests.unit.export_fixture import (
+    COMPOSITION,
+    answered_call,
+    counts_of,
+    dispatch,
+    failed_call,
+)
 from tests.unit.reads_fixture import Recorder, reads_of_everything, systems_holding
 from tests.unit.throwaway_world import loaded_world
 
@@ -88,7 +94,7 @@ def discipline_of(*reads: Read, calls: tuple[ModelCall, ...] | None = None) -> S
     )
     asked = tuple(op for op in operations if isinstance(op.origin, ModelOrigin))
     held = (asking(*asked), *(() if calls is None else calls)) if asked or calls else ()
-    return source_discipline(RunTrace(held, operations, (), COMPOSITION))
+    return source_discipline(RunTrace(held, operations, (), COMPOSITION, counts_of(held), None))
 
 
 def down(source: Source) -> UnreachableOutcome:
@@ -357,7 +363,7 @@ def test_the_reads_of_a_full_investigation_carry_no_finding_and_sum_to_the_trace
     for scenario in world.scenarios[:5]:
         for down_sources in ((), (Source.JIRA,), (Source.CALENDAR,)):
             operations = reads_of_everything(world, scenario, *down_sources)
-            seen = source_discipline(RunTrace((), tuple(operations), (), COMPOSITION))
+            seen = source_discipline(RunTrace((), tuple(operations), (), COMPOSITION, (), None))
             assert seen.findings == ()
             assert seen.repeats == ()
             assert (seen.model_operations, seen.refused_by_the_wrapper) == (0, 0)

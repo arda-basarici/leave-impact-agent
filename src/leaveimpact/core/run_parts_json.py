@@ -1,4 +1,5 @@
-"""JSON for the parts export format 2 adds: model calls, usage, timing, the attempt's ending.
+"""JSON for the parts of an export beyond its reads and claims: model calls and the counts
+that bounded them, usage, timing, the attempt's ending.
 
 The export's codec composes these, as it composes the entity, claim and pricing codecs:
 each type has one encoding in this project and it lives beside the one byte rule. Strict
@@ -24,6 +25,15 @@ from typing import assert_never
 
 from leaveimpact.core.claims import Claim
 from leaveimpact.core.claims_json import encode_claim
+from leaveimpact.core.counting_operations import (
+    CountClientError,
+    Counted,
+    CountingOperation,
+    CountLocalError,
+    CountOutcome,
+    CountServiceError,
+)
+from leaveimpact.core.input_bound import CountResult, EstablishedBound, RegisteredInputBound
 from leaveimpact.core.jsonshape import (
     JsonObject,
     array_field,
@@ -45,7 +55,6 @@ from leaveimpact.core.model_calls import (
     BatchEntry,
     BrokenStream,
     ClientError,
-    ClientErrorKind,
     CompleteResponse,
     Dispatch,
     Disposition,
@@ -68,6 +77,7 @@ from leaveimpact.core.model_calls import (
 )
 from leaveimpact.core.run_ending import (
     Abandonment,
+    AbandonmentReason,
     Approval,
     ApprovalState,
     Approver,
@@ -79,6 +89,7 @@ from leaveimpact.core.run_ending import (
     FailureSite,
     HarnessSite,
     HarnessSiteName,
+    InputBoundSite,
     KeptReason,
     OperationSite,
     RequirementPlacement,
@@ -86,7 +97,14 @@ from leaveimpact.core.run_ending import (
     ReservationState,
 )
 from leaveimpact.core.run_timing import HarnessRevision, Segment, Stamp, Timing, TreeState
-from leaveimpact.core.run_trace import Cost, ModelCallId, OperationId, thawed_json
+from leaveimpact.core.run_trace import (
+    ClientErrorKind,
+    Cost,
+    CountingOperationId,
+    ModelCallId,
+    OperationId,
+    thawed_json,
+)
 from leaveimpact.core.stated import PlacementState, RefusedInput
 from leaveimpact.core.stated_json import (
     decode_admission,
@@ -195,6 +213,8 @@ _DISPATCH_FIELDS = (
     "zero_cost_rule",
     "allocation_pico_usd",
     "allocation_tokens",
+    "bound",
+    "output_maximum",
 )
 
 
@@ -223,7 +243,43 @@ def _encode_dispatch(dispatch: Dispatch) -> JsonObject:
         "zero_cost_rule": dispatch.zero_cost_rule,
         "allocation_pico_usd": dispatch.allocation,
         "allocation_tokens": dispatch.allocation_tokens,
+        "bound": _encode_bound(dispatch.bound),
+        "output_maximum": dispatch.output_maximum,
     }
+
+
+def _encode_method(method: RegisteredInputBound) -> JsonObject:
+    return {"method": method.name, "version": method.version}
+
+
+def _decode_method(data: Mapping[str, object]) -> RegisteredInputBound:
+    expect_fields(data, ("method", "version"), "an input-bound method")
+    return RegisteredInputBound(string_field(data, "method"), integer_field(data, "version"))
+
+
+def _encode_bound(bound: EstablishedBound) -> JsonObject:
+    return {
+        "method": _encode_method(bound.method),
+        "counting_identifier": bound.counting_identifier,
+        "request_digest": bound.request_digest,
+        "input_tokens": bound.input_tokens,
+        "evidence": bound.evidence,
+    }
+
+
+def _decode_bound(data: Mapping[str, object]) -> EstablishedBound:
+    expect_fields(
+        data,
+        ("method", "counting_identifier", "request_digest", "input_tokens", "evidence"),
+        "an established bound",
+    )
+    return EstablishedBound(
+        _decode_method(object_field(data, "method")),
+        string_field(data, "counting_identifier"),
+        string_field(data, "request_digest"),
+        integer_field(data, "input_tokens"),
+        CountingOperationId(string_field(data, "evidence")),
+    )
 
 
 def _decode_dispatch(item: object) -> Dispatch:
@@ -263,6 +319,8 @@ def _decode_dispatch(item: object) -> Dispatch:
         zero_cost_rule=optional_string_field(data, "zero_cost_rule"),
         allocation=integer_field(data, "allocation_pico_usd"),
         allocation_tokens=integer_field(data, "allocation_tokens"),
+        bound=_decode_bound(object_field(data, "bound")),
+        output_maximum=integer_field(data, "output_maximum"),
     )
 
 
@@ -508,6 +566,134 @@ def _decode_entry(data: Mapping[str, object]) -> BatchEntry:
     return emission
 
 
+# --- Counting operations ---------------------------------------------------------------
+
+
+_COUNT_FIELDS = (
+    "id",
+    "method",
+    "counting_identifier",
+    "request_digest",
+    "segment",
+    "start_position",
+    "outcome_position",
+    "outcome",
+    "reading",
+)
+
+
+def encode_counting_operation(count: CountingOperation) -> JsonObject:
+    """One counting request: identity, what it was asked about, its positions, what came
+    back and how the worker read it."""
+    return {
+        "id": count.id,
+        "method": _encode_method(count.method),
+        "counting_identifier": count.counting_identifier,
+        "request_digest": count.request_digest,
+        "segment": count.segment,
+        "start_position": count.start_position,
+        "outcome_position": count.outcome_position,
+        "outcome": _encode_count_outcome(count.outcome),
+        "reading": count.reading.value,
+    }
+
+
+def decode_counting_operation(item: object) -> CountingOperation:
+    data = as_object(item, "a counting operation")
+    expect_fields(data, _COUNT_FIELDS, "a counting operation")
+    return CountingOperation(
+        CountingOperationId(string_field(data, "id")),
+        _decode_method(object_field(data, "method")),
+        string_field(data, "counting_identifier"),
+        string_field(data, "request_digest"),
+        integer_field(data, "segment"),
+        integer_field(data, "start_position"),
+        _optional_integer(data, "outcome_position"),
+        _decode_count_outcome(object_field(data, "outcome")),
+        CountResult(string_field(data, "reading")),
+    )
+
+
+def _encode_count_outcome(outcome: CountOutcome) -> JsonObject:
+    match outcome:
+        case Counted():
+            return {
+                "kind": "counted",
+                "input_tokens": outcome.input_tokens,
+                "provider_request_id": outcome.provider_request_id,
+                "latency_ms": outcome.latency_ms,
+            }
+        case CountServiceError():
+            return {
+                "kind": "service_error",
+                "http_status": outcome.http_status,
+                "code": outcome.code,
+                "message_signature": outcome.message_signature,
+                "provider_request_id": outcome.provider_request_id,
+                "latency_ms": outcome.latency_ms,
+            }
+        case CountClientError():
+            return {
+                "kind": "client_error",
+                "error": outcome.kind.value,
+                "latency_ms": outcome.latency_ms,
+            }
+        case CountLocalError():
+            return {"kind": "local_error", "exception_type": outcome.exception_type}
+        case NoRecordedOutcome():
+            return {"kind": "no_recorded_outcome"}
+        case _:
+            assert_never(outcome)
+
+
+def _decode_count_outcome(data: Mapping[str, object]) -> CountOutcome:
+    kind = string_field(data, "kind")
+    if kind == "counted":
+        expect_fields(
+            data, ("kind", "input_tokens", "provider_request_id", "latency_ms"), "a count"
+        )
+        return Counted(
+            integer_field(data, "input_tokens"),
+            optional_string_field(data, "provider_request_id"),
+            integer_field(data, "latency_ms"),
+        )
+    if kind == "service_error":
+        expect_fields(
+            data,
+            (
+                "kind",
+                "http_status",
+                "code",
+                "message_signature",
+                "provider_request_id",
+                "latency_ms",
+            ),
+            "a counting service error",
+        )
+        return CountServiceError(
+            integer_field(data, "http_status"),
+            string_field(data, "code"),
+            string_field(data, "message_signature"),
+            optional_string_field(data, "provider_request_id"),
+            integer_field(data, "latency_ms"),
+        )
+    if kind == "client_error":
+        expect_fields(data, ("kind", "error", "latency_ms"), "a counting client error")
+        return CountClientError(
+            ClientErrorKind(string_field(data, "error")), integer_field(data, "latency_ms")
+        )
+    if kind == "local_error":
+        expect_fields(data, ("kind", "exception_type"), "a counting local error")
+        return CountLocalError(string_field(data, "exception_type"))
+    if kind == "no_recorded_outcome":
+        expect_fields(data, ("kind",), "no recorded outcome")
+        return NoRecordedOutcome()
+    raise ValueError(
+        "a count outcome is counted, service_error, client_error, local_error or "
+        f"no_recorded_outcome, got {kind!r}"
+    )
+
+
 # --- Timing ----------------------------------------------------------------------------
 
 
@@ -580,7 +766,8 @@ def _decode_stamp(value: object) -> Stamp | None:
 
 
 def encode_failure_site(site: FailureSite) -> JsonObject:
-    """Where a failure was found: an operation, a model dispatch, or a harness site."""
+    """Where a failure was found: an operation, a model dispatch, a request that could not
+    be bounded, or a harness site."""
     match site:
         case OperationSite():
             return {"kind": "operation", "operation": site.operation}
@@ -591,6 +778,8 @@ def encode_failure_site(site: FailureSite) -> JsonObject:
                 "dispatch": site.dispatch,
                 "phase": site.phase.value,
             }
+        case InputBoundSite():
+            return {"kind": "input_bound", "counting_operation": site.counting_operation}
         case HarnessSite():
             return {"kind": "harness", "site": site.site.value}
         case _:
@@ -609,10 +798,15 @@ def decode_failure_site(data: Mapping[str, object]) -> FailureSite:
             integer_field(data, "dispatch"),
             DispatchPhase(string_field(data, "phase")),
         )
+    if kind == "input_bound":
+        expect_fields(data, ("kind", "counting_operation"), "an input-bound site")
+        return InputBoundSite(CountingOperationId(string_field(data, "counting_operation")))
     if kind == "harness":
         expect_fields(data, ("kind", "site"), "a harness site")
         return HarnessSite(HarnessSiteName(string_field(data, "site")))
-    raise ValueError(f"a failure site is operation, dispatch or harness, got {kind!r}")
+    raise ValueError(
+        f"a failure site is operation, dispatch, input_bound or harness, got {kind!r}"
+    )
 
 
 def encode_abandonment(abandonment: Abandonment | None) -> JsonObject | None:
@@ -621,6 +815,7 @@ def encode_abandonment(abandonment: Abandonment | None) -> JsonObject | None:
     return {
         "authority": abandonment.authority,
         "ownership_generation": abandonment.ownership_generation,
+        "reason": abandonment.reason.value,
     }
 
 
@@ -628,8 +823,12 @@ def decode_abandonment(value: object) -> Abandonment | None:
     if value is None:
         return None
     data = as_object(value, "an abandonment")
-    expect_fields(data, ("authority", "ownership_generation"), "an abandonment")
-    return Abandonment(string_field(data, "authority"), integer_field(data, "ownership_generation"))
+    expect_fields(data, ("authority", "ownership_generation", "reason"), "an abandonment")
+    return Abandonment(
+        string_field(data, "authority"),
+        integer_field(data, "ownership_generation"),
+        AbandonmentReason(string_field(data, "reason")),
+    )
 
 
 def encode_reservation(reservation: Reservation | None) -> JsonObject | None:
@@ -640,6 +839,7 @@ def encode_reservation(reservation: Reservation | None) -> JsonObject | None:
         "state": reservation.state.value,
         "kept_reason": None if reservation.kept_reason is None else reservation.kept_reason.value,
         "ledger_revision": reservation.ledger_revision,
+        "charged_pico_usd": reservation.charged_pico_usd,
     }
 
 
@@ -647,13 +847,18 @@ def decode_reservation(value: object) -> Reservation | None:
     if value is None:
         return None
     data = as_object(value, "a reservation")
-    expect_fields(data, ("pico_usd", "state", "kept_reason", "ledger_revision"), "a reservation")
+    expect_fields(
+        data,
+        ("pico_usd", "state", "kept_reason", "ledger_revision", "charged_pico_usd"),
+        "a reservation",
+    )
     reason = optional_string_field(data, "kept_reason")
     return Reservation(
         integer_field(data, "pico_usd"),
         ReservationState(string_field(data, "state")),
         None if reason is None else KeptReason(reason),
         integer_field(data, "ledger_revision"),
+        integer_field(data, "charged_pico_usd"),
     )
 
 
@@ -759,6 +964,7 @@ __all__ = [
     "decode_approval",
     "decode_composition",
     "decode_cost",
+    "decode_counting_operation",
     "decode_failure_site",
     "decode_model_call",
     "decode_reservation",
@@ -768,6 +974,7 @@ __all__ = [
     "encode_approval",
     "encode_composition",
     "encode_cost",
+    "encode_counting_operation",
     "encode_failure_site",
     "encode_model_call",
     "encode_reservation",

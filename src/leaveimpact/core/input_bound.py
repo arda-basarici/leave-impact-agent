@@ -52,8 +52,13 @@ from enum import StrEnum
 from types import MappingProxyType
 
 from leaveimpact.core.call_settings import CallConfiguration
-from leaveimpact.core.model_calls import ClientErrorKind
-from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
+from leaveimpact.core.run_trace import (
+    ClientErrorKind,
+    CountingOperationId,
+    require_digest,
+    require_integer,
+    require_opaque_id,
+)
 
 PROVIDER_COUNT = "provider_count"
 """The bound is the provider's own count of the request, taken as returned."""
@@ -183,7 +188,7 @@ class EstablishedBound:
     counting_identifier: str
     request_digest: str
     input_tokens: int
-    evidence: str
+    evidence: CountingOperationId
 
     def __post_init__(self) -> None:
         require_opaque_id(self.counting_identifier, "the counting identifier")

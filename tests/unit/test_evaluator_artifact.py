@@ -313,7 +313,12 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
     composition = replace(export.trace.composition, policy=other_policy)
     cases: list[tuple[RunExport, tuple[RecordedSetting, ...]]] = [
         (
-            with_record(export, caps=Caps(21, 400_000, 2, 20_000, record.caps.counting_rule)),
+            with_record(
+                export,
+                caps=Caps(
+                    21, 400_000, 2, 20_000, record.caps.counting_rule, record.caps.input_bound
+                ),
+            ),
             (RecordedSetting.CAPS,),
         ),
         (
@@ -355,7 +360,9 @@ def test_a_run_whose_recorded_settings_differ_says_which_and_enters_no_table(
         (
             with_record(
                 export,
-                caps=Caps(21, 400_000, 2, 20_000, record.caps.counting_rule),
+                caps=Caps(
+                    21, 400_000, 2, 20_000, record.caps.counting_rule, record.caps.input_bound
+                ),
                 prefetch_rule=PrefetchRule("another-prefetch", DIGEST),
             ),
             (RecordedSetting.CAPS, RecordedSetting.PREFETCH),

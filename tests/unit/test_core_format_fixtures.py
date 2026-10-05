@@ -1,7 +1,7 @@
-"""Export format 2's acceptance: each of the hand-built cases encodes to bytes that decode to
-an equal export, and each states what it means, read back from the decoded export so that a
-meaning the codec dropped would fail here. The cases are the ones format 1 had no value for
-(``format2_fixtures``)."""
+"""The export format's acceptance: each of the hand-built cases encodes to bytes that decode
+to an equal export, and each states what it means, read back from the decoded export so that
+a meaning the codec dropped would fail here. The cases are the ones an earlier format had no
+value for (``format_fixtures``)."""
 
 import json
 from dataclasses import replace
@@ -10,6 +10,7 @@ from typing import cast
 import pytest
 
 from leaveimpact.core import (
+    AbandonmentReason,
     Approval,
     ApprovalState,
     Approver,
@@ -17,15 +18,22 @@ from leaveimpact.core import (
     AttributionKind,
     CallState,
     Cost,
+    CountClientError,
+    CountingOperationId,
+    CountResult,
+    CountServiceError,
     DefectOutcome,
     FactRefusal,
     HandledAsBatch,
     HarnessSite,
     HarnessSiteName,
+    InputBoundExhausted,
+    InputBoundSite,
     KeptReason,
     MalformedBatch,
     ModelCallId,
     ModelOrigin,
+    NoRecordedOutcome,
     OperationId,
     OperationSite,
     ParsedBatch,
@@ -40,6 +48,7 @@ from leaveimpact.core import (
     Undispatched,
     UndispatchedReason,
     UnresolvedToolCall,
+    account_of,
     decode_export_bytes,
     elapsed_ms,
     event_ref,
@@ -47,11 +56,13 @@ from leaveimpact.core import (
     export_bytes,
     review_payload,
     review_payload_digest,
+    settle,
     timing_complete,
 )
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.model_calls import Answer, ModelCall
-from tests.unit import format2_fixtures as cases
+from leaveimpact.core.run_account import AccountIntent, AccountOutcome, CallPurpose
+from tests.unit import format_fixtures as cases
 from tests.unit import stated_fixture as f
 
 CALL = ModelCallId("call-1")
@@ -84,7 +95,7 @@ def test_a_paused_attempt_has_no_export() -> None:
     """The eighth case's third history: an attempt waiting for its approval is a state of the
     log. The nearest export, a completed attempt whose approval is still only requested, does
     not construct, and no approval state names a wait."""
-    assert len(cases.FIXTURES) == 13
+    assert len(cases.FIXTURES) == 16
     assert "pending" not in {state.value for state in ApprovalState}
     record = cases.recovered_attempt().record
     waiting = Approval(ApprovalState.REQUESTED_UNAPPROVED, None, record.approval.payload_digest)
@@ -238,8 +249,9 @@ def test_an_abandoned_attempt_records_the_decision_and_an_unapproved_request() -
     assert record.abandonment is not None
     assert (record.abandonment.authority, record.abandonment.ownership_generation) == (
         "operator",
-        3,
+        1,
     )
+    assert record.abandonment.reason is AbandonmentReason.CANCELLED
     assert record.approval.state is ApprovalState.REQUESTED_UNAPPROVED
     assert record.approval.approver is None
     assert record.approval.payload_digest == review_payload_digest((), cases.RULES)
@@ -305,3 +317,149 @@ def test_a_tool_call_whose_result_was_lost_is_unresolved_and_not_undispatched() 
     assert export.record.abandonment is not None
     assert export.record.abandonment.authority == "recovery"
     assert not timing_complete(export.record.timing)
+
+
+# --- The event log step's three ---------------------------------------------------------------
+
+
+def test_every_dispatch_rests_on_its_calls_one_count_logged_before_its_first_intent() -> None:
+    """The constructor asks only that the count be held; what the fixtures state beyond that
+    is what the evaluator's audits will check on them: the count succeeded, preceded the
+    first intent, covers the dispatch's request, and equals the bound, and the token
+    allocation is the bound plus the output maximum."""
+    for name, build in cases.FIXTURES.items():
+        export = decoded(build())
+        for call in export.trace.model_calls:
+            count = export.trace.counting_operation(call.dispatches[0].bound.evidence)
+            assert count is not None and count.reading is CountResult.COUNTED, name
+            assert count.outcome_position is not None
+            assert count.outcome_position < call.dispatches[0].intent_position, name
+            for dispatch in call.dispatches:
+                assert dispatch.bound.evidence == count.id, name
+                assert dispatch.bound.request_digest == dispatch.request.request_digest, name
+                assert dispatch.bound.input_tokens == cases.INPUT_BOUND
+                worst = dispatch.bound.input_tokens + dispatch.output_maximum
+                assert dispatch.allocation_tokens == worst, name
+        assert export.record.caps.input_bound == cases.METHOD, name
+        assert export.trace.finalization_entered is None, name
+
+
+def test_the_charged_amount_is_what_the_account_settles_to() -> None:
+    """The fixtures' settlement, written by hand, is the one the run's account computes:
+    each dispatch its complete cost or its allocation, nothing for a request never sent."""
+    for name, build in cases.FIXTURES.items():
+        export = build()
+        reservation = export.record.reservation
+        assert reservation is not None, name
+        transitions: list[AccountIntent | AccountOutcome] = []
+        for call in export.trace.model_calls:
+            for dispatch in call.dispatches:
+                transitions.append(
+                    AccountIntent(
+                        call.id,
+                        dispatch.number,
+                        CallPurpose.LOOP,
+                        dispatch.allocation_tokens,
+                        dispatch.allocation,
+                    )
+                )
+                if dispatch.outcome_position is not None:
+                    transitions.append(
+                        AccountOutcome(
+                            call.id,
+                            dispatch.number,
+                            sent=dispatch.sends is not Sends.NONE,
+                            cost=dispatch.cost,
+                            tokens=None,
+                        )
+                    )
+        settlement = settle(account_of(transitions))
+        assert (settlement.charged_pico_usd, settlement.state, settlement.kept_reason) == (
+            reservation.charged_pico_usd,
+            reservation.state,
+            reservation.kept_reason,
+        ), name
+
+
+def test_a_never_claimed_attempt_has_no_segment_an_empty_trace_and_nothing_charged() -> None:
+    export = decoded(cases.never_claimed())
+    record = export.record
+    assert record.timing.segments == ()
+    assert (evidenced_active_ms(record.timing), elapsed_ms(record.timing)) == (0, 7_200_000)
+    assert timing_complete(record.timing)
+    assert record.failure is not None
+    assert record.failure.site == HarnessSite(HarnessSiteName.ABANDONED)
+    assert record.abandonment is not None
+    assert (record.abandonment.ownership_generation, record.abandonment.reason) == (
+        0,
+        AbandonmentReason.CANCELLED,
+    )
+    assert record.approval.state is ApprovalState.NOT_REQUESTED
+    assert (record.usage.model_calls, record.usage.dispatches, record.cost) == (0, 0, None)
+    assert record.reservation is not None
+    assert (record.reservation.state, record.reservation.charged_pico_usd) == (
+        ReservationState.RECONCILED,
+        0,
+    )
+    trace = export.trace
+    assert (trace.model_calls, trace.counting_operations, trace.operations, trace.claims) == (
+        (),
+        (),
+        (),
+        (),
+    )
+
+
+def test_a_defect_an_operator_finalized_keeps_the_defects_ending_and_names_the_closer() -> None:
+    export = decoded(cases.defect_finalized_by_operator())
+    record = export.record
+    assert record.status is TerminalStatus.FAILED
+    assert record.failure is not None
+    assert record.failure.site == OperationSite(OperationId("op-2"))
+    assert record.failure.category.value == "defect"
+    assert record.abandonment is not None
+    assert (record.abandonment.authority, record.abandonment.reason) == (
+        "operator",
+        AbandonmentReason.INTERRUPTED,
+    )
+    # The worker died: its one segment's end was never recorded, and the terminal instant
+    # is the operator's command a day later.
+    assert not timing_complete(record.timing)
+    assert elapsed_ms(record.timing) == 24 * 60 * 60 * 1_000
+    _, second = the_answer(export).tool_calls
+    assert second.disposition == Undispatched(UndispatchedReason.ATTEMPT_ENDED_FIRST)
+
+
+def test_an_exhausted_input_bound_names_the_last_count_and_authorized_no_dispatch() -> None:
+    export = decoded(cases.input_bound_exhausted())
+    record = export.record
+    assert record.failure is not None
+    assert record.failure.site == InputBoundSite(CountingOperationId("count-3"))
+    assert record.failure.category.value == "infrastructure"
+    throttled, timed_out, died = export.trace.counting_operations
+    assert isinstance(throttled.outcome, CountServiceError)
+    assert throttled.outcome.code == "ThrottlingException"
+    assert isinstance(timed_out.outcome, CountClientError)
+    assert isinstance(died.outcome, NoRecordedOutcome)
+    assert [count.reading for count in (throttled, timed_out, died)] == [
+        CountResult.FAILED,
+        CountResult.FAILED,
+        CountResult.UNRESOLVED,
+    ]
+    assert (died.segment, died.outcome_position) == (2, None)
+    assert export.trace.model_calls == ()
+    assert (record.usage.dispatches, record.cost) == (0, None)
+    # The ending eligibility reads: the counts were exhausted on transient causes.
+    assert InputBoundExhausted() == InputBoundExhausted()
+    # A refused count beside that failure category does not construct.
+    denied = replace(
+        throttled,
+        outcome=CountServiceError(403, "AccessDeniedException", "denied", None, 90),
+        reading=CountResult.REFUSED,
+    )
+    with pytest.raises(ValueError, match="whose last count was refused is by defect"):
+        replace(
+            export,
+            record=replace(record, failure=replace(record.failure, site=InputBoundSite(denied.id))),
+            trace=replace(export.trace, counting_operations=(denied, timed_out, died)),
+        )

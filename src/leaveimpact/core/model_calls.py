@@ -46,7 +46,9 @@ from enum import StrEnum
 from typing import cast
 
 from leaveimpact.core.enums import require_member
+from leaveimpact.core.input_bound import EstablishedBound
 from leaveimpact.core.run_trace import (
+    ClientErrorKind,
     Cost,
     ModelCallId,
     OperationId,
@@ -162,13 +164,6 @@ class ServiceError:
         _require_response_metadata(self.sdk_retries, self.provider_request_id)
 
 
-class ClientErrorKind(StrEnum):
-    """How the client failed with no answer from the service; a member is the wire format."""
-
-    TIMEOUT = "timeout"
-    CONNECTION = "connection"
-
-
 @dataclass(frozen=True, slots=True)
 class ClientError:
     """The client gave up with no answer: whether the request ran is unknown, and with no
@@ -256,6 +251,14 @@ class Dispatch:
     ``cost`` prices it. ``zero_cost_rule`` names the evidenced rule under which a send that
     reported no usage cost nothing; an error is not free because it returned no usage, so
     without usage and without a rule a send's cost is unknown and ``cost`` is ``None``.
+
+    ``bound`` is what the dispatch's input was bounded by before it was authorized: the
+    method, the identifier the count was asked of, the request digest it covers, the number,
+    and the counting operation it rests on, which the trace holds; ``output_maximum`` is the
+    most the call could generate under its configuration. The two are what
+    ``allocation_tokens`` was computed from, stored beside it so an auditor can check the
+    arithmetic and that the bound's digest is this request's; neither tie is enforced here,
+    since a mismatch is the finding the evaluator exists to report.
     """
 
     number: int
@@ -271,6 +274,8 @@ class Dispatch:
     zero_cost_rule: str | None
     allocation: int
     allocation_tokens: int
+    bound: EstablishedBound
+    output_maximum: int
 
     def __post_init__(self) -> None:
         require_integer(self.number, "a dispatch number", minimum=1)
@@ -278,6 +283,7 @@ class Dispatch:
         require_integer(self.intent_position, "an intent position", minimum=1)
         require_integer(self.allocation, "an allocation in pico-dollars")
         require_integer(self.allocation_tokens, "an allocation in tokens")
+        require_integer(self.output_maximum, "an output maximum", minimum=1)
         for operation in self.input_reads:
             require_opaque_id(operation, "an input read's operation id")
         if len(set(self.input_reads)) != len(self.input_reads):

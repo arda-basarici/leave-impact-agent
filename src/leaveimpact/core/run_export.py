@@ -24,11 +24,14 @@ unknown version refuses; the extensible blocks (the usage counters, the provenan
 names) follow a declared append-only order within a version, so a field appended
 later reads as unavailable from an older export and the codec learns nothing.
 
-This is format 2 (the contract step's rulings). Format 1 gave a model call one outcome
-and one send, a run one process and one duration, a failure one of two anchors, and
-costs in nano-dollars; what replaced each is stated where it lives (``model_calls``,
-``run_timing``, ``run_ending``, ``run_record``). Nothing reads format 1: its bytes refuse
-by version.
+This is format 3 (the event log step's rulings). Format 2 could not state an attempt that
+was admitted and never claimed, a terminal instant before the admission, which dispatches
+were finalization, what the ledger charged, why an attempt was abandoned or who closed a
+defect, a harness fault nobody classified, or anything about how a dispatch's input was
+bounded; each is stated where it lives (``run_timing``, ``run_ending``, ``run_record``,
+``model_calls``, ``counting_operations``). Format 1 gave a model call one outcome and one
+send, a run one process and one duration, a failure one of two anchors, and costs in
+nano-dollars. Nothing reads an earlier format: its bytes refuse by version.
 """
 
 from __future__ import annotations
@@ -36,6 +39,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from leaveimpact.core.claims import Claim
+from leaveimpact.core.counting_operations import CountingOperation
+from leaveimpact.core.input_bound import CountResult
 from leaveimpact.core.model_calls import (
     AsOperation,
     AttributionKind,
@@ -51,6 +56,7 @@ from leaveimpact.core.run_ending import (
     DispatchPhase,
     DispatchSite,
     HarnessSite,
+    InputBoundSite,
     OperationSite,
     ReservationState,
 )
@@ -62,6 +68,7 @@ from leaveimpact.core.run_record import (
     TerminalStatus,
 )
 from leaveimpact.core.run_trace import (
+    CountingOperationId,
     DefectOutcome,
     ModelCallId,
     ModelOrigin,
@@ -75,28 +82,37 @@ from leaveimpact.core.run_trace import (
 )
 from leaveimpact.core.worldtime import RunContext
 
-EXPORT_FORMAT_VERSION = 2
+EXPORT_FORMAT_VERSION = 3
 """The format this code writes and reads; a decoder refuses any other."""
 
 
 @dataclass(frozen=True, slots=True)
 class RunTrace:
-    """The model calls, the attempted reads, the final claims and their composition.
+    """The model calls with the counts that bounded them, the attempted reads, the final
+    claims and their composition, and where the run entered finalization.
 
-    Calls and operations keep the order they happened in. Claims are held in claim-id
-    order, the claim codec's own, since a claim's position says nothing (its id is its
-    identity and the grading matches by key), and one order means the export's bytes
-    are a property of the trace and not of the emission. Identifiers are unique within
-    their kind.
+    Calls, counting operations and operations keep the order they happened in. Claims are
+    held in claim-id order, the claim codec's own, since a claim's position says nothing
+    (its id is its identity and the grading matches by key), and one order means the
+    export's bytes are a property of the trace and not of the emission. Identifiers are
+    unique within their kind.
 
     The structural facts a replay stands on are held here. Every operation has its
     position, and positions are one order over the whole trace: no two events share one,
-    operations are in position order, and so are the calls' first intents. A read the
-    model asked for and the tool call that asked for it name each other: the operation's
-    origin is a call this trace holds, whose answer has exactly one tool call that became
-    that operation and names the tool the operation is a call of, and the read was logged
-    after that call's answer. An input read of a
-    dispatch is an operation the trace holds, logged before the dispatch's intent.
+    operations and counting operations are in position order, and so are the calls' first
+    intents. A read the model asked for and the tool call that asked for it name each
+    other: the operation's origin is a call this trace holds, whose answer has exactly one
+    tool call that became that operation and names the tool the operation is a call of,
+    and the read was logged after that call's answer. An input read of a dispatch is an
+    operation the trace holds, logged before the dispatch's intent. A dispatch's bound
+    rests on a counting operation the trace holds; whether that count succeeded, preceded
+    the intent and covers the dispatch's request is the evaluator's to check, so a
+    harness that got it wrong leaves an export with a finding and not none.
+
+    ``finalization_entered`` is the position at which the run stopped investigating and
+    began to finalize, absent when it never did; every intent after it is a finalization
+    dispatch and every intent before it a loop dispatch (the event log step's ruling on the
+    ledger). It is a position of its own in the one order.
 
     What the record block claims about the trace (the cumulative usage, the observed
     condition) is not enforced here: the evaluator verifies a claim against the trace,
@@ -108,6 +124,8 @@ class RunTrace:
     operations: tuple[Operation, ...]
     claims: tuple[Claim, ...]
     composition: Composition
+    counting_operations: tuple[CountingOperation, ...]
+    finalization_entered: int | None
 
     def __post_init__(self) -> None:
         object.__setattr__(
@@ -122,10 +140,16 @@ class RunTrace:
         claim_ids = [claim.claim_id for claim in self.claims]
         if len(set(claim_ids)) != len(claim_ids):
             raise ValueError("claim ids are unique within a trace")
+        count_ids = [count.id for count in self.counting_operations]
+        if len(set(count_ids)) != len(count_ids):
+            raise ValueError("counting operation ids are unique within a trace")
+        if self.finalization_entered is not None:
+            require_integer(self.finalization_entered, "the finalization position", minimum=1)
         self._require_one_event_order()
         self._require_tool_calls_and_operations_to_agree()
         self._require_reads_to_follow_their_answer()
         self._require_input_reads_to_precede()
+        self._require_bounds_to_rest_on_held_counts()
 
     def _require_one_event_order(self) -> None:
         read_at: list[int] = []
@@ -135,6 +159,9 @@ class RunTrace:
             read_at.append(operation.position)
         if read_at != sorted(read_at):
             raise ValueError("operations are held in position order")
+        counted_at = [count.start_position for count in self.counting_operations]
+        if counted_at != sorted(counted_at):
+            raise ValueError("counting operations are held in the order of their starts")
         first_intents = [call.dispatches[0].intent_position for call in self.model_calls]
         if first_intents != sorted(first_intents):
             raise ValueError("model calls are held in the order of their first intents")
@@ -143,8 +170,22 @@ class RunTrace:
             positions.append(dispatch.intent_position)
             if dispatch.outcome_position is not None:
                 positions.append(dispatch.outcome_position)
+        for count in self.counting_operations:
+            positions.extend(count.positions)
+        if self.finalization_entered is not None:
+            positions.append(self.finalization_entered)
         if len(set(positions)) != len(positions):
             raise ValueError("no two events of a trace share a position")
+
+    def _require_bounds_to_rest_on_held_counts(self) -> None:
+        held = {count.id for count in self.counting_operations}
+        for call in self.model_calls:
+            for dispatch in call.dispatches:
+                if dispatch.bound.evidence not in held:
+                    raise ValueError(
+                        f"dispatch {dispatch.number} of {call.id} rests on counting operation "
+                        f"{dispatch.bound.evidence}, which the trace does not hold"
+                    )
 
     def _require_tool_calls_and_operations_to_agree(self) -> None:
         asked: dict[OperationId, ModelCallId] = {}
@@ -249,6 +290,13 @@ class RunTrace:
                 return call
         return None
 
+    def counting_operation(self, id: CountingOperationId) -> CountingOperation | None:
+        """The counting operation ``id`` names, or ``None``."""
+        for count in self.counting_operations:
+            if count.id == id:
+                return count
+        return None
+
 
 @dataclass(frozen=True, slots=True)
 class RunExport:
@@ -257,13 +305,13 @@ class RunExport:
     The constructor checks what makes the tree one object: the format is this code's,
     the identity is usable, a recorded failure points at what the trace holds for its
     site, every role the trace's calls name has a configuration in the record, every
-    dispatch ran in a segment the record holds, a complete response nobody parsed is the
-    failure's own, a dispatch read as a defect is the one the attempt failed by defect at,
-    the cumulative cost is absent exactly when no dispatch was priced, a
-    reservation is reconciled only when every send was priced whole, and a rules-only
-    export holds no model call. What the record claims about the trace's numbers is left
-    to the evaluator to verify, since a mismatch there is a finding and not a
-    construction error.
+    dispatch and every counting operation ran in a segment the record holds, a complete
+    response nobody parsed is the failure's own, a dispatch read as a defect is the one
+    the attempt failed by defect at, the cumulative cost is absent exactly when no
+    dispatch was priced, a reservation is reconciled only when every send was priced
+    whole, a rules-only export holds no model call, and an attempt with no segment has an
+    empty trace. What the record claims about the trace's numbers is left to the
+    evaluator to verify, since a mismatch there is a finding and not a construction error.
     """
 
     format_version: int
@@ -283,6 +331,8 @@ class RunExport:
         require_integer(self.attempt, "an attempt", minimum=1)
         if self.record.system.kind is SystemKind.RULES_ONLY:
             _require_a_rules_only_trace(self.trace)
+        if not self.record.timing.segments:
+            _require_an_empty_trace(self.trace)
         _require_one_order_with_the_approval(self.record, self.trace)
         if self.record.status is not TerminalStatus.FAILED:
             for call in self.trace.model_calls:
@@ -310,6 +360,12 @@ class RunExport:
                     )
             _require_an_unparsed_response_to_be_the_failure(call, failure)
             _require_a_defect_reading_to_be_the_failure(call, failure)
+        for count in self.trace.counting_operations:
+            if count.segment > segments:
+                raise ValueError(
+                    f"counting operation {count.id} ran in segment {count.segment}, which the "
+                    "record does not hold"
+                )
         dispatches = self.trace.dispatches
         priced = any(dispatch.cost is not None for dispatch in dispatches)
         if (self.record.cost is None) == priced:
@@ -331,11 +387,27 @@ class RunExport:
                     )
 
 
+def _require_an_empty_trace(trace: RunTrace) -> None:
+    """An attempt with no segment was never claimed, so nothing ran: no call, no count, no
+    read, no claim, and finalization never entered (the event log step's ruling on
+    admission)."""
+    if (
+        trace.model_calls
+        or trace.counting_operations
+        or trace.operations
+        or trace.claims
+        or trace.finalization_entered is not None
+    ):
+        raise ValueError("an attempt with no segment was never claimed, so its trace is empty")
+
+
 def _require_a_rules_only_trace(trace: RunTrace) -> None:
-    """Rules only is the frozen prefetch and the shared rules: no model call, no read of any
-    other origin, and claims the rules composed."""
+    """Rules only is the frozen prefetch and the shared rules: no model call, no count, no
+    read of any other origin, and claims the rules composed."""
     if trace.model_calls:
         raise ValueError("a rules-only export holds no model call")
+    if trace.counting_operations:
+        raise ValueError("a rules-only export holds no counting operation")
     for operation in trace.operations:
         if not isinstance(operation.origin, PrefetchOrigin):
             raise ValueError(
@@ -486,6 +558,31 @@ def _require_failure_at_its_fault(failure: Failure, trace: RunTrace) -> None:
                 raise ValueError(
                     f"a failure by {failure.category.value} at the send of a dispatch read "
                     f"as {read_as.value}"
+                )
+        case InputBoundSite():
+            # The attempt ended because a request could not be bounded, and the reading of
+            # the last counting operation for it says how: a refusal is a misconfiguration,
+            # a defect; an exhausted, unresolved or unclassified count is an infrastructure
+            # failure (the event log step's ruling on counting, as amended).
+            count = trace.counting_operation(site.counting_operation)
+            if count is None:
+                raise ValueError(
+                    f"a failure names counting operation {site.counting_operation!r}, which "
+                    "the trace does not hold"
+                )
+            if count.reading is CountResult.COUNTED:
+                raise ValueError(
+                    "a failure at the input bound names a counting operation that did not count"
+                )
+            expected = (
+                FailureCategory.DEFECT
+                if count.reading is CountResult.REFUSED
+                else FailureCategory.INFRASTRUCTURE
+            )
+            if failure.category is not expected:
+                raise ValueError(
+                    f"a failure at the input bound whose last count was {count.reading.value} is "
+                    f"by {expected.value}, got {failure.category.value}"
                 )
         case HarnessSite():
             return

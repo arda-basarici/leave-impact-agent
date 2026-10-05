@@ -7,6 +7,7 @@ from leaveimpact.core import PredicateName, Requirement, SkillCriterion, work_it
 from leaveimpact.core.ids import skill_id
 from leaveimpact.core.run_ending import (
     Abandonment,
+    AbandonmentReason,
     Approval,
     ApprovalState,
     Approver,
@@ -57,25 +58,36 @@ def test_a_failure_site_is_an_operation_a_dispatch_or_a_named_harness_site() -> 
         DispatchSite(ModelCallId("call-2"), 1, "parse")  # type: ignore[arg-type]
 
 
-def test_an_abandonment_names_its_authority_and_the_generation_it_fenced() -> None:
-    abandoned = Abandonment("operator", 3)
+def test_an_abandonment_names_its_authority_the_generation_it_fenced_and_its_reason() -> None:
+    abandoned = Abandonment("operator", 3, AbandonmentReason.CANCELLED)
     assert (abandoned.authority, abandoned.ownership_generation) == ("operator", 3)
+    assert abandoned.reason is AbandonmentReason.CANCELLED
     with pytest.raises(ValueError, match="the abandoning authority"):
-        Abandonment(" ", 3)
+        Abandonment(" ", 3, AbandonmentReason.CANCELLED)
     with pytest.raises(ValueError, match="an ownership generation is an integer"):
-        Abandonment("operator", True)
+        Abandonment("operator", True, AbandonmentReason.CANCELLED)
+    with pytest.raises(ValueError, match="an abandonment's reason"):
+        Abandonment("operator", 3, "cancelled")  # type: ignore[arg-type]
+    assert [reason.value for reason in AbandonmentReason] == ["cancelled", "interrupted"]
 
 
-def test_a_reservation_is_reconciled_or_kept_with_its_reason() -> None:
-    kept = Reservation(5_000_000_000, ReservationState.KEPT, KeptReason.UNRESOLVED_DISPATCH, 12)
+def test_a_reservation_is_reconciled_or_kept_with_its_reason_and_states_what_was_charged() -> None:
+    kept = Reservation(
+        5_000_000_000, ReservationState.KEPT, KeptReason.UNRESOLVED_DISPATCH, 12, 5_000_000_000
+    )
     assert kept.kept_reason is KeptReason.UNRESOLVED_DISPATCH
-    assert Reservation(5_000_000_000, ReservationState.RECONCILED, None, 13).kept_reason is None
+    settled = Reservation(5_000_000_000, ReservationState.RECONCILED, None, 13, 297_000_000)
+    assert (settled.kept_reason, settled.charged_pico_usd) == (None, 297_000_000)
     with pytest.raises(ValueError, match="a reason is given exactly for a kept reservation"):
-        Reservation(1, ReservationState.RECONCILED, KeptReason.USAGE_INCOMPLETE, 1)
+        Reservation(1, ReservationState.RECONCILED, KeptReason.USAGE_INCOMPLETE, 1, 0)
     with pytest.raises(ValueError, match="a reason is given exactly for a kept reservation"):
-        Reservation(1, ReservationState.KEPT, None, 1)
+        Reservation(1, ReservationState.KEPT, None, 1, 0)
     with pytest.raises(ValueError, match="a reservation in pico-dollars is at least 0"):
-        Reservation(-1, ReservationState.RECONCILED, None, 1)
+        Reservation(-1, ReservationState.RECONCILED, None, 1, 0)
+    with pytest.raises(ValueError, match="the amount charged in pico-dollars is at least 0"):
+        Reservation(1, ReservationState.RECONCILED, None, 1, -1)
+    # A breached allocation is charged as observed, so the charge is not bounded by the amount.
+    assert Reservation(1, ReservationState.RECONCILED, None, 1, 2).charged_pico_usd == 2
 
 
 def test_an_approval_holds_a_digest_once_requested_and_an_approver_once_given() -> None:

@@ -8,15 +8,31 @@ from typing import cast
 import pytest
 
 from leaveimpact.core import (
+    Abandonment,
+    AbandonmentReason,
     Admitted,
     ClaimAuthor,
+    ClientErrorKind,
     ComposingPolicy,
     Composition,
     Cost,
+    CountClientError,
+    Counted,
+    CountingOperation,
+    CountingOperationId,
+    CountLocalError,
+    CountResult,
+    CountServiceError,
+    InputBoundSite,
+    KeptReason,
+    NoRecordedOutcome,
     PlacementState,
     PredicateName,
+    RegisteredInputBound,
     ReportedUsage,
     RequirementPlacement,
+    Reservation,
+    ReservationState,
     SpanPlacement,
     Unknown,
     UnknownReason,
@@ -27,10 +43,23 @@ from leaveimpact.core import (
     review_payload_digest,
 )
 from leaveimpact.core.ids import claim_id, employee_id
-from leaveimpact.core.jsonshape import canonical_json
-from leaveimpact.core.run_parts_json import decode_cost, decode_usage, encode_cost, encode_usage
+from leaveimpact.core.jsonshape import JsonObject, canonical_json
+from leaveimpact.core.run_parts_json import (
+    decode_abandonment,
+    decode_cost,
+    decode_counting_operation,
+    decode_failure_site,
+    decode_reservation,
+    decode_usage,
+    encode_abandonment,
+    encode_cost,
+    encode_counting_operation,
+    encode_failure_site,
+    encode_reservation,
+    encode_usage,
+)
 from leaveimpact.core.stated_json import encode_admission, encode_emission
-from tests.unit import format2_fixtures as cases
+from tests.unit import format_fixtures as cases
 from tests.unit import stated_fixture as f
 
 POLICY = ComposingPolicy("stated-fact-composer", "a" * 64)
@@ -126,3 +155,67 @@ def test_a_stated_fact_outside_an_admission_is_no_batch_entry() -> None:
     batch["entries"] = [encode_emission(cases.SKILL)]
     with pytest.raises(ValueError, match="a stated fact is held inside its admission"):
         decode_run_export(data)
+
+
+def test_a_counting_operation_is_written_with_its_outcome_by_kind_and_the_workers_reading() -> None:
+    method = RegisteredInputBound("provider_count", 1)
+    outcomes = (
+        Counted(4_096, "req-1", 100),
+        CountServiceError(429, "ThrottlingException", "rate exceeded", None, 80),
+        CountClientError(ClientErrorKind.CONNECTION, 1_200),
+        CountLocalError("builtins.KeyError"),
+        NoRecordedOutcome(),
+    )
+    readings = (
+        CountResult.COUNTED,
+        CountResult.FAILED,
+        CountResult.FAILED,
+        CountResult.UNCLASSIFIED,
+        CountResult.UNRESOLVED,
+    )
+    kinds: list[str] = []
+    encoded: JsonObject = {}
+    for outcome, reading in zip(outcomes, readings, strict=True):
+        recorded = not isinstance(outcome, NoRecordedOutcome)
+        count = CountingOperation(
+            CountingOperationId("count-1"), method, "model-a-base", "a" * 64, 1, 4,
+            5 if recorded else None, outcome, reading,
+        )
+        encoded = cast(JsonObject, json.loads(canonical_json(encode_counting_operation(count))))
+        kinds.append(str(cast(JsonObject, encoded["outcome"])["kind"]))
+        assert encoded["reading"] == reading.value
+        assert encoded["method"] == {"method": "provider_count", "version": 1}
+        assert decode_counting_operation(encoded) == count
+    assert kinds == [
+        "counted", "service_error", "client_error", "local_error", "no_recorded_outcome"
+    ]
+    with pytest.raises(ValueError, match="a count outcome is counted, service_error"):
+        decode_counting_operation({**encoded, "outcome": {"kind": "estimated"}})
+    with pytest.raises(ValueError, match="provider_count is registered at version 1, got 2"):
+        decode_counting_operation({**encoded, "method": {"method": "provider_count", "version": 2}})
+
+
+def test_the_input_bound_site_the_reason_and_the_charge_are_in_the_wire_format() -> None:
+    site = InputBoundSite(CountingOperationId("count-3"))
+    assert encode_failure_site(site) == {"kind": "input_bound", "counting_operation": "count-3"}
+    assert decode_failure_site(encode_failure_site(site)) == site
+    with pytest.raises(ValueError, match="operation, dispatch, input_bound or harness"):
+        decode_failure_site({"kind": "ledger"})
+    command = Abandonment("operator", 2, AbandonmentReason.INTERRUPTED)
+    assert encode_abandonment(command) == {
+        "authority": "operator",
+        "ownership_generation": 2,
+        "reason": "interrupted",
+    }
+    assert decode_abandonment(encode_abandonment(command)) == command
+    with pytest.raises(ValueError, match=r"an abandonment has fields .*missing \['reason'\]"):
+        decode_abandonment({"authority": "operator", "ownership_generation": 2})
+    held = Reservation(5_000_000_000, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 7, 4_000)
+    assert encode_reservation(held) == {
+        "pico_usd": 5_000_000_000,
+        "state": "kept",
+        "kept_reason": "usage_incomplete",
+        "ledger_revision": 7,
+        "charged_pico_usd": 4_000,
+    }
+    assert decode_reservation(encode_reservation(held)) == held

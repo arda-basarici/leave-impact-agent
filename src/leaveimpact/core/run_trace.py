@@ -36,6 +36,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from math import isfinite
 from types import MappingProxyType
 from typing import NewType, cast
@@ -48,6 +49,19 @@ OperationId = NewType("OperationId", str)
 
 ModelCallId = NewType("ModelCallId", str)
 """The event log's identifier of one model invocation, opaque here, unique within a trace."""
+
+CountingOperationId = NewType("CountingOperationId", str)
+"""The event log's identifier of one token-counting request, opaque here, unique within a trace."""
+
+
+class ClientErrorKind(StrEnum):
+    """How a client gave up on a remote call with no answer from the service; a member is the
+    wire format. Shared by a model dispatch and a counting request, which fail the same two
+    ways on the client's side."""
+
+    TIMEOUT = "timeout"
+    CONNECTION = "connection"
+
 
 SHA256_HEX_LENGTH = 64
 

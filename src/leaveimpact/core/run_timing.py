@@ -12,12 +12,22 @@ ruling on time gives two durations over them, and they answer different question
   offset of its last durable event, less the part of the approval wait that fell inside
   it. Stopped time is never on any segment's clock, so it needs no subtraction.
 - *Elapsed time* is the wall clock from admission to the terminal event, downtime and
-  waiting included.
+  waiting included. Both instants are the log's one clock, read when each event was
+  accepted, and a clock can be stepped back between them: the raw instants are kept as
+  logged and their signed difference is a function of them, and the elapsed duration is
+  unavailable when it would be negative, never clamped, made absolute or called a lower
+  bound (the event log step's ruling on an export that will not construct). Whether the
+  timing is complete and whether the wall-clock interval is valid are two statements.
 
 A segment whose end was never recorded was killed, and what its process did after its last
 durable event is unknowable from the stores: its contribution is a lower bound, and the
 run's timing is *incomplete*. A latency table marks that, with the number of segments
 beside it, so an interrupted run never reads as an unusually fast one.
+
+An attempt that was admitted and never claimed has no segment at all: it was closed by an
+abandon command, its active time is zero, its elapsed time runs from the admission to that
+command, and its timing is complete, since no segment's tail is missing (the event log
+step's ruling on admission). The empty list is that history and nothing else.
 
 The record holds the inputs only (the segments, the two wall-clock instants, where the
 approval was requested and where the worker resumed) and the durations are functions over
@@ -104,12 +114,13 @@ class Segment:
 class Timing:
     """The inputs of a run's two durations; see the module.
 
-    Segments are numbered from one without a gap. ``approval_requested`` is the stamp of the
+    Segments are numbered from one without a gap; the list is empty for an attempt that was
+    never claimed, which then holds no stamp. ``approval_requested`` is the stamp of the
     worker's request for approval and ``approval_resumed`` the stamp of its own transition
     once the approval was delivered; a resume exists only after a request, later in
     position and never in an earlier segment, and both sit inside their segments' evidenced
-    offsets. The two instants are timezone-aware and the terminal one is not before the
-    admission.
+    offsets. The two instants are timezone-aware, and the terminal one may be before the
+    admission: that is a fact about the log's clock, reported and never repaired here.
     """
 
     segments: tuple[Segment, ...]
@@ -119,16 +130,12 @@ class Timing:
     approval_resumed: Stamp | None
 
     def __post_init__(self) -> None:
-        if not self.segments:
-            raise ValueError("a run that executed has at least one segment")
         numbers = [segment.number for segment in self.segments]
         if numbers != list(range(1, len(numbers) + 1)):
             raise ValueError(f"segments are numbered from one without a gap, got {numbers}")
         for what, instant in (("admitted_at", self.admitted_at), ("terminal_at", self.terminal_at)):
             if instant.utcoffset() is None:
                 raise ValueError(f"{what} is a timezone-aware instant, got {instant!r}")
-        if self.terminal_at < self.admitted_at:
-            raise ValueError("the terminal event is not before the admission")
         requested, resumed = self.approval_requested, self.approval_resumed
         if resumed is not None and requested is None:
             raise ValueError("a worker resumes from an approval only after requesting one")
@@ -189,10 +196,26 @@ def evidenced_active_ms(timing: Timing) -> int:
     )
 
 
-def elapsed_ms(timing: Timing) -> int:
-    """The wall clock from admission to the terminal event, in whole milliseconds."""
+def signed_elapsed_ms(timing: Timing) -> int:
+    """The terminal instant less the admission, in whole milliseconds rounded down, negative
+    when the log's clock was stepped back between the two events.
+
+    >>> from datetime import UTC, datetime, timedelta
+    >>> at = datetime(2026, 10, 6, tzinfo=UTC)
+    >>> signed_elapsed_ms(Timing((), at, at - timedelta(milliseconds=300), None, None))
+    -300
+    """
     delta = timing.terminal_at - timing.admitted_at
-    return delta.days * 86_400_000 + delta.seconds * 1_000 + delta.microseconds // 1_000
+    microseconds = delta.days * 86_400_000_000 + delta.seconds * 1_000_000 + delta.microseconds
+    return microseconds // 1_000
+
+
+def elapsed_ms(timing: Timing) -> int | None:
+    """The wall clock from admission to the terminal event, in whole milliseconds, or
+    ``None`` when the terminal instant is before the admission and no duration can be
+    stated; ``signed_elapsed_ms`` gives the difference either way."""
+    signed = signed_elapsed_ms(timing)
+    return None if signed < 0 else signed
 
 
 def timing_complete(timing: Timing) -> bool:
@@ -212,5 +235,6 @@ __all__ = [
     "elapsed_ms",
     "evidenced_active_ms",
     "require_commit",
+    "signed_elapsed_ms",
     "timing_complete",
 ]

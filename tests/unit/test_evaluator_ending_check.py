@@ -31,9 +31,11 @@ from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import truthful
 from tests.unit.export_fixture import ADMITTED, COMMIT, DIGEST, export_baseline, run_export
-from tests.unit.format2_fixtures import (
+from tests.unit.format_fixtures import (
     FIXTURES,
+    abandoned_attempt,
     approval_wait_across_restart,
+    never_claimed,
     recovered_attempt,
 )
 from tests.unit.reads_fixture import reads_of_everything, systems_holding
@@ -95,7 +97,7 @@ def test_the_truthful_staters_approval_is_over_the_payload_it_exports() -> None:
         assert run.metrics.ending.findings == ()
 
 
-def test_the_format_2_cases_carry_no_finding_and_five_have_an_unknown_tail() -> None:
+def test_the_format_cases_carry_no_finding_and_seven_have_an_unknown_tail() -> None:
     endings = {name: check_ending(build()) for name, build in FIXTURES.items()}
     assert all(ending.findings == () for ending in endings.values())
     assert {
@@ -106,8 +108,12 @@ def test_the_format_2_cases_carry_no_finding_and_five_have_an_unknown_tail() -> 
         "an abandoned attempt": 1,
         "an approval wait across a restart": 3,
         "a tool call whose result was lost before it was logged": 1,
+        "a recorded defect an operator finalized": 1,
+        "a request whose input bound was never established": 2,
     }
-    assert sum(ending.segments == 1 for ending in endings.values()) == 10
+    assert sum(ending.segments == 1 for ending in endings.values()) == 11
+    never = endings["an attempt admitted and never claimed"]
+    assert (never.segments, never.timing_complete, never.elapsed_ms) == (0, True, 7_200_000)
 
 
 # --- Each finding ----------------------------------------------------------------------------
@@ -122,6 +128,36 @@ def test_an_active_time_the_wall_clock_cannot_hold_is_a_finding_and_a_wait_is_no
     assert check_ending(fits).findings == ()
     short = retimed(waited, terminal_at=ADMITTED + timedelta(milliseconds=8_999))
     assert check_ending(short).findings == (EndingFinding.ACTIVE_EXCEEDS_ELAPSED,)
+
+
+def test_a_terminal_instant_before_the_admission_states_no_elapsed_time_and_no_comparison() -> None:
+    """The log's clock stepped back between the two events (the event log step's ruling on an
+    export that will not construct): the finding says so, the elapsed time is unavailable,
+    and active time is compared with nothing, since 1,200 ms of execution against a negative
+    wall-clock interval is not a run that outlasted the clock."""
+    waited = approval_wait_across_restart()
+    stepped = check_ending(retimed(waited, terminal_at=ADMITTED - timedelta(milliseconds=300)))
+    assert stepped.elapsed_ms is None
+    assert stepped.findings == (EndingFinding.TERMINAL_BEFORE_ADMISSION,)
+    assert stepped.timing_complete is False
+    # An interval of zero is a valid, empty one: the comparison is made and fires.
+    zero = check_ending(retimed(waited, terminal_at=ADMITTED))
+    assert (zero.elapsed_ms, zero.findings) == (0, (EndingFinding.ACTIVE_EXCEEDS_ELAPSED,))
+
+
+def test_an_abandonment_fencing_another_generation_than_the_segment_count_is_a_finding() -> None:
+    """A claim is the only thing that raises either counter, so the generation an abandon
+    command fenced equals the segments the record holds; the record constructs whatever the
+    two say and the check reports the difference (group 2's second fork)."""
+    abandoned = abandoned_attempt()
+    assert check_ending(abandoned).findings == ()
+    record = abandoned.record
+    assert record.abandonment is not None
+    stale = replace(record, abandonment=replace(record.abandonment, ownership_generation=3))
+    assert check_ending(replace(abandoned, record=stale)).findings == (
+        EndingFinding.ABANDONMENT_GENERATION_DIFFERS,
+    )
+    assert check_ending(never_claimed()).findings == ()
 
 
 def test_segments_on_two_commits_are_a_finding_and_a_tree_state_alone_is_not() -> None:

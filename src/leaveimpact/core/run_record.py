@@ -36,6 +36,7 @@ from enum import StrEnum
 from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
+from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.run_ending import (
     Abandonment,
     Approval,
@@ -187,13 +188,20 @@ class OutageAssignment:
 
 @dataclass(frozen=True, slots=True)
 class Caps:
-    """The per-run cap as it ran, with the finalization reserves inside the totals.
+    """The per-run cap as it ran, with the finalization reserves inside the totals, and the
+    two registered rules the run was held to them by.
 
     The loop stops before the reserve, finalization may spend it, and the total never
-    extends; ``counting_rule`` names which token classes count, a preregistered rule from
-    the closed registry (``token_counting.COUNTING_RULES``); any other name is refused.
+    extends. ``counting_rule`` names which token classes count, a preregistered rule from
+    the closed registry (``token_counting.COUNTING_RULES``); ``input_bound`` the method a
+    dispatch's input was bounded by before it was authorized, at its registered version
+    (``input_bound.INPUT_BOUND_METHODS``). How a worst case is computed changes when a run
+    stops at its cap, which is graded, so the method is recorded beside the rule; any name
+    the registries lack is refused.
 
-    >>> Caps(20, 100_000, 20, 5_000, "input_plus_output_cached_included")
+    >>> from leaveimpact.core.input_bound import RegisteredInputBound
+    >>> method = RegisteredInputBound("provider_count", 1)
+    >>> Caps(20, 100_000, 20, 5_000, "input_plus_output_cached_included", method)
     Traceback (most recent call last):
     ...
     ValueError: the finalization call reserve sits inside the call cap, got 20 of 20
@@ -204,6 +212,7 @@ class Caps:
     finalization_call_reserve: int
     finalization_token_reserve: int
     counting_rule: str
+    input_bound: RegisteredInputBound
 
     def __post_init__(self) -> None:
         for name in ("call_cap", "token_cap"):
@@ -387,10 +396,15 @@ class RunRecord:
     equal records are equal in bytes; the roles that call a model are one set across the
     configurations, the pricing selections, the prompt digests and the tool surfaces.
 
-    How the attempt ended is held together by four ties. ``failure`` is present exactly
-    when the status is failed. ``abandonment`` is present exactly when the failure's site
-    is the abandoned one, which is an infrastructure failure. The approval follows the
-    status and not the claims, one way: a completed or cap-exhausted attempt holds an
+    How the attempt ended is held together by these ties. ``failure`` is present exactly
+    when the status is failed. ``abandonment`` is the abandon command that closed the
+    attempt, when one did: a failure at the abandoned site always holds one and is by
+    infrastructure, and beside any other site an abandonment is held only for a failure by
+    defect, the command having finalized a recorded defect and abandoned nothing (the event
+    log step's ruling on recovery and endings). A failure at the ``unhandled`` site is a
+    defect. An attempt with no segment was never claimed: it failed at the abandoned site,
+    the command fenced generation 0, and no approval was requested. The approval follows
+    the status and not the claims, one way: a completed or cap-exhausted attempt holds an
     approval of its frozen review payload, an abstention's empty one included. A failed
     attempt states the approval as it stood, whatever that was: usually none, and a given
     one when the attempt failed after it, at the terminal append or by an abandonment,
@@ -508,19 +522,9 @@ class RunRecord:
         failed = self.status is TerminalStatus.FAILED
         if (self.failure is not None) != failed:
             raise ValueError("a failure is recorded exactly when the status is failed")
-        abandoned = self.failure is not None and self.failure.site == HarnessSite(
-            HarnessSiteName.ABANDONED
-        )
-        if (self.abandonment is not None) != abandoned:
-            raise ValueError(
-                "an abandonment is recorded exactly when the failure's site is the abandoned one"
-            )
-        if (
-            abandoned
-            and self.failure is not None
-            and self.failure.category is not FailureCategory.INFRASTRUCTURE
-        ):
-            raise ValueError("an abandoned attempt failed by infrastructure")
+        self._require_the_abandonment_to_fit_the_failure()
+        if not self.timing.segments:
+            self._require_the_never_claimed_ending()
         approved = self.approval.state is ApprovalState.APPROVED
         if not failed and not approved:
             raise ValueError(
@@ -546,6 +550,46 @@ class RunRecord:
             raise ValueError(
                 "an approved attempt whose worker stamped the request also stamped its resume"
             )
+
+    def _require_the_abandonment_to_fit_the_failure(self) -> None:
+        failure = self.failure
+        abandoned = failure is not None and failure.site == HarnessSite(HarnessSiteName.ABANDONED)
+        if abandoned and self.abandonment is None:
+            raise ValueError(
+                "a failure at the abandoned site holds the abandon command that closed it"
+            )
+        if abandoned and failure is not None:
+            if failure.category is not FailureCategory.INFRASTRUCTURE:
+                raise ValueError("an abandoned attempt failed by infrastructure")
+        elif self.abandonment is not None and (
+            failure is None or failure.category is not FailureCategory.DEFECT
+        ):
+            raise ValueError(
+                "an abandon command beside a failure at another site finalized a recorded "
+                "defect; the failure is by defect"
+            )
+        if (
+            failure is not None
+            and failure.site == HarnessSite(HarnessSiteName.UNHANDLED)
+            and failure.category is not FailureCategory.DEFECT
+        ):
+            raise ValueError("a failure at the unhandled site is a defect")
+
+    def _require_the_never_claimed_ending(self) -> None:
+        """No segment means no claim: closed by an abandon command before any worker, the
+        command fencing generation 0, nothing requested of anyone."""
+        if self.failure is None or self.failure.site != HarnessSite(HarnessSiteName.ABANDONED):
+            raise ValueError(
+                "an attempt with no segment was never claimed and was closed by an abandon "
+                "command: its failure is at the abandoned site"
+            )
+        if self.abandonment is not None and self.abandonment.ownership_generation != 0:
+            raise ValueError(
+                "an attempt with no segment was never claimed, so its abandonment fenced "
+                f"generation 0, got {self.abandonment.ownership_generation}"
+            )
+        if self.approval.state is not ApprovalState.NOT_REQUESTED:
+            raise ValueError("an attempt with no segment requested no approval")
 
 
 def _role(item: tuple[str, object]) -> str:

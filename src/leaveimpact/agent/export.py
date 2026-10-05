@@ -123,7 +123,7 @@ def export_rules_only_run(
         attempt,
         context,
         record,
-        RunTrace((), run.operations, run.claims, rules_only_composition()),
+        RunTrace((), run.operations, run.claims, rules_only_composition(), (), None),
     )
 
 

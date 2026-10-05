@@ -15,6 +15,7 @@ from leaveimpact.core.run_timing import (
     approval_wait_ms,
     elapsed_ms,
     evidenced_active_ms,
+    signed_elapsed_ms,
     timing_complete,
 )
 
@@ -84,14 +85,10 @@ def test_the_segments_revisions_are_listed_so_a_mismatch_can_be_found() -> None:
 
 
 def test_timing_refuses_what_no_log_could_hold() -> None:
-    with pytest.raises(ValueError, match="at least one segment"):
-        timing(())
     with pytest.raises(ValueError, match="numbered from one without a gap"):
         timing((Segment(2, REVISION, 100, True),))
     with pytest.raises(ValueError, match="timezone-aware"):
         Timing(segments(1), datetime(2026, 10, 4), ADMITTED, None, None)
-    with pytest.raises(ValueError, match="not before the admission"):
-        timing(segments(1), elapsed=timedelta(seconds=-1))
     with pytest.raises(ValueError, match="only after requesting one"):
         timing(segments(100), None, Stamp(1, 50, 3))
     with pytest.raises(ValueError, match="requested in segment 2, not held"):
@@ -108,3 +105,30 @@ def test_timing_refuses_what_no_log_could_hold() -> None:
         HarnessRevision("abc", TreeState.CLEAN)
     with pytest.raises(ValueError, match="end_recorded is a boolean"):
         Segment(1, REVISION, 100, 1)  # type: ignore[arg-type]
+
+
+def test_no_segment_is_the_never_claimed_attempt_with_a_complete_timing() -> None:
+    """An attempt admitted and closed by an abandon command before any claim (the event log
+    step's ruling on admission): nothing ran, no tail is missing, and the elapsed time runs
+    from the admission to the command."""
+    never = timing((), elapsed=timedelta(hours=2))
+    assert never.segments == ()
+    assert (evidenced_active_ms(never), timing_complete(never)) == (0, True)
+    assert (elapsed_ms(never), signed_elapsed_ms(never)) == (7_200_000, 7_200_000)
+    assert never.harness_revisions == frozenset()
+    with pytest.raises(ValueError, match="requested in segment 1, not held"):
+        timing((), Stamp(1, 0, 3))
+
+
+def test_a_terminal_instant_before_the_admission_is_kept_and_gives_no_elapsed_duration() -> None:
+    """The log's clock can step back between the two events (the event log step's ruling on
+    an export that will not construct): both instants are kept as logged, the signed
+    difference is a function of them, and the elapsed duration is unavailable, never
+    clamped or made absolute."""
+    stepped = timing(segments(1_200), elapsed=timedelta(milliseconds=-300))
+    assert stepped.terminal_at < stepped.admitted_at
+    assert signed_elapsed_ms(stepped) == -300
+    assert elapsed_ms(stepped) is None
+    assert evidenced_active_ms(stepped) == 1_200
+    assert signed_elapsed_ms(timing(segments(1), elapsed=timedelta(microseconds=-1_500))) == -2
+    assert elapsed_ms(timing(segments(1), elapsed=timedelta(0))) == 0

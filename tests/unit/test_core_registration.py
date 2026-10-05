@@ -672,7 +672,7 @@ def test_an_amending_registration_names_the_commit_it_amends() -> None:
 
 def test_every_system_registers_the_one_input_bound_method() -> None:
     for system in DRAFT.systems:
-        bound = system.caps.input_bound
+        bound = system.caps.caps.input_bound
         assert (bound.name, bound.version) == ("provider_count", 1)
     for index in range(len(DRAFT.systems)):
         assert _nested(_draft_tree(), "systems", index, "caps")["input_bound"] == {
