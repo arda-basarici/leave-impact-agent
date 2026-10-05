@@ -272,7 +272,7 @@ def _record(
         system=system,
         retrieval=retrieval,
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_output"),
+        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
         status=status,
         failure=failure,
         abandonment=None,
@@ -639,11 +639,11 @@ def test_every_role_that_calls_a_model_names_the_rate_it_was_priced_under() -> N
 
 def test_the_reserves_sit_inside_the_caps_and_an_embedding_model_names_vector_retrieval() -> None:
     with pytest.raises(ValueError, match="call reserve sits inside the call cap, got 20 of 20"):
-        Caps(20, 100_000, 20, 5_000, "input_output")
+        Caps(20, 100_000, 20, 5_000, "input_plus_output_cached_included")
     with pytest.raises(ValueError, match="token reserve sits inside the token cap"):
-        Caps(20, 100_000, 2, 100_000, "input_output")
+        Caps(20, 100_000, 2, 100_000, "input_plus_output_cached_included")
     with pytest.raises(ValueError, match="call_cap is positive"):
-        Caps(0, 100_000, 0, 5_000, "input_output")
+        Caps(0, 100_000, 0, 5_000, "input_plus_output_cached_included")
     with pytest.raises(ValueError, match="exactly for vector retrieval"):
         Retrieval(RetrievalKind.VECTOR, None)
     assert Retrieval(RetrievalKind.VECTOR, "eu.embedder").embedding_model == "eu.embedder"

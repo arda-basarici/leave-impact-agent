@@ -177,6 +177,27 @@ def _under(row: PricingRow, selection: PricingSelection) -> bool:
     )
 
 
+def absent_as_zero(selection: PricingSelection, basis: PricingBasis) -> frozenset[str]:
+    """The token classes whose counter, when a call under ``selection`` did not report it,
+    is proven to mean no token of that class: the rates the table marks so. What a token
+    count reads to tell an established count from a floor; a class the basis holds no rate
+    for under the selection is not among them, since nothing was recorded about it.
+
+    >>> from datetime import date
+    >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), (
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_100_000),
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "cache_read_input_tokens",
+    ...                110_000, AbsentMeaning.ZERO)))
+    >>> sorted(absent_as_zero(PricingSelection("model-a", "eu-central-1", "on_demand"), basis))
+    ['cache_read_input_tokens']
+    """
+    return frozenset(
+        row.token_class
+        for row in basis.rows
+        if _under(row, selection) and row.when_absent is AbsentMeaning.ZERO
+    )
+
+
 def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> Cost:
     """What ``usage`` cost under ``selection``'s rates in ``basis``: exact, with its completeness.
 
@@ -215,6 +236,51 @@ def cost_of(usage: Usage, selection: PricingSelection, basis: PricingBasis) -> C
         if _under(row, selection)
     )
     return Cost(total, complete)
+
+
+INPUT_SIDE_CLASSES: tuple[str, ...] = (
+    "input_tokens",
+    "cache_read_input_tokens",
+    "cache_write_input_tokens",
+)
+"""The token classes an input token may be billed as: plain, read from a cache, or written
+to one."""
+
+
+def worst_case_cost(
+    input_tokens: int, output_maximum: int, selection: PricingSelection, basis: PricingBasis
+) -> int:
+    """The most a dispatch can cost, in pico-dollars, given a bound of its input tokens and
+    the most it may generate: every input token at the highest input-side rate the
+    selection can be billed, a cache write included where the basis prices one, and every
+    output token at the output rate. What a dispatch's money allocation is until its usage
+    is priced.
+
+    >>> from datetime import date
+    >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), (
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "input_tokens", 1_000_000),
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "output_tokens", 5_000_000),
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", "cache_write_input_tokens",
+    ...                1_250_000)))
+    >>> worst_case_cost(100, 10, PricingSelection("model-a", "eu-central-1", "on_demand"), basis)
+    175000000
+    """
+    require_integer(input_tokens, "an input bound in tokens")
+    require_integer(output_maximum, "an output maximum", minimum=1)
+
+    def rate(token_class: str) -> int | None:
+        return basis.rate(
+            selection.pricing_key, selection.region, selection.billing_mode, token_class
+        )
+
+    output_rate = rate("output_tokens")
+    input_rates = [held for name in INPUT_SIDE_CLASSES if (held := rate(name)) is not None]
+    if output_rate is None or rate("input_tokens") is None:
+        raise ValueError(
+            f"the basis holds no input and output rate under {selection.pricing_key} in "
+            f"{selection.region} {selection.billing_mode}; no worst case can be priced"
+        )
+    return input_tokens * max(input_rates) + output_maximum * output_rate
 
 
 def cost_of_reported(

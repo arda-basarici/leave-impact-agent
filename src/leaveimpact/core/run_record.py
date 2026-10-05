@@ -53,6 +53,7 @@ from leaveimpact.core.run_trace import (
     require_integer,
     require_opaque_id,
 )
+from leaveimpact.core.token_counting import require_counting_rule
 
 BILLED_ON_EVERY_CALL: tuple[str, ...] = ("input_tokens", "output_tokens")
 """The token classes every answered call is billed for, so a selection's basis must price
@@ -189,9 +190,10 @@ class Caps:
     """The per-run cap as it ran, with the finalization reserves inside the totals.
 
     The loop stops before the reserve, finalization may spend it, and the total never
-    extends; ``counting_rule`` names which token classes count, a preregistered rule.
+    extends; ``counting_rule`` names which token classes count, a preregistered rule from
+    the closed registry (``token_counting.COUNTING_RULES``); any other name is refused.
 
-    >>> Caps(20, 100_000, 20, 5_000, "input_output")
+    >>> Caps(20, 100_000, 20, 5_000, "input_plus_output_cached_included")
     Traceback (most recent call last):
     ...
     ValueError: the finalization call reserve sits inside the call cap, got 20 of 20
@@ -219,7 +221,7 @@ class Caps:
                 "the finalization token reserve sits inside the token cap, got "
                 f"{self.finalization_token_reserve} of {self.token_cap}"
             )
-        require_opaque_id(self.counting_rule, "the counting rule")
+        require_counting_rule(self.counting_rule, "the counting rule")
 
 
 # --- Usage, cost and pricing -------------------------------------------------------------
@@ -277,12 +279,15 @@ class UsageAggregate:
 
 
 class AbsentMeaning(StrEnum):
-    """What an unreported counter of this class means for the cost under this rate.
+    """What an unreported counter of this class means under this rate's configuration.
 
     ``UNKNOWN`` makes the cost incomplete, the default for every rate until a probe
     shows otherwise; ``ZERO`` records that the provider omits the counter exactly when
-    nothing of that class was billed, a fact proven per model configuration (the
+    the call had no token of that class, a fact proven per model configuration (the
     acceptance spike, build step 7) and written into the table, never assumed in code.
+    The fact is about the counter and not about the price, which is why a token count
+    reads it too (``pricing.absent_as_zero``): no token of a class means nothing billed
+    for it and nothing counted for it, whereas a zero rate would say only the first.
     """
 
     UNKNOWN = "unknown"

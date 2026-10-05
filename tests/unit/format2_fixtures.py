@@ -320,7 +320,7 @@ def export(
         system=System(SystemKind.AGENT, "reference"),
         retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_output"),
+        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
         status=TerminalStatus.COMPLETED if failure is None else TerminalStatus.FAILED,
         failure=failure,
         abandonment=abandonment,

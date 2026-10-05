@@ -353,7 +353,7 @@ def _record(status: TerminalStatus, failure: Failure | None) -> RunRecord:
         system=System(SystemKind.AGENT, "reference"),
         retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
-        caps=Caps(20, 100_000, 2, 5_000, "input_output"),
+        caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included"),
         status=status,
         failure=failure,
         abandonment=None,
