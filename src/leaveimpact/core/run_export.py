@@ -418,9 +418,10 @@ def _require_a_rules_only_trace(trace: RunTrace) -> None:
 
 
 def _require_one_order_with_the_approval(record: RunRecord, trace: RunTrace) -> None:
-    """The approval's two stamps are events of the same order as the reads and the
-    dispatches: no position shared, and whatever carries a segment (a dispatch's intent, a
-    stamp) never goes back to an earlier segment as positions rise."""
+    """The approval's two stamps are events of the same order as the reads, the dispatches,
+    the counts and the entry into finalization: no position shared, and whatever carries a
+    segment (a dispatch's intent, a count's start, a stamp) never goes back to an earlier
+    segment as positions rise."""
     stamps = [
         stamp
         for stamp in (record.timing.approval_requested, record.timing.approval_resumed)
@@ -430,6 +431,10 @@ def _require_one_order_with_the_approval(record: RunRecord, trace: RunTrace) -> 
     for dispatch in trace.dispatches:
         taken.add(dispatch.intent_position)
         taken.add(dispatch.outcome_position)
+    for count in trace.counting_operations:
+        taken.update(count.positions)
+    if trace.finalization_entered is not None:
+        taken.add(trace.finalization_entered)
     for stamp in stamps:
         if stamp.position in taken:
             raise ValueError(
@@ -438,6 +443,7 @@ def _require_one_order_with_the_approval(record: RunRecord, trace: RunTrace) -> 
             )
     in_segments = sorted(
         [(dispatch.intent_position, dispatch.segment) for dispatch in trace.dispatches]
+        + [(count.start_position, count.segment) for count in trace.counting_operations]
         + [(stamp.position, stamp.segment) for stamp in stamps]
     )
     for (_, earlier), (position, later) in zip(in_segments, in_segments[1:], strict=False):

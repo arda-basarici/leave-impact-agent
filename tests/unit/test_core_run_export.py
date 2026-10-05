@@ -214,9 +214,17 @@ def _count(id: str = "count-1", start: int = 90_000, segment: int = 1) -> Counti
 
 
 def _counts_for(calls: tuple[ModelCall, ...]) -> tuple[CountingOperation, ...]:
-    """One count per distinct counting operation the calls' dispatches rest on."""
-    named = dict.fromkeys(d.bound.evidence for call in calls for d in call.dispatches)
-    return tuple(_count(id, 90_000 + 10 * index) for index, id in enumerate(named))
+    """One count per distinct counting operation the calls' dispatches rest on, in the last
+    segment any of them ran in, since its positions come after every dispatch."""
+    segments: dict[CountingOperationId, int] = {}
+    for call in calls:
+        for dispatch in call.dispatches:
+            held = segments.get(dispatch.bound.evidence, 1)
+            segments[dispatch.bound.evidence] = max(held, dispatch.segment)
+    return tuple(
+        _count(id, 90_000 + 10 * index, segment)
+        for index, (id, segment) in enumerate(segments.items())
+    )
 
 
 def _call(
@@ -973,8 +981,11 @@ def test_every_role_is_configured_and_every_dispatch_ran_in_a_segment_the_record
     with pytest.raises(ValueError, match="ran as 'synthesizer', a role with no recorded model"):
         _export(trace=_trace((_call(), synthesizer)))
     later = _call("call-1", "investigator", _dispatch(segment=2))
-    with pytest.raises(ValueError, match="ran in segment 2, which the record does not hold"):
+    with pytest.raises(ValueError, match="of call-1 ran in segment 2, which the record does not"):
         _export(trace=_trace((later,)))
+    counted_later = replace(_trace((_call(),)).counting_operations[0], segment=2)
+    with pytest.raises(ValueError, match="count-1 ran in segment 2, which the record does not"):
+        _export(trace=replace(_trace((_call(),)), counting_operations=(counted_later,)))
     second = Segment(2, REVISION, 400, True)
     two = replace(_record(), timing=replace(TIMING, segments=(*TIMING.segments, second)))
     assert _export(record=two, trace=_trace((later,))).record.timing.segments[1] is second
@@ -1046,6 +1057,27 @@ def test_the_approvals_stamps_are_events_of_the_same_order_as_reads_and_dispatch
         _export(record=across)
     later = _call("call-1", "investigator", _dispatch(segment=3))
     assert _export(record=across, trace=_trace((later,))).record.timing.segments == three
+    # A count's two positions and the entry into finalization are events of the order too
+    # (group 2's external review: both had been left out of this check).
+    counted = _trace((later,))
+    for taken in counted.counting_operations[0].positions:
+        with pytest.raises(ValueError, match=f"stamp at position {taken} shares it"):
+            _export(
+                record=stamped(Stamp(3, 1_000, taken), Stamp(3, 1_004, 90_020), *three),
+                trace=counted,
+            )
+    finalizing = replace(counted, finalization_entered=30)
+    with pytest.raises(ValueError, match="stamp at position 30 shares it"):
+        _export(record=in_order, trace=finalizing)
+    # A count's start carries its segment: one in segment 3 at position 90,000 cannot precede
+    # a request stamp of segment 1 at a later position.
+    first = _trace((_call(),))
+    early_count = replace(first.counting_operations[0], segment=3)
+    with pytest.raises(ValueError, match="position 90002 ran in segment 1, after one of segment 3"):
+        _export(
+            record=stamped(Stamp(1, 11_000, 90_002), Stamp(1, 11_004, 90_003), *three),
+            trace=replace(first, counting_operations=(early_count,)),
+        )
 
 
 def test_a_read_the_model_asked_for_is_logged_after_that_calls_answer() -> None:
