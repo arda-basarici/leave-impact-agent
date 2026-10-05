@@ -758,6 +758,54 @@ def test_a_failure_at_a_dispatch_names_one_the_trace_holds_and_agrees_with_its_r
     assert exhausted.trace.model_call(CALL).state.value == "unresolved"
 
 
+def test_a_dispatch_read_as_a_defect_is_its_calls_last_and_what_the_attempt_failed_at() -> None:
+    read_as_defect = _dispatch(10, TIMED_OUT, AttributionKind.DEFECT)
+    lost = _call("call-1", "investigator", read_as_defect)
+    at_its_send = Failure(
+        FailureCategory.DEFECT, DispatchSite(CALL, 1, DispatchPhase.SEND), "the request was ours"
+    )
+    kept = _export(record=_failed(at_its_send), trace=_trace((lost,), claims=()))
+    assert kept.record.failure is at_its_send
+    refusal = "is read as a defect; such a dispatch is its call's last"
+
+    # Dispatched again and answered, the attempt completed: the defect recovered from.
+    answered_after = _call("call-1", "investigator", read_as_defect, _dispatch(14, number=2))
+    with pytest.raises(ValueError, match=f"dispatch 1 of model call call-1 {refusal}"):
+        _export(trace=_trace((answered_after,)))
+    # Left behind by a later call that answered, the attempt completed.
+    with pytest.raises(ValueError, match=refusal):
+        _export(trace=_trace((lost, _call("call-2", "investigator", _dispatch(20)))))
+    # Behind an infrastructure failure at a later call: an attempt open to a retry.
+    elsewhere = Failure(
+        FailureCategory.INFRASTRUCTURE,
+        DispatchSite(ModelCallId("call-2"), 1, DispatchPhase.SEND),
+        "timeout",
+    )
+    with pytest.raises(ValueError, match=refusal):
+        _export(record=_failed(elsewhere), trace=_trace((lost, _faulted("call-2", 20)), claims=()))
+    # Failed by defect, and at another place: an operation, or a later dispatch of the call.
+    at_a_read = Failure(FailureCategory.DEFECT, OperationSite(OperationId("op-1")), "no world id")
+    with pytest.raises(ValueError, match=refusal):
+        _export(record=_failed(at_a_read), trace=_trace((lost,), claims=()))
+    twice = _call(
+        "call-1",
+        "investigator",
+        read_as_defect,
+        _dispatch(14, TIMED_OUT, AttributionKind.DEFECT, number=2),
+    )
+    at_the_second = replace(at_its_send, site=DispatchSite(CALL, 2, DispatchPhase.SEND))
+    with pytest.raises(ValueError, match=f"dispatch 1 of model call call-1 {refusal}"):
+        _export(record=_failed(at_the_second), trace=_trace((twice,), claims=()))
+
+    # A defect found while parsing or recording a response that arrived is no reading of a
+    # dispatch: the dispatch is read as behaviour and the failure names the phase.
+    unparsed = ModelCall(CALL, "investigator", (_dispatch(),), None)
+    for phase in (DispatchPhase.PARSE, DispatchPhase.RECORD):
+        found = Failure(FailureCategory.DEFECT, DispatchSite(CALL, 1, phase), "raised")
+        record = _record(status=TerminalStatus.FAILED, failure=found)
+        assert _export(record=record, trace=_trace((unparsed,), claims=())).record.failure is found
+
+
 def test_a_response_nobody_parsed_is_preserved_only_by_the_failure_that_ended_there() -> None:
     unparsed = ModelCall(CALL, "investigator", (_dispatch(),), None)
     at_parse = Failure(

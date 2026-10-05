@@ -13,6 +13,10 @@ from leaveimpact.core import (
     AbsentMeaning,
     AttributionKind,
     Cost,
+    DispatchPhase,
+    DispatchSite,
+    Failure,
+    FailureCategory,
     ModelCall,
     ModelCallId,
     PricingBasis,
@@ -127,7 +131,13 @@ def test_a_run_that_called_no_model_or_priced_nothing_has_no_cost_and_no_finding
         (dispatch(1, RefusedBeforeSend("ParamValidationError"), AttributionKind.DEFECT),),
         None,
     )
-    never_sent = check_cost(agent_export(world, scenario, (refused,)))
+    # Read as a defect, so the attempt ended there by defect: the export holds no other.
+    at_its_send = Failure(
+        FailureCategory.DEFECT,
+        DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.SEND),
+        "the request broke the harness's own contract",
+    )
+    never_sent = check_cost(agent_export(world, scenario, (refused,), failure=at_its_send))
     assert (never_sent.cost, never_sent.findings, never_sent.possible_sends) == (None, (), 0)
     assert (never_sent.usage.model_calls, never_sent.usage.dispatches) == (1, 1)
 

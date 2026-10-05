@@ -12,6 +12,10 @@ import pytest
 from leaveimpact.core import (
     AttributionKind,
     CandidateAssessment,
+    DispatchPhase,
+    DispatchSite,
+    Failure,
+    FailureCategory,
     ModelCall,
     ModelCallId,
     RefusedBeforeSend,
@@ -593,7 +597,13 @@ def test_a_cells_cost_is_over_every_attempt_and_a_floor_where_a_cost_is_unknown(
         (dispatch(1, RefusedBeforeSend("ParamValidationError"), AttributionKind.DEFECT),),
         None,
     )
-    never_sent = evaluate_run(world, agent_export(world, one, (refused,)))
+    # Read as a defect, so the attempt ended there by defect: the export holds no other.
+    at_its_send = Failure(
+        FailureCategory.DEFECT,
+        DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.SEND),
+        "the request broke the harness's own contract",
+    )
+    never_sent = evaluate_run(world, agent_export(world, one, (refused,), failure=at_its_send))
     (agent,) = arms(world, [never_sent], agents)
     unsent = cost_ledger(cell_of(agent))
     assert (unsent.runs, unsent.pico_usd, unsent.floors) == (1, 0, 0)

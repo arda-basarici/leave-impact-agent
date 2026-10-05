@@ -258,7 +258,8 @@ class RunExport:
     the identity is usable, a recorded failure points at what the trace holds for its
     site, every role the trace's calls name has a configuration in the record, every
     dispatch ran in a segment the record holds, a complete response nobody parsed is the
-    failure's own, the cumulative cost is absent exactly when no dispatch was priced, a
+    failure's own, a dispatch read as a defect is the one the attempt failed by defect at,
+    the cumulative cost is absent exactly when no dispatch was priced, a
     reservation is reconciled only when every send was priced whole, and a rules-only
     export holds no model call. What the record claims about the trace's numbers is left
     to the evaluator to verify, since a mismatch there is a finding and not a
@@ -308,6 +309,7 @@ class RunExport:
                         f"{dispatch.segment}, which the record does not hold"
                     )
             _require_an_unparsed_response_to_be_the_failure(call, failure)
+            _require_a_defect_reading_to_be_the_failure(call, failure)
         dispatches = self.trace.dispatches
         priced = any(dispatch.cost is not None for dispatch in dispatches)
         if (self.record.cost is None) == priced:
@@ -391,6 +393,37 @@ def _require_an_unparsed_response_to_be_the_failure(
             f"model call {call.id} holds a complete response and no answer; a response is "
             "left unparsed only by the failure that ended the attempt there"
         )
+
+
+def _require_a_defect_reading_to_be_the_failure(call: ModelCall, failure: Failure | None) -> None:
+    """A dispatch read as a defect is its call's last, and the attempt failed by defect at
+    its send.
+
+    The other direction of the tie ``_require_failure_at_its_fault`` holds at a send. A
+    defect is never dispatched again and never retried, since either could hide it, so no
+    conforming harness records anything after one: an export that kept the reading while
+    its attempt completed, or failed elsewhere by infrastructure and so stayed open to a
+    new attempt, would have hidden it all the same. A defect found while parsing or
+    recording a response that arrived is no reading of a dispatch and is not held here.
+
+    This says where the reading sits in what was recorded. That no new work was authorized
+    once the defect was recorded is the harness's to enforce, and so is the cost of an
+    attempt whose export this refuses, which is then unknown and never nought.
+    """
+    for dispatch in call.dispatches:
+        if dispatch.attribution.kind is not AttributionKind.DEFECT:
+            continue
+        ended_here = (
+            failure is not None
+            and failure.category is FailureCategory.DEFECT
+            and failure.site == DispatchSite(call.id, dispatch.number, DispatchPhase.SEND)
+        )
+        if dispatch.number != call.dispatches[-1].number or not ended_here:
+            raise ValueError(
+                f"dispatch {dispatch.number} of model call {call.id} is read as a defect; "
+                "such a dispatch is its call's last, and the attempt failed by defect at "
+                "its send"
+            )
 
 
 def _require_failure_at_its_fault(failure: Failure, trace: RunTrace) -> None:
