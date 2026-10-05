@@ -7,6 +7,95 @@ decisions it feeds.
 
 ---
 
+## 2026-10-05 — Three comparisons in one day held two different things equal or two equal things different, and none was found by reading the code
+
+*M2, the contract step's fourth build group: the preregistration at format 2 (cells with a
+corpus level, three statuses, one primary comparison) and the analysis that reads it.
+Feeds: the M2 report's methodology section, on what a review and a forecast are each good
+for; and the evaluation section, on why an interval at this sample size is stated with
+its reason when it does not resolve.*
+
+**[Evaluator and registration code only. No model system was measured, and every number
+below is from the test suite's throwaway world or from hand-built cases. What would
+revise it: nothing in the three faults themselves, which are fixed and held by tests; the
+claim that the habit generalises rests on three instances from one day.]**
+
+The group changed the committed registration from one format to another and rebuilt the
+analysis around it. Three times that day a line of code compared two values, the
+comparison was wrong, and the suite was green. Each was caught from outside the code that
+held it.
+
+The first was in the bootstrap. A ruling says an interval the bootstrap cannot resolve is
+printed as unresolved with its reason, and one reason is that every resample gave the
+same value. The check compared floats. The external read of that commit built ten
+scenarios of ten repeats, one system passing one more repeat than the other in each, and
+got an interval from 0.09999999999999987 to 0.10000000000000014 where every resample is
+one tenth: a positive interval that excludes zero, made of rounding (reproduced to the
+digit on commit `fc423c7`). A tolerance was declined, since no value for one could be
+defended. The arithmetic now stays in whole numbers until one division, so one
+mathematical value is one float (`f296345`). The fix then failed an older test of the
+project's own, which had asserted a "narrow paired interval" for a loss that is the same
+in every resample by construction. That test had been passing on the same noise.
+
+The second was found by accident. An arm of the analysis gained a corpus level, and its
+name gained the level with it. The name is an input to the seed each interval's bootstrap
+is derived from, so every seed in the suite changed at once. One assertion failed: a
+paired comparison inside one tier, nine scenarios, three of them differing between the
+two systems, asserted to have an interval strictly above zero. A resample of nine drawn
+with replacement holds none of the three in (6/9)^9 of draws, which is 2.6 percent, and
+the lower end of a 95 percent percentile interval sits at the 2.5th percentile. So
+whether the lower end is exactly zero or just above it is decided by the seed. The
+assertion had been true of one seed and was written as if it were true of the method
+(`tests/unit/test_evaluator_tables.py`, changed in `9c63335`). It now asserts not below
+zero, with the arithmetic beside it. Nobody found this by reading the test. The seed
+change was a side effect of an unrelated rename, and without it the assertion would still
+be there.
+
+The third is the one that matters for the measurement. A registration is frozen before
+the world it is measured on exists, and bound to the world afterwards, and binding is
+allowed to change three values and nothing else. The evaluator checks that by comparing
+the bound file's procedure with the frozen one's. The first build compared the two as
+decoded Python values. Python holds `True` equal to `1`. The external read of the switch
+commit changed one role's setting in a frozen file from `stream: true` to `stream: 1`,
+bound it, and the binding was accepted while the two procedure digests differed
+(reproduced on `9c63335`). The check now compares the canonical bytes, section by section
+(`d06a665`). What makes this one worth recording is that the project already had the
+lesson. The type that holds a run's model settings refuses to let a boolean equal a
+number, on a ruling made days earlier for exactly this reason, and has a test for it. The
+rule lived inside that type. One layer up, where two encoded registrations were compared
+as dictionaries, nothing carried it, and the session that wrote the comparison had
+written forecasts for everything else in the commit.
+
+Those forecasts are the other half of the story. Before any code ran the session wrote
+down what the switch should produce: twenty-four cells in the committed draft, twenty
+with no group and four in one; the rules-only baseline unchanged against the previous
+commit; and the count of key paths in the evaluation artifact. The first was met. The
+second was met in a form stronger than asked: 150 of 150 baseline exports at the base
+level were identical in bytes to the previous commit's, and 30 of 30 runs at the padded
+level had the same claims and grades (a capture script run once before and once after,
+kept in the working notes as `baseline_capture.py`). The third was forecast as 614 paths
+and came out at 613. The difference was a miscount in the forecast's own arithmetic, one
+section written as fifteen paths that has fourteen, and every path the forecast listed
+was reached. So the forecasts did their job on shape: they would have caught a table that
+silently lost a section or a baseline that drifted. They caught nothing in the binding
+check, because nobody forecast what an adversarial input does to an equality.
+
+The same external read also refused a reading the session had made of a ruling. Incidents,
+the scenarios on which some run met a source that contradicted itself, are to be read
+from every evaluated export. The session had read them from the exports that enter the
+tables, flagged that as its own reading, and built it. The reviewer took one export with
+two conflicting reads, changed only its variant so that it left the tables for its
+settings, and the incident disappeared from the report while the inventory still showed
+the contradiction (reproduced on `9c63335`, fixed in `d06a665`). An export that is out of
+the tables for a bookkeeping reason was still a run against the same world, and a
+contradiction it met touches every cell that rests on that scenario.
+
+What the day suggests, on three instances: a forecast written before the run checks that
+the thing built has the shape intended, and it is cheap. It does not check a comparison,
+because a comparison is wrong only on inputs chosen to make its two sides differ in the
+respect it ignores. Those inputs came from a reviewer building them on purpose twice and
+from a seed moving by accident once.
+
 ## 2026-10-04 — A model's misreading would have crashed the harness through the fact base, and both reviews of the fix found a further hole in it
 
 *M2, the contract step's first build group: the types in `core` for facts a model states
