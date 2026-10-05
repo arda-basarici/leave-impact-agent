@@ -9,7 +9,9 @@ function that computes it from a run's reads, the condition those reads show, th
 structured projection of those reads that both the grader and the graded build on, the
 frozen prefetch every system opens with as data with its planner and its digest, the
 preregistration the harness and the evaluator both read, as plain data with its strict
-codec, the derivation that turns an observed record into facts and gaps, and the
+codec and the procedure a bound registration shares with the frozen one it names, the
+attribution table that reads what a model dispatch observed, the derivation that turns
+an observed record into facts and gaps, and the
 deterministic rules — closed-world evaluation per declared evidence domain, the
 system-of-record authority table that resolves conflicting observations, viability of
 a person for a need, constraint checks, and the reading pass that asks grounding and
@@ -35,6 +37,7 @@ the import law enforces read-only on that path and a re-export here would launde
 from leaveimpact.core import (
     admission,
     anchors,
+    attribution,
     authority,
     binding,
     call_settings,
@@ -105,6 +108,18 @@ from leaveimpact.core.anchors import (
     quote_anchors,
     record_forms,
     word_pattern,
+)
+from leaveimpact.core.attribution import (
+    MATCHING_RULE,
+    UNRESOLVED_RULE,
+    AttributionRow,
+    AttributionTable,
+    Cause,
+    Match,
+    ObservationKind,
+    RedispatchPolicy,
+    attribute,
+    attribution_table_digest,
 )
 from leaveimpact.core.authority import (
     ConflictFinding,
@@ -620,6 +635,7 @@ from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext, local_
 __all__ = [
     "admission",
     "anchors",
+    "attribution",
     "authority",
     "binding",
     "call_settings",
@@ -1152,4 +1168,14 @@ __all__ = [
     "blocking",
     "procedure_digest",
     "procedure_projection",
+    "MATCHING_RULE",
+    "UNRESOLVED_RULE",
+    "AttributionRow",
+    "AttributionTable",
+    "Cause",
+    "Match",
+    "ObservationKind",
+    "RedispatchPolicy",
+    "attribute",
+    "attribution_table_digest",
 ]
