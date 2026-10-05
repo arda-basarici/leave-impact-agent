@@ -2603,3 +2603,111 @@ run at the same moment would take the same segment number; one writer per run is
 The permission denial of the provider half is still not tested and waits for a restricted
 principal. A pass accepts the pinned versions and the recorded configuration, and a change
 to `langgraph` or the saver reruns the scripted half.
+
+## lock-race — a generation guard read without a lock lets a displaced worker append after its takeover; under a row lock it cannot (2026-10-05)
+
+The event log's store lets a worker append only while it still owns its attempt, and
+ownership is a generation on the attempt's row that a takeover increments. The first
+design of the append was one statement that inserts only where the generation still
+matches. The probe is `probes/lock-race/probe.py`, its capture
+`captures/lock-race/2026-10-05.txt`, its forecast in `probes/README.md`, written before the
+run. Two connections against PostgreSQL 16.15 at the default isolation, read committed;
+each sequence is driven to one interleaving, the blocked side shown waiting by the server's
+own activity view before the other side moves.
+
+| sequence | the worker read | appended | the log, in insertion order | forecast |
+|---|---|---|---|---|
+| plain, read then insert | generation 1, before the takeover | yes | g1 start, g2 start, **g1 result** | met |
+| plain, one guarded statement held mid-execution | the guard, on the statement's snapshot | yes | g1 start, g2 start, **g1 result** | met |
+| locked, worker first | generation 1, the takeover waiting on the row | yes | g1 start, g1 result, g2 start | met |
+| locked, takeover first | generation 2, after waiting on the takeover's lock | no | g1 start, g2 start | met |
+
+- **The plain guard fails in both forms.** A statement under read committed sees the
+  snapshot taken when it began, so a guard inside the inserting statement passes on a
+  generation a committed takeover has already replaced. One statement is no protection;
+  the number of statements was never the point.
+- **The row lock gives the two legal orders and no third.** Whichever side locks the row
+  first commits first. A worker whose locking read waited on a takeover is handed the
+  committed row, reads the new generation and appends nothing. This last sequence is the
+  one the store's append rests on, and until this run it was reasoned and not observed.
+- **Consequence.** Every authoritative change reads the attempt's row `FOR UPDATE`, checks
+  the generation, appends and commits in one transaction. The store's docstring cites this
+  entry.
+- **Limits.** One server version and one isolation level; under repeatable read the
+  waiting reader would fail with a serialization error and not read the new row, which was
+  not run. Four interleavings chosen by hand, not a search. The takeover here also locks
+  the row; a takeover that updated without a locking read was not tried in the locked
+  forms. Nothing here covers a closed attempt, an idempotent re-append or an outside
+  producer; those are the store's own two-connection tests.
+
+## input-bound — a request's bytes bound its input tokens and cost a factor of 2.5 to 6; the provider's count runs 16 to 49 tokens above inference, on one of the four identifiers tried (2026-10-05)
+
+The ledger authorizes a model call on a bound of its input tokens, established before the
+request is sent. Two ways of getting one were measured, with forecasts in
+`probes/README.md` written before either ran. Neither result proves a bound: a probe can
+only fail to break one. The requests are the acceptance spike's captured sends (record
+SHA-256 `414de0c8…bd6b6483`), held outside the tree; the scripts regenerate every number
+for whoever holds them.
+
+**Bytes** (`probes/input-bound/bytes_against_input.py`, offline; capture
+`captures/input-bound/bytes-2026-10-05.txt`). Over the 92 sends that reported usage, the
+body's bytes against the reported total input (input, cache read and cache write summed):
+
+| family | sends | bytes | reported input | bytes a token, min | median | max | bytes under input |
+|---|---|---|---|---|---|---|---|
+| Haiku 4.5 | 49 | 161 to 36,651 | 14 to 8,925 | 2.51 | 2.53 | 11.50 | 0 |
+| Nova Pro | 43 | 161 to 36,650 | 7 to 7,429 | 3.08 | 3.10 | 23.00 | 0 |
+
+- **Forecast.** "Never under" held on all 92. "Between 2 and 6" held at the low end and
+  missed at the high one: the smallest request, 161 bytes, is mostly JSON envelope and
+  reports 14 and 7 tokens.
+- **The floor is the tool-definition request**, about 5,200 bytes for about 2,050 tokens on
+  Haiku. Streamed and whole sends of one body report the same input.
+- **Prose is dearer.** The large request built for the counting probe is 523,368 bytes and
+  reported 87,231 tokens, 6.0 bytes a token.
+- **By hand, on the corpus-shape probe's recorded numbers and not by a script here:** the
+  full-context request at the padded corpus level held 530,154 characters of filler for a
+  reported 107,858 tokens. Its body is over 530,154 bytes, so a bound of one token a byte
+  exceeds a 400,000-token cap and refuses the one system that needs the room.
+- **The other offline candidate, the previous call's input plus what was appended, has one
+  observation** in the captures (input grew by 297 tokens for 1,110 appended bytes). It is
+  not measured.
+
+**The counting call** (`probes/input-bound/count_tokens.py`, live, `eu-central-1`, one
+execution `20261005T205623Z-ce7073` from a workstation under an administrative principal;
+capture `captures/input-bound/count-tokens-2026-10-05.txt`, record SHA-256
+`301d00f1…c2a30e9f`). Each distinct captured body was put to `CountTokens` under the
+family's `eu.` inference profile and under its base model id; 23 counting calls and one
+inference send in all.
+
+| identifier | answer |
+|---|---|
+| `eu.anthropic.claude-haiku-4-5-20251001-v1:0` | refused: "The provided model doesn't support counting tokens." |
+| `anthropic.claude-haiku-4-5-20251001-v1:0` | served, 17 requests counted |
+| `eu.amazon.nova-pro-v1:0` | refused, the same message |
+| `amazon.nova-pro-v1:0` | refused, the same message |
+
+| requests (Haiku 4.5, base id) | count minus reported input |
+|---|---|
+| 1, no system prompt and no tools (161 bytes) | +16 |
+| 12 captured, one user message, with or without tools | +17 |
+| 3 captured, holding a tool call and its result | +49 |
+| 1 large, 523,368 bytes: counted 87,248, reported 87,231 | +17 |
+
+- **Forecast (a guess, marked so).** Met for Haiku: served under one of the two
+  identifiers, the count a little above the reported input. Nova Pro is not served under
+  either.
+- **The count was never below what inference reported**, on 17 requests from 14 to 87,231
+  tokens. It is not equal to it either: the difference is a small constant that depends on
+  the request's shape, larger where the messages hold a tool exchange.
+- **The identifier that counts is not the one that infers.** The harness addresses the
+  `eu.` profile; the count is served only for the base model id behind it. A count is
+  therefore evidence about another identifier's tokenization, which held on these 17.
+- **Consequence.** The input-bound method is ruled on this entry. A model family with no
+  counting call needs another method or is not run where bytes refuse it.
+- **Limits.** Each request was counted once, so the count's stability across calls is not
+  measured. No request hit a cache, carried an image or a document block, or enabled
+  reasoning. Three requests with a tool exchange are all that stand behind the +49. That
+  the counting call is not billed was not checked and is read from the bill. The principal
+  was administrative: whether the deployed role may call `CountTokens` on the base model's
+  resource is not known. One region, the locked `botocore` 1.43.93.

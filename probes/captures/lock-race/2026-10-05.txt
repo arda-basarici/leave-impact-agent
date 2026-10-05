@@ -1,0 +1,26 @@
+PostgreSQL 16.15, default isolation read committed
+
+plain, read then insert
+  the worker read      generation 1, no lock, before the takeover
+  the worker appended  yes
+  the log, in order    g1 segment_started, g2 segment_started, g1 tool_result
+  old generation after the takeover: yes (forecast yes, met)
+
+plain, one guarded statement
+  the worker read      the guard, inside a statement that began before the takeover
+  the worker appended  yes
+  the log, in order    g1 segment_started, g2 segment_started, g1 tool_result
+  old generation after the takeover: yes (forecast yes, met)
+
+locked, worker first
+  the worker read      generation 1, row locked, the takeover waiting
+  the worker appended  yes
+  the log, in order    g1 segment_started, g1 tool_result, g2 segment_started
+  old generation after the takeover: no (forecast no, met)
+
+locked, takeover first
+  the worker read      generation 2, after waiting on the takeover's lock
+  the worker appended  no
+  the log, in order    g1 segment_started, g2 segment_started
+  old generation after the takeover: no (forecast no, met)
+

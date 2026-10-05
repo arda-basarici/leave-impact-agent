@@ -1,0 +1,41 @@
+execution 20261005T205623Z-ce7073, region eu-central-1
+
+family  bytes  reported input   count by profile   count by base id   body
+haiku     161              14   ValidationException                 30   9d8175c6cb96
+haiku    5152            2049          not asked               2066   479352752962
+haiku    5171            2052          not asked               2069   c637bbc36eac
+haiku    5208            2061          not asked               2078   8096b03f2617
+haiku    5225            2065          not asked               2082   6a1c798f279b
+haiku    5227            2079          not asked               2096   138216c738b7
+haiku    5229            2070          not asked               2087   118239250aa4
+haiku    5273            1987          not asked               2004   fbbf529db949
+haiku    5777            2109          not asked               2158   061b150b52eb
+haiku    5777            2109          not asked               2158   1d91fa8dfd86
+haiku   29790            8628          not asked               8645   b67600f4e62b
+haiku   30939            8925          not asked               8974   527ad2abba3f
+haiku   36614            7285          not asked               7302   3cd51e13f12e
+haiku   36614            7283          not asked               7300   bfa007977b29
+haiku   36651            7285          not asked               7302   bc370471ebb9
+haiku   36651            7283          not asked               7300   f5147d2c9082
+nova      161               7   ValidationException   ValidationException   9d8175c6cb96
+nova     5152            1672          not asked          not asked   479352752962
+nova     5171            1672          not asked          not asked   c637bbc36eac
+nova     5208            1679          not asked          not asked   8096b03f2617
+nova     5225            1684          not asked          not asked   6a1c798f279b
+nova     5229            1688          not asked          not asked   118239250aa4
+nova     5273            1702          not asked          not asked   fbbf529db949
+nova     5777            1799          not asked          not asked   3d1781bda9b9
+nova     5777            1799          not asked          not asked   ff36fe967499
+nova    36613            7427          not asked          not asked   d51658cea249
+nova    36613            7429          not asked          not asked   e4d4414142c2
+nova    36650            7429          not asked          not asked   07465fefa44b
+nova    36650            7427          not asked          not asked   9222ad81b2e7
+
+the large request: about 523368 bytes as JSON, digest b3f816f8aa2d
+  count  eu.anthropic.claude-haiku-4-5-20251001-v1:0    ValidationException
+  count  anthropic.claude-haiku-4-5-20251001-v1:0       87248
+  count  eu.amazon.nova-pro-v1:0                        ValidationException
+  count  amazon.nova-pro-v1:0                           ValidationException
+  send   eu.anthropic.claude-haiku-4-5-20251001-v1:0    total input 87231, raw usage {"cacheReadInputTokens": 0, "cacheWriteInputTokens": 0, "inputTokens": 87231, "outputTokens": 4, "totalTokens": 87235}
+
+23 counting calls; the record is 20261005T205623Z-ce7073.jsonl

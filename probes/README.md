@@ -106,3 +106,27 @@ maintain; a private attribute, a patched internal or a fork is a fault at its le
 counted, a request-size ceiling and an output limit at the send hook, and a cumulative
 stop at 1,000 sends across executions unless deliberately overridden. Every send's raw
 usage is recorded; an unresolved outcome stays unknown and is never counted as zero.
+
+## The event log step's three probes (written 2026-10-05, before any of them runs)
+
+The event log's store appends under a lock, and its ledger authorizes a model call only on
+a bound of that call's input tokens. Both shapes rest on a mechanism nobody here had
+watched: what PostgreSQL does to a guarded insert that overlaps a takeover, and what can
+be said about a request's token count before it is sent. A probe can falsify a bound and
+measure what it costs; it cannot prove one. None of the three is a pass or a fail of the
+project, each decides a shape, and the forecast written here is what the result is read
+against.
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **input-bound, bytes** (`input-bound/bytes_against_input.py`, offline) — over the acceptance spike's captured sends that reported usage: the request body's bytes against the reported total input (input, cache read and cache write summed), by family and by streamed or whole | whether a request's byte length is a usable upper bound of its input tokens | bytes are never under the reported input; the ratio lies between 2 and 6 bytes a token. The first send's ratio (5,152 bytes, 2,049 tokens) was seen before this was written | the captured requests are small (161 to 36,651 bytes) and mostly tool definitions and JSON records; nothing here says how prose at a hundred thousand tokens behaves |
+| **lock-race** (`lock-race/probe.py`, local PostgreSQL, two connections, barriers on the server's own lock table and no sleeps) — a worker's append guarded by the attempt's generation, against a takeover that increments it | whether a guard read without a lock keeps a displaced worker out, and whether a row lock does | plain, read then insert: the displaced worker's event commits after the takeover. Plain, one guarded statement held mid-execution: the same, the guard having read the statement's snapshot. Locked, worker first: the takeover waits and the append stands before it. Locked, takeover first: the worker's locking read waits, wakes on the committed row, reads the new generation and appends nothing | the default isolation level (read committed) on PostgreSQL 16; the last row is the one the store relies on and was reasoned, never observed |
+| **input-bound, the counting call** (`input-bound/count_tokens.py`, live, from a workstation under an administrative principal) — captured request bodies replayed through the provider's `CountTokens` on the `eu.` Haiku 4.5 and Nova Pro profiles and on their base model ids, each count beside the input the same bytes reported at inference; one request near a hundred thousand tokens counted and then sent once to Haiku 4.5 | whether the call exists for the models and profiles the harness uses, and whether its count bounds what inference reports | a guess, marked as one: Haiku 4.5 answers under at least one of the two identifiers with a count equal to the reported input or a little above; Nova Pro may not be served at all | the captured requests carry tools and a forced choice, and the counting call takes no inference configuration; a request that hit a cache at inference is compared on its summed input |
+
+The byte probe also answers one question by arithmetic, done by hand on the corpus-shape
+probe's recorded numbers and not by any script here: the full-context request at the
+padded corpus level held 530,154 characters of filler text for a reported input of
+107,858 tokens, so its body is longer than 530,154 bytes, and a bound of one token a byte
+puts it above a 400,000-token cap. The counting probe cannot show that the call is free;
+that is read from the bill afterwards or stays a cited claim. It runs under an
+administrative principal, so it says nothing of the deployed role's grant.
