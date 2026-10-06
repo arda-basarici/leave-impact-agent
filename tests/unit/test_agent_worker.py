@@ -47,6 +47,7 @@ from leaveimpact.agent.log_events import (
     Failed,
     FrozenInputs,
     LoggedEvent,
+    ModelReadKey,
     OperationEvent,
     Producer,
     WorkerStamp,
@@ -251,12 +252,22 @@ def test_an_intent_is_committed_before_its_send_and_names_the_bound_the_count_ga
         assert count.outcome is not None and count.outcome.position < logged.position
 
 
-def recovers_from_prefix(world: SealedWorld, cut: int, *, outage: str | None = None) -> None:
+def recovers_from_prefix(
+    world: SealedWorld,
+    cut: int,
+    *,
+    outage: str | None = None,
+    after: int = 0,
+    after_recovering: int | None = None,
+) -> tuple[LoggedEvent, ...]:
     """The recovery invariant from the prefix of ``cut`` events of the reference run, the
-    people system's ``outage`` method unreachable in both runs when given."""
+    people system's ``outage`` method unreachable from its ``after``-th call in the reference
+    and from its ``after_recovering``-th in the recovery (the same by default; zero when the
+    recovery replays the calls before the outage from the log and makes none itself); the
+    reference log, for a test that places its cut."""
     reference = bench(world)
     if outage is not None:
-        reference.ports = support.with_unreachable(reference.ports, outage)
+        reference.ports = support.with_unreachable(reference.ports, outage, after=after)
     reference.work()
     whole = reference.events()
     if cut >= len(whole):
@@ -264,7 +275,8 @@ def recovers_from_prefix(world: SealedWorld, cut: int, *, outage: str | None = N
     prefix = whole[:cut]
     recovering = bench(world, events=prefix)
     if outage is not None:
-        recovering.ports = support.with_unreachable(recovering.ports, outage)
+        later = after if after_recovering is None else after_recovering
+        recovering.ports = support.with_unreachable(recovering.ports, outage, after=later)
     ending = recovering.work()
     assert ending.kind is WorkerEndingKind.CLOSED and ending.generation == 2
     recovered = recovering.events()
@@ -295,6 +307,7 @@ def recovers_from_prefix(world: SealedWorld, cut: int, *, outage: str | None = N
     assert [(o.key, o.resolution) for o in held] == [(o.key, o.resolution) for o in first], (
         "every read resolves as the uninterrupted run's, by key"
     )
+    return whole
 
 
 @pytest.mark.parametrize("cut", range(2, len(REFERENCE_KINDS) - 1))
@@ -313,6 +326,41 @@ def test_a_recovery_under_an_outage_replays_the_stops_in_the_logs_order(
     held results under the wrong ordinals; the stops now accumulate as the held results are
     replayed, so every read resolves as the first run's."""
     recovers_from_prefix(world, cut, outage="leaves_within")
+
+
+def model_read_cuts(world: SealedWorld, outage: str) -> list[int]:
+    """The cuts at or after the model's read of ``outage`` was logged unreachable, in a
+    reference run where that method fails from its second call (the prefetch's own call of
+    it is its first)."""
+    reference = bench(world)
+    reference.ports = support.with_unreachable(reference.ports, outage, after=1)
+    reference.work()
+    events = reference.events()
+    first_model_read = next(
+        i
+        for i, e in enumerate(events)
+        if isinstance(e.event, OperationEvent) and isinstance(e.event.key, ModelReadKey)
+    )
+    return list(range(first_model_read + 1, len(events) - 1))
+
+
+def test_a_later_model_read_outage_does_not_stop_the_prefetchs_replay(world: SealedWorld) -> None:
+    """The second read's first finding: the model's read of a people method is unreachable
+    after the prefetch read it fine; a recovery that seeded the stop from every outcome
+    outside the prefetch skipped the prefetch's calls and raised on the shifted ordinal.
+    Stops are seeded from the operations before the replayed phase only."""
+    for cut in model_read_cuts(world, "employees"):
+        recovers_from_prefix(world, cut, outage="employees", after=1, after_recovering=0)
+
+
+def test_a_held_unreachable_read_stops_the_rest_of_its_answer_on_recovery(
+    world: SealedWorld,
+) -> None:
+    """The second read's second finding: the answer's first read is unreachable and the
+    second must be skipped; a recovery that stepped over the held first read never learned
+    its stop and ran the second. Held reads go through the executor, which accumulates."""
+    for cut in model_read_cuts(world, "leave"):
+        recovers_from_prefix(world, cut, outage="leave", after=1, after_recovering=0)
 
 
 def test_a_recovery_waits_the_registered_delay_before_it_dispatches_again(

@@ -250,10 +250,11 @@ class LoggedExecutor(Executor):
     made is appended before the next begins (the ruling on tool calls, part 5).
 
     A stopped source is one a durable unreachable outcome marked, in the order the log
-    shows: the outcomes of the phase being replayed (``replaying`` says which keys) count
-    only as their held results are replayed, so a replay skips exactly the calls the first
-    run skipped and the ordinals it assigns are the first run's; outcomes outside that phase
-    are earlier and count from the start (the worker group's review, second finding). A
+    shows: the operations before the replayed phase's first held operation count from the
+    start, the phase's own count only as their held results are replayed, and operations
+    after the phase (a model's reads, during a prefetch replay) count not at all, so a
+    replay skips exactly the calls the first run skipped and the ordinals it assigns are the
+    first run's (the worker group's review, second finding, and its second read's first). A
     reused result is held to the tool and arguments the replay asks for; a difference is a
     fault of this harness.
     """
@@ -261,14 +262,18 @@ class LoggedExecutor(Executor):
     def __init__(self, harness: Harness, *, replaying: Callable[[OperationKey], bool]) -> None:
         super().__init__(harness.ports)
         self.appender = harness.appender
-        self.stopped = {
-            r.source
-            for o in operations_of(self.appender.state)
-            if isinstance(r := _operation(o).resolution, OperationResult)
-            and isinstance(r.outcome, UnreachableOutcome)
-            and r.source is not None
-            and not replaying(_operation(o).key)
-        }
+        self.stopped = set()
+        for logged in operations_of(self.appender.state):
+            operation = _operation(logged)
+            if replaying(operation.key):
+                break
+            resolution = operation.resolution
+            if (
+                isinstance(resolution, OperationResult)
+                and isinstance(resolution.outcome, UnreachableOutcome)
+                and resolution.source is not None
+            ):
+                self.stopped.add(resolution.source)
         # The ordinal counts this process's calls; a held read is reused by it, never skipped.
         self.prefetched = 0
 
@@ -636,14 +641,18 @@ def _resolve_reads(harness: Harness) -> None:
     origin = ModelOrigin(call_id(call.ordinal))
     for use in _read_calls(response):
         key = ModelReadKey(call.ordinal, use.id)
-        if _held_operation(appender.state, key) is not None:
+        held = _held_operation(appender.state, key)
+        if isinstance(held, OperationSkip):
             continue
-        specification = specification_named(use.name)
-        if specification is not None and specification.facts.source in executor.stopped:
-            appender.append(
-                OperationEvent(key, OperationSkip(UndispatchedReason.SOURCE_UNREACHABLE))
-            )
-            continue
+        if held is None:
+            specification = specification_named(use.name)
+            if specification is not None and specification.facts.source in executor.stopped:
+                appender.append(
+                    OperationEvent(key, OperationSkip(UndispatchedReason.SOURCE_UNREACHABLE))
+                )
+                continue
+        # A held result goes through the executor too: it is replayed, not made, and the
+        # stop it carries reaches the reads after it (the second read's second finding).
         arguments = cast("Mapping[str, object]", use.input)
         outcome = executor.resolve(key, origin, use.name, arguments)
         if isinstance(outcome, DefectOutcome):

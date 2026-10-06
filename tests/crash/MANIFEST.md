@@ -77,11 +77,12 @@ row; a kill point is named `<family>#<occurrence in its process>`.
 ## Kill points of the recovering process
 
 Every sixteenth crossing of the reference also gets one row per family the recovering child
-will cross, in which that child is killed at its first crossing of the family and a third
-child completes: its own claim, then each family of the reference from the killed write on
-(the counts, the dispatches, the reads it replays or makes, the finalization, the approval's
-request, the approval and its delivery, the resume, the completion). The load's read and the
-saver's seams are not repeated here.
+crosses, in which that child is killed at its first crossing of the family and a third child
+completes. The families are read off a scout of that recovery (the first kill, then an
+uninterrupted recovery child whose crossings are recorded), never off the reference's suffix:
+a lost outcome makes the recovery append an intent or a count start the suffix no longer
+holds (the second read's third finding). The load's read and the saver's seams are not
+repeated here; a recovery that finds the attempt closed crosses nothing and gets no row.
 
 | Family | Durable at the boundary | Forecast |
 |---|---|---|
@@ -114,3 +115,7 @@ saver's seams are not repeated here.
   twelfth crossing the matrix ran 338 rows in ten and a half minutes; at every sixteenth with
   six rows at a time, 282 rows in six minutes fifteen, every row passing. The job's time is
   six minutes, not the four the first forecast guessed from one reference script.
+- **2026-10-07, after the second read:** the recovery targets scouted from each sampled
+  kill's own recovery path ran 303 rows in nine minutes twenty-five, every row passing; the
+  21 rows beyond the suffix method's 282 are the families a lost outcome makes the recovery
+  add (a new intent, a new count start), which the reference's suffix could not name.

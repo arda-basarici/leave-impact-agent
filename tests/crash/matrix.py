@@ -317,33 +317,49 @@ def run_reference(prepared: Prepared) -> Reference:
         drop_schema(prepared.url, schema)
 
 
-def rows_for(reference: Reference) -> list[tuple[str, ...]]:
+def rows_for(prepared: Prepared, reference: Reference) -> list[tuple[str, ...]]:
     """One row per crossing, and for every ``RECOVERY_EVERY``-th crossing one recovery row per
-    family the recovering child will cross: its own claim, then the first occurrence of each
-    family the reference crosses from the killed write on, since the recovery redoes exactly
-    the steps the kill left undone and numbers its occurrences from one (the worker group's
-    review, sixth finding)."""
+    family the recovering child crosses, read off a scout of that recovery (the worker
+    group's review, sixth finding, and its second read's third: a lost outcome makes the
+    recovery append an intent or a count start the reference's suffix no longer holds, so
+    the targets come from the recovery's own path, never from the reference's)."""
     rows: list[tuple[str, ...]] = [(crossing,) for crossing in reference.crossings]
     for index, crossing in enumerate(reference.crossings):
         if index % RECOVERY_EVERY != RECOVERY_EVERY // 2:
             continue
-        rows.extend((crossing, target) for target in recovery_targets(reference, index))
+        rows.extend((crossing, target) for target in scout_recovery(prepared, crossing))
     return rows
 
 
-def recovery_targets(reference: Reference, killed: int) -> tuple[str, ...]:
-    """The recovering child's first crossing of each family it will make after a kill at
-    ``reference.crossings[killed]``: its claim's last boundary, then each distinct family of
-    the reference's crossings from the killed one on, at occurrence one. The load's read and
-    the saver's seams are left out, since a kill there is the first-process rows' already."""
-    families: list[str] = ["segment_started:before-commit"]
-    for crossing in reference.crossings[killed:]:
-        family = injector.family(crossing)
-        if family.split(":")[0] in ("load", "checkpoint", "writes", "segment_started"):
-            continue
-        if family not in families:
-            families.append(family)
-    return tuple(f"{family}#1" for family in families)
+def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
+    """The families a recovering child crosses after a kill at ``first``, at occurrence one:
+    the first child killed there, a second child left to run, its crossings read. The load's
+    read and the saver's seams are left out, since a kill there is the first-process rows'
+    already; a recovery that finds the attempt closed crosses nothing and gets no row."""
+    schema = new_schema(prepared.url)
+    record = prepared.directory / f"{schema}.jsonl"
+    try:
+        admitted(prepared, schema)
+        killed = start_child(prepared, schema, record, target=first, nonce="nonce-scout-0")
+        assert killed.code == injector.KILL_CODE and killed.last_crossing == first, (
+            first,
+            killed.code,
+            killed.last_crossing,
+            killed.stderr[-400:],
+        )
+        wait_sessions_ended(prepared.url, schema)
+        recovered = start_child(prepared, schema, record, target=None, nonce="nonce-scout-1")
+        assert recovered.code == 0, (first, recovered.stderr[-400:])
+        families: list[str] = []
+        for crossing in recovered.crossings:
+            family = injector.family(crossing)
+            if family.split(":")[0] in ("load", "checkpoint", "writes"):
+                continue
+            if family not in families:
+                families.append(family)
+        return tuple(f"{family}#1" for family in families)
+    finally:
+        drop_schema(prepared.url, schema)
 
 
 def run_row(
@@ -472,9 +488,7 @@ def reconcile(
             found.append(f"child {index} made {reads} port reads and logged {logged} operations")
     reads, logged = accounted[-1]
     if reads != logged:
-        found.append(
-            f"the completing child made {reads} port reads and logged {logged} operations"
-        )
+        found.append(f"the completing child made {reads} port reads and logged {logged} operations")
     if sum(r for r, _ in accounted) < reference.reads:
         found.append(
             f"{sum(r for r, _ in accounted)} port reads in all, fewer than the reference's "
@@ -531,7 +545,7 @@ def run_matrix(
     those whose first kill matches one of the patterns."""
     prepared = prepare(url, directory)
     reference = run_reference(prepared)
-    rows = rows_for(reference)
+    rows = rows_for(prepared, reference)
     if only:
         rows = [row for row in rows if any(re.search(pattern, row[0]) for pattern in only)]
 

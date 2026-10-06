@@ -203,28 +203,37 @@ def in_flight(events: Sequence[LoggedEvent]) -> list[tuple[object, ...]]:
 
 
 class UnreachableMethod:
-    """A port whose one method answers unreachable, every other call passing through: an
-    outage of one read in a source that otherwise answers."""
+    """A port whose one method answers unreachable from its ``after``-th call on in this
+    process, every other call passing through: an outage of one read in a source that
+    otherwise answers, placed after the prefetch's own call of it when ``after`` is one."""
 
-    def __init__(self, inner: object, method: str, source: Source) -> None:
+    def __init__(self, inner: object, method: str, source: Source, after: int = 0) -> None:
         self._inner = inner
         self._method = method
         self._source = source
+        self._after = after
+        self.calls = 0
 
     def __getattr__(self, name: str) -> Any:
         attribute = getattr(self._inner, name)
         if name != self._method:
             return attribute
 
-        def unreachable(*args: Any, **kwargs: Any) -> Any:
-            raise SourceUnreachable(self._source, "provoked by the test")
+        def guarded(*args: Any, **kwargs: Any) -> Any:
+            self.calls += 1
+            if self.calls > self._after:
+                raise SourceUnreachable(self._source, "provoked by the test")
+            return attribute(*args, **kwargs)
 
-        return unreachable
+        return guarded
 
 
-def with_unreachable(ports: ReadPorts, method: str) -> ReadPorts:
-    """``ports`` with the people system's ``method`` unreachable."""
-    return replace(ports, people=UnreachableMethod(ports.people, method, Source.FRAPPE))  # type: ignore[arg-type]
+def with_unreachable(ports: ReadPorts, method: str, *, after: int = 0) -> ReadPorts:
+    """``ports`` with the people system's ``method`` unreachable from its ``after``-th call."""
+    return replace(
+        ports,
+        people=UnreachableMethod(ports.people, method, Source.FRAPPE, after),  # type: ignore[arg-type]
+    )
 
 
 # --- The reference script --------------------------------------------------------------------
