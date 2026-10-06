@@ -37,7 +37,7 @@ rules, beside the schema's and the export's.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -784,6 +784,37 @@ def event_key(logged: LoggedEvent) -> EventKey:
             return (kind, ())
 
 
+def event_key_bytes(logged: LoggedEvent) -> bytes:
+    """The identifier of ``logged`` in one text form, for the store's unique index and its
+    receipt lookup: canonical JSON of the kind and the encoded structured key. Two logged
+    events have equal bytes here exactly when ``event_key`` gives them equal keys.
+
+    >>> from datetime import UTC
+    >>> stamp = WorkerStamp(1, 1, 0)
+    >>> started = SegmentStarted(HarnessRevision("a" * 40, TreeState.CLEAN), "nonce-1", "launch-1")
+    >>> at = datetime(2026, 1, 1, tzinfo=UTC)
+    >>> event_key_bytes(LoggedEvent(2, at, stamp, started))
+    b'{"kind":"segment_started","key":{"segment":1}}'
+    """
+    kind, _ = event_key(logged)
+    event = logged.event
+    key: JsonObject
+    match event:
+        case SegmentStarted() | SegmentEnded():
+            stamp = logged.stamp
+            assert stamp is not None
+            key = {"segment": stamp.segment}
+        case OperationEvent():
+            key = _encode_operation_key(event.key)
+        case CountStarted() | CountOutcomeLogged():
+            key = _encode_count_key(event.key)
+        case DispatchIntent() | DispatchOutcome():
+            key = {"call": event.call, "number": event.number}
+        case _:
+            key = {}
+    return canonical_bytes({"kind": kind.value, "key": key})
+
+
 def event_bytes(event: Event) -> bytes:
     """The versioned canonical content idempotence compares: the log format version, the
     kind and the content, in canonical JSON."""
@@ -799,6 +830,21 @@ def event_bytes(event: Event) -> bytes:
 def event_digest(event: Event) -> str:
     """SHA-256 of ``event_bytes``."""
     return hashlib.sha256(event_bytes(event)).hexdigest()
+
+
+def log_digest(events: Iterable[LoggedEvent]) -> str:
+    """SHA-256 of a log as stored: the log format version and every logged event, provenance
+    included, in position order, in canonical JSON. The publication record names the closed
+    log it read by this; the inventory names the prefix it read an open attempt at.
+
+    >>> len(log_digest(())), log_digest(()) == log_digest([])
+    (64, True)
+    """
+    data: JsonObject = {
+        "log_format": LOG_FORMAT_VERSION,
+        "events": [encode_logged_event(logged) for logged in events],
+    }
+    return hashlib.sha256(canonical_bytes(data)).hexdigest()
 
 
 # --- The codec -------------------------------------------------------------------------------
@@ -1498,7 +1544,9 @@ __all__ = [
     "event_bytes",
     "event_digest",
     "event_key",
+    "event_key_bytes",
     "is_worker_event",
     "kind_of",
+    "log_digest",
     "operation_id",
 ]

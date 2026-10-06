@@ -23,7 +23,9 @@ from leaveimpact.agent.log_events import (
     encode_logged_event,
     event_bytes,
     event_key,
+    event_key_bytes,
     kind_of,
+    log_digest,
     operation_id,
 )
 from leaveimpact.core import Approver, RegisteredInputBound
@@ -99,3 +101,38 @@ def test_content_tells_two_approvals_apart() -> None:
     other = Approved(Approver.HUMAN, cases.DIGEST)
     assert encode_event(one) != encode_event(other)
     assert event_bytes(one) != event_bytes(other)
+
+
+def test_key_bytes_are_equal_exactly_when_the_keys_are() -> None:
+    """The store's unique index rests on the text form agreeing with ``event_key`` over
+    every pair of logged events the histories hold, equal keys across histories included."""
+    keyed = [(event_key(logged), event_key_bytes(logged)) for logged in EVERY_HISTORY]
+    for key, text in keyed:
+        for other_key, other_text in keyed:
+            assert (key == other_key) == (text == other_text), (key, other_key)
+    for build in histories.HISTORIES.values():
+        events = build()
+        assert len({event_key_bytes(logged) for logged in events}) == len(events)
+
+
+def test_key_bytes_name_the_kind_and_the_structured_key_and_nothing_of_the_envelope() -> None:
+    intent = next(
+        logged for logged in EVERY_HISTORY if kind_of(logged.event) is EventKind.DISPATCH_INTENT
+    )
+    assert event_key_bytes(intent) == b'{"kind":"dispatch_intent","key":{"call":1,"number":1}}'
+    moved = LoggedEvent(intent.position + 3, intent.timestamp, intent.envelope, intent.event)
+    assert event_key_bytes(moved) == event_key_bytes(intent)
+    admitted = EVERY_HISTORY[0]
+    assert event_key_bytes(admitted) == b'{"kind":"admitted","key":{}}'
+
+
+def test_the_log_digest_covers_provenance_and_order() -> None:
+    events = histories.HISTORIES["a cut call"]()
+    digest = log_digest(events)
+    assert len(digest) == 64 and digest == log_digest(list(events))
+    assert log_digest(events[:-1]) != digest
+    first = events[0]
+    moved = first.timestamp.replace(microsecond=1)
+    later = LoggedEvent(first.position, moved, first.envelope, first.event)
+    assert log_digest((later, *events[1:])) != digest
+    assert log_digest((events[1], events[0], *events[2:])) != digest
