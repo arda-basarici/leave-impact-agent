@@ -48,6 +48,16 @@ test-integration:
 test-integration:
     DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@127.0.0.1:5432/leaveimpact" uv run pytest -q -m integration
 
+# The crash matrix alone (`just db-up` first): the worker killed at every crossing of the
+# reference run in child processes, minutes; `tests/crash/MANIFEST.md` holds the forecasts.
+[windows]
+test-crash:
+    $env:DATABASE_URL = "postgresql://leaveimpact:$env:POSTGRES_PASSWORD@127.0.0.1:5432/leaveimpact"; uv run pytest -q -m crash tests/crash
+
+[unix]
+test-crash:
+    DATABASE_URL="postgresql://leaveimpact:$POSTGRES_PASSWORD@127.0.0.1:5432/leaveimpact" uv run pytest -q -m crash tests/crash
+
 # Re-record the adapter cassettes against the real sandboxes (their sites and
 # credentials come from the user's environment; tests/recording.py names the
 # variables). The same integration tests, run under a record mode instead of replay;
