@@ -32,6 +32,7 @@ from leaveimpact.agent.log_events import (
 )
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import (
+    Appended,
     Received,
     Refused,
     Rules,
@@ -39,6 +40,7 @@ from leaveimpact.agent.log_transition import (
     next_state,
 )
 from leaveimpact.core import (
+    AbandonmentReason,
     ApprovalState,
     Approver,
     AttributionKind,
@@ -254,7 +256,11 @@ def test_a_dispatch_intent_after_a_dispatch_whose_row_allows_no_other_is_refused
     outcome = restamped(events[intent_at], position=intent_at + 2, offset_ms=700)
     again = restamped(events[intent_at], position=intent_at + 3, offset_ms=800)
     history = (*first, replace(outcome, event=timed_out), replace(again, event=h.intent(1, 2)))
-    assert refusal(history) == "call-1 stands failed_by_infrastructure"
+    # The call stood failed at its outcome, so the attempt is stopped there (the review's
+    # second finding): the refusal names the stop and not the standing.
+    assert refusal(history) == (
+        "a recorded infrastructure at call-1 dispatch 1 is the ending: no dispatch"
+    )
 
 
 def test_a_dispatch_beyond_the_maximum_is_refused() -> None:
@@ -350,11 +356,15 @@ def test_a_recorded_defect_is_the_ending_whatever_closes() -> None:
     )
     prefix = events[: defect_at + 1]
     state = fold(prefix, RULES)
-    assert state.defect is not None
+    assert state.stopped is not None
     late = restamped(events[defect_at], position=defect_at + 2, offset_ms=1_700)
     assert (
         refusal((*prefix, replace(late, event=h.intent(2, name="call-2"))))
-        == "no dispatch after a recorded defect"
+        == "a recorded defect at call-1/tu_1 is the ending: no dispatch"
+    )
+    assert (
+        refusal((*prefix, replace(late, event=FinalizationEntered())))
+        == "a recorded defect at call-1/tu_1 is the ending: no finalization"
     )
     reservation = cases.defect_finalized_by_operator().record.reservation
     assert reservation is not None
@@ -368,7 +378,7 @@ def test_a_recorded_defect_is_the_ending_whatever_closes() -> None:
     )
     assert (
         refusal((*prefix, replace(late, event=elsewhere)))
-        == "a recorded defect at call-1/tu_1 is the ending"
+        == "a recorded defect at call-1/tu_1 is the ending: a worker's closing failure names it"
     )
     assert (
         ending_of(fold(events, RULES)).failure
@@ -426,6 +436,181 @@ def test_an_abandonment_names_the_current_generation() -> None:
         refusal((*events[:-1], stale))
         == "the abandon command expects generation 0; the attempt is at 1"
     )
+
+
+# --- The review's four findings (2026-10-06) -------------------------------------------------
+
+
+def test_a_dispatchs_bound_is_the_number_its_count_returned() -> None:
+    """The review's first finding: a bound below the durable count was appended with its
+    smaller allocations. The method's bound is the count's number, with no margin."""
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    intent = h.intent(1)
+    small = replace(intent.bound, input_tokens=1)
+    from leaveimpact.core import worst_case_cost
+    from leaveimpact.core.input_bound import worst_case_tokens
+
+    lying = replace(
+        intent,
+        bound=small,
+        allocation_tokens=worst_case_tokens(small, cases.OUTPUT_MAXIMUM),
+        allocation_pico_usd=worst_case_cost(1, cases.OUTPUT_MAXIMUM, cases.SELECTION, cases.BASIS),
+    )
+    log.worker(lying, offset=600)
+    assert refusal(log.logged()).endswith("returned 4096; the bound claims 1")
+
+
+def test_an_unclassified_count_stops_the_log_and_an_abandonment_finalizes_it() -> None:
+    """The review's second finding, the carried case: an unclassified count ends the attempt
+    at once by infrastructure at the input bound and no rule permits a new attempt (ruling 5
+    part 14). The stop refuses further work; an abandonment closes the attempt as the
+    finalizer of that failure, which the export states and eligibility reads."""
+    from leaveimpact.core import CountLocalError, ReservationState
+    from leaveimpact.core.registration import RetryRule
+    from leaveimpact.evaluator.eligibility_check import check_eligibility
+
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    key = CountKey(cases.METHOD, cases.COUNTING_MODEL, cases.DIGEST, 1)
+    log.worker(CountStarted(key, cases.ROLE), offset=400)
+    log.worker(
+        h.CountOutcomeLogged(key, CountLocalError("builtins.KeyError"), h.CountResult.UNCLASSIFIED),
+        offset=500,
+    )
+    stopped = fold(log.logged(), RULES)
+    assert stopped.stopped is not None
+    assert stopped.stopped.category is FailureCategory.INFRASTRUCTURE
+    other = CountKey(cases.METHOD, cases.COUNTING_MODEL, cases.request_digest("call-2"), 1)
+    late = LoggedEvent(
+        5, log.events[-1].timestamp, WorkerStamp(1, 1, 600), CountStarted(other, cases.ROLE)
+    )
+    assert next_state(stopped, late, RULES) == Refused(
+        f"a recorded infrastructure at {h.count_id(key)} is the ending: no counting request"
+    )
+    log.outside(
+        "operator",
+        Abandoned(
+            1,
+            AbandonmentReason.CANCELLED,
+            h.LoggedSettlement(0, ReservationState.RECONCILED, None, 7),
+        ),
+    )
+    export = export_of(fold(log.logged(), RULES))
+    assert export.record.failure is not None
+    assert export.record.failure.category is FailureCategory.INFRASTRUCTURE
+    assert export.record.failure.site == h.InputBoundSite(h.count_id(key))
+    assert export.record.abandonment is not None
+    checked = check_eligibility(
+        export, RetryRule(FailureCategory.INFRASTRUCTURE, 3), None, cases.POLICY
+    )
+    assert checked is not None and checked.permitted is False
+
+
+def test_a_call_that_stood_failed_stops_the_log_at_its_send() -> None:
+    """The review's second finding: a non-redispatchable infrastructure failure ended the
+    call and the log still took a new logical call (group 3's second fork says the attempt
+    ends there)."""
+    from leaveimpact.core import ClientError, ClientErrorKind
+
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    log.worker(h.intent(1), offset=600)
+    log.worker(
+        h.outcome(
+            1,
+            1,
+            ClientError(ClientErrorKind.TIMEOUT, "read timed out"),
+            AttributionKind.INFRASTRUCTURE,
+            rule="gave_up",
+        ),
+        offset=700,
+    )
+    state = fold(log.logged(), RULES)
+    assert state.stopped is not None
+    assert state.stopped.site == DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.SEND)
+    late = LoggedEvent(
+        len(log.events) + 1,
+        log.events[-1].timestamp,
+        WorkerStamp(1, 1, 800),
+        h.count_start("call-2"),
+    )
+    assert next_state(state, late, RULES) == Refused(
+        "a recorded infrastructure at call-1 dispatch 1 is the ending: no counting request"
+    )
+    # The worker's closing failure names the stop, in its category.
+    settlement = h.LoggedSettlement(
+        cases.ALLOCATION, ReservationState.KEPT, KeptReason.USAGE_INCOMPLETE, 7
+    )
+    named = LoggedEvent(
+        len(log.events) + 1,
+        log.events[-1].timestamp,
+        WorkerStamp(1, 1, 800),
+        Failed(FailureCategory.INFRASTRUCTURE, state.stopped.site, "gave up", settlement),
+    )
+    assert isinstance(next_state(state, named, RULES), Appended)
+
+
+def test_an_unparsed_tool_call_does_not_block_a_later_read() -> None:
+    """The review's third finding: the barrier holds between calls that execute or are
+    skipped; an unparsed call runs nothing and leaves no event."""
+    from leaveimpact.core import AbsentOutcome
+
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    log.worker(h.intent(1), offset=600)
+    body = h.body(
+        "tool_use",
+        h.tool_use("bad", "work_item", "not an object"),
+        h.tool_use("good", "work_item", {"id": "ticket_042"}),
+    )
+    log.worker(h.outcome(1, 1, h.complete("tool_use"), response=body), offset=700)
+    log.worker(h.model_read(1, "good", AbsentOutcome()), offset=800)
+    state = fold(log.logged(), RULES)
+    assert state.open
+
+
+def test_a_claim_on_another_commit_needs_an_override_that_names_both_commits() -> None:
+    """The review's fourth finding, ruling 8 part 6: refused by default, recorded when
+    overridden, the override naming its authority and both commits."""
+    from leaveimpact.agent.log_events import (
+        CommitOverride,
+        decode_logged_event,
+        encode_logged_event,
+    )
+    from leaveimpact.core import HarnessRevision, TreeState
+
+    events = h.HISTORIES["a recovered attempt"]()
+    claim_at = next(
+        i for i, e in enumerate(events) if isinstance(e.event, SegmentStarted) and e.position > 2
+    )
+    other = HarnessRevision("c" * 40, TreeState.CLEAN)
+    moved = replace(events[claim_at], event=SegmentStarted(other, "nonce-2", "launch-1"))
+    assert refusal((*events[:claim_at], moved)).startswith(
+        "a claim on commit cccccccccccc needs an override"
+    )
+    wrong = CommitOverride("operator", "d" * 40, "c" * 40)
+    misnamed = replace(moved, event=SegmentStarted(other, "nonce-2", "launch-1", wrong))
+    assert refusal((*events[:claim_at], misnamed)).startswith("the override names dddddddddddd")
+    override = CommitOverride("operator", cases.COMMIT, "c" * 40)
+    allowed = replace(moved, event=SegmentStarted(other, "nonce-2", "launch-1", override))
+    state = fold((*events[:claim_at], allowed), RULES)
+    assert state.segments[-1].harness == other
+    assert decode_logged_event(encode_logged_event(allowed)) == allowed
+    with pytest.raises(ValueError, match="claiming commit is the segment's"):
+        SegmentStarted(
+            other, "nonce-2", "launch-1", CommitOverride("operator", cases.COMMIT, "e" * 40)
+        )
 
 
 # --- Status ----------------------------------------------------------------------------------
@@ -513,7 +698,7 @@ def test_history_four_unresolved_dispatches_with_retained_liability() -> None:
         len(log.events), log.events[-1].timestamp, WorkerStamp(3, 3, 300), h.intent(1, 3)
     )
     assert next_state(fold(before_the_failure, rules), third, rules) == Refused(
-        "call-1 stands failed_by_infrastructure"
+        "a recorded infrastructure at call-1 dispatch 2 is the ending: no dispatch"
     )
 
 

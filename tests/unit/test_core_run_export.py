@@ -615,8 +615,23 @@ def test_an_abandon_command_is_held_at_the_abandoned_site_or_beside_a_defect() -
     with pytest.raises(ValueError, match="holds the abandon command that closed it"):
         _record(status=TerminalStatus.FAILED, failure=abandoned)
     elsewhere = _record(status=TerminalStatus.FAILED, failure=at_prefetch, reservation=KEPT)
-    with pytest.raises(ValueError, match="finalized a recorded defect; the failure is by defect"):
+    with pytest.raises(ValueError, match="finalized a recorded stopping failure"):
         replace(elsewhere, abandonment=decision)
+    # An infrastructure failure at a dispatch's send or at the input bound is a stopping
+    # failure a command may finalize (the pure-log group's review); one at the prefetch is not.
+    at_send = Failure(
+        FailureCategory.INFRASTRUCTURE,
+        DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.SEND),
+        "gave up",
+    )
+    assert replace(elsewhere, failure=at_send, abandonment=decision).abandonment is decision
+    at_count = Failure(
+        FailureCategory.INFRASTRUCTURE, InputBoundSite(CountingOperationId("count-1")), "lost"
+    )
+    assert replace(elsewhere, failure=at_count, abandonment=decision).abandonment is decision
+    at_parse = replace(at_send, site=DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.PARSE))
+    with pytest.raises(ValueError, match="finalized a recorded stopping failure"):
+        replace(elsewhere, failure=at_parse, abandonment=decision)
     kept = replace(elsewhere, failure=abandoned, abandonment=decision)
     assert kept.abandonment is decision
     with pytest.raises(ValueError, match="an abandoned attempt failed by infrastructure"):

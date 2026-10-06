@@ -1,10 +1,14 @@
 """An attempt's ending and its status, each a pure function of the log's state.
 
 *The ending* is derived from a closed log by one function, whoever closed it (the event log
-step's ruling on recovery and endings, part 1). A recorded stopping defect is the ending,
-failed by defect at its site, an operator's close included: that close finalized a defect
-and abandoned nothing, and the command is kept beside the failure as who closed (format
-3's first fork). Otherwise the ending is the closing event's own: completed, reported at
+step's ruling on recovery and endings, part 1, read for every stopping failure at the
+pure-log group's review). A recorded stopping failure is the ending, at its site and in
+its category, an operator's close included: that close finalized it and abandoned nothing,
+and the command is kept beside the failure as who closed (format 3's first fork). The
+stopping failures are a malformed record and a dispatch read as a defect (defects), a call
+that stood failed by infrastructure, and a count group that was refused (a defect),
+exhausted or failed in an unclassified way. Otherwise the ending is the closing event's own:
+completed, reported at
 the cap, failed at the site the worker named, or abandoned, which is an infrastructure
 failure at the abandoned site holding the command. Who closed and why the attempt failed
 are two facts, both in the log, and the export states both.
@@ -63,10 +67,10 @@ def ending_of(state: AttemptState) -> Ending:
         producer = closed.envelope
         assert isinstance(producer, Producer)
         abandonment = Abandonment(producer.identity, closing.expected_generation, closing.reason)
-    defect = state.defect
-    if defect is not None:
-        reason = closing.reason if isinstance(closing, Failed) else defect.reason
-        failure = Failure(FailureCategory.DEFECT, defect.site, reason)
+    stopped = state.stopped
+    if stopped is not None:
+        reason = closing.reason if isinstance(closing, Failed) else stopped.reason
+        failure = Failure(stopped.category, stopped.site, reason)
         return Ending(TerminalStatus.FAILED, failure, abandonment)
     match closing:
         case Completed():

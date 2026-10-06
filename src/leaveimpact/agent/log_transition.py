@@ -26,11 +26,16 @@ What the function refuses, by the rulings it enforces:
   configuration's output maximum and the worst case the registered rules give, follows a
   dispatch only when the within-call decision permits another, and is authorized by the
   run's account; a count is started only when the group's decision is to count;
-- *the freeze and the defect* (recovery and endings, parts 1 to 3): after an approval was
-  requested no model intent, no count and no tool resolution is appended; after a stopping
-  defect is recorded (a malformed record, a dispatch read as a defect, a refused count)
-  nothing but segment bookkeeping and the closing event is, and the closing event names
-  that defect at its site;
+- *the freeze and the stop* (recovery and endings, parts 1 to 3; counting, part 14; group
+  3's second fork): after an approval was requested no model intent, no count and no tool
+  resolution is appended; after a stopping failure is recorded (a malformed record, a
+  dispatch read as a defect, a call that stands failed by infrastructure, a count group
+  refused, exhausted or failed in an unclassified way) nothing but segment bookkeeping, an
+  approval already requested and the closing event is, and a worker's closing failure
+  names that failure at its site in its category; a dispatch's bound is the number its
+  count returned;
+- *the commit* (recovery and endings, part 6): a claim on another commit than the first
+  segment's is refused unless it records an override naming its authority and both commits;
 - *the approval* (the event, part 8; the job seam, part 1): one request, one approval over
   the request's digest, one resume after it; a completion only after the resume;
 - *closure* (one writer, part 7): an abandonment names the current generation.
@@ -38,7 +43,7 @@ What the function refuses, by the rulings it enforces:
 The state is public, since the worker authorizes and recovers from it and the reader reads
 it: the frozen inputs, the events so far, the generation, the segments with their last
 offsets, the closing event, the approval's progress, the finalization position, the
-account's fold and the first stopping defect. The per-call and per-count views are
+account's fold and the first stopping failure. The per-call and per-count views are
 projections over the events (``calls_of``, ``counts_of``, ``operations_of``), computed
 where needed rather than kept, so no two fields can disagree.
 """
@@ -98,6 +103,7 @@ from leaveimpact.core.counting_operations import Counted, read_outcome
 from leaveimpact.core.input_bound import (
     CountDecision,
     CountResult,
+    RegisteredInputBound,
     count_decision,
     output_maximum,
     worst_case_tokens,
@@ -226,7 +232,7 @@ class AttemptState:
     approved: LoggedEvent | None = None
     resumed: LoggedEvent | None = None
     account: RunAccount = RunAccount()
-    defect: Failure | None = None
+    stopped: Failure | None = None
 
     @property
     def last_position(self) -> int:
@@ -374,7 +380,7 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
     stamp = logged.stamp
     if isinstance(event, SegmentStarted):
         assert stamp is not None
-        return _claim(state, logged, stamp, event)
+        return _claim(state, logged, stamp, event, rules)
     if stamp is not None:
         refusal = _stamp_refusal(state, stamp)
         if refusal is not None:
@@ -387,7 +393,7 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
         case CountStarted():
             return _count_start(state, logged, event, rules)
         case CountOutcomeLogged():
-            return _count_outcome_next(state, logged, event)
+            return _count_outcome_next(state, logged, event, rules)
         case DispatchIntent():
             return _intent_next(state, logged, event, rules)
         case DispatchOutcome():
@@ -397,14 +403,16 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
                 return Refused("the run entered finalization once")
             if state.frozen:
                 return Refused("no finalization after an approval was requested")
+            if state.stopped is not None:
+                return Refused(_stopped(state, "no finalization"))
             return Appended(
                 replace(_with_segment(state, logged), finalization_entered=logged.position)
             )
         case ApprovalRequested():
             if state.frozen:
                 return Refused("an approval is requested once")
-            if state.defect is not None:
-                return Refused("no approval request after a recorded defect")
+            if state.stopped is not None:
+                return Refused(_stopped(state, "no approval request"))
             return Appended(replace(_with_segment(state, logged), approval_requested=logged))
         case Approved():
             request = state.approval_requested
@@ -421,14 +429,14 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
                 return Refused("a worker resumes after an approval was given")
             if state.resumed is not None:
                 return Refused("a worker resumes once")
+            if state.stopped is not None:
+                return Refused(_stopped(state, "no resume"))
             return Appended(replace(_with_segment(state, logged), resumed=logged))
         case Completed() | CapExhausted():
             if state.resumed is None:
                 return Refused("a completion follows the resume from an approval")
-            if state.defect is not None:
-                return Refused(
-                    f"a recorded defect at {_site_name(state.defect.site)} is the ending"
-                )
+            if state.stopped is not None:
+                return Refused(_stopped(state, "no completion"))
             refusal = _settlement_refusal(inputs, event.settlement is not None)
             if refusal is not None:
                 return Refused(refusal)
@@ -485,7 +493,11 @@ def _admit(state: AttemptState, logged: LoggedEvent) -> Transition:
 
 
 def _claim(
-    state: AttemptState, logged: LoggedEvent, stamp: WorkerStamp, event: SegmentStarted
+    state: AttemptState,
+    logged: LoggedEvent,
+    stamp: WorkerStamp,
+    event: SegmentStarted,
+    rules: Rules,
 ) -> Transition:
     number = len(state.segments) + 1
     if stamp.segment != number or stamp.generation != number:
@@ -495,15 +507,28 @@ def _claim(
         )
     if stamp.offset_ms != 0:
         return Refused("a segment starts at offset 0")
+    if state.segments:
+        first = state.segments[0].harness.commit
+        override = event.override
+        if event.harness.commit != first and override is None:
+            return Refused(
+                f"a claim on commit {event.harness.commit[:12]} needs an override; the first "
+                f"segment ran {first[:12]}"
+            )
+        if override is not None and override.from_commit != first:
+            return Refused(
+                f"the override names {override.from_commit[:12]} as the first segment's commit, "
+                f"which is {first[:12]}"
+            )
     opened = SegmentState(number, event.harness, 0, False)
-    return Appended(
-        replace(
-            state,
-            events=(*state.events, logged),
-            generation=number,
-            segments=(*state.segments, opened),
-        )
+    after = replace(
+        state,
+        events=(*state.events, logged),
+        generation=number,
+        segments=(*state.segments, opened),
     )
+    stop = _dead_segment_stop(after, rules)
+    return Appended(after if stop is None else _stop(after, stop))
 
 
 def _stamp_refusal(state: AttemptState, stamp: WorkerStamp) -> str | None:
@@ -525,8 +550,8 @@ def _stamp_refusal(state: AttemptState, stamp: WorkerStamp) -> str | None:
 
 
 def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEvent) -> Transition:
-    if state.defect is not None:
-        return Refused("no tool resolution after a recorded defect")
+    if state.stopped is not None:
+        return Refused(_stopped(state, "no tool resolution"))
     if state.frozen:
         return Refused("no tool resolution after an approval was requested")
     key = event.key
@@ -554,11 +579,9 @@ def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEv
     after = _with_segment(state, logged)
     resolution = event.resolution
     if isinstance(resolution, OperationResult) and isinstance(resolution.outcome, DefectOutcome):
-        after = replace(
+        after = _stop(
             after,
-            defect=Failure(
-                FailureCategory.DEFECT, OperationSite(operation_id(key)), "a malformed record"
-            ),
+            Failure(FailureCategory.DEFECT, OperationSite(operation_id(key)), "a malformed record"),
         )
     return Appended(after)
 
@@ -576,7 +599,13 @@ def _model_read_refusal(
     assert response is not None
     if stop_reason_of(response) != TOOL_USE_STOP:
         return f"{call_id(key.call)} stopped for {stop_reason_of(response)!r}; no read is made"
-    uses = [use for use in tool_uses(response) if use.name != FACT_TOOL]
+    # The barrier holds between calls that execute or are skipped: a fact tool's call is
+    # handled by the harness and an unparsed call runs nothing, so neither is resolved.
+    uses = [
+        use
+        for use in tool_uses(response)
+        if use.name != FACT_TOOL and isinstance(use.input, Mapping)
+    ]
     asked = {use.id: use for use in uses}
     if key.tool_call not in asked:
         return f"{call_id(key.call)} made no tool call {key.tool_call!r}"
@@ -607,8 +636,8 @@ def _count_start(
 ) -> Transition:
     inputs = state.inputs
     assert inputs is not None
-    if state.defect is not None:
-        return Refused("no counting request after a recorded defect")
+    if state.stopped is not None:
+        return Refused(_stopped(state, "no counting request"))
     if state.frozen:
         return Refused("no counting request after an approval was requested")
     if rules.redispatch is None:
@@ -633,7 +662,7 @@ def _count_start(
 
 
 def _count_outcome_next(
-    state: AttemptState, logged: LoggedEvent, event: CountOutcomeLogged
+    state: AttemptState, logged: LoggedEvent, event: CountOutcomeLogged, rules: Rules
 ) -> Transition:
     held = next((count for count in counts_of(state) if count.key == event.key), None)
     if held is None:
@@ -648,19 +677,10 @@ def _count_outcome_next(
     if (event.reading is CountResult.COUNTED) != isinstance(event.outcome, Counted):
         return Refused("a counting operation is read as counted exactly when a count arrived")
     after = _with_segment(state, logged)
-    if (
-        read_outcome(event.key.method, event.outcome) is CountResult.REFUSED
-        and after.defect is None
-    ):
-        after = replace(
-            after,
-            defect=Failure(
-                FailureCategory.DEFECT,
-                InputBoundSite(count_id(event.key)),
-                "the counting request was refused as a misconfiguration",
-            ),
-        )
-    return Appended(after)
+    assert rules.redispatch is not None
+    group = count_group(after, event.key)
+    stop = _count_stop(group, rules.redispatch.max_dispatches)
+    return Appended(after if stop is None else _stop(after, stop))
 
 
 # --- Dispatches ------------------------------------------------------------------------------
@@ -671,8 +691,8 @@ def _intent_next(
 ) -> Transition:
     inputs = state.inputs
     assert inputs is not None
-    if state.defect is not None:
-        return Refused("no dispatch after a recorded defect")
+    if state.stopped is not None:
+        return Refused(_stopped(state, "no dispatch"))
     if state.frozen:
         return Refused("no dispatch after an approval was requested")
     if rules.table is None or rules.redispatch is None or inputs.reservation_pico_usd is None:
@@ -728,12 +748,20 @@ def _bound_refusal(state: AttemptState, event: DispatchIntent) -> str | None:
     for count in counts_of(state):
         if count_id(count.key) != bound.evidence:
             continue
-        if count.outcome is None or not isinstance(_count_outcome(count.outcome).outcome, Counted):
+        if count.outcome is None:
+            return f"the count {bound.evidence!r} did not count"
+        counted = _count_outcome(count.outcome).outcome
+        if not isinstance(counted, Counted):
             return f"the count {bound.evidence!r} did not count"
         if not bound.covers(
             count.key.method, count.key.counting_identifier, count.key.request_digest
         ):
             return f"the count {bound.evidence!r} covers another request, identifier or method"
+        if bound.input_tokens != counted.input_tokens:
+            return (
+                f"the count {bound.evidence!r} returned {counted.input_tokens}; the bound claims "
+                f"{bound.input_tokens}"
+            )
         return None
     return f"the bound rests on {bound.evidence!r}, which the log does not hold"
 
@@ -779,27 +807,19 @@ def _outcome_next(
         cost, tokens = None, None
     outcome = AccountOutcome(call_id(event.call), event.number, sent, cost, tokens)
     after = replace(_with_segment(state, logged), account=state.account.after(outcome))
-    if event.attribution.kind is AttributionKind.DEFECT:
-        after = replace(
-            after,
-            defect=Failure(
-                FailureCategory.DEFECT,
-                DispatchSite(call_id(event.call), event.number, DispatchPhase.SEND),
-                f"read as a defect under {event.attribution.rule}",
-            ),
-        )
-    return Appended(after)
+    held = call_of(after, event.call)
+    assert held is not None and rules.redispatch is not None
+    stop = _call_stop(held, rules.table, rules.redispatch)
+    return Appended(after if stop is None else _stop(after, stop))
 
 
 # --- Closure ---------------------------------------------------------------------------------
 
 
 def _failure_refusal(state: AttemptState, event: Failed) -> str | None:
-    defect = state.defect
-    if defect is not None and (
-        event.category is not FailureCategory.DEFECT or event.site != defect.site
-    ):
-        return f"a recorded defect at {_site_name(defect.site)} is the ending"
+    stopped = state.stopped
+    if stopped is not None and (event.category, event.site) != (stopped.category, stopped.site):
+        return _stopped(state, "a worker's closing failure names it")
     site = event.site
     match site:
         case OperationSite():
@@ -825,6 +845,100 @@ def _settlement_refusal(inputs: FrozenInputs, settled: bool) -> str | None:
 
 def _close(state: AttemptState, logged: LoggedEvent) -> AttemptState:
     return replace(state, closed=logged)
+
+
+# --- The stop --------------------------------------------------------------------------------
+
+
+def _stop(state: AttemptState, failure: Failure) -> AttemptState:
+    """``state`` with ``failure`` as its recorded stopping failure, unless one is held."""
+    return state if state.stopped is not None else replace(state, stopped=failure)
+
+
+def _stopped(state: AttemptState, what: str) -> str:
+    stopped = state.stopped
+    assert stopped is not None
+    return (
+        f"a recorded {stopped.category.value} at {_site_name(stopped.site)} is the ending: {what}"
+    )
+
+
+def _count_stop(group: tuple[CountEvents, ...], maximum: int) -> Failure | None:
+    """The stopping failure a count group holds, by its re-read readings: a refusal is a
+    defect, an unclassified failure or an exhausted maximum is infrastructure, each at the
+    group's last count."""
+    decision = count_decision([count.reading() for count in group], maximum)
+    site = InputBoundSite(count_id(group[-1].key))
+    match decision:
+        case CountDecision.DEFECT:
+            return Failure(
+                FailureCategory.DEFECT,
+                site,
+                "the counting request was refused as a misconfiguration",
+            )
+        case CountDecision.UNCLASSIFIED:
+            return Failure(
+                FailureCategory.INFRASTRUCTURE,
+                site,
+                "the counting request failed in a way the method does not classify",
+            )
+        case CountDecision.EXHAUSTED:
+            return Failure(
+                FailureCategory.INFRASTRUCTURE,
+                site,
+                "the counting requests were exhausted without a count",
+            )
+        case _:
+            return None
+
+
+def _call_stop(
+    call: CallEvents, table: AttributionTable | None, policy: RedispatchPolicy
+) -> Failure | None:
+    """The stopping failure a call holds: its standing failed by defect or by infrastructure,
+    at its last dispatch's send."""
+    assert table is not None
+    standing = decide_call(call.pairs(), table, policy)
+    site = DispatchSite(call_id(call.ordinal), call.last_number, DispatchPhase.SEND)
+    if standing.decision is CallDecision.FAILED_BY_DEFECT:
+        last = call.last_outcome
+        rule = _outcome(last).attribution.rule if last is not None else UNRESOLVED_RULE
+        return Failure(FailureCategory.DEFECT, site, f"read as a defect under {rule}")
+    if standing.decision is CallDecision.FAILED_BY_INFRASTRUCTURE:
+        return Failure(
+            FailureCategory.INFRASTRUCTURE,
+            site,
+            "the call failed by infrastructure and no further dispatch is permitted",
+        )
+    return None
+
+
+def _dead_segment_stop(state: AttemptState, rules: Rules) -> Failure | None:
+    """What a new claim finds stopped in the segments before it: a count started with no
+    outcome, or a dispatch intended with no outcome, each now final and counted against
+    its maximum, in position order."""
+    if rules.redispatch is None:
+        return None
+    found: list[tuple[int, Failure]] = []
+    for group in _groups(state):
+        last = group[-1]
+        if last.outcome is None:
+            stop = _count_stop(group, rules.redispatch.max_dispatches)
+            if stop is not None:
+                found.append((last.start.position, stop))
+    for call in calls_of(state):
+        if call.last_outcome is None:
+            stop = _call_stop(call, rules.table, rules.redispatch)
+            if stop is not None:
+                found.append((call.intents[-1].position, stop))
+    return min(found, key=lambda pair: pair[0])[1] if found else None
+
+
+def _groups(state: AttemptState) -> tuple[tuple[CountEvents, ...], ...]:
+    held: dict[tuple[RegisteredInputBound, str, str], list[CountEvents]] = {}
+    for count in counts_of(state):
+        held.setdefault(count.key.reuse, []).append(count)
+    return tuple(tuple(group) for group in held.values())
 
 
 # --- Bookkeeping -----------------------------------------------------------------------------

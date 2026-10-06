@@ -41,9 +41,12 @@ from leaveimpact.core.run_ending import (
     Abandonment,
     Approval,
     ApprovalState,
+    DispatchPhase,
+    DispatchSite,
     FailureSite,
     HarnessSite,
     HarnessSiteName,
+    InputBoundSite,
     Reservation,
 )
 from leaveimpact.core.run_timing import Timing, require_commit
@@ -399,10 +402,13 @@ class RunRecord:
     How the attempt ended is held together by these ties. ``failure`` is present exactly
     when the status is failed. ``abandonment`` is the abandon command that closed the
     attempt, when one did: a failure at the abandoned site always holds one and is by
-    infrastructure, and beside any other site an abandonment is held only for a failure by
-    defect, the command having finalized a recorded defect and abandoned nothing (the event
-    log step's ruling on recovery and endings). A failure at the ``unhandled`` site is a
-    defect. An attempt with no segment was never claimed: it failed at the abandoned site,
+    infrastructure, and beside any other site an abandonment is held only for a recorded
+    stopping failure, the command having finalized it and abandoned nothing (the event log
+    step's ruling on recovery and endings, read for every stopping failure at the pure-log
+    group's review): a defect at any site, or an infrastructure failure at a dispatch's
+    send (a call that stood failed) or at the input bound (a count group exhausted or
+    unclassified). A failure at the ``unhandled`` site is a defect. An attempt with no
+    segment was never claimed: it failed at the abandoned site,
     the command fenced generation 0, and no approval was requested. The approval follows
     the status and not the claims, one way: a completed or cap-exhausted attempt holds an
     approval of its frozen review payload, an abstention's empty one included. A failed
@@ -561,12 +567,11 @@ class RunRecord:
         if abandoned and failure is not None:
             if failure.category is not FailureCategory.INFRASTRUCTURE:
                 raise ValueError("an abandoned attempt failed by infrastructure")
-        elif self.abandonment is not None and (
-            failure is None or failure.category is not FailureCategory.DEFECT
-        ):
+        elif self.abandonment is not None and not _finalizable(failure):
             raise ValueError(
                 "an abandon command beside a failure at another site finalized a recorded "
-                "defect; the failure is by defect"
+                "stopping failure: a defect at any site, or an infrastructure failure at a "
+                "dispatch's send or at the input bound"
             )
         if (
             failure is not None
@@ -590,6 +595,19 @@ class RunRecord:
             )
         if self.approval.state is not ApprovalState.NOT_REQUESTED:
             raise ValueError("an attempt with no segment requested no approval")
+
+
+def _finalizable(failure: Failure | None) -> bool:
+    """Whether an abandon command may sit beside ``failure`` as its finalizer: a recorded
+    stopping failure that a worker's closing event would otherwise have named."""
+    if failure is None:
+        return False
+    if failure.category is FailureCategory.DEFECT:
+        return True
+    site = failure.site
+    if isinstance(site, InputBoundSite):
+        return True
+    return isinstance(site, DispatchSite) and site.phase is DispatchPhase.SEND
 
 
 def _role(item: tuple[str, object]) -> str:

@@ -420,17 +420,39 @@ class Admitted:
 
 
 @dataclass(frozen=True, slots=True)
+class CommitOverride:
+    """An operator's decision to claim on another commit than the first segment's: who
+    decided, and both commits (the ruling on recovery and endings, part 6). It waives no
+    finding, incident or exclusion."""
+
+    authority: str
+    from_commit: str
+    to_commit: str
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.authority, "the overriding authority")
+        require_commit(self.from_commit, "the first segment's commit")
+        require_commit(self.to_commit, "the claiming commit")
+        if self.from_commit == self.to_commit:
+            raise ValueError("an override names two different commits")
+
+
+@dataclass(frozen=True, slots=True)
 class SegmentStarted:
-    """A claim: the harness revision the segment runs, the claiming process's nonce, and the
-    launch identity of the execution that started it. The segment number is the stamp's."""
+    """A claim: the harness revision the segment runs, the claiming process's nonce, the
+    launch identity of the execution that started it, and the override when the revision's
+    commit is not the first segment's. The segment number is the stamp's."""
 
     harness: HarnessRevision
     nonce: str
     launch: str
+    override: CommitOverride | None = None
 
     def __post_init__(self) -> None:
         require_opaque_id(self.nonce, "a process nonce")
         require_opaque_id(self.launch, "a launch identity")
+        if self.override is not None and self.override.to_commit != self.harness.commit:
+            raise ValueError("an override's claiming commit is the segment's")
 
 
 @dataclass(frozen=True, slots=True)
@@ -839,10 +861,20 @@ def encode_event(event: Event) -> JsonObject:
         case Admitted():
             return {"inputs": _encode_inputs(event.inputs)}
         case SegmentStarted():
+            override = event.override
             return {
                 "harness": {"commit": event.harness.commit, "tree": event.harness.tree.value},
                 "nonce": event.nonce,
                 "launch": event.launch,
+                "override": (
+                    None
+                    if override is None
+                    else {
+                        "authority": override.authority,
+                        "from_commit": override.from_commit,
+                        "to_commit": override.to_commit,
+                    }
+                ),
             }
         case SegmentEnded() | FinalizationEntered() | Resumed():
             return {}
@@ -924,7 +956,7 @@ def decode_event(kind: str, data: Mapping[str, object]) -> Event:
             expect_fields(data, ("inputs",), "an admission")
             return Admitted(_decode_inputs(object_field(data, "inputs")))
         case EventKind.SEGMENT_STARTED:
-            expect_fields(data, ("harness", "nonce", "launch"), "a segment start")
+            expect_fields(data, ("harness", "nonce", "launch", "override"), "a segment start")
             harness = object_field(data, "harness")
             expect_fields(harness, ("commit", "tree"), "the harness")
             return SegmentStarted(
@@ -933,6 +965,7 @@ def decode_event(kind: str, data: Mapping[str, object]) -> Event:
                 ),
                 string_field(data, "nonce"),
                 string_field(data, "launch"),
+                _decode_override(field_of(data, "override")),
             )
         case EventKind.SEGMENT_ENDED:
             expect_fields(data, (), "a segment end")
@@ -1113,6 +1146,18 @@ def _decode_resolution(data: Mapping[str, object]) -> OperationResult | Operatio
             decode_outcome(object_field(data, "outcome")),
         )
     raise ValueError(f"a resolution is result or skip, got {kind!r}")
+
+
+def _decode_override(value: object) -> CommitOverride | None:
+    if value is None:
+        return None
+    data = as_object(value, "a commit override")
+    expect_fields(data, ("authority", "from_commit", "to_commit"), "a commit override")
+    return CommitOverride(
+        string_field(data, "authority"),
+        string_field(data, "from_commit"),
+        string_field(data, "to_commit"),
+    )
 
 
 def _encode_count_key(key: CountKey) -> JsonObject:
@@ -1415,6 +1460,7 @@ __all__ = [
     "Approved",
     "CapExhausted",
     "ClosingEvent",
+    "CommitOverride",
     "Completed",
     "CountKey",
     "CountOutcomeLogged",
