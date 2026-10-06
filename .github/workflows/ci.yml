@@ -135,7 +135,7 @@ jobs:
     # load-bearing — the instance only ever runs an image that passed CI, so a
     # red commit must never mint a `latest`.
     if: github.ref == 'refs/heads/main'
-    needs: check
+    needs: [check, crash-matrix]
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.stamp.outputs.sha }}

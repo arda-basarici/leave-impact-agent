@@ -76,12 +76,17 @@ row; a kill point is named `<family>#<occurrence in its process>`.
 
 ## Kill points of the recovering process
 
-Every twelfth crossing of the reference also gets two rows in which the recovering child is
-killed and a third child completes.
+Every sixteenth crossing of the reference also gets one row per family the recovering child
+will cross, in which that child is killed at its first crossing of the family and a third
+child completes: its own claim, then each family of the reference from the killed write on
+(the counts, the dispatches, the reads it replays or makes, the finalization, the approval's
+request, the approval and its delivery, the resume, the completion). The load's read and the
+saver's seams are not repeated here.
 
 | Family | Durable at the boundary | Forecast |
 |---|---|---|
 | `segment_started:before-commit#1` (of the recovery) | the first kill's state; no second claim | the third child's claim is generation 2; everything the first kill left in flight stays so |
+| any write's family `#1` (of the recovery) | the first kill's state, the recovery's claim, and the recovery's writes before this one | the third child claims generation 3 and finishes; the in-flight set is the union of what the two kills left, each counted or dispatched again under the next number; a read the recovery made and did not log is made once more |
 | `completed:decided#1` (of the recovery) | everything but the closing event; the attempt open at generation 2 | the third child claims generation 3, replays to the held approval and resume, closes once; the in-flight set is the first kill's |
 
 ## Findings against the forecasts
@@ -99,3 +104,13 @@ killed and a third child completes.
   read it again and the row counted one port read above the reference where the forecast
   allowed a repeat only for a kill inside the operation's own write. The invariant is now
   stated per process (above); the worker did what the ruling on tool calls, part 8, says.
+- **2026-10-07, the external review** (findings 2, 4 and 6): a run with an outage and a run
+  with a re-dispatch were outside the one reference script, which is why a 130-row matrix
+  passed over the replay's ordinal shift under an outage and the recovery's skipped delay;
+  both are held by unit tests now, and a second reference script with an infrastructure
+  stop is parked to the step's close. The recovery rows went from two fixed targets to one
+  per family the recovering child crosses.
+- **2026-10-07, measured after the review:** with one recovery row per family at every
+  twelfth crossing the matrix ran 338 rows in ten and a half minutes; at every sixteenth with
+  six rows at a time, 282 rows in six minutes fifteen, every row passing. The job's time is
+  six minutes, not the four the first forecast guessed from one reference script.

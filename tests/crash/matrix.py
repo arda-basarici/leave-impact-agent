@@ -77,11 +77,10 @@ LEDGER = "ledger-crash"
 PLENTY = 10**15
 CHILD_TIMEOUT_S = 240
 SESSIONS_DEADLINE_S = 30.0
-RECOVERY_KILLS = ("segment_started:before-commit#1", "completed:decided#1")
-"""Where a recovering child is killed in a recovery row: inside its own claim, and inside its
-closing event; both are crossings every recovery makes."""
-RECOVERY_EVERY = 12
-"""Every twelfth crossing of the reference gets the two recovery rows."""
+RECOVERY_EVERY = 16
+"""Every sixteenth crossing of the reference gets the recovery rows: seven sampled kills, each
+with one row per family the recovering child crosses, about 170 rows beside the 112; at
+twelve the matrix took ten and a half minutes."""
 
 
 # --- Preparation -----------------------------------------------------------------------------
@@ -319,12 +318,32 @@ def run_reference(prepared: Prepared) -> Reference:
 
 
 def rows_for(reference: Reference) -> list[tuple[str, ...]]:
-    """One row per crossing, and for every ``RECOVERY_EVERY``-th crossing two recovery rows."""
+    """One row per crossing, and for every ``RECOVERY_EVERY``-th crossing one recovery row per
+    family the recovering child will cross: its own claim, then the first occurrence of each
+    family the reference crosses from the killed write on, since the recovery redoes exactly
+    the steps the kill left undone and numbers its occurrences from one (the worker group's
+    review, sixth finding)."""
     rows: list[tuple[str, ...]] = [(crossing,) for crossing in reference.crossings]
     for index, crossing in enumerate(reference.crossings):
-        if index % RECOVERY_EVERY == RECOVERY_EVERY // 2:
-            rows.extend((crossing, recovery) for recovery in RECOVERY_KILLS)
+        if index % RECOVERY_EVERY != RECOVERY_EVERY // 2:
+            continue
+        rows.extend((crossing, target) for target in recovery_targets(reference, index))
     return rows
+
+
+def recovery_targets(reference: Reference, killed: int) -> tuple[str, ...]:
+    """The recovering child's first crossing of each family it will make after a kill at
+    ``reference.crossings[killed]``: its claim's last boundary, then each distinct family of
+    the reference's crossings from the killed one on, at occurrence one. The load's read and
+    the saver's seams are left out, since a kill there is the first-process rows' already."""
+    families: list[str] = ["segment_started:before-commit"]
+    for crossing in reference.crossings[killed:]:
+        family = injector.family(crossing)
+        if family.split(":")[0] in ("load", "checkpoint", "writes", "segment_started"):
+            continue
+        if family not in families:
+            families.append(family)
+    return tuple(f"{family}#1" for family in families)
 
 
 def run_row(
@@ -506,7 +525,7 @@ class MatrixResult:
 
 
 def run_matrix(
-    url: str, directory: Path, *, workers: int = 4, only: Sequence[str] | None = None
+    url: str, directory: Path, *, workers: int = 6, only: Sequence[str] | None = None
 ) -> MatrixResult:
     """The reference, then every row, ``workers`` at a time; ``only`` restricts the rows to
     those whose first kill matches one of the patterns."""
