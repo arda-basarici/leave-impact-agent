@@ -14,6 +14,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "boto3-stubs[bedrock-runtime,s3]>=1.43.93",
+    "hypothesis>=6.168.5",
     "pdoc",
     "pre-commit",
     "pyright",
