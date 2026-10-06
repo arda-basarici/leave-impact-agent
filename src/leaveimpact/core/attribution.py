@@ -302,6 +302,51 @@ def attribute(
     raise AssertionError("a table holds an unconstrained row for every kind of observation")
 
 
+class RecordedReading(StrEnum):
+    """How a dispatch's recorded attribution stands against the readings its table gives
+    the observation; a member is the wire format of the evaluator's finding."""
+
+    THE_TABLES = "the_tables"
+    """The recorded attribution is one the table gives, under no cause or under some cause."""
+    READING_NOT_THE_RULES = "reading_not_the_rules"
+    """The rule is one the table gives and the kind recorded beside it is not that row's."""
+    RULE_NOT_THE_TABLES = "rule_not_the_tables"
+    """The rule is none the table gives this observation."""
+
+
+def read_again(
+    table: AttributionTable, observation: Observation, recorded: Attribution
+) -> tuple[RecordedReading, AttributionRow | None]:
+    """``recorded`` held to every reading ``table`` gives ``observation``, under no cause and
+    under each cause a harness can supply, since a record names the rule and not the cause;
+    and the row that read it: the one the record names where the table gives it, the one the
+    table gives under no cause otherwise, ``None`` for no recorded outcome, which no row
+    reads. Both projections into the eligibility vocabulary and the evaluator's attribution
+    check hold a record to this one function.
+
+    >>> infrastructure = AttributionKind.INFRASTRUCTURE
+    >>> table = AttributionTable(
+    ...     tuple(AttributionRow(k.value, Match(k), infrastructure) for k in ObservationKind)
+    ... )
+    >>> error = ServiceError(429, "ThrottlingException", None, "too many requests")
+    >>> read_again(table, error, Attribution(infrastructure, "broken_stream"))[0].value
+    'rule_not_the_tables'
+    >>> read_again(table, error, Attribution(infrastructure, "service_error"))[0].value
+    'the_tables'
+    >>> read_again(table, error, Attribution(AttributionKind.BEHAVIOUR, "service_error"))[0].value
+    'reading_not_the_rules'
+    """
+    given = [attribute(table, observation, cause) for cause in (None, *Cause)]
+    row = next((row for reading, row in given if reading.rule == recorded.rule), given[0][1])
+    if isinstance(observation, NoRecordedOutcome):
+        row = None
+    if recorded in [reading for reading, _ in given]:
+        return RecordedReading.THE_TABLES, row
+    if recorded.rule in {reading.rule for reading, _ in given}:
+        return RecordedReading.READING_NOT_THE_RULES, row
+    return RecordedReading.RULE_NOT_THE_TABLES, row
+
+
 def attribution_table_digest(table: AttributionTable) -> str:
     """SHA-256 over the table as data: the envelope version, the matching rule by name and
     the rows in their order, in canonical JSON. What a run record names its attributions'
@@ -462,6 +507,7 @@ __all__ = [
     "Cause",
     "Match",
     "ObservationKind",
+    "RecordedReading",
     "RedispatchPolicy",
     "attribute",
     "attribution_table_digest",
@@ -470,4 +516,5 @@ __all__ = [
     "encode_attribution_table",
     "encode_redispatch_policy",
     "kind_of",
+    "read_again",
 ]

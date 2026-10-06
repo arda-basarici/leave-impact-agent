@@ -58,11 +58,11 @@ from enum import StrEnum
 from leaveimpact.core.attribution import (
     AttributionRow,
     AttributionTable,
-    Cause,
+    RecordedReading,
     RedispatchPolicy,
-    attribute,
+    read_again,
 )
-from leaveimpact.core.model_calls import Dispatch, ModelCall, NoRecordedOutcome
+from leaveimpact.core.model_calls import Dispatch, ModelCall
 from leaveimpact.core.run_trace import ModelCallId
 
 
@@ -127,16 +127,14 @@ def _read_again(
     gives its observation, under no cause and under each cause a harness can supply, and
     the row that read it: the one the record names where the table gives it, the one the
     table gives under no cause otherwise, ``None`` for no recorded outcome."""
-    recorded = dispatch.attribution
-    given = [attribute(table, dispatch.observation, cause) for cause in (None, *Cause)]
-    row = next((row for reading, row in given if reading.rule == recorded.rule), given[0][1])
-    if isinstance(dispatch.observation, NoRecordedOutcome):
-        row = None
-    if recorded in [reading for reading, _ in given]:
-        return None, row
-    if recorded.rule in {reading.rule for reading, _ in given}:
-        return AttributionFindingKind.READING_NOT_THE_RULES, row
-    return AttributionFindingKind.RULE_NOT_THE_TABLES, row
+    standing, row = read_again(table, dispatch.observation, dispatch.attribution)
+    match standing:
+        case RecordedReading.THE_TABLES:
+            return None, row
+        case RecordedReading.READING_NOT_THE_RULES:
+            return AttributionFindingKind.READING_NOT_THE_RULES, row
+        case RecordedReading.RULE_NOT_THE_TABLES:
+            return AttributionFindingKind.RULE_NOT_THE_TABLES, row
 
 
 __all__ = [

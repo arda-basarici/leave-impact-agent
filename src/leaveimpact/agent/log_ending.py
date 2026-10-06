@@ -25,7 +25,10 @@ inputs and the evaluator projects exports into the same ones; the two projection
 held equal over every fixture by a test). A failure at a dispatch's send is read through
 the within-call decision over the call's dispatches, one at the input bound through the
 count decision over the request's counting group, each outcome re-read and never the
-worker's stored reading.
+worker's stored reading. A failing call with a dispatch whose recorded attribution the
+table does not give its observation projects to nothing, as the evaluator gives such a call
+no standing (the store group's review): the log accepts a worker's reading as execution
+evidence, and eligibility is not granted on one the table disowns.
 """
 
 from __future__ import annotations
@@ -52,6 +55,7 @@ from leaveimpact.agent.log_transition import (
     counts_of,
 )
 from leaveimpact.core import eligibility
+from leaveimpact.core.attribution import RecordedReading, read_again
 from leaveimpact.core.call_decision import decide_call
 from leaveimpact.core.input_bound import CountDecision, count_decision
 from leaveimpact.core.run_ending import (
@@ -173,9 +177,10 @@ def status_of(state: AttemptState) -> Status:
     return Status(ending, segment, approval_of(state).state)
 
 
-def eligibility_ending_of(state: AttemptState, rules: Rules) -> eligibility.Ending:
+def eligibility_ending_of(state: AttemptState, rules: Rules) -> eligibility.Ending | None:
     """The ending of ``state``'s closed log in the eligibility function's vocabulary, under
-    the registered ``rules``; ``ValueError`` while the attempt is open."""
+    the registered ``rules``, or ``None`` where a failing call's recorded attribution is not
+    one the table gives its observation; ``ValueError`` while the attempt is open."""
     ending = ending_of(state)
     match ending.status:
         case TerminalStatus.COMPLETED:
@@ -205,7 +210,7 @@ def eligibility_ending_of(state: AttemptState, rules: Rules) -> eligibility.Endi
 
 def _at_dispatch_send(
     state: AttemptState, site: DispatchSite, rules: Rules
-) -> eligibility.Ending:
+) -> eligibility.Ending | None:
     if rules.table is None or rules.redispatch is None:
         raise ValueError("a failure at a dispatch's send needs the registered table and policy")
     call = next(
@@ -213,7 +218,11 @@ def _at_dispatch_send(
     )
     if call is None:
         raise ValueError(f"the log holds no call {site.model_call!r} to read the failure at")
-    standing = decide_call(call.pairs(), rules.table, rules.redispatch)
+    pairs = call.pairs()
+    for observation, recorded in pairs:
+        if read_again(rules.table, observation, recorded)[0] is not RecordedReading.THE_TABLES:
+            return None
+    standing = decide_call(pairs, rules.table, rules.redispatch)
     if standing.last_unresolved and standing.maximum_reached:
         return eligibility.UnresolvedAtMaximum()
     row = standing.row
