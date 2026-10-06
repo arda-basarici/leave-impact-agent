@@ -61,7 +61,8 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.model_calls import Answer, ModelCall
-from leaveimpact.core.run_account import AccountIntent, AccountOutcome, CallPurpose
+from leaveimpact.core.run_account import AccountIntent, AccountOutcome
+from leaveimpact.evaluator.account_check import account_transitions
 from tests.unit import format_fixtures as cases
 from tests.unit import stated_fixture as f
 
@@ -345,34 +346,21 @@ def test_every_dispatch_rests_on_its_calls_one_count_logged_before_its_first_int
 
 
 def test_the_charged_amount_is_what_the_account_settles_to() -> None:
-    """The fixtures' settlement, written by hand, is the one the run's account computes:
-    each dispatch its complete cost or its allocation, nothing for a request never sent."""
+    """The fixtures' settlement, written by hand, is the one the run's account computes over
+    the evaluator's projection of the export: each dispatch its complete cost or its
+    allocation, nothing for a request never sent. Every fixture projects: an intent per
+    dispatch and an outcome per recorded one, in position order."""
     for name, build in cases.FIXTURES.items():
         export = build()
         reservation = export.record.reservation
         assert reservation is not None, name
-        transitions: list[AccountIntent | AccountOutcome] = []
-        for call in export.trace.model_calls:
-            for dispatch in call.dispatches:
-                transitions.append(
-                    AccountIntent(
-                        call.id,
-                        dispatch.number,
-                        CallPurpose.LOOP,
-                        dispatch.allocation_tokens,
-                        dispatch.allocation,
-                    )
-                )
-                if dispatch.outcome_position is not None:
-                    transitions.append(
-                        AccountOutcome(
-                            call.id,
-                            dispatch.number,
-                            sent=dispatch.sends is not Sends.NONE,
-                            cost=dispatch.cost,
-                            tokens=None,
-                        )
-                    )
+        transitions = account_transitions(export)
+        dispatches = export.trace.dispatches
+        recorded = sum(dispatch.outcome_position is not None for dispatch in dispatches)
+        assert len(transitions) == len(dispatches) + recorded, name
+        assert all(
+            isinstance(transition, AccountIntent | AccountOutcome) for transition in transitions
+        ), name
         settlement = settle(account_of(transitions))
         assert (settlement.charged_pico_usd, settlement.state, settlement.kept_reason) == (
             reservation.charged_pico_usd,
