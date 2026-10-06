@@ -17,6 +17,7 @@ from leaveimpact.agent.log_events import (
     Approved,
     Completed,
     CountKey,
+    CountOutcomeLogged,
     CountStarted,
     DispatchIntent,
     EventKind,
@@ -45,6 +46,8 @@ from leaveimpact.core import (
     Approver,
     AttributionKind,
     AttributionTable,
+    Counted,
+    CountServiceError,
     DispatchPhase,
     DispatchSite,
     FailureCategory,
@@ -60,6 +63,7 @@ from leaveimpact.core import (
     review_payload_digest,
     signed_elapsed_ms,
 )
+from leaveimpact.core.input_bound import CountResult
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as h
 
@@ -729,3 +733,62 @@ def test_a_segment_end_is_a_transition_and_not_a_timing_marker() -> None:
     )
     state = fold(stopped, RULES)
     assert state.open and status_of(state).segment is SegmentStatus.STOPPED
+
+
+# --- Outcomes after a stop (the store group's review) ----------------------------------------
+
+
+REFUSED_COUNT = CountServiceError(403, "AccessDeniedException", "sig", None, 90)
+
+
+def test_a_count_outcome_after_a_stopping_defect_is_refused() -> None:
+    """Two counts outstanding, the first recorded as refused: the second's outcome is not
+    appended, since after a stop only bookkeeping, an approval already requested and the
+    closing event are (ruling 8 part 1 as extended at group 4's review)."""
+    events = h.HISTORIES["a request whose input bound was never established"]()
+    state = fold(events[:4], RULES)
+    second_start = restamped(events[5], position=5, offset_ms=450)
+    started = next_state(state, second_start, RULES)
+    assert isinstance(started, Appended)
+    first_outcome = events[4].event
+    assert isinstance(first_outcome, CountOutcomeLogged)
+    refused = replace(first_outcome, outcome=REFUSED_COUNT, reading=CountResult.REFUSED)
+    at_six = restamped(events[4], position=6, offset_ms=500)
+    stopped = next_state(started.state, replace(at_six, event=refused), RULES)
+    assert isinstance(stopped, Appended) and stopped.state.stopped is not None
+    second_key = second_start.event.key  # type: ignore[union-attr]
+    counted = replace(
+        first_outcome,
+        key=second_key,
+        outcome=Counted(4_096, "req-2", 100),
+        reading=CountResult.COUNTED,
+    )
+    at_seven = restamped(events[6], position=7, offset_ms=600)
+    late = next_state(stopped.state, replace(at_seven, event=counted), RULES)
+    assert isinstance(late, Refused) and late.reason.endswith(": no count outcome")
+
+
+def test_a_dispatch_outcome_after_a_stopping_defect_is_refused() -> None:
+    """A dispatch in flight when a count for another request is refused: its outcome, arriving
+    after the stop, is not appended; the reservation keeps that dispatch as unresolved."""
+    events = h.HISTORIES["a cut call"]()
+    state = fold(events[:6], RULES)
+    first_start = events[3].event
+    assert isinstance(first_start, CountStarted)
+    other_key = replace(first_start.key, request_digest="b" * 64, ordinal=1)
+    other_start = CountStarted(other_key, first_start.role)
+    started = next_state(
+        state, replace(restamped(events[3], position=7, offset_ms=700), event=other_start), RULES
+    )
+    assert isinstance(started, Appended), started
+    stopped = next_state(
+        started.state,
+        replace(
+            restamped(events[4], position=8, offset_ms=800),
+            event=CountOutcomeLogged(other_key, REFUSED_COUNT, CountResult.REFUSED),
+        ),
+        RULES,
+    )
+    assert isinstance(stopped, Appended) and stopped.state.stopped is not None
+    late = next_state(stopped.state, restamped(events[6], position=9, offset_ms=900), RULES)
+    assert isinstance(late, Refused) and late.reason.endswith(": no dispatch outcome")

@@ -31,9 +31,11 @@ What the function refuses, by the rulings it enforces:
   resolution is appended; after a stopping failure is recorded (a malformed record, a
   dispatch read as a defect, a call that stands failed by infrastructure, a count group
   refused, exhausted or failed in an unclassified way) nothing but segment bookkeeping, an
-  approval already requested and the closing event is, and a worker's closing failure
-  names that failure at its site in its category; a dispatch's bound is the number its
-  count returned;
+  approval already requested and the closing event is, an outcome arriving for a count or
+  a dispatch still in flight included (its evidence is not logged and the reservation keeps
+  that dispatch as unresolved, the shape ruling 1 part 5 gives a fenced worker's dispatch;
+  the store group's review), and a worker's closing failure names that failure at its site
+  in its category; a dispatch's bound is the number its count returned;
 - *the commit* (recovery and endings, part 6): a claim on another commit than the first
   segment's is refused unless it records an override naming its authority and both commits;
 - *the approval* (the event, part 8; the job seam, part 1): one request, one approval over
@@ -664,6 +666,8 @@ def _count_start(
 def _count_outcome_next(
     state: AttemptState, logged: LoggedEvent, event: CountOutcomeLogged, rules: Rules
 ) -> Transition:
+    if state.stopped is not None:
+        return Refused(_stopped(state, "no count outcome"))
     held = next((count for count in counts_of(state) if count.key == event.key), None)
     if held is None:
         return Refused("a count outcome follows its start")
@@ -771,6 +775,8 @@ def _outcome_next(
 ) -> Transition:
     inputs = state.inputs
     assert inputs is not None and rules.table is not None
+    if state.stopped is not None:
+        return Refused(_stopped(state, "no dispatch outcome"))
     call = call_of(state, event.call)
     if call is None or event.number > call.last_number:
         return Refused("a dispatch outcome follows its intent")
