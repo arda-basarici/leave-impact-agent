@@ -233,7 +233,7 @@ def _encode_dispatch(dispatch: Dispatch) -> JsonObject:
             "sent_body_digest": request.sent_body_digest,
         },
         "input_reads": list(dispatch.input_reads),
-        "observation": _encode_observation(dispatch.observation),
+        "observation": encode_observation(dispatch.observation),
         "attribution": {
             "kind": dispatch.attribution.kind.value,
             "rule": dispatch.attribution.rule,
@@ -243,23 +243,23 @@ def _encode_dispatch(dispatch: Dispatch) -> JsonObject:
         "zero_cost_rule": dispatch.zero_cost_rule,
         "allocation_pico_usd": dispatch.allocation,
         "allocation_tokens": dispatch.allocation_tokens,
-        "bound": _encode_bound(dispatch.bound),
+        "bound": encode_bound(dispatch.bound),
         "output_maximum": dispatch.output_maximum,
     }
 
 
-def _encode_method(method: RegisteredInputBound) -> JsonObject:
+def encode_method(method: RegisteredInputBound) -> JsonObject:
     return {"method": method.name, "version": method.version}
 
 
-def _decode_method(data: Mapping[str, object]) -> RegisteredInputBound:
+def decode_method(data: Mapping[str, object]) -> RegisteredInputBound:
     expect_fields(data, ("method", "version"), "an input-bound method")
     return RegisteredInputBound(string_field(data, "method"), integer_field(data, "version"))
 
 
-def _encode_bound(bound: EstablishedBound) -> JsonObject:
+def encode_bound(bound: EstablishedBound) -> JsonObject:
     return {
-        "method": _encode_method(bound.method),
+        "method": encode_method(bound.method),
         "counting_identifier": bound.counting_identifier,
         "request_digest": bound.request_digest,
         "input_tokens": bound.input_tokens,
@@ -267,14 +267,14 @@ def _encode_bound(bound: EstablishedBound) -> JsonObject:
     }
 
 
-def _decode_bound(data: Mapping[str, object]) -> EstablishedBound:
+def decode_bound(data: Mapping[str, object]) -> EstablishedBound:
     expect_fields(
         data,
         ("method", "counting_identifier", "request_digest", "input_tokens", "evidence"),
         "an established bound",
     )
     return EstablishedBound(
-        _decode_method(object_field(data, "method")),
+        decode_method(object_field(data, "method")),
         string_field(data, "counting_identifier"),
         string_field(data, "request_digest"),
         integer_field(data, "input_tokens"),
@@ -310,7 +310,7 @@ def _decode_dispatch(item: object) -> Dispatch:
             OperationId(string_item(entry, "input_reads"))
             for entry in array_field(data, "input_reads")
         ),
-        observation=_decode_observation(object_field(data, "observation")),
+        observation=decode_observation(object_field(data, "observation")),
         attribution=Attribution(
             AttributionKind(string_field(attribution, "kind")), string_field(attribution, "rule")
         ),
@@ -319,12 +319,12 @@ def _decode_dispatch(item: object) -> Dispatch:
         zero_cost_rule=optional_string_field(data, "zero_cost_rule"),
         allocation=integer_field(data, "allocation_pico_usd"),
         allocation_tokens=integer_field(data, "allocation_tokens"),
-        bound=_decode_bound(object_field(data, "bound")),
+        bound=decode_bound(object_field(data, "bound")),
         output_maximum=integer_field(data, "output_maximum"),
     )
 
 
-def _encode_observation(observation: Observation) -> JsonObject:
+def encode_observation(observation: Observation) -> JsonObject:
     match observation:
         case CompleteResponse():
             return {
@@ -365,7 +365,7 @@ def _encode_observation(observation: Observation) -> JsonObject:
             assert_never(observation)
 
 
-def _decode_observation(data: Mapping[str, object]) -> Observation:
+def decode_observation(data: Mapping[str, object]) -> Observation:
     kind = string_field(data, "kind")
     if kind == "complete_response":
         expect_fields(
@@ -587,13 +587,13 @@ def encode_counting_operation(count: CountingOperation) -> JsonObject:
     back and how the worker read it."""
     return {
         "id": count.id,
-        "method": _encode_method(count.method),
+        "method": encode_method(count.method),
         "counting_identifier": count.counting_identifier,
         "request_digest": count.request_digest,
         "segment": count.segment,
         "start_position": count.start_position,
         "outcome_position": count.outcome_position,
-        "outcome": _encode_count_outcome(count.outcome),
+        "outcome": encode_count_outcome(count.outcome),
         "reading": count.reading.value,
     }
 
@@ -603,18 +603,18 @@ def decode_counting_operation(item: object) -> CountingOperation:
     expect_fields(data, _COUNT_FIELDS, "a counting operation")
     return CountingOperation(
         CountingOperationId(string_field(data, "id")),
-        _decode_method(object_field(data, "method")),
+        decode_method(object_field(data, "method")),
         string_field(data, "counting_identifier"),
         string_field(data, "request_digest"),
         integer_field(data, "segment"),
         integer_field(data, "start_position"),
         _optional_integer(data, "outcome_position"),
-        _decode_count_outcome(object_field(data, "outcome")),
+        decode_count_outcome(object_field(data, "outcome")),
         CountResult(string_field(data, "reading")),
     )
 
 
-def _encode_count_outcome(outcome: CountOutcome) -> JsonObject:
+def encode_count_outcome(outcome: CountOutcome) -> JsonObject:
     match outcome:
         case Counted():
             return {
@@ -646,7 +646,7 @@ def _encode_count_outcome(outcome: CountOutcome) -> JsonObject:
             assert_never(outcome)
 
 
-def _decode_count_outcome(data: Mapping[str, object]) -> CountOutcome:
+def decode_count_outcome(data: Mapping[str, object]) -> CountOutcome:
     kind = string_field(data, "kind")
     if kind == "counted":
         expect_fields(

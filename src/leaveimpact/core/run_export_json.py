@@ -129,13 +129,13 @@ def encode_run_export(export: RunExport) -> JsonObject:
         "format_version": export.format_version,
         "run_id": export.run_id,
         "attempt": export.attempt,
-        "context": _encode_context(export.context),
+        "context": encode_run_context(export.context),
         "record": encode_run_record(export.record),
         "trace": encode_run_trace(export.trace),
     }
 
 
-def _encode_context(context: RunContext) -> JsonObject:
+def encode_run_context(context: RunContext) -> JsonObject:
     return {
         "scenario_id": context.scenario_id,
         "world_version": context.world_version,
@@ -254,7 +254,7 @@ def _encode_operation(operation: Operation) -> JsonObject:
         "tool": operation.tool,
         "source": None if operation.source is None else operation.source.value,
         "arguments": thawed_json(operation.arguments),
-        "outcome": _encode_outcome(operation.outcome),
+        "outcome": encode_outcome(operation.outcome),
         "position": operation.position,
     }
 
@@ -271,7 +271,7 @@ def _encode_origin(origin: Origin) -> JsonObject:
             assert_never(origin)
 
 
-def _encode_outcome(outcome: Outcome) -> JsonObject:
+def encode_outcome(outcome: Outcome) -> JsonObject:
     match outcome:
         case RecordOutcome():
             return {"kind": "record", "record": encode_observed(outcome.record)}
@@ -335,13 +335,13 @@ def decode_run_export(value: object) -> RunExport:
         EXPORT_FORMAT_VERSION,
         string_field(data, "run_id"),
         integer_field(data, "attempt"),
-        _decode_context(object_field(data, "context")),
+        decode_run_context(object_field(data, "context")),
         decode_run_record(object_field(data, "record")),
         decode_run_trace(object_field(data, "trace")),
     )
 
 
-def _decode_context(data: Mapping[str, object]) -> RunContext:
+def decode_run_context(data: Mapping[str, object]) -> RunContext:
     expect_fields(
         data,
         ("scenario_id", "world_version", "leave_id", "now", "reference_timezone"),
@@ -570,7 +570,7 @@ def _decode_operation(item: object) -> Operation:
         string_field(data, "tool"),
         None if source is None else Source(source),
         arguments,
-        _decode_outcome(object_field(data, "outcome")),
+        decode_outcome(object_field(data, "outcome")),
         None if position is None else require_integer(position, "position"),
     )
 
@@ -589,7 +589,7 @@ def _decode_origin(data: Mapping[str, object]) -> Origin:
     raise ValueError(f"an origin is prefetch, harness or model, got {kind!r}")
 
 
-def _decode_outcome(data: Mapping[str, object]) -> Outcome:
+def decode_outcome(data: Mapping[str, object]) -> Outcome:
     kind = string_field(data, "kind")
     if kind == "record":
         expect_fields(data, ("kind", "record"), "a record outcome")
