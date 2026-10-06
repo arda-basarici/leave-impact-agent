@@ -18,6 +18,7 @@ logged after that call's answer.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Mapping, Sequence
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
@@ -212,7 +213,7 @@ def dispatch(
         segment=1,
         intent_position=intent,
         outcome_position=intent + 1 if recorded else None,
-        request=REQUEST,
+        request=replace(REQUEST, request_digest=request_digest(call)),
         input_reads=(),
         observation=observation,
         attribution=Attribution(attribution, "a-rule" if recorded else UNRESOLVED_RULE),
@@ -221,13 +222,21 @@ def dispatch(
         zero_cost_rule=None,
         allocation=ALLOCATION,
         allocation_tokens=ALLOCATION_TOKENS,
-        bound=EstablishedBound(METHOD, COUNTING_MODEL, DIGEST, INPUT_BOUND, _count_id(call)),
+        bound=EstablishedBound(
+            METHOD, COUNTING_MODEL, request_digest(call), INPUT_BOUND, _count_id(call)
+        ),
         output_maximum=OUTPUT_MAXIMUM,
     )
 
 
 def _count_id(call: int) -> CountingOperationId:
     return CountingOperationId(f"count-{call}")
+
+
+def request_digest(call: int) -> str:
+    """The digest of the ``call``-th call's request: one per call, since two calls never ask
+    the same request and a count is reused under the digest."""
+    return hashlib.sha256(f"call-{call}".encode()).hexdigest()
 
 
 def count_of(call: int) -> CountingOperation:
@@ -238,7 +247,7 @@ def count_of(call: int) -> CountingOperation:
         _count_id(call),
         METHOD,
         COUNTING_MODEL,
-        DIGEST,
+        request_digest(call),
         1,
         start,
         start + 1,

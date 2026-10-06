@@ -51,7 +51,9 @@ from leaveimpact.evaluator.registered import preregistered
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from tests.unit.export_fixture import ROLE, agent_export, dispatch, run_export
-from tests.unit.format_fixtures import FIXTURES, NOVA_CUT
+from tests.unit.format_fixtures import FIXTURES
+from tests.unit.format_fixtures import POLICY as FIXTURE_POLICY
+from tests.unit.format_fixtures import TABLE as FIXTURE_TABLE
 from tests.unit.registration_fixture import DRAFT, decided, light, named
 from tests.unit.throwaway_world import loaded_world
 
@@ -208,34 +210,9 @@ def test_a_call_holds_no_more_dispatches_than_the_bound_when_one_is_set() -> Non
 
 
 def test_the_format_cases_carry_no_finding_under_a_table_holding_their_rules() -> None:
-    behaviour = AttributionKind.BEHAVIOUR
-    cases = AttributionTable(
-        (
-            AttributionRow(
-                "registered-stop-reason", Match(ObservationKind.COMPLETE_RESPONSE), behaviour
-            ),
-            AttributionRow("stream", Match(ObservationKind.BROKEN_STREAM), INFRASTRUCTURE),
-            AttributionRow(
-                "nova-cut-tool-use",
-                Match(ObservationKind.SERVICE_ERROR, message_signatures=frozenset({NOVA_CUT})),
-                behaviour,
-            ),
-            AttributionRow(
-                "unmatched",
-                Match(ObservationKind.SERVICE_ERROR),
-                INFRASTRUCTURE,
-                redispatch=True,
-                unmatched=True,
-            ),
-            AttributionRow("gave_up", Match(ObservationKind.CLIENT_ERROR), INFRASTRUCTURE),
-            AttributionRow(
-                "never_sent", Match(ObservationKind.REFUSED_BEFORE_SEND), INFRASTRUCTURE
-            ),
-        )
-    )
     read = 0
     for name, build in FIXTURES.items():
-        check = check_attributions(cases, RedispatchPolicy(2, 0), build().trace.model_calls)
+        check = check_attributions(FIXTURE_TABLE, FIXTURE_POLICY, build().trace.model_calls)
         assert check.findings == (), name
         read += check.dispatches
     # Sixteen exports, two with no dispatch, one with two dispatches of one call and one with

@@ -37,6 +37,7 @@ its first intent. What a case is about is in its own function.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 
@@ -139,6 +140,13 @@ from leaveimpact.core import (
     review_payload_digest,
     run_cost,
 )
+from leaveimpact.core.attribution import (
+    AttributionRow,
+    AttributionTable,
+    Match,
+    ObservationKind,
+    RedispatchPolicy,
+)
 from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, skill_id
 from leaveimpact.core.jsonshape import canonical_json
 from leaveimpact.core.model_calls import FactBatch, Observation
@@ -230,9 +238,21 @@ def count_id(call: str) -> CountingOperationId:
     return CountingOperationId(f"count-{call}")
 
 
+def request_digest(call: str) -> str:
+    """The digest of ``call``'s request: one per call, since two calls never ask the same
+    request and a count is reused under the digest."""
+    return hashlib.sha256(call.encode()).hexdigest()
+
+
+def request_of(call: str) -> RequestIdentity:
+    return RequestIdentity(request_digest(call), "Converse", "eu.model", "eu-central-1", None)
+
+
 def bound_of(call: str) -> EstablishedBound:
     """The bound every dispatch of ``call`` rests on: the provider's count of its request."""
-    return EstablishedBound(METHOD, COUNTING_MODEL, DIGEST, INPUT_BOUND, count_id(call))
+    return EstablishedBound(
+        METHOD, COUNTING_MODEL, request_digest(call), INPUT_BOUND, count_id(call)
+    )
 
 
 def counted(call: str, slot: int, *, segment: int = 1) -> CountingOperation:
@@ -242,7 +262,7 @@ def counted(call: str, slot: int, *, segment: int = 1) -> CountingOperation:
         count_id(call),
         METHOD,
         COUNTING_MODEL,
-        DIGEST,
+        request_digest(call),
         segment,
         at(slot) - 2,
         at(slot) - 1,
@@ -281,7 +301,7 @@ def dispatch(
         segment=segment,
         intent_position=intent,
         outcome_position=None if isinstance(observation, NoRecordedOutcome) else intent + 1,
-        request=REQUEST,
+        request=request_of(call),
         input_reads=tuple(OperationId(read) for read in shown),
         observation=observation,
         attribution=Attribution(read_as, rule),
@@ -531,6 +551,45 @@ def unresolved_then_answered() -> RunExport:
 
 
 NOVA_CUT = "Model produced invalid sequence as part of ToolUse"
+
+TABLE = AttributionTable(
+    (
+        AttributionRow(
+            "registered-stop-reason",
+            Match(ObservationKind.COMPLETE_RESPONSE),
+            AttributionKind.BEHAVIOUR,
+        ),
+        AttributionRow(
+            "stream", Match(ObservationKind.BROKEN_STREAM), AttributionKind.INFRASTRUCTURE
+        ),
+        AttributionRow(
+            "nova-cut-tool-use",
+            Match(ObservationKind.SERVICE_ERROR, message_signatures=frozenset({NOVA_CUT})),
+            AttributionKind.BEHAVIOUR,
+        ),
+        AttributionRow(
+            "unmatched",
+            Match(ObservationKind.SERVICE_ERROR),
+            AttributionKind.INFRASTRUCTURE,
+            redispatch=True,
+            unmatched=True,
+        ),
+        AttributionRow(
+            "gave_up", Match(ObservationKind.CLIENT_ERROR), AttributionKind.INFRASTRUCTURE
+        ),
+        AttributionRow(
+            "never_sent",
+            Match(ObservationKind.REFUSED_BEFORE_SEND),
+            AttributionKind.INFRASTRUCTURE,
+        ),
+    )
+)
+"""A table holding every rule the fixtures' dispatches name, so a check that needs the
+registered table can read them."""
+
+POLICY = RedispatchPolicy(3, 0)
+"""A re-dispatch policy every fixture conforms to: no call takes more than two dispatches,
+and the input-bound fixture's three counting requests consume exactly this maximum."""
 
 
 def nova_signature_beside_another() -> RunExport:
