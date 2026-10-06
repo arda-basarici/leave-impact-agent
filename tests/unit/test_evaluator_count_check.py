@@ -41,7 +41,7 @@ from tests.unit.export_fixture import (
     request_digest,
     run_export,
 )
-from tests.unit.format_fixtures import FIXTURES, POLICY
+from tests.unit.format_fixtures import FIXTURES, POLICY, exhausted_count_id
 from tests.unit.throwaway_world import loaded_world
 
 KINDS = CountFindingKind
@@ -262,7 +262,7 @@ def test_a_failure_at_the_input_bound_names_its_groups_last_count_and_an_exhaust
     failure = export.record.failure
     assert failure is not None
     # Named: the first of the three, not the last.
-    early = replace(failure, site=InputBoundSite(CountingOperationId("count-1")))
+    early = replace(failure, site=InputBoundSite(exhausted_count_id(1)))
     misnamed = replace(export, record=replace(export.record, failure=early))
     # The group's last count, which stopped the attempt, is then not the one named.
     assert kinds(misnamed) == [KINDS.SITE_NOT_THE_LAST_COUNT, KINDS.STOPPING_COUNT_NOT_THE_FAILURE]
@@ -338,9 +338,9 @@ def test_the_replay_and_the_ending_read_outcomes_again_not_the_stored_readings(
     misread = replace(first, outcome=denial)
     run = replace(export, trace=replace(export.trace, counting_operations=(misread, *rest)))
     assert [(f.kind, f.counting_operation, f.decision) for f in kinds_with(run)] == [
-        (KINDS.READING_NOT_THE_OUTCOMES, CountingOperationId("count-1"), None),
-        (KINDS.COUNT_NOT_PERMITTED, CountingOperationId("count-2"), CountDecision.DEFECT),
-        (KINDS.COUNT_NOT_PERMITTED, CountingOperationId("count-3"), CountDecision.DEFECT),
+        (KINDS.READING_NOT_THE_OUTCOMES, exhausted_count_id(1), None),
+        (KINDS.COUNT_NOT_PERMITTED, exhausted_count_id(2), CountDecision.DEFECT),
+        (KINDS.COUNT_NOT_PERMITTED, exhausted_count_id(3), CountDecision.DEFECT),
     ]
 
 

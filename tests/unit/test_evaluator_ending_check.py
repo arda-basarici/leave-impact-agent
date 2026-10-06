@@ -109,7 +109,7 @@ def test_the_format_cases_carry_no_finding_and_seven_have_an_unknown_tail() -> N
         "an approval wait across a restart": 3,
         "a tool call whose result was lost before it was logged": 1,
         "a recorded defect an operator finalized": 1,
-        "a request whose input bound was never established": 2,
+        "a request whose input bound was never established": 3,
     }
     assert sum(ending.segments == 1 for ending in endings.values()) == 11
     never = endings["an attempt admitted and never claimed"]
@@ -120,7 +120,7 @@ def test_the_format_cases_carry_no_finding_and_seven_have_an_unknown_tail() -> N
 
 
 def test_an_active_time_the_wall_clock_cannot_hold_is_a_finding_and_a_wait_is_not_active() -> None:
-    # Three segments whose last offsets sum to 10,550 ms, 1,550 of them inside the approval
+    # Three segments whose last offsets sum to 9,950 ms, 950 of them inside the approval
     # wait: 9,000 ms of evidenced execution.
     waited = approval_wait_across_restart()
     assert check_ending(waited).elapsed_ms == 2 * 60 * 60 * 1_000

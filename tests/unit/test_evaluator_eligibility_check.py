@@ -10,7 +10,6 @@ from leaveimpact.core import (
     UNRESOLVED_RULE,
     AttributionKind,
     AttributionTable,
-    CountingOperationId,
     CountServiceError,
     Dispatch,
     DispatchPhase,
@@ -40,7 +39,15 @@ from leaveimpact.evaluator.eligibility_check import (
     check_eligibility,
     ending_of,
 )
-from tests.unit.format_fixtures import FIXTURES, POLICY, ROLE, TABLE, dispatch, export
+from tests.unit.format_fixtures import (
+    FIXTURES,
+    POLICY,
+    ROLE,
+    TABLE,
+    dispatch,
+    exhausted_count_id,
+    export,
+)
 
 RETRY = RetryRule(FailureCategory.INFRASTRUCTURE, 3)
 CALL = ModelCallId("call-1")
@@ -131,7 +138,7 @@ def test_reported_at_the_cap_is_a_graded_result() -> None:
 
 def test_a_send_failure_carries_its_row_and_the_rows_flag_decides() -> None:
     run = failed_at_send(
-        dispatch(2, THROTTLED, AttributionKind.INFRASTRUCTURE, rule="unmatched"), number=1
+        dispatch(6, THROTTLED, AttributionKind.INFRASTRUCTURE, rule="unmatched"), number=1
     )
     assert checked(run) == EligibilityCheck(
         ProjectedEnding(EndingKind.SEND_FAILURE, "unmatched", False),
@@ -158,7 +165,7 @@ def test_a_send_failure_carries_its_row_and_the_rows_flag_decides() -> None:
 def test_an_unresolved_last_dispatch_permits_at_the_maximum_and_is_unnamed_below_it() -> None:
     lost = [
         dispatch(
-            2 + 2 * n,
+            6 + 2 * n,
             NoRecordedOutcome(),
             AttributionKind.UNRESOLVED,
             rule=UNRESOLVED_RULE,
@@ -197,7 +204,7 @@ def test_an_input_bound_failure_is_exhausted_or_unnamed_by_its_groups_decision()
         None,
     )
     assert isinstance(failure.site, InputBoundSite)
-    assert failure.site.counting_operation == CountingOperationId("count-3")
+    assert failure.site.counting_operation == exhausted_count_id(3)
 
 
 def test_a_denial_misread_as_transient_is_a_defect_all_the_same() -> None:
@@ -225,6 +232,7 @@ def test_a_harness_site_no_rule_names_and_the_maximum_reached() -> None:
                 FailureCategory.INFRASTRUCTURE, HarnessSite(HarnessSiteName.PREFETCH), "down"
             ),
             approval=FIXTURES["an abandoned attempt"]().record.approval,
+            timing=replace(run.record.timing, approval_resumed=None),
         ),
     )
     assert checked(failed) == EligibilityCheck(

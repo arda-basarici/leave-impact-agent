@@ -19,7 +19,6 @@ from leaveimpact.core import (
     CallState,
     Cost,
     CountClientError,
-    CountingOperationId,
     CountResult,
     CountServiceError,
     DefectOutcome,
@@ -110,15 +109,15 @@ def test_facts_beside_tools_are_one_answer_with_both() -> None:
     assert answer.text_present
     (tool_call,) = answer.tool_calls
     (batch,) = answer.fact_batches
-    assert tool_call.disposition == AsOperation(OperationId("op-2"))
-    read = export.trace.operation(OperationId("op-2"))
+    assert tool_call.disposition == AsOperation(OperationId("call-1/tu_1"))
+    read = export.trace.operation(OperationId("call-1/tu_1"))
     assert read is not None and read.origin == ModelOrigin(CALL)
     assert isinstance(batch, ParsedBatch)
     assert [type(entry).__name__ for entry in batch.entries] == ["Admitted"]
     # The batch arrived in the answer's own content: no tool call names it.
     assert not any(isinstance(call.disposition, HandledAsBatch) for call in answer.tool_calls)
     dispatch = the_call(export).dispatches[0]
-    assert dispatch.input_reads == (OperationId("op-1"),)
+    assert dispatch.input_reads == (OperationId("prefetch/1"),)
     assert read.position is not None and dispatch.outcome_position is not None
     assert read.position > dispatch.outcome_position
 
@@ -135,7 +134,10 @@ def test_a_malformed_batch_keeps_its_payload_and_who_refused_it() -> None:
         {
             "kind": "malformed",
             "raw": batch.raw,
-            "refused_by": {"parser": "fact-batch-parser-v1", "schema_digest": "c" * 64},
+            "refused_by": {
+                "parser": cases.PARSER.parser,
+                "schema_digest": cases.PARSER.schema_digest,
+            },
         }
     ]
 
@@ -168,7 +170,7 @@ def test_a_handled_fact_tool_links_to_its_batch_and_asks_no_source() -> None:
     (tool_call,) = answer.tool_calls
     assert tool_call.disposition == HandledAsBatch(0)
     assert isinstance(answer.fact_batches[0], ParsedBatch)
-    assert [op.id for op in export.trace.operations] == ["op-1"]
+    assert [op.id for op in export.trace.operations] == ["prefetch/1", "prefetch/2", "prefetch/3"]
 
 
 def test_an_unresolved_dispatch_leaves_the_cost_a_floor_and_the_reservation_kept() -> None:
@@ -233,7 +235,8 @@ def test_a_recovered_attempt_has_two_segments_and_an_incomplete_timing() -> None
     export = decoded(cases.recovered_attempt())
     timing = export.record.timing
     assert [segment.end_recorded for segment in timing.segments] == [False, True]
-    assert evidenced_active_ms(timing) == 1_200 + 6_000
+    # The second segment ran to 6,000 and spent 100 ms of it in the approval wait.
+    assert evidenced_active_ms(timing) == 1_200 + 6_000 - 100
     assert elapsed_ms(timing) == 600_000
     assert not timing_complete(timing)
     assert the_call(export).dispatches[0].segment == 2
@@ -266,7 +269,7 @@ def test_an_approval_wait_across_a_restart_is_left_out_of_the_active_time() -> N
     timing = export.record.timing
     assert timing.approval_requested is not None and timing.approval_resumed is not None
     assert (timing.approval_requested.segment, timing.approval_resumed.segment) == (1, 3)
-    # 7,900 + 600 + 2,050 evidenced, less waits of 900, 600 and 50.
+    # 7,900 + 0 + 2,050 evidenced, less waits of 900, 0 and 50.
     assert evidenced_active_ms(timing) == 7_000 + 0 + 2_000
     assert elapsed_ms(timing) == 7_200_000
     assert not timing_complete(timing)
@@ -301,12 +304,12 @@ def test_a_wrong_scope_is_a_placement_and_an_unplaced_one_is_a_diagnostic() -> N
 def test_the_first_tool_call_ends_the_attempt_and_the_second_was_never_reached() -> None:
     export = decoded(cases.first_tool_call_ends_the_attempt())
     first, second = the_answer(export).tool_calls
-    assert first.disposition == AsOperation(OperationId("op-2"))
+    assert first.disposition == AsOperation(OperationId("call-1/tu_1"))
     assert second.disposition == Undispatched(UndispatchedReason.ATTEMPT_ENDED_FIRST)
-    failed_at = export.trace.operation(OperationId("op-2"))
+    failed_at = export.trace.operation(OperationId("call-1/tu_1"))
     assert failed_at is not None and isinstance(failed_at.outcome, DefectOutcome)
     assert export.record.failure is not None
-    assert export.record.failure.site == OperationSite(OperationId("op-2"))
+    assert export.record.failure.site == OperationSite(OperationId("call-1/tu_1"))
     assert export.record.approval.state is ApprovalState.NOT_REQUESTED
 
 
@@ -403,7 +406,7 @@ def test_a_defect_an_operator_finalized_keeps_the_defects_ending_and_names_the_c
     record = export.record
     assert record.status is TerminalStatus.FAILED
     assert record.failure is not None
-    assert record.failure.site == OperationSite(OperationId("op-2"))
+    assert record.failure.site == OperationSite(OperationId("call-1/tu_1"))
     assert record.failure.category.value == "defect"
     assert record.abandonment is not None
     assert (record.abandonment.authority, record.abandonment.reason) == (
@@ -422,7 +425,7 @@ def test_an_exhausted_input_bound_names_the_last_count_and_authorized_no_dispatc
     export = decoded(cases.input_bound_exhausted())
     record = export.record
     assert record.failure is not None
-    assert record.failure.site == InputBoundSite(CountingOperationId("count-3"))
+    assert record.failure.site == InputBoundSite(cases.exhausted_count_id(3))
     assert record.failure.category.value == "infrastructure"
     throttled, timed_out, died = export.trace.counting_operations
     assert isinstance(throttled.outcome, CountServiceError)

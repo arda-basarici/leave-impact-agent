@@ -59,7 +59,7 @@ def checked(run: RunExport) -> CallCheck:
 
 def one_dispatch(observation: Observation, rule: str) -> ModelCall:
     """The first call, one dispatch read as infrastructure under ``rule``."""
-    sent = dispatch(2, observation, AttributionKind.INFRASTRUCTURE, rule=rule)
+    sent = dispatch(6, observation, AttributionKind.INFRASTRUCTURE, rule=rule)
     return ModelCall(CALL, ROLE, (sent,), None)
 
 
@@ -98,7 +98,7 @@ def test_a_standing_holds_the_row_its_flag_and_the_two_deciding_flags() -> None:
     lost = ModelCall(
         CALL,
         ROLE,
-        (dispatch(2, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule=UNRESOLVED_RULE),),
+        (dispatch(6, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule=UNRESOLVED_RULE),),
         None,
     )
     (unresolved,) = checked(export((lost,), failure=AT_SEND)).standings
@@ -117,7 +117,7 @@ def test_a_call_the_attribution_check_faults_gets_no_standing_and_no_finding() -
 
 def test_a_call_standing_failed_that_is_not_the_attempts_failure() -> None:
     # Timed out under a row allowing no re-dispatch, and the attempt went on to complete.
-    run = export((one_dispatch(TIMED_OUT, "gave_up"), answered("call-2", 4, ANSWER)))
+    run = export((one_dispatch(TIMED_OUT, "gave_up"), answered("call-2", 10, ANSWER)))
     assert checked(run).findings == (CallFinding(KINDS.FAILED_CALL_NOT_THE_FAILURE, CALL),)
     # The same call, the attempt failed there: no finding.
     assert checked(export((one_dispatch(TIMED_OUT, "gave_up"),), failure=AT_SEND)).findings == ()
@@ -134,13 +134,13 @@ def test_an_attempt_that_failed_while_its_call_could_be_dispatched_again() -> No
 def test_a_call_left_while_permitted_or_ended_as_behaviour_in_a_completed_attempt() -> None:
     # The loop's choice to stop asking is the graph step's: neither is a finding.
     gave_up_a_permitted_dispatch = export(
-        (one_dispatch(THROTTLED, "unmatched"), answered("call-2", 4, ANSWER))
+        (one_dispatch(THROTTLED, "unmatched"), answered("call-2", 10, ANSWER))
     )
     assert checked(gave_up_a_permitted_dispatch).findings == ()
     behaviour = ModelCall(
         CALL,
         ROLE,
-        (dispatch(2, NOVA_ERROR, AttributionKind.BEHAVIOUR, rule="nova-cut-tool-use"),),
+        (dispatch(6, NOVA_ERROR, AttributionKind.BEHAVIOUR, rule="nova-cut-tool-use"),),
         None,
     )
-    assert checked(export((behaviour, answered("call-2", 4, ANSWER)))).findings == ()
+    assert checked(export((behaviour, answered("call-2", 10, ANSWER)))).findings == ()

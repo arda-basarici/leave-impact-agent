@@ -41,6 +41,9 @@ import hashlib
 from collections.abc import Callable, Sequence
 from datetime import UTC, date, datetime, timedelta
 
+from leaveimpact.agent.fact_entries import refused_by
+from leaveimpact.agent.log_events import CountKey
+from leaveimpact.agent.log_events import count_id as rendered_count_id
 from leaveimpact.core import (
     EXPORT_FORMAT_VERSION,
     UNRESOLVED_RULE,
@@ -73,6 +76,10 @@ from leaveimpact.core import (
     CountServiceError,
     DefectOutcome,
     Dispatch,
+    Document,
+    DocumentKind,
+    DocumentSection,
+    Entity,
     EstablishedBound,
     FactRefusal,
     Failure,
@@ -88,6 +95,7 @@ from leaveimpact.core import (
     ModelCallId,
     ModelOrigin,
     NoRecordedOutcome,
+    Observed,
     Operation,
     OperationId,
     OperationSite,
@@ -100,6 +108,7 @@ from leaveimpact.core import (
     PricingBasis,
     PricingRow,
     PricingSelection,
+    RecordOutcome,
     RecordsOutcome,
     Refused,
     RefusedBy,
@@ -136,6 +145,7 @@ from leaveimpact.core import (
     UndispatchedReason,
     UnresolvedToolCall,
     aggregate_usage,
+    attribution_table_digest,
     event_ref,
     review_payload_digest,
     run_cost,
@@ -147,7 +157,7 @@ from leaveimpact.core.attribution import (
     ObservationKind,
     RedispatchPolicy,
 )
-from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, skill_id
+from leaveimpact.core.ids import LeaveId, ScenarioId, WorldVersion, clause_id, document_id, skill_id
 from leaveimpact.core.jsonshape import canonical_json
 from leaveimpact.core.model_calls import FactBatch, Observation
 from leaveimpact.core.run_trace import ClientErrorKind
@@ -202,7 +212,8 @@ ALLOCATION = INPUT_BOUND * 1_375_000 + OUTPUT_MAXIMUM * 5_500_000
 output maximum at the output rate, 8,448,000,000 pico-dollars."""
 LEDGER_REVISION = 7
 RULES = Composition(ClaimAuthor.RULES, ComposingPolicy("stated-fact-composer", DIGEST), (), ())
-PARSER = RefusedBy("fact-batch-parser-v1", "c" * 64)
+PARSER = refused_by()
+"""The fact parser and its schema, as the reader derives a batch under them."""
 ARGUMENT_PARSER = RefusedBy("tool-argument-parser-v1", "d" * 64)
 
 SKILL = StatedFact(PredicateName.HAS_SKILL, f.DENIZ_REF, "kafka", f.COMMENT_REF, f.REMARK)
@@ -229,13 +240,9 @@ def requirement(span: str) -> StatedFact:
     )
 
 
-def at(slot: int) -> int:
-    """The position of slot ``slot``: ten a slot, so a count fits before an intent."""
-    return slot * 10
-
-
 def count_id(call: str) -> CountingOperationId:
-    return CountingOperationId(f"count-{call}")
+    """The identifier of ``call``'s one count: its reuse key rendered, as the log renders it."""
+    return rendered_count_id(CountKey(METHOD, COUNTING_MODEL, request_digest(call), 1))
 
 
 def request_digest(call: str) -> str:
@@ -255,17 +262,17 @@ def bound_of(call: str) -> EstablishedBound:
     )
 
 
-def counted(call: str, slot: int, *, segment: int = 1) -> CountingOperation:
-    """The one successful count of ``call``'s request, in the two positions before slot
-    ``slot``, where its first intent is logged."""
+def counted(call: str, position: int, *, segment: int = 1) -> CountingOperation:
+    """The one successful count of ``call``'s request, in the two positions before
+    ``position``, where its first intent is logged."""
     return CountingOperation(
         count_id(call),
         METHOD,
         COUNTING_MODEL,
         request_digest(call),
         segment,
-        at(slot) - 2,
-        at(slot) - 1,
+        position - 2,
+        position - 1,
         Counted(INPUT_BOUND, f"req-{count_id(call)}", 100),
         CountResult.COUNTED,
     )
@@ -274,14 +281,14 @@ def counted(call: str, slot: int, *, segment: int = 1) -> CountingOperation:
 def counts_of(calls: Sequence[ModelCall]) -> tuple[CountingOperation, ...]:
     """One count per call, each just before the call's first intent."""
     return tuple(
-        counted(call.id, first.intent_position // 10, segment=first.segment)
+        counted(call.id, first.intent_position, segment=first.segment)
         for call in calls
         for first in (call.dispatches[0],)
     )
 
 
 def dispatch(
-    slot: int,
+    position: int,
     observation: Observation,
     read_as: AttributionKind,
     *,
@@ -291,16 +298,15 @@ def dispatch(
     shown: Sequence[str] = (),
     call: str = "call-1",
 ) -> Dispatch:
-    """One dispatch of ``call`` whose intent is logged at slot ``slot``; usage and cost are
+    """One dispatch of ``call`` whose intent is logged at ``position``; usage and cost are
     the priced ones exactly when a complete response arrived, and its outcome follows its
     intent unless none was recorded."""
     answered = isinstance(observation, CompleteResponse)
-    intent = at(slot)
     return Dispatch(
         number=number,
         segment=segment,
-        intent_position=intent,
-        outcome_position=None if isinstance(observation, NoRecordedOutcome) else intent + 1,
+        intent_position=position,
+        outcome_position=None if isinstance(observation, NoRecordedOutcome) else position + 1,
         request=request_of(call),
         input_reads=tuple(OperationId(read) for read in shown),
         observation=observation,
@@ -317,16 +323,16 @@ def dispatch(
 
 def answered(
     call: str,
-    slot: int,
+    position: int,
     answer: Answer,
     *,
     stop_reason: str = "end_turn",
     segment: int = 1,
     shown: Sequence[str] = (),
 ) -> ModelCall:
-    """A call answered on its first dispatch, logged at slot ``slot``, carrying ``answer``."""
+    """A call answered on its first dispatch, logged at ``position``, carrying ``answer``."""
     sent = dispatch(
-        slot,
+        position,
         CompleteResponse(stop_reason, 840, 0),
         AttributionKind.BEHAVIOUR,
         segment=segment,
@@ -336,39 +342,97 @@ def answered(
     return ModelCall(ModelCallId(call), ROLE, (sent,), answer)
 
 
-def prefetched(slot: int = 1) -> Operation:
-    """The prefetch's read of the tickets, which came back empty, logged at slot ``slot``."""
+def prefetched(
+    position: int = 3,
+    ordinal: int = 1,
+    tool: str = "work_items",
+    source: Source = Source.JIRA,
+    records: Sequence[Observed[Entity]] = (),
+) -> Operation:
+    """The prefetch's ``ordinal``-th read, of ``tool``, returning ``records``, logged at
+    ``position``; by default the read of the tickets, which came back empty."""
     return Operation(
-        OperationId(f"op-{slot}"),
+        OperationId(f"prefetch/{ordinal}"),
         PrefetchOrigin(),
-        "work_items",
-        Source.JIRA,
+        tool,
+        source,
         {},
-        RecordsOutcome(()),
-        at(slot),
+        RecordsOutcome(tuple(records)),
+        position,
     )
 
 
-def asked(operation: str, call: str, slot: int, outcome: object = None) -> Operation:
-    """A ticket read the model call ``call`` asked for, logged at slot ``slot``."""
+PEOPLE: tuple[Observed[Entity], ...] = (
+    Observed[Entity](f.ALICE, Source.FRAPPE),
+    Observed[Entity](f.DENIZ, Source.FRAPPE),
+)
+TICKETS: tuple[Observed[Entity], ...] = (Observed[Entity](f.TICKET, Source.JIRA),)
+"""The reads behind an admitted skill statement: the people, and the ticket holding Deniz's
+comment the statement is read from. A fact is admitted over the reads logged before its
+answer, so a history whose answer admits the statement holds these."""
+
+SCOPED_RUNBOOK = Document(
+    document_id(3),
+    "Payments runbook",
+    DocumentKind.RUNBOOK,
+    date(2026, 1, 1),
+    (DocumentSection(clause_id(11), SCOPED_QUOTE),),
+)
+"""The runbook whose one section is the scoped sentence, so a requirement quoting it is
+admitted on its carrier."""
+
+
+def read_document(position: int, ordinal: int, document: Document) -> Operation:
+    """The prefetch's read of ``document`` by its id, logged at ``position``."""
+    held = Observed[Entity](document, Source.CORPUS)
     return Operation(
-        OperationId(operation),
+        OperationId(f"prefetch/{ordinal}"),
+        PrefetchOrigin(),
+        "document",
+        Source.CORPUS,
+        {"id": document.id},
+        RecordOutcome(held),
+        position,
+    )
+
+
+def asked(tool_call: str, call: str, position: int, outcome: object = None) -> Operation:
+    """A ticket read the model call ``call`` asked for in ``tool_call``, logged at
+    ``position``."""
+    return Operation(
+        OperationId(f"{call}/{tool_call}"),
         ModelOrigin(ModelCallId(call)),
         "work_item",
         Source.JIRA,
         {"id": "ticket_042"},
         AbsentOutcome() if outcome is None else outcome,  # type: ignore[arg-type]
-        at(slot),
+        position,
     )
 
 
-def one_segment(last_offset_ms: int = 9_000) -> Timing:
+def stamps(
+    request: int, *, segment: int = 1, last_offset_ms: int = 9_000
+) -> tuple[Stamp, Stamp]:
+    """The worker's two approval stamps of a completed attempt: the request at ``request``
+    and the resume two positions later (the approval sits between), both inside the segment's
+    last 300 ms."""
+    return (
+        Stamp(segment, last_offset_ms - 300, request),
+        Stamp(segment, last_offset_ms - 200, request + 2),
+    )
+
+
+def one_segment(last_offset_ms: int = 9_000, request: int | None = None) -> Timing:
+    """One segment with its end recorded; with ``request`` the approval's two stamps."""
+    requested, resumed = (
+        (None, None) if request is None else stamps(request, last_offset_ms=last_offset_ms)
+    )
     return Timing(
         (Segment(1, REVISION, last_offset_ms, True),),
         ADMITTED,
         ADMITTED + timedelta(milliseconds=last_offset_ms),
-        None,
-        None,
+        requested,
+        resumed,
     )
 
 
@@ -410,13 +474,15 @@ def export(
     failure: Failure | None = None,
     abandonment: Abandonment | None = None,
     timing: Timing | None = None,
+    request: int | None = None,
     approval: Approval | None = None,
     counting_operations: Sequence[CountingOperation] | None = None,
     reservation: Reservation | None = None,
 ) -> RunExport:
     """An agent's export around ``calls``. The attempt completed unless ``failure`` says how
-    it failed; it is approved automatically when it completed and requested no approval when
-    it failed, unless ``approval`` says otherwise. Each call rests on one successful count
+    it failed; it is approved automatically when it completed, its request stamped at
+    position ``request`` and its resume two later, and requested no approval when it
+    failed, unless ``approval`` says otherwise. Each call rests on one successful count
     unless ``counting_operations`` says otherwise, and the reservation is settled over the
     calls unless ``reservation`` says otherwise."""
     if approval is None:
@@ -426,7 +492,7 @@ def export(
         outage=OutageAssignment(frozenset(), DIGEST),
         corpus_level="base",
         preregistration_commit=COMMIT,
-        attribution_table=DIGEST,
+        attribution_table=TABLE_DIGEST,
         model_configurations=(
             (
                 ROLE,
@@ -446,7 +512,7 @@ def export(
         status=TerminalStatus.COMPLETED if failure is None else TerminalStatus.FAILED,
         failure=failure,
         abandonment=abandonment,
-        timing=timing if timing is not None else one_segment(),
+        timing=timing if timing is not None else one_segment(request=request),
         usage=aggregate_usage(calls),
         cost=run_cost(calls),
         reservation=settled(calls) if reservation is None else reservation,
@@ -474,6 +540,20 @@ def batch(*entries: Admitted | Refused | RefusedInput) -> FactBatch:
     return ParsedBatch(tuple(entries))
 
 
+def evidence(*, document: Document | None = None) -> tuple[Operation, ...]:
+    """The prefetch reads of a history whose answer admits a statement: the empty ticket
+    read every fixture opens with, the people, the ticket with Deniz's comment, and
+    ``document`` when a requirement is read from it; at positions 3 to 6."""
+    reads = [
+        prefetched(3),
+        prefetched(4, 2, "employees", Source.FRAPPE, PEOPLE),
+        prefetched(5, 3, "work_items", Source.JIRA, TICKETS),
+    ]
+    if document is not None:
+        reads.append(read_document(6, 4, document))
+    return tuple(reads)
+
+
 # --- The contract step's twelve ---------------------------------------------------------------
 
 
@@ -482,41 +562,51 @@ def facts_beside_tools() -> RunExport:
     content: the shape format 1's one outcome per call had no value for."""
     answer = Answer(
         True,
-        (ToolCall("tu_1", "work_item", AsOperation(OperationId("op-2"))),),
+        (ToolCall("tu_1", "work_item", AsOperation(OperationId("call-1/tu_1"))),),
         (batch(Admitted(SKILL)),),
     )
-    call = answered("call-1", 2, answer, stop_reason="tool_use", shown=("op-1",))
-    return export((call,), (prefetched(), asked("op-2", "call-1", 4)))
+    call = answered("call-1", 8, answer, stop_reason="tool_use", shown=("prefetch/1",))
+    return export((call,), (*evidence(), asked("tu_1", "call-1", 10)), request=11)
 
 
 def malformed_batch() -> RunExport:
     """A fact payload the parser could not read: kept as it arrived, beside who refused it."""
     payload = '{"facts": [{"predicate": "has_skill", "subject": "emp_023", "va'
-    call = answered("call-1", 2, Answer(False, (), (MalformedBatch(payload, PARSER),)))
-    return export((call,), (prefetched(),))
+    call = answered("call-1", 6, Answer(False, (), (MalformedBatch(payload, PARSER),)))
+    return export((call,), (prefetched(),), request=8)
 
 
 def refused_fact() -> RunExport:
     """A parsed batch of three entries: an input no stated fact can be made of, kept as raw
     text and never as the fact; a fact a gate refused; a fact admitted."""
-    entry = {"predicate": "has_skill", "subject": "emp_023", "value": 7, "carrier": "comment_001"}
+    entry = {
+        "predicate": "has_skill",
+        "subject": f.DENIZ_REF.id,
+        "value": 7,
+        "carrier": f.COMMENT_REF.id,
+        "quote": f.REMARK,
+    }
     unreadable = RefusedInput(
-        canonical_json(entry), FactRefusal.UNDECODABLE, "has_skill: a skill id, got 7"
+        canonical_json(entry), FactRefusal.UNDECODABLE, "value is text, got int"
     )
     misquoted = StatedFact(
         PredicateName.HAS_SKILL, f.DENIZ_REF, "kafka", f.COMMENT_REF, "I led the Kafka migration"
     )
-    refused = Refused(misquoted, FactRefusal.QUOTE_NOT_IN_CARRIER, "the comment says 'ran'")
-    call = answered("call-1", 2, Answer(False, (), (batch(unreadable, refused, Admitted(SKILL)),)))
-    return export((call,), (prefetched(),))
+    refused = Refused(
+        misquoted,
+        FactRefusal.QUOTE_NOT_IN_CARRIER,
+        f"the quote is not a substring of {f.COMMENT_REF.id} as read",
+    )
+    call = answered("call-1", 8, Answer(False, (), (batch(unreadable, refused, Admitted(SKILL)),)))
+    return export((call,), evidence(), request=10)
 
 
 def cut_call() -> RunExport:
     """A response cut at the output limit arrives holding a tool call with empty arguments;
     only its stop reason says the call was never made whole, and it is not dispatched."""
     cut = ToolCall("tu_1", "employee", Undispatched(UndispatchedReason.STOP_REASON_NOT_TOOL_USE))
-    call = answered("call-1", 2, Answer(False, (cut,), ()), stop_reason="max_tokens")
-    return export((call,), (prefetched(),))
+    call = answered("call-1", 6, Answer(False, (cut,), ()), stop_reason="max_tokens")
+    return export((call,), (prefetched(),), request=8)
 
 
 def handled_fact_tool() -> RunExport:
@@ -527,25 +617,24 @@ def handled_fact_tool() -> RunExport:
         (ToolCall("tu_1", "state_facts", HandledAsBatch(0)),),
         (batch(Admitted(SKILL)),),
     )
-    call = answered("call-1", 2, answer, stop_reason="tool_use")
-    return export((call,), (prefetched(),))
+    call = answered("call-1", 8, answer, stop_reason="tool_use")
+    return export((call,), evidence(), request=10)
 
 
 def unresolved_then_answered() -> RunExport:
     """A process killed after a dispatch's intent was logged, and the recovery's second
     dispatch that answered: one logical call, two dispatches, the first zero sends or one."""
-    lost = dispatch(2, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule=UNRESOLVED_RULE)
+    lost = dispatch(6, NoRecordedOutcome(), AttributionKind.UNRESOLVED, rule=UNRESOLVED_RULE)
     # The same request asked again: its count is durable and reused, nothing is counted.
     again = dispatch(
-        4, CompleteResponse("end_turn", 840, 0), AttributionKind.BEHAVIOUR, number=2, segment=2
+        8, CompleteResponse("end_turn", 840, 0), AttributionKind.BEHAVIOUR, number=2, segment=2
     )
     call = ModelCall(ModelCallId("call-1"), ROLE, (lost, again), Answer(True, (), ()))
     timing = Timing(
         (Segment(1, REVISION, 3_000, False), Segment(2, REVISION, 2_500, True)),
         ADMITTED,
         ADMITTED + timedelta(minutes=4),
-        None,
-        None,
+        *stamps(10, segment=2, last_offset_ms=2_500),
     )
     return export((call,), (prefetched(),), timing=timing)
 
@@ -587,6 +676,10 @@ TABLE = AttributionTable(
 """A table holding every rule the fixtures' dispatches name, so a check that needs the
 registered table can read them."""
 
+TABLE_DIGEST = attribution_table_digest(TABLE)
+"""What every fixture's record names its attributions' table by: the table above, as a
+history's admission freezes it."""
+
 POLICY = RedispatchPolicy(3, 0)
 """A re-dispatch policy every fixture conforms to: no call takes more than two dispatches,
 and the input-bound fixture's three counting requests consume exactly this maximum."""
@@ -601,7 +694,7 @@ def nova_signature_beside_another() -> RunExport:
         ROLE,
         (
             dispatch(
-                2,
+                6,
                 ServiceError(424, "ModelErrorException", None, NOVA_CUT, 0, "req-nova-1"),
                 AttributionKind.BEHAVIOUR,
                 rule="nova-cut-tool-use",
@@ -615,7 +708,7 @@ def nova_signature_beside_another() -> RunExport:
         ROLE,
         (
             dispatch(
-                4,
+                10,
                 ServiceError(
                     424,
                     "ModelErrorException",
@@ -629,7 +722,7 @@ def nova_signature_beside_another() -> RunExport:
                 call="call-2",
             ),
             dispatch(
-                6,
+                12,
                 CompleteResponse("end_turn", 840, 0),
                 AttributionKind.BEHAVIOUR,
                 number=2,
@@ -638,37 +731,37 @@ def nova_signature_beside_another() -> RunExport:
         ),
         Answer(True, (), ()),
     )
-    return export((cut, other), (prefetched(),))
+    return export((cut, other), (prefetched(),), request=14)
 
 
 def recovered_attempt() -> RunExport:
     """An attempt whose first process was killed after the prefetch and whose second finished
     it: two segments, the first with an unknown tail."""
-    call = answered("call-1", 2, Answer(True, (), ()), segment=2, shown=("op-1",))
+    call = answered("call-1", 7, Answer(True, (), ()), segment=2, shown=("prefetch/1",))
     timing = Timing(
         (Segment(1, REVISION, 1_200, False), Segment(2, REVISION, 6_000, True)),
         ADMITTED,
         ADMITTED + timedelta(minutes=10),
-        None,
-        None,
+        *stamps(9, segment=2, last_offset_ms=6_000),
     )
     return export((call,), (prefetched(),), timing=timing)
 
 
 def abandoned_attempt() -> RunExport:
     """An attempt that requested an approval nobody delivered and that an operator then
-    abandoned: a decision with its authority and the ownership generation it fenced."""
-    call = answered("call-1", 2, Answer(True, (), ()))
+    abandoned: a decision with its authority and the ownership generation it fenced. The
+    request is the segment's last durable event, so its offset is the segment's last."""
+    call = answered("call-1", 6, Answer(True, (), ()))
     failure = Failure(
         FailureCategory.INFRASTRUCTURE,
         HarnessSite(HarnessSiteName.ABANDONED),
         "no worker resumed the attempt",
     )
     timing = Timing(
-        (Segment(1, REVISION, 5_000, False),),
+        (Segment(1, REVISION, 4_800, False),),
         ADMITTED,
         ADMITTED + timedelta(days=2),
-        Stamp(1, 4_800, at(4)),
+        Stamp(1, 4_800, 8),
         None,
     )
     waiting = Approval(ApprovalState.REQUESTED_UNAPPROVED, None, review_payload_digest((), RULES))
@@ -684,19 +777,19 @@ def abandoned_attempt() -> RunExport:
 
 def approval_wait_across_restart() -> RunExport:
     """The approval requested at 7,000 ms of a first segment that lasted to 7,900; a second
-    segment that began and was killed inside the wait; the resume at 50 ms of the third, which
-    ran to 2,050."""
-    call = answered("call-1", 2, Answer(True, (), ()))
+    segment that began and was killed inside the wait, its start its only event, so its
+    last offset is 0; the resume at 50 ms of the third, which ran to 2,050."""
+    call = answered("call-1", 6, Answer(True, (), ()))
     timing = Timing(
         (
             Segment(1, REVISION, 7_900, True),
-            Segment(2, REVISION, 600, False),
+            Segment(2, REVISION, 0, False),
             Segment(3, REVISION, 2_050, True),
         ),
         ADMITTED,
         ADMITTED + timedelta(hours=2),
-        Stamp(1, 7_000, at(4)),
-        Stamp(3, 50, at(5)),
+        Stamp(1, 7_000, 8),
+        Stamp(3, 50, 13),
     )
     return export((call,), (prefetched(),), timing=timing)
 
@@ -708,7 +801,7 @@ def wrong_scope_beside_unplaced() -> RunExport:
     run never read and stays unplaced."""
     on_the_meeting, unread = requirement(f.MEETING.title), requirement("Ledger cutover")
     call = answered(
-        "call-1", 2, Answer(False, (), (batch(Admitted(on_the_meeting), Admitted(unread)),))
+        "call-1", 9, Answer(False, (), (batch(Admitted(on_the_meeting), Admitted(unread)),))
     )
     composition = Composition(
         ClaimAuthor.RULES,
@@ -722,7 +815,9 @@ def wrong_scope_beside_unplaced() -> RunExport:
         ),
         (),
     )
-    return export((call,), (prefetched(),), composition=composition)
+    return export(
+        (call,), evidence(document=SCOPED_RUNBOOK), composition=composition, request=11
+    )
 
 
 def first_tool_call_ends_the_attempt() -> RunExport:
@@ -732,15 +827,15 @@ def first_tool_call_ends_the_attempt() -> RunExport:
     answer = Answer(
         False,
         (
-            ToolCall("tu_1", "work_item", AsOperation(OperationId("op-2"))),
+            ToolCall("tu_1", "work_item", AsOperation(OperationId("call-1/tu_1"))),
             ToolCall("tu_2", "employee", Undispatched(UndispatchedReason.ATTEMPT_ENDED_FIRST)),
         ),
         (),
     )
-    call = answered("call-1", 2, answer, stop_reason="tool_use")
-    malformed = asked("op-2", "call-1", 4, DefectOutcome(Source.JIRA, "LIA-42", "no world id"))
+    call = answered("call-1", 6, answer, stop_reason="tool_use")
+    malformed = asked("tu_1", "call-1", 8, DefectOutcome(Source.JIRA, "LIA-42", "no world id"))
     failure = Failure(
-        FailureCategory.DEFECT, OperationSite(OperationId("op-2")), "a malformed record"
+        FailureCategory.DEFECT, OperationSite(OperationId("call-1/tu_1")), "a malformed record"
     )
     return export((call,), (prefetched(), malformed), failure=failure)
 
@@ -749,11 +844,11 @@ def tool_result_lost() -> RunExport:
     """A read the model asked for, in an attempt killed before any result was logged and then
     abandoned: nothing shows the read never ran, so it is unresolved, not undispatched."""
     answer = Answer(False, (ToolCall("tu_1", "work_item", UnresolvedToolCall()),), ())
-    call = answered("call-1", 2, answer, stop_reason="tool_use")
+    call = answered("call-1", 6, answer, stop_reason="tool_use")
     failure = Failure(
         FailureCategory.INFRASTRUCTURE,
         HarnessSite(HarnessSiteName.ABANDONED),
-        "the worker died and the attempt was abandoned",
+        "no worker resumed the attempt",
     )
     timing = Timing(
         (Segment(1, REVISION, 2_000, False),), ADMITTED, ADMITTED + timedelta(hours=1), None, None
@@ -799,15 +894,15 @@ def defect_finalized_by_operator() -> RunExport:
     answer = Answer(
         False,
         (
-            ToolCall("tu_1", "work_item", AsOperation(OperationId("op-2"))),
+            ToolCall("tu_1", "work_item", AsOperation(OperationId("call-1/tu_1"))),
             ToolCall("tu_2", "employee", Undispatched(UndispatchedReason.ATTEMPT_ENDED_FIRST)),
         ),
         (),
     )
-    call = answered("call-1", 2, answer, stop_reason="tool_use")
-    malformed = asked("op-2", "call-1", 4, DefectOutcome(Source.JIRA, "LIA-42", "no world id"))
+    call = answered("call-1", 6, answer, stop_reason="tool_use")
+    malformed = asked("tu_1", "call-1", 8, DefectOutcome(Source.JIRA, "LIA-42", "no world id"))
     failure = Failure(
-        FailureCategory.DEFECT, OperationSite(OperationId("op-2")), "a malformed record"
+        FailureCategory.DEFECT, OperationSite(OperationId("call-1/tu_1")), "a malformed record"
     )
     timing = Timing(
         (Segment(1, REVISION, 1_600, False),), ADMITTED, ADMITTED + timedelta(days=1), None, None
@@ -821,51 +916,63 @@ def defect_finalized_by_operator() -> RunExport:
     )
 
 
+def exhausted_count_id(ordinal: int) -> CountingOperationId:
+    """The identifier of the ``ordinal``-th counting request for the one request the
+    input-bound fixture never bounds."""
+    return rendered_count_id(CountKey(METHOD, COUNTING_MODEL, DIGEST, ordinal))
+
+
 def input_bound_exhausted() -> RunExport:
     """Three counting requests for the first model request, none a count: throttled, a
     client timeout, and one the worker died inside, which consumed the maximum all the same.
-    No dispatch was ever authorized; the attempt ended by infrastructure at the input bound,
-    naming the last counting operation, and a new attempt is permitted after it."""
+    A third segment found the maximum reached and wrote the failure, so the second's end
+    was never recorded and the third's was. No dispatch was ever authorized; the attempt
+    ended by infrastructure at the input bound, naming the last counting operation, and a
+    new attempt is permitted after it."""
     throttled = CountingOperation(
-        CountingOperationId("count-1"),
+        exhausted_count_id(1),
         METHOD,
         COUNTING_MODEL,
         DIGEST,
         1,
-        at(2),
-        at(2) + 1,
+        4,
+        5,
         CountServiceError(429, "ThrottlingException", "rate exceeded", "req-count-1", 80),
         CountResult.FAILED,
     )
     timed_out = CountingOperation(
-        CountingOperationId("count-2"),
+        exhausted_count_id(2),
         METHOD,
         COUNTING_MODEL,
         DIGEST,
         1,
-        at(3),
-        at(3) + 1,
+        6,
+        7,
         CountClientError(ClientErrorKind.TIMEOUT, 30_000),
         CountResult.FAILED,
     )
     died_inside = CountingOperation(
-        CountingOperationId("count-3"),
+        exhausted_count_id(3),
         METHOD,
         COUNTING_MODEL,
         DIGEST,
         2,
-        at(4),
+        9,
         None,
         NoRecordedOutcome(),
         CountResult.UNRESOLVED,
     )
     failure = Failure(
         FailureCategory.INFRASTRUCTURE,
-        InputBoundSite(CountingOperationId("count-3")),
+        InputBoundSite(exhausted_count_id(3)),
         "the counting requests were exhausted without a count",
     )
     timing = Timing(
-        (Segment(1, REVISION, 31_000, False), Segment(2, REVISION, 900, True)),
+        (
+            Segment(1, REVISION, 31_000, False),
+            Segment(2, REVISION, 900, False),
+            Segment(3, REVISION, 100, True),
+        ),
         ADMITTED,
         ADMITTED + timedelta(minutes=5),
         None,
