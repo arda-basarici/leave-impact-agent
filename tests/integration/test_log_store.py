@@ -28,6 +28,7 @@ formatted traceback names no content of the inputs.
 from __future__ import annotations
 
 import traceback
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from uuid import uuid4
 
@@ -39,6 +40,7 @@ from leaveimpact.agent.log_events import (
     Admitted,
     CapExhausted,
     Completed,
+    DispatchOutcome,
     Failed,
     LoggedEvent,
     Producer,
@@ -60,9 +62,19 @@ from leaveimpact.agent.log_store import (
     PublicationState,
 )
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused
-from leaveimpact.core import AbandonmentReason, export_bytes
+from leaveimpact.core import (
+    AbandonmentReason,
+    Attribution,
+    AttributionKind,
+    DispatchPhase,
+    DispatchSite,
+    FailureCategory,
+    ModelCallId,
+    ServiceError,
+    export_bytes,
+)
 from leaveimpact.core.eligibility import EligibilityRule
-from tests.integration.log_store_support import Rig, Scripted, rig
+from tests.integration.log_store_support import Hold, Rig, Scripted, rig
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 
@@ -216,6 +228,10 @@ def test_an_admission_is_one_receipt_however_often_it_is_asked(rig: Rig) -> None
     first = store.admit(request)
     assert isinstance(first, AdmissionReceipt) and first.ledger_revision == 2
     assert store.admit(request) == first, "a repeated request returns its recorded result"
+    with pytest.raises(LogStoreConflict, match="with other content"):
+        store.admit(replace(request, inputs=replace(admitted.inputs, corpus_level="padded")))
+    with pytest.raises(LogStoreConflict, match="with other content"):
+        store.admit(replace(request, ledger_id="ledger-other"))
     again = store.admit(replace(request, request_id=request_id()))
     assert again == first, "another request for an attempt that exists gets its receipt"
     with pytest.raises(LogStoreConflict, match="exists with other frozen inputs"):
@@ -381,6 +397,16 @@ def test_a_repeated_claim_under_one_nonce_is_a_receipt_until_a_takeover_fences_i
     )
     assert again == Received(2)
     assert len(store.load("run-12", 1, rules=RULES).segments) == 1
+    with pytest.raises(LogStoreConflict, match="another content under the claim nonce"):
+        store.claim(
+            "run-12",
+            1,
+            harness=started.harness,
+            nonce=started.nonce,
+            launch="launch-other",
+            rules=RULES,
+            state=state,
+        )
     taken = store.claim(
         "run-12", 1, harness=started.harness, nonce="nonce-other", launch="launch-2", rules=RULES
     )
@@ -517,7 +543,9 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
     assert (
         pending.state is PublicationState.PENDING and store.publication_of("run-12", 1) == pending
     )
-    failed = store.publication_failed("run-12", 1, incident="upload refused")
+    failed = store.publication_failed(
+        "run-12", 1, reader_commit=cases.COMMIT, object_identity=OBJECT, incident="upload refused"
+    )
     assert failed.state is PublicationState.FAILED and failed.incident == "upload refused"
     repaired = store.publication_pending(
         "run-12",
@@ -530,6 +558,10 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
     )
     assert repaired.state is PublicationState.PENDING
     assert repaired.repaired_from_commit == cases.COMMIT and repaired.incident == "upload refused"
+    stale = store.publication_failed(
+        "run-12", 1, reader_commit=cases.COMMIT, object_identity=OBJECT, incident="A's late handler"
+    )
+    assert stale == repaired, "a replaced publisher's late failure changes nothing"
     with pytest.raises(LogStoreConflict, match="over another log digest"):
         store.publication_pending(
             "run-12",
@@ -548,7 +580,12 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
         store.publication_published("run-12", 1, object_identity=OBJECT, object_digest=DIGEST)
         == done
     )
-    assert store.publication_failed("run-12", 1, incident="late handler") == done
+    assert (
+        store.publication_failed(
+            "run-12", 1, reader_commit="e" * 40, object_identity=OBJECT, incident="late handler"
+        )
+        == done
+    )
     late = store.publication_pending(
         "run-12",
         1,
@@ -560,7 +597,9 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
     )
     assert late == done, "published is never left"
     with pytest.raises(ValueError, match="has no publication"):
-        store.publication_failed("run-12", 7, incident="x")
+        store.publication_failed(
+            "run-12", 7, reader_commit=cases.COMMIT, object_identity=OBJECT, incident="x"
+        )
 
 
 # --- Faults ----------------------------------------------------------------------------------
@@ -573,8 +612,10 @@ def test_another_schema_version_and_a_missing_bootstrap_refuse_the_connection(ri
     assert setup.open_attempts() == ()
     conn = rig.connections[max(rig.connections)]  # the setup store's, still open
     conn.execute("UPDATE log_schema SET version = 2")
-    with pytest.raises(LogStoreInvariantBroken, match="holds version 2"):
-        rig.store().open_attempts()
+    rejected = rig.store()
+    for _ in range(2):
+        with pytest.raises(LogStoreInvariantBroken, match="holds version 2"):
+            rejected.open_attempts()
     conn.execute("DROP TABLE log_schema")
     with pytest.raises(LogStoreInvariantBroken, match="not bootstrapped"):
         rig.store().open_attempts()
@@ -594,3 +635,64 @@ def test_a_conflicts_traceback_names_no_content_of_the_inputs(rig: Rig) -> None:
     assert "padded-content" not in text and admitted.inputs.corpus_level not in text
     assert admitted.inputs.context.world_version not in text  # type: ignore[attr-defined]
     assert "run-12" in text
+
+
+# --- The review's reads and the disowned attribution --------------------------------------------
+
+
+def test_a_read_without_the_lock_is_consistent_at_the_rows_cutoff(rig: Rig) -> None:
+    """An append between the row's read and the events' read is below no cutoff the row
+    gave, so the load returns the state at the row and raises nothing."""
+    events = histories.HISTORIES["a cut call"]()
+    plain = opened(rig)
+    state = replay(plain, events, upto=2)
+    hold = Hold("read")
+    reader = rig.store(boundary=hold)
+    with ThreadPoolExecutor(1) as pool:
+        loading = pool.submit(reader.load, "run-12", 1, rules=RULES)
+        hold.wait_reached()
+        appended = plain.append(
+            "run-12", 1, WorkerStamp(1, 1, 5), SegmentEnded(), rules=RULES, state=state
+        )
+        assert isinstance(appended, Appended)
+        hold.release.set()
+        loaded = loading.result(10)
+    assert loaded.last_position == 2, "the read is the row's cutoff, not the append between"
+    hold.release.set()
+    assert reader.load("run-12", 1, rules=RULES).last_position == 3
+
+
+def test_a_predecessor_whose_attribution_the_table_disowns_permits_no_successor(rig: Rig) -> None:
+    store = opened(rig)
+    events = histories.HISTORIES["a cut call"]()
+    admitted, admitter = admission_of(events)
+    state = replay(store, events, upto=6)
+    held = events[6].event
+    assert isinstance(held, DispatchOutcome)
+    mislabelled = replace(
+        held,
+        observation=ServiceError(429, "ThrottlingException", None, "too many requests"),
+        response=None,
+        attribution=Attribution(AttributionKind.INFRASTRUCTURE, "stream"),
+        zero_cost_rule=None,
+    )
+    appended = store.append("run-12", 1, events[6].envelope, mislabelled, rules=RULES, state=state)
+    assert isinstance(appended, Appended) and appended.state.stopped is not None
+    closing = Failed(
+        FailureCategory.INFRASTRUCTURE,
+        DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.SEND),
+        "the call failed by infrastructure and no further dispatch is permitted",
+        None,
+    )
+    closed = store.close_attempt(
+        "run-12", 1, WorkerStamp(1, 1, 1_600), closing, rules=RULES, state=appended.state
+    )
+    assert isinstance(closed, Appended)
+    published(store, "run-12", 1)
+    second = replace(admitted, inputs=replace(admitted.inputs, attempt=2))
+    refused = store.admit(request_for(second, admitter))
+    assert isinstance(refused, AdmissionRefusal)
+    assert refused.reason == (
+        "attempt 1's failure at a dispatch's send is recorded under an attribution the table "
+        "does not give its observation"
+    )

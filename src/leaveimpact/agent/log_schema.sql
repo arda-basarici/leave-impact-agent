@@ -60,14 +60,18 @@ CREATE UNIQUE INDEX IF NOT EXISTS event_claim_nonce
     ON event (run_id, attempt, claim_nonce) WHERE claim_nonce IS NOT NULL;
 
 -- The recorded result of an admission request, committed before it is returned, so a
--- repeated request returns it and never reserves twice or advances the attempt number.
+-- repeated request returns it and never reserves twice or advances the attempt number;
+-- the inputs' digest and the ledger asked for are what a repeat is compared with, so one
+-- request identity with other content is a conflict and not a receipt.
 CREATE TABLE IF NOT EXISTS admission_request (
-    request_id  text        PRIMARY KEY,
-    run_id      text        NOT NULL,
-    attempt     integer     NOT NULL,
-    outcome     text        NOT NULL,
-    result      jsonb       NOT NULL,
-    recorded_at timestamptz NOT NULL
+    request_id      text        PRIMARY KEY,
+    run_id          text        NOT NULL,
+    attempt         integer     NOT NULL,
+    inputs_digest   text        NOT NULL,
+    ledger_id       text,
+    outcome         text        NOT NULL,
+    result          jsonb       NOT NULL,
+    recorded_at     timestamptz NOT NULL
 );
 
 -- The shared ledger: one locked head per ledger, append-only entries whose revision is

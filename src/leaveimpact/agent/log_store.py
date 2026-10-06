@@ -52,7 +52,8 @@ under a held identifier, or another request for an attempt that exists with othe
 Messages name runs, attempts, positions, kinds and reasons, never content. The
 ``boundary`` seam names three points of every writing command (``locked``, ``decided``,
 ``before-commit``) so a two-connection test can hold one side where it chooses; it is a
-no-op in production.
+no-op in production; ``read`` marks the one statement of a read without the lock that
+follows the row's, where the position cutoff is what keeps the two consistent.
 """
 
 from __future__ import annotations
@@ -281,7 +282,10 @@ _INSERT_EVENT = """
                        record)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
-_SELECT_EVENTS = "SELECT record FROM event WHERE run_id = %s AND attempt = %s ORDER BY position"
+_SELECT_EVENTS = """
+    SELECT record FROM event WHERE run_id = %s AND attempt = %s AND position <= %s
+    ORDER BY position
+"""
 _SELECT_HELD = (
     "SELECT record FROM event WHERE run_id = %s AND attempt = %s AND kind = %s AND key = %s"
 )
@@ -289,10 +293,14 @@ _SELECT_BY_NONCE = (
     "SELECT record FROM event WHERE run_id = %s AND attempt = %s AND claim_nonce = %s"
 )
 _SELECT_LAST = "SELECT record FROM event WHERE run_id = %s AND attempt = %s AND position = %s"
-_SELECT_REQUEST = "SELECT run_id, attempt, result FROM admission_request WHERE request_id = %s"
+_SELECT_REQUEST = """
+    SELECT run_id, attempt, inputs_digest, ledger_id, result FROM admission_request
+    WHERE request_id = %s
+"""
 _INSERT_REQUEST = """
-    INSERT INTO admission_request (request_id, run_id, attempt, outcome, result, recorded_at)
-    VALUES (%s, %s, %s, %s, %s, %s)
+    INSERT INTO admission_request (request_id, run_id, attempt, inputs_digest, ledger_id,
+                                   outcome, result, recorded_at)
+    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
 """
 _INSERT_HEAD = """
     INSERT INTO ledger_head (ledger_id, total_pico_usd, revision) VALUES (%s, 0, 0)
@@ -315,7 +323,7 @@ _INSERT_ENTRY = """
 _SELECT_ENTRIES = """
     SELECT revision, kind, run_id, attempt, amount_pico_usd, total_after_pico_usd, authority,
            registration_commit, reason
-    FROM ledger_entry WHERE ledger_id = %s ORDER BY revision
+    FROM ledger_entry WHERE ledger_id = %s AND revision <= %s ORDER BY revision
 """
 _SELECT_PUBLICATION = """
     SELECT run_id, attempt, state, reader_commit, export_format, log_digest, object_identity,
@@ -409,12 +417,14 @@ class LogStore:
             self._boundary("locked")
             recorded = conn.execute(_SELECT_REQUEST, (request.request_id,)).fetchone()
             if recorded is not None:
-                if (recorded[0], recorded[1]) != (run_id, attempt):
+                asked = (run_id, attempt, _inputs_digest(inputs), request.ledger_id)
+                if tuple(recorded[:4]) != asked:
                     raise LogStoreConflict(
                         f"request {request.request_id} was recorded for run {recorded[0]} "
-                        f"attempt {recorded[1]}, asked again for run {run_id} attempt {attempt}"
+                        f"attempt {recorded[1]} with other content, asked again for run "
+                        f"{run_id} attempt {attempt}"
                     )
-                return _decode_result(run_id, attempt, recorded[2])
+                return _decode_result(run_id, attempt, recorded[4])
             at = self._clock(conn)
             if attempt <= admitted_so_far:
                 result: AdmissionResult = self._existing_admission(conn, run_id, attempt, inputs)
@@ -494,8 +504,14 @@ class LogStore:
             return f"attempt {before}'s export is not published (publication {state})"
         state = self._fold(conn, row, rules)
         stopped = state.stopped
+        ending = eligibility_ending_of(state, rules)
+        if ending is None:
+            return (
+                f"attempt {before}'s failure at a dispatch's send is recorded under an "
+                f"attribution the table does not give its observation"
+            )
         eligibility = new_attempt_eligibility(
-            eligibility_ending_of(state, rules),
+            ending,
             recorded_defect=stopped is not None and stopped.category is FailureCategory.DEFECT,
             attempt=before,
             retry=inputs.retry,
@@ -537,6 +553,8 @@ class LogStore:
                 request.request_id,
                 result.run_id,
                 result.attempt,
+                _inputs_digest(request.inputs),
+                request.ledger_id,
                 outcome,
                 Jsonb(_encode_result(result)),
                 at,
@@ -569,6 +587,11 @@ class LogStore:
                 earlier = decode_logged_event(held[0])
                 stamp = earlier.stamp
                 assert stamp is not None
+                if event_bytes(earlier.event) != event_bytes(event):
+                    raise LogStoreConflict(
+                        f"run {run_id} attempt {attempt} holds another content under the claim "
+                        f"nonce of the segment start at position {earlier.position}"
+                    )
                 if stamp.generation == row.generation:
                     return Received(earlier.position)
                 return Refused(
@@ -754,7 +777,8 @@ class LogStore:
             if head_row is None:
                 raise ValueError(f"ledger {ledger_id} has no head")
             head = _head_of(head_row)
-            rows = conn.execute(_SELECT_ENTRIES, (ledger_id,)).fetchall()
+            self._boundary("read")
+            rows = conn.execute(_SELECT_ENTRIES, (ledger_id, head.revision)).fetchall()
         entries = tuple(_entry_of(row) for row in rows)
         if ledger.fold(entries) != head:
             raise LogStoreInvariantBroken(
@@ -843,15 +867,27 @@ class LogStore:
             self._boundary("before-commit")
             return record
 
-    def publication_failed(self, run_id: str, attempt: int, *, incident: str) -> PublicationRecord:
-        """The pending publication failed with ``incident``; a published record is never
-        changed back and is returned as it stands."""
+    def publication_failed(
+        self,
+        run_id: str,
+        attempt: int,
+        *,
+        reader_commit: str,
+        object_identity: str,
+        incident: str,
+    ) -> PublicationRecord:
+        """The pending publication under ``reader_commit`` for ``object_identity`` failed
+        with ``incident``. A published record is never changed back, and a record that
+        another publisher has since replaced is not this publisher's to fail (the store
+        group's review); both are returned as they stand."""
         with self._guarded() as conn, conn.transaction():
             held = self._publication(conn, run_id, attempt, lock=True)
             if held is None:
                 raise ValueError(f"run {run_id} attempt {attempt} has no publication to fail")
             self._boundary("locked")
             if held.state is PublicationState.PUBLISHED:
+                return held
+            if (held.reader_commit, held.object_identity) != (reader_commit, object_identity):
                 return held
             record = replace(
                 held,
@@ -895,7 +931,13 @@ class LogStore:
         )
 
     def _events_of(self, conn: Connection, row: _Row) -> tuple[LoggedEvent, ...]:
-        rows = conn.execute(_SELECT_EVENTS, (row.run_id, row.attempt)).fetchall()
+        """The log up to the row's last position. The cutoff is what keeps a read without
+        the lock consistent: under read committed the two statements may see different
+        committed states, and an append between them would otherwise make a consistent
+        database read as a row disagreeing with its fold (the store group's review); the
+        prefix at or below a position the row held is immutable."""
+        self._boundary("read")
+        rows = conn.execute(_SELECT_EVENTS, (row.run_id, row.attempt, row.positions)).fetchall()
         return tuple(decode_logged_event(record) for (record,) in rows)
 
     def _fold(self, conn: Connection, row: _Row, rules: Rules) -> AttemptState:
@@ -1031,6 +1073,11 @@ class LogStore:
                 except psycopg.OperationalError as exc:
                     self._drop()
                     raise LogStoreUnavailable(f"statement failed: {type(exc).__name__}") from exc
+                except LogStoreInvariantBroken:
+                    # A connection to the wrong schema is never kept: kept, the next command
+                    # would skip the check and use it (the store group's review).
+                    self._drop()
+                    raise
         try:
             yield self._connection
         except psycopg.OperationalError as exc:
@@ -1049,6 +1096,10 @@ class LogStore:
 
 
 # --- Rows to values --------------------------------------------------------------------------
+
+
+def _inputs_digest(inputs: FrozenInputs) -> str:
+    return event_digest(Admitted(inputs))
 
 
 def _check_version(conn: Connection) -> None:
