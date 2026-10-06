@@ -857,6 +857,9 @@ dependencies = [
     { name = "boto3" },
     { name = "google-auth", extra = ["requests"] },
     { name = "httpx" },
+    { name = "langchain-aws" },
+    { name = "langgraph" },
+    { name = "langgraph-checkpoint-postgres" },
     { name = "psycopg", extra = ["binary"] },
 ]
 
@@ -874,17 +877,15 @@ dev = [
     { name = "ruff" },
     { name = "vcrpy" },
 ]
-harness = [
-    { name = "langchain-aws" },
-    { name = "langgraph" },
-    { name = "langgraph-checkpoint-postgres" },
-]
 
 [package.metadata]
 requires-dist = [
     { name = "boto3", specifier = ">=1.43.93" },
     { name = "google-auth", extras = ["requests"], specifier = ">=2.58.0" },
     { name = "httpx", specifier = ">=0.28,<1" },
+    { name = "langchain-aws", specifier = ">=1.8.0" },
+    { name = "langgraph", specifier = ">=1.2.12" },
+    { name = "langgraph-checkpoint-postgres", specifier = ">=3.1.2" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.3.4" },
 ]
 
@@ -901,11 +902,6 @@ dev = [
     { name = "pytest-xdist", specifier = ">=3.8.0" },
     { name = "ruff" },
     { name = "vcrpy", specifier = ">=8.3.0" },
-]
-harness = [
-    { name = "langchain-aws", specifier = ">=1.8.0" },
-    { name = "langgraph", specifier = ">=1.2.12" },
-    { name = "langgraph-checkpoint-postgres", specifier = ">=3.1.2" },
 ]
 
 [[package]]

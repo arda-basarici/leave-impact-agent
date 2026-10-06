@@ -8,6 +8,9 @@ dependencies = [
     "boto3>=1.43.93",
     "google-auth[requests]>=2.58.0",
     "httpx>=0.28,<1",
+    "langchain-aws>=1.8.0",
+    "langgraph>=1.2.12",
+    "langgraph-checkpoint-postgres>=3.1.2",
     "psycopg[binary]>=3.3.4",
 ]
 
@@ -24,11 +27,6 @@ dev = [
     "pytest-xdist>=3.8.0",
     "ruff",
     "vcrpy>=8.3.0",
-]
-harness = [
-    "langchain-aws>=1.8.0",
-    "langgraph>=1.2.12",
-    "langgraph-checkpoint-postgres>=3.1.2",
 ]
 
 [build-system]
