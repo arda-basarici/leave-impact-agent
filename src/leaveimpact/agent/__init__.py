@@ -28,4 +28,12 @@ claims), and the composer given no statement;
 ``export`` writes a run as the artifact the evaluator grades, under the provenance the
 harness around it supplies; ``registered`` builds that provenance from the preregistration
 and refuses a run whose registration differs from what this code computes or declares.
+
+The event log is the agent's own execution control, ownership and accounting, which the
+evaluator never reads, and its pure half lives here beside one PostgreSQL module to come:
+``log_events`` (the sixteen event kinds, their keys, bytes and codec), ``log_transition``
+(the one function that decides what a log may hold next, and the state it folds to),
+``log_ending`` (the ending and the status as functions of that state), ``answer_parse``
+(the derived parse from a response as it arrived to what its answer carried) and
+``log_reader`` (a closed log to its format 3 export, with no connection, worker or graph).
 """
