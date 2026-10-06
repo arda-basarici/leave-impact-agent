@@ -37,7 +37,7 @@ rules, beside the schema's and the export's.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -168,6 +168,10 @@ class Producer:
 
 
 type Envelope = WorkerStamp | Producer
+
+type Stamping = Callable[[], WorkerStamp]
+"""A worker's stamp drawn under the lock: the store calls it once the attempt row is locked,
+so the offset holds the lock wait (the ruling on the event, part 9)."""
 
 
 # --- Keys ------------------------------------------------------------------------------------
@@ -1533,6 +1537,7 @@ __all__ = [
     "Resumed",
     "SegmentEnded",
     "SegmentStarted",
+    "Stamping",
     "TerminalEvent",
     "WorkerStamp",
     "call_id",

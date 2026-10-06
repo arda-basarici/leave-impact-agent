@@ -30,6 +30,8 @@ from __future__ import annotations
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
+from datetime import datetime
+from typing import Any
 from uuid import uuid4
 
 import pytest
@@ -69,6 +71,8 @@ from leaveimpact.core import (
     DispatchPhase,
     DispatchSite,
     FailureCategory,
+    HarnessSite,
+    HarnessSiteName,
     ModelCallId,
     ServiceError,
     export_bytes,
@@ -701,3 +705,57 @@ def test_a_predecessor_whose_attribution_the_table_disowns_permits_no_successor(
         "attempt 1's failure at a dispatch's send is recorded under an attribution the table "
         "does not give its observation"
     )
+
+
+# --- The worker group's two additions ---------------------------------------------------------
+
+
+def test_a_workers_stamp_factory_is_called_under_the_lock_before_the_clock(rig: Rig) -> None:
+    """The offset is read once the row is locked (the ruling on the event, part 9): the factory
+    fires between the ``locked`` boundary and the clock statement, on an append and on the
+    close alike, and the stamp it returns is the event's envelope."""
+    events = histories.HISTORIES["a cut call"]()
+    order: list[str] = []
+
+    def clock(conn: Any) -> datetime:
+        order.append("clock")
+        row = conn.execute("SELECT clock_timestamp()").fetchone()
+        assert row is not None
+        return row[0]
+
+    def stamp() -> WorkerStamp:
+        order.append("stamp")
+        return WorkerStamp(1, 1, 7)
+
+    opened(rig).close()
+    store = rig.store(boundary=order.append, clock=clock)
+    state = replay(store, events, upto=2)
+    del order[:]
+    appended = store.append("run-12", 1, stamp, events[2].event, rules=RULES, state=state)
+    assert isinstance(appended, Appended)
+    assert order == ["locked", "stamp", "clock", "decided", "before-commit"]
+    assert appended.state.events[-1].envelope == WorkerStamp(1, 1, 7)
+    del order[:]
+    closing = Failed(
+        FailureCategory.DEFECT, HarnessSite(HarnessSiteName.UNHANDLED), "a fault", None
+    )
+    closed = store.close_attempt("run-12", 1, stamp, closing, rules=RULES, state=appended.state)
+    assert isinstance(closed, Appended)
+    assert order == ["locked", "stamp", "clock", "decided", "before-commit"]
+    assert closed.state.events[-1].envelope == WorkerStamp(1, 1, 7)
+
+
+def test_now_reads_the_logs_clock_with_no_lock_through_the_clock_seam(rig: Rig) -> None:
+    """The instant a worker measures a delay from is the database's own, comparable with the
+    timestamp another segment's append was given; it crosses no boundary, and a scripted
+    clock scripts it with the rest."""
+    crossed: list[str] = []
+    opened(rig).close()
+    store = rig.store(boundary=crossed.append)
+    before = store.now()
+    assert crossed == [] and before.tzinfo is not None
+    events = histories.HISTORIES["a cut call"]()
+    state = replay(store, events, upto=2)
+    after = store.now()
+    assert before < state.events[-1].timestamp < after
+    assert rig.store(clock=Scripted([cases.ADMITTED])).now() == cases.ADMITTED

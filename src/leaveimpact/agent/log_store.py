@@ -28,7 +28,13 @@ cost on the worker's.
 **The timestamp** is the database's ``clock_timestamp()``, drawn from the locked
 connection in the inserting transaction, one statement before the insert, the only order
 in which the transition can see the event it judges (the ruling on the event, part 4). The
-``clock`` seam defaults to that statement; the histories' replay supplies its own.
+``clock`` seam defaults to that statement; the histories' replay supplies its own. A
+worker's offset is read after the lock too (the ruling on the event, part 9): ``append``
+and ``close_attempt`` take the stamp as a zero-argument factory in the envelope's place and
+call it once the row is locked, one statement before the clock, so the lock wait is inside
+the offset and the guarantee is the store's and not the caller's threading. ``now`` reads
+the same clock with no lock, for a worker in a new segment measuring the re-dispatch delay
+from a timestamp an earlier segment logged (the ruling on re-dispatch, part 3).
 
 **The settlement** is computed where the lock is: a closing event arrives with no
 settlement and leaves with the one ``settle`` gives over the state's account, at the
@@ -87,6 +93,7 @@ from leaveimpact.agent.log_events import (
     LoggedSettlement,
     Producer,
     SegmentStarted,
+    Stamping,
     WorkerStamp,
     decode_logged_event,
     encode_logged_event,
@@ -367,6 +374,13 @@ def _no_boundary(name: str) -> None:
     return None
 
 
+def _envelope_of(envelope: Envelope | Stamping) -> Envelope:
+    """The envelope as given, or the worker's stamp drawn now, under the lock."""
+    if isinstance(envelope, WorkerStamp | Producer):
+        return envelope
+    return envelope()
+
+
 # --- The store -------------------------------------------------------------------------------
 
 
@@ -616,14 +630,15 @@ class LogStore:
         self,
         run_id: str,
         attempt: int,
-        envelope: Envelope,
+        envelope: Envelope | Stamping,
         event: Event,
         *,
         rules: Rules,
         state: AttemptState | None = None,
     ) -> Transition:
         """A worker's or an outside producer's event under the lock; the admission, a claim
-        and a closing event have their own commands and are refused here by type."""
+        and a closing event have their own commands and are refused here by type. A worker
+        passes its stamp as a factory, called under the lock (see the module)."""
         if isinstance(
             event, Admitted | SegmentStarted | Completed | CapExhausted | Failed | Abandoned
         ):
@@ -633,8 +648,9 @@ class LogStore:
         with self._guarded() as conn, conn.transaction():
             row = self._lock(conn, run_id, attempt)
             self._boundary("locked")
+            stamped = _envelope_of(envelope)
             at = self._clock(conn)
-            logged = LoggedEvent(row.positions + 1, at, envelope, event)
+            logged = LoggedEvent(row.positions + 1, at, stamped, event)
             received = self._receipt(conn, row, logged)
             if received is not None:
                 return received
@@ -650,7 +666,7 @@ class LogStore:
         self,
         run_id: str,
         attempt: int,
-        envelope: Envelope,
+        envelope: Envelope | Stamping,
         closing: ClosingEvent,
         *,
         rules: Rules,
@@ -658,7 +674,8 @@ class LogStore:
     ) -> Transition:
         """The closing event with the settlement the store computes under the lock and the
         ledger's settled entry in the same transaction (the ruling on admission, part 8);
-        ``closing`` arrives with no settlement. A repeat on the closed attempt is the receipt."""
+        ``closing`` arrives with no settlement. A repeat on the closed attempt is the receipt.
+        A worker passes its stamp as a factory, called under the lock (see the module)."""
         if closing.settlement is not None:
             raise ValueError(
                 "the store computes the settlement; pass the closing event without one"
@@ -668,6 +685,7 @@ class LogStore:
             self._boundary("locked")
             if row.closed:
                 return self._closed_again(conn, row, closing)
+            stamped = _envelope_of(envelope)
             at = self._clock(conn)
             current = self._current_state(conn, row, state, rules)
             inputs = current.inputs
@@ -695,7 +713,7 @@ class LogStore:
                 )
                 written = (row.ledger_id, entry, after)
             filled: ClosingEvent = replace(closing, settlement=settlement)
-            logged = LoggedEvent(row.positions + 1, at, envelope, filled)
+            logged = LoggedEvent(row.positions + 1, at, stamped, filled)
             transition = next_state(current, logged, rules)
             self._boundary("decided")
             if isinstance(transition, Appended):
@@ -735,6 +753,13 @@ class LogStore:
         the reader."""
         with self._guarded() as conn, conn.transaction():
             return self._fold(conn, self._row(conn, run_id, attempt), rules)
+
+    def now(self) -> datetime:
+        """The log's clock read with no lock: the instant a worker measures a re-dispatch
+        delay from when the anchoring timestamp was logged by an earlier segment (the ruling
+        on re-dispatch, part 3). Through the ``clock`` seam, so a scripted clock scripts it."""
+        with self._guarded() as conn, conn.transaction():
+            return self._clock(conn)
 
     def open_attempts(self) -> tuple[AttemptRef, ...]:
         """The ruling on admission, part 9: open attempts from the attempt rows alone."""
