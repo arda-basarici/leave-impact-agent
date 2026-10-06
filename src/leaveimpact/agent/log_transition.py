@@ -1,0 +1,940 @@
+"""The transition function: the legal next events of an attempt's log, and the state it folds to.
+
+Unique keys do not prevent two terminal events under two keys, a resume with no accepted
+approval, or work after a segment end: one pure function takes the attempt's state and an
+event and gives the next state, an idempotent receipt, or a refusal (the event log step's
+ruling on the event, part 8). The store runs it under the attempt's lock against the state
+on the row before every insert, and the log reader folds it over the whole log before it
+builds an export, so the rules are written once and nowhere as a database constraint.
+
+What the function refuses, by the rulings it enforces:
+
+- *ownership and segments* (one writer; the event, part 6): a worker's event is appended
+  only under the current generation, in the segment that generation opened, while that
+  segment has not ended, at an offset not below the segment's last; a claim opens the next
+  segment under the next generation, always, since a claim always wins; a terminal event
+  ends its segment; a closed attempt rejects every later append;
+- *idempotence* (the event, part 5): an event equal in kind, key and canonical content to one
+  the log holds is received at the held position and makes no transition; another content
+  under a held key is refused;
+- *the registered values* (group 4's first fork): the attribution table and the re-dispatch
+  policy are taken from the caller and refused when they differ from what the admission
+  froze, so no rule below is read against values the run did not register;
+- *the dispatch rules* (the ledger, parts 1 and 4; re-dispatch, parts 1 and 2; counting,
+  parts 13 and 15; group 1's review): a dispatch intent is numbered next, rests on a durable
+  count that counted this request, names reads the log holds, carries the registered
+  configuration's output maximum and the worst case the registered rules give, follows a
+  dispatch only when the within-call decision permits another, and is authorized by the
+  run's account; a count is started only when the group's decision is to count;
+- *the freeze and the defect* (recovery and endings, parts 1 to 3): after an approval was
+  requested no model intent, no count and no tool resolution is appended; after a stopping
+  defect is recorded (a malformed record, a dispatch read as a defect, a refused count)
+  nothing but segment bookkeeping and the closing event is, and the closing event names
+  that defect at its site;
+- *the approval* (the event, part 8; the job seam, part 1): one request, one approval over
+  the request's digest, one resume after it; a completion only after the resume;
+- *closure* (one writer, part 7): an abandonment names the current generation.
+
+The state is public, since the worker authorizes and recovers from it and the reader reads
+it: the frozen inputs, the events so far, the generation, the segments with their last
+offsets, the closing event, the approval's progress, the finalization position, the
+account's fold and the first stopping defect. The per-call and per-count views are
+projections over the events (``calls_of``, ``counts_of``, ``operations_of``), computed
+where needed rather than kept, so no two fields can disagree.
+"""
+
+from __future__ import annotations
+
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, replace
+
+from leaveimpact.agent.answer_parse import (
+    FACT_TOOL,
+    reported_usage,
+    stop_reason_of,
+    tool_uses,
+)
+from leaveimpact.agent.log_events import (
+    Abandoned,
+    Admitted,
+    ApprovalRequested,
+    Approved,
+    CapExhausted,
+    ClosingEvent,
+    Completed,
+    CountKey,
+    CountOutcomeLogged,
+    CountStarted,
+    DispatchIntent,
+    DispatchOutcome,
+    EventKey,
+    Failed,
+    FinalizationEntered,
+    FrozenInputs,
+    HarnessReadKey,
+    LoggedEvent,
+    ModelReadKey,
+    OperationEvent,
+    OperationResult,
+    PrefetchKey,
+    Resumed,
+    SegmentEnded,
+    SegmentStarted,
+    WorkerStamp,
+    call_id,
+    count_id,
+    event_bytes,
+    event_key,
+    kind_of,
+    operation_id,
+)
+from leaveimpact.core.attribution import (
+    AttributionTable,
+    RedispatchPolicy,
+    attribution_table_digest,
+)
+from leaveimpact.core.call_decision import CallDecision, decide_call
+from leaveimpact.core.counting_operations import Counted, read_outcome
+from leaveimpact.core.input_bound import (
+    CountDecision,
+    CountResult,
+    count_decision,
+    output_maximum,
+    worst_case_tokens,
+)
+from leaveimpact.core.model_calls import (
+    TOOL_USE_STOP,
+    UNRESOLVED_RULE,
+    Attribution,
+    AttributionKind,
+    CompleteResponse,
+    NoRecordedOutcome,
+    Observation,
+    RefusedBeforeSend,
+)
+from leaveimpact.core.pricing import absent_as_zero, cost_of_reported, worst_case_cost
+from leaveimpact.core.run_account import (
+    AccountIntent,
+    AccountOutcome,
+    AuthorizationDecision,
+    CallPurpose,
+    RunAccount,
+    authorize,
+)
+from leaveimpact.core.run_ending import (
+    DispatchPhase,
+    DispatchSite,
+    FailureSite,
+    HarnessSite,
+    InputBoundSite,
+    OperationSite,
+)
+from leaveimpact.core.run_parts_json import review_payload_digest
+from leaveimpact.core.run_record import Failure, FailureCategory
+from leaveimpact.core.run_timing import HarnessRevision
+from leaveimpact.core.run_trace import Cost, DefectOutcome
+from leaveimpact.core.token_counting import count_tokens
+
+# --- The registered values and the state ---------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Rules:
+    """The registration's values the transition function reads and the admission froze by
+    digest or by value: the attribution table and the re-dispatch policy, each ``None`` for
+    a system that calls no model. The count-retry maximum is the policy's, under the one
+    registered count-retry rule."""
+
+    table: AttributionTable | None
+    redispatch: RedispatchPolicy | None
+
+
+@dataclass(frozen=True, slots=True)
+class SegmentState:
+    """One segment as the log shows it: its revision, the largest offset among its events,
+    and whether it ended (a segment end or a terminal event)."""
+
+    number: int
+    harness: HarnessRevision
+    last_offset_ms: int
+    ended: bool
+
+
+@dataclass(frozen=True, slots=True)
+class CallEvents:
+    """One logical call's events: its intents in number order, and the outcome of each
+    dispatch that recorded one, by number."""
+
+    ordinal: int
+    intents: tuple[LoggedEvent, ...]
+    outcomes: Mapping[int, LoggedEvent]
+
+    @property
+    def role(self) -> str:
+        return _intent(self.intents[0]).role
+
+    @property
+    def last_number(self) -> int:
+        return len(self.intents)
+
+    def pairs(self) -> tuple[tuple[Observation, Attribution], ...]:
+        """What each dispatch observed and how it was read, for the within-call decision."""
+        pairs: list[tuple[Observation, Attribution]] = []
+        for intent in self.intents:
+            number = _intent(intent).number
+            outcome = self.outcomes.get(number)
+            if outcome is None:
+                pairs.append(
+                    (NoRecordedOutcome(), Attribution(AttributionKind.UNRESOLVED, UNRESOLVED_RULE))
+                )
+            else:
+                held = _outcome(outcome)
+                pairs.append((held.observation, held.attribution))
+        return tuple(pairs)
+
+    @property
+    def last_outcome(self) -> LoggedEvent | None:
+        return self.outcomes.get(self.last_number)
+
+
+@dataclass(frozen=True, slots=True)
+class CountEvents:
+    """One counting request's events: its start, and its outcome when one was recorded."""
+
+    key: CountKey
+    start: LoggedEvent
+    outcome: LoggedEvent | None
+
+    def reading(self) -> CountResult:
+        """The method's reading of the outcome, re-read; unresolved with no outcome."""
+        if self.outcome is None:
+            return CountResult.UNRESOLVED
+        return read_outcome(self.key.method, _count_outcome(self.outcome).outcome)
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptState:
+    """The attempt as its log so far shows it; see the module."""
+
+    events: tuple[LoggedEvent, ...] = ()
+    inputs: FrozenInputs | None = None
+    generation: int = 0
+    segments: tuple[SegmentState, ...] = ()
+    closed: LoggedEvent | None = None
+    finalization_entered: int | None = None
+    approval_requested: LoggedEvent | None = None
+    approved: LoggedEvent | None = None
+    resumed: LoggedEvent | None = None
+    account: RunAccount = RunAccount()
+    defect: Failure | None = None
+
+    @property
+    def last_position(self) -> int:
+        return len(self.events)
+
+    @property
+    def open(self) -> bool:
+        return self.inputs is not None and self.closed is None
+
+    @property
+    def current_segment(self) -> SegmentState | None:
+        """The segment the current generation opened, ended or not; ``None`` before a claim."""
+        return self.segments[-1] if self.segments else None
+
+    @property
+    def closing(self) -> ClosingEvent | None:
+        if self.closed is None:
+            return None
+        event = self.closed.event
+        assert isinstance(event, Completed | CapExhausted | Failed | Abandoned)
+        return event
+
+    @property
+    def frozen(self) -> bool:
+        """Whether an approval was requested, after which the review payload is frozen."""
+        return self.approval_requested is not None
+
+
+# --- The results -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class Appended:
+    """The event is legal next: the state after it."""
+
+    state: AttemptState
+
+
+@dataclass(frozen=True, slots=True)
+class Received:
+    """The event equals one the log holds: its first position, and no transition."""
+
+    position: int
+
+
+@dataclass(frozen=True, slots=True)
+class Refused:
+    """No log holds this event after this prefix, and why."""
+
+    reason: str
+
+
+type Transition = Appended | Received | Refused
+
+
+# --- Projections -----------------------------------------------------------------------------
+
+
+def calls_of(state: AttemptState) -> tuple[CallEvents, ...]:
+    """The logical calls in ordinal order."""
+    intents: dict[int, list[LoggedEvent]] = {}
+    outcomes: dict[int, dict[int, LoggedEvent]] = {}
+    for logged in state.events:
+        event = logged.event
+        if isinstance(event, DispatchIntent):
+            intents.setdefault(event.call, []).append(logged)
+        elif isinstance(event, DispatchOutcome):
+            outcomes.setdefault(event.call, {})[event.number] = logged
+    return tuple(
+        CallEvents(ordinal, tuple(held), outcomes.get(ordinal, {}))
+        for ordinal, held in sorted(intents.items())
+    )
+
+
+def call_of(state: AttemptState, ordinal: int) -> CallEvents | None:
+    for call in calls_of(state):
+        if call.ordinal == ordinal:
+            return call
+    return None
+
+
+def counts_of(state: AttemptState) -> tuple[CountEvents, ...]:
+    """The counting requests in start order."""
+    starts: dict[CountKey, LoggedEvent] = {}
+    outcomes: dict[CountKey, LoggedEvent] = {}
+    for logged in state.events:
+        event = logged.event
+        if isinstance(event, CountStarted):
+            starts[event.key] = logged
+        elif isinstance(event, CountOutcomeLogged):
+            outcomes[event.key] = logged
+    return tuple(CountEvents(key, start, outcomes.get(key)) for key, start in starts.items())
+
+
+def count_group(state: AttemptState, key: CountKey) -> tuple[CountEvents, ...]:
+    """The counting requests under ``key``'s reuse key, in ordinal order."""
+    return tuple(count for count in counts_of(state) if count.key.reuse == key.reuse)
+
+
+def operations_of(state: AttemptState) -> tuple[LoggedEvent, ...]:
+    """The operation events in position order, results and skips."""
+    return tuple(logged for logged in state.events if isinstance(logged.event, OperationEvent))
+
+
+def results_of(state: AttemptState) -> tuple[LoggedEvent, ...]:
+    """The operation events that hold a result."""
+    return tuple(
+        logged
+        for logged in operations_of(state)
+        if isinstance(_operation(logged).resolution, OperationResult)
+    )
+
+
+def held_operation_ids(state: AttemptState) -> frozenset[str]:
+    return frozenset(operation_id(_operation(logged).key) for logged in results_of(state))
+
+
+# --- The function ----------------------------------------------------------------------------
+
+
+def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transition:
+    """What appending ``logged`` after ``state`` gives, under the registered ``rules``."""
+    inputs = state.inputs
+    if inputs is None:
+        return _admit(state, logged)
+    held = _held_under(state, event_key(logged))
+    if held is not None:
+        if event_bytes(held.event) == event_bytes(logged.event):
+            return Received(held.position)
+        return Refused(
+            f"another content under the identifier of the event at position {held.position}"
+        )
+    if logged.position != state.last_position + 1:
+        return Refused(
+            f"positions are dense: the next is {state.last_position + 1}, got {logged.position}"
+        )
+    if state.closed is not None:
+        return Refused(f"the attempt is closed at position {state.closed.position}")
+    mismatch = _rules_differ(inputs, rules)
+    if mismatch is not None:
+        return Refused(mismatch)
+    event = logged.event
+    if isinstance(event, Admitted):
+        return Refused("an attempt is admitted once")
+    stamp = logged.stamp
+    if isinstance(event, SegmentStarted):
+        assert stamp is not None
+        return _claim(state, logged, stamp, event)
+    if stamp is not None:
+        refusal = _stamp_refusal(state, stamp)
+        if refusal is not None:
+            return Refused(refusal)
+    match event:
+        case SegmentEnded():
+            return Appended(_with_segment(state, logged, ended=True))
+        case OperationEvent():
+            return _operation_next(state, logged, event)
+        case CountStarted():
+            return _count_start(state, logged, event, rules)
+        case CountOutcomeLogged():
+            return _count_outcome_next(state, logged, event)
+        case DispatchIntent():
+            return _intent_next(state, logged, event, rules)
+        case DispatchOutcome():
+            return _outcome_next(state, logged, event, rules)
+        case FinalizationEntered():
+            if state.finalization_entered is not None:
+                return Refused("the run entered finalization once")
+            if state.frozen:
+                return Refused("no finalization after an approval was requested")
+            return Appended(
+                replace(_with_segment(state, logged), finalization_entered=logged.position)
+            )
+        case ApprovalRequested():
+            if state.frozen:
+                return Refused("an approval is requested once")
+            if state.defect is not None:
+                return Refused("no approval request after a recorded defect")
+            return Appended(replace(_with_segment(state, logged), approval_requested=logged))
+        case Approved():
+            request = state.approval_requested
+            if request is None:
+                return Refused("an approval answers a request")
+            if state.approved is not None:
+                return Refused("an approval is given once")
+            asked = _request(request)
+            if event.payload_digest != review_payload_digest(asked.claims, asked.composition):
+                return Refused("an approval names the digest of the payload that was requested")
+            return Appended(replace(_with_event(state, logged), approved=logged))
+        case Resumed():
+            if state.approved is None:
+                return Refused("a worker resumes after an approval was given")
+            if state.resumed is not None:
+                return Refused("a worker resumes once")
+            return Appended(replace(_with_segment(state, logged), resumed=logged))
+        case Completed() | CapExhausted():
+            if state.resumed is None:
+                return Refused("a completion follows the resume from an approval")
+            if state.defect is not None:
+                return Refused(
+                    f"a recorded defect at {_site_name(state.defect.site)} is the ending"
+                )
+            refusal = _settlement_refusal(inputs, event.settlement is not None)
+            if refusal is not None:
+                return Refused(refusal)
+            return Appended(_close(_with_segment(state, logged, ended=True), logged))
+        case Failed():
+            refusal = _failure_refusal(state, event) or _settlement_refusal(
+                inputs, event.settlement is not None
+            )
+            if refusal is not None:
+                return Refused(refusal)
+            return Appended(_close(_with_segment(state, logged, ended=True), logged))
+        case Abandoned():
+            if event.expected_generation != state.generation:
+                return Refused(
+                    f"the abandon command expects generation {event.expected_generation}; "
+                    f"the attempt is at {state.generation}"
+                )
+            refusal = _settlement_refusal(inputs, event.settlement is not None)
+            if refusal is not None:
+                return Refused(refusal)
+            return Appended(_close(_with_event(state, logged), logged))
+        case _:
+            return Refused(f"no rule admits {kind_of(event).value} here")
+
+
+def fold(events: Iterable[LoggedEvent], rules: Rules) -> AttemptState:
+    """The state of a log, folded from empty; ``ValueError`` at the first event no log
+    holds, naming its position and the reason, or at a duplicate, which a stored log never
+    holds."""
+    state = AttemptState()
+    for logged in events:
+        match next_state(state, logged, rules):
+            case Appended(after):
+                state = after
+            case Received(position):
+                raise ValueError(
+                    f"the event at position {logged.position} repeats the one at {position}"
+                )
+            case Refused(reason):
+                raise ValueError(f"no log holds the event at position {logged.position}: {reason}")
+    return state
+
+
+# --- The admission and the claim -------------------------------------------------------------
+
+
+def _admit(state: AttemptState, logged: LoggedEvent) -> Transition:
+    event = logged.event
+    if not isinstance(event, Admitted):
+        return Refused("the first event is the admission")
+    if logged.position != 1:
+        return Refused(f"the admission is at position 1, got {logged.position}")
+    return Appended(AttemptState(events=(logged,), inputs=event.inputs))
+
+
+def _claim(
+    state: AttemptState, logged: LoggedEvent, stamp: WorkerStamp, event: SegmentStarted
+) -> Transition:
+    number = len(state.segments) + 1
+    if stamp.segment != number or stamp.generation != number:
+        return Refused(
+            f"a claim opens segment {number} under generation {number}, got segment "
+            f"{stamp.segment} under generation {stamp.generation}"
+        )
+    if stamp.offset_ms != 0:
+        return Refused("a segment starts at offset 0")
+    opened = SegmentState(number, event.harness, 0, False)
+    return Appended(
+        replace(
+            state,
+            events=(*state.events, logged),
+            generation=number,
+            segments=(*state.segments, opened),
+        )
+    )
+
+
+def _stamp_refusal(state: AttemptState, stamp: WorkerStamp) -> str | None:
+    current = state.current_segment
+    if current is None:
+        return "no worker has claimed the attempt"
+    if stamp.generation != state.generation:
+        return f"generation {stamp.generation} is not the current {state.generation}"
+    if stamp.segment != current.number:
+        return f"segment {stamp.segment} is not the current {current.number}"
+    if current.ended:
+        return f"segment {current.number} has ended"
+    if stamp.offset_ms < current.last_offset_ms:
+        return f"offset {stamp.offset_ms} is below the segment's last {current.last_offset_ms}"
+    return None
+
+
+# --- Operations ------------------------------------------------------------------------------
+
+
+def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEvent) -> Transition:
+    if state.defect is not None:
+        return Refused("no tool resolution after a recorded defect")
+    if state.frozen:
+        return Refused("no tool resolution after an approval was requested")
+    key = event.key
+    match key:
+        case PrefetchKey():
+            expected = (
+                sum(isinstance(_operation(o).key, PrefetchKey) for o in operations_of(state)) + 1
+            )
+            if key.ordinal != expected:
+                return Refused(f"the prefetch's next call is {expected}, got {key.ordinal}")
+        case HarnessReadKey():
+            expected = (
+                sum(
+                    isinstance(k := _operation(o).key, HarnessReadKey) and k.policy == key.policy
+                    for o in operations_of(state)
+                )
+                + 1
+            )
+            if key.ordinal != expected:
+                return Refused(f"{key.policy}'s next read is {expected}, got {key.ordinal}")
+        case ModelReadKey():
+            refusal = _model_read_refusal(state, key, event)
+            if refusal is not None:
+                return Refused(refusal)
+    after = _with_segment(state, logged)
+    resolution = event.resolution
+    if isinstance(resolution, OperationResult) and isinstance(resolution.outcome, DefectOutcome):
+        after = replace(
+            after,
+            defect=Failure(
+                FailureCategory.DEFECT, OperationSite(operation_id(key)), "a malformed record"
+            ),
+        )
+    return Appended(after)
+
+
+def _model_read_refusal(
+    state: AttemptState, key: ModelReadKey, event: OperationEvent
+) -> str | None:
+    call = call_of(state, key.call)
+    if call is None:
+        return f"no call {key.call} to answer a read for"
+    last = call.last_outcome
+    if last is None or not isinstance(_outcome(last).observation, CompleteResponse):
+        return f"{call_id(key.call)} has no complete response to read for"
+    response = _outcome(last).response
+    assert response is not None
+    if stop_reason_of(response) != TOOL_USE_STOP:
+        return f"{call_id(key.call)} stopped for {stop_reason_of(response)!r}; no read is made"
+    uses = [use for use in tool_uses(response) if use.name != FACT_TOOL]
+    asked = {use.id: use for use in uses}
+    if key.tool_call not in asked:
+        return f"{call_id(key.call)} made no tool call {key.tool_call!r}"
+    resolved: set[str] = set()
+    for held in operations_of(state):
+        held_key = _operation(held).key
+        if isinstance(held_key, ModelReadKey) and held_key.call == key.call:
+            resolved.add(held_key.tool_call)
+    for use in uses:
+        if use.id == key.tool_call:
+            break
+        if use.id not in resolved:
+            return f"tool call {use.id!r} of {call_id(key.call)} is resolved first"
+    resolution = event.resolution
+    if isinstance(resolution, OperationResult) and resolution.tool != asked[key.tool_call].name:
+        return (
+            f"tool call {key.tool_call!r} asked for {asked[key.tool_call].name!r}, the result "
+            f"names {resolution.tool!r}"
+        )
+    return None
+
+
+# --- Counts ----------------------------------------------------------------------------------
+
+
+def _count_start(
+    state: AttemptState, logged: LoggedEvent, event: CountStarted, rules: Rules
+) -> Transition:
+    inputs = state.inputs
+    assert inputs is not None
+    if state.defect is not None:
+        return Refused("no counting request after a recorded defect")
+    if state.frozen:
+        return Refused("no counting request after an approval was requested")
+    if rules.redispatch is None:
+        return Refused("a counting request is bounded by the re-dispatch policy, which is absent")
+    identifier = inputs.counting_identifier_of(event.role)
+    if identifier is None:
+        return Refused(f"{event.role!r} is not a configured role")
+    key = event.key
+    if key.method != inputs.caps.input_bound:
+        return Refused("a count is asked under the registered method")
+    if key.counting_identifier != identifier:
+        return Refused(
+            f"{event.role}'s counting identifier is {identifier!r}, got {key.counting_identifier!r}"
+        )
+    group = count_group(state, key)
+    if key.ordinal != len(group) + 1:
+        return Refused(f"the next counting request for this request is {len(group) + 1}")
+    decision = count_decision([count.reading() for count in group], rules.redispatch.max_dispatches)
+    if decision is not CountDecision.COUNT:
+        return Refused(f"the decision for this request is {decision.value}, not to count")
+    return Appended(_with_segment(state, logged))
+
+
+def _count_outcome_next(
+    state: AttemptState, logged: LoggedEvent, event: CountOutcomeLogged
+) -> Transition:
+    held = next((count for count in counts_of(state) if count.key == event.key), None)
+    if held is None:
+        return Refused("a count outcome follows its start")
+    if held.outcome is not None:
+        return Refused("a counting request has one outcome")
+    start_stamp = held.start.stamp
+    stamp = logged.stamp
+    assert start_stamp is not None and stamp is not None
+    if start_stamp.segment != stamp.segment:
+        return Refused("a count's outcome is recorded by the segment that started it")
+    if (event.reading is CountResult.COUNTED) != isinstance(event.outcome, Counted):
+        return Refused("a counting operation is read as counted exactly when a count arrived")
+    after = _with_segment(state, logged)
+    if (
+        read_outcome(event.key.method, event.outcome) is CountResult.REFUSED
+        and after.defect is None
+    ):
+        after = replace(
+            after,
+            defect=Failure(
+                FailureCategory.DEFECT,
+                InputBoundSite(count_id(event.key)),
+                "the counting request was refused as a misconfiguration",
+            ),
+        )
+    return Appended(after)
+
+
+# --- Dispatches ------------------------------------------------------------------------------
+
+
+def _intent_next(
+    state: AttemptState, logged: LoggedEvent, event: DispatchIntent, rules: Rules
+) -> Transition:
+    inputs = state.inputs
+    assert inputs is not None
+    if state.defect is not None:
+        return Refused("no dispatch after a recorded defect")
+    if state.frozen:
+        return Refused("no dispatch after an approval was requested")
+    if rules.table is None or rules.redispatch is None or inputs.reservation_pico_usd is None:
+        return Refused("a dispatch needs the attribution table, the policy and a reservation")
+    configuration = inputs.configuration_of(event.role)
+    selection = inputs.selection_of(event.role)
+    if configuration is None or selection is None:
+        return Refused(f"{event.role!r} is not a configured role")
+    calls = calls_of(state)
+    call = call_of(state, event.call)
+    if call is None:
+        if event.call != len(calls) + 1:
+            return Refused(f"the next logical call is {len(calls) + 1}, got {event.call}")
+        if event.number != 1:
+            return Refused("a new call's first dispatch is numbered 1")
+    else:
+        if event.number != call.last_number + 1:
+            return Refused(f"{call_id(event.call)}'s next dispatch is {call.last_number + 1}")
+        if call.role != event.role:
+            return Refused(f"{call_id(event.call)} is {call.role}'s")
+        standing = decide_call(call.pairs(), rules.table, rules.redispatch)
+        if standing.decision is not CallDecision.DISPATCH_AGAIN:
+            return Refused(f"{call_id(event.call)} stands {standing.decision.value}")
+    refusal = _bound_refusal(state, event)
+    if refusal is not None:
+        return Refused(refusal)
+    held = held_operation_ids(state)
+    for read in event.input_reads:
+        if read not in held:
+            return Refused(f"the input read {read!r} is not an operation the log holds")
+    maximum = output_maximum(configuration)
+    if event.output_maximum != maximum:
+        return Refused(f"{event.role}'s output maximum is {maximum}, got {event.output_maximum}")
+    tokens = worst_case_tokens(event.bound, maximum)
+    money = worst_case_cost(event.bound.input_tokens, maximum, selection, inputs.pricing)
+    if (event.allocation_tokens, event.allocation_pico_usd) != (tokens, money):
+        return Refused(
+            f"the worst case is {tokens} tokens and {money} pico-dollars, got "
+            f"{event.allocation_tokens} and {event.allocation_pico_usd}"
+        )
+    purpose = CallPurpose.LOOP if state.finalization_entered is None else CallPurpose.FINALIZATION
+    intent = AccountIntent(call_id(event.call), event.number, purpose, tokens, money)
+    decision = authorize(state.account, inputs.caps, inputs.reservation_pico_usd, intent)
+    if decision.decision is not AuthorizationDecision.AUTHORIZED:
+        return Refused(f"the account does not authorize the dispatch: {decision.decision.value}")
+    return Appended(replace(_with_segment(state, logged), account=state.account.after(intent)))
+
+
+def _bound_refusal(state: AttemptState, event: DispatchIntent) -> str | None:
+    bound = event.bound
+    if bound.request_digest != event.request_digest:
+        return "the bound covers another request than the dispatch's"
+    for count in counts_of(state):
+        if count_id(count.key) != bound.evidence:
+            continue
+        if count.outcome is None or not isinstance(_count_outcome(count.outcome).outcome, Counted):
+            return f"the count {bound.evidence!r} did not count"
+        if not bound.covers(
+            count.key.method, count.key.counting_identifier, count.key.request_digest
+        ):
+            return f"the count {bound.evidence!r} covers another request, identifier or method"
+        return None
+    return f"the bound rests on {bound.evidence!r}, which the log does not hold"
+
+
+def _outcome_next(
+    state: AttemptState, logged: LoggedEvent, event: DispatchOutcome, rules: Rules
+) -> Transition:
+    inputs = state.inputs
+    assert inputs is not None and rules.table is not None
+    call = call_of(state, event.call)
+    if call is None or event.number > call.last_number:
+        return Refused("a dispatch outcome follows its intent")
+    if event.number in call.outcomes:
+        return Refused("a dispatch has one outcome")
+    intent = call.intents[event.number - 1]
+    intent_stamp, stamp = intent.stamp, logged.stamp
+    assert intent_stamp is not None and stamp is not None
+    if intent_stamp.segment != stamp.segment:
+        return Refused("a dispatch's outcome is recorded by the segment that authorized it")
+    if (event.response is not None) != isinstance(event.observation, CompleteResponse):
+        return Refused("a response body is held exactly for a complete response")
+    row = rules.table.row(event.attribution.rule)
+    if row is None or row.reading is not event.attribution.kind:
+        return Refused(
+            f"the table has no row {event.attribution.rule!r} reading "
+            f"{event.attribution.kind.value}"
+        )
+    role = _intent(intent).role
+    selection = inputs.selection_of(role)
+    assert selection is not None
+    usage = None if event.response is None else reported_usage(event.response)
+    sent = not isinstance(event.observation, RefusedBeforeSend)
+    if event.zero_cost_rule is not None:
+        if usage is not None:
+            return Refused("a zero-cost rule prices a send that reported no usage")
+        cost, tokens = Cost(0, True), None
+    elif usage is not None:
+        cost = cost_of_reported(usage, selection, inputs.pricing)
+        tokens = count_tokens(
+            inputs.caps.counting_rule, usage, absent_as_zero(selection, inputs.pricing)
+        )
+    else:
+        cost, tokens = None, None
+    outcome = AccountOutcome(call_id(event.call), event.number, sent, cost, tokens)
+    after = replace(_with_segment(state, logged), account=state.account.after(outcome))
+    if event.attribution.kind is AttributionKind.DEFECT:
+        after = replace(
+            after,
+            defect=Failure(
+                FailureCategory.DEFECT,
+                DispatchSite(call_id(event.call), event.number, DispatchPhase.SEND),
+                f"read as a defect under {event.attribution.rule}",
+            ),
+        )
+    return Appended(after)
+
+
+# --- Closure ---------------------------------------------------------------------------------
+
+
+def _failure_refusal(state: AttemptState, event: Failed) -> str | None:
+    defect = state.defect
+    if defect is not None and (
+        event.category is not FailureCategory.DEFECT or event.site != defect.site
+    ):
+        return f"a recorded defect at {_site_name(defect.site)} is the ending"
+    site = event.site
+    match site:
+        case OperationSite():
+            if site.operation not in held_operation_ids(state):
+                return f"no operation {site.operation!r} to fail at"
+        case DispatchSite():
+            call = call_of(state, _ordinal_of(site.model_call))
+            if call is None or site.dispatch > call.last_number:
+                return f"no dispatch {site.dispatch} of {site.model_call} to fail at"
+        case InputBoundSite():
+            if site.counting_operation not in {count_id(c.key) for c in counts_of(state)}:
+                return f"no counting operation {site.counting_operation!r} to fail at"
+        case HarnessSite():
+            pass
+    return None
+
+
+def _settlement_refusal(inputs: FrozenInputs, settled: bool) -> str | None:
+    if settled != (inputs.reservation_pico_usd is not None):
+        return "a closing event settles exactly when a reservation was admitted"
+    return None
+
+
+def _close(state: AttemptState, logged: LoggedEvent) -> AttemptState:
+    return replace(state, closed=logged)
+
+
+# --- Bookkeeping -----------------------------------------------------------------------------
+
+
+def _with_event(state: AttemptState, logged: LoggedEvent) -> AttemptState:
+    return replace(state, events=(*state.events, logged))
+
+
+def _with_segment(state: AttemptState, logged: LoggedEvent, *, ended: bool = False) -> AttemptState:
+    """The state with ``logged`` appended and its segment's last offset and end updated."""
+    stamp = logged.stamp
+    assert stamp is not None
+    current = state.segments[-1]
+    updated = SegmentState(
+        current.number,
+        current.harness,
+        max(current.last_offset_ms, stamp.offset_ms),
+        current.ended or ended,
+    )
+    return replace(state, events=(*state.events, logged), segments=(*state.segments[:-1], updated))
+
+
+def _held_under(state: AttemptState, key: EventKey) -> LoggedEvent | None:
+    for held in state.events:
+        if event_key(held) == key:
+            return held
+    return None
+
+
+def _rules_differ(inputs: FrozenInputs, rules: Rules) -> str | None:
+    if inputs.attribution_table is None:
+        if rules.table is not None or rules.redispatch is not None:
+            return "a system that calls no model registers no table and no policy"
+        return None
+    if rules.table is None or rules.redispatch is None:
+        return "the registered table and policy are needed and absent"
+    if attribution_table_digest(rules.table) != inputs.attribution_table:
+        return "the attribution table given is not the one the admission froze"
+    if rules.redispatch != inputs.redispatch:
+        return "the re-dispatch policy given is not the one the admission froze"
+    return None
+
+
+def _site_name(site: FailureSite) -> str:
+    match site:
+        case OperationSite():
+            return site.operation
+        case DispatchSite():
+            return f"{site.model_call} dispatch {site.dispatch}"
+        case InputBoundSite():
+            return site.counting_operation
+        case HarnessSite():
+            return site.site.value
+
+
+def _ordinal_of(call: str) -> int:
+    prefix = "call-"
+    if call.startswith(prefix) and call[len(prefix) :].isdigit():
+        return int(call[len(prefix) :])
+    return 0
+
+
+def _intent(logged: LoggedEvent) -> DispatchIntent:
+    event = logged.event
+    assert isinstance(event, DispatchIntent)
+    return event
+
+
+def _outcome(logged: LoggedEvent) -> DispatchOutcome:
+    event = logged.event
+    assert isinstance(event, DispatchOutcome)
+    return event
+
+
+def _count_outcome(logged: LoggedEvent) -> CountOutcomeLogged:
+    event = logged.event
+    assert isinstance(event, CountOutcomeLogged)
+    return event
+
+
+def _operation(logged: LoggedEvent) -> OperationEvent:
+    event = logged.event
+    assert isinstance(event, OperationEvent)
+    return event
+
+
+def _request(logged: LoggedEvent) -> ApprovalRequested:
+    event = logged.event
+    assert isinstance(event, ApprovalRequested)
+    return event
+
+
+__all__ = [
+    "Appended",
+    "AttemptState",
+    "CallEvents",
+    "CountEvents",
+    "Received",
+    "Refused",
+    "Rules",
+    "SegmentState",
+    "Transition",
+    "call_of",
+    "calls_of",
+    "count_group",
+    "counts_of",
+    "fold",
+    "held_operation_ids",
+    "next_state",
+    "operations_of",
+    "results_of",
+]
