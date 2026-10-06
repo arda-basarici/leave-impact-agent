@@ -134,7 +134,9 @@ from leaveimpact.core.run_trace import (
 from leaveimpact.core.timeshape import decode_date, decode_instant, encode_date, encode_instant
 from leaveimpact.core.worldtime import RunContext
 
-LOG_FORMAT_VERSION = 1
+LOG_FORMAT_VERSION = 2
+"""The log format this code writes and reads. 2: the approval request carries the ending
+it freezes toward (the worker group's review)."""
 """The log format this code writes and reads: the codecs here and their canonicalization."""
 
 
@@ -600,11 +602,16 @@ class FinalizationEntered:
 
 @dataclass(frozen=True, slots=True)
 class ApprovalRequested:
-    """The review payload, frozen: the claims and how they were composed. Its digest is
-    what an approval answers."""
+    """The review payload, frozen: the claims and how they were composed, and the ending the
+    run freezes toward: ``at_cap`` when a finalization allocation was refused and the run
+    reports what it has (the ruling on the ledger, part 4), else a completion. Its digest,
+    over the claims and the composition, is what an approval answers. The ending is in the
+    log because a recovering worker cannot recompute it from the account alone (the worker
+    group's review, first finding)."""
 
     claims: tuple[Claim, ...]
     composition: Composition
+    at_cap: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -973,6 +980,7 @@ def encode_event(event: Event) -> JsonObject:
             return {
                 "claims": [encode_claim(claim) for claim in event.claims],
                 "composition": encode_composition(event.composition),
+                "at_cap": event.at_cap,
             }
         case Approved():
             return {"approver": event.approver.value, "payload_digest": event.payload_digest}
@@ -1078,12 +1086,16 @@ def decode_event(kind: str, data: Mapping[str, object]) -> Event:
             expect_fields(data, (), "the entry into finalization")
             return FinalizationEntered()
         case EventKind.APPROVAL_REQUESTED:
-            expect_fields(data, ("claims", "composition"), "an approval request")
+            expect_fields(data, ("claims", "composition", "at_cap"), "an approval request")
+            at_cap = field_of(data, "at_cap")
+            if not isinstance(at_cap, bool):
+                raise ValueError(f"an approval request's at_cap is a boolean, got {at_cap!r}")
             return ApprovalRequested(
                 tuple(
                     decode_claim(as_object(item, "a claim")) for item in array_field(data, "claims")
                 ),
                 decode_composition(object_field(data, "composition")),
+                at_cap,
             )
         case EventKind.APPROVED:
             expect_fields(data, ("approver", "payload_digest"), "an approval")

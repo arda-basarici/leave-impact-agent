@@ -91,7 +91,6 @@ from leaveimpact.agent.log_transition import (
     CallEvents,
     calls_of,
     count_group,
-    counts_of,
     operations_of,
 )
 from leaveimpact.core.attribution import AttributionTable, RedispatchPolicy, attribute
@@ -100,7 +99,6 @@ from leaveimpact.core.claims import Claim
 from leaveimpact.core.counting_operations import Counted, CountOutcome, read_outcome
 from leaveimpact.core.input_bound import (
     CountDecision,
-    CountResult,
     EstablishedBound,
     count_decision,
     counted_projection,
@@ -248,20 +246,28 @@ def _reached(events: tuple[LoggedEvent, ...], since: int) -> dict[str, str]:
 
 class LoggedExecutor(Executor):
     """The executor with every resolution appended as it happens and every held one reused:
-    a read the log already holds is answered from the log and never made again, a stopped
-    source is one a durable outcome marked unreachable, and a read made is appended before
-    the next begins (the ruling on tool calls, part 5)."""
+    a read the log already holds is answered from the log and never made again, and a read
+    made is appended before the next begins (the ruling on tool calls, part 5).
 
-    def __init__(self, harness: Harness) -> None:
+    A stopped source is one a durable unreachable outcome marked, in the order the log
+    shows: the outcomes of the phase being replayed (``replaying`` says which keys) count
+    only as their held results are replayed, so a replay skips exactly the calls the first
+    run skipped and the ordinals it assigns are the first run's; outcomes outside that phase
+    are earlier and count from the start (the worker group's review, second finding). A
+    reused result is held to the tool and arguments the replay asks for; a difference is a
+    fault of this harness.
+    """
+
+    def __init__(self, harness: Harness, *, replaying: Callable[[OperationKey], bool]) -> None:
         super().__init__(harness.ports)
         self.appender = harness.appender
-        held = operations_of(self.appender.state)
         self.stopped = {
             r.source
-            for o in held
+            for o in operations_of(self.appender.state)
             if isinstance(r := _operation(o).resolution, OperationResult)
             and isinstance(r.outcome, UnreachableOutcome)
             and r.source is not None
+            and not replaying(_operation(o).key)
         }
         # The ordinal counts this process's calls; a held read is reused by it, never skipped.
         self.prefetched = 0
@@ -282,6 +288,13 @@ class LoggedExecutor(Executor):
         if held is not None:
             if not isinstance(held, OperationResult):
                 raise ValueError(f"{key} was skipped; a skipped read is not resolved again")
+            if held.tool != tool or dict(held.arguments) != dict(arguments):
+                raise RuntimeError(
+                    f"the replay asks {key} for {tool!r} with other arguments than the log holds "
+                    f"for {held.tool!r}"
+                )
+            if isinstance(held.outcome, UnreachableOutcome) and held.source is not None:
+                self.stopped.add(held.source)
             return held.outcome
         outcome = super().call(origin, tool, arguments)
         made = self.operations[-1]
@@ -317,7 +330,7 @@ def build(harness: Harness, saver: BaseCheckpointSaver[Any]) -> Any:
 
     def prefetch(state: Cursor) -> dict[str, Any]:
         since = appender.state.last_position
-        executor = LoggedExecutor(harness)
+        executor = LoggedExecutor(harness, replaying=lambda key: isinstance(key, PrefetchKey))
         run_prefetch(executor, harness.inputs.context)
         route = "terminal" if appender.state.stopped is not None else "model"
         return {"route": route, "reached": _reached(appender.state.events, since)}
@@ -343,7 +356,9 @@ def build(harness: Harness, saver: BaseCheckpointSaver[Any]) -> Any:
             if held.finalization_entered is None:
                 appender.append(FinalizationEntered())
             payload = harness.turns.payload_for(appender.state)
-            appender.append(ApprovalRequested(payload.claims, payload.composition))
+            appender.append(
+                ApprovalRequested(payload.claims, payload.composition, state["at_cap"])
+            )
         request = appender.state.approval_requested
         assert request is not None and isinstance(request.event, ApprovalRequested)
         digest = review_payload_digest(request.event.claims, request.event.composition)
@@ -362,7 +377,7 @@ def build(harness: Harness, saver: BaseCheckpointSaver[Any]) -> Any:
             stopped = held.stopped
             if stopped is not None:
                 appender.close(Failed(stopped.category, stopped.site, stopped.reason, None))
-            elif state["at_cap"]:
+            elif _at_cap(held):
                 appender.close(CapExhausted(None))
             else:
                 appender.close(Completed(None))
@@ -414,6 +429,10 @@ def _model_step(harness: Harness) -> tuple[str, bool]:
     state = appender.state
     if state.stopped is not None:
         return "terminal", False
+    if state.frozen:
+        # The review payload is frozen (the ruling on recovery, part 3): the system is asked
+        # nothing more, and the ending it froze toward is the request's, not this process's.
+        return "approval", _at_cap(state)
     calls = calls_of(state)
     current = calls[-1] if calls else None
     if current is not None:
@@ -462,6 +481,12 @@ def _dispatch(
     state = appender.state
     purpose = CallPurpose.LOOP if state.finalization_entered is None else CallPurpose.FINALIZATION
     number = (current.last_number if current is not None else 0) + 1
+    if current is not None:
+        # The registered delay runs from the previous dispatch's logged outcome, or from its
+        # intent when it stays unresolved, whichever process does the dispatching (the ruling
+        # on re-dispatch, part 3; the worker group's review, fourth finding).
+        anchor = current.last_outcome or current.intents[-1]
+        _wait(harness, anchor.timestamp)
     assert inputs.reservation_pico_usd is not None
     intent = AccountIntent(call_id(ordinal), number, purpose, tokens, money)
     decision = authorize(state.account, inputs.caps, inputs.reservation_pico_usd, intent).decision
@@ -493,7 +518,7 @@ def _dispatch(
     )
     sent = harness.client.send(configuration.model_id, request.body)
     attribution, _ = attribute(_table(harness), sent.observation)
-    after = appender.append(
+    appender.append(
         DispatchOutcome(
             ordinal,
             number,
@@ -504,14 +529,6 @@ def _dispatch(
             sent.sent_body_digest,
         )
     )
-    held = calls_of(after)[-1]
-    if (
-        decide_call(held.pairs(), _table(harness), _policy(harness)).decision
-        is CallDecision.DISPATCH_AGAIN
-    ):
-        outcome = held.last_outcome
-        assert outcome is not None
-        _wait(harness, outcome.timestamp)
     return "model", False
 
 
@@ -544,6 +561,10 @@ def _established_bound(
             return None
         if projection is None:
             projection = counted_projection(method, body)
+        if group:
+            # As for a dispatch: the delay from the previous request's outcome, or its start.
+            previous = group[-1]
+            _wait(harness, (previous.outcome or previous.start).timestamp)
         key = CountKey(method, identifier, digest, len(group) + 1)
         appender.append(CountStarted(key, role))
         answer = harness.counter.count(identifier, projection)
@@ -551,11 +572,6 @@ def _established_bound(
         after = appender.append(CountOutcomeLogged(key, answer, reading))
         if after.stopped is not None:
             return None
-        if reading is CountResult.COUNTED:
-            continue
-        logged = next(c.outcome for c in counts_of(after) if c.key == key)
-        assert logged is not None
-        _wait(harness, logged.timestamp)
 
 
 def _wait(harness: Harness, anchor: datetime) -> None:
@@ -613,7 +629,10 @@ def _resolve_reads(harness: Harness) -> None:
     call = calls_of(appender.state)[-1]
     response = _answered_response(call)
     assert response is not None, "the tools node follows an answered call"
-    executor = LoggedExecutor(harness)
+    executor = LoggedExecutor(
+        harness,
+        replaying=lambda key: isinstance(key, ModelReadKey) and key.call == call.ordinal,
+    )
     origin = ModelOrigin(call_id(call.ordinal))
     for use in _read_calls(response):
         key = ModelReadKey(call.ordinal, use.id)
@@ -644,6 +663,13 @@ def _policy(harness: Harness) -> RedispatchPolicy:
     policy = harness.appender.rules.redispatch
     assert policy is not None, "a model-calling run registers a re-dispatch policy"
     return policy
+
+
+def _at_cap(state: AttemptState) -> bool:
+    """The ending the held approval request froze toward, read from the log."""
+    request = state.approval_requested
+    assert request is not None and isinstance(request.event, ApprovalRequested)
+    return request.event.at_cap
 
 
 def _intent_of(logged: LoggedEvent) -> DispatchIntent:

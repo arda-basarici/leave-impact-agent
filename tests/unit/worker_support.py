@@ -15,8 +15,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from hashlib import sha256
+from typing import Any
 
 from leaveimpact.agent.answer_parse import FACT_TOOL
+from leaveimpact.agent.execution import ReadPorts
 from leaveimpact.agent.graph import ReviewPayload, Sent, TurnRequest
 from leaveimpact.agent.log_events import (
     Admitted,
@@ -31,8 +33,10 @@ from leaveimpact.agent.log_events import (
 )
 from leaveimpact.agent.log_transition import AttemptState, calls_of
 from leaveimpact.core.counting_operations import Counted, CountOutcome
+from leaveimpact.core.enums import Source
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import CompleteResponse, Observation
+from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.run_trace import OperationId
 from leaveimpact.core.worldtime import RunContext
 from tests.unit import format_fixtures as cases
@@ -195,6 +199,34 @@ def in_flight(events: Sequence[LoggedEvent]) -> list[tuple[object, ...]]:
     ]
 
 
+# --- Outages -----------------------------------------------------------------------------------
+
+
+class UnreachableMethod:
+    """A port whose one method answers unreachable, every other call passing through: an
+    outage of one read in a source that otherwise answers."""
+
+    def __init__(self, inner: object, method: str, source: Source) -> None:
+        self._inner = inner
+        self._method = method
+        self._source = source
+
+    def __getattr__(self, name: str) -> Any:
+        attribute = getattr(self._inner, name)
+        if name != self._method:
+            return attribute
+
+        def unreachable(*args: Any, **kwargs: Any) -> Any:
+            raise SourceUnreachable(self._source, "provoked by the test")
+
+        return unreachable
+
+
+def with_unreachable(ports: ReadPorts, method: str) -> ReadPorts:
+    """``ports`` with the people system's ``method`` unreachable."""
+    return replace(ports, people=UnreachableMethod(ports.people, method, Source.FRAPPE))  # type: ignore[arg-type]
+
+
 # --- The reference script --------------------------------------------------------------------
 
 
@@ -246,4 +278,5 @@ __all__ = [
     "text",
     "tool_use",
     "two_call_script",
+    "with_unreachable",
 ]

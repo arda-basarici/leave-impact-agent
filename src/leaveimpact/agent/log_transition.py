@@ -439,6 +439,12 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
                 return Refused("a completion follows the resume from an approval")
             if state.stopped is not None:
                 return Refused(_stopped(state, "no completion"))
+            assert state.approval_requested is not None
+            if _request(state.approval_requested).at_cap != isinstance(event, CapExhausted):
+                return Refused(
+                    "the closing event names the ending the approval request froze toward: "
+                    + ("the cap" if isinstance(event, Completed) else "a completion")
+                )
             refusal = _settlement_refusal(inputs, event.settlement is not None)
             if refusal is not None:
                 return Refused(refusal)

@@ -37,20 +37,32 @@ from langgraph.checkpoint.memory import InMemorySaver
 
 from leaveimpact.agent.appender import LogCommands
 from leaveimpact.agent.log_events import (
+    ApprovalRequested,
     Approved,
+    CapExhausted,
+    Completed,
     CountOutcomeLogged,
     DispatchIntent,
     EventKind,
     Failed,
     FrozenInputs,
     LoggedEvent,
+    OperationEvent,
     Producer,
+    WorkerStamp,
     count_id,
     kind_of,
 )
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import LogStoreConflict, LogStoreUnavailable
-from leaveimpact.agent.log_transition import Rules, calls_of, counts_of, operations_of
+from leaveimpact.agent.log_transition import (
+    Appended,
+    Refused,
+    Rules,
+    calls_of,
+    counts_of,
+    operations_of,
+)
 from leaveimpact.agent.worker import (
     COPIED_FROM_THE_ADMISSION,
     AutomaticApproval,
@@ -81,7 +93,7 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit import worker_support as support
-from tests.unit.log_store_memory import MemoryLog
+from tests.unit.log_store_memory import MemoryLog, Ticking
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.throwaway_world import loaded_world
 from tests.unit.worker_support import (
@@ -239,17 +251,20 @@ def test_an_intent_is_committed_before_its_send_and_names_the_bound_the_count_ga
         assert count.outcome is not None and count.outcome.position < logged.position
 
 
-@pytest.mark.parametrize("cut", range(2, len(REFERENCE_KINDS) - 1))
-def test_a_worker_recovering_from_any_prefix_repeats_no_logged_inference_or_read(
-    world: SealedWorld, cut: int
-) -> None:
+def recovers_from_prefix(world: SealedWorld, cut: int, *, outage: str | None = None) -> None:
+    """The recovery invariant from the prefix of ``cut`` events of the reference run, the
+    people system's ``outage`` method unreachable in both runs when given."""
     reference = bench(world)
+    if outage is not None:
+        reference.ports = support.with_unreachable(reference.ports, outage)
     reference.work()
     whole = reference.events()
     if cut >= len(whole):
         pytest.skip("the prefix is the whole log")
     prefix = whole[:cut]
     recovering = bench(world, events=prefix)
+    if outage is not None:
+        recovering.ports = support.with_unreachable(recovering.ports, outage)
     ending = recovering.work()
     assert ending.kind is WorkerEndingKind.CLOSED and ending.generation == 2
     recovered = recovering.events()
@@ -275,6 +290,52 @@ def test_a_worker_recovering_from_any_prefix_repeats_no_logged_inference_or_read
     assert len(recovering.counter.asked) == 2 - counted_held, "a held count is reused"
     export = export_of(recovering.log.load(RUN, ATTEMPT, rules=RULES))
     assert len(export.record.timing.segments) == 2
+    held = [e.event for e in recovered if isinstance(e.event, OperationEvent)]
+    first = [e.event for e in whole if isinstance(e.event, OperationEvent)]
+    assert [(o.key, o.resolution) for o in held] == [(o.key, o.resolution) for o in first], (
+        "every read resolves as the uninterrupted run's, by key"
+    )
+
+
+@pytest.mark.parametrize("cut", range(2, len(REFERENCE_KINDS) - 1))
+def test_a_worker_recovering_from_any_prefix_repeats_no_logged_inference_or_read(
+    world: SealedWorld, cut: int
+) -> None:
+    recovers_from_prefix(world, cut)
+
+
+@pytest.mark.parametrize("cut", range(2, 14))
+def test_a_recovery_under_an_outage_replays_the_stops_in_the_logs_order(
+    world: SealedWorld, cut: int
+) -> None:
+    """The review's second finding: with one prefetch read unreachable, a recovery that
+    seeded the stop from the whole history skipped calls the first run had made and reused
+    held results under the wrong ordinals; the stops now accumulate as the held results are
+    replayed, so every read resolves as the first run's."""
+    recovers_from_prefix(world, cut, outage="leaves_within")
+
+
+def test_a_recovery_waits_the_registered_delay_before_it_dispatches_again(
+    world: SealedWorld,
+) -> None:
+    """The review's fourth finding: a worker recovering after a throttled outcome went
+    straight to the next authorization; the delay now runs before each authorization from
+    the held outcome's timestamp, so the recovery waits as the first process would have."""
+    rules = Rules(cases.TABLE, RedispatchPolicy(3, 5_000))
+    reference = bench(world, script=throttled_script, rules=rules)
+    reference.work(rules=rules)
+    assert reference.waits == [4.0, 4.0]
+    events = reference.events()
+    cut = [kind_of(e.event).value for e in events].index("dispatch_outcome") + 1
+    recovering = bench(world, script=throttled_script, rules=rules, events=events[:cut])
+    # The recovering log's clock starts after the prefix's last instant, as a real database's
+    # would; a clock behind the anchor is bounded to the whole delay by design.
+    recovering.log.clock = Ticking(start=events[cut - 1].timestamp)
+    ending = recovering.work(rules=rules)
+    assert ending.detail == "failed" and support.sends_of(recovering.client) == 2
+    # The recovery's claim took one reading of the clock after the anchor, so the remainder
+    # before its first dispatch is three seconds, and the whole four before its second.
+    assert recovering.waits == [3.0, 4.0], "the remainder, then the delay"
 
 
 # --- The endings -----------------------------------------------------------------------------
@@ -430,8 +491,8 @@ def test_the_copied_fields_and_the_configuration_partition_the_frozen_inputs() -
     assert configured | set(COPIED_FROM_THE_ADMISSION) == frozen
     inputs = histories.inputs(reservation=1_000)
     assert configuration_difference(inputs, WorkerConfiguration.of(inputs).frozen_for(inputs)) == ()
-    with pytest.raises(ValueError, match="writes log format 1"):
-        WorkerConfiguration.of(inputs).frozen_for(replace(inputs, log_format_version=2))
+    with pytest.raises(ValueError, match="writes log format 2"):
+        WorkerConfiguration.of(inputs).frozen_for(replace(inputs, log_format_version=3))
 
 
 def test_a_human_approval_ends_the_segment_and_the_next_worker_resumes_without_a_send(
@@ -563,3 +624,81 @@ def test_a_closed_attempt_is_left_at_the_load_and_a_claim_on_it_is_refused(
     assert len(operations_of(made.log.load(RUN, ATTEMPT, rules=RULES))) == len(
         [k for k in made.kinds() if k == "operation"]
     )
+
+
+# --- The review's first finding: the ending the request froze toward -----------------------
+
+AT_CAP = Caps(20, 4_700, 2, 4_699, "input_plus_output_cached_included", cases.METHOD)
+"""A token cap the fixtures' worst case (4,608 tokens a dispatch) reaches on the second
+dispatch of finalization: the loop's room is one token, so the first call enters finalization;
+the first finalization dispatch fits in 4,700 and is then held at its observed 150 tokens,
+and the second's 150 + 4,608 does not fit."""
+
+
+class Silent(ScriptedTurns):
+    """A system that restates no request: the reviewer's stub, which a recovering worker
+    must not need."""
+
+    def request_for(self, state: Any, call: int) -> Any:
+        return None
+
+
+def capped(world: SealedWorld, events: Sequence[LoggedEvent] | None = None) -> Bench:
+    made = bench(world, events=events)
+    if events is None:
+        made.inputs = replace(made.inputs, caps=AT_CAP)
+        made.log = MemoryLog()
+        made.log.seed(support.admission(made.inputs))
+    else:
+        made.inputs = replace(made.inputs, caps=AT_CAP)
+    return made
+
+
+def test_a_run_at_its_cap_closes_cap_exhausted_and_the_request_carries_the_ending(
+    world: SealedWorld,
+) -> None:
+    made = capped(world)
+    ending = made.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "cap_exhausted")
+    kinds = made.kinds()
+    assert kinds.index("finalization_entered") < kinds.index("dispatch_intent"), (
+        "the loop's first allocation did not fit; the run finalized from its first call"
+    )
+    assert support.sends_of(made.client) == 1, "the second finalization dispatch was refused"
+    state = made.log.load(RUN, ATTEMPT, rules=RULES)
+    request = state.approval_requested
+    assert request is not None and isinstance(request.event, ApprovalRequested)
+    assert request.event.at_cap is True
+    assert export_of(state).record.status.value == "cap_exhausted"
+
+
+def test_a_recovery_after_the_request_keeps_the_cap_ending_without_the_systems_help(
+    world: SealedWorld,
+) -> None:
+    reference = capped(world)
+    reference.work()
+    events = reference.events()
+    cut = [kind_of(e.event).value for e in events].index("approval_requested") + 1
+    recovering = capped(world, events=events[:cut])
+    recovering.turns = Silent(recovering.turns.bodies)
+    ending = recovering.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "cap_exhausted")
+    assert support.sends_of(recovering.client) == 0
+
+
+def test_the_closing_kind_must_be_the_one_the_request_froze_toward(world: SealedWorld) -> None:
+    reference = capped(world)
+    reference.work()
+    events = reference.events()
+    cut = [kind_of(e.event).value for e in events].index("resumed") + 1
+    log = MemoryLog()
+    log.seed(events[:cut])
+    state = log.load(RUN, ATTEMPT, rules=RULES)
+    refused = log.close_attempt(
+        RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), Completed(None), rules=RULES, state=state
+    )
+    assert isinstance(refused, Refused) and "froze toward: the cap" in refused.reason
+    closed = log.close_attempt(
+        RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), CapExhausted(None), rules=RULES, state=state
+    )
+    assert isinstance(closed, Appended)

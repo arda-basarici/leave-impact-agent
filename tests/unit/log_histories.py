@@ -135,7 +135,7 @@ def inputs(*, reservation: int | None, system: System = AGENT) -> FrozenInputs:
         outage=OutageAssignment(frozenset(), cases.DIGEST),
         corpus_level="base",
         reservation_pico_usd=reservation if calls_a_model else None,
-        log_format_version=1,
+        log_format_version=2,
     )
 
 
@@ -343,7 +343,7 @@ def _closed_completed(
     log: History, reservation: Reservation, *, offset: int = 9_000, terminal: datetime | None = None
 ) -> None:
     """Request, automatic approval, resume and completion, the segment ending at ``offset``."""
-    log.worker(ApprovalRequested((), cases.RULES), offset=offset - 300)
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=offset - 300)
     log.outside(
         AUTOMATIC.identity,
         Approved(Approver.AUTOMATIC, cases.review_payload_digest((), cases.RULES)),
@@ -572,7 +572,7 @@ def abandoned_attempt() -> tuple[LoggedEvent, ...]:
     _one_call_prefix(log, expected.pico_usd)
     log.worker(intent(1), offset=600)
     log.worker(outcome(1, 1, complete(), response=body("end_turn", text("Done."))), offset=1_500)
-    log.worker(ApprovalRequested((), cases.RULES), offset=4_800)
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=4_800)
     log.outside(
         "operator",
         Abandoned(1, AbandonmentReason.CANCELLED, settlement_of(expected)),
@@ -589,7 +589,7 @@ def approval_wait_across_restart() -> tuple[LoggedEvent, ...]:
     _one_call_prefix(log, expected.pico_usd)
     log.worker(intent(1), offset=600)
     log.worker(outcome(1, 1, complete(), response=body("end_turn", text("Done."))), offset=1_500)
-    log.worker(ApprovalRequested((), cases.RULES), offset=7_000)
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=7_000)
     log.worker(SegmentEnded(), offset=7_900)
     log.claim()
     log.outside(
@@ -630,7 +630,7 @@ def wrong_scope_beside_unplaced() -> tuple[LoggedEvent, ...]:
         offset=1_500,
     )
     composition = fixture.trace.composition
-    log.worker(ApprovalRequested((), composition), offset=8_700)
+    log.worker(ApprovalRequested((), composition, False), offset=8_700)
     log.outside(
         AUTOMATIC.identity,
         Approved(Approver.AUTOMATIC, cases.review_payload_digest((), composition)),

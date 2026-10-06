@@ -84,7 +84,7 @@ def worker_events() -> st.SearchStrategy[Event]:
             h.intent(1),
             h.intent(1, 2),
             h.outcome(1, 1, h.complete(), response=h.body("end_turn", h.text("Done."))),
-            h.ApprovalRequested((), cases.RULES),
+            h.ApprovalRequested((), cases.RULES, False),
             Resumed(),
             Completed(SETTLED),
         ]
