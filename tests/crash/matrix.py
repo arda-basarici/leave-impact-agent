@@ -21,9 +21,11 @@ in a schema of its own, rows run a few at a time:
    the requests in flight at the end exactly those the snapshots left in flight, none of
    them answered, so no send ever happens under a held intent number; every call with one
    outcome and that outcome for its last intent; sends equal to the reference's plus one per
-   dispatch intent left in flight; port reads equal to the reference's plus one per kill
-   inside an operation's own write, since a logged read is never repeated and an unlogged
-   one may be; one approval, one closing event, one settled ledger entry; the export built
+   dispatch intent left in flight; each killed child's port reads at most one above the
+   operations it logged and the completing child's equal to them, since a logged read is
+   never repeated and an unlogged one may be, once (a saver seam fires on the framework's
+   background thread, so its kill lands anywhere in the main thread's step, a read's append
+   included); one approval, one closing event, one settled ledger entry; the export built
    from the log and round-tripped, its operations and claims the reference's.
 
 The forecasts are in ``MANIFEST.md`` by family, written before the first run; a family the
@@ -155,6 +157,8 @@ class Ended:
     ending: dict[str, Any] | None
     stderr: str
     crossings: tuple[str, ...]
+    reads: int
+    """The port reads this process witnessed."""
 
     @property
     def last_crossing(self) -> str | None:
@@ -191,7 +195,8 @@ def start_child(
         if line.startswith("{"):
             ending = json.loads(line)
     crossings = tuple(line["crossing"] for line in lines if "crossing" in line)
-    return Ended(completed.returncode, ending, completed.stderr[-2000:], crossings)
+    reads = sum(line.get("witness") == "read" for line in lines)
+    return Ended(completed.returncode, ending, completed.stderr[-2000:], crossings, reads)
 
 
 def wait_sessions_ended(url: str, schema: str) -> None:
@@ -332,6 +337,8 @@ def run_row(
     try:
         store = admitted(prepared, schema)
         snapshots: list[tuple[LoggedEvent, ...]] = []
+        accounted: list[tuple[int, int]] = []
+        logged_before = 0
         for index, target in enumerate(kills):
             ended = start_child(prepared, schema, record, target=target, nonce=f"nonce-{index}")
             result.children.append(ended.ending)
@@ -344,6 +351,8 @@ def run_row(
             wait_sessions_ended(prepared.url, schema)
             events = store.events(RUN, ATTEMPT)
             snapshots.append(events)
+            accounted.append((ended.reads, _operations(events) - logged_before))
+            logged_before = _operations(events)
             generation = sum(kind_of(e.event) is EventKind.SEGMENT_STARTED for e in events)
             if generation:
                 thread = f"{RUN}/{ATTEMPT}/{generation}"
@@ -367,8 +376,9 @@ def run_row(
             )
             return result
         events = store.events(RUN, ATTEMPT)
+        accounted.append((final.reads, _operations(events) - logged_before))
         lines = injector.read_record(record)
-        result.findings.extend(reconcile(reference, kills, snapshots, events, lines, store))
+        result.findings.extend(reconcile(reference, snapshots, events, lines, store, accounted))
         return result
     finally:
         if not keep:
@@ -377,12 +387,15 @@ def run_row(
 
 def reconcile(
     reference: Reference,
-    kills: tuple[str, ...],
     snapshots: Sequence[tuple[LoggedEvent, ...]],
     final: tuple[LoggedEvent, ...],
     lines: Sequence[dict[str, Any]],
     store: LogStore,
+    accounted: Sequence[tuple[int, int]],
 ) -> list[str]:
+    """The findings against the reference and the snapshots; ``accounted`` holds, per child in
+    order, the port reads it witnessed and the operations it logged, the last being the
+    child that completed."""
     found: list[str] = []
     for index, snapshot in enumerate(snapshots):
         if final[: len(snapshot)] != snapshot:
@@ -432,12 +445,21 @@ def reconcile(
             held = [c for c in calls_of(state) if c.ordinal == call]
             if held and number in held[0].outcomes:
                 found.append(f"a send was answered under the in-flight intent {key}")
-    reads = sum(line.get("witness") == "read" for line in lines)
-    repeated = sum(injector.family(kill).startswith("operation:") for kill in kills)
-    if reads != reference.reads + repeated:
+    # A logged read is never repeated and an unlogged one may be, once: a killed child read
+    # at most one more time than it logged (the read in flight when it died, wherever the
+    # kill landed in its step), and the completing child read exactly what it logged.
+    for index, (reads, logged) in enumerate(accounted[:-1]):
+        if not 0 <= reads - logged <= 1:
+            found.append(f"child {index} made {reads} port reads and logged {logged} operations")
+    reads, logged = accounted[-1]
+    if reads != logged:
         found.append(
-            f"{reads} port reads, expected {reference.reads} + {repeated} repeated after a kill "
-            f"inside an operation's write"
+            f"the completing child made {reads} port reads and logged {logged} operations"
+        )
+    if sum(r for r, _ in accounted) < reference.reads:
+        found.append(
+            f"{sum(r for r, _ in accounted)} port reads in all, fewer than the reference's "
+            f"{reference.reads}"
         )
     export = export_of(state)
     if decode_export_bytes(export_bytes(export)) != export:
@@ -447,6 +469,10 @@ def reconcile(
     if export.trace.claims != reference.export.trace.claims:
         found.append("the export's claims differ from the reference's")
     return found
+
+
+def _operations(events: Sequence[LoggedEvent]) -> int:
+    return sum(kind_of(e.event) is EventKind.OPERATION for e in events)
 
 
 def _positionless(export: RunExport) -> list[tuple[object, ...]]:

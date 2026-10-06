@@ -22,6 +22,10 @@ row; a kill point is named `<family>#<occurrence in its process>`.
 - A request left in flight at a kill (a count started with no outcome, a dispatch intent
   with no outcome) stays unresolved for good: recovery counts or dispatches again under the
   next ordinal or number, and no outcome is ever written under the in-flight one.
+- A logged read is never repeated; an unlogged one may be, once: a killed child's port reads
+  exceed the operations it logged by at most one, the completing child's equal them. A
+  saver seam fires on the framework's background thread, so its kill lands anywhere in the
+  main thread's step, between a read and its append included (CI's first run, below).
 - One approval, one closing event, one settled ledger entry; the export builds, round-trips,
   and holds the reference's operations and claims.
 
@@ -90,3 +94,8 @@ killed and a third child completes.
   attempt only finishes publication); the forecast was written as if every crossing preceded
   the closure. The rows accept the recovery leaving a closed attempt, and the reconciliation
   runs on the log as it stood.
+- **2026-10-06, the first CI run** (`writes:after#4`): the kill fired on the saver's thread
+  while the main thread had read a port and not yet appended the operation, so the recovery
+  read it again and the row counted one port read above the reference where the forecast
+  allowed a repeat only for a kill inside the operation's own write. The invariant is now
+  stated per process (above); the worker did what the ruling on tool calls, part 8, says.
