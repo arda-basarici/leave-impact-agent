@@ -121,6 +121,15 @@ type Ending = (
     | OtherInfrastructure
 )
 
+DISPATCH_SEND = "dispatch_send"
+"""The site of an infrastructure ending at a dispatch's send that no rule names: an unresolved
+last dispatch below the maximum, a harness that gave up. Both projections into this vocabulary
+(the agent's, from a log; the evaluator's, from an export) name the site by this."""
+
+INPUT_BOUND = "input_bound"
+"""The site of an infrastructure ending at the input bound that no rule names: an unclassified
+counting failure, or a harness that gave up below the maximum."""
+
 
 # --- The decision --------------------------------------------------------------------------
 
@@ -204,6 +213,8 @@ def new_attempt_eligibility(
 
 
 __all__ = [
+    "DISPATCH_SEND",
+    "INPUT_BOUND",
     "Abandoned",
     "Completed",
     "Eligibility",

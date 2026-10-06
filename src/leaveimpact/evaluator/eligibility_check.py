@@ -46,6 +46,8 @@ from enum import StrEnum
 from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.counting_operations import read_outcome
 from leaveimpact.core.eligibility import (
+    DISPATCH_SEND,
+    INPUT_BOUND,
     Abandoned,
     Completed,
     EligibilityRule,
@@ -71,14 +73,6 @@ from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import FailureCategory, TerminalStatus
 from leaveimpact.evaluator.call_check import CallCheck
 from leaveimpact.evaluator.count_check import reuse_key
-
-DISPATCH_SEND = "dispatch_send"
-"""The site of an infrastructure ending at a dispatch's send that no rule names: an unresolved
-last dispatch below the maximum."""
-
-INPUT_BOUND = "input_bound"
-"""The site of an infrastructure ending at the input bound that no rule names: an unclassified
-reading, or a group of counting requests given up below the maximum."""
 
 
 class EndingKind(StrEnum):

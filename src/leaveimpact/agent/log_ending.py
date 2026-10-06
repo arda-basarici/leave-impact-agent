@@ -17,6 +17,15 @@ are two facts, both in the log, and the export states both.
 1): the attempt (open, or closed with its ending), the segment (never started, open,
 stopped) and the approval (not requested, requested and unapproved, approved). No field
 says a worker is alive: a log cannot know it.
+
+*The eligibility ending* is the same closed log read into the vocabulary the eligibility
+function in ``core`` takes, so admission can ask whether the predecessor permits a new
+attempt (the ruling on placement, part 1: the agent projects events into the function's
+inputs and the evaluator projects exports into the same ones; the two projections are
+held equal over every fixture by a test). A failure at a dispatch's send is read through
+the within-call decision over the call's dispatches, one at the input bound through the
+count decision over the request's counting group, each outcome re-read and never the
+worker's stored reading.
 """
 
 from __future__ import annotations
@@ -32,14 +41,28 @@ from leaveimpact.agent.log_events import (
     Completed,
     Failed,
     Producer,
+    call_id,
+    count_id,
 )
-from leaveimpact.agent.log_transition import AttemptState
+from leaveimpact.agent.log_transition import (
+    AttemptState,
+    Rules,
+    calls_of,
+    count_group,
+    counts_of,
+)
+from leaveimpact.core import eligibility
+from leaveimpact.core.call_decision import decide_call
+from leaveimpact.core.input_bound import CountDecision, count_decision
 from leaveimpact.core.run_ending import (
     Abandonment,
     Approval,
     ApprovalState,
+    DispatchSite,
     HarnessSite,
     HarnessSiteName,
+    InputBoundSite,
+    OperationSite,
 )
 from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_record import Failure, FailureCategory, TerminalStatus
@@ -150,4 +173,86 @@ def status_of(state: AttemptState) -> Status:
     return Status(ending, segment, approval_of(state).state)
 
 
-__all__ = ["Ending", "SegmentStatus", "Status", "approval_of", "ending_of", "status_of"]
+def eligibility_ending_of(state: AttemptState, rules: Rules) -> eligibility.Ending:
+    """The ending of ``state``'s closed log in the eligibility function's vocabulary, under
+    the registered ``rules``; ``ValueError`` while the attempt is open."""
+    ending = ending_of(state)
+    match ending.status:
+        case TerminalStatus.COMPLETED:
+            return eligibility.Completed()
+        case TerminalStatus.CAP_EXHAUSTED:
+            return eligibility.ReportedAtCap()
+        case TerminalStatus.FAILED:
+            pass
+    failure = ending.failure
+    assert failure is not None, "a failed attempt records its failure"
+    if failure.category is FailureCategory.DEFECT:
+        return eligibility.EndedByDefect()
+    site = failure.site
+    match site:
+        case DispatchSite():
+            return _at_dispatch_send(state, site, rules)
+        case InputBoundSite():
+            return _at_input_bound(state, site, rules)
+        case HarnessSite():
+            if site.site is HarnessSiteName.ABANDONED:
+                intents = sum(len(call.intents) for call in calls_of(state))
+                return eligibility.Abandoned(intents)
+            return eligibility.OtherInfrastructure(site.site.value)
+        case OperationSite():
+            return eligibility.OtherInfrastructure("operation")
+
+
+def _at_dispatch_send(
+    state: AttemptState, site: DispatchSite, rules: Rules
+) -> eligibility.Ending:
+    if rules.table is None or rules.redispatch is None:
+        raise ValueError("a failure at a dispatch's send needs the registered table and policy")
+    call = next(
+        (call for call in calls_of(state) if call_id(call.ordinal) == site.model_call), None
+    )
+    if call is None:
+        raise ValueError(f"the log holds no call {site.model_call!r} to read the failure at")
+    standing = decide_call(call.pairs(), rules.table, rules.redispatch)
+    if standing.last_unresolved and standing.maximum_reached:
+        return eligibility.UnresolvedAtMaximum()
+    row = standing.row
+    if row is not None:
+        return eligibility.SendFailure(row.identifier, row.new_attempt)
+    return eligibility.OtherInfrastructure(eligibility.DISPATCH_SEND)
+
+
+def _at_input_bound(
+    state: AttemptState, site: InputBoundSite, rules: Rules
+) -> eligibility.Ending:
+    if rules.redispatch is None:
+        raise ValueError("a failure at the input bound needs the registered policy")
+    named = next(
+        (count for count in counts_of(state) if count_id(count.key) == site.counting_operation),
+        None,
+    )
+    if named is None:
+        raise ValueError(
+            f"the log holds no counting operation {site.counting_operation!r} to read the "
+            f"failure at"
+        )
+    group = count_group(state, named.key)
+    readings = [count.reading() for count in group]
+    match count_decision(readings, rules.redispatch.max_dispatches):
+        case CountDecision.EXHAUSTED:
+            return eligibility.InputBoundExhausted()
+        case CountDecision.DEFECT:
+            return eligibility.EndedByDefect()
+        case _:
+            return eligibility.OtherInfrastructure(eligibility.INPUT_BOUND)
+
+
+__all__ = [
+    "Ending",
+    "SegmentStatus",
+    "Status",
+    "approval_of",
+    "eligibility_ending_of",
+    "ending_of",
+    "status_of",
+]
