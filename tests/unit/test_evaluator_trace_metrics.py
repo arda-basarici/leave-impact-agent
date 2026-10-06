@@ -26,6 +26,11 @@ from leaveimpact.core import (
     cost_of_reported,
     is_completed_read,
 )
+from leaveimpact.core.attribution import RedispatchPolicy, attribution_table_digest
+from leaveimpact.core.registration import RetryRule
+from leaveimpact.core.run_record import FailureCategory
+from leaveimpact.evaluator.call_check import CallCheck
+from leaveimpact.evaluator.eligibility_check import EndingKind
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded, Limited, LimitedReason
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.sealed_world import SealedWorld
@@ -34,6 +39,8 @@ from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.export_fixture import (
     BASIS,
+    COUNTING_MODEL,
+    ROLE,
     SELECTION,
     agent_export,
     answered_call,
@@ -43,6 +50,7 @@ from tests.unit.export_fixture import (
     run_export,
 )
 from tests.unit.reads_fixture import reads_of_everything
+from tests.unit.registration_fixture import TABLE
 from tests.unit.report_fixture import renumbered, truthful_report
 from tests.unit.throwaway_world import loaded_world
 
@@ -262,3 +270,37 @@ def test_an_agents_run_is_measured_by_who_asked_and_what_it_cost(world: SealedWo
     assert metrics.cost.cost == export.record.cost
     assert metrics.cost.cost is not None and metrics.cost.cost.complete
     assert metrics.cost.cost.pico_usd == 4_900 * 1_100_000 + 680 * 5_500_000
+
+
+def test_the_four_audits_are_evaluated_where_their_registration_values_are_given(
+    world: SealedWorld,
+) -> None:
+    scenario = world.scenarios[0]
+    export = agent_export(world, scenario, (answered_call(1, None, None),))
+    tabled = replace(
+        export, record=replace(export.record, attribution_table=attribution_table_digest(TABLE))
+    )
+    held = evaluate_run(
+        world,
+        tabled,
+        table=TABLE,
+        redispatch=RedispatchPolicy(2, 0),
+        retry=RetryRule(FailureCategory.INFRASTRUCTURE, 3),
+        counting_identifiers={ROLE: COUNTING_MODEL},
+    ).metrics
+    assert held.account is not None and held.account.findings == ()
+    assert (held.counts.registration_evaluated, held.counts.findings) == (True, ())
+    # The fixture's rule is none the table holds, so the call gets no standing.
+    assert held.calls is not None and held.calls == CallCheck((), ())
+    assert held.eligibility is not None and held.eligibility.ending.kind is EndingKind.COMPLETED
+
+    unheld = evaluate_run(world, export).metrics
+    assert unheld.account is not None
+    assert (unheld.counts.registration_evaluated, unheld.calls, unheld.eligibility) == (
+        False,
+        None,
+        None,
+    )
+    # A rules-only record holds no reservation: no account to read.
+    rules_only = evaluate_run(world, run_export(world, scenario)).metrics
+    assert (rules_only.account, rules_only.counts.operations) == (None, 0)

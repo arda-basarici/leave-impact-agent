@@ -251,6 +251,16 @@ class Accounting:
     ``attribution_not_evaluated`` the ones held to no table, the registration's being
     pending or not the one the record names, a run that called no model among them;
     ``with_retried_sends`` the runs with a response whose metadata shows an SDK retry.
+    ``with_account_findings`` counts the runs whose recorded authorizations, allocations,
+    breaches or settlement the account's replay does not bear out; ``with_count_findings``
+    the runs whose bounds, counting operations or count retries the count check faults;
+    ``with_call_findings`` the runs with a call standing failed that is not the failure or
+    an attempt ended while a dispatch was permitted; ``count_not_evaluated``,
+    ``call_not_evaluated`` and ``eligibility_not_evaluated`` the runs held to no
+    registration for the count check's registration parts, the call check and the
+    eligibility check, the registration's values being pending or not the run's;
+    ``account_not_evaluated`` the runs whose record holds no reservation, every
+    rules-only run among them.
     """
 
     scenarios: int
@@ -283,6 +293,13 @@ class Accounting:
     with_attribution_findings: int
     attribution_not_evaluated: int
     with_retried_sends: int
+    with_account_findings: int
+    with_count_findings: int
+    with_call_findings: int
+    count_not_evaluated: int
+    call_not_evaluated: int
+    eligibility_not_evaluated: int
+    account_not_evaluated: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -290,8 +307,9 @@ class AttemptSummary:
     """What happened to every attempt of a cell's runs, the ones a retry replaced included.
 
     The outcome and finding counts are ``Accounting``'s, the two prefetch counts, the fact
-    and level counts, the contradiction count and the ending, attribution and retried-send
-    counts among them, over all attempts instead of the counted ones.
+    and level counts, the contradiction count, the ending, attribution and retried-send
+    counts and the account, count, call and eligibility counts among them, over all
+    attempts instead of the counted ones.
     What ``Accounting`` holds and this does not is what only a run has
     and an attempt has not: the intended, made, missing and surplus runs, the observed
     conditions, the structurally invalid reports, the unplaced attempts and the
@@ -323,6 +341,13 @@ class AttemptSummary:
     with_attribution_findings: int
     attribution_not_evaluated: int
     with_retried_sends: int
+    with_account_findings: int
+    with_count_findings: int
+    with_call_findings: int
+    count_not_evaluated: int
+    call_not_evaluated: int
+    eligibility_not_evaluated: int
+    account_not_evaluated: int
 
 
 def condition_name(condition: RunCondition) -> str:
@@ -469,10 +494,14 @@ def attempt_summary_of(cell: Cell) -> AttemptSummary:
 
 
 def _shared_finding_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
-    """The eight counts the accounting and the attempt summary share, over ``evaluations``:
-    one function so the two cannot count them differently."""
+    """The fifteen counts the accounting and the attempt summary share, over
+    ``evaluations``: one function so the two cannot count them differently."""
     levels = [evaluation.metrics.level for evaluation in evaluations]
     attributions = [evaluation.metrics.attribution for evaluation in evaluations]
+    accounts = [evaluation.metrics.account for evaluation in evaluations]
+    counts = [evaluation.metrics.counts for evaluation in evaluations]
+    calls = [evaluation.metrics.calls for evaluation in evaluations]
+    eligibilities = [evaluation.metrics.eligibility for evaluation in evaluations]
     return {
         "with_fact_findings": sum(
             bool(evaluation.metrics.recheck.findings) for evaluation in evaluations
@@ -492,6 +521,17 @@ def _shared_finding_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
         "with_retried_sends": sum(
             bool(evaluation.metrics.discipline.retried_sends) for evaluation in evaluations
         ),
+        "with_account_findings": sum(
+            account is not None and bool(account.findings) for account in accounts
+        ),
+        "with_count_findings": sum(bool(count.findings) for count in counts),
+        "with_call_findings": sum(call is not None and bool(call.findings) for call in calls),
+        "count_not_evaluated": sum(not count.registration_evaluated for count in counts),
+        "call_not_evaluated": sum(call is None for call in calls),
+        "eligibility_not_evaluated": sum(
+            eligibility is None for eligibility in eligibilities
+        ),
+        "account_not_evaluated": sum(account is None for account in accounts),
     }
 
 

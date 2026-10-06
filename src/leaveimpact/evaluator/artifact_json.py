@@ -134,6 +134,10 @@ def _run(evaluation: Evaluation) -> JsonObject:
         "ending": _written(metrics.ending),
         "attribution": _written(metrics.attribution),
         "retried_sends": _written(metrics.discipline.retried_sends),
+        "account": _written(metrics.account),
+        "counts": _written(metrics.counts),
+        "calls": _written(metrics.calls),
+        "eligibility": _written(metrics.eligibility),
     }
 
 

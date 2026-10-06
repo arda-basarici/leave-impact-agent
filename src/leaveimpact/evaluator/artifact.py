@@ -92,14 +92,15 @@ from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 6
+ARTIFACT_FORMAT_VERSION = 7
 """The format of the evaluation artifact as this code writes it; 3 since an estimate states
 why a bootstrap resolved no interval and a comparison of single runs carries one, 4 since
 the analysis holds the mechanism measure and a run its fact recheck, its level check and
 whether it met a contradiction without failing by defect, 5 since a run holds its ending
 check, its attribution check and its retried sends, and a cost ledger says which durations
 are lower bounds, 6 since the analysis lists the attempts that ran on more than one harness
-commit and an ending holds its commits."""
+commit and an ending holds its commits, 7 since a run holds its account, count, call and
+eligibility checks and a cell counts the runs carrying each and the parts not evaluated."""
 
 
 class Label(StrEnum):
@@ -406,6 +407,19 @@ def setting_differences(
     return tuple(setting for setting, holds in same.items() if not holds)
 
 
+def _counting_identifiers(registration: Registration, export: RunExport) -> dict[str, str] | None:
+    """Each registered role's counting model id by role name, for the system ``export`` ran
+    as; ``None`` when the registration has no such system or its roles are pending, and
+    empty for the system that calls no model."""
+    system = registration.system(export.record.system.kind)
+    if system is None:
+        return None
+    roles = roles_of(system)
+    if isinstance(roles, Pending):
+        return None
+    return {role.name: role.counting_model_id for role in roles}
+
+
 def _prompts_by_role(export: RunExport) -> dict[str, frozenset[tuple[str, str]]]:
     """Each role's prompts as the record states them, by name and digest; a role that calls
     a model and records no prompt holds the empty set."""
@@ -455,6 +469,8 @@ def _entry(
         export,
         table=None if not own or isinstance(table, Pending) else table,
         redispatch=None if not own or isinstance(redispatch, Pending) else redispatch,
+        retry=registration.run_accounting.retry if own else None,
+        counting_identifiers=_counting_identifiers(registration, export) if own else None,
     )
     cost = evaluation.metrics.cost
     if cited is None:

@@ -30,10 +30,20 @@ on the run:
   attempts alone is no gap, since none of them could have been counted.
 - an *excess attempt*: an attempt numbered above the registered maximum.
 - an *attempt after a stopping outcome*: an attempt whose predecessor is present and did
-  not fail by infrastructure.
+  not fail by infrastructure, read from the outcome alone and so for every run.
+- an *attempt not permitted*: an attempt whose predecessor is present with an evaluated
+  eligibility (``eligibility_check``, which needs the registration) that does not permit
+  it: an infrastructure failure under a row flagged for no new attempt, an abandonment
+  after a dispatch was authorized, an infrastructure ending no rule names, the maximum
+  reached. A predecessor whose eligibility was not evaluated leaves the pair unverified
+  and makes no finding. The coarse finding's cases are among this one's, so the two never
+  disagree about an attempt.
 
-The last two leave the selection well defined, so the run is counted by the rule among its
-eligible attempts and the finding is counted beside it.
+An excess attempt leaves the selection well defined. An attempt after a stopping outcome
+or one not permitted keeps its export, its grade and its cost, and is never the counted
+attempt, and neither is any attempt after it, each descending from one that should not
+exist (the event log step's ruling on new attempts): the run is counted by the rule among
+its eligible attempts before the first of them, and the finding is counted beside it.
 """
 
 from __future__ import annotations
@@ -61,6 +71,7 @@ class HistoryFinding(StrEnum):
     GAP = "gap"
     EXCESS_ATTEMPT = "excess_attempt"
     ATTEMPT_AFTER_STOPPING_OUTCOME = "attempt_after_stopping_outcome"
+    ATTEMPT_NOT_PERMITTED = "attempt_not_permitted"
 
 
 def failed_by_infrastructure(evaluation: Evaluation) -> bool:
@@ -77,7 +88,8 @@ class RunHistory:
 
     ``counted`` is ``None`` exactly when the history has a gap: the selection is
     unverifiable and the run enters no estimate. Otherwise it is one of the attempts
-    numbered within the registered maximum.
+    numbered within the registered maximum and before the first its predecessor did not
+    permit.
     """
 
     run_id: str
@@ -127,18 +139,33 @@ def run_history(
         findings.append(HistoryFinding.GAP)
     if numbers[-1] > max_attempts:
         findings.append(HistoryFinding.EXCESS_ATTEMPT)
-    if any(
-        later.outcome.header.attempt == earlier.outcome.header.attempt + 1
-        and not failed_by_infrastructure(earlier)
-        for earlier, later in zip(held, held[1:], strict=False)
-    ):
+    after_stopping: list[int] = []
+    not_permitted: list[int] = []
+    for earlier, later in zip(held, held[1:], strict=False):
+        if later.outcome.header.attempt != earlier.outcome.header.attempt + 1:
+            continue
+        if not failed_by_infrastructure(earlier):
+            after_stopping.append(later.outcome.header.attempt)
+        eligibility = earlier.metrics.eligibility
+        if eligibility is not None and not eligibility.permitted:
+            not_permitted.append(later.outcome.header.attempt)
+    if after_stopping:
         findings.append(HistoryFinding.ATTEMPT_AFTER_STOPPING_OUTCOME)
-    counted = None if gapped else _counted(eligible, rule)
+    if not_permitted:
+        findings.append(HistoryFinding.ATTEMPT_NOT_PERMITTED)
+    first_unpermitted = min([*after_stopping, *not_permitted], default=None)
+    permitted = tuple(
+        attempt
+        for attempt in eligible
+        if first_unpermitted is None or attempt.outcome.header.attempt < first_unpermitted
+    )
+    counted = None if gapped else _counted(permitted, rule)
     return RunHistory(run_id, held, counted, tuple(findings))
 
 
 def _counted(attempts: tuple[Evaluation, ...], rule: CountedAttempt) -> Evaluation:
-    """The attempt ``rule`` counts among ``attempts``, the eligible ones, none absent."""
+    """The attempt ``rule`` counts among ``attempts``, the eligible permitted ones, none
+    absent and the first present."""
     match rule:
         case CountedAttempt.FIRST:
             return attempts[0]

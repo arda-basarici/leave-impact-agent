@@ -7,7 +7,7 @@ has reads to count. So the metrics are one record beside the outcome, never fiel
 its three types, and the entry here returns the pair (the investigator milestone's fourth
 build step, ruling 5).
 
-The record has eleven parts, and each is evaluated only where what it needs exists. A part
+The record has fifteen parts, and each is evaluated only where what it needs exists. A part
 that was not evaluated is ``None``, which is a different statement from a part that found
 nothing:
 
@@ -47,6 +47,18 @@ nothing:
   got, and what every statement the model made was. Evaluated for a system that states
   facts to the rules, a failed attempt included; not for the rules-only system, a claim
   set a model authored, or an assigned condition with no answer.
+- *The account check* needs the export alone and a record that holds a reservation, which
+  a rules-only record does not: every authorization replayed over the account as it stood,
+  the allocations' arithmetic, the inputs against their bounds, the breaches, the
+  settlement against the reservation. *The count check* needs the export alone, and the
+  registration's re-dispatch policy and counting identifiers for its two registration
+  parts, which it marks: every bound against the count it names, every count against its
+  outcome, every group of counts against the retry rule. *The call check* needs the table
+  and the policy: each call's standing under the within-call decision, and whether the
+  attempt ended where its calls say. *The eligibility check* needs the retry rule, and
+  the call's standing or the policy where the ending is at a dispatch or at the input
+  bound: how the attempt ended and whether it permitted an attempt after it, which the
+  attempt history reads.
 
 The pair also holds what the run was *assigned*: the outage its record says was scheduled
 for it, whatever its reads then met, and the corpus level. A run is graded against the
@@ -70,6 +82,7 @@ before any run is measured.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from leaveimpact.core.attribution import (
@@ -80,11 +93,16 @@ from leaveimpact.core.attribution import (
 from leaveimpact.core.contradictions import Contradiction, self_contradictions
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.read_condition import observed_condition
+from leaveimpact.core.registration import RetryRule
 from leaveimpact.core.run_ending import ClaimAuthor
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import FailureCategory, SystemKind
+from leaveimpact.evaluator.account_check import AccountCheck, check_account
 from leaveimpact.evaluator.attribution_check import AttributionCheck, check_attributions
+from leaveimpact.evaluator.call_check import CallCheck, check_calls
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
+from leaveimpact.evaluator.count_check import CountCheck, check_counts
+from leaveimpact.evaluator.eligibility_check import EligibilityCheck, check_eligibility
 from leaveimpact.evaluator.ending_check import EndingCheck, check_ending
 from leaveimpact.evaluator.fact_recheck import FactRecheck, recheck_facts
 from leaveimpact.evaluator.fact_stages import FactStages, fact_stages
@@ -126,6 +144,10 @@ class TraceMetrics:
     level: LevelCheck | None
     facts: FactStages | None
     attribution: AttributionCheck | None
+    account: AccountCheck | None
+    counts: CountCheck
+    calls: CallCheck | None
+    eligibility: EligibilityCheck | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,12 +171,16 @@ def evaluate_run(
     *,
     table: AttributionTable | None = None,
     redispatch: RedispatchPolicy | None = None,
+    retry: RetryRule | None = None,
+    counting_identifiers: Mapping[str, str] | None = None,
 ) -> Evaluation:
     """The outcome of the run ``export`` records against ``world``, and its trace metrics.
 
-    ``table`` and ``redispatch`` are the registration's attribution table and re-dispatch
-    policy, each ``None`` while it is pending or when no registration is at hand; the
-    attribution check is evaluated only with a table.
+    ``table``, ``redispatch``, ``retry`` and ``counting_identifiers`` (each role's registered
+    counting model id, by role name) are the registration's, each ``None`` while it is
+    pending or when no registration is at hand; the attribution check is evaluated only
+    with a table, the call check with a table and a policy, the eligibility check with a
+    retry rule, and the count check's registration parts with a policy and the identifiers.
 
     Raises nothing for what the run did; see ``grade_run`` and the module for what the
     sealed world can make it raise.
@@ -166,7 +192,15 @@ def evaluate_run(
     by_defect = failure is not None and failure.category is FailureCategory.DEFECT
     return Evaluation(
         outcome,
-        trace_metrics(world, export, outcome, table=table, redispatch=redispatch),
+        trace_metrics(
+            world,
+            export,
+            outcome,
+            table=table,
+            redispatch=redispatch,
+            retry=retry,
+            counting_identifiers=counting_identifiers,
+        ),
         assigned,
         export.record.corpus_level,
         contradictions,
@@ -181,9 +215,11 @@ def trace_metrics(
     *,
     table: AttributionTable | None = None,
     redispatch: RedispatchPolicy | None = None,
+    retry: RetryRule | None = None,
+    counting_identifiers: Mapping[str, str] | None = None,
 ) -> TraceMetrics:
     """What the run ``export`` records did; ``outcome`` is ``grade_run``'s for the same
-    export, ``table`` and ``redispatch`` as ``evaluate_run`` takes them."""
+    export, the keyword arguments as ``evaluate_run`` takes them."""
     trace = export.trace
     discipline = source_discipline(trace)
     cost = check_cost(export)
@@ -191,11 +227,33 @@ def trace_metrics(
     recheck = recheck_facts(export)
     ending = check_ending(export)
     attribution = _attribution(export, table, redispatch)
+    account = check_account(export)
+    counts = check_counts(export, redispatch, counting_identifiers)
+    calls = (
+        None
+        if table is None or redispatch is None or attribution is None
+        else check_calls(trace.model_calls, export.record.failure, table, redispatch, attribution)
+    )
+    eligibility = check_eligibility(export, retry, calls, redispatch)
     scenario = world.scenario(export.context.scenario_id)
     mismatched = isinstance(outcome, Excluded) and outcome.reason is ExcludedReason.CONTEXT_MISMATCH
     if scenario is None or mismatched:
         return TraceMetrics(
-            discipline, cost, prefetch, recheck, ending, None, None, None, None, None, attribution
+            discipline,
+            cost,
+            prefetch,
+            recheck,
+            ending,
+            None,
+            None,
+            None,
+            None,
+            None,
+            attribution,
+            account,
+            counts,
+            calls,
+            eligibility,
         )
     grounding = None if isinstance(outcome, Excluded) else outcome.grounding
     targets = _Targets(world, scenario)
@@ -213,6 +271,10 @@ def trace_metrics(
         level=level_check(world, export),
         facts=_facts(world, targets, export),
         attribution=attribution,
+        account=account,
+        counts=counts,
+        calls=calls,
+        eligibility=eligibility,
     )
 
 

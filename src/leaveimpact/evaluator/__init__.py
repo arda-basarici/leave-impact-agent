@@ -55,7 +55,14 @@ returned, and through which search at what rank).
 ``ending_check`` holds what a record states of its own ending to its export (the
 segments and their commits, the elapsed time, the approval's digest), and
 ``attribution_check`` holds each dispatch's recorded reading to the registered attribution
-table and each call to the re-dispatch bound.
+table and each call to the re-dispatch bound. Four audits of the event log step read the
+export through ``core``'s rules: ``account_check`` replays every authorization over the
+run's account and checks the allocations, the breaches and the settlement;
+``count_check`` holds each bound to the count it names, each count to its outcome and
+each group of counts to the retry rule; ``call_check`` gives each call its standing under
+the within-call decision and holds the attempt's ending to it; ``eligibility_check``
+projects the ending and asks whether the attempt permitted a successor, which ``attempts``
+reads to find an attempt its predecessor did not permit.
 
 Tables are a reading of evaluated runs, never stored. ``cells`` groups them by system,
 assigned condition and assigned corpus level, the scenario with all its runs as the unit,

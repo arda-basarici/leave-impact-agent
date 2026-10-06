@@ -49,6 +49,7 @@ from leaveimpact.core import (
     export_bytes,
     registration_bytes,
 )
+from leaveimpact.core.attribution import ObservationKind
 from leaveimpact.core.contradictions import Contradiction, ContradictionKind
 from leaveimpact.core.ids import WorldVersion, document_id
 from leaveimpact.core.run_trace import OperationId
@@ -75,6 +76,7 @@ from tests.unit.export_fixture import (
     answered_call,
     dispatch,
     export_baseline,
+    failed_call,
     reads,
     run_export,
 )
@@ -372,6 +374,29 @@ def held_to_a_table(world: SealedWorld) -> EvaluationArtifact:
     return evaluation_artifact(world, registration, (run,), {COMMIT: registration}, REVISION)
 
 
+def with_audit_findings(world: SealedWorld) -> EvaluationArtifact:
+    """An artifact under the same registration holding one agent run that carries a finding
+    of each of the three audits with a finding list: a call that timed out under a row
+    allowing no re-dispatch in an attempt that completed (the call check), its token
+    allocation one above the arithmetic (the account check), and its bound one above the
+    count it rests on (the count check); so every path the three write is reached."""
+    registration = registration_bytes(named(DRAFT))
+    call = failed_call(1)
+    sent = call.dispatches[0]
+    rewritten = replace(
+        sent,
+        attribution=replace(sent.attribution, rule=f"any_{ObservationKind.CLIENT_ERROR.value}"),
+        allocation_tokens=sent.allocation_tokens + 1,
+        bound=replace(sent.bound, input_tokens=sent.bound.input_tokens + 1),
+    )
+    export = agent_export(world, world.scenarios[0], (replace(call, dispatches=(rewritten,)),))
+    tabled = replace(
+        export, record=replace(export.record, attribution_table=attribution_table_digest(TABLE))
+    )
+    run = StoredRun("runs/audited", "v-runs/audited", export_bytes(tabled))
+    return evaluation_artifact(world, registration, (run,), {COMMIT: registration}, REVISION)
+
+
 def paths(value: object, at: str = "") -> set[str]:
     """Every key path of a JSON value, an array's members under ``[]``."""
     if isinstance(value, dict):
@@ -411,7 +436,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "inventory",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (6, "development")
+    assert (decoded["format_version"], decoded["label"]) == (7, "development")
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,
@@ -444,6 +469,10 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
         "ending",
         "attribution",
         "retried_sends",
+        "account",
+        "counts",
+        "calls",
+        "eligibility",
     ]
     assert run["ending"] == {
         "segments": 1,
@@ -543,6 +572,7 @@ def test_every_key_path_the_walk_writes_is_the_pinned_one(
         named_systems(world, 1),
         named_systems(world, 2),
         held_to_a_table(world),
+        with_audit_findings(world),
     ):
         written |= paths(encode_artifact(held))
     pinned = set(SHAPE.read_text(encoding="utf-8").split())

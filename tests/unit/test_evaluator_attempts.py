@@ -11,6 +11,7 @@ from dataclasses import replace
 import pytest
 
 from leaveimpact.core import System
+from leaveimpact.core.eligibility import EligibilityRule
 from leaveimpact.evaluator.attempts import (
     CountedAttempt,
     HistoryFinding,
@@ -24,6 +25,11 @@ from leaveimpact.evaluator.cells import (
     arms,
     attempt_summary_of,
     cells_of,
+)
+from leaveimpact.evaluator.eligibility_check import (
+    EligibilityCheck,
+    EndingKind,
+    ProjectedEnding,
 )
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded
 from leaveimpact.evaluator.intervals import Unresolved
@@ -44,6 +50,7 @@ EARLIEST = CountedAttempt.EARLIEST_NOT_INFRASTRUCTURE
 GAP = HistoryFinding.GAP
 EXCESS = HistoryFinding.EXCESS_ATTEMPT
 AFTER_STOP = HistoryFinding.ATTEMPT_AFTER_STOPPING_OUTCOME
+NOT_PERMITTED = HistoryFinding.ATTEMPT_NOT_PERMITTED
 RUN = "run-8"
 LONE = Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
 PASSES = Check("graded", lambda e: True if isinstance(e.outcome, Graded) else None)
@@ -327,3 +334,82 @@ def test_the_attempt_summary_counts_the_runs_carrying_each_history_finding(
     assert summary.history == ((AFTER_STOP, 1), (GAP, 1))
     accounting = accounting_of(cells_of(arm)[0], chosen)
     assert (accounting.made, accounting.graded, accounting.unverifiable_history) == (3, 2, 1)
+
+
+# --- The eligibility audit ----------------------------------------------------------------------
+
+
+def permitting(evaluation: Evaluation, permitted: bool) -> Evaluation:
+    """``evaluation`` with an evaluated eligibility: an infrastructure failure at a send,
+    read by a row whose flag is ``permitted``."""
+    check = EligibilityCheck(
+        ProjectedEnding(EndingKind.SEND_FAILURE, "throttled", permitted),
+        permitted,
+        EligibilityRule.SEND_ROW,
+        "throttled",
+    )
+    return replace(evaluation, metrics=replace(evaluation.metrics, eligibility=check))
+
+
+def test_an_attempt_its_predecessor_did_not_permit_is_never_counted_nor_any_after_it(
+    failed: Evaluation, good: Evaluation
+) -> None:
+    # Failed by infrastructure under a row flagged for no new attempt, then a graded attempt:
+    # the coarse reading permits, the fine one does not, and the fine one decides.
+    refused = permitting(failed, False)
+    history = run_history(RUN, [refused, numbered(good, 2)], EARLIEST, 3)
+    assert (history.findings, history.counted) == ((NOT_PERMITTED,), refused)
+    assert not history.recovered
+    for rule in CountedAttempt:
+        assert run_history(RUN, [refused, numbered(good, 2)], rule, 3).counted == refused
+    # A third attempt its own predecessor permitted descends from the one that should not
+    # exist: never counted either.
+    third = [refused, numbered(permitting(failed, True), 2), numbered(good, 3)]
+    assert run_history(RUN, third, EARLIEST, 3).counted == refused
+    # The row permitting: counted as before, no finding.
+    allowed = run_history(RUN, [permitting(failed, True), numbered(good, 2)], EARLIEST, 3)
+    assert (allowed.findings, allowed.counted) == ((), numbered(good, 2))
+
+
+def test_a_predecessor_with_no_evaluated_eligibility_leaves_the_pair_unverified(
+    failed: Evaluation, good: Evaluation
+) -> None:
+    assert failed.metrics.eligibility is None
+    history = run_history(RUN, [failed, numbered(good, 2)], EARLIEST, 3)
+    assert (history.findings, history.counted) == ((), numbered(good, 2))
+
+
+def test_an_attempt_after_a_stopping_outcome_is_never_counted_under_the_last_rule_either(
+    good: Evaluation,
+) -> None:
+    two_completed = [good, numbered(good, 2)]
+    assert run_history(RUN, two_completed, CountedAttempt.LAST, 3).counted == good
+    assert run_history(RUN, two_completed, CountedAttempt.LAST, 3).findings == (AFTER_STOP,)
+
+
+def test_the_summary_counts_the_runs_not_permitted_and_the_cells_count_the_audits(
+    world: SealedWorld, failed: Evaluation, good: Evaluation
+) -> None:
+    chosen = plan(failed)
+    (arm,) = arms(world, [permitting(failed, False), numbered(good, 2)], chosen)
+    cell = cells_of(arm)[0]
+    summary = attempt_summary_of(cell)
+    assert summary.history == ((NOT_PERMITTED, 1),)
+    assert (summary.runs_retried, summary.runs_recovered) == (1, 0)
+    accounting = accounting_of(cell, chosen)
+    assert accounting.excluded == ((ExcludedReason.FAILED_BY_INFRASTRUCTURE, 1),)
+    # The failed attempt is an agent's export evaluated under no registration: its account
+    # is read, its count check's registration parts, its call check and (but for the
+    # eligibility set by hand) its eligibility are not. The graded one is rules-only: no
+    # reservation, so no account.
+    assert (
+        summary.with_account_findings,
+        summary.with_count_findings,
+        summary.with_call_findings,
+        summary.count_not_evaluated,
+        summary.call_not_evaluated,
+        summary.eligibility_not_evaluated,
+        summary.account_not_evaluated,
+    ) == (0, 0, 0, 2, 2, 1, 1)
+    # The accounting is over the counted attempt alone, the refused one: an agent's export.
+    assert (accounting.count_not_evaluated, accounting.account_not_evaluated) == (1, 0)
