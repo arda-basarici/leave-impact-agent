@@ -11,6 +11,7 @@ from leaveimpact.core import (
     AttributionKind,
     AttributionTable,
     CountingOperationId,
+    CountServiceError,
     Dispatch,
     DispatchPhase,
     DispatchSite,
@@ -197,6 +198,20 @@ def test_an_input_bound_failure_is_exhausted_or_unnamed_by_its_groups_decision()
     )
     assert isinstance(failure.site, InputBoundSite)
     assert failure.site.counting_operation == CountingOperationId("count-3")
+
+
+def test_a_denial_misread_as_transient_is_a_defect_all_the_same() -> None:
+    # The exhausted fixture's first outcome a denial, its stored reading left at failed:
+    # the ending is projected from the outcomes read again, so no successor is permitted.
+    run = FIXTURES["a request whose input bound was never established"]()
+    first, *rest = run.trace.counting_operations
+    misread = replace(
+        first, outcome=CountServiceError(403, "AccessDeniedException", "not allowed", None, 90)
+    )
+    misread_run = replace(run, trace=replace(run.trace, counting_operations=(misread, *rest)))
+    assert checked(misread_run) == EligibilityCheck(
+        ProjectedEnding(EndingKind.DEFECT), False, RULES.DEFECT, None
+    )
 
 
 def test_a_harness_site_no_rule_names_and_the_maximum_reached() -> None:

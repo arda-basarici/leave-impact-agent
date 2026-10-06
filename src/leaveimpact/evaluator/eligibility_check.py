@@ -19,9 +19,12 @@ The projection, from the status and the failure's site:
   ending no rule names, at the site ``dispatch_send``, for an unresolved last dispatch
   below the maximum, a harness that gave up;
 - infrastructure at the input bound, read through the group of counting requests for that
-  request (``count_check``'s reuse key): exhausted when the group's decision under the
-  policy's maximum is exhausted, an ending no rule names at the site ``input_bound``
-  otherwise, an unclassified reading or a harness that gave up below the maximum;
+  request (``count_check``'s reuse key), each outcome read again and never the worker's
+  stored reading: exhausted when the group's decision under the policy's maximum is
+  exhausted; a defect when it is a refusal, whatever the record's category says, since a
+  denial misread as transient is a refusal all the same; an ending no rule names at the
+  site ``input_bound`` otherwise, an unclassified failure or a harness that gave up below
+  the maximum;
 - an abandonment, with how many dispatch intents the trace holds;
 - any other harness site, an ending no rule names, by the site's name.
 
@@ -41,6 +44,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.attribution import RedispatchPolicy
+from leaveimpact.core.counting_operations import read_outcome
 from leaveimpact.core.eligibility import (
     Abandoned,
     Completed,
@@ -148,14 +152,20 @@ def ending_of(
             if policy is None or named is None:
                 return None
             key = reuse_key(named)
+            # Each outcome read again: the stored reading is the worker's statement, and a
+            # denial misread as transient is a refusal all the same.
             readings = [
-                count.reading
+                read_outcome(count.method, count.outcome)
                 for count in export.trace.counting_operations
                 if reuse_key(count) == key
             ]
-            if count_decision(readings, policy.max_dispatches) is CountDecision.EXHAUSTED:
-                return InputBoundExhausted()
-            return OtherInfrastructure(INPUT_BOUND)
+            match count_decision(readings, policy.max_dispatches):
+                case CountDecision.EXHAUSTED:
+                    return InputBoundExhausted()
+                case CountDecision.DEFECT:
+                    return EndedByDefect()
+                case _:
+                    return OtherInfrastructure(INPUT_BOUND)
         case HarnessSite():
             if site.site is HarnessSiteName.ABANDONED:
                 return Abandoned(len(export.trace.dispatches))

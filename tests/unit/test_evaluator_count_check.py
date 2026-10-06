@@ -183,8 +183,15 @@ def test_a_reading_that_is_not_what_the_outcome_gives(world: SealedWorld) -> Non
     )
     export = with_counts(one_call(world), count_of(1), denied)
     check = check_counts(export, POLICY, IDENTIFIERS)
+    # The misreading is reported, and the denial is read as the refusal it is: it should
+    # have ended the attempt, which completed instead. Nothing was logged after it.
     assert check.findings == (
         CountFinding(KINDS.READING_NOT_THE_OUTCOMES, counting_operation=denied.id),
+        CountFinding(
+            KINDS.STOPPING_COUNT_NOT_THE_FAILURE,
+            counting_operation=denied.id,
+            decision=CountDecision.DEFECT,
+        ),
     )
 
 
@@ -257,7 +264,8 @@ def test_a_failure_at_the_input_bound_names_its_groups_last_count_and_an_exhaust
     # Named: the first of the three, not the last.
     early = replace(failure, site=InputBoundSite(CountingOperationId("count-1")))
     misnamed = replace(export, record=replace(export.record, failure=early))
-    assert kinds(misnamed) == [KINDS.SITE_NOT_THE_LAST_COUNT]
+    # The group's last count, which stopped the attempt, is then not the one named.
+    assert kinds(misnamed) == [KINDS.SITE_NOT_THE_LAST_COUNT, KINDS.STOPPING_COUNT_NOT_THE_FAILURE]
     # Two of three consumed: the harness gave up while it could still count.
     two = export.trace.counting_operations[:2]
     gave_up = replace(
@@ -269,3 +277,72 @@ def test_a_failure_at_the_input_bound_names_its_groups_last_count_and_an_exhaust
         (KINDS.ENDED_WHILE_COUNT_PERMITTED, CountDecision.COUNT)
     ]
     assert kinds(gave_up, policy=None) == []
+
+
+# --- The converse: a group that stopped the attempt ---------------------------------------------
+
+
+def denied(id: str, start: int, digest: str, reading: CountResult) -> CountingOperation:
+    """A counting request the service denied, for the request ``digest``, read as
+    ``reading``: the worker's own, which may be the misreading."""
+    return CountingOperation(
+        CountingOperationId(id),
+        METHOD,
+        COUNTING_MODEL,
+        digest,
+        1,
+        start,
+        start + 1,
+        CountServiceError(403, "AccessDeniedException", "not allowed", None, 90),
+        reading,
+    )
+
+
+def test_a_stopping_count_is_the_recorded_failure_and_nothing_is_logged_after_it(
+    world: SealedWorld,
+) -> None:
+    # A refused count for a request of its own, before an investigation that completed:
+    # the refusal should have ended the attempt by defect, and work followed it.
+    refused = denied("count-9", 1_050, request_digest(9), CountResult.REFUSED)
+    export = with_counts(one_call(world), refused, count_of(1))
+    check = check_counts(export, POLICY, IDENTIFIERS)
+    assert check.findings == (
+        CountFinding(
+            KINDS.STOPPING_COUNT_NOT_THE_FAILURE,
+            counting_operation=refused.id,
+            decision=CountDecision.DEFECT,
+        ),
+        CountFinding(
+            KINDS.WORK_AFTER_A_STOPPING_COUNT,
+            counting_operation=refused.id,
+            decision=CountDecision.DEFECT,
+        ),
+    )
+    # A refusal needs no maximum: found without a policy too.
+    assert [f.kind for f in check_counts(export, None, IDENTIFIERS).findings] == [
+        KINDS.STOPPING_COUNT_NOT_THE_FAILURE,
+        KINDS.WORK_AFTER_A_STOPPING_COUNT,
+    ]
+    # The exhausted fixture stopped and is its own recorded failure, with nothing after.
+    assert kinds(FIXTURES["a request whose input bound was never established"]()) == []
+
+
+def test_the_replay_and_the_ending_read_outcomes_again_not_the_stored_readings(
+    world: SealedWorld,
+) -> None:
+    # The exhausted fixture's first outcome a denial, its stored reading left at failed:
+    # the misreading is reported, and the denial still decides what followed it.
+    export = FIXTURES["a request whose input bound was never established"]()
+    first, *rest = export.trace.counting_operations
+    denial = denied("x", 1, first.request_digest, CountResult.FAILED).outcome
+    misread = replace(first, outcome=denial)
+    run = replace(export, trace=replace(export.trace, counting_operations=(misread, *rest)))
+    assert [(f.kind, f.counting_operation, f.decision) for f in kinds_with(run)] == [
+        (KINDS.READING_NOT_THE_OUTCOMES, CountingOperationId("count-1"), None),
+        (KINDS.COUNT_NOT_PERMITTED, CountingOperationId("count-2"), CountDecision.DEFECT),
+        (KINDS.COUNT_NOT_PERMITTED, CountingOperationId("count-3"), CountDecision.DEFECT),
+    ]
+
+
+def kinds_with(export: RunExport) -> tuple[CountFinding, ...]:
+    return check_counts(export, POLICY, IDENTIFIERS).findings

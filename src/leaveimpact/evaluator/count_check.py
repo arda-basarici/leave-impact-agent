@@ -25,7 +25,18 @@ when the decision was not to count again is a finding carrying that decision, a 
 a durable count, after a refusal or after an unclassified failure, or at the maximum. An
 attempt that failed at the input bound names the last counting operation for that request:
 a site that is not its group's last, and an attempt ended while the group's decision was
-still to count, are findings about the ending.
+still to count, are findings about the ending. And the converse, since a refusal ends the
+attempt by defect, an unclassified failure ends it at once and an exhausted maximum ends
+it by infrastructure: a group that stopped is the recorded failure, named at its last
+operation, and nothing is logged after it, no dispatch intent, no other count's start, no
+entry into finalization. A group that stopped and is not the failure, and work after a
+stopping count, are each a finding carrying the decision the group stopped with.
+
+The replay and the ending read every outcome again through the method's specification;
+the worker's stored reading is compared with that re-reading and plays no other part, so a
+denial the worker misread as transient is reported as a misreading and still counts as the
+refusal it is. The same holds in the eligibility check, which projects an ending at the
+input bound from the re-read outcomes.
 
 Two parts need the registration and are marked by ``registration_evaluated``, as the
 attribution check marks its bound: the group replay, whose maximum is the re-dispatch
@@ -41,15 +52,20 @@ and carries no finding. Raises nothing for what a record states.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.counting_operations import Counted, CountingOperation, read_outcome
-from leaveimpact.core.input_bound import CountDecision, RegisteredInputBound, count_decision
+from leaveimpact.core.input_bound import (
+    CountDecision,
+    CountResult,
+    RegisteredInputBound,
+    count_decision,
+)
 from leaveimpact.core.run_ending import InputBoundSite
-from leaveimpact.core.run_export import RunExport
+from leaveimpact.core.run_export import RunExport, RunTrace
 from leaveimpact.core.run_trace import CountingOperationId, ModelCallId
 
 type ReuseKey = tuple[str, str, RegisteredInputBound]
@@ -72,6 +88,8 @@ class CountFindingKind(StrEnum):
     SITE_NOT_THE_LAST_COUNT = "site_not_the_last_count"
     ENDED_WHILE_COUNT_PERMITTED = "ended_while_count_permitted"
     IDENTIFIER_NOT_REGISTERED = "identifier_not_registered"
+    STOPPING_COUNT_NOT_THE_FAILURE = "stopping_count_not_the_failure"
+    WORK_AFTER_A_STOPPING_COUNT = "work_after_a_stopping_count"
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,12 +181,14 @@ def check_counts(
                 CountFinding(kinds.IDENTIFIER_NOT_REGISTERED, counting_operation=count.id)
             )
 
+    # The replay and the ending read every outcome again: a stored reading is the worker's
+    # statement, compared above, and a misread denial must not authorize anything here.
     groups: dict[ReuseKey, list[CountingOperation]] = {}
     for count in trace.counting_operations:
         groups.setdefault(reuse_key(count), []).append(count)
     if policy is not None:
         for group in groups.values():
-            readings = [count.reading for count in group]
+            readings = [read_outcome(count.method, count.outcome) for count in group]
             for index, count in enumerate(group):
                 decision = count_decision(readings[:index], policy.max_dispatches)
                 if decision is not CountDecision.COUNT:
@@ -181,28 +201,89 @@ def check_counts(
                     )
 
     failure = record.failure
-    if failure is not None and isinstance(failure.site, InputBoundSite):
-        named = trace.counting_operation(failure.site.counting_operation)
-        if named is not None:
-            group = groups[reuse_key(named)]
-            if group[-1].id != named.id:
+    named = (
+        trace.counting_operation(failure.site.counting_operation)
+        if failure is not None and isinstance(failure.site, InputBoundSite)
+        else None
+    )
+    if named is not None:
+        group = groups[reuse_key(named)]
+        if group[-1].id != named.id:
+            findings.append(
+                CountFinding(kinds.SITE_NOT_THE_LAST_COUNT, counting_operation=named.id)
+            )
+        if policy is not None:
+            decision = _decision_of(group, policy)
+            if decision is CountDecision.COUNT:
                 findings.append(
-                    CountFinding(kinds.SITE_NOT_THE_LAST_COUNT, counting_operation=named.id)
-                )
-            if policy is not None:
-                decision = count_decision([c.reading for c in group], policy.max_dispatches)
-                if decision is CountDecision.COUNT:
-                    findings.append(
-                        CountFinding(
-                            kinds.ENDED_WHILE_COUNT_PERMITTED,
-                            counting_operation=named.id,
-                            decision=decision,
-                        )
+                    CountFinding(
+                        kinds.ENDED_WHILE_COUNT_PERMITTED,
+                        counting_operation=named.id,
+                        decision=decision,
                     )
+                )
+
+    # The converse: a group that stopped the attempt is the recorded failure, and nothing
+    # was logged after it.
+    for group in groups.values():
+        last = group[-1]
+        decision = _stopping_decision(group, policy)
+        if decision is None:
+            continue
+        if named is None or named.id != last.id:
+            findings.append(
+                CountFinding(
+                    kinds.STOPPING_COUNT_NOT_THE_FAILURE,
+                    counting_operation=last.id,
+                    decision=decision,
+                )
+            )
+        if _work_after(trace, last):
+            findings.append(
+                CountFinding(
+                    kinds.WORK_AFTER_A_STOPPING_COUNT,
+                    counting_operation=last.id,
+                    decision=decision,
+                )
+            )
 
     return CountCheck(
         len(trace.counting_operations), len(trace.dispatches), registered, tuple(findings)
     )
+
+
+def _decision_of(group: Sequence[CountingOperation], policy: RedispatchPolicy) -> CountDecision:
+    """The decision after every operation of ``group``, each outcome read again."""
+    readings = [read_outcome(count.method, count.outcome) for count in group]
+    return count_decision(readings, policy.max_dispatches)
+
+
+def _stopping_decision(
+    group: Sequence[CountingOperation], policy: RedispatchPolicy | None
+) -> CountDecision | None:
+    """The decision ``group`` stopped the attempt with, or ``None`` for a group that did not:
+    a refusal or an unclassified failure among its outcomes read again, which need no
+    maximum, or the maximum exhausted under ``policy`` when one is given."""
+    readings = [read_outcome(count.method, count.outcome) for count in group]
+    if CountResult.REFUSED in readings:
+        return CountDecision.DEFECT
+    if CountResult.UNCLASSIFIED in readings:
+        return CountDecision.UNCLASSIFIED
+    if policy is None:
+        return None
+    decision = count_decision(readings, policy.max_dispatches)
+    return decision if decision is CountDecision.EXHAUSTED else None
+
+
+def _work_after(trace: RunTrace, count: CountingOperation) -> bool:
+    """Whether the trace holds an event after ``count``'s last position: a dispatch intent,
+    another counting operation's start, or the entry into finalization."""
+    after = count.positions[-1]
+    if any(dispatch.intent_position > after for dispatch in trace.dispatches):
+        return True
+    if any(other.start_position > after for other in trace.counting_operations):
+        return True
+    return trace.finalization_entered is not None and trace.finalization_entered > after
 
 
 __all__ = [
