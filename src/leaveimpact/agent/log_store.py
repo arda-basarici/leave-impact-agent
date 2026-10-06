@@ -121,8 +121,11 @@ from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_instant, encode_instant
 
-SCHEMA_VERSION = 1
-"""The schema this code writes and reads; a connection to another version is refused."""
+SCHEMA_VERSION = 2
+"""The schema this code writes and reads; a connection to another version is refused. The
+number names the layout and nothing else: it advances with every change to the DDL that
+lands in a commit, whether or not any database holds the layout before it (the store
+group's review, second read). 2: the admission request's inputs digest and ledger."""
 
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
@@ -1087,6 +1090,12 @@ class LogStore:
             raise LogStoreInvariantBroken(
                 f"an integrity error under the lock: {type(exc).__name__}"
             ) from exc
+        except LogStoreInvariantBroken:
+            # Raised inside the body, the bootstrap's own version check among them: the
+            # connection is not kept, so the next command opens and checks afresh (the
+            # store group's review, second read).
+            self._drop()
+            raise
 
     def _drop(self) -> None:
         if self._connection is not None:

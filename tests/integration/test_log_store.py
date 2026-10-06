@@ -611,11 +611,16 @@ def test_another_schema_version_and_a_missing_bootstrap_refuse_the_connection(ri
     setup.ensure_schema()
     assert setup.open_attempts() == ()
     conn = rig.connections[max(rig.connections)]  # the setup store's, still open
-    conn.execute("UPDATE log_schema SET version = 2")
+    conn.execute("UPDATE log_schema SET version = 1")
     rejected = rig.store()
     for _ in range(2):
-        with pytest.raises(LogStoreInvariantBroken, match="holds version 2"):
+        with pytest.raises(LogStoreInvariantBroken, match="holds version 1"):
             rejected.open_attempts()
+    bootstrapping = rig.store()
+    with pytest.raises(LogStoreInvariantBroken, match="holds version 1"):
+        bootstrapping.ensure_schema()
+    with pytest.raises(LogStoreInvariantBroken, match="holds version 1"):
+        bootstrapping.open_attempts()
     conn.execute("DROP TABLE log_schema")
     with pytest.raises(LogStoreInvariantBroken, match="not bootstrapped"):
         rig.store().open_attempts()

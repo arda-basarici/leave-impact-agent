@@ -1,5 +1,7 @@
 -- The event log's tables: the attempt rows the store locks, the events they own, the
--- admission requests, the shared ledger and the publication records. Schema version 1.
+-- admission requests, the shared ledger and the publication records. Schema version 2
+-- (the version advances with every change to this file that lands in a commit; 2 added
+-- the admission request's inputs digest and ledger).
 --
 -- Idempotent DDL, applied whole by the store's ensure_schema as bootstrap, never as
 -- migration (the event log step's ruling on placement and acceptance, part 3): no ALTER
