@@ -130,3 +130,31 @@ padded corpus level held 530,154 characters of filler text for a reported input 
 puts it above a 400,000-token cap. The counting probe cannot show that the call is free;
 that is read from the bill afterwards or stays a cited claim. It runs under an
 administrative principal, so it says nothing of the deployed role's grant.
+
+## The worker group's parse probe (written 2026-10-06, before it runs)
+
+The parse protocol (`agent/answer_parse.py`) reads a model's answer by shape: a `toolUse`
+block is a tool call, the fact tool's call is handled as the batch its input holds, a text
+block opening with `{` is a fact payload in the answer's own content. It was built against
+hand-written fixtures; the acceptance spike's two captured responses cover the read-call
+shape and the text-only shape (replayed in `tests/unit/test_agent_answer_parse_captures.py`)
+and no capture holds the two fact shapes. The probe asks for both in one answer and records
+which arrived; it confirms or amends the protocol before any prompt is written to it.
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **parse-protocol** (`parse_protocol/live_probe.py`, live, one send to Haiku 4.5 on the `eu.` profile from a workstation under an administrative principal) — a system prompt asking for one `state_facts` call carrying a given entry and, beside it, the same payload as plain text opening with `{`; the response scrubbed (`parse_protocol/scrub.py`) into `tests/fixtures/converse/` and parsed through `parse_answer` | whether a real response carries the fact tool's call and the `{` text block as the protocol reads them, and whether both shapes can arrive in one answer | a guess, marked as one: the tool call arrives with an object input the fact parser reads; the text payload arrives less reliably, since a model given a tool tends to use it and skip the prose. Whichever arrives is parsed as a batch of one stated fact; a shape that does not arrive is reported as a gap and the protocol is not amended on its absence | one send, one model, temperature 0; the probe's prompt is not the investigator's and transfers nothing to it (the contract step's ruling on prompts earning their own checks) |
+
+**Result (2026-10-06, one send, 962 input and 99 output tokens, 867 ms).** The tool call
+arrived and the text payload did not: the model used the tool and wrote no prose, the
+likelier of the two outcomes the forecast named. The call's `facts` held the one entry
+nested one list deeper than the declared schema (`[[{...}]]`), so the protocol read a batch
+of one refused input (undecodable: an entry is an object, got list) and no stated fact. The
+outer shape is confirmed: a `state_facts` call is handled as the batch its input holds and
+nothing raised. The entry's shape is not evidence against the parser on one send under a
+stand-in prompt that asked for the same payload twice, once in the tool and once as text;
+it goes to the investigator graph's prompt (step 11), whose own check on real output the
+contract step already requires, with the flattening of a singly nested list as the cheapest
+candidate amendment if a prompt written to the schema still gets it. The scrubbed response
+is `tests/fixtures/converse/parse-probe-20261006T205828Z.json`, replayed by the capture
+test with the reading above.

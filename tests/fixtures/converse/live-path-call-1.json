@@ -1,0 +1,44 @@
+{
+  "metrics": {
+    "latencyMs": 2478
+  },
+  "output": {
+    "message": {
+      "content": [
+        {
+          "text": "[text 1]"
+        },
+        {
+          "toolUse": {
+            "input": {
+              "id": "x"
+            },
+            "name": "employee",
+            "toolUseId": "tooluse_Z16Z4yHJueebEEAflBd2rP"
+          }
+        },
+        {
+          "toolUse": {
+            "input": {
+              "id": "x"
+            },
+            "name": "team",
+            "toolUseId": "tooluse_XY3tLBziCrkhuWX00vNlwH"
+          }
+        }
+      ],
+      "role": "assistant"
+    }
+  },
+  "stopReason": "tool_use",
+  "usage": {
+    "cacheReadInputTokenCount": 0,
+    "cacheReadInputTokens": 0,
+    "cacheWriteInputTokenCount": 0,
+    "cacheWriteInputTokens": 0,
+    "inputTokens": 8628,
+    "outputTokens": 113,
+    "serverToolUsage": {},
+    "totalTokens": 8741
+  }
+}

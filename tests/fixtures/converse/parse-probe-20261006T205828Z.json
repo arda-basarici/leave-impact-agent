@@ -1,0 +1,39 @@
+{
+  "metrics": {
+    "latencyMs": 867
+  },
+  "output": {
+    "message": {
+      "content": [
+        {
+          "toolUse": {
+            "input": {
+              "facts": [
+                [
+                  {
+                    "carrier": "x",
+                    "predicate": "x",
+                    "quote": "x",
+                    "subject": "x",
+                    "value": "x"
+                  }
+                ]
+              ]
+            },
+            "name": "state_facts",
+            "toolUseId": "tooluse_95iccQ0HQZvk8A4uUCi6DH"
+          }
+        }
+      ],
+      "role": "assistant"
+    }
+  },
+  "stopReason": "tool_use",
+  "usage": {
+    "cacheReadInputTokens": 0,
+    "cacheWriteInputTokens": 0,
+    "inputTokens": 962,
+    "outputTokens": 99,
+    "totalTokens": 1061
+  }
+}
