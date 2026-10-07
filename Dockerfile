@@ -29,8 +29,9 @@ FROM python:3.13-slim-bookworm
 
 # Code identity baked at build time: no repo survives into a container. An image
 # that cannot state its provenance refuses to BUILD — fail at the cause, not at
-# the first run. CI passes --build-arg CODE_VERSION=$(git rev-parse --short HEAD);
-# laptop builds append +dirty when the tree has changes.
+# the first run. CI passes --build-arg CODE_VERSION=$(git rev-parse HEAD), the full
+# sha, which the agent's commands require of the image they run in; laptop builds
+# mint a short form with +dirty appended, an identity those commands refuse.
 ARG CODE_VERSION
 RUN test -n "$CODE_VERSION" || { echo "CODE_VERSION build arg required — an image without provenance refuses to build" >&2; exit 1; }
 ENV LEAVEIMPACT_CODE_VERSION=$CODE_VERSION

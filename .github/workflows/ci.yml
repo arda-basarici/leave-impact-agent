@@ -148,11 +148,17 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      # The provenance stamp the Dockerfile refuses to build without — the same
-      # short-sha identity laptop builds mint from their working tree.
+      # The provenance stamp the Dockerfile refuses to build without: the full sha,
+      # since the agent's commands read the image's code version as the forty-hex
+      # commit they run as and refuse anything else (the event log step's review).
+      # The short form is minted beside it for the human-readable tag alone.
       - name: Mint the code-version stamp
         id: stamp
-        run: echo "sha=$(git rev-parse --short HEAD)" >> "$GITHUB_OUTPUT"
+        run: |
+          {
+            echo "sha=$(git rev-parse HEAD)"
+            echo "short=$(git rev-parse --short HEAD)"
+          } >> "$GITHUB_OUTPUT"
 
       # arm64 is the instance (Graviton); amd64 is the workstation. One manifest,
       # both platforms — QEMU emulates the foreign one on the amd64 runner, a
@@ -180,7 +186,7 @@ jobs:
             CODE_VERSION=${{ steps.stamp.outputs.sha }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ steps.stamp.outputs.sha }}
+            ghcr.io/${{ github.repository }}:${{ steps.stamp.outputs.short }}
             ghcr.io/${{ github.repository }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
