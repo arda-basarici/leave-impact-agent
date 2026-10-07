@@ -834,3 +834,62 @@ def test_a_snapshot_before_any_ledger_head_and_any_attempt_is_empty(rig: Rig) ->
     snapshot = store.snapshot("ledger-unset")
     assert snapshot.attempts == () and snapshot.refused == () and snapshot.ledger is None
     assert snapshot.schema_version == SCHEMA_VERSION
+
+
+def test_a_record_replaced_under_another_reader_keeps_the_object_it_named(rig: Rig) -> None:
+    """The review's third finding: reader A uploads and dies before the published record;
+    reader B retries at its own key. Both objects exist, and the inventory must account for
+    A's, so the replaced record's object is kept as superseded; the same reader's retry and
+    a record that named no object add nothing."""
+    store = opened(rig)
+    events = histories.HISTORIES["a cut call"]()
+    replay(store, events)
+    digest = log_digest(store.events("run-12", 1))
+    reader_a, reader_b, reader_c = cases.COMMIT, "e" * 40, "f" * 40
+    key_a, key_b = "exports/run-12/1-a.json", "exports/run-12/1-b.json"
+    store.publication_pending(
+        "run-12", 1, reader_commit=reader_a, export_format=3, log_digest=digest,
+        object_identity=key_a, object_digest="a" * 64,
+    )
+    store.publication_pending(
+        "run-12", 1, reader_commit=reader_a, export_format=3, log_digest=digest,
+        object_identity=key_a, object_digest="a" * 64,
+    )
+    (held,) = store.snapshot(LEDGER).attempts
+    assert held.superseded == (), "the same reader's retry supersedes nothing"
+    pending_b = store.publication_pending(
+        "run-12", 1, reader_commit=reader_b, export_format=3, log_digest=digest,
+        object_identity=key_b, object_digest="b" * 64,
+    )
+    assert pending_b.repaired_from_commit is None, "a pending record is replaced, not repaired"
+    (held,) = store.snapshot(LEDGER).attempts
+    (superseded,) = held.superseded
+    assert (superseded.reader_commit, superseded.object_identity, superseded.object_digest) == (
+        reader_a,
+        key_a,
+        "a" * 64,
+    )
+    store.publication_failed(
+        "run-12", 1, reader_commit=reader_b, object_identity=key_b, incident="upload refused"
+    )
+    store.publication_unbuilt(
+        "run-12", 1, reader_commit=reader_c, export_format=3, log_digest=digest, incident="Boom"
+    )
+    (held,) = store.snapshot(LEDGER).attempts
+    assert [one.object_identity for one in held.superseded] == [key_a, key_b]
+    done = store.publication_pending(
+        "run-12", 1, reader_commit=reader_a, export_format=3, log_digest=digest,
+        object_identity=key_a, object_digest="a" * 64,
+    )
+    assert done.repaired_from_commit == reader_c
+    (held,) = store.snapshot(LEDGER).attempts
+    assert [one.object_identity for one in held.superseded] == [key_a, key_b], (
+        "a record with no object is superseded with nothing to keep"
+    )
+    admitted, _ = admission_of(events)
+    scope = InventoryScope(admitted.inputs.context.world_version, cases.COMMIT, LEDGER)
+    inventory = inventory_of(
+        store.snapshot(LEDGER), scope, builder_commit=cases.COMMIT, rules=RULES
+    )
+    assert [one.object_identity for one in inventory.attempts[0].superseded] == [key_a, key_b]
+    assert decode_inventory_bytes(inventory_bytes(inventory)) == inventory

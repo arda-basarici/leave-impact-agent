@@ -26,6 +26,7 @@ from leaveimpact.core.inventory import (
     PublicationObserved,
     PublicationStatus,
     RefusedAdmission,
+    SupersededObject,
     decode_inventory,
     decode_inventory_bytes,
     encode_inventory,
@@ -117,10 +118,10 @@ INVENTORY = Inventory(
     LEDGER,
     (
         InventoryAttempt(
-            "run-a", 1, VERSION, COMMIT, "ledger-1", True, FAILED, 7, DIGEST, FIGURES, None
+            "run-a", 1, VERSION, COMMIT, "ledger-1", True, FAILED, 7, DIGEST, FIGURES, None, ()
         ),
         InventoryAttempt(
-            "run-a", 2, VERSION, COMMIT, "ledger-1", False, OPEN, 3, DIGEST, FIGURES, None
+            "run-a", 2, VERSION, COMMIT, "ledger-1", False, OPEN, 3, DIGEST, FIGURES, None, ()
         ),
         InventoryAttempt(
             "run-b",
@@ -134,11 +135,18 @@ INVENTORY = Inventory(
             DIGEST,
             AccountFigures(0, 0, 0),
             PUBLISHED,
+            (
+                SupersededObject(
+                    "9" * 40, f"runs/{VERSION}/run-b-1/export-{'9' * 40}.json", DIGEST, AT
+                ),
+            ),
         ),
     ),
     (RefusedAdmission("req-9", "run-c", 1, "the ledger has no room for 20000000000", AT),),
 )
-FOREIGN = InventoryAttempt("run-z", 1, VERSION, "9" * 40, None, False, None, 2, DIGEST, None, None)
+FOREIGN = InventoryAttempt(
+    "run-z", 1, VERSION, "9" * 40, None, False, None, 2, DIGEST, None, None, ()
+)
 """An attempt admitted under another registration: the row's closed value and nothing folded."""
 
 
@@ -174,6 +182,14 @@ def test_an_attempt_the_builder_could_not_fold_carries_its_row_and_no_status() -
     assert attempts[3]["status"] is None and attempts[3]["figures"] is None
     assert attempts[3]["closed"] is False
     assert decode_inventory(tree) == listed
+
+
+def test_a_superseded_object_is_carried_with_its_reader_and_digest() -> None:
+    tree = _thawed(encode_inventory(INVENTORY))
+    listed = cast(list[Tree], _attempt(tree, 2)["superseded"])
+    assert len(listed) == 1
+    assert listed[0]["reader_commit"] == "9" * 40 and listed[0]["object_digest"] == DIGEST
+    assert _attempt(tree, 0)["superseded"] == []
 
 
 def test_attempt_of_finds_a_listed_attempt_and_none_otherwise() -> None:

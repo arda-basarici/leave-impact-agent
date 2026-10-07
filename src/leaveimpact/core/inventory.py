@@ -234,10 +234,30 @@ class PublicationObserved:
 
 
 @dataclass(frozen=True, slots=True)
+class SupersededObject:
+    """An object an earlier publication record of the attempt named, replaced by a record
+    under another reader: the reader whose record it was, the object's identity and digest,
+    and when that record was written. Listed so an object the store holds under the earlier
+    reader's key is accounted for and read as superseded, never as an orphan."""
+
+    reader_commit: str
+    object_identity: str
+    object_digest: str
+    recorded_at: datetime
+
+    def __post_init__(self) -> None:
+        require_commit(self.reader_commit, "the reader's commit")
+        require_digest(self.object_digest, "the object's digest")
+        if not self.object_identity:
+            raise ValueError("an object identity is a non-empty key")
+
+
+@dataclass(frozen=True, slots=True)
 class InventoryAttempt:
     """One attempt the store holds: its identity and what it was admitted under, whether its
     row is closed, its status and figures, where its log was read (the last position and
-    the digest of the log up to it), and its publication record if one was begun.
+    the digest of the log up to it), its publication record if one was begun, and the
+    objects earlier records under other readers named.
 
     The status and the figures are the fold's and are absent together, exactly for an
     attempt admitted under rules that are not the builder's (another registration's
@@ -256,6 +276,7 @@ class InventoryAttempt:
     prefix_digest: str
     figures: AccountFigures | None
     publication: PublicationObserved | None
+    superseded: tuple[SupersededObject, ...]
 
     def __post_init__(self) -> None:
         require_opaque_id(self.run_id, "a run id")
@@ -490,6 +511,15 @@ def _encode_attempt(each: InventoryAttempt) -> JsonObject:
         "prefix_digest": each.prefix_digest,
         "figures": None if each.figures is None else _encode_figures(each.figures),
         "publication": None if each.publication is None else _encode_publication(each.publication),
+        "superseded": [
+            {
+                "reader_commit": one.reader_commit,
+                "object_identity": one.object_identity,
+                "object_digest": one.object_digest,
+                "recorded_at": encode_instant(one.recorded_at),
+            }
+            for one in each.superseded
+        ],
     }
 
 
@@ -548,6 +578,7 @@ _ATTEMPT_FIELDS = (
     "prefix_digest",
     "figures",
     "publication",
+    "superseded",
 )
 _PUBLICATION_FIELDS = (
     "status",
@@ -584,6 +615,24 @@ def _decode_attempt(data: Mapping[str, object]) -> InventoryAttempt:
         None
         if publication is None
         else _decode_publication(as_object(publication, "a publication record")),
+        tuple(
+            _decode_superseded(as_object(item, "a superseded object"))
+            for item in array_field(data, "superseded")
+        ),
+    )
+
+
+def _decode_superseded(data: Mapping[str, object]) -> SupersededObject:
+    expect_fields(
+        data,
+        ("reader_commit", "object_identity", "object_digest", "recorded_at"),
+        "a superseded object",
+    )
+    return SupersededObject(
+        string_field(data, "reader_commit"),
+        string_field(data, "object_identity"),
+        string_field(data, "object_digest"),
+        decode_instant(field_of(data, "recorded_at"), "the record's time"),
     )
 
 
@@ -667,6 +716,7 @@ __all__ = [
     "PublicationObserved",
     "PublicationStatus",
     "RefusedAdmission",
+    "SupersededObject",
     "decode_inventory",
     "decode_inventory_bytes",
     "encode_inventory",

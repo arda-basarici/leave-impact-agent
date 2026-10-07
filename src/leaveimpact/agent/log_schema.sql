@@ -1,8 +1,9 @@
 -- The event log's tables: the attempt rows the store locks, the events they own, the
--- admission requests, the shared ledger and the publication records. Schema version 3
+-- admission requests, the shared ledger and the publication records. Schema version 4
 -- (the version advances with every change to this file that lands in a commit; 2 added
 -- the admission request's inputs digest and ledger; 3 let a publication record hold no
--- object, for a reader that could not build the export).
+-- object, for a reader that could not build the export; 4 added the superseded
+-- publications).
 --
 -- Idempotent DDL, applied whole by the store's ensure_schema as bootstrap, never as
 -- migration (the event log step's ruling on placement and acceptance, part 3): no ALTER
@@ -118,5 +119,21 @@ CREATE TABLE IF NOT EXISTS publication (
     repaired_from_commit    text,
     recorded_at             timestamptz NOT NULL,
     PRIMARY KEY (run_id, attempt),
+    FOREIGN KEY (run_id, attempt) REFERENCES attempt (run_id, attempt)
+);
+
+-- The objects a replaced publication record named: when a pending or failed record under
+-- one reader is replaced by another reader's, the object the first intended or uploaded
+-- is kept here, so an object the store holds under the earlier reader's key is accounted
+-- for and never read as an orphan (the commands group's review, third finding). One row
+-- per object; a repeat of the same replacement adds nothing.
+CREATE TABLE IF NOT EXISTS publication_superseded (
+    run_id                  text        NOT NULL,
+    attempt                 integer     NOT NULL,
+    reader_commit           text        NOT NULL,
+    object_identity         text        NOT NULL,
+    object_digest           text        NOT NULL,
+    recorded_at             timestamptz NOT NULL,
+    PRIMARY KEY (run_id, attempt, reader_commit, object_identity),
     FOREIGN KEY (run_id, attempt) REFERENCES attempt (run_id, attempt)
 );

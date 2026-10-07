@@ -82,6 +82,7 @@ from leaveimpact.agent.inventory import (
     SnapshotEntry,
     SnapshotLedger,
     StoreSnapshot,
+    SupersededPublication,
 )
 from leaveimpact.agent.ledger import LedgerEntry, LedgerHead
 from leaveimpact.agent.log_ending import eligibility_ending_of
@@ -136,7 +137,7 @@ from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_instant, encode_instant
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 """The schema this code writes and reads; a connection to another version is refused. The
 number names the layout and nothing else: it advances with every change to the DDL that
 lands in a commit, whether or not any database holds the layout before it (the store
@@ -332,6 +333,16 @@ _UPSERT_PUBLICATION = """
         object_identity = EXCLUDED.object_identity, object_digest = EXCLUDED.object_digest,
         incident = EXCLUDED.incident, repaired_from_commit = EXCLUDED.repaired_from_commit,
         recorded_at = EXCLUDED.recorded_at
+"""
+_INSERT_SUPERSEDED = """
+    INSERT INTO publication_superseded (run_id, attempt, reader_commit, object_identity,
+                                        object_digest, recorded_at)
+    VALUES (%s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING
+"""
+_SELECT_SUPERSEDED = """
+    SELECT reader_commit, object_identity, object_digest, recorded_at
+    FROM publication_superseded WHERE run_id = %s AND attempt = %s
+    ORDER BY recorded_at, reader_commit
 """
 _SELECT_VERSION = "SELECT version FROM log_schema"
 _SNAPSHOT_ISOLATION = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
@@ -845,8 +856,14 @@ class LogStore:
                 f"{row.positions} and its log holds {len(events)} events"
             )
         publication = self._publication(conn, row.run_id, row.attempt, lock=False)
+        superseded = tuple(
+            SupersededPublication(str(commit), str(identity), str(digest), _instant(at))
+            for commit, identity, digest, at in conn.execute(
+                _SELECT_SUPERSEDED, (row.run_id, row.attempt)
+            ).fetchall()
+        )
         return SnapshotAttempt(
-            row.run_id, row.attempt, row.closed, row.ledger_id, events, publication
+            row.run_id, row.attempt, row.closed, row.ledger_id, events, publication, superseded
         )
 
     def _snapshot_ledger(self, conn: Connection, ledger_id: str) -> SnapshotLedger | None:
@@ -895,6 +912,7 @@ class LogStore:
             if held is not None and held.state is PublicationStatus.PUBLISHED:
                 return held
             repaired = _repaired_by(held, reader_commit, log_digest, run_id, attempt)
+            self._supersede(conn, held, reader_commit)
             record = PublicationRecord(
                 run_id,
                 attempt,
@@ -959,6 +977,8 @@ class LogStore:
             held = self._publication(conn, run_id, attempt, lock=True)
             if held is not None and held.state is PublicationStatus.PUBLISHED:
                 return held
+            repaired = _repaired_by(held, reader_commit, log_digest, run_id, attempt)
+            self._supersede(conn, held, reader_commit)
             record = PublicationRecord(
                 run_id,
                 attempt,
@@ -969,7 +989,7 @@ class LogStore:
                 None,
                 None,
                 incident,
-                _repaired_by(held, reader_commit, log_digest, run_id, attempt),
+                repaired,
                 self._clock(conn),
             )
             self._write_publication(conn, record)
@@ -1146,6 +1166,27 @@ class LogStore:
         statement = _LOCK_PUBLICATION if lock else _SELECT_PUBLICATION
         row = conn.execute(statement, (run_id, attempt)).fetchone()
         return None if row is None else _publication_of(row)
+
+    def _supersede(
+        self, conn: Connection, held: PublicationRecord | None, reader_commit: str
+    ) -> None:
+        """Keep the object ``held`` named when another reader replaces it: a pending record's
+        intended object may have been uploaded before its publisher died, and a failed
+        record's object may sit at its key; either would read as an orphan of a listed
+        attempt otherwise (the commands group's review, third finding)."""
+        if held is None or held.reader_commit == reader_commit or held.object_identity is None:
+            return
+        conn.execute(
+            _INSERT_SUPERSEDED,
+            (
+                held.run_id,
+                held.attempt,
+                held.reader_commit,
+                held.object_identity,
+                held.object_digest,
+                held.recorded_at,
+            ),
+        )
 
     def _write_publication(self, conn: Connection, record: PublicationRecord) -> None:
         conn.execute(
@@ -1398,5 +1439,6 @@ __all__ = [
     "SnapshotEntry",
     "SnapshotLedger",
     "StoreSnapshot",
+    "SupersededPublication",
     "PublicationStatus",
 ]

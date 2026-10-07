@@ -18,6 +18,7 @@ from leaveimpact.agent.inventory import (
     SnapshotEntry,
     SnapshotLedger,
     StoreSnapshot,
+    SupersededPublication,
     inventory_of,
 )
 from leaveimpact.agent.log_events import Admitted, LoggedEvent, log_digest
@@ -53,12 +54,13 @@ def attempt(
     *,
     closed: bool,
     publication: PublicationRecord | None = None,
+    superseded: tuple[SupersededPublication, ...] = (),
 ) -> SnapshotAttempt:
     first = events[0]
     assert isinstance(first.event, Admitted)
     reserved = first.event.inputs.reservation_pico_usd
     return SnapshotAttempt(
-        run_id, 1, closed, None if reserved is None else LEDGER, events, publication
+        run_id, 1, closed, None if reserved is None else LEDGER, events, publication, superseded
     )
 
 
@@ -102,7 +104,13 @@ SNAPSHOT = StoreSnapshot(
     2,
     AT,
     (
-        attempt(ABANDONED, "run-a", closed=True, publication=FAILED_RECORD),
+        attempt(
+            ABANDONED,
+            "run-a",
+            closed=True,
+            publication=FAILED_RECORD,
+            superseded=(SupersededPublication("9" * 40, "runs/x-9", "e" * 64, AT),),
+        ),
         attempt(UNRESOLVED, "run-b", closed=True),
         attempt(OPEN, "run-c", closed=False),
     ),

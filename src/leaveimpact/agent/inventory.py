@@ -38,6 +38,7 @@ from leaveimpact.core.inventory import (
     PublicationObserved,
     PublicationStatus,
     RefusedAdmission,
+    SupersededObject,
 )
 from leaveimpact.core.run_account import figures_of
 from leaveimpact.core.run_timing import require_commit
@@ -73,9 +74,21 @@ class PublicationRecord:
 
 
 @dataclass(frozen=True, slots=True)
+class SupersededPublication:
+    """An object a replaced publication record named: the reader whose record it was, the
+    object's identity and digest, and when that record was written."""
+
+    reader_commit: str
+    object_identity: str
+    object_digest: str
+    recorded_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
 class SnapshotAttempt:
     """One attempt as the snapshot read it: the row's identity, closed value and ledger, the
-    log up to the row's position, and the publication record if one was begun."""
+    log up to the row's position, the publication record if one was begun, and the objects
+    earlier records under other readers named."""
 
     run_id: str
     attempt: int
@@ -83,6 +96,7 @@ class SnapshotAttempt:
     ledger_id: str | None
     events: tuple[LoggedEvent, ...]
     publication: PublicationRecord | None
+    superseded: tuple[SupersededPublication, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -190,6 +204,12 @@ def _attempt_of(each: SnapshotAttempt, rules: Rules) -> InventoryAttempt:
         log_digest(each.events),
         figures,
         None if each.publication is None else _publication_of(each.publication),
+        tuple(
+            SupersededObject(
+                one.reader_commit, one.object_identity, one.object_digest, one.recorded_at
+            )
+            for one in each.superseded
+        ),
     )
 
 
@@ -248,5 +268,6 @@ __all__ = [
     "SnapshotEntry",
     "SnapshotLedger",
     "StoreSnapshot",
+    "SupersededPublication",
     "inventory_of",
 ]
