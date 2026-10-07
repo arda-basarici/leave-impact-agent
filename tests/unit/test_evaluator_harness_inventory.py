@@ -99,10 +99,18 @@ def test_bytes_that_are_no_inventory_refuse_by_the_key_and_never_by_content() ->
         assert "SECRET-MARKER" not in printed and refused.value.__cause__ is None
 
 
-def test_an_inventory_of_another_world_is_refused_by_the_two_versions() -> None:
-    content = inventory_bytes(listed(OTHER_VERSION))
-    with pytest.raises(ValueError, match=f"of the world {OTHER_VERSION}"):
+def test_an_inventory_of_another_world_is_refused_by_the_key_and_never_by_its_version() -> None:
+    # The stored version is the object's own text, so a marker put there must not reach
+    # the printable refusal or its traceback (the close's review, carried finding).
+    marker = WorldVersion("PRIVATE-MARKER-WORLD")
+    content = inventory_bytes(listed(marker))
+    with pytest.raises(ValueError, match="of another world") as refused:
         read_inventory(VERSION, inventory_digest(content), content)
+    printed = "".join(traceback.format_exception(refused.value))
+    assert "PRIVATE-MARKER" not in printed and VERSION in str(refused.value)
+    other = inventory_bytes(listed(OTHER_VERSION))
+    with pytest.raises(ValueError, match="of another world"):
+        read_inventory(VERSION, inventory_digest(other), other)
 
 
 def test_the_inventory_prefix_is_told_from_the_runs_under_it() -> None:

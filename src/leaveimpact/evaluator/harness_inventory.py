@@ -99,9 +99,10 @@ def read_inventory(
     if inventory is None:
         raise ValueError(f"the object at {key} does not decode as an inventory")
     if inventory.scope.world_version != version:
+        # The stored version is the object's own text, validated as an identifier and no
+        # more, so it is not printed: the refusal names the key and the evaluation's world.
         raise ValueError(
-            f"the inventory at {key} is of the world {inventory.scope.world_version}, and the "
-            f"evaluation is of {version}"
+            f"the inventory at {key} is of another world than the evaluation's, {version}"
         )
     return inventory, HarnessInventoryRead(
         key=key,
