@@ -164,6 +164,11 @@ class Ended:
         return self.crossings[-1] if self.crossings else None
 
 
+RECOVERED_ENDINGS = frozenset({("closed", "completed"), ("closed_already", "completed")})
+"""The endings a recovering child may report: it completed the attempt, or found it closed
+(a kill after the closing event committed, the first run's finding against the manifest)."""
+
+
 def start_child(
     prepared: Prepared, schema: str, record: Path, *, target: str | None, nonce: str
 ) -> Ended:
@@ -349,7 +354,19 @@ def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
         )
         wait_sessions_ended(prepared.url, schema)
         recovered = start_child(prepared, schema, record, target=None, nonce="nonce-scout-1")
-        assert recovered.code == 0, (first, recovered.stderr[-400:])
+        # The exit code alone accepts a worker that ended ``left_open`` (the log unavailable,
+        # a claim refused) and crossed nothing, which would scout no target and silently
+        # drop the kill's recovery rows (the commands group's review, fourth finding); the
+        # scout holds the recovery to the ending ``run_row`` holds the final child to.
+        assert recovered.code == 0 and recovered.ending is not None, (
+            first,
+            recovered.code,
+            recovered.stderr[-400:],
+        )
+        assert (recovered.ending["kind"], recovered.ending["detail"]) in RECOVERED_ENDINGS, (
+            first,
+            recovered.ending,
+        )
         families: list[str] = []
         for crossing in recovered.crossings:
             family = injector.family(crossing)
@@ -399,11 +416,10 @@ def run_row(
         # A kill after the closing event committed (the terminal step's saver writes) leaves
         # a closed attempt, which the recovery finds at its load and leaves: the first run's
         # finding against the manifest's forecast, now part of it.
-        acceptable = {("closed", "completed"), ("closed_already", "completed")}
         if (
             final.code != 0
             or final.ending is None
-            or (final.ending["kind"], final.ending["detail"]) not in acceptable
+            or (final.ending["kind"], final.ending["detail"]) not in RECOVERED_ENDINGS
         ):
             result.findings.append(
                 f"recovery did not complete: code {final.code}, ending {final.ending}, "
