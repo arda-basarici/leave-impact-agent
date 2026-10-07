@@ -62,7 +62,12 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario, bundle
 from leaveimpact.world.scenario import ScenarioClassName, Tier
 from tests.unit.export_fixture import export_baseline
-from tests.unit.inventory_fixture import inventory_over, listed, open_attempt
+from tests.unit.inventory_fixture import (
+    closed_without_export,
+    inventory_over,
+    listed,
+    open_attempt,
+)
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import bound, frozen, light
@@ -374,7 +379,7 @@ def test_a_dirty_checkout_and_an_empty_listing_are_refused_and_nothing_is_publis
 ) -> None:
     empty = store_inventory(twin, listed(world.version))
     arguments = ("evaluate", "--world-version", world.version, "--inventory", empty)
-    # The inventory alone under the runs prefix lists no run.
+    # The inventory alone under the runs prefix, listing no attempt of the world.
     status, out, err = run_job(capsys, twin, checkout, *arguments)
     assert (status, out) == (1, "")
     assert "there is no run to evaluate" in err
@@ -387,6 +392,33 @@ def test_a_dirty_checkout_and_an_empty_listing_are_refused_and_nothing_is_publis
     assert (status, out) == (1, "")
     assert "clean tree" in err
     assert LocalObjectReader(twin / "truth").list_keys(evaluations_prefix(world.version)) == ()
+
+
+def test_attempts_that_never_reached_an_export_are_evaluated_with_no_export_stored(
+    world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # One attempt closed with a publication incident and one open: nothing under the runs
+    # prefix but the inventory, and the evaluation reports what became of them.
+    head = checkout.head()
+    incident = closed_without_export(
+        world.version, "run-1", 1, incident=True, registration_commit=head
+    )
+    still_open = open_attempt(world.version, "run-2", 1, registration_commit=head)
+    digest = store_inventory(twin, listed(world.version, incident, still_open))
+    status, out, err = run_job(
+        capsys, twin, checkout, "evaluate", "--world-version", world.version, "--inventory", digest
+    )
+    assert (status, err) == (0, "")
+    lines = dict(line.split("=", 1) for line in out.splitlines())
+    assert (lines["label"], lines["coverage[admitted]"]) == ("development", "2")
+    assert (lines["coverage[exported]"], lines["coverage[open]"]) == ("0", "1")
+    assert lines["coverage[closed_without_export]"] == "1"
+    assert not [name for name in lines if name.startswith("inventory[")]
+    stored = LocalObjectReader(twin / "truth").get(lines["evaluation_key"])
+    assert stored is not None
+    artifact = json.loads(stored.content)
+    assert artifact["inventory"] == [] and artifact["coverage"]["publication_incidents"] == 1
+    assert [each["run_id"] for each in artifact["coverage"]["unexported"]] == ["run-1", "run-2"]
 
 
 def test_an_inventory_absent_misnamed_or_contradicted_by_the_store_is_refused(

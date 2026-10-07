@@ -17,8 +17,10 @@ ruling on the job seam, part 6); lists every object stored for the world's runs 
 the inventory prefix and reads each with the version id the store returns, which is the
 snapshot the artifact's listing records; resolves each cited commit and each admitting
 commit to the registration's bytes there; and publishes the one artifact through the one
-callable it is handed. A listing with nothing under it is refused: an evaluation of no
-run would be an immutable object that says nothing. An object listed and gone by the time
+callable it is handed. A listing with nothing under it is refused when the inventory lists
+no attempt of the world either: an evaluation of no run would be an immutable object that
+says nothing, while one over attempts that never reached an export reports what became of
+them (the second sitting's review, third finding). An object listed and gone by the time
 it is read is refused too, the snapshot no longer being one; so is a published object the
 inventory lists that the listing lacks or holds with other bytes, and a reported
 evaluation while an attempt in its scope is open (the artifact's two refusals).
@@ -56,6 +58,7 @@ from leaveimpact.evaluator.artifact_json import artifact_bytes
 from leaveimpact.evaluator.harness_inventory import (
     HarnessCoverage,
     HarnessInventoryRead,
+    attempts_of_world,
     is_inventory_object,
     read_inventory,
 )
@@ -214,6 +217,11 @@ def evaluate(
     inventory, inventory_read = _named_inventory(stores, version, request.inventory)
     world = load_sealed_world(version, stores.truth, stores.world)
     runs = _stored_runs(stores, version)
+    if not runs and not attempts_of_world(inventory, version):
+        raise EvaluationRefused(
+            f"nothing is stored under {runs_prefix(version)} and the inventory lists no attempt "
+            "of the world: there is no run to evaluate"
+        )
     registrations_at = {
         commit: repository.file_at(commit, REGISTRATION_PATH)
         for commit in cited_commits(runs, inventory)
@@ -297,16 +305,12 @@ def _named_inventory(
 
 def _stored_runs(stores: ObjectReaders, version: WorldVersion) -> tuple[StoredRun, ...]:
     """Every object under the world's runs prefix outside the inventory prefix, each read
-    once with its version id."""
+    once with its version id; empty when nothing is stored there."""
     keys = [
         key
         for key in stores.world.list_keys(runs_prefix(version))
         if not is_inventory_object(version, key)
     ]
-    if not keys:
-        raise EvaluationRefused(
-            f"nothing is stored under {runs_prefix(version)}: there is no run to evaluate"
-        )
     runs: list[StoredRun] = []
     for key in keys:
         stored = stores.world.get(key)
