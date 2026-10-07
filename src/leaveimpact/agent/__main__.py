@@ -189,6 +189,9 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     setting.add_argument("--registration-commit", required=True, help="the registration's commit")
     setting.add_argument("--limit", required=True, type=int, help="the registered limit")
     importing = commands.add_parser(Command.IMPORT_SPEND.value)
+    importing.add_argument(
+        "--request", required=True, help="the request identity, held across retries"
+    )
     importing.add_argument("--ledger", required=True, help="the ledger id")
     importing.add_argument(
         "--amount", required=True, type=int, help="the spend made outside the log, pico-dollars"
@@ -240,7 +243,11 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
             )
         case Command.IMPORT_SPEND:
             return ImportRequest(
-                parsed.ledger, parsed.amount, parsed.authority, parsed.registration_commit
+                parsed.request,
+                parsed.ledger,
+                parsed.amount,
+                parsed.authority,
+                parsed.registration_commit,
             )
 
 
@@ -420,6 +427,8 @@ def _run(
             ]
         case ImportRequest():
             entry = import_spend(request, store)
+            if isinstance(entry, CommandRefused):
+                return _refused(entry)
             return 0, [
                 f"imported={request.ledger_id}",
                 f"revision={entry.revision}",

@@ -84,6 +84,8 @@ def test_each_command_parses_to_its_request() -> None:
     imported = job.parse_request(
         [
             "import-spend",
+            "--request",
+            "import-1",
             "--ledger",
             "l",
             "--amount",
@@ -95,7 +97,9 @@ def test_each_command_parses_to_its_request() -> None:
         ],
         {},
     )
-    assert imported.request == ImportRequest("l", 12, "import:spike-2026-10-04", cases.COMMIT)
+    assert imported.request == ImportRequest(
+        "import-1", "l", 12, "import:spike-2026-10-04", cases.COMMIT
+    )
     admitting = job.parse_request(["admit", "--request", "req.json"], {})
     assert admitting.request == job.AdmitFile(Path("req.json"))
 

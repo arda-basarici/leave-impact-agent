@@ -51,7 +51,12 @@ from leaveimpact.agent.log_events import (
     log_digest,
 )
 from leaveimpact.agent.log_reader import export_of
-from leaveimpact.agent.log_store import AdmissionRequest, AdmissionResult, LogStore
+from leaveimpact.agent.log_store import (
+    AdmissionRequest,
+    AdmissionResult,
+    LogStore,
+    LogStoreConflict,
+)
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused, Rules
 from leaveimpact.agent.worker import ApprovalPolicy, Worker, WorkerConfiguration, WorkerEnding
 from leaveimpact.core.inventory import (
@@ -459,31 +464,39 @@ class ThresholdRequest:
 
 @dataclass(frozen=True, slots=True)
 class ImportRequest:
-    """Add spend made outside the log to a ledger's total: the amount, who established it
-    and from what (the authority string carries the provenance, the entry having no attempt
-    to point at), and the registration commit it is imported under."""
+    """Add spend made outside the log to a ledger's total: the request identity the caller
+    holds across its retries, the amount, who established it and from what (the authority
+    string carries the provenance, the entry having no attempt to point at), and the
+    registration commit it is imported under."""
 
+    request_id: str
     ledger_id: str
     amount_pico_usd: int
     authority: str
     registration_commit: str
 
     def __post_init__(self) -> None:
+        require_opaque_id(self.request_id, "an import request id")
         require_opaque_id(self.ledger_id, "a ledger id")
         require_integer(self.amount_pico_usd, "the imported spend in pico-dollars", minimum=1)
         require_opaque_id(self.authority, "the authority")
         require_commit(self.registration_commit, "the registration commit")
 
 
-def import_spend(request: ImportRequest, store: LogStore) -> LedgerEntry:
-    """The ledger's ``imported`` entry for spend the log never saw; nothing refuses it but
-    the request's own construction."""
-    return store.import_spend(
-        request.ledger_id,
-        request.amount_pico_usd,
-        authority=request.authority,
-        registration_commit=request.registration_commit,
-    )
+def import_spend(request: ImportRequest, store: LogStore) -> LedgerEntry | CommandRefused:
+    """The ledger's ``imported`` entry for spend the log never saw, or the entry a replay
+    under the same identity already wrote; the store's conflict, other content under a
+    recorded identity, as a value."""
+    try:
+        return store.import_spend(
+            request.ledger_id,
+            request.amount_pico_usd,
+            request_id=request.request_id,
+            authority=request.authority,
+            registration_commit=request.registration_commit,
+        )
+    except LogStoreConflict as exc:
+        return CommandRefused(f"import request {request.request_id}", str(exc))
 
 
 def set_threshold(request: ThresholdRequest, store: LogStore) -> LedgerEntry | CommandRefused:

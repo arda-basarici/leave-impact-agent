@@ -132,34 +132,41 @@ def test_the_entry_imports_spend_made_outside_the_log_into_the_ledger(
 ) -> None:
     """The acceptance spike's spend enters the ledger through this command once the price
     table prices its captured sends; here the entry's shape: the head where absent, the
-    imported entry, and the threshold set afterwards counting it in the total."""
+    imported entry, a replay under the same request charging nothing again, and other
+    content under that request refused (the close's review, first finding)."""
     store = rig.store()
-    status = entry.main(
-        [
-            "import-spend",
-            "--ledger",
-            "ledger-import",
-            "--amount",
-            "250",
-            "--authority",
-            "import:spike-2026-10-04",
-            "--registration-commit",
-            cases.COMMIT,
-        ],
-        {},
-        store,
-    )
-    assert status == 0
-    assert capsys.readouterr().out.splitlines() == [
+    import_line = [
+        "import-spend",
+        "--request",
+        "import-spike",
+        "--ledger",
+        "ledger-import",
+        "--amount",
+        "250",
+        "--authority",
+        "import:spike-2026-10-04",
+        "--registration-commit",
+        cases.COMMIT,
+    ]
+    printed = [
         "imported=ledger-import",
         "revision=1",
         "amount_pico_usd=250",
         "total_after_pico_usd=250",
     ]
+    assert entry.main(import_line, {}, store) == 0
+    assert capsys.readouterr().out.splitlines() == printed
+    assert entry.main(import_line, {}, store) == 0, "the replay returns the entry"
+    assert capsys.readouterr().out.splitlines() == printed
     view = store.ledger_view("ledger-import")
     (imported,) = view.entries
     assert (imported.kind.value, imported.authority) == ("imported", "import:spike-2026-10-04")
     assert view.head.total_pico_usd == 250 and view.head.threshold_pico_usd is None
+    changed = [*import_line[:6], "251", *import_line[7:]]
+    assert entry.main(changed, {}, store) == 1
+    out = capsys.readouterr().out.splitlines()
+    assert out[0] == "refused=import request import-spike" and "other content" in out[1]
+    assert store.ledger_view("ledger-import").head.total_pico_usd == 250
     assert store.open_attempts() == ()
 
 

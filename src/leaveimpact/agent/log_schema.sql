@@ -1,9 +1,10 @@
 -- The event log's tables: the attempt rows the store locks, the events they own, the
--- admission requests, the shared ledger and the publication records. Schema version 4
+-- admission requests, the shared ledger and the publication records. Schema version 5
 -- (the version advances with every change to this file that lands in a commit; 2 added
 -- the admission request's inputs digest and ledger; 3 let a publication record hold no
 -- object, for a reader that could not build the export; 4 added the superseded
--- publications).
+-- publications; 5 added the import requests, so a spend import replayed after a lost
+-- acknowledgement is charged once).
 --
 -- Idempotent DDL, applied whole by the store's ensure_schema as bootstrap, never as
 -- migration (the event log step's ruling on placement and acceptance, part 3): no ALTER
@@ -75,6 +76,17 @@ CREATE TABLE IF NOT EXISTS admission_request (
     ledger_id       text,
     outcome         text        NOT NULL,
     result          jsonb       NOT NULL,
+    recorded_at     timestamptz NOT NULL
+);
+
+-- A spend import's request, recorded in the import's transaction: a replay under the
+-- same identity returns the entry it wrote, other content under it is a conflict (the
+-- close's review, first finding).
+CREATE TABLE IF NOT EXISTS import_request (
+    request_id      text        PRIMARY KEY,
+    ledger_id       text        NOT NULL,
+    content_digest  text        NOT NULL,
+    revision        integer     NOT NULL,
     recorded_at     timestamptz NOT NULL
 );
 

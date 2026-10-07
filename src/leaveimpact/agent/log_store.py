@@ -64,6 +64,7 @@ follows the row's, where the position cutoff is what keeps the two consistent.
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, replace
@@ -125,6 +126,7 @@ from leaveimpact.core.inventory import PublicationStatus
 from leaveimpact.core.jsonshape import (
     JsonObject,
     as_object,
+    canonical_bytes,
     expect_fields,
     field_of,
     integer_field,
@@ -137,7 +139,7 @@ from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_instant, encode_instant
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 """The schema this code writes and reads; a connection to another version is refused. The
 number names the layout and nothing else: it advances with every change to the DDL that
 lands in a commit, whether or not any database holds the layout before it (the store
@@ -292,6 +294,18 @@ _INSERT_REQUEST = """
     INSERT INTO admission_request (request_id, run_id, attempt, inputs_digest, ledger_id,
                                    outcome, result, recorded_at)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+"""
+_SELECT_IMPORT_REQUEST = """
+    SELECT ledger_id, content_digest, revision FROM import_request WHERE request_id = %s
+"""
+_INSERT_IMPORT_REQUEST = """
+    INSERT INTO import_request (request_id, ledger_id, content_digest, revision, recorded_at)
+    VALUES (%s, %s, %s, %s, %s)
+"""
+_SELECT_ENTRY = """
+    SELECT revision, kind, run_id, attempt, amount_pico_usd, total_after_pico_usd, authority,
+           registration_commit, reason
+    FROM ledger_entry WHERE ledger_id = %s AND revision = %s
 """
 _INSERT_HEAD = """
     INSERT INTO ledger_head (ledger_id, total_pico_usd, revision) VALUES (%s, 0, 0)
@@ -815,23 +829,49 @@ class LogStore:
             return entry
 
     def import_spend(
-        self, ledger_id: str, amount_pico_usd: int, *, authority: str, registration_commit: str
+        self,
+        ledger_id: str,
+        amount_pico_usd: int,
+        *,
+        request_id: str,
+        authority: str,
+        registration_commit: str,
     ) -> LedgerEntry:
         """Spend made outside the log added to the ledger's total (the ruling on the ledger,
         part 7: the ``imported`` entry), the head created where absent; the authority names
         who established the amount and from what, since the entry has no attempt to point
-        at. The acceptance spike's sends are the first such spend."""
+        at. ``request_id`` is held by the caller across its retries, as an admission's is:
+        a replay returns the entry the first call wrote and charges nothing again, and
+        other content under a recorded identity is ``LogStoreConflict`` (the close's
+        review: a lost acknowledgement had charged the import twice). The acceptance
+        spike's sends are the first such spend."""
         require_opaque_id(ledger_id, "a ledger id")
+        require_opaque_id(request_id, "an import request id")
         require_integer(amount_pico_usd, "the imported spend in pico-dollars", minimum=1)
+        content = _import_digest(ledger_id, amount_pico_usd, authority, registration_commit)
         with self._guarded() as conn, conn.transaction():
             conn.execute(_INSERT_HEAD, (ledger_id,))
             head = self._lock_head(conn, ledger_id)
             assert head is not None
             self._boundary("locked")
+            recorded = conn.execute(_SELECT_IMPORT_REQUEST, (request_id,)).fetchone()
+            if recorded is not None:
+                if (str(recorded[0]), str(recorded[1])) != (ledger_id, content):
+                    raise LogStoreConflict(
+                        f"import request {request_id} was recorded for ledger {recorded[0]} "
+                        f"with other content"
+                    )
+                row = conn.execute(_SELECT_ENTRY, (ledger_id, int(recorded[2]))).fetchone()
+                assert row is not None, "a recorded import names the entry it wrote"
+                return _entry_of(row)
+            at = self._clock(conn)
             entry, after = ledger.imported(
                 head, amount_pico_usd, authority=authority, registration_commit=registration_commit
             )
-            self._write_entry(conn, ledger_id, entry, after, self._clock(conn))
+            self._write_entry(conn, ledger_id, entry, after, at)
+            conn.execute(
+                _INSERT_IMPORT_REQUEST, (request_id, ledger_id, content, entry.revision, at)
+            )
             self._boundary("before-commit")
             return entry
 
@@ -1285,6 +1325,17 @@ class LogStore:
 
 
 # --- Rows to values --------------------------------------------------------------------------
+
+
+def _import_digest(ledger_id: str, amount: int, authority: str, commit: str) -> str:
+    """What an import request asked for, as the replay check compares it."""
+    asked: JsonObject = {
+        "ledger": ledger_id,
+        "amount": amount,
+        "authority": authority,
+        "commit": commit,
+    }
+    return hashlib.sha256(canonical_bytes(asked)).hexdigest()
 
 
 def _inputs_digest(inputs: FrozenInputs) -> str:
