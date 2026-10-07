@@ -74,6 +74,7 @@ from leaveimpact.validator.verdict import (
 )
 from leaveimpact.world.artifacts import PlantedWorldSpec
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.filler import world_documents
 from leaveimpact.world.runtime_view import events_within, leaves_within
 from leaveimpact.world.scenario import ScenarioSpec
 
@@ -229,7 +230,7 @@ def _records_checked(
     leaves = systems.people.leaves_within(days)
     events = systems.calendar.events_within(instants)
     teams = _by_id(systems.people.team(team.id) for team in spec.org.teams)
-    planted_documents = [p.entity for entities in owned for p in entities.documents]
+    planted_documents = [p.entity for p in world_documents(spec)]
     documents = _by_id(systems.documents.document(doc.id) for doc in planted_documents)
     held_documents = systems.held_document_ids()
 

@@ -100,7 +100,8 @@ def resume_world(
 def _prose_of(
     planted: PlantedWorldSpec, semantic: SemanticWorld, version: WorldVersion
 ) -> dict[str, str]:
-    """Every brief's accepted body, lifted from the sealed plantings by target."""
+    """Every brief's accepted body, lifted from the sealed plantings by target, the pool's
+    from the sealed filler."""
     rows = {row.scenario_id: row for row in planted.scenarios}
     prose: dict[str, str] = {}
     for scenario in semantic.scenarios:
@@ -133,6 +134,18 @@ def _prose_of(
                     if len(sections) != 1:
                         raise ResumeRefused(f"{version}: the sealed spec holds no {brief.id}")
                     prose[brief.id] = sections[0].text
+    for brief in semantic.filler_briefs:
+        assert isinstance(brief.target, SectionTarget)  # the pool's invariant
+        sections = [
+            section
+            for planted_doc in planted.filler
+            if planted_doc.entity.id == brief.target.document_id
+            for section in planted_doc.entity.sections
+            if section.id == brief.id
+        ]
+        if len(sections) != 1:
+            raise ResumeRefused(f"{version}: the sealed spec holds no {brief.id}")
+        prose[brief.id] = sections[0].text
     return prose
 
 

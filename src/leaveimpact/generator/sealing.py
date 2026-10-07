@@ -33,7 +33,8 @@ next attempt can resume from and the application can never serve:
    role reads what it wrote.
 5. *The world manifest last*, carrying the version id of every object above under its
    key — exactly the two truth keys, the scenario specs and one key per planted document,
-   by construction, and asserted so before the put — so an object under ``worlds/`` with
+   the filler pool's included, by construction, and asserted so before the put — so an
+   object under ``worlds/`` with
    a manifest beside it is a completed projection by construction. The manifest is the
    projection's commit record; approval is the validator's separate artifact.
 

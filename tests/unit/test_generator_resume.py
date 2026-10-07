@@ -105,3 +105,26 @@ def test_resume_is_not_a_migration(sealed_world: tuple[WorldSpec, Bundle]) -> No
     store.put_if_absent(truth_manifest_key(version), sealed.truth_manifest.content)
     with pytest.raises(ResumeRefused, match="resume is not a migration"):
         resume_world(version, store)
+
+
+def test_a_world_with_a_pool_resumes_with_the_filler_prose_lifted() -> None:
+    from leaveimpact.world import with_filler
+    from tests.unit.filler_fixture import filler_brief, filler_documents, next_numbers
+
+    scenario = pending_scenario(SkillInComment())
+    semantic = semantic_world_of(scenario)
+    [brief] = scenario.briefs
+    pool = filler_documents(semantic, 1, pending=1)
+    _, first_clause = next_numbers(semantic)
+    filler = filler_brief(pool[0].entity, first_clause + 1)
+    padded = with_filler(semantic, pool, briefs=(filler,))
+    bodies = {brief.id: BODY, filler.id: "Cover is named before the change window."}
+    world = compose(padded, bodies, record_for(bodies))
+    sealed = bundle(world)
+
+    def padded_assembly(seed: int, params: object, start: object, plan: object) -> SemanticWorld:
+        return padded
+
+    resumed, rebuilt = resume_world(sealed.world_version, truth_store(sealed), padded_assembly)
+    assert resumed == world
+    assert rebuilt == sealed

@@ -308,3 +308,24 @@ def test_a_reversed_pair_the_checker_wrote_is_counted_once_it_is_put_the_right_w
     )
     assert materialized.metrics.canonicalized_pairs == 1
     assert lines[0].endswith("(1 findings: 1 not_permitted_fact)")
+
+
+def test_a_filler_brief_is_materialized_after_the_scenarios_briefs() -> None:
+    from leaveimpact.world import with_filler
+    from tests.unit.filler_fixture import filler_brief, filler_documents, next_numbers
+
+    scenario = pending_scenario(SkillInComment())
+    semantic = semantic_world_of(scenario)
+    [brief] = scenario.briefs
+    pool = filler_documents(semantic, 1, pending=1)
+    _, first_clause = next_numbers(semantic)
+    filler = filler_brief(pool[0].entity, first_clause + 1)
+    padded = with_filler(semantic, pool, briefs=(filler,))
+    writer = ScriptedWriter([good_body(brief), "Cover is named before the change window."])
+    checker = ScriptedChecker([reading(brief), {"propositions": [], "other_claims": []}])
+    materialized = materialize(padded, writer, checker, ASSETS, 4, lambda _: None)
+    assert set(materialized.prose) == {brief.id, filler.id}
+    assert materialized.record.target_ids == {brief.id, filler.id}
+    composed = compose(padded, materialized.prose, materialized.record)
+    [written] = composed.filler[0].entity.sections
+    assert written.text == "Cover is named before the change window."

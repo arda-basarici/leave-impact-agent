@@ -67,6 +67,7 @@ from leaveimpact.generator.prose.schema import Extraction, ExtractionMalformed, 
 from leaveimpact.world.artifacts import digest
 from leaveimpact.world.assembly import SemanticWorld
 from leaveimpact.world.briefs import Brief, lexicon_of, target_ref
+from leaveimpact.world.filler import world_documents
 from leaveimpact.world.prose import (
     GuardName,
     Lexicon,
@@ -177,21 +178,21 @@ def materialize(
     lexicon = lexicon_of(
         semantic.org,
         [p.entity for s in semantic.scenarios for p in s.owned.work_items],
-        [p.entity for s in semantic.scenarios for p in s.owned.documents],
+        [p.entity for p in world_documents(semantic)],
         [p.entity for s in semantic.scenarios for p in s.owned.events],
     )
     world_forms = lexicon.forms()
     prose: dict[str, str] = {}
     targets: list[TargetRecord] = []
     failed: dict[str, tuple[Refusal, ...]] = {}
-    for scenario in semantic.scenarios:
-        for brief in scenario.briefs:
-            accepted = _materialize_one(loop, brief, lexicon, world_forms)
-            if isinstance(accepted, _Accepted):
-                prose[brief.id] = accepted.body
-                targets.append(accepted.record)
-            else:
-                failed[brief.id] = accepted
+    briefs = [brief for scenario in semantic.scenarios for brief in scenario.briefs]
+    for brief in (*briefs, *semantic.filler_briefs):
+        accepted = _materialize_one(loop, brief, lexicon, world_forms)
+        if isinstance(accepted, _Accepted):
+            prose[brief.id] = accepted.body
+            targets.append(accepted.record)
+        else:
+            failed[brief.id] = accepted
     if failed:
         raise MaterializationFailed(failed, loop.metrics)
     record = MaterializationRecord(

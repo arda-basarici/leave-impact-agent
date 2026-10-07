@@ -238,3 +238,16 @@ def test_a_dead_source_raises_through(entities: WorldEntities) -> None:
     with pytest.raises(SourceUnreachable):
         project_world(entities, fakes.systems, Checkpoint())
     assert len(fakes.people.people) == len(entities.employees), "the HR system was written first"
+
+
+def test_the_entities_hold_the_filler_pool_after_the_owned_documents() -> None:
+    """The projectors read one enumeration of the world's documents, the pool's included."""
+    from leaveimpact.world import with_filler
+    from tests.unit.filler_fixture import filler_documents
+    from tests.unit.throwaway_world import composed_world
+
+    world = composed_world()
+    pool = filler_documents(world, 2)
+    padded = with_filler(world, pool)
+    owned = [p.entity for s in world.scenarios for p in s.owned.documents]
+    assert world_entities(padded).documents == (*owned, *(p.entity for p in pool))

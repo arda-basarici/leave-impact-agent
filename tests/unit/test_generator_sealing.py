@@ -256,3 +256,20 @@ def test_an_object_read_back_with_other_bytes_is_refused_before_the_manifest(
     with pytest.raises(SealingRefused, match="read back with other bytes"):
         run(world, sealed, buckets)
     assert buckets.world.get(layout.world_manifest_key(sealed.world_version)) is None
+
+
+def test_a_world_with_a_pool_seals_one_object_per_filler_document_and_receipts_each(
+    world: WorldSpec,
+) -> None:
+    from leaveimpact.world import with_filler
+    from tests.unit.filler_fixture import filler_documents
+
+    pool = filler_documents(world, 2)
+    padded = with_filler(world, pool)
+    sealed_padded = bundle(padded)
+    buckets = Buckets()
+    result, _ = run(padded, sealed_padded, buckets)
+    keys = {layout.document_key(sealed_padded.world_version, p.entity.id) for p in pool}
+    assert keys <= set(buckets.world.objects)
+    assert keys <= set(result.manifest.receipts.documents.documents.values())
+    assert keys <= set(result.manifest.object_versions)

@@ -79,6 +79,7 @@ from leaveimpact.core.ports.write import (
 )
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.world.assembly import WorldSpec
+from leaveimpact.world.filler import world_documents
 
 ReceiptSink = Callable[[EntityRef, str], None]
 """Where a projector reports each locator the moment a write returns; the root's checkpoint."""
@@ -154,7 +155,7 @@ def world_entities(world: WorldSpec) -> WorldEntities:
         components=org.components,
         work_items=tuple(planted.entity for scenario in owned for planted in scenario.work_items),
         events=tuple(planted.entity for scenario in owned for planted in scenario.events),
-        documents=tuple(planted.entity for scenario in owned for planted in scenario.documents),
+        documents=tuple(planted.entity for planted in world_documents(world)),
     )
 
 

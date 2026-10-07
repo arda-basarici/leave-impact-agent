@@ -18,7 +18,14 @@ from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, manifest
 from leaveimpact.core import MalformedRecord, Observed, Source, SourceUnreachable, WorkReader
 from leaveimpact.core.entities import Component, Document, DocumentSection, WorkItem
 from leaveimpact.core.enums import DocumentKind, EntityKind
-from leaveimpact.core.ids import ComponentId, WorkItemId, clause_id, document_id, work_item_id
+from leaveimpact.core.ids import (
+    ComponentId,
+    DocumentId,
+    WorkItemId,
+    clause_id,
+    document_id,
+    work_item_id,
+)
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.generator.realize import realize
 from leaveimpact.validator import (
@@ -32,6 +39,7 @@ from leaveimpact.validator import (
     verdict_bytes,
 )
 from leaveimpact.world import Bundle, WorldSpec
+from tests.unit.in_memory_ports import InMemoryDocuments
 from tests.unit.test_generator_realize import FakePreparation, MemoryStore, prepared, sealed, world
 
 __all__ = ["sealed", "world"]  # the fixtures, re-exported for pytest to find
@@ -376,3 +384,46 @@ def test_a_dead_source_raises_through(
     with pytest.raises(SourceUnreachable) as caught:
         judged(manifest, sealed, fakes)
     assert caught.value.source is Source.CALENDAR
+
+
+class _Without:
+    """The document lookup with one id gone, as a store that lost a filler object answers."""
+
+    def __init__(self, documents: InMemoryDocuments, missing: str) -> None:
+        self._documents = documents
+        self._missing = missing
+
+    def document(self, id: DocumentId) -> Observed[Document] | None:
+        if id == self._missing:
+            return None
+        return self._documents.document(id)
+
+    def held_document_ids(self) -> frozenset[DocumentId]:
+        return self._documents.held_document_ids() - {DocumentId(self._missing)}
+
+
+def test_the_filler_pool_is_held_to_exactness_like_every_planted_document(world: WorldSpec) -> None:
+    from leaveimpact.world import bundle, with_filler
+    from tests.unit.filler_fixture import filler_documents
+
+    padded = with_filler(world, filler_documents(world, 2))
+    sealed_padded = bundle(padded)
+    fakes = FakePreparation()
+    manifest = realize(padded, sealed_padded, prepared(sealed_padded), fakes, MemoryStore())
+    verdict = judged(manifest, sealed_padded, fakes)
+    (docs,) = [r for r in verdict.exactness if r.check.kind is EntityKind.DOCUMENT]
+    assert docs.status is CheckStatus.PASSED
+    gone = padded.filler[1].entity.id
+    without = _Without(fakes.documents, gone)
+    systems = LiveSystems(
+        fakes.people, fakes.work, fakes.calendar, without, without.held_document_ids
+    )
+    verdict = validate(
+        manifest_bytes(manifest),
+        sealed_padded.world_spec.content,
+        sealed_padded.scenario_specs.content,
+        systems,
+    )
+    (docs,) = [r for r in verdict.exactness if r.check.kind is EntityKind.DOCUMENT]
+    assert docs.status is CheckStatus.FAILED and docs.check.missing == (gone,)
+    assert verdict.approval is Approval.REFUSED
