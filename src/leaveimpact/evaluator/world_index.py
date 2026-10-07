@@ -58,7 +58,7 @@ from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.refs import EntityRef, clause_ref, comment_ref
 from leaveimpact.core.values import FactValue
 from leaveimpact.world.org import OrgSpec
-from leaveimpact.world.scenario import Scenario
+from leaveimpact.world.scenario import Planted, Scenario
 
 Statement = tuple[EntityRef, PredicateName, FactValue]
 """What a fact says, whatever carries it: the subject, the predicate and the value."""
@@ -119,13 +119,18 @@ class WorldIndex:
 
 
 def index_world(
-    org: OrgSpec, scenarios: Sequence[Scenario]
+    org: OrgSpec, scenarios: Sequence[Scenario], filler: Sequence[Planted[Document]] = ()
 ) -> tuple[WorldIndex, tuple[IndexProblem, ...]]:
-    """The index of the world ``scenarios`` and ``org`` make, and every problem found building
-    it, in the order found: an empty tuple is the proof the loader needs.
+    """The index of the world ``scenarios``, ``org`` and the ``filler`` pool make, and every
+    problem found building it, in the order found: an empty tuple is the proof the loader
+    needs.
 
     The index is built whatever the problems, the first sealing of an id standing, so that
-    a caller measuring a world can count its problems without a refusal.
+    a caller measuring a world can count its problems without a refusal. Filler records
+    are sealed after every scenario's and owned by none, so a run that reads one returns
+    a record the index holds, and the pool's titles join the universe every requirement
+    clause's scope is resolved against: a filler title inside a planted clause's text is
+    refused here, which is the generator step's second guard at load.
     """
     problems: list[IndexProblem] = []
     records: dict[EntityRef, Entity] = {}
@@ -153,6 +158,8 @@ def index_world(
         owned = scenario.owned
         for planted in (*owned.leaves, *owned.work_items, *owned.events, *owned.documents):
             seal(planted.entity, scenario.spec.id)
+    for planted in filler:
+        seal(planted.entity, None)
 
     carried: dict[EntityRef, list[Fact]] = {}
     stated: dict[Statement, list[EntityRef]] = {}

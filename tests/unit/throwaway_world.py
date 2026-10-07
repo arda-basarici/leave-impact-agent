@@ -88,6 +88,33 @@ __all__ = [
     "WORLD_START",
     "SealedStores",
     "composed_world",
+    "composed_world_with_filler",
     "loaded_world",
+    "loaded_world_with_filler",
     "sealed_stores",
 ]
+
+
+@cache
+def composed_world_with_filler(
+    count: int = 3, plan_name: str = "golden", seed: int = REFERENCE_SEED
+) -> WorldSpec:
+    """``composed_world`` carrying ``count`` stand-in filler documents and the base and padded
+    levels over them; the pool's content is the generator's to write, the shapes are here."""
+    from tests.unit.filler_fixture import padded_world, stand_in_bodies
+
+    semantic = padded_world(
+        assemble_semantic_world(seed, DEFAULT_PARAMS, WORLD_START, plan_name), count
+    )
+    bodies = stand_in_bodies(semantic)
+    return compose(semantic, bodies, record_for(bodies) if bodies else None)
+
+
+@cache
+def loaded_world_with_filler(
+    count: int = 3, plan_name: str = "golden", seed: int = REFERENCE_SEED
+) -> SealedWorld:
+    """``composed_world_with_filler`` sealed and loaded as the evaluator loads it."""
+    sealed = bundle(composed_world_with_filler(count, plan_name, seed))
+    stores = sealed_stores(sealed)
+    return load_sealed_world(sealed.world_version, stores.truth, stores.world)

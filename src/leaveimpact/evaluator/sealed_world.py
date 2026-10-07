@@ -64,7 +64,7 @@ from __future__ import annotations
 
 from collections import Counter
 from collections.abc import Callable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from functools import partial
 
 from leaveimpact.adapters.object_store.layout import (
@@ -73,11 +73,11 @@ from leaveimpact.adapters.object_store.layout import (
     world_spec_key,
 )
 from leaveimpact.adapters.object_store.read import ObjectReader, StoredObject
+from leaveimpact.core.entities import Document
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import FactBase
-from leaveimpact.core.ids import ScenarioId, WorldVersion
-from leaveimpact.core.refs import EntityRef
-from leaveimpact.core.registration import BASE_CORPUS_LEVEL
+from leaveimpact.core.ids import DocumentId, ScenarioId, WorldVersion
+from leaveimpact.core.refs import EntityRef, document_ref
 from leaveimpact.core.worldtime import DateSpan, RunContext
 from leaveimpact.evaluator.world_index import IndexProblem, WorldIndex, index_world
 from leaveimpact.world.artifacts import (
@@ -93,8 +93,9 @@ from leaveimpact.world.artifacts import (
 )
 from leaveimpact.world.assembly import Contamination, verify_world
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, level_members
 from leaveimpact.world.org import OrgSpec
-from leaveimpact.world.scenario import Scenario, ScenarioKey, ScenarioSpec
+from leaveimpact.world.scenario import Planted, Scenario, ScenarioKey, ScenarioSpec
 from leaveimpact.world.truth_decoder import decode_truth_manifest
 from leaveimpact.world.version import GeneratorVersion
 
@@ -170,7 +171,9 @@ class SealedWorld:
     ``scenarios`` are in the plan's order. ``facts`` is the dated base as sealed; the
     runtime truth the evaluator derives from is built from the scenarios' plantings and
     authored facts, never from this base's dates. ``index`` is the same world by identity,
-    what a run's reads are checked against.
+    what a run's reads are checked against. ``filler`` is the sealed pool's documents in
+    rank order and ``levels`` the corpus levels sealed over it; a level's membership is
+    derived from the two and listed nowhere (``level_documents``).
     """
 
     version: WorldVersion
@@ -182,6 +185,8 @@ class SealedWorld:
     world_spec: SealedSource
     scenario_specs: SealedSource
     truth_manifest: SealedSource
+    filler: tuple[EntityRef, ...] = field(default=(), kw_only=True)
+    levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
 
     def scenario(self, id: ScenarioId) -> Scenario | None:
         """The scenario ``id`` names, or ``None`` when the world holds no such scenario."""
@@ -199,13 +204,21 @@ class SealedWorld:
         """The documents that belong to the corpus level ``level``, or ``None`` when the world
         seals no membership for it.
 
-        A world sealed without filler holds one level: every document it seals is the base
-        level's, and nothing says what any other level holds. ``None`` is that statement,
-        which is not an empty level.
+        Every scenario-owned document and the first ``filler_count`` of the pool, for a
+        level the world sealed (``world.levels``); a world sealed without filler holds the
+        base level alone, every document it seals. Nothing says what an unsealed level
+        holds, and ``None`` is that statement, which is not an empty level.
         """
-        if level != BASE_CORPUS_LEVEL:
+        pool = [ref.id for ref in self.filler]
+        owned = (
+            ref.id
+            for ref in self.index.records
+            if ref.kind is EntityKind.DOCUMENT and ref not in self.filler
+        )
+        members = level_members(level, self.levels, owned, pool)
+        if members is None:
             return None
-        return frozenset(ref for ref in self.index.records if ref.kind is EntityKind.DOCUMENT)
+        return frozenset(document_ref(DocumentId(id)) for id in members)
 
 
 def load_sealed_world(
@@ -270,10 +283,12 @@ def join_sealed_world(
         org=planted.org,
         scenarios=scenarios,
         facts=manifest.facts,
-        index=require_indexed(version, planted.org, scenarios),
+        index=require_indexed(version, planted.org, scenarios, planted.filler),
         world_spec=_source(world_spec),
         scenario_specs=_source(scenario_specs),
         truth_manifest=_source(truth_manifest),
+        filler=tuple(document_ref(p.entity.id) for p in planted.filler),
+        levels=planted.levels,
     )
 
 
@@ -381,14 +396,18 @@ def require_reproduced(
 
 
 def require_indexed(
-    version: WorldVersion, org: OrgSpec, scenarios: Sequence[Scenario]
+    version: WorldVersion,
+    org: OrgSpec,
+    scenarios: Sequence[Scenario],
+    filler: Sequence[Planted[Document]] = (),
 ) -> WorldIndex:
     """The world by identity, or ``WorldNotIndexed`` with what the index found wrong.
 
-    Every record and every comment and section sealed once, every authored fact on a
-    carrier a record holds, and the scope invariant's four properties (``world_index``).
+    Every record and every comment and section sealed once, the pool's included, every
+    authored fact on a carrier a record holds, and the scope invariant's four properties
+    (``world_index``), resolved against every title the pool adds.
     """
-    index, problems = index_world(org, scenarios)
+    index, problems = index_world(org, scenarios, filler)
     if problems:
         raise WorldNotIndexed(version, problems)
     return index

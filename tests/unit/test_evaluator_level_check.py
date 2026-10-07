@@ -169,3 +169,59 @@ def test_a_run_outside_its_level_and_a_run_held_to_none_are_counted_apart(
     # The attempt summary counts the same things over every attempt.
     attempts = attempt_summary_of(cells_of(built[BASE])[0])
     assert (attempts.with_level_findings, attempts.level_not_evaluated) == (1, 0)
+
+
+# --- With a pool ---------------------------------------------------------------------------------
+
+
+def test_a_world_with_a_pool_holds_each_sealed_level_and_no_other() -> None:
+    from tests.unit.throwaway_world import loaded_world_with_filler
+
+    padded = loaded_world_with_filler(3)
+    owned = {
+        document_ref(planted.entity.id)
+        for s in padded.scenarios
+        for planted in s.owned.documents
+    }
+    assert len(padded.filler) == 3
+    assert padded.level_documents(BASE) == owned
+    assert padded.level_documents(PADDED) == owned | set(padded.filler[:2])
+    assert padded.level_documents("huge") is None
+
+
+def test_a_filler_document_beyond_the_run_s_level_is_a_finding(scenario: Scenario) -> None:
+    from leaveimpact.core import Source
+    from leaveimpact.core.ids import ScenarioId
+    from tests.unit.throwaway_world import loaded_world_with_filler
+
+    padded = loaded_world_with_filler(3)
+    own = padded.scenario(ScenarioId(scenario.spec.id))
+    assert own is not None
+    export = stating_export(padded, own)
+    beyond = padded.index.records[padded.filler[2]]
+    within = padded.index.records[padded.filler[0]]
+    by_id = documents_read(export)[0]
+    last = export.trace.operations[-1].position
+    assert last is not None
+    shown = Operation(
+        OperationId("op-shown"),
+        HarnessOrigin("all-documents"),
+        "document",
+        by_id.source,
+        {},
+        RecordsOutcome(
+            (Observed[Entity](within, Source.CORPUS), Observed[Entity](beyond, Source.CORPUS))
+        ),
+        last + 1,
+    )
+    at_padded = replace(export, record=replace(export.record, corpus_level=PADDED))
+    check = level_check(padded, with_operations(at_padded, (*export.trace.operations, shown)))
+    assert check is not None
+    assert check.findings == (LevelFinding(shown.id, padded.filler[2]),)
+    at_base = with_operations(export, (*export.trace.operations, shown))
+    base = level_check(padded, at_base)
+    assert base is not None
+    assert base.findings == (
+        LevelFinding(shown.id, padded.filler[0]),
+        LevelFinding(shown.id, padded.filler[2]),
+    )
