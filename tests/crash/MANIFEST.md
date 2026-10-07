@@ -90,6 +90,54 @@ repeated here; a recovery that finds the attempt closed crosses nothing and gets
 | any write's family `#1` (of the recovery) | the first kill's state, the recovery's claim, and the recovery's writes before this one | the third child claims generation 3 and finishes; the in-flight set is the union of what the two kills left, each counted or dispatched again under the next number; a read the recovery made and did not log is made once more |
 | `completed:decided#1` (of the recovery) | everything but the closing event; the attempt open at generation 2 | the third child claims generation 3, replays to the held approval and resume, closes once; the in-flight set is the first kill's |
 
+## Kill points of the commands
+
+The job seam's commands (the ruling on placement and acceptance, part 8), each run by a
+child of its own over a store the parent prepared, one row per crossing of the command's
+uninterrupted run, the row's recovery the same command run again under the same request.
+No recovery-process rows: a command's recovery is one call, and a kill there is the
+first-process row again. The families are named under the mode, since `put:before` is
+crossed by two commands and `load:read` by the worker and the publish command.
+Forecasts written on 2026-10-07 before the first run.
+
+### Admission, the receipt path (the threshold set, nothing admitted)
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| `admit/admit:locked` | nothing; the run row's insert is in the uncommitted transaction | the command run again under the same request identity admits: one attempt row at position one, one admission event, the ledger's threshold and one admitted entry, no refusal |
+| `admit/admit:before-commit` | nothing; the attempt row, the admission event, the reservation and the request's record are all uncommitted | as above |
+
+### Admission, the refusal path (the first attempt admitted and open, the second asked)
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| `admit-refused/admit:locked` | the first attempt as admitted | the command run again refuses: the first attempt untouched at its admission alone, one refused request for attempt two, no ledger entry for the refusal (the predecessor refused, not the ledger) |
+| `admit-refused/admit:before-commit` | the first attempt as admitted; the refusal's record uncommitted | as above |
+
+### Publication (the reference attempt completed by an uninterrupted worker)
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| `publish/load:read` | the closed attempt; no record, no object | the command run again publishes: the pending record, the object created, the published record naming it |
+| `publish/publication_pending:locked` | as above | as above |
+| `publish/publication_pending:before-commit` | as above; the pending record uncommitted | as above |
+| `publish/put:before` | the pending record naming the key and digest; no object | the pending record rewritten under the same reader, the object created, published |
+| `publish/put:after` | the pending record and the object | the pending record rewritten, the put answers present and equal, published |
+| `publish/publication_published:locked` | as above | as above |
+| `publish/publication_published:before-commit` | as above; the published record uncommitted | as above |
+
+At every row the end state is one: the record published, naming the export's key under the
+reader's commit and the digest of the one object under the run's prefix, repaired from
+nothing; the object's bytes are the reader's export of the closed log.
+
+### The inventory (the reference attempt completed and published)
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| `inventory/snapshot:read` | the published attempt; no inventory | the command run again writes one inventory, created, named by its digest, listing the attempt closed and published |
+| `inventory/put:before` | as above | as above |
+| `inventory/put:after` | the inventory object, nothing in the store (the command writes none) | the command run again takes a new snapshot at a later instant and writes a second inventory, created; both decode, both are named by their digests, both list the attempt closed and published |
+
 ## Findings against the forecasts
 
 - **2026-10-06, the first run** (130 rows, 126 passed): the four saver crossings of the
@@ -119,3 +167,8 @@ repeated here; a recovery that finds the attempt closed crosses nothing and gets
   kill's own recovery path ran 303 rows in nine minutes twenty-five, every row passing; the
   21 rows beyond the suffix method's 282 are the families a lost outcome makes the recovery
   add (a new intent, a new count start), which the reference's suffix could not name.
+- **2026-10-07, the commands' first run:** the four command references crossed the fourteen
+  families forecast above and no other, and the fourteen rows passed, in eighty-four seconds
+  with the worker's reference and the four command references before them; the inventory's
+  `put:after` row left two inventories as forecast, every other row one object. The whole
+  matrix with them, 317 rows, ran in nine minutes ten, every row passing.

@@ -34,6 +34,7 @@ reference crosses that the manifest does not name, or the reverse, fails the man
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import pickle
@@ -54,16 +55,37 @@ from psycopg import sql
 from psycopg.conninfo import make_conninfo
 from psycopg.rows import DictRow, dict_row
 
+from leaveimpact.adapters.object_store.layout import (
+    inventory_key,
+    inventory_prefix,
+    run_export_key,
+    run_prefix,
+)
+from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.agent.ledger import EntryKind
 from leaveimpact.agent.log_events import EventKind, LoggedEvent, event_digest, kind_of
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore
 from leaveimpact.agent.log_transition import calls_of
-from leaveimpact.core import decode_export_bytes, export_bytes
+from leaveimpact.core import PublicationStatus, decode_export_bytes, export_bytes
+from leaveimpact.core.inventory import decode_inventory_bytes
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.crash import injector
-from tests.crash.child import NONCE, RUN, SCHEMA, WORLD, application_of, connect_in
+from tests.crash.child import (
+    ATTEMPT_ASKED,
+    LEDGER,
+    MODE,
+    NONCE,
+    OBJECTS,
+    READER,
+    REQUEST,
+    RUN,
+    SCHEMA,
+    WORLD,
+    application_of,
+    connect_in,
+)
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit import worker_support as support
@@ -73,7 +95,6 @@ from tests.unit.throwaway_world import loaded_world
 REPOSITORY = Path(__file__).resolve().parents[2]
 MANIFEST = Path(__file__).with_name("MANIFEST.md")
 ATTEMPT = 1
-LEDGER = "ledger-crash"
 PLENTY = 10**15
 CHILD_TIMEOUT_S = 240
 SESSIONS_DEADLINE_S = 30.0
@@ -81,6 +102,19 @@ RECOVERY_EVERY = 16
 """Every sixteenth crossing of the reference gets the recovery rows: seven sampled kills, each
 with one row per family the recovering child crosses, about 170 rows beside the 112; at
 twelve the matrix took ten and a half minutes."""
+COMMAND_MODES = ("admit", "admit-refused", "publish", "inventory")
+"""The job seam's commands the matrix kills (the ruling on placement and acceptance, part 8):
+admission on its receipt path and on its refusal path (a second attempt asked while the
+first is open), publication of a completed attempt, and the inventory over a published
+one. Each gets one row per crossing of its uninterrupted run; no recovery-process rows, a
+command's recovery being one call, so a kill there is the first-process row again."""
+COMMAND_ENDINGS = {
+    "admit": "admitted",
+    "admit-refused": "refused",
+    "publish": PublicationStatus.PUBLISHED.value,
+    "inventory": "written",
+}
+"""What each mode's child prints when it ran whole, killed or not before."""
 
 
 # --- Preparation -----------------------------------------------------------------------------
@@ -123,9 +157,8 @@ def drop_schema(url: str, schema: str) -> None:
         admin.execute(sql.SQL("DROP SCHEMA {} CASCADE").format(sql.Identifier(schema)))
 
 
-def admitted(prepared: Prepared, schema: str) -> LogStore:
-    """A store over ``schema`` with the tables ensured, the threshold set and the reference
-    run admitted."""
+def threshold_set(prepared: Prepared, schema: str) -> LogStore:
+    """A store over ``schema`` with the tables ensured and the threshold set, nothing admitted."""
     store = LogStore(dsn=prepared.url, connect=connect_in(schema, "crash-parent"))
     store.ensure_schema()
     store.set_threshold(
@@ -135,6 +168,13 @@ def admitted(prepared: Prepared, schema: str) -> LogStore:
         registration_commit=cases.COMMIT,
         limit_pico_usd=PLENTY,
     )
+    return store
+
+
+def admitted(prepared: Prepared, schema: str) -> LogStore:
+    """A store over ``schema`` with the tables ensured, the threshold set and the reference
+    run admitted."""
+    store = threshold_set(prepared, schema)
     receipt = store.admit(
         AdmissionRequest(
             f"req-{uuid4().hex[:12]}", prepared.inputs, support.ADMITTER, LEDGER, histories.RULES
@@ -170,19 +210,38 @@ RECOVERED_ENDINGS = frozenset({("closed", "completed"), ("closed_already", "comp
 
 
 def start_child(
-    prepared: Prepared, schema: str, record: Path, *, target: str | None, nonce: str
+    prepared: Prepared,
+    schema: str,
+    record: Path,
+    *,
+    target: str | None,
+    nonce: str,
+    mode: str = "work",
+    objects: Path | None = None,
+    request: str | None = None,
+    attempt: int | None = None,
 ) -> Ended:
+    """One child in ``mode`` over ``schema``, killed at ``target`` or left to run; ``objects``
+    is the local object store's root for the publish and inventory modes, ``request`` and
+    ``attempt`` the admit mode's request identity and attempt number."""
     env = {
         **os.environ,
         "DATABASE_URL": prepared.url,
         SCHEMA: schema,
         WORLD: str(prepared.world_file),
         NONCE: nonce,
+        MODE: mode,
         injector.RECORD: str(record),
     }
     env.pop(injector.TARGET, None)
     if target is not None:
         env[injector.TARGET] = target
+    if objects is not None:
+        env[OBJECTS] = str(objects)
+    if request is not None:
+        env[REQUEST] = request
+    if attempt is not None:
+        env[ATTEMPT_ASKED] = str(attempt)
     before = len(injector.read_record(record))
     completed = subprocess.run(
         [sys.executable, "-m", "tests.crash.child"],
@@ -532,22 +591,250 @@ def _positionless(export: RunExport) -> list[tuple[object, ...]]:
     ]
 
 
+# --- The commands ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class CommandState:
+    """What a command's child runs over: the parent's store, the object store's root, the
+    child's mode and the admit mode's request identity and attempt number."""
+
+    store: LogStore
+    objects: Path
+    child_mode: str
+    request: str | None
+    attempt: int | None
+
+
+def command_state(prepared: Prepared, schema: str, record: Path, mode: str) -> CommandState:
+    """The store and object root a command in ``mode`` is run over, prepared by the parent:
+    the threshold alone for an admission; the reference attempt admitted and open for the
+    refused one; completed by an uninterrupted worker child for a publication; completed and
+    published by an uninterrupted publish child for the inventory."""
+    objects = prepared.directory / f"{schema}-objects"
+    if mode == "admit":
+        return CommandState(threshold_set(prepared, schema), objects, "admit", f"req-{schema}", 1)
+    if mode == "admit-refused":
+        return CommandState(admitted(prepared, schema), objects, "admit", f"req-{schema}-2", 2)
+    store = admitted(prepared, schema)
+    worked = start_child(prepared, schema, record, target=None, nonce="nonce-command-work")
+    assert worked.code == 0 and worked.ending is not None, (mode, worked.code, worked.stderr[-400:])
+    assert (worked.ending["kind"], worked.ending["detail"]) == ("closed", "completed"), (
+        worked.ending
+    )
+    if mode == "publish":
+        return CommandState(store, objects, "publish", None, None)
+    assert mode == "inventory", mode
+    published = start_child(
+        prepared,
+        schema,
+        record,
+        target=None,
+        nonce="nonce-command-publish",
+        mode="publish",
+        objects=objects,
+    )
+    assert published.code == 0 and published.ending is not None, (
+        published.code,
+        published.stderr[-400:],
+    )
+    assert published.ending["kind"] == COMMAND_ENDINGS["publish"], published.ending
+    return CommandState(store, objects, "inventory", None, None)
+
+
+def start_command(
+    prepared: Prepared,
+    schema: str,
+    record: Path,
+    state: CommandState,
+    *,
+    target: str | None,
+    nonce: str,
+) -> Ended:
+    return start_child(
+        prepared,
+        schema,
+        record,
+        target=target,
+        nonce=nonce,
+        mode=state.child_mode,
+        objects=state.objects,
+        request=state.request,
+        attempt=state.attempt,
+    )
+
+
+@dataclass
+class CommandReference:
+    """A command's uninterrupted run: its mode and its crossings in order, one row each."""
+
+    mode: str
+    crossings: tuple[str, ...]
+
+    @property
+    def families(self) -> set[str]:
+        return {f"{self.mode}/{injector.family(c)}" for c in self.crossings}
+
+
+def run_command_reference(prepared: Prepared, mode: str) -> CommandReference:
+    schema = new_schema(prepared.url)
+    record = prepared.directory / f"{schema}.jsonl"
+    try:
+        state = command_state(prepared, schema, record, mode)
+        ended = start_command(prepared, schema, record, state, target=None, nonce="nonce-command")
+        assert ended.code == 0 and ended.ending is not None, (mode, ended.code, ended.stderr[-400:])
+        findings = reconcile_command(mode, prepared, state, ended, killed_at=None)
+        assert not findings, (mode, findings)
+        return CommandReference(mode, ended.crossings)
+    finally:
+        drop_schema(prepared.url, schema)
+
+
+def command_rows(references: Sequence[CommandReference]) -> list[tuple[str, str]]:
+    """One row per crossing of each command's reference: the mode and the kill point."""
+    return [
+        (reference.mode, crossing) for reference in references for crossing in reference.crossings
+    ]
+
+
+def run_command_row(prepared: Prepared, mode: str, kill: str, *, keep: bool = False) -> RowResult:
+    result = RowResult((f"{mode}/{kill}",))
+    schema = new_schema(prepared.url)
+    result.schema = schema
+    record = prepared.directory / f"{schema}.jsonl"
+    try:
+        state = command_state(prepared, schema, record, mode)
+        killed = start_command(
+            prepared, schema, record, state, target=kill, nonce="nonce-command-0"
+        )
+        result.children.append(killed.ending)
+        if killed.code != injector.KILL_CODE or killed.last_crossing != kill:
+            result.findings.append(
+                f"the child did not die at {kill}: code {killed.code}, last crossing "
+                f"{killed.last_crossing}, ending {killed.ending}, stderr {killed.stderr[-400:]!r}"
+            )
+            return result
+        wait_sessions_ended(prepared.url, schema)
+        again = start_command(prepared, schema, record, state, target=None, nonce="nonce-command-1")
+        result.children.append(again.ending)
+        if again.code != 0 or again.ending is None:
+            result.findings.append(
+                f"the command run again did not complete: code {again.code}, stderr "
+                f"{again.stderr[-400:]!r}"
+            )
+            return result
+        result.findings.extend(reconcile_command(mode, prepared, state, again, killed_at=kill))
+        return result
+    finally:
+        if not keep:
+            drop_schema(prepared.url, schema)
+
+
+def reconcile_command(
+    mode: str, prepared: Prepared, state: CommandState, ended: Ended, *, killed_at: str | None
+) -> list[str]:
+    """The findings against the command's forecast once its last child ran whole: the
+    ending it printed, and the store and the object store as the manifest says they stand."""
+    found: list[str] = []
+    assert ended.ending is not None
+    if ended.ending["kind"] != COMMAND_ENDINGS[mode]:
+        found.append(f"the command ended {ended.ending}, expected {COMMAND_ENDINGS[mode]}")
+    store = state.store
+    version = prepared.inputs.context.world_version
+    snapshot = store.snapshot(LEDGER)
+    attempts = [each.attempt for each in snapshot.attempts]
+    refused = [each.attempt for each in snapshot.refused]
+    entries = [entry.kind for entry in store.ledger_view(LEDGER).entries]
+    reader = LocalObjectReader(state.objects)
+    if mode in ("admit", "admit-refused"):
+        if attempts != [1]:
+            found.append(f"attempts {attempts}, expected the first alone")
+        if entries != [EntryKind.THRESHOLD_SET, EntryKind.ADMITTED]:
+            found.append(
+                f"ledger entries {[e.value for e in entries]}, expected the threshold and one "
+                "admission"
+            )
+        expected_refusals = [2] if mode == "admit-refused" else []
+        if refused != expected_refusals:
+            found.append(f"refused requests for attempts {refused}, expected {expected_refusals}")
+        events = store.events(RUN, ATTEMPT)
+        if len(events) != 1:
+            found.append(f"{len(events)} events of the first attempt, expected its admission alone")
+    elif mode == "publish":
+        identity = run_export_key(version, RUN, ATTEMPT, READER)
+        record = store.publication_of(RUN, ATTEMPT)
+        if record is None or record.state is not PublicationStatus.PUBLISHED:
+            found.append(f"the publication record is {record}, expected published")
+        elif record.object_identity != identity or record.repaired_from_commit is not None:
+            found.append(
+                f"the record names {record.object_identity} repaired from "
+                f"{record.repaired_from_commit}"
+            )
+        keys = reader.list_keys(run_prefix(version, RUN, ATTEMPT))
+        if keys != (identity,):
+            found.append(f"objects under the run's prefix {keys}, expected {identity} alone")
+        else:
+            held = reader.get(identity)
+            assert held is not None
+            digest = hashlib.sha256(held.content).hexdigest()
+            if record is not None and record.object_digest != digest:
+                found.append("the record's digest is not the object's")
+            built = export_bytes(export_of(store.load(RUN, ATTEMPT, rules=histories.RULES)))
+            if built != held.content:
+                found.append("the object is not the reader's export of the log")
+    else:
+        assert mode == "inventory", mode
+        keys = reader.list_keys(inventory_prefix(version))
+        expected = 2 if killed_at is not None and injector.family(killed_at) == "put:after" else 1
+        if len(keys) != expected:
+            found.append(f"{len(keys)} inventories stored, expected {expected}")
+        if ended.ending.get("outcome") != "created":
+            found.append(f"the inventory's put was {ended.ending.get('outcome')}, expected created")
+        for key in keys:
+            held = reader.get(key)
+            assert held is not None
+            digest = hashlib.sha256(held.content).hexdigest()
+            if key != inventory_key(version, digest):
+                found.append(f"{key} does not digest to its name")
+            inventory = decode_inventory_bytes(held.content)
+            listed = inventory.attempts
+            if len(listed) != 1 or not listed[0].closed:
+                found.append(f"{key} lists {len(listed)} attempts, expected the closed one")
+                continue
+            publication = listed[0].publication
+            if publication is None or publication.status is not PublicationStatus.PUBLISHED:
+                found.append(f"{key} lists the attempt's publication as {publication}")
+    return found
+
+
 # --- The matrix ------------------------------------------------------------------------------
 
 
 @dataclass
 class MatrixResult:
     reference: Reference
+    commands: list[CommandReference]
     rows: list[RowResult]
 
     @property
     def failures(self) -> list[RowResult]:
         return [row for row in self.rows if not row.passed]
 
+    @property
+    def families(self) -> set[str]:
+        """Every family a reference crosses, the worker's as they are and a command's under
+        its mode: what the manifest must name, each once."""
+        crossed = {injector.family(c) for c in self.reference.crossings}
+        for command in self.commands:
+            crossed |= command.families
+        return crossed
+
     def summary(self) -> dict[str, Any]:
         return {
             "reference_crossings": len(self.reference.crossings),
             "families": sorted({injector.family(c) for c in self.reference.crossings}),
+            "command_crossings": {c.mode: len(c.crossings) for c in self.commands},
+            "command_families": sorted(f for c in self.commands for f in c.families),
             "rows": len(self.rows),
             "passed": len(self.rows) - len(self.failures),
             "failed": [{"kills": row.kills, "findings": row.findings} for row in self.failures],
@@ -557,13 +844,21 @@ class MatrixResult:
 def run_matrix(
     url: str, directory: Path, *, workers: int = 6, only: Sequence[str] | None = None
 ) -> MatrixResult:
-    """The reference, then every row, ``workers`` at a time; ``only`` restricts the rows to
-    those whose first kill matches one of the patterns."""
+    """The worker's reference and each command's, then every row, ``workers`` at a time;
+    ``only`` restricts the rows to those whose name (a kill point, or ``<mode>/<kill point>``
+    for a command's) matches one of the patterns."""
     prepared = prepare(url, directory)
     reference = run_reference(prepared)
+    commands = [run_command_reference(prepared, mode) for mode in COMMAND_MODES]
     rows = rows_for(prepared, reference)
+    for_commands = command_rows(commands)
     if only:
         rows = [row for row in rows if any(re.search(pattern, row[0]) for pattern in only)]
+        for_commands = [
+            (mode, kill)
+            for mode, kill in for_commands
+            if any(re.search(pattern, f"{mode}/{kill}") for pattern in only)
+        ]
 
     def row(kills: tuple[str, ...]) -> RowResult:
         try:
@@ -573,9 +868,19 @@ def run_matrix(
             failed.findings.append(f"the row raised {type(exc).__name__}: {exc}"[:600])
             return failed
 
+    def command_row(named: tuple[str, str]) -> RowResult:
+        mode, kill = named
+        try:
+            return run_command_row(prepared, mode, kill)
+        except Exception as exc:  # noqa: BLE001 - as above
+            failed = RowResult((f"{mode}/{kill}",))
+            failed.findings.append(f"the row raised {type(exc).__name__}: {exc}"[:600])
+            return failed
+
     with ThreadPoolExecutor(workers) as pool:
         results = list(pool.map(row, rows))
-    return MatrixResult(reference, results)
+        results.extend(pool.map(command_row, for_commands))
+    return MatrixResult(reference, commands, results)
 
 
 def manifest_families() -> set[str]:
@@ -590,13 +895,18 @@ def manifest_families() -> set[str]:
 
 
 __all__ = [
+    "COMMAND_MODES",
     "MANIFEST",
+    "CommandReference",
     "MatrixResult",
     "Reference",
     "RowResult",
+    "command_rows",
     "manifest_families",
     "prepare",
     "rows_for",
+    "run_command_reference",
+    "run_command_row",
     "run_matrix",
     "run_reference",
     "run_row",

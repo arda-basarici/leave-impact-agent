@@ -1,5 +1,6 @@
-"""The crash matrix as a test: every kill point of the reference run recovers as the manifest
-forecasts, and the manifest names every family the reference crosses and no other.
+"""The crash matrix as a test: every kill point of the reference run and of each command's
+run recovers as the manifest forecasts, and the manifest names every family the references
+cross, a command's under its mode, and no other.
 
 Under the ``crash`` marker: child processes, the PostgreSQL service, minutes. The report of a
 run is written beside pytest's temporary directory as ``crash-matrix.json`` so a failing row
@@ -13,8 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.crash import injector
-from tests.crash.matrix import MatrixResult, manifest_families, run_matrix
+from tests.crash.matrix import COMMAND_MODES, MatrixResult, manifest_families, run_matrix
 from tests.integration.corpus_support import database_url
 
 pytestmark = pytest.mark.crash
@@ -33,13 +33,15 @@ def matrix(tmp_path_factory: pytest.TempPathFactory) -> MatrixResult:
 def test_every_kill_point_recovers_as_forecast(matrix: MatrixResult) -> None:
     summary = matrix.summary()
     assert summary["rows"] >= summary["reference_crossings"] > 60, summary
+    assert set(summary["command_crossings"]) == set(COMMAND_MODES), summary
+    assert all(count > 0 for count in summary["command_crossings"].values()), summary
     assert not matrix.failures, json.dumps(summary["failed"], indent=2)
 
 
-def test_the_manifest_names_every_family_the_reference_crosses_and_no_other(
+def test_the_manifest_names_every_family_the_references_cross_and_no_other(
     matrix: MatrixResult,
 ) -> None:
-    crossed = {injector.family(c) for c in matrix.reference.crossings}
+    crossed = matrix.families
     forecast = {f.split("#")[0] for f in manifest_families()}
     assert crossed == forecast, {
         "crossed, not forecast": sorted(crossed - forecast),
