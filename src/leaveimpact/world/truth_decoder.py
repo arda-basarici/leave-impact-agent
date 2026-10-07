@@ -142,13 +142,24 @@ def decode_truth_manifest(content: bytes | str) -> TruthManifest:
     found = field_of(data, "artifact")
     if found != TRUTH_MANIFEST:
         raise ValueError(f"the truth manifest is sealed as {TRUTH_MANIFEST}, got {found!r}")
-    expect_fields(data, ("artifact", "scenarios", "facts", "materialization"), "the truth manifest")
+    # The pool's briefs are named only in a manifest whose world owes the pool prose; a
+    # manifest without the name was sealed by a generator that built no pool.
+    present = ("filler_briefs",) if "filler_briefs" in data else ()
+    expect_fields(
+        data,
+        ("artifact", "scenarios", "facts", "materialization") + present,
+        "the truth manifest",
+    )
     record = field_of(data, "materialization")
     manifest = TruthManifest(
         scenarios=tuple(_scenario(item) for item in array_field(data, "scenarios")),
         facts=_fact_base(object_field(data, "facts")),
         materialization=(
             None if record is None else _record(as_object(record, "the materialization record"))
+        ),
+        filler_briefs=tuple(
+            _brief(item)
+            for item in (array_field(data, "filler_briefs") if present else ())
         ),
     )
     if canonical_bytes(encode_truth_manifest(manifest)) != raw:

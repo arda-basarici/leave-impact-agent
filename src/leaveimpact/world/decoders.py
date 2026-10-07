@@ -61,6 +61,7 @@ from leaveimpact.world.artifacts import (
     PlantedWorldSpec,
     ScenarioPlanting,
 )
+from leaveimpact.world.levels import BASE_LEVELS, SealedLevel
 from leaveimpact.world.org import OrgSpec, decode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.scenario import (
@@ -79,11 +80,16 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
 
     Scenario ids unique, one plan row and one slice per planting, the plan and the
     plantings in the same order — the record's own invariants, checked as it is built.
+    ``filler`` and ``levels`` are present only in a file whose world holds more than the
+    base level alone; a file without them was sealed by a generator that built no pool,
+    and reads as that world, no pool and the base level.
     """
     data = _artifact(content, WORLD_SPEC, "the world spec")
+    present = tuple(name for name in _POOL_FIELDS if name in data)
     expect_fields(
         data,
-        ("artifact", "provenance", "org", "plan", "slices", "scenarios", "artifacts"),
+        ("artifact", "provenance", "org", "plan", "slices", "scenarios", "artifacts")
+        + present,
         "the world spec",
     )
     provenance = object_field(data, "provenance")
@@ -116,7 +122,26 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
         scenarios=tuple(_planting(item) for item in array_field(data, "scenarios")),
         scenario_specs_digest=string_field(cited, SCENARIO_SPECS),
         truth_manifest_digest=string_field(cited, TRUTH_MANIFEST),
+        filler=tuple(
+            _planted(item, _decode_document_value)
+            for item in (array_field(data, "filler") if "filler" in data else ())
+        ),
+        levels=(
+            tuple(_level(item) for item in array_field(data, "levels"))
+            if "levels" in data
+            else BASE_LEVELS
+        ),
     )
+
+
+_POOL_FIELDS = ("filler", "levels")
+"""The world spec's names for the pool and its levels, absent from a file without a pool."""
+
+
+def _level(item: object) -> SealedLevel:
+    data = as_object(item, "a level")
+    expect_fields(data, ("name", "filler_count"), "a level")
+    return SealedLevel(string_field(data, "name"), integer_field(data, "filler_count"))
 
 
 def decode_scenario_specs(content: bytes | str) -> tuple[ScenarioSpec, ...]:

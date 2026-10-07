@@ -71,7 +71,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date
 
 from leaveimpact.core.claims import ConstraintKey, ImpactKey
@@ -97,6 +97,7 @@ from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec
 from leaveimpact.world.briefs import Brief, CommentTarget, ProseTarget, SectionTarget
+from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, check_pool
 from leaveimpact.world.org import OrgSpec, encode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.prose import (
@@ -182,7 +183,10 @@ class PlantedWorldSpec:
     is the projection of it the file holds, so a decoder of the file rebuilds this type
     and structurally nothing more. The two digests are the other files' as sealed, cited
     so a swapped file is visible; the world version is not here, since it hashes this
-    file and would define itself.
+    file and would define itself. ``filler`` and ``levels`` are the pool and the corpus
+    levels sealed over it; a world sealed before any pool existed holds neither name in
+    its file and reads as no pool and the base level alone, which is what such a
+    generator built and not a default.
     """
 
     seed: int
@@ -198,8 +202,16 @@ class PlantedWorldSpec:
     scenarios: tuple[ScenarioPlanting, ...]
     scenario_specs_digest: str
     truth_manifest_digest: str
+    filler: tuple[Planted[Document], ...] = field(default=(), kw_only=True)
+    levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
 
     def __post_init__(self) -> None:
+        check_pool(
+            self.filler,
+            self.levels,
+            (),
+            (p.entity.id for planting in self.scenarios for p in planting.owned.documents),
+        )
         if not (len(self.slices) == len(self.plan) == len(self.scenarios)):
             raise ValueError(
                 f"one slice, one plan row and one planting each, got {len(self.slices)}, "
@@ -244,6 +256,8 @@ def planted_world_spec(
         ),
         scenario_specs_digest=scenario_specs_digest,
         truth_manifest_digest=truth_manifest_digest,
+        filler=world.filler,
+        levels=world.levels,
     )
 
 
@@ -311,12 +325,14 @@ class TruthManifest:
     scenarios: tuple[TruthScenario, ...]
     facts: FactBase
     materialization: MaterializationRecord | None
+    filler_briefs: tuple[Brief, ...] = field(default=(), kw_only=True)
 
     def __post_init__(self) -> None:
         ids = [row.key.scenario_id for row in self.scenarios]
         if len(set(ids)) != len(ids):
             raise ValueError(f"scenario ids are unique within a truth manifest, got {ids}")
         briefed = [brief.id for row in self.scenarios for brief in row.briefs]
+        briefed += [brief.id for brief in self.filler_briefs]
         if len(set(briefed)) != len(briefed):
             raise ValueError(f"a prose target is briefed once world-wide, got {briefed}")
         recorded: frozenset[str] = (
@@ -336,6 +352,7 @@ def truth_manifest_of(world: WorldSpec) -> TruthManifest:
         scenarios=tuple(truth_scenario_of(scenario) for scenario in world.scenarios),
         facts=world.facts,
         materialization=world.materialization,
+        filler_briefs=world.filler_briefs,
     )
 
 
@@ -374,7 +391,8 @@ def semantic_digest(semantic: SemanticWorld) -> str:
 
 def encode_semantic_world(semantic: SemanticWorld) -> JsonObject:
     """Everything the seed determines, in one object: provenance, organization, plan, slices,
-    per scenario its spec, plantings, key, authored facts and briefs, and the fact base."""
+    per scenario its spec, plantings, key, authored facts and briefs, the fact base, and
+    the pool with its briefs and levels where the world carries one."""
     return {
         "artifact": SEMANTIC_WORLD,
         "provenance": _provenance(semantic),
@@ -391,6 +409,12 @@ def encode_semantic_world(semantic: SemanticWorld) -> JsonObject:
             for scenario in semantic.scenarios
         ],
         "facts": _fact_base(semantic.facts),
+        **_pool(semantic.filler, semantic.levels),
+        **(
+            {"filler_briefs": [_brief(brief) for brief in semantic.filler_briefs]}
+            if semantic.filler_briefs
+            else {}
+        ),
     }
 
 
@@ -440,7 +464,22 @@ def encode_world_spec(spec: PlantedWorldSpec) -> JsonObject:
             SCENARIO_SPECS: spec.scenario_specs_digest,
             TRUTH_MANIFEST: spec.truth_manifest_digest,
         },
+        **_pool(spec.filler, spec.levels),
     }
+
+
+def _pool(filler: Sequence[Planted[Document]], levels: Sequence[SealedLevel]) -> JsonObject:
+    """The pool and the levels as the two encodings carry them: the names are present only
+    where the world holds more than the base level alone, so a world without a pool encodes
+    as it did before pools existed and the one decoder reads both shapes."""
+    encoded: dict[str, object] = {}
+    if filler:
+        encoded["filler"] = [_planted(p, encode_document(p.entity)) for p in filler]
+    if tuple(levels) != BASE_LEVELS:
+        encoded["levels"] = [
+            {"name": level.name, "filler_count": level.filler_count} for level in levels
+        ]
+    return encoded
 
 
 def encode_scenario_specs(specs: Sequence[ScenarioSpec]) -> JsonObject:
@@ -458,6 +497,11 @@ def encode_truth_manifest(manifest: TruthManifest) -> JsonObject:
             None
             if manifest.materialization is None
             else encode_materialization(manifest.materialization)
+        ),
+        **(
+            {"filler_briefs": [_brief(brief) for brief in manifest.filler_briefs]}
+            if manifest.filler_briefs
+            else {}
         ),
     }
 

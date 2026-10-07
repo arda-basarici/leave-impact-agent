@@ -59,11 +59,12 @@ import re
 import sys
 from collections import Counter
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import date, timedelta
 from random import Random
 
 from leaveimpact.core.claims import Verdict
+from leaveimpact.core.entities import Document
 from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
 from leaveimpact.core.grounding import Grounded, derive_impacts, ground_impact
@@ -72,7 +73,7 @@ from leaveimpact.core.plans import expected_action
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.viability import assess_impact
 from leaveimpact.core.worldtime import DateSpan
-from leaveimpact.world.briefs import SectionTarget, parts_of
+from leaveimpact.world.briefs import Brief, SectionTarget, parts_of
 from leaveimpact.world.classes import SCENARIO_CLASSES
 from leaveimpact.world.construction import (
     ConstructionError,
@@ -84,12 +85,13 @@ from leaveimpact.world.construction import (
     required_count_for,
     required_sources_for,
 )
+from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, check_pool
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
 from leaveimpact.world.plan import PLANS, PlanRow, plan_tiers, unsupported_shape_problems
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
-from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Scenario
+from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Planted, Scenario
 from leaveimpact.world.slices import allocate_slices
 from leaveimpact.world.truth_facts import truth_fact_base
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
@@ -161,11 +163,15 @@ class AmbiguousScopeHandle(ConstructionError):
         self.problems = tuple(problems)
 
 
-def scope_handle_problems(scenarios: Sequence[Scenario]) -> list[str]:
+def scope_handle_problems(
+    scenarios: Sequence[Scenario], filler: Sequence[Planted[Document]] = ()
+) -> list[str]:
     """Every title a scenario uses as a handle that names more than one artifact of its kind
-    across ``scenarios``: a constraint's target (a ticket's or meeting's own title, a
-    section's document title) and every ticket, meeting or document a prose brief's facts
-    refer to, since prose names an artifact by its surface form, which is its title.
+    across ``scenarios`` and the ``filler`` pool: a constraint's target (a ticket's or
+    meeting's own title, a section's document title) and every ticket, meeting or document
+    a prose brief's facts refer to, since prose names an artifact by its surface form,
+    which is its title. Filler titles join the document count and never a handle: a
+    filler document titled like a planted one makes the planted handle ambiguous.
 
     The title book mints without replacement, so this never fires for a world the
     framework built; it is the assembly's defence against a class or helper that titles an
@@ -182,7 +188,10 @@ def scope_handle_problems(scenarios: Sequence[Scenario]) -> list[str]:
     counts = {
         "ticket": Counter(p.entity.title for s in scenarios for p in s.owned.work_items),
         "meeting": Counter(p.entity.title for s in scenarios for p in s.owned.events),
-        "document": Counter(p.entity.title for s in scenarios for p in s.owned.documents),
+        "document": Counter(
+            [p.entity.title for s in scenarios for p in s.owned.documents]
+            + [p.entity.title for p in filler]
+        ),
     }
     problems: list[str] = []
     for scenario in scenarios:
@@ -259,6 +268,12 @@ class SemanticWorld:
     ``vocabulary_digest`` the tables' fingerprint; with the seed, the organization's
     parameters and the generator version they are the provenance the manifest records.
     Two runs from one seed share this value whatever prose they go on to accept.
+
+    ``filler`` is the pool of answer-neutral documents owned by no scenario, in rank
+    order, ``filler_briefs`` the parts a model still owes the pool, and ``levels`` the
+    corpus levels sealed over it (``levels``); a world assembled without a pool holds
+    the base level alone. The three are keyword-only so a composed world's own fields
+    can follow them without defaults.
     """
 
     seed: int
@@ -272,6 +287,9 @@ class SemanticWorld:
     generator_version: GeneratorVersion
     interpreter: tuple[int, int]
     vocabulary_digest: str
+    filler: tuple[Planted[Document], ...] = field(default=(), kw_only=True)
+    filler_briefs: tuple[Brief, ...] = field(default=(), kw_only=True)
+    levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
 
     def __post_init__(self) -> None:
         if not (len(self.slices) == len(self.plan) == len(self.scenarios)):
@@ -287,13 +305,21 @@ class SemanticWorld:
             ):
                 raise ValueError(f"plan row {row.scenario_id} and its scenario disagree")
         ids = [brief.id for scenario in self.scenarios for brief in scenario.briefs]
+        ids += [brief.id for brief in self.filler_briefs]
         if len(set(ids)) != len(ids):
             raise ValueError(f"a prose target is briefed once world-wide, got {ids}")
+        check_pool(
+            self.filler,
+            self.levels,
+            self.filler_briefs,
+            (p.entity.id for scenario in self.scenarios for p in scenario.owned.documents),
+        )
 
     @property
     def pending_ids(self) -> frozenset[str]:
-        """The ids of every part a model still owes this world."""
-        return frozenset(brief.id for scenario in self.scenarios for brief in scenario.briefs)
+        """The ids of every part a model still owes this world, the pool's included."""
+        briefed = [brief.id for scenario in self.scenarios for brief in scenario.briefs]
+        return frozenset(briefed + [brief.id for brief in self.filler_briefs])
 
 
 @dataclass(frozen=True, slots=True)
@@ -345,6 +371,10 @@ class WorldSpec(SemanticWorld):
                     f"{scenario.spec.id}: authored facts evidenced by parts that do not exist: "
                     f"{unresolved}"
                 )
+        present = parts_of([], [p.entity for p in self.filler])
+        missing = sorted(brief.id for brief in self.filler_briefs if brief.id not in present)
+        if missing:
+            raise ValueError(f"the filler pool: briefed parts not composed: {missing}")
 
 
 def assemble_semantic_world(

@@ -26,7 +26,9 @@ from leaveimpact.world import (
     composition,
     construction,
     decoders,
+    filler,
     fragmented,
+    levels,
     modifiers,
     org,
     plan,
@@ -124,6 +126,7 @@ from leaveimpact.world.construction import (
     unknown_skill_pairs,
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.filler import strip_filler, with_filler, world_documents
 from leaveimpact.world.fragmented import (
     FRAGMENTED_CLASSES,
     FragmentedComposite,
@@ -131,6 +134,7 @@ from leaveimpact.world.fragmented import (
     FreeTextResponsibility,
     ReleaseCardinalityConstraint,
 )
+from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, check_pool, level_members
 from leaveimpact.world.modifiers import (
     COMPATIBLE_MODIFIERS,
     MODIFIERS,
@@ -248,6 +252,8 @@ __all__ = [
     "briefs",
     "composition",
     "construction",
+    "filler",
+    "levels",
     "decoders",
     "modifiers",
     "org",
@@ -294,8 +300,15 @@ __all__ = [
     "AssertionMode",
     "AdversarialComposite",
     "AuthoredVerdict",
+    "BASE_LEVELS",
     "Brief",
     "Bundle",
+    "SealedLevel",
+    "check_pool",
+    "level_members",
+    "strip_filler",
+    "with_filler",
+    "world_documents",
     "City",
     "CommentTarget",
     "ConcurrentLeave",

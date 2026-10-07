@@ -82,6 +82,7 @@ def compose(
                 f"the accepted body on record differs from the composed body for {differing}"
             )
     names: dict[str, str] = {employee.id: employee.name for employee in semantic.org.employees}
+    filler_sections = _by_parent(semantic.filler_briefs, SectionTarget)
     return WorldSpec(
         seed=semantic.seed,
         world_start=semantic.world_start,
@@ -96,6 +97,12 @@ def compose(
         vocabulary_digest=semantic.vocabulary_digest,
         semantic_digest=semantic_digest(semantic),
         materialization=materialization,
+        filler=tuple(
+            _with_sections(planted, filler_sections.get(planted.entity.id, ()), prose)
+            for planted in semantic.filler
+        ),
+        filler_briefs=semantic.filler_briefs,
+        levels=semantic.levels,
     )
 
 
