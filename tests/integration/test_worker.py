@@ -17,13 +17,9 @@ import time
 from collections.abc import Sequence
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
-from uuid import uuid4
 
-import psycopg
 import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
-from psycopg.conninfo import make_conninfo
-from psycopg.rows import DictRow, dict_row
 
 from leaveimpact.agent.log_events import (
     Approved,
@@ -35,7 +31,6 @@ from leaveimpact.agent.log_events import (
     kind_of,
 )
 from leaveimpact.agent.log_reader import export_of
-from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore
 from leaveimpact.agent.log_transition import calls_of
 from leaveimpact.agent.worker import (
     AutomaticApproval,
@@ -50,6 +45,7 @@ from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_timing import elapsed_ms, evidenced_active_ms
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.integration.log_store_support import Rig, rig
+from tests.integration.worker_rig import admitted, saver_on
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit import worker_support as support
@@ -72,42 +68,6 @@ _ = rig  # the fixture, imported for pytest to find
 @pytest.fixture(scope="module")
 def world() -> SealedWorld:
     return loaded_world("golden")
-
-
-def saver_on(rig: Rig) -> PostgresSaver:
-    """The synchronous saver on a connection of its own, its tables in the rig's schema (the
-    acceptance spike's accepted configuration)."""
-    connection = psycopg.Connection[DictRow].connect(
-        make_conninfo(
-            rig.url, options=f"-c search_path={rig.schema}", application_name="worker-test-saver"
-        ),
-        autocommit=True,
-        prepare_threshold=0,
-        row_factory=dict_row,
-    )
-    rig.connections[-len(rig.connections) - 1] = connection
-    saver = PostgresSaver(connection)
-    saver.setup()
-    return saver
-
-
-def admitted(rig: Rig, world: SealedWorld) -> tuple[LogStore, Any]:
-    """A store over the rig with the ledger's threshold set and the reference run admitted;
-    the frozen inputs beside it."""
-    store = rig.store()
-    store.set_threshold(
-        LEDGER,
-        PLENTY,
-        authority="operator:test",
-        registration_commit=cases.COMMIT,
-        limit_pico_usd=PLENTY,
-    )
-    inputs = support.admitted_inputs(world.context_of(world.scenarios[0]))
-    receipt = store.admit(
-        AdmissionRequest(f"req-{uuid4().hex[:12]}", inputs, support.ADMITTER, LEDGER, RULES)
-    )
-    assert isinstance(receipt, AdmissionReceipt)
-    return store, inputs
 
 
 def worker_over(
