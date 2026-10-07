@@ -12,6 +12,7 @@ from __future__ import annotations
 import hashlib
 import io
 from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, cast
@@ -140,6 +141,30 @@ def test_the_local_twin_ignores_a_staged_temporary_in_listings(tmp_path: Path) -
     local.overwrite(MUTABLE, b"p")
     (tmp_path / "bucket" / "preparing" / "abc" / "world-manifest.json.tmp").write_bytes(b"half")
     assert local.list_keys("preparing/") == (MUTABLE,)
+
+
+def test_the_local_twin_decides_a_conditional_put_by_the_filesystem_alone(tmp_path: Path) -> None:
+    """A put that read the key absent and then wrote would overwrite one that landed between
+    the two; the create is exclusive, so of several puts racing one key exactly one creates
+    and every other is a conflict, whatever the interleaving (the event log step's review
+    of the commands group named the read-then-write race)."""
+    local = LocalObjectWriter(tmp_path / "bucket")
+    key = "runs/ab/run-1-1/export-dd.json"
+
+    def put(index: int) -> PutReceipt | ObjectConflict:
+        try:
+            return local.put_if_absent(key, f"content {index}".encode())
+        except ObjectConflict as conflict:
+            return conflict
+
+    with ThreadPoolExecutor(8) as pool:
+        results = list(pool.map(put, range(8)))
+    created = [r for r in results if isinstance(r, PutReceipt)]
+    assert len(created) == 1 and created[0].outcome is PutOutcome.CREATED
+    assert all(isinstance(r, ObjectConflict) for r in results if r is not created[0])
+    held = local.get(key)
+    assert held is not None and held.version_id == created[0].version_id
+    assert not list((tmp_path / "bucket").rglob("*.tmp")), "no staged file is left behind"
 
 
 def test_the_memory_double_emulates_the_bucket_policy() -> None:
