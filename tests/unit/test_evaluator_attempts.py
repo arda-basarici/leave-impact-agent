@@ -3,8 +3,10 @@ run, else the last, chosen among the attempts numbered within the registered max
 excess attempt never counts; a gap among those leaves no counted attempt under any rule,
 the run made, unverifiable, not passed end to end and absent from the conditional reading,
 its attempts still paid for; an attempt above the maximum and an attempt after a stopping
-outcome are findings on a run still counted; and the attempt summary shows the
-infrastructure failure a recovered retry hides from the accounting."""
+outcome are findings on a run still counted; the attempt summary shows the
+infrastructure failure a recovered retry hides from the accounting; and an attempt the
+inventory lists with no export enters the history by number, leaves the run with no counted
+attempt under any rule, and is counted in the cell apart from the exported ones."""
 
 from dataclasses import replace
 
@@ -32,6 +34,7 @@ from leaveimpact.evaluator.eligibility_check import (
     ProjectedEnding,
 )
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason, Graded
+from leaveimpact.evaluator.harness_inventory import UnexportedAttempt, UnexportedStatus
 from leaveimpact.evaluator.intervals import Unresolved
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.tables import (
@@ -51,6 +54,7 @@ GAP = HistoryFinding.GAP
 EXCESS = HistoryFinding.EXCESS_ATTEMPT
 AFTER_STOP = HistoryFinding.ATTEMPT_AFTER_STOPPING_OUTCOME
 NOT_PERMITTED = HistoryFinding.ATTEMPT_NOT_PERMITTED
+UNEXPORTED = HistoryFinding.UNEXPORTED_ATTEMPT
 RUN = "run-8"
 LONE = Unresolved.FEWER_THAN_TWO_ELIGIBLE_SCENARIOS
 PASSES = Check("graded", lambda e: True if isinstance(e.outcome, Graded) else None)
@@ -334,6 +338,78 @@ def test_the_attempt_summary_counts_the_runs_carrying_each_history_finding(
     assert summary.history == ((AFTER_STOP, 1), (GAP, 1))
     accounting = accounting_of(cells_of(arm)[0], chosen)
     assert (accounting.made, accounting.graded, accounting.unverifiable_history) == (3, 2, 1)
+
+
+# --- The attempts with no export ----------------------------------------------------------------
+
+
+def unexported(attempt: int, *, open: bool = False) -> UnexportedAttempt:
+    status = UnexportedStatus.OPEN if open else UnexportedStatus.CLOSED_WITHOUT_EXPORT
+    return UnexportedAttempt(RUN, attempt, status, None, None, None)
+
+
+@pytest.mark.parametrize("rule", list(CountedAttempt))
+def test_a_run_whose_latest_attempt_has_no_export_has_no_counted_attempt(
+    failed: Evaluation, good: Evaluation, rule: CountedAttempt
+) -> None:
+    # The second attempt is open: the history is whole by number and the run is not done.
+    history = run_history(RUN, [failed], rule, 3, unexported=[unexported(2, open=True)])
+    assert (history.counted, history.findings) == (None, (UNEXPORTED,))
+    assert (history.attempts, [each.attempt for each in history.unexported]) == ((failed,), [2])
+    assert history.retried and not history.recovered
+    # Closed without export, the same; and an only attempt without export too.
+    closed = run_history(RUN, [failed], rule, 3, unexported=[unexported(2)])
+    assert (closed.counted, closed.findings) == (None, (UNEXPORTED,))
+    alone = run_history(RUN, [], rule, 3, unexported=[unexported(1)])
+    assert (alone.counted, alone.findings, alone.retried) == (None, (UNEXPORTED,), False)
+
+
+def test_an_unexported_attempt_fills_the_number_a_gap_would_have_read(
+    failed: Evaluation, good: Evaluation
+) -> None:
+    # Without the inventory, attempt three alone after a first is a gap; with the second
+    # listed as unexported it is no gap, and a successor after an unpublished predecessor is
+    # a history the harness never produces, counted on neither reading.
+    gapped = run_history(RUN, [failed, numbered(good, 3)], EARLIEST, 3)
+    assert gapped.findings == (GAP,)
+    filled = run_history(RUN, [failed, numbered(good, 3)], EARLIEST, 3, unexported=[unexported(2)])
+    assert (filled.counted, filled.findings) == (None, (UNEXPORTED,))
+    # An unexported attempt above the maximum is an excess attempt like any other.
+    excess = run_history(RUN, [failed], EARLIEST, 1, unexported=[unexported(2)])
+    assert excess.findings == (EXCESS, UNEXPORTED)
+
+
+def test_an_unexported_attempt_is_numbered_once_against_the_exported_ones(
+    good: Evaluation,
+) -> None:
+    with pytest.raises(ValueError, match=r"each number once, got \[1, 1\]"):
+        run_history(RUN, [good], EARLIEST, 3, unexported=[unexported(1)])
+    with pytest.raises(ValueError, match=r"each number once, got \[2, 2\]"):
+        run_history(RUN, [], EARLIEST, 3, unexported=[unexported(2), unexported(2)])
+
+
+def test_the_cell_counts_the_runs_with_an_unexported_attempt_and_the_attempts_apart(
+    world: SealedWorld, failed: Evaluation, good: Evaluation
+) -> None:
+    chosen = replace(plan(failed), intended_repeats=2)
+    other = relabelled(good, run_id="run-9")
+    listed = {RUN: (unexported(2, open=True),), "run-elsewhere": (unexported(1),)}
+    (arm,) = arms(world, [failed, other], chosen, unexported=listed)
+    runs = arm.scenarios[0]
+    assert [history.run_id for history in runs.histories] == [RUN, "run-9"]
+    assert (runs.counted, runs.unverifiable) == ((other,), 1)
+    cell = cells_of(arm)[0]
+    accounting = accounting_of(cell, chosen)
+    assert (accounting.made, accounting.graded, accounting.excluded) == (2, 1, ())
+    assert (accounting.unverifiable_history, accounting.with_unexported_attempts) == (1, 1)
+    assert accounting.attempts == 2
+    summary = attempt_summary_of(cell)
+    assert (summary.attempts, summary.unexported_attempts, summary.runs_retried) == (2, 1, 1)
+    assert summary.history == ((UNEXPORTED, 1),)
+    # Without the mapping nothing changes: the run's first attempt is the run again.
+    (plain,) = arms(world, [failed, other], chosen)
+    assert accounting_of(cells_of(plain)[0], chosen).with_unexported_attempts == 0
+    assert plain.scenarios[0].counted == (failed, other)
 
 
 # --- The eligibility audit ----------------------------------------------------------------------

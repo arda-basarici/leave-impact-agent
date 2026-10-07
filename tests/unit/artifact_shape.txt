@@ -40,6 +40,7 @@ analysis.arms[].cells[].accounting.with_level_findings
 analysis.arms[].cells[].accounting.with_operation_findings
 analysis.arms[].cells[].accounting.with_prefetch_findings
 analysis.arms[].cells[].accounting.with_retried_sends
+analysis.arms[].cells[].accounting.with_unexported_attempts
 analysis.arms[].cells[].attempts
 analysis.arms[].cells[].attempts.account_not_evaluated
 analysis.arms[].cells[].attempts.attempts
@@ -57,6 +58,7 @@ analysis.arms[].cells[].attempts.prefetch_not_evaluated
 analysis.arms[].cells[].attempts.record_disagreements
 analysis.arms[].cells[].attempts.runs_recovered
 analysis.arms[].cells[].attempts.runs_retried
+analysis.arms[].cells[].attempts.unexported_attempts
 analysis.arms[].cells[].attempts.with_account_findings
 analysis.arms[].cells[].attempts.with_attribution_findings
 analysis.arms[].cells[].attempts.with_call_findings

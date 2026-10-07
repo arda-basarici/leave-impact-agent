@@ -53,7 +53,11 @@ would count twice in every sum, so it is refused where the runs are grouped.
 A run's attempts are read as a history (``attempts``): the counted attempt by the plan's
 rule, and what the history shows that the retry protocol never produces. A run whose
 attempt numbers have a gap has no counted attempt: it is counted as made under its own
-reason, and no measure, check or outcome tally reads it. The accounting is over counted
+reason, and no measure, check or outcome tally reads it. So has a run the harness's
+inventory lists an attempt of with no published export (``harness_inventory``): the
+attempts are given per run id beside the evaluations, placed by the run's exported
+attempts, since the inventory holds no scenario; a run with no export at all is in no
+cell and is counted in the whole's coverage alone. The accounting is over counted
 attempts, so an infrastructure failure a retry recovered from would show nowhere in it;
 the *attempt summary* is the same tallies over every attempt, with the runs retried, the
 runs recovered and the history findings, so that a retry never hides what it replaced.
@@ -62,7 +66,7 @@ runs recovered and the history findings, so that a retry never hides what it rep
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -78,6 +82,7 @@ from leaveimpact.evaluator.grading import (
     Limited,
     LimitedReason,
 )
+from leaveimpact.evaluator.harness_inventory import UnexportedAttempt
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
 from leaveimpact.world.scenario import ScenarioClassName, Tier
@@ -168,7 +173,8 @@ class ScenarioRuns:
 
     @property
     def unverifiable(self) -> int:
-        """How many runs were made and have no counted attempt, their history holding a gap."""
+        """How many runs were made and have no counted attempt, their history holding a gap
+        or an attempt with no export."""
         return sum(history.counted is None for history in self.histories)
 
 
@@ -225,9 +231,11 @@ class Accounting:
     ``intended`` is the plan's repeats times the scenarios; ``made`` the runs present,
     ``missing`` the shortfall and ``surplus`` the runs beyond what was intended, each summed
     per scenario so that one scenario's surplus never hides another's shortfall.
-    ``unverifiable_history`` counts the runs made whose attempt numbers have a gap: they
-    are among ``made`` and in no count of how a run ended, having no counted attempt.
-    ``attempts`` counts every attempt, retries included. A structurally invalid report is
+    ``unverifiable_history`` counts the runs made whose attempt numbers have a gap or
+    whose history holds an attempt with no export: they are among ``made`` and in no count
+    of how a run ended, having no counted attempt; ``with_unexported_attempts`` counts the
+    latter among them, the runs the harness has not finished or could not publish.
+    ``attempts`` counts every exported attempt, retries included. A structurally invalid report is
     counted where its run ended: among the graded, where it was graded with zero credit, or
     among the limited. ``observed`` is over the graded
     and the limited runs, the ones whose trace was read for a condition. A run is
@@ -283,6 +291,7 @@ class Accounting:
     with_cost_findings: int
     unplaced: int
     unverifiable_history: int
+    with_unexported_attempts: int
     with_prefetch_findings: int
     prefetch_not_evaluated: int
     with_fact_findings: int
@@ -316,11 +325,15 @@ class AttemptSummary:
     unverifiable histories. ``runs_retried`` are the runs with
     more than one attempt and ``runs_recovered`` those where an attempt before the counted
     one failed by infrastructure and the counted one did not; ``history`` is how many runs
-    carry each history finding. The attempts no
-    scenario of the world could place are not here, having no run history to be read in.
+    carry each history finding, the runs with an unexported attempt among them under that
+    finding, while ``unexported_attempts`` counts those attempts themselves, which
+    ``attempts`` does not, an attempt with no export having no outcome to tally. The
+    attempts no scenario of the world could place are not here, having no run history to
+    be read in.
     """
 
     attempts: int
+    unexported_attempts: int
     graded: int
     limited: tuple[tuple[LimitedReason, int], ...]
     excluded: tuple[tuple[ExcludedReason, int], ...]
@@ -361,11 +374,16 @@ def condition_name(condition: RunCondition) -> str:
 
 
 def arms(
-    world: SealedWorld, evaluations: Iterable[Evaluation], plan: Preregistered
+    world: SealedWorld,
+    evaluations: Iterable[Evaluation],
+    plan: Preregistered,
+    *,
+    unexported: Mapping[str, Sequence[UnexportedAttempt]] | None = None,
 ) -> tuple[Arm, ...]:
     """``evaluations`` grouped into arms: by system, and within a system the normal condition
     first, then the outages by how many sources they take and by name, a condition's levels
-    by name.
+    by name. ``unexported`` gives, per run id, the attempts the inventory lists for the run
+    with no export; a run id among the evaluations takes its own into its history.
 
     Every arm the plan registers is built, with or without a run, and every arm holds every
     scenario of ``world``: a scenario a system never ran is a missing run of that arm, and
@@ -389,6 +407,7 @@ def arms(
                 scenario.key.scenario_class,
                 by_scenario.pop(scenario.spec.id, []),
                 plan,
+                {} if unexported is None else unexported,
             )
             for scenario in world.scenarios
         )
@@ -457,6 +476,9 @@ def accounting_of(cell: Cell, plan: Preregistered) -> Accounting:
         with_cost_findings=sum(bool(evaluation.metrics.cost.findings) for evaluation in counted),
         unplaced=len(cell.unplaced),
         unverifiable_history=sum(runs.unverifiable for runs in scenarios),
+        with_unexported_attempts=sum(
+            bool(history.unexported) for runs in scenarios for history in runs.histories
+        ),
         with_prefetch_findings=sum(
             bool(evaluation.metrics.prefetch.findings) for evaluation in counted
         ),
@@ -475,6 +497,7 @@ def attempt_summary_of(cell: Cell) -> AttemptSummary:
     read = [outcome for outcome in outcomes if isinstance(outcome, Graded | Limited)]
     return AttemptSummary(
         attempts=len(attempts),
+        unexported_attempts=sum(len(history.unexported) for history in histories),
         graded=sum(isinstance(outcome, Graded) for outcome in outcomes),
         limited=_tally(outcome.reason for outcome in outcomes if isinstance(outcome, Limited)),
         excluded=_tally(outcome.reason for outcome in outcomes if isinstance(outcome, Excluded)),
@@ -541,9 +564,11 @@ def _scenario_runs(
     scenario_class: ScenarioClassName,
     evaluations: Sequence[Evaluation],
     plan: Preregistered,
+    unexported: Mapping[str, Sequence[UnexportedAttempt]],
 ) -> ScenarioRuns:
-    """One scenario's evaluations as its runs: each run's history, the counted attempt of
-    each that has one, and every attempt."""
+    """One scenario's evaluations as its runs: each run's history with the unexported
+    attempts the inventory lists for it, the counted attempt of each that has one, and
+    every exported attempt."""
     by_run: dict[str, list[Evaluation]] = {}
     for evaluation in evaluations:
         by_run.setdefault(evaluation.outcome.header.run_id, []).append(evaluation)
@@ -555,7 +580,13 @@ def _scenario_runs(
                 "once"
             )
     histories = tuple(
-        run_history(run_id, by_run[run_id], plan.counted_attempt, plan.max_attempts)
+        run_history(
+            run_id,
+            by_run[run_id],
+            plan.counted_attempt,
+            plan.max_attempts,
+            unexported=unexported.get(run_id, ()),
+        )
         for run_id in sorted(by_run)
     )
     return ScenarioRuns(

@@ -44,6 +44,17 @@ or one not permitted keeps its export, its grade and its cost, and is never the 
 attempt, and neither is any attempt after it, each descending from one that should not
 exist (the event log step's ruling on new attempts): the run is counted by the rule among
 its eligible attempts before the first of them, and the finding is counted beside it.
+
+The harness's inventory lists attempts an export never reached (``harness_inventory``):
+open, or closed without a published export. They enter the history by number beside the
+exported ones, so that a run whose highest attempt has no export no longer looks whole and a
+lower one without an export no longer reads as a gap. A run with one has no counted result
+(the event log step's ruling on the job seam, part 8): it is not passed, enters no quality
+estimate, and its cost is the ledger's figures. The ruling says the latest attempt; an
+unexported attempt before an exported one is a history the harness never produces, since a
+successor waits for its predecessor's publication (the ruling on an export that will not
+construct, part 5), and a run showing it is counted on neither reading. The finding
+*unexported attempt* is reported with it.
 """
 
 from __future__ import annotations
@@ -53,6 +64,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.evaluator.grading import Excluded, ExcludedReason
+from leaveimpact.evaluator.harness_inventory import UnexportedAttempt
 from leaveimpact.evaluator.trace_metrics import Evaluation
 
 
@@ -72,6 +84,8 @@ class HistoryFinding(StrEnum):
     EXCESS_ATTEMPT = "excess_attempt"
     ATTEMPT_AFTER_STOPPING_OUTCOME = "attempt_after_stopping_outcome"
     ATTEMPT_NOT_PERMITTED = "attempt_not_permitted"
+    UNEXPORTED_ATTEMPT = "unexported_attempt"
+    """The inventory lists an attempt of the run with no published export."""
 
 
 def failed_by_infrastructure(evaluation: Evaluation) -> bool:
@@ -86,21 +100,23 @@ def failed_by_infrastructure(evaluation: Evaluation) -> bool:
 class RunHistory:
     """One run's attempts in attempt order, the one that counts, and what the history shows.
 
-    ``counted`` is ``None`` exactly when the history has a gap: the selection is
-    unverifiable and the run enters no estimate. Otherwise it is one of the attempts
-    numbered within the registered maximum and before the first its predecessor did not
-    permit.
+    ``attempts`` are the exported ones and ``unexported`` the ones the inventory lists
+    without an export, in attempt order. ``counted`` is ``None`` exactly when the history
+    has a gap or an unexported attempt: the selection is unverifiable, or the run is not
+    done, and it enters no estimate. Otherwise it is one of the attempts numbered within
+    the registered maximum and before the first its predecessor did not permit.
     """
 
     run_id: str
     attempts: tuple[Evaluation, ...]
+    unexported: tuple[UnexportedAttempt, ...]
     counted: Evaluation | None
     findings: tuple[HistoryFinding, ...]
 
     @property
     def retried(self) -> bool:
-        """Whether the run has more than one attempt."""
-        return len(self.attempts) > 1
+        """Whether the run has more than one attempt, exported or not."""
+        return len(self.attempts) + len(self.unexported) > 1
 
     @property
     def recovered(self) -> bool:
@@ -118,23 +134,32 @@ class RunHistory:
 
 
 def run_history(
-    run_id: str, attempts: Sequence[Evaluation], rule: CountedAttempt, max_attempts: int
+    run_id: str,
+    attempts: Sequence[Evaluation],
+    rule: CountedAttempt,
+    max_attempts: int,
+    *,
+    unexported: Sequence[UnexportedAttempt] = (),
 ) -> RunHistory:
-    """The history of the run ``run_id`` from its ``attempts``, each numbered once.
+    """The history of the run ``run_id`` from its exported ``attempts`` and the
+    ``unexported`` ones the inventory lists for it, each numbered once across both.
 
     Raises ``ValueError`` for a run with no attempt or one attempt number given twice, the
     caller's error and never a property of a run.
     """
     held = tuple(sorted(attempts, key=lambda attempt: attempt.outcome.header.attempt))
-    numbers = [attempt.outcome.header.attempt for attempt in held]
-    if not held or len(set(numbers)) != len(numbers):
+    without = tuple(sorted(unexported, key=lambda attempt: attempt.attempt))
+    numbers = sorted(
+        [attempt.outcome.header.attempt for attempt in held] + [each.attempt for each in without]
+    )
+    if not numbers or len(set(numbers)) != len(numbers):
         raise ValueError(f"run {run_id} has attempts, each number once, got {numbers}")
     findings: list[HistoryFinding] = []
     eligible = tuple(
         attempt for attempt in held if attempt.outcome.header.attempt <= max_attempts
     )
     owed = range(1, min(numbers[-1], max_attempts) + 1)
-    gapped = [attempt.outcome.header.attempt for attempt in eligible] != list(owed)
+    gapped = [number for number in numbers if number <= max_attempts] != list(owed)
     if gapped:
         findings.append(HistoryFinding.GAP)
     if numbers[-1] > max_attempts:
@@ -153,14 +178,16 @@ def run_history(
         findings.append(HistoryFinding.ATTEMPT_AFTER_STOPPING_OUTCOME)
     if not_permitted:
         findings.append(HistoryFinding.ATTEMPT_NOT_PERMITTED)
+    if without:
+        findings.append(HistoryFinding.UNEXPORTED_ATTEMPT)
     first_unpermitted = min([*after_stopping, *not_permitted], default=None)
     permitted = tuple(
         attempt
         for attempt in eligible
         if first_unpermitted is None or attempt.outcome.header.attempt < first_unpermitted
     )
-    counted = None if gapped else _counted(permitted, rule)
-    return RunHistory(run_id, held, counted, tuple(findings))
+    counted = None if gapped or without else _counted(permitted, rule)
+    return RunHistory(run_id, held, without, counted, tuple(findings))
 
 
 def _counted(attempts: tuple[Evaluation, ...], rule: CountedAttempt) -> Evaluation:
