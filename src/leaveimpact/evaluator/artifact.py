@@ -60,11 +60,13 @@ frozen commit is one more.
 
 from __future__ import annotations
 
+from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.attribution import attribution_table_digest
+from leaveimpact.core.inventory import Inventory
 from leaveimpact.core.jsonshape import canonical_bytes
 from leaveimpact.core.registration import (
     Amendment,
@@ -86,13 +88,27 @@ from leaveimpact.core.run_export_json import decode_export_bytes
 from leaveimpact.core.run_record import PrefetchRule
 from leaveimpact.core.run_timing import TreeState
 from leaveimpact.evaluator.analysis import Analysis, analyse
+from leaveimpact.evaluator.cells import StratumKind
 from leaveimpact.evaluator.cost_check import CostCheck, check_cost
 from leaveimpact.evaluator.ending_check import commits_differ
+from leaveimpact.evaluator.grading import ExcludedReason
+from leaveimpact.evaluator.harness_inventory import (
+    HarnessCoverage,
+    HarnessInventoryRead,
+    ObjectStanding,
+    coverage_of,
+    missing_publications,
+    open_attempts,
+    scoped_attempts,
+    standing_of,
+    unexported_attempts,
+    unexported_by_run,
+)
 from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 7
+ARTIFACT_FORMAT_VERSION = 8
 """The format of the evaluation artifact as this code writes it; 3 since an estimate states
 why a bootstrap resolved no interval and a comparison of single runs carries one, 4 since
 the analysis holds the mechanism measure and a run its fact recheck, its level check and
@@ -100,7 +116,10 @@ whether it met a contradiction without failing by defect, 5 since a run holds it
 check, its attribution check and its retried sends, and a cost ledger says which durations
 are lower bounds, 6 since the analysis lists the attempts that ran on more than one harness
 commit and an ending holds its commits, 7 since a run holds its account, count, call and
-eligibility checks and a cell counts the runs carrying each and the parts not evaluated."""
+eligibility checks and a cell counts the runs carrying each and the parts not evaluated,
+8 since the artifact names the harness inventory it read and its coverage, a listed object
+has the four standings the inventory decides, and a cell counts the runs with an attempt
+no export reached."""
 
 
 class Label(StrEnum):
@@ -125,6 +144,16 @@ class Disposition(StrEnum):
     DIRTY_HARNESS = "dirty_harness"
     MIXED_HARNESS = "mixed_harness"
     """The attempt's segments ran on more than one harness commit."""
+    SUPERSEDED = "superseded"
+    """An earlier reader's object of a listed attempt, replaced: listed and not current."""
+    PUBLICATION_UNFINISHED = "publication_unfinished"
+    """The object a listed attempt's pending or failed record names, with no record of
+    success."""
+    PUBLICATION_ORPHAN = "publication_orphan"
+    """Under a listed attempt's prefix and named by no record of it."""
+    NOT_IN_INVENTORY = "not_in_inventory"
+    """Under no listed attempt's prefix: published after the snapshot or by another harness;
+    it invalidates nothing and the evaluation, being of the snapshot, does not read it."""
 
 
 class RecordedSetting(StrEnum):
@@ -232,7 +261,9 @@ class WorldRead:
 @dataclass(frozen=True, slots=True)
 class EvaluationArtifact:
     """One evaluation: what was read, what every listed object is, and the registered tables
-    over the eligible runs. ``inventory`` is in key order."""
+    over the eligible runs. ``inventory`` is the evaluator's listing of stored objects, in
+    key order; ``harness_inventory`` names the harness's inventory the listing was held to,
+    and ``coverage`` what that inventory says was admitted against what was intended."""
 
     format_version: int
     label: Label
@@ -241,6 +272,8 @@ class EvaluationArtifact:
     evaluator: EvaluatorRevision
     registration: RegistrationRead
     inventory: tuple[InventoryEntry, ...]
+    harness_inventory: HarnessInventoryRead
+    coverage: HarnessCoverage
     analysis: Analysis
 
 
@@ -248,14 +281,26 @@ class AmbiguousRuns(ValueError):
     """Two eligible exports carry one run and attempt; the message names their keys only."""
 
 
-def cited_commits(runs: Sequence[StoredRun]) -> tuple[str, ...]:
-    """The preregistration commits the exports among ``runs`` cite, each once, in order: what
-    the caller resolves to registration bytes before the artifact is made."""
+class MissingPublications(ValueError):
+    """A published object the inventory lists is not stored as recorded; the message names
+    the keys and which of the two failed, and the store is not the snapshot's."""
+
+
+class OpenAttempts(ValueError):
+    """A reported evaluation was asked while an attempt in its scope is open; the message
+    names the runs and attempt numbers."""
+
+
+def cited_commits(runs: Sequence[StoredRun], inventory: Inventory) -> tuple[str, ...]:
+    """The preregistration commits the exports among ``runs`` cite and the registration
+    commits the attempts of ``inventory`` were admitted under, each once, in order: what the
+    caller resolves to registration bytes before the artifact is made."""
     commits: list[str] = []
     for run in runs:
         export = _decoded(run)
         if export is not None:
             commits.append(export.record.preregistration_commit)
+    commits.extend(attempt.registration_commit for attempt in inventory.attempts)
     return tuple(dict.fromkeys(commits))
 
 
@@ -265,14 +310,21 @@ def evaluation_artifact(
     runs: Sequence[StoredRun],
     registrations_at: Mapping[str, bytes | None],
     evaluator: EvaluatorRevision,
+    *,
+    inventory: Inventory,
+    inventory_read: HarnessInventoryRead,
 ) -> EvaluationArtifact:
     """The evaluation of ``runs`` against ``world`` under the registration whose bytes are
-    ``registration_content``.
+    ``registration_content``, held to the harness's ``inventory``, read as ``inventory_read``
+    says.
 
     ``registrations_at`` gives, for a cited commit, the registration file's bytes at it, or
     ``None`` (or no entry) when the commit resolves to none. Raises ``ValueError`` for a
-    registration that does not decode or that this evaluator cannot read as a plan, and
-    ``AmbiguousRuns`` for two eligible exports of one run and attempt.
+    registration that does not decode or that this evaluator cannot read as a plan,
+    ``MissingPublications`` when a published object the inventory lists is not among
+    ``runs`` with its digest, ``OpenAttempts`` for a reported evaluation while an attempt
+    in its scope is open, and ``AmbiguousRuns`` for two eligible exports of one run and
+    attempt.
     """
     registration = decode_registration_bytes(registration_content)
     bound = registration.status is RegistrationStatus.BOUND
@@ -281,21 +333,55 @@ def evaluation_artifact(
             f"the registration is bound to the world {registration.world.version}, and this "
             f"evaluation is against {world.version}"
         )
-    label = _label(registration)
-    inventory = tuple(
-        _entry(world, run, registration, registration_content, registrations_at, label)
+    missing = missing_publications(inventory, {run.key: digest(run.content) for run in runs})
+    if missing:
+        raise MissingPublications(
+            "the store is not the inventory's snapshot: "
+            + "; ".join(f"{each.key} {each.reason}" for each in missing)
+        )
+    label = label_of(registration)
+    scoped = scoped_attempts(inventory, registrations_at, registration_content)
+    held_open = open_attempts(scoped)
+    if label is Label.REPORTED and held_open:
+        raise OpenAttempts(
+            "a reported evaluation waits for every attempt in its scope to close; open: "
+            + ", ".join(f"{each.run_id} attempt {each.attempt}" for each in held_open)
+        )
+    listing = tuple(
+        _entry(world, run, registration, registration_content, registrations_at, label, inventory)
         for run in sorted(runs, key=lambda run: run.key)
     )
-    eligible = [entry for entry in inventory if entry.disposition is Disposition.ELIGIBLE]
+    eligible = [entry for entry in listing if entry.disposition is Disposition.ELIGIBLE]
     _require_unambiguous(eligible)
     evaluations = [entry.evaluation for entry in eligible if entry.evaluation is not None]
     # Out of the tables and still a trace of this world: what its reads show of a source
     # contradicting itself is evidence about the world, whatever kept it out of an estimate.
     outside = [
         (entry.key, entry.evaluation)
-        for entry in inventory
+        for entry in listing
         if entry.evaluation is not None and entry.disposition is not Disposition.ELIGIBLE
     ]
+    analysis = analyse(
+        world,
+        evaluations,
+        registration,
+        outside=outside,
+        unexported=unexported_by_run(unexported_attempts(scoped)),
+    )
+    excluded = Counter(
+        reason
+        for arm in analysis.arms
+        for cell in arm.cells
+        if cell.stratum.kind is StratumKind.OVERALL
+        for reason, count in cell.accounting.excluded
+        for _ in range(count)
+    )
+    coverage = coverage_of(
+        scoped,
+        intended=analysis.plan.intended_repeats * len(world.scenarios) * len(analysis.plan.arms),
+        failed_by_defect=excluded[ExcludedReason.FAILED_BY_DEFECT],
+        failed_by_infrastructure=excluded[ExcludedReason.FAILED_BY_INFRASTRUCTURE],
+    )
     return EvaluationArtifact(
         format_version=ARTIFACT_FORMAT_VERSION,
         label=label,
@@ -311,8 +397,10 @@ def evaluation_artifact(
             registration.world.frozen_commit,
             registration.amendment,
         ),
-        inventory=inventory,
-        analysis=analyse(world, evaluations, registration, outside=outside),
+        inventory=listing,
+        harness_inventory=inventory_read,
+        coverage=coverage,
+        analysis=analysis,
     )
 
 
@@ -430,6 +518,16 @@ def _prompts_by_role(export: RunExport) -> dict[str, frozenset[tuple[str, str]]]
     return {role: frozenset(prompts) for role, prompts in held.items()}
 
 
+_STANDINGS = {
+    ObjectStanding.SUPERSEDED: Disposition.SUPERSEDED,
+    ObjectStanding.UNFINISHED: Disposition.PUBLICATION_UNFINISHED,
+    ObjectStanding.ORPHAN: Disposition.PUBLICATION_ORPHAN,
+    ObjectStanding.UNLISTED: Disposition.NOT_IN_INVENTORY,
+}
+"""The disposition of a stored object the inventory does not hold as a listed attempt's
+current publication, decided from its key before any byte of it is read."""
+
+
 def _entry(
     world: SealedWorld,
     run: StoredRun,
@@ -437,6 +535,7 @@ def _entry(
     registration_content: bytes,
     registrations_at: Mapping[str, bytes | None],
     label: Label,
+    inventory: Inventory,
 ) -> InventoryEntry:
     read = digest(run.content)
 
@@ -451,27 +550,24 @@ def _entry(
             run.key, run.version_id, read, disposition, differing, of_run, evaluation, cost
         )
 
+    standing = standing_of(inventory, world.version, run.key)
     export = _decoded(run)
+    if standing is not ObjectStanding.CURRENT:
+        # Out of the tables by the inventory's word; an export of this world is still
+        # evaluated, for what its reads show of a source contradicting itself.
+        if export is None:
+            return entry(_STANDINGS[standing], None, None)
+        if export.context.world_version != world.version:
+            return entry(_STANDINGS[standing], None, check_cost(export))
+        evaluation = _evaluated(world, export, registration, registration_content, registrations_at)
+        return entry(_STANDINGS[standing], evaluation, evaluation.metrics.cost)
     if export is None:
         return entry(Disposition.NOT_AN_EXPORT, None, None)
     if export.context.world_version != world.version:
         return entry(Disposition.ANOTHER_WORLD, None, check_cost(export))
     record = export.record
     cited = registrations_at.get(record.preregistration_commit)
-    # A run is held to this registration's table and re-dispatch bound only when it was made
-    # under this registration. The record names the table by digest and the bound not at
-    # all, so a run of another registration with an equal table would be held to a bound
-    # it never ran under.
-    own = cited == registration_content
-    table, redispatch = registration.attribution, registration.run_accounting.redispatch
-    evaluation = evaluate_run(
-        world,
-        export,
-        table=None if not own or isinstance(table, Pending) else table,
-        redispatch=None if not own or isinstance(redispatch, Pending) else redispatch,
-        retry=registration.run_accounting.retry if own else None,
-        counting_identifiers=_counting_identifiers(registration, export) if own else None,
-    )
+    evaluation = _evaluated(world, export, registration, registration_content, registrations_at)
     cost = evaluation.metrics.cost
     if cited is None:
         return entry(Disposition.REGISTRATION_NOT_RESOLVED, evaluation, cost, (), Label.UNKNOWN)
@@ -491,6 +587,33 @@ def _entry(
     return entry(Disposition.ELIGIBLE, evaluation, cost, (), label)
 
 
+def _evaluated(
+    world: SealedWorld,
+    export: RunExport,
+    registration: Registration,
+    registration_content: bytes,
+    registrations_at: Mapping[str, bytes | None],
+) -> Evaluation:
+    """``export`` evaluated against ``world``, held to the registration's table, re-dispatch
+    bound, retry rule and counting identifiers exactly when it was made under this
+    registration."""
+    cited = registrations_at.get(export.record.preregistration_commit)
+    # A run is held to this registration's table and re-dispatch bound only when it was made
+    # under this registration. The record names the table by digest and the bound not at
+    # all, so a run of another registration with an equal table would be held to a bound
+    # it never ran under.
+    own = cited == registration_content
+    table, redispatch = registration.attribution, registration.run_accounting.redispatch
+    return evaluate_run(
+        world,
+        export,
+        table=None if not own or isinstance(table, Pending) else table,
+        redispatch=None if not own or isinstance(redispatch, Pending) else redispatch,
+        retry=registration.run_accounting.retry if own else None,
+        counting_identifiers=_counting_identifiers(registration, export) if own else None,
+    )
+
+
 def _decoded(run: StoredRun) -> RunExport | None:
     """The export ``run`` holds, or ``None`` when its bytes are not one."""
     try:
@@ -499,7 +622,10 @@ def _decoded(run: StoredRun) -> RunExport | None:
         return None
 
 
-def _label(registration: Registration) -> Label:
+def label_of(registration: Registration) -> Label:
+    """What kind of evidence an evaluation under ``registration`` is: development unless the
+    registration is bound, exploratory when it declares an amendment after a prior full
+    set of results, reported otherwise."""
     if registration.status is not RegistrationStatus.BOUND:
         return Label.DEVELOPMENT
     declared = registration.amendment
@@ -530,12 +656,15 @@ __all__ = [
     "EvaluatorRevision",
     "InventoryEntry",
     "Label",
+    "MissingPublications",
+    "OpenAttempts",
     "RegistrationRead",
     "RecordedSetting",
     "StoredRun",
     "WorldRead",
     "cited_commits",
     "evaluation_artifact",
+    "label_of",
     "require_binding",
     "setting_differences",
 ]

@@ -35,7 +35,7 @@ from leaveimpact.adapters.wiring import (
     store_readers,
     stores_from_env,
 )
-from leaveimpact.evaluator.artifact import AmbiguousRuns
+from leaveimpact.evaluator.artifact import AmbiguousRuns, MissingPublications, OpenAttempts
 from leaveimpact.evaluator.entrypoint import (
     Command,
     EvaluationRefused,
@@ -51,6 +51,8 @@ _REFUSALS = (
     RepositoryRefused,
     EvaluationRefused,
     AmbiguousRuns,
+    MissingPublications,
+    OpenAttempts,
     SealedWorldRefused,
     AccessRefused,
     ObjectStoreUnreachable,
@@ -93,6 +95,10 @@ def main(
             print(f"label={published.label.value}")
             for disposition, count in published.dispositions:
                 print(f"inventory[{disposition.value}]={count}")
+            print(f"harness_inventory={published.harness_inventory.key}")
+            coverage = published.coverage
+            for name in ("intended", "admitted", "exported", "open", "closed_without_export"):
+                print(f"coverage[{name}]={getattr(coverage, name)}")
     except _REFUSALS as refusal:
         print(f"leaveimpact.evaluator: refused: {refusal}", file=sys.stderr)
         return 1

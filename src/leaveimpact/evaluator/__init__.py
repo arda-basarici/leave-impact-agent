@@ -69,7 +69,10 @@ assigned condition and assigned corpus level, the scenario with all its runs as 
 cuts each arm at the whole, each tier and each scenario class, and keeps the accounting
 every table shows: what was
 intended, made and missing, and how each run ended, with the same tallies over every
-attempt beside it. ``attempts`` reads a run's attempts as a history: the attempt the
+attempt beside it. ``harness_inventory`` reads the inventory the harness wrote of its
+own store, named by the evaluation and verified against its name, and decides from it what
+each stored object is and which attempts never reached an export; ``attempts`` reads a
+run's attempts as a history: the attempt the
 plan's rule counts, and the gap, the excess attempt and the attempt after a stopping
 outcome a conforming harness never produces. ``run_checks`` holds the three checks a
 registration can name, and ``registered`` reads the registration for this package: its

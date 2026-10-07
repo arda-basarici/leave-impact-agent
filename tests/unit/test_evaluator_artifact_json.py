@@ -6,6 +6,7 @@ walk produces, over runs chosen to reach every type, is pinned in ``artifact_sha
 a path that appears or disappears is a change of format, made with the format version."""
 
 import json
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
 from pathlib import Path
@@ -26,6 +27,7 @@ from leaveimpact.core import (
     CoverageAction,
     Document,
     HarnessRevision,
+    InventoryAttempt,
     MalformedRecord,
     ModelCall,
     ModelCallId,
@@ -45,6 +47,7 @@ from leaveimpact.core import (
     attribution_table_digest,
     condition_id,
     cost_of_reported,
+    decode_export_bytes,
     employee_ref,
     export_bytes,
     registration_bytes,
@@ -82,6 +85,13 @@ from tests.unit.export_fixture import (
 )
 from tests.unit.format_fixtures import never_claimed
 from tests.unit.in_memory_ports import InMemoryWork
+from tests.unit.inventory_fixture import (
+    as_read,
+    closed_without_export,
+    listed,
+    open_attempt,
+    published,
+)
 from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import TABLE, decided, light, named
@@ -255,10 +265,45 @@ def _strayed(operation: Operation) -> Operation:
     return replace(operation, outcome=RecordOutcome(Observed(unsealed, outcome.record.source)))
 
 
-def artifact_of(world: SealedWorld) -> EvaluationArtifact:
+def over_inventory(
+    world: SealedWorld,
+    registration: bytes,
+    runs: Sequence[StoredRun],
+    at: Mapping[str, bytes | None],
+    revision: EvaluatorRevision,
+) -> EvaluationArtifact:
+    """The artifact over ``runs``, held to an inventory listing every object among them as
+    a published attempt at its key: the one that is no export as a run's publication, so
+    that it is read as not an export rather than as not in the inventory, and an export
+    whose run and attempt an earlier key already took as a run of its own, since these
+    runs are chosen to reach every type and not to be a harness's set, and an inventory
+    lists each attempt once."""
+    attempts: list[InventoryAttempt] = []
+    taken: set[tuple[str, int]] = set()
+    for run in runs:
+        try:
+            export = decode_export_bytes(run.content)
+        except ValueError:
+            run_id, attempt, commit = "run-8", 1, COMMIT
+        else:
+            run_id, attempt = export.run_id, export.attempt
+            commit = export.record.preregistration_commit
+        if (run_id, attempt) in taken:
+            run_id = f"{run_id}@{run.key}"
+        taken.add((run_id, attempt))
+        attempts.append(
+            published(
+                world.version, run_id, attempt, run.content, key=run.key, registration_commit=commit
+            )
+        )
+    inventory, read = as_read(listed(world.version, *attempts))
     return evaluation_artifact(
-        world, DRAFT_BYTES, stored_runs(world), {COMMIT: DRAFT_BYTES}, REVISION
+        world, registration, runs, at, revision, inventory=inventory, inventory_read=read
     )
+
+
+def artifact_of(world: SealedWorld) -> EvaluationArtifact:
+    return over_inventory(world, DRAFT_BYTES, stored_runs(world), {COMMIT: DRAFT_BYTES}, REVISION)
 
 
 @pytest.fixture(scope="module")
@@ -357,7 +402,7 @@ def stating(evaluation: Evaluation, facts: FactStages | None) -> Evaluation:
 
 
 def artifact_of_none(world: SealedWorld) -> EvaluationArtifact:
-    return evaluation_artifact(world, DRAFT_BYTES, (), {}, REVISION)
+    return over_inventory(world, DRAFT_BYTES, (), {}, REVISION)
 
 
 def held_to_a_table(world: SealedWorld) -> EvaluationArtifact:
@@ -371,7 +416,7 @@ def held_to_a_table(world: SealedWorld) -> EvaluationArtifact:
         export, record=replace(export.record, attribution_table=attribution_table_digest(TABLE))
     )
     run = StoredRun("runs/tabled", "v-runs/tabled", export_bytes(tabled))
-    return evaluation_artifact(world, registration, (run,), {COMMIT: registration}, REVISION)
+    return over_inventory(world, registration, (run,), {COMMIT: registration}, REVISION)
 
 
 def with_audit_findings(world: SealedWorld) -> EvaluationArtifact:
@@ -394,7 +439,32 @@ def with_audit_findings(world: SealedWorld) -> EvaluationArtifact:
         export, record=replace(export.record, attribution_table=attribution_table_digest(TABLE))
     )
     run = StoredRun("runs/audited", "v-runs/audited", export_bytes(tabled))
-    return evaluation_artifact(world, registration, (run,), {COMMIT: registration}, REVISION)
+    return over_inventory(world, registration, (run,), {COMMIT: registration}, REVISION)
+
+
+def with_unexported_attempts(world: SealedWorld) -> EvaluationArtifact:
+    """An artifact whose inventory lists, beside one exported run, a second attempt of it
+    still open and another run closed with a publication incident: the coverage's rows
+    for attempts no export reached, with an ending and the ledger's figures, and the cell's
+    count of runs with one."""
+    export = exported(world, world.scenarios[0], run_id="run-1")
+    run = StoredRun("runs/open", "v-runs/open", export_bytes(export))
+    held = listed(
+        world.version,
+        published(world.version, "run-1", 1, run.content, key=run.key),
+        open_attempt(world.version, "run-1", 2),
+        closed_without_export(world.version, "run-2", 1, incident=True),
+    )
+    inventory, read = as_read(held)
+    return evaluation_artifact(
+        world,
+        DRAFT_BYTES,
+        (run,),
+        {COMMIT: DRAFT_BYTES},
+        REVISION,
+        inventory=inventory,
+        inventory_read=read,
+    )
 
 
 def paths(value: object, at: str = "") -> set[str]:
@@ -434,9 +504,13 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "evaluator",
         "registration",
         "inventory",
+        "harness_inventory",
+        "coverage",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (7, "development")
+    assert (decoded["format_version"], decoded["label"]) == (8, "development")
+    assert decoded["harness_inventory"]["world_version"] == world.version
+    assert decoded["coverage"]["unexported"] == []
     assert decoded["world"]["truth_manifest"] == {
         "key": world.truth_manifest.key,
         "version_id": world.truth_manifest.version_id,
@@ -573,6 +647,7 @@ def test_every_key_path_the_walk_writes_is_the_pinned_one(
         named_systems(world, 2),
         held_to_a_table(world),
         with_audit_findings(world),
+        with_unexported_attempts(world),
     ):
         written |= paths(encode_artifact(held))
     pinned = set(SHAPE.read_text(encoding="utf-8").split())

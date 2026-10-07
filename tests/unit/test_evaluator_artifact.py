@@ -17,6 +17,7 @@ from datetime import date, timedelta
 
 import pytest
 
+from leaveimpact.adapters.object_store.layout import run_export_key, run_prefix
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
@@ -25,10 +26,12 @@ from leaveimpact.core import (
     CallSetting,
     Caps,
     HarnessRevision,
+    Inventory,
     MechanismMeasure,
     OutageAssignment,
     PrefetchRule,
     PricingBasis,
+    PublicationStatus,
     RegisteredRole,
     Registration,
     RegistrationStatus,
@@ -55,6 +58,8 @@ from leaveimpact.evaluator.artifact import (
     EvaluatorRevision,
     InventoryEntry,
     Label,
+    MissingPublications,
+    OpenAttempts,
     RecordedSetting,
     StoredRun,
     cited_commits,
@@ -71,6 +76,16 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
 from tests.unit.export_fixture import ROLE, agent_export, answered_call, export_baseline
+from tests.unit.inventory_fixture import (
+    READER,
+    as_read,
+    closed_without_export,
+    inventory_over,
+    listed,
+    open_attempt,
+    published,
+    superseded_object,
+)
 from tests.unit.reads_fixture import Recorder, full_read, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import TABLE, bound, frozen, light, named
@@ -137,9 +152,18 @@ def artifact_of(
     registration: bytes = DRAFT_BYTES,
     at: Mapping[str, bytes | None] | None = None,
     evaluator: EvaluatorRevision = UNCHANGED,
+    inventory: Inventory | None = None,
 ) -> EvaluationArtifact:
+    """The artifact over ``runs``, held to ``inventory`` or, when none is given, to one
+    listing every export among them as published at its key."""
     resolved = {COMMIT: registration} if at is None else at
-    return evaluation_artifact(world, registration, runs, resolved, evaluator)
+    held = inventory
+    if held is None:
+        held = inventory_over(world.version, {run.key: run.content for run in runs})
+    decoded, read = as_read(held)
+    return evaluation_artifact(
+        world, registration, runs, resolved, evaluator, inventory=decoded, inventory_read=read
+    )
 
 
 def only(artifact: EvaluationArtifact) -> InventoryEntry:
@@ -258,7 +282,8 @@ def test_an_object_that_is_no_export_is_listed_with_nothing_more(world: SealedWo
     export = exported(world, world.scenarios[0])
     pretty = export_bytes(export).replace(b":", b": ")
     for content in (b"not json", b"[]", pretty):
-        entry = only(artifact_of(world, StoredRun("runs/x", "v1", content)))
+        held = inventory_over(world.version, {"runs/x": content}, undecodable={"runs/x": ("x", 1)})
+        entry = only(artifact_of(world, StoredRun("runs/x", "v1", content), inventory=held))
         assert entry.disposition is Disposition.NOT_AN_EXPORT
         assert (entry.evaluation, entry.cost, entry.label) == (None, None, None)
         assert entry.digest == digest(content)
@@ -737,15 +762,33 @@ def test_a_bound_registration_is_held_to_the_frozen_one_it_names(world: SealedWo
 def test_two_eligible_exports_of_one_run_and_attempt_refuse_naming_their_keys(
     world: SealedWorld,
 ) -> None:
+    # An inventory lists one publication per attempt, so two current objects of one run
+    # and attempt can only come from a harness that published run-1's export as run-2's.
     export = exported(world, world.scenarios[0])
+    content = export_bytes(export)
+
+    def listing(second: bytes) -> Inventory:
+        return listed(
+            world.version,
+            published(world.version, "run-1", 1, content, key="runs/a"),
+            published(world.version, "run-2", 1, second, key="runs/b"),
+        )
+
     with pytest.raises(AmbiguousRuns) as refusal:
-        artifact_of(world, stored("runs/a", export), stored("runs/b", export))
+        artifact_of(
+            world, stored("runs/a", export), stored("runs/b", export), inventory=listing(content)
+        )
     assert str(refusal.value) == (
         "two eligible exports carry one run and attempt: runs/a and runs/b"
     )
     # The same identity on a run that is out of the tables anyway is no ambiguity.
     other = with_record(export, prefetch_rule=PrefetchRule("another-prefetch", DIGEST))
-    artifact = artifact_of(world, stored("runs/a", export), stored("runs/b", other))
+    artifact = artifact_of(
+        world,
+        stored("runs/a", export),
+        stored("runs/b", other),
+        inventory=listing(export_bytes(other)),
+    )
     assert [entry.disposition for entry in artifact.inventory] == [
         Disposition.ELIGIBLE,
         Disposition.SETTINGS_DIFFER,
@@ -777,5 +820,177 @@ def test_the_cited_commits_are_the_exports_own_each_once(world: SealedWorld) -> 
         stored("runs/b", elsewhere),
         stored("runs/c", export),
     ]
-    assert cited_commits(runs) == (COMMIT, OTHER_COMMIT)
-    assert cited_commits([]) == ()
+    # The three exports are one run and attempt, which an inventory lists once.
+    inventory = inventory_over(world.version, {"runs/a": runs[0].content})
+    assert cited_commits(runs, inventory) == (COMMIT, OTHER_COMMIT)
+    # The inventory's own attempts cite the commits they were admitted under, which the
+    # caller resolves too: an open attempt has no export to cite one through.
+    admitted_under = "d" * 40
+    with_open = listed(
+        world.version, open_attempt(world.version, "run-9", 1, registration_commit=admitted_under)
+    )
+    assert cited_commits(runs, with_open) == (COMMIT, OTHER_COMMIT, admitted_under)
+    assert cited_commits([], listed(world.version)) == ()
+
+
+# --- The harness inventory ---------------------------------------------------------------------
+
+
+def test_the_artifact_names_the_inventory_it_read_and_reports_its_coverage(
+    world: SealedWorld,
+) -> None:
+    run = stored("runs/a", exported(world, world.scenarios[0]))
+    artifact = artifact_of(world, run)
+    assert artifact.format_version == 8
+    inventory = inventory_over(world.version, {run.key: run.content})
+    _, read = as_read(inventory)
+    assert artifact.harness_inventory == read
+    assert (read.world_version, read.attempts, read.refused) == (world.version, 1, 0)
+    plan = artifact.analysis.plan
+    coverage = artifact.coverage
+    assert coverage.intended == plan.intended_repeats * len(world.scenarios) * len(plan.arms)
+    assert (coverage.admitted, coverage.never_admitted) == (1, coverage.intended - 1)
+    assert (coverage.attempts, coverage.exported, coverage.open) == (1, 1, 0)
+    assert (coverage.closed_without_export, coverage.publication_incidents) == (0, 0)
+    assert (coverage.failed_by_defect, coverage.failed_by_infrastructure) == (0, 0)
+    assert coverage.unexported == ()
+
+
+def test_a_stored_objects_standing_under_the_inventory_decides_its_disposition(
+    world: SealedWorld,
+) -> None:
+    first, second, third = world.scenarios[:3]
+    current = exported(world, first)
+    earlier = with_record(current, prefetch_rule=PrefetchRule("an-earlier-reader", DIGEST))
+    pending = exported(world, second, run_id="run-2")
+    later = exported(world, third, run_id="run-3")
+    current_key = run_export_key(world.version, "run-1", 1, READER)
+    earlier_key = run_export_key(world.version, "run-1", 1, "a" * 40)
+    orphan_key = run_prefix(world.version, "run-1", 1) + "stray.json"
+    pending_key = run_export_key(world.version, "run-2", 1, READER)
+    inventory = listed(
+        world.version,
+        published(
+            world.version,
+            "run-1",
+            1,
+            export_bytes(current),
+            superseded=(
+                superseded_object(
+                    world.version, "run-1", 1, export_bytes(earlier), reader_commit="a" * 40
+                ),
+            ),
+        ),
+        published(
+            world.version, "run-2", 1, export_bytes(pending), status=PublicationStatus.PENDING
+        ),
+    )
+    artifact = artifact_of(
+        world,
+        stored(current_key, current),
+        stored(earlier_key, earlier),
+        StoredRun(orphan_key, "v-stray", b"not an export"),
+        stored(pending_key, pending),
+        stored("runs/z", later),
+        inventory=inventory,
+    )
+    by_key = {entry.key: entry for entry in artifact.inventory}
+    assert by_key[current_key].disposition is Disposition.ELIGIBLE
+    assert by_key[earlier_key].disposition is Disposition.SUPERSEDED
+    assert by_key[orphan_key].disposition is Disposition.PUBLICATION_ORPHAN
+    assert by_key[pending_key].disposition is Disposition.PUBLICATION_UNFINISHED
+    assert by_key["runs/z"].disposition is Disposition.NOT_IN_INVENTORY
+    # The superseded object carries the same run and attempt as the current one, and the
+    # listing resolves what would otherwise be two eligible exports of one attempt.
+    assert by_key[earlier_key].evaluation is not None
+    assert by_key[pending_key].evaluation is not None
+    assert by_key["runs/z"].evaluation is not None and by_key["runs/z"].label is None
+    assert (by_key[orphan_key].evaluation, by_key[orphan_key].cost) == (None, None)
+    assert made(artifact) == 1
+    # The coverage is the inventory's: run-2 is admitted and unexported, run-3 unknown to it.
+    coverage = artifact.coverage
+    assert (coverage.admitted, coverage.exported, coverage.closed_without_export) == (2, 1, 1)
+    assert [(each.run_id, each.publication) for each in coverage.unexported] == [
+        ("run-2", PublicationStatus.PENDING)
+    ]
+
+
+def test_a_listed_publication_absent_or_changed_refuses_the_evaluation(
+    world: SealedWorld,
+) -> None:
+    export = exported(world, world.scenarios[0])
+    inventory = inventory_over(world.version, {"runs/a": export_bytes(export)})
+    with pytest.raises(MissingPublications) as absent:
+        artifact_of(world, inventory=inventory)
+    assert str(absent.value) == (
+        "the store is not the inventory's snapshot: runs/a is not in the listing"
+    )
+    changed = with_record(export, prefetch_rule=PrefetchRule("another", DIGEST))
+    with pytest.raises(MissingPublications, match="runs/a holds other bytes than recorded"):
+        artifact_of(world, stored("runs/a", changed), inventory=inventory)
+
+
+def test_a_reported_evaluation_waits_for_open_attempts_in_its_scope_and_others_count_them(
+    world: SealedWorld,
+) -> None:
+    registration = bound_to(world)
+    content = registration_bytes(registration)
+    run = stored("runs/a", exported(world, world.scenarios[0], registration=registration))
+    exports = {run.key: run.content}
+    in_scope = open_attempt(world.version, "run-2", 1)
+    with pytest.raises(OpenAttempts, match="open: run-2 attempt 1$"):
+        artifact_of(
+            world,
+            run,
+            registration=content,
+            inventory=inventory_over(world.version, exports, extra=(in_scope,)),
+        )
+    # An open attempt admitted under another registration blocks nothing.
+    elsewhere = open_attempt(world.version, "run-2", 1, registration_commit=OTHER_COMMIT)
+    artifact = artifact_of(
+        world,
+        run,
+        registration=content,
+        inventory=inventory_over(world.version, exports, extra=(elsewhere,)),
+    )
+    assert artifact.label is Label.REPORTED and artifact.coverage.open == 0
+    # Under a draft the same open attempt is counted and refuses nothing.
+    draft_run = stored("runs/a", exported(world, world.scenarios[0]))
+    held = inventory_over(world.version, {draft_run.key: draft_run.content}, extra=(in_scope,))
+    development = artifact_of(world, draft_run, inventory=held)
+    assert development.label is Label.DEVELOPMENT
+    assert (development.coverage.open, development.coverage.admitted) == (1, 2)
+    # Closed without export refuses nothing under any label.
+    closed = closed_without_export(world.version, "run-2", 1, incident=True)
+    reported = artifact_of(
+        world,
+        run,
+        registration=content,
+        inventory=inventory_over(world.version, exports, extra=(closed,)),
+    )
+    assert (reported.coverage.closed_without_export, reported.coverage.publication_incidents) == (
+        1,
+        1,
+    )
+
+
+def test_an_attempt_the_inventory_lists_without_an_export_leaves_its_run_uncounted(
+    world: SealedWorld,
+) -> None:
+    run = stored("runs/a", exported(world, world.scenarios[0]))
+    second = open_attempt(world.version, "run-1", 2)
+    held = inventory_over(world.version, {run.key: run.content}, extra=(second,))
+    artifact = artifact_of(world, run, inventory=held)
+    assert only(artifact).disposition is Disposition.ELIGIBLE
+    assert made(artifact) == 1
+    whole = [
+        cell.accounting
+        for arm in artifact.analysis.arms
+        for cell in arm.cells
+        if cell.stratum.kind is StratumKind.OVERALL and cell.accounting.made
+    ]
+    (accounting,) = whole
+    assert (accounting.graded, accounting.with_unexported_attempts) == (0, 1)
+    assert accounting.unverifiable_history == 1
+    assert [(each.run_id, each.attempt) for each in artifact.coverage.unexported] == [("run-1", 2)]
+    assert (artifact.coverage.attempts, artifact.coverage.open) == (2, 1)

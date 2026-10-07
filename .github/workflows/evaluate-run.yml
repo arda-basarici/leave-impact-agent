@@ -8,9 +8,11 @@
 #
 # Two commands. `prove` loads the world and counts the retrieval targets per registered
 # condition; it draws no scenario, the registration tuning on none of its world's; it
-# writes nothing, and it is what the first dispatch runs. `evaluate` lists every object under the world's runs
-# prefix, grades each export, and publishes the artifact; it refuses an empty listing and
-# a dirty checkout.
+# writes nothing, and it is what the first dispatch runs. `evaluate` reads the harness
+# inventory the dispatch names by digest, lists every object under the world's runs
+# prefix, grades each export, and publishes the artifact; it refuses an empty listing, a
+# dirty checkout, an inventory that is absent or misnamed, a listed export the store does
+# not hold as recorded, and an open attempt in its scope under a reported label.
 #
 # The log of this job is public and the world is sealed. The entry point prints a world
 # version, totals, keys and labels; a refusal by its message,
@@ -39,6 +41,11 @@ on:
         options:
           - prove
           - evaluate
+      inventory:
+        description: for evaluate, the 64-hex digest of the harness inventory to read (the write-inventory command prints it)
+        required: false
+        type: string
+        default: ""
 permissions: {}
 
 concurrency:
@@ -154,12 +161,13 @@ jobs:
           LEAVE_IMPACT_AWS_REGION: eu-central-1
           INPUT_WORLD_VERSION: ${{ inputs.world_version }}
           INPUT_COMMAND: ${{ inputs.command }}
+          INPUT_INVENTORY: ${{ inputs.inventory }}
         # The log goes to the runner's temporary directory, never into the checkout: the
         # evaluate command refuses a tree that differs from its commit.
         run: |
           set -euo pipefail
           status=0
-          uv run python -m leaveimpact.evaluator "$INPUT_COMMAND" --world-version "$INPUT_WORLD_VERSION" 2>&1 | tee "$RUNNER_TEMP/evaluate.log" || status=$?
+          uv run python -m leaveimpact.evaluator "$INPUT_COMMAND" --world-version "$INPUT_WORLD_VERSION"             ${INPUT_INVENTORY:+--inventory "$INPUT_INVENTORY"} 2>&1 | tee "$RUNNER_TEMP/evaluate.log" || status=$?
           {
             echo "## Evaluation job: ${INPUT_COMMAND}"
             echo

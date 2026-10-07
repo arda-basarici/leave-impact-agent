@@ -50,7 +50,7 @@ system under one condition are differenced, the answers being the same at both.
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -86,6 +86,7 @@ from leaveimpact.evaluator.diagnostics import (
     degraded_table,
     repeat_consistency,
 )
+from leaveimpact.evaluator.harness_inventory import UnexportedAttempt
 from leaveimpact.evaluator.headroom import Headroom, headroom_at
 from leaveimpact.evaluator.incidents import (
     Incident,
@@ -277,19 +278,22 @@ def analyse(
     registration: Registration,
     *,
     outside: Sequence[tuple[str, Evaluation]] = (),
+    unexported: Mapping[str, Sequence[UnexportedAttempt]] | None = None,
 ) -> Analysis:
     """What ``registration`` reports of ``evaluations`` against ``world``.
 
     ``outside`` are the evaluated exports of this world that are out of the tables, each
     with its key in the store. They enter no arm and no estimate; the incidents are read
-    from them as from every other trace.
+    from them as from every other trace. ``unexported`` gives, per run id, the attempts
+    the harness's inventory lists with no export, which a run's history takes beside its
+    exported ones (``cells``).
 
     Raises ``ValueError`` for what the projection refuses: a name this evaluator does not
     hold, a prefetch or an anchor table that is not this code's, no cell that can be built.
     """
     projection = preregistered(registration)
     plan = projection.plan
-    built = arms(world, evaluations, plan)
+    built = arms(world, evaluations, plan, unexported=unexported)
     incidents = incidents_of(built, outside)
     reading = _Reading(
         registration,
