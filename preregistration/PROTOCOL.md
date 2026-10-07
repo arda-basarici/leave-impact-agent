@@ -126,6 +126,19 @@ retry recovered from still shows. A run whose attempt numbers have a gap within 
 has no attempt that can be shown to be the counted one: it keeps its grade and its cost,
 enters no quality estimate, and is counted under its own reason.
 
+Whether a run may be attempted again is one function over the closed vocabulary of
+endings, run by the harness at admission and by the evaluator over the exported attempts.
+A new attempt needs the predecessor closed, its export published, the registered maximum
+not reached, and a rule that names its ending: a completed or capped attempt permits none,
+a defect permits none, an infrastructure failure at a send follows the attribution table's
+row, a bound exhausted with the last dispatch unresolved permits one, and an abandonment
+permits one exactly when the attempt's log holds no dispatch intent, so an operator cannot
+choose which attempt counts by abandoning one whose answer was seen. A run with an attempt
+the harness inventory lists and no published export of it, open or closed with no export,
+has no counted attempt either; it is counted in the whole and in no cell, since the
+inventory holds no scenario, and a publication incident is reported apart from a graded
+failure, an infrastructure failure and a run never admitted.
+
 What a model dispatch observed and how the measurement reads it are recorded apart. The
 reading is the attribution table's: behaviour of the system, an infrastructure fault, or a
 defect of the harness, with whether the call may be dispatched again inside the run and
@@ -144,8 +157,9 @@ being held to the level's sealed membership; a level the world seals no membersh
 counted as not evaluated, which is not a run with no finding. And a run whose reads
 contradicted each other and that did not fail by defect.
 
-And three about what a record states of itself. A run whose record gives an active time
-above its elapsed time, segments on more than one harness commit, or an approval digest
+And five about what a record states of itself. A run whose record gives an active time
+above its elapsed time, a terminal instant before its admission, segments on more than
+one harness commit, a fenced generation not its segment count, or an approval digest
 that is not the digest of the claims it exports. A run with a dispatch whose recorded
 reading is not the registered table's, or that was dispatched again where its row allows
 none or beyond the registered bound; a run held to no table, because the table's rows are
@@ -265,8 +279,17 @@ evaluation; no run labels itself.
 A run enters the tables only when the registration at the commit it cites has the same
 bytes as the evaluator's own, and what the run recorded of its own execution is what the
 registration says. A run that fails either keeps its grade and its cost in the
-evaluation's inventory and enters no table. Under a bound registration a run from a
+evaluation's listing and enters no table. Under a bound registration a run from a
 harness with uncommitted changes stays out as well.
+
+An evaluation names the harness inventory it was held to, by the digest of the inventory's
+bytes, and refuses to run without one. Every export the inventory lists as published has
+to be stored as recorded, or the evaluation is refused; under a bound registration no
+in-scope attempt may be open, while an evaluation under a draft or a frozen one counts an
+open attempt and refuses nothing. A stored object the inventory does not list as a current
+publication is placed by its key, superseded, unfinished, an orphan or outside the
+inventory, and enters no table; one published after the inventory's snapshot invalidates
+nothing, since the evaluation is of the snapshot.
 
 ## When something goes wrong
 
@@ -290,6 +313,15 @@ A second incident is about an attempt and no scenario. An attempt whose segments
 more than one harness commit is listed with its run, its attempt and the commits, whether
 its run is in the tables or out of them for any reason. It marks no scenario and enters no
 comparison's count.
+
+A third thing is reported apart and is an incident of no scenario. The log fixes what
+happened and publication fixes what evidence can be delivered: an attempt whose export
+would not construct or could not be published keeps the ending its log gives and is listed
+with that ending, the incident and the ledger's figures as three numbers, known
+consumption, retained liability and their total, since a retained worst case is not
+established cost and an absent export is not zero cost. Its run has no counted attempt,
+and a repaired export supports a new inventory and a new evaluation while the earlier one
+stands as what was available at its snapshot.
 
 A change to the registration after full-set results exist is an amendment: the old
 numbers stay, further results on the same world are exploratory, and confirmation needs
