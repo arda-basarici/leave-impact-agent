@@ -81,6 +81,17 @@ def test_a_world_assembled_without_a_pool_seals_the_base_level_alone(
     assert semantic.levels == BASE_LEVELS
 
 
+def test_a_composed_world_takes_no_pool_and_gives_none_up(semantic: SemanticWorld) -> None:
+    """A composed world's digest and record are of the world it was composed from, so a pool
+    changed after composition is provenance the resume path refuses: attach before composing."""
+    bodies = stand_in_bodies(semantic)
+    composed = compose(semantic, bodies, record_for(bodies))
+    with pytest.raises(TypeError, match="before composition"):
+        with_filler(composed, filler_documents(semantic, 1))
+    with pytest.raises(TypeError, match="before composition"):
+        strip_filler(composed)
+
+
 # --- The invariants ------------------------------------------------------------------------
 
 

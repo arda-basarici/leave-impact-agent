@@ -402,11 +402,20 @@ class _Without:
         return self._documents.held_document_ids() - {DocumentId(self._missing)}
 
 
-def test_the_filler_pool_is_held_to_exactness_like_every_planted_document(world: WorldSpec) -> None:
-    from leaveimpact.world import bundle, with_filler
+def test_the_filler_pool_is_held_to_exactness_like_every_planted_document() -> None:
+    from datetime import date
+
+    from leaveimpact.world import (
+        DEFAULT_PARAMS,
+        assemble_semantic_world,
+        bundle,
+        compose,
+        with_filler,
+    )
     from tests.unit.filler_fixture import filler_documents
 
-    padded = with_filler(world, filler_documents(world, 2))
+    semantic = assemble_semantic_world(7, DEFAULT_PARAMS, date(2026, 1, 1))
+    padded = compose(with_filler(semantic, filler_documents(semantic, 2)), {}, None)
     sealed_padded = bundle(padded)
     fakes = FakePreparation()
     manifest = realize(padded, sealed_padded, prepared(sealed_padded), fakes, MemoryStore())

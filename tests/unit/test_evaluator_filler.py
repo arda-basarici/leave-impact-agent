@@ -16,8 +16,12 @@ from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.retrieval_targets import retrieval_targets
 from leaveimpact.evaluator.sealed_world import SealedWorld, WorldNotIndexed, load_sealed_world
 from leaveimpact.evaluator.world_index import ProblemKind
-from leaveimpact.world import Scenario, bundle
+from leaveimpact.world import DEFAULT_PARAMS, Scenario, assemble_semantic_world, bundle, compose
+from tests.unit.filler_fixture import padded_world, stand_in_bodies
+from tests.unit.prose_fixture import record_for
 from tests.unit.throwaway_world import (
+    REFERENCE_SEED,
+    WORLD_START,
     composed_world_with_filler,
     loaded_world,
     loaded_world_with_filler,
@@ -67,6 +71,9 @@ def test_every_key_and_every_retrieval_target_is_unchanged_by_the_pool(
 
 def test_a_filler_title_inside_a_planted_requirement_clause_refuses_the_world_at_load() -> None:
     world = composed_world_with_filler(3)
+    semantic = padded_world(
+        assemble_semantic_world(REFERENCE_SEED, DEFAULT_PARAMS, WORLD_START, "golden")
+    )
     clause = next(iter(world.scenarios[10].key.constraints)).clause_id
     text = next(
         section.text
@@ -76,9 +83,12 @@ def test_a_filler_title_inside_a_planted_requirement_clause_refuses_the_world_at
         if section.id == clause
     )
     assert clause_ref(clause).kind is EntityKind.CLAUSE
-    [first, *rest] = world.filler
+    [first, *rest] = semantic.filler
     collided = replace(first, entity=replace(first.entity, title=text[:12]))
-    sealed = bundle(replace(world, filler=(collided, *rest)))
+    bodies = stand_in_bodies(semantic)
+    sealed = bundle(
+        compose(replace(semantic, filler=(collided, *rest)), bodies, record_for(bodies))
+    )
     stores = sealed_stores(sealed)
     with pytest.raises(WorldNotIndexed) as refused:
         load_sealed_world(sealed.world_version, stores.truth, stores.world)

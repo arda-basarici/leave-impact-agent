@@ -261,11 +261,12 @@ def test_an_object_read_back_with_other_bytes_is_refused_before_the_manifest(
 def test_a_world_with_a_pool_seals_one_object_per_filler_document_and_receipts_each(
     world: WorldSpec,
 ) -> None:
-    from leaveimpact.world import with_filler
+    from leaveimpact.world import assemble_semantic_world, compose, with_filler
     from tests.unit.filler_fixture import filler_documents
 
-    pool = filler_documents(world, 2)
-    padded = with_filler(world, pool)
+    semantic = assemble_semantic_world(7, DEFAULT_PARAMS, date(2026, 1, 1))
+    pool = filler_documents(semantic, 2)
+    padded = compose(with_filler(semantic, pool), {}, None)
     sealed_padded = bundle(padded)
     buckets = Buckets()
     result, _ = run(padded, sealed_padded, buckets)

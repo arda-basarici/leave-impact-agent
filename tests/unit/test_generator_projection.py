@@ -242,12 +242,9 @@ def test_a_dead_source_raises_through(entities: WorldEntities) -> None:
 
 def test_the_entities_hold_the_filler_pool_after_the_owned_documents() -> None:
     """The projectors read one enumeration of the world's documents, the pool's included."""
-    from leaveimpact.world import with_filler
-    from tests.unit.filler_fixture import filler_documents
-    from tests.unit.throwaway_world import composed_world
+    from tests.unit.throwaway_world import composed_world, composed_world_with_filler
 
-    world = composed_world()
-    pool = filler_documents(world, 2)
-    padded = with_filler(world, pool)
-    owned = [p.entity for s in world.scenarios for p in s.owned.documents]
-    assert world_entities(padded).documents == (*owned, *(p.entity for p in pool))
+    plain, padded = composed_world(), composed_world_with_filler(2)
+    owned = [p.entity for s in plain.scenarios for p in s.owned.documents]
+    assert len(padded.filler) == 2
+    assert world_entities(padded).documents == (*owned, *(p.entity for p in padded.filler))
