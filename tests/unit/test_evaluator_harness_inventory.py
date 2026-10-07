@@ -18,6 +18,7 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.evaluator.harness_inventory import (
     ObjectStanding,
     UnexportedStatus,
+    attempts_of_world,
     coverage_of,
     in_scope,
     is_inventory_object,
@@ -147,10 +148,9 @@ def test_every_published_object_is_present_with_its_digest_or_named_as_missing()
         closed_without_export(VERSION, "run-4", 1, incident=True),
     )
     first, second = (run_export_key(VERSION, run, 1, READER) for run in ("run-1", "run-2"))
-    assert (
-        missing_publications(inventory, {first: digest_of(EXPORT), second: digest_of(other)}) == ()
-    )
-    found = missing_publications(inventory, {first: digest_of(b"changed")})
+    held = {first: digest_of(EXPORT), second: digest_of(other)}
+    assert missing_publications(inventory, VERSION, held) == ()
+    found = missing_publications(inventory, VERSION, {first: digest_of(b"changed")})
     assert [(each.run_id, each.key, each.absent) for each in found] == [
         ("run-1", first, False),
         ("run-2", second, True),
@@ -171,9 +171,28 @@ def test_an_attempt_is_in_scope_when_its_commit_resolves_to_the_evaluations_regi
     assert not in_scope(unresolved, AT, REGISTRATION)
     assert in_scope(other, AT, OTHER_REGISTRATION)
     inventory = listed(VERSION, own, other, unresolved)
-    assert scoped_attempts(inventory, AT, REGISTRATION) == (own,)
+    assert scoped_attempts(inventory, VERSION, AT, REGISTRATION) == (own,)
     assert open_attempts(inventory.attempts) == (own, other, unresolved)
-    assert open_attempts(scoped_attempts(inventory, AT, OTHER_REGISTRATION)) == (other,)
+    assert open_attempts(scoped_attempts(inventory, VERSION, AT, OTHER_REGISTRATION)) == (other,)
+
+
+def test_the_inventory_lists_every_world_and_an_evaluation_is_held_to_its_own() -> None:
+    # The store holds the deployment's every attempt; the evaluation lists one world's prefix,
+    # so the other world's publication is never in its listing and refuses nothing, and a
+    # foreign open attempt under the same registration is neither admitted nor open here.
+    mine = published(VERSION, "run-1", 1, EXPORT)
+    theirs = published(OTHER_VERSION, "run-9", 1, b"theirs")
+    foreign_open = open_attempt(OTHER_VERSION, "run-8", 1)
+    inventory = listed(VERSION, mine, theirs, foreign_open)
+    assert attempts_of_world(inventory, VERSION) == (mine,)
+    assert attempts_of_world(inventory, OTHER_VERSION) == (foreign_open, theirs)
+    listing = {run_export_key(VERSION, "run-1", 1, READER): digest_of(EXPORT)}
+    assert missing_publications(inventory, VERSION, listing) == ()
+    assert [m.run_id for m in missing_publications(inventory, OTHER_VERSION, {})] == ["run-9"]
+    scoped = scoped_attempts(inventory, VERSION, AT, REGISTRATION)
+    assert scoped == (mine,)
+    coverage = coverage_of(scoped, intended=1, failed_by_defect=0, failed_by_infrastructure=0)
+    assert (coverage.admitted, coverage.open) == (1, 0)
 
 
 def test_the_attempts_with_no_export_carry_their_status_ending_record_and_figures() -> None:
@@ -220,7 +239,7 @@ def test_coverage_counts_the_runs_against_the_intended_and_the_attempts_by_what_
         closed_without_export(VERSION, "run-4", 1, incident=True),
         open_attempt(VERSION, "run-9", 1, registration_commit=OTHER_COMMIT),
     )
-    scoped = scoped_attempts(inventory, AT, REGISTRATION)
+    scoped = scoped_attempts(inventory, VERSION, AT, REGISTRATION)
     coverage = coverage_of(scoped, intended=6, failed_by_defect=1, failed_by_infrastructure=0)
     assert (coverage.intended, coverage.admitted) == (6, 4)
     assert (coverage.never_admitted, coverage.admitted_beyond_intended) == (2, 0)

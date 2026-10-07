@@ -994,3 +994,23 @@ def test_an_attempt_the_inventory_lists_without_an_export_leaves_its_run_uncount
     assert accounting.unverifiable_history == 1
     assert [(each.run_id, each.attempt) for each in artifact.coverage.unexported] == [("run-1", 2)]
     assert (artifact.coverage.attempts, artifact.coverage.open) == (2, 1)
+
+
+def test_the_inventory_lists_every_world_and_the_artifact_is_held_to_its_own(
+    world: SealedWorld,
+) -> None:
+    # The store holds the deployment's every attempt: another world's published export is
+    # never under this world's prefix and refuses nothing, and its open attempt under the
+    # same registration is neither admitted nor open here.
+    run = stored("runs/a", exported(world, world.scenarios[0]))
+    other = WorldVersion("f" * 64)
+    held = inventory_over(
+        world.version,
+        {run.key: run.content},
+        extra=(published(other, "run-9", 1, b"theirs"), open_attempt(other, "run-8", 1)),
+    )
+    artifact = artifact_of(world, run, inventory=held)
+    assert artifact.harness_inventory.attempts == 3
+    assert (artifact.coverage.admitted, artifact.coverage.open) == (1, 0)
+    assert only(artifact).disposition is Disposition.ELIGIBLE
+

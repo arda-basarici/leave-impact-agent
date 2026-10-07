@@ -333,14 +333,16 @@ def evaluation_artifact(
             f"the registration is bound to the world {registration.world.version}, and this "
             f"evaluation is against {world.version}"
         )
-    missing = missing_publications(inventory, {run.key: digest(run.content) for run in runs})
+    missing = missing_publications(
+        inventory, world.version, {run.key: digest(run.content) for run in runs}
+    )
     if missing:
         raise MissingPublications(
             "the store is not the inventory's snapshot: "
             + "; ".join(f"{each.key} {each.reason}" for each in missing)
         )
     label = label_of(registration)
-    scoped = scoped_attempts(inventory, registrations_at, registration_content)
+    scoped = scoped_attempts(inventory, world.version, registrations_at, registration_content)
     held_open = open_attempts(scoped)
     if label is Label.REPORTED and held_open:
         raise OpenAttempts(

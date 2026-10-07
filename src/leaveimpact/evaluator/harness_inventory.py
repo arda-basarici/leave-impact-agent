@@ -16,11 +16,16 @@ the inventory then settles, and this module decides from it with nothing else:
   other object under a listed attempt's prefix is an orphan; an object under no listed
   attempt's prefix is unlisted, published after the snapshot or by another harness, and
   invalidates nothing, since the evaluation is of the snapshot (part 9's last sentence).
-- *Whether the store is the snapshot's*: every published object listed is present with its
-  digest, or the evaluation is refused by the key's name (part 6).
-- *Which attempts are the evaluation's*: those whose registration commit resolves to the
-  evaluation's own registration bytes, the rule an export is held to (``artifact``), the
-  inventory carrying no scenario content that could place one in an arm.
+- *Whether the store is the snapshot's*: every published object listed for this world is
+  present with its digest, or the evaluation is refused by the key's name (part 6). The
+  inventory lists every attempt the store holds, of every world the deployment ran
+  (part 5), and the evaluation lists one world's prefix, so the inventory is narrowed to
+  the world's attempts before anything is held to it (the second sitting's review, first
+  finding: a mixed-world inventory refused a valid evaluation, and a foreign open attempt
+  counted as admitted).
+- *Which attempts are the evaluation's*: those of this world whose registration commit
+  resolves to the evaluation's own registration bytes, the rule an export is held to
+  (``artifact``), the inventory carrying no scenario content that could place one in an arm.
 - *The attempts with no export* (part 8): open, or closed without a published record, each
   with its ending and the ledger's three figures, which the attempt history takes beside
   the exported ones so that a run with one has no counted result, and the whole's
@@ -109,6 +114,13 @@ def is_inventory_object(version: WorldVersion, key: str) -> bool:
     return key.startswith(inventory_prefix(version))
 
 
+def attempts_of_world(inventory: Inventory, version: WorldVersion) -> tuple[InventoryAttempt, ...]:
+    """The attempts of ``inventory`` admitted for the world ``version``, in the inventory's
+    order: what an evaluation of that world is held to, the other worlds' being listed and
+    none of its concern."""
+    return tuple(attempt for attempt in inventory.attempts if attempt.world_version == version)
+
+
 # --- The standing of a stored key ----------------------------------------------------------
 
 
@@ -161,13 +173,14 @@ class MissingPublication:
 
 
 def missing_publications(
-    inventory: Inventory, digests: Mapping[str, str]
+    inventory: Inventory, version: WorldVersion, digests: Mapping[str, str]
 ) -> tuple[MissingPublication, ...]:
-    """Every published object ``inventory`` lists that ``digests``, the listed keys with the
-    digest of the bytes read at each, does not hold as recorded, in the inventory's order.
-    Empty exactly when the store is the snapshot's."""
+    """Every published object ``inventory`` lists for the world ``version`` that ``digests``,
+    the listed keys with the digest of the bytes read at each, does not hold as recorded,
+    in the inventory's order. Empty exactly when the store is the snapshot's for that
+    world."""
     missing: list[MissingPublication] = []
-    for attempt in inventory.attempts:
+    for attempt in attempts_of_world(inventory, version):
         publication = attempt.publication
         if publication is None or publication.status is not PublicationStatus.PUBLISHED:
             continue
@@ -196,13 +209,15 @@ def in_scope(
 
 def scoped_attempts(
     inventory: Inventory,
+    version: WorldVersion,
     registrations_at: Mapping[str, bytes | None],
     registration_content: bytes,
 ) -> tuple[InventoryAttempt, ...]:
-    """The attempts of ``inventory`` in this evaluation's scope, in the inventory's order."""
+    """The attempts of ``inventory`` in this evaluation's scope, of the world ``version`` and
+    under its registration, in the inventory's order."""
     return tuple(
         attempt
-        for attempt in inventory.attempts
+        for attempt in attempts_of_world(inventory, version)
         if in_scope(attempt, registrations_at, registration_content)
     )
 
@@ -342,6 +357,7 @@ __all__ = [
     "ObjectStanding",
     "UnexportedAttempt",
     "UnexportedStatus",
+    "attempts_of_world",
     "coverage_of",
     "in_scope",
     "is_inventory_object",
