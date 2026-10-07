@@ -127,6 +127,42 @@ def test_the_entry_sets_the_threshold_publishes_and_writes_the_inventory(
     ]
 
 
+def test_the_entry_imports_spend_made_outside_the_log_into_the_ledger(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The acceptance spike's spend enters the ledger through this command once the price
+    table prices its captured sends; here the entry's shape: the head where absent, the
+    imported entry, and the threshold set afterwards counting it in the total."""
+    store = rig.store()
+    status = entry.main(
+        [
+            "import-spend",
+            "--ledger",
+            "ledger-import",
+            "--amount",
+            "250",
+            "--authority",
+            "import:spike-2026-10-04",
+            "--registration-commit",
+            cases.COMMIT,
+        ],
+        {},
+        store,
+    )
+    assert status == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "imported=ledger-import",
+        "revision=1",
+        "amount_pico_usd=250",
+        "total_after_pico_usd=250",
+    ]
+    view = store.ledger_view("ledger-import")
+    (imported,) = view.entries
+    assert (imported.kind.value, imported.authority) == ("imported", "import:spike-2026-10-04")
+    assert view.head.total_pico_usd == 250 and view.head.threshold_pico_usd is None
+    assert store.open_attempts() == ()
+
+
 def test_a_publication_recorded_as_failed_exits_1_with_its_record_printed(
     rig: Rig, world: SealedWorld, tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:

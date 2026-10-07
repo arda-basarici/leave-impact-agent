@@ -814,6 +814,27 @@ class LogStore:
             self._boundary("before-commit")
             return entry
 
+    def import_spend(
+        self, ledger_id: str, amount_pico_usd: int, *, authority: str, registration_commit: str
+    ) -> LedgerEntry:
+        """Spend made outside the log added to the ledger's total (the ruling on the ledger,
+        part 7: the ``imported`` entry), the head created where absent; the authority names
+        who established the amount and from what, since the entry has no attempt to point
+        at. The acceptance spike's sends are the first such spend."""
+        require_opaque_id(ledger_id, "a ledger id")
+        require_integer(amount_pico_usd, "the imported spend in pico-dollars", minimum=1)
+        with self._guarded() as conn, conn.transaction():
+            conn.execute(_INSERT_HEAD, (ledger_id,))
+            head = self._lock_head(conn, ledger_id)
+            assert head is not None
+            self._boundary("locked")
+            entry, after = ledger.imported(
+                head, amount_pico_usd, authority=authority, registration_commit=registration_commit
+            )
+            self._write_entry(conn, ledger_id, entry, after, self._clock(conn))
+            self._boundary("before-commit")
+            return entry
+
     def ledger_view(self, ledger_id: str) -> LedgerView:
         """The head and every entry in one transaction; the head must be what its entries
         fold to."""

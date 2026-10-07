@@ -17,6 +17,7 @@ from leaveimpact.agent import __main__ as job
 from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivery,
+    ImportRequest,
     InventoryRequest,
     PublishRequest,
     ThresholdRequest,
@@ -80,6 +81,21 @@ def test_each_command_parses_to_its_request() -> None:
         {},
     )
     assert threshold.request == ThresholdRequest("l", 5, "operator:x", cases.COMMIT, 9)
+    imported = job.parse_request(
+        [
+            "import-spend",
+            "--ledger",
+            "l",
+            "--amount",
+            "12",
+            "--authority",
+            "import:spike-2026-10-04",
+            "--registration-commit",
+            cases.COMMIT,
+        ],
+        {},
+    )
+    assert imported.request == ImportRequest("l", 12, "import:spike-2026-10-04", cases.COMMIT)
     admitting = job.parse_request(["admit", "--request", "req.json"], {})
     assert admitting.request == job.AdmitFile(Path("req.json"))
 

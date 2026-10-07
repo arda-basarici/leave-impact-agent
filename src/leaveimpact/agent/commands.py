@@ -457,6 +457,35 @@ class ThresholdRequest:
         require_integer(self.limit_pico_usd, "the registered limit in pico-dollars")
 
 
+@dataclass(frozen=True, slots=True)
+class ImportRequest:
+    """Add spend made outside the log to a ledger's total: the amount, who established it
+    and from what (the authority string carries the provenance, the entry having no attempt
+    to point at), and the registration commit it is imported under."""
+
+    ledger_id: str
+    amount_pico_usd: int
+    authority: str
+    registration_commit: str
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.ledger_id, "a ledger id")
+        require_integer(self.amount_pico_usd, "the imported spend in pico-dollars", minimum=1)
+        require_opaque_id(self.authority, "the authority")
+        require_commit(self.registration_commit, "the registration commit")
+
+
+def import_spend(request: ImportRequest, store: LogStore) -> LedgerEntry:
+    """The ledger's ``imported`` entry for spend the log never saw; nothing refuses it but
+    the request's own construction."""
+    return store.import_spend(
+        request.ledger_id,
+        request.amount_pico_usd,
+        authority=request.authority,
+        registration_commit=request.registration_commit,
+    )
+
+
 def set_threshold(request: ThresholdRequest, store: LogStore) -> LedgerEntry | CommandRefused:
     """The ledger's threshold entry, or the store's refusal as a value (above the limit, or
     below the committed total)."""
@@ -478,6 +507,7 @@ __all__ = [
     "ApprovalDelivery",
     "AttemptAbandoned",
     "CommandRefused",
+    "ImportRequest",
     "InventoryRequest",
     "InventoryWritten",
     "PublishRequest",
@@ -488,6 +518,7 @@ __all__ = [
     "abandon",
     "admit",
     "deliver_approval",
+    "import_spend",
     "publish",
     "set_threshold",
     "work",

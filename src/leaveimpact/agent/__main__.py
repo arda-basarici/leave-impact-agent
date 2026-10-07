@@ -10,7 +10,8 @@ here reads a clock.
 The commands: ``admit`` takes the request from a file (the request identity, the admitter,
 the ledger, and the frozen inputs as the admission event encodes them), since the agent
 decodes no scenario and the file is written by a launcher that may; ``deliver-approval``,
-``abandon``, ``publish``, ``inventory`` and ``set-threshold`` take their fields as flags.
+``abandon``, ``publish``, ``inventory``, ``set-threshold`` and ``import-spend`` take their
+fields as flags.
 ``work`` waits for the first composition it could run, the investigator graph's.
 
 The job's log is public, which decides what this module prints: a result as the fields its
@@ -50,12 +51,14 @@ from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivery,
     CommandRefused,
+    ImportRequest,
     InventoryRequest,
     PublishRequest,
     ThresholdRequest,
     abandon,
     admit,
     deliver_approval,
+    import_spend,
     publish,
     set_threshold,
     write_inventory,
@@ -92,6 +95,7 @@ class Command(StrEnum):
     PUBLISH = "publish"
     INVENTORY = "inventory"
     SET_THRESHOLD = "set-threshold"
+    IMPORT_SPEND = "import-spend"
 
 
 @dataclass(frozen=True, slots=True)
@@ -108,6 +112,7 @@ type Request = (
     | PublishRequest
     | InventoryRequest
     | ThresholdRequest
+    | ImportRequest
 )
 
 
@@ -118,6 +123,7 @@ type Resolved = (
     | PublishRequest
     | InventoryRequest
     | ThresholdRequest
+    | ImportRequest
 )
 
 
@@ -182,6 +188,15 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     setting.add_argument("--authority", required=True, help="who sets it")
     setting.add_argument("--registration-commit", required=True, help="the registration's commit")
     setting.add_argument("--limit", required=True, type=int, help="the registered limit")
+    importing = commands.add_parser(Command.IMPORT_SPEND.value)
+    importing.add_argument("--ledger", required=True, help="the ledger id")
+    importing.add_argument(
+        "--amount", required=True, type=int, help="the spend made outside the log, pico-dollars"
+    )
+    importing.add_argument(
+        "--authority", required=True, help="who established the amount, and from what"
+    )
+    importing.add_argument("--registration-commit", required=True, help="the registration's commit")
     try:
         parsed = parser.parse_args(argv)
     except (argparse.ArgumentError, SystemExit) as error:
@@ -222,6 +237,10 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
                 parsed.authority,
                 parsed.registration_commit,
                 parsed.limit,
+            )
+        case Command.IMPORT_SPEND:
+            return ImportRequest(
+                parsed.ledger, parsed.amount, parsed.authority, parsed.registration_commit
             )
 
 
@@ -398,6 +417,14 @@ def _run(
                 f"threshold={request.ledger_id}",
                 f"revision={entry.revision}",
                 f"amount_pico_usd={entry.amount_pico_usd}",
+            ]
+        case ImportRequest():
+            entry = import_spend(request, store)
+            return 0, [
+                f"imported={request.ledger_id}",
+                f"revision={entry.revision}",
+                f"amount_pico_usd={entry.amount_pico_usd}",
+                f"total_after_pico_usd={entry.total_after_pico_usd}",
             ]
 
 
