@@ -49,6 +49,8 @@ row; a kill point is named `<family>#<occurrence in its process>`.
 | `dispatch_intent:locked` | the count; no intent, no send | the intent is appended and sent once |
 | `dispatch_intent:decided` | as above | as above |
 | `dispatch_intent:before-commit` | as above | as above |
+| `send:before` | the intent committed; nothing sent | the intent stays unresolved, a dispatch authorized and never sent; the recovery sends under the next number and the call stands on it; the sends across every child are the reference's, the killed child having sent nothing (the close's review, second finding: the reconciliation had required a send per committed intent) |
+| `send:after` | the intent; the response arrived and is lost before the outcome's lock | as `dispatch_outcome:locked` |
 | `dispatch_outcome:locked` | the intent; the response arrived and is lost | the intent stays unresolved; a second intent under the next number is sent (one more send), answered, and the call stands on it |
 | `dispatch_outcome:decided` | as above | as above |
 | `dispatch_outcome:before-commit` | as above | as above |
@@ -107,6 +109,8 @@ on 2026-10-07 before the first run.
 | Family | Durable at the boundary | Recovery, forecast |
 |---|---|---|
 | the families before the model's answer: `load:read`, the segment start, the operations, the count's start and outcome, the dispatch intent | as the first reference's | as the first reference's; the run then fails at the third dispatch as the reference did |
+| `send:before` | the intent committed; nothing sent | at dispatch 1 or 2: the intent stays unresolved and counts against the bound, the recovery sends under the next number up to the third and fails there; two sends in all. At dispatch 3: the call is at its maximum with its last dispatch unresolved and never sent, the recovery sends nothing and fails by the unresolved reading; two sends in all |
+| `send:after` | the intent; the throttle arrived and is lost before the outcome's lock | as `dispatch_outcome:locked` |
 | `dispatch_outcome:locked` | the intent; the throttle arrived and is lost | at dispatch 1 or 2 (occurrences 1 and 2): the intent stays unresolved and counts against the bound, the recovery dispatches the next number up to the third, each throttled, and fails at the third dispatch's send; the sends across every child are three, one per committed intent, so no send beyond the reference's. At dispatch 3 (occurrence 3): the call is at its maximum with its last dispatch unresolved, so the recovery sends nothing and fails at the third dispatch's send by the unresolved reading; the settled events are the reference's, the closing event's reason differs |
 | `dispatch_outcome:decided` | as above | as above |
 | `dispatch_outcome:before-commit` | as above | as above |
@@ -203,3 +207,11 @@ nothing; the object's bytes are the reader's export of the closed log.
   rows, the family test red on this section's text, which had grouped families in one cell
   and used wildcards the reader does not parse; the rows were rewritten one family each and
   the matrix rerun, 469 of 469 in twelve minutes forty-six.
+- **2026-10-07, the close's review (its second finding):** the reconciliation had required
+  one send per committed intent, and a kill between an intent's commit and its send, a
+  dispatch authorized and never sent, which the ruling on the fence allows, had no row and
+  would have been refused. The model client's send is crossed as `send:before` and
+  `send:after` on both references, the invariant reads a resolved intent sent once and an
+  in-flight one at most once, and the first run with the two families passed 503 of 503
+  rows in fifteen minutes twenty-seven (the two-call reference 116 crossings, the throttled
+  one 86).

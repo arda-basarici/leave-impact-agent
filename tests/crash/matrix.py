@@ -610,11 +610,17 @@ def reconcile(
         found.append(f"{len(settled_entries)} settled ledger entries")
     sends = sum(line.get("witness") == "send" for line in lines)
     intents = sum(kind is EventKind.DISPATCH_INTENT for kind in kinds)
-    # A send follows its committed intent and nothing else sends, so the sends across every
-    # child equal the intents the final log holds (the completing reference's plus one per
-    # lost outcome, the throttled one's capped by the maximum).
-    if sends != intents:
-        found.append(f"{sends} sends, expected one per committed intent, {intents}")
+    in_flight = sum(1 for key in final_pending if _is_dispatch_key(key))
+    # A send follows its committed intent and nothing else sends: a resolved intent was
+    # sent exactly once, and an intent left in flight zero times (killed between its
+    # commit and the send, a dispatch authorized and never sent, which the ruling on the
+    # fence allows) or once (its response lost). The close's review found the equality
+    # this replaced refusing the never-sent case.
+    if not intents - in_flight <= sends <= intents:
+        found.append(
+            f"{sends} sends for {intents} committed intents with {in_flight} in flight: a "
+            f"resolved intent is sent once and an in-flight one at most once"
+        )
     for key in final_pending:
         if _is_dispatch_key(key):
             call, number = key

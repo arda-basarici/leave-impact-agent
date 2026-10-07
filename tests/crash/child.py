@@ -17,8 +17,9 @@ What is seamed, and how it is named: the store's ``boundary`` fires as ``<kind>:
 the kind being the event the command writes (``load:read`` for the worker's load,
 ``publication_pending:before-commit`` for the publish command's record); the saver's two
 write methods as ``checkpoint:before``, ``checkpoint:after``, ``writes:before`` and
-``writes:after``; the approval handoff's two points as the worker names them; the object
-store's conditional put as ``put:before`` and ``put:after``. Witnessed: every send with the
+``writes:after``; the approval handoff's two points as the worker names them; the model
+client's send as ``send:before`` and ``send:after``; the object store's conditional put
+as ``put:before`` and ``put:after``. Witnessed: every send with the
 request's digest, every response returned, every port read with the tool it served, and
 every receipt the store gave for a held event.
 """
@@ -250,13 +251,18 @@ class SeamedSaver(PostgresSaver):
 
 
 class WitnessedClient(ScriptedClient):
-    """The scripted client with each send and each returned response witnessed."""
+    """The scripted client with each send and each returned response witnessed, and the
+    send crossed before and after: between a committed intent and its send a kill leaves
+    a dispatch authorized and never sent, which the ruling on the fence allows and the
+    reconciliation once refused (the close's review, second finding)."""
 
     def send(self, requested_profile: str, body: Any) -> Sent:
         digest = support.request_digest(body)
+        injector.cross("send:before")
         injector.witness("send", digest=digest)
         sent = super().send(requested_profile, body)
         injector.witness("response", digest=digest)
+        injector.cross("send:after")
         return sent
 
 
