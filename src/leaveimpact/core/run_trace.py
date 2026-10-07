@@ -343,7 +343,7 @@ class Operation:
         object.__setattr__(self, "arguments", frozen_json(dict(self.arguments), "arguments"))
         if self.source is None and not isinstance(self.outcome, RefusedCallOutcome):
             raise ValueError("an accepted read names its source; only a refused call may name none")
-        for record in _records_of(self.outcome):
+        for record in records_of(self.outcome):
             if record.source is not self.source:
                 raise ValueError(
                     f"a record read from {record.source.value} in an operation on {_name(self)}"
@@ -358,7 +358,9 @@ class Operation:
             )
 
 
-def _records_of(outcome: Outcome) -> tuple[Observed[Entity], ...]:
+def records_of(outcome: Outcome) -> tuple[Observed[Entity], ...]:
+    """The records a completed read returned: one, a sequence, or none; the one
+    reading every consumer of an outcome's records shares."""
     if isinstance(outcome, RecordOutcome):
         return (outcome.record,)
     if isinstance(outcome, RecordsOutcome):

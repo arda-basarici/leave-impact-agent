@@ -49,7 +49,6 @@ from leaveimpact.core.coverage import KindSlice, SliceStatus
 from leaveimpact.core.entities import Leave
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import EmployeeId
-from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.read_condition import ObservedCondition
 from leaveimpact.core.read_projection import StructuredReads, project_reads
 from leaveimpact.core.refs import EntityRef
@@ -61,6 +60,7 @@ from leaveimpact.core.run_trace import (
     OperationId,
     RecordOutcome,
     RecordsOutcome,
+    records_of,
 )
 from leaveimpact.core.worldtime import RunContext
 
@@ -176,7 +176,7 @@ def _defect(
                 )
             )
         for ref in projection.underivable:
-            if any(record.ref == ref for record in _records_of(operation)):
+            if any(record.ref == ref for record in records_of(operation.outcome)):
                 found.append(
                     (index, _failure(operation, f"no fact could be made from {_named(ref)}"))
                 )
@@ -202,15 +202,6 @@ def _defect(
     if not found:
         return None
     return min(found, key=lambda item: item[0])[1]
-
-
-def _records_of(operation: Operation) -> tuple[Observed[Entity], ...]:
-    outcome = operation.outcome
-    if isinstance(outcome, RecordOutcome):
-        return (outcome.record,)
-    if isinstance(outcome, RecordsOutcome):
-        return outcome.records
-    return ()
 
 
 def _failure(operation: Operation, reason: str) -> Failure:

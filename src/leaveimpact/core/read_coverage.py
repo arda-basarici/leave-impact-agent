@@ -78,11 +78,11 @@ from leaveimpact.core.refs import EntityRef, clause_ref, comment_ref
 from leaveimpact.core.run_trace import (
     AbsentOutcome,
     Operation,
-    Outcome,
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
     UnreachableOutcome,
+    records_of,
     thawed_json,
 )
 from leaveimpact.core.tools import (
@@ -219,7 +219,7 @@ def supplied_by(operation: Operation) -> Supplied:
         return Supplied(failed=outcome.source)
     if not isinstance(outcome, RecordOutcome | AbsentOutcome | RecordsOutcome):
         return Supplied()
-    records = _records_of(outcome)
+    records = records_of(outcome)
     asked = _what_was_asked(operation)
     if asked is None:
         return Supplied(records=records)
@@ -392,18 +392,9 @@ def _not_as_declared(
         shape = Cardinality.SEQUENCE if sequence else Cardinality.SINGLE
         if declared.cardinality is not shape:
             mismatches.append(ToolMismatch.CARDINALITY)
-        if any(record.kind is not declared.entity_kind for record in _records_of(outcome)):
+        if any(record.kind is not declared.entity_kind for record in records_of(outcome)):
             mismatches.append(ToolMismatch.RECORD_KIND)
     return tuple(mismatches)
-
-
-def _records_of(outcome: Outcome) -> tuple[Observed[Entity], ...]:
-    """The records a completed read returned: one, a sequence, or none."""
-    if isinstance(outcome, RecordOutcome):
-        return (outcome.record,)
-    if isinstance(outcome, RecordsOutcome):
-        return outcome.records
-    return ()
 
 
 def _merged_days(windows: list[DateSpan]) -> tuple[DateSpan, ...]:
