@@ -7,6 +7,144 @@ decisions it feeds.
 
 ---
 
+## 2026-10-07 — A harness that writes its own inventory lets the evaluator catch its mistakes, and the limit of that was written down before the first one was caught
+
+*M2, the event log step's last build group and its close: the inventory the harness
+publishes of its runs, what the evaluator holds a listing to under it, and what that
+arrangement proves. Feeds: the M2 report's harness and evaluation sections, on what the
+evaluator's independence rests on; and the limitations section, for the stated limit.*
+
+The evaluator reads exports from a bucket and the harness writes them, and until this
+group nothing told the evaluator what the harness had meant to write. A run that never
+reached an export was invisible: not a missing run, since the registration's roster
+shows those, but an admitted attempt whose process died, whose export would not
+construct, or whose upload was never acknowledged. The design interview ruled that the
+harness publishes an inventory beside its exports, an object identified by the digest of
+its own bytes (the event log step's ruling on the job seam, part 5), and in the same
+ruling wrote down what such an inventory cannot do. A harness-written inventory lets a
+separate evaluator find implementation mistakes and inconsistencies. It does not prove
+that every admission was logged, that events describe what happened, or that nothing was
+spent outside the ledger, and protection against a harness that omits would need an
+observation the harness does not write, which the project has none of (part 7 of the
+same ruling). That sentence is the report's, and it was fixed before the build so that
+no later success could quietly widen it.
+
+The first thing the build learned was that the publisher cannot verify its own work. The
+ruling had said an object found uploaded with no record of success is verified and
+adopted. The platform contract gives the instance one put under the runs prefix, no get
+and no list, so a read-back is refused where the publisher runs. The writer gained a
+fourth outcome, present and unverified, returned exactly when the create was refused as
+present and the verifying read was refused by access; the publish command adopts it only
+under its own pending record naming that key and that digest, where the key can hold
+nothing else, and the verification became the evaluator's presence check, made by the
+one principal that can read. The contract decided the shape, not the ruling.
+
+The second sitting built the evaluator's side and the external reviewer found three
+things on its commit (`4f02b3e`), each reproduced on the tree before triage and each
+adopted (`ca2dfaa`, `7433341`, `3e68152`). The inventory lists every attempt the store
+holds, of every world, and the evaluation had been held to all of it: an inventory
+naming another world's export refused the evaluation, and an open attempt of another
+world counted as admitted here. A decoder's message reached the public log through a
+status field's "got" clause, one day after the same lesson had been applied to the
+agent's entry point and not carried to the evaluator's. And an inventory whose only
+attempt had closed without an export could not report that incident, because the refusal
+of an empty listing fired before the inventory was consulted. None of the three was
+found by the build's forecasts; all three were histories the rulings allow and no
+fixture held.
+
+Two amendments to the counting followed from reading the ruling against the build. A run
+with any attempt the inventory lists and no export of it has no counted attempt, which
+is wider than the ruling's "latest attempt open or unexported": a successor after an
+unpublished predecessor is a history the publication rule forbids, so a run showing one
+is not one to count on either reading. And publication incidents and runs never admitted
+are reported apart from graded failures and infrastructure failures, in one place,
+because quality among graded runs alone favours the system whose hard runs go missing
+most often. The first real export, produced by the real store, worker, publish and
+inventory commands and evaluated under the inventory they wrote
+(`tests/integration/test_evaluator_real_export.py`), came back listed as current with
+coverage one of one and out of the tables for its settings, the fixtures' record naming
+values the draft registration leaves pending. The forecast had said eligible. The guess
+was about the registration and not about the inventory, and the test now asserts the
+standing and the coverage, which the inventory decides, and not the disposition.
+
+[BUILT, NOT YET LIVE. Every number above is a test's on the development store. The first
+live publication is step 14's, and it is also the first observation of the instance's
+refused read-back; the first live evaluation names the inventory the write-inventory
+command printed. What would revise this entry: an inventory the evaluator reads from the
+real bucket that does not decode, or a live run whose coverage disagrees with the
+registration's roster in a way the four standings cannot name.]
+
+Figure: a stored object's five standings under the inventory, as a decision tree from its
+key.
+
+## 2026-10-07 — One reference run passed a crash matrix that could not have failed on the faults the review then found, so the matrix got a second run that stops by infrastructure
+
+*M2, the event log step's worker and commands groups and its close: the crash matrix
+that kills the real harness at every boundary it crosses, and what one scripted run can
+and cannot show. Feeds: the M2 report's harness section, on recovery evidence; and the
+methodology section, on forecast-first acceptance.*
+
+The matrix's rule is the acceptance spike's: every kill point is named and its outcome
+forecast in a manifest before the run (`tests/crash/MANIFEST.md`), and a row the run
+contradicts is a named finding, never a silent edit. A child process runs the real
+worker over the real store, the parent kills it at one crossing, a second child
+recovers, and the reconciliation compares the final log and export with an uninterrupted
+reference. The first run on 2026-10-06 held 130 rows and passed 126. The four that
+failed were the framework saver's crossings of the terminal step: they come after the
+closing event has committed, so the recovering child found the attempt closed and left
+it, where the forecast had every recovery completing the run itself. The worker was
+right, by the ruling that a closed attempt only finishes publication; the forecast had
+been written as if every crossing preceded the closure. The first run in CI found a
+second thing: a kill on the saver's background thread landed between a port read and its
+append on the main thread, so the recovery read once more and the row counted one read
+above the forecast, and the invariant was restated per process (a killed child's reads
+exceed its logged operations by at most one, a completing child's equal them).
+
+Both findings were the build's own. The external reviewer's, on 2026-10-07, were of
+another kind: a run with a source outage and a run with a re-dispatch were outside the
+one reference script, so a 130-row matrix had passed over the replay's ordinal shift
+under an outage and the recovery's skipped delay, two real faults in the worker that
+unit tests then held (the review's findings 2 and 4). A matrix is only as wide as the
+histories its references produce. The same review's sixth finding changed how recovery
+rows are chosen: their targets had been read off the reference's suffix, and a lost
+outcome makes the recovery append an intent or a count start the suffix never holds, so
+the targets are now scouted from each sampled kill's own recovery path, which took the
+worker's rows to 303. The commands joined with 14 families of their own, and the whole
+stood at 317 rows in nine minutes ten (the manifest's findings section).
+
+The close paid the sixth finding's debt with a second reference: the same two-call turns
+with every dispatch of the first call answered by a throttle, so the call is dispatched
+three times under the fixtures' policy, exhausts it, and the attempt fails by
+infrastructure at the third dispatch's send, with no model read, no approval and no
+claims. It crosses 80 boundaries and, with its recovery rows, makes 152 rows; every one
+passed on its first run, restricted to those rows before the full matrix (2026-10-07,
+the manifest's second-reference section, forecasts written first). The forecast worth
+recording is the one about the bound: a kill that loses the third dispatch's outcome
+leaves a call at its maximum with its last dispatch unresolved, so the recovery sends
+nothing and fails by the unresolved reading, and the settled events are the reference's
+while the closing event's reason differs. It held.
+
+Making the second reference fit exposed an assumption in the reconciliation itself. The
+completing reference's length formula counted every lost outcome as one extra event,
+because that reference always re-dispatches a lost call; a call at its maximum does not,
+so the formula was wrong for the new run on exactly the rows that make it worth having.
+It was replaced by checks stated per call: every dispatch but the in-flight ones has its
+outcome, the dispatches made are the reference's plus one per lost outcome and never
+past the registered maximum, the sends across every child equal the intents the final
+log holds, and the closing kind appears as often as the reference's. Those are the
+rulings' own sentences, where the formula had been a count that happened to agree with
+them on one run.
+
+The full matrix then ran whole: 469 rows, every one passing, in twelve minutes forty-six (the
+manifest's findings section, the run of 2026-10-07 at the step's close). Its one red was
+the manifest's own text, not a row: the new section had grouped families in one cell,
+which the manifest's reader does not parse, and the rows were rewritten one family each.
+What would revise this entry: a third reference, with an outage, finding what the second
+could not.
+
+Figure: the matrix's growth by run, rows against the faults each stage could and could not
+reach.
+
 ## 2026-10-05 — The durable checkpoint was kept and stopped being what recovery reads
 
 *M2, the design interview for the event log and job seam: how a run attempt is recovered
