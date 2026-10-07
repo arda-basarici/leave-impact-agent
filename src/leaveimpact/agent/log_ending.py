@@ -34,7 +34,6 @@ evidence, and eligibility is not granted on one the table disowns.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from enum import StrEnum
 
 from leaveimpact.agent.log_events import (
     Abandoned,
@@ -67,6 +66,7 @@ from leaveimpact.core.run_ending import (
     HarnessSiteName,
     InputBoundSite,
     OperationSite,
+    SegmentStatus,
 )
 from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_record import Failure, FailureCategory, TerminalStatus
@@ -141,14 +141,6 @@ def approval_of(state: AttemptState) -> Approval:
 
 
 # --- Status ----------------------------------------------------------------------------------
-
-
-class SegmentStatus(StrEnum):
-    """Where the attempt's execution stands; a member is the wire format."""
-
-    NEVER_STARTED = "never_started"
-    OPEN = "open"
-    STOPPED = "stopped"
 
 
 @dataclass(frozen=True, slots=True)

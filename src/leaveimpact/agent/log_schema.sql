@@ -1,7 +1,8 @@
 -- The event log's tables: the attempt rows the store locks, the events they own, the
--- admission requests, the shared ledger and the publication records. Schema version 2
+-- admission requests, the shared ledger and the publication records. Schema version 3
 -- (the version advances with every change to this file that lands in a commit; 2 added
--- the admission request's inputs digest and ledger).
+-- the admission request's inputs digest and ledger; 3 let a publication record hold no
+-- object, for a reader that could not build the export).
 --
 -- Idempotent DDL, applied whole by the store's ensure_schema as bootstrap, never as
 -- migration (the event log step's ruling on placement and acceptance, part 3): no ALTER
@@ -101,7 +102,9 @@ CREATE TABLE IF NOT EXISTS ledger_entry (
 );
 
 -- One publication record per attempt, apart from the log: pending, published or failed
--- with its incident; published is never left.
+-- with its incident; published is never left. The object's identity and digest are null
+-- together, exactly for a failure before any object was intended (the reader raised
+-- while building the export: the sixth history of the export format's design pass).
 CREATE TABLE IF NOT EXISTS publication (
     run_id                  text        NOT NULL,
     attempt                 integer     NOT NULL,
@@ -109,8 +112,8 @@ CREATE TABLE IF NOT EXISTS publication (
     reader_commit           text        NOT NULL,
     export_format           integer     NOT NULL,
     log_digest              text        NOT NULL,
-    object_identity         text        NOT NULL,
-    object_digest           text        NOT NULL,
+    object_identity         text,
+    object_digest           text,
     incident                text,
     repaired_from_commit    text,
     recorded_at             timestamptz NOT NULL,

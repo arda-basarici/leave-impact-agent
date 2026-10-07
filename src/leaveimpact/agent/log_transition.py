@@ -373,7 +373,7 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
         )
     if state.closed is not None:
         return Refused(f"the attempt is closed at position {state.closed.position}")
-    mismatch = _rules_differ(inputs, rules)
+    mismatch = rules_differ(inputs, rules)
     if mismatch is not None:
         return Refused(mismatch)
     event = logged.event
@@ -981,7 +981,10 @@ def _held_under(state: AttemptState, key: EventKey) -> LoggedEvent | None:
     return None
 
 
-def _rules_differ(inputs: FrozenInputs, rules: Rules) -> str | None:
+def rules_differ(inputs: FrozenInputs, rules: Rules) -> str | None:
+    """Why ``rules`` are not the ones ``inputs`` froze, or ``None`` when they are: the
+    transition refuses every event after the admission on this, and the inventory's builder
+    lists an attempt it cannot fold on it."""
     if inputs.attribution_table is None:
         if rules.table is not None or rules.redispatch is not None:
             return "a system that calls no model registers no table and no policy"
@@ -1046,6 +1049,7 @@ def _request(logged: LoggedEvent) -> ApprovalRequested:
 
 __all__ = [
     "Appended",
+    "rules_differ",
     "AttemptState",
     "CallEvents",
     "CountEvents",

@@ -68,7 +68,6 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager, suppress
 from dataclasses import dataclass, replace
 from datetime import datetime
-from enum import StrEnum
 from importlib import resources
 from typing import Any
 
@@ -76,6 +75,14 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from leaveimpact.agent import ledger
+from leaveimpact.agent.inventory import (
+    PublicationRecord,
+    RefusedRequest,
+    SnapshotAttempt,
+    SnapshotEntry,
+    SnapshotLedger,
+    StoreSnapshot,
+)
 from leaveimpact.agent.ledger import LedgerEntry, LedgerHead
 from leaveimpact.agent.log_ending import eligibility_ending_of
 from leaveimpact.agent.log_events import (
@@ -113,6 +120,7 @@ from leaveimpact.agent.log_transition import (
     next_state,
 )
 from leaveimpact.core.eligibility import new_attempt_eligibility
+from leaveimpact.core.inventory import PublicationStatus
 from leaveimpact.core.jsonshape import (
     JsonObject,
     as_object,
@@ -128,7 +136,7 @@ from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_instant, encode_instant
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """The schema this code writes and reads; a connection to another version is refused. The
 number names the layout and nothing else: it advances with every change to the DDL that
 lands in a commit, whether or not any database holds the layout before it (the store
@@ -223,34 +231,6 @@ class LedgerView:
 
     head: LedgerHead
     entries: tuple[LedgerEntry, ...]
-
-
-class PublicationState(StrEnum):
-    """Where an attempt's publication stands; a member is the stored form."""
-
-    PENDING = "pending"
-    PUBLISHED = "published"
-    FAILED = "failed"
-
-
-@dataclass(frozen=True, slots=True)
-class PublicationRecord:
-    """The ruling on the job seam's part 4: one per attempt, apart from the log. The reader's
-    commit and export format, the closed log's digest, the object's identity and digest, the
-    state, the incident of the last failure and, when a pending record replaced a failed
-    one under another reader, the commit it repaired."""
-
-    run_id: str
-    attempt: int
-    state: PublicationState
-    reader_commit: str
-    export_format: int
-    log_digest: str
-    object_identity: str
-    object_digest: str
-    incident: str | None
-    repaired_from_commit: str | None
-    recorded_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -354,6 +334,20 @@ _UPSERT_PUBLICATION = """
         recorded_at = EXCLUDED.recorded_at
 """
 _SELECT_VERSION = "SELECT version FROM log_schema"
+_SNAPSHOT_ISOLATION = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
+_SNAPSHOT_ATTEMPTS = """
+    SELECT run_id, attempt, generation, segments, positions, closed, log_format, ledger_id
+    FROM attempt ORDER BY run_id, attempt
+"""
+_SNAPSHOT_ENTRIES = """
+    SELECT revision, kind, run_id, attempt, amount_pico_usd, total_after_pico_usd, authority,
+           registration_commit, reason, recorded_at
+    FROM ledger_entry WHERE ledger_id = %s AND revision <= %s ORDER BY revision
+"""
+_SNAPSHOT_REFUSED = """
+    SELECT request_id, run_id, attempt, result, recorded_at FROM admission_request
+    WHERE outcome = 'refused' ORDER BY recorded_at, request_id
+"""
 _INSERT_VERSION = "INSERT INTO log_schema (version) VALUES (%s) ON CONFLICT DO NOTHING"
 
 
@@ -516,7 +510,7 @@ class LogStore:
         if not row.closed:
             return f"attempt {before} is open"
         publication = self._publication(conn, run_id, before, lock=False)
-        if publication is None or publication.state is not PublicationState.PUBLISHED:
+        if publication is None or publication.state is not PublicationStatus.PUBLISHED:
             state = "absent" if publication is None else publication.state.value
             return f"attempt {before}'s export is not published (publication {state})"
         state = self._fold(conn, row, rules)
@@ -815,6 +809,60 @@ class LogStore:
             )
         return LedgerView(head, entries)
 
+    # --- the inventory's snapshot ------------------------------------------------------
+
+    def snapshot(self, ledger_id: str) -> StoreSnapshot:
+        """Every attempt with its log and publication record, the ledger ``ledger_id`` with
+        its entries (``None`` before its head exists) and every refused admission, as of
+        one instant (the ruling on the job seam, part 5). The transaction runs at repeatable
+        read, so every statement after the first sees the database the first saw: a
+        closure and settlement committed meanwhile show in neither the attempt nor the
+        ledger. No row is locked. The ``read`` boundary is called after the first
+        statement, and the clock is read just after it."""
+        require_opaque_id(ledger_id, "a ledger id")
+        with self._guarded() as conn, conn.transaction():
+            conn.execute(_SNAPSHOT_ISOLATION)
+            version_row = conn.execute(_SELECT_VERSION).fetchone()
+            assert version_row is not None, "the version was checked when the connection opened"
+            self._boundary("read")
+            taken_at = self._clock(conn)
+            attempts = tuple(
+                self._snapshot_attempt(conn, _row_of(row))
+                for row in conn.execute(_SNAPSHOT_ATTEMPTS).fetchall()
+            )
+            read = self._snapshot_ledger(conn, ledger_id)
+            refused = tuple(
+                _refused_of(row) for row in conn.execute(_SNAPSHOT_REFUSED).fetchall()
+            )
+        return StoreSnapshot(int(version_row[0]), taken_at, attempts, read, refused)
+
+    def _snapshot_attempt(self, conn: Connection, row: _Row) -> SnapshotAttempt:
+        rows = conn.execute(_SELECT_EVENTS, (row.run_id, row.attempt, row.positions)).fetchall()
+        events = tuple(decode_logged_event(record) for (record,) in rows)
+        if len(events) != row.positions:
+            raise LogStoreInvariantBroken(
+                f"the row of run {row.run_id} attempt {row.attempt} is at position "
+                f"{row.positions} and its log holds {len(events)} events"
+            )
+        publication = self._publication(conn, row.run_id, row.attempt, lock=False)
+        return SnapshotAttempt(
+            row.run_id, row.attempt, row.closed, row.ledger_id, events, publication
+        )
+
+    def _snapshot_ledger(self, conn: Connection, ledger_id: str) -> SnapshotLedger | None:
+        head_row = conn.execute(_SELECT_HEAD, (ledger_id,)).fetchone()
+        if head_row is None:
+            return None
+        head = _head_of(head_row)
+        rows = conn.execute(_SNAPSHOT_ENTRIES, (ledger_id, head.revision)).fetchall()
+        entries = tuple(SnapshotEntry(_entry_of(row[:9]), _instant(row[9])) for row in rows)
+        if ledger.fold(each.entry for each in entries) != head:
+            raise LogStoreInvariantBroken(
+                f"ledger {ledger_id}'s head at revision {head.revision} is not what its "
+                f"{len(entries)} entries fold to"
+            )
+        return SnapshotLedger(ledger_id, head, entries)
+
     # --- publication records -----------------------------------------------------------
 
     def publication_of(self, run_id: str, attempt: int) -> PublicationRecord | None:
@@ -844,23 +892,13 @@ class LogStore:
                 raise ValueError(f"run {run_id} attempt {attempt} is open and has no export")
             self._boundary("locked")
             held = self._publication(conn, run_id, attempt, lock=True)
-            if held is not None and held.state is PublicationState.PUBLISHED:
+            if held is not None and held.state is PublicationStatus.PUBLISHED:
                 return held
-            repaired = None
-            if held is not None:
-                if held.log_digest != log_digest:
-                    raise LogStoreConflict(
-                        f"run {run_id} attempt {attempt}'s publication was begun over another "
-                        f"log digest"
-                    )
-                if held.state is PublicationState.FAILED and held.reader_commit != reader_commit:
-                    repaired = held.reader_commit
-                elif held.repaired_from_commit is not None:
-                    repaired = held.repaired_from_commit
+            repaired = _repaired_by(held, reader_commit, log_digest, run_id, attempt)
             record = PublicationRecord(
                 run_id,
                 attempt,
-                PublicationState.PENDING,
+                PublicationStatus.PENDING,
                 reader_commit,
                 export_format,
                 log_digest,
@@ -888,9 +926,52 @@ class LogStore:
                 raise LogStoreConflict(
                     f"run {run_id} attempt {attempt}'s publication names another object"
                 )
-            if held.state is PublicationState.PUBLISHED:
+            if held.state is PublicationStatus.PUBLISHED:
                 return held
-            record = replace(held, state=PublicationState.PUBLISHED, recorded_at=self._clock(conn))
+            record = replace(held, state=PublicationStatus.PUBLISHED, recorded_at=self._clock(conn))
+            self._write_publication(conn, record)
+            self._boundary("before-commit")
+            return record
+
+    def publication_unbuilt(
+        self,
+        run_id: str,
+        attempt: int,
+        *,
+        reader_commit: str,
+        export_format: int,
+        log_digest: str,
+        incident: str,
+    ) -> PublicationRecord:
+        """The reader at ``reader_commit`` could not build the closed attempt's export: a
+        failed record with no object (the ruling on an export that will not construct,
+        part 3: a publication incident, recorded apart from the log). A published record is
+        returned as it stands; a pending or failed one under another reader is replaced and
+        names the commit it repairs, as a pending record does; another digest of one closed
+        log is a conflict."""
+        require_commit(reader_commit, "the reader's commit")
+        require_integer(export_format, "an export format", minimum=1)
+        with self._guarded() as conn, conn.transaction():
+            row = self._lock(conn, run_id, attempt)
+            if not row.closed:
+                raise ValueError(f"run {run_id} attempt {attempt} is open and has no export")
+            self._boundary("locked")
+            held = self._publication(conn, run_id, attempt, lock=True)
+            if held is not None and held.state is PublicationStatus.PUBLISHED:
+                return held
+            record = PublicationRecord(
+                run_id,
+                attempt,
+                PublicationStatus.FAILED,
+                reader_commit,
+                export_format,
+                log_digest,
+                None,
+                None,
+                incident,
+                _repaired_by(held, reader_commit, log_digest, run_id, attempt),
+                self._clock(conn),
+            )
             self._write_publication(conn, record)
             self._boundary("before-commit")
             return record
@@ -913,13 +994,13 @@ class LogStore:
             if held is None:
                 raise ValueError(f"run {run_id} attempt {attempt} has no publication to fail")
             self._boundary("locked")
-            if held.state is PublicationState.PUBLISHED:
+            if held.state is PublicationStatus.PUBLISHED:
                 return held
             if (held.reader_commit, held.object_identity) != (reader_commit, object_identity):
                 return held
             record = replace(
                 held,
-                state=PublicationState.FAILED,
+                state=PublicationStatus.FAILED,
                 incident=incident,
                 recorded_at=self._clock(conn),
             )
@@ -1200,6 +1281,40 @@ def _entry_of(row: tuple[Any, ...]) -> LedgerEntry:
     )
 
 
+def _instant(value: object) -> datetime:
+    assert isinstance(value, datetime)
+    return value
+
+
+def _refused_of(row: tuple[Any, ...]) -> RefusedRequest:
+    request_id, run_id, attempt, result, recorded_at = row
+    decoded = _decode_result(str(run_id), int(attempt), result)
+    if not isinstance(decoded, AdmissionRefusal):
+        raise LogStoreInvariantBroken(
+            f"request {request_id} is recorded as refused and holds an admission"
+        )
+    return RefusedRequest(
+        str(request_id), str(run_id), int(attempt), decoded.reason, _instant(recorded_at)
+    )
+
+
+def _repaired_by(
+    held: PublicationRecord | None, reader_commit: str, log_digest: str, run_id: str, attempt: int
+) -> str | None:
+    """The commit a new record under ``reader_commit`` repairs, given the record ``held``:
+    a failed one under another reader, or what the held record already repaired; a held
+    record over another closed log is a conflict."""
+    if held is None:
+        return None
+    if held.log_digest != log_digest:
+        raise LogStoreConflict(
+            f"run {run_id} attempt {attempt}'s publication was begun over another log digest"
+        )
+    if held.state is PublicationStatus.FAILED and held.reader_commit != reader_commit:
+        return held.reader_commit
+    return held.repaired_from_commit
+
+
 def _publication_of(row: tuple[Any, ...]) -> PublicationRecord:
     (
         run_id,
@@ -1218,12 +1333,12 @@ def _publication_of(row: tuple[Any, ...]) -> PublicationRecord:
     return PublicationRecord(
         str(run_id),
         int(attempt),
-        PublicationState(str(state)),
+        PublicationStatus(str(state)),
         str(reader_commit),
         int(export_format),
         str(log_digest),
-        str(object_identity),
-        str(object_digest),
+        None if object_identity is None else str(object_identity),
+        None if object_digest is None else str(object_digest),
         None if incident is None else str(incident),
         None if repaired is None else str(repaired),
         recorded_at,
@@ -1277,5 +1392,11 @@ __all__ = [
     "LogStoreInvariantBroken",
     "LogStoreUnavailable",
     "PublicationRecord",
-    "PublicationState",
+    "PublicationStatus",
+    "RefusedRequest",
+    "SnapshotAttempt",
+    "SnapshotEntry",
+    "SnapshotLedger",
+    "StoreSnapshot",
+    "PublicationStatus",
 ]

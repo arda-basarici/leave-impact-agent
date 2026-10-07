@@ -37,6 +37,7 @@ from uuid import uuid4
 import pytest
 
 from leaveimpact.agent import ledger
+from leaveimpact.agent.inventory import inventory_of
 from leaveimpact.agent.log_events import (
     Abandoned,
     Admitted,
@@ -54,6 +55,7 @@ from leaveimpact.agent.log_events import (
 )
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import (
+    SCHEMA_VERSION,
     AdmissionReceipt,
     AdmissionRefusal,
     AdmissionRequest,
@@ -61,7 +63,7 @@ from leaveimpact.agent.log_store import (
     LogStore,
     LogStoreConflict,
     LogStoreInvariantBroken,
-    PublicationState,
+    PublicationStatus,
 )
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused
 from leaveimpact.core import (
@@ -78,6 +80,7 @@ from leaveimpact.core import (
     export_bytes,
 )
 from leaveimpact.core.eligibility import EligibilityRule
+from leaveimpact.core.inventory import InventoryScope, decode_inventory_bytes, inventory_bytes
 from tests.integration.log_store_support import Hold, Rig, Scripted, rig
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
@@ -545,12 +548,12 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
         object_digest=DIGEST,
     )
     assert (
-        pending.state is PublicationState.PENDING and store.publication_of("run-12", 1) == pending
+        pending.state is PublicationStatus.PENDING and store.publication_of("run-12", 1) == pending
     )
     failed = store.publication_failed(
         "run-12", 1, reader_commit=cases.COMMIT, object_identity=OBJECT, incident="upload refused"
     )
-    assert failed.state is PublicationState.FAILED and failed.incident == "upload refused"
+    assert failed.state is PublicationStatus.FAILED and failed.incident == "upload refused"
     repaired = store.publication_pending(
         "run-12",
         1,
@@ -560,7 +563,7 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
         object_identity=OBJECT,
         object_digest=DIGEST,
     )
-    assert repaired.state is PublicationState.PENDING
+    assert repaired.state is PublicationStatus.PENDING
     assert repaired.repaired_from_commit == cases.COMMIT and repaired.incident == "upload refused"
     stale = store.publication_failed(
         "run-12", 1, reader_commit=cases.COMMIT, object_identity=OBJECT, incident="A's late handler"
@@ -579,7 +582,7 @@ def test_publication_states_and_what_never_changes_back(rig: Rig) -> None:
     with pytest.raises(LogStoreConflict, match="names another object"):
         store.publication_published("run-12", 1, object_identity=OBJECT, object_digest="0" * 64)
     done = store.publication_published("run-12", 1, object_identity=OBJECT, object_digest=DIGEST)
-    assert done.state is PublicationState.PUBLISHED and done.repaired_from_commit == cases.COMMIT
+    assert done.state is PublicationStatus.PUBLISHED and done.repaired_from_commit == cases.COMMIT
     assert (
         store.publication_published("run-12", 1, object_identity=OBJECT, object_digest=DIGEST)
         == done
@@ -759,3 +762,75 @@ def test_now_reads_the_logs_clock_with_no_lock_through_the_clock_seam(rig: Rig) 
     after = store.now()
     assert before < state.events[-1].timestamp < after
     assert rig.store(clock=Scripted([cases.ADMITTED])).now() == cases.ADMITTED
+
+
+# --- The inventory's snapshot --------------------------------------------------------------------
+
+
+def test_a_snapshot_pairs_each_attempt_with_the_ledger_as_of_one_instant(rig: Rig) -> None:
+    """A closure and its settlement committed while the snapshot is being read show in neither
+    the attempt nor the ledger: the transaction runs at repeatable read, so the statements
+    after the held one see what the first saw (the ruling on the job seam, part 5)."""
+    events = histories.HISTORIES["a cut call"]()
+    plain = opened(rig)
+    state = replay(plain, events, upto=len(events) - 1)
+    hold = Hold("read")
+    reader = rig.store(boundary=hold)
+    with ThreadPoolExecutor(1) as pool:
+        reading = pool.submit(reader.snapshot, LEDGER)
+        hold.wait_reached()
+        closed = step(plain, events[-1], state)
+        assert closed.state.closed is not None
+        hold.release.set()
+        before = reading.result(10)
+    hold.release.set()
+    after = reader.snapshot(LEDGER)
+    (held,) = before.attempts
+    assert not held.closed and len(held.events) == len(events) - 1
+    assert before.ledger is not None and after.ledger is not None
+    assert [e.entry.kind for e in before.ledger.entries] == [
+        ledger.EntryKind.THRESHOLD_SET,
+        ledger.EntryKind.ADMITTED,
+    ]
+    (settled,) = after.attempts
+    assert settled.closed and len(settled.events) == len(events)
+    assert [e.entry.kind for e in after.ledger.entries][-1] is ledger.EntryKind.SETTLED
+    assert before.taken_at <= after.taken_at and before.schema_version == SCHEMA_VERSION
+
+
+def test_a_snapshot_lists_every_attempt_publication_and_refusal_and_builds_the_inventory(
+    rig: Rig,
+) -> None:
+    store = opened(rig)
+    events = histories.HISTORIES["facts beside tools in one answer"]()
+    admitted, admitter = admission_of(events)
+    replay(store, events)
+    published(store, "run-12", 1)
+    second = replace(admitted, inputs=replace(admitted.inputs, attempt=2))
+    refused = store.admit(request_for(second, admitter))
+    assert isinstance(refused, AdmissionRefusal)
+    snapshot = store.snapshot(LEDGER)
+    (held,) = snapshot.attempts
+    assert (held.run_id, held.attempt, held.closed, held.ledger_id) == ("run-12", 1, True, LEDGER)
+    assert len(held.events) == len(events)
+    assert held.publication is not None and held.publication.state is PublicationStatus.PUBLISHED
+    assert held.publication.object_identity == OBJECT
+    (request,) = snapshot.refused
+    assert (request.run_id, request.attempt, request.reason) == ("run-12", 2, refused.reason)
+    assert snapshot.ledger is not None and snapshot.ledger.head.revision == 3
+    assert all(isinstance(e.recorded_at, datetime) for e in snapshot.ledger.entries)
+    scope = InventoryScope(admitted.inputs.context.world_version, cases.COMMIT, LEDGER)
+    inventory = inventory_of(snapshot, scope, builder_commit=cases.COMMIT, rules=RULES)
+    (listed,) = inventory.attempts
+    assert listed.status is not None and listed.figures is not None and listed.closed
+    assert listed.figures.total_pico_usd == snapshot.ledger.entries[-1].entry.amount_pico_usd
+    assert inventory.ledger is not None and inventory.ledger.revision == 3
+    assert decode_inventory_bytes(inventory_bytes(inventory)) == inventory
+
+
+def test_a_snapshot_before_any_ledger_head_and_any_attempt_is_empty(rig: Rig) -> None:
+    store = rig.store()
+    store.ensure_schema()
+    snapshot = store.snapshot("ledger-unset")
+    assert snapshot.attempts == () and snapshot.refused == () and snapshot.ledger is None
+    assert snapshot.schema_version == SCHEMA_VERSION
