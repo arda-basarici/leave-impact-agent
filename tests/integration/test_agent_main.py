@@ -1,0 +1,141 @@
+"""The command-line entry over the real store: the threshold set, the export published and
+the inventory written through the entry, each printing its fields and nothing sealed; a
+publish or an inventory folds under the registration's rules given on the line; and a
+refusal is printed as the store's reason with the status that says so."""
+
+from __future__ import annotations
+
+from dataclasses import replace
+from pathlib import Path
+
+import pytest
+
+from leaveimpact.adapters.object_store import layout
+from leaveimpact.agent import __main__ as entry
+from leaveimpact.core.registration_json import registration_bytes
+from leaveimpact.evaluator.sealed_world import SealedWorld
+from tests.integration.log_store_support import Rig, rig
+from tests.integration.worker_rig import ATTEMPT, LEDGER, RULES, RUN, completed
+from tests.unit import format_fixtures as cases
+from tests.unit.registration_fixture import DRAFT, named
+from tests.unit.throwaway_world import loaded_world
+
+pytestmark = pytest.mark.integration
+
+_ = rig  # the fixture, imported for pytest to find
+
+
+@pytest.fixture(scope="module")
+def world() -> SealedWorld:
+    return loaded_world("golden")
+
+
+def test_the_entry_sets_the_threshold_publishes_and_writes_the_inventory(
+    rig: Rig, world: SealedWorld, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    store, inputs = completed(rig, world)
+    env = {
+        "LEAVE_IMPACT_OBJECT_STORE_ROOT": str(tmp_path / "store"),
+        entry.CODE_VERSION: cases.COMMIT,
+    }
+    # The registration whose rules the admitted run froze: the entry folds under them.
+    registration = tmp_path / "registration.json"
+    settled = named(DRAFT)
+    registration.write_bytes(
+        registration_bytes(
+            replace(
+                settled,
+                attribution=RULES.table,
+                run_accounting=replace(settled.run_accounting, redispatch=RULES.redispatch),
+            )
+        )
+    )
+    under = ["--registration", str(registration)]
+    status = entry.main(
+        [
+            "set-threshold",
+            "--ledger",
+            "ledger-cli",
+            "--amount",
+            "7",
+            "--authority",
+            "operator:cli",
+            "--registration-commit",
+            cases.COMMIT,
+            "--limit",
+            "9",
+        ],
+        env,
+        rig.store(),
+    )
+    assert status == 0
+    assert capsys.readouterr().out.splitlines() == [
+        "threshold=ledger-cli",
+        "revision=1",
+        "amount_pico_usd=7",
+    ]
+    status = entry.main(
+        ["publish", "--run", RUN, "--attempt", str(ATTEMPT), *under], env, rig.store()
+    )
+    captured = capsys.readouterr()
+    out = captured.out.splitlines()
+    assert status == 0, captured.err
+    assert out[0] == f"publication={RUN}/{ATTEMPT}" and out[1] == "state=published"
+    version = inputs.context.world_version
+    status = entry.main(
+        [
+            "inventory",
+            "--world-version",
+            version,
+            "--registration-commit",
+            cases.COMMIT,
+            "--ledger",
+            LEDGER,
+            *under,
+        ],
+        env,
+        rig.store(),
+    )
+    captured = capsys.readouterr()
+    out = captured.out.splitlines()
+    assert status == 0, captured.err
+    assert out[2] == "outcome=created" and out[3] == "attempts=1"
+    digest = out[0].removeprefix("inventory_digest=")
+    assert (tmp_path / "store" / "world" / layout.inventory_key(version, digest)).exists()
+    status = entry.main(
+        [
+            "abandon",
+            "--run",
+            RUN,
+            "--attempt",
+            str(ATTEMPT),
+            "--authority",
+            "operator:cli",
+            "--reason",
+            "cancelled",
+            *under,
+        ],
+        env,
+        rig.store(),
+    )
+    out = capsys.readouterr().out.splitlines()
+    position = store.load(RUN, ATTEMPT, rules=RULES).last_position
+    assert status == 0
+    assert out == [
+        f"refused=run {RUN} attempt {ATTEMPT}",
+        f"reason=the attempt is closed at position {position}",
+    ]
+
+
+def test_a_publish_without_the_rules_the_run_froze_is_refused_by_the_transition(
+    rig: Rig, world: SealedWorld, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    completed(rig, world)
+    env = {
+        "LEAVE_IMPACT_OBJECT_STORE_ROOT": str(tmp_path / "store"),
+        entry.CODE_VERSION: cases.COMMIT,
+    }
+    status = entry.main(["publish", "--run", RUN, "--attempt", str(ATTEMPT)], env, rig.store())
+    captured = capsys.readouterr()
+    assert status == 1 and captured.out == ""
+    assert "refused:" in captured.err and "the registered table and policy" in captured.err
