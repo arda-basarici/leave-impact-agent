@@ -120,11 +120,45 @@ def test_the_entry_sets_the_threshold_publishes_and_writes_the_inventory(
     )
     out = capsys.readouterr().out.splitlines()
     position = store.load(RUN, ATTEMPT, rules=RULES).last_position
-    assert status == 0
+    assert status == 1, "a refusal exits 1 with its fields printed (the review's second finding)"
     assert out == [
         f"refused=run {RUN} attempt {ATTEMPT}",
         f"reason=the attempt is closed at position {position}",
     ]
+
+
+def test_a_publication_recorded_as_failed_exits_1_with_its_record_printed(
+    rig: Rig, world: SealedWorld, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _, inputs = completed(rig, world)
+    env = {
+        "LEAVE_IMPACT_OBJECT_STORE_ROOT": str(tmp_path / "store"),
+        entry.CODE_VERSION: cases.COMMIT,
+    }
+    registration = tmp_path / "registration.json"
+    settled = named(DRAFT)
+    registration.write_bytes(
+        registration_bytes(
+            replace(
+                settled,
+                attribution=RULES.table,
+                run_accounting=replace(settled.run_accounting, redispatch=RULES.redispatch),
+            )
+        )
+    )
+    key = layout.run_export_key(inputs.context.world_version, RUN, ATTEMPT, cases.COMMIT)
+    held = tmp_path / "store" / "world" / key
+    held.parent.mkdir(parents=True)
+    held.write_bytes(b"other bytes")
+    status = entry.main(
+        ["publish", "--run", RUN, "--attempt", str(ATTEMPT), "--registration", str(registration)],
+        env,
+        rig.store(),
+    )
+    out = capsys.readouterr().out.splitlines()
+    assert status == 1 and out[1] == "state=failed"
+    assert out[4].startswith("incident=the key holds other bytes")
+    assert held.read_bytes() == b"other bytes", "nothing overwrites"
 
 
 def test_a_publish_without_the_rules_the_run_froze_is_refused_by_the_transition(

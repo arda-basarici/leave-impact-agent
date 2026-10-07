@@ -16,8 +16,12 @@ decodes no scenario and the file is written by a launcher that may; ``deliver-ap
 The job's log is public, which decides what this module prints: a result as the fields its
 command returns, a refusal of a known kind as its message (files, keys, commits, counts
 and reasons the store wrote to be printed, nothing sealed), and anything else as the name
-of its type with no traceback. Exit status: 0 for a result, 1 for a refusal, 2 for a
-configuration fault, 3 for anything unexpected.
+of its type with no traceback. A file that does not decode is reported by its name and the
+exception's type alone, since a codec's refusal quotes the value it refused and the value
+may be anything the file held (the group's review, first finding). Exit status: 0 for a
+result, 1 for a refusal or a publication recorded as failed (its fields still printed; a
+workflow must not proceed past either), 2 for a configuration fault, 3 for anything
+unexpected.
 """
 
 from __future__ import annotations
@@ -26,7 +30,7 @@ import argparse
 import json
 import os
 import sys
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -67,7 +71,7 @@ from leaveimpact.agent.log_store import (
 )
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.core.ids import WorldVersion
-from leaveimpact.core.inventory import InventoryScope
+from leaveimpact.core.inventory import InventoryScope, PublicationStatus
 from leaveimpact.core.jsonshape import as_object, expect_fields, object_field, string_field
 from leaveimpact.core.registration import Pending
 from leaveimpact.core.registration_json import decode_registration_bytes
@@ -99,6 +103,16 @@ class AdmitFile:
 
 type Request = (
     AdmitFile
+    | ApprovalDelivery
+    | AbandonRequest
+    | PublishRequest
+    | InventoryRequest
+    | ThresholdRequest
+)
+
+
+type Resolved = (
+    AdmissionRequest
     | ApprovalDelivery
     | AbandonRequest
     | PublishRequest
@@ -268,17 +282,22 @@ def main(
     environment = os.environ if env is None else env
     try:
         parsed = parse_request(sys.argv[1:] if argv is None else argv, environment)
-        rules = rules_of(parsed.registration)
+        rules = (
+            Rules(None, None)
+            if parsed.registration is None
+            else _decoded(parsed.registration, "the registration", rules_of)
+        )
+        request = _resolved(parsed, rules)
         if store is None:
             dsn = environment.get(DATABASE, "").strip()
             if not dsn:
                 raise ConfigurationError(f"{DATABASE} names the run log's database")
             store = LogStore(dsn=dsn)
-    except (ConfigurationError, OSError, ValueError) as error:
+    except ConfigurationError as error:
         print(f"leaveimpact.agent: {error}", file=sys.stderr)
         return 2
     try:
-        lines = _run(parsed, store, rules, environment)
+        status, lines = _run(request, store, rules, environment)
     except _REFUSALS as refusal:
         print(f"leaveimpact.agent: refused: {refusal}", file=sys.stderr)
         return 1
@@ -293,26 +312,50 @@ def main(
         store.close()
     for line in lines:
         print(line)
-    return 0
+    return status
 
 
-def _run(parsed: Parsed, store: LogStore, rules: Rules, env: Mapping[str, str]) -> list[str]:
+def _decoded[T](path: Path, what: str, decode: Callable[[Path], T]) -> T:
+    """``decode(path)``, a failure to read or decode the file reported by its name and the
+    exception's type and never its message, which quotes what the file held."""
+    try:
+        return decode(path)
+    except (OSError, ValueError) as error:
+        raise ConfigurationError(
+            f"{what} {path} does not read or decode ({type(error).__name__})"
+        ) from None
+
+
+def _resolved(parsed: Parsed, rules: Rules) -> Resolved:
+    """The command's request with the admission's file decoded under ``rules``."""
     request = parsed.request
+    if isinstance(request, AdmitFile):
+        return _decoded(
+            request.path,
+            "the request file",
+            lambda path: admission_request_of(path.read_bytes(), rules),
+        )
+    return request
+
+
+def _run(
+    request: Resolved, store: LogStore, rules: Rules, env: Mapping[str, str]
+) -> tuple[int, list[str]]:
     match request:
-        case AdmitFile(path):
-            result = admit(admission_request_of(path.read_bytes(), rules), store)
+        case AdmissionRequest():
+            result = admit(request, store)
             if isinstance(result, AdmissionReceipt):
-                return [
+                return 0, [
                     f"admitted={result.run_id}/{result.attempt}",
                     f"recorded_at={result.recorded_at.isoformat()}",
                     f"ledger_revision={result.ledger_revision}",
                 ]
-            return [f"refused={result.run_id}/{result.attempt}", f"reason={result.reason}"]
+            return 1, [f"refused={result.run_id}/{result.attempt}", f"reason={result.reason}"]
         case ApprovalDelivery():
             delivered = deliver_approval(request, store, rules=rules)
             if isinstance(delivered, CommandRefused):
                 return _refused(delivered)
-            return [
+            return 0, [
                 f"approved={delivered.run_id}/{delivered.attempt}",
                 f"position={delivered.position}",
             ]
@@ -320,7 +363,7 @@ def _run(parsed: Parsed, store: LogStore, rules: Rules, env: Mapping[str, str]) 
             closed = abandon(request, store, rules=rules)
             if isinstance(closed, CommandRefused):
                 return _refused(closed)
-            return [
+            return 0, [
                 f"abandoned={closed.run_id}/{closed.attempt}",
                 f"generation_fenced={closed.generation_fenced}",
                 f"position={closed.position}",
@@ -330,7 +373,7 @@ def _run(parsed: Parsed, store: LogStore, rules: Rules, env: Mapping[str, str]) 
             record = publish(request, store, run_export_publisher(stores), rules=rules)
             if isinstance(record, CommandRefused):
                 return _refused(record)
-            return [
+            return 1 if record.state is PublicationStatus.FAILED else 0, [
                 f"publication={record.run_id}/{record.attempt}",
                 f"state={record.state.value}",
                 f"object_identity={record.object_identity}",
@@ -340,7 +383,7 @@ def _run(parsed: Parsed, store: LogStore, rules: Rules, env: Mapping[str, str]) 
         case InventoryRequest():
             stores = stores_from_env(env)
             written = write_inventory(request, store, inventory_publisher(stores), rules=rules)
-            return [
+            return 0, [
                 f"inventory_digest={written.digest}",
                 f"inventory_key={written.key}",
                 f"outcome={written.outcome.value}",
@@ -351,15 +394,15 @@ def _run(parsed: Parsed, store: LogStore, rules: Rules, env: Mapping[str, str]) 
             entry = set_threshold(request, store)
             if isinstance(entry, CommandRefused):
                 return _refused(entry)
-            return [
+            return 0, [
                 f"threshold={request.ledger_id}",
                 f"revision={entry.revision}",
                 f"amount_pico_usd={entry.amount_pico_usd}",
             ]
 
 
-def _refused(refused: CommandRefused) -> list[str]:
-    return [f"refused={refused.subject}", f"reason={refused.reason}"]
+def _refused(refused: CommandRefused) -> tuple[int, list[str]]:
+    return 1, [f"refused={refused.subject}", f"reason={refused.reason}"]
 
 
 if __name__ == "__main__":

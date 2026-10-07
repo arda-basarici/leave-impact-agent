@@ -165,3 +165,33 @@ def test_a_missing_database_is_a_configuration_fault(capsys: pytest.CaptureFixtu
     assert "DATABASE_URL names the run log's database" in capsys.readouterr().err
     assert job.main(["publish", *ABOUT], {}) == 2
     assert "LEAVEIMPACT_CODE_VERSION" in capsys.readouterr().err
+
+
+def test_a_request_file_that_does_not_decode_is_reported_without_what_it_held(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The group's review, first finding: a codec's refusal quotes the value it refused, and
+    the job's log is public; the entry prints the file's name and the exception's type."""
+    tree = encode_event(Admitted(support.admitted_inputs()))
+    tree["inputs"]["context"]["now"]["at"] = "SECRET-MARKER-2026"  # type: ignore[index]
+    request = tmp_path / "request.json"
+    request.write_text(
+        json.dumps(
+            {"request_id": "r", "admitter": "a", "ledger_id": None, "admitted": tree}
+        ),
+        encoding="utf-8",
+    )
+    status = job.main(["admit", "--request", str(request)], {})
+    captured = capsys.readouterr()
+    assert status == 2 and captured.out == ""
+    assert "SECRET-MARKER" not in captured.err
+    assert "the request file" in captured.err and "ValueError" in captured.err
+    registration = tmp_path / "registration.json"
+    registration.write_text('{"format_version": "SECRET-MARKER-2026"}', encoding="utf-8")
+    status = job.main(["publish", *ABOUT, "--registration", str(registration)], ENV)
+    captured = capsys.readouterr()
+    assert status == 2 and "SECRET-MARKER" not in captured.err
+    assert "the registration" in captured.err
+    status = job.main(["admit", "--request", str(tmp_path / "absent.json")], {})
+    captured = capsys.readouterr()
+    assert status == 2 and "absent.json" in captured.err and "FileNotFoundError" in captured.err
