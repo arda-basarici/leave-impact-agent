@@ -21,7 +21,7 @@ import hashlib
 
 from botocore.exceptions import ClientError
 
-from leaveimpact.adapters.object_store.read import ObjectStoreUnreachable
+from leaveimpact.adapters.object_store.read import AccessRefused, ObjectStoreUnreachable
 from leaveimpact.adapters.object_store.s3 import S3ObjectReader, code, translated, version_id
 from leaveimpact.adapters.object_store.write import ObjectConflict, PutOutcome, PutReceipt
 
@@ -53,8 +53,13 @@ class S3ObjectWriter(S3ObjectReader):
     def _present_and_equal(self, key: str, content: bytes) -> PutReceipt:
         # 412 says only "present"; the read-back decides between equal and conflicting. A
         # key that vanished between the two calls is a store no writer of this project
-        # holds delete rights on, so it is reported as the fault it is.
-        existing = self.get(key)
+        # holds delete rights on, so it is reported as the fault it is. A principal the
+        # policy lets put and not get (the instance under ``runs/``) cannot read back, and
+        # that is the unverified presence, not a fault of the write.
+        try:
+            existing = self.get(key)
+        except AccessRefused:
+            return PutReceipt(key, "", PutOutcome.PRESENT_UNVERIFIED)
         if existing is None:
             raise ObjectStoreUnreachable("put_if_absent", key)
         if existing.content != content:

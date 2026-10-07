@@ -36,7 +36,12 @@ from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.adapters.object_store.s3 import S3ObjectReader, translated
 from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
-from leaveimpact.adapters.object_store.write import ObjectConflict, ObjectWriter, PutOutcome
+from leaveimpact.adapters.object_store.write import (
+    ObjectConflict,
+    ObjectWriter,
+    PutOutcome,
+    PutReceipt,
+)
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 
 FINAL = "worlds/abc/world-manifest.json"
@@ -149,6 +154,26 @@ def test_the_memory_double_emulates_the_bucket_policy() -> None:
         memory.get(FINAL)
 
 
+def test_the_memory_double_emulates_a_grant_that_puts_and_never_reads() -> None:
+    """The instance under ``runs/``: a read is refused, a first conditional put is created,
+    and a second on a present key is the unverified presence with no version named."""
+    memory = InMemoryObjectStore(readable=False)
+    with pytest.raises(AccessRefused):
+        memory.get(FINAL)
+    with pytest.raises(AccessRefused):
+        memory.list_keys("")
+    assert memory.put_if_absent(FINAL, b"sealed").outcome is PutOutcome.CREATED
+    again = memory.put_if_absent(FINAL, b"other bytes")
+    assert again.outcome is PutOutcome.PRESENT_UNVERIFIED and again.version_id == ""
+
+
+def test_a_receipt_names_a_version_exactly_when_the_presence_was_verified() -> None:
+    with pytest.raises(ValueError, match="names a version exactly when"):
+        PutReceipt(FINAL, "", PutOutcome.CREATED)
+    with pytest.raises(ValueError, match="names a version exactly when"):
+        PutReceipt(FINAL, "v1", PutOutcome.PRESENT_UNVERIFIED)
+
+
 # --- the S3 mapping, one stubbed response per observed shape ---------------------------
 
 BUCKET = "leave-impact-world-test"
@@ -221,6 +246,23 @@ def test_s3_412_with_equal_bytes_is_present_and_equal_on_the_existing_version() 
     receipt = _with(stub, lambda: store.put_if_absent(FINAL, CONTENT))
     assert receipt.outcome is PutOutcome.PRESENT_EQUAL
     assert receipt.version_id == "v-existing"
+
+
+def test_s3_412_whose_read_back_is_refused_is_the_unverified_presence() -> None:
+    """The instance's grant: the create refused as present and the get refused by access is
+    the fourth outcome, not a fault; nothing names a version."""
+    store, stub = _stubbed()
+    stub.add_client_error(
+        "put_object", service_error_code="PreconditionFailed", http_status_code=412
+    )
+    stub.add_client_error(
+        "get_object",
+        service_error_code="AccessDenied",
+        service_message="explicit deny in a resource-based policy",
+        http_status_code=403,
+    )
+    receipt = _with(stub, lambda: store.put_if_absent(FINAL, CONTENT))
+    assert receipt.outcome is PutOutcome.PRESENT_UNVERIFIED and receipt.version_id == ""
 
 
 def test_s3_412_with_different_bytes_is_a_conflict() -> None:

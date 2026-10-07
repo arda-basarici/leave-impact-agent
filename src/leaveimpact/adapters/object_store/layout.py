@@ -128,6 +128,50 @@ def runs_prefix(version: WorldVersion) -> str:
     return f"runs/{version}/"
 
 
+def run_prefix(version: WorldVersion, run_id: str, attempt: int) -> str:
+    """World bucket: one attempt's own prefix under the runs of ``version``, the contract's
+    stable shape (``<run-id>-<run-attempt>/``); what sits under it is the application's.
+
+    >>> run_prefix(WorldVersion("ab" * 32), "37135207381", 2).rsplit("/", 2)[1]
+    '37135207381-2'
+    """
+    return f"{runs_prefix(version)}{run_id}-{attempt}/"
+
+
+def run_export_key(version: WorldVersion, run_id: str, attempt: int, reader_commit: str) -> str:
+    """World bucket: the export of one closed attempt as the reader at ``reader_commit``
+    built it. A closed log is one and the export is a function of the log and the reader,
+    so one key holds one possible content; a repair under another reader is another key,
+    which is how a correction is an explicit new version and never an overwrite (the
+    event log step's ruling on an export that will not construct, part 7).
+
+    >>> run_export_key(WorldVersion("ab" * 32), "37135207381", 1, "c" * 40).rsplit("/", 1)[1]
+    'export-cccccccccccccccccccccccccccccccccccccccc.json'
+    """
+    return f"{run_prefix(version, run_id, attempt)}export-{reader_commit}.json"
+
+
+def inventory_prefix(version: WorldVersion) -> str:
+    """World bucket: every inventory the harness wrote of its runs on ``version``, under the
+    runs prefix because that is the one prefix the instance may put under and the
+    evaluator lists and reads whole; no run id has this shape, so no run's prefix is
+    shadowed. A reader of the runs prefix excludes it from the exports.
+
+    >>> inventory_prefix(WorldVersion("ab" * 32)).rsplit("/", 2)[1]
+    'inventory'
+    """
+    return f"{runs_prefix(version)}inventory/"
+
+
+def inventory_key(version: WorldVersion, digest: str) -> str:
+    """World bucket: one inventory, named by the digest of its bytes, which is its identity.
+
+    >>> inventory_key(WorldVersion("ab" * 32), "d" * 64).rsplit("/", 1)[1][:8]
+    'dddddddd'
+    """
+    return f"{inventory_prefix(version)}{digest}.json"
+
+
 def evaluations_prefix(version: WorldVersion) -> str:
     """Truth bucket: every evaluation of runs on ``version``."""
     return f"evaluations/{version}/"
@@ -153,6 +197,10 @@ __all__ = [
     "documents_prefix",
     "evaluation_key",
     "evaluations_prefix",
+    "inventory_key",
+    "inventory_prefix",
+    "run_export_key",
+    "run_prefix",
     "runs_prefix",
     "scenario_specs_key",
     "truth_manifest_key",

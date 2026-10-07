@@ -11,7 +11,10 @@ allowed anywhere, as it is in the bucket.
 
 Version ids are minted per write from a counter, so a rewrite of equal bytes under
 ``preparing/`` is a new version as in S3, and the receipts a test collects can be
-told apart. ``reachable`` turned off makes every operation ``ObjectStoreUnreachable``.
+told apart. ``reachable`` turned off makes every operation ``ObjectStoreUnreachable``;
+``readable`` turned off emulates the instance's grant under ``runs/``, a put and no get or
+list: a read is ``AccessRefused`` and a conditional put on a present key is the unverified
+presence, as the bucket and the role together make it.
 """
 
 from __future__ import annotations
@@ -33,22 +36,27 @@ class InMemoryObjectStore:
 
     mutable_prefixes: tuple[str, ...] = ("preparing/",)
     reachable: bool = True
+    readable: bool = True
     objects: dict[str, StoredObject] = field(default_factory=dict[str, StoredObject])
     writes: list[PutReceipt] = field(default_factory=list[PutReceipt])
     _minted: int = 0
 
     def get(self, key: str) -> StoredObject | None:
         self._check("get", key)
+        self._readable("get", key)
         return self.objects.get(key)
 
     def list_keys(self, prefix: str) -> tuple[str, ...]:
         self._check("list", prefix)
+        self._readable("list", prefix)
         return tuple(sorted(key for key in self.objects if key.startswith(prefix)))
 
     def put_if_absent(self, key: str, content: bytes) -> PutReceipt:
         self._check("put_if_absent", key)
         existing = self.objects.get(key)
         if existing is not None:
+            if not self.readable:
+                return PutReceipt(key, "", PutOutcome.PRESENT_UNVERIFIED)
             if existing.content != content:
                 raise ObjectConflict(key, _sha256(existing.content), _sha256(content))
             return PutReceipt(key, existing.version_id, PutOutcome.PRESENT_EQUAL)
@@ -73,6 +81,12 @@ class InMemoryObjectStore:
     def _check(self, operation: str, key: str) -> None:
         if not self.reachable:
             raise ObjectStoreUnreachable(operation, key)
+
+    def _readable(self, operation: str, key: str) -> None:
+        if not self.readable:
+            raise AccessRefused(
+                operation, key, "explicit deny: this principal puts and never reads"
+            )
 
 
 def _sha256(content: bytes) -> str:

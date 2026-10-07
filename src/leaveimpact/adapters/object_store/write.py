@@ -13,6 +13,14 @@ check is the store's own read-back and comparison: S3 answers a conditional put 
 existing key with 412 whether the bytes match or not (the objectstore probe, 2026-09-13),
 so the SDK cannot tell the second outcome from the third and this module does.
 
+A fourth outcome exists for one principal: the instance, whose grant under ``runs/`` is a
+put and no get. *Present and unverified* — the store refused the create as present and
+refused the read-back by access, so the key holds bytes this writer cannot compare. The
+receipt carries no version id. A caller that gets it decides by what it knows of the key:
+the publish command adopts the object under its own pending record for that key and
+digest, where nothing else could have been written (the event log step's commands group,
+fork 7), and the evaluator, which can read, verifies the digest it was told.
+
 ``overwrite`` is the mutable checkpoint's operation under ``preparing/``, a plain put
 that replaces whatever the key holds and receipts the new version. It is refused under a
 final prefix by the bucket policy and by the in-memory test double's emulation of it,
@@ -38,15 +46,21 @@ class PutOutcome(StrEnum):
 
     CREATED = "created"
     PRESENT_EQUAL = "present_equal"
+    PRESENT_UNVERIFIED = "present_unverified"
 
 
 @dataclass(frozen=True, slots=True)
 class PutReceipt:
-    """The version now at ``key`` and how it got there."""
+    """The version now at ``key`` and how it got there; the version id is empty exactly
+    when the presence is unverified, since no read named it."""
 
     key: str
     version_id: str
     outcome: PutOutcome
+
+    def __post_init__(self) -> None:
+        if (self.version_id == "") != (self.outcome is PutOutcome.PRESENT_UNVERIFIED):
+            raise ValueError("a receipt names a version exactly when the store let it read one")
 
 
 class ObjectConflict(Exception):

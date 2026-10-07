@@ -60,23 +60,30 @@ the execution's identifiers, in the truth store, the writer never exposed.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, cast
+from typing import Any, assert_never, cast
 
 from leaveimpact.adapters.calendar.adapter import CalendarAdapter, CalendarCredential
 from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
 from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraCredential
 from leaveimpact.adapters.manifest import WorldManifest
 from leaveimpact.adapters.object_store.documents import SealedDocumentReader
-from leaveimpact.adapters.object_store.layout import evaluation_key, verdict_key
+from leaveimpact.adapters.object_store.layout import (
+    evaluation_key,
+    inventory_key,
+    run_export_key,
+    verdict_key,
+)
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.object_store.read import ObjectReader
 from leaveimpact.adapters.object_store.s3 import S3ObjectReader, s3_client
-from leaveimpact.adapters.object_store.write import ObjectWriter
+from leaveimpact.adapters.object_store.write import ObjectConflict, ObjectWriter, PutOutcome
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.ports.read import CalendarReader, PeopleReader, WorkReader
 
@@ -149,6 +156,41 @@ VerdictPublisher = Callable[[WorldVersion, str, str, bytes], str]
 EvaluationPublisher = Callable[[WorldVersion, str, str, bytes], str]
 """Publish one evaluation: the version, the run id, the run attempt and the bytes; the
 version id."""
+
+
+class UploadOutcome(StrEnum):
+    """What a create-only put of a run artifact did, as a value the agent reads: created;
+    present with equal bytes; present and unverified, where the store let the principal
+    write and not read back (the instance under ``runs/``); or a conflict, the key holding
+    other bytes, which nothing overwrites."""
+
+    CREATED = "created"
+    PRESENT_EQUAL = "present_equal"
+    PRESENT_UNVERIFIED = "present_unverified"
+    CONFLICT = "conflict"
+
+
+@dataclass(frozen=True, slots=True)
+class Upload:
+    """The key written to, what the put did, and on a conflict the digest the key holds."""
+
+    key: str
+    outcome: UploadOutcome
+    existing_digest: str | None
+
+    def __post_init__(self) -> None:
+        if (self.existing_digest is None) == (self.outcome is UploadOutcome.CONFLICT):
+            raise ValueError("the existing digest is named exactly on a conflict")
+
+
+RunExportPublisher = Callable[[WorldVersion, str, int, str, bytes], Upload]
+"""Publish one closed attempt's export: the version, the run id, the attempt, the reader's
+commit and the bytes; the upload. The key is the layout's, so the caller records the
+same key before the put."""
+
+InventoryPublisher = Callable[[WorldVersion, bytes], Upload]
+"""Publish one inventory: the version and the bytes; the upload, at the key the bytes'
+digest names."""
 
 
 def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False) -> Deployment:
@@ -244,6 +286,72 @@ def evaluation_publisher(stores: Stores) -> EvaluationPublisher:
         return writer.put_if_absent(key, content).version_id
 
     return publish
+
+
+def run_export_publisher(stores: Stores) -> RunExportPublisher:
+    """A callable that seals one attempt's export at its key in the world store.
+
+    The same shape as the evaluation's publication, with the key a function the caller
+    shares: the publish command records the key and digest it intends before the put and
+    adopts the object the store reports present under that record, so the layout's key
+    function is public and this closure uses no other. A conflict comes back as a value,
+    since the agent may not import the writer's exception, and nothing overwrites.
+    """
+    return run_export_publisher_over(_world_writer(stores))
+
+
+def run_export_publisher_over(writer: ObjectWriter) -> RunExportPublisher:
+    """``run_export_publisher`` over a writer given, for a test's in-memory store."""
+
+    def publish(
+        version: WorldVersion, run_id: str, attempt: int, reader_commit: str, content: bytes
+    ) -> Upload:
+        return _upload(writer, run_export_key(version, run_id, attempt, reader_commit), content)
+
+    return publish
+
+
+def inventory_publisher(stores: Stores) -> InventoryPublisher:
+    """A callable that seals one inventory at the key its digest names in the world store;
+    the digest is computed here from the bytes, so the key cannot misname its content."""
+    return inventory_publisher_over(_world_writer(stores))
+
+
+def inventory_publisher_over(writer: ObjectWriter) -> InventoryPublisher:
+    """``inventory_publisher`` over a writer given, for a test's in-memory store."""
+
+    def publish(version: WorldVersion, content: bytes) -> Upload:
+        digest = hashlib.sha256(content).hexdigest()
+        return _upload(writer, inventory_key(version, digest), content)
+
+    return publish
+
+
+def _upload(writer: ObjectWriter, key: str, content: bytes) -> Upload:
+    try:
+        receipt = writer.put_if_absent(key, content)
+    except ObjectConflict as conflict:
+        return Upload(key, UploadOutcome.CONFLICT, conflict.existing_digest)
+    match receipt.outcome:
+        case PutOutcome.CREATED:
+            return Upload(key, UploadOutcome.CREATED, None)
+        case PutOutcome.PRESENT_EQUAL:
+            return Upload(key, UploadOutcome.PRESENT_EQUAL, None)
+        case PutOutcome.PRESENT_UNVERIFIED:
+            return Upload(key, UploadOutcome.PRESENT_UNVERIFIED, None)
+        case _:
+            assert_never(receipt.outcome)
+
+
+def _world_writer(stores: Stores) -> ObjectWriter:
+    # Imported here and not at module scope, for the reason given in ``verdict_publisher``.
+    from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
+    from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
+
+    if stores.local_root is not None:
+        return LocalObjectWriter(stores.local_root / "world")
+    assert stores.buckets is not None, "the stores are a root or the buckets"
+    return S3ObjectWriter(s3_client(stores.buckets.region), stores.buckets.world)
 
 
 def verdict_publisher(deployment: Deployment) -> VerdictPublisher:

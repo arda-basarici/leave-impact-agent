@@ -10,6 +10,7 @@ the equal case."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,12 +22,19 @@ from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.wiring import (
     PREFIX,
     ConfigurationError,
+    Stores,
+    UploadOutcome,
     build_readers,
     deployment_from_env,
+    inventory_publisher,
+    inventory_publisher_over,
     jira_gateway_root,
     readers_for,
+    run_export_publisher,
+    run_export_publisher_over,
     verdict_publisher,
 )
+from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.test_manifest import manifest
 
 
@@ -202,3 +210,62 @@ def test_the_publisher_writes_exactly_its_key_and_a_rerun_is_a_new_object(
     assert world.list_keys("") == world.list_keys(layout.verdicts_prefix(version)), (
         "nothing else was written"
     )
+
+
+COMMIT = "c" * 40
+OTHER_READER = "d" * 40
+
+
+def test_the_run_export_publisher_writes_its_key_and_another_reader_is_another_object(
+    tmp_path: Path,
+) -> None:
+    stores = Stores(buckets=None, local_root=tmp_path / "store")
+    publish = run_export_publisher(stores)
+    version = manifest().world_version
+    first = publish(version, "37135207381", 1, COMMIT, b'{"export": 1}')
+    again = publish(version, "37135207381", 1, COMMIT, b'{"export": 1}')
+    repaired = publish(version, "37135207381", 1, OTHER_READER, b'{"export": 2}')
+    assert first.key == layout.run_export_key(version, "37135207381", 1, COMMIT)
+    assert (first.outcome, again.outcome) == (UploadOutcome.CREATED, UploadOutcome.PRESENT_EQUAL)
+    assert repaired.key != first.key and repaired.outcome is UploadOutcome.CREATED
+    world = readers_for(deployment_from_env(local_environment(tmp_path))).world
+    assert world.list_keys(layout.run_prefix(version, "37135207381", 1)) == (
+        first.key,
+        repaired.key,
+    )
+
+
+def test_a_conflict_comes_back_as_a_value_naming_the_held_digest_and_nothing_overwrites() -> None:
+    memory = InMemoryObjectStore()
+    publish = run_export_publisher_over(memory)
+    version = manifest().world_version
+    publish(version, "37135207381", 1, COMMIT, b"held")
+    conflict = publish(version, "37135207381", 1, COMMIT, b"other")
+    assert conflict.outcome is UploadOutcome.CONFLICT
+    assert conflict.existing_digest == hashlib.sha256(b"held").hexdigest()
+    held = memory.get(conflict.key)
+    assert held is not None and held.content == b"held"
+
+
+def test_a_put_only_grant_reports_the_unverified_presence() -> None:
+    memory = InMemoryObjectStore(readable=False)
+    publish = run_export_publisher_over(memory)
+    version = manifest().world_version
+    assert publish(version, "37135207381", 1, COMMIT, b"held").outcome is UploadOutcome.CREATED
+    unverified = publish(version, "37135207381", 1, COMMIT, b"held")
+    assert unverified.outcome is UploadOutcome.PRESENT_UNVERIFIED
+    assert unverified.existing_digest is None
+
+
+def test_the_inventory_publisher_names_the_key_by_the_digest_of_the_bytes(tmp_path: Path) -> None:
+    stores = Stores(buckets=None, local_root=tmp_path / "store")
+    publish = inventory_publisher(stores)
+    version = manifest().world_version
+    content = b'{"format_version": 1}'
+    upload = publish(version, content)
+    assert upload.key == layout.inventory_key(version, hashlib.sha256(content).hexdigest())
+    assert upload.outcome is UploadOutcome.CREATED
+    assert publish(version, content).outcome is UploadOutcome.PRESENT_EQUAL
+    memory = InMemoryObjectStore()
+    assert inventory_publisher_over(memory)(version, content).key == upload.key
+    assert upload.key.startswith(layout.runs_prefix(version))
