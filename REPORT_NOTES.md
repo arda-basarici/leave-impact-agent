@@ -139,8 +139,14 @@ The full matrix then ran whole: 469 rows, every one passing, in twelve minutes f
 manifest's findings section, the run of 2026-10-07 at the step's close). Its one red was
 the manifest's own text, not a row: the new section had grouped families in one cell,
 which the manifest's reader does not parse, and the rows were rewritten one family each.
-What would revise this entry: a third reference, with an outage, finding what the second
-could not.
+The external review of the close then found the reconciliation's own next assumption: it
+required one send per committed intent, and a kill between an intent's commit and its
+send, a dispatch authorized and never sent, which the fence ruling allows, had no kill
+point and would have been refused by the acceptance while the worker handled it. The
+send gained its two boundaries on both references and the invariant became the rulings'
+sentence, a resolved intent sent once and an in-flight one at most once; 503 of 503 rows
+on the first run with them (the manifest's findings section, 2026-10-07). What would
+revise this entry: a third reference, with an outage, finding what the second could not.
 
 Figure: the matrix's growth by run, rows against the faults each stage could and could not
 reach.

@@ -2848,6 +2848,13 @@ test holds the manifest to the families crossed, no more and no fewer.
   grouped families in one cell and used wildcards, which the manifest's reader does not
   parse. The rows were rewritten one family each, checked offline against the run's
   families, and the matrix rerun whole.
+- **The close's review added the send's two boundaries.** The reconciliation had required
+  one send per committed intent; a kill between an intent's commit and its send leaves a
+  dispatch authorized and never sent, a history the ruling on the fence allows, and no row
+  killed there. `send:before` and `send:after` were added on both references, the invariant
+  reads a resolved intent sent once and an in-flight one at most once, and the first run
+  with them passed 503 of 503 rows in fifteen minutes twenty-seven (2026-10-07, the
+  manifest's findings section).
 - **Limits.** Two scripted runs, a scripted model and counter, the fixtures' policy with a
   delay of zero; no reference with a source outage (the outage replay is held by the
   worker's unit tests, and a third reference is proposed only if a kill row is found that
