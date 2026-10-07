@@ -8,6 +8,7 @@ import pytest
 
 from leaveimpact.core.input_bound import RegisteredInputBound
 from leaveimpact.core.run_account import (
+    AccountFigures,
     AccountIntent,
     AccountOutcome,
     AccountTransition,
@@ -18,6 +19,7 @@ from leaveimpact.core.run_account import (
     RunAccount,
     account_of,
     authorize,
+    figures_of,
     settle,
 )
 from leaveimpact.core.run_ending import KeptReason, ReservationState
@@ -357,6 +359,56 @@ def test_incomplete_tokens_alone_do_not_keep_the_reservation() -> None:
         [intent(1), outcome(1, cost=Cost(40, True), tokens=TokenCount(400, False))]
     )
     assert settle(account).state is ReservationState.RECONCILED
+
+
+# --- The figures ---------------------------------------------------------------------------
+
+
+def figures(*transitions: AccountTransition) -> tuple[int, int, int]:
+    found = figures_of(account_of(transitions))
+    return found.known_pico_usd, found.retained_pico_usd, found.total_pico_usd
+
+
+def test_an_empty_account_has_nothing_known_and_nothing_retained() -> None:
+    assert figures() == (0, 0, 0)
+
+
+def test_an_unresolved_dispatch_is_retained_whole_and_known_nowhere() -> None:
+    assert figures(intent(1)) == (0, 100, 100)
+
+
+def test_an_amount_priced_whole_is_known_and_retains_nothing() -> None:
+    assert figures(intent(1), answered(1)) == (40, 0, 40)
+
+
+def test_an_amount_priced_in_part_is_known_inside_its_retained_allocation() -> None:
+    assert figures(intent(1), outcome(1, cost=Cost(30, False))) == (30, 70, 100)
+
+
+def test_a_request_never_sent_is_neither_known_nor_retained() -> None:
+    assert figures(intent(1), outcome(1, sent=False)) == (0, 0, 0)
+
+
+def test_a_breached_dispatch_is_known_whole() -> None:
+    assert figures(intent(1), outcome(1, cost=Cost(170, True), tokens=TokenCount(9, True))) == (
+        170,
+        0,
+        170,
+    )
+
+
+def test_the_total_is_the_settlement_charge_over_a_mixed_account() -> None:
+    account = account_of(
+        [intent(1), outcome(1, cost=Cost(30, False)), intent(2), answered(2), intent(3)]
+    )
+    found = figures_of(account)
+    assert (found.known_pico_usd, found.retained_pico_usd) == (70, 170)
+    assert found.total_pico_usd == settle(account).charged_pico_usd == account.pico_usd
+
+
+def test_figures_whose_total_is_not_the_sum_are_refused() -> None:
+    with pytest.raises(ValueError, match="the total is the known consumption plus"):
+        AccountFigures(1, 2, 4)
 
 
 # --- The inputs ----------------------------------------------------------------------------

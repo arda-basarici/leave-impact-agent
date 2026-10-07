@@ -367,7 +367,49 @@ kept_reason=None)
     return Settlement(charged, ReservationState.RECONCILED, None)
 
 
+# --- The figures ----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class AccountFigures:
+    """An account's money as three numbers (the ruling on an export that will not construct,
+    part 4): what was observed, what is still held as an allocation, and their sum, which is
+    the account's contribution and so a closed attempt's charged amount. A retained worst
+    case is not established cost and an absent observation is not zero cost."""
+
+    known_pico_usd: int
+    retained_pico_usd: int
+    total_pico_usd: int
+
+    def __post_init__(self) -> None:
+        require_integer(self.known_pico_usd, "the known consumption in pico-dollars")
+        require_integer(self.retained_pico_usd, "the retained liability in pico-dollars")
+        if self.total_pico_usd != self.known_pico_usd + self.retained_pico_usd:
+            raise ValueError("the total is the known consumption plus the retained liability")
+
+
+def _known(line: AccountLine) -> int:
+    if line.outcome is None or not line.outcome.sent or line.outcome.cost is None:
+        return 0
+    return line.outcome.cost.pico_usd
+
+
+def figures_of(account: RunAccount) -> AccountFigures:
+    """The three figures of ``account``: per line, the cost observed (nothing before an
+    outcome, nothing for a request never sent or never priced) is known, and the line's
+    contribution above it is retained; a line priced whole retains nothing, a breached line
+    is known whole.
+
+    >>> figures_of(RunAccount())
+    AccountFigures(known_pico_usd=0, retained_pico_usd=0, total_pico_usd=0)
+    """
+    known = sum(_known(line) for line in account.lines)
+    total = account.pico_usd
+    return AccountFigures(known, total - known, total)
+
+
 __all__ = [
+    "AccountFigures",
     "AccountIntent",
     "AccountLine",
     "AccountOutcome",
@@ -380,5 +422,6 @@ __all__ = [
     "Settlement",
     "account_of",
     "authorize",
+    "figures_of",
     "settle",
 ]

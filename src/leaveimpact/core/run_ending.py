@@ -217,6 +217,17 @@ class Reservation:
         require_integer(self.charged_pico_usd, "the amount charged in pico-dollars")
 
 
+# --- The status ----------------------------------------------------------------------------
+
+
+class SegmentStatus(StrEnum):
+    """Where the attempt's execution stands; a member is the wire format."""
+
+    NEVER_STARTED = "never_started"
+    OPEN = "open"
+    STOPPED = "stopped"
+
+
 # --- The approval --------------------------------------------------------------------------
 
 
