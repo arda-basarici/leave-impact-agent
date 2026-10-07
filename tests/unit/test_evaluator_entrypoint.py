@@ -320,10 +320,10 @@ def test_evaluating_publishes_one_artifact_over_every_stored_object(
     lines = dict(line.split("=", 1) for line in out.splitlines())
     key = evaluation_key(world.version, "77", "1")
     assert (lines["evaluation_key"], lines["label"]) == (key, "development")
-    assert lines["inventory[eligible]"] == "2"
-    assert lines["inventory[registration_not_resolved]"] == "1"
+    assert lines["listing[eligible]"] == "2"
+    assert lines["listing[registration_not_resolved]"] == "1"
     # The object that is no export is one the harness never listed.
-    assert lines["inventory[not_in_inventory]"] == "1"
+    assert lines["listing[not_in_inventory]"] == "1"
     assert lines["harness_inventory"] == inventory_key(world.version, digest)
     # The run admitted under a commit that resolves to no registration is out of scope.
     assert (lines["coverage[admitted]"], lines["coverage[exported]"]) == ("2", "2")
@@ -335,10 +335,10 @@ def test_evaluating_publishes_one_artifact_over_every_stored_object(
     assert artifact["world"]["version"] == world.version
     assert artifact["evaluator"] == {"commit": head, "registration_commit": head, "changed": []}
     held = LocalObjectReader(twin / "world")
-    for entry in artifact["inventory"]:
+    for entry in artifact["listing"]:
         read = held.get(entry["key"])
         assert read is not None and entry["version_id"] == read.version_id
-    assert [entry["key"].rsplit("/", 2)[1] for entry in artifact["inventory"]] == [
+    assert [entry["key"].rsplit("/", 2)[1] for entry in artifact["listing"]] == [
         "run-1-1",
         "run-2-1",
         "run-3-1",
@@ -371,7 +371,7 @@ def test_a_later_commit_records_what_changed_and_keeps_runs_under_the_same_regis
     status, out, _ = run_job(
         capsys, twin, checkout, "evaluate", "--world-version", world.version, "--inventory", digest
     )
-    assert status == 0 and "inventory[eligible]=1" in out
+    assert status == 0 and "listing[eligible]=1" in out
 
 
 def test_a_dirty_checkout_and_an_empty_listing_are_refused_and_nothing_is_published(
@@ -413,11 +413,11 @@ def test_attempts_that_never_reached_an_export_are_evaluated_with_no_export_stor
     assert (lines["label"], lines["coverage[admitted]"]) == ("development", "2")
     assert (lines["coverage[exported]"], lines["coverage[open]"]) == ("0", "1")
     assert lines["coverage[closed_without_export]"] == "1"
-    assert not [name for name in lines if name.startswith("inventory[")]
+    assert not [name for name in lines if name.startswith("listing[")]
     stored = LocalObjectReader(twin / "truth").get(lines["evaluation_key"])
     assert stored is not None
     artifact = json.loads(stored.content)
-    assert artifact["inventory"] == [] and artifact["coverage"]["publication_incidents"] == 1
+    assert artifact["listing"] == [] and artifact["coverage"]["publication_incidents"] == 1
     assert [each["run_id"] for each in artifact["coverage"]["unexported"]] == ["run-1", "run-2"]
 
 
@@ -550,7 +550,7 @@ def test_a_bound_registration_is_evaluated_when_its_procedure_is_the_frozen_one(
     )
     assert (status, err) == (0, "")
     lines = dict(line.split("=", 1) for line in out.splitlines())
-    assert (lines["label"], lines["inventory[eligible]"]) == ("reported", "1")
+    assert (lines["label"], lines["listing[eligible]"]) == ("reported", "1")
     stored = LocalObjectReader(twin / "truth").get(lines["evaluation_key"])
     assert stored is not None
     read = json.loads(stored.content)["registration"]

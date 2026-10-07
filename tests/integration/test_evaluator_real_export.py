@@ -103,7 +103,7 @@ def test_the_real_export_is_evaluated_under_the_inventory_the_harness_wrote(
 
     assert artifact.harness_inventory == read
     assert (read.digest, read.attempts, read.refused) == (written.digest, 1, 0)
-    (entry,) = artifact.inventory
+    (entry,) = artifact.listing
     assert entry.key == record.object_identity
     assert entry.digest == record.object_digest
     # The listed attempt's current publication: whatever its settings make of it, it is

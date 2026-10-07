@@ -236,7 +236,7 @@ def evaluate(
         inventory_read=inventory_read,
     )
     version_id = publish(version, request.run_id, request.run_attempt, artifact_bytes(artifact))
-    tally = Counter(entry.disposition for entry in artifact.inventory)
+    tally = Counter(entry.disposition for entry in artifact.listing)
     return Published(
         evaluation_key(version, request.run_id, request.run_attempt),
         version_id,

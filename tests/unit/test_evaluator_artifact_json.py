@@ -483,8 +483,8 @@ def paths(value: object, at: str = "") -> set[str]:
 
 
 def entry(written: dict[str, object], key: str) -> dict[str, object]:
-    inventory = cast("list[dict[str, object]]", written["inventory"])
-    return next(item for item in inventory if item["key"] == key)
+    listing = cast("list[dict[str, object]]", written["listing"])
+    return next(item for item in listing if item["key"] == key)
 
 
 # --- The bytes ---------------------------------------------------------------------------------
@@ -503,12 +503,12 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "world",
         "evaluator",
         "registration",
-        "inventory",
+        "listing",
         "harness_inventory",
         "coverage",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (8, "development")
+    assert (decoded["format_version"], decoded["label"]) == (9, "development")
     assert decoded["harness_inventory"]["world_version"] == world.version
     assert decoded["coverage"]["unexported"] == []
     assert decoded["world"]["truth_manifest"] == {
@@ -563,7 +563,7 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
     assert run["level"] == "base"
     outcome = run["outcome"]
     assert (outcome["kind"], outcome["condition"]) == ("graded", {"unreachable": []})
-    held = artifact.inventory[0].evaluation
+    held = artifact.listing[0].evaluation
     assert held is not None
     standings = cast("list[dict[str, object]]", outcome["standings"])
     assert len(standings) > 0

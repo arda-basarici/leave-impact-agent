@@ -32,9 +32,9 @@ Three things are written differently from their type, each on purpose:
   citations, retrieval rows, the per-operation rows, the fact stages with every emission's
   class and the contradictions among its reads are left out: each is recomputed from the
   stored export,
-  which the inventory names by key, version id and digest; the contradictions reach the
+  which the listing names by key, version id and digest; the contradictions reach the
   artifact through the analysis's incidents.
-- *An inventory entry* holds that run under ``run`` and its recomputed cost beside it,
+- *A listing entry* holds that run under ``run`` and its recomputed cost beside it,
   since an export of another world has a cost and no run.
 
 What holds the format still is the format version and a test that pins every key path the
@@ -61,7 +61,7 @@ from typing import cast
 from leaveimpact.core.enums import Source
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.jsonshape import JsonObject
-from leaveimpact.evaluator.artifact import EvaluationArtifact, InventoryEntry
+from leaveimpact.evaluator.artifact import EvaluationArtifact, ListingEntry
 from leaveimpact.evaluator.grading import Excluded, Graded, Grounding, Limited, RunOutcome
 from leaveimpact.evaluator.trace_metrics import Evaluation
 
@@ -94,7 +94,7 @@ def _written(value: object) -> object:
             return value.isoformat()
         case RunCondition():
             return {"unreachable": sorted(s.value for s in Source if s not in value.reachable)}
-        case InventoryEntry():
+        case ListingEntry():
             return _entry(value)
         case tuple() | list():
             return [_written(item) for item in cast("tuple[object, ...]", value)]
@@ -107,7 +107,7 @@ def _written(value: object) -> object:
             raise TypeError(f"the artifact's written form has no rule for {type(value).__name__}")
 
 
-def _entry(entry: InventoryEntry) -> JsonObject:
+def _entry(entry: ListingEntry) -> JsonObject:
     return {
         "key": entry.key,
         "version_id": entry.version_id,

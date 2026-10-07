@@ -56,8 +56,8 @@ from leaveimpact.evaluator.artifact import (
     Disposition,
     EvaluationArtifact,
     EvaluatorRevision,
-    InventoryEntry,
     Label,
+    ListingEntry,
     MissingPublications,
     OpenAttempts,
     RecordedSetting,
@@ -166,8 +166,8 @@ def artifact_of(
     )
 
 
-def only(artifact: EvaluationArtifact) -> InventoryEntry:
-    (entry,) = artifact.inventory
+def only(artifact: EvaluationArtifact) -> ListingEntry:
+    (entry,) = artifact.listing
     return entry
 
 
@@ -231,8 +231,8 @@ def test_eligible_runs_enter_the_tables_and_the_artifact_says_what_it_read(
     assert artifact.registration.declared == Amendment(None, False)
     assert artifact.evaluator == UNCHANGED
     # In key order, each with the version id read and the digest of its bytes.
-    assert [entry.key for entry in artifact.inventory] == ["runs/a", "runs/b"]
-    for entry, run in zip(artifact.inventory, reversed(runs), strict=True):
+    assert [entry.key for entry in artifact.listing] == ["runs/a", "runs/b"]
+    for entry, run in zip(artifact.listing, reversed(runs), strict=True):
         assert (entry.version_id, entry.digest) == (run.version_id, digest(run.content))
         assert (entry.disposition, entry.differing) == (Disposition.ELIGIBLE, ())
         assert entry.label is Label.DEVELOPMENT
@@ -248,7 +248,7 @@ def test_the_baseline_at_each_level_is_a_run_of_its_own_cell(world: SealedWorld)
         stored("runs/a", exported(world, scenario)),
         stored("runs/b", exported(world, scenario, level="padded", run_id="run-2")),
     )
-    assert [entry.disposition for entry in artifact.inventory] == [Disposition.ELIGIBLE] * 2
+    assert [entry.disposition for entry in artifact.listing] == [Disposition.ELIGIBLE] * 2
     by_level = {
         arm.level: arm.cells[0].accounting.made
         for arm in artifact.analysis.arms
@@ -256,7 +256,7 @@ def test_the_baseline_at_each_level_is_a_run_of_its_own_cell(world: SealedWorld)
     }
     assert by_level == {"base": 1, "padded": 1}
     # The two exports are graded alike: the baseline reads no document.
-    base, padded = (entry.evaluation for entry in artifact.inventory)
+    base, padded = (entry.evaluation for entry in artifact.listing)
     assert base is not None and padded is not None
     assert (base.level, padded.level) == ("base", "padded")
     assert isinstance(base.outcome, Graded) and isinstance(padded.outcome, Graded)
@@ -272,7 +272,7 @@ def test_a_short_set_shows_its_shortfall_and_an_empty_one_every_run_missing(
     )
     assert (normal.cells[0].accounting.made, normal.cells[0].accounting.missing) == (1, 29)
     none = artifact_of(world)
-    assert none.inventory == () and made(none) == 0
+    assert none.listing == () and made(none) == 0
 
 
 # --- Each reason for staying out of the tables -------------------------------------------------
@@ -561,7 +561,7 @@ def test_a_bound_registration_reports_and_refuses_a_dirty_harness_tree(
     assert artifact.registration.status is RegistrationStatus.BOUND
     assert artifact.registration.frozen_commit == FROZEN_COMMIT
     assert artifact.registration.procedure == procedure_digest(FROZEN)
-    eligible, refused = artifact.inventory
+    eligible, refused = artifact.listing
     assert (eligible.disposition, eligible.label) == (Disposition.ELIGIBLE, Label.REPORTED)
     assert (refused.disposition, refused.label) == (Disposition.DIRTY_HARNESS, None)
     assert refused.evaluation is not None
@@ -789,7 +789,7 @@ def test_two_eligible_exports_of_one_run_and_attempt_refuse_naming_their_keys(
         stored("runs/b", other),
         inventory=listing(export_bytes(other)),
     )
-    assert [entry.disposition for entry in artifact.inventory] == [
+    assert [entry.disposition for entry in artifact.listing] == [
         Disposition.ELIGIBLE,
         Disposition.SETTINGS_DIFFER,
     ]
@@ -841,7 +841,7 @@ def test_the_artifact_names_the_inventory_it_read_and_reports_its_coverage(
 ) -> None:
     run = stored("runs/a", exported(world, world.scenarios[0]))
     artifact = artifact_of(world, run)
-    assert artifact.format_version == 8
+    assert artifact.format_version == 9
     inventory = inventory_over(world.version, {run.key: run.content})
     _, read = as_read(inventory)
     assert artifact.harness_inventory == read
@@ -894,7 +894,7 @@ def test_a_stored_objects_standing_under_the_inventory_decides_its_disposition(
         stored("runs/z", later),
         inventory=inventory,
     )
-    by_key = {entry.key: entry for entry in artifact.inventory}
+    by_key = {entry.key: entry for entry in artifact.listing}
     assert by_key[current_key].disposition is Disposition.ELIGIBLE
     assert by_key[earlier_key].disposition is Disposition.SUPERSEDED
     assert by_key[orphan_key].disposition is Disposition.PUBLICATION_ORPHAN

@@ -3,10 +3,12 @@ the pure function that produces it.
 
 An evaluation is over a snapshot (the investigator milestone's sixth build step, ruling 7).
 Its caller lists the objects stored for a world's runs and gives every one of them here,
-with the store's version id of each; every one comes back in the artifact's inventory with
+with the store's version id of each; every one comes back in the artifact's listing with
 what it is, what it cost and exactly one reason for being in or out of the tables. Nothing
-listed is dropped: a run that contributes no estimate was still paid for, and an inventory
-that only held the runs that counted would read as a smaller experiment.
+listed is dropped: a run that contributes no estimate was still paid for, and a listing
+that only held the runs that counted would read as a smaller experiment. The listing is
+the evaluator's own and is named apart from the harness's inventory, which the evaluation
+is held to (format 9).
 
 *Which runs enter the tables.* A run is eligible when it was made under the registration
 this evaluation reads, and that takes two things. The registration file at the commit the
@@ -24,7 +26,7 @@ with a value still pending that its execution needs has nothing to be compared w
 its runs are not eligible. Under a bound registration the harness's tree is clean as
 well, and every segment the attempt ran in is on one commit: a run recovered by a process
 on another commit is one export of two programs.
-A run that fails any of these keeps its grade and its cost in the inventory and enters no
+A run that fails any of these keeps its grade and its cost in the listing and enters no
 table; so does one whose cited commit resolves to no registration, which is classified
 unknown.
 
@@ -108,7 +110,7 @@ from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 8
+ARTIFACT_FORMAT_VERSION = 9
 """The format of the evaluation artifact as this code writes it; 3 since an estimate states
 why a bootstrap resolved no interval and a comparison of single runs carries one, 4 since
 the analysis holds the mechanism measure and a run its fact recheck, its level check and
@@ -119,7 +121,8 @@ commit and an ending holds its commits, 7 since a run holds its account, count, 
 eligibility checks and a cell counts the runs carrying each and the parts not evaluated,
 8 since the artifact names the harness inventory it read and its coverage, a listed object
 has the four standings the inventory decides, and a cell counts the runs with an attempt
-no export reached."""
+no export reached, 9 since the evaluator's listing of stored objects is written as
+``listing``, apart from the harness inventory it is held to."""
 
 
 class Label(StrEnum):
@@ -207,7 +210,7 @@ class EvaluatorRevision:
 
 
 @dataclass(frozen=True, slots=True)
-class InventoryEntry:
+class ListingEntry:
     """One listed object and what this evaluation made of it.
 
     ``digest`` is the SHA-256 of the bytes read. ``evaluation`` is the run's own grading,
@@ -261,7 +264,7 @@ class WorldRead:
 @dataclass(frozen=True, slots=True)
 class EvaluationArtifact:
     """One evaluation: what was read, what every listed object is, and the registered tables
-    over the eligible runs. ``inventory`` is the evaluator's listing of stored objects, in
+    over the eligible runs. ``listing`` is the evaluator's listing of stored objects, in
     key order; ``harness_inventory`` names the harness's inventory the listing was held to,
     and ``coverage`` what that inventory says was admitted against what was intended."""
 
@@ -271,7 +274,7 @@ class EvaluationArtifact:
     world: WorldRead
     evaluator: EvaluatorRevision
     registration: RegistrationRead
-    inventory: tuple[InventoryEntry, ...]
+    listing: tuple[ListingEntry, ...]
     harness_inventory: HarnessInventoryRead
     coverage: HarnessCoverage
     analysis: Analysis
@@ -399,7 +402,7 @@ def evaluation_artifact(
             registration.world.frozen_commit,
             registration.amendment,
         ),
-        inventory=listing,
+        listing=listing,
         harness_inventory=inventory_read,
         coverage=coverage,
         analysis=analysis,
@@ -538,7 +541,7 @@ def _entry(
     registrations_at: Mapping[str, bytes | None],
     label: Label,
     inventory: Inventory,
-) -> InventoryEntry:
+) -> ListingEntry:
     read = digest(run.content)
 
     def entry(
@@ -547,8 +550,8 @@ def _entry(
         cost: CostCheck | None,
         differing: tuple[RecordedSetting, ...] = (),
         of_run: Label | None = None,
-    ) -> InventoryEntry:
-        return InventoryEntry(
+    ) -> ListingEntry:
+        return ListingEntry(
             run.key, run.version_id, read, disposition, differing, of_run, evaluation, cost
         )
 
@@ -636,7 +639,7 @@ def label_of(registration: Registration) -> Label:
     return Label.REPORTED
 
 
-def _require_unambiguous(eligible: Sequence[InventoryEntry]) -> None:
+def _require_unambiguous(eligible: Sequence[ListingEntry]) -> None:
     first: dict[tuple[str, int], str] = {}
     for entry in eligible:
         assert entry.evaluation is not None
@@ -656,7 +659,7 @@ __all__ = [
     "Disposition",
     "EvaluationArtifact",
     "EvaluatorRevision",
-    "InventoryEntry",
+    "ListingEntry",
     "Label",
     "MissingPublications",
     "OpenAttempts",

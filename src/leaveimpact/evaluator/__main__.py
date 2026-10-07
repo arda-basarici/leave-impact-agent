@@ -94,7 +94,7 @@ def main(
             print(f"evaluation_version_id={published.version_id}")
             print(f"label={published.label.value}")
             for disposition, count in published.dispositions:
-                print(f"inventory[{disposition.value}]={count}")
+                print(f"listing[{disposition.value}]={count}")
             print(f"harness_inventory={published.harness_inventory.key}")
             coverage = published.coverage
             for name in ("intended", "admitted", "exported", "open", "closed_without_export"):
