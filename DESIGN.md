@@ -2727,7 +2727,8 @@ runs alone favours the system whose hard runs go missing most often. An attempt 
 with no export is placed in no cell, the inventory holding no scenario, and is counted
 in the whole alone; placing it would need the inventory to carry the frozen inputs'
 placement identifiers, a format change taken when a cell's missing runs matter to a
-comparison. The artifact is at format 8. The first evaluation over an export the real
+comparison. The artifact is at format 9, the listing of stored objects named apart from
+the harness inventory since the close. The first evaluation over an export the real
 store, worker, publish and inventory commands produced listed it current with coverage
 one of one and out of the tables for its settings, the fixtures' record naming values
 the draft registration leaves pending.
