@@ -323,6 +323,28 @@ def test_a_graded_predecessor_permits_no_successor(rig: Rig) -> None:
     )
 
 
+def test_a_successor_under_another_retry_rule_is_refused_before_eligibility(rig: Rig) -> None:
+    """The maximum that decides whether attempt 2 may follow is attempt 1's frozen rule and
+    not the one the successor's request carries, which could otherwise admit itself under a
+    larger maximum (the event log step's second review of the commands group)."""
+    store = opened(rig)
+    events = histories.HISTORIES["an attempt admitted and never claimed"]()
+    admitted, admitter = admission_of(events)
+    replay(store, events)
+    published(store, "run-12", 1)
+    held = admitted.inputs.retry
+    widened = replace(held, max_attempts=held.max_attempts + 5)
+    second = replace(admitted, inputs=replace(admitted.inputs, attempt=2, retry=widened))
+    refused = store.admit(request_for(second, admitter))
+    assert isinstance(refused, AdmissionRefusal)
+    assert refused.reason == (
+        f"attempt 2's retry rule ({widened.after.value}, up to {widened.max_attempts}) is "
+        f"not attempt 1's ({held.after.value}, up to {held.max_attempts})"
+    )
+    same = replace(admitted, inputs=replace(admitted.inputs, attempt=2))
+    assert isinstance(store.admit(request_for(same, admitter)), AdmissionReceipt)
+
+
 def test_the_ledger_refuses_above_its_room_and_records_it(rig: Rig) -> None:
     store = opened(rig, threshold=1)
     admitted, admitter = admission_of(histories.HISTORIES["a cut call"]())

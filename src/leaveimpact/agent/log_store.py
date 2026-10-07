@@ -513,7 +513,11 @@ class LogStore:
         self, conn: Connection, run_id: str, attempt: int, inputs: FrozenInputs, rules: Rules
     ) -> str | None:
         """Why attempt ``attempt`` may not follow its predecessor, or ``None``: the
-        predecessor open, its export not published, or its ending permitting no new attempt."""
+        predecessor open, its export not published, the successor asking under another
+        retry rule, or the predecessor's ending permitting no new attempt. The rule that
+        decides is the predecessor's frozen one: a successor's request carrying a larger
+        maximum would otherwise admit itself (the event log step's second review of the
+        commands group)."""
         if attempt == 1:
             return None
         before = attempt - 1
@@ -525,6 +529,14 @@ class LogStore:
             state = "absent" if publication is None else publication.state.value
             return f"attempt {before}'s export is not published (publication {state})"
         state = self._fold(conn, row, rules)
+        held = state.inputs
+        assert held is not None, "an admitted attempt's state holds its frozen inputs"
+        if inputs.retry != held.retry:
+            return (
+                f"attempt {attempt}'s retry rule ({inputs.retry.after.value}, up to "
+                f"{inputs.retry.max_attempts}) is not attempt {before}'s "
+                f"({held.retry.after.value}, up to {held.retry.max_attempts})"
+            )
         stopped = state.stopped
         ending = eligibility_ending_of(state, rules)
         if ending is None:
@@ -536,7 +548,7 @@ class LogStore:
             ending,
             recorded_defect=stopped is not None and stopped.category is FailureCategory.DEFECT,
             attempt=before,
-            retry=inputs.retry,
+            retry=held.retry,
         )
         if eligibility.permitted:
             return None
