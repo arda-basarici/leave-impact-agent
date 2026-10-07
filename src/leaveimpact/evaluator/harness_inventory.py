@@ -81,14 +81,23 @@ def read_inventory(
     """The inventory named ``digest`` for the world ``version``, from the bytes read at its key.
 
     Raises ``ValueError`` when the bytes do not digest to the name, when they are not an
-    inventory (the decoder's message names the first field that refused), or when the
-    inventory is of another world. The message names the key and never the content.
+    inventory, or when the inventory is of another world. The message names the key, the
+    digests and the versions and never the content: the decoder's own message quotes the
+    value it refused, and the evaluation job's log is public (the second sitting's review,
+    second finding), so it is dropped whole.
     """
     key = inventory_key(version, digest)
     read = hashlib.sha256(content).hexdigest()
     if read != digest:
         raise ValueError(f"the object at {key} does not digest to its name: read {read}")
-    inventory = decode_inventory_bytes(content)
+    try:
+        inventory = decode_inventory_bytes(content)
+    except ValueError:
+        inventory = None
+    # Raised after the handler has ended, so the decoder's exception is no part of what a
+    # traceback prints either.
+    if inventory is None:
+        raise ValueError(f"the object at {key} does not decode as an inventory")
     if inventory.scope.world_version != version:
         raise ValueError(
             f"the inventory at {key} is of the world {inventory.scope.world_version}, and the "

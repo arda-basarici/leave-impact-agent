@@ -290,8 +290,8 @@ def _named_inventory(
         return read_inventory(version, digest, stored.content)
     except ValueError as refused:
         reason = str(refused)
-    # Raised after the handler has ended: the decoder's message names a field and no value,
-    # and nothing of the object reaches a traceback.
+    # Raised after the handler has ended: the reader's message names the key, digests and
+    # versions and nothing of the object, and nothing of it reaches a traceback.
     raise EvaluationRefused(reason)
 
 

@@ -413,6 +413,16 @@ def test_an_inventory_absent_misnamed_or_contradicted_by_the_store_is_refused(
         inventory_key(world.version, misnamed), inventory_bytes(listed(world.version))
     )
     assert "does not digest to its name" in refused(misnamed)
+    # One that does not decode is refused by its key alone: the decoder quotes the value it
+    # refused, and this log is public.
+    marked = inventory_bytes(listed(world.version)).replace(b"ledger-1", b"PRIVATE-MARKER")
+    marked = marked.replace(b'"refused":[]', b'"refused":["PRIVATE-MARKER"]')
+    undecodable = inventory_digest(marked)
+    LocalObjectWriter(twin / "world").put_if_absent(
+        inventory_key(world.version, undecodable), marked
+    )
+    err = refused(undecodable)
+    assert "does not decode as an inventory" in err and "PRIVATE-MARKER" not in err
     # One listing the export before it is stored (another object keeps the listing from
     # being empty, which is refused first), then with other bytes than stored.
     LocalObjectWriter(twin / "world").put_if_absent(

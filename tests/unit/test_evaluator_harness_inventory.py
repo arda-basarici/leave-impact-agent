@@ -5,6 +5,8 @@ other bytes found by name; the scope by the registration bytes at an attempt's c
 attempts with no export, each with its ending, its record's status and its figures; and the
 whole's coverage with the four things reported apart in one place."""
 
+import traceback
+
 import pytest
 
 from leaveimpact.adapters.object_store.layout import (
@@ -77,11 +79,24 @@ def test_the_inventory_is_read_by_its_name_and_the_name_is_checked_against_the_b
         read_inventory(VERSION, "0" * 64, content)
 
 
-def test_bytes_that_are_no_inventory_refuse_by_field_and_never_by_content() -> None:
-    content = b'{"format_version": 1, "scope": "SECRET-MARKER"}'
-    with pytest.raises(ValueError) as refused:
-        read_inventory(VERSION, inventory_digest(content), content)
-    assert "SECRET-MARKER" not in str(refused.value)
+def test_bytes_that_are_no_inventory_refuse_by_the_key_and_never_by_content() -> None:
+    # The decoder's own message quotes the value it refused (a status that is no member of
+    # its enumeration, here); the reader drops it whole, and its traceback carries nothing
+    # of the object either.
+    valid = inventory_bytes(listed(VERSION, published(VERSION, "run-1", 1, EXPORT)))
+    for content in (
+        b'{"format_version": 1, "scope": "SECRET-MARKER"}',
+        valid.replace(b'"published"', b'"SECRET-MARKER"'),
+        b"not json SECRET-MARKER",
+    ):
+        with pytest.raises(ValueError) as refused:
+            read_inventory(VERSION, inventory_digest(content), content)
+        assert str(refused.value) == (
+            f"the object at {inventory_key(VERSION, inventory_digest(content))} does not decode "
+            "as an inventory"
+        )
+        printed = "".join(traceback.format_exception(refused.value))
+        assert "SECRET-MARKER" not in printed and refused.value.__cause__ is None
 
 
 def test_an_inventory_of_another_world_is_refused_by_the_two_versions() -> None:
