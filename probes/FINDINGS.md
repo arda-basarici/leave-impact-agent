@@ -2731,3 +2731,126 @@ and the 17 requests, and none of the three is a proof. A request's byte length i
 registered: the inequality held on the request shapes measured and nothing establishes it
 for the input the provider constructs from a body. A model family with no counting call
 therefore has no method and is no registered model-calling cell.
+
+## parse-protocol — the fact tool's call arrived with its one entry nested a list deeper than the schema; the text payload did not (2026-10-06)
+
+The parse protocol (`agent/answer_parse.py`) reads a model's answer by shape: a `toolUse`
+block is a tool call, the fact tool's call is handled as the batch its input holds, a text
+block opening with `{` is a fact payload in the answer's own content. It was built against
+hand-written fixtures and the acceptance spike's two captured responses, which hold the
+read-call shape and the text-only shape and neither fact shape. The probe is
+`probes/parse_protocol/live_probe.py`, its forecast in `probes/README.md` written before
+the run, its scrubbed response `tests/fixtures/converse/parse-probe-20261006T205828Z.json`
+(`tests/fixtures/converse/SCRUB.md` says what the scrub keeps). One send to Haiku 4.5 on
+the `eu.` profile from a workstation under an administrative principal, a system prompt
+asking for one `state_facts` call carrying a given entry and the same payload beside it as
+plain text opening with `{`; 962 input and 99 output tokens, 867 ms.
+
+| asked for | arrived | the protocol's reading |
+|---|---|---|
+| the `state_facts` call with one entry | the call, its `facts` holding the entry nested one list deeper than the declared schema (`[[{...}]]`) | a batch of one refused input, undecodable (an entry is an object, got list); no stated fact; nothing raised |
+| the same payload as a `{` text block | nothing; the model used the tool and wrote no prose | no text present, as the shape says |
+
+- **Forecast (a guess, marked so).** Met: the tool call arrived with an object input and
+  the text payload did not, the likelier of the two outcomes the forecast named. The
+  entry's shape was not forecast either way.
+- **The outer shape is confirmed.** A `state_facts` call is handled as the batch its input
+  holds, and a malformed entry inside it becomes a typed refusal kept whole beside its
+  reason, as the derived parse rules (the event log step's ruling on tool calls from the
+  log, part 2).
+- **The entry's shape is not evidence against the parser.** One send under a stand-in
+  prompt that asked for the same payload twice, once in the tool and once as text, is not
+  the investigator's prompt and transfers nothing to it. The protocol was adopted
+  unamended; the nesting goes to the investigator graph's prompt check (step 11), whose
+  own check on real output the contract step already requires, with the flattening of a
+  singly nested list as the cheapest candidate amendment should a prompt written to the
+  schema still get it.
+- **Limits.** One send, one model, temperature 0, one prompt that is not the system's.
+  Nothing here says how often a prompt written to the schema gets the nesting. The
+  capture replay (`tests/unit/test_agent_answer_parse_captures.py`) holds the reading
+  above and the three fixtures; no fixture holds a `{` text block, since none arrived.
+
+## real-export — the first export the real store and worker produced: the four audits with no finding, listed current by the evaluator under the harness inventory, out of the tables for its settings (2026-10-07)
+
+Until the event log step's commands group, every export the evaluator's audits had read
+was a fixture built by hand, and every audit had been accepted on those alone (the lesson
+of 2026-10-03: a check's first test is the real producer's output). The first real one is
+the worker group's two-call reference run over the golden world's first scenario, through
+the real store (schema version 3), closed by the automatic approval and published by the
+publish command into the in-memory object store. Two integration tests read it
+(`tests/integration/test_commands.py` for the audits, over the real store;
+`tests/integration/test_evaluator_real_export.py` for the evaluation, over the real store,
+worker, publish command and inventory command).
+
+| what read it | result | forecast |
+|---|---|---|
+| the account check | no finding: the recorded authorizations replay, the spend inside the reservation and the token cap | held |
+| the count check | no finding: each bound names a durable count that preceded its intent and equals it | held |
+| the call check | no finding: each call stands as its one dispatch says, the attempt ended where its calls say | held |
+| the eligibility check | no finding: a completed attempt permits no successor | held |
+| the evaluation under the inventory the harness wrote | the export listed current, coverage one of one, out of the tables as `settings_differ` | missed: the forecast said eligible |
+
+- **The audits' first real input moved nothing**, which is the result the design asks of
+  a plumbing run: the real store writes what the fixtures described.
+- **The miss was the forecast's, about the registration and not the inventory.** The
+  fixtures' record names values the draft registration leaves pending, so the run's
+  recorded settings differ from the registered ones and the run keeps its grade and enters
+  no table; "eligible" was a guess about which registration the test would hand the
+  evaluator. The test asserts the standing and the coverage, which the inventory decides,
+  and not the disposition, which the registration does.
+- **Limits.** One run, one scenario, a scripted model and a scripted counter; the
+  object store is the in-memory double, so the instance's refused read-back (the put
+  outcome present-unverified) is not exercised here and is the first live publication's
+  to observe (step 14). The counting operations are the scripted counter's; no provider
+  was called.
+
+## crash-matrix — the real worker and the job seam's commands killed at every boundary their reference runs cross, 469 rows recovering as forecast after two forecasts were corrected and a second reference was added (2026-10-06 to 07)
+
+The matrix is the event log step's acceptance (the ruling on placement and acceptance,
+part 8): a child process runs the real worker, or one of the job seam's commands, over the
+real store; the parent kills it at one named crossing of the store's boundaries, the
+framework saver's writes, the approval handoff or the object store's put; a second child
+recovers; the final log, ledger, objects and export are reconciled against an uninterrupted
+reference. Every kill point and its outcome are forecast in `tests/crash/MANIFEST.md`
+before the run, and a row the run contradicts is a named finding there, never a silent
+edit. It runs under the `crash` marker and its own CI job (`just test-crash`), and the
+test holds the manifest to the families crossed, no more and no fewer.
+
+| run | rows | passed | what it found |
+|---|---|---|---|
+| 2026-10-06, the first (the manifest's findings section) | 130 | 126 | the four saver crossings of the terminal step come after the closing event committed, so the recovery finds the attempt closed and leaves it; the forecast had every recovery completing the run. The worker right, the forecast wrong; the rows accept it |
+| 2026-10-06, the first in CI | 130 | 129 | a kill on the saver's background thread landed between a port read and its append on the main thread, one port read above the forecast; the invariant restated per process (a killed child's reads exceed its logged operations by at most one, a completing child's equal them) |
+| 2026-10-07, after the external review | 282, then 303 | all | the recovery rows' targets scouted from each sampled kill's own recovery path, since a lost outcome makes the recovery append an intent the reference's suffix never holds (21 rows the suffix could not name) |
+| 2026-10-07, the commands' first run | 317 | 317 | the four command references crossed exactly the fourteen families forecast; the inventory's `put:after` row left two inventories as forecast |
+| 2026-10-07, the second reference's rows alone (`run_throttled_rows.py`, a scratch driver) | 152 | 152 | every forecast of the manifest's second-reference section held on the first run |
+| 2026-10-07, the whole, at the step's close | 469 | 469 | in twelve minutes forty-six: the two-call reference's 112 crossings, the throttled one's 80, their recovery rows and the fourteen command rows |
+
+- **What one reference run cannot show.** The external review of 2026-10-07 found a run
+  with an outage and a run with a re-dispatch outside the one reference script (its
+  findings 2, 4 and 6), which is why a 130-row matrix passed over the replay's ordinal
+  shift under an outage and the recovery's skipped delay; both are held by unit tests, and
+  the second reference is the throttled run: every dispatch of its first call answered by a
+  throttle, the registered maximum of three exhausted, the attempt failed by
+  infrastructure at the third dispatch's send, no model read, no approval, no claims.
+- **The forecast worth recording** is the one about the bound: a kill that loses the third
+  dispatch's outcome leaves the call at its maximum with its last dispatch unresolved, so
+  the recovery sends nothing and fails by the unresolved reading, the settled events the
+  reference's and the closing event's reason differing. It held.
+- **The reconciliation is stated per call** since the second reference: every dispatch but
+  the in-flight ones has its outcome, the dispatches made are the reference's plus one per
+  lost outcome and never past the maximum, the counts started are the reference's plus one
+  per lost count outcome, the sends across every child equal the committed intents of the
+  final log, the closing kind and the approval appear as often as in the reference. The
+  completing reference's length formula had counted every lost outcome as one extra event,
+  true only where a lost call is always re-dispatched.
+- **One run was red on the manifest's text and not on a row.** The full run before this
+  one, 469 of 469 rows passing, failed the family test: the second-reference section had
+  grouped families in one cell and used wildcards, which the manifest's reader does not
+  parse. The rows were rewritten one family each, checked offline against the run's
+  families, and the matrix rerun whole.
+- **Limits.** Two scripted runs, a scripted model and counter, the fixtures' policy with a
+  delay of zero; no reference with a source outage (the outage replay is held by the
+  worker's unit tests, and a third reference is proposed only if a kill row is found that
+  those tests cannot hold). Kill points are named crossings, not arbitrary instructions;
+  the saver's seams fire on the framework's thread and land anywhere in a step. The job's
+  time is the development machine's with six rows at a time.
