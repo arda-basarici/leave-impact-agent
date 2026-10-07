@@ -66,7 +66,7 @@ from leaveimpact.agent.ledger import EntryKind
 from leaveimpact.agent.log_events import EventKind, LoggedEvent, event_digest, kind_of
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore
-from leaveimpact.agent.log_transition import calls_of
+from leaveimpact.agent.log_transition import Appended, AttemptState, calls_of, next_state
 from leaveimpact.core import PublicationStatus, decode_export_bytes, export_bytes
 from leaveimpact.core.inventory import decode_inventory_bytes
 from leaveimpact.core.run_export import RunExport
@@ -82,6 +82,7 @@ from tests.crash.child import (
     REQUEST,
     RUN,
     SCHEMA,
+    SCRIPT,
     WORLD,
     application_of,
     connect_in,
@@ -102,6 +103,13 @@ RECOVERY_EVERY = 16
 """Every sixteenth crossing of the reference gets the recovery rows: seven sampled kills, each
 with one row per family the recovering child crosses, about 170 rows beside the 112; at
 twelve the matrix took ten and a half minutes."""
+REFERENCE_SCRIPTS = {"two-call": "completed", "throttled": "failed"}
+"""The worker's references by script name and the ending each closes with. The two-call
+run completes under the automatic approval; the throttled run has every dispatch of its
+first call answered by a throttle, exhausts the registered maximum and fails by
+infrastructure at the last dispatch's send, so the exhaustion endings have kill rows (the
+worker group's review, sixth finding: a matrix with one completing reference passed over
+the replay's ordinal shift under an outage and the recovery's skipped delay)."""
 COMMAND_MODES = ("admit", "admit-refused", "publish", "inventory")
 """The job seam's commands the matrix kills (the ruling on placement and acceptance, part 8):
 admission on its receipt path and on its refusal path (a second attempt asked while the
@@ -204,9 +212,11 @@ class Ended:
         return self.crossings[-1] if self.crossings else None
 
 
-RECOVERED_ENDINGS = frozenset({("closed", "completed"), ("closed_already", "completed")})
-"""The endings a recovering child may report: it completed the attempt, or found it closed
-(a kill after the closing event committed, the first run's finding against the manifest)."""
+def recovered_endings(ending: str) -> frozenset[tuple[str, str]]:
+    """The endings a recovering child may report for a reference closing with ``ending``: it
+    closed the attempt that way itself, or found it closed (a kill after the closing event
+    committed, the first run's finding against the manifest)."""
+    return frozenset({("closed", ending), ("closed_already", ending)})
 
 
 def start_child(
@@ -220,10 +230,12 @@ def start_child(
     objects: Path | None = None,
     request: str | None = None,
     attempt: int | None = None,
+    script: str = "two-call",
 ) -> Ended:
     """One child in ``mode`` over ``schema``, killed at ``target`` or left to run; ``objects``
     is the local object store's root for the publish and inventory modes, ``request`` and
-    ``attempt`` the admit mode's request identity and attempt number."""
+    ``attempt`` the admit mode's request identity and attempt number, ``script`` the run the
+    work mode drives."""
     env = {
         **os.environ,
         "DATABASE_URL": prepared.url,
@@ -231,6 +243,7 @@ def start_child(
         WORLD: str(prepared.world_file),
         NONCE: nonce,
         MODE: mode,
+        SCRIPT: script,
         injector.RECORD: str(record),
     }
     env.pop(injector.TARGET, None)
@@ -335,14 +348,24 @@ def boundary_violations(
 
 @dataclass
 class Reference:
-    """The uninterrupted run: its crossings in order, its log and its export, and what its
-    record witnessed."""
+    """One uninterrupted run of ``script``, closing with ``ending``: its crossings in order,
+    its log and its export, and what its record witnessed."""
 
+    script: str
+    ending: str
     crossings: tuple[str, ...]
     events: tuple[LoggedEvent, ...]
     export: RunExport
     sends: int
     reads: int
+
+    @property
+    def recovered_endings(self) -> frozenset[tuple[str, str]]:
+        return recovered_endings(self.ending)
+
+    @property
+    def closing_kind(self) -> EventKind:
+        return kind_of(self.events[-1].event)
 
 
 @dataclass
@@ -357,20 +380,26 @@ class RowResult:
         return not self.findings
 
 
-def run_reference(prepared: Prepared) -> Reference:
+def run_reference(prepared: Prepared, script: str = "two-call") -> Reference:
+    ending = REFERENCE_SCRIPTS[script]
     schema = new_schema(prepared.url)
     try:
         store = admitted(prepared, schema)
         record = prepared.directory / f"{schema}.jsonl"
-        ended = start_child(prepared, schema, record, target=None, nonce="nonce-reference")
+        ended = start_child(
+            prepared, schema, record, target=None, nonce="nonce-reference", script=script
+        )
         assert ended.code == 0 and ended.ending is not None, (ended.code, ended.stderr)
-        assert ended.ending["kind"] == "closed" and ended.ending["detail"] == "completed", (
-            ended.ending
+        assert ended.ending["kind"] == "closed" and ended.ending["detail"] == ending, (
+            script,
+            ended.ending,
         )
         events = store.events(RUN, ATTEMPT)
         export = export_of(store.load(RUN, ATTEMPT, rules=histories.RULES))
         lines = injector.read_record(record)
         return Reference(
+            script,
+            ending,
             ended.crossings,
             events,
             export,
@@ -391,11 +420,13 @@ def rows_for(prepared: Prepared, reference: Reference) -> list[tuple[str, ...]]:
     for index, crossing in enumerate(reference.crossings):
         if index % RECOVERY_EVERY != RECOVERY_EVERY // 2:
             continue
-        rows.extend((crossing, target) for target in scout_recovery(prepared, crossing))
+        rows.extend(
+            (crossing, target) for target in scout_recovery(prepared, reference, crossing)
+        )
     return rows
 
 
-def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
+def scout_recovery(prepared: Prepared, reference: Reference, first: str) -> tuple[str, ...]:
     """The families a recovering child crosses after a kill at ``first``, at occurrence one:
     the first child killed there, a second child left to run, its crossings read. The load's
     read and the saver's seams are left out, since a kill there is the first-process rows'
@@ -404,7 +435,9 @@ def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
     record = prepared.directory / f"{schema}.jsonl"
     try:
         admitted(prepared, schema)
-        killed = start_child(prepared, schema, record, target=first, nonce="nonce-scout-0")
+        killed = start_child(
+            prepared, schema, record, target=first, nonce="nonce-scout-0", script=reference.script
+        )
         assert killed.code == injector.KILL_CODE and killed.last_crossing == first, (
             first,
             killed.code,
@@ -412,7 +445,9 @@ def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
             killed.stderr[-400:],
         )
         wait_sessions_ended(prepared.url, schema)
-        recovered = start_child(prepared, schema, record, target=None, nonce="nonce-scout-1")
+        recovered = start_child(
+            prepared, schema, record, target=None, nonce="nonce-scout-1", script=reference.script
+        )
         # The exit code alone accepts a worker that ended ``left_open`` (the log unavailable,
         # a claim refused) and crossed nothing, which would scout no target and silently
         # drop the kill's recovery rows (the commands group's review, fourth finding); the
@@ -422,10 +457,8 @@ def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
             recovered.code,
             recovered.stderr[-400:],
         )
-        assert (recovered.ending["kind"], recovered.ending["detail"]) in RECOVERED_ENDINGS, (
-            first,
-            recovered.ending,
-        )
+        recovered_as = (recovered.ending["kind"], recovered.ending["detail"])
+        assert recovered_as in reference.recovered_endings, (first, recovered.ending)
         families: list[str] = []
         for crossing in recovered.crossings:
             family = injector.family(crossing)
@@ -441,7 +474,7 @@ def scout_recovery(prepared: Prepared, first: str) -> tuple[str, ...]:
 def run_row(
     prepared: Prepared, reference: Reference, kills: tuple[str, ...], *, keep: bool = False
 ) -> RowResult:
-    result = RowResult(kills)
+    result = RowResult((reference.script, *kills))
     schema = new_schema(prepared.url)
     result.schema = schema
     record = prepared.directory / f"{schema}.jsonl"
@@ -451,7 +484,14 @@ def run_row(
         accounted: list[tuple[int, int]] = []
         logged_before = 0
         for index, target in enumerate(kills):
-            ended = start_child(prepared, schema, record, target=target, nonce=f"nonce-{index}")
+            ended = start_child(
+                prepared,
+                schema,
+                record,
+                target=target,
+                nonce=f"nonce-{index}",
+                script=reference.script,
+            )
             result.children.append(ended.ending)
             if ended.code != injector.KILL_CODE or ended.last_crossing != target:
                 result.findings.append(
@@ -470,7 +510,9 @@ def run_row(
                 result.findings.extend(
                     boundary_violations(events, checkpointed(prepared.url, schema, thread))
                 )
-        final = start_child(prepared, schema, record, target=None, nonce="nonce-final")
+        final = start_child(
+            prepared, schema, record, target=None, nonce="nonce-final", script=reference.script
+        )
         result.children.append(final.ending)
         # A kill after the closing event committed (the terminal step's saver writes) leaves
         # a closed attempt, which the recovery finds at its load and leaves: the first run's
@@ -478,7 +520,7 @@ def run_row(
         if (
             final.code != 0
             or final.ending is None
-            or (final.ending["kind"], final.ending["detail"]) not in RECOVERED_ENDINGS
+            or (final.ending["kind"], final.ending["detail"]) not in reference.recovered_endings
         ):
             result.findings.append(
                 f"recovery did not complete: code {final.code}, ending {final.ending}, "
@@ -522,35 +564,59 @@ def reconcile(
             f"in flight at the end {sorted(map(str, final_pending))}, the kills left "
             f"{sorted(map(str, pending))}"
         )
-    claims = sum(kind_of(e.event) is EventKind.SEGMENT_STARTED for e in final)
-    expected_length = len(reference.events) + (claims - 1) + len(final_pending)
-    if len(final) != expected_length:
-        found.append(
-            f"{len(final)} events, expected {expected_length} (reference "
-            f"{len(reference.events)}, {claims} claims, {len(final_pending)} in flight)"
-        )
+    if [e.position for e in final] != list(range(1, len(final) + 1)):
+        found.append("the positions are not dense from one")
+    # Per call: every dispatch but the ones left in flight has its outcome, and the
+    # dispatches made are the reference's plus one per lost outcome, never past the
+    # registered maximum, since an unresolved dispatch counts against the bound (the ruling
+    # on one writer, part 4) and a call at the maximum with its last dispatch unresolved
+    # fails without another send (the ruling on re-dispatch, part 4).
+    policy = histories.RULES.redispatch
+    assert policy is not None
     state = store.load(RUN, ATTEMPT, rules=histories.RULES)
+    reference_calls = {c.ordinal: c for c in calls_of(reference_state(reference))}
     for call in calls_of(state):
-        if set(call.outcomes) != {call.last_number}:
+        pending_numbers = _pending_dispatches(final_pending, call.ordinal)
+        if set(call.outcomes) != set(range(1, call.last_number + 1)) - pending_numbers:
             found.append(
                 f"call {call.ordinal} holds outcomes {sorted(call.outcomes)} for intents up to "
-                f"{call.last_number}"
+                f"{call.last_number} with {sorted(pending_numbers)} in flight"
             )
+        made_by_reference = reference_calls[call.ordinal].last_number
+        expected_last = min(policy.max_dispatches, made_by_reference + len(pending_numbers))
+        if call.last_number != expected_last:
+            found.append(
+                f"call {call.ordinal} made {call.last_number} dispatches, expected "
+                f"{expected_last} (the reference's {made_by_reference} plus "
+                f"{len(pending_numbers)} lost, within {policy.max_dispatches})"
+            )
+    counts_pending = sum(1 for key in final_pending if not _is_dispatch_key(key))
+    starts, reference_starts = _count_starts(final), _count_starts(reference.events)
+    if starts != reference_starts + counts_pending:
+        found.append(
+            f"{starts} counts started, expected the reference's {reference_starts} plus "
+            f"{counts_pending} lost"
+        )
     kinds = [kind_of(e.event) for e in final]
-    for kind in (EventKind.APPROVED, EventKind.COMPLETED):
-        if kinds.count(kind) != 1:
-            found.append(f"{kind.value} appears {kinds.count(kind)} times")
+    reference_kinds = [kind_of(e.event) for e in reference.events]
+    for kind in (EventKind.APPROVED, reference.closing_kind):
+        if kinds.count(kind) != reference_kinds.count(kind):
+            found.append(
+                f"{kind.value} appears {kinds.count(kind)} times, the reference holds it "
+                f"{reference_kinds.count(kind)}"
+            )
     settled_entries = [e for e in store.ledger_view(LEDGER).entries if e.kind is EntryKind.SETTLED]
     if len(settled_entries) != 1:
         found.append(f"{len(settled_entries)} settled ledger entries")
     sends = sum(line.get("witness") == "send" for line in lines)
-    dispatch_pending = sum(
-        1 for key in final_pending if len(key) == 2 and all(isinstance(k, int) for k in key)
-    )
-    if sends != reference.sends + dispatch_pending:
-        found.append(f"{sends} sends, expected {reference.sends} + {dispatch_pending} in flight")
+    intents = sum(kind is EventKind.DISPATCH_INTENT for kind in kinds)
+    # A send follows its committed intent and nothing else sends, so the sends across every
+    # child equal the intents the final log holds (the completing reference's plus one per
+    # lost outcome, the throttled one's capped by the maximum).
+    if sends != intents:
+        found.append(f"{sends} sends, expected one per committed intent, {intents}")
     for key in final_pending:
-        if len(key) == 2 and all(isinstance(k, int) for k in key):
+        if _is_dispatch_key(key):
             call, number = key
             held = [c for c in calls_of(state) if c.ordinal == call]
             if held and number in held[0].outcomes:
@@ -577,6 +643,36 @@ def reconcile(
     if export.trace.claims != reference.export.trace.claims:
         found.append("the export's claims differ from the reference's")
     return found
+
+
+def _pending_dispatches(pending: set[tuple[object, ...]], ordinal: int) -> set[int]:
+    """The dispatch numbers of call ``ordinal`` left in flight."""
+    numbers: set[int] = set()
+    for key in pending:
+        if _is_dispatch_key(key):
+            call, number = key
+            if call == ordinal and isinstance(number, int):
+                numbers.add(number)
+    return numbers
+
+
+def _is_dispatch_key(key: tuple[object, ...]) -> bool:
+    """A dispatch request's key is the call and the number; a count's is longer."""
+    return len(key) == 2 and all(isinstance(k, int) for k in key)
+
+
+def _count_starts(events: Sequence[LoggedEvent]) -> int:
+    return sum(kind_of(e.event) is EventKind.COUNT_STARTED for e in events)
+
+
+def reference_state(reference: Reference) -> AttemptState:
+    """The reference's log folded, for the per-call view."""
+    state = AttemptState()
+    for logged in reference.events:
+        transition = next_state(state, logged, histories.RULES)
+        assert isinstance(transition, Appended), transition
+        state = transition.state
+    return state
 
 
 def _operations(events: Sequence[LoggedEvent]) -> int:
@@ -812,7 +908,7 @@ def reconcile_command(
 
 @dataclass
 class MatrixResult:
-    reference: Reference
+    references: list[Reference]
     commands: list[CommandReference]
     rows: list[RowResult]
 
@@ -824,15 +920,18 @@ class MatrixResult:
     def families(self) -> set[str]:
         """Every family a reference crosses, the worker's as they are and a command's under
         its mode: what the manifest must name, each once."""
-        crossed = {injector.family(c) for c in self.reference.crossings}
+        crossed = {injector.family(c) for r in self.references for c in r.crossings}
         for command in self.commands:
             crossed |= command.families
         return crossed
 
     def summary(self) -> dict[str, Any]:
         return {
-            "reference_crossings": len(self.reference.crossings),
-            "families": sorted({injector.family(c) for c in self.reference.crossings}),
+            "reference_crossings": sum(len(r.crossings) for r in self.references),
+            "references": {r.script: len(r.crossings) for r in self.references},
+            "families": sorted(
+                {injector.family(c) for r in self.references for c in r.crossings}
+            ),
             "command_crossings": {c.mode: len(c.crossings) for c in self.commands},
             "command_families": sorted(f for c in self.commands for f in c.families),
             "rows": len(self.rows),
@@ -844,27 +943,37 @@ class MatrixResult:
 def run_matrix(
     url: str, directory: Path, *, workers: int = 6, only: Sequence[str] | None = None
 ) -> MatrixResult:
-    """The worker's reference and each command's, then every row, ``workers`` at a time;
+    """The worker's references, one per script, and each command's, then every row,
+    ``workers`` at a time;
     ``only`` restricts the rows to those whose name (a kill point, or ``<mode>/<kill point>``
     for a command's) matches one of the patterns."""
     prepared = prepare(url, directory)
-    reference = run_reference(prepared)
+    references = [run_reference(prepared, script) for script in REFERENCE_SCRIPTS]
     commands = [run_command_reference(prepared, mode) for mode in COMMAND_MODES]
-    rows = rows_for(prepared, reference)
+    rows = [
+        (reference, kills)
+        for reference in references
+        for kills in rows_for(prepared, reference)
+    ]
     for_commands = command_rows(commands)
     if only:
-        rows = [row for row in rows if any(re.search(pattern, row[0]) for pattern in only)]
+        rows = [
+            (reference, kills)
+            for reference, kills in rows
+            if any(re.search(pattern, f"{reference.script}/{kills[0]}") for pattern in only)
+        ]
         for_commands = [
             (mode, kill)
             for mode, kill in for_commands
             if any(re.search(pattern, f"{mode}/{kill}") for pattern in only)
         ]
 
-    def row(kills: tuple[str, ...]) -> RowResult:
+    def row(named: tuple[Reference, tuple[str, ...]]) -> RowResult:
+        reference, kills = named
         try:
             return run_row(prepared, reference, kills)
         except Exception as exc:  # noqa: BLE001 - a row's own fault is its finding, not the matrix's end
-            failed = RowResult(kills)
+            failed = RowResult((reference.script, *kills))
             failed.findings.append(f"the row raised {type(exc).__name__}: {exc}"[:600])
             return failed
 
@@ -880,7 +989,7 @@ def run_matrix(
     with ThreadPoolExecutor(workers) as pool:
         results = list(pool.map(row, rows))
         results.extend(pool.map(command_row, for_commands))
-    return MatrixResult(reference, commands, results)
+    return MatrixResult(references, commands, results)
 
 
 def manifest_families() -> set[str]:
@@ -897,6 +1006,7 @@ def manifest_families() -> set[str]:
 __all__ = [
     "COMMAND_MODES",
     "MANIFEST",
+    "REFERENCE_SCRIPTS",
     "CommandReference",
     "MatrixResult",
     "Reference",
@@ -904,6 +1014,8 @@ __all__ = [
     "command_rows",
     "manifest_families",
     "prepare",
+    "recovered_endings",
+    "reference_state",
     "rows_for",
     "run_command_reference",
     "run_command_row",

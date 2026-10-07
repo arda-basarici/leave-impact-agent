@@ -83,7 +83,6 @@ from leaveimpact.core import (
     HarnessSite,
     HarnessSiteName,
     ModelCallId,
-    ServiceError,
     decode_export_bytes,
     export_bytes,
 )
@@ -103,6 +102,7 @@ from tests.unit.worker_support import (
     ScriptedTurns,
     in_flight,
     settled,
+    throttled_script,
 )
 
 RULES = histories.RULES
@@ -582,14 +582,6 @@ def test_a_stop_signal_ends_the_segment_and_is_raised_again(world: SealedWorld) 
     assert (
         state.closed is None and state.current_segment is not None and state.current_segment.ended
     )
-
-
-def throttled_script(context: Any) -> tuple[ScriptedTurns, ScriptedClient]:
-    turns, _ = support.two_call_script(context)
-    throttled = support.observed(
-        ServiceError(429, "ThrottlingException", None, "too many requests")
-    )
-    return turns, ScriptedClient({support.request_digest(turns.bodies[0]): (throttled,)})
 
 
 def test_a_call_failed_by_infrastructure_is_finalized_in_its_category_after_the_delays(

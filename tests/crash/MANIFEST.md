@@ -90,6 +90,31 @@ repeated here; a recovery that finds the attempt closed crosses nothing and gets
 | any write's family `#1` (of the recovery) | the first kill's state, the recovery's claim, and the recovery's writes before this one | the third child claims generation 3 and finishes; the in-flight set is the union of what the two kills left, each counted or dispatched again under the next number; a read the recovery made and did not log is made once more |
 | `completed:decided#1` (of the recovery) | everything but the closing event; the attempt open at generation 2 | the third child claims generation 3, replays to the held approval and resume, closes once; the in-flight set is the first kill's |
 
+## Kill points of the second reference, the infrastructure stop
+
+The throttled run (`worker_support.throttled_script`, the child's script `throttled`): the
+two-call turns with every dispatch of the first call answered by a throttle, so the call is
+dispatched three times under the fixtures' policy (a maximum of three, a delay of zero),
+exhausts it and the attempt fails by infrastructure at the third dispatch's send; no read the
+model asked for, no finalization, no approval, no claims. It exists because the one completing
+reference passed over the replay's ordinal shift under an outage and the recovery's skipped
+delay (the worker group's review, sixth finding): the exhaustion endings had no kill row.
+Every family the first reference crosses before its model's answer is crossed here too and is
+forecast as above; the rows below are the ones whose forecast differs or is new. Every
+recovery is held to the ending `failed`, closed by itself or found closed. Forecasts written
+on 2026-10-07 before the first run.
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| the families before the model's answer: `load:read`, the segment start, the operations, the count's start and outcome, the dispatch intent | as the first reference's | as the first reference's; the run then fails at the third dispatch as the reference did |
+| `dispatch_outcome:locked` | the intent; the throttle arrived and is lost | at dispatch 1 or 2 (occurrences 1 and 2): the intent stays unresolved and counts against the bound, the recovery dispatches the next number up to the third, each throttled, and fails at the third dispatch's send; the sends across every child are three, one per committed intent, so no send beyond the reference's. At dispatch 3 (occurrence 3): the call is at its maximum with its last dispatch unresolved, so the recovery sends nothing and fails at the third dispatch's send by the unresolved reading; the settled events are the reference's, the closing event's reason differs |
+| `dispatch_outcome:decided` | as above | as above |
+| `dispatch_outcome:before-commit` | as above | as above |
+| `failed:locked` | every dispatch resolved; the attempt open | the recovery finds the call failed from the log and finalizes `failed` without running the graph, once, with one settlement |
+| `failed:decided` | as above | as above |
+| `failed:before-commit` | as above | as above |
+| the saver's seams, `checkpoint:before` to `writes:after` | as the first reference's | as the first reference's; after the terminal step the attempt is closed and the recovery leaves it |
+
 ## Kill points of the commands
 
 The job seam's commands (the ruling on placement and acceptance, part 8), each run by a
@@ -172,3 +197,9 @@ nothing; the object's bytes are the reader's export of the closed log.
   with the worker's reference and the four command references before them; the inventory's
   `put:after` row left two inventories as forecast, every other row one object. The whole
   matrix with them, 317 rows, ran in nine minutes ten, every row passing.
+- **2026-10-07, the second reference (the step's close):** the throttled reference's rows
+  alone first, 152 of 152 on the first run, every forecast of its section held, the one
+  about a lost outcome at the third dispatch included. The whole matrix then: 469 of 469
+  rows, the family test red on this section's text, which had grouped families in one cell
+  and used wildcards the reader does not parse; the rows were rewritten one family each and
+  the matrix rerun, 469 of 469 in twelve minutes forty-six.

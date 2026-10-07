@@ -5,7 +5,9 @@ approval handoff, the wire and the object store's put.
 The parent starts this script once per process, in a schema it names, with the world it
 prepared once (the run's context and the in-memory systems, pickled to a file). The record
 and the kill target arrive in the environment (``injector``), and so does the mode: ``work``
-runs the worker over an admitted attempt; ``admit`` admits the reference run's attempt
+runs the worker over an admitted attempt, under the script the environment names (the
+two-call reference, or the throttled one that stops by infrastructure); ``admit`` admits
+the reference run's attempt
 under a request identity the parent holds across the kill and the rerun; ``publish``
 publishes a completed attempt's export to a local object store at a root the parent names;
 ``inventory`` writes the inventory there. On a normal exit each prints one JSON line with
@@ -77,6 +79,8 @@ SCHEMA = "LEAVE_IMPACT_CRASH_SCHEMA"
 WORLD = "LEAVE_IMPACT_CRASH_WORLD"
 NONCE = "LEAVE_IMPACT_CRASH_NONCE"
 MODE = "LEAVE_IMPACT_CRASH_MODE"
+SCRIPT = "LEAVE_IMPACT_CRASH_SCRIPT"
+"""Which scripted run the work mode drives, a key of ``worker_support.SCRIPTS``."""
 OBJECTS = "LEAVE_IMPACT_CRASH_OBJECTS"
 """The local object store's root for the publish and inventory modes."""
 REQUEST = "LEAVE_IMPACT_CRASH_REQUEST"
@@ -328,7 +332,9 @@ def main() -> int:
         context, systems = pickle.load(held)  # noqa: S301 - the parent wrote it this execution
     mode = os.environ.get(MODE, "work")
     if mode == "work":
-        ended = work(url, schema, os.environ[NONCE], context, systems)
+        ended = work(
+            url, schema, os.environ[NONCE], context, systems, os.environ.get(SCRIPT, "two-call")
+        )
     elif mode == "admit":
         ended = admit(url, schema, context)
     elif mode == "publish":
@@ -341,13 +347,15 @@ def main() -> int:
     return 0
 
 
-def work(url: str, schema: str, nonce: str, context: Any, systems: Any) -> dict[str, Any]:
-    """The worker over the admitted attempt, through the crossing store."""
+def work(
+    url: str, schema: str, nonce: str, context: Any, systems: Any, script: str
+) -> dict[str, Any]:
+    """The worker over the admitted attempt, through the crossing store, driving ``script``."""
     store = LogStore(dsn=url, connect=connect_in(schema), boundary=boundary)
     log: LogCommands = CrossingStore(store)
     inputs = log.load(RUN, ATTEMPT, rules=histories.RULES).inputs
     assert inputs is not None
-    turns, client = support.two_call_script(context)
+    turns, client = support.SCRIPTS[script](context)
     worker = Worker(
         log,
         WorkerConfiguration.of(inputs),
@@ -411,4 +419,4 @@ if __name__ == "__main__":
     sys.exit(main())
 
 
-__all__ = ["NONCE", "SCHEMA", "WORLD", "application_of", "main"]
+__all__ = ["NONCE", "SCHEMA", "SCRIPT", "WORLD", "application_of", "main"]

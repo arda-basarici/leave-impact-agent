@@ -12,7 +12,7 @@ entry in ``sends`` and nowhere else.
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from hashlib import sha256
 from typing import Any
@@ -35,7 +35,7 @@ from leaveimpact.agent.log_transition import AttemptState, calls_of
 from leaveimpact.core.counting_operations import Counted, CountOutcome
 from leaveimpact.core.enums import Source
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
-from leaveimpact.core.model_calls import CompleteResponse, Observation
+from leaveimpact.core.model_calls import CompleteResponse, Observation, ServiceError
 from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.run_trace import OperationId
 from leaveimpact.core.worldtime import RunContext
@@ -258,6 +258,23 @@ def two_call_script(context: RunContext) -> tuple[ScriptedTurns, ScriptedClient]
     return ScriptedTurns(bodies), ScriptedClient(answers)
 
 
+def throttled_script(context: RunContext) -> tuple[ScriptedTurns, ScriptedClient]:
+    """The infrastructure stop: the two-call turns, with every dispatch of the first call
+    answered by a throttle, so the call exhausts the registered maximum and the attempt
+    fails by infrastructure at its last dispatch's send; no read the model asked for, no
+    approval, no claims. The crash matrix's second reference."""
+    turns, _ = two_call_script(context)
+    throttled = observed(ServiceError(429, "ThrottlingException", None, "too many requests"))
+    return turns, ScriptedClient({request_digest(turns.bodies[0]): (throttled,)})
+
+
+SCRIPTS: Mapping[str, Callable[[RunContext], tuple[ScriptedTurns, ScriptedClient]]] = {
+    "two-call": two_call_script,
+    "throttled": throttled_script,
+}
+"""The scripted runs by name, for a child process that is told which to run."""
+
+
 def sends_of(client: ScriptedClient) -> int:
     return len(client.sends)
 
@@ -286,6 +303,7 @@ __all__ = [
     "settled",
     "text",
     "tool_use",
+    "throttled_script",
     "two_call_script",
     "with_unreachable",
 ]
