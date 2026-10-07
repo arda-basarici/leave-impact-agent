@@ -1460,6 +1460,18 @@ evaluator's view is the projection plus its sealed overlay, so what a system tha
 no prose concludes from is the structured part of what the grader replays over, by
 construction.
 
+The event log step (2026-10-05 to 07) added to `core` the rules the harness runs and
+the evaluator audits, with their input types: the counting-rule registry, the run's
+account, the within-call decision, the eligibility function, the bound's interface and
+the inventory's type and codec. The agent projects events into those inputs and the
+evaluator projects exports into the same ones; a first cut put the account in `core`
+and the events in `agent`, which left the function nothing to take. The log itself,
+its events, keys, transition, ending, status and reader, and the ledger stay in the
+agent's package as pure modules beside one PostgreSQL module, since they are the
+agent's own execution control, ownership and accounting, which the evaluator must
+never read; the import law keeps it from importing the store, and the database's
+credentials and the deployment keep it from connecting.
+
 **A port returns observed entities, never facts.** `core` derives facts and gaps
 from an observed entity in one deterministic derivation, so an adapter never decides
 what is true, the per-field meaning of absence is stated once (a missing skills
@@ -1550,17 +1562,40 @@ digests, the tool-surface digest, the preregistration commit, observed usage and
 cost, any failure category); the evaluation artifact adds the export's key and
 version id beside the truth digest and version id.
 
-Its shape was ruled at the investigator milestone's second build step (2026-10-01) and
-again at the contract step (2026-10-04), which made it format 2, and it lives in
-`core` as plain data with one codec, since the agent writes it and the evaluator reads
-it and neither may import the other. One immutable artifact per run attempt,
-self-identifying by run id and attempt beside a format version, projected from the
-event log once the attempt is terminal and written once by conditional create; a run
-paused at an approval or recoverable from a checkpoint is a state of the log and has
-no export. Its digest is of its canonical bytes, computed by whoever cites it and
-never stored inside, and a reader accepts bytes only when their re-encoding reproduces
-them, so one export has one byte sequence. Format 1 is not read: no export of record
-was written in it, and its bytes refuse by version.
+Its shape was ruled at the investigator milestone's second build step (2026-10-01),
+again at the contract step (2026-10-04), which made it format 2, and again at the
+event log step (2026-10-05), which made it format 3; it lives in `core` as plain data
+with one codec, since the agent writes it and the evaluator reads it and neither may
+import the other. One immutable artifact per run attempt, self-identifying by run id
+and attempt beside a format version, projected from the event log once the attempt is
+closed and written once by conditional create; a run paused at an approval or
+recoverable after a process death is a state of the log and has no export. Its digest
+is of its canonical bytes, computed by whoever cites it and never stored inside, and a
+reader accepts bytes only when their re-encoding reproduces them, so one export has
+one byte sequence. Formats 1 and 2 are not read: no export of record was written in
+either, and their bytes refuse by version.
+
+Format 3 holds what the event log produces and format 2 could not state. An attempt
+admitted and never claimed exports with zero segments: failed by infrastructure at the
+abandoned site, no operation, call or approval, zero active time, elapsed from
+admission to abandonment, timing complete and an empty trace, with no segment invented
+for the admitter or the abandoning operator. An abandonment names its authority, the
+generation it fenced and one of two reasons, cancelled or interrupted, and is stated
+whenever the command closed the attempt, beside a recorded defect too, since the
+command then finalized a defect and abandoned nothing. The trace holds the position at
+which the run entered finalization, absent when it never did, so an audit can show the
+loop left the reserve; the reservation holds the amount the ledger charged. Every
+dispatch carries the input bound it was authorized on and the role's output maximum,
+and the counting operations are a list of their own, failed ones included, each with
+the request digest it covers, the identifier asked, the answer or the error as it
+arrived and the worker's reading of it, so a denial misread as transient leaves a
+trace of the misreading. Two harness sites joined the closed list: `input_bound`,
+naming the last counting operation when the counts were exhausted, and `unhandled`, a
+fault of the harness itself. The timing admits a terminal instant before the
+admission, both raw timestamps and their signed difference kept, and the fenced
+generation is compared with the segment count by the evaluator and not refused by the
+constructor, since a store's mis-stamped generation would otherwise turn into an
+attempt closed without export.
 
 Three blocks. The context is what changes the evidence. The record is provenance: the
 observed condition as a claim the replay re-derives and verifies, the sources
@@ -2099,8 +2134,8 @@ the preregistration's to state after the ten-run reforecast, because a model is 
 identifier to switch while prompt text and reported numbers bind to it.
 
 **One committed preregistration file precedes the first reported run and is cited by
-commit in every evaluation artifact** (the sixth build step; format 2 since the
-contract step). It is one JSON file with
+commit in every evaluation artifact** (the sixth build step; format 2 at the contract
+step, format 3 at the event log step). It is one JSON file with
 a format version, `preregistration/registration.json`, decoded strictly by a codec in
 `core` and accepted only as the bytes its encoder writes, with the development
 protocol as prose beside it. Names live in the file and behaviour in code: the file
@@ -2113,6 +2148,15 @@ three values inside it; the evaluator cannot compute it and holds each export's
 recorded policy to the registered one, which shows the export recorded the registered
 identity and verifies no implementation. The anchor table's digest is registered
 apart, being the part the evaluator can compute and refuses on.
+
+Format 3 of the registration came with the event log step. The re-dispatch policy's
+delay is the deliberate backoff and not a bound on the interval between an outcome and
+the next authorization, so its field says so; a registration naming defect as the
+category retried after is refused at construction; each system's caps name the
+input-bound method beside the counting rule, and each role the identifier its counts
+are asked of, since the identifier that counts is not the one that infers and no rule
+derives one from the other; and the count retries reference the re-dispatch policy's
+maximum and delay by name.
 
 **The file is a draft, frozen or bound.** A draft may hold a value not yet chosen,
 typed as pending with what resolves it, and a pending value blocks only the execution
@@ -2185,6 +2229,29 @@ dispatched again only where the attribution table allows it and within the regis
 re-dispatch bound, both pending in the draft; a dispatch read as a defect is its
 call's last and what the attempt failed by defect at, which the export refuses to
 state otherwise.
+
+Whether an attempt may follow another is one total function over the closed vocabulary
+of endings, in `core`, run by the admission over what the predecessor's log holds and
+by the evaluator over a run's exported attempts. The question had been answered twice,
+by a column of the attribution table and by the registration's retry rule, and neither
+covered a failure that is not at a dispatch. A new attempt requires the predecessor
+closed, its export published, the registered maximum not reached and a named rule that
+grants it; an ending no rule names is not eligible. Completed or reported at the cap
+is the graded result and permits none; a defect at any site, or a log holding a
+recorded defect whatever closed the attempt, permits none, since a retry could conceal
+it; an infrastructure failure at a dispatch's send follows its row's flag; the bound
+exhausted with the last dispatch unresolved permits one; and an abandonment permits
+one exactly when the log holds no dispatch intent. That last rule is the guard against
+an operator choosing which attempt counts: with no intent in the log no model output
+ever existed, so there was nothing to select on, and the evidence is the log's rather
+than a reason the operator picks. It rests on recovery replaying from the log, so a
+killed worker's attempt is resumed by a claim and not replaced by abandoning it, and a
+kill rerolls nothing but the one call in flight. An attempt the harness inventory
+lists for a run without a published export, open or closed with no export, enters the
+run's history by number with its status and the ledger's three figures, and a run with
+any such attempt has no counted attempt: the ruling said the latest, and an unexported
+attempt before an exported one is a history the publication rule forbids, so neither
+reading counts such a run.
 
 **Three checks are registered, one comparison is primary, and nothing is registered
 as a test of superiority.** Correct whole reads the rows: structurally valid, every
@@ -2481,18 +2548,24 @@ another reason, went on where the rule stops a harness, and is counted. The
 accounting and the attempt summary hold the four counts from one function, over the
 counted runs and over every attempt.
 
-**What a record states about its own ending is held to its export.** Format 2 lets a
-record say how many segments an attempt ran in and on which commits, between which
-two instants, and over which payload its approval was asked, and nothing recomputed
-any of it. Three findings, each the harness's: an evidenced active time above the
-elapsed time, which the record admits because a wall clock can step; segments on more
-than one commit; and an approval digest that is not the digest of the claims and the
-composition the export holds, computed by the function the harness computed it with.
+**What a record states about its own ending is held to its export.** Format 3 lets a
+record say how many segments an attempt ran in and on which commits, between which two
+instants, over which payload its approval was asked, and which generation an
+abandonment fenced, and nothing recomputed any of it. Five findings, each the
+harness's: an evidenced active time above the elapsed time, which the record admits
+because a wall clock can step; a terminal instant before the admission, the elapsed
+time then unavailable and never clamped, made absolute or called a lower bound, the
+active time still read from the segments' own clocks and the first finding not
+evaluated; segments on more than one commit; an approval digest that is not the digest
+of the claims and the composition the export holds, computed by the function the
+harness computed it with; and a fenced generation that is not the segment count, which
+a conforming harness never produces, since a claim raises both counters and nothing
+else raises either.
 A run whose timing is incomplete, a segment's end never recorded, has a duration that
 is a lower bound: a cell's cost ledger counts those runs and gives the segments per
 run beside the durations, so an interrupted run never reads as a fast one. Under a
 bound registration a run whose segments ran on two commits leaves the tables as a run
-from a dirty tree does, named in the inventory with its grade; one export of two
+from a dirty tree does, named in the listing with its grade; one export of two
 programs is not a run of the registered harness.
 Every such attempt is also a provenance incident in the analysis, by the identity its
 export carries and its commits, read from every evaluated export of the world before
@@ -2519,42 +2592,54 @@ sent more than once is a finding wherever a response carried the count, nothing 
 allowed to retry beneath a dispatch. The tool calls a model made are tallied by what
 became of each, the undispatched ones by reason.
 
-**Ruled on 2026-10-04 and not yet built: what the measurement still lacks before any
-model system is measured.** The paragraphs above describe the evaluator and the
-committed registration as they stand. The rulings in the two paragraphs below have no
-code yet, or code with nothing to fill it, and this text is rewritten as each lands.
-Until then the registration stays a draft, and no reported measurement is made under
-it.
+**What the measurement still lacks before any model system is measured.** The
+paragraphs above describe the evaluator and the committed registration as they stand;
+the event log step built the harness that fills the export, and what remains is listed
+here and rewritten as each lands. Until then the registration stays a draft, and no
+reported measurement is made under it.
 
 **The measurement world.** The measured world is a new one from a seed drawn from a
 secret, with answer-neutral documents sealed into it at nested levels, and the
 generator does not produce it yet. Until it does, no level but the base one has a
 sealed membership for the level check to hold a run to.
 
-**Export format 2 is built; what fills it is not.** The format, its codec and the
-twelve hand-built cases it was accepted on are described with the export above. Four
-things it names still lack their values or their code. The attribution table is a
-type in `core` with its matcher and its digest, and a section of the registration
-whose rows are pending. By the ruling a response under a registered stop reason is
-behaviour, a denial, a throttle, a server error and a timeout are infrastructure,
-Nova's model error is behaviour only under the evidenced signature of a tool call cut
-at the output limit, and anything unmatched is infrastructure and flagged; whether an
-observation may be re-dispatched inside the run and whether it makes the run eligible
-for a new attempt are two columns of it, and a defect is read only with a cause the
-harness established. The re-dispatch policy is the harness's: a
-registered maximum per call, the retryable categories, a bounded delay, dispatch
-numbers that survive restarts. The zero-cost rules and the price rows arrive with the
-first live run. And the dispositions a format can state are not yet produced by
-anything: the event log decides what durable evidence tells an undispatched tool call
-from an unresolved one. Measurement runs are not streamed.
+**Export format 3 is built and the event log fills it; three things it names still
+lack their values.** The attribution table is a type in `core` with its matcher and
+its digest, and a section of the registration whose rows are pending. By the ruling a
+response under a registered stop reason is behaviour, a denial, a throttle, a server
+error and a timeout are infrastructure, Nova's model error is behaviour only under the
+evidenced signature of a tool call cut at the output limit, and anything unmatched is
+infrastructure and flagged; whether an observation may be re-dispatched inside the run
+and whether it makes the run eligible for a new attempt are two columns of it, and a
+defect is read only with a cause the harness established. The re-dispatch policy's two
+values are pending too, a registered maximum per call and a fixed delay, dispatch
+numbers surviving restarts because they are the log's. The zero-cost rules and the
+price rows arrive with the first live run. A model-calling run is not admitted under a
+pending value, and a development registration carries provisional ones. Measurement
+runs are not streamed.
 
-Two audits of what format 2 states wait for the event log's ledger, because the
-ledger defines their terms: that known consumption plus retained allocations stayed
-inside the reservation, which needs what an allocation retains and when it is
-released, and the same in tokens against the run's cap, which needs which token
-classes a counting rule counts. The counting rule is a registered name today and no
-code gives it a meaning. An audit written before the ledger would fix a reading of it
-that nothing had produced.
+**Four audits read a run's account, counts, calls and eligibility from the export, on
+the same `core` functions the harness ran.** The account check replays every recorded
+authorization over the account as it stood at that position, by one adapter that
+rebuilds the transitions from the intents' and outcomes' positions, and holds what the
+run spent against its reservation and its token cap under the registered counting
+rule; a rules-only export reserves nothing, so its account is not evaluated, a
+different statement from evaluated and empty, which is an agent's attempt with no
+dispatch. The count check holds every bound to the counting operation it names,
+succeeded, earlier than the intent, covering the request's digest and equal to the
+bound, every operation to its own outcome read again, every group of counting requests
+to the retry rule they were made under, and the method and identifier to the
+registered ones. The call check reads each logical call's standing under the table and
+the policy and whether the attempt ended where its calls say it did. The eligibility
+check projects how an exported attempt ended into the closed vocabulary and asks
+whether it permitted the attempt after it; an attempt its predecessor did not permit
+keeps its export, grade and cost, carries a finding and is never the counted attempt,
+and a missing predecessor establishes no permission. The limit is the report's: the
+evaluator checks recorded evidence, authorization arithmetic and observed breaches,
+and cannot recompute a tokenization or establish compliance where usage is incomplete.
+One finding kind, a count whose method is not the caps', is unreachable while one
+method is registered, and stays because the registry is designed to grow. The four ran
+over the first export the real store and worker produced with no finding.
 
 **Whether a run's prefetch is the registered plan is checked from its trace, for every
 system and every export that decodes.** The planner and the chunking are `core`'s,
@@ -2574,7 +2659,7 @@ the planner and the record spell an object's keys differently, and the first run
 the real harness against the check failed on exactly that.
 
 **An evaluation is one immutable artifact over an explicit set of stored runs.** Every
-object listed under a world's runs is in its inventory with the store's version id,
+object listed under a world's runs is in its listing with the store's version id,
 the digest of the bytes read, its cost, and exactly one reason for being in or out of
 the tables; a run that contributes no estimate was still paid for. A run is eligible
 when the registration at the commit it cites has the evaluator's own bytes and what
@@ -2608,6 +2693,44 @@ the format held by a version and a pinned list of key paths; a run is written as
 outcome and findings, and what the stored export gives back is not written twice. An
 explicit codec with a strict decoder replaces it when something reads an artifact
 back.
+
+**The evaluation names the harness inventory it was held to, and a stored object has
+one of five standings under it.** The request carries the inventory's digest; the
+object is read apart from the listing, its bytes must digest to the name and decode as
+an inventory of the evaluation's world, and it is refused by its key alone otherwise,
+since the decoder's own message quotes what it refused and the job's log is public.
+The latest inventory by instant was declined, as naming what was read only after the
+fact and needing a tiebreak the listing's order cannot give; an optional inventory was
+declined, as two artifact shapes and no way to tell closed without export from never
+admitted. The inventory lists every attempt of every world the store holds, so it is
+narrowed to the evaluation's world before anything is held to it, by each attempt's
+own world version. Every object under the world's runs prefix outside the inventory's
+own prefix is placed from its key before a byte is read: current, the published export
+of a listed attempt; superseded, an earlier reader's export of one, listed and not
+current; unfinished, the object a pending or a failed record names, uploaded with no
+record of success; a publication orphan, under a listed attempt's prefix and none of
+these; and not in the inventory, under no listed attempt's prefix, published after the
+snapshot or by another harness, which invalidates nothing and enters no table, since
+the evaluation is of the snapshot. An object under any standing that decodes as an
+export of this world is still evaluated, so its reads are read for a source
+contradicting itself as every out-of-table trace is. Two more things refuse the whole
+evaluation: a listed export absent from the store or with another digest, the store
+then not being the snapshot's; and, under the reported label only, an in-scope attempt
+the inventory lists as open, where a development evaluation during a batch counts it
+and refuses nothing. Closed without export refuses nothing under any label. The
+artifact's coverage record holds, over the in-scope attempts, the runs intended,
+admitted, never admitted, exported, open and closed without export, the publication
+incidents among those, each unexported attempt with its status, its incident and the
+ledger's three figures, and the apart counts in one place, failed by defect, failed by
+infrastructure, publication incidents and never admitted, because quality among graded
+runs alone favours the system whose hard runs go missing most often. An attempt listed
+with no export is placed in no cell, the inventory holding no scenario, and is counted
+in the whole alone; placing it would need the inventory to carry the frozen inputs'
+placement identifiers, a format change taken when a cell's missing runs matter to a
+comparison. The artifact is at format 8. The first evaluation over an export the real
+store, worker, publish and inventory commands produced listed it current with coverage
+one of one and out of the tables for its settings, the fixtures' record naming values
+the draft registration leaves pending.
 
 **The evaluation job proves the world before it grades anything, and its log holds
 nothing sealed.** It runs by hand under its own environment and role: a required
@@ -2752,11 +2875,12 @@ ports, the tool registry, the claim vocabulary and this seam know nothing of the
 framework; tools are constructed from the registry and handed to it; the model is
 reached through the framework's Converse chat model, a different client from the
 generator's prose seam, which stays as it is. The checkpoint is the execution cursor
-for resuming a run and nothing more, since it cannot be rebuilt from the log; the
-event log is the authority for audit, narration and the run export; every recorded
-operation carries a stable identifier so a resumed node's repeated append is refused
-rather than duplicated, and the two stores must reconcile after every tested crash
-point. The ruling is provisional on an acceptance spike, the first harness build step,
+within one process and nothing more, and recovery across processes is from the log,
+as the event log passages below rule; the event log is the authority for audit,
+narration and the run export; every recorded operation carries a stable identifier so
+a resumed node's repeated append is refused rather than duplicated, and the two stores
+must reconcile after every tested crash point. The ruling is provisional on an
+acceptance spike, the first harness build step,
 built as the smallest real vertical slice on PostgreSQL: resume an interrupted run
 after a process restart with one approval event; a crash injected around a tool
 result, its checkpoint and its event append, recovered with no duplicated or missing
@@ -2788,6 +2912,420 @@ not, so completeness is the log's terminal event agreeing with the checkpoint. A
 export format 1 has no place for several things a real run produces (an intent with no
 outcome, the approval, a second process's revision, a tool call that did not parse or
 was never dispatched, a run that raised), which the contract step's format answers.
+
+**An attempt has one writer at a time, and a claim always wins.** Ruled at the event
+log step (2026-10-05), the design interview between the acceptance spike and the
+harness, eleven forks each read cold by an external chat before its ruling. An attempt
+is a row with a generation, a segment count and an open or closed state; the row is
+coordination and the log stays the history. Every authoritative change, a worker's
+append, a claim, a terminal event, an abandonment, an outside producer's append, locks
+the row, checks the generation and the open state, appends and commits. The acceptance
+states that order and no statement count: a guarded insert that reads a snapshot can
+commit after a takeover it overlapped, and the step's first probe showed the race in
+that plain form and its absence under the lock (FINDINGS, `lock-race`). A claim raises
+both counters and appends the segment's start in one transaction, carries the claiming
+process's nonce so a retry after a lost acknowledgement gets its receipt and opens
+nothing, and is refused on a closed attempt. A claim always wins: no lease and no
+liveness check, a worker that finds itself fenced stops and never reclaims, so two
+healthy processes cannot fence each other in turn; the cost is that an accidental
+double start leaves the displaced segment's end unrecorded and its timing incomplete,
+at a rate nobody has measured. The fence closes a gap the contract step left: between
+"a stale worker can neither dispatch nor append" and "a request in flight cannot be
+cancelled" sits a dispatch authorized before the fence and sent after it, which no
+database mechanism prevents. Dispatch authorization is committed under the fence
+before any external execution; after fencing the old worker authorizes nothing and
+appends no outcome, and a dispatch it had authorized may still be sent, its allocation
+accounted and its outcome never accepted, so it stays unresolved. Whoever delivers an
+approval or abandons never claims and appends under the same lock with its own
+identity; a worker that still owns the attempt and has not ended its segment resumes
+after an approval without a new claim, since the automatic policy approves while the
+worker runs. An abandonment names the generation it expects and is refused on a
+mismatch, so a delayed command cannot abandon a replacement worker, and no operation
+closes an attempt regardless of owner: an operator whose command was refused reads the
+generation and reissues. A closed attempt rejects every later append, a matching
+generation's included; an identical re-append of an event it holds is an idempotent
+receipt and the same identifier with other content raises.
+
+**An event has a dense position, a structured key and one of two envelopes, and one
+pure transition function decides what may be appended.** The position is a
+transactional counter on the attempt row, taken in the insert's transaction after a
+check for an existing identifier, so it is dense from one and a rollback keeps
+nothing; a database sequence was declined because a rollback keeps its increments. The
+identifier is unique on run, attempt, kind and a key derived from what the writer is
+doing: an outcome names its call and dispatch, an approval the request it answers, a
+segment boundary its segment, a read its origin's ordinal or the tool call it answers.
+The envelope is first-append provenance kept unchanged on replay: the position, the
+database's timestamp sampled at the insert after the lock, and for a worker's event
+the generation, the segment and a whole-millisecond offset read from the worker's
+monotonic clock after the lock, nondecreasing within a segment by construction. An
+outside producer's event, an admission, an approval, an abandonment, carries its
+producer's identity and no segment or offset; its timestamp is when the log accepted
+it and not when a decision was made, and raw timestamps are kept and never clamped.
+The log has one wall clock and elapsed time's two ends are read off it. Idempotence
+compares the versioned canonical content, and what changes an event's meaning is
+content: the approver's identity, an abandonment's authority and targeted generation,
+a segment start's harness revision; two authorities delivering one decision conflict
+and raise, and a returned old event grants no permission to continue under its old
+ownership. A worker that stops cleanly without a terminal event writes its segment's
+end, an execution-state transition after which that segment authorizes and appends
+nothing while the attempt stays open for a claim; a terminal event ends its segment
+implicitly, and an abandonment never writes a worker's end. Unique keys do not prevent
+two terminal events under two keys, a resume with no accepted approval or work after a
+segment end, so one pure function takes the attempt's state and an event and gives the
+next state or a refusal, the appender runs it under the lock against the state on the
+row, and the reader folds it over the whole log before it builds an export; the rules
+are written once and not again as database constraints, and unknown kinds fail loudly.
+Sixteen kinds exist, each with a written key specification and what it needs in the
+prefix, and the state they fold to keeps the events and a few derived fields, every
+per-call, per-count and per-operation view a projection over the events so no two
+fields can disagree. A log format version covering codecs and canonicalization is set
+on the row at admission and immutable; a worker claims only an attempt of the exact
+format it writes, a reader may support older ones, and no open attempt is migrated.
+The database schema's version, the log format's and the export format's are three
+numbers with their own compatibility rules.
+
+**Admission is one transaction that reserves, creates the attempt and freezes its
+inputs, and the settlement rides the closing event.** The admitter writes the ledger's
+reservation, the attempt row at generation zero and the admission event at position
+one as an outside producer, so a rollback leaves nothing and an admitter that dies
+after the commit leaves an attempt recovery can find; the event's timestamp is where
+elapsed time starts. The event holds everything the export's record and an empty trace
+need, so an export is rebuilt from the log with no mutable file beside it: the full
+run context and not the scenario alone, the assignment, the registration commit, the
+caps, each role's configuration and pricing selection, the prompt and tool-surface
+digests, the prefetch rule, the composing policy, the parser's identity and schema,
+the attribution table and the re-dispatch policy by value, the retry rule, the
+reservation and the log format version. The admission request carries the context,
+since the agent decodes no scenario specification and the import law keeps it from the
+package that could; the launcher that builds frozen inputs from a registration and a
+sealed world's scenario is the first live run's, at a root the law lets import both
+sides. A worker compares its effective configuration with the frozen inputs before its
+claim commits and a mismatch refuses the claim with no segment opened; the harness
+revision is outside the comparison because it is recorded per segment, a history on
+two commits being one the export reports. Equality with the frozen inputs says the
+worker selected the admitted inputs, and what a provider returned and what was
+rendered and sent stay execution evidence. Before an attempt exists there is no row to
+lock, so a row per run serializes attempt numbering and the predecessor's check, and
+locks are taken in one order everywhere, run, attempt, ledger. Attempt n plus one
+requires n closed, its export published, the registered maximum not reached and n's
+ending permitting it, under the one eligibility function; an operator's request does
+not go round the third, so a closed defect attempt is not replaced. The request's
+identity is held by the caller across its retries and names the run and the attempt
+asked for: repeating it returns the recorded result, admission or refusal, and never
+reserves twice or advances the number; a refusal consumes no number and is committed
+before it is returned, so no raised error rolls it back. Uniqueness on run and attempt
+is the backstop, identical frozen inputs under another request getting the receipt and
+other inputs a conflict. The settlement is carried by the closing event, a terminal
+event or an abandonment, with the ledger updated in that transaction, so closing and
+settling are one transition and no closed, unsettled state exists; a settlement event
+after the closing one was declined because closure would reject it. Open attempts are
+enumerable from the rows alone, with no checkpoint and no worker event.
+
+**A dispatch's worst case is written into its intent, the run's account is a fold over
+its events, and the shared ledger is touched at admission and closure only.** The
+intent event holds the dispatch's worst case in pico-dollars and in tokens, in the one
+insert under the fence, so per-dispatch accounting never touches the shared ledger.
+Money and tokens are released by evidence and accounted apart, and how a dispatch is
+attributed plays no part in either: an evidenced refusal before sending releases both,
+usage priced whole replaces the money allocation with the cost, a count the registered
+counting rule establishes replaces the token allocation, an evidenced zero-cost rule
+zeroes money and says nothing of tokens, and no outcome, usage with no zero-cost rule
+and incomplete usage retain. Each dispatch contributes once, the observed amount when
+it is complete and otherwise the allocation, a known floor sitting inside that figure
+and never added to it; the first proposal counted an incomplete dispatch's floor
+twice. Authorization is a fold over intents and outcomes in position order under the
+attempt lock, so two handlers cannot spend the same released room and every prefix is
+checked, not the final balance alone: a loop allocation that does not fit, the
+finalization reserve left free, enters finalization, a finalization allocation that
+does not fit ends the run at its cap with what the view holds, and a refused loop
+allocation never skips finalization. The guarantee that contributions stay inside the
+allowance holds while every allocation is a true bound, which is why a method is
+admitted only on a justified upper-bound basis; when an observed amount exceeds its
+allocation the account uses the observed amount, keeps the excess as evidence, records
+the breach, authorizes nothing further and ends the attempt by defect at that
+dispatch's record phase with the response preserved, the finding naming the bounding
+contract and presuming nothing about which of request assembly, the estimator or the
+provider broke it. The shared ledger is corrected at closure; the exposure accepted is
+a worker that dies between the two and leaves the open reservation short by the excess
+until the attempt is abandoned. The account is one pure function in `core`, used by
+the worker before it authorizes, by the closing event to settle, and by the evaluator
+through an adapter that rebuilds the transitions from the export's positions. The
+shared ledger is append-only entries, a threshold set, an admission, a refusal, a
+settlement, an import, and one locked head holding the committed total and a revision
+that counts committed entries, refusals and threshold changes included; an admission
+sees the original reservation or its committed replacement and nothing between. An
+open attempt holds its full reservation against the threshold, protecting what it may
+still authorize, and at closure that is replaced by the sum of its dispatches'
+contributions; a kept attempt that is later resolved reopens nothing and rewrites no
+export, and no adjustment entry exists yet. A threshold is an entry naming its
+authority and the registration commit it came from, applied prospectively, never above
+the registered limit and never below the committed total, so no allowance shrinks and
+no closed attempt is repriced. The size of a run's reservation is not ruled: it needs
+the price table of the first live run.
+
+**A request is authorized on an established upper bound of its input tokens, by one
+registered method, and the token cap counts logical calls.** Which token classes a cap
+counts is a registered name in a closed registry in `core`, one rule today summing
+input, output, cache read and cache write; a count is established when every counter
+the rule names is reported or is absent where the price table records that
+configuration's absence as meaning zero tokens, and otherwise the known subtotal is a
+floor and the token allocation is retained, a zero price, a waived charge and an
+incomplete monetary total proving nothing of tokens. The output bound is the role's
+effective maximum output and admission refuses a configuration without one; the money
+bound is the input bound at the highest input-side rate the configuration can be
+billed, cache writes included, plus the output maximum at the output rate, and a basis
+lacking a rate for any of those classes refuses to price rather than taking the
+dearest it has. The call cap counts logical calls: the slot is consumed when the
+call's first intent commits, a re-dispatch takes none, a refusal or a released
+allocation gives none back, and a call keeps its purpose across recovery; counting
+dispatches would be sound and a different experimental condition. How a worst case is
+computed changes when a run stops at its cap, which is graded, so the method is
+registered by name and version beside the counting rule. Two probes decided the method
+(FINDINGS, `input-bound`): a request's bytes were never under the reported input on
+ninety-two captured sends, and the provider's counting call, served for Haiku 4.5's
+base model identifier and refused for its `eu.` profile and for Nova Pro, ran sixteen
+to forty-nine tokens above inference on seventeen requests and never below, the same
+count twice for the same body. The one method is the provider's count with no margin,
+admitted on three things none of which is a proof: the provider's documented statement
+that the count matches what inference charges, the profile's constituents all being
+the counted model, and the seventeen requests. Bytes were declined even for
+development, since the inequality held on two request shapes and nothing establishes
+it for the provider's constructed input, which is another object than the body; the
+consequence is that a model family with no counting call has no established method and
+is no registered model-calling cell, so Nova Pro is out as the second model unless one
+is established for it. The registration names the identifier the count is asked of,
+since it is not the one that infers and no rule derives one from the other. A counting
+operation is two events, a start committed before the remote call and an outcome,
+retried under the re-dispatch policy's maximum and delay on a counter of its own that
+recovery does not reset, taking no call slot and no allocation, every failed count
+staying in the log when a later one succeeds. A failed count is read three ways from
+the errors the SDK declares, and nothing is transient by default: throttling,
+unavailability, an internal error, a client timeout or a lost connection are retried
+and exhausted as an infrastructure failure at the `input_bound` site with a new
+attempt permitted; a validation, access or resource refusal is a defect at once, the
+registered configuration being wrong; anything else ends the attempt at once by
+infrastructure with no rule permitting a new attempt, over calling it a defect, which
+would assert a cause nobody has. A denied count therefore ends by infrastructure
+though no retry can cure a missing grant; the deployed role's grant for the counting
+call is the first live run's, a platform ticket. Only a durable successful count is
+reused, under the request's digest, the counting identifier and the method's version,
+by a re-dispatch and by a resumed worker alike; the request is frozen before it is
+counted, and the check under the lock after the count rejects a changed request, lost
+ownership, a closed attempt, a frozen approval and a recorded defect. The export
+states the input bound so the arithmetic is audited, and it holds the request's digest
+and not its body, so no bound can be recomputed from an export.
+
+**A call's re-dispatch is one pure decision over its dispatches, with a fixed delay.**
+From a call's dispatches, the attribution table and the re-dispatch policy, one
+function in `core` gives one of five results: answered; ended as behaviour, where a
+service error the table reads as behaviour has no answer and is no infrastructure
+failure; permitted to dispatch again; failed by infrastructure at the last dispatch;
+failed by defect. Stopping observations are applied before exhaustion, so the last
+permitted dispatch returning an answer fails nothing, and permitted is not authorized,
+since ownership, the attempt's state, the room left and any breach are still checked
+under the lock. It is called after each outcome and on recovery, and the transition
+function refuses an intent that follows a dispatch whose row allows no other, as it
+refuses one beyond the maximum. A dispatch's number is the intents logged for its call
+plus one, taken under the lock. The delay is a fixed backoff with no jitter, since one
+serialized client has no herd to spread and a fixed wait reproduces, revisited if
+concurrent calls are allowed; it is the deliberate backoff and not a bound on the
+interval between an outcome and the next authorization, which also holds preparation,
+a count and the lock. The wait runs from the log's acceptance of the previous outcome,
+and a worker in a new segment compares the database's time with that timestamp and
+waits the remainder, since offsets of two segments cannot be subtracted; the wall
+clock is used for a wait and never for order, and a wait in a running worker is active
+time while downtime is not. The table's rows and the policy's values are pending until
+the freeze, a model-calling run is not admitted under a pending value, and a
+development registration carries provisional ones. A new attempt is always an explicit
+admission request; no worker re-admits a run.
+
+**A tool call is resolved once from the log, by a result or a skip, and what is not
+proven unreached is unresolved.** The outcome event holds the response as it arrived,
+with everything the parser needs, appended before anything parses it. What a tool call
+is, unparsed, a fact batch or undispatched for its stop reason, and what the gates
+admitted, is one pure function of the response, the frozen inputs and the permitted
+log prefix, called by the worker and by the log reader; the export states what the
+recorded response means under the registered parser and not when or whether a worker
+finished parsing it. The reason is a worker killed between an outcome's append and a
+recorded parse, its attempt then abandoned, which would export a complete response
+with no answer and no parse-phase failure, a shape the format refuses; a parser that
+raises while an attempt is being closed closes it by defect at that dispatch's parse
+phase, and no empty answer is invented. The parser's specification and version, its
+schema and the gate policy are frozen inputs verified at claim. The response body is
+the provider's Converse object read by one protocol: a tool-use block is a tool call,
+the fact tool's call is the batch its input holds, a text block opening with a brace
+is a fact payload in the answer's own content, and any other text makes the answer's
+text present. One live send under a stand-in prompt returned the fact call with its
+one entry nested a level deeper than the schema says, which the parser refused as
+undecodable with the outer shape holding, so the protocol was adopted unamended and
+the entry's shape goes to the prompt step with a one-level flattening as the candidate
+amendment. Resolution is one event kind with two contents keyed by the call, a result
+holding the operation, a wrapper's refusal included, or a skip, the cap or a source
+already unreachable, a final decision not to run honoured on replay; the uniqueness of
+kind and key forbids both for one call, and a skip is no intent. The tool calls of an
+answer run in the answer's order and none begins before its predecessor's resolution
+has committed; a worker whose append fails stops, a durable defect result stops the
+sequence and recovery keeps the stop. The reader's rule: no resolution means
+unresolved unless the log and the barrier prove the call could not have been reached,
+an earlier call of the same answer having no resolution or a durable stopping result;
+who closed the attempt proves nothing, and a single segment with a recorded end proves
+nothing either, since a worker can run a tool, fail the append on a transient error
+and still write its terminal event. A skip establishes undispatched only when the
+segment that wrote it also wrote the event that made the call next; across a segment
+boundary the disposition is unresolved and the skip stays as the worker's decision,
+conservative by choice. On recovery held resolutions are reused, only unresolved reads
+still permitted run again, and the gates are given the reads strictly below the held
+outcome's position, the original position on a re-append and never the recovering
+worker's current one, admissions rebuilt in outcome order so a tool an answer asked
+for never supports a fact of that answer; unreachable-source state comes from durable
+outcomes only. A later arm that runs tools in parallel voids this evidence and rules
+it again.
+
+**Recovery is from the log on a fresh checkpoint thread per generation, and an
+attempt's ending is one function of its log whoever closes it.** A recorded stopping
+defect is the ending, at its site, an operator's close included: that close finalizes
+a defect and makes no abandonment, and who closed and why the attempt failed are two
+facts both in the log. After a defect no further investigation is authorized; the
+segment start of the worker that recovers to finalize, the bookkeeping and the closing
+event may be appended, no end is invented for a dead segment, and a finalizer's own
+failure never replaces the recorded defect. After an approval request the review
+payload is frozen, no new intent and no tool resolution, so a call unresolved at the
+freeze stays unresolved by construction; a defect found while terminalizing closes the
+attempt by defect with the approval kept as evidence of what was approved, and nothing
+is composed again. The order: the log before any checkpoint; a closed attempt only
+finishes publication; a recorded defect is finalized; a requested approval recovers
+the frozen workflow; otherwise the attempt is replayed and continued under the
+dispatch and budget rules. The checkpoint thread is derived from the run, the attempt
+and the generation, so every checkpoint, pending write and subgraph checkpoint of a
+fenced worker lands where no later owner reads, and every claim starts on a fresh
+thread and replays from the log. The shared thread was recommended on the reading that
+a stale checkpoint is an older cursor whose content the log holds, and reversed
+because a checkpoint also holds pending task writes the framework uses to skip tasks,
+a fenced worker's node raises on its refused append and leaves an error write, and the
+probe to clear that path had grown to late pending writes, competing descendants and
+late interrupt state, all three excluded by construction by a thread per generation.
+Stated consequence: a generation is one process, no process reads another's
+checkpoints, the saver's durability serves inspection and the behaviour equals an
+in-memory saver; the PostgreSQL saver stays under the accepted pins and dropping it is
+a later, cheap call. A claim on another commit than the first segment's is refused
+unless the request carries an override recording its authority and both commits, which
+waives no finding, incident or exclusion; a dirty tree is recorded and not refused. A
+fenced worker exits and writes nothing; a stop signal writes a segment end and leaves
+the attempt open; an error after which no durable append is possible leaves it open
+too; any other exception is a terminal failure by defect at the `unhandled` site, a
+harness fault stopping the run rather than being replayed into the same crash, the
+reason a qualified exception type and a repository-relative location with no message,
+excerpt or traceback. The handler sits at the driver around the graph's invocation and
+never inside a node, since the framework signals an approval pause there by its own
+mechanism. The crash matrix is the acceptance: a child running the real worker is
+killed at every boundary the reference run crosses, the store's three per write, the
+load's read, the saver's two methods and the handoff's two points, and at the
+recovering process's crossings too, each row's outcome forecast in a manifest before
+the run and a contradiction a named finding; the first run found the forecast wrong at
+the saver's crossings of the terminal step, where a recovery finds the attempt already
+closed, and the rows accept that. The commands have rows of their own, the admission's
+receipt and refusal paths, the publication's record and put boundaries and the
+inventory's snapshot and put, each recovered by running the command again. Measured
+over five reference runs on real clocks, active time stood at 0.38 to 0.45 of elapsed
+and never above it, so no tolerance is set for the ending check's first finding. A
+second reference, the throttled run whose every dispatch is answered by a throttle
+until the re-dispatch bound is exhausted and the attempt fails by infrastructure,
+gives the exhaustion endings their rows, since the one completing reference had passed
+over the replay's ordinal shift under an outage and the recovery's skipped delay, two
+faults the external review found and unit tests then held; the reconciliation states
+per call what each dispatch's intents and outcomes must be, never past the registered
+maximum.
+
+**The log fixes what happened; publication fixes what evidence can be delivered.**
+Exportability never defines an attempt's ending and a reader's version never decides a
+failure category: the first proposal closed a completed attempt by defect when its
+export would not construct, and a reader fault touching every valid abandonment would
+then have relabelled each as a failed investigation. The closing event and its
+settlement commit whether or not an export can be built, with no dry run and no export
+failure site, since the transition function at each append is the enforcement and a
+dry run cannot see the terminal timestamp, a concurrent close or another reader. The
+job builds and publishes the export immediately after closure, so a reader's fault
+shows at the close and not at an evaluation days later; a construction failure is a
+publication incident recorded apart from the log, and an abandonment whose export will
+not construct still commits and settles. Closed without export is a visible state,
+listed in the inventory with the authoritative ending, the incident and the ledger's
+figures as three numbers, known consumption, retained liability and their total, since
+a retained worst case is not established cost and an absent export is not zero cost. A
+successor waits for its predecessor's publication as well as its closure, so missing
+evidence is no route to a replacement and a storage outage delays the next attempt.
+One publication record per attempt, apart from the log: pending, published or failed
+with its incident, the reader's commit and the export format, the closed log's digest,
+the object's identity and digest, null together exactly on a failure; published is
+never changed back by a late failure handler, and a repaired export under another
+reader is a new object by construction, because the key names the reader and one
+closed log under one reader has one possible content. Restoring an intended
+representation is a repair; a change to how attribution, parsing, counting or endings
+are read is a procedure amendment whatever it is called, applied across the
+measurement set, and a published export is never overwritten. Publication is
+idempotent, a lost acknowledgement retried as a publication recovering the held
+object's identity, and an object found uploaded with no record of success is adopted
+as an unfinished publication and not another run. On the instance that adoption cannot
+be a read-back, since the instance's grant under the runs prefix is one put with no
+get and no list, the platform contract's statement; the writer returns a fourth
+outcome, present and unverified, exactly when the create was refused as present and
+the verifying read was refused by access, and the publish command adopts it only under
+its own pending record naming this key and this digest, where the key can hold nothing
+else, the verification being the evaluator's presence check by the one principal that
+can read. Anywhere else that outcome is a failed publication. The instance's refusal
+is not probed from the workstation, a workstation pass saying nothing about the
+instance's role; the first live publication observes it.
+
+**Jobs are commands over plain data with no queue, and three identities are kept
+apart.** Admit, work, deliver an approval, abandon, publish, write the inventory and
+set the threshold are each a function over a request type and a result type with a
+command-line entry, the request from the command line, the stores from the
+environment, a refusal as its message and nothing sealed in either; a later milestone
+may put a queue in front of them, and the work subcommand waits for the step that
+builds the first composition it could run, since a subcommand that can only refuse is
+not built. No command reads the wall clock: the store stamps with the database's
+clock, the worker measures monotonically and the launch identity is drawn. The launch
+identity is the provenance of one launcher execution, recorded and never used for
+idempotency; the request identity is held by the caller across its retries and names
+the run and attempt asked for; a claim's process nonce is the third, and a repeated
+work command revives no retired segment. An attempt's status is derived from the log
+by the transition function and exposed as three fields, the attempt open or closed
+with its ending, the segment never started, open or stopped, the approval not
+requested, requested or approved; no field says a worker is alive, and the row's open
+or closed value is a transactional projection of the log and no authority of its own.
+A human declining a plan is the demo milestone's question and no state is added for
+it. The approval command refuses a closed attempt, one with no request, one already
+approved and a digest other than the logged request's, and the next work command
+claims and replays to the interrupt; the abandon command fences the generation the
+load shows, so a worker holding it stops at its next append, and a closed attempt
+answers with the store's refusal. The entry's rules come from the registration file,
+each pending value absent, and with no file the rules of a system that calls no model;
+a run admitted under a table and a policy folds only under them, so the entry refuses
+a publish or an inventory without the file.
+
+**The inventory is one consistent snapshot of the store, identified by its content,
+and what it proves is stated.** It is read in one transaction at repeatable read, so a
+closed attempt is never paired with its figures from before settlement, and built
+purely from the rows: the bound registration and the measurement scope, the ledger's
+head and entries, every attempt the store holds, of every world, in and out of scope,
+with its status, the log position and prefix digest it was read at, the ledger's three
+figures and its publication record as observed, the refused admissions, the schema
+version and the builder's commit. Identifiers, digests, kinds and integers only, no
+reason text that could quote a scenario. An attempt admitted under another
+registration's rules has no fold for this builder and is listed from its row with no
+status and no figures, absent together and exactly then. Its identity is the digest of
+its bytes, which include the snapshot's instant, so two writes of one store state are
+two objects and a caller that wants one object per state writes once; a ledger
+revision cannot identify it, since a segment start, an approval or a publication
+changes it with no ledger entry. It is written under the world's runs prefix in a
+prefix of its own, the one place the instance may put, which the evaluator already
+lists and reads and the bucket keeps create-only, so the interview's grant question
+closed with no platform ticket. The limit, as the report must state it: a
+harness-written inventory lets a separate evaluator find implementation mistakes and
+inconsistencies. It does not prove that every admission or invocation was logged, that
+events describe what happened, that nothing was spent outside the ledger, or that no
+attempt is missing from both the inventory and storage. Protection against a harness
+that omits would need an observation the harness does not write, and the project has
+none; CloudWatch counts the same tokens through another path.
 
 **The investigator's runtime policy keeps the fault triad's meanings.** A missing
 record is evidence; the first unreachable source marks that source unreachable for
