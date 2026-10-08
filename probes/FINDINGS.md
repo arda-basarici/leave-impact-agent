@@ -3091,3 +3091,43 @@ equal on every record, the base level holding every planted document and no pool
 an exported copy of `89e4231`, 5,686, 5,697, 5,704 and 5,714 passed with 3 skipped, lint
 and types clean at each; its first run stopped at stage 2 on a symbol the review's fix had
 moved between commits.
+
+**The live acceptance: the loader on the instance, through the instance role, twice.** The
+group's first push deployed `f56bff4` before the external review's fixes landed, and the
+deploy's loader ran at 20:41 UTC on 2026-10-08 (CI run 37839741592): `store=s3:…`, then
+`loaded=785bc4cd… projection=projected documents=3 levels=base`, `loaded=7b806ed6…
+documents=26`, `loaded=d674d576… documents=0`, `loaded=3 already_ready=0 declined=0`, the
+read-only dry run from the workstation reproduced line for line from inside the container
+under `arn:aws:sts::…:assumed-role/leave-agent-instance/…`, the boundary probe passing after
+it. The second push deployed `662cdcb` with the fixes at 21:34 UTC (run 37845502465):
+`declined=785bc4cd… reason=no approved verdict judges manifest 4b6be5d1384e…: 1 verdict(s)
+read`, the golden world the same over 2 verdicts, the first world the same over 2,
+`loaded=0 already_ready=0 declined=3`, as forecast under the current-version clause. The
+reason names the manifest digest and the count of verdicts read and not the clause that
+declined them, which a reader of the deploy log would want; a wording item for the next
+touch of the serving module. One state the two runs left behind: the instance's cache holds
+the three versions ready from the first deploy, loaded under validator version 1 verdicts
+and byte-verified against their manifests, which the second deploy declined and did not
+touch, since the loader admits and never removes. Their content is what a version 2 load
+would hold (no pool, the levels check trivially the base level), the golden world's row
+becomes consistent with the rule once it is validated again under version 2 and the next
+deploy finds it ready under the same projection and digest, and the other two rows are a
+fact of the instance's database until someone removes them by hand.
+
+**The golden world validated again under version 2** (2026-10-08, 21:57 UTC, validate run
+37849760348, dispatched and approved by Arda): `approval=approved`, the verdict sealed at
+`verdicts/37849760348-1.json` beside the two of 2026-09-16 and 2026-09-24. Read back from
+the bucket under the workstation profile: format 2, validator version 2, the levels block
+`passed` with scope "absent: the base level over no pool", as forecast; the serving rule
+approves it against the manifest's digest, and the two earlier verdicts (format 1,
+validator 1, approved) approve nothing for serving.
+
+**The deploy after it** (2026-10-08, 22:01 UTC, the deploy job of CI run 37847676629 re-run
+and approved by Arda, deploying `334b7de`): `declined=785bc4cd…` as before,
+`already_ready=7b806ed6… projection=projected documents=26 levels=base`, `declined=d674d576…`
+as before, `loaded=0 already_ready=1 declined=2`. The golden world's row, loaded under the
+version 1 verdict at 20:41, is found ready under the same projection and manifest digest
+now that a version 2 verdict approves it, which is the state the serving rule and the cache
+agree on; the step's acceptance, the golden world loaded on the instance with its receipts
+and version ids verified against the manifest, holds on the first deploy's lines and this
+one's together.

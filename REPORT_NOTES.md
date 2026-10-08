@@ -7,6 +7,91 @@ decisions it feeds.
 
 ---
 
+## 2026-10-09 — Three readers found three faults of one shape in a day, each a thing nobody had vouched for, and then the deploy met its forecast line for line
+
+*M2, step 9, the corpus cache the instance fills from the world bucket: the levels
+object sealed beside the documents, the serving rule, the loader and the cache job
+the deploy runs. Feeds: the M2 report's deployment section, on how a served world
+reaches the application and what "verified against the manifest" means; the
+evaluation-design section, on why the validator's check list and the serving rule
+are one thing; and the method section, on reviews that reproduce before they
+triage and forecasts written before a live run.*
+
+The step was the first under a lighter ritual, ruled that morning after three
+sessions had tabled it: forks batched in one file and answered in one exchange, one
+external read at the close, one or two build groups, and the design pass, the live
+probe before a fix, the forecast before a run, the batch review and the order check
+all kept. The question the step existed to answer looked like plumbing, the loader
+that fills the instance's PostgreSQL from the sealed documents in the world bucket,
+and the design pass found something underneath it on its first read of the tree.
+The served side of a world carried no level membership at all. The pool's rank
+order and the levels, which decide what a padded corpus holds, lived on the world
+spec in the truth bucket, the one place the instance role may never read; the
+evaluator derived membership from the spec and the instance could not. So the world
+now seals a small object beside its documents, the levels and the pool's ids in
+rank order and nothing a document says, on both sealing paths, and the development
+world of the previous step gained it under a resume in five seconds with no model
+call (forty conditional puts, thirty-nine present and equal, the step's FINDINGS
+entry in `probes/FINDINGS.md`). No generator version moved: the object is a
+projection of the spec and enters neither the bundle nor the version.
+
+Then three readers found three faults of one shape in one day. Each was an object
+or a state that nothing had vouched for, accepted because the code checked what it
+had been told to check and not what it rested on. The internal batch review, a
+subagent reading the diff cold, found two and reproduced both on the real database.
+A levels object the manifest never recorded was decoded and shaped the levels; a
+final prefix in the bucket is create-only, so a key the manifest lacks is exactly
+what a later put could add, and the probe loaded a stray padded object onto a world
+whose manifest knew nothing of it. And two loaders racing on a fresh version
+collided on the primary key, because a row lock covers no row that is not there yet:
+the first loader selected for update and locked nothing, the second did the same,
+and its insert was refused. The external chat's review found the third and largest.
+The validator, whose approving verdict the serving rule rests on, had never read the
+levels object; a sealed pool naming a planted document as filler reached the cache
+with the world approved, reproduced on a generated golden world, and with it a
+development sealing interrupted after its first document was admitted and loaded as
+a partial world marked ready, since a manifest-less local world was admitted on any
+document at all.
+
+The fixes share the shape of the faults. The validator now compares the served
+object with the levels the authenticated spec derives, a fourth block of the
+verdict, which moved the verdict to format 2 and the validator to version 2; the
+serving rule requires the current validator version, a fork taken as recommended
+and Arda's to reverse, on the reasoning that an older logic approved a shorter list
+of checks and the new check existed exactly because that list was too short. The
+levels object is written last by an unprojected sealing and a development world is
+admitted on nothing else, so a sealing that stopped is never served. The loader takes
+a transaction-scoped advisory lock keyed by the version before it reads anything,
+and the race test holds the first loader's transaction by hand while the real one
+waits in a thread. The commit-order check, run on an exported copy of the tree after
+the fixes, stopped at its second stage on a symbol a fix had moved from one commit
+to another, the first live catch of the lesson that says to rerun it after every
+review fix; three runs, the last green at every stage (5,686 to 5,714 tests, the
+step file `m2-build/2026-10-08-step-9-forks.md` in the stream).
+
+What makes the day worth a report is the end of it. The serving rule, run read-only
+against the real bucket from the workstation after Arda's listing turned a guess
+about the bucket's contents into a dry run, predicted three worlds loading with 3,
+26 and 0 documents, the zero being the first world whose manifest receipts none. The
+first deploy loaded exactly those from inside the container under the instance role
+(commit `f56bff4`, CI run 37839741592, 2026-10-08 20:41 UTC). The second, with the
+fixes, declined all three under the current-version clause (`662cdcb`, run
+37845502465). The validator dispatched on the golden world approved it under version
+2 with the levels check passing as "absent: the base level over no pool" (run
+37849760348), and the deploy run again found the golden world ready with its 26
+documents. The mixed-bundle gate held thirty scenarios identical through the planted
+readers plus the real cache and through memory, every export conformant to the
+prefetch plan. Nothing in the live sequence departed from what was written down
+before it ran. Two states it left behind are recorded rather than hidden: the
+instance's cache holds two versions ready that the rule no longer admits, loaded
+under the older verdicts and byte-verified, and the deploy log's decline reason
+names a digest and a verdict count where it should name the clause.
+
+Figure: the three faults side by side as "what was checked" against "what it rested
+on", or the forecast-versus-live table of the three deploys.
+
+---
+
 ## 2026-10-08 — The benchmark could not tell its systems apart until the world was padded, and padding it safely took a measurement at every turn
 
 *M2, the generator step between the event log step and the corpus loader: the filler
