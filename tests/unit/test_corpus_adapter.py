@@ -111,6 +111,7 @@ class Unserving:
 
     def __init__(self) -> None:
         self.statements: list[str] = []
+        self.closed = 0
 
     def execute(self, statement: Any, params: Any = None) -> Any:
         self.statements.append(" ".join(str(statement).split()))
@@ -120,7 +121,7 @@ class Unserving:
         return None
 
     def close(self) -> None:
-        pass
+        self.closed += 1
 
 
 def test_a_version_not_served_or_a_level_never_sealed_is_loud_at_the_first_read() -> None:

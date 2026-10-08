@@ -28,5 +28,11 @@ def corpus_reader_for(
         if connect is None
         else CorpusAdapter(dsn=dsn, config=config, level=level, connect=connect)
     )
-    adapter.serving_check()
+    try:
+        adapter.serving_check()
+    except Exception:
+        # The check opened the connection; a refusal here hands the caller no adapter to
+        # close, so the connection is closed before the refusal leaves (the close's review).
+        adapter.close()
+        raise
     return adapter

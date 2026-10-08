@@ -35,3 +35,4 @@ def test_an_unserved_level_fails_before_any_read() -> None:
         )
     assert refused.value.world_version == inputs.context.world_version
     assert refused.value.level == "base"
+    assert unserved.closed == 1, "the connection the check opened is closed before the refusal"
