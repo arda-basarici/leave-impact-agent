@@ -117,7 +117,9 @@ from leaveimpact.generator.fresh import fresh_world
 from leaveimpact.world.artifacts import Bundle, semantic_digest
 from leaveimpact.world.assembly import SemanticWorld, assemble_semantic_world
 from leaveimpact.world.construction import required_count_for
-from leaveimpact.world.org import OrgSpec, decode_org_params
+from leaveimpact.world.decoders import decode_world_spec
+from leaveimpact.world.disclosure import Disclosure
+from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import Scenario
 from leaveimpact.world.truth_decoder import decode_truth_manifest
 
@@ -159,6 +161,12 @@ def throwaway_bundle(argv: Sequence[str]) -> Bundle:
         raise ConfigurationError(
             "--resume names a sealed realization; a throwaway world is always fresh"
         )
+    if recipe.disclosure is Disclosure.EMBARGOED:
+        # The example renders to a tracked path and holds the answer keys whole.
+        raise ConfigurationError(
+            "--embargoed seals a world the sheet may not publish; a throwaway world is never "
+            "embargoed"
+        )
     writer, checker = prose_models_for(prose_models_from_env(os.environ))
     fresh = fresh_world(recipe, writer, checker, print)
     for line in fresh.metrics.lines():
@@ -181,27 +189,36 @@ def require_ignored(path: Path) -> None:
         )
 
 
-def rebuild(spec: Json) -> SemanticWorld:
+def rebuild(spec_bytes: bytes) -> SemanticWorld:
     """The sealed world's semantic objects, rebuilt from its provenance by the generator's own
     assembly and admitted only when the semantic digest equals the sealed one.
 
-    A digest that differs means the interpreter, the generator version or the code has
-    moved since sealing, and a witness rendered from it would be of some other world;
-    the mismatch is reported with both digests and nothing is rendered.
+    The provenance is read through the world-spec decoder, as resume reads it, so the
+    whole recipe reaches the assembly, the filler plan included; a rebuild that passed
+    the seed, the parameters, the start and the plan name alone refused every pooled world
+    (the generator step's group 4 review). A digest that differs means the interpreter,
+    the generator version or the code has moved since sealing, and a witness rendered
+    from it would be of some other world; the mismatch is reported with both digests,
+    withheld for an embargoed world, and nothing is rendered.
     """
-    prov = spec["provenance"]
+    planted = decode_world_spec(spec_bytes)
     semantic = assemble_semantic_world(
-        prov["seed"],
-        decode_org_params(spec["org"]["params"]),
-        date.fromisoformat(prov["world_start"]),
-        prov["plan_name"],
+        planted.seed,
+        planted.org.params,
+        planted.world_start,
+        planted.plan_name,
+        planted.filler_plan,
     )
-    rebuilt, sealed = semantic_digest(semantic), prov["semantic_digest"]
+    rebuilt, sealed = semantic_digest(semantic), planted.semantic_digest
     if rebuilt != sealed:
+        digests = (
+            "digests withheld, the world is embargoed"
+            if planted.disclosure is Disclosure.EMBARGOED
+            else f"semantic digest {rebuilt} rebuilt, {sealed} sealed"
+        )
         raise RuntimeError(
-            f"the rebuilt world is not the sealed one: semantic digest {rebuilt} rebuilt "
-            f"under generator version {semantic.generator_version}, {sealed} sealed under "
-            f"version {prov['generator_version']}"
+            f"the rebuilt world is not the sealed one: {digests}, under generator version "
+            f"{semantic.generator_version} against {planted.generator_version} sealed"
         )
     return semantic
 
@@ -951,7 +968,7 @@ def main() -> int:
     truth = json.loads(truth_bytes)
     record = decode_truth_manifest(truth_bytes).materialization
     assert record is not None, "no materialization record sealed"
-    semantic = rebuild(spec)
+    semantic = rebuild(spec_bytes)
 
     sheet = render(version, spec, truth, specs, record, semantic, notes)
     path.parent.mkdir(parents=True, exist_ok=True)

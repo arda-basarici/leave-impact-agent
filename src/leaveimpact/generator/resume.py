@@ -46,6 +46,7 @@ from leaveimpact.world.assembly import SemanticWorld, WorldSpec, assemble_semant
 from leaveimpact.world.briefs import CommentTarget, SectionTarget
 from leaveimpact.world.composition import compose
 from leaveimpact.world.decoders import decode_world_spec
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import FillerPlan
 from leaveimpact.world.org import OrgParams
 from leaveimpact.world.truth_decoder import decode_truth_manifest
@@ -87,9 +88,16 @@ def resume_world(
         planted.filler_plan,
     )
     if semantic_digest(semantic) != planted.semantic_digest:
+        # The generator's log is public and an embargoed world's semantic digest is a
+        # function of its seed (the generator step's ruling 5): the refusal then names
+        # neither digest.
+        digests = (
+            "digests withheld, the world is embargoed"
+            if planted.disclosure is Disclosure.EMBARGOED
+            else f"{semantic_digest(semantic)} against {planted.semantic_digest}"
+        )
         raise ResumeRefused(
-            f"{version}: the reassembled semantic world differs from the sealed one "
-            f"({semantic_digest(semantic)} against {planted.semantic_digest})"
+            f"{version}: the reassembled semantic world differs from the sealed one ({digests})"
         )
     if digest(truth_object.content) != planted.truth_manifest_digest:
         raise ResumeRefused(

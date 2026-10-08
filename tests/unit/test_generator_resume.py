@@ -3,6 +3,9 @@ were sealed, through the same compose and bundle, the record read by the truth m
 decoder; and every proof refuses by name — no object, another generator version, a truth
 manifest the spec does not cite, a version the rebuilt realization does not match."""
 
+import traceback
+from datetime import date
+
 import pytest
 
 from leaveimpact.adapters.object_store.layout import truth_manifest_key, world_spec_key
@@ -12,11 +15,14 @@ from leaveimpact.world import (
     DEFAULT_PARAMS,
     GENERATOR_VERSION,
     Bundle,
+    Disclosure,
     SemanticWorld,
     WorldSpec,
+    assemble_semantic_world,
     assemble_world,
     bundle,
     compose,
+    semantic_digest,
 )
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.prose_fixture import (
@@ -148,3 +154,27 @@ def test_a_world_with_a_pool_resumes_with_the_filler_prose_lifted() -> None:
     resumed, rebuilt = resume_world(sealed.world_version, truth_store(sealed), padded_assembly)
     assert resumed == world
     assert rebuilt == sealed
+
+
+def test_an_embargoed_world_s_mismatch_withholds_both_digests() -> None:
+    # The generator's log is public, and the sealed semantic digest is a function of the
+    # seed (the generator step's ruling 5, its group 4 review); an open world's names both.
+    scenario = pending_scenario(SkillInComment())
+    [brief] = scenario.briefs
+    prose, record = {brief.id: BODY}, record_for({brief.id: BODY})
+    other = assemble_semantic_world(4, DEFAULT_PARAMS, date(2026, 1, 1))
+
+    def another_world(
+        seed: int, params: object, start: object, plan: object, filler: object
+    ) -> SemanticWorld:
+        return other
+
+    embargoed = bundle(compose(semantic_world_of(scenario), prose, record, Disclosure.EMBARGOED))
+    with pytest.raises(ResumeRefused, match="digests withheld, the world is embargoed") as refused:
+        resume_world(embargoed.world_version, truth_store(embargoed), another_world)
+    printed = "".join(traceback.format_exception(refused.value))
+    sealed_digest = semantic_digest(semantic_world_of(scenario))
+    assert sealed_digest not in printed and semantic_digest(other) not in printed
+    open_world = bundle(compose(semantic_world_of(scenario), prose, record))
+    with pytest.raises(ResumeRefused, match=f"{semantic_digest(other)} against {sealed_digest}"):
+        resume_world(open_world.world_version, truth_store(open_world), another_world)
