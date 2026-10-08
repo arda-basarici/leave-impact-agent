@@ -35,6 +35,7 @@ from botocore.config import Config
 from botocore.exceptions import BotoCoreError, ClientError, HTTPClientError
 from botocore.exceptions import ConnectionError as TransportConnectionError
 
+from leaveimpact.adapters.converse import converse_tool
 from leaveimpact.adapters.prose.seam import (
     CheckerRequest,
     InferenceConfiguration,
@@ -158,18 +159,13 @@ def _converse(
         "inferenceConfig": _inference(inference),
     }
     if tool is not None:
-        arguments["toolConfig"] = {
-            "tools": [
-                {
-                    "toolSpec": {
-                        "name": tool.name,
-                        "description": tool.description,
-                        "inputSchema": {"json": tool.input_schema},
-                    }
-                }
-            ],
-            "toolChoice": {"any": {}},
+        definition: JsonObject = {
+            "name": tool.name,
+            "description": tool.description,
+            "input_schema": tool.input_schema,
         }
+        # The checker forces its one tool: request policy, kept here and not in the translation.
+        arguments["toolConfig"] = {"tools": [converse_tool(definition)], "toolChoice": {"any": {}}}
     try:
         return cast(dict[str, Any], client.converse(**arguments))
     except ClientError as error:

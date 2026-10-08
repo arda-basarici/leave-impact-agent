@@ -216,6 +216,15 @@ class CorpusAdapter:
 
     # --- the level ------------------------------------------------------------------
 
+    def serving_check(self) -> int:
+        """The filler count of the configured level under the configured version, resolved
+        now rather than at the first read: ``UnservedCorpus`` when the cache serves no such
+        level of that version, so a composition root fails an attempt before any read is
+        made against a version or a level the run was not admitted with (the registry
+        step, fork 7). The count is kept, so the reads after it run no level statement."""
+        with self._guarded() as conn:
+            return self._held(conn)
+
     def _held(self, conn: Connection) -> int:
         """How much of the pool the configured level holds, resolved once from the cache."""
         if self._filler_count is None:

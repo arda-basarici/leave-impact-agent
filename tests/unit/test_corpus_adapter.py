@@ -187,3 +187,48 @@ def test_a_negative_limit_is_the_callers_bug_and_zero_asks_nothing() -> None:
         built.search("cover", limit=-1)
     assert built.search("cover", limit=0) == ()
     assert refusing.attempts == 0
+
+
+class Serving:
+    """A connection whose level lookup finds the row; every statement is recorded."""
+
+    def __init__(self, filler_count: int) -> None:
+        self.filler_count = filler_count
+        self.statements: list[str] = []
+
+    def execute(self, statement: Any, params: Any = None) -> Any:
+        self.statements.append(" ".join(str(statement).split()))
+        return self
+
+    def fetchone(self) -> tuple[int]:
+        return (self.filler_count,)
+
+    def fetchall(self) -> list[Any]:
+        return []
+
+    def close(self) -> None:
+        pass
+
+
+def test_the_serving_check_resolves_the_level_before_any_read_and_keeps_it() -> None:
+    made = Serving(filler_count=12)
+    built = CorpusAdapter(
+        dsn="postgresql://nobody@localhost/none",
+        config=CorpusConfig(WORLD),
+        level="padded",
+        connect=lambda dsn: made,  # type: ignore[arg-type, return-value]
+    )
+    assert built.serving_check() == 12
+    assert len(made.statements) == 1 and "FROM level JOIN world" in made.statements[0]
+    assert built.search("handover", limit=3) == ()
+    assert len(made.statements) == 2 and "FROM level JOIN world" not in made.statements[1], (
+        "a read after the check runs no level statement"
+    )
+    unserved = Unserving()
+    refused = CorpusAdapter(
+        dsn="postgresql://nobody@localhost/none",
+        config=CorpusConfig(WORLD),
+        connect=lambda dsn: unserved,  # type: ignore[arg-type, return-value]
+    )
+    with pytest.raises(UnservedCorpus, match="no level 'base' of world test-world"):
+        refused.serving_check()
