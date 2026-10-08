@@ -82,7 +82,7 @@ def test_over_a_full_read_every_target_is_retrieved_and_over_no_read_none(
         assert not any(found.retrieved for found in nothing.targets)
         assert [found.target for found in nothing.targets] == list(targets)
         seen += len(targets)
-    assert seen == 35
+    assert seen == 34
 
 
 def test_a_comment_is_retrieved_inside_its_ticket_and_is_out_of_a_searchs_reach(

@@ -252,7 +252,8 @@ def test_only_an_open_ticket_the_leaver_owns_affords_a_resolved_look_alike() -> 
 
 def test_slices_keep_scenarios_apart_in_time() -> None:
     first, second = _scenario(1), _scenario(2)
-    gap = second.spec.window.start - first.spec.window.end
+    earlier, later = sorted((first.spec.window, second.spec.window), key=lambda w: w.start)
+    gap = later.start - earlier.end
     assert gap >= timedelta(days=1)
 
 

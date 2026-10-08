@@ -55,9 +55,9 @@ COMMIT = "b" * 40
 NORMAL = RunCondition.all_reachable()
 OUTAGES: tuple[tuple[Source, ...], ...] = ((), (Source.JIRA,), (Source.CALENDAR,))
 FORECAST: dict[tuple[Source, ...], tuple[int, int]] = {
-    (): (810, 24),
+    (): (810, 22),
     (Source.JIRA,): (270, 6),
-    (Source.CALENDAR,): (540, 18),
+    (Source.CALENDAR,): (540, 16),
 }
 
 # Scenarios graded correct whole, per tier. Under the normal condition a system that reads no

@@ -3,8 +3,12 @@
 A scenario owns a fourteen-day slice of world state and slices never overlap — the
 cheapest write isolation, and thirty of them spread believably over about fourteen
 months of shared calendars (DESIGN, "A scenario owns a disjoint fourteen-day slice").
-Slices are dealt in scenario order from the world's start with a small random gap
-between them, so month boundaries and slice boundaries drift apart instead of lining up.
+Slices are dealt forward from the world's start with a small random gap between them,
+so month boundaries and slice boundaries drift apart instead of lining up, and then
+dealt out to the scenarios by a seeded permutation: a plan concatenates its tiers, so a
+window in row order is a window in tier order, and the window's start would otherwise
+predict the tier on every seed (the generator step's ruling 4, measured at 1.00 by its
+group 0 probe). A scenario's position says nothing about when its slice falls.
 
 Inside a slice the leave starts around the middle and runs a few days, which leaves
 room before it for "a meeting the day before" and room after for "the day after"
@@ -48,12 +52,16 @@ NOW_LOCAL_TIME = time(9, 0)
 
 
 def allocate_slices(rng: Random, count: int, world_start: date) -> tuple[DateSpan, ...]:
-    """``count`` disjoint fourteen-day slices in order from ``world_start``, gaps from ``rng``.
+    """``count`` disjoint fourteen-day slices dealt forward from ``world_start`` with gaps from
+    ``rng``, then shuffled by ``rng``: position ``i`` is scenario ``i``'s window and carries no
+    time order. The gaps are drawn first, so the set of slices is the forward dealing's and
+    the permutation is the dealer's last draw.
 
     >>> slices = allocate_slices(Random(1), 3, date(2026, 1, 1))
     >>> [span.days for span in slices]
     [14, 14, 14]
-    >>> all(later.start > earlier.end for earlier, later in zip(slices, slices[1:]))
+    >>> by_start = sorted(slices, key=lambda span: span.start)
+    >>> all(later.start > earlier.end for earlier, later in zip(by_start, by_start[1:]))
     True
     """
     slices: list[DateSpan] = []
@@ -61,6 +69,7 @@ def allocate_slices(rng: Random, count: int, world_start: date) -> tuple[DateSpa
     for _ in range(count):
         slices.append(DateSpan(start, start + timedelta(days=SLICE_DAYS - 1)))
         start = slices[-1].end + timedelta(days=1 + rng.randint(0, MAX_GAP_DAYS))
+    rng.shuffle(slices)
     return tuple(slices)
 
 

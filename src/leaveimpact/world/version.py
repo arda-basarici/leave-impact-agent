@@ -40,7 +40,7 @@ from typing import NewType
 
 GeneratorVersion = NewType("GeneratorVersion", str)
 
-GENERATOR_VERSION = GeneratorVersion("16")
+GENERATOR_VERSION = GeneratorVersion("17")
 
 GENERATOR_PYTHON = (3, 13)
 

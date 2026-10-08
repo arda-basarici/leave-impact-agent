@@ -243,7 +243,7 @@ def test_a_seeded_interval_reproduces_whatever_was_computed_before_it(
     estimate_ratio(overall, recall(), plan())
     estimate_ratio(tier_of(arm, Tier.FRAGMENTED), strict, plan())
     assert estimate_ratio(overall, strict, plan()) == first
-    assert (first.numerator, first.denominator) == (547, 1_001)
+    assert (first.numerator, first.denominator) == (573, 1_001)
     interval = first.interval
     assert interval is not None and first.value is not None
     assert interval.low < first.value < interval.high

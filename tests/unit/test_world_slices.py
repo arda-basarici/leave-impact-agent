@@ -1,6 +1,7 @@
-"""Scenario time: slices disjoint and dealt in order, the leave mid-slice with room on both
-sides, ``now`` shortly before it, and the stable interval derived around ``today`` from
-the planted observability dates — latest earlier fact below, earliest later fact above."""
+"""Scenario time: slices disjoint, dealt forward and dealt out to positions by a seeded
+permutation, the leave mid-slice with room on both sides, ``now`` shortly before it, and
+the stable interval derived around ``today`` from the planted observability dates — latest
+earlier fact below, earliest later fact above."""
 
 from datetime import date, timedelta
 from random import Random
@@ -25,20 +26,31 @@ WINDOW = DateSpan(date(2026, 3, 1), date(2026, 3, 14))
 LEAVE = DateSpan(date(2026, 3, 10), date(2026, 3, 12))
 
 
-def test_slices_are_disjoint_ordered_fourteen_day_runs_with_bounded_gaps() -> None:
+def test_slices_are_disjoint_fourteen_day_runs_with_bounded_gaps_in_time_order() -> None:
     slices = allocate_slices(Random(3), 30, WORLD_START)
-    assert len(slices) == 30 and slices[0].start == WORLD_START
-    for earlier, later in zip(slices, slices[1:], strict=False):
+    by_start = sorted(slices, key=lambda span: span.start)
+    assert len(slices) == 30 and by_start[0].start == WORLD_START
+    for earlier, later in zip(by_start, by_start[1:], strict=False):
         assert earlier.days == SLICE_DAYS
         gap = (later.start - earlier.end).days - 1
         assert 0 <= gap <= MAX_GAP_DAYS, (earlier, later)
-    assert slices[-1].days == SLICE_DAYS
+    assert by_start[-1].days == SLICE_DAYS
 
 
 def test_thirty_slices_span_about_fourteen_months() -> None:
     slices = allocate_slices(Random(3), 30, WORLD_START)
-    months = (slices[-1].end - slices[0].start).days / 30
+    earliest = min(span.start for span in slices)
+    latest = max(span.end for span in slices)
+    months = (latest - earliest).days / 30
     assert 13 <= months <= 17, months
+
+
+@pytest.mark.parametrize("seed", range(1, 21))
+def test_positions_do_not_list_the_slices_in_time_order(seed: int) -> None:
+    """The shuffle moves positions, never slices: a plan concatenates its tiers, so a window
+    in position order would be a window in tier order (the generator step's ruling 4)."""
+    slices = allocate_slices(Random(seed), 30, WORLD_START)
+    assert tuple(sorted(slices, key=lambda span: span.start)) != slices
 
 
 def test_same_seed_same_slices() -> None:

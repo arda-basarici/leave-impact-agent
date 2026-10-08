@@ -40,8 +40,8 @@ the finding lists the foreign records visible in the scenario's evidence that da
 than claiming one culprit; expected against actual is the authoritative part.
 
 One seed identifies a world: the organization is generated from it, one ``Random`` from
-it deals the slices and the plan and hands each scenario its own generator, and one id
-book numbers every record world-wide. The result is a ``SemanticWorld``: everything the
+it deals the slices, the plan and the construction order, hands each scenario its own generator,
+and one id book numbers every record world-wide. The result is a ``SemanticWorld``: everything the
 seed determines, which since the prose step is not yet a world spec. The parts a model
 writes — a comment on a ticket, a section of a runbook — are absent from it and stand as
 briefs, typed pending targets with the facts each must carry; verification needs no text,
@@ -415,14 +415,17 @@ def assemble_semantic_world(
     scenario cannot be built as planned, ``WorldContamination`` when the assembled world
     disagrees with a key. Same inputs, same world.
 
-    Rows are constructed scarcest class first (the 15.5 rulings): the reservation book admits
-    a candidate only where nothing earlier reserved it, so a class with few constructions on
-    this organization, the composite with its one component and its handful of stale owners,
-    seated after twenty-odd leaves had been taken, found every owner it could name reserved
-    (thirty-four of two hundred golden worlds). Each row's random seed is drawn in plan order
-    before any construction, so the order changes no draw; a world the book refuses nothing
-    in is the world plan-order construction makes, up to the ids the minting book hands out
-    in construction order. Ties keep plan order.
+    Rows are constructed in a seeded random order, independent of the tier and of every id
+    (the generator step's ruling 4): the minting book numbers each kind in the order
+    constructions ask, so any order that follows the plan, whose tiers are concatenated, or
+    the classes' scarcity, which is tiered, makes an id's number a function of the tier
+    (its group 0 probe read the tier off the leave id at 1.00 under plan order and 0.71
+    under the scarcity-first order of the 15.5 rulings). Each row's random seed is drawn in
+    plan order before any construction, so the order changes no draw; a world the book
+    refuses nothing in is the world plan-order construction makes, up to the ids. The
+    reservation book admits a candidate only where nothing earlier reserved it, so the
+    order decides which seeds it refuses; the rate under this order is the sweep recorded
+    in FINDINGS (``reservation-book``), and the contract promises no world for every seed.
 
     The filler pool is minted last, after the planted world is verified, from the same id
     book and a generator drawn from the world's after its final draw, so the planted part
@@ -441,10 +444,11 @@ def assemble_semantic_world(
     plan = plan_tiers(rng, PLANS[plan_name])
     slices = allocate_slices(rng, len(plan), world_start)
     row_seeds = [rng.getrandbits(64) for _ in plan]
+    order = construction_order(rng, len(plan))
     ids = Minting()
     book = Reservations()
     built: dict[int, Scenario] = {}
-    for index in construction_order(org, plan):
+    for index in order:
         row = plan[index]
         built[index] = construct(
             SCENARIO_CLASSES[row.scenario_class],
@@ -493,16 +497,12 @@ def assemble_semantic_world(
     )
 
 
-def construction_order(org: OrgSpec, plan: Sequence[PlanRow]) -> tuple[int, ...]:
-    """The plan's row indices, scarcest class first: fewest admissible constructions on ``org``,
-    ties in plan order. Deterministic in the organization, so the same seed orders the same."""
-    scarcity = {
-        name: len(SCENARIO_CLASSES[name].admissible(org))
-        for name in {row.scenario_class for row in plan}
-    }
-    return tuple(
-        sorted(range(len(plan)), key=lambda index: (scarcity[plan[index].scenario_class], index))
-    )
+def construction_order(rng: Random, count: int) -> tuple[int, ...]:
+    """The ``count`` plan row indices in the order ``rng`` shuffles them: a seeded permutation
+    that reads neither the rows nor the organization, so it is independent of the tier."""
+    indices = list(range(count))
+    rng.shuffle(indices)
+    return tuple(indices)
 
 
 def world_fact_base(org: OrgSpec, world_start: date, scenarios: Sequence[Scenario]) -> FactBase:

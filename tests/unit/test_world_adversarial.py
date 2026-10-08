@@ -3,7 +3,7 @@ the conclusions the class exists to produce, and no admissible modifier erases t
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, time, timedelta
 from itertools import combinations
 from random import Random
 from zoneinfo import ZoneInfo
@@ -264,8 +264,8 @@ def test_the_missing_information_key_seals_exactly_the_one_unknown(seed: int) ->
 
 def test_the_missing_information_unknown_is_an_absence_claim_on_the_book() -> None:
     plant = MISSING.admissible(ORG)[0]
-    now = datetime(2026, 3, 3, 9, tzinfo=ZoneInfo(TZ))
     window = SLICES[3]
+    now = datetime.combine(window.start + timedelta(days=4), time(9), tzinfo=ZoneInfo(TZ))
     frame = Frame(scenario_id(1), window, window, now, TZ, WORLD_START, Minting())
     draft = plant(frame, Random(1))
     [required] = draft.required_unknowns

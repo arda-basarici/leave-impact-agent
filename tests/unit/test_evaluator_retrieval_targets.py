@@ -71,7 +71,7 @@ def is_own(scenario: Scenario, target: RetrievalTarget) -> bool:
 
 @pytest.mark.parametrize(
     ("condition", "scenarios_with_a_target", "own", "foreign"),
-    [(NORMAL, 20, 31, 4), (TRACKER_DOWN, 8, 15, 0), (CALENDAR_DOWN, 17, 25, 2)],
+    [(NORMAL, 20, 31, 3), (TRACKER_DOWN, 8, 15, 0), (CALENDAR_DOWN, 17, 25, 3)],
     ids=["normal", "tracker down", "calendar down"],
 )
 def test_the_targets_of_a_throwaway_golden_world_by_condition(
@@ -143,7 +143,7 @@ def test_a_target_of_another_scenarios_planting_moves_only_rows_no_report_must_h
     foreign = [
         target for scenario, target in targets_of(world, NORMAL) if not is_own(scenario, target)
     ]
-    assert len(foreign) == 4
+    assert len(foreign) == 3
     for target in foreign:
         # A skill shown for a colleague, who is outside this scenario's probe set.
         assert target.statement[1] is PredicateName.HAS_SKILL

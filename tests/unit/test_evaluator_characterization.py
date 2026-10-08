@@ -24,7 +24,9 @@ from tests.unit.throwaway_world import loaded_world
 NORMAL = RunCondition.all_reachable()
 # The seed whose world holds a probed candidate that a Jira outage splits between the views
 # (the forty-seed measurement's trace); a generator bump that moves it needs another seed.
-OUTAGE_SEED = 10
+# Seed 37 since generator version 17, the one seed of 2 to 40 holding the split on the tree
+# as built (the generator step's group 3 probe); seed 10 before it.
+OUTAGE_SEED = 37
 
 
 @pytest.fixture(scope="module")

@@ -34,7 +34,13 @@ from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.prose_fixture import record_for
 
 WORLD_START = date(2026, 1, 1)
-REFERENCE_SEED = 7
+# Seed 6 since generator version 17 (the tier shuffle), seed 7 before it: the evaluator tests
+# assert properties this world must hold (a target planted by another scenario, a candidate
+# whose verdict the two views flip, a clause whose target's title contains another ticket's),
+# and a version that moves the worlds moves them; the seed is the smallest holding every one
+# on the tree as built (the generator step's group 3 probe over seeds 2 to 40: six of
+# thirty-nine held the set), never a seed chosen for a count.
+REFERENCE_SEED = 6
 
 
 @dataclass(frozen=True)

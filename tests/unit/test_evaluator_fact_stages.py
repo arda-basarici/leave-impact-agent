@@ -380,8 +380,15 @@ def test_each_class_of_emission_is_told_apart(world: SealedWorld) -> None:
         if part not in index.statements[needed.statement]
     )
     misplaced = replace(needed, carrier=another)
+    # Untrue anywhere: not stated by prose and not in the HR record, which the structured
+    # class would otherwise claim (seed 6 held the first unstated skill in the record).
     held = {value for subject, _, value in index.statements if subject == needed.subject}
-    untrue_skill = next(skill.id for skill in SKILLS if skill.id not in held)
+    recorded = next(
+        e.skills or () for e in world.org.employees if employee_ref(e.id) == needed.subject
+    )
+    untrue_skill = next(
+        skill.id for skill in SKILLS if skill.id not in held and skill.id not in recorded
+    )
     untrue = replace(needed, value=untrue_skill)
     # The comment read as naming its own ticket's owner: no prose says so, the ticket does.
     ticket = index.records[index.parts[needed.carrier].parent]

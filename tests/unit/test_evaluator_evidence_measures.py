@@ -75,7 +75,7 @@ def test_a_truthful_report_over_a_full_read_is_reproduced_whole_and_cites_nothin
     assert total(local_failure_share(Graded), runs) == (0, 1_001)
     assert total(grounded_end_to_end_share(Graded), runs) == (1_001, 1_001)
     # The strict reading leaves out what stood without the corpus closed.
-    assert total(strictly_grounded_share(Graded), runs) == (547, 1_001)
+    assert total(strictly_grounded_share(Graded), runs) == (573, 1_001)
     # Nothing cited is nothing cited: no citation to judge, and never a perfect score.
     assert total(citing_share(Graded), runs) == (0, 1_001)
     for quality in (resolving_share, retrieved_share, used_share):
@@ -89,7 +89,7 @@ def test_a_truthful_report_over_a_full_read_is_reproduced_whole_and_cites_nothin
 
 @pytest.mark.parametrize(
     ("down", "claims", "strictly"),
-    [((Source.JIRA,), 613, 613), ((Source.CALENDAR,), 722, 349)],
+    [((Source.JIRA,), 585, 585), ((Source.CALENDAR,), 722, 369)],
     ids=["tracker down", "calendar down"],
 )
 def test_under_an_outage_the_truthful_report_is_still_reproduced_whole(
@@ -195,7 +195,7 @@ def test_source_discipline_is_measured_on_every_run_with_its_parts_where_they_ex
 
 def test_retrieval_is_measured_where_the_oracle_had_an_answer(world: SealedWorld) -> None:
     runs = [evaluated(world, scenario) for scenario in world.scenarios]
-    assert total(RETRIEVAL["targets retrieved"], runs) == (35, 35)
+    assert total(RETRIEVAL["targets retrieved"], runs) == (34, 34)
     assert total(RETRIEVAL["targets a required row rests on retrieved"], runs) == (31, 31)
     # The fixture reads documents by id: no search was made, so no hit rate exists.
     assert total(RETRIEVAL["searches with a hit"], runs) == (0, 0)

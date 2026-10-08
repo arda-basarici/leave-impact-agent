@@ -45,7 +45,7 @@ from leaveimpact.world import (
 )
 from leaveimpact.world.artifacts import digest
 from tests.unit.in_memory_object_store import InMemoryObjectStore
-from tests.unit.throwaway_world import SealedStores, composed_world, sealed_stores
+from tests.unit.throwaway_world import REFERENCE_SEED, SealedStores, composed_world, sealed_stores
 
 
 @pytest.fixture(scope="module")
@@ -198,7 +198,9 @@ def test_a_tampered_world_spec_changes_the_version_it_recomputes_to(
     sealed: Bundle, stores: SealedStores
 ) -> None:
     # A changed seed still decodes and still cites the other two files' digests.
-    tampered = sealed.world_spec.content.replace(b'"seed":7', b'"seed":8', 1)
+    tampered = sealed.world_spec.content.replace(
+        f'"seed":{REFERENCE_SEED}'.encode(), f'"seed":{REFERENCE_SEED + 1}'.encode(), 1
+    )
     assert tampered != sealed.world_spec.content and digest(tampered) != sealed.world_spec.digest
     replace_object(stores.truth, world_spec_key(sealed.world_version), tampered)
     with pytest.raises(SealedWorldRefused, match=f"not the {sealed.world_version} named"):

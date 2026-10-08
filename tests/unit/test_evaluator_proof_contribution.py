@@ -239,8 +239,8 @@ def test_over_a_full_read_every_completed_read_is_contributing_or_extra_once(
     # The thirty scenarios together. Nearly all the extra reads are the fixture's read of
     # every document of the world by its id, the corpus having no enumeration.
     measured: dict[tuple[Source, ...], tuple[int, int]] = {
-        (): (158, 802),
+        (): (156, 804),
         (Source.JIRA,): (58, 842),
-        (Source.CALENDAR,): (126, 804),
+        (Source.CALENDAR,): (124, 806),
     }
     assert (contributing, extra) == measured[down]

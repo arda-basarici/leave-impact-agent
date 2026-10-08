@@ -387,8 +387,15 @@ def test_a_contradicted_premise_lends_no_witness_to_the_claim_that_rests_on_it(
             export.trace.claims,
             scenario.spec.reference_timezone,
         )
-        held = next(g for g in groundings if g.claim_id == truthful.claim_id)
-        against = sorted(citable_witnesses(held), key=lambda ref: ref.id)[0]
+        truthfully = {g.claim_id: g for g in groundings}
+        held = truthfully[truthful.claim_id]
+        # A witness of the contradicted assessment that no other premise of the action lends:
+        # the leave record, say, witnesses the impact too, and would count as used through it.
+        lent_elsewhere = cited_witnesses(truthfully[assign.claim_id], truthfully, world.index)
+        only_against = sorted(citable_witnesses(held) - lent_elsewhere, key=lambda ref: ref.id)
+        if not only_against:
+            continue
+        against = only_against[0]
         falsely = replace(truthful, verdict=Verdict.VIABLE, reasons=())
         acting = replace(
             assign, assignee_ids=(truthful.employee_id,), evidence_refs=cite(against)

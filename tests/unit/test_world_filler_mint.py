@@ -140,7 +140,9 @@ def test_the_pool_holds_the_mint_s_invariants(seed: int) -> None:
 
 
 @pytest.mark.slow
-@pytest.mark.parametrize("seed", range(1, 21))
+# Seeds 2 to 21: the reservation book refuses seed 1 under the random construction order
+# (the group 3 sweep, pinned in ``test_world_tier_independence``), before any pool is minted.
+@pytest.mark.parametrize("seed", range(2, 22))
 def test_twenty_seeds_hold_the_mint_s_invariants_and_the_stripped_equality(seed: int) -> None:
     world = pooled(seed)
     invariants(world)

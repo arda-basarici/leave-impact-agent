@@ -46,10 +46,10 @@ REFERENCE_SEED = 7
 # share the former and differ in the latter by design. Two plans, because a digest sees
 # only the plan it was assembled under: a later-tier table edit leaves the tier-one digest
 # unmoved (the M1 audit's F-004) and moves the golden one.
-SNAPSHOT_VERSION = GeneratorVersion("16")
-SNAPSHOT_SEMANTIC_DIGEST = "1515292585e7c09fea584dceb7431f0a7894776b86f6413d838817e81c5cc3d8"
+SNAPSHOT_VERSION = GeneratorVersion("17")
+SNAPSHOT_SEMANTIC_DIGEST = "c3ba0fc325eb5f974f956683d0548140ac9a898232e3011b67ebb6ab53e7fdf6"
 SNAPSHOT_GOLDEN_SEMANTIC_DIGEST = (
-    "364df2ee5a7ba0b44cd7a6596a74fa9e971a2ae253e58258369a5778f1eecb8b"
+    "16f1f37db1fa2ca24d16ddbe307066c21f21bc257bd37e0258fd62b909393000"
 )
 
 

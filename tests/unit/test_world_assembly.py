@@ -110,7 +110,8 @@ def test_plan_slices_and_scenarios_agree(world: WorldSpec) -> None:
         assert scenario.key.scenario_class is row.scenario_class
         assert scenario.key.modifiers == row.modifiers
         assert scenario.spec.window == window
-    for earlier, later in zip(world.slices, world.slices[1:], strict=False):
+    by_start = sorted(world.slices, key=lambda span: span.start)
+    for earlier, later in zip(by_start, by_start[1:], strict=False):
         assert earlier.end < later.start
 
 
