@@ -46,6 +46,8 @@ from leaveimpact.generator.sealing import (
 )
 from leaveimpact.world import DEFAULT_PARAMS, WorldSpec, assemble_world, bundle
 from leaveimpact.world.artifacts import Bundle
+from leaveimpact.world.decoders import decode_levels
+from leaveimpact.world.levels import corpus_levels_of
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.in_memory_ports import InMemoryCalendar, InMemoryPeople, InMemoryWork
 
@@ -172,6 +174,7 @@ def test_a_fresh_run_seals_in_the_ruled_order_and_the_manifest_vouches_for_every
         layout.world_spec_key(version),
         layout.truth_manifest_key(version),
         layout.scenario_specs_key(version),
+        layout.levels_key(version),
         document,
     }
     assert set(result.manifest.object_versions) == expected
@@ -197,9 +200,14 @@ def test_a_world_without_documents_seals_with_no_document_key_and_the_specs_befo
         layout.world_spec_key(version),
         layout.truth_manifest_key(version),
         layout.scenario_specs_key(version),
+        layout.levels_key(version),
     }
     trail = [receipt.key for receipt in buckets.world.writes]
-    assert trail[-2:] == [layout.scenario_specs_key(version), layout.world_manifest_key(version)]
+    assert trail[-3:] == [
+        layout.scenario_specs_key(version),
+        layout.levels_key(version),
+        layout.world_manifest_key(version),
+    ]
 
 
 def test_a_rerun_of_a_sealed_world_writes_nothing_and_yields_the_same_bytes(
@@ -284,6 +292,12 @@ def test_a_world_with_a_pool_seals_one_object_per_filler_document_and_receipts_e
     assert keys <= set(buckets.world.objects)
     assert keys <= set(result.manifest.receipts.documents.documents.values())
     assert keys <= set(result.manifest.object_versions)
+    # The levels object beside them names the pool in its sealed order and the levels, so the
+    # cache can derive membership without the spec.
+    sealed_levels = buckets.world.get(layout.levels_key(sealed_padded.world_version))
+    assert sealed_levels is not None
+    assert decode_levels(sealed_levels.content) == corpus_levels_of(padded.filler, padded.levels)
+    assert decode_levels(sealed_levels.content).pool == tuple(p.entity.id for p in pool)
 
 
 # --- The unprojected sealing -----------------------------------------------------------------
@@ -305,7 +319,11 @@ def test_an_unprojected_sealing_seals_the_truth_pair_the_documents_and_the_specs
         layout.truth_manifest_key(version),
         layout.world_spec_key(version),
     )
-    assert buckets.world.list_keys("") == (document, layout.scenario_specs_key(version))
+    assert buckets.world.list_keys("") == (
+        document,
+        layout.levels_key(version),
+        layout.scenario_specs_key(version),
+    )
     assert buckets.world.list_keys("preparing/") == ()
     assert buckets.world.get(layout.world_manifest_key(version)) is None
     assert result.world_version == version
@@ -313,6 +331,7 @@ def test_an_unprojected_sealing_seals_the_truth_pair_the_documents_and_the_specs
         layout.world_spec_key(version),
         layout.truth_manifest_key(version),
         layout.scenario_specs_key(version),
+        layout.levels_key(version),
         document,
     }
     for key, version_id in result.object_versions.items():

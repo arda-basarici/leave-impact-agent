@@ -101,6 +101,7 @@ from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import (
     BASE_LEVELS,
     NO_FILLER,
+    CorpusLevels,
     FillerPlan,
     SealedLevel,
     check_plan_describes_pool,
@@ -135,6 +136,9 @@ from leaveimpact.world.version import GeneratorVersion
 
 WORLD_SPEC = "world-spec.json"
 SCENARIO_SPECS = "scenario-specs.json"
+LEVELS = "levels.json"
+"""The served side's levels and pool order, sealed beside the documents; not an artifact of
+the bundle, since it is a projection of the world spec and never enters the version."""
 TRUTH_MANIFEST = "truth-manifest.json"
 SEMANTIC_WORLD = "semantic-world"
 """The discriminator of the semantic encoding, which is hashed and never written."""
@@ -507,6 +511,23 @@ def _pool(filler: Sequence[Planted[Document]], levels: Sequence[SealedLevel]) ->
             {"name": level.name, "filler_count": level.filler_count} for level in levels
         ]
     return encoded
+
+
+def encode_levels(levels: CorpusLevels) -> JsonObject:
+    """The served side's levels and the pool's ids in rank order, always whole: a world with
+    no pool encodes the base level over an empty pool, so a reader never infers."""
+    return {
+        "artifact": LEVELS,
+        "levels": [
+            {"name": level.name, "filler_count": level.filler_count} for level in levels.levels
+        ],
+        "pool": list(levels.pool),
+    }
+
+
+def levels_bytes(levels: CorpusLevels) -> bytes:
+    """The canonical bytes of the levels object, what the sealing writes."""
+    return canonical_bytes(encode_levels(levels))
 
 
 def encode_scenario_specs(specs: Sequence[ScenarioSpec]) -> JsonObject:

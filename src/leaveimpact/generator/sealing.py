@@ -26,14 +26,18 @@ next attempt can resume from and the application can never serve:
    postflight, then the documents into the final prefix, then the coverage proof, then
    the promotion. Sealing owns the call to ``prepare`` so the order is this function's
    and not the entry point's to get right.
-3. *The scenario specs* under the final world prefix.
+3. *The scenario specs and the levels object* under the final world prefix; the levels
+   object is the served side's statement of the pool's order and the levels (the M2
+   step 9 design), what the corpus cache filters by, and a projection of the spec that
+   never enters the version.
 4. *Every sealed object read back*, its bytes compared with what was sealed and its
    version id taken from the read, so the manifest vouches for versions that exist and
    not for versions a put reported; the two truth objects included, since the generator
    role reads what it wrote.
 5. *The world manifest last*, carrying the version id of every object above under its
-   key — exactly the two truth keys, the scenario specs and one key per planted document,
-   the filler pool's included, by construction, and asserted so before the put — so an
+   key — exactly the two truth keys, the scenario specs, the levels object and one key
+   per planted document, the filler pool's included, by construction, and asserted so
+   before the put — so an
    object under ``worlds/`` with
    a manifest beside it is a completed projection by construction. The manifest is the
    projection's commit record; approval is the validator's separate artifact.
@@ -60,11 +64,11 @@ version's unfinished vendor state holds the site is refused by the site inspecti
 name, and the message says to resume or to clean.
 
 ``seal_unprojected`` is the development path of the generator step's ruling 7: the same
-bundle proven the same way, the truth pair, every planted document and the scenario specs
-sealed by conditional create and read back, and no vendor touched, no checkpoint and no
-manifest. The documents are sealed because the corpus cache is filled from them and a
-development world exists to be searched; the manifest is not, because it is the
-projection's commit record and the serving rule reads a manifest beside a world as a
+bundle proven the same way, the truth pair, every planted document, the scenario specs and
+the levels object sealed by conditional create and read back, and no vendor touched, no
+checkpoint and no manifest. The documents are sealed because the corpus cache is filled
+from them and a development world exists to be searched; the manifest is not, because it
+is the projection's commit record and the serving rule reads a manifest beside a world as a
 completed projection, which an unprojected world must never pass for. The bytes at every
 key are the ones a projected sealing of the same world writes, and the truth pair and the
 specs hit the equal case under a later ``--resume``; the documents do not promote that way:
@@ -83,6 +87,7 @@ from typing import Protocol
 from leaveimpact.adapters.manifest import WorldManifest, manifest_bytes
 from leaveimpact.adapters.object_store.layout import (
     document_key,
+    levels_key,
     scenario_specs_key,
     truth_manifest_key,
     world_manifest_key,
@@ -94,8 +99,9 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.generator.manifest_store import ObjectManifestStore
 from leaveimpact.generator.projection import world_entities
 from leaveimpact.generator.realize import Preparation, Prepared, realize
-from leaveimpact.world.artifacts import Bundle, bundle, document_bytes
+from leaveimpact.world.artifacts import Bundle, bundle, document_bytes, levels_bytes
 from leaveimpact.world.assembly import WorldSpec
+from leaveimpact.world.levels import corpus_levels_of
 
 
 class SealingRefused(Exception):
@@ -154,14 +160,15 @@ def seal_world(
         world, sealed, prepared, preparation, ObjectManifestStore(world_store, version)
     )
 
-    specs_key = scenario_specs_key(version)
-    world_store.put_if_absent(specs_key, sealed.scenario_specs.content)
+    served = _served_objects(world, sealed)
+    for key, content in served.items():
+        world_store.put_if_absent(key, content)
 
     _check_document_receipts(manifest, set(documents))
     versions: dict[str, str] = {}
     for key, content in truth_keys.items():
         versions[key] = _read_back(truth, key, content).version_id
-    for key, content in {specs_key: sealed.scenario_specs.content, **documents}.items():
+    for key, content in {**served, **documents}.items():
         versions[key] = _read_back(world_store, key, content).version_id
 
     final = replace(manifest, object_versions=versions)
@@ -175,8 +182,8 @@ def seal_unprojected(
     """Seal ``sealed`` into ``truth`` and ``world_store`` and project nothing; the keys sealed.
 
     ``sealed`` must be the bundle of ``world``; the reassembly proves it before any write.
-    The truth pair, then every planted document, then the scenario specs, each by
-    conditional create; then every key read back and its bytes compared.
+    The truth pair, then every planted document, then the scenario specs and the levels
+    object, each by conditional create; then every key read back and its bytes compared.
     """
     if bundle(world) != sealed:
         raise SealingRefused(
@@ -184,10 +191,7 @@ def seal_unprojected(
         )
     version = sealed.world_version
     truth_keys = _truth_objects(sealed)
-    world_keys = {
-        **_document_objects(world, version),
-        scenario_specs_key(version): sealed.scenario_specs.content,
-    }
+    world_keys = {**_document_objects(world, version), **_served_objects(world, sealed)}
     for key, content in truth_keys.items():
         truth.put_if_absent(key, content)
     for key, content in world_keys.items():
@@ -206,6 +210,16 @@ def _truth_objects(sealed: Bundle) -> dict[str, bytes]:
     return {
         world_spec_key(version): sealed.world_spec.content,
         truth_manifest_key(version): sealed.truth_manifest.content,
+    }
+
+
+def _served_objects(world: WorldSpec, sealed: Bundle) -> dict[str, bytes]:
+    """The scenario specs and the levels object under their keys: what the application reads
+    of a world beside its documents."""
+    version = sealed.world_version
+    return {
+        scenario_specs_key(version): sealed.scenario_specs.content,
+        levels_key(version): levels_bytes(corpus_levels_of(world.filler, world.levels)),
     }
 
 

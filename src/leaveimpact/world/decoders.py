@@ -41,7 +41,7 @@ from leaveimpact.core.entities_json import (
     decode_work_item,
 )
 from leaveimpact.core.entities_json import decode_document as _decode_document_value
-from leaveimpact.core.ids import LeaveId, ScenarioId, is_numbered_id, skill_id
+from leaveimpact.core.ids import DocumentId, LeaveId, ScenarioId, is_numbered_id, skill_id
 from leaveimpact.core.jsonshape import (
     array_field,
     as_object,
@@ -55,6 +55,7 @@ from leaveimpact.core.jsonshape import (
 from leaveimpact.core.timeshape import decode_date_span, decode_instant
 from leaveimpact.core.worldtime import date_at
 from leaveimpact.world.artifacts import (
+    LEVELS,
     SCENARIO_SPECS,
     TRUTH_MANIFEST,
     WORLD_SPEC,
@@ -62,7 +63,13 @@ from leaveimpact.world.artifacts import (
     ScenarioPlanting,
 )
 from leaveimpact.world.disclosure import Disclosure
-from leaveimpact.world.levels import BASE_LEVELS, NO_FILLER, FillerPlan, SealedLevel
+from leaveimpact.world.levels import (
+    BASE_LEVELS,
+    NO_FILLER,
+    CorpusLevels,
+    FillerPlan,
+    SealedLevel,
+)
 from leaveimpact.world.org import OrgSpec, decode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.scenario import (
@@ -174,6 +181,17 @@ def _level(item: object) -> SealedLevel:
     data = as_object(item, "a level")
     expect_fields(data, ("name", "filler_count"), "a level")
     return SealedLevel(string_field(data, "name"), integer_field(data, "filler_count"))
+
+
+def decode_levels(content: bytes | str) -> CorpusLevels:
+    """The levels and the pool order ``content`` seals; the record's own invariants refuse
+    what cannot describe one world."""
+    data = _artifact(content, LEVELS, "the corpus levels")
+    expect_fields(data, ("artifact", "levels", "pool"), "the corpus levels")
+    return CorpusLevels(
+        tuple(_level(item) for item in array_field(data, "levels")),
+        tuple(DocumentId(string_item(item, "pool")) for item in array_field(data, "pool")),
+    )
 
 
 def decode_scenario_specs(content: bytes | str) -> tuple[ScenarioSpec, ...]:

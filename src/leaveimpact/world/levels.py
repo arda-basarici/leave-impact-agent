@@ -14,7 +14,13 @@ type carries a count, because a token count is one tokenizer's and the world is
 model-neutral (the generator step's rulings 1 and 6).
 
 The invariants live here, apart from the world types, because the semantic world and
-the sealed spec both hold a pool and must state the same things of it.
+the sealed spec both hold a pool and must state the same things of it, and so does the
+served side: ``CorpusLevels`` is what the world seals beside its documents for the corpus
+cache to read (the M2 step 9 design, fork 1), since the pool's order and the levels are on
+the world spec in the truth bucket and the instance may read only the world bucket. It
+carries the levels and the pool's ids in rank order and nothing of what a document says,
+so membership is derivable where the documents are served and the answer key stays where
+it is.
 """
 
 from __future__ import annotations
@@ -23,6 +29,7 @@ from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 
 from leaveimpact.core.entities import Document
+from leaveimpact.core.ids import DocumentId, is_numbered_id
 from leaveimpact.core.run_record import BASE_CORPUS_LEVEL
 from leaveimpact.world.briefs import Brief, SectionTarget
 from leaveimpact.world.scenario import Planted
@@ -188,6 +195,67 @@ def check_pool(
                 f"a filler brief targets a section of a filler document, got {brief.id} "
                 f"on {brief.target.id}"
             )
+
+
+@dataclass(frozen=True, slots=True)
+class CorpusLevels:
+    """The levels a world seals and the pool's document ids in rank order: the served side's
+    statement of membership, from which ``level_members`` answers for any sealed level.
+
+    Refuses what cannot describe one world: a level sealed twice, no base level, a level
+    holding more than the pool, a pool id sealed twice or one that is not a document id.
+    A world with no pool is the base level over an empty pool.
+
+    >>> CorpusLevels((SealedLevel("base", 0), SealedLevel("padded", 1)), (DocumentId("doc_009"),))
+    ... # doctest: +ELLIPSIS
+    CorpusLevels(levels=(SealedLevel(name='base', filler_count=0), ...), pool=('doc_009',))
+    >>> CorpusLevels((SealedLevel("padded", 1),), (DocumentId("doc_009"),))
+    Traceback (most recent call last):
+    ...
+    ValueError: the base level is always sealed, got ['padded']
+    """
+
+    levels: tuple[SealedLevel, ...]
+    pool: tuple[DocumentId, ...]
+
+    def __post_init__(self) -> None:
+        names = [level.name for level in self.levels]
+        if len(set(names)) != len(names):
+            raise ValueError(f"a level is sealed once, got {names}")
+        if BASE_CORPUS_LEVEL not in names:
+            raise ValueError(f"the {BASE_CORPUS_LEVEL} level is always sealed, got {names}")
+        over = [
+            (level.name, level.filler_count)
+            for level in self.levels
+            if level.filler_count > len(self.pool)
+        ]
+        if over:
+            raise ValueError(
+                f"a level holds at most the pool's {len(self.pool)} documents, got {over}"
+            )
+        if len(set(self.pool)) != len(self.pool):
+            raise ValueError(f"a pool document is sealed once, got {list(self.pool)}")
+        foreign = [id for id in self.pool if not (id.startswith("doc_") and is_numbered_id(id))]
+        if foreign:
+            raise ValueError(f"a pool holds document ids, got {foreign}")
+
+    def filler_count(self, name: str) -> int | None:
+        """How much of the pool the level ``name`` holds, or ``None`` for a level never sealed."""
+        for level in self.levels:
+            if level.name == name:
+                return level.filler_count
+        return None
+
+
+BASE_CORPUS_LEVELS = CorpusLevels(BASE_LEVELS, ())
+"""What a world sealed before the levels object existed states: the base level, no pool."""
+
+
+def corpus_levels_of(
+    filler: Sequence[Planted[Document]], levels: Sequence[SealedLevel]
+) -> CorpusLevels:
+    """The served-side record of a world's pool and levels, in the pool's sealed order."""
+    return CorpusLevels(tuple(levels), tuple(DocumentId(planted.entity.id) for planted in filler))
 
 
 def level_members(

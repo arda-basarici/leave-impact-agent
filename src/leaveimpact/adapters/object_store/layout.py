@@ -12,8 +12,8 @@ which is what lets a restart hit the equal case instead of a conflict.
 
 The sealing order (the step 12 rulings) reads off the layout: the two truth objects
 first, then the vendor projection with its checkpoint at the preparing key, then the
-documents and the scenario specs under the final world prefix, and the world manifest
-last, so an object under ``worlds/`` with a manifest beside it is a completed projection
+documents, the scenario specs and the levels under the final world prefix, and the world
+manifest last, so an object under ``worlds/`` with a manifest beside it is a completed projection
 by construction. Verdicts are the validator's, immutable per execution, keyed by the
 GitHub run id and attempt since a rerun shares the id.
 
@@ -29,7 +29,7 @@ which claims matched the key, so it lives beside the key.
 from __future__ import annotations
 
 from leaveimpact.core.ids import DocumentId, WorldVersion, is_numbered_id
-from leaveimpact.world.artifacts import SCENARIO_SPECS, TRUTH_MANIFEST, WORLD_SPEC
+from leaveimpact.world.artifacts import LEVELS, SCENARIO_SPECS, TRUTH_MANIFEST, WORLD_SPEC
 
 WORLD_MANIFEST = "world-manifest.json"
 """The manifest's file name under a world's prefix, and at its checkpoint."""
@@ -43,6 +43,11 @@ def world_spec_key(version: WorldVersion) -> str:
 def truth_manifest_key(version: WorldVersion) -> str:
     """Truth bucket: every key and the dated fact base, evaluator-only."""
     return f"truth-manifest/{version}.json"
+
+
+def worlds_prefix() -> str:
+    """World bucket: the prefix every served world sits under, what the application lists."""
+    return "worlds/"
 
 
 def world_prefix(version: WorldVersion) -> str:
@@ -61,6 +66,11 @@ def scenario_specs_key(version: WorldVersion) -> str:
     'worlds/abababababababababababababababababababababababababababababababab/scenario-specs.json'
     """
     return world_prefix(version) + SCENARIO_SPECS
+
+
+def levels_key(version: WorldVersion) -> str:
+    """World bucket: the levels and the pool's order, what the corpus cache filters by."""
+    return world_prefix(version) + LEVELS
 
 
 def world_manifest_key(version: WorldVersion) -> str:
