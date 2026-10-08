@@ -18,7 +18,11 @@ is the projection's commit record and an unprojected world must never pass for a
 completed projection. Under a bucket such a world is not served, and the reason says so.
 On the local twin, which exists for the laptop and is never the instance, the caller says
 it is reading a development root and a manifest-less world is admitted as one, the
-admission marking it so the cache row carries the fact (fork 3 of the step 9 design).
+admission marking it so the cache row carries the fact (fork 3 of the step 9 design). Its
+completion record is the levels object, which an unprojected sealing writes last: a
+development root whose version holds documents and no levels object is a sealing that
+stopped, and it is declined rather than loaded as a partial world marked ready (the
+external review's second finding).
 
 Two kinds of outcome are kept apart. ``NotServed`` is the rule's own answer, a world the
 listing holds and the rule declines, reported by name and never loaded. ``ServingRefused``
@@ -36,6 +40,7 @@ from dataclasses import dataclass
 
 from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
 from leaveimpact.adapters.object_store.layout import (
+    levels_key,
     verdicts_prefix,
     world_manifest_key,
     worlds_prefix,
@@ -91,9 +96,15 @@ def admit(
     manifest_key = world_manifest_key(version)
     stored = store.get(manifest_key)
     if stored is None:
-        if development:
-            return ServedWorld(version, WorldProjection.UNPROJECTED, None, None, None)
-        return NotServed(version, "no manifest under its final key: not a completed projection")
+        if not development:
+            return NotServed(version, "no manifest under its final key: not a completed projection")
+        if store.get(levels_key(version)) is None:
+            return NotServed(
+                version,
+                "no levels object: an unprojected sealing writes it last, so the sealing did "
+                "not complete, or a generator before the object existed sealed this world",
+            )
+        return ServedWorld(version, WorldProjection.UNPROJECTED, None, None, None)
     try:
         manifest = decode_manifest(stored.content, stage=ManifestStage.PROJECTED)
     except ValueError as error:

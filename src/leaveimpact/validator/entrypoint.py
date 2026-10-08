@@ -32,8 +32,9 @@ import argparse
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 
-from leaveimpact.adapters.manifest import ManifestStage, decode_manifest
+from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
 from leaveimpact.adapters.object_store.layout import (
+    levels_key,
     scenario_specs_key,
     verdict_key,
     world_manifest_key,
@@ -128,6 +129,8 @@ def validate_world(
             "a verdict is published only under the version it judged"
         )
 
+    levels = _levels_object(stores.world, manifest)
+
     readers = (
         build_readers(hosts, manifest, stores.world)
         if readers_of is None
@@ -141,12 +144,36 @@ def validate_world(
             readers.documents,
             readers.documents.held_document_ids,
         )
-        verdict = validate(manifest_bytes, spec_bytes, specs_bytes, systems)
+        verdict = validate(manifest_bytes, spec_bytes, specs_bytes, systems, levels_bytes=levels)
     finally:
         readers.close()
 
     version_id = publish(version, request.run_id, request.run_attempt, verdict_bytes(verdict))
     return Published(verdict, verdict_key(version, request.run_id, request.run_attempt), version_id)
+
+
+def _levels_object(store: ObjectReader, manifest: WorldManifest) -> bytes | None:
+    """The served levels object's bytes, bound to the manifest: present under the version id
+    the manifest recorded, or absent with the manifest recording none. An object the
+    manifest never vouched for, or one read back under another version, is a broken chain
+    and ``IntegrityRefused`` before any reader is built, the clauses the corpus cache applies
+    at loading."""
+    key = levels_key(manifest.world_version)
+    stored = store.get(key)
+    vouched = manifest.object_versions.get(key)
+    if stored is None:
+        if vouched is not None:
+            raise IntegrityRefused(f"the manifest vouches for {key!r} and it is not in the store")
+        return None
+    if vouched is None:
+        raise IntegrityRefused(
+            f"{key!r} is in the store and the manifest vouches for no such object"
+        )
+    if stored.version_id != vouched:
+        raise IntegrityRefused(
+            f"{key!r} read back as version {stored.version_id}, the manifest vouches for {vouched}"
+        )
+    return stored.content
 
 
 def _read(store: ObjectReader, key: str, what: str) -> bytes:

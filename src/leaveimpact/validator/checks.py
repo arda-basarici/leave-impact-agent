@@ -45,6 +45,8 @@ from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.refs import EntityRef
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
 from leaveimpact.world.artifacts import PlantedWorldSpec
+from leaveimpact.world.decoders import decode_levels
+from leaveimpact.world.levels import BASE_CORPUS_LEVELS, CorpusLevels
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import ScenarioSpec
 from leaveimpact.world.truth_facts import observed
@@ -56,6 +58,69 @@ class CheckStatus(StrEnum):
     PASSED = "passed"
     FAILED = "failed"
     NOT_RUN = "not_run"
+
+
+# --- The levels object ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class LevelsResult:
+    """The served levels object compared with what the authenticated spec derives.
+
+    ``scope`` says what was compared: the object's bytes, or its absence read as the base
+    level over no pool for a world sealed before the object existed. ``reason`` names the
+    disagreement on a failure.
+    """
+
+    status: CheckStatus
+    scope: str
+    reason: str | None = None
+
+
+def compare_levels(expected: CorpusLevels, found: bytes | None) -> LevelsResult:
+    """The levels object ``found`` under the world against ``expected``, derived from the
+    authenticated spec: equal passes; absent passes only for a world that seals no pool,
+    which is what a world sealed before the object existed states; anything else fails
+    naming the difference. A verdict that approved without this check let a wrong pool
+    order or a planted document marked as filler pass to the corpus cache (the M2 step 9
+    external review's first finding).
+
+    >>> from leaveimpact.world.artifacts import levels_bytes
+    >>> compare_levels(BASE_CORPUS_LEVELS, None).status.value
+    'passed'
+    >>> compare_levels(BASE_CORPUS_LEVELS, levels_bytes(BASE_CORPUS_LEVELS)).scope
+    'object'
+    """
+    if found is None:
+        if expected == BASE_CORPUS_LEVELS:
+            return LevelsResult(CheckStatus.PASSED, "absent: the base level over no pool")
+        return LevelsResult(
+            CheckStatus.FAILED,
+            "absent",
+            f"the spec seals {len(expected.pool)} pool documents and levels "
+            f"{[level.name for level in expected.levels]}, and no levels object is there",
+        )
+    try:
+        served = decode_levels(found)
+    except ValueError as error:
+        return LevelsResult(CheckStatus.FAILED, "object", f"does not decode: {error}")
+    if served == expected:
+        return LevelsResult(CheckStatus.PASSED, "object")
+    if served.levels != expected.levels:
+        reason = (
+            f"the levels differ: served {[(lv.name, lv.filler_count) for lv in served.levels]}, "
+            f"the spec {[(lv.name, lv.filler_count) for lv in expected.levels]}"
+        )
+    else:
+        position = next(
+            (i for i, (a, b) in enumerate(zip(served.pool, expected.pool, strict=False)) if a != b),
+            min(len(served.pool), len(expected.pool)),
+        )
+        reason = (
+            f"the pool differs from position {position}: served {list(served.pool)}, the "
+            f"spec {list(expected.pool)}"
+        )
+    return LevelsResult(CheckStatus.FAILED, "object", reason)
 
 
 # --- Identity exactness -------------------------------------------------------------------

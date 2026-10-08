@@ -4,7 +4,8 @@ naming the manifest it judged; the integrity chain refuses a tampered or swapped
 single read; a manifest short of ``projected`` refuses; an unmatched scenario refuses; a foreign
 record fails exactness, marks fidelity and every view not run with the reason, and refuses; a
 mismatched record and a shifted event each refuse naming the finding; the verdict's bytes are
-canonical and carry the validator version; a dead source raises through."""
+canonical and carry the validator version; a dead source raises through; the served levels
+object is compared with the spec's derivation and a forged pool refuses by position."""
 
 import hashlib
 import json
@@ -39,6 +40,8 @@ from leaveimpact.validator import (
     verdict_bytes,
 )
 from leaveimpact.world import Bundle, WorldSpec
+from leaveimpact.world.artifacts import levels_bytes
+from leaveimpact.world.levels import CorpusLevels, SealedLevel, corpus_levels_of
 from tests.unit.in_memory_ports import InMemoryDocuments
 from tests.unit.test_generator_realize import FakePreparation, MemoryStore, prepared, sealed, world
 
@@ -61,12 +64,20 @@ def systems_of(fakes: FakePreparation) -> LiveSystems:
     )
 
 
-def judged(manifest: WorldManifest, sealed: Bundle, fakes: FakePreparation) -> ValidationVerdict:
+def judged(
+    manifest: WorldManifest,
+    sealed: Bundle,
+    fakes: FakePreparation,
+    levels: bytes | None = None,
+) -> ValidationVerdict:
+    """The verdict over the fakes; ``levels`` is the served levels object, ``None`` for the
+    fixture world, which seals no pool and whose absent object reads as the base level."""
     return validate(
         manifest_bytes(manifest),
         sealed.world_spec.content,
         sealed.scenario_specs.content,
         systems_of(fakes),
+        levels_bytes=levels,
     )
 
 
@@ -82,6 +93,8 @@ def test_a_faithful_projection_is_approved_with_every_check_passed(
     assert {r.status for r in (*verdict.exactness, *verdict.fidelity, *verdict.views)} == {
         CheckStatus.PASSED
     }
+    assert verdict.levels.status is CheckStatus.PASSED
+    assert verdict.levels.scope.startswith("absent"), "no pool, no object: the base level"
     assert {r.check.kind for r in verdict.exactness} == {
         EntityKind.EMPLOYEE,
         EntityKind.TEAM,
@@ -132,6 +145,7 @@ def test_a_tampered_world_spec_is_refused_before_any_read(
             sealed.world_spec.content + b" ",
             sealed.scenario_specs.content,
             dead(fakes),
+            levels_bytes=None,
         )
 
 
@@ -145,6 +159,7 @@ def test_swapped_scenario_specs_are_refused_by_the_world_specs_own_digest(
             sealed.world_spec.content,
             sealed.world_spec.content,
             dead(fakes),
+            levels_bytes=None,
         )
 
 
@@ -159,6 +174,7 @@ def test_a_manifest_short_of_projected_is_refused(
             sealed.world_spec.content,
             sealed.scenario_specs.content,
             dead(fakes),
+            levels_bytes=None,
         )
 
 
@@ -176,6 +192,7 @@ def test_a_manifest_recording_another_truth_is_refused(
             sealed.world_spec.content,
             sealed.scenario_specs.content,
             dead(fakes),
+            levels_bytes=None,
         )
 
 
@@ -195,6 +212,7 @@ def test_a_manifest_recording_other_scenario_specs_is_refused_not_carried_into_t
             sealed.world_spec.content,
             sealed.scenario_specs.content,
             dead(fakes),
+            levels_bytes=None,
         )
 
 
@@ -253,7 +271,7 @@ def test_an_unmatched_scenario_between_the_two_files_is_refused(
     with pytest.raises(
         IntegrityRefused, match="missing from the scenario specs \\['scenario_010'\\]"
     ):
-        validate(canonical_bytes(encoded), spec_bytes, edited, dead(fakes))
+        validate(canonical_bytes(encoded), spec_bytes, edited, dead(fakes), levels_bytes=None)
 
 
 # --- Findings -----------------------------------------------------------------------------
@@ -317,6 +335,7 @@ def test_an_enumeration_returning_one_id_twice_is_refused_rather_than_approved(
             sealed.world_spec.content,
             sealed.scenario_specs.content,
             systems,
+            levels_bytes=None,
         )
 
 
@@ -419,9 +438,11 @@ def test_the_filler_pool_is_held_to_exactness_like_every_planted_document() -> N
     sealed_padded = bundle(padded)
     fakes = FakePreparation()
     manifest = realize(padded, sealed_padded, prepared(sealed_padded), fakes, MemoryStore())
-    verdict = judged(manifest, sealed_padded, fakes)
+    levels = levels_bytes(corpus_levels_of(padded.filler, padded.levels))
+    verdict = judged(manifest, sealed_padded, fakes, levels)
     (docs,) = [r for r in verdict.exactness if r.check.kind is EntityKind.DOCUMENT]
     assert docs.status is CheckStatus.PASSED
+    assert verdict.levels.status is CheckStatus.PASSED and verdict.levels.scope == "object"
     gone = padded.filler[1].entity.id
     without = _Without(fakes.documents, gone)
     systems = LiveSystems(
@@ -432,7 +453,68 @@ def test_the_filler_pool_is_held_to_exactness_like_every_planted_document() -> N
         sealed_padded.world_spec.content,
         sealed_padded.scenario_specs.content,
         systems,
+        levels_bytes=levels,
     )
     (docs,) = [r for r in verdict.exactness if r.check.kind is EntityKind.DOCUMENT]
     assert docs.status is CheckStatus.FAILED and docs.check.missing == (gone,)
     assert verdict.approval is Approval.REFUSED
+
+
+# --- The levels object ---------------------------------------------------------------------
+
+
+def padded_landed() -> tuple[WorldSpec, Bundle, WorldManifest, FakePreparation]:
+    from leaveimpact.world import bundle
+    from tests.unit.throwaway_world import composed_world_with_filler
+
+    # The golden plan with stand-in prose: its scenarios own documents, which the tier-one
+    # plan's do not, and the finding is a planted document named as filler.
+    padded = composed_world_with_filler(2)
+    sealed_padded = bundle(padded)
+    fakes = FakePreparation()
+    manifest = realize(padded, sealed_padded, prepared(sealed_padded), fakes, MemoryStore())
+    return padded, sealed_padded, manifest, fakes
+
+
+def test_a_levels_object_naming_a_planted_document_as_filler_refuses_by_position() -> None:
+    # The external review's first finding: a served pool that lists a planted document as
+    # filler, or swaps the order, moved a document out of the base level with the verdict
+    # approving; the object is now compared with what the authenticated spec derives.
+    padded, sealed_padded, manifest, fakes = padded_landed()
+    truthful = corpus_levels_of(padded.filler, padded.levels)
+    planted = next(
+        planted.entity.id for scenario in padded.scenarios for planted in scenario.owned.documents
+    )
+    forged = CorpusLevels(truthful.levels, (planted, *truthful.pool[1:]))
+    verdict = judged(manifest, sealed_padded, fakes, levels_bytes(forged))
+    assert verdict.approval is Approval.REFUSED
+    assert verdict.levels.status is CheckStatus.FAILED
+    assert verdict.levels.reason is not None and "position 0" in verdict.levels.reason
+    assert planted in verdict.levels.reason
+    assert json.loads(verdict_bytes(verdict))["levels"]["status"] == "failed"
+
+    swapped = CorpusLevels(truthful.levels, tuple(reversed(truthful.pool)))
+    assert judged(manifest, sealed_padded, fakes, levels_bytes(swapped)).approval is (
+        Approval.REFUSED
+    )
+
+
+def test_a_world_that_seals_a_pool_and_serves_no_levels_object_refuses() -> None:
+    _, sealed_padded, manifest, fakes = padded_landed()
+    verdict = judged(manifest, sealed_padded, fakes, None)
+    assert verdict.approval is Approval.REFUSED
+    assert verdict.levels.status is CheckStatus.FAILED and verdict.levels.scope == "absent"
+    assert verdict.levels.reason is not None and "2 pool documents" in verdict.levels.reason
+
+
+def test_a_levels_object_that_does_not_decode_or_changes_a_level_refuses_naming_it() -> None:
+    padded, sealed_padded, manifest, fakes = padded_landed()
+    verdict = judged(manifest, sealed_padded, fakes, b"{}")
+    assert verdict.levels.status is CheckStatus.FAILED
+    assert verdict.levels.reason is not None and verdict.levels.reason.startswith("does not decode")
+    truthful = corpus_levels_of(padded.filler, padded.levels)
+    shrunk = CorpusLevels((truthful.levels[0], SealedLevel("padded", 1)), truthful.pool)
+    verdict = judged(manifest, sealed_padded, fakes, levels_bytes(shrunk))
+    assert verdict.levels.reason is not None and verdict.levels.reason.startswith(
+        "the levels differ"
+    )

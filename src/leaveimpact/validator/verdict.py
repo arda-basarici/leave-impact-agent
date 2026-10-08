@@ -18,7 +18,8 @@ be a second home for the lifecycle state.
 
 Every finding is listed in full — missing and foreign identities by id, unequal records
 by id with the differing fields named, view disagreements by scenario with both
-differences as facts — so one run answers why a world was refused. A check that could not
+differences as facts, the levels object's disagreement with the spec by position — so one
+run answers why a world was refused. A check that could not
 run says so with its reason; ``not_run`` never counts as passed, so approval is exactly
 "every check passed". The encoding is canonical through ``core``'s one byte rule; the
 decoder arrives with its first consumer, the serving check; the serving fields and their
@@ -32,6 +33,9 @@ from dataclasses import dataclass
 from datetime import date
 
 from leaveimpact.adapters.manifest import ArtifactDigest
+from leaveimpact.adapters.object_store.verdicts import (
+    VALIDATOR_VERSION as VALIDATOR_VERSION,
+)
 from leaveimpact.adapters.object_store.verdicts import VERDICT_FORMAT, Approval
 from leaveimpact.core.derivation import Derived
 from leaveimpact.core.enums import EntityKind
@@ -41,13 +45,12 @@ from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.validator.checks import (
     CheckStatus,
     IdentityExactness,
+    LevelsResult,
     RecordMismatch,
     ViewDisagreement,
 )
 from leaveimpact.world.artifacts import SHA256_HEX, encode_fact, encode_gap
 
-VALIDATOR_VERSION = "1"
-"""Bumped with any change that can alter what these checks approve or refuse."""
 
 @dataclass(frozen=True, slots=True)
 class ExactnessResult:
@@ -93,6 +96,7 @@ class ValidationVerdict:
     exactness: tuple[ExactnessResult, ...]
     fidelity: tuple[FidelityResult, ...]
     views: tuple[ViewResult, ...]
+    levels: LevelsResult
 
     def __post_init__(self) -> None:
         if not SHA256_HEX.fullmatch(self.manifest_digest):
@@ -105,6 +109,7 @@ class ValidationVerdict:
             *(result.status for result in self.exactness),
             *(result.status for result in self.fidelity),
             *(result.status for result in self.views),
+            self.levels.status,
         ]
         passed = all(status is CheckStatus.PASSED for status in statuses)
         return Approval.APPROVED if passed and statuses else Approval.REFUSED
@@ -125,6 +130,11 @@ def encode_verdict(verdict: ValidationVerdict) -> JsonObject:
         "exactness": [_exactness(result) for result in verdict.exactness],
         "fidelity": [_fidelity(result) for result in verdict.fidelity],
         "views": [_view(result) for result in verdict.views],
+        "levels": {
+            "status": verdict.levels.status.value,
+            "scope": verdict.levels.scope,
+            "reason": verdict.levels.reason,
+        },
     }
 
 

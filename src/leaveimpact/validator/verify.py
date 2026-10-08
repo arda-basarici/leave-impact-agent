@@ -59,6 +59,7 @@ from leaveimpact.core.ports.read import (
 from leaveimpact.validator.checks import (
     CheckStatus,
     compare_identities,
+    compare_levels,
     compare_records,
     compare_views,
     derive_live,
@@ -75,6 +76,7 @@ from leaveimpact.validator.verdict import (
 from leaveimpact.world.artifacts import PlantedWorldSpec
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.filler import world_documents
+from leaveimpact.world.levels import corpus_levels_of
 from leaveimpact.world.runtime_view import events_within, leaves_within
 from leaveimpact.world.scenario import ScenarioSpec
 
@@ -117,12 +119,17 @@ def validate(
     world_spec_bytes: bytes,
     scenario_specs_bytes: bytes,
     systems: LiveSystems,
+    *,
+    levels_bytes: bytes | None,
 ) -> ValidationVerdict:
     """The verdict on the projection ``manifest_bytes`` records, against the sealed world.
 
     Refuses with ``IntegrityRefused`` before any read when the inputs are not one sealed
     world; otherwise reads the systems and returns a verdict, approved or refused, that
-    lists every finding.
+    lists every finding. ``levels_bytes`` is the served levels object, or ``None`` where
+    the world's prefix holds none; it is compared with the levels the authenticated spec
+    derives, since the corpus cache filters by it and a verdict that never read it approved
+    a pool the spec did not seal (the M2 step 9 external review).
     """
     manifest = decode_manifest(manifest_bytes, stage=ManifestStage.PROJECTED)
     _authenticate(
@@ -149,6 +156,7 @@ def validate(
         exactness=exactness,
         fidelity=fidelity,
         views=views,
+        levels=compare_levels(corpus_levels_of(spec.filler, spec.levels), levels_bytes),
     )
 
 

@@ -26,6 +26,7 @@ from leaveimpact.adapters.object_store.serving import (
     discover_versions,
 )
 from leaveimpact.adapters.object_store.verdicts import (
+    VALIDATOR_VERSION,
     Approval,
     VerdictSummary,
     decode_verdict_summary,
@@ -33,8 +34,10 @@ from leaveimpact.adapters.object_store.verdicts import (
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.run_record import WorldProjection
-from leaveimpact.validator.checks import CheckStatus
+from leaveimpact.validator.checks import CheckStatus, LevelsResult
 from leaveimpact.validator.verdict import FidelityResult, ValidationVerdict, verdict_bytes
+from leaveimpact.world.artifacts import levels_bytes
+from leaveimpact.world.levels import BASE_CORPUS_LEVELS
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.test_manifest import VERSION, manifest
 
@@ -48,12 +51,13 @@ def verdict(
     status = CheckStatus.PASSED if passed else CheckStatus.FAILED
     return ValidationVerdict(
         world_version=version,
-        validator_version="1",
+        validator_version=VALIDATOR_VERSION,
         manifest_digest=hashlib.sha256(judged).hexdigest(),
         artifacts=manifest().artifacts,
         exactness=(),
         fidelity=(FidelityResult(EntityKind.DOCUMENT, status),),
         views=(),
+        levels=LevelsResult(CheckStatus.PASSED, "object"),
     )
 
 
@@ -99,6 +103,11 @@ def test_a_manifest_less_world_is_declined_under_a_bucket_and_admitted_on_a_root
     assert declined == NotServed(
         VERSION, "no manifest under its final key: not a completed projection"
     )
+    # A development world is admitted on its levels object, the last write of an unprojected
+    # sealing; without it the sealing stopped (the external review's second finding).
+    stopped = admit(store, VERSION, development=True)
+    assert isinstance(stopped, NotServed) and stopped.reason.startswith("no levels object")
+    store.put_if_absent(layout.levels_key(VERSION), levels_bytes(BASE_CORPUS_LEVELS))
     served = admit(store, VERSION, development=True)
     assert served == ServedWorld(VERSION, WorldProjection.UNPROJECTED, None, None, None)
 
@@ -149,7 +158,9 @@ def test_the_summary_reads_what_the_validator_wrote_and_refuses_another_format_o
     content = manifest_bytes(manifest())
     full = verdict(judged=content)
     summary = decode_verdict_summary(verdict_bytes(full))
-    assert summary == VerdictSummary(VERSION, "1", full.manifest_digest, Approval.APPROVED)
+    assert summary == VerdictSummary(
+        VERSION, VALIDATOR_VERSION, full.manifest_digest, Approval.APPROVED
+    )
     assert summary.approval is full.approval
     assert summary.approves(VERSION, full.manifest_digest)
     assert not summary.approves(OTHER, full.manifest_digest)
@@ -158,7 +169,13 @@ def test_the_summary_reads_what_the_validator_wrote_and_refuses_another_format_o
     ).approval is (Approval.REFUSED)
 
     encoded = json.loads(verdict_bytes(full))
-    with pytest.raises(ValueError, match="format 1, got 2"):
-        decode_verdict_summary(json.dumps({**encoded, "format": 2}))
+    # Format 1 verdicts, the ones the bucket holds from validator version 1, still decode;
+    # they approve nothing for serving, since an older logic judged a shorter list.
+    older = decode_verdict_summary(json.dumps({**encoded, "format": 1, "validator_version": "1"}))
+    assert older.approval is Approval.APPROVED
+    assert not older.approves(VERSION, full.manifest_digest)
+    assert summary.validator_version == VALIDATOR_VERSION
+    with pytest.raises(ValueError, match="one of formats \\[1, 2\\], got 3"):
+        decode_verdict_summary(json.dumps({**encoded, "format": 3}))
     with pytest.raises(ValueError, match="approval is one of"):
         decode_verdict_summary(json.dumps({**encoded, "approval": "maybe"}))

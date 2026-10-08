@@ -18,7 +18,7 @@ import pytest
 
 from leaveimpact.adapters.object_store import layout
 from leaveimpact.adapters.object_store.documents import SealedDocumentReader
-from leaveimpact.adapters.object_store.read import ObjectReader
+from leaveimpact.adapters.object_store.read import ObjectReader, StoredObject
 from leaveimpact.adapters.wiring import (
     ConfigurationError,
     Hosts,
@@ -110,6 +110,37 @@ def test_the_composition_judges_a_sealed_world_and_publishes_at_the_execution_s_
     manifest_object = buckets.world.get(layout.world_manifest_key(sealed.world_version))
     assert manifest_object is not None
     assert published.verdict.manifest_digest == hashlib.sha256(manifest_object.content).hexdigest()
+
+
+def test_a_levels_object_the_manifest_does_not_vouch_for_is_refused_before_any_reader(
+    world: WorldSpec, sealed: Bundle, tmp_path: Path
+) -> None:
+    # The same two clauses the corpus cache applies at loading: an object the manifest never
+    # recorded, and one read back under another version id, break the chain.
+    buckets = Buckets()
+    run(world, sealed, buckets)
+    key = layout.levels_key(sealed.world_version)
+    hosts = deployment_from_env(environment(tmp_path)).hosts
+    request = parse_request(
+        ["--world-version", sealed.world_version, "--run-id", "9", "--run-attempt", "1"], {}
+    )
+    stores = ObjectReaders(buckets.truth, buckets.world)
+
+    def refuse(hosts_: Hosts, world_store: ObjectReader) -> Readers:
+        raise AssertionError("no reader is built after a broken chain")
+
+    stored = buckets.world.objects[key]
+    buckets.world.objects[key] = StoredObject(key, stored.content, "v9999")
+    with pytest.raises(IntegrityRefused, match="read back as version v9999"):
+        validate_world(request, hosts, stores, _never_publish, refuse)
+
+    del buckets.world.objects[key]
+    with pytest.raises(IntegrityRefused, match="vouches for .* and it is not in the store"):
+        validate_world(request, hosts, stores, _never_publish, refuse)
+
+
+def _never_publish(version: WorldVersion, run_id: str, run_attempt: str, content: bytes) -> str:
+    raise AssertionError("nothing is published after a refusal")
 
 
 def test_a_world_the_buckets_do_not_hold_is_refused_by_name(tmp_path: Path) -> None:
