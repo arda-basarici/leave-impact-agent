@@ -7,6 +7,124 @@ decisions it feeds.
 
 ---
 
+## 2026-10-08 — The benchmark could not tell its systems apart until the world was padded, and padding it safely took a measurement at every turn
+
+*M2, the generator step between the event log step and the corpus loader: the filler
+pool and its corpus levels, the tier shuffle, the seed secret and the embargo, and the
+first development world. Feeds: the M2 report's world-construction section, on how the
+measurement world is built and why it has levels; the evaluation-design section, on
+what the padded level measures and what the acceptance rules promise; and the
+limitations section, for the exhaustion rate, the checker's reading of names-nobody
+prose and the development world that cannot be promoted.*
+
+The step began with a benchmark that worked and measured nothing. A scratch probe on a
+throwaway world, run before any model system was built, put the whole golden world in
+front of one model call: about 10,000 tokens, every document included. That call reached
+the ceiling. A system that reads everything in one request was already as good as the
+rules could grade, so the primary comparison, the investigator against full context, had
+nothing to separate, and neither did a model or a retrieval comparison. Padding the same
+world's corpus to about 108,000 tokens brought the same call down to 93 of 140 facts
+stated correctly with 29 inventions (the 2026-10-04 probe, recorded in the arms
+interview's lessons). The room a benchmark needs is a function of how much a run has to
+read, and the world as generated gave none.
+
+So the measurement world gains a pool of filler documents owned by no scenario, and the
+design interview fixed its shape before a line was written. The pool is a world-level
+field in rank order; a corpus level is a name and a count, and a level's membership is
+every scenario-owned document plus the first so many of the pool, derived and never
+listed, so every level nests inside the next and every answer-bearing document is in all
+of them by construction. The whole pool is sealed and validated whatever level a run
+uses; the level is a serving filter. The answers had to be unchanged by the padding, and
+the test that holds that is a transform and its inverse: a world assembled with filler,
+stripped of it, equals the world assembled without, field for field, and over the
+composed stand-in world every planted entity, fact, key and retrieval target is the same
+with the pool on and off (`tests/unit/test_world_filler.py`, commit `969d3fa`). Filler is
+minted after the whole assembly, from the same world-wide counter under a derived
+generator, so nothing a seed produced before the pool existed moves.
+
+The filler also had to pass the gates planted prose passes, and the first design did not
+survive contact with the contract. It said a filler brief would carry "fictional
+propositions in the allowed set"; the brief contract refuses a self-evidenced fact in
+that set, and a requirement's subject is the clause itself, so the sentence could not be
+written. It became the decoy rule: a filler brief declares fictional entities with ids
+outside the world's id space and a set of decoys, facts the text may state about them,
+permitted by containment, never authored and never sealed into the fact base. A
+containment probe of fourteen texts through the live checker settled the rule before the
+register was written (`tests/fixtures/filler_containment.json` replays it). Then the
+pool's second composition died on a measurement. The interview had asked for handbook
+prose that names nothing beside near-miss requirement documents over fictional
+artifacts. The checker reads a handbook text as naming nobody as responsible and says
+so, in a proposition with an unresolved value, on nearly every sample: 3 of 12 accepted
+on the passage as designed, 5 of 12 reworded, and after a parse-level distinction and a
+corrected checker instruction, 0 of 10 and 2 of 9. A tolerance for that one reading was
+proposed and the external reviewer refused it on an example the design had not
+considered: "the employee taking leave is responsible for this work" names nobody the
+scanner can refuse and refers to a planted person all the same, and the checker's
+unresolved value is the only place such a reference shows. So the reading stays a
+refusal, four such sentences sit in the replay fixture and every one refuses, and the
+pool is requirement documents over fictional releases and clients alone, which the live
+re-probe accepted at 10 of 12 at the planted length (commits `08ea2ef`, `37f1012`,
+`b568779`). The near-miss document is the composition the benchmark needed anyway: a
+requirement over a fictional artifact that a retrieval has to tell from the clause that
+answers.
+
+A second leak was in the ids and the calendar. A plan concatenates its tiers, and the
+windows were dealt in row order, so a scenario's window start predicted its tier on 20
+of 20 seeds, and the ids a model sees predicted it at 0.69 to 0.92 by kind under the
+scarcity-first construction order (`probes/generator-step/id_leak.py`, seeds 101 to
+120). This was measured before it was ruled, with the remedy chosen on the numbers: the
+windows are dealt by a seeded permutation and the rows are constructed in a seeded random
+order, and on the built tree every id kind sits within 0.05 of a random draw's accuracy
+(`id_leak_tree.md` beside the script). The price was feasibility. The scarcity order
+existed because a class seated last had exhausted the reservation book on 39 of 200
+seeds; under the random order the golden plan exhausts on 4 of 200 against the scarcity
+order's 1 (`probes/generator-step/random_order_sweep.py`; run 4 of the FINDINGS entry
+`reservation-book`), and the trade was accepted on the criterion the forecast had set down
+before the sweep ran. The one refused seed the suite now pins is seed 1.
+
+The seed itself was the subtler problem. A measurement world's seed had always been
+meant to stay unpublished, and the first fix proposed was to keep it out of the findings
+file and the job log. The arms interview showed that was not enough: the committed
+scenario-specs digest and the semantic digest are functions of the seed and public code
+alone, so a small integer seed is found by enumerating against either. A value is secret
+only by its entropy plus every public function of it. The seed is now drawn from
+thirty-two bytes of entropy into a repository secret and reaches the generator through
+the environment as hex, parsed in memory and never printed in any form; the world is
+sealed with an embargo mark in its provenance, so every reader learns from the world
+itself what it may print, and the proving command, the evaluation job and the audit sheet
+withhold the digests and the per-condition target counts; a disclosure scan in the
+evaluation job searches the checkout for either digest and fails on a hit (commits
+`745d9f1`, `bf3d9c6`, `31f1d0c`). The mechanism was trusted on two runs and not on a
+reading: a disposable-secret workflow run showed the value masked and no prefix or
+decimal printed, and a live dispatch under the secret source before any secret existed
+went red exactly where the forecast said it would (run 37783138244, the FINDINGS entry).
+
+Development worlds close the step. A world for iteration is never projected into the
+vendors; it is sealed to a local store under a path the repository ignores, and its
+structured records are read through three readers over the sealed plantings that conform
+to the same ports the vendor adapters do, so a run over it takes the one executor path
+every read takes. The design pass claimed such a world could be promoted later by
+projecting it under resume, and the test written to prove that showed the opposite in a
+minute: the projector finds every document already sealed, a found entity reports no
+receipt, and the coverage proof refuses the run (`tests/unit/test_generator_sealing.py`,
+commit `b951f0e`). The claim had rested on a reading of the sealing order alone, and the
+refusal is pinned until a development world is worth promoting. The first such world,
+seed 101 with twelve filler documents, first exhausted the attempt cap on one filler
+section, eight refusals of eight (thirteen in sixteen calls over its document), on a brief
+that three probes of twenty-nine calls afterwards could not make refuse once; the refused
+texts exist nowhere by design,
+since the public job log must not carry a draft, so the cause is unrecoverable from that
+run [PRELIMINARY — one exhaustion in forty-eight filler targets at a cap of eight, on one
+run; whether it recurs decides whether a private run records its refused drafts]. The
+rerun at a cap of sixteen sealed the world: sixty prose targets, sixty-nine attempts,
+forty-one objects, the evaluator's proof green over the same store, a resume rerun
+writing nothing in 4.5 seconds; about $0.54 for the group's live work, by hand at the
+measured rate of about $0.003 an attempt (the 2026-09-14 probe findings; the FINDINGS
+entry `generator-step`, commit `cfd8b45` the last of the step's).
+
+Figure: the id-leak table before and after, accuracy by identifier kind under the
+scarcity order and the random order, with the random-draw column beside them.
+
 ## 2026-10-07 — A harness that writes its own inventory lets the evaluator catch its mistakes, and the limit of that was written down before the first one was caught
 
 *M2, the event log step's last build group and its close: the inventory the harness
