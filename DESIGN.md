@@ -1448,7 +1448,41 @@ section's recorded exception). No tool takes a date: the wrapper stamps every
 observation with the run's `now`, the rules read the stamp, the model supplies none,
 and what a read returns is not filtered by date (time is applied above the port), so
 a wrong-time call cannot be expressed and a span argument is scope the model
-chooses, logged and not graded. MCP was the alternative transport (ruled
+chooses, logged and not graded.
+
+As built at the registry step (M2 step 10, 2026-10-09). One role is declared, the
+investigator, and its list is the ten without the three whole-table enumerations,
+which the frozen prefetch reads for every run and the turns render before the first
+call, so a model call to one would re-read a table with nothing to discover; the list
+is a positive declaration in `core` that names that reason, and a prefetch change that
+drops an enumeration reopens it. The list authorizes execution: the tools node builds
+its executor over the role's surface and the prefetch over the harness's own, so a
+known tool the role is not shown is refused at execution, recorded and durable, never
+resolved through the global table. The stamp is a structured envelope in the
+model-facing result, derived from the admitted `RunContext.now`: one envelope per
+operation, holding the record, the records, the absence or the unreachable source under
+one key each, the observed record and its codec unchanged; a skip the tools node
+appended for a source already unreachable renders as that source unreachable, the
+graph's durable decision being the one answer to a model's call against a stopped
+source. A refused call is answered with one correction from a closed set built from the
+declarations and the argument's name, never from the value the model gave, since a
+model's argument is text the model chose and the validator's detail echoes it; the
+detail stays in the log and the export, and the rendering derives the correction by
+running the validation again on the logged arguments, so first execution and recovery
+take one path. The adapter's reason for an unreachable source and a tool name the role
+does not declare are never rendered either. The request capture renders the whole
+surface this step produces over a sealed world, the definitions as the client sends
+them, every result of a full read under the normal condition and under an outage, and
+every correction, and asserts the scenario id and the world version appear in none;
+the prompts join it at the graph step. The surface digest's envelope carries the
+harness's own tool definitions beside the read tools (surface version 2, result codec
+`observed-envelope` 1, validation protocol 2); the fact tool's definition is the graph
+step's, so the investigator's digest is pinned provisional and moves once when it
+lands. The served version and the level are the admitted frozen inputs and nothing
+else; the corpus reader is built from them with the adapter's serving check run before
+any read, so an unserved version or level fails the attempt first.
+
+MCP was the alternative transport (ruled
 2026-09-20): what a protocol buys is interoperability and discovery across a
 boundary the project does not control, and the investigator milestone has one
 in-process consumer of a small owned read surface, so a server would add a process,

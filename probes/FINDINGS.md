@@ -3131,3 +3131,84 @@ now that a version 2 verdict approves it, which is the state the serving rule an
 agree on; the step's acceptance, the golden world loaded on the instance with its receipts
 and version ids verified against the manifest, holds on the first deploy's lines and this
 one's together.
+
+## step-10 — the tool registry: the investigator's ten, the stamped envelope, a refusal answered from a closed set, and the capture finding no scenario id in the surface (2026-10-09)
+
+The investigator milestone's step 10 built what the registry step owed over the second
+build step's declarations: the role's list, the rendering the model sees, the refusal it is
+shown, and the digest's value reaching the records. No live run: nothing in the group
+touches the instance or a vendor. Every number below is pinned by a test named beside it.
+
+**The investigator's surface is ten of the thirteen**
+(`tests/unit/test_core_tools.py`,
+`test_the_investigator_sees_the_ten_without_the_enumerations_in_canonical_order`): every
+method but the three whole-table enumerations, which the frozen prefetch reads for every run
+and the turns render before the first call. The list is a positive declaration in `core`
+(`INVESTIGATOR_METHODS`) naming that reason, and it authorizes execution: the tools node
+builds its executor over the role's surface and the prefetch over the thirteen, so a model
+call to `employees` is a refused operation, recorded with no source, and the same call from
+the prefetch is a harness defect
+(`tests/unit/test_agent_execution.py`,
+`test_a_models_call_outside_the_executors_surface_is_refused_and_a_prefetchs_raises`). The
+digest of that surface with no harness tool is pinned at
+`df9a3f2a572f09b8ae5dd14b8fd462a39f0d1aca5da94b76929bb3d85698f7ad`
+(`test_the_investigator_digest_is_pinned_and_moves_on_a_harness_tool`), provisional until
+the fact tool's definition joins the envelope at the graph step.
+
+**The validator echoes the value it refuses, so the model is shown a correction instead.**
+The external read of the fork list checked `employee({"id": "scenario_001"})` and found the
+value in the refusal's text; reproduced on the tree, the id rule, the opaque-id rule and the
+length rules all write the given value back. A refusal is now typed: the detail that names
+the value stays the log's and the export's, and the correction the model sees is built from
+the declaration and the argument's name
+(`test_a_refusal_carries_a_correction_from_the_declaration_and_a_detail_with_the_value`).
+The correction set over the investigator's surface is closed and enumerable, twenty-two
+messages, one per surface, one per tool's object and one per argument, and a probe of
+every argument of every tool with a scenario id as the value lands in that set with no
+scenario in any message
+(`test_the_correction_set_is_closed_and_names_nothing_but_declarations`). The rendering
+derives the correction by running the validation again on the logged arguments, so first
+execution and recovery take one path, and a logged refusal the declarations accept is
+refused as a disagreement
+(`tests/unit/test_agent_surface.py`,
+`test_the_correction_shown_is_from_the_closed_set_and_the_detail_stays_in_the_log`).
+
+**One envelope per operation, stamped with the admitted `now`.** A record, a sequence, an
+absence, an unreachable source and a refusal each carry `observed_at` equal to the admitted
+context's instant and their content under one key; the adapter's reason for an unreachable
+source is not rendered, and the tool's name is written only when the surface declares it,
+so an unknown name the model wrote is not written back
+(`test_every_kind_of_resolution_is_one_envelope_stamped_with_the_admitted_now`). A skip the
+tools node appended for a source already unreachable renders as that source unreachable,
+the same shape as the outcome, and a cap skip as not made; a defect is never rendered
+(`test_a_skip_renders_as_its_unreachable_source_and_a_cap_skip_as_not_made`,
+`test_a_defect_and_a_mismatched_result_are_never_rendered`). The rendering from a logged
+event decoded from its bytes is byte-equal to the rendering from the executor's own
+operation (`test_a_recovery_renders_the_same_bytes_from_the_decoded_log_event`); the block
+is Converse's `toolResult` (`test_the_block_is_the_tool_result_converse_sends`).
+
+**The request capture** (`test_the_capture_finds_neither_the_scenario_id_nor_the_world_version_in_the_surface`)
+renders everything this step produces that a request can carry over the golden throwaway
+world's first scenario: the ten definitions as Converse sends them, every result of a full
+read under the normal condition and under a tracker outage, and the twenty-two
+corrections; the scenario id and the world version appear in none. The prompts join the
+capture at the graph step.
+
+**The prefetch rule's digest moved, by design.** The rule's digest hashes the surface digest
+of the tools the plan names (the step-6 ruling: the validation protocol and the result codec
+are what a system's model sees of the prefetch). The result codec became
+`observed-envelope` 1 and the validation protocol version 2, so the rule's digest moved from
+`492d59…` to `5bd949…`, and the first full run of the suite refused the draft registration's
+recorded value in 81 failures and 22 errors. The draft was amended through the codec, one
+line (`preregistration/registration.json`), as the development scenarios were written into
+it; the suite then passed, 5,734 and 3 skipped (5,714 at step 9's close), the integration
+level 88 against the laptop's `leaveimpact_step9`.
+
+**Beside it.** The corpus reader is built from the admitted version and level alone with the
+adapter's serving check run first (`tests/unit/test_agent_corpus.py`, both tests;
+`tests/unit/test_corpus_adapter.py`,
+`test_the_serving_check_resolves_the_level_before_any_read_and_keeps_it`). The Converse
+translation is one function the prose client and the surface share; the prose wire test
+pins the checker's request bytes unchanged. The worker tests' reference script reads one
+employee where it read the enumeration, since the role's surface refuses the enumeration;
+the crash manifest's counts hold.
