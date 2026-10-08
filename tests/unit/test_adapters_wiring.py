@@ -33,6 +33,8 @@ from leaveimpact.adapters.wiring import (
     run_export_publisher,
     run_export_publisher_over,
     verdict_publisher,
+    world_store_from_env,
+    world_store_reader,
 )
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.test_manifest import manifest
@@ -269,3 +271,29 @@ def test_the_inventory_publisher_names_the_key_by_the_digest_of_the_bytes(tmp_pa
     memory = InMemoryObjectStore()
     assert inventory_publisher_over(memory)(version, content).key == upload.key
     assert upload.key.startswith(layout.runs_prefix(version))
+
+
+def test_the_world_store_reads_the_bucket_or_the_root_and_never_the_truth_name(
+    tmp_path: Path,
+) -> None:
+    # The application's half of the stores: the world bucket with its region, or the local
+    # twin's root, never both, and never configured with the truth bucket's name.
+    bucket = {PREFIX + "WORLD_BUCKET": "world-bucket", PREFIX + "AWS_REGION": "eu-central-1"}
+    store = world_store_from_env(bucket)
+    assert (store.bucket, store.region, store.local_root) == ("world-bucket", "eu-central-1", None)
+    # The S3 reader is not built here: constructing the SDK client reached for the network
+    # and the unit level's ban refused it; the local twin's reader exercises the same seam.
+
+    root = {PREFIX + "OBJECT_STORE_ROOT": str(tmp_path / "store")}
+    local = world_store_from_env(root)
+    assert local.local_root == tmp_path / "store" and local.bucket is None
+    local_reader = world_store_reader(local)
+    assert isinstance(local_reader, LocalObjectReader)
+    assert local_reader.root == tmp_path / "store" / "world"
+
+    with pytest.raises(ConfigurationError, match="not both"):
+        world_store_from_env({**bucket, **root})
+    with pytest.raises(ConfigurationError, match="AWS_REGION is not set"):
+        world_store_from_env({PREFIX + "WORLD_BUCKET": "world-bucket"})
+    with pytest.raises(ConfigurationError, match="never configured with the truth bucket"):
+        world_store_from_env({**bucket, PREFIX + "TRUTH_BUCKET": "truth-bucket"})

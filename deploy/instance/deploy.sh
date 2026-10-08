@@ -28,6 +28,15 @@ export POSTGRES_PASSWORD
 
 docker compose pull --quiet
 docker compose up -d --wait postgres
+# The corpus cache: every world under `worlds/` the serving rule admits is loaded
+# into PostgreSQL under its version, verified against its manifest, and marked
+# ready; a refusal fails the deploy here, before the application is declared
+# landed. The bucket name is the platform contract's literal (the boundary probe
+# below names the same bucket); the credentials are the instance role's, reached
+# through the metadata service from inside the container (hop limit 2).
+export LEAVE_IMPACT_WORLD_BUCKET=leave-impact-world-445743457479
+export LEAVE_IMPACT_AWS_REGION="$REGION"
+docker compose run --rm app python -m leaveimpact.cache
 # The baseline app has no long-running service yet: it identifies itself and
 # exits, and that identity line is the deploy's evidence (the `oidc-deploy`
 # probe's "response"). Flips to `up -d app` with the first service entry point.

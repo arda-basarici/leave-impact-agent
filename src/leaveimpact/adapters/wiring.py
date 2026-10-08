@@ -50,6 +50,11 @@ name a writer, cannot choose a key, and cannot overwrite, which is the read-only
 of the validator step kept at source level while its one artifact still lands (the
 part-2 review's carried obligation).
 
+The corpus cache loader, the application's own job on the instance, reads the world
+store alone: ``world_store_from_env`` reads the world bucket with its region, or the local
+twin's root, refuses a truth bucket name outright, and ``world_store_reader`` gives the
+reader; the loader's database comes from ``DATABASE_URL`` as the agent's does.
+
 The evaluator reads no vendor and holds no vendor credential, so its half of the
 environment is the stores alone: ``stores_from_env`` reads the two buckets with their
 region, or the local twin's root, and nothing else, and ``store_readers`` gives the two
@@ -128,6 +133,17 @@ class Stores:
     """Where the two stores are: the buckets, or the local twin's root; exactly one is set."""
 
     buckets: Buckets | None
+    local_root: Path | None
+
+
+@dataclass(frozen=True, slots=True)
+class WorldStore:
+    """Where the world store alone is: the world bucket with its region, or the local twin's
+    root; exactly one is set. The application's half of the stores, which never names the
+    truth bucket (the M2 step 9 design, fork 7)."""
+
+    bucket: str | None
+    region: str | None
     local_root: Path | None
 
 
@@ -260,6 +276,38 @@ def store_readers(stores: Stores) -> ObjectReaders:
         S3ObjectReader(client, stores.buckets.truth),
         S3ObjectReader(client, stores.buckets.world),
     )
+
+
+def world_store_from_env(env: Mapping[str, str]) -> WorldStore:
+    """Where the world store is, from ``env``: the local twin's root or the world bucket with
+    its region, never both; a truth bucket name in the environment is refused, since the
+    application is never handed it (the deploy's boundary probe names it to assert
+    unreachability, which is another statement, made outside the application)."""
+    if env.get(PREFIX + "TRUTH_BUCKET", "").strip():
+        raise ConfigurationError(
+            f"{PREFIX}TRUTH_BUCKET is set: the application reads the world bucket alone and is "
+            "never configured with the truth bucket's name"
+        )
+    root = env.get(PREFIX + "OBJECT_STORE_ROOT", "").strip()
+    named = [name for name in ("WORLD_BUCKET", "AWS_REGION") if env.get(PREFIX + name)]
+    if root and named:
+        raise ConfigurationError(
+            f"{PREFIX}OBJECT_STORE_ROOT names the local twin and {PREFIX}{named[0]} names S3: "
+            "one store per run, not both"
+        )
+    if root:
+        return WorldStore(bucket=None, region=None, local_root=Path(root))
+    return WorldStore(
+        bucket=_required(env, "WORLD_BUCKET"), region=_required(env, "AWS_REGION"), local_root=None
+    )
+
+
+def world_store_reader(store: WorldStore) -> ObjectReader:
+    """The world store as a reader, where ``store`` says it is."""
+    if store.local_root is not None:
+        return LocalObjectReader(store.local_root / "world")
+    assert store.bucket is not None and store.region is not None, "a root or the bucket"
+    return S3ObjectReader(s3_client(store.region), store.bucket)
 
 
 def evaluation_publisher(stores: Stores) -> EvaluationPublisher:

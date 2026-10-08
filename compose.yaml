@@ -18,6 +18,13 @@ services:
     # rendering a file to disk.
     environment:
       DATABASE_URL: postgresql://leaveimpact:${POSTGRES_PASSWORD:?set in the environment}@postgres:5432/leaveimpact
+      # The world bucket and its region, for the corpus cache loader; the instance role's
+      # credentials come from the instance metadata service, never from here. The truth
+      # bucket is never named to the application (DESIGN, "Keeping the benchmark out of
+      # the product"). Empty on a laptop that fills its cache from a local twin.
+      LEAVE_IMPACT_WORLD_BUCKET: ${LEAVE_IMPACT_WORLD_BUCKET:-}
+      LEAVE_IMPACT_AWS_REGION: ${LEAVE_IMPACT_AWS_REGION:-}
+      LEAVE_IMPACT_OBJECT_STORE_ROOT: ${LEAVE_IMPACT_OBJECT_STORE_ROOT:-}
     # No long-running process yet — the baseline image identifies itself and
     # exits. Flips to `unless-stopped` with the first service entry point.
     restart: "no"
