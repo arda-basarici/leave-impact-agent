@@ -244,6 +244,7 @@ def test_a_composed_world_refuses_a_filler_part_that_was_not_written(
             filler=pool,
             filler_briefs=composed.filler_briefs,
             levels=composed.levels,
+            filler_plan=composed.filler_plan,
         )
 
 

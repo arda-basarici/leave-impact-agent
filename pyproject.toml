@@ -61,11 +61,12 @@ venv = ".venv"
 # Network access is blocked for every test (tests/recording.py explains the guard);
 # only a vcr-marked test under a record mode reaches a sandbox (`just test-record`).
 [tool.pytest.ini_options]
-addopts = "--doctest-modules --strict-markers --block-network --allowed-hosts=localhost,127.0.0.1,postgres -m 'not integration and not live and not e2e and not crash'"
+addopts = "--doctest-modules --strict-markers --block-network --allowed-hosts=localhost,127.0.0.1,postgres -m 'not integration and not live and not e2e and not crash and not slow'"
 testpaths = ["src", "tests"]
 markers = [
     "integration: needs real dependencies (the PostgreSQL service, recorded cassettes)",
     "live: can only run against a real external sandbox (no cassette possible); the cassette re-record is a record mode, not this marker",
     "e2e: runs against a deployment through its public hostname",
     "crash: the crash matrix, child processes killed at named crossings over the PostgreSQL service (its own CI job)",
+    "slow: the twenty-seed sweeps of the generator's invariants, minutes; CI runs them after the unit level, five seeds stay in it",
 ]

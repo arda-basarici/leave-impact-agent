@@ -25,8 +25,8 @@ from typing import Protocol
 
 from leaveimpact.core.entities import Document
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec
-from leaveimpact.world.briefs import Brief
-from leaveimpact.world.levels import BASE_LEVELS, SealedLevel
+from leaveimpact.world.briefs import Brief, SectionTarget
+from leaveimpact.world.levels import BASE_LEVELS, NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.scenario import OwnedEntities, Planted
 
 
@@ -65,7 +65,11 @@ def with_filler(
     (``TypeError``) since its provenance would describe another world."""
     _uncomposed(semantic, "attached")
     return replace(
-        semantic, filler=tuple(filler), filler_briefs=tuple(briefs), levels=tuple(levels)
+        semantic,
+        filler=tuple(filler),
+        filler_briefs=tuple(briefs),
+        levels=tuple(levels),
+        filler_plan=_plan_of(filler, briefs, levels),
     )
 
 
@@ -74,7 +78,32 @@ def strip_filler(semantic: SemanticWorld) -> SemanticWorld:
     seed produces without filler, if the pool was minted last; a composed world is refused
     (``TypeError``)."""
     _uncomposed(semantic, "stripped")
-    return replace(semantic, filler=(), filler_briefs=(), levels=BASE_LEVELS)
+    return replace(
+        semantic, filler=(), filler_briefs=(), levels=BASE_LEVELS, filler_plan=NO_FILLER
+    )
+
+
+def _plan_of(
+    filler: Sequence[Planted[Document]], briefs: Sequence[Brief], levels: Sequence[SealedLevel]
+) -> FillerPlan:
+    """The plan a hand-attached pool describes: its count, the sections its first document
+    holds between the present and the briefed, and the levels beyond the base."""
+    if not filler:
+        return NO_FILLER
+    first = filler[0].entity
+    present = {section.id for section in first.sections}
+    owed = sum(
+        1
+        for brief in briefs
+        if isinstance(brief.target, SectionTarget)
+        and brief.target.document_id == first.id
+        and brief.target.id not in present
+    )
+    return FillerPlan(
+        len(filler),
+        len(first.sections) + owed,
+        tuple(level for level in levels if level not in BASE_LEVELS),
+    )
 
 
 def _uncomposed(semantic: SemanticWorld, verb: str) -> None:

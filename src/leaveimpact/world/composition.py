@@ -103,6 +103,7 @@ def compose(
         ),
         filler_briefs=semantic.filler_briefs,
         levels=semantic.levels,
+        filler_plan=semantic.filler_plan,
     )
 
 

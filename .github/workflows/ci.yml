@@ -81,6 +81,8 @@ jobs:
       # file's tests would rebuild it on every worker that got one.
       - name: Pytest (unit level, doctests)
         run: uv run pytest -q -n auto --dist loadfile
+      - name: Pytest (the slow sweeps, twenty seeds per generator invariant)
+        run: uv run pytest -q -n auto -m slow
 
       - name: Pytest (integration, against the PostgreSQL service)
         run: uv run pytest -q -m integration

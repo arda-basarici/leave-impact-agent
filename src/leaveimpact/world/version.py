@@ -40,15 +40,18 @@ from typing import NewType
 
 GeneratorVersion = NewType("GeneratorVersion", str)
 
-GENERATOR_VERSION = GeneratorVersion("15")
+GENERATOR_VERSION = GeneratorVersion("16")
 
 GENERATOR_PYTHON = (3, 13)
 
-VOCABULARY_DIGEST = "066ae392daf312d00a07d2fcb9cbd03aede0b9d5a4244d48ee4fa016199b2d4a"
+VOCABULARY_DIGEST = "ecf1503a4098abcc1984cf9af205f03f291eb094800ee4adcb53ae856827ce92"
 
 _PROMPT_DIGESTS = {
     "checker_system": "b8b400da91a8a2d8405b054897c57c3c3b21f8efa0f04ce5b1a19670b2bd223c",
     "register_client_note": "66ef3af484b61a0bec980bff783e7db6323fb2a53e74195f24ad1684b8bfcf03",
+    "register_filler_requirement": (
+        "09997a225b8adcbc1a3b91de172be93d5355f39f5083e02e8f8904bd06479f61"
+    ),
     "register_policy": "da31a905c3e09788d68c317082d03161ccaa1fbe29fb666eb1c1048128f07367",
     "register_procedure": "0393d97754189a1edeba0430662bb33e0b29d3575debabb210336994cb48b1ed",
     "register_runbook": "8994f0f00d13515264097cf0b3970eb17ff0227e66e7c8d2bf86e61080ca5e9f",

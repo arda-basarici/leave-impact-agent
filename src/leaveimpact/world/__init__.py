@@ -79,6 +79,7 @@ from leaveimpact.world.assembly import (
     Contamination,
     ForeignRecord,
     SemanticWorld,
+    UnreadableScope,
     UnsupportedShape,
     WorldContamination,
     WorldSpec,
@@ -88,8 +89,10 @@ from leaveimpact.world.assembly import (
     world_fact_base,
 )
 from leaveimpact.world.briefs import (
+    FICTIONAL_ID_BASE,
     Brief,
     CommentTarget,
+    FillerBrief,
     PendingProse,
     ProseContractError,
     ProseTarget,
@@ -99,6 +102,7 @@ from leaveimpact.world.briefs import (
     brief_for,
     check_allowed,
     check_pending,
+    filler_brief_for,
     lexicon_of,
     target_ref,
 )
@@ -127,6 +131,12 @@ from leaveimpact.world.construction import (
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
 from leaveimpact.world.filler import strip_filler, with_filler, world_documents
+from leaveimpact.world.filler_mint import (
+    FillerExhausted,
+    FillerNamesTheWorld,
+    MintedFiller,
+    mint_filler,
+)
 from leaveimpact.world.fragmented import (
     FRAGMENTED_CLASSES,
     FragmentedComposite,
@@ -134,7 +144,15 @@ from leaveimpact.world.fragmented import (
     FreeTextResponsibility,
     ReleaseCardinalityConstraint,
 )
-from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, check_pool, level_members
+from leaveimpact.world.levels import (
+    BASE_LEVELS,
+    NO_FILLER,
+    FillerPlan,
+    SealedLevel,
+    check_plan_describes_pool,
+    check_pool,
+    level_members,
+)
 from leaveimpact.world.modifiers import (
     COMPATIBLE_MODIFIERS,
     MODIFIERS,
@@ -211,6 +229,15 @@ from leaveimpact.world.scenario import (
     ScenarioSpec,
     Tier,
     VerdictOverride,
+)
+from leaveimpact.world.scope import (
+    IndexProblem,
+    ProblemKind,
+    ScopePart,
+    planted_parts,
+    planted_titles,
+    resolve_scope,
+    scope_problems,
 )
 from leaveimpact.world.slices import (
     allocate_slices,
@@ -444,6 +471,24 @@ __all__ = [
     "truth_fact_base",
     "truth_manifest_of",
     "scope_handle_problems",
+    "UnreadableScope",
+    "FICTIONAL_ID_BASE",
+    "FillerBrief",
+    "filler_brief_for",
+    "FillerPlan",
+    "NO_FILLER",
+    "check_plan_describes_pool",
+    "FillerExhausted",
+    "FillerNamesTheWorld",
+    "MintedFiller",
+    "mint_filler",
+    "IndexProblem",
+    "ProblemKind",
+    "ScopePart",
+    "planted_parts",
+    "planted_titles",
+    "resolve_scope",
+    "scope_problems",
     "unsupported_shape_problems",
     "verify_world",
     "vocabulary_digest",

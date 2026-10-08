@@ -83,6 +83,7 @@ from leaveimpact.world.artifacts import (
 from leaveimpact.world.briefs import (
     Brief,
     CommentTarget,
+    FillerBrief,
     ProseTarget,
     Register,
     RequiredFact,
@@ -338,13 +339,27 @@ def _evidence(data: Mapping[str, object]) -> EvidenceRef:
 
 def _brief(item: object) -> Brief:
     data = as_object(item, "a brief")
-    expect_fields(data, ("target", "register", "required", "allowed", "namespace"), "a brief")
-    return Brief(
-        target=_target(object_field(data, "target")),
-        required=tuple(_required(fact) for fact in array_field(data, "required")),
-        allowed=tuple(_fact(fact) for fact in array_field(data, "allowed")),
-        namespace=_namespace(object_field(data, "namespace")),
-        register=Register(string_field(data, "register")),
+    filler = ("fictional",) if "fictional" in data else ()
+    expect_fields(
+        data, ("target", "register", "required", "allowed", "namespace") + filler, "a brief"
+    )
+    target = _target(object_field(data, "target"))
+    required = tuple(_required(fact) for fact in array_field(data, "required"))
+    allowed = tuple(_fact(fact) for fact in array_field(data, "allowed"))
+    namespace = _namespace(object_field(data, "namespace"))
+    register = Register(string_field(data, "register"))
+    if not filler:
+        return Brief(target, required, allowed, namespace, register)
+    return FillerBrief(
+        target,
+        required,
+        allowed,
+        namespace,
+        register,
+        fictional=tuple(
+            decode_ref(as_object(item, "a fictional entity"))
+            for item in array_field(data, "fictional")
+        ),
     )
 
 

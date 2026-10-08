@@ -61,7 +61,7 @@ from leaveimpact.world.artifacts import (
     PlantedWorldSpec,
     ScenarioPlanting,
 )
-from leaveimpact.world.levels import BASE_LEVELS, SealedLevel
+from leaveimpact.world.levels import BASE_LEVELS, NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.org import OrgSpec, decode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.scenario import (
@@ -93,6 +93,7 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
         "the world spec",
     )
     provenance = object_field(data, "provenance")
+    planned = ("filler_plan",) if "filler_plan" in provenance else ()
     expect_fields(
         provenance,
         (
@@ -103,8 +104,14 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
             "interpreter",
             "vocabulary_digest",
             "semantic_digest",
-        ),
+        )
+        + planned,
         "provenance",
+    )
+    levels = (
+        tuple(_level(item) for item in array_field(data, "levels"))
+        if "levels" in data
+        else BASE_LEVELS
     )
     cited = object_field(data, "artifacts")
     expect_fields(cited, (SCENARIO_SPECS, TRUTH_MANIFEST), "the cited artifacts")
@@ -126,15 +133,25 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
             _planted(item, _decode_document_value)
             for item in (array_field(data, "filler") if "filler" in data else ())
         ),
-        levels=(
-            tuple(_level(item) for item in array_field(data, "levels"))
-            if "levels" in data
-            else BASE_LEVELS
-        ),
+        levels=levels,
+        filler_plan=_filler_plan(provenance, levels) if planned else NO_FILLER,
     )
 
 
 _POOL_FIELDS = ("filler", "levels")
+"""The world spec's names for the pool and its levels, absent from a file without a pool."""
+
+
+def _filler_plan(provenance: Mapping[str, object], levels: tuple[SealedLevel, ...]) -> FillerPlan:
+    """The sealed plan: its two counts from the provenance, its levels the spec's own beyond
+    the base, so the plan is written once and read back whole."""
+    data = object_field(provenance, "filler_plan")
+    expect_fields(data, ("documents", "sections_per_document"), "a filler plan")
+    return FillerPlan(
+        integer_field(data, "documents"),
+        integer_field(data, "sections_per_document"),
+        tuple(level for level in levels if level not in BASE_LEVELS),
+    )
 """The world spec's names for the pool and its levels, absent from a file without a pool."""
 
 

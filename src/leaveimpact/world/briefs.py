@@ -141,6 +141,7 @@ class Register(StrEnum):
     PROCEDURE = "procedure"
     POLICY = "policy"
     TICKET_COMMENT = "ticket_comment"
+    FILLER_REQUIREMENT = "filler_requirement"
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,6 +189,92 @@ class Brief:
     @property
     def id(self) -> str:
         return self.target.id
+
+
+FILLER_REGISTERS: frozenset[Register] = frozenset({Register.FILLER_REQUIREMENT})
+"""The registers a filler brief is written in: the requirement shape over a fictional
+artifact. A handbook register beside it was built and dropped on 2026-10-08, when the
+checker refused every text written in it (the generator step's group 2)."""
+
+FICTIONAL_ID_BASE = 9001
+"""The first number a fictional entity's id may carry: a range the minting book never reaches
+in any plan the generator offers, so a fictional id can equal no planted record's."""
+
+
+@dataclass(frozen=True, slots=True)
+class FillerBrief(Brief):
+    """A brief for a section of a filler document: no fact required, none allowed, and the
+    entities a decoy may be about declared (the generator step's group 2).
+
+    Containment for filler is the decoy rule and not the fact rule: a proposition passes when
+    its subject is the target or a declared fictional entity and any entity it names as a
+    value is a declared fictional entity or the brief's own document; an unknown subject, an
+    untyped proposition and any other subject or entity value refuse. The permission is
+    declared by subjects, not enumerated by statements, because the writer chooses which
+    skill and which count it states and no finite list can be written ahead of the text (the
+    group 0 probe). A fictional entity is an ordinary namespace form whose id no planted
+    record carries, so the checker's entity list resolves it as it resolves a real one; the
+    scanner is the sole guard between a world name and a filler text, since the checker can
+    name nothing outside the brief's namespace.
+    """
+
+    fictional: tuple[EntityRef, ...] = ()
+
+    def __post_init__(self) -> None:
+        Brief.__post_init__(self)
+        if self.required or self.allowed:
+            raise ProseContractError(
+                f"{self.id}: a filler brief carries no required or allowed fact"
+            )
+        if self.register not in FILLER_REGISTERS:
+            raise ProseContractError(
+                f"{self.id}: a filler brief is written in a filler register, got "
+                f"{self.register.value}"
+            )
+        if not isinstance(self.target, SectionTarget):
+            raise ProseContractError(f"{self.id}: filler is written in sections, never comments")
+        known = {(form.kind, form.id) for form in self.namespace.forms}
+        for ref in self.fictional:
+            if (ref.kind.value, ref.id) not in known:
+                raise ProseContractError(
+                    f"{self.id}: a fictional entity is a form of the namespace, {ref.id} is not"
+                )
+            if int(ref.id.rsplit("_", 1)[-1]) < FICTIONAL_ID_BASE:
+                raise ProseContractError(
+                    f"{self.id}: a fictional id is numbered from {FICTIONAL_ID_BASE}, got {ref.id}"
+                )
+
+
+def filler_brief_for(
+    document: Document,
+    clause: ClauseId,
+    position: int,
+    register: Register,
+    fictional: Sequence[SurfaceForm],
+    skills: Sequence[SurfaceForm],
+) -> FillerBrief:
+    """The filler brief for section ``position`` of ``document``, the clause ``clause`` once
+    written: its namespace the document's own form, the ``fictional`` forms and the ``skills``
+    drawn for it, and its declared entities every fictional form of an entity kind, so a
+    client form, which is a name and nothing more, is admitted to the text and declares no
+    entity."""
+    own = SurfaceForm(EntityKind.DOCUMENT.value, document.id, document.title)
+    forms = {(form.kind, form.id): form for form in (own, *fictional, *skills)}
+    entity_kinds = {kind.value for kind in EntityKind}
+    return FillerBrief(
+        target=SectionTarget(clause, document.id, position),
+        required=(),
+        allowed=(),
+        namespace=Namespace(
+            tuple(sorted(forms.values(), key=lambda form: (form.kind, form.id))), (), ()
+        ),
+        register=register,
+        fictional=tuple(
+            EntityRef(EntityKind(form.kind), form.id)
+            for form in fictional
+            if form.kind in entity_kinds
+        ),
+    )
 
 
 def _check_facts(target: ProseTarget, required: Sequence[Fact], allowed: Sequence[Fact]) -> None:
@@ -442,6 +529,9 @@ def _names(facts: Iterable[Fact]) -> list[str]:
 __all__ = [
     "Brief",
     "CommentTarget",
+    "FICTIONAL_ID_BASE",
+    "FILLER_REGISTERS",
+    "FillerBrief",
     "client_id",
     "clients_named_by",
     "PendingProse",
@@ -452,6 +542,7 @@ __all__ = [
     "SectionTarget",
     "brief_for",
     "check_allowed",
+    "filler_brief_for",
     "check_pending",
     "lexicon_of",
     "parent_id",

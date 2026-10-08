@@ -40,7 +40,7 @@ from leaveimpact.generator.prose.schema import (
     tool_schema,
     value_forms,
 )
-from leaveimpact.world.briefs import Brief, CommentTarget, Register, SectionTarget
+from leaveimpact.world.briefs import Brief, CommentTarget, FillerBrief, Register, SectionTarget
 from leaveimpact.world.prose import CARRIER_KINDS, Lexicon
 
 WRITER_INFERENCE = InferenceConfiguration(temperature=0.7, max_tokens=400)
@@ -57,6 +57,8 @@ LENGTH_BY_REGISTER: dict[Register, str] = {
     Register.CLIENT_NOTE: "one or two sentences",
     Register.PROCEDURE: "one or two sentences",
     Register.POLICY: "one or two sentences",
+    # Filler carries a share of the corpus budget, so a section is a paragraph.
+    Register.FILLER_REQUIREMENT: "a paragraph of four to six sentences",
 }
 
 
@@ -79,13 +81,16 @@ def writer_request(brief: Brief, lexicon: Lexicon, assets: PromptAssets) -> Writ
         case SectionTarget():
             lines.append(_carrier_line(brief))
     lines.append("")
-    lines.append("Facts the text must state:")
-    lines.extend(f"- {describe_fact(required.fact, lexicon)}" for required in brief.required)
-    lines.append("")
-    lines.append("Context the text may mention, and nothing else of this kind:")
-    lines.extend(f"- {describe_fact(fact, lexicon)}" for fact in brief.allowed)
-    if not brief.allowed:
-        lines.append("- (none)")
+    if isinstance(brief, FillerBrief):
+        lines.append(_filler_passage(brief))
+    else:
+        lines.append("Facts the text must state:")
+        lines.extend(f"- {describe_fact(required.fact, lexicon)}" for required in brief.required)
+        lines.append("")
+        lines.append("Context the text may mention, and nothing else of this kind:")
+        lines.extend(f"- {describe_fact(fact, lexicon)}" for fact in brief.allowed)
+        if not brief.allowed:
+            lines.append("- (none)")
     lines.append("")
     lines.append("Names you may use, spelled exactly so:")
     lines.extend(f"- {form.form} ({form.kind.replace('_', ' ')})" for form in namespace.forms)
@@ -100,6 +105,24 @@ def writer_request(brief: Brief, lexicon: Lexicon, assets: PromptAssets) -> Writ
     lines.append("")
     lines.append(f"Length: {LENGTH_BY_REGISTER[brief.register]}.")
     return WriterRequest(assets.text(WRITER_SYSTEM), "\n".join(lines), WRITER_INFERENCE)
+
+
+def _filler_passage(brief: FillerBrief) -> str:
+    """What a filler text may and may not do, in place of the two fact headings.
+
+    The system text forbids any claim about what an activity requires beyond the facts
+    given, and a filler brief gives none; the permission a near-miss text needs is stated
+    here, in the message, where the group 0 probe showed it moves the model (a requirement
+    stated 3 of 3 with the instruction in the message), and the register fragment keeps
+    the voice and the length alone. The planted rendering does not change by a byte.
+    """
+    return (
+        "What the text does: it states what the artifact named in the list below requires of "
+        "whoever does its work, using exactly one skill from the names listed. It names no "
+        "person and says nothing about who is responsible for, owns, confirms or should be "
+        "contacted about anything. Write the requirement, not a description of this "
+        "instruction."
+    )
 
 
 def checker_request(text: str, brief: Brief, assets: PromptAssets) -> CheckerRequest:

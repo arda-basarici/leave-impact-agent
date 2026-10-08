@@ -85,13 +85,22 @@ from leaveimpact.world.construction import (
     required_count_for,
     required_sources_for,
 )
-from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, check_pool
+from leaveimpact.world.filler_mint import mint_filler
+from leaveimpact.world.levels import (
+    BASE_LEVELS,
+    NO_FILLER,
+    FillerPlan,
+    SealedLevel,
+    check_plan_describes_pool,
+    check_pool,
+)
 from leaveimpact.world.modifiers import MODIFIERS
 from leaveimpact.world.org import OrgParams, OrgSpec, generate_org
 from leaveimpact.world.plan import PLANS, PlanRow, plan_tiers, unsupported_shape_problems
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.runtime_view import runtime_facts, runtime_records
 from leaveimpact.world.scenario import ExpectedConflict, ExpectedUnknown, Planted, Scenario
+from leaveimpact.world.scope import IndexProblem, planted_parts, planted_titles, scope_problems
 from leaveimpact.world.slices import allocate_slices
 from leaveimpact.world.truth_facts import truth_fact_base
 from leaveimpact.world.version import GENERATOR_VERSION, GeneratorVersion
@@ -151,6 +160,16 @@ class UnsupportedShape(ConstructionError):
 
     def __init__(self, problems: Sequence[str]) -> None:
         super().__init__("; ".join(problems))
+        self.problems = tuple(problems)
+
+
+class UnreadableScope(ConstructionError):
+    """A requirement clause the scope matcher cannot resolve over the planted records and the
+    filler pool: the same four properties the evaluator refuses a world on at load, read at
+    assembly so no sealed world fails them (the generator step's ruling 3)."""
+
+    def __init__(self, problems: Sequence[IndexProblem]) -> None:
+        super().__init__("; ".join(f"{p.kind.value}: {p.detail}" for p in problems))
         self.problems = tuple(problems)
 
 
@@ -272,8 +291,9 @@ class SemanticWorld:
     ``filler`` is the pool of answer-neutral documents owned by no scenario, in rank
     order, ``filler_briefs`` the parts a model still owes the pool, and ``levels`` the
     corpus levels sealed over it (``levels``); a world assembled without a pool holds
-    the base level alone. The three are keyword-only so a composed world's own fields
-    can follow them without defaults.
+    the base level alone. ``filler_plan`` is the sealed input the pool was minted from,
+    which the pool must describe. The four are keyword-only so a composed world's own
+    fields can follow them without defaults.
     """
 
     seed: int
@@ -290,6 +310,7 @@ class SemanticWorld:
     filler: tuple[Planted[Document], ...] = field(default=(), kw_only=True)
     filler_briefs: tuple[Brief, ...] = field(default=(), kw_only=True)
     levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
+    filler_plan: FillerPlan = field(default=NO_FILLER, kw_only=True)
 
     def __post_init__(self) -> None:
         if not (len(self.slices) == len(self.plan) == len(self.scenarios)):
@@ -314,6 +335,7 @@ class SemanticWorld:
             self.filler_briefs,
             (p.entity.id for scenario in self.scenarios for p in scenario.owned.documents),
         )
+        check_plan_describes_pool(self.filler_plan, self.filler, self.filler_briefs, self.levels)
 
     @property
     def pending_ids(self) -> frozenset[str]:
@@ -382,9 +404,10 @@ def assemble_semantic_world(
     params: OrgParams,
     world_start: date,
     plan_name: str = "tier1",
+    filler: FillerPlan = NO_FILLER,
 ) -> SemanticWorld:
-    """The semantic world ``seed`` produces under ``params`` and the named plan, re-verified as a
-    whole.
+    """The semantic world ``seed`` produces under ``params``, the named plan and the ``filler``
+    plan, re-verified as a whole.
 
     ``plan_name`` is a key of ``PLANS``; an unknown name is a ``ValueError`` before any draw,
     and a shape outside the plan's supported domain is ``UnsupportedShape`` before any draw.
@@ -400,6 +423,13 @@ def assemble_semantic_world(
     before any construction, so the order changes no draw; a world the book refuses nothing
     in is the world plan-order construction makes, up to the ids the minting book hands out
     in construction order. Ties keep plan order.
+
+    The filler pool is minted last, after the planted world is verified, from the same id
+    book and a generator drawn from the world's after its final draw, so the planted part
+    is what the seed produces without filler (the generator step's ruling 3); the two scope
+    guards then run over the planted records with the pool in them, the handle uniqueness
+    and the four scope properties the evaluator reads again at load, and a finding is
+    ``AmbiguousScopeHandle`` or ``UnreadableScope``.
     """
     if plan_name not in PLANS:
         raise ValueError(f"no plan named {plan_name!r}; the plans are {sorted(PLANS)}")
@@ -429,13 +459,21 @@ def assemble_semantic_world(
             reservations=book,
         )
     scenarios = tuple(built[index] for index in range(len(plan)))
-    ambiguous = scope_handle_problems(scenarios)
-    if ambiguous:
-        raise AmbiguousScopeHandle(ambiguous)
     facts = world_fact_base(org, world_start, scenarios)
     findings = verify_world(facts, scenarios, org)
     if findings:
         raise WorldContamination(findings)
+    pool = mint_filler(ids, Random(rng.getrandbits(64)), filler, org, scenarios, world_start)
+    ambiguous = scope_handle_problems(scenarios, pool.filler)
+    if ambiguous:
+        raise AmbiguousScopeHandle(ambiguous)
+    _, unreadable = scope_problems(
+        scenarios,
+        planted_titles(scenarios, pool.filler),
+        planted_parts(scenarios, pool.filler, pool.briefs),
+    )
+    if unreadable:
+        raise UnreadableScope(unreadable)
     return SemanticWorld(
         seed=seed,
         world_start=world_start,
@@ -448,6 +486,10 @@ def assemble_semantic_world(
         generator_version=GENERATOR_VERSION,
         interpreter=(sys.version_info.major, sys.version_info.minor),
         vocabulary_digest=vocabulary_digest(),
+        filler=pool.filler,
+        filler_briefs=pool.briefs,
+        levels=pool.levels,
+        filler_plan=filler,
     )
 
 

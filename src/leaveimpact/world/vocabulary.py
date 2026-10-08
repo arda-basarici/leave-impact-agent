@@ -182,6 +182,74 @@ LOOK_ALIKE_MEETING_PHRASES: tuple[str, ...] = (
 )
 
 
+# --- The filler name book: fictional artifacts no planted record names --------------------
+#
+# Filler documents are shaped like the planted kinds and titled over fictional releases and
+# clients, so a text about one can state a requirement that reads like a planted clause
+# while naming nothing a planted record names (the generator step's ruling 2; the handbook
+# book ruling 2 also planned was dropped on 2026-10-08, when four probe rounds found no
+# such text passing the checker).
+# Every name here is disjoint from every table above, casefolded, and every filler title is
+# disjoint from every title the ticket and meeting products and the classes' templates can
+# make, as a substring either way, which a vocabulary test holds: the scope matcher resolves
+# by substring, so a filler title that contained a planted one would steal that clause's
+# resolution. The group 0 probe's own "Northwind release" wore a client's name and passed
+# only because the longer admitted form masked the client's; the table rule removes the luck.
+# A template names its document kind beside it, since a filler document takes the shape of
+# the planted kind it imitates.
+
+FICTIONAL_RELEASES: tuple[str, ...] = (
+    "Aurora", "Basalt", "Cobalt", "Dunlin", "Ember", "Falcon", "Granite", "Heron", "Iris",
+    "Juniper", "Kelp", "Lantern", "Marlin", "Nimbus", "Orchid", "Peregrine", "Quartz", "Rowan",
+    "Sable", "Tundra", "Onyx", "Vesper", "Willow", "Xenon", "Yarrow", "Zephyr", "Alder",
+    "Bramble", "Cinder", "Dusk", "Elm", "Fjord", "Gale", "Harrier", "Ivory", "Jade",
+)
+
+FICTIONAL_CLIENTS: tuple[str, ...] = (
+    "Halcyon", "Veridian", "Castellan", "Ambergate", "Fennwick", "Lowmere", "Kingsreach",
+    "Dorrance", "Pellham", "Tarrow", "Hollins", "Marchbank", "Averill", "Caldwater", "Brennock",
+    "Ellery", "Farrowmoor", "Glenridge", "Haverly", "Innsworth", "Jessop", "Kirkwell",
+    "Langmoor", "Morrow", "Nethercott", "Oldcastle", "Penrose", "Quill", "Rutherglen", "Selwyn",
+    "Thistlewood", "Underhill", "Varley", "Wexcombe", "Yardley", "Ashworth",
+)
+
+RELEASE_TITLES: tuple[tuple[str, str], ...] = (
+    ("runbook", "Release runbook: {name} release"),
+    ("policy", "Release policy: {name} release"),
+    ("procedure", "Rollback procedure: {name} release"),
+    ("runbook", "Cutover checklist: {name} release"),
+    ("policy", "Freeze policy: {name} release"),
+    ("procedure", "Smoke test procedure: {name} release"),
+)
+"""(document kind, title template) per fictional release; one filler document per pair."""
+
+CLIENT_TITLES: tuple[tuple[str, str], ...] = (
+    ("client_note", "{name} account notes"),
+    ("procedure", "Account handover procedure: {name}"),
+    ("client_note", "{name} onboarding notes"),
+    ("procedure", "Escalation procedure: {name}"),
+    ("client_note", "{name} renewal notes"),
+    ("policy", "Data retention policy: {name}"),
+)
+"""(document kind, title template) per fictional client; one filler document per pair."""
+
+def filler_titles() -> tuple[tuple[str, str], ...]:
+    """Every (document kind, title) the two filler books can mint, in table order.
+
+    >>> len(filler_titles()) == 36 * 6 + 36 * 6
+    True
+    """
+    return tuple(
+        (kind, template.format(name=name))
+        for names, templates in (
+            (FICTIONAL_RELEASES, RELEASE_TITLES),
+            (FICTIONAL_CLIENTS, CLIENT_TITLES),
+        )
+        for kind, template in templates
+        for name in names
+    )
+
+
 def titles(context: str, phrases: tuple[str, ...], qualifiers: tuple[str, ...]) -> tuple[str, ...]:
     """Every title a context can carry from ``phrases`` by ``qualifiers``, in canonical order:
     plain phrases first, then each qualifier over the phrases.
@@ -218,6 +286,10 @@ def vocabulary_digest() -> str:
         "meeting_qualifiers": list(MEETING_QUALIFIERS),
         "look_alike_ticket_phrases": list(LOOK_ALIKE_TICKET_PHRASES),
         "look_alike_meeting_phrases": list(LOOK_ALIKE_MEETING_PHRASES),
+        "fictional_releases": list(FICTIONAL_RELEASES),
+        "fictional_clients": list(FICTIONAL_CLIENTS),
+        "release_titles": [list(row) for row in RELEASE_TITLES],
+        "client_titles": [list(row) for row in CLIENT_TITLES],
     }
     canonical = json.dumps(tables, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
@@ -226,6 +298,11 @@ def vocabulary_digest() -> str:
 __all__ = [
     "CITIES",
     "CLIENT_NAMES",
+    "CLIENT_TITLES",
+    "FICTIONAL_CLIENTS",
+    "FICTIONAL_RELEASES",
+    "RELEASE_TITLES",
+    "filler_titles",
     "COMPONENT_NAMES",
     "FAMILY_NAMES",
     "GIVEN_NAMES",

@@ -96,8 +96,15 @@ from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec
-from leaveimpact.world.briefs import Brief, CommentTarget, ProseTarget, SectionTarget
-from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, check_pool
+from leaveimpact.world.briefs import Brief, CommentTarget, FillerBrief, ProseTarget, SectionTarget
+from leaveimpact.world.levels import (
+    BASE_LEVELS,
+    NO_FILLER,
+    FillerPlan,
+    SealedLevel,
+    check_plan_describes_pool,
+    check_pool,
+)
 from leaveimpact.world.org import OrgSpec, encode_org_params
 from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.prose import (
@@ -204,6 +211,7 @@ class PlantedWorldSpec:
     truth_manifest_digest: str
     filler: tuple[Planted[Document], ...] = field(default=(), kw_only=True)
     levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
+    filler_plan: FillerPlan = field(default=NO_FILLER, kw_only=True)
 
     def __post_init__(self) -> None:
         check_pool(
@@ -212,6 +220,7 @@ class PlantedWorldSpec:
             (),
             (p.entity.id for planting in self.scenarios for p in planting.owned.documents),
         )
+        check_plan_describes_pool(self.filler_plan, self.filler, (), self.levels)
         if not (len(self.slices) == len(self.plan) == len(self.scenarios)):
             raise ValueError(
                 f"one slice, one plan row and one planting each, got {len(self.slices)}, "
@@ -258,6 +267,7 @@ def planted_world_spec(
         truth_manifest_digest=truth_manifest_digest,
         filler=world.filler,
         levels=world.levels,
+        filler_plan=world.filler_plan,
     )
 
 
@@ -516,6 +526,16 @@ def _provenance(world: SemanticWorld | PlantedWorldSpec) -> JsonObject:
         "generator_version": world.generator_version,
         "interpreter": list(world.interpreter),
         "vocabulary_digest": world.vocabulary_digest,
+        **(
+            {
+                "filler_plan": {
+                    "documents": world.filler_plan.documents,
+                    "sections_per_document": world.filler_plan.sections_per_document,
+                }
+            }
+            if world.filler_plan.documents
+            else {}
+        ),
     }
 
 
@@ -586,6 +606,11 @@ def _brief(brief: Brief) -> JsonObject:
         ],
         "allowed": [encode_fact(fact) for fact in brief.allowed],
         "namespace": _namespace(brief.namespace),
+        **(
+            {"fictional": [encode_ref(ref) for ref in brief.fictional]}
+            if isinstance(brief, FillerBrief)
+            else {}
+        ),
     }
 
 
