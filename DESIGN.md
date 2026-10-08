@@ -537,6 +537,45 @@ reference must resolve to exactly one brief before composition, a contract that
 ranges over the whole bundle, world-owned policy clauses included, so the first
 world-owned clause cannot arrive without its brief.
 
+**Filler is a world-level pool, and a level is a count into it.** The measurement
+world carries documents no scenario owns, answer-neutral by construction, as a
+ranked tuple on the world spec beside a short list of levels, each a name and a
+filler count with the base level at zero. A level's membership is derived, every
+scenario-owned document plus the first so many of the pool, and listed nowhere, so
+levels are nested and every answer-bearing document is in every level. The whole
+pool is sealed and expected by the validator and the receipt check whatever level a
+run uses; the level is a serving filter, applied before search, ranking and
+full-context assembly. The pool is minted after the whole assembly from the same
+world-wide counter under a derived generator, so every planted id and record is what
+the seed produces without filler, and that claim is a test: the semantic world
+assembled with filler, its filler stripped, equals the world assembled without, and
+over the composed stand-in world the planted entities, the facts, every key, each
+clause's resolved target and the retrieval targets under every condition are equal
+with filler on and off. Filler goes through the brief machinery and the same four
+gates, with an empty required set and a *decoy* set: facts the text may state whose
+subject is the target clause or a fictional entity the brief declares with an id
+outside the world's id space, permitted by containment, authored nowhere, sealed
+into no fact base, read by no rule. An unknown subject and any proposition about a
+world entity stay refused, and the checker's unresolved value is read apart from a
+malformed one and refused too, because "the employee taking leave is responsible for
+this work" names nobody the scanner can match and refers to a planted person all the
+same. The design had two compositions, handbook prose that names nothing and
+near-miss documents whose clauses state requirements over fictional artifacts and
+real skills. The checker reads a text that names nobody as a statement that nobody
+is responsible on nearly every sample (five of twelve accepted on the best wording,
+zero of ten on the last), neither a request line nor a system paragraph moved it,
+and the handbook composition was dropped rather than re-pin the checker's prompt for
+every world written under it. The pool is requirement documents alone, titled from a
+name book of fictional releases and clients held apart from every planted table and
+every title the templates can make, and the scope matcher moved from the evaluator
+into `world`, so the index's scope properties and handle uniqueness run at assembly
+over the corpus with filler in it and again at load, one matcher on both sides.
+Titles stay unmarked in clause text; the span-loss rate is measured on development
+worlds, and marking is reconsidered at the freeze only if that loss is large. A
+token count is one tokenizer's, so the world seals document counts and the
+registration records the padded level's request size, measured at the freeze under
+the named counting rule.
+
 **Generated text is accepted only under semantic containment**: every required
 planted fact is present and no additional benchmark-relevant fact is introduced,
 `required(brief) ⊆ claims(text) ⊆ allowed(brief)`. A lexicon check is not that
@@ -1064,11 +1103,24 @@ generalized beyond known false. **The stale owner is a standing fact and the boo
 third claim**: the first reading needed no reservation for it, and the first golden
 sweep refused seventy-three of two hundred worlds, each a meeting row whose leaver a
 runbook named as stale owner, because under a tracker outage the document's claim
-cannot be resolved away. **Rows are constructed scarcest class first**, with each
-row's seed drawn in plan order beforehand so the order changes no draw, after
-thirty-nine of two hundred worlds exhausted a class seated last; scarcity is
-measured per class, so the order cannot guarantee no exhaustion, and the contract
-promises no world for every seed.
+cannot be resolved away. **Rows are constructed in a seeded random order and the
+windows are dealt by a seeded permutation**, because the plan concatenates its tiers
+and both plan order and the scarcity order that replaced it seat classes by tier: on
+twenty seeds the window's start predicted the tier on every one under the forward
+dealing, and under the scarcity order the ids a model sees predicted it at 0.69 to
+0.92 by kind; the permutation and the shuffle bring every kind within 0.05 of a
+random order's own column, with no tier's ranges disjoint
+(`probes/generator-step/id_leak.py`). The shuffle is drawn after the row seeds, so
+the order changes no draw, and the claim is "not a function of the tier by
+construction"; the twenty seeds chose this remedy over an id rewrite after
+construction and are not the evidence for the claim. The cost is feasibility:
+scarcity measured per class had been the order's reason, after thirty-nine of two
+hundred worlds exhausted a class seated last, and the random order exhausts four of
+two hundred against the scarcity order's one
+(`probes/generator-step/random_order_sweep.py`; FINDINGS, `reservation-book`, run
+4), accepted on the criterion set before the sweep, near the scarcity order's rate
+and far from plan order's. A refused seed is a loud refusal naming the row and the
+rules, and the contract promises no world for every seed.
 
 **The tiered plan is one table per tier, each checked on its own slice.** Tier 2
 splits three qualification, three responsibility, two cardinality and two composite;
@@ -2598,10 +2650,45 @@ the event log step built the harness that fills the export, and what remains is 
 here and rewritten as each lands. Until then the registration stays a draft, and no
 reported measurement is made under it.
 
-**The measurement world.** The measured world is a new one from a seed drawn from a
-secret, with answer-neutral documents sealed into it at nested levels, and the
-generator does not produce it yet. Until it does, no level but the base one has a
-sealed membership for the level check to hold a run to.
+**The measurement world is generated by the tree, from a seed nobody has seen.** The
+seed of an embargoed world is thirty-two bytes of entropy stored as a repository
+secret and read by the generator from the job's environment as lowercase hex, parsed
+in memory and never passed through `argv`, printed, or transformed into any other
+form, because the committed scenario-specs digest and the semantic digest are
+functions of the seed and public code alone, and a small seed is found by
+enumeration against either. A disposable secret's masking was read in a passing and
+a failing log before the mechanism was trusted, and the first dispatch under the
+secret source with no secret set refused at the boundary and opened no store. The
+recipe's `--embargoed` is sealed into the spec's provenance as a disclosure mark,
+outside the semantic encoding, so every reader learns from the world what it may
+print and not from a flag an operator remembers: the proving command and the
+evaluation job print `withheld` for the digests and the retrieval-target counts, the
+audit sheet writes to an ignored path only and refuses an embargoed throwaway, a
+resume's mismatch names no digest, and a scan of the checkout for either digest
+fails the evaluation job on a hit, one more check that proves nothing about logs. A
+seed the reservation book refuses is replaced by a fresh draw, numbered and counted,
+never logged. After the last confirmatory measurement the seed and the recipe are
+published in FINDINGS.
+
+**A development world is sealed unprojected and read through planted readers.**
+Under `--unprojected` the generator opens the two stores alone, no vendor host and
+no credential, seals the truth pair, every document and the scenario specs by
+conditional create, reads each back, and writes no checkpoint and no manifest; a
+local root must be one the repository ignores or does not hold, checked
+structurally, since a sealed world carries its answer key. Three readers at the
+adapters level present the spec's plantings as the people, work and calendar systems
+under the three read ports, with a source and a reachability switch for the outage
+conditions, every record returned whatever its observable day since time is applied
+above the port; they are built from the truth store, so a development world is read
+by the benchmark's own principals and never by the deployed application. Such a
+world does not promote through the projector as it stands: a later projected sealing
+finds each document sealed, a found entity reports no receipt, no checkpoint holds
+one and the coverage proof refuses the run, which the test that was to prove
+promotion pins instead; the read-side locator recovery is the projection module's
+named revisit. The first one, seed 101 under the golden plan with twelve filler
+documents, sealed forty-one objects and proved thirty scenarios with retrieval
+targets of 33, 15 and 27 under the three answerable conditions, against the golden
+world's 31, 14 and 25 (FINDINGS, `generator-step`).
 
 **Export format 3 is built and the event log fills it; three things it names still
 lack their values.** The attribution table is a type in `core` with its matcher and
@@ -3495,8 +3582,9 @@ milestone needs a hostname to be unreachable.
   timezone planting beyond the one shape the organization affords, no unknown reason
   beyond an absent record, no pending or rejected leave, no `now` inside a leave.
   Trigger: the first evaluator showing which classes need more cover.
-- **Constructibility under the golden plan.** The one exhausted seed in two hundred
-  is a refusal the present contract allows; scarcity is measured per class, and a
+- **Constructibility under the golden plan.** Four exhausted seeds in two hundred
+  under the random construction order, one under the scarcity order it replaced, are
+  refusals the present contract allows; scarcity is measured per class, and a
   row-level key (class with modifiers) is a generalization to take on a loud
   refusal. Re-promoted the day a ruling says the plan must construct for every
   supported seed.

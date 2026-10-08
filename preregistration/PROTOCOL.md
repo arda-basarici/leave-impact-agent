@@ -63,6 +63,17 @@ registration requires to be zero. That zero is the measurement world's. Developm
 happens on other worlds, and a development run names its world itself: under a draft or a
 frozen file an evaluation is labelled development whatever world it is of.
 
+The seed is thirty-two bytes of entropy, created as a repository secret in lowercase hex
+through a path no terminal history keeps, and it reaches the generator through the job's
+environment, parsed in memory and never printed in any form. The two digests the repository
+commits for a world are functions of the seed and public code, so a seed anyone could
+enumerate is no secret. A seed the generator's reservation book refuses, about one in fifty
+under the golden plan, is replaced by a fresh draw; each draw is numbered and its outcome
+recorded, the value never. The world is sealed *embargoed*, a mark in its provenance: every
+reader withholds its digests and its retrieval-target counts from public output, the
+evaluation job scans the checkout for either digest and fails on a hit, and the seed and
+the recipe are published after the last confirmatory measurement on the world.
+
 The world generated first, version
 `7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4`, is a development
 world. Its recipe is public and its corpus is small enough that one call shown every
@@ -72,6 +83,49 @@ the live-iteration subset, the ones prompts are tried on first: `scenario_009`,
 drawn two from each tier by a seeded draw that read no expected answer, and are listed
 here as bare ids because a scenario's tier is sealed and this repository is public. The
 registration no longer holds them, and nothing in the evaluator treats them differently.
+
+A development world is sealed *unprojected*: nothing is written to the HR system, the
+tracker or the calendars, and the benchmark's own readers present the world's plantings as
+those three systems, so a development run takes the same read path as a measured one and
+the deployed application never sees the world. Its recipe is local. The generator reads
+four variables, the writer model, the checker model and their Bedrock region
+(`LEAVE_IMPACT_PROSE_WRITER_MODEL`, `LEAVE_IMPACT_PROSE_CHECKER_MODEL`,
+`LEAVE_IMPACT_BEDROCK_REGION`) and the store's root (`LEAVE_IMPACT_OBJECT_STORE_ROOT`),
+which must be a path the repository ignores, `data/object-store` here, or one outside it.
+`python -m leaveimpact.generator --seed N --world-start DATE --plan golden
+--filler-documents 12 --filler-sections 4 --unprojected` seals the world and prints its
+version; `--attempt-cap` raises the default of eight where a filler section exhausts it,
+which the first development world needed at sixteen. The proof, `python -m
+leaveimpact.evaluator prove --world-version HEX --run-id ID --run-attempt 1` over the same
+root, takes by hand the run identity the workflow reads from its runner. A rerun of a
+sealed version is `--resume HEX --unprojected` with the recipe repeated, and reseals
+nothing. A development world does not later become a projected one; it stays unprojected.
+
+## How the measurement world is accepted
+
+A draft, written at the generator step's close. The definitions, the sampling rules and the
+replacement rules are frozen with the procedure, before the world is drawn; the numbers are
+set at the freeze from development evidence. Nothing here is decided by a result.
+
+A *world defect* is one of three things: the validator refuses the world; a scope problem,
+a clause whose target the index cannot resolve to one artifact or a handle two artifacts
+share; or an audit finding that a planted fact is not readable from its carrier. Two
+repairs are kept apart. A defect in filler alone is repaired by regenerating the filler
+from a seed derived from the world's under the frozen filler recipe, with the planted
+content byte-identical, which the stripped-equality test proves; a defect in a planted part
+regenerates the world from a fresh draw. Neither repair is ever made on agent performance.
+
+Seeds are drawn one at a time, each thirty-two bytes of fresh entropy, numbered. Every
+rejection, by the reservation book or by a defect, is recorded with its number, its reason
+and the version of the world it refused, in a private record this repository does not hold;
+the accepted world's version is the one the registration binds. The number of draws before
+the procedure is abandoned is the freeze's.
+
+Before the world is bound, two samples are read by hand. A seeded draw of *k* scenarios per
+tier, stratified because the slots are shuffled, each traced by the world milestone's audit
+method (`AUDIT_METHODOLOGY.md`); and *n* filler documents drawn by the same rule and read
+by a person or by a model of another family than the writer's, checking that each reads as
+the requirement it imitates and names nothing of the world. *k* and *n* are the freeze's.
 
 ## What is measured
 
@@ -93,9 +147,14 @@ assignment and its reporting, never how a run turned out:
   runs did: whether the run met its outage, how it ended, whether it reported anything,
   and what its own reads make of what it reported.
 
-A *corpus level* is how much answer-neutral filler the world's documents are padded with.
-There are two, the base level with none and a padded one. The answers are the same at
-both. Which documents a level holds is sealed with the world.
+A *corpus level* is a name and a count the world seals. The world carries a ranked pool of
+answer-neutral documents that no scenario owns, and a level holds every scenario-owned
+document and the first so many of the pool, so levels are nested and the answers are the
+same at every one. There are two, the base level with none of the pool and a padded one.
+Membership is derived from the count and listed nowhere. The file records beside the padded
+level the size of the full-context request at that level in tokens, measured at the freeze
+under the registered counting rule, because the world is model-neutral and a token count is
+one tokenizer's.
 
 A *cell* is one system under one condition at one level. Every system runs the normal
 condition at both levels. The outages run at the base level only, so no outage is crossed
