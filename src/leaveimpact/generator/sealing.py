@@ -58,10 +58,25 @@ rulings). The job has two paths and this function is the same in both::
 A fresh run that lands on the same bytes hits the equal case; a fresh run while another
 version's unfinished vendor state holds the site is refused by the site inspection, by
 name, and the message says to resume or to clean.
+
+``seal_unprojected`` is the development path of the generator step's ruling 7: the same
+bundle proven the same way, the truth pair, every planted document and the scenario specs
+sealed by conditional create and read back, and no vendor touched, no checkpoint and no
+manifest. The documents are sealed because the corpus cache is filled from them and a
+development world exists to be searched; the manifest is not, because it is the
+projection's commit record and the serving rule reads a manifest beside a world as a
+completed projection, which an unprojected world must never pass for. The bytes at every
+key are the ones a projected sealing of the same world writes, and the truth pair and the
+specs hit the equal case under a later ``--resume``; the documents do not promote that way:
+the projector finds each one sealed, a found entity reports no receipt and no checkpoint
+holds one, so the coverage proof refuses the run (pinned in the sealing tests). Promoting
+a development world is the read-side locator recovery the projection module names as its
+revisit, and until then a development world stays a development world.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from typing import Protocol
 
@@ -75,6 +90,7 @@ from leaveimpact.adapters.object_store.layout import (
 )
 from leaveimpact.adapters.object_store.read import StoredObject
 from leaveimpact.adapters.object_store.write import ObjectWriter
+from leaveimpact.core.ids import WorldVersion
 from leaveimpact.generator.manifest_store import ObjectManifestStore
 from leaveimpact.generator.projection import world_entities
 from leaveimpact.generator.realize import Preparation, Prepared, realize
@@ -103,6 +119,15 @@ class SealedWorld:
     manifest_key: str
 
 
+@dataclass(frozen=True, slots=True)
+class UnprojectedWorld:
+    """What an unprojected sealing left: the version and the key of every object it holds,
+    the version id read back under each; no manifest exists for it."""
+
+    world_version: WorldVersion
+    object_versions: Mapping[str, str]
+
+
 def seal_world(
     world: WorldSpec,
     sealed: Bundle,
@@ -119,14 +144,8 @@ def seal_world(
             f"the bundle sealed as {sealed.world_version} is not the bundle of the world given"
         )
     version = sealed.world_version
-    truth_keys = {
-        world_spec_key(version): sealed.world_spec.content,
-        truth_manifest_key(version): sealed.truth_manifest.content,
-    }
-    documents = {
-        document_key(version, document.id): document_bytes(document)
-        for document in world_entities(world).documents
-    }
+    truth_keys = _truth_objects(sealed)
+    documents = _document_objects(world, version)
     for key, content in truth_keys.items():
         truth.put_if_absent(key, content)
 
@@ -148,6 +167,54 @@ def seal_world(
     final = replace(manifest, object_versions=versions)
     receipt = world_store.put_if_absent(world_manifest_key(version), manifest_bytes(final))
     return SealedWorld(final, receipt.version_id, world_manifest_key(version))
+
+
+def seal_unprojected(
+    world: WorldSpec, sealed: Bundle, truth: ObjectWriter, world_store: ObjectWriter
+) -> UnprojectedWorld:
+    """Seal ``sealed`` into ``truth`` and ``world_store`` and project nothing; the keys sealed.
+
+    ``sealed`` must be the bundle of ``world``; the reassembly proves it before any write.
+    The truth pair, then every planted document, then the scenario specs, each by
+    conditional create; then every key read back and its bytes compared.
+    """
+    if bundle(world) != sealed:
+        raise SealingRefused(
+            f"the bundle sealed as {sealed.world_version} is not the bundle of the world given"
+        )
+    version = sealed.world_version
+    truth_keys = _truth_objects(sealed)
+    world_keys = {
+        **_document_objects(world, version),
+        scenario_specs_key(version): sealed.scenario_specs.content,
+    }
+    for key, content in truth_keys.items():
+        truth.put_if_absent(key, content)
+    for key, content in world_keys.items():
+        world_store.put_if_absent(key, content)
+    versions: dict[str, str] = {}
+    for key, content in truth_keys.items():
+        versions[key] = _read_back(truth, key, content).version_id
+    for key, content in world_keys.items():
+        versions[key] = _read_back(world_store, key, content).version_id
+    return UnprojectedWorld(version, versions)
+
+
+def _truth_objects(sealed: Bundle) -> dict[str, bytes]:
+    """The two truth objects under their keys."""
+    version = sealed.world_version
+    return {
+        world_spec_key(version): sealed.world_spec.content,
+        truth_manifest_key(version): sealed.truth_manifest.content,
+    }
+
+
+def _document_objects(world: WorldSpec, version: WorldVersion) -> dict[str, bytes]:
+    """Every planted document's canonical bytes under its key."""
+    return {
+        document_key(version, document.id): document_bytes(document)
+        for document in world_entities(world).documents
+    }
 
 
 def _read_back(store: ObjectWriter, key: str, expected: bytes) -> StoredObject:

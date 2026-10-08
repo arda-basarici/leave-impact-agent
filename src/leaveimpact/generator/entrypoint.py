@@ -11,7 +11,9 @@ what depends on where the job runs — the vendor hosts and their credentials, t
 the region — is the environment, parsed by ``adapters.wiring`` for this job and the
 validator alike, since both read the same names (the entry-point ruling of the step 12
 interview). What is the generator's alone is the write side: the two stores as writers,
-which only this shell may open, so ``stores_for`` lives here and not in the shared wiring.
+which only this shell may open, so ``stores_for`` lives here and not in the shared wiring;
+and the guard on a local root, ``check_local_root``, since a world sealed there carries its
+answer key and the generator is the one shell that writes one.
 
 A missing or malformed value is ``ConfigurationError`` naming the flag or variable and
 what was expected, raised before any credential is used or any host is touched.
@@ -21,8 +23,10 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from pathlib import Path
 
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.adapters.object_store.s3 import s3_client
@@ -33,6 +37,7 @@ from leaveimpact.adapters.wiring import (
     PREFIX,
     ConfigurationError,
     Deployment,
+    Stores,
     deployment_from_env,
 )
 from leaveimpact.core.ids import WorldVersion
@@ -48,6 +53,8 @@ __all__ = [
     "ConfigurationError",
     "Deployment",
     "ProseModels",
+    "Stores",
+    "check_local_root",
     "deployment_from_env",
     "parse_recipe",
     "prose_models_for",
@@ -66,6 +73,8 @@ def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> W
     rule and nothing of the value. ``--embargoed`` seals the world's disclosure mark and
     needs the secret source, since an embargo over a seed given in the open is one an
     enumeration undoes. With no ``env`` the secret source refuses as unset.
+    ``--unprojected`` seals the world to the stores and projects nothing, the development
+    path of the generator step's ruling 7; it is a run control and reaches no sealed file.
     """
     parser = argparse.ArgumentParser(
         prog="python -m leaveimpact.generator",
@@ -142,6 +151,11 @@ def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> W
         metavar="WORLD_VERSION",
         help="continue sealing the named realization instead of generating a fresh one",
     )
+    parser.add_argument(
+        "--unprojected",
+        action="store_true",
+        help="seal the world to the stores and project it onto no vendor (a development world)",
+    )
     try:
         parsed = parser.parse_args(argv)
     except (argparse.ArgumentError, SystemExit) as error:
@@ -180,7 +194,15 @@ def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> W
     except ValueError as error:
         raise ConfigurationError(f"the organization dials are not consistent: {error}") from error
     return WorldRecipe(
-        seed, params, world_start, parsed.attempt_cap, resume, parsed.plan, filler, disclosure
+        seed,
+        params,
+        world_start,
+        parsed.attempt_cap,
+        resume,
+        parsed.plan,
+        filler,
+        disclosure,
+        parsed.unprojected,
     )
 
 
@@ -268,14 +290,45 @@ def _required(env: Mapping[str, str], name: str) -> str:
     return value
 
 
-def stores_for(deployment: Deployment) -> tuple[ObjectWriter, ObjectWriter]:
-    """The truth and world writers the deployment names, in that order; the generator's alone."""
-    if deployment.local_root is not None:
-        root = deployment.local_root
+def check_local_root(root: Path) -> None:
+    """Refuse ``root`` unless it lies outside any git repository or that repository ignores it.
+
+    A world sealed to a local root carries its answer key, the truth pair, so the root is
+    never tracked territory: the check is structural, as the audit sheet's is, and not a
+    convention the operator remembers. The repository is the one ``root`` is under, found
+    from its nearest existing ancestor; a root under no repository is fine, which is what
+    a temporary directory is. ``ConfigurationError`` names the path and the repository.
+    """
+    anchor = root.resolve()
+    while not anchor.exists():
+        anchor = anchor.parent
+    toplevel = _git(anchor, "rev-parse", "--show-toplevel")
+    if toplevel.returncode != 0:
+        return
+    repository = toplevel.stdout.decode("utf-8", "replace").strip()
+    if _git(Path(repository), "check-ignore", "-q", str(root.resolve())).returncode == 0:
+        return
+    raise ConfigurationError(
+        f"{PREFIX}OBJECT_STORE_ROOT names {root}, which {repository} does not ignore; a "
+        "sealed world's store goes to an ignored path or outside the repository"
+    )
+
+
+def _git(directory: Path, *arguments: str) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        ["git", "-C", str(directory), *arguments], capture_output=True, check=False
+    )
+
+
+def stores_for(stores: Stores) -> tuple[ObjectWriter, ObjectWriter]:
+    """The truth and world writers where ``stores`` says they are, in that order; the
+    generator's alone."""
+    if stores.local_root is not None:
+        root = stores.local_root
         return LocalObjectWriter(root / "truth"), LocalObjectWriter(root / "world")
-    assert deployment.buckets is not None, "a deployment names a root or the buckets"
-    client = s3_client(deployment.buckets.region)
+    assert stores.buckets is not None, "the stores are a root or the buckets"
+    client = s3_client(stores.buckets.region)
     return (
-        S3ObjectWriter(client, deployment.buckets.truth),
-        S3ObjectWriter(client, deployment.buckets.world),
+        S3ObjectWriter(client, stores.buckets.truth),
+        S3ObjectWriter(client, stores.buckets.world),
     )

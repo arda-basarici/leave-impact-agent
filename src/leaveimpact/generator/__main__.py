@@ -11,7 +11,10 @@ preparation is wired on the hosts, and the sealing sequence runs. RESUME (``--re
 <version>``): the sealed realization is rebuilt and proven from the truth bucket instead of
 generated, and the same
 sealing sequence continues from wherever the checkpoint left it (the step 14 rulings in
-DESIGN, "Truth before prose").
+DESIGN, "Truth before prose"). UNPROJECTED (``--unprojected``, with either): the stores
+alone are read from the environment, no vendor host or credential, a local root is checked
+to be ignored or outside the repository, and the unprojected sealing seals the truth pair,
+the documents and the specs and projects nothing (the generator step's ruling 7).
 
 What the job prints is what a reader of the Actions log needs and nothing that must not be
 there: the materializer's lines — target ids, attempt numbers, guard names, counts — the
@@ -31,8 +34,10 @@ import sys
 import time
 from collections.abc import Sequence
 
+from leaveimpact.adapters.wiring import Stores, stores_from_env
 from leaveimpact.generator.entrypoint import (
     ConfigurationError,
+    check_local_root,
     deployment_from_env,
     parse_recipe,
     prose_models_for,
@@ -42,21 +47,28 @@ from leaveimpact.generator.entrypoint import (
 from leaveimpact.generator.fresh import fresh_world
 from leaveimpact.generator.metrics import TimedObjectWriter
 from leaveimpact.generator.resume import resume_world
-from leaveimpact.generator.sealing import seal_world
+from leaveimpact.generator.sealing import seal_unprojected, seal_world
 from leaveimpact.generator.systems import AdapterPreparation
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     try:
         recipe = parse_recipe(sys.argv[1:] if argv is None else argv, os.environ)
-        deployment = deployment_from_env(os.environ)
+        deployment = None if recipe.unprojected else deployment_from_env(os.environ)
+        stores = (
+            stores_from_env(os.environ)
+            if deployment is None
+            else Stores(deployment.buckets, deployment.local_root)
+        )
+        if stores.local_root is not None:
+            check_local_root(stores.local_root)
         models = prose_models_from_env(os.environ)
     except ConfigurationError as error:
         print(f"leaveimpact.generator: {error}", file=sys.stderr)
         return 2
 
     started = time.perf_counter()
-    truth, world_store = stores_for(deployment)
+    truth, world_store = stores_for(stores)
     if recipe.resume is not None:
         print(f"resuming={recipe.resume}")
         world, sealed = resume_world(recipe.resume, truth)
@@ -74,6 +86,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"world_version={sealed.world_version}", flush=True)
 
     timed = TimedObjectWriter(world_store)
+    if deployment is None:
+        unprojected = seal_unprojected(world, sealed, truth, timed)
+        elapsed = time.perf_counter() - started
+        for line in timed.summary(elapsed).lines():
+            print(line)
+        print(f"run_seconds={elapsed:.1f}")
+        print("unprojected=true")
+        print(f"objects_sealed={len(unprojected.object_versions)}")
+        print(f"world_version={unprojected.world_version}")
+        return 0
     with AdapterPreparation(deployment.hosts, timed, world, sealed.world_version) as preparation:
         result = seal_world(world, sealed, preparation, truth, timed)
     elapsed = time.perf_counter() - started

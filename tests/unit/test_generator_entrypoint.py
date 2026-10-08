@@ -2,10 +2,14 @@
 defaulting to the reference parameters, a missing or malformed value named with what was
 expected, the organization's own consistency rule surfacing through the boundary; and the
 writers opened where the deployment says, the local twins under ``truth/`` and ``world/``
-(the deployment's own parsing is the shared wiring's, tested there)."""
+(the deployment's own parsing is the shared wiring's, tested there); the unprojected flag
+read as the recipe's run control; and the local root's guard, which passes a root outside
+any repository or one the repository ignores and refuses a tracked one naming both."""
 
 from __future__ import annotations
 
+import re
+import subprocess
 import traceback
 from datetime import date
 from pathlib import Path
@@ -15,6 +19,8 @@ import pytest
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.generator.entrypoint import (
     ConfigurationError,
+    Stores,
+    check_local_root,
     deployment_from_env,
     parse_recipe,
     prose_models_from_env,
@@ -76,7 +82,7 @@ def test_a_malformed_recipe_names_the_flag_or_the_rule(argv: list[str], expected
 
 def test_the_writers_open_under_the_local_root_the_deployment_names(tmp_path: Path) -> None:
     deployment = deployment_from_env(local_environment(tmp_path))
-    truth, world = stores_for(deployment)
+    truth, world = stores_for(Stores(deployment.buckets, deployment.local_root))
     assert isinstance(truth, LocalObjectWriter) and isinstance(world, LocalObjectWriter)
     assert (truth.root, world.root) == (tmp_path / "store" / "truth", tmp_path / "store" / "world")
 
@@ -180,11 +186,45 @@ def test_a_seed_refusal_names_the_rule_and_carries_nothing_of_the_value(
     assert expected in printed
     # The log a refusal prints to is public: no form of the value, not the whole, not a
     # prefix, not its decimal, not its length, and nothing from the environment it read.
+    # Each form is searched as a whole number or string, not as a substring of a line
+    # number the traceback prints (a two-digit length sat inside "line 163" once).
     given = env.get("LEAVE_IMPACT_SEED_HEX", STAND_IN_HEX)
     for form in (given, given[:8], str(int(STAND_IN_HEX, 16)), str(len(given))):
-        assert form not in printed, form
+        assert re.search(rf"(?<![0-9a-f]){re.escape(form)}(?![0-9a-f])", printed) is None, form
 
 
 def test_without_an_environment_the_secret_source_refuses_as_unset() -> None:
     with pytest.raises(ConfigurationError, match="LEAVE_IMPACT_SEED_HEX is not set"):
         parse_recipe(FROM_ENV)
+
+
+def test_the_unprojected_flag_is_a_run_control_read_from_the_command_line() -> None:
+    base = ["--seed", "7", "--world-start", "2026-01-05"]
+    assert parse_recipe(base).unprojected is False
+    assert parse_recipe([*base, "--unprojected"]).unprojected is True
+
+
+def _repository(path: Path) -> Path:
+    path.mkdir()
+    subprocess.run(["git", "-C", str(path), "init", "-q"], check=True)
+    return path
+
+
+def test_a_root_outside_any_repository_passes_the_guard(tmp_path: Path) -> None:
+    """The suite's temporary directory is under no repository, which is the assumption."""
+    check_local_root(tmp_path / "store")
+    check_local_root(tmp_path / "not" / "yet" / "made")
+
+
+def test_a_root_the_repository_ignores_passes_and_a_tracked_one_refuses_naming_both(
+    tmp_path: Path,
+) -> None:
+    repository = _repository(tmp_path / "repo")
+    (repository / ".gitignore").write_text("data/\n", encoding="utf-8")
+    check_local_root(repository / "data" / "object-store")
+    tracked = repository / "worlds"
+    with pytest.raises(ConfigurationError) as refused:
+        check_local_root(tracked)
+    message = str(refused.value)
+    assert str(tracked) in message and "does not ignore" in message
+    assert repository.name in message

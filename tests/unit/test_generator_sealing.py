@@ -4,7 +4,10 @@ the documents seal only after the postflight so a refused site leaves none, the 
 the last object written and vouches for exactly the sealed keys with the version ids read
 back, and a rerun of a sealed world writes nothing and yields the same bytes; a truth object
 whose bytes changed between attempts is refused before any vendor call, and a sealed object
-read back with other bytes is refused before the manifest.
+read back with other bytes is refused before the manifest. The unprojected sealing seals
+the truth pair, every document and the specs and nothing else, no checkpoint and no manifest;
+a rerun writes nothing; the same refusals hold; and what it sealed loads through the
+evaluator's loader, which is the model-free half of ruling 7's acceptance.
 
 No Tier 1 class plants a document — prose arrives with the materializer — so the seed world
 seals none; the document-order claims are proven on the same world with one document added
@@ -31,9 +34,16 @@ from leaveimpact.adapters.object_store.write import ObjectConflict, PutOutcome, 
 from leaveimpact.core.entities import Document, DocumentSection, Employee
 from leaveimpact.core.enums import DocumentKind, Source
 from leaveimpact.core.ids import EmployeeId, WorkItemId, clause_id, document_id
+from leaveimpact.evaluator.sealed_world import load_sealed_world
 from leaveimpact.generator.projection import Systems, WorldEntities, world_entities
 from leaveimpact.generator.realize import Prepared, ProjectionRefused, frappe_company, world_key
-from leaveimpact.generator.sealing import SealedWorld, SealingRefused, seal_world
+from leaveimpact.generator.sealing import (
+    SealedWorld,
+    SealingRefused,
+    UnprojectedWorld,
+    seal_unprojected,
+    seal_world,
+)
 from leaveimpact.world import DEFAULT_PARAMS, WorldSpec, assemble_world, bundle
 from leaveimpact.world.artifacts import Bundle
 from tests.unit.in_memory_object_store import InMemoryObjectStore
@@ -274,3 +284,100 @@ def test_a_world_with_a_pool_seals_one_object_per_filler_document_and_receipts_e
     assert keys <= set(buckets.world.objects)
     assert keys <= set(result.manifest.receipts.documents.documents.values())
     assert keys <= set(result.manifest.object_versions)
+
+
+# --- The unprojected sealing -----------------------------------------------------------------
+
+
+def run_unprojected(world: WorldSpec, sealed: Bundle, buckets: Buckets) -> UnprojectedWorld:
+    return seal_unprojected(world, sealed, buckets.truth, buckets.world)
+
+
+def test_an_unprojected_sealing_seals_the_truth_pair_the_documents_and_the_specs_and_no_more(
+    world: WorldSpec, sealed: Bundle, with_a_document: Document
+) -> None:
+    buckets = Buckets()
+    result = run_unprojected(world, sealed, buckets)
+    version = sealed.world_version
+
+    document = layout.document_key(version, POLICY.id)
+    assert buckets.truth.list_keys("") == (
+        layout.truth_manifest_key(version),
+        layout.world_spec_key(version),
+    )
+    assert buckets.world.list_keys("") == (document, layout.scenario_specs_key(version))
+    assert buckets.world.list_keys("preparing/") == ()
+    assert buckets.world.get(layout.world_manifest_key(version)) is None
+    assert result.world_version == version
+    assert set(result.object_versions) == {
+        layout.world_spec_key(version),
+        layout.truth_manifest_key(version),
+        layout.scenario_specs_key(version),
+        document,
+    }
+    for key, version_id in result.object_versions.items():
+        store = (
+            buckets.truth if key.startswith(("world-spec/", "truth-manifest/")) else buckets.world
+        )
+        stored = store.get(key)
+        assert stored is not None and stored.version_id == version_id
+
+
+def test_an_unprojected_rerun_writes_nothing_and_a_projected_sealing_over_it_refuses(
+    world: WorldSpec, sealed: Bundle, with_a_document: Document
+) -> None:
+    buckets = Buckets()
+    first = run_unprojected(world, sealed, buckets)
+    writes_before = (len(buckets.truth.writes), len(buckets.world.writes))
+    again = run_unprojected(world, sealed, buckets)
+    assert again == first
+    assert (len(buckets.truth.writes), len(buckets.world.writes)) == writes_before
+
+    # The same world projected later finds its documents sealed, and a found entity reports
+    # no receipt while no checkpoint holds one, so the coverage proof refuses: a development
+    # world does not promote through the projector as it stands (the sealing docstring).
+    with pytest.raises(ProjectionRefused, match="no receipt for"):
+        run(world, sealed, buckets)
+    assert buckets.world.get(layout.world_manifest_key(sealed.world_version)) is None
+    assert len(buckets.truth.writes) == writes_before[0]
+
+
+def test_an_unprojected_sealing_refuses_changed_truth_and_a_foreign_bundle_before_any_write(
+    world: WorldSpec, sealed: Bundle
+) -> None:
+    buckets = Buckets()
+    buckets.truth.put_if_absent(layout.world_spec_key(sealed.world_version), b"other bytes")
+    with pytest.raises(ObjectConflict):
+        run_unprojected(world, sealed, buckets)
+    assert buckets.world.objects == {}, "no world write after the truth refused"
+
+    other = bundle(assemble_world(8, DEFAULT_PARAMS, date(2026, 1, 1)))
+    empty = Buckets()
+    with pytest.raises(SealingRefused, match="not the bundle of the world"):
+        run_unprojected(world, other, empty)
+    assert empty.truth.objects == {} and empty.world.objects == {}
+
+
+def test_an_unprojected_object_read_back_with_other_bytes_is_refused(
+    world: WorldSpec, sealed: Bundle
+) -> None:
+    class Tampering(InMemoryObjectStore):
+        def put_if_absent(self, key: str, content: bytes) -> PutReceipt:
+            receipt = super().put_if_absent(key, content)
+            if key.endswith("scenario-specs.json") and receipt.outcome is PutOutcome.CREATED:
+                self.objects[key] = StoredObject(key, b"swapped", "v-x")
+            return receipt
+
+    buckets = Buckets(world=Tampering())
+    with pytest.raises(SealingRefused, match="read back with other bytes"):
+        run_unprojected(world, sealed, buckets)
+
+
+def test_what_an_unprojected_sealing_left_loads_through_the_evaluator(
+    world: WorldSpec, sealed: Bundle, with_a_document: Document
+) -> None:
+    buckets = Buckets()
+    run_unprojected(world, sealed, buckets)
+    loaded = load_sealed_world(sealed.world_version, buckets.truth, buckets.world)
+    assert loaded.version == sealed.world_version
+    assert len(loaded.scenarios) == len(world.scenarios)
