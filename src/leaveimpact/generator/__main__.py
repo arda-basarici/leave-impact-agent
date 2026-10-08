@@ -24,7 +24,8 @@ body of text, a credential, a host or a manifest. A fault in the raw configurati
 with status 2 and its message; once the typed configuration is built, everything after it —
 a target that exhausted its cap, a model that could not be used, a bucket that turns out
 not to exist — propagates as the loud operational failure it is, with its own message and
-the store's or the seam's fault taxonomy.
+the store's or the seam's fault taxonomy. A cap exhausted is the one failure that has paid
+for model calls, so its metrics are printed before it propagates.
 """
 
 from __future__ import annotations
@@ -45,6 +46,7 @@ from leaveimpact.generator.entrypoint import (
     stores_for,
 )
 from leaveimpact.generator.fresh import fresh_world
+from leaveimpact.generator.materialize import MaterializationFailed
 from leaveimpact.generator.metrics import TimedObjectWriter
 from leaveimpact.generator.resume import resume_world
 from leaveimpact.generator.sealing import seal_unprojected, seal_world
@@ -74,7 +76,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         world, sealed = resume_world(recipe.resume, truth)
     else:
         writer, checker = prose_models_for(models)
-        fresh = fresh_world(recipe, writer, checker, print)
+        try:
+            fresh = fresh_world(recipe, writer, checker, print)
+        except MaterializationFailed as failure:
+            # A target that exhausted its cap ends the run before any write, and the
+            # attempts and tokens it paid for are counted nowhere else: the first
+            # unprojected generation ran eighty-one attempts and printed no count
+            # (2026-10-08). The counts are the public log's; the texts never are.
+            for line in failure.metrics.lines():
+                print(line)
+            raise
         world, sealed = fresh.world, fresh.bundle
         # Printed before sealing begins: the prose stage is over, and a run that seals and
         # then fails in projection must not take the stage's numbers with it (the
