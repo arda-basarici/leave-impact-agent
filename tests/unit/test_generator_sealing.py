@@ -326,6 +326,10 @@ def test_an_unprojected_sealing_seals_the_truth_pair_the_documents_and_the_specs
     )
     assert buckets.world.list_keys("preparing/") == ()
     assert buckets.world.get(layout.world_manifest_key(version)) is None
+    assert buckets.world.writes[-1].key == layout.levels_key(version), (
+        "the levels object is the last write: the completion record a development world is "
+        "admitted on"
+    )
     assert result.world_version == version
     assert set(result.object_versions) == {
         layout.world_spec_key(version),

@@ -191,6 +191,9 @@ def seal_unprojected(
         )
     version = sealed.world_version
     truth_keys = _truth_objects(sealed)
+    # The documents, then the specs, then the levels object last: with no manifest on this
+    # path, the levels object is the completion record the serving rule admits a
+    # development world on, so a sealing that stops earlier is never served.
     world_keys = {**_document_objects(world, version), **_served_objects(world, sealed)}
     for key, content in truth_keys.items():
         truth.put_if_absent(key, content)
