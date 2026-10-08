@@ -1,0 +1,1615 @@
+[
+  {
+    "label": "N1 handbook, names nothing",
+    "expected": "pass",
+    "text": "Before any production change, confirm the change window with the on-call rotation and record the rollback plan in the change ticket. A change without a rollback plan is deferred to the next window.",
+    "scanner": [],
+    "propositions": [],
+    "other_claims": [
+      "Before any production change, confirm the change window with the on-call rotation and record the rollback plan in the change ticket.",
+      "A change without a rollback plan is deferred to the next window."
+    ],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "other_claim",
+        "message": "other claim: Before any production change, confirm the change window with the on-call rotation and record the rollback plan in the change ticket."
+      },
+      {
+        "reason": "other_claim",
+        "message": "other claim: A change without a rollback plan is deferred to the next window."
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [],
+    "usage": {
+      "input_tokens": 1711,
+      "output_tokens": 64,
+      "latency_ms": 1239
+    }
+  },
+  {
+    "label": "N2 near-miss requirement, fictional release",
+    "expected": "pass as decoy",
+    "text": "The Northwind release cutover needs an engineer with Kafka experience on the bridge for the whole window; the release lead confirms the rollback steps before the freeze lifts.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "kafka"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "names_responsible",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "requires of clause_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "names_responsible of clause_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "requires of the target: decoy",
+      "names_responsible of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1704,
+      "output_tokens": 118,
+      "latency_ms": 1224
+    }
+  },
+  {
+    "label": "N3 near-miss requirement, fictional account",
+    "expected": "pass as decoy",
+    "text": "Handover of the Halcyon account notes requires a second reviewer with PostgreSQL experience, and the reviewer signs the handover checklist.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "postgresql"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "names_responsible",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "requires of clause_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "names_responsible of clause_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "requires of the target: decoy",
+      "names_responsible of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1695,
+      "output_tokens": 114,
+      "latency_ms": 1170
+    }
+  },
+  {
+    "label": "F1 fictional person's skill, declared",
+    "expected": "pass as decoy",
+    "text": "Mara Quill has Kafka experience and takes the first review of any Northwind release change.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "kafka",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "names_responsible",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [
+      "Mara Quill takes the first review of any Northwind release change."
+    ],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "names_responsible of clause_901: not a required or allowed fact"
+      },
+      {
+        "reason": "other_claim",
+        "message": "other claim: Mara Quill takes the first review of any Northwind release change."
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "has_skill of emp_901: fictional, decoy",
+      "names_responsible of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1689,
+      "output_tokens": 121,
+      "latency_ms": 1130
+    }
+  },
+  {
+    "label": "F2 fictional person's skill, undeclared",
+    "expected": "refused: unknown subject",
+    "text": "Tobias Wren has Kafka experience and takes the first review of any Northwind release change.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": null,
+        "predicate": "has_skill",
+        "value": "kafka",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [
+      "owns_work_item"
+    ],
+    "current_containment": [
+      {
+        "reason": "unknown_subject",
+        "message": "has_skill: subject not in the entity list"
+      },
+      {
+        "reason": "untyped_proposition",
+        "message": "owns_work_item: a proposition the checker could not type"
+      }
+    ],
+    "decoy_verdict": "refused",
+    "decoy_notes": [
+      "has_skill: unknown subject"
+    ],
+    "usage": {
+      "input_tokens": 1689,
+      "output_tokens": 102,
+      "latency_ms": 950
+    }
+  },
+  {
+    "label": "M1 real employee's skill",
+    "expected": "refused",
+    "text": "Deniz Haddad has Kafka experience and reviews the cutover plan.",
+    "scanner": [
+      {
+        "reason": "foreign_name",
+        "message": "names employee emp_001 outside the brief (1)"
+      }
+    ],
+    "propositions": [
+      {
+        "subject": null,
+        "predicate": "has_skill",
+        "value": "kafka",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [
+      "names_responsible"
+    ],
+    "current_containment": [
+      {
+        "reason": "unknown_subject",
+        "message": "has_skill: subject not in the entity list"
+      },
+      {
+        "reason": "untyped_proposition",
+        "message": "names_responsible: a proposition the checker could not type"
+      }
+    ],
+    "decoy_verdict": "refused",
+    "decoy_notes": [
+      "has_skill: unknown subject"
+    ],
+    "usage": {
+      "input_tokens": 1684,
+      "output_tokens": 95,
+      "latency_ms": 896
+    }
+  },
+  {
+    "label": "M2 real employee owns the fictional release",
+    "expected": "refused",
+    "text": "Deniz Haddad owns the Northwind release and signs off its rollback plan.",
+    "scanner": [
+      {
+        "reason": "foreign_name",
+        "message": "names employee emp_001 outside the brief (1)"
+      }
+    ],
+    "propositions": [],
+    "other_claims": [],
+    "untyped": [
+      "owns_work_item",
+      "names_responsible"
+    ],
+    "current_containment": [
+      {
+        "reason": "untyped_proposition",
+        "message": "owns_work_item: a proposition the checker could not type"
+      },
+      {
+        "reason": "untyped_proposition",
+        "message": "names_responsible: a proposition the checker could not type"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [],
+    "usage": {
+      "input_tokens": 1687,
+      "output_tokens": 102,
+      "latency_ms": 990
+    }
+  },
+  {
+    "label": "M3 real employee's availability",
+    "expected": "refused",
+    "text": "Deniz Haddad is on leave for the next two weeks, so the Northwind release waits for the next window.",
+    "scanner": [
+      {
+        "reason": "foreign_name",
+        "message": "names employee emp_001 outside the brief (1)"
+      }
+    ],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "work_item",
+          "id": "ticket_901"
+        },
+        "predicate": "work_item_status",
+        "value": "to_do",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [
+      "Deniz Haddad is on leave for the next two weeks.",
+      "The Northwind release waits for the next window."
+    ],
+    "untyped": [
+      "on_leave"
+    ],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "work_item_status of ticket_901: not a required or allowed fact"
+      },
+      {
+        "reason": "other_claim",
+        "message": "other claim: Deniz Haddad is on leave for the next two weeks."
+      },
+      {
+        "reason": "other_claim",
+        "message": "other claim: The Northwind release waits for the next window."
+      },
+      {
+        "reason": "untyped_proposition",
+        "message": "on_leave: a proposition the checker could not type"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "work_item_status of ticket_901: fictional, decoy"
+    ],
+    "usage": {
+      "input_tokens": 1694,
+      "output_tokens": 135,
+      "latency_ms": 1186
+    }
+  },
+  {
+    "label": "M4 requirement touching a planted title",
+    "expected": "refused",
+    "text": "Mobile Release: rotate the signing keys ahead of the freeze requires an engineer with Kafka experience before the change is approved.",
+    "scanner": [
+      {
+        "reason": "foreign_name",
+        "message": "names work_item ticket_018 outside the brief (1)"
+      }
+    ],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "kafka"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "requires of clause_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "requires of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1694,
+      "output_tokens": 75,
+      "latency_ms": 797
+    }
+  },
+  {
+    "label": "W1 writer, the brief's own request (no facts)",
+    "expected": "?",
+    "text": "Mara Quill owns the Northwind release work item. Mara has skills in Kafka, PostgreSQL, Kubernetes, Terraform, AWS, Google Cloud, Python, Go, Java, TypeScript, React, GraphQL, Redis, Elasticsearch, Grafana, Airflow, Spark, and dbt.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "work_item",
+          "id": "ticket_901"
+        },
+        "predicate": "owns_work_item",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "kafka",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "postgresql",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "kubernetes",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "terraform",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "aws",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "gcp",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "python",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "go",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "java",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "typescript",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "react",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "graphql",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "redis",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "elasticsearch",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "grafana",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "airflow",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "spark",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "dbt",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "owns_work_item of ticket_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "owns_work_item of ticket_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy"
+    ],
+    "usage": {
+      "input_tokens": 1728,
+      "output_tokens": 777,
+      "latency_ms": 5584
+    }
+  },
+  {
+    "label": "W2 writer, the brief's own request (no facts)",
+    "expected": "?",
+    "text": "Mara Quill owns the Northwind release work item. Mara has skills in Kafka, PostgreSQL, Kubernetes, Terraform, AWS, Google Cloud, Python, Go, Java, TypeScript, React, GraphQL, Redis, Elasticsearch, Grafana, Airflow, Spark, and dbt.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "work_item",
+          "id": "ticket_901"
+        },
+        "predicate": "owns_work_item",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "kafka",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "postgresql",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "kubernetes",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "terraform",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "aws",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "gcp",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "python",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "go",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "java",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "typescript",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "react",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "graphql",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "redis",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "elasticsearch",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "grafana",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "airflow",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "spark",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "dbt",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "owns_work_item of ticket_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "owns_work_item of ticket_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy",
+      "has_skill of emp_901: fictional, decoy"
+    ],
+    "usage": {
+      "input_tokens": 1728,
+      "output_tokens": 777,
+      "latency_ms": 5101
+    }
+  },
+  {
+    "label": "W3 writer, near-miss instruction",
+    "expected": "?",
+    "text": "The Northwind release cutover requires the operator to have Kubernetes. Mara Quill owns the Northwind release.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "predicate": "has_skill",
+        "value": "kubernetes",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "work_item",
+          "id": "ticket_901"
+        },
+        "predicate": "owns_work_item",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "kubernetes"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "has_skill of emp_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "owns_work_item of ticket_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "requires of clause_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "has_skill of emp_901: fictional, decoy",
+      "owns_work_item of ticket_901: fictional, decoy",
+      "requires of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1692,
+      "output_tokens": 160,
+      "latency_ms": 1288
+    }
+  },
+  {
+    "label": "W4 writer, near-miss instruction",
+    "expected": "?",
+    "text": "The Northwind release cutover requires the operator to have Kubernetes. The Halcyon account notes document records this requirement.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "kubernetes"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "names_responsible",
+        "value": {
+          "kind": "employee",
+          "id": "emp_901"
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "requires of clause_901: not a required or allowed fact"
+      },
+      {
+        "reason": "not_permitted_fact",
+        "message": "names_responsible of clause_901: not a required or allowed fact"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "requires of the target: decoy",
+      "names_responsible of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1694,
+      "output_tokens": 118,
+      "latency_ms": 1194
+    }
+  },
+  {
+    "label": "W5 writer, near-miss instruction",
+    "expected": "?",
+    "text": "The Northwind release cutover requires the operator to have Kubernetes. This requirement is documented in Halcyon account notes.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_901"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "kubernetes"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [],
+    "untyped": [
+      "in_component"
+    ],
+    "current_containment": [
+      {
+        "reason": "not_permitted_fact",
+        "message": "requires of clause_901: not a required or allowed fact"
+      },
+      {
+        "reason": "untyped_proposition",
+        "message": "in_component: a proposition the checker could not type"
+      }
+    ],
+    "decoy_verdict": "pass",
+    "decoy_notes": [
+      "requires of the target: decoy"
+    ],
+    "usage": {
+      "input_tokens": 1694,
+      "output_tokens": 118,
+      "latency_ms": 987
+    }
+  },
+  {
+    "label": "R1 the leaver is responsible",
+    "expected": "refused",
+    "probe": "round 3, 2026-10-08: the production brief of doc_027 (seed 7, golden, FillerPlan(6, 1))",
+    "document_id": "doc_027",
+    "text": "The employee taking leave is responsible for the Kelp release cutover and must be available on the bridge for the whole window.",
+    "scanner": [],
+    "propositions": [],
+    "other_claims": [
+      "The employee taking leave must be available on the bridge for the whole window."
+    ],
+    "untyped": [
+      "on_leave"
+    ],
+    "unresolved": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "names_responsible",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "work_item",
+          "id": "ticket_9011"
+        },
+        "predicate": "owns_work_item",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "usage": {
+      "input_tokens": 1580,
+      "output_tokens": 162,
+      "latency_ms": 1287
+    },
+    "brief": {
+      "document": {
+        "id": "doc_027",
+        "title": "Cutover checklist: Kelp release",
+        "kind": "runbook"
+      },
+      "clause": "clause_027",
+      "register": "filler_requirement",
+      "fictional": [
+        {
+          "kind": "work_item",
+          "id": "ticket_9011",
+          "form": "Kelp release"
+        }
+      ],
+      "skills": [
+        {
+          "kind": "skill",
+          "id": "elasticsearch",
+          "form": "Elasticsearch"
+        },
+        {
+          "kind": "skill",
+          "id": "go",
+          "form": "Go"
+        },
+        {
+          "kind": "skill",
+          "id": "kafka",
+          "form": "Kafka"
+        }
+      ],
+      "minted_by": "the three-book mint of 2026-10-08 (release, client, handbook) at seed 7, golden, FillerPlan(6, 1); the handbook book was dropped the same day and the mint's draws moved, so the brief is recorded here rather than re-minted"
+    }
+  },
+  {
+    "label": "R2 their manager signs off",
+    "expected": "refused",
+    "probe": "round 3, 2026-10-08: the production brief of doc_027 (seed 7, golden, FillerPlan(6, 1))",
+    "document_id": "doc_027",
+    "text": "Their manager signs off the Kelp release cutover before the change window opens, and no step runs without that sign-off.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [
+      "Their manager signs off the Kelp release cutover before the change window opens, and no step runs without that sign-off."
+    ],
+    "untyped": [],
+    "unresolved": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "names_responsible",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "usage": {
+      "input_tokens": 1581,
+      "output_tokens": 139,
+      "latency_ms": 2074
+    },
+    "brief": {
+      "document": {
+        "id": "doc_027",
+        "title": "Cutover checklist: Kelp release",
+        "kind": "runbook"
+      },
+      "clause": "clause_027",
+      "register": "filler_requirement",
+      "fictional": [
+        {
+          "kind": "work_item",
+          "id": "ticket_9011",
+          "form": "Kelp release"
+        }
+      ],
+      "skills": [
+        {
+          "kind": "skill",
+          "id": "elasticsearch",
+          "form": "Elasticsearch"
+        },
+        {
+          "kind": "skill",
+          "id": "go",
+          "form": "Go"
+        },
+        {
+          "kind": "skill",
+          "id": "kafka",
+          "form": "Kafka"
+        }
+      ],
+      "minted_by": "the three-book mint of 2026-10-08 (release, client, handbook) at seed 7, golden, FillerPlan(6, 1); the handbook book was dropped the same day and the mint's draws moved, so the brief is recorded here rather than re-minted"
+    }
+  },
+  {
+    "label": "R3 an unresolved owner",
+    "expected": "refused",
+    "probe": "round 3, 2026-10-08: the production brief of doc_027 (seed 7, golden, FillerPlan(6, 1))",
+    "document_id": "doc_027",
+    "text": "The owner of the Kelp release approves the window and confirms the rollback plan is recorded before the first step.",
+    "scanner": [],
+    "propositions": [],
+    "other_claims": [],
+    "untyped": [],
+    "unresolved": [
+      {
+        "subject": {
+          "kind": "work_item",
+          "id": "ticket_9011"
+        },
+        "predicate": "owns_work_item",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "names_responsible",
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "usage": {
+      "input_tokens": 1578,
+      "output_tokens": 103,
+      "latency_ms": 1458
+    },
+    "brief": {
+      "document": {
+        "id": "doc_027",
+        "title": "Cutover checklist: Kelp release",
+        "kind": "runbook"
+      },
+      "clause": "clause_027",
+      "register": "filler_requirement",
+      "fictional": [
+        {
+          "kind": "work_item",
+          "id": "ticket_9011",
+          "form": "Kelp release"
+        }
+      ],
+      "skills": [
+        {
+          "kind": "skill",
+          "id": "elasticsearch",
+          "form": "Elasticsearch"
+        },
+        {
+          "kind": "skill",
+          "id": "go",
+          "form": "Go"
+        },
+        {
+          "kind": "skill",
+          "id": "kafka",
+          "form": "Kafka"
+        }
+      ],
+      "minted_by": "the three-book mint of 2026-10-08 (release, client, handbook) at seed 7, golden, FillerPlan(6, 1); the handbook book was dropped the same day and the mint's draws moved, so the brief is recorded here rather than re-minted"
+    }
+  },
+  {
+    "label": "R4 the leaver is not responsible",
+    "expected": "refused",
+    "probe": "round 3, 2026-10-08: the production brief of doc_027 (seed 7, golden, FillerPlan(6, 1))",
+    "document_id": "doc_027",
+    "text": "The leaver is not responsible for the Kelp release; the cutover proceeds on the team's standing rota.",
+    "scanner": [],
+    "propositions": [],
+    "other_claims": [],
+    "untyped": [],
+    "unresolved": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "names_responsible",
+        "polarity": "negated",
+        "assertion_mode": "asserted"
+      },
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "names_responsible",
+        "polarity": "negated",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "usage": {
+      "input_tokens": 1579,
+      "output_tokens": 95,
+      "latency_ms": 1424
+    },
+    "brief": {
+      "document": {
+        "id": "doc_027",
+        "title": "Cutover checklist: Kelp release",
+        "kind": "runbook"
+      },
+      "clause": "clause_027",
+      "register": "filler_requirement",
+      "fictional": [
+        {
+          "kind": "work_item",
+          "id": "ticket_9011",
+          "form": "Kelp release"
+        }
+      ],
+      "skills": [
+        {
+          "kind": "skill",
+          "id": "elasticsearch",
+          "form": "Elasticsearch"
+        },
+        {
+          "kind": "skill",
+          "id": "go",
+          "form": "Go"
+        },
+        {
+          "kind": "skill",
+          "id": "kafka",
+          "form": "Kafka"
+        }
+      ],
+      "minted_by": "the three-book mint of 2026-10-08 (release, client, handbook) at seed 7, golden, FillerPlan(6, 1); the handbook book was dropped the same day and the mint's draws moved, so the brief is recorded here rather than re-minted"
+    }
+  },
+  {
+    "label": "H1 names nobody, a requirement",
+    "expected": "pass",
+    "probe": "round 3, 2026-10-08: the production brief of doc_027 (seed 7, golden, FillerPlan(6, 1))",
+    "document_id": "doc_027",
+    "text": "The Kelp release cutover requires Elasticsearch experience from whoever executes it, and the rollback plan is recorded before the first step.",
+    "scanner": [],
+    "propositions": [
+      {
+        "subject": {
+          "kind": "clause",
+          "id": "clause_027"
+        },
+        "predicate": "requires",
+        "value": {
+          "count": 1,
+          "criteria": [
+            {
+              "employment_type": "employee"
+            },
+            {
+              "skill": "elasticsearch"
+            }
+          ]
+        },
+        "polarity": "affirmed",
+        "assertion_mode": "asserted"
+      }
+    ],
+    "other_claims": [
+      "The rollback plan is recorded before the first step."
+    ],
+    "untyped": [],
+    "unresolved": [],
+    "usage": {
+      "input_tokens": 1581,
+      "output_tokens": 86,
+      "latency_ms": 950
+    },
+    "brief": {
+      "document": {
+        "id": "doc_027",
+        "title": "Cutover checklist: Kelp release",
+        "kind": "runbook"
+      },
+      "clause": "clause_027",
+      "register": "filler_requirement",
+      "fictional": [
+        {
+          "kind": "work_item",
+          "id": "ticket_9011",
+          "form": "Kelp release"
+        }
+      ],
+      "skills": [
+        {
+          "kind": "skill",
+          "id": "elasticsearch",
+          "form": "Elasticsearch"
+        },
+        {
+          "kind": "skill",
+          "id": "go",
+          "form": "Go"
+        },
+        {
+          "kind": "skill",
+          "id": "kafka",
+          "form": "Kafka"
+        }
+      ],
+      "minted_by": "the three-book mint of 2026-10-08 (release, client, handbook) at seed 7, golden, FillerPlan(6, 1); the handbook book was dropped the same day and the mint's draws moved, so the brief is recorded here rather than re-minted"
+    }
+  }
+]

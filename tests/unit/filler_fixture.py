@@ -1,10 +1,11 @@
-"""A hand-built filler pool over a real world, for every test that needs one.
+"""A hand-built filler pool over a real world, for every test that needs a controlled one.
 
-The pool's content is the generator's to write (the generator step's group 2); these
-helpers mint stand-in documents after the world's own ids, derive every number from the
-world rather than guessing it, and write stand-in bodies for whatever the world owes, so a
-test holds the world's statements about a pool whoever made it. Test infrastructure, not
-an adapter.
+The generator mints its own pool now (``world/filler_mint.py``, the generator step's group
+2); these helpers stay for the tests that need a pool of a chosen shape, a stand-in title, a
+pending section, a collision, which the mint would never produce. They mint stand-in
+documents after the world's own ids, derive every number from the world rather than
+guessing it, and write stand-in bodies for whatever the world owes, so a test holds the
+world's statements about a pool whoever made it. Test infrastructure, not an adapter.
 """
 
 from __future__ import annotations
