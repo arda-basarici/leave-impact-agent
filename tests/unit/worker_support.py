@@ -34,6 +34,7 @@ from leaveimpact.agent.log_events import (
 from leaveimpact.agent.log_transition import AttemptState, calls_of
 from leaveimpact.core.counting_operations import Counted, CountOutcome
 from leaveimpact.core.enums import Source
+from leaveimpact.core.ids import employee_id
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import CompleteResponse, Observation, ServiceError
 from leaveimpact.core.ports.errors import SourceUnreachable
@@ -240,16 +241,18 @@ def with_unreachable(ports: ReadPorts, method: str, *, after: int = 0) -> ReadPo
 
 
 def two_call_script(context: RunContext) -> tuple[ScriptedTurns, ScriptedClient]:
-    """The reference run: call 1 asks for two reads about the leaver's team and the leaver,
-    call 2 answers with text and no read; the run completes under the automatic approval."""
+    """The reference run: call 1 asks for two reads, the leave and one employee (a people
+    read the investigator's surface declares; the enumeration it asked for before the
+    registry step is the prefetch's alone and would be refused), call 2 answers with text
+    and no read; the run completes under the automatic approval."""
     bodies = (body_for(1), body_for(2))
     leaver = context.leave_id
     answers = {
         request_digest(bodies[0]): (
             answered(
-                text("Looking the leave and the team up."),
+                text("Looking the leave and the first employee up."),
                 tool_use("tooluse_leave", "leave", {"id": str(leaver)}),
-                tool_use("tooluse_people", "employees", {}),
+                tool_use("tooluse_people", "employee", {"id": str(employee_id(1))}),
                 stop_reason="tool_use",
             ),
         ),

@@ -328,12 +328,12 @@ def test_a_recovery_under_an_outage_replays_the_stops_in_the_logs_order(
     recovers_from_prefix(world, cut, outage="leaves_within")
 
 
-def model_read_cuts(world: SealedWorld, outage: str) -> list[int]:
+def model_read_cuts(world: SealedWorld, outage: str, *, after: int = 0) -> list[int]:
     """The cuts at or after the model's read of ``outage`` was logged unreachable, in a
-    reference run where that method fails from its second call (the prefetch's own call of
-    it is its first)."""
+    reference run where that method fails from its ``after``-th call on (zero when the
+    prefetch never calls it, so the model's call is its first)."""
     reference = bench(world)
-    reference.ports = support.with_unreachable(reference.ports, outage, after=1)
+    reference.ports = support.with_unreachable(reference.ports, outage, after=after)
     reference.work()
     events = reference.events()
     first_model_read = next(
@@ -346,11 +346,14 @@ def model_read_cuts(world: SealedWorld, outage: str) -> list[int]:
 
 def test_a_later_model_read_outage_does_not_stop_the_prefetchs_replay(world: SealedWorld) -> None:
     """The second read's first finding: the model's read of a people method is unreachable
-    after the prefetch read it fine; a recovery that seeded the stop from every outcome
-    outside the prefetch skipped the prefetch's calls and raised on the shifted ordinal.
-    Stops are seeded from the operations before the replayed phase only."""
-    for cut in model_read_cuts(world, "employees"):
-        recovers_from_prefix(world, cut, outage="employees", after=1, after_recovering=0)
+    after the prefetch read the people source fine; a recovery that seeded the stop from
+    every outcome outside the prefetch skipped the prefetch's calls and raised on the
+    shifted ordinal. Stops are seeded from the operations before the replayed phase only.
+    (Before the registry step the model's read was the enumeration the prefetch also
+    makes, failing from its second call; the role's surface refuses the enumeration, so
+    the read is the single-employee method the prefetch never calls.)"""
+    for cut in model_read_cuts(world, "employee"):
+        recovers_from_prefix(world, cut, outage="employee", after=0, after_recovering=0)
 
 
 def test_a_held_unreachable_read_stops_the_rest_of_its_answer_on_recovery(

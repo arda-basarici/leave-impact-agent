@@ -39,8 +39,10 @@ outcome's logged timestamp on the log's own clock.
 *What a read call gets.* A call of the fact tool and a call whose arguments are no object
 run nothing (the parse module handles them); a read against a source a durable outcome has
 marked unreachable is a skip, recorded as the worker's final decision; any other read runs
-through the executor and its result is appended, a wrapper's refusal included. A defect
-result stops the sequence, and the transition records the stop.
+through the executor over the call's role's surface (the registry step) and its result is
+appended, a wrapper's refusal included, a tool the role is not shown among the refusals. A
+defect result stops the sequence, and the transition records the stop. What the model is
+shown of each result is the rendering module's, from the logged resolution.
 """
 
 from __future__ import annotations
@@ -130,7 +132,13 @@ from leaveimpact.core.run_trace import (
     PrefetchOrigin,
     UnreachableOutcome,
 )
-from leaveimpact.core.tools import specification_named
+from leaveimpact.core.tools import (
+    TOOL_SPECIFICATIONS,
+    Role,
+    ToolSpecification,
+    role_surface,
+    specification_named,
+)
 
 DURABILITY = "sync"
 """Every invocation waits for its checkpoint (the acceptance spike's accepted configuration)."""
@@ -259,8 +267,14 @@ class LoggedExecutor(Executor):
     fault of this harness.
     """
 
-    def __init__(self, harness: Harness, *, replaying: Callable[[OperationKey], bool]) -> None:
-        super().__init__(harness.ports)
+    def __init__(
+        self,
+        harness: Harness,
+        *,
+        replaying: Callable[[OperationKey], bool],
+        surface: tuple[ToolSpecification, ...] = TOOL_SPECIFICATIONS,
+    ) -> None:
+        super().__init__(harness.ports, surface=surface)
         self.appender = harness.appender
         self.stopped = set()
         for logged in operations_of(self.appender.state):
@@ -634,9 +648,14 @@ def _resolve_reads(harness: Harness) -> None:
     call = calls_of(appender.state)[-1]
     response = _answered_response(call)
     assert response is not None, "the tools node follows an answered call"
+    # The role's surface, not the harness's: a known tool the role is not shown is refused at
+    # execution (the registry step, fork 9), and a refusal precedes the stop check, so such a
+    # call against a stopped source is refused rather than skipped.
+    surface = role_surface(Role(call.role))
     executor = LoggedExecutor(
         harness,
         replaying=lambda key: isinstance(key, ModelReadKey) and key.call == call.ordinal,
+        surface=surface,
     )
     origin = ModelOrigin(call_id(call.ordinal))
     for use in _read_calls(response):
@@ -645,7 +664,7 @@ def _resolve_reads(harness: Harness) -> None:
         if isinstance(held, OperationSkip):
             continue
         if held is None:
-            specification = specification_named(use.name)
+            specification = specification_named(use.name, surface)
             if specification is not None and specification.facts.source in executor.stopped:
                 appender.append(
                     OperationEvent(key, OperationSkip(UndispatchedReason.SOURCE_UNREACHABLE))

@@ -19,17 +19,27 @@ arguments exactly as they were given, so the accepted arguments are the effectiv
 and with the source the method table names, so an absent answer still says which source
 it is absent from.
 
-Who asked decides what a refusal is. A call the model made with an unknown tool or
-arguments the validation refuses is a refused call, recorded as one and answered as one:
-the model's behaviour, graded. A call the frozen prefetch made that fails validation is a
-defect of this harness and raises, since the planner reads its bounds off the same
-declarations the validator applies and the two cannot honestly disagree.
+Who asked decides what a refusal is. A call the model made with an unknown tool, a tool
+outside the surface it was given, or arguments the validation refuses is a refused call,
+recorded as one and answered as one: the model's behaviour, graded. A call the frozen
+prefetch made that fails validation is a defect of this harness and raises, since the
+planner reads its bounds off the same declarations the validator applies and the two
+cannot honestly disagree.
+
+The surface is the executor's (the registry step, fork 9): the prefetch runs over the
+harness's own, all thirteen, and the tools node builds its executor over the role's, so a
+known tool the role is not shown is refused at execution and never resolved through the
+global table. The recorded refusal is the detail, which names the tool or the value the
+model gave; what the model is shown is the closed correction the rendering derives from
+the same declarations (``agent.surface``).
 
 The first unreachable outcome at a source stops it for the rest of the run (DESIGN's
 runtime policy): facts already read stand, and no further operation is attempted against
-it. The prefetch honours that by not asking; a call made against a stopped source is a
-caller's error here and raises, until the step that gives the model its tools decides
-what such a call records.
+it. The prefetch honours that by not asking. A model's call against a stopped source is
+the graph's decision, made before this executor is asked: the tools node appends a skip
+with the unreachable reason, durable and honoured on replay (the event log step), and the
+rendering shows the model the source as unreachable. A call that reaches here against a
+stopped source is therefore a caller's error and raises.
 
 The prefetch runs over the executor as the plan says: the opening read of the leave the
 context names; on the leave asked for, the remaining calls in order, each skipped when its
@@ -72,6 +82,7 @@ from leaveimpact.core.run_trace import (
     UnreachableOutcome,
 )
 from leaveimpact.core.tools import (
+    TOOL_SPECIFICATIONS,
     PortFamily,
     ToolSpecification,
     specification_named,
@@ -119,6 +130,7 @@ class Executor:
 
     ports: ReadPorts
     next_id: Callable[[], OperationId] = field(default_factory=sequential_ids)
+    surface: tuple[ToolSpecification, ...] = field(default=TOOL_SPECIFICATIONS, kw_only=True)
     operations: list[Operation] = field(default_factory=list[Operation])
     stopped: set[Source] = field(default_factory=set[Source])
 
@@ -127,16 +139,18 @@ class Executor:
         its outcome.
 
         Raises ``ValueError`` for a prefetch-origin call the validation refuses or whose tool
-        is not declared, and for any call against a source that has stopped; a model-origin
-        call with those faults is recorded as refused. Raises nothing for what a source
-        answered.
+        is not in ``surface``, and for any call against a source that has stopped; a
+        model-origin call with those faults is recorded as refused. Raises nothing for what a
+        source answered.
         """
         given = dict(arguments)
-        specification = specification_named(tool)
+        specification = specification_named(tool, self.surface)
         if specification is None:
-            return self._record(
-                origin, tool, None, given, self._refused(origin, f"no tool named {tool!r}")
+            known = specification_named(tool) is not None
+            detail = (
+                f"{tool!r} is not one of this role's tools" if known else f"no tool named {tool!r}"
             )
+            return self._record(origin, tool, None, given, self._refused(origin, detail))
         source = specification.facts.source
         try:
             accepted = validate_arguments(specification, given)

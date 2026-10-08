@@ -27,11 +27,13 @@ from leaveimpact.core import (
     RecordOutcome,
     RecordsOutcome,
     RefusedCallOutcome,
+    Role,
     RunContext,
     Source,
     UnreachableOutcome,
     calls_after_leave,
     opening_call,
+    role_surface,
 )
 from leaveimpact.core.ids import LeaveId, employee_id, leave_id
 from leaveimpact.evaluator.sealed_world import SealedWorld
@@ -308,3 +310,21 @@ def test_every_operation_is_the_executors_own_record(systems: Systems, scenario:
         operation.outcome,
         1,
     )
+
+
+def test_a_models_call_outside_the_executors_surface_is_refused_and_a_prefetchs_raises(
+    systems: Systems,
+) -> None:
+    """The registry step, fork 9: the tools node builds its executor over the role's surface,
+    so a known tool the role is not shown is refused at execution, never resolved through
+    the thirteen; the prefetch runs over the thirteen and such a call from it is a defect."""
+    over_role = Executor(ports_of(systems), surface=role_surface(Role.INVESTIGATOR))
+    refused = over_role.call(BY_MODEL, "employees", {})
+    assert isinstance(refused, RefusedCallOutcome)
+    assert refused.reason == "'employees' is not one of this role's tools"
+    assert over_role.operations[-1].source is None
+    unknown = over_role.call(BY_MODEL, "leaves", {})
+    assert isinstance(unknown, RefusedCallOutcome) and unknown.reason == "no tool named 'leaves'"
+    with pytest.raises(ValueError, match="the frozen prefetch made a call the surface refuses"):
+        over_role.call(PREFETCH, "employees", {})
+    assert isinstance(executor_over(systems).call(BY_MODEL, "employees", {}), RecordsOutcome)
