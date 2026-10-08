@@ -1,8 +1,14 @@
 """How far an identifier predicts a scenario's tier, under three construction orders.
 
-The generator step's measurement before its tier-shuffle ruling (2026-10-08), model-free;
-FINDINGS, ``generator-step``, holds its two runs: the orders compared on the tree before
-the permutation (`id_leak_group0.md`) and the built tree alone (`id_leak_tree.md`).
+The generator step's measurement (2026-10-08), model-free. ``tree`` is the order the tree
+draws, ``plan`` the plan's own row order and ``random`` a shuffle from a generator of the
+probe's own, the last two patched in at the module seam; the result is `id_leak_tree.md`,
+which FINDINGS, ``generator-step``, reads. `id_leak_group0.md` beside it is the earlier
+comparison this script's first form made before the tier-shuffle ruling, on the tree at
+`a6c40ef`, where the order was scarcity first and a function of the organization and the
+plan: that column cannot be regenerated on a tree that no longer holds the order, and
+that run's sample read no pending prose identifier (the close's review), so it stands
+as recorded and is read beside the table this script writes.
 
 For each seed the golden plan is assembled three ways: the tree's scarcity-first order, plain
 plan order, and a seeded random order (the order patched at the module seam). For each
@@ -30,6 +36,7 @@ from random import Random
 
 from leaveimpact.world import assembly
 from leaveimpact.world.assembly import assemble_semantic_world
+from leaveimpact.world.briefs import SectionTarget
 from leaveimpact.world.org import DEFAULT_PARAMS
 from leaveimpact.world.scenario import Tier
 
@@ -64,6 +71,13 @@ def observations(world) -> dict[str, list[tuple[int, str]]]:  # noqa: ANN001
             seen["document"].append((number_of(planted.entity.id), tier))
             for section in planted.entity.sections:
                 seen["clause"].append((number_of(section.id), tier))
+        # The semantic world holds a pending section or comment as a brief, not as a record
+        # of its document or work item; a run sees its id all the same once prose is
+        # composed, so the sample reads the briefs' targets too (the close's review found
+        # the first form counting 17 clauses and no comments of 26 and 3 on seed 6).
+        for brief in scenario.briefs:
+            kind = "clause" if isinstance(brief.target, SectionTarget) else "comment"
+            seen[kind].append((number_of(brief.target.id), tier))
     return seen
 
 
@@ -105,19 +119,23 @@ def ranges_disjoint(rows: list[tuple[int, str]]) -> bool:
 
 
 def random_order(seed: int):  # noqa: ANN202
-    def order(org, plan):  # noqa: ANN001
-        indices = list(range(len(plan)))
+    """A shuffle from a generator of the probe's own, so it is not the tree's draw."""
+
+    def order(rng, count):  # noqa: ANN001
+        indices = list(range(count))
         Random(seed ^ 0x5EED).shuffle(indices)
         return tuple(indices)
 
     return order
 
 
-def plan_order(org, plan):  # noqa: ANN001
-    return tuple(range(len(plan)))
+def plan_order(rng, count):  # noqa: ANN001
+    return tuple(range(count))
 
 
 def assemble(seed: int, variant: str):  # noqa: ANN202
+    """``tree`` assembles as the tree does; ``plan`` and ``random`` patch the order at the
+    module seam, which takes ``(rng, count)`` since generator version 17."""
     original = assembly.construction_order
     if variant == "random":
         assembly.construction_order = random_order(seed)
@@ -141,7 +159,7 @@ def main() -> None:
     seeds = list(range(101, 101 + args.seeds))
 
     results: dict[str, dict] = {}
-    for variant in ("scarcity", "plan", "random"):
+    for variant in ("tree", "plan", "random"):
         failures: Counter[str] = Counter()
         times: list[float] = []
         accuracy: dict[str, list[float]] = defaultdict(list)
@@ -187,8 +205,8 @@ def main() -> None:
         lines.append("")
     report = "\n".join(lines)
     print(report)
-    (args.out / "id_leak.md").write_text(report, encoding="utf-8")
-    (args.out / "id_leak.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
+    (args.out / "id_leak_tree.md").write_text(report, encoding="utf-8")
+    (args.out / "id_leak_tree.json").write_text(json.dumps(results, indent=2), encoding="utf-8")
 
 
 if __name__ == "__main__":

@@ -2980,3 +2980,34 @@ The forecast of sixty-three objects counted prose targets as documents; the worl
 enumeration gives forty-one, which landed. The world is open, so nothing was withheld and
 the checkout was not scanned. A run that fails in the prose stage printed no metrics at the
 time; it prints them since this close.
+
+*Correction, 2026-10-08 (the close's external review).* The id-leak script as first
+committed could not reproduce its reports on this tree: its patched orders took the
+signature the scarcity order had, and `plan` and `random` failed with a `TypeError` while
+"scarcity" ran the tree's own shuffle. And its sample read the semantic world's populated
+sections and comments only, so every pending prose target was missing (seed 6: 17 clauses
+and no comments of the 26 and 3 a composed world shows). The script now reads the briefs'
+targets too and runs `tree`, `plan` and `random` on the current tree; the scarcity column
+above cannot be regenerated here and stands as recorded, with that omission. Re-measured on
+seeds 101 to 120, generator version 18 (`id_leak_tree.md`):
+
+| kind | tree (the shuffle) | plan order | random (the probe's own) |
+|---|---|---|---|
+| window start (ordinal) | 0.53, 0 of 20 disjoint | 0.53, 0 of 20 | 0.53, 0 of 20 |
+| clause | 0.68 | 1.00, 20 of 20 | 0.66 |
+| document | 0.68 | 1.00, 20 of 20 | 0.66 |
+| event | 0.74 | 1.00, 20 of 20 | 0.70 |
+| work item | 0.63 | 1.00, 20 of 20 | 0.61 |
+| leave (investigated) | 0.54 | 1.00, 20 of 20 | 0.51 |
+| leave (owned) | 0.54 | 1.00, 20 of 20 | 0.52 |
+| employee (on leave) | 0.54 | 0.55 | 0.55 |
+| comment | 1.00, 20 of 20 | 1.00, 20 of 20 | 1.00, 20 of 20 |
+
+Every kind but one reads as before with the pending ids in: the tree within 0.05 of the
+random column, plan order disjoint on every kind but the dealt windows and the people. The
+comment row is new and reads 1.00 under every order because one class plants comments, the
+free-text qualification class of the fragmented tier (three seeds inspected, three comments
+each, all of that tier): a ticket comment's presence names the tier under any order, and its
+id adds nothing to that. The classifier over a one-tier kind returns 1.00 by construction;
+it is a class-structure fact, not an id leak the shuffle could remove, and it is recorded
+here as what a run that reads a comment is told.

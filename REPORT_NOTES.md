@@ -75,7 +75,10 @@ scarcity-first construction order (`probes/generator-step/id_leak.py`, seeds 101
 120). This was measured before it was ruled, with the remedy chosen on the numbers: the
 windows are dealt by a seeded permutation and the rows are constructed in a seeded random
 order, and on the built tree every id kind sits within 0.05 of a random draw's accuracy
-(`id_leak_tree.md` beside the script). The price was feasibility. The scarcity order
+(`id_leak_tree.md` beside the script). One kind is the exception and no order can move
+it: ticket comments are planted by one class alone, so a comment's presence names the
+tier and its id adds nothing, which the close's review surfaced when the probe was made
+to count pending prose targets too. The price was feasibility. The scarcity order
 existed because a class seated last had exhausted the reservation book on 39 of 200
 seeds; under the random order the golden plan exhausts on 4 of 200 against the scarcity
 order's 1 (`probes/generator-step/random_order_sweep.py`; run 4 of the FINDINGS entry

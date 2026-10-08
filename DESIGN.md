@@ -1109,14 +1109,15 @@ and both plan order and the scarcity order that replaced it seat classes by tier
 twenty seeds the window's start predicted the tier on every one under the forward
 dealing, and under the scarcity order the ids a model sees predicted it at 0.69 to
 0.92 by kind; the permutation and the shuffle bring every kind within 0.05 of a
-random order's own column, with no tier's ranges disjoint
-(`probes/generator-step/id_leak.py`). The shuffle is drawn after the row seeds, so
-the order changes no draw, and the claim is "not a function of the tier by
-construction"; the twenty seeds chose this remedy over an id rewrite after
-construction and are not the evidence for the claim. The cost is feasibility:
-scarcity measured per class had been the order's reason, after thirty-nine of two
-hundred worlds exhausted a class seated last, and the random order exhausts four of
-two hundred against the scarcity order's one
+random order's own column, with no tier's ranges disjoint, except ticket comments,
+which one class alone plants, so a comment's presence names the tier under any order
+and its id adds nothing to that (`probes/generator-step/id_leak.py`). The shuffle is
+drawn after the row seeds, so the order changes no draw, and the claim is "not a
+function of the tier by construction"; the twenty seeds chose this remedy over an id
+rewrite after construction and are not the evidence for the claim. The cost is
+feasibility: scarcity measured per class had been the order's reason, after
+thirty-nine of two hundred worlds exhausted a class seated last, and the random
+order exhausts four of two hundred against the scarcity order's one
 (`probes/generator-step/random_order_sweep.py`; FINDINGS, `reservation-book`, run
 4), accepted on the criterion set before the sweep, near the scarcity order's rate
 and far from plan order's. A refused seed is a loud refusal naming the row and the
