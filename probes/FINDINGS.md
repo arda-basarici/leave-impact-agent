@@ -1135,6 +1135,21 @@ exhaustion parked at 15.4 (1 of 200 at twenty rows, 1 of 200 at thirty on run on
 200 under the scarcity order; the FIXLOG's first option, taken on the measured rate, without
 the renumbering it feared. About 2.5 s a world.
 
+*Run 4, the random construction order (2026-10-08, generator version 17).* The generator
+step replaced the scarcity order with a seeded shuffle drawn after the row seeds, beside a
+seeded permutation dealing the windows, so no identifier a model sees is a function of the
+tier (the id-leak measurement in the `generator-step` entry below); the same two hundred
+seeds, whole-world verification included (`probes/generator-step/random_order_sweep.py`, its
+result beside it):
+
+| run | admitted | contaminated | exhausted |
+|---|---|---|---|
+| 4, the random order | 196 | 0 | 4 (composite 1, seed 1; free-text qualification 2, seeds 72 and 134; release cardinality 1, seed 85) |
+
+Near run three's rate and far from run two's, which was the criterion set before the sweep;
+seed 1's refusal is pinned in the unit suite, so a change of the order shows there. 137 s
+wall across processes, 14.3 s a world inside the pool.
+
 ## comment-probe — the golden dispatch refused on the ticket-comment register, fixed on the writer's side (2026-09-16)
 
 The golden plan's first dispatch (run 35111247215: seed 16, start 2026-01-05, `golden`,
@@ -2861,3 +2876,107 @@ test holds the manifest to the families crossed, no more and no fewer.
   those tests cannot hold). Kill points are named crossings, not arbitrary instructions;
   the saver's seams fire on the framework's thread and land anywhere in a step. The job's
   time is the development machine's with six rows at a time.
+
+## generator-step — the measurement world's generator: the id leak measured, the filler gates probed, the first development world sealed (2026-10-08)
+
+The generator step (the investigator milestone's unnumbered step between 8 and 9, generator
+version 15 to 18, commits `969d3fa` to `cfd8b45`) built the filler pool and the corpus
+levels, the seed from a secret and the embargo, the tier shuffle, the unprojected path and
+the planted readers. Its probes, in order; each model-free one has its script under
+`probes/generator-step/` with its result beside it, and each that called a model has the
+fixture that replays what it decided.
+
+**The id leak, measured before the shuffle was ruled (`id_leak.py`, seeds 101 to 120, the
+golden plan, `id_leak_group0.md`).** For each identifier kind a model sees, the best
+accuracy of a two-threshold classifier over the id numbers against the tier, and whether the
+three tiers' id ranges are pairwise disjoint; three construction orders on the tree before
+the permutation, the random one patched in at the module seam.
+
+| kind | scarcity order (the tree) | plan order | random order |
+|---|---|---|---|
+| window start (ordinal) | 1.00, disjoint 20 of 20 | 1.00, 20 of 20 | 1.00, 20 of 20 |
+| clause | 0.88 | 1.00, 20 of 20 | 0.69 |
+| document | 0.81 | 1.00, 20 of 20 | 0.66 |
+| event | 0.92 | 1.00, 20 of 20 | 0.70 |
+| work item | 0.78 | 1.00, 20 of 20 | 0.61 |
+| leave (investigated) | 0.71 | 1.00, 20 of 20 | 0.51 |
+| leave (owned) | 0.69 | 1.00, 20 of 20 | 0.52 |
+| employee (on leave) | 0.54 | 0.53 | 0.54 |
+
+The window's start was disjoint under every order because the windows were dealt forward and
+the plan concatenates its tiers; the employee row is the floor, people being drawn before
+any row. On the built tree (`id_leak_tree.md`, the permutation and the shuffle, version 17):
+window start 0.53 and 0 of 20 disjoint; clause 0.71, document 0.68, event 0.74, work item
+0.63, both leaves 0.54, employee 0.54, every kind within 0.05 of the random column above.
+The claim the tree makes is construction, not these rates: the shuffle reads neither the
+rows nor the organization, and the twenty seeds chose the remedy.
+
+**The filler containment probe (seed 7's golden world, checker Nova Pro; the fixture
+`tests/fixtures/filler_containment.json`, replayed in the unit suite).** Fourteen texts
+through the live checker and the containment rule. The four meant to pass (a handbook
+passage naming nothing, two near-miss requirements over a fictional release and a fictional
+account, a declared fictional person's skill) pass the gate as built under the decoy rule;
+the undeclared fictional person refuses as an unknown subject; every must-fail text (a real
+employee's skill, ownership and availability, a requirement touching a planted title) is
+refused by the namespace scanner first, and two of them by the extraction too. The probe
+found the design's "fictional propositions in the allowed set" unwritable, since the brief
+contract refuses a self-evidenced fact, and the decoy set is the amendment. Of five writer
+texts drawn for the probe one failed the built gate on an untyped proposition.
+
+**The filler register, six rounds (writer Haiku 4.5, checker Nova Pro, seed 7, up to twelve
+briefs a round, two samples each).** Round 1, the passage as designed: 3 of 12 accepted,
+seven refusals on the checker writing `names_responsible` with an unresolved value on texts
+naming nobody, four on the scanner (team names that are common nouns, "data", "mobile"), one
+text narrating its instruction. Round 2, reworded: 5 of 12. Rounds 3 and 4 held the
+checker's instruction and a system paragraph against the handbook composition, prose about
+practice that names nobody: 0 of 10 and 2 of 9, so that composition was dropped rather than
+re-pin the checker's prompt; four contextual references to a planted person ("the employee
+taking leave is responsible for this work") refused 4 of 4 under the unresolved reading and
+are rows of the fixture. Round 6, the requirement composition alone at the planted length:
+10 of 12, both refusals the scanner's on a foreign name. The probe texts stay out of the
+tree; the fixture holds the readings that decide anything.
+
+**The fixture seed (`fixture_seed.py`, seeds 2 to 40, version 17, `fixture_seed.md`).**
+Version 17 moved every world, and four evaluator tests asserted a property seed 7 no longer
+held. Of 39 seeds every one builds; 20 hold a target planted by another scenario, 12 a
+verdict the two views flip, 14 the qualified-title shape, 1 the tracker-outage split (seed
+37), and 6 all four of seed 7's properties (6, 9, 10, 15, 17, 20). Chance, not structure.
+The throwaway seed is 6 and the outage seed 37, each with its why at the constant
+(`tests/unit/throwaway_world.py`).
+
+**The secret seed source: the masking probe and the live check.** A disposable repository
+secret run through a scratch copy of the workflow, not kept in the tree, showed the value
+masked wherever it was printed whole and nothing printing a prefix or a decimal of it. Run
+`37783138244` of `generate-world.yml` at `31f1d0c`, dispatched with `seed_source=secret`,
+`embargoed=true` and no secret in the repository: the step's environment held the two inputs
+and an empty seed, the generator refused with "LEAVE_IMPACT_SEED_HEX is not set and the
+secret seed source needs it", exit 2, no store opened, no host touched. The secret's own
+path runs at the first embargoed generation.
+
+**The first development world (seed 101, the golden plan, twelve filler documents of four
+sections, `--unprojected` to a local root, 2026-10-08).** The first run at the default cap
+of eight exhausted it on the third section of one filler document after eighty-one attempts
+over sixty targets, eight refusals of eight, each an unknown subject beside an unresolved
+value, and sealed nothing. Three probes of the same brief on the same path, twenty-nine
+calls in all, refused none; refused texts are kept nowhere by design, so the cause is not
+recoverable from the run (a recording on private runs is a parked ruling). [PRELIMINARY —
+one exhaustion in forty-eight filler targets at the cap of eight, measured on one run.] The
+rerun at `--attempt-cap 16`:
+
+| measure | value |
+|---|---|
+| prose targets | 60 (12 planted, 48 filler) |
+| writer attempts | 69; 55 targets accepted on the first attempt, none exhausted |
+| refusals | 5 namespace (a foreign name), 4 extraction (3 untyped propositions on a planted clause, 1 hedge on a planted comment); 2 canonicalized pairs |
+| tokens | writer 42,360 in, 2,031 out; checker 98,787 in, 7,001 out |
+| run time | 129 s |
+| objects sealed | 41: the truth pair, the specs, 38 documents (26 planted, 12 filler); 39 conditional puts, no checkpoint, no manifest |
+| world version | `b7ec4563…bde3c01` |
+| `prove` over the same root | 30 scenarios; retrieval targets normal 33, tracker down 15, calendar down 27 (the golden world: 31, 14, 25); the HR and the corpus outages no answer |
+| the resume (`--resume … --unprojected`) | 39 puts present and equal, no model call, 4.5 s, the same version |
+| spend, by hand on the measured rate of about $0.003 an attempt (the 2026-09-14 findings) | about $0.24 the failed run, $0.21 the sealed one, $0.09 the probes |
+
+The forecast of sixty-three objects counted prose targets as documents; the world's own
+enumeration gives forty-one, which landed. The world is open, so nothing was withheld and
+the checkout was not scanned. A run that fails in the prose stage printed no metrics at the
+time; it prints them since this close.
