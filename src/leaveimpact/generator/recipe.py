@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.world.levels import NO_FILLER, FillerPlan
 from leaveimpact.world.org import OrgParams
 
 __all__ = ["DEFAULT_ATTEMPT_CAP", "WorldRecipe"]
@@ -30,7 +31,9 @@ class WorldRecipe:
     """What defines the world, plus the two run controls of the prose stage.
 
     ``plan_name`` is the rule the world is planned under, a semantic input recorded in
-    the world's provenance (the step 15 rulings); ``attempt_cap`` bounds the materializer
+    the world's provenance (the step 15 rulings); ``filler`` is the pool the world is
+    asked to carry, a semantic input too, sealed in the provenance so a resume reproduces
+    the pool (the generator step's group 2); ``attempt_cap`` bounds the materializer
     and is recorded in the world's provenance;
     ``resume`` names a sealed realization to continue instead of generating a fresh one
     (the step 14 rulings: before sealing a restart regenerates, after it resumes).
@@ -42,3 +45,4 @@ class WorldRecipe:
     attempt_cap: int = DEFAULT_ATTEMPT_CAP
     resume: WorldVersion | None = None
     plan_name: str = "tier1"
+    filler: FillerPlan = NO_FILLER

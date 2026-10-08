@@ -5,6 +5,8 @@ value forms and never the brief's facts; the tool schema enumerates the registry
 filled tool yields propositions, an unlisted subject reads as unknown, and a malformed entry is
 the checker's protocol failure."""
 
+from datetime import date
+
 import pytest
 
 from leaveimpact.core import (
@@ -15,6 +17,10 @@ from leaveimpact.core import (
     employee_ref,
     work_item_ref,
 )
+from leaveimpact.core.anchors import SKILL_KIND, SurfaceForm
+from leaveimpact.core.entities import Document
+from leaveimpact.core.enums import DocumentKind, EntityKind
+from leaveimpact.core.ids import clause_id, document_id, work_item_id
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.predicates import ROWS
 from leaveimpact.generator.prose import (
@@ -26,7 +32,16 @@ from leaveimpact.generator.prose import (
     tool_schema,
     writer_request,
 )
-from leaveimpact.world import Brief, CommentTarget, Register, SectionTarget, lexicon_of
+from leaveimpact.generator.prose.schema import value_forms
+from leaveimpact.world import (
+    FICTIONAL_ID_BASE,
+    Brief,
+    CommentTarget,
+    Register,
+    SectionTarget,
+    filler_brief_for,
+    lexicon_of,
+)
 from leaveimpact.world.briefs import target_ref
 from leaveimpact.world.prose import AssertionMode, Polarity, statement_of
 from leaveimpact.world.version import PROMPT_DIGESTS
@@ -50,6 +65,34 @@ def test_the_assets_load_and_match_the_pinned_digests() -> None:
         assert ASSETS.register(register).strip()
     with pytest.raises(ValueError, match="no prompt asset named 'nope'"):
         ASSETS.text("nope")
+
+
+def test_a_filler_brief_s_writer_is_told_what_filler_may_do_in_place_of_the_facts() -> None:
+    # The permission a near-miss text needs is in the message, where the group 0 probe showed
+    # it moves the model; the planted rendering keeps its two fact headings untouched.
+    document = Document(
+        document_id(9001),
+        "Release runbook: Kelp release",
+        DocumentKind.RUNBOOK,
+        date(2026, 1, 1),
+        (),
+    )
+    release = SurfaceForm(
+        EntityKind.WORK_ITEM.value, work_item_id(FICTIONAL_ID_BASE), "Kelp release"
+    )
+    skill = SurfaceForm(SKILL_KIND, KAFKA, "Kafka")
+    requirement = filler_brief_for(
+        document, clause_id(9001), 0, Register.FILLER_REQUIREMENT, (release,), (skill,)
+    )
+    lexicon = lexicon_of(ORG)
+    message = writer_request(requirement, lexicon, ASSETS).message
+    assert "What the text does:" in message
+    assert "what the artifact named in the list below requires" in message
+    assert "says nothing about who is responsible" in message
+    assert "Facts the text must state" not in message
+    assert "Context the text may mention" not in message
+    assert "Length: a paragraph of four to six sentences." in message
+    assert "- Kelp release (work item)" in message
 
 
 def test_the_writer_is_told_the_brief_and_nothing_the_guards_will_not_enforce(brief: Brief) -> None:
@@ -251,6 +294,43 @@ def test_a_carrier_subject_proposition_is_bound_to_the_target_by_construction() 
     comment = target_ref(comment_brief.target)
     [misread] = parse_extraction(filled, comment_brief.namespace, comment).propositions
     assert misread.subject is None
+
+
+def test_an_entity_value_written_unknown_is_unresolved_and_keeps_its_shape(brief: Brief) -> None:
+    # The checker wrote the contact as unknown, once affirmed and once negated: neither is
+    # untyped (the value is not malformed) and neither is a proposition (it has no value);
+    # the predicate, the bound subject, the polarity and the mode survive for the guards.
+    filled: JsonObject = {
+        "propositions": [
+            {
+                "subject": "unknown",
+                "predicate": "names_responsible",
+                "value": "unknown",
+                "polarity": "affirmed",
+                "mode": "asserted",
+            },
+            {
+                "subject": "unknown",
+                "predicate": "names_responsible",
+                "value": "unknown",
+                "polarity": "negated",
+                "mode": "hedged",
+            },
+        ],
+        "other_claims": [],
+    }
+    section = clause_ref(clause_id(9001))
+    extraction = parse_extraction(filled, brief.namespace, section)
+    assert extraction.propositions == () and extraction.untyped == ()
+    affirmed, negated = extraction.unresolved
+    assert (affirmed.subject, affirmed.predicate) == (section, PredicateName.NAMES_RESPONSIBLE)
+    assert (affirmed.polarity, affirmed.assertion_mode) == (
+        Polarity.AFFIRMED,
+        AssertionMode.ASSERTED,
+    )
+    assert (negated.polarity, negated.assertion_mode) == (Polarity.NEGATED, AssertionMode.HEDGED)
+    told = next(line for line in value_forms() if line.startswith("- names_responsible"))
+    assert told.endswith("the id of the employee the text names as the responsible contact")
 
 
 def test_a_value_in_the_wrong_form_is_untyped_and_never_a_protocol_failure(brief: Brief) -> None:

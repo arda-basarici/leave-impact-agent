@@ -12,16 +12,31 @@ from random import Random
 import pytest
 
 from leaveimpact.core import (
+    Document,
+    DocumentKind,
+    EntityKind,
+    EntityRef,
     EvidenceRef,
     Fact,
     PredicateName,
+    Requirement,
+    SkillCriterion,
     Source,
+    clause_ref,
     comment_ref,
     component_ref,
     employee_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import comment_id, component_id, scenario_id
+from leaveimpact.core.anchors import SKILL_KIND
+from leaveimpact.core.ids import (
+    clause_id,
+    comment_id,
+    component_id,
+    document_id,
+    scenario_id,
+    work_item_id,
+)
 from leaveimpact.generator.guards import (
     containment_findings,
     namespace_findings,
@@ -29,12 +44,17 @@ from leaveimpact.generator.guards import (
     required_fact_findings,
 )
 from leaveimpact.generator.prose import Extraction
+from leaveimpact.generator.prose.schema import Unresolved
 from leaveimpact.world import (
+    FICTIONAL_ID_BASE,
     Brief,
     CommentTarget,
+    FillerBrief,
     FreeTextResponsibility,
     Minting,
+    Register,
     construct,
+    filler_brief_for,
     lexicon_of,
 )
 from leaveimpact.world.briefs import client_id, clients_named_by
@@ -345,3 +365,125 @@ def test_reason_counts_are_the_findings_by_reason_in_reason_order(brief: Brief) 
         (RefusalReason.REQUIRED_NOT_ASSERTED, 1),
         (RefusalReason.UNTYPED_PROPOSITION, 2),
     )
+
+
+# --- The decoy rule, filler's containment ---------------------------------------------------
+
+
+FILLER_DOCUMENT = Document(
+    document_id(9001), "Release runbook: Kelp release", DocumentKind.RUNBOOK, WORLD_START, ()
+)
+RELEASE = SurfaceForm(EntityKind.WORK_ITEM.value, work_item_id(FICTIONAL_ID_BASE), "Kelp release")
+RELEASE_REF = EntityRef(EntityKind.WORK_ITEM, RELEASE.id)
+KAFKA_FORM = SurfaceForm(SKILL_KIND, KAFKA, "Kafka")
+
+
+@pytest.fixture(scope="module")
+def filler() -> FillerBrief:
+    return filler_brief_for(
+        FILLER_DOCUMENT, clause_id(9001), 0, Register.FILLER_REQUIREMENT, (RELEASE,), (KAFKA_FORM,)
+    )
+
+
+def decoy(
+    subject: EntityRef | None,
+    predicate: PredicateName,
+    value: object,
+    polarity: Polarity = Polarity.AFFIRMED,
+    mode: AssertionMode = AssertionMode.ASSERTED,
+) -> Proposition:
+    return Proposition(subject, predicate, value, polarity, mode)  # type: ignore[arg-type]
+
+
+def test_a_decoy_about_the_clause_or_the_declared_fiction_passes_whatever_its_mode(
+    filler: FillerBrief,
+) -> None:
+    target = clause_ref(clause_id(9001))
+    requirement = Requirement(1, (SkillCriterion(KAFKA),))
+    reads = (
+        decoy(target, PredicateName.REQUIRES, requirement),
+        decoy(target, PredicateName.REQUIRES, requirement, Polarity.NEGATED),
+        decoy(target, PredicateName.REQUIRES, requirement, mode=AssertionMode.HEDGED),
+        decoy(RELEASE_REF, PredicateName.WORK_ITEM_STATUS, "in_progress"),
+        decoy(RELEASE_REF, PredicateName.DUE_ON, date(2026, 3, 1)),
+    )
+    assert containment_findings(filler, Extraction(reads, ("the bridge stays open",))) == ()
+
+
+def test_a_decoy_that_names_a_planted_entity_as_its_value_is_refused(filler: FillerBrief) -> None:
+    target = clause_ref(clause_id(9001))
+    planted = employee_ref(ORG.employees[0].id)
+    for read in (
+        decoy(target, PredicateName.NAMES_RESPONSIBLE, planted),
+        decoy(RELEASE_REF, PredicateName.OWNS_WORK_ITEM, planted),
+        decoy(RELEASE_REF, PredicateName.IN_COMPONENT, component_ref(ORG.components[0].id)),
+    ):
+        [finding] = containment_findings(filler, Extraction((read,), ()))
+        assert finding.reason is RefusalReason.NOT_PERMITTED_FACT
+        assert "not a declared fictional entity" in finding.message
+
+
+def test_an_unknown_subject_an_untyped_proposition_and_a_world_subject_refuse_a_filler_text(
+    filler: FillerBrief,
+) -> None:
+    unknown = Extraction((decoy(None, PredicateName.HAS_SKILL, KAFKA),), ())
+    [finding] = containment_findings(filler, unknown)
+    assert finding.reason is RefusalReason.UNKNOWN_SUBJECT
+    untyped = Extraction((), (), (PredicateName.OWNS_WORK_ITEM, PredicateName.NAMES_RESPONSIBLE))
+    assert [f.reason for f in containment_findings(filler, untyped)] == [
+        RefusalReason.UNTYPED_PROPOSITION,
+        RefusalReason.UNTYPED_PROPOSITION,
+    ]
+    planted = employee_ref(ORG.employees[0].id)
+    [finding] = containment_findings(
+        filler, Extraction((decoy(planted, PredicateName.HAS_SKILL, KAFKA),), ())
+    )
+    assert finding.reason is RefusalReason.NOT_PERMITTED_FACT
+    assert "not the text's own clause or a declared fictional entity" in finding.message
+
+
+def test_an_unresolved_entity_value_refuses_on_both_branches_under_the_untyped_reason(
+    brief: Brief, filler: FillerBrief
+) -> None:
+    # "The employee taking leave is responsible for this work" names nobody the scanner can
+    # refuse; the checker's unresolved contact is the only reading where it shows, and both
+    # a planted and a filler brief refuse it, under the reason the sealed records already carry.
+    target = clause_ref(clause_id(9001))
+    unresolved = Extraction(
+        (),
+        (),
+        (),
+        0,
+        (
+            Unresolved(
+                target, PredicateName.NAMES_RESPONSIBLE, Polarity.AFFIRMED, AssertionMode.ASSERTED
+            ),
+            Unresolved(
+                RELEASE_REF, PredicateName.OWNS_WORK_ITEM, Polarity.NEGATED, AssertionMode.HEDGED
+            ),
+        ),
+    )
+    for which in (brief, filler):
+        # The planted brief also misses its required fact on an empty reading; the untyped
+        # reason is the one both branches share for the unresolved values.
+        findings = [
+            f
+            for f in containment_findings(which, unresolved)
+            if f.reason is RefusalReason.UNTYPED_PROPOSITION
+        ]
+        unresolved_text = "names someone or something the entity list does not resolve"
+        assert [f.message for f in findings] == [
+            f"names_responsible of {target.id}: {unresolved_text}",
+            f"owns_work_item of {RELEASE_REF.id}: {unresolved_text}",
+        ]
+
+
+def test_the_scanner_and_the_required_fact_guard_run_unchanged_for_filler(
+    filler: FillerBrief, lexicon: Lexicon, world_forms: tuple[SurfaceForm, ...]
+) -> None:
+    clean = "The Kelp release cutover needs an engineer with Kafka experience on the bridge."
+    assert namespace_findings(clean, filler, world_forms) == ()
+    assert required_fact_findings(clean, filler, lexicon) == ()
+    naming = f"{ORG.employees[0].name} runs the Kelp release cutover."
+    [finding] = namespace_findings(naming, filler, world_forms)
+    assert finding.reason is RefusalReason.FOREIGN_NAME

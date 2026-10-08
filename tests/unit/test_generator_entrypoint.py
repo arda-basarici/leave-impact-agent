@@ -19,6 +19,7 @@ from leaveimpact.generator.entrypoint import (
     prose_models_from_env,
     stores_for,
 )
+from leaveimpact.world.levels import NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.org import DEFAULT_PARAMS
 from tests.unit.test_adapters_wiring import local_environment
 
@@ -87,6 +88,24 @@ def test_the_prose_controls_default_and_are_validated() -> None:
         parse_recipe([*base, "--attempt-cap", "0"])
     with pytest.raises(ConfigurationError, match="--resume is a 64-hex world version"):
         parse_recipe([*base, "--resume", "not-a-version"])
+
+
+def test_the_filler_plan_defaults_to_no_pool_and_is_read_from_its_three_options() -> None:
+    base = ["--seed", "7", "--world-start", "2026-01-05"]
+    assert parse_recipe(base).filler == NO_FILLER
+    pooled = parse_recipe(
+        [*base, "--filler-documents", "12", "--filler-sections", "2", "--level", "padded=6"]
+    )
+    assert pooled.filler == FillerPlan(12, 2, (SealedLevel("padded", 6),))
+    assert parse_recipe([*base, "--filler-documents", "3"]).filler == FillerPlan(3, 4)
+    with pytest.raises(ConfigurationError, match="--level is NAME=COUNT"):
+        parse_recipe([*base, "--filler-documents", "3", "--level", "padded"])
+    with pytest.raises(ConfigurationError, match="--level needs a pool"):
+        parse_recipe([*base, "--level", "padded=1"])
+    with pytest.raises(ConfigurationError, match="the filler plan is not consistent"):
+        parse_recipe([*base, "--filler-documents", "3", "--level", "padded=4"])
+    with pytest.raises(ConfigurationError, match="the filler plan is not consistent"):
+        parse_recipe([*base, "--filler-documents", "3", "--level", "base=0"])
 
 
 def test_the_prose_models_come_from_the_environment_and_are_never_defaulted() -> None:

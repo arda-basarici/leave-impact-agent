@@ -49,7 +49,7 @@ def fresh_world(
     """Assemble, materialize, compose and bundle ``recipe``; ``log`` takes the materializer's
     lines."""
     semantic = assemble_semantic_world(
-        recipe.seed, recipe.params, recipe.world_start, recipe.plan_name
+        recipe.seed, recipe.params, recipe.world_start, recipe.plan_name, recipe.filler
     )
     materialized = materialize(
         semantic, writer, checker, load_prompt_assets(), recipe.attempt_cap, log

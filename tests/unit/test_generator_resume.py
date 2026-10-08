@@ -38,7 +38,9 @@ def sealed_world() -> tuple[WorldSpec, Bundle]:
     return world, bundle(world)
 
 
-def fixture_assembly(seed: int, params: object, start: object, plan: object) -> SemanticWorld:
+def fixture_assembly(
+    seed: int, params: object, start: object, plan: object, filler: object
+) -> SemanticWorld:
     """The stand-in reassembly: the fixture world is one no seed produces on its own."""
     return semantic_world_of(pending_scenario(SkillInComment()))
 
@@ -107,6 +109,22 @@ def test_resume_is_not_a_migration(sealed_world: tuple[WorldSpec, Bundle]) -> No
         resume_world(version, store)
 
 
+def test_a_pooled_world_resumes_through_the_default_assembler_and_reproduces_its_pool() -> None:
+    # The generator's own pool, minted inside the assembly from the plan the provenance seals:
+    # the default reassembly rebuilds the same pool, and the proof of the semantic digest holds.
+    from leaveimpact.world import FillerPlan, SealedLevel, assemble_semantic_world
+    from tests.unit.filler_fixture import stand_in_bodies
+
+    plan = FillerPlan(3, 1, (SealedLevel("padded", 2),))
+    semantic = assemble_semantic_world(7, DEFAULT_PARAMS, WORLD_START, "golden", plan)
+    bodies = stand_in_bodies(semantic)
+    world = compose(semantic, bodies, record_for(bodies))
+    sealed = bundle(world)
+    resumed, rebuilt = resume_world(sealed.world_version, truth_store(sealed))
+    assert resumed == world and rebuilt == sealed
+    assert resumed.filler_plan == plan and len(resumed.filler) == 3
+
+
 def test_a_world_with_a_pool_resumes_with_the_filler_prose_lifted() -> None:
     from leaveimpact.world import with_filler
     from tests.unit.filler_fixture import filler_brief, filler_documents, next_numbers
@@ -122,7 +140,9 @@ def test_a_world_with_a_pool_resumes_with_the_filler_prose_lifted() -> None:
     world = compose(padded, bodies, record_for(bodies))
     sealed = bundle(world)
 
-    def padded_assembly(seed: int, params: object, start: object, plan: object) -> SemanticWorld:
+    def padded_assembly(
+        seed: int, params: object, start: object, plan: object, filler: object
+    ) -> SemanticWorld:
         return padded
 
     resumed, rebuilt = resume_world(sealed.world_version, truth_store(sealed), padded_assembly)

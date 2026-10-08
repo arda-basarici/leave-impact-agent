@@ -38,6 +38,7 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.worldtime import date_at
 from leaveimpact.generator.recipe import DEFAULT_ATTEMPT_CAP, WorldRecipe
 from leaveimpact.world.artifacts import SHA256_HEX
+from leaveimpact.world.levels import NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams
 from leaveimpact.world.plan import PLANS
 
@@ -92,6 +93,25 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         help="fresh attempts per prose target before the target fails (default 8)",
     )
     parser.add_argument(
+        "--filler-documents",
+        type=int,
+        default=0,
+        help="filler documents minted after the planted world (default none)",
+    )
+    parser.add_argument(
+        "--filler-sections",
+        type=int,
+        default=DEFAULT_FILLER_SECTIONS,
+        help="sections a filler document holds, each a model-written paragraph (default 4)",
+    )
+    parser.add_argument(
+        "--level",
+        action="append",
+        default=[],
+        metavar="NAME=COUNT",
+        help="a corpus level sealed over the first COUNT filler documents; repeatable",
+    )
+    parser.add_argument(
         "--resume",
         default=None,
         metavar="WORLD_VERSION",
@@ -108,6 +128,7 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         if not SHA256_HEX.fullmatch(parsed.resume):
             raise ConfigurationError(f"--resume is a 64-hex world version, got {parsed.resume!r}")
         resume = WorldVersion(parsed.resume)
+    filler = _filler_plan(parsed.filler_documents, parsed.filler_sections, parsed.level)
     try:
         world_start = date_at(parsed.world_start, "--world-start")
     except ValueError as error:
@@ -126,7 +147,33 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         )
     except ValueError as error:
         raise ConfigurationError(f"the organization dials are not consistent: {error}") from error
-    return WorldRecipe(parsed.seed, params, world_start, parsed.attempt_cap, resume, parsed.plan)
+    return WorldRecipe(
+        parsed.seed, params, world_start, parsed.attempt_cap, resume, parsed.plan, filler
+    )
+
+
+DEFAULT_FILLER_SECTIONS = 4
+"""Sections a filler document holds when the recipe names a pool and no count: the
+development default of the generator step's group 2, measured before the freeze."""
+
+
+def _filler_plan(documents: int, sections: int, levels: Sequence[str]) -> FillerPlan:
+    """The filler plan the three options name; ``ConfigurationError`` names the option or
+    the plan's own rule that refused."""
+    if documents == 0:
+        if levels:
+            raise ConfigurationError("--level needs a pool: give --filler-documents")
+        return NO_FILLER
+    sealed: list[SealedLevel] = []
+    for spec in levels:
+        name, equals, count = spec.partition("=")
+        if not equals or not name or not count.isdigit():
+            raise ConfigurationError(f"--level is NAME=COUNT, got {spec!r}")
+        sealed.append(SealedLevel(name, int(count)))
+    try:
+        return FillerPlan(documents, sections, tuple(sealed))
+    except ValueError as error:
+        raise ConfigurationError(f"the filler plan is not consistent: {error}") from error
 
 
 @dataclass(frozen=True, slots=True)

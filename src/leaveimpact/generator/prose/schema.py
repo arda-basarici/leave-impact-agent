@@ -21,6 +21,16 @@ kept as *untyped*, named by its predicate only, and the extraction guard refuses
 attempt so the writer is resampled. A subject id outside the brief's namespace is an
 unknown subject by definition, since the namespace is the whole list the checker was
 given. Values pass through the same specs a fact's do, so no second parser exists.
+
+An entity value the checker wrote as ``unknown`` is a third reading, *unresolved*: the
+text refers to a person or thing the list lacks, or to nobody, and the checker could not
+say which. It is kept apart from the untyped (the generator step's group 2, on the
+external read): predicate, subject, polarity and mode are preserved, since a contextual
+reference to a planted person ("the employee taking leave is responsible") has no
+spelling the namespace scanner could refuse and this reading is the only place it
+shows. Both guards refuse it under the reason the untyped carry, so no sealed record
+moves; the seam exists so that a narrower rule, if one is ever ruled, has a place to
+attach and an observation to record.
 """
 
 from __future__ import annotations
@@ -61,10 +71,22 @@ class ExtractionMalformed(Exception):
 
 
 @dataclass(frozen=True, slots=True)
+class Unresolved:
+    """A proposition whose entity value the checker wrote as ``unknown``: everything but the
+    value, which refers to someone or something the entity list does not resolve."""
+
+    subject: EntityRef | None
+    predicate: PredicateName
+    polarity: Polarity
+    assertion_mode: AssertionMode
+
+
+@dataclass(frozen=True, slots=True)
 class Extraction:
     """What the checker read: the propositions, how many named a subject outside the list, the
-    claims it could not express, and the predicates of the propositions it could not type
-    (a value in the wrong form — the checker's misreading, never the text's content)."""
+    claims it could not express, the predicates of the propositions it could not type
+    (a value in the wrong form — the checker's misreading, never the text's content), and
+    the propositions whose entity value it wrote as ``unknown``."""
 
     propositions: tuple[Proposition, ...]
     other_claims: tuple[str, ...]
@@ -72,6 +94,7 @@ class Extraction:
     canonicalized: int = 0
     """How many propositions arrived with subject and value reversed and were put the
     registry's way round — the checker's normalization, counted as a signal of its reading."""
+    unresolved: tuple[Unresolved, ...] = ()
 
     @property
     def unknown_subjects(self) -> int:
@@ -139,6 +162,9 @@ def _form(spec: ValueSpec, name: PredicateName) -> str:
         case ValueKind.ENTITY_REF:
             assert spec.entity_kind is not None
             if name is PredicateName.NAMES_RESPONSIBLE:
+                # A longer line saying a text that names nobody makes no proposition was
+                # probed on 2026-10-08 (the generator step's group 2, round 3) and moved
+                # none of twelve verdicts; it is not here, by the step 16 lesson.
                 return "the id of the employee the text names as the responsible contact"
             return f"the id of {spec.entity_kind.value} from the entity list"
         case ValueKind.SKILL:
@@ -182,6 +208,7 @@ def parse_extraction(filled: JsonObject, namespace: Namespace, target: EntityRef
     known = {(form.kind, form.id) for form in namespace.forms}
     propositions: list[Proposition] = []
     untyped: list[PredicateName] = []
+    unresolved: list[Unresolved] = []
     canonicalized = 0
     for entry in entries:
         read, swapped = _proposition(entry, known, target)
@@ -189,16 +216,21 @@ def parse_extraction(filled: JsonObject, namespace: Namespace, target: EntityRef
         match read:
             case Proposition():
                 propositions.append(read)
+            case Unresolved():
+                unresolved.append(read)
             case PredicateName():
                 untyped.append(read)
-    return Extraction(tuple(propositions), tuple(others), tuple(untyped), canonicalized)
+    return Extraction(
+        tuple(propositions), tuple(others), tuple(untyped), canonicalized, tuple(unresolved)
+    )
 
 
 def _proposition(
     entry: object, known: set[tuple[str, str]], target: EntityRef
-) -> tuple[Proposition | PredicateName, bool]:
-    """The entry as a proposition, or its predicate alone when its value could not be typed;
-    and whether its entity pair arrived reversed."""
+) -> tuple[Proposition | Unresolved | PredicateName, bool]:
+    """The entry as a proposition, as an unresolved one when its entity value is ``unknown``,
+    or its predicate alone when its value could not be typed; and whether its entity pair
+    arrived reversed."""
     try:
         item = as_object(entry, "a proposition")
         fields = {
@@ -218,6 +250,8 @@ def _proposition(
         subject = target if target.kind is row.subject else None
     elif subject_id != UNKNOWN_SUBJECT and (row.subject.value, subject_id) in known:
         subject = EntityRef(row.subject, subject_id)
+    if row.value_spec.kind is ValueKind.ENTITY_REF and raw_value == UNKNOWN_SUBJECT:
+        return Unresolved(subject, name, polarity, mode), swapped
     try:
         value = _value(raw_value, row.value_spec)
         return Proposition(subject, name, value, polarity, mode), swapped

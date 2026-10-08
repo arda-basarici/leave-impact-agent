@@ -40,6 +40,23 @@ own source establishes (the brief's construction admits no other allowed source)
 benchmark truth does not depend on that prose realization under any run condition. A
 hedge on a fact that only other prose establishes is a softened conflict the world did
 not plant, and refuses.
+
+A *filler* brief is contained by the *decoy rule* instead (the generator step's ruling 2,
+amended by group 0's probe and group 2's external read). Filler carries no fact, so
+nothing is required and nothing is allowed; what it may state is declared by subject: a
+proposition passes when its subject is the text's own clause or a fictional entity the
+brief declares and, where its value names an entity, that entity is a declared fictional
+one or the brief's own document. An unknown subject, an untyped proposition, any other
+subject and any other entity value refuse, and other claims are tolerated, since handbook
+prose is made of them. The value clause is there because the checker types an entity
+value from whatever string it wrote, so a decoy about a fictional ticket could otherwise
+name a planted employee as its owner. Polarity and mode are not read for a decoy: a
+hedged or a denied statement about a fiction establishes nothing either way. An
+*unresolved* entity value, the checker's ``unknown``, refuses on both branches: for
+filler it is the one reading where a contextual reference to a planted person ("the
+employee taking leave is responsible") can show, since such a reference has no spelling
+for the scanner (the group 2 external read); the live checker also writes it for texts
+that name nobody, which is the checker's error and costs an attempt, not a leak.
 """
 
 from __future__ import annotations
@@ -50,9 +67,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from leaveimpact.core.anchors import missing_anchors, word_pattern
-from leaveimpact.core.refs import employee_ref
+from leaveimpact.core.enums import EntityKind
+from leaveimpact.core.refs import EntityRef, employee_ref
 from leaveimpact.generator.prose.schema import Extraction
-from leaveimpact.world.briefs import Brief, CommentTarget
+from leaveimpact.world.briefs import Brief, CommentTarget, FillerBrief, SectionTarget, target_ref
 from leaveimpact.world.prose import (
     PROSE_RECORD_KINDS,
     AssertionMode,
@@ -165,7 +183,10 @@ def required_fact_findings(text: str, brief: Brief, lexicon: Lexicon) -> tuple[F
 
 
 def containment_findings(brief: Brief, extraction: Extraction) -> tuple[Finding, ...]:
-    """Every way the checker's reading of a text departs from the brief's containment."""
+    """Every way the checker's reading of a text departs from the brief's containment: the
+    fact rule for a planted brief, the decoy rule for a filler one."""
+    if isinstance(brief, FillerBrief):
+        return _decoy_findings(brief, extraction)
     required = {statement_of(fact) for fact in brief.required_facts}
     permitted = required | {statement_of(fact) for fact in brief.allowed}
     # A hedge on allowed context is tolerated only when benchmark truth does not depend on
@@ -230,6 +251,62 @@ def containment_findings(brief: Brief, extraction: Extraction) -> tuple[Finding,
         )
         for name in extraction.untyped
     )
+    findings.extend(_unresolved_findings(extraction))
+    return tuple(findings)
+
+
+def _unresolved_findings(extraction: Extraction) -> list[Finding]:
+    """A finding per proposition whose entity value the checker could not resolve, under the
+    reason the untyped carry: the sealed vocabulary stays, the message says which it was."""
+    return [
+        Finding(
+            RefusalReason.UNTYPED_PROPOSITION,
+            f"{read.predicate.value} of {read.subject.id if read.subject else 'unknown'}: "
+            "names someone or something the entity list does not resolve",
+        )
+        for read in extraction.unresolved
+    ]
+
+
+def _decoy_findings(brief: FillerBrief, extraction: Extraction) -> tuple[Finding, ...]:
+    """The decoy rule's findings: every proposition outside the declared fiction, every unknown
+    subject and every untyped proposition; other claims pass."""
+    assert isinstance(brief.target, SectionTarget)  # the filler contract
+    subjects = {target_ref(brief.target), *brief.fictional}
+    values = {*brief.fictional, EntityRef(EntityKind.DOCUMENT, brief.target.document_id)}
+    findings: list[Finding] = []
+    for read in extraction.propositions:
+        if read.subject is None:
+            findings.append(
+                Finding(
+                    RefusalReason.UNKNOWN_SUBJECT,
+                    f"{read.predicate.value}: subject not in the entity list",
+                )
+            )
+        elif read.subject not in subjects:
+            findings.append(
+                Finding(
+                    RefusalReason.NOT_PERMITTED_FACT,
+                    f"{read.predicate.value} of {read.subject.id}: not the text's own clause or "
+                    "a declared fictional entity",
+                )
+            )
+        elif isinstance(read.value, EntityRef) and read.value not in values:
+            findings.append(
+                Finding(
+                    RefusalReason.NOT_PERMITTED_FACT,
+                    f"{read.predicate.value} of {read.subject.id}: names {read.value.id}, "
+                    "not a declared fictional entity",
+                )
+            )
+    findings.extend(
+        Finding(
+            RefusalReason.UNTYPED_PROPOSITION,
+            f"{name.value}: a proposition the checker could not type",
+        )
+        for name in extraction.untyped
+    )
+    findings.extend(_unresolved_findings(extraction))
     return tuple(findings)
 
 
