@@ -91,7 +91,8 @@ def test_a_filler_brief_s_writer_is_told_what_filler_may_do_in_place_of_the_fact
     assert "says nothing about who is responsible" in message
     assert "Facts the text must state" not in message
     assert "Context the text may mention" not in message
-    assert "Length: a paragraph of four to six sentences." in message
+    assert "Length: one or two sentences." in message
+    assert "states nothing else" in message
     assert "- Kelp release (work item)" in message
 
 

@@ -407,7 +407,7 @@ def test_a_decoy_about_the_clause_or_the_declared_fiction_passes_whatever_its_mo
         decoy(RELEASE_REF, PredicateName.WORK_ITEM_STATUS, "in_progress"),
         decoy(RELEASE_REF, PredicateName.DUE_ON, date(2026, 3, 1)),
     )
-    assert containment_findings(filler, Extraction(reads, ("the bridge stays open",))) == ()
+    assert containment_findings(filler, Extraction(reads, ())) == ()
 
 
 def test_a_decoy_that_names_a_planted_entity_as_its_value_is_refused(filler: FillerBrief) -> None:
@@ -476,6 +476,19 @@ def test_an_unresolved_entity_value_refuses_on_both_branches_under_the_untyped_r
             f"names_responsible of {target.id}: {unresolved_text}",
             f"owns_work_item of {RELEASE_REF.id}: {unresolved_text}",
         ]
+
+
+def test_an_other_claim_refuses_a_filler_text_as_it_refuses_a_planted_one(
+    filler: FillerBrief,
+) -> None:
+    # The review's text: no name for the scanner, no proposition for the decoy clauses, a
+    # policy over the planted domain all the same. Filler goes through the planted gate.
+    reading = Extraction(
+        (), ("All leave coverage requires approval from a manager before it can proceed.",)
+    )
+    [finding] = containment_findings(filler, reading)
+    assert finding.reason is RefusalReason.OTHER_CLAIM
+    assert "approval from a manager" in finding.message
 
 
 def test_the_scanner_and_the_required_fact_guard_run_unchanged_for_filler(

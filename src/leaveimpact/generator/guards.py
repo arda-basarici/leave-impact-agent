@@ -47,8 +47,12 @@ nothing is required and nothing is allowed; what it may state is declared by sub
 proposition passes when its subject is the text's own clause or a fictional entity the
 brief declares and, where its value names an entity, that entity is a declared fictional
 one or the brief's own document. An unknown subject, an untyped proposition, any other
-subject and any other entity value refuse, and other claims are tolerated, since handbook
-prose is made of them. The value clause is there because the checker types an entity
+subject, any other entity value and any other claim refuse: the other claims were
+tolerated while a handbook composition existed, since such prose is made of them, and
+the group's review showed the path they left ("all leave coverage requires approval from a
+manager" names nothing and states a policy over the planted domain); with the handbook
+composition dropped, filler goes through the same gate as planted prose, which is ruling
+2's lasting part. The value clause is there because the checker types an entity
 value from whatever string it wrote, so a decoy about a fictional ticket could otherwise
 name a planted employee as its owner. Polarity and mode are not read for a decoy: a
 hedged or a denied statement about a fiction establishes nothing either way. An
@@ -270,7 +274,7 @@ def _unresolved_findings(extraction: Extraction) -> list[Finding]:
 
 def _decoy_findings(brief: FillerBrief, extraction: Extraction) -> tuple[Finding, ...]:
     """The decoy rule's findings: every proposition outside the declared fiction, every unknown
-    subject and every untyped proposition; other claims pass."""
+    subject, every untyped or unresolved proposition and every other claim."""
     assert isinstance(brief.target, SectionTarget)  # the filler contract
     subjects = {target_ref(brief.target), *brief.fictional}
     values = {*brief.fictional, EntityRef(EntityKind.DOCUMENT, brief.target.document_id)}
@@ -307,6 +311,10 @@ def _decoy_findings(brief: FillerBrief, extraction: Extraction) -> tuple[Finding
         for name in extraction.untyped
     )
     findings.extend(_unresolved_findings(extraction))
+    findings.extend(
+        Finding(RefusalReason.OTHER_CLAIM, f"other claim: {claim}")
+        for claim in extraction.other_claims
+    )
     return tuple(findings)
 
 

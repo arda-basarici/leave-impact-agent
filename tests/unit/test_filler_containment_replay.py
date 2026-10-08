@@ -206,7 +206,7 @@ def gate(
     return scanner, decoy
 
 
-@pytest.mark.parametrize("label", ["N1", "N2", "N3", "F1"])
+@pytest.mark.parametrize("label", ["N2", "N3"])
 def test_the_accepted_texts_pass_the_whole_gate(
     label: str,
     records: dict[str, Record],
@@ -216,6 +216,21 @@ def test_the_accepted_texts_pass_the_whole_gate(
     scanner, decoy = gate(records[label], brief, world_forms)
     assert (scanner, decoy) == (set(), set()), (label, scanner, decoy)
     assert string_field(records[label], "expected").startswith("pass")
+
+
+@pytest.mark.parametrize("label", ["N1", "F1"])
+def test_a_text_with_an_other_claim_now_refuses_on_it(
+    label: str,
+    records: dict[str, Record],
+    brief: FillerBrief,
+    world_forms: tuple[SurfaceForm, ...],
+) -> None:
+    # N1 was the handbook composition's shape and F1 a fictional person's review duty the
+    # checker could not express; the probe's rule tolerated other claims for the handbook's
+    # sake, the composition was dropped and the tolerance with it (the group 2 review), so
+    # both now refuse as a planted text would, the scanner still clean.
+    scanner, decoy = gate(records[label], brief, world_forms)
+    assert scanner == set() and decoy == {RefusalReason.OTHER_CLAIM}, label
 
 
 def test_an_undeclared_fictional_person_is_an_unknown_subject(
@@ -251,10 +266,13 @@ def test_the_untyped_clause_alone_refuses_what_the_two_clause_rule_passed(
     # them and the amendment's clause refuses them, which is what the amendment exists for.
     # M3's one typed proposition is a status of the fictional release, a decoy, and its two
     # other claims are tolerated; the untyped ``on_leave`` is the whole refusal.
-    for label in ("M2", "M3"):
+    for label, expected in (
+        ("M2", {RefusalReason.UNTYPED_PROPOSITION}),
+        ("M3", {RefusalReason.UNTYPED_PROPOSITION, RefusalReason.OTHER_CLAIM}),
+    ):
         assert string_field(records[label], "decoy_verdict") == "pass"
         _, decoy = gate(records[label], brief, world_forms)
-        assert decoy == {RefusalReason.UNTYPED_PROPOSITION}, label
+        assert decoy == expected, label
     # M1's real employee is outside the namespace, so the checker wrote an unknown subject,
     # and left a second proposition untyped.
     _, decoy = gate(records["M1"], brief, world_forms)
@@ -355,10 +373,15 @@ def test_a_contextual_reference_to_a_planted_person_refuses_on_the_unresolved_re
     assert array_field(record, "unresolved"), label
 
 
-def test_a_requirement_text_naming_nobody_passes_the_production_gate(
+def test_a_requirement_text_naming_nobody_passes_every_decoy_clause(
     records: dict[str, Record],
     production_brief: FillerBrief,
     world_forms: tuple[SurfaceForm, ...],
 ) -> None:
+    # H1 states its requirement and then a second sentence about the rollback plan, which the
+    # checker filed as an other claim; the decoy clauses pass the text and the other-claim
+    # clause, filler's since the group 2 review, refuses it as it would a planted text. The
+    # register now asks for the requirement and nothing else, and the production acceptance
+    # under that length is the fifth probe round's to measure.
     scanner, decoy = gate(records["H1"], production_brief, world_forms)
-    assert (scanner, decoy) == (set(), set())
+    assert scanner == set() and decoy == {RefusalReason.OTHER_CLAIM}

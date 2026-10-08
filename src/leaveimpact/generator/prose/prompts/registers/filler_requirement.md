@@ -1,1 +1,1 @@
-A section of an internal document about the artifact it names: operational and matter-of-fact, in the third person, a paragraph of four to six sentences. It states what that artifact requires of whoever does its work and names no person.
+A section of an internal document about the artifact it names: operational and matter-of-fact, in the third person, one or two sentences. It states what that artifact requires of whoever does its work and names no person.

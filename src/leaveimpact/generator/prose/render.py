@@ -57,8 +57,11 @@ LENGTH_BY_REGISTER: dict[Register, str] = {
     Register.CLIENT_NOTE: "one or two sentences",
     Register.PROCEDURE: "one or two sentences",
     Register.POLICY: "one or two sentences",
-    # Filler carries a share of the corpus budget, so a section is a paragraph.
-    Register.FILLER_REQUIREMENT: "a paragraph of four to six sentences",
+    # A filler section states its one requirement and stops, at the planted registers' length:
+    # a paragraph was tried and every sentence past the requirement came back as an other
+    # claim the gate refuses (the group 2 review, 2026-10-08); the corpus budget is met
+    # through sections per document, which the filler plan carries.
+    Register.FILLER_REQUIREMENT: "one or two sentences",
 }
 
 
@@ -118,10 +121,12 @@ def _filler_passage(brief: FillerBrief) -> str:
     """
     return (
         "What the text does: it states what the artifact named in the list below requires of "
-        "whoever does its work, using exactly one skill from the names listed. It names no "
-        "person and says nothing about who is responsible for, owns, confirms or should be "
-        "contacted about anything. Write the requirement, not a description of this "
-        "instruction."
+        "whoever does its work, the way a company clause would (how many people, with "
+        "experience in exactly one skill from the names listed, for which step or moment of "
+        "the work), and states nothing else: no description of the work, the document or "
+        "its steps. It names no person and says nothing about who is responsible for, owns, "
+        "confirms or should be contacted about anything. Write the requirement, not a "
+        "description of this instruction."
     )
 
 

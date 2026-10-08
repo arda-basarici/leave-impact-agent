@@ -209,7 +209,8 @@ class FillerBrief(Brief):
     Containment for filler is the decoy rule and not the fact rule: a proposition passes when
     its subject is the target or a declared fictional entity and any entity it names as a
     value is a declared fictional entity or the brief's own document; an unknown subject, an
-    untyped proposition and any other subject or entity value refuse. The permission is
+    untyped proposition, any other subject or entity value and any other claim refuse. The
+    permission is
     declared by subjects, not enumerated by statements, because the writer chooses which
     skill and which count it states and no finite list can be written ahead of the text (the
     group 0 probe). A fictional entity is an ordinary namespace form whose id no planted
