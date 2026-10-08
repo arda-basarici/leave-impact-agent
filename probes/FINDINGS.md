@@ -3011,3 +3011,83 @@ each, all of that tier): a ticket comment's presence names the tier under any or
 id adds nothing to that. The classifier over a one-tier kind returns 1.00 by construction;
 it is a class-structure fact, not an id leak the shuffle could remove, and it is recorded
 here as what a run that reads a comment is told.
+
+## step-9 — the corpus cache: the serving rule run against the real bucket, the loader's race and a forged pool reproduced, the mixed bundle through thirty scenarios (2026-10-08 to 09)
+
+The investigator milestone's step 9 (commits `7396b77` to `662cdcb`) built the corpus cache
+the instance fills from the world bucket: the levels object sealed beside the documents,
+the serving rule at rank 2, the schema with its world, level and pool-rank rows, the
+reader-only adapter at one level, the loader, the cache job and the deploy step. Its
+evidence, in order; every number below is pinned by a test named beside it or by a run
+whose command is recorded in the stream's step file.
+
+**The served side carried no membership.** Under `worlds/<version>/` a projected world held
+its documents, the scenario specs, the manifest and the verdicts, and the pool's order and
+the levels were on the world spec in the truth bucket, which no statement on the instance
+role names. The step's first fork sealed `levels.json` beside the documents on both paths.
+The development world `b7ec4563…` gained the key under `--resume … --unprojected`: forty
+conditional puts, thirty-nine present-and-equal, `objects_sealed=42`, 5.5 seconds, no model
+call (forecast: forty-one equal and one created). The generator version did not move: the
+object is a projection of the spec and enters neither the bundle nor the version.
+
+**The level filter before ranking, on the real service**
+(`tests/integration/test_corpus_adapter.py`,
+`test_the_level_filters_before_ranking_and_the_shared_order_is_unchanged`). The padded level
+returns a filler document the base level never returns, by id and by search, and the
+documents both levels hold come back in one order under a query whose ranks differ ("kafka",
+two mentions outranking one): PostgreSQL's ranking reads no statistic of the table, so a
+`WHERE` on the level before ranking is exactly a corpus of that level's documents. The
+review found the test's first queries were ties the id tie-break ordered whatever the rank.
+
+**The development world loaded locally** (`python -m leaveimpact.cache` over
+`data/object-store` and the laptop's database): `loaded=b7ec4563… projection=unprojected
+documents=38 levels=base,padded`; the adapter holds 26 ids at base and 38 at padded;
+"retention" finds the two data-retention filler policies at padded and nothing at base.
+
+**Two races and a forgery, reproduced before they were fixed.** Two loaders on a fresh
+version: `SELECT … FOR UPDATE` locks nothing when the row is absent, both saw no row, and
+the second's insert was refused by the primary key (`UniqueViolation`, reproduced on the
+service by the review's probe); a transaction-scoped advisory lock keyed by the version is
+taken before the read, and `test_two_loaders_on_a_fresh_version_serialize_and_the_second_finds_the_first`
+holds the first loader's transaction by hand while the real loader waits in a thread. A
+`levels.json` the manifest never vouched for was decoded and shaped the levels (the probe
+loaded a projected world with a stray padded object: `levels=base,padded`, the filler at
+rank 0); refused by name now, since a final prefix is create-only and an unrecorded key is
+what a later put adds. The validator never read the levels object, so a sealed pool naming
+a planted document as filler reached the cache with the verdict approving (the external
+review, on a generated golden world); the validator now compares the object with the
+spec's derivation (`test_a_levels_object_naming_a_planted_document_as_filler_refuses_by_position`,
+refusing at position 0 and naming the document), verdict format 2, validator version 2,
+and the serving rule requires the current version. An unprojected sealing stopped after
+its first document was admitted and loaded as a partial world marked ready; the levels
+object is the sealing's last write and the admission requires it.
+
+**The serving rule against the real bucket, read-only, from the workstation profile**
+(2026-10-08, the rule and the verification run over the bucket with nothing loaded):
+
+| version | outcome under validator version 1 | documents | verdict |
+|---|---|---|---|
+| `785bc4cd…` (the earlier measurement world) | would load, projected | 3 | `34965191151-1` |
+| `7b806ed6…` (the golden world) | would load, projected | 26 | `35117728927-1` |
+| `d674d576…` (the first world) | would load, projected | 0 | `34785009950-1` |
+
+Nothing refused; the first world's manifest receipts no documents and its prefix holds
+none, so the exactness check agrees and it loads as a zero-document world at the base
+level. Under the current-version clause all three decline until the golden world is
+validated again under version 2. (The 2026-09-27 entry above describes `785bc4cd…`'s
+projection as blocked at site preparation; the bucket holds its manifest and an approving
+verdict, so it was completed afterwards.)
+
+**The mixed-bundle gate** (`tests/integration/test_mixed_bundle.py`): a composed golden
+world with two filler documents sealed unprojected to a local twin, the cache job filling
+PostgreSQL from it, the rules-only baseline run on the mixed bundle (the planted readers
+and the real corpus adapter at the base level) and on the all-in-memory one over all
+thirty scenarios: the same operations and the same claims on every scenario, both exports
+conforming to the prefetch plan with no finding, no failure and no abstention; the
+validator's document identity and field check over the cache at the padded level exact and
+equal on every record, the base level holding every planted document and no pool document.
+
+**The order check** (`step-9-scratch/order_check_group1.sh` in the stream): four stages on
+an exported copy of `89e4231`, 5,686, 5,697, 5,704 and 5,714 passed with 3 skipped, lint
+and types clean at each; its first run stopped at stage 2 on a symbol the review's fix had
+moved between commits.

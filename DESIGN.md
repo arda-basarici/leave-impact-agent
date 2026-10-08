@@ -545,7 +545,13 @@ scenario-owned document plus the first so many of the pool, and listed nowhere, 
 levels are nested and every answer-bearing document is in every level. The whole
 pool is sealed and expected by the validator and the receipt check whatever level a
 run uses; the level is a serving filter, applied before search, ranking and
-full-context assembly. The pool is minted after the whole assembly from the same
+full-context assembly. The spec is in the truth bucket, which the instance never
+reads, so the world seals the served side's statement of membership beside its
+documents, `levels.json`, the levels and the pool's ids in rank order and nothing a
+document says, on both sealing paths; the validator compares it with what the
+authenticated spec derives, since a verdict that never read it approved a pool the
+spec did not seal (the step 9 external review), and the corpus cache filters every
+read by it. The pool is minted after the whole assembly from the same
 world-wide counter under a derived generator, so every planted id and record is what
 the seed produces without filler, and that claim is a test: the semantic world
 assembled with filler, its filler stripped, equals the world assembled without, and
@@ -805,11 +811,17 @@ job can delete from; then the scenario specs; then every sealed object read back
 compared; and the manifest last, carrying every object's version id, so an object
 under `worlds/` with a manifest beside it is a completed projection by construction.
 **A world is served only on a verdict that judged its current manifest**, never
-"whatever verdict file exists": a stated contract whose decoder arrives with its
-first consumer, the serving check at the demo milestone, and a newest-approved
-choice, if ever needed, is a listing of the prefix and not a mutable pointer. Vendor
-names derive from the version, so no operator chooses them and two worlds on one
-site cannot collide by choice.
+"whatever verdict file exists": the manifest present under its final key and decoded
+at `projected`, a verdict under the version's prefix approving, naming this version
+and naming the SHA-256 of the manifest bytes just read, and judging under the current
+validator version, since an older logic approved a shorter list of checks and a world
+judged under one is validated again (the step 9 build; the rule at rank 2, below the
+shells). A development world, sealed unprojected with no manifest, is admitted on a
+local development root alone, and there on its levels object, the last write of the
+unprojected sealing, so a sealing that stopped is never served as a partial world. A
+newest-approved choice, if ever needed, is a listing of the prefix and not a mutable
+pointer. Vendor names derive from the version, so no operator chooses them and two
+worlds on one site cannot collide by choice.
 
 **Projection is the effectful, idempotent shell.** One projector per system, each
 find-or-create by the domain id planted on every entity, accepting an existing
@@ -836,13 +848,31 @@ never acceptance, which is the validator's separate artifact. **Documents are
 projected into the world bucket as sealed objects, not into a database**, because
 the generator runs on a GitHub runner that cannot reach the instance's PostgreSQL
 and holds no database credential; the application's corpus is a cache the instance
-fills from those objects: it discovers worlds by listing `worlds/` under its own
-role, ingests only a world that satisfies the serving rule, loads the documents into
-the version's namespace, verifies exact ids and byte digests against the manifest,
-and marks the version ready in one atomic step, retrieval reading ready worlds only.
-Ingestion goes through a narrow loader and never through the gated document writer,
-since it is cache materialization and not authorship; the loader's build waits for
-its first consumer at the investigator milestone's entry.
+fills from those objects (the investigator milestone's step 9): the deploy runs the
+cache job after PostgreSQL is healthy, which discovers worlds by listing `worlds/`
+under the instance role, admits each by the serving rule, reads the levels object and
+every document the manifest receipts, and verifies what it read against the manifest
+before loading: the set of document keys under the prefix exactly the receipts' set,
+missing and foreign both named; each object read back under the version id the
+manifest recorded, the levels object included; no object the manifest never recorded
+shaping the world, since a final prefix is create-only and a key the manifest lacks
+is what a later put adds. The manifest holds version ids and not content digests,
+and on the local twin a version id is the content's digest, so the same comparison is
+a byte check there. A version is loaded in one transaction, the world row first and
+unready, the levels, the documents with their pool rank, the sections, the counts
+read back, `ready` flipped by the last statement, under a transaction-scoped advisory
+lock keyed by the version, since a row lock cannot cover a row that is not there yet
+(two loaders on a fresh version collided on the primary key before it); a ready
+version is left as it is, provided it was cached as the same kind of world under the
+same manifest digest. Every read joins the world's row on `ready` and filters by the
+level before anything is ranked, a document's pool rank null for a scenario-owned one
+and below the level's count for a pool one, which is exactly a corpus of that
+level's documents because PostgreSQL's ranking reads no statistic of the table.
+Ingestion goes through a narrow loader that implements no write port, gated by the
+import law to the adapters and the cache shell, and never through the gated
+document writer, since it is cache materialization and not authorship; the
+adapter is reader-only, the one class that held both ports having lost its reason
+when the documents became objects.
 
 **The validator is a distinct module that only reads, and validates the projected
 systems rather than the generator's intermediate objects.** It re-reads the live
@@ -858,9 +888,14 @@ seam under test, so a shared generation bug cannot produce an evaluation that ag
 with a wrong world. An integrity chain runs before any read (the manifest at
 `projected`, its digest authenticating the spec bytes, the truth digest compared
 across artifacts without the truth being read), and a refused input is an
-`IntegrityRefused`, never a finding. The chain is complete for the structured tier;
-prose-carried facts are proven through the containment gates and the corpus's read
-fidelity. **The verdict is its own immutable artifact per execution**, keyed
+`IntegrityRefused`, never a finding. The served levels object is in the chain since
+step 9: bound to the manifest's version ids before any reader is built, then
+compared with the levels the authenticated spec derives as a fourth block of the
+verdict (format 2, validator version 2), equal passing, absent passing only for a
+world that seals no pool, a difference named by position. The chain is complete for
+the structured tier; prose-carried facts are proven through the containment gates
+and the corpus's read fidelity. **The verdict is its own immutable artifact per
+execution**, keyed
 `worlds/<version>/verdicts/<run-id>-<run-attempt>.json` with the run's identifiers
 in the key and not in the artifact, so byte-equal verdicts across attempts prove the
 live systems held, carrying the digest of the manifest bytes it read, since only

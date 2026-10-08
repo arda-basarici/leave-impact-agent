@@ -99,7 +99,11 @@ which the first development world needed at sixteen. The proof, `python -m
 leaveimpact.evaluator prove --world-version HEX --run-id ID --run-attempt 1` over the same
 root, takes by hand the run identity the workflow reads from its runner. A rerun of a
 sealed version is `--resume HEX --unprojected` with the recipe repeated, and reseals
-nothing. A development world does not later become a projected one; it stays unprojected.
+nothing. The levels object is the sealing's last write and the only thing a development
+world is admitted on, so a sealing that stopped is never served; `python -m
+leaveimpact.cache` over the same root and the laptop's `DATABASE_URL` fills the local
+corpus cache, which a development run reads through the same adapter the instance does. A
+development world does not later become a projected one; it stays unprojected.
 
 ## How the measurement world is accepted
 
@@ -151,7 +155,10 @@ A *corpus level* is a name and a count the world seals. The world carries a rank
 answer-neutral documents that no scenario owns, and a level holds every scenario-owned
 document and the first so many of the pool, so levels are nested and the answers are the
 same at every one. There are two, the base level with none of the pool and a padded one.
-Membership is derived from the count and listed nowhere. The file records beside the padded
+Membership is derived from the count and listed nowhere in the truth; the world seals the
+levels and the pool's order beside its documents (`levels.json`), which the deployed
+corpus cache filters every read by and the validator compares with the spec before a world
+is served. The file records beside the padded
 level the size of the full-context request at that level in tokens, measured at the freeze
 under the registered counting rule, because the world is model-neutral and a token count is
 one tokenizer's.
