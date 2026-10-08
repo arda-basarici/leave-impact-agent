@@ -4,18 +4,19 @@ Test infrastructure. The evaluator replays what a run read, so its tests need re
 calls of the declared tools, with the arguments the tools accept, answered by systems that
 hold a sealed world. ``systems_holding`` is the three planted readers over the world (the
 adapters' own, what a development run reads) beside the in-memory documents port filled
-with every document the scenarios plant, since the readers have no document side and the
-tests need a search; ``fakes_holding`` fills the four in-memory ports the same way, for a
-test that wants a system to have drifted from the world since it was sealed and changes a
-store directly, which a reader over sealed plantings cannot be made to do (the generator
-step's ruling 7: the fakes retire where a test reads a sealed world and stay where a test
-needs a controlled fault). Both expose the ports and the outage switch. ``Recorder`` makes
-a call through the harness's own executor, the one path every system's reads take:
-the specification's validation, the port method the specification names, the operation
-recorded with its outcome. One liberty is the fixture's: the executor stops a source at
-its first unreachable answer and refuses a further call against it, while the evaluator
-must grade traces no conforming harness makes, a full read under an outage among them,
-so the recorder clears the stop state before each read and asks whatever the test asks.
+with every document the world seals, the pool's included, since the readers have no
+document side and the tests need a search; ``fakes_holding`` fills the four in-memory
+ports the same way, for a test that wants a system to have drifted from the world since
+it was sealed and changes a store directly, which a reader over sealed plantings cannot
+be made to do (the generator step's ruling 7: the fakes retire where a test reads a
+sealed world and stay where a test needs a controlled fault). Both expose the ports and
+the outage switch. ``Recorder`` makes a call through the harness's own executor, the one
+path every system's reads take: the specification's validation, the port method the
+specification names, the operation recorded with its outcome. One liberty is the
+fixture's: the executor stops a source at its first unreachable answer and refuses a
+further call against it, while the evaluator must grade traces no conforming harness
+makes, a full read under an outage among them, so the recorder clears the stop state
+before each read and asks whatever the test asks.
 ``full_read`` is the reads of a run that looked at everything a scenario can show it.
 """
 
@@ -32,7 +33,7 @@ from leaveimpact.adapters.plantings import (
     planted_readers,
 )
 from leaveimpact.agent.execution import Executor, ReadPorts
-from leaveimpact.core import Operation, Outcome, PortFamily, PrefetchOrigin, Source
+from leaveimpact.core import Document, Operation, Outcome, PortFamily, PrefetchOrigin, Source
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
@@ -118,10 +119,17 @@ def fakes_holding(world: SealedWorld) -> FakeSystems:
 
 
 def _documents_of(world: SealedWorld) -> InMemoryDocuments:
+    """Every document the world seals, the scenarios' own in scenario order then the pool
+    in rank order, the order the generator writes them; the pool's entities come from the
+    index, since the loaded world holds the pool as references."""
     documents = InMemoryDocuments()
     for scenario in world.scenarios:
         for document in scenario.owned.documents:
             documents.add_document(document.entity)
+    for ref in world.filler:
+        pooled = world.index.records[ref]
+        assert isinstance(pooled, Document), f"{ref} is the pool's and not a document"
+        documents.add_document(pooled)
     return documents
 
 
