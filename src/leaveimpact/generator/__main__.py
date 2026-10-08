@@ -46,7 +46,7 @@ from leaveimpact.generator.entrypoint import (
     stores_for,
 )
 from leaveimpact.generator.fresh import fresh_world
-from leaveimpact.generator.materialize import MaterializationFailed
+from leaveimpact.generator.materialize import MaterializationAborted, MaterializationFailed
 from leaveimpact.generator.metrics import TimedObjectWriter
 from leaveimpact.generator.resume import resume_world
 from leaveimpact.generator.sealing import seal_unprojected, seal_world
@@ -78,11 +78,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         writer, checker = prose_models_for(models)
         try:
             fresh = fresh_world(recipe, writer, checker, print)
-        except MaterializationFailed as failure:
-            # A target that exhausted its cap ends the run before any write, and the
-            # attempts and tokens it paid for are counted nowhere else: the first
-            # unprojected generation ran eighty-one attempts and printed no count
-            # (2026-10-08). The counts are the public log's; the texts never are.
+        except (MaterializationFailed, MaterializationAborted) as failure:
+            # A target that exhausted its cap, or a model that became unusable, ends the
+            # run before any write, and the attempts and tokens it paid for are counted
+            # nowhere else: the first unprojected generation ran eighty-one attempts and
+            # printed no count (2026-10-08). The counts are the public log's; the texts
+            # never are.
             for line in failure.metrics.lines():
                 print(line)
             raise

@@ -10,6 +10,7 @@ at that one seam, with the fresh stage and the model wiring replaced at the modu
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import NoReturn
 
@@ -17,7 +18,11 @@ import pytest
 
 from leaveimpact.adapters.wiring import PREFIX
 from leaveimpact.generator import __main__ as job
-from leaveimpact.generator.materialize import MaterializationFailed, ProseMetrics
+from leaveimpact.generator.materialize import (
+    MaterializationAborted,
+    MaterializationFailed,
+    ProseMetrics,
+)
 
 
 def _unprojected_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -34,19 +39,36 @@ def _no_models(models: object) -> tuple[object, object]:
     return object(), object()
 
 
-def test_a_cap_exhausted_prints_the_prose_metrics_and_still_fails(
-    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+def _cap_exhausted(metrics: ProseMetrics) -> Exception:
+    return MaterializationFailed({"clause_049": ()}, metrics)
+
+
+def _model_unusable(metrics: ProseMetrics) -> Exception:
+    return MaterializationAborted("checker", "clause_049", metrics)
+
+
+@pytest.mark.parametrize(
+    "ending", [_cap_exhausted, _model_unusable], ids=["cap exhausted", "model unusable"]
+)
+def test_a_paid_failure_prints_the_prose_metrics_and_still_fails(
+    ending: Callable[[ProseMetrics], Exception],
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
 ) -> None:
+    # Both endings have paid for model calls; the review of the first form found the
+    # aborted stage propagating with no counter printed (2026-10-08).
     _unprojected_environment(monkeypatch, tmp_path)
     metrics = ProseMetrics(writer_attempts=81, targets_cap_exhausted=1, writer_input_tokens=42_360)
+    failure = ending(metrics)
 
-    def exhausted(*args: object, **kwargs: object) -> NoReturn:
-        raise MaterializationFailed({"clause_049": ()}, metrics)
+    def stage_fails(*args: object, **kwargs: object) -> NoReturn:
+        raise failure
 
     monkeypatch.setattr(job, "prose_models_for", _no_models)
-    monkeypatch.setattr(job, "fresh_world", exhausted)
+    monkeypatch.setattr(job, "fresh_world", stage_fails)
 
-    with pytest.raises(MaterializationFailed) as caught:
+    with pytest.raises(type(failure)) as caught:
         job.main(["--seed", "101", "--world-start", "2026-01-05", "--unprojected"])
 
     printed = capsys.readouterr().out.splitlines()
@@ -54,5 +76,5 @@ def test_a_cap_exhausted_prints_the_prose_metrics_and_still_fails(
     assert "prose_targets_cap_exhausted=1" in printed
     assert "prose_writer_input_tokens=42360" in printed
     assert not any(line.startswith("world_version=") for line in printed)
-    assert caught.value.metrics is metrics
+    assert caught.value is failure
     assert not (tmp_path / "store").exists() or not any((tmp_path / "store").iterdir())
