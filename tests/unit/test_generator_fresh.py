@@ -11,6 +11,7 @@ from leaveimpact.adapters.prose import CheckerRequest, ToolCall, WriterRequest, 
 from leaveimpact.generator.fresh import fresh_world
 from leaveimpact.generator.recipe import WorldRecipe
 from leaveimpact.world import DEFAULT_PARAMS, WORLD_SPEC, world_version
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.truth_decoder import decode_truth_manifest
 
 
@@ -43,6 +44,16 @@ def test_the_recipe_reaches_the_bundle_and_an_empty_prose_stage_calls_no_model()
     assert record.attempt_cap == 5
     assert record.targets == ()
     assert fresh.metrics.writer_attempts == 0
+    assert "disclosure" not in provenance
+
+
+def test_the_recipe_s_disclosure_reaches_the_composed_world_and_its_spec() -> None:
+    recipe = WorldRecipe(
+        3, DEFAULT_PARAMS, date(2026, 1, 5), plan_name="tier1", disclosure=Disclosure.EMBARGOED
+    )
+    fresh = fresh_world(recipe, RefusingWriter(), RefusingChecker(), lambda line: None)
+    assert fresh.world.disclosure is Disclosure.EMBARGOED
+    assert json.loads(fresh.bundle.world_spec.content)["provenance"]["disclosure"] == "embargoed"
     assert fresh.bundle.world_spec.name == WORLD_SPEC
     assert fresh.bundle.world_version == world_version(fresh.bundle.artifacts)
     assert all(scenario.spec.id for scenario in fresh.world.scenarios)

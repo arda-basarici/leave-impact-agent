@@ -54,5 +54,5 @@ def fresh_world(
     materialized = materialize(
         semantic, writer, checker, load_prompt_assets(), recipe.attempt_cap, log
     )
-    world = compose(semantic, materialized.prose, materialized.record)
+    world = compose(semantic, materialized.prose, materialized.record, recipe.disclosure)
     return FreshWorld(world, bundle(world), materialized.metrics)

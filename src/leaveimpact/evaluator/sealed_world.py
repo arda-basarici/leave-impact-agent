@@ -93,6 +93,7 @@ from leaveimpact.world.artifacts import (
 )
 from leaveimpact.world.assembly import Contamination, verify_world
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import BASE_LEVELS, SealedLevel, level_members
 from leaveimpact.world.org import OrgSpec
 from leaveimpact.world.scenario import Planted, Scenario, ScenarioKey, ScenarioSpec
@@ -187,6 +188,12 @@ class SealedWorld:
     truth_manifest: SealedSource
     filler: tuple[EntityRef, ...] = field(default=(), kw_only=True)
     levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
+    # The two values the disclosure scan reads: the mark the world was sealed under and the
+    # digest that, with the scenario specs', is a function of the seed and public code alone
+    # (the generator step's ruling 5). Keyword-only and never defaulted: a loaded world
+    # states what it was sealed under.
+    semantic_digest: str = field(kw_only=True)
+    disclosure: Disclosure = field(kw_only=True)
 
     def scenario(self, id: ScenarioId) -> Scenario | None:
         """The scenario ``id`` names, or ``None`` when the world holds no such scenario."""
@@ -289,6 +296,8 @@ def join_sealed_world(
         truth_manifest=_source(truth_manifest),
         filler=tuple(document_ref(p.entity.id) for p in planted.filler),
         levels=planted.levels,
+        semantic_digest=planted.semantic_digest,
+        disclosure=planted.disclosure,
     )
 
 

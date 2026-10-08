@@ -17,14 +17,36 @@
 # is pinned by full commit SHA (the tag beside it), because `id-token: write` is a
 # job-level permission: any action in this job could mint the OIDC token the generator
 # role trusts, so a moved tag would be a moved trust boundary (the part-4 review).
+#
+# A measurement world's seed is a repository secret, thirty-two bytes of entropy as
+# lowercase hex, and reaches the generator through the step's environment under the
+# `secret` seed source: the verbatim value is masked wherever it is printed whole, and
+# nothing here or in the generator prints a prefix, a decimal or any other form of it
+# (the generator step's ruling 5, its masking probe). The seed input is the development
+# path and is left empty under the secret source; `embargoed` seals the mark the world's
+# readers withhold their enumerable digests and target counts under.
 name: generate world
 on:
   workflow_dispatch:
     inputs:
       seed:
-        description: the generation seed
-        required: true
-        type: number
+        description: the generation seed under the input source (the development path); empty under the secret source
+        required: false
+        type: string
+        default: ""
+      seed_source:
+        description: "where the seed comes from: this dispatch's input, or the repository secret LEAVE_IMPACT_MEASUREMENT_SEED_HEX"
+        required: false
+        type: choice
+        options:
+          - input
+          - secret
+        default: input
+      embargoed:
+        description: seal the world embargoed (a measurement world; needs the secret seed source)
+        required: false
+        type: boolean
+        default: false
       world_start:
         description: "the world's first day, ISO 8601 (2026-01-05)"
         required: true
@@ -131,6 +153,11 @@ jobs:
           LEAVE_IMPACT_PROSE_CHECKER_MODEL: eu.amazon.nova-pro-v1:0
           LEAVE_IMPACT_BEDROCK_REGION: eu-central-1
           INPUT_SEED: ${{ inputs.seed }}
+          INPUT_SEED_SOURCE: ${{ inputs.seed_source }}
+          INPUT_EMBARGOED: ${{ inputs.embargoed }}
+          # The secret enters the environment under the secret source alone and never a
+          # script line; the generator parses it in memory and prints nothing of it.
+          LEAVE_IMPACT_SEED_HEX: ${{ inputs.seed_source == 'secret' && secrets.LEAVE_IMPACT_MEASUREMENT_SEED_HEX || '' }}
           INPUT_WORLD_START: ${{ inputs.world_start }}
           INPUT_PLAN: ${{ inputs.plan }}
           INPUT_ORG_SIZE: ${{ inputs.org_size }}
@@ -145,9 +172,11 @@ jobs:
           printf '%s' "$LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON" > "$RUNNER_TEMP/google-authorized-user.json"
           export LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE="$RUNNER_TEMP/google-authorized-user.json"
           unset LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
-          args=(--seed "$INPUT_SEED" --world-start "$INPUT_WORLD_START" --plan "$INPUT_PLAN"
+          args=(--seed-source "$INPUT_SEED_SOURCE" --world-start "$INPUT_WORLD_START" --plan "$INPUT_PLAN"
                 --org-size "$INPUT_ORG_SIZE" --team-count "$INPUT_TEAM_COUNT"
                 --attempt-cap "$INPUT_ATTEMPT_CAP")
+          if [ "$INPUT_SEED_SOURCE" = "input" ]; then args+=(--seed "$INPUT_SEED"); fi
+          if [ "$INPUT_EMBARGOED" = "true" ]; then args+=(--embargoed); fi
           if [ -n "$INPUT_RESUME" ]; then args+=(--resume "$INPUT_RESUME"); fi
           uv run python -m leaveimpact.generator "${args[@]}" | tee generate.log
           version=$(grep '^world_version=' generate.log | tail -1 | cut -d= -f2)

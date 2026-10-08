@@ -82,6 +82,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
@@ -153,7 +154,7 @@ def fetch(s3: Any, bucket: str, key: str) -> bytes:
 def throwaway_bundle(argv: Sequence[str]) -> Bundle:
     """A world generated here from the generator's recipe flags, its prose written by the
     models the environment names, and left unsealed: the bundle is the whole of it."""
-    recipe = parse_recipe(argv)
+    recipe = parse_recipe(argv, os.environ)
     if recipe.resume is not None:
         raise ConfigurationError(
             "--resume names a sealed realization; a throwaway world is always fresh"
@@ -163,6 +164,21 @@ def throwaway_bundle(argv: Sequence[str]) -> Bundle:
     for line in fresh.metrics.lines():
         print(line)
     return fresh.bundle
+
+
+def require_ignored(path: Path) -> None:
+    """A sealed world's sheet is written where git ignores it and nowhere else: the private
+    path is checked, never assumed (the generator step's ruling 5)."""
+    root = Path(__file__).resolve().parent.parent
+    done = subprocess.run(
+        ["git", "-C", str(root), "check-ignore", "-q", str(path)],
+        capture_output=True,
+        check=False,
+    )
+    if done.returncode != 0:
+        raise RuntimeError(
+            f"{path} is not ignored by git; a sealed world's sheet goes to an ignored path only"
+        )
 
 
 def rebuild(spec: Json) -> SemanticWorld:
@@ -304,11 +320,17 @@ def header(
     facts = truth.get("facts", {})
     out = [f"# Audit sheet, world `{version[:12]}…`", ""]
     out.append(f"- world version `{version}`")
+    # An embargoed world's seed and semantic digest are what the embargo withholds (the
+    # generator step's ruling 5): the sheet is private, and a sheet shared with a reader
+    # must not be the leak.
+    embargoed = prov.get("disclosure") == "embargoed"
+    seed = "withheld" if embargoed else str(prov.get("seed"))
+    semantic = "withheld" if embargoed else f"`{str(prov.get('semantic_digest'))[:12]}…`"
     out.append(
-        f"- seed {prov.get('seed')}, start {prov.get('world_start')}, "
+        f"- seed {seed}, start {prov.get('world_start')}, "
         f"plan {prov.get('plan_name')}, "
-        f"generator version {prov.get('generator_version')}, semantic digest "
-        f"`{str(prov.get('semantic_digest'))[:12]}…`"
+        f"generator version {prov.get('generator_version')}, semantic digest {semantic}"
+        + (", disclosure embargoed" if embargoed else "")
     )
     params = spec.get("org", {}).get("params", {})
     out.append("- org parameters: " + ", ".join(f"{name}={val}" for name, val in params.items()))
@@ -923,6 +945,7 @@ def main() -> int:
         truth_bytes = fetch(s3, TRUTH_BUCKET, truth_manifest_key(version))
         notes = ()
         path = OUT_DIR / f"audit_sheet_{version[:8]}.md"
+        require_ignored(path)
     spec = json.loads(spec_bytes)
     specs = json.loads(specs_bytes).get("scenarios", [])
     truth = json.loads(truth_bytes)

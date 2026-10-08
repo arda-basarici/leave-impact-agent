@@ -47,6 +47,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import Any
@@ -153,6 +154,21 @@ def build_index(version: str, declared: dict[str, Any], sealed: dict[str, Any]) 
     }
 
 
+def require_ignored(path: Path) -> None:
+    """The index carries the world's semantic digest whole, so it is written where git
+    ignores it and nowhere else; checked, never assumed (the generator step's ruling 5)."""
+    root = Path(__file__).resolve().parent.parent
+    done = subprocess.run(
+        ["git", "-C", str(root), "check-ignore", "-q", str(path)],
+        capture_output=True,
+        check=False,
+    )
+    if done.returncode != 0:
+        raise RuntimeError(
+            f"{path} is not ignored by git; the audit index goes to an ignored path only"
+        )
+
+
 def identity_of(index_bytes: bytes) -> str:
     return hashlib.sha256(index_bytes).hexdigest()
 
@@ -161,6 +177,7 @@ def build(version: str) -> int:
     index = build_index(version, load_declaration(version), sealed_provenance(version))
     data = canonical_bytes(index)
     path = index_path(version)
+    require_ignored(path)
     path.write_bytes(data)
     identity = identity_of(data)
     print(f"index written: {path} ({len(data)} bytes)")

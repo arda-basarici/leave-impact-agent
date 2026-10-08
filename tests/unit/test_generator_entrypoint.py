@@ -6,6 +6,7 @@ writers opened where the deployment says, the local twins under ``truth/`` and `
 
 from __future__ import annotations
 
+import traceback
 from datetime import date
 from pathlib import Path
 
@@ -19,6 +20,7 @@ from leaveimpact.generator.entrypoint import (
     prose_models_from_env,
     stores_for,
 )
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.org import DEFAULT_PARAMS
 from tests.unit.test_adapters_wiring import local_environment
@@ -123,3 +125,66 @@ def test_the_prose_models_come_from_the_environment_and_are_never_defaulted() ->
     for missing in env:
         with pytest.raises(ConfigurationError, match=f"{missing} is not set and the prose stage"):
             prose_models_from_env({k: v for k, v in env.items() if k != missing})
+
+
+# --- The seed source and the embargo (the generator step's ruling 5) --------------------------
+
+# A stand-in seed with no entropy, built in the open: sixty-four hex characters in shape alone.
+STAND_IN_HEX = "0123456789abcdef" * 4
+STAND_IN_ENV = {"LEAVE_IMPACT_SEED_HEX": STAND_IN_HEX}
+FROM_ENV = ["--seed-source", "secret", "--world-start", "2026-01-05"]
+
+
+def test_the_secret_source_reads_the_hex_seed_from_the_environment_and_seals_the_mark() -> None:
+    recipe = parse_recipe(FROM_ENV, STAND_IN_ENV)
+    assert recipe.seed == int(STAND_IN_HEX, 16) and recipe.disclosure is Disclosure.OPEN
+    embargoed = parse_recipe([*FROM_ENV, "--embargoed"], STAND_IN_ENV)
+    assert (embargoed.seed, embargoed.disclosure) == (int(STAND_IN_HEX, 16), Disclosure.EMBARGOED)
+    plain = parse_recipe(["--seed", "7", "--world-start", "2026-01-05"], STAND_IN_ENV)
+    assert (plain.seed, plain.disclosure) == (7, Disclosure.OPEN)
+
+
+@pytest.mark.parametrize(
+    ("argv", "env", "expected"),
+    [
+        (FROM_ENV, {}, "LEAVE_IMPACT_SEED_HEX is not set"),
+        (FROM_ENV, {"LEAVE_IMPACT_SEED_HEX": STAND_IN_HEX.upper()}, "sixty-four lowercase hex"),
+        (FROM_ENV, {"LEAVE_IMPACT_SEED_HEX": STAND_IN_HEX[:-1]}, "sixty-four lowercase hex"),
+        (FROM_ENV, {"LEAVE_IMPACT_SEED_HEX": STAND_IN_HEX + "0"}, "sixty-four lowercase hex"),
+        (FROM_ENV, {"LEAVE_IMPACT_SEED_HEX": "g" + STAND_IN_HEX[1:]}, "sixty-four lowercase hex"),
+        ([*FROM_ENV, "--seed", "7"], STAND_IN_ENV, "--seed is not given under the secret"),
+        (
+            ["--seed", "7", "--world-start", "2026-01-05", "--embargoed"],
+            {},
+            "--embargoed needs --seed-source secret",
+        ),
+        (["--world-start", "2026-01-05"], STAND_IN_ENV, "--seed is required under the input"),
+    ],
+    ids=[
+        "unset",
+        "uppercase",
+        "short",
+        "long",
+        "non-hex",
+        "both sources",
+        "embargo in the open",
+        "no seed under input",
+    ],
+)
+def test_a_seed_refusal_names_the_rule_and_carries_nothing_of_the_value(
+    argv: list[str], env: dict[str, str], expected: str
+) -> None:
+    with pytest.raises(ConfigurationError) as refused:
+        parse_recipe(argv, env)
+    printed = "".join(traceback.format_exception(refused.value))
+    assert expected in printed
+    # The log a refusal prints to is public: no form of the value, not the whole, not a
+    # prefix, not its decimal, not its length, and nothing from the environment it read.
+    given = env.get("LEAVE_IMPACT_SEED_HEX", STAND_IN_HEX)
+    for form in (given, given[:8], str(int(STAND_IN_HEX, 16)), str(len(given))):
+        assert form not in printed, form
+
+
+def test_without_an_environment_the_secret_source_refuses_as_unset() -> None:
+    with pytest.raises(ConfigurationError, match="LEAVE_IMPACT_SEED_HEX is not set"):
+        parse_recipe(FROM_ENV)

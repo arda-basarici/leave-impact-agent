@@ -72,6 +72,7 @@ from leaveimpact.evaluator.repository import (
 from leaveimpact.evaluator.retrieval_targets import retrieval_targets
 from leaveimpact.evaluator.sealed_world import SealedWorld, load_sealed_world
 from leaveimpact.world.artifacts import SHA256_HEX
+from leaveimpact.world.disclosure import Disclosure
 
 
 class Command(StrEnum):
@@ -100,18 +101,25 @@ class EvaluationRefused(Exception):
     world versions and the registration's sections."""
 
 
+class DisclosureRefused(EvaluationRefused):
+    """The checkout publishes a digest of an embargoed world: the message names the paths
+    and which digest each holds, never a value (the generator step's ruling 5)."""
+
+
 @dataclass(frozen=True, slots=True)
 class Proven:
     """A world proven and read for what a first dispatch reports.
 
     ``targets`` holds, per registered condition in the registration's order, the number of
     statements the answers depend on over all scenarios, or ``None`` when some scenario
-    has no answer under the condition, which is not a count of zero.
+    has no answer under the condition, which is not a count of zero. ``disclosure`` is
+    the mark the world was sealed under; the job withholds the counts of an embargoed one.
     """
 
     world_version: WorldVersion
     scenarios: int
     targets: tuple[tuple[str, int | None], ...]
+    disclosure: Disclosure
 
 
 @dataclass(frozen=True, slots=True)
@@ -173,13 +181,21 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> EvaluationRequ
     )
 
 
-def prove(version: WorldVersion, stores: ObjectReaders, registration: Registration) -> Proven:
+def prove(
+    version: WorldVersion,
+    stores: ObjectReaders,
+    registration: Registration,
+    repository: Repository,
+) -> Proven:
     """The sealed world ``version`` loaded and proven, with the retrieval targets counted
     per condition ``registration`` holds.
 
-    Raises ``SealedWorldRefused`` when the three objects are not that world.
+    Raises ``SealedWorldRefused`` when the three objects are not that world, and
+    ``DisclosureRefused`` when the world is embargoed and the checkout at ``HEAD`` holds
+    one of its enumerable digests.
     """
     world = load_sealed_world(version, stores.truth, stores.world)
+    require_undisclosed(world, repository, repository.head())
     targets = tuple(
         (
             condition.id,
@@ -187,7 +203,29 @@ def prove(version: WorldVersion, stores: ObjectReaders, registration: Registrati
         )
         for condition in registration.outage.conditions
     )
-    return Proven(world.version, len(world.scenarios), targets)
+    return Proven(world.version, len(world.scenarios), targets, world.disclosure)
+
+
+def require_undisclosed(world: SealedWorld, repository: Repository, commit: str) -> None:
+    """Refuse an embargoed ``world`` whose scenario-specs digest or semantic digest is in a
+    file tracked at ``commit``: each is a function of the seed and public code alone, so a
+    published one makes the seed enumerable. An additional check, proving nothing about
+    logs; an open world is not scanned."""
+    if world.disclosure is not Disclosure.EMBARGOED:
+        return
+    hits = [
+        f"the {name} in {', '.join(paths)}"
+        for name, needle in (
+            ("scenario-specs digest", world.scenario_specs.digest),
+            ("semantic digest", world.semantic_digest),
+        )
+        if (paths := repository.paths_holding(commit, needle))
+    ]
+    if hits:
+        raise DisclosureRefused(
+            f"the checkout at {commit[:12]} publishes a digest of the embargoed world: "
+            + "; ".join(hits)
+        )
 
 
 def evaluate(
@@ -201,9 +239,10 @@ def evaluate(
 
     Raises ``RepositoryRefused`` for a dirty checkout or one with no registration,
     ``EvaluationRefused`` for a request naming no inventory or one that is absent,
-    misnamed, undecodable or of another world, for an empty or a moving listing and for a
+    misnamed, undecodable or of another world, for an empty or a moving listing, for a
     bound registration that binds another world or a procedure other than the frozen one
-    it names, and whatever the artifact refuses: a registration it cannot read as a plan,
+    it names and for an embargoed world whose digest the checkout publishes, and whatever
+    the artifact refuses: a registration it cannot read as a plan,
     a listed publication the store does not hold as recorded, an open attempt under a
     reported label, two eligible exports of one run.
     """
@@ -216,6 +255,7 @@ def evaluate(
     _require_bound_as_frozen(decode_registration_bytes(registration), version, repository)
     inventory, inventory_read = _named_inventory(stores, version, request.inventory)
     world = load_sealed_world(version, stores.truth, stores.world)
+    require_undisclosed(world, repository, head)
     runs = _stored_runs(stores, version)
     if not runs and not attempts_of_world(inventory, version):
         raise EvaluationRefused(
@@ -333,6 +373,7 @@ def _targets(world: SealedWorld, condition: RunCondition) -> int | None:
 
 
 __all__ = [
+    "DisclosureRefused",
     "Command",
     "EvaluationRefused",
     "EvaluationRequest",
@@ -341,5 +382,6 @@ __all__ = [
     "evaluate",
     "parse_request",
     "prove",
+    "require_undisclosed",
     "registration_of",
 ]

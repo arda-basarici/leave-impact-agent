@@ -48,7 +48,7 @@ from leaveimpact.generator.systems import AdapterPreparation
 
 def main(argv: Sequence[str] | None = None) -> int:
     try:
-        recipe = parse_recipe(sys.argv[1:] if argv is None else argv)
+        recipe = parse_recipe(sys.argv[1:] if argv is None else argv, os.environ)
         deployment = deployment_from_env(os.environ)
         models = prose_models_from_env(os.environ)
     except ConfigurationError as error:

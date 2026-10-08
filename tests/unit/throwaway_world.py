@@ -30,6 +30,7 @@ from leaveimpact.world import (
     bundle,
     compose,
 )
+from leaveimpact.world.disclosure import Disclosure
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.prose_fixture import record_for
 
@@ -52,8 +53,11 @@ class SealedStores:
 
 
 @cache
-def composed_world(plan_name: str = "golden", seed: int = REFERENCE_SEED) -> WorldSpec:
-    """The world ``seed`` produces under ``plan_name``, every pending text a stand-in.
+def composed_world(
+    plan_name: str = "golden", seed: int = REFERENCE_SEED, disclosure: Disclosure = Disclosure.OPEN
+) -> WorldSpec:
+    """The world ``seed`` produces under ``plan_name``, every pending text a stand-in, sealed
+    under ``disclosure``.
 
     Assembled once per process and shared: the world is immutable, a golden-plan assembly
     is the slowest thing these tests do, and several test modules grade against the same one.
@@ -64,7 +68,7 @@ def composed_world(plan_name: str = "golden", seed: int = REFERENCE_SEED) -> Wor
         for scenario in semantic.scenarios
         for brief in scenario.briefs
     }
-    return compose(semantic, bodies, record_for(bodies) if bodies else None)
+    return compose(semantic, bodies, record_for(bodies) if bodies else None, disclosure)
 
 
 def sealed_stores(sealed: Bundle) -> SealedStores:
@@ -78,13 +82,15 @@ def sealed_stores(sealed: Bundle) -> SealedStores:
 
 
 @cache
-def loaded_world(plan_name: str = "golden", seed: int = REFERENCE_SEED) -> SealedWorld:
+def loaded_world(
+    plan_name: str = "golden", seed: int = REFERENCE_SEED, disclosure: Disclosure = Disclosure.OPEN
+) -> SealedWorld:
     """``composed_world`` sealed and loaded as the evaluator loads it, once per process.
 
     Loading runs the whole-world verification, seconds for a golden plan, so the tests that
     only read a loaded world share one.
     """
-    sealed = bundle(composed_world(plan_name, seed))
+    sealed = bundle(composed_world(plan_name, seed, disclosure))
     stores = sealed_stores(sealed)
     return load_sealed_world(sealed.world_version, stores.truth, stores.world)
 

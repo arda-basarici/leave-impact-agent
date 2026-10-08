@@ -407,3 +407,14 @@ def test_three_records_that_describe_no_one_scenario_are_refused_naming_the_scen
     ) as refused:
         join_scenarios(planted, (foreign, *rest), manifest)
     assert refused.value.detail is not None and "leave_999" in refused.value.detail
+
+
+def test_the_loaded_world_states_its_disclosure_and_semantic_digest(
+    sealed: Bundle, stores: SealedStores
+) -> None:
+    from leaveimpact.world.disclosure import Disclosure
+
+    loaded_open = load(sealed, stores)
+    assert loaded_open.disclosure is Disclosure.OPEN
+    planted = decode_world_spec(sealed.world_spec.content)
+    assert loaded_open.semantic_digest == planted.semantic_digest

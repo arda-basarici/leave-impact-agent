@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from datetime import date
 
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import NO_FILLER, FillerPlan
 from leaveimpact.world.org import OrgParams
 
@@ -36,7 +37,9 @@ class WorldRecipe:
     the pool (the generator step's group 2); ``attempt_cap`` bounds the materializer
     and is recorded in the world's provenance;
     ``resume`` names a sealed realization to continue instead of generating a fresh one
-    (the step 14 rulings: before sealing a restart regenerates, after it resumes).
+    (the step 14 rulings: before sealing a restart regenerates, after it resumes);
+    ``disclosure`` is the mark the world is sealed under, embargoed for a measurement
+    world (the generator step's ruling 5).
     """
 
     seed: int
@@ -46,3 +49,4 @@ class WorldRecipe:
     resume: WorldVersion | None = None
     plan_name: str = "tier1"
     filler: FillerPlan = NO_FILLER
+    disclosure: Disclosure = Disclosure.OPEN

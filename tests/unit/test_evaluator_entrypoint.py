@@ -50,7 +50,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.evaluator import __main__ as job
-from leaveimpact.evaluator.entrypoint import Command, parse_request, prove
+from leaveimpact.evaluator.entrypoint import Command, parse_request, prove, require_undisclosed
 from leaveimpact.evaluator.repository import (
     IMPLEMENTATION,
     REGISTRATION_PATH,
@@ -59,7 +59,7 @@ from leaveimpact.evaluator.repository import (
     evaluator_revision,
 )
 from leaveimpact.evaluator.sealed_world import SealedWorld
-from leaveimpact.world import Scenario, bundle
+from leaveimpact.world import Disclosure, Scenario, bundle
 from leaveimpact.world.scenario import ScenarioClassName, Tier
 from tests.unit.export_fixture import export_baseline
 from tests.unit.inventory_fixture import (
@@ -230,9 +230,9 @@ def test_a_request_takes_a_command_the_version_and_the_runners_identifiers() -> 
 
 
 def test_proving_a_world_counts_the_targets_and_draws_no_scenario(
-    world: SealedWorld, twin: Path
+    world: SealedWorld, twin: Path, checkout: Repository
 ) -> None:
-    proven = prove(world.version, stores(twin), DRAFT)
+    proven = prove(world.version, stores(twin), DRAFT, checkout)
     assert (proven.world_version, proven.scenarios) == (world.version, 30)
     targets = dict(proven.targets)
     assert list(targets) == [condition.id for condition in DRAFT.outage.conditions]
@@ -587,3 +587,117 @@ def test_a_bound_registration_is_refused_unless_it_binds_this_world_and_the_froz
     err = refused(bound("e" * 64, procedure, frozen_commit=frozen_at), "bound to another world")
     assert f"is bound to the world {'e' * 64}" in err and world.version in err
     assert LocalObjectReader(twin / "truth").list_keys(evaluations_prefix(world.version)) == ()
+
+
+# --- An embargoed world: the counts withheld, the checkout scanned ------------------------------
+
+
+@pytest.fixture(scope="module")
+def embargoed() -> SealedWorld:
+    return loaded_world("golden", disclosure=Disclosure.EMBARGOED)
+
+
+@pytest.fixture
+def embargoed_twin(tmp_path: Path) -> Path:
+    root = tmp_path / "embargoed-stores"
+    sealed = bundle(composed_world(disclosure=Disclosure.EMBARGOED))
+    version = sealed.world_version
+    truth, held = LocalObjectWriter(root / "truth"), LocalObjectWriter(root / "world")
+    truth.put_if_absent(world_spec_key(version), sealed.world_spec.content)
+    truth.put_if_absent(truth_manifest_key(version), sealed.truth_manifest.content)
+    held.put_if_absent(scenario_specs_key(version), sealed.scenario_specs.content)
+    return root
+
+
+def committed(checkout: Repository, path: str, content: str) -> str:
+    target = checkout.root / path
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content, encoding="utf-8")
+    git(checkout.root, "add", ".")
+    git(checkout.root, "commit", "--quiet", "-m", f"a file at {path}")
+    return checkout.head()
+
+
+def test_an_embargoed_world_s_counts_are_withheld_and_its_mark_proven(
+    embargoed: SealedWorld,
+    embargoed_twin: Path,
+    checkout: Repository,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    proven = prove(embargoed.version, stores(embargoed_twin), DRAFT, checkout)
+    assert proven.disclosure is Disclosure.EMBARGOED
+    # The counts are still computed, so the proof still runs the oracle; the print withholds.
+    assert dict(proven.targets)["normal"] is not None
+    status, out, err = run_job(
+        capsys, embargoed_twin, checkout, "prove", "--world-version", embargoed.version
+    )
+    assert (status, err) == (0, "")
+    lines = dict(line.split("=", 1) for line in out.splitlines())
+    counts = {name: value for name, value in lines.items() if name.startswith("retrieval_targets[")}
+    assert counts and set(counts.values()) == {"withheld"}
+    for digest in (embargoed.semantic_digest, embargoed.scenario_specs.digest):
+        assert digest not in out
+
+
+def test_a_checkout_publishing_an_embargoed_digest_refuses_by_path_and_kind(
+    embargoed: SealedWorld,
+    embargoed_twin: Path,
+    checkout: Repository,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    semantic, specs = embargoed.semantic_digest, embargoed.scenario_specs.digest
+    # An untracked file is not a checkout's content.
+    (checkout.root / "notes.md").write_text(f"semantic {semantic}\n", encoding="utf-8")
+    require_undisclosed(embargoed, checkout, checkout.head())
+    (checkout.root / "notes.md").unlink()
+    head = committed(checkout, "probes/FINDINGS.md", f"the world's semantic digest is {semantic}\n")
+    head = committed(checkout, "docs/run.md", f"scenario specs {specs}\n")
+    with pytest.raises(job.EvaluationRefused) as refused:
+        require_undisclosed(embargoed, checkout, head)
+    message = str(refused.value)
+    assert "semantic digest in probes/FINDINGS.md" in message
+    assert "scenario-specs digest in docs/run.md" in message
+    assert semantic not in message and specs not in message
+    status, out, err = run_job(
+        capsys, embargoed_twin, checkout, "prove", "--world-version", embargoed.version
+    )
+    assert (status, out) == (1, "")
+    assert "publishes a digest of the embargoed world" in err
+    assert semantic not in err and specs not in err and "Traceback" not in err
+
+
+def test_an_open_world_is_not_scanned(
+    world: SealedWorld, twin: Path, checkout: Repository
+) -> None:
+    head = committed(checkout, "probes/FINDINGS.md", f"semantic {world.semantic_digest}\n")
+    require_undisclosed(world, checkout, head)
+    assert prove(world.version, stores(twin), DRAFT, checkout).disclosure is Disclosure.OPEN
+
+
+def test_an_evaluation_of_an_embargoed_world_scans_before_it_lists(
+    embargoed: SealedWorld,
+    embargoed_twin: Path,
+    checkout: Repository,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    head = committed(checkout, "docs/run.md", f"{embargoed.scenario_specs.digest}\n")
+    [first] = embargoed.scenarios[:1]
+    digest = store_runs(
+        embargoed_twin, embargoed, **{"run-1-1": export_of(embargoed, first, head, "run-1")}
+    )
+    status, out, err = run_job(
+        capsys,
+        embargoed_twin,
+        checkout,
+        "evaluate",
+        "--world-version",
+        embargoed.version,
+        "--inventory",
+        digest,
+    )
+    assert (status, out) == (1, "")
+    assert "scenario-specs digest in docs/run.md" in err
+    assert embargoed.scenario_specs.digest not in err
+    assert LocalObjectReader(embargoed_twin / "truth").list_keys(
+        evaluations_prefix(embargoed.version)
+    ) == ()

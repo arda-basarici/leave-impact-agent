@@ -20,6 +20,7 @@ what was expected, raised before any credential is used or any host is touched.
 from __future__ import annotations
 
 import argparse
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -38,6 +39,7 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.worldtime import date_at
 from leaveimpact.generator.recipe import DEFAULT_ATTEMPT_CAP, WorldRecipe
 from leaveimpact.world.artifacts import SHA256_HEX
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.org import DEFAULT_PARAMS, OrgParams
 from leaveimpact.world.plan import PLANS
@@ -53,14 +55,37 @@ __all__ = [
     "stores_for",
 ]
 
-def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
-    """The world recipe from ``argv``; every organization dial defaults to ``DEFAULT_PARAMS``."""
+def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> WorldRecipe:
+    """The world recipe from ``argv``, the seed from ``env`` under the secret source; every
+    organization dial defaults to ``DEFAULT_PARAMS``.
+
+    ``--seed N`` is the development path. ``--seed-source secret`` reads the seed from
+    ``LEAVE_IMPACT_SEED_HEX`` instead, sixty-four lowercase hex characters parsed in memory:
+    the one form the masking probe showed safe to cross a workflow whole, never echoed, cut
+    or re-encoded (the generator step's ruling 5), so a refusal names the variable and the
+    rule and nothing of the value. ``--embargoed`` seals the world's disclosure mark and
+    needs the secret source, since an embargo over a seed given in the open is one an
+    enumeration undoes. With no ``env`` the secret source refuses as unset.
+    """
     parser = argparse.ArgumentParser(
         prog="python -m leaveimpact.generator",
         description="Generate a world and seal it into the benchmark's buckets.",
         exit_on_error=False,
     )
-    parser.add_argument("--seed", type=int, required=True, help="the generation seed")
+    parser.add_argument(
+        "--seed", type=int, default=None, help="the generation seed, under the input source"
+    )
+    parser.add_argument(
+        "--seed-source",
+        choices=("input", "secret"),
+        default="input",
+        help=f"where the seed comes from: --seed, or {PREFIX}SEED_HEX in the environment",
+    )
+    parser.add_argument(
+        "--embargoed",
+        action="store_true",
+        help="seal the world embargoed: no public output carries its enumerable digests",
+    )
     parser.add_argument(
         "--plan",
         choices=sorted(PLANS),
@@ -121,6 +146,13 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
         parsed = parser.parse_args(argv)
     except (argparse.ArgumentError, SystemExit) as error:
         raise ConfigurationError(f"the command line is not a world recipe: {error}") from error
+    seed = _seed(parsed.seed, parsed.seed_source, {} if env is None else env)
+    disclosure = Disclosure.EMBARGOED if parsed.embargoed else Disclosure.OPEN
+    if disclosure is Disclosure.EMBARGOED and parsed.seed_source != "secret":
+        raise ConfigurationError(
+            "--embargoed needs --seed-source secret: an embargo over a seed given in the open "
+            "is none"
+        )
     if parsed.attempt_cap < 1:
         raise ConfigurationError(f"--attempt-cap is at least one, got {parsed.attempt_cap}")
     resume: WorldVersion | None = None
@@ -148,8 +180,31 @@ def parse_recipe(argv: Sequence[str]) -> WorldRecipe:
     except ValueError as error:
         raise ConfigurationError(f"the organization dials are not consistent: {error}") from error
     return WorldRecipe(
-        parsed.seed, params, world_start, parsed.attempt_cap, resume, parsed.plan, filler
+        seed, params, world_start, parsed.attempt_cap, resume, parsed.plan, filler, disclosure
     )
+
+
+SEED_HEX = re.compile(r"[0-9a-f]{64}")
+"""The secret seed's one transport form: thirty-two bytes of entropy as lowercase hex."""
+
+
+def _seed(given: int | None, source: str, env: Mapping[str, str]) -> int:
+    """The seed the source names; a refusal under the secret source carries nothing of the
+    value, not a prefix, not a length, since the log it would print to is public."""
+    if source == "input":
+        if given is None:
+            raise ConfigurationError("--seed is required under the input seed source")
+        return given
+    if given is not None:
+        raise ConfigurationError(
+            "--seed is not given under the secret seed source; the seed is the environment's"
+        )
+    value = env.get(PREFIX + "SEED_HEX", "")
+    if not value:
+        raise ConfigurationError(f"{PREFIX}SEED_HEX is not set and the secret seed source needs it")
+    if not SEED_HEX.fullmatch(value):
+        raise ConfigurationError(f"{PREFIX}SEED_HEX is sixty-four lowercase hex characters")
+    return int(value, 16)
 
 
 DEFAULT_FILLER_SECTIONS = 4

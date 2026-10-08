@@ -46,6 +46,7 @@ from leaveimpact.evaluator.entrypoint import (
 )
 from leaveimpact.evaluator.repository import Repository, RepositoryRefused
 from leaveimpact.evaluator.sealed_world import SealedWorldRefused
+from leaveimpact.world.disclosure import Disclosure
 
 _REFUSALS = (
     RepositoryRefused,
@@ -79,12 +80,19 @@ def main(
     try:
         if request.command is Command.PROVE:
             proven = prove(
-                request.world_version, store_readers(stores), registration_of(repository)
+                request.world_version,
+                store_readers(stores),
+                registration_of(repository),
+                repository,
             )
             print(f"world_version={proven.world_version}")
             print(f"scenarios={proven.scenarios}")
+            # An embargoed world's counts are withheld: the first dispatch printed the golden
+            # world's to this public log (the arms interview; the generator step's ruling 5).
+            withheld = proven.disclosure is Disclosure.EMBARGOED
             for condition, total in proven.targets:
-                print(f"retrieval_targets[{condition}]={'no answer' if total is None else total}")
+                shown = "withheld" if withheld else "no answer" if total is None else total
+                print(f"retrieval_targets[{condition}]={shown}")
             print("wrote=nothing")
         else:
             published = evaluate(

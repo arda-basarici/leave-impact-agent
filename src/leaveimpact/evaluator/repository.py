@@ -80,6 +80,16 @@ class Repository:
             return None
         return self._try("cat-file", "blob", f"{commit}:{path}")
 
+    def paths_holding(self, commit: str, needle: str) -> tuple[str, ...]:
+        """The tracked files at ``commit`` whose content holds ``needle`` as a literal, in
+        git's order; empty when none does. Untracked files are not a checkout's content."""
+        found = self._try("grep", "-l", "-F", "-e", needle, commit, "--", ".")
+        if found is None:
+            return ()
+        return tuple(
+            line.split(":", 1)[1] for line in found.decode().splitlines() if ":" in line
+        )
+
     def changed(self, before: str, after: str, paths: tuple[str, ...]) -> tuple[ChangedPath, ...]:
         """The files under ``paths`` whose content differs between two commits, in path
         order, each with the identity of its content at either."""
