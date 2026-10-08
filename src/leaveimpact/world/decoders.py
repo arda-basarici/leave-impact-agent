@@ -61,6 +61,7 @@ from leaveimpact.world.artifacts import (
     PlantedWorldSpec,
     ScenarioPlanting,
 )
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import BASE_LEVELS, NO_FILLER, FillerPlan, SealedLevel
 from leaveimpact.world.org import OrgSpec, decode_org_params
 from leaveimpact.world.plan import PlanRow
@@ -94,6 +95,7 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
     )
     provenance = object_field(data, "provenance")
     planned = ("filler_plan",) if "filler_plan" in provenance else ()
+    marked = ("disclosure",) if "disclosure" in provenance else ()
     expect_fields(
         provenance,
         (
@@ -105,7 +107,8 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
             "vocabulary_digest",
             "semantic_digest",
         )
-        + planned,
+        + planned
+        + marked,
         "provenance",
     )
     levels = (
@@ -135,11 +138,23 @@ def decode_world_spec(content: bytes | str) -> PlantedWorldSpec:
         ),
         levels=levels,
         filler_plan=_filler_plan(provenance, levels) if planned else NO_FILLER,
+        disclosure=_disclosure(provenance) if marked else Disclosure.OPEN,
     )
 
 
 _POOL_FIELDS = ("filler", "levels")
 """The world spec's names for the pool and its levels, absent from a file without a pool."""
+
+
+def _disclosure(provenance: Mapping[str, object]) -> Disclosure:
+    """The sealed mark, by its name; a name no mark has is refused."""
+    value = string_field(provenance, "disclosure")
+    try:
+        return Disclosure(value)
+    except ValueError:
+        raise ValueError(
+            f"disclosure is one of {[mark.value for mark in Disclosure]}, got {value!r}"
+        ) from None
 
 
 def _filler_plan(provenance: Mapping[str, object], levels: tuple[SealedLevel, ...]) -> FillerPlan:

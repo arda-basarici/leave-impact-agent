@@ -42,6 +42,7 @@ from leaveimpact.world.briefs import (
     SectionTarget,
     parent_id,
 )
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.org import OrgParams
 from leaveimpact.world.prose import MaterializationRecord
 from leaveimpact.world.scenario import Planted, Scenario
@@ -51,8 +52,10 @@ def compose(
     semantic: SemanticWorld,
     prose: Mapping[str, str],
     materialization: MaterializationRecord | None,
+    disclosure: Disclosure = Disclosure.OPEN,
 ) -> WorldSpec:
-    """``semantic`` with every pending part written from ``prose``, keyed by target id.
+    """``semantic`` with every pending part written from ``prose``, keyed by target id, sealed
+    under ``disclosure``.
 
     Raises ``ProseContractError`` when a brief has no body, a body has no brief, a body
     is blank, a body's digest differs from the one its record accepted, or the record
@@ -97,6 +100,7 @@ def compose(
         vocabulary_digest=semantic.vocabulary_digest,
         semantic_digest=semantic_digest(semantic),
         materialization=materialization,
+        disclosure=disclosure,
         filler=tuple(
             _with_sections(planted, filler_sections.get(planted.entity.id, ()), prose)
             for planted in semantic.filler

@@ -85,6 +85,7 @@ from leaveimpact.world.construction import (
     required_count_for,
     required_sources_for,
 )
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.filler_mint import mint_filler
 from leaveimpact.world.levels import (
     BASE_LEVELS,
@@ -355,11 +356,14 @@ class WorldSpec(SemanticWorld):
     briefed targets: ``None`` only for a world with no pending prose, which may equally
     carry a record of no targets when a prose stage ran with nothing to write. The
     invariant a composed world adds is that every brief's target is now a part of its
-    parent and every prose-authored fact resolves to a part that exists.
+    parent and every prose-authored fact resolves to a part that exists. ``disclosure`` is
+    the mark the world is sealed under, a recipe's choice and not the seed's, so it rides
+    the composed world and never the semantic one.
     """
 
     semantic_digest: str
     materialization: MaterializationRecord | None
+    disclosure: Disclosure = field(default=Disclosure.OPEN, kw_only=True)
 
     def __post_init__(self) -> None:
         SemanticWorld.__post_init__(self)

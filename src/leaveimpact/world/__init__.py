@@ -130,6 +130,7 @@ from leaveimpact.world.construction import (
     unknown_skill_pairs,
 )
 from leaveimpact.world.decoders import decode_scenario_specs, decode_world_spec
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.filler import strip_filler, with_filler, world_documents
 from leaveimpact.world.filler_mint import (
     FillerExhausted,
@@ -300,6 +301,7 @@ __all__ = [
     "COMPATIBLE_MODIFIERS",
     "COMPONENT_NAMES",
     "DEFAULT_PARAMS",
+    "Disclosure",
     "FAMILY_NAMES",
     "GENERATOR_VERSION",
     "GIVEN_NAMES",

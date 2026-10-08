@@ -96,7 +96,7 @@ def resume_world(
             f"{version}: the sealed truth manifest is not the one the world spec cites"
         )
     record = decode_truth_manifest(truth_object.content).materialization
-    world = compose(semantic, _prose_of(planted, semantic, version), record)
+    world = compose(semantic, _prose_of(planted, semantic, version), record, planted.disclosure)
     sealed = bundle(world)
     if sealed.world_version != version:
         raise ResumeRefused(

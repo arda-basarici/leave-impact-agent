@@ -97,6 +97,7 @@ from leaveimpact.core.values_json import encode_ref, encode_value
 from leaveimpact.core.worldtime import DateSpan
 from leaveimpact.world.assembly import SemanticWorld, WorldSpec
 from leaveimpact.world.briefs import Brief, CommentTarget, FillerBrief, ProseTarget, SectionTarget
+from leaveimpact.world.disclosure import Disclosure
 from leaveimpact.world.levels import (
     BASE_LEVELS,
     NO_FILLER,
@@ -193,7 +194,9 @@ class PlantedWorldSpec:
     file and would define itself. ``filler`` and ``levels`` are the pool and the corpus
     levels sealed over it; a world sealed before any pool existed holds neither name in
     its file and reads as no pool and the base level alone, which is what such a
-    generator built and not a default.
+    generator built and not a default. ``disclosure`` is the mark the world was sealed
+    under, written only when it is an embargo; absent reads open, what every world sealed
+    before the mark existed is.
     """
 
     seed: int
@@ -212,6 +215,7 @@ class PlantedWorldSpec:
     filler: tuple[Planted[Document], ...] = field(default=(), kw_only=True)
     levels: tuple[SealedLevel, ...] = field(default=BASE_LEVELS, kw_only=True)
     filler_plan: FillerPlan = field(default=NO_FILLER, kw_only=True)
+    disclosure: Disclosure = field(default=Disclosure.OPEN, kw_only=True)
 
     def __post_init__(self) -> None:
         check_pool(
@@ -268,6 +272,7 @@ def planted_world_spec(
         filler=world.filler,
         levels=world.levels,
         filler_plan=world.filler_plan,
+        disclosure=world.disclosure,
     )
 
 
@@ -462,10 +467,22 @@ def _artifact(name: str, data: JsonObject) -> Artifact:
 
 
 def encode_world_spec(spec: PlantedWorldSpec) -> JsonObject:
-    """Provenance, organization, plan, slices, plantings, and the digests of the other two files."""
+    """Provenance, organization, plan, slices, plantings, and the digests of the other two files.
+
+    The disclosure mark joins the provenance here and not in ``_provenance``, since the
+    semantic encoding is what the seed determines and the mark is the recipe's.
+    """
     return {
         "artifact": WORLD_SPEC,
-        "provenance": {**_provenance(spec), "semantic_digest": spec.semantic_digest},
+        "provenance": {
+            **_provenance(spec),
+            "semantic_digest": spec.semantic_digest,
+            **(
+                {"disclosure": spec.disclosure.value}
+                if spec.disclosure is Disclosure.EMBARGOED
+                else {}
+            ),
+        },
         "org": _org(spec.org),
         "plan": [_plan_row(row) for row in spec.plan],
         "slices": [encode_date_span(window) for window in spec.slices],
