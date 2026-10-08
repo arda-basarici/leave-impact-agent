@@ -31,7 +31,7 @@ from leaveimpact.evaluator.incidents import (
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
 from tests.unit.evaluation_fixture import BASE, NORMAL, REFERENCE, evaluated, relabelled
-from tests.unit.reads_fixture import Recorder, full_read, systems_holding
+from tests.unit.reads_fixture import Recorder, fakes_holding, full_read
 from tests.unit.throwaway_world import loaded_world
 
 OTHER = System(SystemKind.AGENT, "graph")
@@ -105,7 +105,7 @@ def test_a_run_whose_reads_contradict_each_other_carries_it_on_its_evaluation(
     assert evaluated(world, scenario).contradictions == ()
     # The same full read, then the leaver's record returned a second time with another
     # location: the trace holds two reads of one record that cannot both be true.
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     reads = Recorder(systems)
     full_read(reads, world, scenario)
     leaver = scenario.investigated_leave.employee_id

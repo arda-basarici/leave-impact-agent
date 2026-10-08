@@ -201,7 +201,8 @@ def test_a_run_failed_by_defect_exports_its_failure_and_is_excluded(
 ) -> None:
     systems = systems_holding(world)
     work = _WorkWithBrokenComponents(
-        tickets=systems.work.tickets, components_by_id=systems.work.components_by_id
+        tickets=dict(systems.work.tickets),
+        components_by_id=dict(systems.work.components_by_id),
     )
     context = world.context_of(scenario)
     result = investigate(context, replace(systems.ports, work=work))

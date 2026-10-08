@@ -19,7 +19,7 @@ from leaveimpact.evaluator.rows import Expectation
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from tests.unit.export_fixture import provider_failed_export, run_export
-from tests.unit.reads_fixture import Recorder, full_read, reads_of_everything, systems_holding
+from tests.unit.reads_fixture import Recorder, fakes_holding, full_read, reads_of_everything
 from tests.unit.report_fixture import renumbered, truthful_report
 from tests.unit.throwaway_world import loaded_world
 
@@ -96,7 +96,7 @@ def test_a_structurally_invalid_claim_set_has_no_grounding_and_keeps_its_integri
 ) -> None:
     scenario = world.scenarios[0]
     claims = truthful_report(answer(world, scenario))
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     foreign = replace(
         next(iter(systems.work.tickets.values())), id=WorkItemId("ticket_999"), comments=()
     )
@@ -121,7 +121,7 @@ def test_a_run_shown_something_the_sealed_world_does_not_hold_is_still_graded_an
     scenario = world.scenarios[0]
     comment = next(ref for ref in world.index.carried if ref.kind is EntityKind.COMMENT)
     ticket = world.index.parts[comment].parent
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     item = systems.work.tickets[WorkItemId(ticket.id)]
     systems.work.tickets[item.id] = replace(
         item, comments=tuple(replace(each, text="Edited since.") for each in item.comments)

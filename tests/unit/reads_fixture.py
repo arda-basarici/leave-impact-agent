@@ -1,10 +1,15 @@
-"""A run's reads, made through the in-memory ports and recorded as a trace's operations.
+"""A run's reads, made through the ports over a sealed world and recorded as a trace's operations.
 
 Test infrastructure. The evaluator replays what a run read, so its tests need reads: real
 calls of the declared tools, with the arguments the tools accept, answered by systems that
-hold a sealed world. ``systems_holding`` fills the four in-memory ports with every record a
-sealed world plants, which is what the projector does to the real systems; a test that
-wants the systems to have drifted since then changes a store directly. ``Recorder`` makes
+hold a sealed world. ``systems_holding`` is the three planted readers over the world (the
+adapters' own, what a development run reads) beside the in-memory documents port filled
+with every document the scenarios plant, since the readers have no document side and the
+tests need a search; ``fakes_holding`` fills the four in-memory ports the same way, for a
+test that wants a system to have drifted from the world since it was sealed and changes a
+store directly, which a reader over sealed plantings cannot be made to do (the generator
+step's ruling 7: the fakes retire where a test reads a sealed world and stay where a test
+needs a controlled fault). Both expose the ports and the outage switch. ``Recorder`` makes
 a call through the harness's own executor, the one path every system's reads take:
 the specification's validation, the port method the specification names, the operation
 recorded with its outcome. One liberty is the fixture's: the executor stops a source at
@@ -18,7 +23,14 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from typing import Protocol
 
+from leaveimpact.adapters.plantings import (
+    PlantedCalendar,
+    PlantedPeople,
+    PlantedWork,
+    planted_readers,
+)
 from leaveimpact.agent.execution import Executor, ReadPorts
 from leaveimpact.core import Operation, Outcome, PortFamily, PrefetchOrigin, Source
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
@@ -32,9 +44,35 @@ from tests.unit.in_memory_ports import (
 )
 
 
+class HoldsPorts(Protocol):
+    """What the recorder reads through: the four ports as the executor takes them."""
+
+    @property
+    def ports(self) -> ReadPorts: ...
+
+
 @dataclass
 class Systems:
-    """The four systems a run reads, as in-memory ports."""
+    """The four systems a run reads: the three planted readers and the in-memory documents."""
+
+    people: PlantedPeople
+    work: PlantedWork
+    calendar: PlantedCalendar
+    documents: InMemoryDocuments
+
+    def port(self, family: PortFamily) -> object:
+        """The port a tool of ``family`` reads."""
+        return self.ports.port(family)
+
+    @property
+    def ports(self) -> ReadPorts:
+        """The four as the executor takes them."""
+        return ReadPorts(self.people, self.work, self.calendar, self.documents)
+
+
+@dataclass
+class FakeSystems:
+    """The four systems a run reads, as in-memory ports a test may drift."""
 
     people: InMemoryPeople = field(default_factory=InMemoryPeople)
     work: InMemoryWork = field(default_factory=InMemoryWork)
@@ -52,9 +90,16 @@ class Systems:
 
 
 def systems_holding(world: SealedWorld) -> Systems:
-    """Systems that hold every record ``world`` plants: the organization and each scenario's
-    leaves, work items, events and documents."""
-    systems = Systems()
+    """The planted readers over ``world`` and a documents port holding every document its
+    scenarios plant."""
+    readers = planted_readers(world)
+    return Systems(readers.people, readers.work, readers.calendar, _documents_of(world))
+
+
+def fakes_holding(world: SealedWorld) -> FakeSystems:
+    """Fakes that hold every record ``world`` plants: the organization and each scenario's
+    leaves, work items, events and documents; for a test that drifts a store afterwards."""
+    systems = FakeSystems(documents=_documents_of(world))
     for team in world.org.teams:
         systems.people.add_team(team)
     for employee in world.org.employees:
@@ -69,9 +114,15 @@ def systems_holding(world: SealedWorld) -> Systems:
             systems.work.add_work_item(item.entity)
         for event in owned.events:
             systems.calendar.add_event(event.entity)
-        for document in owned.documents:
-            systems.documents.add_document(document.entity)
     return systems
+
+
+def _documents_of(world: SealedWorld) -> InMemoryDocuments:
+    documents = InMemoryDocuments()
+    for scenario in world.scenarios:
+        for document in scenario.owned.documents:
+            documents.add_document(document.entity)
+    return documents
 
 
 @dataclass
@@ -79,7 +130,7 @@ class Recorder:
     """Calls of the declared tools against ``systems`` through the executor, kept as operations
     in call order."""
 
-    systems: Systems
+    systems: HoldsPorts
     executor: Executor = field(init=False)
 
     def __post_init__(self) -> None:
@@ -135,4 +186,13 @@ def reads_of_everything(
     return reads.operations
 
 
-__all__ = ["Recorder", "Systems", "full_read", "reads_of_everything", "systems_holding"]
+__all__ = [
+    "FakeSystems",
+    "HoldsPorts",
+    "Recorder",
+    "Systems",
+    "fakes_holding",
+    "full_read",
+    "reads_of_everything",
+    "systems_holding",
+]

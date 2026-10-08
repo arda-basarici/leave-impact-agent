@@ -16,7 +16,7 @@ from leaveimpact.core.run_trace import AbsentOutcome, Operation, OperationId, Pr
 from leaveimpact.core.timeshape import encode_date_span, encode_instant
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
 from tests.unit import stated_fixture as f
-from tests.unit.reads_fixture import Recorder, Systems
+from tests.unit.reads_fixture import FakeSystems, Recorder
 
 LEAVE = Leave(
     leave_id(5), f.ALICE.id, date(2026, 3, 9), date(2026, 3, 13), LeaveKind.ANNUAL,
@@ -27,8 +27,8 @@ OVER_THE_LEAVE = {"span": encode_date_span(DateSpan(date(2026, 3, 9), date(2026,
 BEFORE_THE_LEAVE = {"span": encode_date_span(DateSpan(date(2026, 3, 1), date(2026, 3, 8)))}
 
 
-def systems() -> Systems:
-    held = Systems()
+def systems() -> FakeSystems:
+    held = FakeSystems()
     for employee in (f.ALICE, f.DENIZ):
         held.people.add_employee(employee)
     held.people.add_leave(LEAVE)

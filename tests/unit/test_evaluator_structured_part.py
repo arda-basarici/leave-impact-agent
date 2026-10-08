@@ -19,6 +19,7 @@ from tests.unit.export_fixture import run_export
 from tests.unit.reads_fixture import (
     Recorder,
     Systems,
+    fakes_holding,
     full_read,
     reads_of_everything,
     systems_holding,
@@ -105,8 +106,9 @@ def test_with_every_read_made_twice(
 
 
 def test_with_a_record_returned_two_ways(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     reads = Recorder(systems)
     reads.read("work_items")
     tickets = systems.work.tickets
@@ -122,8 +124,9 @@ def test_with_a_record_returned_two_ways(
 
 
 def test_with_a_record_returned_and_then_found_absent(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     reads = Recorder(systems)
     id = next(iter(systems.work.tickets))
     reads.read("work_item", {"id": id})
@@ -149,8 +152,9 @@ def test_with_a_source_that_answered_and_then_failed(
 
 
 def test_with_a_record_no_fact_can_be_made_from(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     blank = replace(world.org.employees[0], location="  ")
     systems.people.people[blank.id] = blank
     reads = Recorder(systems)

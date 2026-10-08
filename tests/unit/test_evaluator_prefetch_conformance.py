@@ -51,7 +51,7 @@ from leaveimpact.evaluator.trace_metrics import evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.export_fixture import export_baseline, logged_in_order
 from tests.unit.in_memory_ports import InMemoryWork
-from tests.unit.reads_fixture import Systems, systems_holding
+from tests.unit.reads_fixture import FakeSystems, Systems, fakes_holding, systems_holding
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
@@ -86,7 +86,11 @@ def scenario(world: SealedWorld) -> Scenario:
 
 
 def exported(
-    world: SealedWorld, scenario: Scenario, systems: Systems, *down: Source, run_id: str = "run-1"
+    world: SealedWorld,
+    scenario: Scenario,
+    systems: Systems | FakeSystems,
+    *down: Source,
+    run_id: str = "run-1",
 ) -> RunExport:
     """The real baseline's export of ``scenario`` with ``down`` unreachable, read back from
     its bytes, so the arguments compared are the ones the wire carries."""
@@ -242,7 +246,7 @@ class _WorkWithBrokenComponents(InMemoryWork):
 def test_a_malformed_record_ends_the_plan_and_a_read_after_it_is_extra(
     world: SealedWorld, scenario: Scenario, normal: RunExport
 ) -> None:
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     systems.work = _WorkWithBrokenComponents(
         tickets=systems.work.tickets, components_by_id=systems.work.components_by_id
     )
@@ -263,7 +267,7 @@ def test_a_defect_found_at_a_completed_read_ends_nothing(
 ) -> None:
     # The enumeration completed without the leaver: the run fails at that read, found after
     # the prefetch has finished, and the reads after it were obliged and made.
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     del systems.people.people[scenario.investigated_leave.employee_id]
     failed = exported(world, scenario, systems)
     assert failed.record.failure is not None
@@ -277,7 +281,7 @@ def test_a_defect_found_at_a_completed_read_ends_nothing(
 def test_a_leave_that_did_not_come_back_ends_the_plan_at_its_first_call(
     world: SealedWorld, scenario: Scenario, normal: RunExport
 ) -> None:
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     del systems.people.leaves[LeaveId(scenario.spec.leave_id)]
     absent = exported(world, scenario, systems)
     assert [operation.tool for operation in absent.trace.operations] == ["leave"]
@@ -302,7 +306,7 @@ def test_an_opening_read_of_another_leave_obliges_nothing_after_it(
 
 
 def test_every_chunk_of_a_long_leave_is_obliged(world: SealedWorld, scenario: Scenario) -> None:
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     leave = scenario.investigated_leave
     systems.people.leaves[leave.id] = replace(leave, end=leave.start + timedelta(days=399))
     long = exported(world, scenario, systems)
@@ -361,7 +365,7 @@ def test_a_second_read_of_one_chunk_in_place_of_another_is_missing_and_extra(
 ) -> None:
     # The duplicate matches a planned call, the first chunk's, so it is no wrongly
     # parameterized read of the second: that chunk is missing and the duplicate extra.
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     leave = scenario.investigated_leave
     systems.people.leaves[leave.id] = replace(leave, end=leave.start + timedelta(days=399))
     long = exported(world, scenario, systems)

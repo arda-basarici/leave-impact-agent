@@ -72,7 +72,7 @@ from leaveimpact.world import Scenario
 from tests.unit import world_fixture as w
 from tests.unit.export_fixture import approval, run_export
 from tests.unit.in_memory_ports import InMemoryPeople, InMemoryWork
-from tests.unit.reads_fixture import Systems, systems_holding
+from tests.unit.reads_fixture import FakeSystems, Systems, fakes_holding, systems_holding
 from tests.unit.report_fixture import truthful_report
 from tests.unit.throwaway_world import loaded_world
 
@@ -107,7 +107,9 @@ def scenario(world: SealedWorld) -> Scenario:
     return world.scenarios[0]
 
 
-def run(world: SealedWorld, scenario: Scenario, systems: Systems, *down: Source) -> RulesOnlyRun:
+def run(
+    world: SealedWorld, scenario: Scenario, systems: Systems | FakeSystems, *down: Source
+) -> RulesOnlyRun:
     for port in (systems.people, systems.work, systems.calendar, systems.documents):
         port.reachable = port.source not in down
     return investigate(world.context_of(scenario), systems.ports)
@@ -316,8 +318,9 @@ def test_with_the_hr_system_down_the_run_abstains_after_one_operation(
 
 
 def test_a_leave_the_hr_system_does_not_hold_is_an_abstention(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     del systems.people.leaves[LeaveId(scenario.spec.leave_id)]
     result = run(world, scenario, systems)
     assert result.abstention is Abstention.LEAVE_NOT_RETURNED
@@ -342,7 +345,9 @@ def test_a_window_that_omits_the_leave_read_by_id_is_a_defect_at_the_window(
     # The prefetch reads the leave by id and then every leave over its span: a window that
     # does not hold it contradicts the first read, and the run fails where that showed.
     people = _PeopleWhoseWindowOmitsTheLeave(
-        people=systems.people.people, leaves=systems.people.leaves, teams=systems.people.teams
+        people=dict(systems.people.people),
+        leaves=dict(systems.people.leaves),
+        teams=dict(systems.people.teams),
     )
     result = investigate(world.context_of(scenario), replace(systems.ports, people=people))
     window = next(op for op in result.operations if op.tool == "leaves_within")
@@ -360,8 +365,8 @@ def test_an_earlier_defect_still_outranks_a_later_contradiction(
     leave = scenario.investigated_leave
     people = _PeopleWhoseWindowOmitsTheLeave(
         people={k: v for k, v in systems.people.people.items() if k != leave.employee_id},
-        leaves=systems.people.leaves,
-        teams=systems.people.teams,
+        leaves=dict(systems.people.leaves),
+        teams=dict(systems.people.teams),
     )
     result = investigate(world.context_of(scenario), replace(systems.ports, people=people))
     assert result.failure is not None
@@ -373,7 +378,9 @@ def test_an_uncovered_universe_is_an_abstention_and_the_plan_rule_never_runs(
     world: SealedWorld, systems: Systems, scenario: Scenario
 ) -> None:
     people = _PeopleWithoutAnEnumeration(
-        people=systems.people.people, leaves=systems.people.leaves, teams=systems.people.teams
+        people=dict(systems.people.people),
+        leaves=dict(systems.people.leaves),
+        teams=dict(systems.people.teams),
     )
     result = investigate(world.context_of(scenario), replace(systems.ports, people=people))
     assert result.abstention is Abstention.UNIVERSE_NOT_COVERED
@@ -391,8 +398,9 @@ def test_an_uncovered_universe_is_an_abstention_and_the_plan_rule_never_runs(
 
 
 def test_another_leave_for_the_id_asked_is_a_defect_at_the_opening_operation(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     asked = LeaveId(scenario.spec.leave_id)
     systems.people.leaves[asked] = Leave(
         leave_id(998),
@@ -411,8 +419,9 @@ def test_another_leave_for_the_id_asked_is_a_defect_at_the_opening_operation(
 
 
 def test_an_enumeration_without_the_leaver_is_a_defect_at_that_operation(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     del systems.people.people[scenario.investigated_leave.employee_id]
     result = run(world, scenario, systems)
     assert result.failure is not None and result.failure.site == OperationSite(OperationId("op-2"))
@@ -420,8 +429,9 @@ def test_an_enumeration_without_the_leaver_is_a_defect_at_that_operation(
 
 
 def test_a_record_no_fact_can_be_made_from_is_a_defect_at_its_operation(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     blank = replace(world.org.employees[1], location="  ")
     systems.people.people[blank.id] = blank
     result = run(world, scenario, systems)
@@ -440,14 +450,17 @@ def test_a_malformed_record_is_a_defect_at_its_operation_and_outranks_abstention
     world: SealedWorld, systems: Systems, scenario: Scenario
 ) -> None:
     work = _WorkWithBrokenComponents(
-        tickets=systems.work.tickets, components_by_id=systems.work.components_by_id
+        tickets=dict(systems.work.tickets),
+        components_by_id=dict(systems.work.components_by_id),
     )
     result = investigate(world.context_of(scenario), replace(systems.ports, work=work))
     assert result.failure is not None and result.failure.site == OperationSite(OperationId("op-4"))
     assert result.failure.category is FailureCategory.DEFECT
     # The same fault with the universe also unreadable: still the defect, never the abstention.
     people = _PeopleWithoutAnEnumeration(
-        people=systems.people.people, leaves=systems.people.leaves, teams=systems.people.teams
+        people=dict(systems.people.people),
+        leaves=dict(systems.people.leaves),
+        teams=dict(systems.people.teams),
     )
     both = investigate(
         world.context_of(scenario), ReadPorts(people, work, systems.calendar, systems.documents)
@@ -487,17 +500,20 @@ def test_every_way_a_run_ends_is_exportable(
     ways["abstained, leave not returned"] = investigate(context, hr_down.ports)
     no_list = systems_holding(world)
     people = _PeopleWithoutAnEnumeration(
-        people=no_list.people.people, leaves=no_list.people.leaves, teams=no_list.people.teams
+        people=dict(no_list.people.people),
+        leaves=dict(no_list.people.leaves),
+        teams=dict(no_list.people.teams),
     )
     ways["abstained, universe not covered"] = investigate(
         context, replace(no_list.ports, people=people)
     )
     broken = systems_holding(world)
     work = _WorkWithBrokenComponents(
-        tickets=broken.work.tickets, components_by_id=broken.work.components_by_id
+        tickets=dict(broken.work.tickets),
+        components_by_id=dict(broken.work.components_by_id),
     )
     ways["defect, malformed"] = investigate(context, replace(broken.ports, work=work))
-    another = systems_holding(world)
+    another = fakes_holding(world)
     another.people.leaves[LeaveId(context.leave_id)] = Leave(
         leave_id(998),
         employee_id(1),
@@ -507,10 +523,10 @@ def test_every_way_a_run_ends_is_exportable(
         LeaveStatus.APPROVED,
     )
     ways["defect, another leave"] = investigate(context, another.ports)
-    no_leaver = systems_holding(world)
+    no_leaver = fakes_holding(world)
     del no_leaver.people.people[leave.employee_id]
     ways["defect, enumeration without the leaver"] = investigate(context, no_leaver.ports)
-    blank = systems_holding(world)
+    blank = fakes_holding(world)
     blank.people.people[world.org.employees[1].id] = replace(world.org.employees[1], location="  ")
     ways["defect, underivable record"] = investigate(context, blank.ports)
     omitting = systems_holding(world)
@@ -519,9 +535,9 @@ def test_every_way_a_run_ends_is_exportable(
         replace(
             omitting.ports,
             people=_PeopleWhoseWindowOmitsTheLeave(
-                people=omitting.people.people,
-                leaves=omitting.people.leaves,
-                teams=omitting.people.teams,
+                people=dict(omitting.people.people),
+                leaves=dict(omitting.people.leaves),
+                teams=dict(omitting.people.teams),
             ),
         ),
     )

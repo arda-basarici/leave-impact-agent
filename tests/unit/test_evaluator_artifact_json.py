@@ -92,7 +92,13 @@ from tests.unit.inventory_fixture import (
     open_attempt,
     published,
 )
-from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holding
+from tests.unit.reads_fixture import (
+    FakeSystems,
+    Systems,
+    fakes_holding,
+    reads_of_everything,
+    systems_holding,
+)
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import TABLE, decided, light, named
 from tests.unit.report_fixture import of_type, without
@@ -127,7 +133,7 @@ def exported(
     scenario: Scenario,
     *down: Source,
     run_id: str,
-    systems: Systems | None = None,
+    systems: Systems | FakeSystems | None = None,
 ) -> RunExport:
     """The real baseline's export of ``scenario`` under the draft."""
     systems = systems_holding(world) if systems is None else systems
@@ -157,7 +163,7 @@ def stored_runs(world: SealedWorld) -> list[StoredRun]:
     under an outage, limited, excluded by a defect, with a prefetch finding, out of the
     tables for its settings, of another world, and no export at all."""
     one, two, three, four, five, six, seven, *_ = world.scenarios
-    broken = systems_holding(world)
+    broken = fakes_holding(world)
     broken.work = _WorkWithBrokenComponents(
         tickets=broken.work.tickets, components_by_id=broken.work.components_by_id
     )
@@ -216,7 +222,7 @@ def findings_of_every_kind(world: SealedWorld) -> dict[str, RunExport]:
         found[f"bare/{scenario.spec.id}"] = run_export(world, scenario, bare, operations=everything)
     first = world.scenarios[0]
     found["undeclared"] = run_export(world, first, operations=reads(answered(Source.FRAPPE)))
-    short = systems_holding(world)
+    short = fakes_holding(world)
     bystander = next(
         employee.id
         for employee in world.org.employees

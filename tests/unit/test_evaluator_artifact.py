@@ -86,7 +86,7 @@ from tests.unit.inventory_fixture import (
     published,
     superseded_object,
 )
-from tests.unit.reads_fixture import Recorder, full_read, systems_holding
+from tests.unit.reads_fixture import Recorder, fakes_holding, full_read, systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import TABLE, bound, frozen, light, named
 from tests.unit.throwaway_world import loaded_world
@@ -405,7 +405,7 @@ def test_a_run_out_of_the_tables_is_still_read_for_a_source_that_contradicted_it
     world: SealedWorld,
 ) -> None:
     scenario = world.scenarios[0]
-    systems = systems_holding(world)
+    systems = fakes_holding(world)
     reads = Recorder(systems)
     full_read(reads, world, scenario)
     leaver = scenario.investigated_leave.employee_id

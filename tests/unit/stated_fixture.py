@@ -42,7 +42,7 @@ from leaveimpact.core.ids import (
     work_item_id,
 )
 from leaveimpact.core.read_projection import StructuredReads, project_reads
-from tests.unit.reads_fixture import Recorder, Systems
+from tests.unit.reads_fixture import FakeSystems, Recorder
 
 TODAY = date(2026, 3, 2)
 
@@ -104,7 +104,7 @@ def reads_of(
 ) -> StructuredReads:
     """The projection of a run that enumerated the people, the components and the work items
     and read each of ``documents`` by its id, the systems holding what is given."""
-    systems = Systems()
+    systems = FakeSystems()
     for employee in (ALICE, DENIZ):
         systems.people.add_employee(employee)
     systems.work.add_component(PAYMENTS)

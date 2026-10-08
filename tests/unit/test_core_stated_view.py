@@ -25,7 +25,7 @@ from leaveimpact.core.refs import clause_ref
 from leaveimpact.core.stated import PlacementState, StatedFact
 from leaveimpact.core.stated_view import Excluded, Exclusion, view_with_stated
 from tests.unit import stated_fixture as f
-from tests.unit.reads_fixture import Recorder, Systems
+from tests.unit.reads_fixture import FakeSystems, Recorder
 
 SECOND = Document(
     document_id(4),
@@ -195,7 +195,7 @@ def test_a_statement_from_a_carrier_the_reads_withdrew_is_left_out() -> None:
     # The ticket came back with two owners in two reads, so the projection derives nothing
     # from it. A statement from its own comment must not stand in for the owner field and
     # then outrank the runbook as the tracker's value.
-    systems = Systems()
+    systems = FakeSystems()
     for employee in (f.ALICE, f.DENIZ):
         systems.people.add_employee(employee)
     systems.work.add_component(f.PAYMENTS)

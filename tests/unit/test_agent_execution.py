@@ -37,7 +37,7 @@ from leaveimpact.core.ids import LeaveId, employee_id, leave_id
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from tests.unit.in_memory_ports import InMemoryPeople, InMemoryWork
-from tests.unit.reads_fixture import Systems, systems_holding
+from tests.unit.reads_fixture import FakeSystems, Systems, fakes_holding, systems_holding
 from tests.unit.throwaway_world import loaded_world
 
 BY_MODEL = ModelOrigin(ModelCallId("call-1"))
@@ -59,7 +59,7 @@ def scenario(world: SealedWorld) -> Scenario:
     return world.scenarios[0]
 
 
-def ports_of(systems: Systems) -> ReadPorts:
+def ports_of(systems: Systems | FakeSystems) -> ReadPorts:
     return ReadPorts(systems.people, systems.work, systems.calendar, systems.documents)
 
 
@@ -121,7 +121,7 @@ def test_an_unreachable_source_is_recorded_and_stops_for_the_run(systems: System
     systems.work.reachable = False
     executor = executor_over(systems)
     answer = executor.call(PREFETCH, "work_items", {})
-    assert answer == UnreachableOutcome(Source.JIRA, "switched off in the test")
+    assert answer == UnreachableOutcome(Source.JIRA, "switched off for this run")
     assert executor.stopped == {Source.JIRA}
     with pytest.raises(ValueError, match="jira has stopped"):
         executor.call(PREFETCH, "components", {})
@@ -139,7 +139,9 @@ def test_a_malformed_record_is_a_defect_and_stops_nothing(
     systems: Systems, scenario: Scenario
 ) -> None:
     broken = _PeopleWithABrokenLeave(
-        people=systems.people.people, leaves=systems.people.leaves, teams=systems.people.teams
+        people=dict(systems.people.people),
+        leaves=dict(systems.people.leaves),
+        teams=dict(systems.people.teams),
     )
     executor = Executor(replace(ports_of(systems), people=broken))
     answer = executor.call(PREFETCH, "leave", {"id": scenario.spec.leave_id})
@@ -239,7 +241,8 @@ def test_a_malformed_record_mid_plan_ends_the_prefetch_at_that_operation(
     # The run fails by defect at that operation (DESIGN's runtime policy); the reads the
     # plan would have made after it are not made.
     broken = _WorkWithBrokenComponents(
-        tickets=systems.work.tickets, components_by_id=systems.work.components_by_id
+        tickets=dict(systems.work.tickets),
+        components_by_id=dict(systems.work.components_by_id),
     )
     executor = Executor(replace(ports_of(systems), work=broken))
     result = run_prefetch(executor, world.context_of(scenario))
@@ -265,8 +268,9 @@ def test_with_the_hr_system_down_the_plan_ends_at_the_first_operation(
 
 
 def test_a_leave_absent_or_of_another_id_ends_the_plan_at_the_first_operation(
-    world: SealedWorld, systems: Systems, scenario: Scenario
+    world: SealedWorld, scenario: Scenario
 ) -> None:
+    systems = fakes_holding(world)
     context = world.context_of(scenario)
     asked = LeaveId(context.leave_id)
     del systems.people.leaves[asked]
