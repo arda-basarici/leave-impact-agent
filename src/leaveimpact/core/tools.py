@@ -27,9 +27,27 @@ booleans never integers. A refusal names the argument. The bounds' numbers live 
 declarations and reach the preregistration through the digest, so a changed bound is a
 visibly changed surface.
 
+A refusal is typed (the registry step, fork 4): beside the detail that names the value
+given, which the log and the export keep, it carries the one correction the model is
+shown, built from the declaration and the argument's name and never from the value. A
+model's argument is text the model chose, so a message that echoed it could carry
+anything the model wrote back into its own context; the correction set is closed and
+enumerable (``correction_messages``), which is what lets the request capture prove, not
+sample, that nothing of the world reaches the model through an error.
+
+The registry declares per role which methods become tools, so a tool list is constructed
+and never prompted (DESIGN, the tool paragraph). One role exists, the investigator, and
+its list is the ten without the three whole-table enumerations, which the frozen prefetch
+reads and the system's turns render into the model's context before the first call, so a
+model call to one would be a whole-table re-read with nothing to discover (the registry
+step, fork 1). That ties the list to the prefetch's steps on purpose and by name: a
+prefetch change that drops an enumeration reopens the list.
+
 The tool-surface digest hashes a versioned envelope of what a role's model sees: its
-ordered generated definitions, and the identifiers and versions of the result codec
-and the validation protocol, since a change in how results are rendered or calls are
+ordered generated definitions, the definitions of the harness's own tools the role is
+shown beside them (the fact tool, when the step that shows it lands; empty until then, so
+the investigator's digest is provisional), and the identifiers and versions of the result
+codec and the validation protocol, since a change in how results are rendered or calls are
 refused is a change the model sees as much as a changed description is. It names the
 semantic surface, not provider wire bytes, which a framework may translate before the
 request leaves. Nothing invisible enters it.
@@ -48,22 +66,27 @@ from typing import assert_never
 
 from leaveimpact.core.enums import EntityKind, Source
 from leaveimpact.core.jsonshape import JsonObject, as_object, canonical_bytes, expect_fields
-from leaveimpact.core.refs import PREFIX_BY_KIND, require_id
+from leaveimpact.core.refs import PREFIX_BY_KIND, require_id, with_article
 from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_date_span, decode_instant
 from leaveimpact.core.worldtime import InstantSpan
 
 TOOL_NAME = re.compile(r"^[a-z][a-z0-9_]*\Z")  # ``\Z``: ``$`` would admit a trailing newline
 
-SURFACE_VERSION = 1
-"""The envelope the digest hashes; bumped when the envelope's own shape changes."""
+SURFACE_VERSION = 2
+"""The envelope the digest hashes; bumped when the envelope's own shape changes (2: the
+harness's own tool definitions joined it, the registry step)."""
 
-RESULT_CODEC = ("observed-record", 1)
-"""The identifier and version of how a result is rendered to the model (the entity codec's
-observed record, canonical JSON); a change in that rendering is a change the model sees."""
+RESULT_CODEC = ("observed-envelope", 1)
+"""The identifier and version of how a result is rendered to the model: one envelope per
+operation stamped with the run's ``now``, holding the entity codec's observed record, the
+records, the absence or the unreachability (the registry step, fork 2; before it,
+``observed-record`` 1 named the bare record); a change in that rendering is a change the
+model sees."""
 
-VALIDATION_PROTOCOL = ("exact-json-object", 1)
-"""The identifier and version of how a call is accepted or refused."""
+VALIDATION_PROTOCOL = ("exact-json-object", 2)
+"""The identifier and version of how a call is accepted or refused (2: the refusal the
+model is shown is the closed correction, not the detail that echoes the value)."""
 
 
 # --- The method table ----------------------------------------------------------------
@@ -350,11 +373,131 @@ TOOL_SPECIFICATIONS: tuple[ToolSpecification, ...] = (
 """The thirteen, in the one canonical order a registry preserves and sends."""
 
 
+# --- The roles ----------------------------------------------------------------------------
+
+
+class Role(StrEnum):
+    """The roles a registry constructs a tool list for; one so far, the investigator."""
+
+    INVESTIGATOR = "investigator"
+
+
+INVESTIGATOR_METHODS: frozenset[PortMethod] = frozenset(
+    {
+        PortMethod.EMPLOYEE,
+        PortMethod.TEAM,
+        PortMethod.LEAVE,
+        PortMethod.LEAVES_WITHIN,
+        PortMethod.WORK_ITEM,
+        PortMethod.COMPONENT,
+        PortMethod.EVENT,
+        PortMethod.EVENTS_WITHIN,
+        PortMethod.DOCUMENT,
+        PortMethod.SEARCH,
+    }
+)
+"""The ten the investigator is shown: every method but the three whole-table enumerations
+(``employees``, ``components``, ``work_items``), which the frozen prefetch reads for every
+run and the turns render before the first call (the registry step, fork 1). Stated as the
+included set, so the list is a positive claim and not what happens to be left over."""
+
+ROLE_METHODS: Mapping[Role, frozenset[PortMethod]] = MappingProxyType(
+    {Role.INVESTIGATOR: INVESTIGATOR_METHODS}
+)
+
+
+def role_surface(role: Role) -> tuple[ToolSpecification, ...]:
+    """The specifications ``role`` is shown, in the canonical order.
+
+    >>> [s.name for s in role_surface(Role.INVESTIGATOR)][:4]
+    ['employee', 'team', 'leave', 'leaves_within']
+    """
+    methods = ROLE_METHODS[role]
+    return tuple(s for s in TOOL_SPECIFICATIONS if s.method in methods)
+
+
 # --- Validation -------------------------------------------------------------------------
 
 
+class ArgumentsRefused(ValueError):
+    """A call's arguments were refused before any source was asked.
+
+    ``str()`` is the detail, which names the value given and is what the log and the
+    export record; ``correction`` is the one message the model is shown, built from the
+    declaration alone; ``argument`` is the argument refused, ``None`` when the object as a
+    whole was (not an object, or not exactly the declared arguments).
+    """
+
+    def __init__(self, argument: str | None, correction: str, detail: str) -> None:
+        super().__init__(detail)
+        self.argument = argument
+        self.correction = correction
+
+
+def expected_shape(argument: Argument) -> str:
+    """What ``argument`` must be, in the words a correction uses; from the declaration only.
+
+    >>> expected_shape(IdArgument("id", EntityKind.EMPLOYEE))
+    'an employee id of the form emp_NNN'
+    >>> expected_shape(SEARCH_LIMIT)
+    'an integer from 1 to 20'
+    """
+    match argument:
+        case IdArgument():
+            prefix = PREFIX_BY_KIND[argument.kind]
+            return f"{with_article(argument.kind.value)} id of the form {prefix}_NNN"
+        case IntegerArgument():
+            return f"an integer from {argument.minimum} to {argument.maximum}"
+        case DateSpanArgument():
+            return (
+                "an object with start and end as YYYY-MM-DD calendar days, start not after "
+                f"end, at most {argument.max_days} days"
+            )
+        case InstantSpanArgument():
+            return (
+                "an object with start and end as instants {at, timezone}, start before end, "
+                f"at most {argument.max_days} days apart"
+            )
+        case QueryArgument():
+            return f"a non-blank string of at most {argument.max_length} characters"
+        case _:
+            assert_never(argument)
+
+
+def object_correction(specification: ToolSpecification) -> str:
+    """The correction for arguments that are not exactly ``specification``'s object."""
+    names = ", ".join(argument.name for argument in specification.arguments)
+    held = f"exactly: {names}" if names else "no fields"
+    return f"{specification.name}'s arguments are a JSON object holding {held}"
+
+
+def argument_correction(specification: ToolSpecification, argument: Argument) -> str:
+    """The correction for ``argument`` of ``specification`` not being its declared shape."""
+    return f"{specification.name}'s {argument.name} is {expected_shape(argument)}"
+
+
+def surface_correction(surface: tuple[ToolSpecification, ...]) -> str:
+    """The correction for a tool call naming no tool of ``surface``; the names are the
+    declaration's, never the one the model wrote."""
+    names = ", ".join(specification.name for specification in surface)
+    return f"that is not one of this role's tools; the tools are: {names}"
+
+
+def correction_messages(surface: tuple[ToolSpecification, ...]) -> frozenset[str]:
+    """Every correction a call against ``surface`` can be answered with: the closed set a
+    capture checks the rendered refusals against."""
+    messages = {surface_correction(surface)}
+    for specification in surface:
+        messages.add(object_correction(specification))
+        for argument in specification.arguments:
+            messages.add(argument_correction(specification, argument))
+    return frozenset(messages)
+
+
 def validate_arguments(specification: ToolSpecification, value: object) -> Mapping[str, object]:
-    """The domain values of a call's arguments, or ``ValueError`` naming the argument refused.
+    """The domain values of a call's arguments, or ``ArgumentsRefused`` (a ``ValueError``)
+    whose detail names the argument and the value refused and whose correction is the
+    closed message the model may be shown.
 
     Exactly the declared arguments, each in its declared shape, nothing coerced and
     nothing defaulted, so the accepted raw arguments are the effective ones.
@@ -364,18 +507,23 @@ def validate_arguments(specification: ToolSpecification, value: object) -> Mappi
     >>> validate_arguments(TOOL_SPECIFICATIONS[0], {"id": "LIA-42"})
     Traceback (most recent call last):
     ...
-    ValueError: an employee id has the form emp_NNN, got 'LIA-42'
+    leaveimpact.core.tools.ArgumentsRefused: an employee id has the form emp_NNN, got 'LIA-42'
     """
-    data = as_object(value, f"{specification.name}'s arguments")
-    expect_fields(
-        data,
-        tuple(argument.name for argument in specification.arguments),
-        f"{specification.name}'s arguments",
-    )
-    return {
-        argument.name: _validated(argument, data[argument.name])
-        for argument in specification.arguments
-    }
+    what = f"{specification.name}'s arguments"
+    try:
+        data = as_object(value, what)
+        expect_fields(data, tuple(argument.name for argument in specification.arguments), what)
+    except ValueError as refused:
+        raise ArgumentsRefused(None, object_correction(specification), str(refused)) from None
+    accepted: dict[str, object] = {}
+    for argument in specification.arguments:
+        try:
+            accepted[argument.name] = _validated(argument, data[argument.name])
+        except ValueError as refused:
+            raise ArgumentsRefused(
+                argument.name, argument_correction(specification, argument), str(refused)
+            ) from None
+    return accepted
 
 
 def _validated(argument: Argument, value: object) -> object:
@@ -502,8 +650,12 @@ def _instant_schema() -> JsonObject:
     }
 
 
-def tool_surface_digest(specifications: tuple[ToolSpecification, ...]) -> str:
-    """SHA-256 over the versioned envelope of what a role's model sees, in the order sent.
+def tool_surface_digest(
+    specifications: tuple[ToolSpecification, ...], harness_tools: tuple[JsonObject, ...] = ()
+) -> str:
+    """SHA-256 over the versioned envelope of what a role's model sees, in the order sent:
+    the read tools' definitions, then ``harness_tools``, the definitions of the tools the
+    harness answers itself (the fact tool), in the order they are sent.
 
     >>> tool_surface_digest(TOOL_SPECIFICATIONS) == tool_surface_digest(TOOL_SPECIFICATIONS)
     True
@@ -512,20 +664,25 @@ def tool_surface_digest(specifications: tuple[ToolSpecification, ...]) -> str:
     False
     """
     names = [specification.name for specification in specifications]
+    names.extend(str(definition.get("name")) for definition in harness_tools)
     if len(set(names)) != len(names):
         raise ValueError(f"a surface names each tool once, got {names}")
     envelope: JsonObject = {
         "surface_version": SURFACE_VERSION,
         "tools": [tool_definition(specification) for specification in specifications],
+        "harness_tools": list(harness_tools),
         "result_codec": {"id": RESULT_CODEC[0], "version": RESULT_CODEC[1]},
         "validation_protocol": {"id": VALIDATION_PROTOCOL[0], "version": VALIDATION_PROTOCOL[1]},
     }
     return hashlib.sha256(canonical_bytes(envelope)).hexdigest()
 
 
-def specification_named(name: str) -> ToolSpecification | None:
-    """The specification with ``name`` among the thirteen, or ``None`` when no tool is so named."""
-    for specification in TOOL_SPECIFICATIONS:
+def specification_named(
+    name: str, among: tuple[ToolSpecification, ...] = TOOL_SPECIFICATIONS
+) -> ToolSpecification | None:
+    """The specification with ``name`` among ``among`` (the thirteen by default; a role's
+    surface when a role's call is resolved), or ``None`` when no tool there is so named."""
+    for specification in among:
         if specification.name == name:
             return specification
     return None

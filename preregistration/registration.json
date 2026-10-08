@@ -648,7 +648,7 @@
   "prefetch": {
     "identifier": "leave-span-prefetch",
     "protocol_version": 1,
-    "digest": "492d59036eb457444dd0682baad4a33f4b9336fd98926d6e6ee8fcd3306f1504"
+    "digest": "5bd949650749369ac4ec0b6eda452302f5d2cf4789e56edfb06ecbc92931057c"
   },
   "budget": {
     "basis": "unmeasured",

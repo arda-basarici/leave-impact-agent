@@ -233,10 +233,12 @@ def test_the_digest_moves_with_the_validation_protocol_and_the_result_codec(
     # the surface digest of the named tools, so a changed acceptance rule or a changed
     # rendering of a result is a changed prefetch rule.
     base = prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
-    monkeypatch.setattr(tools, "VALIDATION_PROTOCOL", ("exact-json-object", 2))
+    assert tools.VALIDATION_PROTOCOL != ("exact-json-object", 3)
+    assert tools.RESULT_CODEC != ("observed-envelope", 2)
+    monkeypatch.setattr(tools, "VALIDATION_PROTOCOL", ("exact-json-object", 3))
     protocol_moved = prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
     monkeypatch.undo()
-    monkeypatch.setattr(tools, "RESULT_CODEC", ("observed-record", 2))
+    monkeypatch.setattr(tools, "RESULT_CODEC", ("observed-envelope", 2))
     codec_moved = prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
     assert len({base, protocol_moved, codec_moved}) == 3
 

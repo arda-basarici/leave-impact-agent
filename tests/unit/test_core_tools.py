@@ -1,7 +1,11 @@
 """The tool specifications: thirteen in one declared order naming each method once, the
 method table the single authority for a tool's source and shape, validation exact with no
 coercion and no default, the generated definition closed to unknown properties, and the
-surface digest moving on exactly what the model sees."""
+surface digest moving on exactly what the model sees. Since the registry step: the
+investigator's surface is the ten without the enumerations in the canonical order, a
+refusal carries a correction built from the declaration and never from the value, the
+correction set is closed and enumerable, and the investigator's digest is pinned,
+provisional until the fact tool's definition joins it."""
 
 import re
 from datetime import date
@@ -10,9 +14,11 @@ from typing import cast
 import pytest
 
 from leaveimpact.core import (
+    INVESTIGATOR_METHODS,
     METHOD_TABLE,
     SEARCH_LIMIT,
     TOOL_SPECIFICATIONS,
+    ArgumentsRefused,
     Cardinality,
     DateSpan,
     EntityKind,
@@ -21,9 +27,13 @@ from leaveimpact.core import (
     IntegerArgument,
     PortMethod,
     QueryArgument,
+    Role,
     Source,
     ToolSpecification,
+    correction_messages,
+    role_surface,
     specification_named,
+    surface_correction,
     tool_definition,
     tool_surface_digest,
     validate_arguments,
@@ -222,3 +232,87 @@ def test_the_surface_digest_moves_on_what_the_model_sees_and_on_nothing_else() -
     with pytest.raises(ValueError, match="a surface names each tool once"):
         tool_surface_digest((SEARCH, SEARCH))
     assert SEARCH_LIMIT.maximum == 20
+
+
+# --- The roles, the refusal and the pinned surface (the registry step) ---------------------
+
+
+INVESTIGATOR_SURFACE_DIGEST = "df9a3f2a572f09b8ae5dd14b8fd462a39f0d1aca5da94b76929bb3d85698f7ad"
+"""The investigator's surface as built at the registry step, with no harness tool yet:
+provisional until the fact tool's definition joins the envelope at the graph step, when
+this value moves once and is pinned again."""
+
+
+def test_the_investigator_sees_the_ten_without_the_enumerations_in_canonical_order() -> None:
+    surface = role_surface(Role.INVESTIGATOR)
+    assert [s.name for s in surface] == [
+        s.name for s in TOOL_SPECIFICATIONS if s.method in INVESTIGATOR_METHODS
+    ]
+    assert len(surface) == 10
+    left_out = {s.name for s in TOOL_SPECIFICATIONS} - {s.name for s in surface}
+    assert left_out == {"employees", "components", "work_items"}
+    assert all(
+        s.facts.cardinality is Cardinality.SEQUENCE and s.arguments == ()
+        for s in TOOL_SPECIFICATIONS
+        if s.name in left_out
+    ), "what is left out is exactly a whole-table enumeration"
+    assert specification_named("employees", surface) is None
+    assert specification_named("employees") is not None
+
+
+def test_a_refusal_carries_a_correction_from_the_declaration_and_a_detail_with_the_value() -> (
+    None
+):
+    with pytest.raises(ArgumentsRefused) as bad_id:
+        validate_arguments(EMPLOYEE, {"id": "scenario_001"})
+    assert bad_id.value.argument == "id"
+    assert bad_id.value.correction == "employee's id is an employee id of the form emp_NNN"
+    assert "scenario_001" in str(bad_id.value) and "scenario_001" not in bad_id.value.correction
+    with pytest.raises(ArgumentsRefused) as surplus:
+        validate_arguments(EMPLOYEE, {"id": "emp_001", "scenario": "scenario_001"})
+    assert surplus.value.argument is None
+    assert surplus.value.correction == "employee's arguments are a JSON object holding exactly: id"
+    assert "scenario" in str(surplus.value) and "scenario_001" not in surplus.value.correction
+    with pytest.raises(ArgumentsRefused) as not_object:
+        validate_arguments(EMPLOYEE, ["emp_001"])
+    assert not_object.value.correction == surplus.value.correction
+    with pytest.raises(ArgumentsRefused) as too_long:
+        validate_arguments(SEARCH, {"query": "x" * 201, "limit": 5})
+    assert too_long.value.argument == "query"
+    assert too_long.value.correction == (
+        "search's query is a non-blank string of at most 200 characters"
+    )
+    employees = _named("employees")
+    with pytest.raises(ArgumentsRefused) as no_fields:
+        validate_arguments(employees, {"id": "emp_001"})
+    assert no_fields.value.correction == "employees's arguments are a JSON object holding no fields"
+
+
+def test_the_correction_set_is_closed_and_names_nothing_but_declarations() -> None:
+    surface = role_surface(Role.INVESTIGATOR)
+    messages = correction_messages(surface)
+    assert len(messages) == 1 + sum(1 + len(s.arguments) for s in surface)
+    assert surface_correction(surface) in messages
+    assert surface_correction(surface).endswith(", ".join(s.name for s in surface))
+    for specification in surface:
+        for argument in specification.arguments:
+            probe: dict[str, object] = {a.name: "scenario_001" for a in specification.arguments}
+            probe[argument.name] = None
+            with pytest.raises(ArgumentsRefused) as refused:
+                validate_arguments(specification, probe)
+            assert refused.value.correction in messages
+    assert not any("scenario" in message for message in messages)
+
+
+def test_the_investigator_digest_is_pinned_and_moves_on_a_harness_tool() -> None:
+    surface = role_surface(Role.INVESTIGATOR)
+    assert tool_surface_digest(surface) == INVESTIGATOR_SURFACE_DIGEST
+    fact_tool: JsonObject = {
+        "name": "state_facts",
+        "description": "state facts",
+        "input_schema": {"type": "object"},
+    }
+    assert tool_surface_digest(surface, (fact_tool,)) != INVESTIGATOR_SURFACE_DIGEST
+    assert tool_surface_digest(surface, (fact_tool,)) == tool_surface_digest(surface, (fact_tool,))
+    with pytest.raises(ValueError, match="a surface names each tool once"):
+        tool_surface_digest(surface, ({"name": "search"},))
