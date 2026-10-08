@@ -118,6 +118,11 @@ def _levels(
             raise CacheJobRefused(
                 f"{version}: the manifest vouches for {key!r} and it is not there"
             )
+        if manifest is None:
+            raise CacheJobRefused(
+                f"{version}: a development world is admitted on its levels object and {key!r} "
+                "is not there"
+            )
         return BASE_CORPUS_LEVELS
     if manifest is not None and vouched is None:
         # A final prefix is create-only, so a key the manifest never recorded is exactly what

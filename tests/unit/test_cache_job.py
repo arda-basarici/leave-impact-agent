@@ -22,12 +22,13 @@ from leaveimpact.adapters.corpus.loader import CacheWorld, LoadOutcome
 from leaveimpact.adapters.manifest import DocumentReceipts, Receipts, manifest_bytes
 from leaveimpact.adapters.object_store import layout
 from leaveimpact.adapters.object_store.read import StoredObject
+from leaveimpact.adapters.object_store.verdicts import VALIDATOR_VERSION
 from leaveimpact.cache.job import CacheJobRefused, fill_cache
 from leaveimpact.core.entities import Document, DocumentSection
 from leaveimpact.core.enums import DocumentKind, EntityKind
 from leaveimpact.core.ids import DocumentId, WorldVersion, clause_id, document_id
 from leaveimpact.core.run_record import WorldProjection
-from leaveimpact.validator.checks import CheckStatus
+from leaveimpact.validator.checks import CheckStatus, LevelsResult
 from leaveimpact.validator.verdict import FidelityResult, ValidationVerdict, verdict_bytes
 from leaveimpact.world.artifacts import document_bytes, levels_bytes
 from leaveimpact.world.levels import BASE_CORPUS_LEVELS, CorpusLevels, SealedLevel
@@ -97,12 +98,13 @@ def sealed_world(
     store.put_if_absent(layout.world_manifest_key(version), content)
     verdict = ValidationVerdict(
         world_version=version,
-        validator_version="1",
+        validator_version=VALIDATOR_VERSION,
         manifest_digest=hashlib.sha256(content).hexdigest(),
         artifacts=record.artifacts,
         exactness=(),
         fidelity=(FidelityResult(EntityKind.DOCUMENT, CheckStatus.PASSED),),
         views=(),
+        levels=LevelsResult(CheckStatus.PASSED, "object"),
     )
     store.put_if_absent(layout.verdict_key(version, "100", "1"), verdict_bytes(verdict))
     return keys
@@ -156,6 +158,19 @@ def test_a_development_world_is_loaded_on_a_development_root_as_unprojected() ->
     [world] = load.worlds
     assert world.projection is WorldProjection.UNPROJECTED and world.manifest_digest is None
     assert world.levels == LEVELS and world.documents == (POLICY, FILLER)
+
+
+def test_a_development_sealing_that_stopped_before_its_levels_object_is_declined() -> None:
+    # The external review's second finding: a root whose version holds documents and no
+    # levels object was loaded as a partial world and marked ready; the levels object is the
+    # last write of an unprojected sealing and the admission requires it.
+    store = InMemoryObjectStore()
+    sealed_world(store, levels=None, projected=False)
+    load = RecordingLoad()
+    report = fill_cache(store, development=True, load=load, emit=lambda line: None)
+    assert load.worlds == [] and report.loaded == ()
+    [declined] = report.declined
+    assert declined.reason.startswith("no levels object")
 
 
 def test_a_world_sealed_before_the_levels_object_reads_as_the_base_level_alone() -> None:
