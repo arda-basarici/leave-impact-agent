@@ -76,6 +76,10 @@ class FillerPlan:
             raise ValueError("a filler document holds at least one section")
         if not self.documents and self.sections_per_document:
             raise ValueError("a plan with no documents has no sections")
+        if not self.documents and self.levels:
+            # The provenance writes a plan only when it has documents, so a level over an
+            # empty pool would be sealed and never read back (the group 2 review).
+            raise ValueError("a plan with no documents seals no level beyond the base")
         names = [level.name for level in self.levels]
         if BASE_CORPUS_LEVEL in names:
             raise ValueError(f"the {BASE_CORPUS_LEVEL} level is always sealed and never planned")

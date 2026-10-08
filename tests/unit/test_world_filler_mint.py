@@ -152,6 +152,13 @@ def test_the_same_seed_mints_the_same_pool_and_another_seed_another() -> None:
     assert [p.entity.title for p in pooled(7).filler] != [p.entity.title for p in pooled(11).filler]
 
 
+def test_a_plan_with_no_documents_seals_no_level_beyond_the_base() -> None:
+    # The provenance writes a plan only when it has documents; a level over an empty pool
+    # would seal and never decode (the group 2 review), so the plan refuses it first.
+    with pytest.raises(ValueError, match="seals no level beyond the base"):
+        FillerPlan(0, 0, (SealedLevel("padded", 0),))
+
+
 def test_a_plan_past_the_book_s_capacity_fails_loud() -> None:
     with pytest.raises(FillerExhausted, match="book is exhausted after"):
         pooled(7, FillerPlan(10_000, 1))
