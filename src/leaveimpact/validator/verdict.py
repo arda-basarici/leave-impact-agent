@@ -21,16 +21,18 @@ by id with the differing fields named, view disagreements by scenario with both
 differences as facts — so one run answers why a world was refused. A check that could not
 run says so with its reason; ``not_run`` never counts as passed, so approval is exactly
 "every check passed". The encoding is canonical through ``core``'s one byte rule; the
-decoder arrives with its first consumer, the serving check.
+decoder arrives with its first consumer, the serving check; the serving fields and their
+narrow decoder are ``adapters.object_store.verdicts``, below the shells, and the format
+number and the approval word are imported from there so the two cannot drift.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from enum import StrEnum
 
 from leaveimpact.adapters.manifest import ArtifactDigest
+from leaveimpact.adapters.object_store.verdicts import VERDICT_FORMAT, Approval
 from leaveimpact.core.derivation import Derived
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact
@@ -46,16 +48,6 @@ from leaveimpact.world.artifacts import SHA256_HEX, encode_fact, encode_gap
 
 VALIDATOR_VERSION = "1"
 """Bumped with any change that can alter what these checks approve or refuse."""
-
-VERDICT_FORMAT = 1
-
-
-class Approval(StrEnum):
-    """The verdict's one word: approved when every check passed, refused otherwise."""
-
-    APPROVED = "approved"
-    REFUSED = "refused"
-
 
 @dataclass(frozen=True, slots=True)
 class ExactnessResult:

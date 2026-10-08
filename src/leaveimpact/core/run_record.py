@@ -69,6 +69,16 @@ the registration's; this one exists before any registration names them, and a sy
 reads no document is recorded under it."""
 
 
+class WorldProjection(StrEnum):
+    """How the world a run reads came to exist: a completed projection onto the vendors,
+    approved by the validator, or a development world sealed unprojected, whose structured
+    records are read from its plantings. The corpus cache records which it was filled
+    from, and a run over an unprojected world is development by construction."""
+
+    PROJECTED = "projected"
+    UNPROJECTED = "unprojected"
+
+
 def _non_negative(value: int, what: str) -> int:
     return require_integer(value, what)
 
