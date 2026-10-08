@@ -6,7 +6,8 @@ null where a value is required, and a gap in the positions are each malformed wi
 the document as locator; a connection that cannot be opened is ``SourceUnreachable``
 after one attempt, and a statement that fails on a broken connection discards it so
 the next call opens a fresh one; a negative limit is the caller's bug and a zero
-limit asks the database nothing.
+limit asks the database nothing; a version the cache does not serve, or a level the
+world never sealed, is ``UnservedCorpus`` at the first read, before any document statement.
 """
 
 from __future__ import annotations
@@ -18,13 +19,12 @@ from typing import Any
 import psycopg
 import pytest
 
-from leaveimpact.adapters.corpus import CorpusAdapter, CorpusConfig, records
+from leaveimpact.adapters.corpus import CorpusAdapter, CorpusConfig, UnservedCorpus, records
 from leaveimpact.core.entities import Document, DocumentSection
 from leaveimpact.core.enums import DocumentKind
 from leaveimpact.core.ids import WorldVersion, clause_id, document_id
 from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.read import DocumentReader
-from leaveimpact.core.ports.write import DocumentWriter
 
 WORLD = WorldVersion("test-world")
 POLICY = Document(
@@ -41,7 +41,7 @@ POLICY = Document(
 
 def rows(document: Document) -> tuple[records.Row, list[records.Row]]:
     """The rows as the adapter's two selects return them, made from the write params."""
-    _, id, title, kind, effective_from = records.document_params(document, WORLD)
+    _, id, title, kind, effective_from, _ = records.document_params(document, WORLD, None)
     sections = [
         (section_id, position, body)
         for _, section_id, _, position, body in records.section_params(document, WORLD)
@@ -98,11 +98,45 @@ def adapter(connect: Any) -> CorpusAdapter:
     )
 
 
-def test_the_adapter_conforms_to_both_document_ports() -> None:
+def test_the_adapter_conforms_to_the_read_port_and_has_no_write_method() -> None:
     built = adapter(Refusing())
     reader: DocumentReader = built
-    writer: DocumentWriter = built
-    assert reader is writer
+    assert reader is built
+    assert not hasattr(built, "add_document"), "the cache is filled by the loader alone"
+
+
+class Unserving:
+    """A connection whose level lookup finds no row: the version is not ready, or the
+    level was never sealed."""
+
+    def __init__(self) -> None:
+        self.statements: list[str] = []
+
+    def execute(self, statement: Any, params: Any = None) -> Any:
+        self.statements.append(" ".join(str(statement).split()))
+        return self
+
+    def fetchone(self) -> None:
+        return None
+
+    def close(self) -> None:
+        pass
+
+
+def test_a_version_not_served_or_a_level_never_sealed_is_loud_at_the_first_read() -> None:
+    made = Unserving()
+    built = CorpusAdapter(
+        dsn="postgresql://nobody@localhost/none",
+        config=CorpusConfig(WORLD),
+        level="padded",
+        connect=lambda dsn: made,  # type: ignore[arg-type, return-value]
+    )
+    with pytest.raises(UnservedCorpus, match="no level 'padded' of world test-world") as caught:
+        built.document(POLICY.id)
+    assert (caught.value.world_version, caught.value.level) == (WORLD, "padded")
+    assert len(made.statements) == 1 and "FROM level JOIN world" in made.statements[0], (
+        "the level is resolved before any document statement runs"
+    )
 
 
 def test_construction_opens_nothing_and_a_refused_connection_is_unreachable_after_one_attempt() -> (

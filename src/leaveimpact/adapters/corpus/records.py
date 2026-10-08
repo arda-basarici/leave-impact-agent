@@ -1,16 +1,18 @@
 """Corpus row shapes, both directions: table rows to a document with its sections and back.
 
-Pure: every function takes plain row tuples and gives back entities or parameter
-tuples, so where each fact lives in the two tables and what a row set must carry to
-be read back is testable without a database. The adapter (``adapter``) owns the
-connection and the SQL.
+Pure: every function takes plain values and gives back entities or parameter tuples, so
+where each fact lives in the four tables and what a row set must carry to be read back is
+testable without a database. The adapter (``adapter``) owns the reading connection and its
+SQL; the loader (``loader``) owns the writing transaction and its SQL.
 
-**Where the facts live.** A document is one row in ``document`` — title, kind as the
-enum's value, the effective date — and one row per section in ``section``, keyed by
-the clause id, with the position that keeps the tuple's order. Every row carries the
-world version, which is the scope every statement filters on: the corpus is the
-project's own system and holds a world per version, the way a Frappe site holds a
-company and a Jira site a project.
+**Where the facts live.** A world is one row in ``world`` — how it came to be, the
+manifest digest its verdict approved, whether it is ready — and one row per sealed level
+in ``level``. A document is one row in ``document`` — title, kind as the enum's value, the
+effective date, its rank in the pool or null for a scenario-owned one — and one row per
+section in ``section``, keyed by the clause id, with the position that keeps the tuple's
+order. Every row carries the world version, which is the scope every statement filters
+on: the corpus is the project's own system and holds a world per version, the way a
+Frappe site holds a company and a Jira site a project.
 
 **Malformed means untranslatable.** A kind outside the enum, a null where a value is
 required, positions that do not run from zero without a gap — each raises
@@ -28,6 +30,8 @@ from leaveimpact.core.entities import Document, DocumentSection
 from leaveimpact.core.enums import DocumentKind, Source
 from leaveimpact.core.ids import ClauseId, DocumentId, WorldVersion
 from leaveimpact.core.ports.errors import MalformedRecord
+from leaveimpact.core.run_record import WorldProjection
+from leaveimpact.world.levels import SealedLevel
 
 Row = tuple[Any, ...]
 
@@ -41,14 +45,32 @@ def locator(world_version: WorldVersion, id: DocumentId | str) -> str:
 # --- writing ---------------------------------------------------------------------------
 
 
-def document_params(document: Document, world_version: WorldVersion) -> Row:
-    """The ``document`` row: (world_version, id, title, kind, effective_from)."""
+def world_params(
+    world_version: WorldVersion, projection: WorldProjection, manifest_digest: str | None
+) -> Row:
+    """The ``world`` row as the loader first writes it: (world_version, projection,
+    manifest_digest, ready), ready false until the loading transaction's last statement."""
+    return (world_version, projection.value, manifest_digest, False)
+
+
+def level_params(world_version: WorldVersion, levels: Sequence[SealedLevel]) -> list[Row]:
+    """The ``level`` rows: (world_version, name, filler_count), one per sealed level."""
+    return [(world_version, level.name, level.filler_count) for level in levels]
+
+
+def document_params(
+    document: Document, world_version: WorldVersion, pool_rank: int | None
+) -> Row:
+    """The ``document`` row: (world_version, id, title, kind, effective_from, pool_rank);
+    ``pool_rank`` is the document's position in the pool and ``None`` for a scenario-owned
+    document, which every level holds."""
     return (
         world_version,
         document.id,
         document.title,
         document.kind.value,
         document.effective_from,
+        pool_rank,
     )
 
 

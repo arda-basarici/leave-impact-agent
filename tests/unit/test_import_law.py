@@ -44,6 +44,7 @@ _RANK: dict[str, int] = {
     "validator": 3,
     "evaluator": 3,  # the investigator milestone's
     "agent": 3,  # the investigator milestone's
+    "cache": 3,  # the corpus cache loader, the application's own job on the instance
     "app": 4,  # the demo milestone's
 }
 # The shells at this rank compose the same lower packages and never one another.
@@ -52,6 +53,10 @@ _LATERAL_FORBIDDEN_RANK = 3
 _DENIED_EDGES: dict[str, frozenset[str]] = {
     "agent": frozenset({"world", "generator", "validator", "evaluator"}),
     "app": frozenset({"world", "generator", "validator", "evaluator"}),
+    # The cache loader reads sealed world objects through the adapters and the world
+    # codecs, and never a benchmark job: the generator writes what it reads, the validator
+    # judges it, the evaluator holds the answer key's reader.
+    "cache": frozenset({"generator", "validator", "evaluator"}),
 }
 # The write capabilities are gated by module path, not by domain name: only the packages
 # that realize a world may import a module that declares one. An allowlist rather than a
@@ -68,6 +73,10 @@ _GATED_WRITE_MODULES: dict[tuple[str, ...], frozenset[str]] = {
     ("adapters", "object_store", "s3_write"): frozenset({"adapters", "generator"}),
     ("adapters", "object_store", "local_write"): frozenset({"adapters", "generator"}),
     ("adapters", "object_store", "documents_write"): frozenset({"adapters", "generator"}),
+    # The corpus cache loader writes rows and implements no write port; it is gated all the
+    # same, to the adapters and the cache shell that runs it on the instance, so neither the
+    # investigator nor the validator can fill or alter the cache (the M2 step 9 design).
+    ("adapters", "corpus", "loader"): frozenset({"adapters", "cache"}),
 }
 # A module-scope import makes the imported names attributes of the importing module, so a
 # non-gated ``adapters`` module that imported an object-store writer at module scope would
