@@ -26,6 +26,7 @@ from leaveimpact.adapters.wiring import (
     UploadOutcome,
     build_readers,
     deployment_from_env,
+    hosts_from_env,
     inventory_publisher,
     inventory_publisher_over,
     jira_gateway_root,
@@ -69,6 +70,20 @@ def local_environment(tmp_path: Path) -> dict[str, str]:
     for name in ("WORLD_BUCKET", "TRUTH_BUCKET", "AWS_REGION"):
         del env[PREFIX + name]
     return env
+
+
+def test_the_hosts_read_on_their_own_need_no_store_name(tmp_path: Path) -> None:
+    """The investigator's composition is never handed the truth bucket, which a deployment
+    requires; the hosts alone read from an environment naming no store."""
+    env = environment(tmp_path)
+    assert hosts_from_env(env) == deployment_from_env(env).hosts
+    for name in ("WORLD_BUCKET", "TRUTH_BUCKET", "AWS_REGION"):
+        del env[PREFIX + name]
+    assert hosts_from_env(env).jira_base_url == "https://jira.example.invalid"
+    with pytest.raises(ConfigurationError, match="WORLD_BUCKET"):
+        deployment_from_env(env)
+    with pytest.raises(ConfigurationError, match="gateway root"):
+        hosts_from_env(env, jira_at_gateway=True)
 
 
 def test_a_deployment_reads_every_name_once_and_strips_the_url(tmp_path: Path) -> None:

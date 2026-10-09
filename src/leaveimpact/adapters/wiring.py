@@ -216,13 +216,25 @@ def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False
     cloud id, the shape a scoped read token is honoured at; a reader passes it, the
     generator does not.
     """
+    stores = stores_from_env(env)
+    return Deployment(
+        hosts_from_env(env, jira_at_gateway=jira_at_gateway),
+        buckets=stores.buckets,
+        local_root=stores.local_root,
+    )
+
+
+def hosts_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False) -> Hosts:
+    """The three vendor systems' locations and credentials from ``env``, and nothing of the
+    stores: the investigator's composition reads the world store alone and is never handed
+    the truth bucket, which ``deployment_from_env`` requires. ``jira_at_gateway`` as there."""
     jira_name = "JIRA_BASE_URL"
     jira_base_url = (
         jira_gateway_root(_required(env, jira_name), name=PREFIX + jira_name)
         if jira_at_gateway
         else _url(env, jira_name)
     )
-    hosts = Hosts(
+    return Hosts(
         frappe_base_url=_url(env, "FRAPPE_BASE_URL"),
         frappe_credential=FrappeCredential(
             api_key=_required(env, "FRAPPE_API_KEY"),
@@ -234,8 +246,6 @@ def deployment_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False
         ),
         calendar_credential=_calendar_credential(env),
     )
-    stores = stores_from_env(env)
-    return Deployment(hosts, buckets=stores.buckets, local_root=stores.local_root)
 
 
 def stores_from_env(env: Mapping[str, str]) -> Stores:

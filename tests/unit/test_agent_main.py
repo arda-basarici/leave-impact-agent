@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 
@@ -21,16 +23,22 @@ from leaveimpact.agent.commands import (
     InventoryRequest,
     PublishRequest,
     ThresholdRequest,
+    WorkRequest,
 )
 from leaveimpact.agent.log_events import Admitted, Producer, encode_event
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.agent.registered import (
     DEVELOPMENT_ATTRIBUTION_TABLE,
     DEVELOPMENT_REDISPATCH_POLICY,
+    RoleFilling,
 )
+from leaveimpact.agent.worker import AutomaticApproval, HumanApproval
+from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.inventory import InventoryScope
 from leaveimpact.core.registration_json import registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
+from leaveimpact.core.run_record import PricingSelection
+from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from tests.unit import format_fixtures as cases
 from tests.unit import worker_support as support
 from tests.unit.registration_fixture import DRAFT, named
@@ -38,6 +46,47 @@ from tests.unit.registration_fixture import DRAFT, named
 COMMIT = "a" * 40
 ENV = {job.CODE_VERSION: COMMIT}
 ABOUT = ["--run", "run-12", "--attempt", "1"]
+WORK = [
+    "work",
+    *ABOUT,
+    "--nonce",
+    "nonce-1",
+    "--launch",
+    "launcher:test",
+    "--condition",
+    "normal",
+    "--level",
+    "base",
+    "--registration-commit",
+    cases.COMMIT,
+    "--model",
+    "eu.vendor.model-v1",
+    "--counting-model",
+    "vendor.model-v1",
+    "--max-tokens",
+    "1024",
+    "--temperature",
+    "0",
+    "--pricing-key",
+    "vendor.model-v1",
+    "--region",
+    "eu-central-1",
+]
+PRICES = {
+    "currency": "USD",
+    "effective_from": "2026-09-01",
+    "rates": [
+        {
+            "pricing_key": "vendor.model-v1",
+            "region": "eu-central-1",
+            "billing_mode": "on_demand",
+            "token_class": token_class,
+            "pico_usd_per_token": 1_100_000,
+            "when_absent": "unknown",
+        }
+        for token_class in ("input_tokens", "output_tokens")
+    ],
+}
 
 
 def test_each_command_parses_to_its_request() -> None:
@@ -166,6 +215,87 @@ def test_the_admission_requests_file_decodes_to_the_request_the_store_takes() ->
     assert request.inputs == inputs
     with pytest.raises(ValueError, match="surplus"):
         job.admission_request_of(json.dumps({"request_id": "r", "extra": 1}), Rules(None, None))
+
+
+def test_the_work_line_parses_to_its_request_under_a_registration() -> None:
+    parsed = job.parse_request(
+        [*WORK, "--registration", "reg.json", "--prices", "prices.json", "--approval", "human"],
+        ENV,
+    )
+    assert parsed.command is job.Command.WORK and parsed.registration == Path("reg.json")
+    assert parsed.request == job.WorkLine(
+        WorkRequest("run-12", 1, "nonce-1", "launcher:test"),
+        "normal",
+        "base",
+        cases.COMMIT,
+        RoleFilling(
+            "investigator",
+            CallConfiguration(
+                "eu.vendor.model-v1",
+                (CallSetting("max_tokens", 1024), CallSetting("temperature", 0)),
+            ),
+            PricingSelection("vendor.model-v1", "eu-central-1", "on_demand"),
+            "vendor.model-v1",
+        ),
+        Path("prices.json"),
+        "eu-central-1",
+        HarnessRevision(COMMIT, TreeState.CLEAN),
+        HumanApproval(),
+    )
+    default = job.parse_request([*WORK, "--registration", "r.json", "--prices", "p.json"], ENV)
+    assert isinstance(default.request, job.WorkLine)
+    assert default.request.approval == AutomaticApproval()
+    with pytest.raises(ConfigurationError, match="work runs under a registration"):
+        job.parse_request([*WORK, "--prices", "p.json"], ENV)
+    with pytest.raises(ConfigurationError, match="LEAVEIMPACT_CODE_VERSION"):
+        job.parse_request([*WORK, "--registration", "r.json", "--prices", "p.json"], {})
+
+
+class _AdmissionlessStore:
+    """A store whose attempt holds no admission; what the work command reads first after
+    the registration and the price table."""
+
+    loaded: list[tuple[str, int]] = []
+
+    def load(self, run_id: str, attempt: int, *, rules: Rules) -> Any:
+        self.loaded.append((run_id, attempt))
+        return SimpleNamespace(inputs=None)
+
+    def close(self) -> None:
+        pass
+
+
+def test_the_work_command_decodes_its_files_composes_the_cell_and_reads_the_admission(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The composition's order up to the store: the registration and the price table are
+    decoded under the configuration phase, the cell's configuration is derived from the
+    draft before the store is read, and an attempt with no admission is a refusal; nothing
+    further is composed, so no host, store or client is needed."""
+    registration = tmp_path / "registration.json"
+    registration.write_bytes(registration_bytes(DRAFT))
+    prices = tmp_path / "prices.json"
+    prices.write_text(json.dumps(PRICES), encoding="utf-8")
+    line = [*WORK, "--registration", str(registration), "--prices", str(prices)]
+    env = {**ENV, job.DATABASE: "postgresql://unused"}
+    store = _AdmissionlessStore()
+    assert job.main(line, env, store) == 1  # type: ignore[arg-type]
+    captured = capsys.readouterr()
+    assert "refused: run run-12 attempt 1 holds no admission" in captured.err
+    assert store.loaded == [("run-12", 1)]
+    # A price table without the role's rate is the registration-phase's refusal, before the store.
+    bare = tmp_path / "bare.json"
+    bare.write_text(json.dumps({**PRICES, "rates": []}), encoding="utf-8")
+    line_bare = [*WORK, "--registration", str(registration), "--prices", str(bare)]
+    status = job.main(line_bare, env, store)  # type: ignore[arg-type]
+    assert status == 1 and "no rate for vendor.model-v1" in capsys.readouterr().err
+    assert store.loaded == [("run-12", 1)]
+    # A file that does not decode is reported by its name and the exception's type alone.
+    prices.write_text('{"currency": "SECRET-MARKER-2026"}', encoding="utf-8")
+    status = job.main(line, env, store)  # type: ignore[arg-type]
+    captured = capsys.readouterr()
+    assert status == 2 and "SECRET-MARKER" not in captured.err
+    assert "the price table" in captured.err
 
 
 def test_a_missing_database_is_a_configuration_fault(capsys: pytest.CaptureFixture[str]) -> None:

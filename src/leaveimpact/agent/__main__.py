@@ -12,7 +12,15 @@ the ledger, and the frozen inputs as the admission event encodes them), since th
 decodes no scenario and the file is written by a launcher that may; ``deliver-approval``,
 ``abandon``, ``publish``, ``inventory``, ``set-threshold`` and ``import-spend`` take their
 fields as flags.
-``work`` waits for the first composition it could run, the investigator graph's.
+``work`` composes the investigator graph's real fillings over an admitted attempt (the
+graph step, fork 17): the configuration the registration and this code give the named cell
+(``registered.agent_provenance``), the role's model, settings, rate and counting model from
+flags, the price table from a file, the vendor hosts from the environment, the world
+manifest from the world store at the admitted version, the corpus reader from the admitted
+version and level before any read (the registry step's forward), the live clients from the
+region, the turns over the shipped prompts, the checkpoint saver on the run log's database,
+and the approval policy named. One command, one run, one attempt; the worker compares the
+composed configuration with the admission's and claims nothing on a difference.
 
 The job's log is public, which decides what this module prints: a result as the fields its
 command returns, a refusal of a known kind as its message (files, keys, commits, counts
@@ -36,6 +44,14 @@ from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
+import psycopg
+from langgraph.checkpoint.postgres import PostgresSaver
+from psycopg.rows import DictRow, dict_row
+
+from leaveimpact.adapters.corpus import UnservedCorpus
+from leaveimpact.adapters.inference import ConverseClient, CountingClient, inference_client
+from leaveimpact.adapters.manifest import ManifestStage, decode_manifest
+from leaveimpact.adapters.object_store.layout import world_manifest_key
 from leaveimpact.adapters.object_store.read import (
     AccessRefused,
     ObjectStoreMisconfigured,
@@ -43,10 +59,15 @@ from leaveimpact.adapters.object_store.read import (
 )
 from leaveimpact.adapters.wiring import (
     ConfigurationError,
+    build_readers,
+    hosts_from_env,
     inventory_publisher,
     run_export_publisher,
     stores_from_env,
+    world_store_from_env,
+    world_store_reader,
 )
+from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivery,
@@ -55,14 +76,19 @@ from leaveimpact.agent.commands import (
     InventoryRequest,
     PublishRequest,
     ThresholdRequest,
+    WorkerComposition,
+    WorkRequest,
     abandon,
     admit,
     deliver_approval,
     import_spend,
     publish,
     set_threshold,
+    work,
     write_inventory,
 )
+from leaveimpact.agent.corpus import corpus_reader_for
+from leaveimpact.agent.execution import ReadPorts
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     AdmissionReceipt,
@@ -73,13 +99,26 @@ from leaveimpact.agent.log_store import (
     LogStoreUnavailable,
 )
 from leaveimpact.agent.log_transition import Rules
-from leaveimpact.agent.registered import effective_rules
+from leaveimpact.agent.registered import RoleFilling, agent_provenance, effective_rules
+from leaveimpact.agent.turns import InvestigatorTurns
+from leaveimpact.agent.worker import (
+    ApprovalPolicy,
+    AutomaticApproval,
+    HumanApproval,
+    WorkerEnding,
+    WorkerEndingKind,
+)
+from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.inventory import InventoryScope, PublicationStatus
 from leaveimpact.core.jsonshape import as_object, expect_fields, object_field, string_field
+from leaveimpact.core.pricing import PriceTable, basis_for, decode_price_table
+from leaveimpact.core.registration import Registration
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
-from leaveimpact.core.run_timing import GIT_SHA_LENGTH
+from leaveimpact.core.run_record import PricingSelection
+from leaveimpact.core.run_timing import GIT_SHA_LENGTH, HarnessRevision, TreeState
+from leaveimpact.core.tools import Role
 
 PROGRAM = "python -m leaveimpact.agent"
 DATABASE = "DATABASE_URL"
@@ -87,9 +126,10 @@ CODE_VERSION = "LEAVEIMPACT_CODE_VERSION"
 
 
 class Command(StrEnum):
-    """The commands the entry offers; ``work`` is the investigator graph step's."""
+    """The commands the entry offers."""
 
     ADMIT = "admit"
+    WORK = "work"
     DELIVER_APPROVAL = "deliver-approval"
     ABANDON = "abandon"
     PUBLISH = "publish"
@@ -105,8 +145,36 @@ class AdmitFile:
     path: Path
 
 
+@dataclass(frozen=True, slots=True)
+class WorkLine:
+    """The work command as the line states it: the attempt with its nonce and launch
+    identity, the registered cell, the registration's commit, the role's filling, the
+    price table's file, the region the clients call from, the harness revision this code
+    claims, and who approves. The registration file is the shared flag's."""
+
+    attempt: WorkRequest
+    condition: str
+    level: str
+    registration_commit: str
+    role: RoleFilling
+    prices: Path
+    region: str
+    harness: HarnessRevision
+    approval: ApprovalPolicy
+
+
+@dataclass(frozen=True, slots=True)
+class WorkResolved:
+    """The work command with its two files decoded: the registration and the price table."""
+
+    line: WorkLine
+    registration: Registration
+    prices: PriceTable
+
+
 type Request = (
     AdmitFile
+    | WorkLine
     | ApprovalDelivery
     | AbandonRequest
     | PublishRequest
@@ -118,6 +186,7 @@ type Request = (
 
 type Resolved = (
     AdmissionRequest
+    | WorkResolved
     | ApprovalDelivery
     | AbandonRequest
     | PublishRequest
@@ -143,10 +212,18 @@ _REFUSALS = (
     AccessRefused,
     ObjectStoreUnreachable,
     ObjectStoreMisconfigured,
+    UnservedCorpus,
     ValueError,
 )
-"""The failures whose message is written to be printed; a ``ValueError`` is the store's or
-a codec's refusal naming ids, positions, fields and counts."""
+"""The failures whose message is written to be printed; a ``ValueError`` is the store's, a
+codec's or the registration's refusal naming ids, positions, fields, counts and digests;
+the corpus refusal names a version and a level."""
+
+APPROVALS: Mapping[str, ApprovalPolicy] = {
+    "automatic": AutomaticApproval(),
+    "human": HumanApproval(),
+}
+"""Who approves at the pause, by the flag's word."""
 
 
 # --- The request ---------------------------------------------------------------------------
@@ -169,6 +246,32 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
 
     admitting = commands.add_parser(Command.ADMIT.value, parents=[registration])
     admitting.add_argument("--request", required=True, type=Path, help="the request's file")
+    working = commands.add_parser(Command.WORK.value, parents=[registration, about])
+    working.add_argument("--nonce", required=True, help="this process's claim nonce")
+    working.add_argument("--launch", required=True, help="the launch identity recorded")
+    working.add_argument("--condition", required=True, help="the registered condition")
+    working.add_argument("--level", required=True, help="the registered corpus level")
+    working.add_argument("--registration-commit", required=True, help="the registration's commit")
+    working.add_argument("--model", required=True, help="the model id the role's calls run under")
+    working.add_argument(
+        "--counting-model", required=True, help="the base model the requests are counted against"
+    )
+    working.add_argument("--max-tokens", required=True, type=int, help="the output maximum")
+    working.add_argument("--temperature", type=float, default=None, help="the sampling temperature")
+    working.add_argument("--top-p", type=float, default=None, help="the nucleus sampling share")
+    working.add_argument("--pricing-key", required=True, help="the rate's key in the price table")
+    working.add_argument("--billing-mode", default="on_demand", help="the rate's billing mode")
+    working.add_argument("--region", required=True, help="the region the clients call from")
+    working.add_argument("--prices", required=True, type=Path, help="the price table's file")
+    working.add_argument(
+        "--tree-state",
+        choices=[state.value for state in TreeState],
+        default=TreeState.CLEAN.value,
+        help="whether this code runs from its commit or from changes over it",
+    )
+    working.add_argument(
+        "--approval", choices=sorted(APPROVALS), default="automatic", help="who approves"
+    )
     delivering = commands.add_parser(Command.DELIVER_APPROVAL.value, parents=[registration, about])
     delivering.add_argument("--approver", required=True, help="the approver's identity")
     delivering.add_argument("--payload-digest", required=True, help="the payload the approver saw")
@@ -216,6 +319,29 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
     match command:
         case Command.ADMIT:
             return AdmitFile(parsed.request)
+        case Command.WORK:
+            if parsed.registration is None:
+                raise ConfigurationError("work runs under a registration: --registration")
+            settings = [CallSetting("max_tokens", parsed.max_tokens)]
+            for name, value in (("temperature", parsed.temperature), ("top_p", parsed.top_p)):
+                if value is not None:
+                    settings.append(CallSetting(name, value))
+            return WorkLine(
+                WorkRequest(parsed.run, parsed.attempt, parsed.nonce, parsed.launch),
+                parsed.condition,
+                parsed.level,
+                parsed.registration_commit,
+                RoleFilling(
+                    Role.INVESTIGATOR.value,
+                    CallConfiguration(parsed.model, tuple(settings)),
+                    PricingSelection(parsed.pricing_key, parsed.region, parsed.billing_mode),
+                    parsed.counting_model,
+                ),
+                parsed.prices,
+                parsed.region,
+                HarnessRevision(code_version(env), TreeState(parsed.tree_state)),
+                APPROVALS[parsed.approval],
+            )
         case Command.DELIVER_APPROVAL:
             return ApprovalDelivery(
                 parsed.run, parsed.attempt, parsed.approver, parsed.payload_digest
@@ -320,6 +446,9 @@ def main(
         return 2
     try:
         status, lines = _run(request, store, rules, environment)
+    except ConfigurationError as error:
+        print(f"leaveimpact.agent: {error}", file=sys.stderr)
+        return 2
     except _REFUSALS as refusal:
         print(f"leaveimpact.agent: refused: {refusal}", file=sys.stderr)
         return 1
@@ -349,13 +478,29 @@ def _decoded[T](path: Path, what: str, decode: Callable[[Path], T]) -> T:
 
 
 def _resolved(parsed: Parsed, rules: Rules) -> Resolved:
-    """The command's request with the admission's file decoded under ``rules``."""
+    """The command's request with its files decoded: the admission's under ``rules``, the
+    work command's registration and price table."""
     request = parsed.request
     if isinstance(request, AdmitFile):
         return _decoded(
             request.path,
             "the request file",
             lambda path: admission_request_of(path.read_bytes(), rules),
+        )
+    if isinstance(request, WorkLine):
+        assert parsed.registration is not None, "the work line is parsed under a registration"
+        return WorkResolved(
+            request,
+            _decoded(
+                parsed.registration,
+                "the registration",
+                lambda path: decode_registration_bytes(path.read_bytes()),
+            ),
+            _decoded(
+                request.prices,
+                "the price table",
+                lambda path: decode_price_table(json.loads(path.read_bytes())),
+            ),
         )
     return request
 
@@ -373,6 +518,15 @@ def _run(
                     f"ledger_revision={result.ledger_revision}",
                 ]
             return 1, [f"refused={result.run_id}/{result.attempt}", f"reason={result.reason}"]
+        case WorkResolved():
+            ending = _work(request, store, rules, env)
+            closed = ending.kind in (WorkerEndingKind.CLOSED, WorkerEndingKind.AWAITING_APPROVAL)
+            return 0 if closed else 1, [
+                f"worked={ending.run_id}/{ending.attempt}",
+                f"ending={ending.kind.value}",
+                f"detail={ending.detail}",
+                f"generation={ending.generation}",
+            ]
         case ApprovalDelivery():
             delivered = deliver_approval(request, store, rules=rules)
             if isinstance(delivered, CommandRefused):
@@ -431,6 +585,80 @@ def _run(
                 f"amount_pico_usd={entry.amount_pico_usd}",
                 f"total_after_pico_usd={entry.total_after_pico_usd}",
             ]
+
+
+def _work(
+    request: WorkResolved, store: LogStore, rules: Rules, env: Mapping[str, str]
+) -> WorkerEnding:
+    """The investigator's composition over the admitted attempt, worked as far as one
+    process can; every reader and connection opened here is closed before it returns.
+
+    The admitted inputs are read first, since the manifest and the corpus reader are
+    functions of the admitted world version and level; the corpus reader runs its serving
+    check before any read port is built (``corpus_reader_for``). The composed configuration
+    is the registration's and this code's for the cell named, and the worker refuses the
+    claim where it differs from the admission's.
+    """
+    line = request.line
+    configuration = agent_provenance(
+        request.registration,
+        line.condition,
+        line.level,
+        preregistration_commit=line.registration_commit,
+        pricing=basis_for(request.prices, (line.role.pricing,)),
+        role=line.role,
+    )
+    inputs = store.load(line.attempt.run_id, line.attempt.attempt, rules=rules).inputs
+    if inputs is None:
+        raise ValueError(
+            f"run {line.attempt.run_id} attempt {line.attempt.attempt} holds no admission"
+        )
+    dsn = env[DATABASE]
+    world_reader = world_store_reader(world_store_from_env(env))
+    version = inputs.context.world_version
+    stored = world_reader.get(world_manifest_key(version))
+    if stored is None:
+        raise ValueError(f"the world store holds no manifest for version {version}")
+    manifest = decode_manifest(stored.content, stage=ManifestStage.PROJECTED)
+    if manifest.world_version != version:
+        raise ValueError(
+            f"the manifest at the keys of {version} describes world {manifest.world_version}"
+        )
+    corpus = corpus_reader_for(inputs, dsn=dsn)
+    try:
+        readers = build_readers(hosts_from_env(env, jira_at_gateway=True), manifest, world_reader)
+        try:
+            runtime = inference_client(line.region)
+            connection = _saver_connection(dsn)
+            try:
+                saver = PostgresSaver(connection)
+                saver.setup()
+                composition = WorkerComposition(
+                    configuration,
+                    line.harness,
+                    rules,
+                    InvestigatorTurns(load_prompt_assets()),
+                    ConverseClient(runtime),
+                    CountingClient(runtime),
+                    ReadPorts(readers.people, readers.work, readers.calendar, corpus),
+                    line.approval,
+                    saver,
+                )
+                return work(line.attempt, store, composition)
+            finally:
+                connection.close()
+        finally:
+            readers.close()
+    finally:
+        corpus.close()
+
+
+def _saver_connection(dsn: str) -> psycopg.Connection[DictRow]:
+    """The checkpoint saver's own connection, in the configuration the acceptance spike
+    settled: autocommit, no prepared statements, dictionary rows."""
+    return psycopg.Connection[DictRow].connect(
+        dsn, autocommit=True, prepare_threshold=0, row_factory=dict_row
+    )
 
 
 def _refused(refused: CommandRefused) -> tuple[int, list[str]]:
