@@ -296,13 +296,32 @@ def test_a_new_call_while_the_last_is_in_progress_is_refused() -> None:
     log.worker(h.intent(1, name="call-1"), offset=600)
     assert fold(log.logged(), RULES).open
     log.worker(h.intent(2, name="call-2"), offset=700)
-    assert refusal(log.logged()) == "call-1 is in progress: no new call"
+    assert refusal(log.logged()) == "call-1 stands dispatch_again: no new call"
     # Once the first call is answered the same intent opens the second.
     log.events.pop()
     answered = h.outcome(1, 1, h.complete(), response=h.body("end_turn", h.text("Done.")))
     log.worker(answered, offset=800)
     log.worker(h.intent(2, name="call-2"), offset=900)
     assert fold(log.logged(), RULES).open
+
+
+def test_a_new_call_after_a_call_exhausted_by_unresolved_dispatches_is_refused() -> None:
+    """The review's second read: a call whose dispatches all went unresolved stands failed
+    once the policy's maximum is taken, and no outcome event records a stop for it, so a
+    guard that refuses only the in-progress standing would admit a new call over it. The
+    condition is the positive one."""
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    log.worker(h.count_start("call-2"), offset=520)
+    log.worker(h.count_outcome("call-2"), offset=540)
+    for number in range(1, 4):
+        log.worker(h.intent(1, number), offset=500 + 100 * number)
+    assert fold(log.logged(), RULES).stopped is None
+    log.worker(h.intent(2, name="call-2"), offset=900)
+    assert refusal(log.logged()) == "call-1 stands failed_by_infrastructure: no new call"
 
 
 def test_a_dispatch_rests_on_a_durable_count_that_counted_this_request() -> None:

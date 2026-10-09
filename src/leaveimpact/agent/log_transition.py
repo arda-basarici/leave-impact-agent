@@ -722,10 +722,13 @@ def _intent_next(
         if calls:
             # A new call follows a settled one, so a call's ordinal order is its outcome
             # order and every reader of the log may rely on it (the graph step's review).
+            # The condition is the positive one: a call exhausted by unresolved dispatches
+            # stands failed with no stop recorded, and admits no new call either (the
+            # review's second read).
             last = calls[-1]
-            standing = decide_call(last.pairs(), rules.table, rules.redispatch)
-            if standing.decision is CallDecision.DISPATCH_AGAIN:
-                return Refused(f"{call_id(last.ordinal)} is in progress: no new call")
+            standing = decide_call(last.pairs(), rules.table, rules.redispatch).decision
+            if standing not in (CallDecision.ANSWERED, CallDecision.ENDED_AS_BEHAVIOUR):
+                return Refused(f"{call_id(last.ordinal)} stands {standing.value}: no new call")
     else:
         if event.number != call.last_number + 1:
             return Refused(f"{call_id(event.call)}'s next dispatch is {call.last_number + 1}")
