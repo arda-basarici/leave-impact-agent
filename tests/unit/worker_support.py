@@ -8,6 +8,12 @@ three protocols scripted, as the acceptance spike scripted its model. A scripted
 answers by the request's digest and never by an invocation counter, so a recovering worker
 that restates a request gets the same answer and a repeated send is visible as one more
 entry in ``sends`` and nowhere else.
+
+Since the graph step the real turns run through the same bench: ``investigator_inputs``
+freezes what a run under them records, and ``ContentScriptedClient`` answers by the number
+of assistant messages the request carries, since a request the real turns build has no
+digest a script could know in advance; a recovering worker that restates a request gets the
+same answer by the same count.
 """
 
 from __future__ import annotations
@@ -15,9 +21,11 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from hashlib import sha256
-from typing import Any
+from typing import Any, cast
 
 from leaveimpact.agent.answer_parse import FACT_TOOL
+from leaveimpact.agent.assets import load_prompt_assets
+from leaveimpact.agent.composer import composing_policy
 from leaveimpact.agent.execution import ReadPorts
 from leaveimpact.agent.graph import ReviewPayload, Sent, TurnRequest
 from leaveimpact.agent.log_events import (
@@ -32,6 +40,8 @@ from leaveimpact.agent.log_events import (
     kind_of,
 )
 from leaveimpact.agent.log_transition import AttemptState, calls_of
+from leaveimpact.agent.surface import surface_digest
+from leaveimpact.agent.turns import InvestigatorTurns
 from leaveimpact.core.counting_operations import Counted, CountOutcome
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import employee_id
@@ -39,7 +49,9 @@ from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import CompleteResponse, Observation, ServiceError
 from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.run_trace import OperationId
+from leaveimpact.core.tools import Role
 from leaveimpact.core.worldtime import RunContext
+from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit.throwaway_world import loaded_world
@@ -60,6 +72,18 @@ def admitted_inputs(context: RunContext | None = None) -> FrozenInputs:
     return replace(
         histories.inputs(reservation=RESERVATION),
         context=context if context is not None else golden_context(),
+    )
+
+
+def investigator_inputs(context: RunContext) -> FrozenInputs:
+    """The frozen inputs of a run under the real turns: the fixtures' with the prompt assets'
+    digests, the investigator's surface digest and the composing policy this code computes,
+    what the agent's provenance freezes."""
+    return replace(
+        admitted_inputs(context),
+        prompt_digests=load_prompt_assets().prompt_digests(cases.ROLE),
+        tool_surface_digests=((cases.ROLE, surface_digest(Role.INVESTIGATOR)),),
+        composing_policy=composing_policy(),
     )
 
 
@@ -121,6 +145,31 @@ class ScriptedClient:
         self.given[digest] = index + 1
         script = self.answers[digest]
         return script[min(index, len(script) - 1)]
+
+
+@dataclass
+class ContentScriptedClient:
+    """Answers ``answers[k]`` to a request carrying ``k`` assistant messages; every send is
+    recorded with its digest and its body."""
+
+    answers: Sequence[Sent]
+    sends: list[tuple[str, str]] = field(default_factory=list[tuple[str, str]])
+    bodies: list[JsonObject] = field(default_factory=list[JsonObject])
+    operation: str = "Converse"
+    client_region: str = "eu-central-1"
+
+    def send(self, requested_profile: str, body: JsonObject) -> Sent:
+        self.sends.append((requested_profile, request_digest(body)))
+        self.bodies.append(body)
+        return self.answers[assistant_turns(body)]
+
+
+def assistant_turns(body: JsonObject) -> int:
+    """How many assistant messages ``body``'s conversation holds."""
+    messages = body["messages"]
+    assert isinstance(messages, list)
+    held = cast("list[JsonObject]", messages)
+    return sum(1 for message in held if message["role"] == "assistant")
 
 
 @dataclass
@@ -271,6 +320,49 @@ def throttled_script(context: RunContext) -> tuple[ScriptedTurns, ScriptedClient
     return turns, ScriptedClient({request_digest(turns.bodies[0]): (throttled,)})
 
 
+def a_read_comment(world: SealedWorld) -> tuple[str, str, str]:
+    """A comment the prefetch's enumeration returns: its id, its author and a quote inside
+    its text (the stand-in prose names nobody, so the anchor guard refuses a fact on it)."""
+    comment = next(
+        c
+        for scenario in world.scenarios
+        for item in scenario.owned.work_items
+        for c in item.entity.comments
+    )
+    return comment.id, comment.author_id, comment.text.split("] ", 1)[-1][:30]
+
+
+def investigator_script(
+    world: SealedWorld, context: RunContext, *, probe_tool: str = "probe_tool"
+) -> tuple[InvestigatorTurns, ContentScriptedClient]:
+    """The reference run of the real turns: the first answer reads one employee, calls a
+    tool the role does not declare (``probe_tool``, a name the capture varies), makes a call
+    whose input is no object, and states one fact the guard refuses beside an entry the
+    parser cannot read; the second answer reads nothing, so the loop ends; the forced last
+    call states the fact again. Three sends, three counts, every ``toolUse`` answered."""
+    carrier, author, quote = a_read_comment(world)
+    entry = {
+        "carrier": carrier,
+        "predicate": "has_skill",
+        "subject": author,
+        "value": "kafka",
+        "quote": quote,
+    }
+    answers = (
+        answered(
+            text("Reading an employee and probing."),
+            tool_use("tu_emp", "employee", {"id": str(employee_id(1))}),
+            tool_use("tu_probe", probe_tool, {}),
+            tool_use("tu_bad", "leave", "not an object"),
+            fact_tool("tu_facts", entry, "not an entry"),
+            stop_reason="tool_use",
+        ),
+        answered(text("Nothing further to read.")),
+        answered(fact_tool("tu_final", entry), stop_reason="tool_use"),
+    )
+    return InvestigatorTurns(load_prompt_assets()), ContentScriptedClient(answers)
+
+
 SCRIPTS: Mapping[str, Callable[[RunContext], tuple[ScriptedTurns, ScriptedClient]]] = {
     "two-call": two_call_script,
     "throttled": throttled_script,
@@ -289,17 +381,22 @@ def calls_in(state: AttemptState) -> int:
 __all__ = [
     "ADMITTER",
     "RESERVATION",
+    "ContentScriptedClient",
     "ScriptedClient",
     "ScriptedCounter",
     "ScriptedTurns",
     "admission",
+    "a_read_comment",
     "admitted_inputs",
     "answered",
+    "assistant_turns",
     "body_for",
     "calls_in",
     "fact_tool",
     "golden_context",
     "in_flight",
+    "investigator_inputs",
+    "investigator_script",
     "observed",
     "request_digest",
     "sends_of",

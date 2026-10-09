@@ -150,11 +150,15 @@ DURABILITY = "sync"
 @dataclass(frozen=True, slots=True)
 class TurnRequest:
     """One logical call as the system asks it: the role, the Converse body as the client
-    will send it, and the operations whose returned records the body rendered."""
+    will send it, the operations whose returned records the body rendered, and whether it
+    is the system's finalization call, after which it asks nothing more (the graph step,
+    fork 2: the model node declares the finalization before dispatching a flagged request
+    when the account has not)."""
 
     role: str
     body: JsonObject
     input_reads: tuple[OperationId, ...]
+    final: bool = False
 
 
 @dataclass(frozen=True, slots=True)

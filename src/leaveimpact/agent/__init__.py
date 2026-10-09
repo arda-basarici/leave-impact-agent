@@ -25,9 +25,17 @@ an unreadable one whole beside its reason. ``rules_only`` is the first system: t
 prefetch, the structured projection as its whole view, ruling 4's preconditions (a defect
 at its operation, a source that contradicts itself among them, or an abstention with no
 claims), and the composer given no statement;
+``conclusion`` holds those preconditions as pure functions, shared with the investigator;
 ``export`` writes a run as the artifact the evaluator grades, under the provenance the
 harness around it supplies; ``registered`` builds that provenance from the preregistration
 and refuses a run whose registration differs from what this code computes or declares.
+
+The investigator's content over the skeleton: ``assets`` (the three prompt texts as package
+data, digested), ``surface`` (what the model sees of a read, the fact tool's definition,
+and what the harness answers a fact call, an unparsed call or an undispatched call with),
+``admissions`` (each answer's facts under the gates over the reads logged before it, one
+derivation for the export and the turns) and ``turns`` (the request of each logical call
+and the review payload, both pure functions of the log).
 
 The event log is the agent's own execution control, ownership and accounting, which the
 evaluator never reads. Its pure half: ``log_events`` (the sixteen event kinds, their keys,

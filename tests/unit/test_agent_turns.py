@@ -1,0 +1,440 @@
+"""The investigator's turns through the real worker over the sealed throwaway world: the prompt
+assets loaded from the package with the opening's two parameters; the first request as the
+opening, the skill list and one block per prefetch operation, the ten read tools and the fact
+tool under ``auto``; the loop request as the conversation rebuilt from the log with every
+``toolUse`` answered, a read's envelope, a refused call's closed correction, an unparsed
+call's fixed correction, a fact call's admissions by index and reason; the finalization
+request after an answer with no read, the fact tool alone and forced, flagged ``final``;
+nothing after the finalization call; the restatement equality at every prefix a recovery
+can resume from; the payload as the shared composer's, equal to the baseline's claims when
+the model read nothing and empty on an abstention; and the capture's fourth reading, no
+scenario id and no world version in any request under either condition, on first execution
+or rebuilt from the log, with what the model itself wrote going back as it arrived."""
+
+from __future__ import annotations
+
+import json
+from dataclasses import dataclass, field
+from string import Template
+from typing import Any, cast
+from uuid import uuid4
+
+import pytest
+from langgraph.checkpoint.memory import InMemorySaver
+
+from leaveimpact.agent.answer_parse import FACT_TOOL
+from leaveimpact.agent.assets import (
+    ASSET_NAMES,
+    FINALIZATION,
+    OPENING,
+    SYSTEM,
+    PromptAssets,
+    load_prompt_assets,
+)
+from leaveimpact.agent.composer import rules_only_composition
+from leaveimpact.agent.log_events import (
+    DispatchIntent,
+    FinalizationEntered,
+    FrozenInputs,
+    LoggedEvent,
+    kind_of,
+)
+from leaveimpact.agent.log_reader import export_of
+from leaveimpact.agent.log_transition import fold
+from leaveimpact.agent.rules_only import investigate
+from leaveimpact.agent.surface import ARGUMENTS_CORRECTION, FACT_TOOL_DEFINITION
+from leaveimpact.agent.turns import InvestigatorTurns
+from leaveimpact.agent.worker import (
+    AutomaticApproval,
+    Worker,
+    WorkerConfiguration,
+    WorkerEnding,
+    WorkerEndingKind,
+)
+from leaveimpact.core.jsonshape import JsonObject, canonical_json
+from leaveimpact.core.skills import SKILLS
+from leaveimpact.core.timeshape import encode_instant
+from leaveimpact.core.tools import Role, role_surface, surface_correction
+from leaveimpact.evaluator.sealed_world import SealedWorld
+from tests.unit import format_fixtures as cases
+from tests.unit import log_histories as histories
+from tests.unit import worker_support as support
+from tests.unit.log_store_memory import MemoryLog
+from tests.unit.reads_fixture import systems_holding
+from tests.unit.throwaway_world import loaded_world
+from tests.unit.worker_support import ContentScriptedClient, ScriptedCounter
+
+RULES = histories.RULES
+RUN, ATTEMPT = "run-12", 1
+PREFETCH = ("leave", "employees", "leaves_within", "components", "work_items", "events_within")
+"""The opening read and the five planned calls in the plan's order, every source reachable."""
+READ_TOOLS = tuple(s.name for s in role_surface(Role.INVESTIGATOR))
+
+
+@pytest.fixture(scope="module")
+def world() -> SealedWorld:
+    return loaded_world("golden")
+
+
+@pytest.fixture(scope="module")
+def assets() -> PromptAssets:
+    return load_prompt_assets()
+
+
+@dataclass
+class Bench:
+    """One worker over a fresh in-memory log, the real turns and the content-scripted client."""
+
+    log: MemoryLog
+    inputs: FrozenInputs
+    turns: InvestigatorTurns
+    client: ContentScriptedClient
+    ports: Any
+    counter: ScriptedCounter = field(default_factory=ScriptedCounter)
+
+    def work(self) -> WorkerEnding:
+        worker = Worker(
+            self.log,
+            WorkerConfiguration.of(self.inputs),
+            cases.REVISION,
+            "launch-1",
+            RULES,
+            self.turns,
+            self.client,
+            self.counter,
+            self.ports,
+            AutomaticApproval(),
+            InMemorySaver(),
+            sleep=lambda seconds: None,
+        )
+        return worker.work(RUN, ATTEMPT, nonce=f"nonce-{uuid4().hex[:8]}")
+
+    def events(self) -> tuple[LoggedEvent, ...]:
+        return self.log.events(RUN, ATTEMPT)
+
+    def state(self, events: tuple[LoggedEvent, ...] | None = None) -> Any:
+        return fold(self.events() if events is None else events, RULES)
+
+
+def bench(
+    world: SealedWorld,
+    *,
+    events: tuple[LoggedEvent, ...] | None = None,
+    probe_tool: str = "probe_tool",
+    outage: str | None = None,
+) -> Bench:
+    context = world.context_of(world.scenarios[0])
+    inputs = support.investigator_inputs(context)
+    turns, client = support.investigator_script(world, context, probe_tool=probe_tool)
+    log = MemoryLog()
+    log.seed(events if events is not None else support.admission(inputs))
+    ports = systems_holding(world).ports
+    if outage is not None:
+        ports = support.with_unreachable(ports, outage)
+    return Bench(log, inputs, turns, client, ports)
+
+
+# --- Readers of a body -----------------------------------------------------------------------
+
+
+def messages_of(body: JsonObject) -> list[JsonObject]:
+    return cast("list[JsonObject]", body["messages"])
+
+
+def content_of(message: JsonObject) -> list[JsonObject]:
+    return cast("list[JsonObject]", message["content"])
+
+
+def text_of(block: JsonObject) -> str:
+    return cast(str, block["text"])
+
+
+def tool_names(body: JsonObject) -> list[str]:
+    config = cast(JsonObject, body["toolConfig"])
+    return [
+        cast(str, cast(JsonObject, cast(JsonObject, tool)["toolSpec"])["name"])
+        for tool in cast("list[object]", config["tools"])
+    ]
+
+
+def tool_choice(body: JsonObject) -> object:
+    return cast(JsonObject, body["toolConfig"])["toolChoice"]
+
+
+def result_json(block: JsonObject) -> JsonObject:
+    result = cast(JsonObject, block["toolResult"])
+    (content,) = cast("list[JsonObject]", result["content"])
+    return cast(JsonObject, content["json"])
+
+
+def prefetch_block(block: JsonObject) -> JsonObject:
+    return cast(JsonObject, json.loads(text_of(block)))
+
+
+def digests_per_call(events: tuple[LoggedEvent, ...]) -> dict[int, set[str]]:
+    held: dict[int, set[str]] = {}
+    for logged in events:
+        if isinstance(logged.event, DispatchIntent):
+            held.setdefault(logged.event.call, set()).add(logged.event.request_digest)
+    return held
+
+
+def intents_of(events: tuple[LoggedEvent, ...]) -> list[tuple[int, DispatchIntent]]:
+    """Each intent with its index in ``events``."""
+    return [(i, e.event) for i, e in enumerate(events) if isinstance(e.event, DispatchIntent)]
+
+
+# --- The assets ------------------------------------------------------------------------------
+
+
+def test_the_three_assets_load_from_the_package_with_their_digests(assets: PromptAssets) -> None:
+    assert tuple(name for name, _ in assets.digests()) == tuple(sorted(ASSET_NAMES))
+    assert all(len(digest) == 64 for _, digest in assets.digests())
+    assert [role for role, _, _ in assets.prompt_digests("investigator")] == ["investigator"] * 3
+    assert FACT_TOOL in assets.text(SYSTEM) and FACT_TOOL in assets.text(FINALIZATION)
+    assert set(Template(assets.text(OPENING)).get_identifiers()) == {"leave_id", "now"}
+    opening = assets.opening(leave_id="leave_005", now='{"at":"x","timezone":"y"}')
+    assert "leave_005" in opening and '{"at":"x","timezone":"y"}' in opening
+    assert "$" not in opening
+    with pytest.raises(ValueError, match="no prompt asset named"):
+        assets.text("closing")
+
+
+# --- The three request shapes ----------------------------------------------------------------
+
+
+def test_the_reference_run_makes_three_calls_and_closes_completed(world: SealedWorld) -> None:
+    made = bench(world)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    kinds = [kind_of(e.event).value for e in made.events()]
+    assert kinds.count("dispatch_intent") == 3 and len(made.client.sends) == 3
+    assert kinds.index("finalization_entered") > kinds.index("dispatch_outcome")
+    export = export_of(made.state())
+    assert len(export.trace.model_calls) == 3 and export.trace.claims
+
+
+def test_the_first_request_is_the_opening_the_skills_and_one_block_per_prefetch_read(
+    world: SealedWorld, assets: PromptAssets
+) -> None:
+    made = bench(world)
+    made.work()
+    first = made.client.bodies[0]
+    context = made.inputs.context
+    (user,) = messages_of(first)
+    blocks = content_of(user)
+    assert user["role"] == "user" and len(blocks) == 2 + len(PREFETCH)
+    stamp = canonical_json(encode_instant(context.now))
+    assert text_of(blocks[0]) == assets.opening(leave_id=str(context.leave_id), now=stamp)
+    skills = text_of(blocks[1])
+    assert skills.startswith("Skill list (id: name):")
+    assert all(f"- {skill.id}: {skill.name}" in skills for skill in SKILLS)
+    rendered = [prefetch_block(block) for block in blocks[2:]]
+    assert [block["tool"] for block in rendered] == list(PREFETCH)
+    assert rendered[0]["arguments"] == {"id": str(context.leave_id)}
+    opening_result = cast(JsonObject, rendered[0]["result"])
+    assert opening_result["tool"] == "leave" and "record" in opening_result
+    assert opening_result["observed_at"] == encode_instant(context.now)
+    assert first["system"] == [{"text": assets.text(SYSTEM)}]
+    assert tool_names(first) == [*READ_TOOLS, FACT_TOOL]
+    assert tool_choice(first) == {"auto": {}}
+    assert first["inferenceConfig"] == {"maxTokens": cases.OUTPUT_MAXIMUM, "temperature": 0}
+    (_, intent), *_ = intents_of(made.events())
+    assert len(intent.input_reads) == len(PREFETCH)
+
+
+def test_the_loop_request_answers_every_tool_use_of_the_answer_as_arrived(
+    world: SealedWorld,
+) -> None:
+    made = bench(world)
+    made.work()
+    second = made.client.bodies[1]
+    context = made.inputs.context
+    _, assistant, results = messages_of(second)
+    assert assistant["role"] == "assistant"
+    uses = [cast(JsonObject, b["toolUse"]) for b in content_of(assistant) if "toolUse" in b]
+    assert [use["name"] for use in uses] == ["employee", "probe_tool", "leave", FACT_TOOL]
+    assert results["role"] == "user"
+    blocks = content_of(results)
+    assert [cast(JsonObject, b["toolResult"])["toolUseId"] for b in blocks] == [
+        "tu_emp",
+        "tu_probe",
+        "tu_bad",
+        "tu_facts",
+    ]
+    read, probe, unparsed, facts = (result_json(b) for b in blocks)
+    assert read["tool"] == "employee" and "record" in read
+    assert probe["refused"] == {"correction": surface_correction(role_surface(Role.INVESTIGATOR))}
+    assert "tool" not in probe, "a name the role does not declare is not written back"
+    assert unparsed["refused"] == {"correction": ARGUMENTS_CORRECTION}
+    assert unparsed["tool"] == "leave" and "not an object" not in canonical_json(unparsed)
+    assert facts["tool"] == FACT_TOOL
+    assert facts["entries"] == [
+        {"index": 0, "refused": "missing_anchor"},
+        {"index": 1, "refused": "undecodable"},
+    ]
+    assert facts["counts"] == {"missing_anchor": 1, "undecodable": 1}
+    assert "kafka" not in canonical_json(facts) and "not an entry" not in canonical_json(facts)
+    for each in (read, probe, unparsed, facts):
+        assert each["observed_at"] == encode_instant(context.now)
+    assert tool_names(second) == [*READ_TOOLS, FACT_TOOL] and tool_choice(second) == {"auto": {}}
+    _, (_, intent), _ = intents_of(made.events())
+    assert len(intent.input_reads) == len(PREFETCH) + 2, "the employee read and the refused call"
+
+
+def test_the_finalization_request_follows_an_answer_with_no_read_and_forces_the_fact_tool(
+    world: SealedWorld, assets: PromptAssets
+) -> None:
+    made = bench(world)
+    made.work()
+    third = made.client.bodies[2]
+    messages = messages_of(third)
+    assert [m["role"] for m in messages] == ["user", "assistant", "user", "assistant", "user"]
+    assert content_of(messages[-1]) == [{"text": assets.text(FINALIZATION)}]
+    assert tool_names(third) == [FACT_TOOL]
+    assert tool_choice(third) == {"tool": {"name": FACT_TOOL}}
+    state = made.state()
+    request = made.turns.request_for(state, 3)
+    assert request is not None and request.final
+    assert canonical_json(request.body) == canonical_json(third)
+    assert made.turns.request_for(state, 4) is None, "after the finalization call, nothing"
+    first = made.turns.request_for(state, 1)
+    assert first is not None and not first.final
+    with pytest.raises(ValueError, match="neither in progress nor the next"):
+        made.turns.request_for(state, 5)
+
+
+def test_a_finalization_the_account_entered_is_asked_at_the_first_call(world: SealedWorld) -> None:
+    """The first loop allocation does not fit: the finalization request is the opening, the
+    prefetch and the finalization text in one user message, the fact tool alone and forced;
+    below the event the same prefix gives the loop request."""
+    made = bench(world)
+    made.work()
+    whole = made.events()
+    cut = [kind_of(e.event).value for e in whole].index("count_started")
+    below = whole[:cut]
+    template = whole[cut]
+    entered = LoggedEvent(cut + 1, template.timestamp, template.envelope, FinalizationEntered())
+    request = made.turns.request_for(made.state((*below, entered)), 1)
+    assert request is not None and request.final
+    (user,) = messages_of(request.body)
+    assert text_of(content_of(user)[-1]).startswith("This is the last turn.")
+    assert tool_names(request.body) == [FACT_TOOL]
+    loop = made.turns.request_for(made.state(below), 1)
+    assert loop is not None and not loop.final and tool_choice(loop.body) == {"auto": {}}
+
+
+# --- The restatement equality ------------------------------------------------------------------
+
+
+def test_a_recovery_from_every_prefix_restates_every_request_byte_for_byte(
+    world: SealedWorld,
+) -> None:
+    reference = bench(world)
+    reference.work()
+    whole = reference.events()
+    digests = digests_per_call(whole)
+    assert len(digests) == 3 and all(len(held) == 1 for held in digests.values())
+    for cut in range(2, len(whole)):
+        recovering = bench(world, events=whole[:cut])
+        ending = recovering.work()
+        assert ending.kind is WorkerEndingKind.CLOSED and ending.generation == 2, cut
+        recovered = recovering.events()
+        assert recovered[:cut] == whole[:cut]
+        assert digests_per_call(recovered) == digests, cut
+        assert support.settled(recovered) == support.settled(whole), cut
+        for body in recovering.client.bodies:
+            turn = support.assistant_turns(body)
+            assert canonical_json(body) == canonical_json(reference.client.bodies[turn]), cut
+
+
+def test_a_request_in_progress_is_a_function_of_the_prefix_below_its_first_intent(
+    world: SealedWorld,
+) -> None:
+    """At every prefix from the intent on, the call's request digests to the intent's."""
+    made = bench(world)
+    made.work()
+    whole = made.events()
+    for ordinal, (index, intent) in enumerate(intents_of(whole), start=1):
+        assert intent.call == ordinal
+        for cut in range(index + 1, len(whole) + 1):
+            request = made.turns.request_for(made.state(whole[:cut]), ordinal)
+            assert request is not None, (ordinal, cut)
+            assert support.request_digest(request.body) == intent.request_digest, (ordinal, cut)
+
+
+# --- The payload ---------------------------------------------------------------------------------
+
+
+def test_the_payload_is_the_baselines_claims_when_the_model_read_nothing(
+    world: SealedWorld,
+) -> None:
+    made = bench(world)
+    made.work()
+    whole = made.events()
+    cut = [kind_of(e.event).value for e in whole].index("count_started")
+    payload = made.turns.payload_for(made.state(whole[:cut]))
+    baseline = investigate(made.inputs.context, systems_holding(world).ports)
+    assert payload.claims == baseline.claims and payload.claims
+    assert payload.composition == rules_only_composition()
+
+
+def test_the_payload_is_empty_on_an_abstention(world: SealedWorld) -> None:
+    """The opening read unreachable: the run abstains and composes nothing, whatever the
+    model read after (the short-circuit to the approval with no model call is the graph's
+    wiring, the next group's; here the loop still runs and the payload says nothing)."""
+    made = bench(world, outage="leave")
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    state = made.state()
+    assert made.turns.payload_for(state).claims == ()
+    assert export_of(state).trace.claims == ()
+    (user,) = messages_of(made.client.bodies[0])
+    (opening,) = (prefetch_block(block) for block in content_of(user)[2:])
+    assert cast(JsonObject, opening["result"])["unreachable"] == {"source": "frappe"}
+    _, _, results = messages_of(made.client.bodies[1])
+    read = result_json(content_of(results)[0])
+    assert read["unreachable"] == {"source": "frappe"}, "a read against a stopped source"
+
+
+# --- The capture's fourth reading -----------------------------------------------------------
+
+
+@pytest.mark.parametrize("outage", [None, "leaves_within"])
+def test_the_capture_finds_neither_the_scenario_id_nor_the_world_version_in_any_request(
+    world: SealedWorld, outage: str | None
+) -> None:
+    made = bench(world, outage=outage)
+    made.work()
+    context = made.inputs.context
+    secrets = (str(context.scenario_id), str(context.world_version))
+    sent = [canonical_json(body) for body in made.client.bodies]
+    assert len(sent) == 3
+    whole = made.events()
+    rebuilt: list[str] = []
+    for index, intent in intents_of(whole):
+        request = made.turns.request_for(made.state(whole[:index]), intent.call)
+        assert request is not None
+        rebuilt.append(canonical_json(request.body))
+    assert rebuilt == sent, "rebuilt from the log, the bytes are the ones first sent"
+    for text in sent:
+        for secret in secrets:
+            assert secret not in text
+    if outage is not None:
+        (user,) = messages_of(made.client.bodies[0])
+        window = prefetch_block(content_of(user)[2 + PREFETCH.index("leaves_within")])
+        assert cast(JsonObject, window["result"])["unreachable"] == {"source": "frappe"}
+
+
+def test_what_the_model_wrote_goes_back_as_it_arrived_and_the_harness_echoes_none_of_it(
+    world: SealedWorld,
+) -> None:
+    """A model that names the scenario id in a tool call sees it again in its own message, as
+    Converse requires, and in nothing the harness rendered."""
+    made = bench(world, probe_tool="scenario_001")
+    made.work()
+    secret = str(made.inputs.context.scenario_id)
+    second = made.client.bodies[1]
+    _, assistant, results = messages_of(second)
+    assert secret in canonical_json(assistant), "the assistant message as arrived"
+    harness = {"system": second["system"], "results": results, "tools": second["toolConfig"]}
+    assert secret not in canonical_json(harness)
+    assert secret not in canonical_json(FACT_TOOL_DEFINITION)
