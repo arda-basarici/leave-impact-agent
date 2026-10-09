@@ -541,11 +541,14 @@ def batch(*entries: Admitted | Refused | RefusedInput) -> FactBatch:
 
 
 def evidence(*, document: Document | None = None) -> tuple[Operation, ...]:
-    """The prefetch reads of a history whose answer admits a statement: the empty ticket
-    read every fixture opens with, the people, the ticket with Deniz's comment, and
-    ``document`` when a requirement is read from it; at positions 3 to 6."""
+    """The prefetch reads of a history whose answer admits a statement: the ticket read every
+    fixture opens with, here returning the ticket, the people, the ticket again with Deniz's
+    comment, and ``document`` when a requirement is read from it; at positions 3 to 6. The
+    second ticket read is a history no prefetch produces, kept so the other fixtures' first
+    read stayed as it was; the two agree, since the transition now stops a run at an
+    enumeration that omits a record another read returned (the graph step, amendment 1)."""
     reads = [
-        prefetched(3),
+        prefetched(3, records=TICKETS),
         prefetched(4, 2, "employees", Source.FRAPPE, PEOPLE),
         prefetched(5, 3, "work_items", Source.JIRA, TICKETS),
     ]
@@ -566,7 +569,10 @@ def facts_beside_tools() -> RunExport:
         (batch(Admitted(SKILL)),),
     )
     call = answered("call-1", 8, answer, stop_reason="tool_use", shown=("prefetch/1",))
-    return export((call,), (*evidence(), asked("tu_1", "call-1", 10)), request=11)
+    # The read returns the ticket the enumeration returned: an absent answer would be the
+    # source contradicting itself, a stop since the graph step (amendment 1).
+    read = asked("tu_1", "call-1", 10, RecordOutcome(TICKETS[0]))
+    return export((call,), (*evidence(), read), request=11)
 
 
 def malformed_batch() -> RunExport:

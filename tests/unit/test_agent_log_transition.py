@@ -56,17 +56,24 @@ from leaveimpact.core import (
     KeptReason,
     ModelCallId,
     NoRecordedOutcome,
+    Observed,
+    OperationId,
+    OperationSite,
+    RecordOutcome,
     RedispatchPolicy,
     ReservationState,
     ServiceError,
+    Source,
     TerminalStatus,
     review_payload_digest,
     signed_elapsed_ms,
 )
 from leaveimpact.core.input_bound import CountResult
+from leaveimpact.core.ports.observed import Entity
 from leaveimpact.core.run_account import CallPurpose
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as h
+from tests.unit import stated_fixture as f
 
 RULES = h.RULES
 
@@ -831,6 +838,47 @@ def test_a_count_outcome_after_a_stopping_defect_is_refused() -> None:
     at_seven = restamped(events[6], position=7, offset_ms=600)
     late = next_state(stopped.state, replace(at_seven, event=counted), RULES)
     assert isinstance(late, Refused) and late.reason.endswith(": no count outcome")
+
+
+def contradicting_history(where: str) -> h.History:
+    """A log whose ticket enumeration returned the ticket and a later read returned it with
+    another title: at the prefetch's own second enumeration (``prefetch``) or at a model's
+    read by id (``answer``)."""
+    other = Observed[Entity](replace(f.TICKET, title="another title"), Source.JIRA)
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.prefetch(1, "work_items", Source.JIRA, h.TICKETS), offset=100)
+    if where == "prefetch":
+        log.worker(h.prefetch(2, "work_items", Source.JIRA, (other,)), offset=200)
+        return log
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    log.worker(h.intent(1), offset=600)
+    asked = h.tool_use("tu_1", "work_item", {"id": "ticket_042"})
+    log.worker(
+        h.outcome(1, 1, h.complete("tool_use"), response=h.body("tool_use", asked)), offset=700
+    )
+    log.worker(h.model_read(1, "tu_1", RecordOutcome(other)), offset=800)
+    return log
+
+
+@pytest.mark.parametrize(("where", "site"), [("prefetch", "prefetch/2"), ("answer", "call-1/tu_1")])
+def test_a_source_contradicting_itself_stops_the_attempt_at_the_read_that_completed_it(
+    where: str, site: str
+) -> None:
+    """Amendment 1 of the graph step's rulings: the conclusion is asked on every operation
+    append, a defect it derives is the recorded stop at the operation that established it,
+    and nothing but the closing follows (the worker's tests read the export's ending)."""
+    log = contradicting_history(where)
+    state = fold(log.logged(), RULES)
+    stopped = state.stopped
+    assert stopped is not None
+    assert stopped.category is FailureCategory.DEFECT
+    assert stopped.site == OperationSite(OperationId(site))
+    assert stopped.reason.startswith("returns_differ") and "disagree about" in stopped.reason
+    log.worker(h.prefetch(3, "employees", Source.FRAPPE, h.PEOPLE), offset=900)
+    assert "no tool resolution" in refusal(log.logged())
 
 
 def test_a_dispatch_outcome_after_a_stopping_defect_is_refused() -> None:

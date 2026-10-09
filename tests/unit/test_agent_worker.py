@@ -24,7 +24,10 @@ turns, the model client and the token counter. The claims, by the rulings they h
   the count that answered (counting, part 13);
 - a loop call in progress when the account enters finalization keeps its purpose and
   finishes from the reserve, on first execution and on recovery (the graph step's
-  rulings, amendment 2).
+  rulings, amendment 2);
+- a source contradicting itself is a stop at the read that completed it, in the prefetch
+  and in an answer's reads, and no later read reaches a port, on first execution and on
+  recovery; an outside closure names that defect and no other (amendment 1).
 """
 
 from __future__ import annotations
@@ -32,6 +35,7 @@ from __future__ import annotations
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, fields, replace
+from datetime import timedelta
 from typing import Any
 from uuid import uuid4
 
@@ -86,6 +90,9 @@ from leaveimpact.core import (
     HarnessSite,
     HarnessSiteName,
     ModelCallId,
+    Observed,
+    OperationId,
+    OperationSite,
     decode_export_bytes,
     export_bytes,
 )
@@ -819,6 +826,126 @@ def test_a_recovery_after_the_entry_re_dispatches_the_loop_call_with_the_same_by
     assert intents[0].request_digest == intents[1].request_digest
     assert support.sends_of(recovering.client) == 2, "the throttled send is not repeated"
     assert support.settled(recovering.events()) == support.settled(events)
+
+
+class Spying:
+    """A port whose method calls are counted by name, and whose ``drifted`` method answers
+    with ``drift`` applied to the inner result from its ``after``-th call on."""
+
+    def __init__(
+        self,
+        inner: object,
+        *,
+        drifted: str = "",
+        drift: Callable[[Any], Any] = lambda result: result,
+        after: int = 0,
+    ) -> None:
+        self._inner = inner
+        self._drifted = drifted
+        self._drift = drift
+        self._after = after
+        self.calls: dict[str, int] = {}
+
+    def __getattr__(self, name: str) -> Any:
+        attribute = getattr(self._inner, name)
+        if not callable(attribute):
+            return attribute
+
+        def counted(*args: Any, **kwargs: Any) -> Any:
+            self.calls[name] = self.calls.get(name, 0) + 1
+            result = attribute(*args, **kwargs)
+            if name == self._drifted and self.calls[name] > self._after:
+                return self._drift(result)
+            return result
+
+        return counted
+
+
+def a_day_longer(observed: Any) -> Any:
+    """The observed leave with its end one day later: the HR system drifted."""
+    leave = observed.value
+    return Observed(replace(leave, end=leave.end + timedelta(days=1)), observed.source)
+
+
+def drifting_people(made: Bench, *, method: str, after: int) -> Spying:
+    leave_id = made.inputs.context.leave_id
+
+    def drift(result: Any) -> Any:
+        if method == "leave":
+            return a_day_longer(result)
+        return tuple(a_day_longer(o) if o.value.id == leave_id else o for o in result)
+
+    spy = Spying(made.ports.people, drifted=method, drift=drift, after=after)
+    made.ports = replace(made.ports, people=spy)
+    return spy
+
+
+def failure_of(made: Bench) -> Failed:
+    (closing,) = (e.event for e in made.events() if isinstance(e.event, Failed))
+    return closing
+
+
+def test_a_contradiction_at_a_models_read_stops_before_the_next_read_reaches_a_port(
+    world: SealedWorld,
+) -> None:
+    """Amendment 1: the HR system drifts the leave between the prefetch and the model's read
+    of it; the transition records the stop on the read's append, and the answer's second
+    read, of an employee, is never made. A recovering worker from before the read makes the
+    read again, meets the same drift and stops the same way; the logs agree."""
+    made = bench(world)
+    spy = drifting_people(made, method="leave", after=1)
+    ending = made.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    closing = failure_of(made)
+    assert closing.category is FailureCategory.DEFECT
+    assert closing.site == OperationSite(OperationId("call-1/tooluse_leave"))
+    assert "disagree about" in closing.reason
+    assert spy.calls.get("employee", 0) == 0, "the second read of the answer was never made"
+    assert support.sends_of(made.client) == 1
+    assert export_of(made.log.load(RUN, ATTEMPT, rules=RULES)).record.status.value == "failed"
+    # Recovery from the dispatch outcome: the read is made again, the drift is met again.
+    events = made.events()
+    cut = [kind_of(e.event).value for e in events].index("dispatch_outcome") + 1
+    recovering = bench(world, events=events[:cut])
+    again = drifting_people(recovering, method="leave", after=0)
+    assert recovering.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "failed")
+    assert failure_of(recovering).site == closing.site
+    assert again.calls.get("employee", 0) == 0 and again.calls["leave"] == 1
+    assert support.settled(recovering.events()) == support.settled(events)
+
+
+def test_a_contradiction_inside_the_prefetch_stops_it_before_the_next_planned_read(
+    world: SealedWorld,
+) -> None:
+    """The leaves window returns the leave with another end than the opening read: a stop at
+    the window's read, the components and the rest of the plan never asked, no count and
+    no send, and an outside closure must name that defect."""
+    made = bench(world)
+    drifting_people(made, method="leaves_within", after=0)
+    work = Spying(made.ports.work)
+    made.ports = replace(made.ports, work=work)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    closing = failure_of(made)
+    assert closing.site == OperationSite(OperationId("prefetch/3"))
+    assert work.calls == {}, "nothing after the window reached the tracker"
+    assert support.sends_of(made.client) == 0 and made.counter.asked == []
+    # An outside closure: only the recorded defect closes the attempt.
+    events = made.events()
+    stop = [kind_of(e.event).value for e in events].index("failed")
+    log = MemoryLog()
+    log.seed(events[:stop])
+    state = log.load(RUN, ATTEMPT, rules=RULES)
+    assert state.stopped is not None and state.closed is None
+    elsewhere = Failed(FailureCategory.DEFECT, OperationSite(OperationId("prefetch/1")), "no", None)
+    refused = log.close_attempt(
+        RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), elsewhere, rules=RULES, state=state
+    )
+    assert isinstance(refused, Refused)
+    named = Failed(closing.category, closing.site, closing.reason, None)
+    closed = log.close_attempt(
+        RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), named, rules=RULES, state=state
+    )
+    assert isinstance(closed, Appended)
 
 
 def test_the_closing_kind_must_be_the_one_the_request_froze_toward(world: SealedWorld) -> None:

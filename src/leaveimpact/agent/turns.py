@@ -8,7 +8,10 @@ payload the run ends with. This module is the investigator's answer (the graph s
 that recovers the attempt rebuilds the same bytes a first process sent, and the model node
 holds it to that, refusing a restated request whose digest is not the first intent's.
 
-*The shape of a run.* Reading turns, then one finalization. A loop turn shows the model the
+*The shape of a run.* An abstention the prefetch decides (the leave not returned, the
+employee enumeration not covered) asks no call: the run goes to its approval with the
+empty payload, and neither a count nor a send is made (fork 8). Otherwise reading turns,
+then one finalization. A loop turn shows the model the
 role's read tools and the fact tool with tool choice ``auto``; the model reads, and may
 state facts about what earlier turns returned. The loop ends when an answer holds no read
 call (the model stopped reading, whatever its stop reason) or when the account enters
@@ -127,10 +130,12 @@ class InvestigatorTurns:
     role: Role = Role.INVESTIGATOR
 
     def request_for(self, state: AttemptState, call: int) -> TurnRequest | None:
-        """The request of logical call ``call``: the first, a loop or the finalization request,
-        or ``None`` once the finalization call was answered. ``ValueError`` when ``call`` is
-        neither in progress nor the next, when an earlier call has no answer, or when the
-        role's configuration holds a setting the request cannot carry."""
+        """The request of logical call ``call``: the first, a loop or the finalization request;
+        ``None`` on an abstention, which the prefetch below the call decides (the run goes to
+        its approval with the empty payload and makes no model call, fork 8), and ``None``
+        once the finalization call was answered. ``ValueError`` when ``call`` is neither in
+        progress nor the next, when an earlier call has no answer, or when the role's
+        configuration holds a setting the request cannot carry."""
         inputs = _inputs(state)
         calls = calls_of(state)
         if call == len(calls) + 1:
@@ -139,6 +144,8 @@ class InvestigatorTurns:
             boundary = calls[call - 1].intents[0].position
         else:
             raise ValueError(f"call {call} is neither in progress nor the next; {len(calls)} held")
+        if _abstains(state, boundary):
+            return None
         earlier = tuple(self._answered(state, held) for held in calls if held.ordinal < call)
         entered = state.finalization_entered is not None and state.finalization_entered < boundary
         if _finalization_answered(earlier, state):
@@ -297,6 +304,18 @@ def _reads_in(answered: AnsweredCall) -> bool:
         or (isinstance(call.disposition, Undispatched) and call.disposition.reason in skipped)
         for call in answered.answer.tool_calls
     )
+
+
+def _abstains(state: AttemptState, boundary: int) -> bool:
+    """Whether the operations logged below ``boundary`` decide an abstention: the leave not
+    returned or the universe not covered, both facts of the prefetch, so a request in
+    progress reads the same answer as the first."""
+    inputs = _inputs(state)
+    operations = tuple(
+        op for op in trace_operations(state) if op.position is not None and op.position < boundary
+    )
+    projection = project_reads(operations, inputs.context.today)
+    return abstention_of(projection, leave_of(operations, inputs.context)) is not None
 
 
 def _finalization_answered(earlier: tuple[AnsweredCall, ...], state: AttemptState) -> bool:

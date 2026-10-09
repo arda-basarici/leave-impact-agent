@@ -357,12 +357,17 @@ def _closed_completed(
 
 
 def _one_call_prefix(
-    log: History, reservation: int, *, reads: Sequence[OperationEvent] = ()
+    log: History,
+    reservation: int,
+    *,
+    reads: Sequence[OperationEvent] = (),
+    opening: Sequence[Observed[Entity]] = (),
 ) -> None:
-    """Admission, the claim, the prefetch (``reads`` after the empty ticket read), one count."""
+    """Admission, the claim, the prefetch (the ticket read returning ``opening``, then
+    ``reads``), one count."""
     log.admit(inputs(reservation=reservation))
     log.claim()
-    log.worker(prefetch(1, "work_items", Source.JIRA), offset=100)
+    log.worker(prefetch(1, "work_items", Source.JIRA, opening), offset=100)
     for ordinal, read in enumerate(reads, start=2):
         log.worker(read, offset=100 + ordinal)
     log.worker(count_start("call-1"), offset=400)
@@ -380,6 +385,7 @@ def facts_beside_tools() -> tuple[LoggedEvent, ...]:
             prefetch(2, "employees", Source.FRAPPE, PEOPLE),
             prefetch(3, "work_items", Source.JIRA, TICKETS),
         ),
+        opening=TICKETS,
     )
     log.worker(intent(1, shown=("prefetch/1",)), offset=600)
     log.worker(
@@ -396,7 +402,7 @@ def facts_beside_tools() -> tuple[LoggedEvent, ...]:
         ),
         offset=1_500,
     )
-    log.worker(model_read(1, "tu_1", cases.asked("x", "call-1", 1).outcome), offset=1_700)
+    log.worker(model_read(1, "tu_1", RecordOutcome(TICKETS[0])), offset=1_700)
     _closed_completed(log, expected)
     return log.logged()
 
@@ -424,6 +430,7 @@ def refused_fact() -> tuple[LoggedEvent, ...]:
             prefetch(2, "employees", Source.FRAPPE, PEOPLE),
             prefetch(3, "work_items", Source.JIRA, TICKETS),
         ),
+        opening=TICKETS,
     )
     log.worker(intent(1), offset=600)
     unreadable = {
@@ -481,6 +488,7 @@ def handled_fact_tool() -> tuple[LoggedEvent, ...]:
             prefetch(2, "employees", Source.FRAPPE, PEOPLE),
             prefetch(3, "work_items", Source.JIRA, TICKETS),
         ),
+        opening=TICKETS,
     )
     log.worker(intent(1), offset=600)
     log.worker(
@@ -617,6 +625,7 @@ def wrong_scope_beside_unplaced() -> tuple[LoggedEvent, ...]:
             prefetch(3, "work_items", Source.JIRA, TICKETS),
             document_read(4, cases.SCOPED_RUNBOOK),
         ),
+        opening=TICKETS,
     )
     log.worker(intent(1), offset=600)
     on_the_meeting, unread = cases.requirement(f.MEETING.title), cases.requirement("Ledger cutover")

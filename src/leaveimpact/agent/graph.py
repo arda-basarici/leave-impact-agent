@@ -43,8 +43,11 @@ run nothing (the parse module handles them); a read against a source a durable o
 marked unreachable is a skip, recorded as the worker's final decision; any other read runs
 through the executor over the call's role's surface (the registry step) and its result is
 appended, a wrapper's refusal included, a tool the role is not shown among the refusals. A
-defect result stops the sequence, and the transition records the stop. What the model is
-shown of each result is the rendering module's, from the logged resolution.
+stop the transition records on an append, a malformed record's or a defect the conclusion
+derives (a source contradicting itself, found at the read that completed it), ends the
+sequence before the next port call, in the prefetch as in an answer's reads (the graph
+step's rulings, amendment 1). What the model is shown of each result is the rendering
+module's, from the logged resolution.
 """
 
 from __future__ import annotations
@@ -122,7 +125,6 @@ from leaveimpact.core.run_account import AccountIntent, AuthorizationDecision, a
 from leaveimpact.core.run_ending import Composition
 from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_trace import (
-    DefectOutcome,
     ModelOrigin,
     OperationId,
     Origin,
@@ -352,7 +354,11 @@ def build(harness: Harness, saver: BaseCheckpointSaver[Any]) -> Any:
     def prefetch(state: Cursor) -> dict[str, Any]:
         since = appender.state.last_position
         executor = LoggedExecutor(harness, replaying=lambda key: isinstance(key, PrefetchKey))
-        run_prefetch(executor, harness.inputs.context)
+        run_prefetch(
+            executor,
+            harness.inputs.context,
+            halted=lambda: appender.state.stopped is not None,
+        )
         route = "terminal" if appender.state.stopped is not None else "model"
         return {"route": route, "reached": _reached(appender.state.events, since)}
 
@@ -681,8 +687,10 @@ def _resolve_reads(harness: Harness) -> None:
         # A held result goes through the executor too: it is replayed, not made, and the
         # stop it carries reaches the reads after it (the second read's second finding).
         arguments = cast("Mapping[str, object]", use.input)
-        outcome = executor.resolve(key, origin, use.name, arguments)
-        if isinstance(outcome, DefectOutcome):
+        executor.resolve(key, origin, use.name, arguments)
+        if appender.state.stopped is not None:
+            # A malformed record's stop or a derived defect's: the transition recorded it on
+            # the append, and no later read of the answer reaches a port.
             return
 
 

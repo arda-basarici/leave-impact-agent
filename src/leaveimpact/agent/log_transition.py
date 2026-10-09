@@ -31,6 +31,9 @@ What the function refuses, by the rulings it enforces:
 - *the freeze and the stop* (recovery and endings, parts 1 to 3; counting, part 14; group
   3's second fork): after an approval was requested no model intent, no count and no tool
   resolution is appended; after a stopping failure is recorded (a malformed record, a
+  defect the conclusion derives from the operations held, at the operation that
+  established it (the graph step's rulings, amendment 1: a source contradicting itself,
+  the leaver absent from the enumeration, a record no fact can be made from), a
   dispatch read as a defect, a call that stands failed by infrastructure, a count group
   refused, exhausted or failed in an unclassified way) nothing but segment bookkeeping, an
   approval already requested and the closing event is, an outcome arriving for a count or
@@ -63,6 +66,7 @@ from leaveimpact.agent.answer_parse import (
     stop_reason_of,
     tool_uses,
 )
+from leaveimpact.agent.conclusion import defect_of, leave_of
 from leaveimpact.agent.log_events import (
     Abandoned,
     Admitted,
@@ -123,6 +127,7 @@ from leaveimpact.core.model_calls import (
     RefusedBeforeSend,
 )
 from leaveimpact.core.pricing import absent_as_zero, cost_of_reported, worst_case_cost
+from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.run_account import (
     AccountIntent,
     AccountOutcome,
@@ -142,7 +147,15 @@ from leaveimpact.core.run_ending import (
 from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_record import Failure, FailureCategory
 from leaveimpact.core.run_timing import HarnessRevision
-from leaveimpact.core.run_trace import Cost, DefectOutcome
+from leaveimpact.core.run_trace import (
+    Cost,
+    DefectOutcome,
+    HarnessOrigin,
+    ModelOrigin,
+    Operation,
+    Origin,
+    PrefetchOrigin,
+)
 from leaveimpact.core.token_counting import count_tokens
 
 # --- The registered values and the state ---------------------------------------------------
@@ -593,7 +606,60 @@ def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEv
             after,
             Failure(FailureCategory.DEFECT, OperationSite(operation_id(key)), "a malformed record"),
         )
+    if after.stopped is None:
+        # The conclusion over the operations held so far: a defect it derives is a stop at
+        # the operation that established it, so recovery, the reader and an outside
+        # closure see the same ending (the graph step's rulings, amendment 1).
+        derived = derived_defect(after)
+        if derived is not None:
+            after = _stop(after, derived)
     return Appended(after)
+
+
+def derived_defect(state: AttemptState) -> Failure | None:
+    """The defect the conclusion derives from the operations ``state`` holds, or ``None``:
+    the same function the baseline and the review payload ask, over the trace's view of
+    the log."""
+    inputs = state.inputs
+    assert inputs is not None
+    operations = trace_operations(state)
+    projection = project_reads(operations, inputs.context.today)
+    return defect_of(operations, projection, inputs.context, leave_of(operations, inputs.context))
+
+
+def trace_operations(state: AttemptState) -> tuple[Operation, ...]:
+    """Every operation the log holds a result for, as the trace holds it, in position order;
+    a skip is no operation."""
+    return tuple(
+        _trace_operation(logged)
+        for logged in operations_of(state)
+        if isinstance(_operation(logged).resolution, OperationResult)
+    )
+
+
+def _trace_operation(logged: LoggedEvent) -> Operation:
+    event = _operation(logged)
+    result = event.resolution
+    assert isinstance(result, OperationResult)
+    return Operation(
+        operation_id(event.key),
+        _origin_of(event.key),
+        result.tool,
+        result.source,
+        result.arguments,
+        result.outcome,
+        logged.position,
+    )
+
+
+def _origin_of(key: PrefetchKey | ModelReadKey | HarnessReadKey) -> Origin:
+    match key:
+        case PrefetchKey():
+            return PrefetchOrigin()
+        case ModelReadKey():
+            return ModelOrigin(call_id(key.call))
+        case HarnessReadKey():
+            return HarnessOrigin(key.policy)
 
 
 def _model_read_refusal(

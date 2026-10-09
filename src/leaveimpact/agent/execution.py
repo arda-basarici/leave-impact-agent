@@ -214,16 +214,22 @@ class PrefetchResult:
     leave: Leave | None
 
 
-def run_prefetch(executor: Executor, context: RunContext) -> PrefetchResult:
+def run_prefetch(
+    executor: Executor, context: RunContext, *, halted: Callable[[], bool] = lambda: False
+) -> PrefetchResult:
     """The frozen prefetch of ``context`` over ``executor``: the opening read, then on the leave
     asked for the planned calls in order, each at most once, none against a stopped source,
-    and none after a defect, since a malformed record fails the run at that operation."""
+    none after a defect, since a malformed record fails the run at that operation, and none
+    once ``halted`` answers true, which the graph reads off the log's recorded stop between
+    calls so a defect the transition derives ends the prefetch before the next port call."""
     first = opening_call(context)
     opening = executor.call(PrefetchOrigin(), first.tool, first.arguments)
     leave = leave_asked_for(opening, context)
     if leave is None:
         return PrefetchResult(opening, None)
     for planned in calls_after_leave(leave, context.reference_timezone):
+        if halted():
+            break
         if _source_of(planned) in executor.stopped:
             continue
         outcome = executor.call(PrefetchOrigin(), planned.tool, planned.arguments)

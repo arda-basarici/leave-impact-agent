@@ -12,7 +12,9 @@ claims could drift apart on a detail nobody compared (the step 6 lesson on one c
 form), so the derivation lives here and both call it (the graph step, fork 7).
 
 What is derived, per logical call with a complete response: the operations as the trace
-holds them, with their positions; the gate over the operations logged strictly below the
+holds them, with their positions (the transition's own view, since it asks the conclusion
+over them on every append and the admissions read the same); the gate over the
+operations logged strictly below the
 outcome's position; each read tool call's disposition the log proves (a result always; a
 skip only when the segment that wrote it also wrote the event that made the call next; the
 rest the parser's rule); and the answer, parsed under that gate. ``admitted_statements``
@@ -29,17 +31,20 @@ from dataclasses import dataclass
 from leaveimpact.agent.answer_parse import FACT_TOOL, Resolved, parse_answer, tool_uses
 from leaveimpact.agent.log_events import (
     DispatchOutcome,
-    HarnessReadKey,
     LoggedEvent,
     ModelReadKey,
     OperationEvent,
     OperationResult,
     OperationSkip,
-    PrefetchKey,
-    call_id,
     operation_id,
 )
-from leaveimpact.agent.log_transition import AttemptState, CallEvents, calls_of, operations_of
+from leaveimpact.agent.log_transition import (
+    AttemptState,
+    CallEvents,
+    calls_of,
+    operations_of,
+    trace_operations,
+)
 from leaveimpact.core.admission import admit, run_lexicon
 from leaveimpact.core.model_calls import (
     Answer,
@@ -49,14 +54,7 @@ from leaveimpact.core.model_calls import (
     Undispatched,
 )
 from leaveimpact.core.read_projection import project_reads
-from leaveimpact.core.run_trace import (
-    DefectOutcome,
-    HarnessOrigin,
-    ModelOrigin,
-    Operation,
-    Origin,
-    PrefetchOrigin,
-)
+from leaveimpact.core.run_trace import DefectOutcome, Operation
 from leaveimpact.core.stated import Admission, Admitted, StatedFact
 
 type Gate = Callable[[StatedFact], Admission]
@@ -73,41 +71,6 @@ class AnsweredCall:
 
 
 # --- The operations --------------------------------------------------------------------------
-
-
-def trace_operations(state: AttemptState) -> tuple[Operation, ...]:
-    """Every operation the log holds a result for, as the trace holds it, in position order;
-    a skip is no operation."""
-    return tuple(
-        _operation_of(logged)
-        for logged in operations_of(state)
-        if isinstance(_event(logged).resolution, OperationResult)
-    )
-
-
-def _operation_of(logged: LoggedEvent) -> Operation:
-    event = _event(logged)
-    result = event.resolution
-    assert isinstance(result, OperationResult)
-    return Operation(
-        operation_id(event.key),
-        _origin_of(event.key),
-        result.tool,
-        result.source,
-        result.arguments,
-        result.outcome,
-        logged.position,
-    )
-
-
-def _origin_of(key: PrefetchKey | ModelReadKey | HarnessReadKey) -> Origin:
-    match key:
-        case PrefetchKey():
-            return PrefetchOrigin()
-        case ModelReadKey():
-            return ModelOrigin(call_id(key.call))
-        case HarnessReadKey():
-            return HarnessOrigin(key.policy)
 
 
 def _event(logged: LoggedEvent) -> OperationEvent:

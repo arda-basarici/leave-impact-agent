@@ -378,21 +378,28 @@ def test_the_payload_is_the_baselines_claims_when_the_model_read_nothing(
     assert payload.composition == rules_only_composition()
 
 
-def test_the_payload_is_empty_on_an_abstention(world: SealedWorld) -> None:
-    """The opening read unreachable: the run abstains and composes nothing, whatever the
-    model read after (the short-circuit to the approval with no model call is the graph's
-    wiring, the next group's; here the loop still runs and the payload says nothing)."""
+def test_an_abstention_asks_no_call_and_goes_to_the_approval_with_the_empty_payload(
+    world: SealedWorld,
+) -> None:
+    """The opening read unreachable: the leave is not returned, the run abstains, and the
+    system asks nothing (fork 8): no count, no send, the approval requested with no claims,
+    the run completed."""
     made = bench(world, outage="leave")
     assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert made.client.sends == [] and made.counter.asked == []
+    kinds = [kind_of(e.event).value for e in made.events()]
+    assert "dispatch_intent" not in kinds and "count_started" not in kinds
+    assert kinds[-5:] == [
+        "finalization_entered",
+        "approval_requested",
+        "approved",
+        "resumed",
+        "completed",
+    ]
     state = made.state()
+    assert made.turns.request_for(state, 1) is None
     assert made.turns.payload_for(state).claims == ()
     assert export_of(state).trace.claims == ()
-    (user,) = messages_of(made.client.bodies[0])
-    (opening,) = (prefetch_block(block) for block in content_of(user)[2:])
-    assert cast(JsonObject, opening["result"])["unreachable"] == {"source": "frappe"}
-    _, _, results = messages_of(made.client.bodies[1])
-    read = result_json(content_of(results)[0])
-    assert read["unreachable"] == {"source": "frappe"}, "a read against a stopped source"
 
 
 # --- The capture's fourth reading -----------------------------------------------------------
