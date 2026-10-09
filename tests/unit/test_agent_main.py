@@ -24,6 +24,10 @@ from leaveimpact.agent.commands import (
 )
 from leaveimpact.agent.log_events import Admitted, Producer, encode_event
 from leaveimpact.agent.log_transition import Rules
+from leaveimpact.agent.registered import (
+    DEVELOPMENT_ATTRIBUTION_TABLE,
+    DEVELOPMENT_REDISPATCH_POLICY,
+)
 from leaveimpact.core.inventory import InventoryScope
 from leaveimpact.core.registration_json import registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
@@ -133,7 +137,9 @@ def test_the_rules_come_from_the_registration_file_or_are_a_model_free_systems(
     assert job.rules_of(None) == Rules(None, None)
     draft = tmp_path / "draft.json"
     draft.write_bytes(registration_bytes(DRAFT))
-    assert job.rules_of(draft) == Rules(None, None), "the draft's table and policy are pending"
+    assert job.rules_of(draft) == Rules(
+        DEVELOPMENT_ATTRIBUTION_TABLE, DEVELOPMENT_REDISPATCH_POLICY
+    ), "the draft holds both pending, so a run under it is read by the development values"
     settled = tmp_path / "settled.json"
     settled.write_bytes(registration_bytes(named(DRAFT)))
     rules = job.rules_of(settled)

@@ -16,7 +16,7 @@
     {
       "kind": "agent",
       "variant": {
-        "pending": "set when the investigator's tool registry and graph are built"
+        "value": "tool_loop_then_finalization"
       },
       "retrieval": {
         "kind": "full_text",

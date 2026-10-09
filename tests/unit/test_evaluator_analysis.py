@@ -176,7 +176,7 @@ def test_the_draft_scores_the_rules_only_arms_and_keeps_what_it_cannot_compute(
     assert primary.registered == DRAFT.statistics.primary
     assert (primary.overall, primary.breakdowns) == (None, ())
     assert primary.unavailable is not None
-    assert "agent under normal at padded (system_pending: systems.agent.variant" in (
+    assert "agent under normal at padded (system_pending: systems.agent.roles" in (
         primary.unavailable
     )
     assert " and full_context under normal at padded (system_pending: " in primary.unavailable

@@ -73,10 +73,10 @@ from leaveimpact.agent.log_store import (
     LogStoreUnavailable,
 )
 from leaveimpact.agent.log_transition import Rules
+from leaveimpact.agent.registered import effective_rules
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.inventory import InventoryScope, PublicationStatus
 from leaveimpact.core.jsonshape import as_object, expect_fields, object_field, string_field
-from leaveimpact.core.registration import Pending
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
 from leaveimpact.core.run_timing import GIT_SHA_LENGTH
@@ -262,17 +262,13 @@ def code_version(env: Mapping[str, str]) -> str:
 
 
 def rules_of(registration: Path | None) -> Rules:
-    """The registered attribution table and re-dispatch policy from the registration file,
-    each ``None`` while pending; with no file, the rules of a system that calls no model."""
+    """The attribution table and re-dispatch policy a run under the registration file is read
+    by: the registered ones, or the development values while a draft holds them pending
+    (``registered.effective_rules``); with no file, the rules of a system that calls no
+    model."""
     if registration is None:
         return Rules(None, None)
-    decoded = decode_registration_bytes(registration.read_bytes())
-    table = decoded.attribution
-    policy = decoded.run_accounting.redispatch
-    return Rules(
-        None if isinstance(table, Pending) else table,
-        None if isinstance(policy, Pending) else policy,
-    )
+    return effective_rules(decode_registration_bytes(registration.read_bytes()))
 
 
 def admission_request_of(content: bytes | str, rules: Rules) -> AdmissionRequest:

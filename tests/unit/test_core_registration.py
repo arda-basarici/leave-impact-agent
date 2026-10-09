@@ -189,7 +189,6 @@ def test_the_draft_registers_one_primary_and_what_is_named_beside_it() -> None:
 def test_the_drafts_pending_values_in_the_files_order() -> None:
     assert pending_fields(DRAFT) == (
         "world.version",
-        "systems.agent.variant",
         "systems.agent.roles",
         "systems.single_shot.variant",
         "systems.single_shot.roles",
@@ -220,11 +219,7 @@ def test_what_blocks_a_system_is_its_own_pending_values_and_what_every_model_cal
     # does the padded level's pending size.
     assert blocking(DRAFT, SystemKind.RULES_ONLY) == ()
     shared = ("run_accounting.redispatch", "attribution", "stated_facts.entry_schema")
-    assert blocking(DRAFT, SystemKind.AGENT) == (
-        "systems.agent.variant",
-        "systems.agent.roles",
-        *shared,
-    )
+    assert blocking(DRAFT, SystemKind.AGENT) == ("systems.agent.roles", *shared)
     resolved = named()
     assert blocking(resolved, SystemKind.AGENT) == ()
     assert blocking(resolved, SystemKind.FULL_CONTEXT) == ()

@@ -3,31 +3,66 @@ schedule's digest, the corpus level, the registered caps and variant for each of
 cells the baseline has, with the model systems still pending; and a registration this
 harness cannot execute as written refuses, naming what differs: a cell that is not
 registered or whose group is not decided as run, another outage protocol, another prefetch,
-another composing policy or anchor table, a pending variant, no rules-only system."""
+another composing policy or anchor table, a pending variant, no rules-only system.
+
+An investigator run's configuration comes the same way, and under the draft what the
+registration holds pending is this code's: the draft names the variant, the development
+table equals the fixtures' (one digest everywhere), the role, the prompt digests, the
+surface and the entry schema are the shipped ones; a registered role or entry schema that
+is not the code's refuses, and a registration past its draft refuses by name whatever it
+still holds pending.
+"""
 
 from dataclasses import replace
 from datetime import date
+from typing import Any
 
 import pytest
 
+from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
 from leaveimpact.agent.export import RunProvenance
-from leaveimpact.agent.registered import rules_only_provenance
+from leaveimpact.agent.fact_entries import refused_by
+from leaveimpact.agent.log_transition import Rules
+from leaveimpact.agent.registered import (
+    DEVELOPMENT_ATTRIBUTION_TABLE,
+    DEVELOPMENT_REDISPATCH_POLICY,
+    RoleFilling,
+    agent_provenance,
+    effective_rules,
+    rules_only_provenance,
+)
+from leaveimpact.agent.surface import surface_digest
 from leaveimpact.core import (
+    AgentSystem,
+    AttributionTable,
+    CallConfiguration,
+    CallSetting,
+    ClaimAuthor,
+    EntrySchema,
     HarnessRevision,
+    OutageAssignment,
     Pending,
     PricingBasis,
+    PricingSelection,
+    RedispatchPolicy,
     RegisteredCell,
     RegisteredPrefetch,
+    RegisteredRole,
     Registration,
+    RegistrationStatus,
     RulesOnlySystem,
     Source,
+    System,
     SystemKind,
     TreeState,
+    attribution_table_digest,
     pending_fields,
     schedule_digest,
 )
-from tests.unit.registration_fixture import DRAFT, decided
+from leaveimpact.core.tools import Role
+from tests.unit import format_fixtures as cases
+from tests.unit.registration_fixture import DRAFT, ROLE, decided, frozen, named
 
 HARNESS = HarnessRevision("b" * 40, TreeState.CLEAN)
 COMMIT = "c" * 40
@@ -188,3 +223,138 @@ def test_a_pending_variant_or_no_rules_only_system_refuses() -> None:
     )
     with pytest.raises(ValueError, match="the registration names no rules-only system"):
         provenance(without, "normal")
+
+
+# --- The investigator under a draft ------------------------------------------------------------
+
+FILLING = RoleFilling(
+    "investigator",
+    CallConfiguration("eu.vendor.model-v1", (CallSetting("temperature", 0),)),
+    PricingSelection("vendor.model-v1", "eu-central-1", "on_demand"),
+    "vendor.model-v1",
+)
+
+
+def agent(registration: Registration, condition: str = "normal", level: str = "base") -> Any:
+    return agent_provenance(
+        registration,
+        condition,
+        level,
+        preregistration_commit=COMMIT,
+        pricing=PRICING,
+        role=FILLING,
+    )
+
+
+def current_role() -> RegisteredRole:
+    return RegisteredRole(
+        FILLING.name,
+        FILLING.configuration,
+        load_prompt_assets().digests(),
+        surface_digest(Role.INVESTIGATOR),
+        FILLING.counting_model_id,
+    )
+
+
+def test_the_draft_names_the_variant_and_the_development_table_is_the_fixtures() -> None:
+    """The draft's agent variant is the shape the graph step fixed; the development table
+    equals the fixtures' row for row, so every fixture record and every development run
+    name one digest."""
+    system = DRAFT.system(SystemKind.AGENT)
+    assert isinstance(system, AgentSystem) and system.variant == "tool_loop_then_finalization"
+    assert DEVELOPMENT_ATTRIBUTION_TABLE == cases.TABLE
+    assert attribution_table_digest(DEVELOPMENT_ATTRIBUTION_TABLE) == cases.TABLE_DIGEST
+
+
+def test_the_draft_gives_an_investigator_run_the_codes_values_for_what_it_holds_pending() -> None:
+    held = agent(DRAFT)
+    role = current_role()
+    assert held.system == System(SystemKind.AGENT, "tool_loop_then_finalization")
+    assert held.model_configurations == (("investigator", FILLING.configuration),)
+    assert held.pricing_selections == (("investigator", FILLING.pricing),)
+    assert held.counting_identifiers == (("investigator", "vendor.model-v1"),)
+    assert held.prompt_digests == load_prompt_assets().prompt_digests("investigator")
+    assert held.tool_surface_digests == (("investigator", role.tool_surface_digest),)
+    assert held.attribution_table == cases.TABLE_DIGEST
+    assert held.redispatch == DEVELOPMENT_REDISPATCH_POLICY
+    assert held.parser == refused_by()
+    # What the draft binds is taken as registered.
+    system = DRAFT.system(SystemKind.AGENT)
+    assert isinstance(system, AgentSystem)
+    assert (held.caps, held.retrieval, held.retry) == (
+        system.caps.caps,
+        system.retrieval,
+        DRAFT.run_accounting.retry,
+    )
+    assert held.outage == OutageAssignment(frozenset(), schedule_digest(DRAFT.outage))
+    assert (held.corpus_level, held.preregistration_commit) == ("base", COMMIT)
+    assert held.pricing == PRICING
+    assert held.composing_policy == composing_policy()
+    assert held.claim_author is ClaimAuthor.RULES
+    # The configuration freezes whole for an admission, every role tuple naming one role.
+    assert agent(DRAFT, "jira_down").outage.scheduled_unreachable == frozenset({Source.JIRA})
+
+
+def test_the_effective_rules_are_the_development_ones_under_the_draft_else_the_named() -> None:
+    assert effective_rules(DRAFT) == Rules(
+        DEVELOPMENT_ATTRIBUTION_TABLE, DEVELOPMENT_REDISPATCH_POLICY
+    )
+    settled = named(DRAFT)
+    assert effective_rules(settled) == Rules(settled.attribution, settled.run_accounting.redispatch)  # type: ignore[arg-type]
+
+
+def test_a_registered_role_or_entry_schema_that_is_not_the_codes_refuses() -> None:
+    with pytest.raises(
+        ValueError,
+        match="the registered investigator role differs from this harness's on configuration, "
+        "prompt_digests, tool_surface_digest",
+    ):
+        agent(named(DRAFT))
+    with pytest.raises(
+        ValueError, match="the registered agent roles are investigator, reviewer, this harness"
+    ):
+        agent(named(DRAFT, roles=(replace(ROLE, name="reviewer"), current_role())))
+    with pytest.raises(ValueError, match="the registered entry schema is fact-entries-1 at ab"):
+        agent(named(DRAFT, roles=(current_role(),)))
+    mine = refused_by()
+    settled = replace(
+        named(DRAFT, roles=(current_role(),)),
+        stated_facts=replace(
+            DRAFT.stated_facts, entry_schema=EntrySchema(mine.parser, mine.schema_digest)
+        ),
+    )
+    held = agent(settled)
+    assert isinstance(settled.attribution, AttributionTable)
+    assert held.attribution_table == attribution_table_digest(settled.attribution)
+    assert held.redispatch == RedispatchPolicy(2, 1_000)
+
+
+def test_a_frozen_registration_is_executed_as_registered_and_a_pending_variant_refuses() -> None:
+    mine = refused_by()
+    settled = frozen()
+    past = replace(
+        settled,
+        systems=tuple(
+            replace(system, roles=(current_role(),)) if isinstance(system, AgentSystem) else system
+            for system in settled.systems
+        ),
+        stated_facts=replace(
+            settled.stated_facts, entry_schema=EntrySchema(mine.parser, mine.schema_digest)
+        ),
+    )
+    assert past.status is RegistrationStatus.FROZEN
+    held = agent(past)
+    assert held.system == System(SystemKind.AGENT, "graph")
+    assert held.redispatch == RedispatchPolicy(2, 1_000)
+    assert effective_rules(past) == Rules(past.attribution, past.run_accounting.redispatch)  # type: ignore[arg-type]
+    system = DRAFT.system(SystemKind.AGENT)
+    assert isinstance(system, AgentSystem)
+    unnamed = replace(
+        DRAFT,
+        systems=tuple(
+            replace(system, variant=Pending("later")) if held.kind is SystemKind.AGENT else held
+            for held in DRAFT.systems
+        ),
+    )
+    with pytest.raises(ValueError, match="the agent's variant is pending"):
+        agent(unnamed)
