@@ -21,11 +21,12 @@ What the function refuses, by the rulings it enforces:
   policy are taken from the caller and refused when they differ from what the admission
   froze, so no rule below is read against values the run did not register;
 - *the dispatch rules* (the ledger, parts 1 and 4; re-dispatch, parts 1 and 2; counting,
-  parts 13 and 15; group 1's review): a dispatch intent is numbered next, rests on a durable
-  count that counted this request, names reads the log holds, carries the registered
-  configuration's output maximum and the worst case the registered rules give, follows a
-  dispatch only when the within-call decision permits another, and is authorized by the
-  run's account; a count is started only when the group's decision is to count;
+  parts 13 and 15; group 1's review; the graph step's review): a dispatch intent is numbered
+  next, opens a new call only after the last one is settled, rests on a durable count that
+  counted this request, names reads the log holds, carries the registered configuration's
+  output maximum and the worst case the registered rules give, follows a dispatch only when
+  the within-call decision permits another, and is authorized by the run's account; a count
+  is started only when the group's decision is to count;
 - *the freeze and the stop* (recovery and endings, parts 1 to 3; counting, part 14; group
   3's second fork): after an approval was requested no model intent, no count and no tool
   resolution is appended; after a stopping failure is recorded (a malformed record, a
@@ -718,6 +719,13 @@ def _intent_next(
             return Refused(f"the next logical call is {len(calls) + 1}, got {event.call}")
         if event.number != 1:
             return Refused("a new call's first dispatch is numbered 1")
+        if calls:
+            # A new call follows a settled one, so a call's ordinal order is its outcome
+            # order and every reader of the log may rely on it (the graph step's review).
+            last = calls[-1]
+            standing = decide_call(last.pairs(), rules.table, rules.redispatch)
+            if standing.decision is CallDecision.DISPATCH_AGAIN:
+                return Refused(f"{call_id(last.ordinal)} is in progress: no new call")
     else:
         if event.number != call.last_number + 1:
             return Refused(f"{call_id(event.call)}'s next dispatch is {call.last_number + 1}")

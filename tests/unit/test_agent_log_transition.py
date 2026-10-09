@@ -280,6 +280,31 @@ def test_a_dispatch_beyond_the_maximum_is_refused() -> None:
     assert refusal(log.logged()) == "call-1 stands failed_by_infrastructure"
 
 
+def test_a_new_call_while_the_last_is_in_progress_is_refused() -> None:
+    """The graph step's review: two calls open at once could log their outcomes in reverse,
+    and every reader that walks the calls in ordinal order (the export's model calls, the
+    composer's admissions, the turns' conversation) would read them out of outcome order.
+    Under the fixtures' own reservation the account refuses the second intent first, which
+    is why no fixture held the history; the rule holds under any reservation."""
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    log.worker(h.count_start("call-2"), offset=520)
+    log.worker(h.count_outcome("call-2"), offset=540)
+    log.worker(h.intent(1, name="call-1"), offset=600)
+    assert fold(log.logged(), RULES).open
+    log.worker(h.intent(2, name="call-2"), offset=700)
+    assert refusal(log.logged()) == "call-1 is in progress: no new call"
+    # Once the first call is answered the same intent opens the second.
+    log.events.pop()
+    answered = h.outcome(1, 1, h.complete(), response=h.body("end_turn", h.text("Done.")))
+    log.worker(answered, offset=800)
+    log.worker(h.intent(2, name="call-2"), offset=900)
+    assert fold(log.logged(), RULES).open
+
+
 def test_a_dispatch_rests_on_a_durable_count_that_counted_this_request() -> None:
     events = h.HISTORIES["a cut call"]()
     intent_at = next(i for i, e in enumerate(events) if isinstance(e.event, DispatchIntent))

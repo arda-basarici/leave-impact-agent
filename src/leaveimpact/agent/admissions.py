@@ -160,8 +160,8 @@ def answer_of(
 
 
 def answered_calls(state: AttemptState) -> tuple[AnsweredCall, ...]:
-    """Every logical call with a complete response, in ordinal order, which is outcome order
-    under sequential dispatch."""
+    """Every logical call with a complete response, in ordinal order, which is outcome
+    order: the transition opens a new call only after the last one is settled."""
     operations = trace_operations(state)
     answered = (answer_of(state, call, operations) for call in calls_of(state))
     return tuple(call for call in answered if call is not None)

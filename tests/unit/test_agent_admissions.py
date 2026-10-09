@@ -56,6 +56,17 @@ def test_every_answer_the_export_states_is_the_derivations(name: str) -> None:
 
 
 @pytest.mark.parametrize("name", list(cases.FIXTURES))
+def test_answered_calls_come_in_outcome_order_which_is_ordinal_order(name: str) -> None:
+    """What the transition's one-call-at-a-time rule gives the readers: the positions of the
+    outcomes rise with the ordinals, so a walk by ordinal is a walk by outcome."""
+    answered = answered_calls(state_of(name))
+    ordinals = [call.ordinal for call in answered]
+    positions = [call.position for call in answered]
+    assert ordinals == sorted(ordinals) and positions == sorted(positions)
+    assert len(set(positions)) == len(positions)
+
+
+@pytest.mark.parametrize("name", list(cases.FIXTURES))
 def test_the_admitted_statements_are_the_exports_in_outcome_batch_and_entry_order(
     name: str,
 ) -> None:
