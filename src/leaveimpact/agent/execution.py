@@ -220,7 +220,7 @@ def run_prefetch(executor: Executor, context: RunContext) -> PrefetchResult:
     and none after a defect, since a malformed record fails the run at that operation."""
     first = opening_call(context)
     opening = executor.call(PrefetchOrigin(), first.tool, first.arguments)
-    leave = _leave_asked_for(opening, context)
+    leave = leave_asked_for(opening, context)
     if leave is None:
         return PrefetchResult(opening, None)
     for planned in calls_after_leave(leave, context.reference_timezone):
@@ -232,8 +232,10 @@ def run_prefetch(executor: Executor, context: RunContext) -> PrefetchResult:
     return PrefetchResult(opening, leave)
 
 
-def _leave_asked_for(opening: Outcome, context: RunContext) -> Leave | None:
-    """The leave ``context`` names when ``opening`` returned exactly that record."""
+def leave_asked_for(opening: Outcome, context: RunContext) -> Leave | None:
+    """The leave ``context`` names when ``opening`` returned exactly that record: the
+    one rule for what a run investigates, read by the prefetch here and by the
+    conclusion module off the first logged operation."""
     if not isinstance(opening, RecordOutcome):
         return None
     record = opening.record.value
@@ -252,6 +254,7 @@ __all__ = [
     "Executor",
     "PrefetchResult",
     "ReadPorts",
+    "leave_asked_for",
     "run_prefetch",
     "sequential_ids",
 ]
