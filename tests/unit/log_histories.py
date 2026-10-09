@@ -92,7 +92,7 @@ from leaveimpact.core.ports.observed import Entity
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.registration import RetryRule
 from leaveimpact.core.run_trace import Outcome
-from leaveimpact.core.values import Requirement, SkillCriterion
+from leaveimpact.core.values import EmploymentTypeCriterion, Requirement, SkillCriterion
 from tests.unit import format_fixtures as cases
 from tests.unit import stated_fixture as f
 
@@ -311,6 +311,13 @@ def entry_of(stated: StatedFact) -> JsonObject:
     if isinstance(stated.value, Requirement):
         held["count"] = stated.value.count
         held["skills"] = [c.skill for c in stated.value.criteria if isinstance(c, SkillCriterion)]
+        employment = [
+            c.employment_type.value
+            for c in stated.value.criteria
+            if isinstance(c, EmploymentTypeCriterion)
+        ]
+        if employment:
+            (held["employment_type"],) = employment
         if stated.target_span is not None:
             held["target_span"] = stated.target_span
     return held

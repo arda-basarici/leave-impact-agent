@@ -3,11 +3,13 @@ the real store, with the injector at the store's boundaries, the saver's writes,
 approval handoff, the wire and the object store's put.
 
 The parent starts this script once per process, in a schema it names, with the world it
-prepared once (the run's context and the in-memory systems, pickled to a file). The record
-and the kill target arrive in the environment (``injector``), and so does the mode: ``work``
-runs the worker over an admitted attempt, under the script the environment names (the
-two-call reference, or the throttled one that stops by infrastructure); ``admit`` admits
-the reference run's attempt
+prepared once (the run's context, the in-memory systems and what each script takes of the
+world, pickled to a file; the sealed world itself neither pickles nor loads in seconds).
+The record and the kill target arrive in the environment (``injector``), and so does
+the mode: ``work`` runs the worker over an admitted attempt, under the script the
+environment names (one of ``worker_support.SCRIPTS``: the two-call reference, the throttled
+one that stops by infrastructure, the stating one of the real turns, the contradicting one
+that fails by defect); ``admit`` admits the reference run's attempt
 under a request identity the parent holds across the kill and the rerun; ``publish``
 publishes a completed attempt's export to a local object store at a root the parent names;
 ``inventory`` writes the inventory there. On a normal exit each prints one JSON line with
@@ -47,6 +49,7 @@ from leaveimpact.adapters.wiring import inventory_publisher_over, run_export_pub
 from leaveimpact.agent import commands
 from leaveimpact.agent.appender import LogCommands
 from leaveimpact.agent.execution import ReadPorts
+from leaveimpact.agent.graph import ModelClient
 from leaveimpact.agent.log_events import (
     ClosingEvent,
     CommitOverride,
@@ -64,13 +67,14 @@ from leaveimpact.agent.log_store import (
 from leaveimpact.agent.log_transition import AttemptState, Received, Rules, Transition
 from leaveimpact.agent.worker import AutomaticApproval, Worker, WorkerConfiguration
 from leaveimpact.core.inventory import InventoryScope
+from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.model_calls import Sent
 from leaveimpact.core.run_timing import HarnessRevision
 from tests.crash import injector
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit import worker_support as support
-from tests.unit.worker_support import ScriptedClient, ScriptedCounter
+from tests.unit.worker_support import ScriptedCounter
 
 RUN, ATTEMPT = "run-12", 1
 LEDGER = "ledger-crash"
@@ -250,17 +254,30 @@ class SeamedSaver(PostgresSaver):
         injector.cross("writes:after")
 
 
-class WitnessedClient(ScriptedClient):
-    """The scripted client with each send and each returned response witnessed, and the
+@dataclass
+class WitnessedClient:
+    """The script's client with each send and each returned response witnessed, and the
     send crossed before and after: between a committed intent and its send a kill leaves
     a dispatch authorized and never sent, which the ruling on the fence allows and the
-    reconciliation once refused (the close's review, second finding)."""
+    reconciliation once refused (the close's review, second finding). Composed over the
+    client, whichever way it answers (by the request's digest, or by the assistant turns
+    the request carries)."""
 
-    def send(self, requested_profile: str, body: Any) -> Sent:
+    inner: ModelClient
+
+    @property
+    def operation(self) -> str:
+        return self.inner.operation
+
+    @property
+    def client_region(self) -> str:
+        return self.inner.client_region
+
+    def send(self, requested_profile: str, body: JsonObject) -> Sent:
         digest = support.request_digest(body)
         injector.cross("send:before")
         injector.witness("send", digest=digest)
-        sent = super().send(requested_profile, body)
+        sent = self.inner.send(requested_profile, body)
         injector.witness("response", digest=digest)
         injector.cross("send:after")
         return sent
@@ -335,11 +352,17 @@ def main() -> int:
     url = os.environ["DATABASE_URL"]
     schema = os.environ[SCHEMA]
     with Path(os.environ[WORLD]).open("rb") as held:
-        context, systems = pickle.load(held)  # noqa: S301 - the parent wrote it this execution
+        context, systems, materials = pickle.load(held)  # noqa: S301 - the parent wrote it this execution
     mode = os.environ.get(MODE, "work")
     if mode == "work":
         ended = work(
-            url, schema, os.environ[NONCE], context, systems, os.environ.get(SCRIPT, "two-call")
+            url,
+            schema,
+            os.environ[NONCE],
+            context,
+            systems,
+            materials,
+            os.environ.get(SCRIPT, "two-call"),
         )
     elif mode == "admit":
         ended = admit(url, schema, context)
@@ -354,14 +377,22 @@ def main() -> int:
 
 
 def work(
-    url: str, schema: str, nonce: str, context: Any, systems: Any, script: str
+    url: str,
+    schema: str,
+    nonce: str,
+    context: Any,
+    systems: Any,
+    materials: dict[str, Any],
+    script: str,
 ) -> dict[str, Any]:
-    """The worker over the admitted attempt, through the crossing store, driving ``script``."""
+    """The worker over the admitted attempt, through the crossing store, driving ``script``
+    over its material and over the ports as the script runs over them."""
     store = LogStore(dsn=url, connect=connect_in(schema), boundary=boundary)
     log: LogCommands = CrossingStore(store)
     inputs = log.load(RUN, ATTEMPT, rules=histories.RULES).inputs
     assert inputs is not None
-    turns, client = support.SCRIPTS[script](context)
+    named = support.SCRIPTS[script]
+    turns, client = named.build(materials[script], context)
     worker = Worker(
         log,
         WorkerConfiguration.of(inputs),
@@ -369,9 +400,9 @@ def work(
         f"launch-{os.getpid()}",
         histories.RULES,
         turns,
-        WitnessedClient(client.answers),
+        WitnessedClient(client),
         ScriptedCounter(),
-        witnessed_ports(systems.ports),
+        witnessed_ports(named.ports(systems.ports)),
         AutomaticApproval(),
         saver_in(url, schema),
         boundary=injector.cross,

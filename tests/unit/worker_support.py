@@ -14,6 +14,16 @@ freezes what a run under them records, and ``ContentScriptedClient`` answers by 
 of assistant messages the request carries, since a request the real turns build has no
 digest a script could know in advance; a recovering worker that restates a request gets the
 same answer by the same count.
+
+``SCRIPTS`` names the runs a process can be told to drive (the crash matrix's children, the
+bench): each a ``RunScript``, the system and client built over the context and what the
+script takes of the world (its material, computed once by whoever holds the world and
+passed on as data, since the sealed world is neither pickled nor loaded in seconds), the
+frozen inputs its admission records, and the ports it runs over. The stating script is
+the smoke's run, the real turns reading a policy document and stating its clause's
+requirement truthfully in the forced finalization call; the contradicting one is the same
+run over a people port whose read by id answers the enumeration's record with another
+name, the HR system contradicting itself, which the conclusion fails the run at.
 """
 
 from __future__ import annotations
@@ -27,7 +37,7 @@ from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import ReviewPayload, TurnRequest
+from leaveimpact.agent.graph import ModelClient, ReviewPayload, TurnRequest, Turns
 from leaveimpact.agent.log_events import (
     Admitted,
     EventKind,
@@ -43,17 +53,25 @@ from leaveimpact.agent.log_transition import AttemptState, calls_of
 from leaveimpact.agent.surface import surface_digest
 from leaveimpact.agent.turns import InvestigatorTurns
 from leaveimpact.core.counting_operations import Counted, CountOutcome
+from leaveimpact.core.entities import Document, DocumentSection, Employee
 from leaveimpact.core.enums import Source
-from leaveimpact.core.ids import employee_id
+from leaveimpact.core.ids import ClauseId, EmployeeId, employee_id
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import CompleteResponse, Observation, Sent, ServiceError
 from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.ports.observed import Observed
+from leaveimpact.core.ports.read import PeopleReader
+from leaveimpact.core.prefetch import prefetch_rule
+from leaveimpact.core.refs import clause_ref
 from leaveimpact.core.run_trace import OperationId
+from leaveimpact.core.stated import StatedFact
 from leaveimpact.core.tools import Role
+from leaveimpact.core.values import Requirement, SkillCriterion
 from leaveimpact.core.worldtime import RunContext
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
+from tests.unit.stating_fixture import title_of
 from tests.unit.throwaway_world import loaded_world
 
 ADMITTER = Producer("admitter")
@@ -77,10 +95,12 @@ def admitted_inputs(context: RunContext | None = None) -> FrozenInputs:
 
 def investigator_inputs(context: RunContext) -> FrozenInputs:
     """The frozen inputs of a run under the real turns: the fixtures' with the prompt assets'
-    digests, the investigator's surface digest and the composing policy this code computes,
-    what the agent's provenance freezes."""
+    digests, the investigator's surface digest, the composing policy and the prefetch rule
+    this code computes, what the agent's provenance freezes (the evaluator holds a run to
+    its prefetch plan only under this code's rule)."""
     return replace(
         admitted_inputs(context),
+        prefetch_rule=prefetch_rule(),
         prompt_digests=load_prompt_assets().prompt_digests(cases.ROLE),
         tool_surface_digests=((cases.ROLE, surface_digest(Role.INVESTIGATOR)),),
         composing_policy=composing_policy(),
@@ -288,6 +308,30 @@ def with_unreachable(ports: ReadPorts, method: str, *, after: int = 0) -> ReadPo
     )
 
 
+class RenamingRead:
+    """A people port whose read by id answers the record with another name, the enumeration
+    untouched: the HR system returning one employee two ways, the self-contradiction the
+    conclusion fails a run at once both reads are logged (``core.contradictions``)."""
+
+    def __init__(self, inner: PeopleReader) -> None:
+        self._inner = inner
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
+    def employee(self, id: EmployeeId) -> Observed[Employee] | None:
+        observed = self._inner.employee(id)
+        if observed is None:
+            return None
+        renamed = replace(observed.value, name=f"{observed.value.name} (as read by id)")
+        return Observed(renamed, observed.source)
+
+
+def with_contradicting_employee(ports: ReadPorts) -> ReadPorts:
+    """``ports`` with the people system's read by id disagreeing with its enumeration."""
+    return replace(ports, people=RenamingRead(ports.people))  # type: ignore[arg-type]
+
+
 # --- The reference script --------------------------------------------------------------------
 
 
@@ -365,11 +409,105 @@ def investigator_script(
     return InvestigatorTurns(load_prompt_assets()), ContentScriptedClient(answers)
 
 
-SCRIPTS: Mapping[str, Callable[[RunContext], tuple[ScriptedTurns, ScriptedClient]]] = {
-    "two-call": two_call_script,
-    "throttled": throttled_script,
+@dataclass(frozen=True)
+class PlantedRequirement:
+    """A planted document, one of its sections carrying a sealed requirement, and that
+    requirement stated as the truthful stater writes it: what the stating script takes of
+    the world."""
+
+    document: Document
+    section: DocumentSection
+    stated: StatedFact
+
+
+def a_planted_requirement(world: SealedWorld) -> PlantedRequirement:
+    """The first planted section carrying a sealed requirement about skills alone, stated
+    truthfully: the quote the section's whole text, the span the title of what the sealed
+    world scopes the clause to (the smoke's valid forced fact; the stand-in prose names
+    nobody, so a skill fact on a comment is refused by the anchor guard and a requirement
+    is not)."""
+    for scenario in world.scenarios:
+        for planted in scenario.owned.documents:
+            document = planted.entity
+            for section in document.sections:
+                carrier = clause_ref(ClauseId(section.id))
+                for fact in world.index.carried.get(carrier, ()):
+                    if not isinstance(fact.value, Requirement):
+                        continue
+                    if not all(isinstance(c, SkillCriterion) for c in fact.value.criteria):
+                        continue
+                    span = title_of(world, world.index.scope[ClauseId(section.id)])
+                    stated = StatedFact(
+                        fact.predicate, fact.subject, fact.value, carrier, section.text, span
+                    )
+                    return PlantedRequirement(document, section, stated)
+    raise AssertionError("the world plants no requirement about skills alone")
+
+
+def stating_script(
+    planted: PlantedRequirement, context: RunContext
+) -> tuple[InvestigatorTurns, ContentScriptedClient]:
+    """The smoke's run of the real turns: the first answer reads one employee and the
+    document holding ``planted``'s requirement, the second reads nothing, so the loop
+    ends, and the forced finalization call states that requirement truthfully, which the
+    guard admits. Three sends, three counts."""
+    answers = (
+        answered(
+            text("Reading an employee and the policy."),
+            tool_use("tu_emp", "employee", {"id": str(employee_id(1))}),
+            tool_use("tu_doc", "document", {"id": planted.document.id}),
+            stop_reason="tool_use",
+        ),
+        answered(text("Nothing further to read.")),
+        answered(
+            fact_tool("tu_final", histories.entry_of(planted.stated)), stop_reason="tool_use"
+        ),
+    )
+    return InvestigatorTurns(load_prompt_assets()), ContentScriptedClient(answers)
+
+
+def text_only_finalization(
+    planted: PlantedRequirement, context: RunContext
+) -> tuple[InvestigatorTurns, ContentScriptedClient]:
+    """The stating script with its forced finalization call answered by text alone, no fact
+    call: the turns ask nothing after it and the payload is the baseline's."""
+    turns, client = stating_script(planted, context)
+    return turns, replace(client, answers=(*client.answers[:-1], answered(text("Done."))))
+
+
+@dataclass(frozen=True)
+class RunScript[M]:
+    """A run a process can be told to drive by name: what it takes of the world (``material``,
+    computed by whoever holds the world, ``None`` for a scripted system), the system and
+    client built over that and the context, the frozen inputs its admission records (the
+    fixtures' for a scripted system, the real turns' for the investigator's), and the ports
+    it runs over, the planted ones unless the script changes a source's behaviour."""
+
+    build: Callable[[M, RunContext], tuple[Turns, ModelClient]]
+    material: Callable[[SealedWorld], M]
+    inputs: Callable[[RunContext], FrozenInputs] = admitted_inputs
+    ports: Callable[[ReadPorts], ReadPorts] = lambda ports: ports
+
+    def over(self, world: SealedWorld, context: RunContext) -> tuple[Turns, ModelClient]:
+        """The system and client, for a caller that holds the world."""
+        return self.build(self.material(world), context)
+
+
+def _scripted(
+    factory: Callable[[RunContext], tuple[ScriptedTurns, ScriptedClient]],
+) -> RunScript[None]:
+    return RunScript(lambda material, context: factory(context), lambda world: None)
+
+
+SCRIPTS: Mapping[str, RunScript[Any]] = {
+    "two-call": _scripted(two_call_script),
+    "throttled": _scripted(throttled_script),
+    "stating": RunScript(stating_script, a_planted_requirement, investigator_inputs),
+    "contradicting": RunScript(
+        stating_script, a_planted_requirement, investigator_inputs, with_contradicting_employee
+    ),
 }
-"""The scripted runs by name, for a child process that is told which to run."""
+"""The runs by name, for a process that is told which to drive."""
 
 
 def sends_of(client: ScriptedClient) -> int:
@@ -384,10 +522,14 @@ __all__ = [
     "ADMITTER",
     "RESERVATION",
     "ContentScriptedClient",
+    "PlantedRequirement",
+    "RenamingRead",
+    "RunScript",
     "ScriptedClient",
     "ScriptedCounter",
     "ScriptedTurns",
     "admission",
+    "a_planted_requirement",
     "a_read_comment",
     "admitted_inputs",
     "answered",
@@ -403,9 +545,12 @@ __all__ = [
     "request_digest",
     "sends_of",
     "settled",
+    "stating_script",
     "text",
+    "text_only_finalization",
     "tool_use",
     "throttled_script",
     "two_call_script",
+    "with_contradicting_employee",
     "with_unreachable",
 ]

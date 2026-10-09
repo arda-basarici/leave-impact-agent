@@ -1,7 +1,7 @@
-"""The crash matrix as a test: every kill point of each reference run (the completing one
-and the one stopped by infrastructure) and of each command's run recovers as the manifest
-forecasts, and the manifest names every family the references cross, a command's under its
-mode, and no other.
+"""The crash matrix as a test: every kill point of each reference run (the completing one,
+the one stopped by infrastructure, and the two focused references of the real turns at
+their families) and of each command's run recovers as the manifest forecasts, and the
+manifest names every family the references cross, a command's under its mode, and no other.
 
 Under the ``crash`` marker: child processes, the PostgreSQL service, minutes. The report of a
 run is written beside pytest's temporary directory as ``crash-matrix.json`` so a failing row

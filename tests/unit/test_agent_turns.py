@@ -9,7 +9,14 @@ nothing after the finalization call; the restatement equality at every prefix a 
 can resume from; the payload as the shared composer's, equal to the baseline's claims when
 the model read nothing and empty on an abstention; and the capture's fourth reading, no
 scenario id and no world version in any request under either condition, on first execution
-or rebuilt from the log, with what the model itself wrote going back as it arrived."""
+or rebuilt from the log, with what the model itself wrote going back as it arrived.
+
+The smoke, at the unit level (the step's fork 16): the stating script through every node
+to a closed attempt, the forced finalization call stating a requirement the guard admits,
+the restatement equality from every prefix; the text-only finalization answer as its own
+case; and a read contradicting the enumeration failing the run at that read on the first
+process and on every recovery, the unit-level crash cut. The HR-outage smoke is the
+abstention test above (the opening read unreachable, no count, no send)."""
 
 from __future__ import annotations
 
@@ -22,6 +29,7 @@ from uuid import uuid4
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
+from leaveimpact.agent.admissions import admitted_statements
 from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.assets import (
     ASSET_NAMES,
@@ -55,6 +63,9 @@ from leaveimpact.agent.worker import (
 from leaveimpact.core import Caps
 from leaveimpact.core.jsonshape import JsonObject, canonical_json
 from leaveimpact.core.run_account import CallPurpose
+from leaveimpact.core.run_ending import OperationSite
+from leaveimpact.core.run_record import FailureCategory
+from leaveimpact.core.run_trace import OperationId
 from leaveimpact.core.skills import SKILLS
 from leaveimpact.core.timeshape import encode_instant
 from leaveimpact.core.tools import Role, role_surface, surface_correction
@@ -126,15 +137,25 @@ def bench(
     probe_tool: str = "probe_tool",
     outage: str | None = None,
     caps: Caps | None = None,
+    script: support.RunScript[Any] | None = None,
 ) -> Bench:
+    """The reference run of the real turns unless ``script`` names another, which then also
+    says what the ports are (a contradicting source); ``outage`` makes one read unreachable."""
     context = world.context_of(world.scenarios[0])
     inputs = support.investigator_inputs(context)
     if caps is not None:
         inputs = replace(inputs, caps=caps)
-    turns, client = support.investigator_script(world, context, probe_tool=probe_tool)
+    ports = systems_holding(world).ports
+    if script is None:
+        turns, client = support.investigator_script(world, context, probe_tool=probe_tool)
+    else:
+        # The bench's scripts are all the real turns over the content-scripted client; the
+        # registry's type is the protocols', so a child can drive a scripted run by name.
+        built, answering = script.over(world, context)
+        turns, client = cast(InvestigatorTurns, built), cast(ContentScriptedClient, answering)
+        ports = script.ports(ports)
     log = MemoryLog()
     log.seed(events if events is not None else support.admission(inputs))
-    ports = systems_holding(world).ports
     if outage is not None:
         ports = support.with_unreachable(ports, outage)
     return Bench(log, inputs, turns, client, ports)
@@ -487,6 +508,100 @@ def test_the_capture_finds_neither_the_scenario_id_nor_the_world_version_in_any_
         (user,) = messages_of(made.client.bodies[0])
         window = prefetch_block(content_of(user)[2 + PREFETCH.index("leaves_within")])
         assert cast(JsonObject, window["result"])["unreachable"] == {"source": "frappe"}
+
+
+# --- The smoke -----------------------------------------------------------------------------------
+
+
+def test_the_smoke_run_states_a_requirement_the_guard_admits_and_closes_completed(
+    world: SealedWorld,
+) -> None:
+    """The stating script through every node: two loop calls and the forced finalization
+    call, whose one entry is admitted; the claims are the baseline's, since the requirement
+    scopes an artifact outside the leave's span; a recovery from every prefix restates every
+    request byte for byte and admits the same statement."""
+    stated = support.a_planted_requirement(world).stated
+    stating = support.SCRIPTS["stating"]
+    reference = bench(world, script=stating)
+    assert reference.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    whole = reference.events()
+    kinds = [kind_of(e.event).value for e in whole]
+    assert kinds.count("dispatch_intent") == 3 and len(reference.client.sends) == 3
+    assert kinds.count("finalization_entered") == 1 and kinds[-1] == "completed"
+    third = reference.client.bodies[2]
+    assert tool_names(third) == [FACT_TOOL] and tool_choice(third) == {"tool": {"name": FACT_TOOL}}
+    state = reference.state()
+    assert admitted_statements(state) == (stated,)
+    assert reference.turns.request_for(state, 4) is None
+    export = export_of(state)
+    baseline = investigate(reference.inputs.context, systems_holding(world).ports)
+    assert export.trace.claims == baseline.claims and export.trace.claims
+    assert export.record.failure is None
+    operations = [o.id for o in export.trace.operations]
+    assert "call-1/tu_emp" in operations and "call-1/tu_doc" in operations
+    for cut in range(2, len(whole)):
+        recovering = bench(world, events=whole[:cut], script=stating)
+        ending = recovering.work()
+        assert ending.kind is WorkerEndingKind.CLOSED and ending.generation == 2, cut
+        recovered = recovering.events()
+        assert recovered[:cut] == whole[:cut]
+        assert digests_per_call(recovered) == digests_per_call(whole), cut
+        assert support.settled(recovered) == support.settled(whole), cut
+        assert admitted_statements(recovering.state()) == (stated,), cut
+        for body in recovering.client.bodies:
+            turn = support.assistant_turns(body)
+            assert canonical_json(body) == canonical_json(reference.client.bodies[turn]), cut
+
+
+def test_a_text_only_finalization_answer_ends_the_loop_with_the_baselines_payload(
+    world: SealedWorld,
+) -> None:
+    """The forced call answered by text alone: nothing is admitted, the turns ask nothing
+    after it, the payload is the baseline's and the run completes."""
+    text_only = replace(support.SCRIPTS["stating"], build=support.text_only_finalization)
+    made = bench(world, script=text_only)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert len(made.client.sends) == 3
+    state = made.state()
+    assert admitted_statements(state) == ()
+    assert made.turns.request_for(state, 4) is None
+    baseline = investigate(made.inputs.context, systems_holding(world).ports)
+    assert made.turns.payload_for(state).claims == baseline.claims
+    assert export_of(state).trace.claims == baseline.claims
+
+
+def test_a_read_contradicting_the_enumeration_fails_the_run_at_that_read_on_every_recovery(
+    world: SealedWorld,
+) -> None:
+    """The HR system answers the employee the model asks for with another name than its
+    enumeration gave: the transition's conclusion stops the attempt at that read, the read
+    after it in the same answer is never made, the worker closes it failed by defect with no
+    claim, and a recovery from every prefix closes it the same way."""
+    contradicting = support.SCRIPTS["contradicting"]
+    reference = bench(world, script=contradicting)
+    assert reference.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    whole = reference.events()
+    kinds = [kind_of(e.event).value for e in whole]
+    assert kinds[-2:] == ["operation", "failed"] and len(reference.client.sends) == 1
+    export = export_of(reference.state())
+    failure = export.record.failure
+    assert failure is not None and failure.category is FailureCategory.DEFECT
+    assert failure.site == OperationSite(OperationId("call-1/tu_emp"))
+    assert failure.reason.startswith("returns_differ: this read and prefetch/2 disagree")
+    assert export.trace.claims == ()
+    assert "call-1/tu_doc" not in [o.id for o in export.trace.operations]
+    for cut in range(2, len(whole)):
+        recovering = bench(world, events=whole[:cut], script=contradicting)
+        ending = recovering.work()
+        assert (ending.kind, ending.detail, ending.generation) == (
+            WorkerEndingKind.CLOSED,
+            "failed",
+            2,
+        ), cut
+        recovered = recovering.events()
+        assert recovered[:cut] == whole[:cut]
+        assert support.settled(recovered) == support.settled(whole), cut
+        assert export_of(recovering.state()).record.failure == failure, cut
 
 
 def test_what_the_model_wrote_goes_back_as_it_arrived_and_the_harness_echoes_none_of_it(

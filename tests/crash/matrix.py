@@ -103,13 +103,45 @@ RECOVERY_EVERY = 16
 """Every sixteenth crossing of the reference gets the recovery rows: seven sampled kills, each
 with one row per family the recovering child crosses, about 170 rows beside the 112; at
 twelve the matrix took ten and a half minutes."""
-REFERENCE_SCRIPTS = {"two-call": "completed", "throttled": "failed"}
-"""The worker's references by script name and the ending each closes with. The two-call
-run completes under the automatic approval; the throttled run has every dispatch of its
-first call answered by a throttle, exhausts the registered maximum and fails by
-infrastructure at the last dispatch's send, so the exhaustion endings have kill rows (the
-worker group's review, sixth finding: a matrix with one completing reference passed over
-the replay's ordinal shift under an outage and the recovery's skipped delay)."""
+
+
+@dataclass(frozen=True)
+class ReferenceSpec:
+    """A reference run: the ending it closes with, and the families its rows are focused on
+    (``None`` for a row at every crossing, with the recovery rows)."""
+
+    ending: str
+    focus: tuple[str, ...] | None = None
+
+
+REFERENCE_SCRIPTS = {
+    "two-call": ReferenceSpec("completed"),
+    "throttled": ReferenceSpec("failed"),
+    "stating": ReferenceSpec(
+        "completed",
+        (
+            "count_started",
+            "count_outcome",
+            "dispatch_intent",
+            "send",
+            "dispatch_outcome",
+            "finalization_entered",
+        ),
+    ),
+    "contradicting": ReferenceSpec("failed", ("operation", "failed")),
+}
+"""The worker's references by script name (``worker_support.SCRIPTS``). The two-call run
+completes under the automatic approval; the throttled run has every dispatch of its first
+call answered by a throttle, exhausts the registered maximum and fails by infrastructure at
+the last dispatch's send, so the exhaustion endings have kill rows (the worker group's
+review, sixth finding: a matrix with one completing reference passed over the replay's
+ordinal shift under an outage and the recovery's skipped delay). The two focused references
+are the real turns' (the investigator step, amendment 6): the stating run, with rows in the
+model-call window of every call and at the finalization the system declares, where the
+restated request, the reused count and the recount boundary are decided; and the
+contradicting run, the HR system answering one employee two ways, with rows at the read
+that establishes the defect and at the closing. A full reference at every crossing would
+add about two hundred rows each; the focus keeps the matrix near its time."""
 COMMAND_MODES = ("admit", "admit-refused", "publish", "inventory")
 """The job seam's commands the matrix kills (the ruling on placement and acceptance, part 8):
 admission on its receipt path and on its refusal path (a second attempt asked while the
@@ -130,23 +162,35 @@ COMMAND_ENDINGS = {
 
 @dataclass(frozen=True)
 class Prepared:
-    """What every child shares: the pickled context and systems, and the admitted inputs."""
+    """What every child shares: the pickled context, systems and script materials, the run's
+    context for the inputs each script admits, and the two-call reference's inputs, which
+    the commands' rows admit."""
 
     url: str
     world_file: Path
-    inputs: Any
+    context: Any
     directory: Path
+
+    @property
+    def inputs(self) -> Any:
+        return self.inputs_for("two-call")
+
+    def inputs_for(self, script: str) -> Any:
+        """The frozen inputs ``script``'s admission records."""
+        return support.SCRIPTS[script].inputs(self.context)
 
 
 def prepare(url: str, directory: Path) -> Prepared:
-    """The golden world's first scenario, its systems pickled once for every child."""
+    """The golden world's first scenario, its systems and what each script takes of the
+    world, pickled once for every child."""
     world: SealedWorld = loaded_world("golden")
     context = world.context_of(world.scenarios[0])
     systems = systems_holding(world)
+    materials = {name: script.material(world) for name, script in support.SCRIPTS.items()}
     world_file = directory / "world.pickle"
     with world_file.open("wb") as held:
-        pickle.dump((context, systems), held)
-    return Prepared(url, world_file, support.admitted_inputs(context), directory)
+        pickle.dump((context, systems, materials), held)
+    return Prepared(url, world_file, context, directory)
 
 
 def admin_connection(url: str) -> psycopg.Connection[Any]:
@@ -179,13 +223,17 @@ def threshold_set(prepared: Prepared, schema: str) -> LogStore:
     return store
 
 
-def admitted(prepared: Prepared, schema: str) -> LogStore:
-    """A store over ``schema`` with the tables ensured, the threshold set and the reference
-    run admitted."""
+def admitted(prepared: Prepared, schema: str, script: str = "two-call") -> LogStore:
+    """A store over ``schema`` with the tables ensured, the threshold set and ``script``'s
+    run admitted under the inputs that script records."""
     store = threshold_set(prepared, schema)
     receipt = store.admit(
         AdmissionRequest(
-            f"req-{uuid4().hex[:12]}", prepared.inputs, support.ADMITTER, LEDGER, histories.RULES
+            f"req-{uuid4().hex[:12]}",
+            prepared.inputs_for(script),
+            support.ADMITTER,
+            LEDGER,
+            histories.RULES,
         )
     )
     assert isinstance(receipt, AdmissionReceipt), receipt
@@ -381,10 +429,10 @@ class RowResult:
 
 
 def run_reference(prepared: Prepared, script: str = "two-call") -> Reference:
-    ending = REFERENCE_SCRIPTS[script]
+    ending = REFERENCE_SCRIPTS[script].ending
     schema = new_schema(prepared.url)
     try:
-        store = admitted(prepared, schema)
+        store = admitted(prepared, schema, script)
         record = prepared.directory / f"{schema}.jsonl"
         ended = start_child(
             prepared, schema, record, target=None, nonce="nonce-reference", script=script
@@ -415,7 +463,15 @@ def rows_for(prepared: Prepared, reference: Reference) -> list[tuple[str, ...]]:
     family the recovering child crosses, read off a scout of that recovery (the worker
     group's review, sixth finding, and its second read's third: a lost outcome makes the
     recovery append an intent or a count start the reference's suffix no longer holds, so
-    the targets come from the recovery's own path, never from the reference's)."""
+    the targets come from the recovery's own path, never from the reference's). A focused
+    reference gets the first-process rows of its families alone and no recovery rows."""
+    focus = REFERENCE_SCRIPTS[reference.script].focus
+    if focus is not None:
+        return [
+            (crossing,)
+            for crossing in reference.crossings
+            if injector.family(crossing).split(":")[0] in focus
+        ]
     rows: list[tuple[str, ...]] = [(crossing,) for crossing in reference.crossings]
     for index, crossing in enumerate(reference.crossings):
         if index % RECOVERY_EVERY != RECOVERY_EVERY // 2:
@@ -434,7 +490,7 @@ def scout_recovery(prepared: Prepared, reference: Reference, first: str) -> tupl
     schema = new_schema(prepared.url)
     record = prepared.directory / f"{schema}.jsonl"
     try:
-        admitted(prepared, schema)
+        admitted(prepared, schema, reference.script)
         killed = start_child(
             prepared, schema, record, target=first, nonce="nonce-scout-0", script=reference.script
         )
@@ -479,7 +535,7 @@ def run_row(
     result.schema = schema
     record = prepared.directory / f"{schema}.jsonl"
     try:
-        store = admitted(prepared, schema)
+        store = admitted(prepared, schema, reference.script)
         snapshots: list[tuple[LoggedEvent, ...]] = []
         accounted: list[tuple[int, int]] = []
         logged_before = 0
@@ -1016,6 +1072,7 @@ __all__ = [
     "CommandReference",
     "MatrixResult",
     "Reference",
+    "ReferenceSpec",
     "RowResult",
     "command_rows",
     "manifest_families",

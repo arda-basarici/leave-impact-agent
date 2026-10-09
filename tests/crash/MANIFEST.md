@@ -6,7 +6,7 @@ run on 2026-10-06; a forecast that the run contradicts is a finding, and the man
 amended with the finding named, never silently.
 
 The reference run is the worker group's two-call script over the golden world's first
-scenario: the claim, nine prefetch reads, a count and a dispatch for call 1, two reads the
+scenario: the claim, six prefetch reads, a count and a dispatch for call 1, two reads the
 model asked for, a count and a dispatch for call 2, the finalization, the approval request,
 the automatic approval, the resume, the completion. Every crossing the reference makes is a
 row; a kill point is named `<family>#<occurrence in its process>`.
@@ -118,6 +118,70 @@ on 2026-10-07 before the first run.
 | `failed:decided` | as above | as above |
 | `failed:before-commit` | as above | as above |
 | the saver's seams, `checkpoint:before` to `writes:after` | as the first reference's | as the first reference's; after the terminal step the attempt is closed and the recovery leaves it |
+
+## Kill points of the third reference, the real turns stating a requirement (focused)
+
+The stating run (`worker_support.SCRIPTS["stating"]`, the investigator step's smoke): the
+real turns over the content-scripted client on the first scenario, the first answer reading
+one employee and the policy document holding a planted requirement, the second reading
+nothing, the finalization the system declares before the third call, whose forced answer
+states that requirement truthfully; the guard admits it, the claims are the baseline's
+(the requirement scopes an artifact outside the leave's span), the run completes under the
+automatic approval. It exists because the two scripted references restate fixed bodies: a
+recovering process of the real turns rebuilds every request from the log, and the request
+of a call in progress must digest to its first intent's and to the count held for it, the
+finalization request above the entry (the investigator step, amendment 6). Focused: rows at
+the families below alone, no recovery-process rows; the other families are the first
+reference's. Measured before the first run: 134 crossings, 45 rows. Forecasts written on
+2026-10-10 before the first run.
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| `count_started:locked` | every earlier write; for call 3, the finalization entry | as the first reference's: the count is started and counted once, the request rebuilt from the log to the same bytes |
+| `count_started:decided` | as above | as above |
+| `count_started:before-commit` | as above | as above |
+| `count_outcome:locked` | the count's start, no outcome | the start stays unresolved; a second start under the same reuse key, the rebuilt request digesting to the key's; the bound rests on it |
+| `count_outcome:decided` | as above | as above |
+| `count_outcome:before-commit` | as above | as above |
+| `dispatch_intent:locked` | the count; no intent, no send | the count-before-intent boundary: the recovery rebuilds the request, finds the count under its digest and reuses it, counts nothing again, appends the intent and sends once |
+| `dispatch_intent:decided` | as above | as above |
+| `dispatch_intent:before-commit` | as above | as above |
+| `send:before` | the intent committed; nothing sent | the intent stays unresolved, a dispatch authorized and never sent; the recovery restates the request to the intent's digest and sends under the next number; the sends across every child are the reference's three |
+| `send:after` | the intent; the response arrived and is lost | as `dispatch_outcome:locked` |
+| `dispatch_outcome:locked` | the intent; the response arrived and is lost | the intent stays unresolved; a second intent under the next number is sent (one more send) with the same bytes, answered by the same scripted answer (the client answers by the assistant turns the request carries), and the call stands on it |
+| `dispatch_outcome:decided` | as above | as above |
+| `dispatch_outcome:before-commit` | as above | as above |
+| `finalization_entered:locked` | call 2 answered with no read; no entry | the recovery's system declares the entry again, once; the third request is the finalization request, counted above the entry |
+| `finalization_entered:decided` | as above | as above |
+| `finalization_entered:before-commit` | as above | as above |
+
+At every row the settled events are the reference's, the admitted statement among them, and
+the approval request carries the reference's claims.
+
+## Kill points of the fourth reference, the contradiction (focused)
+
+The contradicting run (`worker_support.SCRIPTS["contradicting"]`): the stating run over a
+people port whose read by id answers the enumeration's record with another name, so the
+employee the model asks for in its first answer comes back two ways; the transition's
+conclusion stops the attempt at that read (`core.contradictions`, returns differ), the
+document read of the same answer is never made, and the worker closes it failed by defect
+with no claim (the investigator step, amendment 1: a derived defect is a transition stop,
+seen alike by the first process, a recovery and the reader). Focused: rows at the
+operations and the closing alone. Measured before the first run: 73 crossings, 24 rows.
+Forecasts written on 2026-10-10 before the first run.
+
+| Family | Durable at the boundary | Recovery, forecast |
+|---|---|---|
+| `operation:locked` (occurrences 1 to 6, the prefetch) | every earlier write; this read made, not logged | as the first reference's: the read is made again (one more port read) and logged; the run then fails at the model's read as the reference did |
+| `operation:locked` (occurrence 7, the model's employee read) | call 1 answered; the read made, not logged, no stop | the recovery resolves the answer's reads again: the employee read is made once more (one more port read) and logged, the conclusion stops the attempt at it, the document read is never made; closed failed by defect at `call-1/tu_emp` with the reference's reason |
+| `operation:decided` | as above, by occurrence | as above |
+| `operation:before-commit` | as above, by occurrence | as above |
+| `failed:locked` | the contradicting read logged, the stop derived; the attempt open | the recovery finds the stop in the folded log and closes `failed` without running the graph, once, with one settlement; no port read, no send |
+| `failed:decided` | as above | as above |
+| `failed:before-commit` | as above | as above |
+
+At every row the export's operations are the reference's seven, its claims none, and its
+failure the reference's.
 
 ## Kill points of the commands
 
