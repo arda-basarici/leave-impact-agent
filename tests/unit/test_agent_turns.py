@@ -14,7 +14,7 @@ or rebuilt from the log, with what the model itself wrote going back as it arriv
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from string import Template
 from typing import Any, cast
 from uuid import uuid4
@@ -33,6 +33,7 @@ from leaveimpact.agent.assets import (
 )
 from leaveimpact.agent.composer import rules_only_composition
 from leaveimpact.agent.log_events import (
+    CountStarted,
     DispatchIntent,
     FinalizationEntered,
     FrozenInputs,
@@ -51,7 +52,9 @@ from leaveimpact.agent.worker import (
     WorkerEnding,
     WorkerEndingKind,
 )
+from leaveimpact.core import Caps
 from leaveimpact.core.jsonshape import JsonObject, canonical_json
+from leaveimpact.core.run_account import CallPurpose
 from leaveimpact.core.skills import SKILLS
 from leaveimpact.core.timeshape import encode_instant
 from leaveimpact.core.tools import Role, role_surface, surface_correction
@@ -122,9 +125,12 @@ def bench(
     events: tuple[LoggedEvent, ...] | None = None,
     probe_tool: str = "probe_tool",
     outage: str | None = None,
+    caps: Caps | None = None,
 ) -> Bench:
     context = world.context_of(world.scenarios[0])
     inputs = support.investigator_inputs(context)
+    if caps is not None:
+        inputs = replace(inputs, caps=caps)
     turns, client = support.investigator_script(world, context, probe_tool=probe_tool)
     log = MemoryLog()
     log.seed(events if events is not None else support.admission(inputs))
@@ -204,13 +210,65 @@ def test_the_three_assets_load_from_the_package_with_their_digests(assets: Promp
 
 
 def test_the_reference_run_makes_three_calls_and_closes_completed(world: SealedWorld) -> None:
+    """Two loop calls and the finalization the system declares: the event sits below the
+    third call's first event, its count, so the call is accounted as the finalization and
+    the export's position shows the entry (fork 2)."""
     made = bench(world)
     assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
     kinds = [kind_of(e.event).value for e in made.events()]
     assert kinds.count("dispatch_intent") == 3 and len(made.client.sends) == 3
-    assert kinds.index("finalization_entered") > kinds.index("dispatch_outcome")
-    export = export_of(made.state())
+    assert kinds.count("finalization_entered") == 1
+    third_count = [i for i, kind in enumerate(kinds) if kind == "count_started"][2]
+    assert kinds.index("finalization_entered") == third_count - 1
+    state = made.state()
+    assert state.account.purpose_of("call-3") is CallPurpose.FINALIZATION
+    assert state.account.purpose_of("call-2") is CallPurpose.LOOP
+    export = export_of(state)
     assert len(export.trace.model_calls) == 3 and export.trace.claims
+    assert export.trace.finalization_entered == kinds.index("finalization_entered") + 1
+
+
+TIGHT = Caps(20, 9_300, 2, 4_700, "input_plus_output_cached_included", cases.METHOD)
+"""A token cap whose loop room (4,600) holds no worst case (4,608) and whose whole (9,300)
+holds one: the first loop allocation enters finalization, and the finalization call fits."""
+
+
+def test_a_finalization_the_account_entered_recounts_the_finalization_request_and_runs_whole(
+    world: SealedWorld,
+) -> None:
+    """Amendment 5's one legitimate recount: the loop request is counted, the account refuses
+    its allocation, the entry is appended, and the finalization request, other bytes, is
+    counted anew above the entry; the loop's count stays below it. One send, the call the
+    finalization, and a recovery from every prefix restates every request byte for byte."""
+    reference = bench(world, caps=TIGHT)
+    assert reference.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    whole = reference.events()
+    kinds = [kind_of(e.event).value for e in whole]
+    first = kinds.index("count_started")
+    assert kinds[first : first + 6] == [
+        "count_started",
+        "count_outcome",
+        "finalization_entered",
+        "count_started",
+        "count_outcome",
+        "dispatch_intent",
+    ]
+    counted = [e.event.key.request_digest for e in whole if isinstance(e.event, CountStarted)]
+    ((_, intent),) = intents_of(whole)
+    assert len(counted) == 2 and counted[0] != counted[1] == intent.request_digest
+    assert len(reference.client.sends) == 1
+    assert tool_names(reference.client.bodies[0]) == [FACT_TOOL]
+    assert reference.state().account.purpose_of("call-1") is CallPurpose.FINALIZATION
+    for cut in range(2, len(whole)):
+        recovering = bench(world, events=whole[:cut], caps=TIGHT)
+        ending = recovering.work()
+        assert ending.kind is WorkerEndingKind.CLOSED and ending.generation == 2, cut
+        recovered = recovering.events()
+        assert recovered[:cut] == whole[:cut]
+        assert digests_per_call(recovered) == digests_per_call(whole), cut
+        assert support.settled(recovered) == support.settled(whole), cut
+        for body in recovering.client.bodies:
+            assert canonical_json(body) == canonical_json(reference.client.bodies[0]), cut
 
 
 def test_the_first_request_is_the_opening_the_skills_and_one_block_per_prefetch_read(

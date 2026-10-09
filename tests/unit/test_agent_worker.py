@@ -27,7 +27,12 @@ turns, the model client and the token counter. The claims, by the rulings they h
   rulings, amendment 2);
 - a source contradicting itself is a stop at the read that completed it, in the prefetch
   and in an answer's reads, and no later read reaches a port, on first execution and on
-  recovery; an outside closure names that defect and no other (amendment 1).
+  recovery; an outside closure names that defect and no other (amendment 1);
+- a request restated with other bytes than a count of the same call was asked for, the
+  count resolved or not, is raised as this harness's defect before anything is counted or
+  sent; the boundary a count is judged against is the previous call's settling outcome or
+  the entry into finalization, which a late outcome of an earlier dispatch never moves
+  (amendment 5).
 """
 
 from __future__ import annotations
@@ -43,6 +48,7 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from leaveimpact.agent.appender import LogCommands
+from leaveimpact.agent.graph import count_boundary, restated_since_counted
 from leaveimpact.agent.log_events import (
     ApprovalRequested,
     Approved,
@@ -69,6 +75,7 @@ from leaveimpact.agent.log_transition import (
     Rules,
     calls_of,
     counts_of,
+    fold,
     operations_of,
 )
 from leaveimpact.agent.worker import (
@@ -83,6 +90,7 @@ from leaveimpact.agent.worker import (
 )
 from leaveimpact.core import (
     Approver,
+    AttributionKind,
     Caps,
     DispatchPhase,
     DispatchSite,
@@ -946,6 +954,54 @@ def test_a_contradiction_inside_the_prefetch_stops_it_before_the_next_planned_re
         RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), named, rules=RULES, state=state
     )
     assert isinstance(closed, Appended)
+
+
+@pytest.mark.parametrize("after", ["count_started", "count_outcome"])
+def test_a_request_restated_under_another_digest_than_its_count_is_raised_before_a_recount(
+    world: SealedWorld, after: str
+) -> None:
+    """Amendment 5: the recovering system restates call 1 with other bytes than the count the
+    first process started, resolved or not; the model node raises, nothing is counted again
+    and nothing is sent, and the worker closes by defect at the unhandled site."""
+    reference = bench(world)
+    reference.work()
+    events = reference.events()
+    cut = [kind_of(e.event).value for e in events].index(after) + 1
+    recovering = bench(world, events=events[:cut])
+    recovering.turns = ScriptedTurns((support.body_for(1, prompt="restated"), support.body_for(2)))
+    assert recovering.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "failed")
+    closing = failure_of(recovering)
+    assert closing.site == HarnessSite(HarnessSiteName.UNHANDLED)
+    assert "RuntimeError" in closing.reason
+    assert recovering.counter.asked == [] and support.sends_of(recovering.client) == 0
+
+
+def test_a_late_outcome_of_an_earlier_dispatch_never_moves_the_count_boundary() -> None:
+    """A history the transition admits and the graph never writes: call 1's first dispatch
+    unresolved, its second answered, call 2 counted, then the first dispatch's outcome
+    arriving late. The boundary for call 2 is the second dispatch's outcome, before the
+    count, so the count is call 2's own under any later event."""
+    log = histories.History()
+    log.admit(histories.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(histories.count_start("call-1"), offset=400)
+    log.worker(histories.count_outcome("call-1"), offset=500)
+    log.worker(histories.intent(1, 1), offset=600)
+    log.worker(histories.intent(1, 2), offset=700)
+    answered = histories.outcome(1, 2, histories.complete(), response=histories.body("end_turn"))
+    log.worker(answered, offset=800)
+    settling = len(log.events)
+    log.worker(histories.count_start("call-2"), offset=900)
+    log.worker(histories.count_outcome("call-2"), offset=1_000)
+    throttled = ServiceError(429, "ThrottlingException", None, "too many requests")
+    late = histories.outcome(1, 1, throttled, AttributionKind.INFRASTRUCTURE, rule="unmatched")
+    log.worker(late, offset=1_100)
+    state = fold(log.logged(), RULES)
+    assert count_boundary(state, 2) == settling
+    assert restated_since_counted(state, 2, cases.request_digest("call-2")) is None
+    other = restated_since_counted(state, 2, cases.request_digest("call-3"))
+    assert other is not None and other.request_digest == cases.request_digest("call-2")
+    assert count_boundary(state, 1) == 0
 
 
 def test_the_closing_kind_must_be_the_one_the_request_froze_toward(world: SealedWorld) -> None:

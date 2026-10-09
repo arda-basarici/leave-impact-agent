@@ -29,10 +29,19 @@ system is asked again for the finalization's request, a finalization allocation 
 not fit ends the run at its cap, through the approval of what it has (the ruling on the
 ledger, part 4). A call keeps the purpose it was first authorized under: a loop call in
 progress at the entry is re-dispatched with the same bytes and finishes from the reserve
-(the graph step's rulings, amendment 2). The bound rests on a durable count under the
-request's reuse key, reused when one exists, else counted under the policy's retries with
-the log as the counter; a counting request is committed before the counting call and its
-outcome after, and the transition records the stop when the group is exhausted or refused.
+(the graph step's rulings, amendment 2). The system declares the finalization too: a
+request it flags final has the finalization event appended before the call's first
+event, when the account has not entered it already (fork 2), so the call is accounted as
+the finalization on both paths and the export's position shows the entry. The bound rests
+on a durable count under the request's reuse key, reused when one exists, else counted
+under the policy's retries with the log as the counter; a counting request is committed
+before the counting call and its outcome after, and the transition records the stop when
+the group is exhausted or refused. The request of a call is a function of the log below
+the call's first event (amendment 5), so a count started since the previous call settled,
+or since the entry into finalization, under another digest than the request now restated
+is this harness's defect and is raised, as a restated intent is; the loop request counted
+before the account entered finalization lies below the entry and is left behind, which is
+the one legitimate recount.
 The intent is appended and committed before anything leaves the machine (the ruling on one
 writer, part 5); the outcome is appended as it arrived, attributed by the registered table;
 then the within-call decision says whether to dispatch again after the registered delay,
@@ -99,6 +108,7 @@ from leaveimpact.agent.log_transition import (
     call_purpose,
     calls_of,
     count_group,
+    counts_of,
     operations_of,
 )
 from leaveimpact.core.attribution import AttributionTable, RedispatchPolicy, attribute
@@ -499,6 +509,14 @@ def _dispatch(
             f"the system restated {call_id(ordinal)}'s request with other bytes than its "
             f"first intent named"
         )
+    if request.final and appender.state.finalization_entered is None:
+        appender.append(FinalizationEntered())
+    counted = restated_since_counted(appender.state, ordinal, digest)
+    if counted is not None:
+        raise RuntimeError(
+            f"the system restated {call_id(ordinal)}'s request with other bytes than the "
+            f"count {count_id(counted)!r} was asked for"
+        )
     bound = _established_bound(harness, role, identifier, digest, request.body)
     if bound is None:
         return "terminal", False
@@ -605,6 +623,33 @@ def _established_bound(
         after = appender.append(CountOutcomeLogged(key, answer, reading))
         if after.stopped is not None:
             return None
+
+
+def count_boundary(state: AttemptState, ordinal: int) -> int:
+    """The position below which no count belongs to logical call ``ordinal``: the later of
+    the previous call's settling outcome (the outcome of its last dispatch, which a late
+    outcome of an earlier dispatch never moves) and the entry into finalization; zero when
+    neither is held."""
+    calls = calls_of(state)
+    settled = 0
+    if ordinal >= 2:
+        previous = calls[ordinal - 2]
+        last = previous.last_outcome
+        assert last is not None, "a new call follows a settled one"
+        settled = last.position
+    entered = state.finalization_entered or 0
+    return max(settled, entered)
+
+
+def restated_since_counted(state: AttemptState, ordinal: int, digest: str) -> CountKey | None:
+    """The key of a count started for call ``ordinal`` under another request digest than
+    ``digest``, resolved or not, or ``None``: every count above the call's boundary is the
+    call's own, and one under other bytes means the system restated the request."""
+    boundary = count_boundary(state, ordinal)
+    for count in counts_of(state):
+        if count.start.position > boundary and count.key.request_digest != digest:
+            return count.key
+    return None
 
 
 def _wait(harness: Harness, anchor: datetime) -> None:
@@ -735,5 +780,7 @@ __all__ = [
     "TurnRequest",
     "Turns",
     "build",
+    "count_boundary",
+    "restated_since_counted",
     "retry_policies",
 ]
