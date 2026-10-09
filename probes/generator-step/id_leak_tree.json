@@ -1,0 +1,188 @@
+{
+  "tree": {
+    "built": 20,
+    "failures": {},
+    "seconds_mean": 5.047127159975934,
+    "seconds_max": 5.961891799932346,
+    "leak": {
+      "clause": {
+        "accuracy_mean": 0.6846153846153846,
+        "accuracy_min": 0.5769230769230769,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "comment": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "document": {
+        "accuracy_mean": 0.6846153846153846,
+        "accuracy_min": 0.5769230769230769,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "employee (on leave)": {
+        "accuracy_mean": 0.5375,
+        "accuracy_min": 0.4722222222222222,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "event": {
+        "accuracy_mean": 0.7404598352533135,
+        "accuracy_min": 0.6153846153846154,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "leave (investigated)": {
+        "accuracy_mean": 0.5366666666666666,
+        "accuracy_min": 0.4666666666666667,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "leave (owned)": {
+        "accuracy_mean": 0.5388888888888889,
+        "accuracy_min": 0.4444444444444444,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "window start (ordinal)": {
+        "accuracy_mean": 0.5316666666666666,
+        "accuracy_min": 0.4666666666666667,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "work item": {
+        "accuracy_mean": 0.6258503614385967,
+        "accuracy_min": 0.45714285714285713,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      }
+    }
+  },
+  "plan": {
+    "built": 20,
+    "failures": {},
+    "seconds_mean": 5.7704027949948795,
+    "seconds_max": 10.771911599906161,
+    "leak": {
+      "clause": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "comment": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "document": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "employee (on leave)": {
+        "accuracy_mean": 0.5458333333333334,
+        "accuracy_min": 0.4722222222222222,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "event": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "leave (investigated)": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "leave (owned)": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "window start (ordinal)": {
+        "accuracy_mean": 0.5316666666666666,
+        "accuracy_min": 0.4666666666666667,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "work item": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      }
+    }
+  },
+  "random": {
+    "built": 20,
+    "failures": {},
+    "seconds_mean": 10.429767000011633,
+    "seconds_max": 11.172672100132331,
+    "leak": {
+      "clause": {
+        "accuracy_mean": 0.6557692307692308,
+        "accuracy_min": 0.5769230769230769,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "comment": {
+        "accuracy_mean": 1.0,
+        "accuracy_min": 1.0,
+        "ranges_disjoint_in": 20,
+        "of": 20
+      },
+      "document": {
+        "accuracy_mean": 0.6557692307692308,
+        "accuracy_min": 0.5769230769230769,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "employee (on leave)": {
+        "accuracy_mean": 0.5513888888888889,
+        "accuracy_min": 0.4444444444444444,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "event": {
+        "accuracy_mean": 0.6982153164870556,
+        "accuracy_min": 0.6153846153846154,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "leave (investigated)": {
+        "accuracy_mean": 0.5083333333333333,
+        "accuracy_min": 0.4,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "leave (owned)": {
+        "accuracy_mean": 0.5208333333333334,
+        "accuracy_min": 0.4444444444444444,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "window start (ordinal)": {
+        "accuracy_mean": 0.5316666666666666,
+        "accuracy_min": 0.4666666666666667,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      },
+      "work item": {
+        "accuracy_mean": 0.6136360195183724,
+        "accuracy_min": 0.5714285714285714,
+        "ranges_disjoint_in": 0,
+        "of": 20
+      }
+    }
+  }
+}
