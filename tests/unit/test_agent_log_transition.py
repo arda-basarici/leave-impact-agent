@@ -64,6 +64,7 @@ from leaveimpact.core import (
     signed_elapsed_ms,
 )
 from leaveimpact.core.input_bound import CountResult
+from leaveimpact.core.run_account import CallPurpose
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as h
 
@@ -303,6 +304,26 @@ def test_a_new_call_while_the_last_is_in_progress_is_refused() -> None:
     log.worker(answered, offset=800)
     log.worker(h.intent(2, name="call-2"), offset=900)
     assert fold(log.logged(), RULES).open
+
+
+def test_a_re_dispatch_after_the_entry_into_finalization_keeps_the_calls_purpose() -> None:
+    """Amendment 2: the entry between a loop call's two dispatches changes which room the
+    second may use, not the call's purpose; before the fix the second derived the
+    finalization purpose from the entry and the account refused it as changed."""
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.claim()
+    log.worker(h.count_start("call-1"), offset=400)
+    log.worker(h.count_outcome("call-1"), offset=500)
+    log.worker(h.intent(1), offset=600)
+    throttled = ServiceError(429, "ThrottlingException", None, "too many requests")
+    outcome = h.outcome(1, 1, throttled, AttributionKind.INFRASTRUCTURE, rule="unmatched")
+    log.worker(outcome, offset=700)
+    log.worker(FinalizationEntered(), offset=800)
+    log.worker(h.intent(1, 2), offset=900)
+    state = fold(log.logged(), RULES)
+    assert state.account.purpose_of("call-1") is CallPurpose.LOOP
+    assert state.account.calls == 1 and len(state.account.lines) == 2
 
 
 def test_a_new_call_after_a_call_exhausted_by_unresolved_dispatches_is_refused() -> None:

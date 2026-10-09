@@ -133,12 +133,15 @@ def account_transitions(export: RunExport) -> tuple[AccountTransition, ...]:
         zero: frozenset[str] = (
             frozenset() if selection is None else absent_as_zero(selection, record.pricing)
         )
+        # A call keeps the purpose it was first authorized under: the one its first
+        # dispatch's position gives, whatever the entry's position relative to the rest.
+        opened = call.dispatches[0].intent_position
+        purpose = (
+            CallPurpose.FINALIZATION
+            if entered is not None and opened > entered
+            else CallPurpose.LOOP
+        )
         for dispatch in call.dispatches:
-            purpose = (
-                CallPurpose.FINALIZATION
-                if entered is not None and dispatch.intent_position > entered
-                else CallPurpose.LOOP
-            )
             at.append(
                 (
                     dispatch.intent_position,
@@ -184,10 +187,23 @@ def check_account(export: RunExport) -> AccountCheck | None:
         return None
     kinds = AccountFindingKind
     refused: dict[tuple[str, int], tuple[AuthorizationDecision, tuple[CapResource, ...]]] = {}
+    entered = export.trace.finalization_entered
+    intent_positions = {
+        (str(call.id), dispatch.number): dispatch.intent_position
+        for call in export.trace.model_calls
+        for dispatch in call.dispatches
+    }
     account = RunAccount()
     for transition in account_transitions(export):
         if isinstance(transition, AccountIntent):
-            decision = authorize(account, record.caps, reservation.pico_usd, transition)
+            position = intent_positions[transition.call, transition.dispatch]
+            decision = authorize(
+                account,
+                record.caps,
+                reservation.pico_usd,
+                transition,
+                finalization_entered=entered is not None and position > entered,
+            )
             if not decision.authorized:
                 refused[transition.call, transition.dispatch] = (
                     decision.decision,

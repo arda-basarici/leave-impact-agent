@@ -1,7 +1,8 @@
 """The run's account: one contribution per dispatch, money and tokens released on their own
 evidence; an observed amount above its allocation is a breach after which nothing is
 authorized; the loop never spends the finalization reserve and a refused loop allocation
-enters finalization; a call takes one slot whatever its dispatches; every prefix is
+enters finalization, after which no loop call opens and one in progress finishes from the
+reserve; a call takes one slot whatever its dispatches; every prefix is
 checked and not the final balance; and a closed attempt is charged its contributions."""
 
 import pytest
@@ -164,7 +165,7 @@ def test_nothing_is_authorized_after_a_breach_whatever_room_is_left() -> None:
         [intent(1), outcome(1, cost=Cost(40, True), tokens=TokenCount(1_001, True))]
     )
     for request in (intent(2, tokens=1), intent(2, tokens=1, purpose=FINAL)):
-        decision = authorize(breached, CAPS, ALLOWANCE, request)
+        decision = authorize(breached, CAPS, ALLOWANCE, request, finalization_entered=False)
         assert decision == Authorization(AuthorizationDecision.BREACHED)
 
 
@@ -172,40 +173,46 @@ def test_nothing_is_authorized_after_a_breach_whatever_room_is_left() -> None:
 
 
 def test_a_dispatch_that_fits_is_authorized() -> None:
-    assert authorize(RunAccount(), CAPS, ALLOWANCE, intent(1)).authorized
+    assert authorize(
+        RunAccount(), CAPS, ALLOWANCE, intent(1), finalization_entered=False
+    ).authorized
 
 
 def test_the_loop_may_fill_its_room_exactly_and_not_one_token_more() -> None:
     account = account_of([intent(1, tokens=7_000)])
-    assert authorize(account, CAPS, ALLOWANCE, intent(2, tokens=1_000)).authorized
-    over = authorize(account, CAPS, ALLOWANCE, intent(2, tokens=1_001))
+    assert authorize(
+        account, CAPS, ALLOWANCE, intent(2, tokens=1_000), finalization_entered=False
+    ).authorized
+    over = authorize(account, CAPS, ALLOWANCE, intent(2, tokens=1_001), finalization_entered=False)
     assert over == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (TOKENS,))
 
 
 def test_finalization_may_spend_the_reserve_the_loop_could_not() -> None:
     account = account_of([intent(1, tokens=7_000)])
     request = intent(2, tokens=3_000, purpose=FINAL)
-    assert authorize(account, CAPS, ALLOWANCE, request).authorized
+    assert authorize(account, CAPS, ALLOWANCE, request, finalization_entered=False).authorized
 
 
 def test_a_finalization_allocation_that_does_not_fit_ends_the_run_at_its_cap() -> None:
     account = account_of([intent(1, tokens=7_000)])
     request = intent(2, tokens=3_001, purpose=FINAL)
-    decision = authorize(account, CAPS, ALLOWANCE, request)
+    decision = authorize(account, CAPS, ALLOWANCE, request, finalization_entered=False)
     assert decision == Authorization(AuthorizationDecision.AT_CAP, (TOKENS,))
 
 
 def test_the_loop_has_the_call_cap_less_the_reserve() -> None:
     three = account_of([intent(1), answered(1), intent(2), answered(2), intent(3), answered(3)])
-    fourth = authorize(three, CAPS, ALLOWANCE, intent(4))
+    fourth = authorize(three, CAPS, ALLOWANCE, intent(4), finalization_entered=False)
     assert fourth == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (CALLS,))
-    assert authorize(three, CAPS, ALLOWANCE, intent(4, purpose=FINAL)).authorized
+    assert authorize(
+        three, CAPS, ALLOWANCE, intent(4, purpose=FINAL), finalization_entered=True
+    ).authorized
 
 
 def test_a_later_dispatch_of_a_call_takes_no_slot() -> None:
     three = account_of([intent(1), answered(1), intent(2), answered(2), intent(3), outcome(3)])
     assert three.calls == 3
-    assert authorize(three, CAPS, ALLOWANCE, intent(3, 2)).authorized
+    assert authorize(three, CAPS, ALLOWANCE, intent(3, 2), finalization_entered=False).authorized
 
 
 def test_a_slot_is_not_given_back_by_a_refusal_or_a_release() -> None:
@@ -213,7 +220,7 @@ def test_a_slot_is_not_given_back_by_a_refusal_or_a_release() -> None:
         [intent(1), outcome(1, sent=False), intent(2), outcome(2, sent=False), intent(3)]
     )
     assert (account.tokens, account.calls) == (1_000, 3)
-    decision = authorize(account, CAPS, ALLOWANCE, intent(4))
+    decision = authorize(account, CAPS, ALLOWANCE, intent(4), finalization_entered=False)
     assert decision == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (CALLS,))
 
 
@@ -223,46 +230,77 @@ def test_finalization_calls_end_at_the_call_cap() -> None:
         transitions += [intent(call), answered(call)]
     for call in (4, 5):
         transitions += [intent(call, purpose=FINAL), answered(call)]
-    decision = authorize(account_of(transitions), CAPS, ALLOWANCE, intent(6, purpose=FINAL))
+    decision = authorize(
+        account_of(transitions), CAPS, ALLOWANCE, intent(6, purpose=FINAL),
+        finalization_entered=True,
+    )
     assert decision == Authorization(AuthorizationDecision.AT_CAP, (CALLS,))
 
 
 def test_money_that_does_not_fit_the_allowance_is_named() -> None:
     account = account_of([intent(1, pico=900)])
-    loop = authorize(account, CAPS, 1_000, intent(2, pico=101))
+    loop = authorize(account, CAPS, 1_000, intent(2, pico=101), finalization_entered=False)
     assert loop == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (MONEY,))
-    final = authorize(account, CAPS, 1_000, intent(2, pico=101, purpose=FINAL))
+    final = authorize(
+        account, CAPS, 1_000, intent(2, pico=101, purpose=FINAL), finalization_entered=True
+    )
     assert final == Authorization(AuthorizationDecision.AT_CAP, (MONEY,))
-    assert authorize(account, CAPS, 1_000, intent(2, pico=100)).authorized
+    assert authorize(
+        account, CAPS, 1_000, intent(2, pico=100), finalization_entered=False
+    ).authorized
 
 
 def test_everything_a_request_does_not_fit_in_is_named_in_one_order() -> None:
     three = account_of([intent(1, tokens=3_000), intent(2, tokens=3_000), intent(3, tokens=2_000)])
-    decision = authorize(three, CAPS, 300, intent(4, tokens=1, pico=1))
+    decision = authorize(three, CAPS, 300, intent(4, tokens=1, pico=1), finalization_entered=False)
     assert decision.short_of == (CALLS, TOKENS, MONEY)
 
 
 def test_released_room_is_spent_again() -> None:
     account = account_of([intent(1, tokens=8_000), answered(1, tokens=500)])
-    assert authorize(account, CAPS, ALLOWANCE, intent(2, tokens=7_500)).authorized
+    assert authorize(
+        account, CAPS, ALLOWANCE, intent(2, tokens=7_500), finalization_entered=False
+    ).authorized
 
 
 def test_a_retained_allocation_still_holds_its_room() -> None:
     account = account_of([intent(1, tokens=8_000), outcome(1)])
-    decision = authorize(account, CAPS, ALLOWANCE, intent(1, 2, tokens=1))
+    decision = authorize(
+        account, CAPS, ALLOWANCE, intent(1, 2, tokens=1), finalization_entered=False
+    )
     assert decision == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (TOKENS,))
 
 
-def test_no_loop_dispatch_follows_the_entry_into_finalization() -> None:
-    account = account_of([intent(1), outcome(1), intent(2, purpose=FINAL)])
-    for request in (intent(3), intent(1, 2)):
-        decision = authorize(account, CAPS, ALLOWANCE, request)
-        assert decision == Authorization(AuthorizationDecision.LOOP_AFTER_FINALIZATION)
+def test_no_loop_call_opens_after_the_entry_into_finalization() -> None:
+    account = account_of([intent(1), outcome(1)])
+    decision = authorize(account, CAPS, ALLOWANCE, intent(2), finalization_entered=True)
+    assert decision == Authorization(AuthorizationDecision.LOOP_AFTER_FINALIZATION)
+
+
+def test_a_loop_call_in_progress_at_the_entry_finishes_from_the_reserve() -> None:
+    """Amendment 2 of the graph step's rulings: the call keeps its loop purpose, its re-dispatch
+    is measured against the whole caps once finalization is entered, and one that does not fit
+    even so ends the run at its cap."""
+    account = account_of([intent(1, tokens=7_000), outcome(1)])
+    again = intent(1, 2, tokens=2_000)
+    before = authorize(account, CAPS, ALLOWANCE, again, finalization_entered=False)
+    assert before == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (TOKENS,))
+    assert authorize(account, CAPS, ALLOWANCE, again, finalization_entered=True).authorized
+    assert authorize(
+        account, CAPS, ALLOWANCE, intent(1, 2, tokens=3_000), finalization_entered=True
+    ).authorized
+    over = authorize(
+        account, CAPS, ALLOWANCE, intent(1, 2, tokens=3_001), finalization_entered=True
+    )
+    assert over == Authorization(AuthorizationDecision.AT_CAP, (TOKENS,))
+    assert account.purpose_of("call_001") is LOOP
 
 
 def test_a_call_keeps_the_purpose_it_was_first_authorized_under() -> None:
     account = account_of([intent(1), outcome(1)])
-    decision = authorize(account, CAPS, ALLOWANCE, intent(1, 2, purpose=FINAL))
+    decision = authorize(
+        account, CAPS, ALLOWANCE, intent(1, 2, purpose=FINAL), finalization_entered=True
+    )
     assert decision == Authorization(AuthorizationDecision.PURPOSE_CHANGED)
 
 
@@ -273,8 +311,8 @@ def test_a_balance_that_ends_inside_the_cap_can_hide_a_prefix_that_was_not() -> 
     first, second = intent(1, tokens=5_000), intent(2, tokens=5_000)
     final = account_of([first, second, answered(1), answered(2)])
     assert final.tokens == 800
-    assert authorize(RunAccount(), CAPS, ALLOWANCE, first).authorized
-    at_second = authorize(account_of([first]), CAPS, ALLOWANCE, second)
+    assert authorize(RunAccount(), CAPS, ALLOWANCE, first, finalization_entered=False).authorized
+    at_second = authorize(account_of([first]), CAPS, ALLOWANCE, second, finalization_entered=False)
     assert at_second == Authorization(AuthorizationDecision.ENTER_FINALIZATION, (TOKENS,))
 
 
@@ -286,10 +324,10 @@ def test_a_history_whose_every_prefix_is_authorized_stays_inside_its_caps() -> N
     sizes = [3_000, 2_500, 2_500, 1_500, 900, 900, 400]
     for call, size in enumerate(sizes, start=1):
         request = intent(call, tokens=size, pico=size)
-        decision = authorize(account, CAPS, 9_000, request)
+        decision = authorize(account, CAPS, 9_000, request, finalization_entered=False)
         if decision.decision is AuthorizationDecision.ENTER_FINALIZATION:
             request = intent(call, tokens=size, pico=size, purpose=FINAL)
-            decision = authorize(account, CAPS, 9_000, request)
+            decision = authorize(account, CAPS, 9_000, request, finalization_entered=False)
         if not decision.authorized:
             continue
         account = account.after(request)

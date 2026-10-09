@@ -188,9 +188,12 @@ def test_a_dispatch_after_a_breach_is_refused_and_the_breach_is_its_own_finding(
     assert check.tokens == 5_100 + 150
 
 
-def test_a_call_dispatched_again_across_the_finalization_position_changed_purpose(
+def test_a_call_dispatched_again_across_the_finalization_position_keeps_its_purpose(
     world: SealedWorld,
 ) -> None:
+    """Amendment 2 of the graph step's rulings: the purpose is the call's first dispatch's, so
+    the re-dispatch after the entry is a loop dispatch measured against the whole caps, and
+    the replay finds no refusal where the per-dispatch reading found a changed purpose."""
     unresolved = dispatch(1, NoRecordedOutcome(), AttributionKind.UNRESOLVED)
     cost = cost_of_reported(ReportedUsage(USAGE), SELECTION, BASIS)
     answered = dispatch(
@@ -206,9 +209,13 @@ def test_a_call_dispatched_again_across_the_finalization_position_changed_purpos
     # Dispatch 1's intent is at 1,102 and dispatch 2's at 1,104; finalization between them.
     check = check_account(finalized_at(export, 1_103))
     assert check is not None
-    assert check.findings == (
-        AccountFinding(KINDS.INTENT_NOT_AUTHORIZED, CALL, 2, DECISIONS.PURPOSE_CHANGED),
-    )
+    assert check.findings == ()
+    purposes = [
+        t.purpose
+        for t in account_transitions(finalized_at(export, 1_103))
+        if isinstance(t, AccountIntent)
+    ]
+    assert purposes == [CallPurpose.LOOP, CallPurpose.LOOP]
 
 
 # --- Allocations, the bound and the settlement --------------------------------------------------

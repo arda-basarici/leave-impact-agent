@@ -27,14 +27,16 @@ with the Bedrock clients.
 the output maximum give: a loop allocation that does not fit enters finalization and the
 system is asked again for the finalization's request, a finalization allocation that does
 not fit ends the run at its cap, through the approval of what it has (the ruling on the
-ledger, part 4). The bound rests on a durable count under the request's reuse key, reused
-when one exists, else counted under the policy's retries with the log as the counter; a
-counting request is committed before the counting call and its outcome after, and the
-transition records the stop when the group is exhausted or refused. The intent is appended
-and committed before anything leaves the machine (the ruling on one writer, part 5); the
-outcome is appended as it arrived, attributed by the registered table; then the within-call
-decision says whether to dispatch again after the registered delay, measured from the
-outcome's logged timestamp on the log's own clock.
+ledger, part 4). A call keeps the purpose it was first authorized under: a loop call in
+progress at the entry is re-dispatched with the same bytes and finishes from the reserve
+(the graph step's rulings, amendment 2). The bound rests on a durable count under the
+request's reuse key, reused when one exists, else counted under the policy's retries with
+the log as the counter; a counting request is committed before the counting call and its
+outcome after, and the transition records the stop when the group is exhausted or refused.
+The intent is appended and committed before anything leaves the machine (the ruling on one
+writer, part 5); the outcome is appended as it arrived, attributed by the registered table;
+then the within-call decision says whether to dispatch again after the registered delay,
+measured from the outcome's logged timestamp on the log's own clock.
 
 *What a read call gets.* A call of the fact tool and a call whose arguments are no object
 run nothing (the parse module handles them); a read against a source a durable outcome has
@@ -91,6 +93,7 @@ from leaveimpact.agent.log_events import (
 from leaveimpact.agent.log_transition import (
     AttemptState,
     CallEvents,
+    call_purpose,
     calls_of,
     count_group,
     operations_of,
@@ -115,12 +118,7 @@ from leaveimpact.core.model_calls import (
     UndispatchedReason,
 )
 from leaveimpact.core.pricing import worst_case_cost
-from leaveimpact.core.run_account import (
-    AccountIntent,
-    AuthorizationDecision,
-    CallPurpose,
-    authorize,
-)
+from leaveimpact.core.run_account import AccountIntent, AuthorizationDecision, authorize
 from leaveimpact.core.run_ending import Composition
 from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_trace import (
@@ -502,7 +500,7 @@ def _dispatch(
     tokens = worst_case_tokens(bound, maximum)
     money = worst_case_cost(bound.input_tokens, maximum, selection, inputs.pricing)
     state = appender.state
-    purpose = CallPurpose.LOOP if state.finalization_entered is None else CallPurpose.FINALIZATION
+    purpose = call_purpose(state, ordinal)
     number = (current.last_number if current is not None else 0) + 1
     if current is not None:
         # The registered delay runs from the previous dispatch's logged outcome, or from its
@@ -512,7 +510,13 @@ def _dispatch(
         _wait(harness, anchor.timestamp)
     assert inputs.reservation_pico_usd is not None
     intent = AccountIntent(call_id(ordinal), number, purpose, tokens, money)
-    decision = authorize(state.account, inputs.caps, inputs.reservation_pico_usd, intent).decision
+    decision = authorize(
+        state.account,
+        inputs.caps,
+        inputs.reservation_pico_usd,
+        intent,
+        finalization_entered=state.finalization_entered is not None,
+    ).decision
     match decision:
         case AuthorizationDecision.AUTHORIZED:
             pass

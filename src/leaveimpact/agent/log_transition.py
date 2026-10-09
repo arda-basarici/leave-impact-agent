@@ -25,8 +25,9 @@ What the function refuses, by the rulings it enforces:
   next, opens a new call only after the last one is settled, rests on a durable count that
   counted this request, names reads the log holds, carries the registered configuration's
   output maximum and the worst case the registered rules give, follows a dispatch only when
-  the within-call decision permits another, and is authorized by the run's account; a count
-  is started only when the group's decision is to count;
+  the within-call decision permits another, and is authorized by the run's account under
+  the purpose the call holds, or the log's phase for a new one; a count is started only
+  when the group's decision is to count;
 - *the freeze and the stop* (recovery and endings, parts 1 to 3; counting, part 14; group
   3's second fork): after an approval was requested no model intent, no count and no tool
   resolution is appended; after a stopping failure is recorded (a malformed record, a
@@ -754,12 +755,30 @@ def _intent_next(
             f"the worst case is {tokens} tokens and {money} pico-dollars, got "
             f"{event.allocation_tokens} and {event.allocation_pico_usd}"
         )
-    purpose = CallPurpose.LOOP if state.finalization_entered is None else CallPurpose.FINALIZATION
+    entered = state.finalization_entered is not None
+    purpose = call_purpose(state, event.call)
     intent = AccountIntent(call_id(event.call), event.number, purpose, tokens, money)
-    decision = authorize(state.account, inputs.caps, inputs.reservation_pico_usd, intent)
+    decision = authorize(
+        state.account,
+        inputs.caps,
+        inputs.reservation_pico_usd,
+        intent,
+        finalization_entered=entered,
+    )
     if decision.decision is not AuthorizationDecision.AUTHORIZED:
         return Refused(f"the account does not authorize the dispatch: {decision.decision.value}")
     return Appended(replace(_with_segment(state, logged), account=state.account.after(intent)))
+
+
+def call_purpose(state: AttemptState, call: int) -> CallPurpose:
+    """The purpose a dispatch of logical call ``call`` is authorized under: the one the
+    call already holds, else the phase the log is in (a call opened after the entry into
+    finalization is the finalization call). A call keeps its first purpose across the
+    entry, and its re-dispatch is then measured against the whole caps (amendment 2)."""
+    held = state.account.purpose_of(call_id(call))
+    if held is not None:
+        return held
+    return CallPurpose.LOOP if state.finalization_entered is None else CallPurpose.FINALIZATION
 
 
 def _bound_refusal(state: AttemptState, event: DispatchIntent) -> str | None:

@@ -34,7 +34,12 @@ allocation that does not fit ends the run at its cap, reporting what it holds. A
 call takes a slot of the call cap when its first dispatch is authorized and keeps it; a
 later dispatch of the same call takes none, and nothing gives a slot back, so the call cap
 bounds the investigation's model interactions while tokens and money account for every
-dispatch. A call keeps the purpose it was first authorized under.
+dispatch. A call keeps the purpose it was first authorized under, and the phase is the
+caller's to state: the entry into finalization is an event of the log, not of the
+account, and it changes which room a dispatch may use, never a call's purpose. Once it
+is entered no new loop call opens, and a loop call in progress at the entry finishes
+from the reserve: its re-dispatch is measured against the whole caps, and one that does
+not fit even so ends the run at its cap (the graph step's rulings, amendment 2).
 
 *Settlement.* While an attempt is open its whole reservation is held against the spend
 threshold, covering what it may still authorize. When it closes, the reservation is
@@ -299,10 +304,17 @@ class Authorization:
 
 
 def authorize(
-    account: RunAccount, caps: Caps, allowance_pico_usd: int, request: AccountIntent
+    account: RunAccount,
+    caps: Caps,
+    allowance_pico_usd: int,
+    request: AccountIntent,
+    *,
+    finalization_entered: bool,
 ) -> Authorization:
     """Whether ``request`` may be authorized over ``account``, the account as it stands
-    before the request: under ``caps``, with ``allowance_pico_usd`` the run's reservation.
+    before the request: under ``caps``, with ``allowance_pico_usd`` the run's reservation,
+    ``finalization_entered`` whether the log holds the entry into finalization below the
+    request.
 
     The caller holds the attempt's lock, so the account cannot move between this decision
     and the append that records it. A request the decision does not authorize is never
@@ -312,7 +324,7 @@ def authorize(
     >>> rule = "input_plus_output_cached_included"
     >>> caps = Caps(4, 1_000, 1, 200, rule, RegisteredInputBound("provider_count", 1))
     >>> loop = AccountIntent("call_001", 1, CallPurpose.LOOP, 900, 50)
-    >>> authorize(RunAccount(), caps, 1_000, loop).decision.value
+    >>> authorize(RunAccount(), caps, 1_000, loop, finalization_entered=False).decision.value
     'enter_finalization'
     """
     require_integer(allowance_pico_usd, "the run's allowance in pico-dollars")
@@ -322,10 +334,13 @@ def authorize(
     if held is not None and held is not request.purpose:
         return Authorization(AuthorizationDecision.PURPOSE_CHANGED)
     loop = request.purpose is CallPurpose.LOOP
-    if loop and account.in_finalization:
+    if loop and held is None and finalization_entered:
         return Authorization(AuthorizationDecision.LOOP_AFTER_FINALIZATION)
-    call_room = caps.call_cap - (caps.finalization_call_reserve if loop else 0)
-    token_room = caps.token_cap - (caps.finalization_token_reserve if loop else 0)
+    # The loop stops before the reserve; a loop call in progress at the entry finishes
+    # from it, and a finalization call spends it.
+    reserved = loop and not finalization_entered
+    call_room = caps.call_cap - (caps.finalization_call_reserve if reserved else 0)
+    token_room = caps.token_cap - (caps.finalization_token_reserve if reserved else 0)
     short: list[CapResource] = []
     if held is None and account.calls + 1 > call_room:
         short.append(CapResource.CALLS)
@@ -335,7 +350,9 @@ def authorize(
         short.append(CapResource.MONEY)
     if not short:
         return Authorization(AuthorizationDecision.AUTHORIZED)
-    decision = AuthorizationDecision.ENTER_FINALIZATION if loop else AuthorizationDecision.AT_CAP
+    decision = (
+        AuthorizationDecision.ENTER_FINALIZATION if reserved else AuthorizationDecision.AT_CAP
+    )
     return Authorization(decision, tuple(short))
 
 

@@ -21,7 +21,10 @@ turns, the model client and the token counter. The claims, by the rulings they h
 - a call failed by infrastructure is finalized in its category at its site, after the
   registered delay was waited between dispatches (re-dispatch, parts 1 and 3);
 - a counting request refused transiently is retried after the delay and the bound rests on
-  the count that answered (counting, part 13).
+  the count that answered (counting, part 13);
+- a loop call in progress when the account enters finalization keeps its purpose and
+  finishes from the reserve, on first execution and on recovery (the graph step's
+  rulings, amendment 2).
 """
 
 from __future__ import annotations
@@ -88,7 +91,10 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.counting_operations import Counted, CountServiceError
+from leaveimpact.core.model_calls import ServiceError
+from leaveimpact.core.run_account import CallPurpose
 from leaveimpact.core.run_parts_json import review_payload_digest
+from leaveimpact.evaluator.account_check import check_account
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
@@ -727,6 +733,92 @@ def test_a_recovery_after_the_request_keeps_the_cap_ending_without_the_systems_h
     ending = recovering.work()
     assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "cap_exhausted")
     assert support.sends_of(recovering.client) == 0
+
+
+NEAR_CAP = Caps(20, 14_000, 2, 5_000, "input_plus_output_cached_included", cases.METHOD)
+"""A token cap whose loop room (9,000) holds one worst case (4,608) and not two, and whose
+whole (14,000) holds two: a loop call's first dispatch fits, its re-dispatch after a throttle
+does not and enters finalization, and the re-dispatch then fits from the reserve."""
+
+
+def throttled_once_script(context: Any) -> tuple[ScriptedTurns, ScriptedClient]:
+    """Call 1's first dispatch throttled and its second answered with no read; call 2
+    answered with no read."""
+    turns, _ = support.two_call_script(context)
+    throttled = support.observed(
+        ServiceError(429, "ThrottlingException", None, "too many requests")
+    )
+    answers = {
+        support.request_digest(turns.bodies[0]): (
+            throttled,
+            support.answered(support.text("Nothing to read.")),
+        ),
+        support.request_digest(turns.bodies[1]): (support.answered(support.text("Done.")),),
+    }
+    return turns, ScriptedClient(answers)
+
+
+def near_cap(world: SealedWorld, events: Sequence[LoggedEvent] | None = None) -> Bench:
+    made = bench(world, script=throttled_once_script, events=events)
+    made.inputs = replace(made.inputs, caps=NEAR_CAP)
+    if events is None:
+        made.log = MemoryLog()
+        made.log.seed(support.admission(made.inputs))
+    return made
+
+
+def intents_of(events: Sequence[LoggedEvent]) -> list[tuple[int, DispatchIntent]]:
+    return [(e.position, e.event) for e in events if isinstance(e.event, DispatchIntent)]
+
+
+def test_a_loop_call_in_progress_at_the_entry_into_finalization_finishes_from_the_reserve(
+    world: SealedWorld,
+) -> None:
+    """Amendment 2 of the graph step's rulings (option A): the call keeps the purpose it was
+    first authorized under, its re-dispatch is authorized from the reserve once finalization
+    is entered, and the request bytes do not change. Before the fix the re-dispatch derived
+    the finalization purpose from the entry, the account refused it as a changed purpose and
+    the worker closed by defect at the unhandled site."""
+    made = near_cap(world)
+    ending = made.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    kinds = made.kinds()
+    intents = intents_of(made.events())
+    assert [(i.call, i.number) for _, i in intents] == [(1, 1), (1, 2), (2, 1)]
+    entered = kinds.index("finalization_entered") + 1
+    assert intents[0][0] < entered < intents[1][0] < intents[2][0]
+    first, again, final = (i for _, i in intents)
+    assert first.request_digest == again.request_digest != final.request_digest
+    state = made.log.load(RUN, ATTEMPT, rules=RULES)
+    assert state.account.purpose_of("call-1") is CallPurpose.LOOP
+    assert state.account.purpose_of("call-2") is CallPurpose.FINALIZATION
+    assert support.sends_of(made.client) == 3
+    check = check_account(export_of(state))
+    assert check is not None and check.findings == (), "the evaluator replays the same rule"
+
+
+def test_a_recovery_after_the_entry_re_dispatches_the_loop_call_with_the_same_bytes(
+    world: SealedWorld,
+) -> None:
+    reference = near_cap(world)
+    reference.work()
+    events = reference.events()
+    cut = [kind_of(e.event).value for e in events].index("finalization_entered") + 1
+    recovering = near_cap(world, events=events[:cut])
+    # The recovering process meets no throttle: the re-dispatch is answered at once.
+    bodies = recovering.turns.bodies
+    nothing = support.answered(support.text("Nothing to read."))
+    done = support.answered(support.text("Done."))
+    recovering.client = ScriptedClient(
+        {support.request_digest(bodies[0]): (nothing,), support.request_digest(bodies[1]): (done,)}
+    )
+    ending = recovering.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "completed")
+    intents = [i for _, i in intents_of(recovering.events())]
+    assert [(i.call, i.number) for i in intents] == [(1, 1), (1, 2), (2, 1)]
+    assert intents[0].request_digest == intents[1].request_digest
+    assert support.sends_of(recovering.client) == 2, "the throttled send is not repeated"
+    assert support.settled(recovering.events()) == support.settled(events)
 
 
 def test_the_closing_kind_must_be_the_one_the_request_froze_toward(world: SealedWorld) -> None:
