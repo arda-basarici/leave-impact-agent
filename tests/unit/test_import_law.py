@@ -22,13 +22,27 @@ composition root, so no unranked module can launder an import for a ranked one; 
 ``ImportFrom`` is read with its aliases, so ``from leaveimpact import world`` names
 ``world`` as plainly as ``import leaveimpact.world`` does. The rank table names a package
 that does not exist yet (``app``); declared ahead is fine, existing unranked is not.
+
+Three spellings the edge scan read as something they were not are closed by name. A name
+imported from a module that itself imported it is followed to the module that defines it,
+so ``from leaveimpact.adapters.plantings import OrgSpec`` is the ``world`` edge it really
+is; the edge as written is kept beside the resolved one, since importing the adapters
+module runs it whatever the name resolves to. An ``import`` that binds the bare package
+name (``import leaveimpact``, and ``import leaveimpact.core.ids`` without ``as``) is
+banned: every subpackage imported anywhere in the process is an attribute of that name,
+one dotted lookup past anything the scan ranks; a star import from inside the package is
+banned with it, binding names no scan can list. And "module scope", where the writer gate
+reads, is every statement that runs at import time: the module body, the ``if``, ``try``,
+``with`` and loop blocks nested in it, and class bodies, whose names are attributes too;
+only a function body binds nothing until the call.
 """
 
 from __future__ import annotations
 
 import ast
 import re
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator, Mapping
+from functools import cache
 from pathlib import Path
 
 PKG = "leaveimpact"
@@ -169,8 +183,8 @@ def _package(parts: list[str]) -> str | None:
     return sub if sub in _RANK else None
 
 
-def _imports(path: Path) -> list[list[str]]:
-    """Every absolute import made by the module at ``path``, as dotted part lists.
+def _import_paths(nodes: Iterator[ast.AST]) -> list[list[str]]:
+    """The dotted paths the import statements among ``nodes`` name; other nodes pass.
 
     An ``ImportFrom`` contributes one path per alias, module plus name, so a package
     imported as a name (``from leaveimpact import world``) ranks exactly like the same
@@ -179,22 +193,52 @@ def _imports(path: Path) -> list[list[str]]:
     segments the law reads. Relative imports carry no dotted prefix and are unrankable
     here; they are banned wholesale by ``test_no_relative_imports``.
 
-    >>> import tempfile
     >>> src = "from leaveimpact import world\\nimport leaveimpact.core.ids as ids\\n"
-    >>> with tempfile.TemporaryDirectory() as d:
-    ...     probe = Path(d) / "probe.py"
-    ...     _ = probe.write_text(src, encoding="utf-8")
-    ...     _imports(probe)
+    >>> _import_paths(ast.walk(ast.parse(src)))
     [['leaveimpact', 'world'], ['leaveimpact', 'core', 'ids']]
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
     found: list[list[str]] = []
-    for node in ast.walk(tree):
+    for node in nodes:
         if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
             found.extend([*node.module.split("."), alias.name] for alias in node.names)
         elif isinstance(node, ast.Import):
             found.extend(alias.name.split(".") for alias in node.names)
     return found
+
+
+def _import_time_statements(node: ast.AST) -> Iterator[ast.stmt]:
+    """Every statement under ``node`` that runs when the module is imported, in source order.
+
+    The module body, then the bodies of the compound statements nested in it (``if``,
+    ``try``, ``with``, the loops, ``match``) and class bodies, since a name bound in a class
+    body is an attribute of the class exactly as a module-body name is of the module. A
+    function body binds nothing until the call, so it is the one scope left out; a
+    ``lambda`` holds no statement.
+
+    >>> src = (
+    ...     "import a\\nif True:\\n    import b\\ntry:\\n    import c\\nexcept ImportError:\\n"
+    ...     "    import d\\nclass K:\\n    import e\\ndef f():\\n    import g\\n"
+    ... )
+    >>> found = _import_time_statements(ast.parse(src))
+    >>> [n.names[0].name for n in found if isinstance(n, ast.Import)]
+    ['a', 'b', 'c', 'd', 'e']
+    """
+    for child in ast.iter_child_nodes(node):
+        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda)):
+            continue
+        if isinstance(child, ast.stmt):
+            yield child
+        yield from _import_time_statements(child)
+
+
+def _parsed(path: Path) -> ast.Module:
+    """The module at ``path`` as a syntax tree; every scan below reads one."""
+    return ast.parse(path.read_text(encoding="utf-8"))
+
+
+def _imports(path: Path) -> list[list[str]]:
+    """Every absolute import made by the module at ``path``, nested ones included."""
+    return _import_paths(ast.walk(_parsed(path)))
 
 
 def _intra_imports(path: Path) -> list[list[str]]:
@@ -203,24 +247,169 @@ def _intra_imports(path: Path) -> list[list[str]]:
 
 
 def _module_scope_intra_imports(path: Path) -> list[list[str]]:
-    """Like ``_intra_imports`` but only the imports in the module's own body, not nested ones.
+    """Like ``_intra_imports`` but only the imports that run at import time, not a function's.
+
+    A ``try`` or an ``if`` at module level binds its names at module scope exactly as a
+    plain statement does, so the read walks every import-time statement, not the body list.
 
     >>> import tempfile
-    >>> src = "import leaveimpact.core\\ndef f():\\n    import leaveimpact.world\\n"
+    >>> src = (
+    ...     "import leaveimpact.core as core\\ntry:\\n    import leaveimpact.adapters as a\\n"
+    ...     "except ImportError:\\n    a = None\\ndef f():\\n    import leaveimpact.world\\n"
+    ... )
     >>> with tempfile.TemporaryDirectory() as d:
     ...     probe = Path(d) / "probe.py"
     ...     _ = probe.write_text(src, encoding="utf-8")
     ...     _module_scope_intra_imports(probe)
-    [['leaveimpact', 'core']]
+    [['leaveimpact', 'core'], ['leaveimpact', 'adapters']]
     """
-    tree = ast.parse(path.read_text(encoding="utf-8"))
-    found: list[list[str]] = []
-    for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-            found.extend([*node.module.split("."), alias.name] for alias in node.names)
-        elif isinstance(node, ast.Import):
-            found.extend(alias.name.split(".") for alias in node.names)
+    found = _import_paths(_import_time_statements(_parsed(path)))
     return [parts for parts in found if parts[0] == PKG]
+
+
+def _unrankable_import_spellings(tree: ast.Module) -> list[str]:
+    """The imports in ``tree`` that bind a name the law cannot rank, wherever they sit.
+
+    ``import leaveimpact`` and ``import leaveimpact.core.ids`` both bind the bare package
+    name, and every subpackage imported anywhere in the process is an attribute of it, so
+    ``leaveimpact.world`` is one dotted lookup past whatever the scan ranked; the aliased
+    form (``import leaveimpact.core.ids as ids``) binds the alias alone. A star import
+    from inside the package binds names no scan can list. Nested imports count: a binding
+    made inside a function is as reachable to its body as a module-level one.
+
+    >>> src = (
+    ...     "import leaveimpact\\nimport leaveimpact.core.ids\\n"
+    ...     "import leaveimpact.core.ids as ids\\nfrom leaveimpact.core import *\\n"
+    ...     "from leaveimpact.core import ids\\ndef f():\\n    import leaveimpact\\n"
+    ... )
+    >>> for spelling in _unrankable_import_spellings(ast.parse(src)):
+    ...     print(spelling)
+    1: import leaveimpact
+    2: import leaveimpact.core.ids
+    4: from leaveimpact.core import *
+    7: import leaveimpact
+    """
+    found: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            found.extend(
+                f"{node.lineno}: import {alias.name}"
+                for alias in node.names
+                if alias.name.split(".")[0] == PKG and alias.asname is None
+            )
+        elif (
+            isinstance(node, ast.ImportFrom)
+            and node.module
+            and node.level == 0
+            and node.module.split(".")[0] == PKG
+            and any(alias.name == "*" for alias in node.names)
+        ):
+            found.append(f"{node.lineno}: from {node.module} import *")
+    return found
+
+
+def _bindings(tree: ast.Module) -> dict[str, list[str]]:
+    """The names ``tree`` binds at import time to things imported from inside the package.
+
+    ``from leaveimpact.world.org import OrgSpec as Spec`` binds ``Spec`` to the dotted path
+    of ``OrgSpec``; ``import leaveimpact.core.ids as ids`` binds ``ids`` to the module. An
+    ``import`` without ``as`` binds the bare package name, which
+    ``test_no_unrankable_import_spellings`` bans, so it contributes nothing here; a name the
+    module defines itself is absent, since only a binding made by an import can be
+    followed. A later binding of the same name wins, as it does at runtime.
+
+    >>> src = (
+    ...     "from leaveimpact.world.org import OrgSpec as Spec\\n"
+    ...     "import leaveimpact.core.ids as ids\\nimport leaveimpact\\nimport json\\n"
+    ... )
+    >>> _bindings(ast.parse(src))
+    {'Spec': ['leaveimpact', 'world', 'org', 'OrgSpec'], 'ids': ['leaveimpact', 'core', 'ids']}
+    """
+    found: dict[str, list[str]] = {}
+    for node in _import_time_statements(tree):
+        if isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            module = node.module.split(".")
+            if module[0] == PKG:
+                for alias in node.names:
+                    found[alias.asname or alias.name] = [*module, alias.name]
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.asname and alias.name.split(".")[0] == PKG:
+                    found[alias.asname] = alias.name.split(".")
+    return found
+
+
+BindingsOf = Callable[[tuple[str, ...]], Mapping[str, list[str]]]
+
+
+@cache
+def _bindings_of(module: tuple[str, ...]) -> Mapping[str, list[str]]:
+    """The import-time bindings of the ``src`` module at the dotted path, or none for no module.
+
+    A path names a module file or a package's ``__init__``; anything else (a name, a
+    module outside ``src``) has no bindings to follow. Cached: the tree is fixed for the
+    run and the resolver asks per imported name.
+    """
+    if not module or module[0] != PKG:
+        return {}
+    stem = SRC.joinpath(*module[1:])
+    for candidate in (stem.with_suffix(".py"), stem / "__init__.py"):
+        if candidate.is_file():
+            return _bindings(_parsed(candidate))
+    return {}
+
+
+def _resolved(imported: list[str], bindings_of: BindingsOf) -> list[str]:
+    """Where an imported name comes from: an import binding is followed to its source.
+
+    ``from leaveimpact.adapters.plantings import OrgSpec`` names ``adapters``, and the law
+    would rank it so; ``plantings`` bound ``OrgSpec`` by importing it from ``world.org``,
+    and that is the edge the importer takes. The last segment is looked up in the bindings
+    of the module the rest names, hop after hop, until the name is one the module defines
+    or the path is a module and not a name. ``bindings_of`` answers for a dotted module
+    path with that module's bindings and with nothing for a path that is no module, so the
+    function is pure over an injected tree; a cycle of re-exports ends where it began.
+
+    >>> tree = {
+    ...     ("leaveimpact", "adapters", "plantings"): {
+    ...         "OrgSpec": ["leaveimpact", "world", "org", "OrgSpec"]
+    ...     },
+    ...     ("leaveimpact", "adapters"): {
+    ...         "plantings_alias": ["leaveimpact", "adapters", "plantings"]
+    ...     },
+    ... }
+    >>> of = lambda module: tree.get(module, {})
+    >>> _resolved(["leaveimpact", "adapters", "plantings", "OrgSpec"], of)
+    ['leaveimpact', 'world', 'org', 'OrgSpec']
+    >>> _resolved(["leaveimpact", "adapters", "plantings_alias"], of)
+    ['leaveimpact', 'adapters', 'plantings']
+    >>> _resolved(["leaveimpact", "adapters", "plantings"], of)
+    ['leaveimpact', 'adapters', 'plantings']
+    """
+    seen: set[tuple[str, ...]] = set()
+    path = imported
+    while len(path) >= 2 and tuple(path) not in seen:
+        seen.add(tuple(path))
+        bound = bindings_of(tuple(path[:-1])).get(path[-1])
+        if bound is None:
+            break
+        path = bound
+    return path
+
+
+def _edges(path: Path) -> list[list[str]]:
+    """The intra-package edges the module at ``path`` takes: each import as written and as resolved.
+
+    Both are kept. Importing ``leaveimpact.adapters.plantings`` runs that module whatever
+    the name resolves to, so the written edge stands; the resolved edge is the capability
+    the name hands over, and is what a re-export through a permitted package would hide.
+    """
+    edges: list[list[str]] = []
+    for imported in _intra_imports(path):
+        for candidate in (imported, _resolved(imported, _bindings_of)):
+            if candidate not in edges:
+                edges.append(candidate)
+    return edges
 
 
 def test_every_package_is_ranked() -> None:
@@ -285,44 +474,131 @@ def test_no_relative_imports() -> None:
     )
 
 
+def test_no_unrankable_import_spellings() -> None:
+    """Nothing in ``src`` binds the bare package name or star-imports from inside the package.
+
+    Ranking ``import leaveimpact.core.ids`` as a ``core`` edge is right and not enough: the
+    statement also binds ``leaveimpact``, and ``leaveimpact.world`` is then an attribute
+    lookup, not an import, for every module in the process that has imported ``world``.
+    The aliased form is the one spelling of a dotted ``import`` the law admits.
+    """
+    violations = [
+        f"{path.relative_to(SRC)}:{spelling}"
+        for path, _ in _modules()
+        for spelling in _unrankable_import_spellings(_parsed(path))
+    ]
+    assert not violations, (
+        "imports binding a name the law cannot rank (write `from … import …`, or alias the "
+        "module with `as`):\n" + "\n".join(violations)
+    )
+
+
+def _rank_violations(parts: list[str], imports: list[list[str]]) -> list[str]:
+    """The imports of the module ``parts`` that climb a rank or cross to a lateral shell.
+
+    Pure over a module's dotted parts and its edges, so the law is shown red on planted
+    edges without planting a file.
+
+    >>> _rank_violations(["leaveimpact", "core", "rules"], [["leaveimpact", "world", "org"]])
+    ["leaveimpact.core.rules (core, rank 0) imports higher-ranked 'world' (rank 1)"]
+    >>> _rank_violations(["leaveimpact", "agent", "graph"], [["leaveimpact", "evaluator"]])
+    ["leaveimpact.agent.graph (agent) imports its lateral shell 'evaluator'"]
+    >>> _rank_violations(["leaveimpact", "agent", "graph"], [["leaveimpact", "core", "ids"]])
+    []
+    """
+    src_pkg = _package(parts)
+    if src_pkg is None:
+        return []
+    violations: list[str] = []
+    for imported in imports:
+        dst_pkg = _package(imported)
+        if dst_pkg is None or dst_pkg == src_pkg:
+            continue
+        src_rank, dst_rank = _RANK[src_pkg], _RANK[dst_pkg]
+        if src_rank < dst_rank:
+            violations.append(
+                f"{'.'.join(parts)} ({src_pkg}, rank {src_rank}) imports higher-ranked "
+                f"'{dst_pkg}' (rank {dst_rank})"
+            )
+        elif src_rank == dst_rank == _LATERAL_FORBIDDEN_RANK:
+            violations.append(
+                f"{'.'.join(parts)} ({src_pkg}) imports its lateral shell '{dst_pkg}'"
+            )
+    return violations
+
+
+def _denied_edge_violations(parts: list[str], imports: list[list[str]]) -> list[str]:
+    """The imports of the module ``parts`` that cross one of its package's trust boundaries.
+
+    >>> _denied_edge_violations(["leaveimpact", "agent", "graph"], [["leaveimpact", "world"]])
+    ["leaveimpact.agent.graph (agent) imports 'world' across a trust boundary"]
+    >>> _denied_edge_violations(["leaveimpact", "validator", "checks"], [["leaveimpact", "world"]])
+    []
+    """
+    src_pkg = _package(parts)
+    if src_pkg is None or src_pkg not in _DENIED_EDGES:
+        return []
+    return [
+        f"{'.'.join(parts)} ({src_pkg}) imports '{_package(imported)}' across a trust boundary"
+        for imported in imports
+        if _package(imported) in _DENIED_EDGES[src_pkg]
+    ]
+
+
 def test_rank_law() -> None:
     """No module imports a higher rank, and the rank-3 shells never import one another."""
-    violations: list[str] = []
-    for path, parts in _modules():
-        src_pkg = _package(parts)
-        if src_pkg is None:
-            continue
-        for imported in _intra_imports(path):
-            dst_pkg = _package(imported)
-            if dst_pkg is None or dst_pkg == src_pkg:
-                continue
-            src_rank, dst_rank = _RANK[src_pkg], _RANK[dst_pkg]
-            if src_rank < dst_rank:
-                violations.append(
-                    f"{'.'.join(parts)} ({src_pkg}, rank {src_rank}) imports higher-ranked "
-                    f"'{dst_pkg}' (rank {dst_rank})"
-                )
-            elif src_rank == dst_rank == _LATERAL_FORBIDDEN_RANK:
-                violations.append(
-                    f"{'.'.join(parts)} ({src_pkg}) imports its lateral shell '{dst_pkg}'"
-                )
+    violations = [
+        violation
+        for path, parts in _modules()
+        for violation in _rank_violations(parts, _edges(path))
+    ]
     assert not violations, "rank-law violations:\n" + "\n".join(violations)
 
 
 def test_denied_edges() -> None:
     """The investigator and the demo surface never import the benchmark, whatever the ranks say."""
-    violations: list[str] = []
-    for path, parts in _modules():
-        src_pkg = _package(parts)
-        if src_pkg is None or src_pkg not in _DENIED_EDGES:
-            continue
-        for imported in _intra_imports(path):
-            dst_pkg = _package(imported)
-            if dst_pkg in _DENIED_EDGES[src_pkg]:
-                violations.append(
-                    f"{'.'.join(parts)} ({src_pkg}) imports '{dst_pkg}' across a trust boundary"
-                )
+    violations = [
+        violation
+        for path, parts in _modules()
+        for violation in _denied_edge_violations(parts, _edges(path))
+    ]
     assert not violations, "denied-edge violations:\n" + "\n".join(violations)
+
+
+def test_the_edge_laws_are_red_on_a_name_re_exported_through_a_permitted_package() -> None:
+    """A benchmark name taken through an adapters namespace is read as the benchmark edge.
+
+    ``from leaveimpact.adapters.plantings import OrgSpec`` names ``adapters``, which the
+    investigator may import; ``plantings`` bound the name from ``world.org``, which it may
+    not. The resolver follows the binding on an injected tree, through a second hop, and
+    the written edge is kept beside the resolved one. The rank law stays green on the same
+    edges, by construction and not by luck: a module can only re-export what it may import,
+    and a lower rank never holds a higher one, so the trust boundary is the law a re-export
+    could cross. A name the permitted module defines resolves to nothing new.
+    """
+    tree: dict[tuple[str, ...], dict[str, list[str]]] = {
+        (PKG, "adapters", "plantings"): {"OrgSpec": [PKG, "world", "org", "OrgSpec"]},
+        (PKG, "adapters", "wiring"): {"OrgSpec": [PKG, "adapters", "plantings", "OrgSpec"]},
+    }
+
+    def of(module: tuple[str, ...]) -> Mapping[str, list[str]]:
+        return tree.get(module, {})
+
+    agent = [PKG, "agent", "graph"]
+    spellings = (
+        [PKG, "adapters", "plantings", "OrgSpec"],
+        [PKG, "adapters", "wiring", "OrgSpec"],
+    )
+    for written in spellings:
+        edges = [written, _resolved(written, of)]
+        assert edges[1] == [PKG, "world", "org", "OrgSpec"], written
+        assert _denied_edge_violations(agent, edges) == [
+            "leaveimpact.agent.graph (agent) imports 'world' across a trust boundary"
+        ]
+        assert not _rank_violations(agent, edges)
+    defined = [PKG, "adapters", "plantings", "PlantedSystems"]
+    assert _resolved(defined, of) == defined
+    assert not _denied_edge_violations(agent, [defined, _resolved(defined, of)])
 
 
 def test_write_capabilities_are_imported_only_by_the_packages_that_realize_a_world() -> None:
@@ -355,7 +631,9 @@ def test_an_object_store_writer_is_a_module_attribute_of_gated_modules_only() ->
 
     The allowlist above says who may import a writer; this says how a non-gated module
     of ``adapters`` may: inside a function, so the class never becomes an attribute a
-    validator can reach through ``from leaveimpact.adapters.wiring import …``.
+    validator can reach through ``from leaveimpact.adapters.wiring import …``. Module
+    scope is every statement that runs at import time, so a writer imported under a
+    module-level ``try`` or ``if``, or in a class body, is read as the attribute it is.
     """
     violations: list[str] = []
     for path, parts in _modules():
@@ -473,14 +751,15 @@ def test_sibling_adapters_do_not_import_one_another() -> None:
     policy, say) and anything lower, never ``adapters/<y>/``. The third path segment is
     compared against the adapter subpackages that exist, so ``from leaveimpact.adapters
     import retry_policy`` reads as the shared helper it is and ``from leaveimpact.adapters
-    import frappe`` reads as the sibling it is.
+    import frappe`` reads as the sibling it is. The edges are read resolved, so a sibling's
+    name taken through the shared manifest is the sibling edge it is.
     """
     violations: list[str] = []
     for path, parts in _modules():
         if _package(parts) != "adapters" or len(parts) < 4:
             continue  # modules at the adapters level are the shared helpers, not a sibling
         own = parts[2]
-        for imported in _intra_imports(path):
+        for imported in _edges(path):
             if (
                 len(imported) >= 3
                 and imported[1] == "adapters"

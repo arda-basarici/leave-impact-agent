@@ -67,6 +67,15 @@ plainly as its dotted path does. The rank table named `evaluator`,
 `agent` and `app` ahead of their milestones; the first two were scaffolded at the
 investigator milestone's first build step, `app` waits for the demo milestone.
 
+Three spellings the edge scan once read as something they were not are closed by name.
+A name imported from a module that itself imported it is followed to the module that
+defines it, so a benchmark name taken through an adapters namespace is the benchmark
+edge, the written edge kept beside the resolved one. An import that binds the bare
+package name (`import leaveimpact`, or a dotted form without `as`) is banned, as is a
+star import from inside the package, since the scan can rank neither. And the writer
+gate's module scope is every statement that runs at import time, the module-level
+`try` and `if` blocks and class bodies included; only a function body is local.
+
 ### The life of a world
 
     seed + params + generator version
