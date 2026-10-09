@@ -128,7 +128,7 @@ from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import (
     TOOL_USE_STOP,
     CompleteResponse,
-    Observation,
+    Sent,
     UndispatchedReason,
 )
 from leaveimpact.core.pricing import worst_case_cost
@@ -188,16 +188,6 @@ class Turns(Protocol):
     def request_for(self, state: AttemptState, call: int) -> TurnRequest | None: ...
 
     def payload_for(self, state: AttemptState) -> ReviewPayload: ...
-
-
-@dataclass(frozen=True, slots=True)
-class Sent:
-    """What one send produced: the observation, the response body for a complete one, and
-    the digest of the bytes sent when a hook recorded them."""
-
-    observation: Observation
-    response: JsonObject | None
-    sent_body_digest: str | None
 
 
 class ModelClient(Protocol):
@@ -779,7 +769,6 @@ __all__ = [
     "LoggedExecutor",
     "ModelClient",
     "ReviewPayload",
-    "Sent",
     "TokenCounter",
     "TurnRequest",
     "Turns",

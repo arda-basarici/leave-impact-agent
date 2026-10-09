@@ -47,7 +47,6 @@ from leaveimpact.adapters.wiring import inventory_publisher_over, run_export_pub
 from leaveimpact.agent import commands
 from leaveimpact.agent.appender import LogCommands
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import Sent
 from leaveimpact.agent.log_events import (
     ClosingEvent,
     CommitOverride,
@@ -65,6 +64,7 @@ from leaveimpact.agent.log_store import (
 from leaveimpact.agent.log_transition import AttemptState, Received, Rules, Transition
 from leaveimpact.agent.worker import AutomaticApproval, Worker, WorkerConfiguration
 from leaveimpact.core.inventory import InventoryScope
+from leaveimpact.core.model_calls import Sent
 from leaveimpact.core.run_timing import HarnessRevision
 from tests.crash import injector
 from tests.unit import format_fixtures as cases

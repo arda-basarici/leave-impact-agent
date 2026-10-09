@@ -41,12 +41,14 @@ position of its result. Neither clock orders events; a position does.
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
 
 from leaveimpact.core.enums import require_member
 from leaveimpact.core.input_bound import EstablishedBound
+from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.run_trace import (
     ClientErrorKind,
     Cost,
@@ -196,6 +198,37 @@ type Observation = (
     | RefusedBeforeSend
     | NoRecordedOutcome
 )
+
+
+_IDENTIFIER_RUN = re.compile(r"[0-9a-fA-F]{8,}|[0-9]+")
+
+
+def message_signature(message: str) -> str:
+    """The signature of a service error's message: the text with every run of digits and
+    every hex run of eight or more replaced by ``#``, so a request id, an account id in a
+    resource name or a count does not make two messages of one kind differ, and none of
+    them reaches the record, which a public job log prints. The contract step left the
+    signature undefined and the fixtures stand in with captured text; this is its first
+    definition, and the captured texts hold no such run.
+
+    >>> message_signature("Model produced invalid sequence as part of ToolUse")
+    'Model produced invalid sequence as part of ToolUse'
+    >>> message_signature("Too many tokens, 1200 over the limit (request 8f3a9c2e4b1d)")
+    'Too many tokens, # over the limit (request #)'
+    """
+    return _IDENTIFIER_RUN.sub("#", message)
+
+
+@dataclass(frozen=True, slots=True)
+class Sent:
+    """What one send produced: the observation, the response body for a complete one, and
+    the digest of the bytes sent when a hook recorded them. The type sits beside the
+    observations because a client is an adapter and the graph is above it: the client
+    returns it, the graph records it, and neither imports the other."""
+
+    observation: Observation
+    response: JsonObject | None
+    sent_body_digest: str | None
 
 
 class AttributionKind(StrEnum):
@@ -596,10 +629,12 @@ __all__ = [
     "RefusedBy",
     "RequestIdentity",
     "Sends",
+    "Sent",
     "ServiceError",
     "ToolCall",
     "Undispatched",
     "UndispatchedReason",
     "Unparsed",
     "UnresolvedToolCall",
+    "message_signature",
 ]
