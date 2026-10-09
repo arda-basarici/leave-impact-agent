@@ -14,6 +14,7 @@ from typing import Any
 
 import pytest
 
+from leaveimpact.adapters.object_store.layout import world_manifest_key
 from leaveimpact.adapters.wiring import ConfigurationError
 from leaveimpact.agent import __main__ as job
 from leaveimpact.agent.commands import (
@@ -296,6 +297,45 @@ def test_the_work_command_decodes_its_files_composes_the_cell_and_reads_the_admi
     captured = capsys.readouterr()
     assert status == 2 and "SECRET-MARKER" not in captured.err
     assert "the price table" in captured.err
+
+
+class _AdmittedStore(_AdmissionlessStore):
+    """A store whose attempt holds the fixtures' admission, so the work command reaches the
+    world store."""
+
+    def load(self, run_id: str, attempt: int, *, rules: Rules) -> Any:
+        self.loaded.append((run_id, attempt))
+        return SimpleNamespace(inputs=support.admitted_inputs())
+
+
+def test_a_manifest_that_does_not_decode_is_reported_without_what_it_held(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The group's review, second finding: the manifest codec's refusal names the fields it
+    found, so a malformed object in the world store could print its own field names to the
+    public log; the entry reports the key and the exception's type."""
+    registration = tmp_path / "registration.json"
+    registration.write_bytes(registration_bytes(DRAFT))
+    prices = tmp_path / "prices.json"
+    prices.write_text(json.dumps(PRICES), encoding="utf-8")
+    version = support.admitted_inputs().context.world_version
+    held = tmp_path / "store" / "world" / world_manifest_key(version)
+    held.parent.mkdir(parents=True)
+    held.write_text('{"SECRET-MARKER-2026": 1}', encoding="utf-8")
+    env = {
+        **ENV,
+        job.DATABASE: "postgresql://unused",
+        "LEAVE_IMPACT_OBJECT_STORE_ROOT": str(tmp_path / "store"),
+    }
+    line = [*WORK, "--registration", str(registration), "--prices", str(prices)]
+    status = job.main(line, env, _AdmittedStore())  # type: ignore[arg-type]
+    captured = capsys.readouterr()
+    assert status == 1 and captured.out == ""
+    assert "SECRET-MARKER" not in captured.err
+    assert "the world manifest at" in captured.err and "ValueError" in captured.err
+    held.unlink()
+    status = job.main(line, env, _AdmittedStore())  # type: ignore[arg-type]
+    assert status == 1 and "holds no manifest at worlds/" in capsys.readouterr().err
 
 
 def test_a_missing_database_is_a_configuration_fault(capsys: pytest.CaptureFixture[str]) -> None:

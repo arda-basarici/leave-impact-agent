@@ -50,7 +50,7 @@ from psycopg.rows import DictRow, dict_row
 
 from leaveimpact.adapters.corpus import UnservedCorpus
 from leaveimpact.adapters.inference import ConverseClient, CountingClient, inference_client
-from leaveimpact.adapters.manifest import ManifestStage, decode_manifest
+from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
 from leaveimpact.adapters.object_store.layout import world_manifest_key
 from leaveimpact.adapters.object_store.read import (
     AccessRefused,
@@ -616,10 +616,11 @@ def _work(
     dsn = env[DATABASE]
     world_reader = world_store_reader(world_store_from_env(env))
     version = inputs.context.world_version
-    stored = world_reader.get(world_manifest_key(version))
+    key = world_manifest_key(version)
+    stored = world_reader.get(key)
     if stored is None:
-        raise ValueError(f"the world store holds no manifest for version {version}")
-    manifest = decode_manifest(stored.content, stage=ManifestStage.PROJECTED)
+        raise ValueError(f"the world store holds no manifest at {key}")
+    manifest = _manifest_of(stored.content, key)
     if manifest.world_version != version:
         raise ValueError(
             f"the manifest at the keys of {version} describes world {manifest.world_version}"
@@ -651,6 +652,22 @@ def _work(
             readers.close()
     finally:
         corpus.close()
+
+
+def _manifest_of(content: bytes, key: str) -> WorldManifest:
+    """The projected manifest ``content`` holds. The codec's refusal quotes the fields it
+    found and the job's log is public, so the refusal raised names the key and the
+    exception's type alone, after the handler has ended, and no traceback carries the
+    codec's message (the group's review, second finding)."""
+    manifest: WorldManifest | None = None
+    failure: str | None = None
+    try:
+        manifest = decode_manifest(content, stage=ManifestStage.PROJECTED)
+    except ValueError as error:
+        failure = type(error).__name__
+    if manifest is None:
+        raise ValueError(f"the world manifest at {key} does not decode ({failure})")
+    return manifest
 
 
 def _saver_connection(dsn: str) -> psycopg.Connection[DictRow]:
