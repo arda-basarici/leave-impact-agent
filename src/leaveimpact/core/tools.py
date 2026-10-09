@@ -45,10 +45,10 @@ prefetch change that drops an enumeration reopens the list.
 
 The tool-surface digest hashes a versioned envelope of what a role's model sees: its
 ordered generated definitions, the definitions of the harness's own tools the role is
-shown beside them (the fact tool, when the step that shows it lands; empty until then, so
-the investigator's digest is provisional), and the identifiers and versions of the result
-codec and the validation protocol, since a change in how results are rendered or calls are
-refused is a change the model sees as much as a changed description is. It names the
+shown beside them (the fact tool, since the graph step), and the identifiers and versions
+of the result codec and the validation protocol, since a change in how results are
+rendered or calls are refused is a change the model sees as much as a changed description
+is. It names the
 semantic surface, not provider wire bytes, which a framework may translate before the
 request leaves. Nothing invisible enters it.
 """

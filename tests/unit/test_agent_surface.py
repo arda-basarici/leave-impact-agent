@@ -1,10 +1,12 @@
-"""What the model sees of its reads: the investigator's ten as Converse sends them under the
-pinned digest; every kind of resolution one envelope stamped with the admitted ``now``; a
-skip rendered as its unreachable source; a defect never rendered; a recovery's rendering
-byte-equal from the decoded log event; the correction shown drawn from the closed set with
-the echoing detail left in the log; and the request capture, which renders everything the
-registry step produces over a sealed world and finds the scenario id and the world version
-in none of it."""
+"""What the model sees of its reads: the investigator's ten and the fact tool as Converse
+sends them under the pinned digest, the fact tool's schema the parser's own object; every
+kind of resolution one envelope stamped with the admitted ``now``; a skip rendered as its
+unreachable source; a defect never rendered; a recovery's rendering byte-equal from the
+decoded log event; the correction shown drawn from the closed set with the echoing detail
+left in the log; a fact call answered with its admissions by index and reason and never an
+entry's text, an unparsed call and an undispatched call answered with no echo; and the
+request capture, which renders everything the registry and graph steps produce over a sealed
+world and finds the scenario id and the world version in none of it."""
 
 from __future__ import annotations
 
@@ -14,6 +16,7 @@ from typing import cast
 import pytest
 
 from leaveimpact.agent.execution import Executor
+from leaveimpact.agent.fact_entries import ENTRY_SCHEMA
 from leaveimpact.agent.log_events import (
     LoggedEvent,
     ModelReadKey,
@@ -25,10 +28,18 @@ from leaveimpact.agent.log_events import (
     encode_logged_event,
 )
 from leaveimpact.agent.surface import (
+    ARGUMENTS_CORRECTION,
+    FACT_CORRECTION,
+    FACT_TOOL_DEFINITION,
+    HARNESS_TOOLS,
     RenderedResult,
+    converse_harness_tools,
     converse_tools,
     correction_for,
+    render_fact_result,
     render_result,
+    render_undispatched,
+    render_unparsed,
     surface_digest,
 )
 from leaveimpact.core import (
@@ -47,16 +58,23 @@ from leaveimpact.core import (
     tool_definition,
 )
 from leaveimpact.core.jsonshape import JsonObject, canonical_json
-from leaveimpact.core.model_calls import UndispatchedReason
+from leaveimpact.core.model_calls import MalformedBatch, ParsedBatch, UndispatchedReason
+from leaveimpact.core.stated import Admitted, FactRefusal, Refused, RefusedInput
 from leaveimpact.core.timeshape import encode_instant
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
+from tests.unit import format_fixtures as cases
 from tests.unit.reads_fixture import Systems, reads_of_everything, systems_holding
-from tests.unit.test_core_tools import INVESTIGATOR_SURFACE_DIGEST
+from tests.unit.test_core_tools import READ_TOOLS_DIGEST
 from tests.unit.throwaway_world import loaded_world
 
 BY_MODEL = ModelOrigin(ModelCallId("call-1"))
 SURFACE = role_surface(Role.INVESTIGATOR)
+
+INVESTIGATOR_SURFACE_DIGEST = "17c16eb1231cc91164e40ffaf55bf5b8d80ed31d4dbfa3398f9092fcad8b7399"
+"""The investigator's surface as the model sees it: the ten read tools and the fact tool,
+pinned at the graph step, when the fact tool's definition moved it once from the read tools'
+own digest."""
 
 
 @pytest.fixture(scope="module")
@@ -105,6 +123,16 @@ def test_the_investigators_ten_are_sent_as_converse_tool_specs_in_canonical_orde
         assert spec["description"] == definition["description"]
         assert spec["inputSchema"] == {"json": definition["input_schema"]}
     assert surface_digest(Role.INVESTIGATOR) == INVESTIGATOR_SURFACE_DIGEST
+
+
+def test_the_fact_tool_is_the_parsers_schema_under_one_name_and_moved_the_digest() -> None:
+    assert HARNESS_TOOLS == (FACT_TOOL_DEFINITION,)
+    assert FACT_TOOL_DEFINITION["name"] == "state_facts"
+    assert FACT_TOOL_DEFINITION["input_schema"] is ENTRY_SCHEMA, "one object, never a second"
+    (sent,) = converse_harness_tools()
+    spec = cast(JsonObject, sent["toolSpec"])
+    assert spec["name"] == "state_facts" and spec["inputSchema"] == {"json": ENTRY_SCHEMA}
+    assert INVESTIGATOR_SURFACE_DIGEST != READ_TOOLS_DIGEST
 
 
 # --- The envelopes ------------------------------------------------------------------------
@@ -233,6 +261,79 @@ def test_the_block_is_the_tool_result_converse_sends(context: RunContext) -> Non
     }
 
 
+# --- The harness's own answers ------------------------------------------------------------
+
+
+def test_a_fact_calls_result_is_its_admissions_by_index_and_reason_and_never_a_text(
+    context: RunContext,
+) -> None:
+    batch = ParsedBatch(
+        (
+            Admitted(cases.SKILL),
+            Refused(cases.SKILL, FactRefusal.MISSING_ANCHOR, "the quote does not name 'Kafka'"),
+            RefusedInput('"Deniz knows Kafka"', FactRefusal.UNDECODABLE, "an entry is an object"),
+            Admitted(cases.SKILL),
+        )
+    )
+    rendered = render_fact_result(batch, context=context)
+    assert rendered.status == "success"
+    assert rendered.content == {
+        "observed_at": encode_instant(context.now),
+        "tool": "state_facts",
+        "entries": [
+            {"index": 0, "admitted": True},
+            {"index": 1, "refused": "missing_anchor"},
+            {"index": 2, "refused": "undecodable"},
+            {"index": 3, "admitted": True},
+        ],
+        "counts": {"admitted": 2, "missing_anchor": 1, "undecodable": 1},
+    }
+    text = canonical_json(rendered.content)
+    assert "kafka" not in text.lower() and "Deniz" not in text and "quote" not in text
+    malformed = render_fact_result(MalformedBatch('{"fact": []}', cases.PARSER), context=context)
+    assert malformed.status == "error"
+    assert malformed.content == {
+        "observed_at": encode_instant(context.now),
+        "tool": "state_facts",
+        "refused": {"correction": FACT_CORRECTION},
+    }
+    assert '{"fact": []}' not in canonical_json(malformed.content), "the raw payload is the log's"
+
+
+def test_an_unparsed_call_and_an_undispatched_call_are_answered_with_no_echo(
+    context: RunContext,
+) -> None:
+    unparsed = render_unparsed(tool="leave", surface=SURFACE, context=context)
+    assert unparsed.status == "error"
+    assert unparsed.content == {
+        "observed_at": encode_instant(context.now),
+        "tool": "leave",
+        "refused": {"correction": ARGUMENTS_CORRECTION},
+    }
+    unknown = render_unparsed(tool="scenario_001", surface=SURFACE, context=context)
+    assert "tool" not in unknown.content and "scenario_001" not in canonical_json(unknown.content)
+    cut = render_undispatched(
+        UndispatchedReason.STOP_REASON_NOT_TOOL_USE, tool="leave", surface=SURFACE, context=context
+    )
+    assert cut.status == "error"
+    assert cut.content == {
+        "observed_at": encode_instant(context.now),
+        "tool": "leave",
+        "not_made": {"reason": "stop_reason_not_tool_use"},
+    }
+    stopped = render_undispatched(
+        UndispatchedReason.SOURCE_UNREACHABLE, tool="leave", surface=SURFACE, context=context
+    )
+    assert stopped.content["unreachable"] == {"source": "frappe"}
+    with pytest.raises(ValueError, match="a skip of a tool the surface does not declare"):
+        render_undispatched(
+            UndispatchedReason.SOURCE_UNREACHABLE,
+            tool="employees",
+            surface=SURFACE,
+            context=context,
+        )
+
+
 # --- The corrections ----------------------------------------------------------------------
 
 
@@ -267,6 +368,10 @@ def test_the_capture_finds_neither_the_scenario_id_nor_the_world_version_in_the_
     tracker outage, and every correction; the capture reads the client's blocks."""
     secrets = (str(context.scenario_id), str(context.world_version))
     carried: list[str] = [canonical_json(t) for t in converse_tools(Role.INVESTIGATOR)]
+    carried.extend(canonical_json(t) for t in converse_harness_tools())
+    malformed = render_fact_result(MalformedBatch("x", cases.PARSER), context=context)
+    unparsed = render_unparsed(tool="scenario_001", surface=SURFACE, context=context)
+    carried.extend(canonical_json(each.content) for each in (malformed, unparsed))
     # The outage pass first: the full read sets every port's reachability from its arguments
     # on the one cached systems object, so the normal pass last leaves every port reachable.
     for down in ((Source.JIRA,), ()):

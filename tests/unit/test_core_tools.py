@@ -4,8 +4,9 @@ coercion and no default, the generated definition closed to unknown properties, 
 surface digest moving on exactly what the model sees. Since the registry step: the
 investigator's surface is the ten without the enumerations in the canonical order, a
 refusal carries a correction built from the declaration and never from the value, the
-correction set is closed and enumerable, and the investigator's digest is pinned,
-provisional until the fact tool's definition joins it."""
+correction set is closed and enumerable, and the digest of the investigator's read tools
+alone is pinned, the value the surface digest moves from when the harness's fact tool
+joins it (that one is pinned in the agent's surface test)."""
 
 import re
 from datetime import date
@@ -237,10 +238,10 @@ def test_the_surface_digest_moves_on_what_the_model_sees_and_on_nothing_else() -
 # --- The roles, the refusal and the pinned surface (the registry step) ---------------------
 
 
-INVESTIGATOR_SURFACE_DIGEST = "df9a3f2a572f09b8ae5dd14b8fd462a39f0d1aca5da94b76929bb3d85698f7ad"
-"""The investigator's surface as built at the registry step, with no harness tool yet:
-provisional until the fact tool's definition joins the envelope at the graph step, when
-this value moves once and is pinned again."""
+READ_TOOLS_DIGEST = "df9a3f2a572f09b8ae5dd14b8fd462a39f0d1aca5da94b76929bb3d85698f7ad"
+"""The investigator's ten read tools alone, with no harness tool: the envelope as the
+registry step built it, which the fact tool's definition moved the surface digest from
+at the graph step."""
 
 
 def test_the_investigator_sees_the_ten_without_the_enumerations_in_canonical_order() -> None:
@@ -304,15 +305,15 @@ def test_the_correction_set_is_closed_and_names_nothing_but_declarations() -> No
     assert not any("scenario" in message for message in messages)
 
 
-def test_the_investigator_digest_is_pinned_and_moves_on_a_harness_tool() -> None:
+def test_the_read_tools_digest_is_pinned_and_moves_on_a_harness_tool() -> None:
     surface = role_surface(Role.INVESTIGATOR)
-    assert tool_surface_digest(surface) == INVESTIGATOR_SURFACE_DIGEST
+    assert tool_surface_digest(surface) == READ_TOOLS_DIGEST
     fact_tool: JsonObject = {
         "name": "state_facts",
         "description": "state facts",
         "input_schema": {"type": "object"},
     }
-    assert tool_surface_digest(surface, (fact_tool,)) != INVESTIGATOR_SURFACE_DIGEST
+    assert tool_surface_digest(surface, (fact_tool,)) != READ_TOOLS_DIGEST
     assert tool_surface_digest(surface, (fact_tool,)) == tool_surface_digest(surface, (fact_tool,))
     with pytest.raises(ValueError, match="a surface names each tool once"):
         tool_surface_digest(surface, ({"name": "search"},))

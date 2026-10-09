@@ -1476,9 +1476,9 @@ them, every result of a full read under the normal condition and under an outage
 every correction, and asserts the scenario id and the world version appear in none;
 the prompts join it at the graph step. The surface digest's envelope carries the
 harness's own tool definitions beside the read tools (surface version 2, result codec
-`observed-envelope` 1, validation protocol 2); the fact tool's definition is the graph
-step's, so the investigator's digest is pinned provisional and moves once when it
-lands. The served version and the level are the admitted frozen inputs and nothing
+`observed-envelope` 1, validation protocol 2); the fact tool's definition joined it at
+the graph step, when the investigator's digest moved once and was pinned again. The
+served version and the level are the admitted frozen inputs and nothing
 else; the corpus reader is built from them with the adapter's serving check run before
 any read, so an unserved version or level fails the attempt first.
 
