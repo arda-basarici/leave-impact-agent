@@ -957,23 +957,29 @@ def test_a_contradiction_inside_the_prefetch_stops_it_before_the_next_planned_re
 
 
 @pytest.mark.parametrize("after", ["count_started", "count_outcome"])
+@pytest.mark.parametrize("declared", [False, True])
 def test_a_request_restated_under_another_digest_than_its_count_is_raised_before_a_recount(
-    world: SealedWorld, after: str
+    world: SealedWorld, after: str, declared: bool
 ) -> None:
     """Amendment 5: the recovering system restates call 1 with other bytes than the count the
     first process started, resolved or not; the model node raises, nothing is counted again
-    and nothing is sent, and the worker closes by defect at the unhandled site."""
+    and nothing is sent, and the worker closes by defect at the unhandled site. The restated
+    request flagged final changes nothing: the entry it declares is appended after the
+    check, so it hides no count (the group's review, which found it counted and sent)."""
     reference = bench(world)
     reference.work()
     events = reference.events()
     cut = [kind_of(e.event).value for e in events].index(after) + 1
     recovering = bench(world, events=events[:cut])
-    recovering.turns = ScriptedTurns((support.body_for(1, prompt="restated"), support.body_for(2)))
+    bodies = (support.body_for(1, prompt="restated"), support.body_for(2))
+    recovering.turns = ScriptedTurns(bodies, final_call=1 if declared else None)
     assert recovering.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "failed")
     closing = failure_of(recovering)
     assert closing.site == HarnessSite(HarnessSiteName.UNHANDLED)
     assert "RuntimeError" in closing.reason
     assert recovering.counter.asked == [] and support.sends_of(recovering.client) == 0
+    since = [kind_of(e.event).value for e in recovering.events()[cut:]]
+    assert "finalization_entered" not in since, "the declared entry never reached the log"
 
 
 def test_a_late_outcome_of_an_earlier_dispatch_never_moves_the_count_boundary() -> None:

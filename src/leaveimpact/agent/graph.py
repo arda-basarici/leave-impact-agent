@@ -41,7 +41,8 @@ the call's first event (amendment 5), so a count started since the previous call
 or since the entry into finalization, under another digest than the request now restated
 is this harness's defect and is raised, as a restated intent is; the loop request counted
 before the account entered finalization lies below the entry and is left behind, which is
-the one legitimate recount.
+the one legitimate recount. The entry the model node declares is appended after that
+check has read the boundary, so a declared finalization hides no count.
 The intent is appended and committed before anything leaves the machine (the ruling on one
 writer, part 5); the outcome is appended as it arrived, attributed by the registered table;
 then the within-call decision says whether to dispatch again after the registered delay,
@@ -509,14 +510,17 @@ def _dispatch(
             f"the system restated {call_id(ordinal)}'s request with other bytes than its "
             f"first intent named"
         )
-    if request.final and appender.state.finalization_entered is None:
-        appender.append(FinalizationEntered())
+    # The boundary is read before a declared entry is appended: the entry is part of this
+    # call, not the log below it, and appended first it hid the loop count a recovering
+    # process restated past (the group's review).
     counted = restated_since_counted(appender.state, ordinal, digest)
     if counted is not None:
         raise RuntimeError(
             f"the system restated {call_id(ordinal)}'s request with other bytes than the "
             f"count {count_id(counted)!r} was asked for"
         )
+    if request.final and appender.state.finalization_entered is None:
+        appender.append(FinalizationEntered())
     bound = _established_bound(harness, role, identifier, digest, request.body)
     if bound is None:
         return "terminal", False

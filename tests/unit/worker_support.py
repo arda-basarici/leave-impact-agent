@@ -111,18 +111,20 @@ def body_for(call: int, *, prompt: str = "investigate") -> JsonObject:
 @dataclass(frozen=True)
 class ScriptedTurns:
     """``bodies[n - 1]`` is call ``n``'s body; past the script the system asks nothing more.
-    The input reads named are every operation the log holds before the call."""
+    The input reads named are every operation the log holds before the call; the call
+    numbered ``final_call`` is flagged as the system's finalization."""
 
     bodies: Sequence[JsonObject]
     payload: ReviewPayload = field(default_factory=lambda: ReviewPayload((), cases.RULES))
     role: str = cases.ROLE
     name_reads: bool = False
+    final_call: int | None = None
 
     def request_for(self, state: AttemptState, call: int) -> TurnRequest | None:
         if call > len(self.bodies):
             return None
         reads: tuple[OperationId, ...] = ()
-        return TurnRequest(self.role, self.bodies[call - 1], reads)
+        return TurnRequest(self.role, self.bodies[call - 1], reads, call == self.final_call)
 
     def payload_for(self, state: AttemptState) -> ReviewPayload:
         return self.payload
