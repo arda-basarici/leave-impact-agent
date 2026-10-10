@@ -112,3 +112,25 @@ def test_the_reads_fixtures_hold_the_pool_s_documents_beside_the_planted_ones(
             found = systems.documents.document(DocumentId(ref.id))
             assert found is not None and found.value.id == ref.id
         assert systems.documents.held_document_ids() == {ref.id for ref in documents}
+
+
+def test_the_reads_fixtures_cut_the_pool_by_the_level_named(padded: SealedWorld) -> None:
+    """The baselines step, fork 14: a unit test of full context at the padded level needs
+    the fixture to serve what the real adapter serves at a level, the planted documents and
+    the first ``filler_count`` of the pool; the default stays every sealed document, a level
+    the world never sealed refuses by name."""
+    planted = {ref.id for ref in padded.index.records if ref.kind is EntityKind.DOCUMENT} - {
+        ref.id for ref in padded.filler
+    }
+    at_padded = padded.level_documents("padded")
+    assert at_padded is not None and len(at_padded) == len(planted) + 2
+    for holding in (systems_holding, fakes_holding):
+        assert holding(padded, "base").documents.held_document_ids() == planted
+        assert holding(padded, "padded").documents.held_document_ids() == {
+            ref.id for ref in at_padded
+        }
+        assert holding(padded).documents.held_document_ids() == planted | {
+            ref.id for ref in padded.filler
+        }
+        with pytest.raises(ValueError, match="seals no corpus level 'huge'"):
+            holding(padded, "huge")

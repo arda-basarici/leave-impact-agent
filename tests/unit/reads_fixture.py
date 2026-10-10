@@ -4,8 +4,10 @@ Test infrastructure. The evaluator replays what a run read, so its tests need re
 calls of the declared tools, with the arguments the tools accept, answered by systems that
 hold a sealed world. ``systems_holding`` is the three planted readers over the world (the
 adapters' own, what a development run reads) beside the in-memory documents port filled
-with every document the world seals, the pool's included, since the readers have no
-document side and the tests need a search; ``fakes_holding`` fills the four in-memory
+with the world's documents, since the readers have no document side and the tests need a
+search: every document the world seals, the pool whole, unless a corpus level is named, in
+which case the pool is cut to the level's sealed membership, as the real adapter serves it
+(the baselines step, fork 14); ``fakes_holding`` fills the four in-memory
 ports the same way, for a test that wants a system to have drifted from the world since
 it was sealed and changes a store directly, which a reader over sealed plantings cannot
 be made to do (the generator step's ruling 7: the fakes retire where a test reads a
@@ -90,17 +92,23 @@ class FakeSystems:
         return ReadPorts(self.people, self.work, self.calendar, self.documents)
 
 
-def systems_holding(world: SealedWorld) -> Systems:
-    """The planted readers over ``world`` and a documents port holding every document its
-    scenarios plant."""
+EVERY_SEALED = "every-sealed"
+"""The documents port's default: every document the world seals, the pool whole, whatever the
+levels say. A level's name instead cuts the pool to that level's sealed membership."""
+
+
+def systems_holding(world: SealedWorld, level: str = EVERY_SEALED) -> Systems:
+    """The planted readers over ``world`` and a documents port holding its documents, every
+    sealed one by default or the corpus level ``level``'s membership."""
     readers = planted_readers(world)
-    return Systems(readers.people, readers.work, readers.calendar, _documents_of(world))
+    return Systems(readers.people, readers.work, readers.calendar, _documents_of(world, level))
 
 
-def fakes_holding(world: SealedWorld) -> FakeSystems:
+def fakes_holding(world: SealedWorld, level: str = EVERY_SEALED) -> FakeSystems:
     """Fakes that hold every record ``world`` plants: the organization and each scenario's
-    leaves, work items, events and documents; for a test that drifts a store afterwards."""
-    systems = FakeSystems(documents=_documents_of(world))
+    leaves, work items, events and documents (every sealed document by default, or the
+    level ``level``'s); for a test that drifts a store afterwards."""
+    systems = FakeSystems(documents=_documents_of(world, level))
     for team in world.org.teams:
         systems.people.add_team(team)
     for employee in world.org.employees:
@@ -118,15 +126,24 @@ def fakes_holding(world: SealedWorld) -> FakeSystems:
     return systems
 
 
-def _documents_of(world: SealedWorld) -> InMemoryDocuments:
-    """Every document the world seals, the scenarios' own in scenario order then the pool
-    in rank order, the order the generator writes them; the pool's entities come from the
-    index, since the loaded world holds the pool as references."""
+def _documents_of(world: SealedWorld, level: str) -> InMemoryDocuments:
+    """The world's documents, the scenarios' own in scenario order then the pool in rank
+    order, the order the generator writes them; the pool's entities come from the index,
+    since the loaded world holds the pool as references. Under a level's name the pool is
+    cut to the membership the world seals for it (``SealedWorld.level_documents``), and a
+    level the world never sealed is a ``ValueError``, never an empty corpus."""
+    members = None
+    if level != EVERY_SEALED:
+        members = world.level_documents(level)
+        if members is None:
+            raise ValueError(f"{world.version} seals no corpus level {level!r}")
     documents = InMemoryDocuments()
     for scenario in world.scenarios:
         for document in scenario.owned.documents:
             documents.add_document(document.entity)
     for ref in world.filler:
+        if members is not None and ref not in members:
+            continue
         pooled = world.index.records[ref]
         assert isinstance(pooled, Document), f"{ref} is the pool's and not a document"
         documents.add_document(pooled)
