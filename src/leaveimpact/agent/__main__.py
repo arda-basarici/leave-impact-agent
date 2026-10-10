@@ -40,6 +40,7 @@ import json
 import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
+from contextlib import ExitStack, closing
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -591,7 +592,10 @@ def _work(
     request: WorkResolved, store: LogStore, rules: Rules, env: Mapping[str, str]
 ) -> WorkerEnding:
     """The investigator's composition over the admitted attempt, worked as far as one
-    process can; every reader and connection opened here is closed before it returns.
+    process can. What is opened here is closed before it returns, in the reverse of its
+    opening: the corpus reader, the vendor readers, the SDK runtime client the two live
+    clients share and the saver's connection; the world-store reader holds nothing to
+    close.
 
     The admitted inputs are read first, since the manifest and the corpus reader are
     functions of the admitted world version and level; the corpus reader runs its serving
@@ -625,33 +629,26 @@ def _work(
         raise ValueError(
             f"the manifest at the keys of {version} describes world {manifest.world_version}"
         )
-    corpus = corpus_reader_for(inputs, dsn=dsn)
-    try:
-        readers = build_readers(hosts_from_env(env, jira_at_gateway=True), manifest, world_reader)
-        try:
-            runtime = inference_client(line.region)
-            connection = _saver_connection(dsn)
-            try:
-                saver = PostgresSaver(connection)
-                saver.setup()
-                composition = WorkerComposition(
-                    configuration,
-                    line.harness,
-                    rules,
-                    InvestigatorTurns(load_prompt_assets()),
-                    ConverseClient(runtime),
-                    CountingClient(runtime),
-                    ReadPorts(readers.people, readers.work, readers.calendar, corpus),
-                    line.approval,
-                    saver,
-                )
-                return work(line.attempt, store, composition)
-            finally:
-                connection.close()
-        finally:
-            readers.close()
-    finally:
-        corpus.close()
+    with ExitStack() as opened:
+        corpus = opened.enter_context(closing(corpus_reader_for(inputs, dsn=dsn)))
+        hosts = hosts_from_env(env, jira_at_gateway=True)
+        readers = opened.enter_context(closing(build_readers(hosts, manifest, world_reader)))
+        runtime = opened.enter_context(closing(inference_client(line.region)))
+        connection = opened.enter_context(closing(_saver_connection(dsn)))
+        saver = PostgresSaver(connection)
+        saver.setup()
+        composition = WorkerComposition(
+            configuration,
+            line.harness,
+            rules,
+            InvestigatorTurns(load_prompt_assets()),
+            ConverseClient(runtime),
+            CountingClient(runtime),
+            ReadPorts(readers.people, readers.work, readers.calendar, corpus),
+            line.approval,
+            saver,
+        )
+        return work(line.attempt, store, composition)
 
 
 def _manifest_of(content: bytes, key: str) -> WorldManifest:
