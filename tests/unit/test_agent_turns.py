@@ -46,6 +46,9 @@ from leaveimpact.agent.log_events import (
     FinalizationEntered,
     FrozenInputs,
     LoggedEvent,
+    OperationEvent,
+    OperationSkip,
+    SegmentStarted,
     kind_of,
 )
 from leaveimpact.agent.log_reader import export_of
@@ -422,6 +425,50 @@ class SendOrderedClient(ContentScriptedClient):
         self.sends.append((requested_profile, support.request_digest(body)))
         self.bodies.append(body)
         return self.answers[len(self.sends) - 1]
+
+
+def test_a_skip_the_log_holds_counts_as_a_read_whichever_segment_wrote_it(
+    world: SealedWorld,
+) -> None:
+    """The close's review, second finding: the loop's continuation was read off the reader's
+    dispositions, which leave a skip unresolved when a later segment wrote it, so one log
+    gave a loop request when the skipping segment was the answering one and the forced
+    finalization when it was a recovering one. The answer's only read targets the people
+    source the prefetch stopped; the skip is re-stamped into a second segment and the next
+    request must be the same loop request, byte for byte."""
+    made = bench(world, outage="leaves_within")
+    made.client = ContentScriptedClient(
+        (
+            support.answered(
+                support.text("Reading one employee."),
+                support.tool_use("tu_emp", "employee", {"id": str(support.employee_id(1))}),
+                stop_reason="tool_use",
+            ),
+            support.answered(support.text("Nothing further to read.")),
+            support.answered(support.fact_tool("tu_final"), stop_reason="tool_use"),
+        )
+    )
+    made.work()
+    events = made.events()
+    at = next(
+        i
+        for i, e in enumerate(events)
+        if isinstance(e.event, OperationEvent) and isinstance(e.event.resolution, OperationSkip)
+    )
+    skip = events[at]
+    same = made.turns.request_for(made.state(events[: at + 1]), 2)
+    claim = LoggedEvent(
+        skip.position,
+        skip.timestamp,
+        histories.WorkerStamp(2, 2, 0),
+        SegmentStarted(cases.REVISION, "nonce-2", "launch-1"),
+    )
+    restamped = replace(skip, position=skip.position + 1, envelope=histories.WorkerStamp(2, 2, 10))
+    cross = made.turns.request_for(made.state((*events[:at], claim, restamped)), 2)
+    assert same is not None and cross is not None
+    assert not same.final and not cross.final
+    assert canonical_json(same.body) == canonical_json(cross.body)
+    assert tool_choice(cross.body) == {"auto": {}}
 
 
 def test_a_loop_call_ended_as_behaviour_is_followed_by_the_finalization(

@@ -102,13 +102,7 @@ from leaveimpact.agent.surface import (
 )
 from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.jsonshape import JsonObject, canonical_json
-from leaveimpact.core.model_calls import (
-    AsOperation,
-    HandledAsBatch,
-    Undispatched,
-    UndispatchedReason,
-    Unparsed,
-)
+from leaveimpact.core.model_calls import HandledAsBatch, Undispatched, Unparsed
 from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.run_trace import Operation, OperationId, thawed_json
 from leaveimpact.core.skills import SKILLS
@@ -318,15 +312,19 @@ def _earlier(
 def _reads_in(state: AttemptState, earlier: EarlierCall) -> bool:
     """Whether the call's answer holds a read call the loop dispatched or skipped: a call of
     a read tool with an object for its input, under the ``tool_use`` stop (the graph's own
-    count), which became an operation or a skip for the cap or an unreachable source. A
-    call ended as behaviour holds none."""
+    count), which became an operation or a skip for the cap or an unreachable source. Read
+    off the resolutions the log holds for the call, as the results message is, and not off
+    the reader's dispositions: those leave a skip unresolved when a later segment wrote it
+    (the reader's conservative rule), so the same log would have given a loop request on
+    the first process and the finalization on a recovery (the close's review, second
+    finding). A call ended as behaviour holds none."""
     if earlier.answered is None:
         return False
-    skipped = (UndispatchedReason.CAP, UndispatchedReason.SOURCE_UNREACHABLE)
+    held = _held_reads(state, earlier.events.ordinal)
     return any(
-        isinstance(call.disposition, AsOperation)
-        or (isinstance(call.disposition, Undispatched) and call.disposition.reason in skipped)
-        for call in earlier.answered.answer.tool_calls
+        use.id in held
+        for use in tool_uses(_response_of(state, earlier.answered))
+        if use.name != FACT_TOOL
     )
 
 
