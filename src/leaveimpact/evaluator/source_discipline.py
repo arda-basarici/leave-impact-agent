@@ -42,7 +42,13 @@ holds no agreement between a tool and what was recorded for it, so that a broken
 decodes and can be reported; the coverage mapping refuses to credit such an operation,
 and this is where it is said (``tool_mismatches``, the same checks). Two more that the
 method table cannot state: a search that returned more documents than its limit, and a
-refused prefetch call. Each names the operation and a kind, never content.
+refused call the harness constructed, the prefetch's or a read issued under a policy (the
+single-shot's search, full context's enumeration). That kind keeps the name
+``refused_prefetch`` it had when the prefetch was the only harness read, since the name is
+wire format in the artifact and the operation row beside the finding carries the origin,
+so a reader tells the two apart without a format change; the rename rides the next
+artifact bump (the baselines step, fork 13). Each names the operation and a kind, never
+content.
 
 *Retried sends* are the dispatches whose response metadata shows the SDK sent more than
 once. Nothing retries beneath a dispatch, which is what makes it the unit a cost and a cap
@@ -163,6 +169,8 @@ class OperationFindingKind(StrEnum):
     RECORD_KIND_NOT_THE_TOOLS = "record_kind_not_the_tools"
     ARGUMENTS_NOT_THE_TOOLS = "arguments_not_the_tools"
     MORE_THAN_THE_LIMIT = "more_than_the_limit"
+    # Every refused read the harness constructed, under the prefetch or a policy; the name
+    # predates the policies and stays until the next artifact bump (the module docstring).
     REFUSED_PREFETCH = "refused_prefetch"
 
 
