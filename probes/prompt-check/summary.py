@@ -18,7 +18,22 @@ from typing import Any, cast
 
 HERE = Path(__file__).resolve().parent
 RESULTS = HERE / "results"
-ORDER = ("shipped", "search-by-names", "search-plan", "search-once", "closed-list")
+ORDER = (
+    "shipped",
+    "search-by-names",
+    "search-plan",
+    "search-once",
+    "closed-list",
+    "accurate-search",
+    "rm-first-message",
+    "rm-one-instant",
+    "rm-tool-shape",
+    "rm-any-turn",
+    "rm-stop-reading",
+    "rm-stated-before",
+    "rm-no-more-reads",
+    "final-set",
+)
 COMMENT_TARGETS = {("scenario_013", "has_skill"), ("scenario_018", "has_skill")}
 STAGES = ("returned", "emitted", "admitted", "usable")
 

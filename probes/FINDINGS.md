@@ -3213,7 +3213,7 @@ pins the checker's request bytes unchanged. The worker tests' reference script r
 employee where it read the enumeration, since the role's surface refuses the enumeration;
 the crash manifest's counts hold.
 
-## prompt-check — the investigator's prompts run live on the first development world: the forecast, written before any call (2026-10-10)
+## prompt-check — the investigator's loop run live on the first development world: the loop, the finalization and the parse protocol hold on 98 runs, the reading sentence rewritten against named failures, six sentences dropped on removal rounds, the entry schema registered (2026-10-10)
 
 The investigator milestone's step 11 built the loop (the turns, the fact tool, the draft
 execution rule, the live clients, the smoke) under three prompt assets no real model had
@@ -3477,3 +3477,94 @@ target usable; there are six (`scenario_013` carries two), round 2 already retur
 and round 4 admitted six and made five usable, `scenario_013`'s requirement withheld on its
 shortened span. The table now carries the four stages from the result files through
 `summary.py`, which did not exist at the commit.
+
+**Round 5, the search contract stated accurately (2026-10-10, system digest `b95a5ccb`,
+`results/accurate-search-20261010T200124Z.md`; the fix commit's external review, second
+finding).** "Every word of the query" was false for a query with `OR` or a quoted phrase
+and loose for stems, and "a document's text" is one section's: the adapter parses the
+query with `websearch_to_tsquery` under the English configuration and matches a section's
+stem-normalized text. The sentence now reads: the search matches the words of the query,
+stem for stem, against one section's text at a time; plain words must all occur in the same
+section, a quoted phrase must occur as written, and general words occur in no section. `OR`
+and exclusion exist and are left unsaid, since a broader query is what over-reads. The
+seven runs: calls 4, 4, 4, 5, 6, 6, 6, none at the cap, $0.46; section targets 5 / 5 / 5 /
+5 of 6, `scenario_013`'s requirement not returned this time (its account-note search was
+made, the second search for the account the note names was not), its names_responsible
+target returned and usable as before. Against round 4: one retrieval fewer, the one the
+shortened span withheld in every round, so five of six usable in both; the over-reading
+gone, one run at the cap against none, $0.98 against $0.46. The forecast's rule for this
+round, "kept if retrieval holds at six of six", is missed by one search the model did not
+make; the accurate sentence is taken as the base of the removal rounds on the equal
+usable count and on its being true, a judgment recorded as one and not a measured
+superiority, since one search at temperature 0 is inside the round-to-round variation
+the structured scenarios show.
+
+**The removal rounds (2026-10-10, seven rounds of seven runs against the round-5 base,
+$3.47; every table under `results/`, the cross-round one in `results/summary.md`).** Each
+of the seven sentences beyond the accepted configuration that the forecast tabled was
+removed whole from its asset, the probe run under that round's name, the asset restored;
+the base is round 5. The shapes read per round, summed over the seven runs:
+
+| round (the sentence removed) | calls | cost | section targets r / e / a / u of 6 | model reads of records the first message shows | searches / documents | malformed entries | nested | requires placed / unplaced / ambiguous (overruns) | loop-batch entries / final-batch entries | true unneeded |
+|---|---|---|---|---|---|---|---|---|---|---|
+| base, round 5 | 35 | $0.46 | 5 / 5 / 5 / 5 | 8 | 37 / 14 | 8 | 0 | 7 / 0 / 0 (0) | 23 / 38 | 42 |
+| "The first message holds the records already read for you." | 50 | $0.70 | 6 / 6 / 6 / 5 | 20 | 55 / 14 | 13 | 0 | 7 / 0 / 1 (0) | 28 / 42 | 44 |
+| "Every tool answers as of the one instant the first message states." | 33 | $0.44 | 6 / 6 / 6 / 5 | 9 | 30 / 18 | 3 | 0 | 7 / 0 / 1 (0) | 25 / 47 | 56 |
+| "State facts with the state_facts tool. Its one argument is facts, …" (two sentences) | 38 | $0.54 | 6 / 6 / 6 / 6 | 13 | 56 / 16 | 12 | 0 | 19 / 0 / 0 (0) | 50 / 54 | 79 |
+| "You may state facts in any turn …, and a tool result tells you which entries were admitted …" | 36 | $0.48 | 5 / 5 / 5 / 5 | 14 | 38 / 12 | 9 | 0 | 7 / 0 / 0 (0) | 28 / 44 | 52 |
+| "When you have read what you need, stop reading; the last turn asks you to state every fact in one call." | 30 | $0.39 | 6 / 6 / 6 / 6 | 5 | 27 / 13 | 10 | 0 | 8 / 0 / 0 (0) | 30 / 37 | 45 |
+| finalization: ", including any fact you stated before" | 35 | $0.46 | 5 / 5 / 5 / 5 | 8 | 37 / 14 | 7 | 0 | 7 / 0 / 0 (0) | 23 / 35 | 40 |
+| finalization: " Do not read anything more." | 35 | $0.46 | 5 / 5 / 5 / 5 | 8 | 37 / 14 | 7 | 0 | 7 / 0 / 0 (0) | 23 / 37 | 42 |
+
+Read against each sentence's named failure, with the structured scenarios' round-to-round
+spread (2 to 15 calls under identical prompts earlier in the day) as the noise floor:
+
+- **"The first message holds the records already read for you." stays.** Its failure was
+  the model re-reading through the tools what the first message holds: 20 such reads
+  against the base's 8, 55 searches against 37, two runs at 13 calls, the round $0.24
+  dearer. The one sentence of the seven whose removal showed its failure.
+- **"Every tool answers as of the one instant …" is dropped.** The control: nothing
+  measurable moved beyond the spread (33 calls, the same stages, 18 documents against 14).
+- **The tool-shape sentences are dropped.** Their failure was malformed or nested entries:
+  nested 0 of 14 batches, malformed 12 against 8, inside the spread; the tool's own schema
+  carries the shape. What did move was volume: 19 requirements placed against 7 and 79
+  true unneeded facts against 42, the model stating more of what it read, every one
+  admitted. More statements are not the failure the sentence was written against, and
+  they cost output tokens, not correctness; a sentence kept for volume alone would be a
+  control the record cannot support.
+- **"You may state facts in any turn …" is dropped.** Its failure was no fact stated before
+  the last turn or a refused entry never restated: 28 loop-batch entries against 23, the
+  model stating facts mid-loop without being told it may.
+- **"When you have read what you need, stop reading; …" is dropped.** Its failure was the
+  loop running on: the round without it was the shortest of the day, 30 calls, every
+  section target usable, 5 repeated reads.
+- **", including any fact you stated before" is dropped.** The loop calls were identical
+  to the base's and the final batch held 35 entries against 38: the restatement thinned by
+  three and the composition unchanged, since the composer takes every admitted statement
+  from every turn (`agent/composer.py`); the sentence buys restated tokens.
+- **" Do not read anything more." is dropped.** Identical runs; under the forced tool
+  choice no read is possible, as forecast.
+
+**The confirmation round, the final set (system digest `24b74144`, finalization digest
+`d495fefb`; `results/final-set-20261010T202534Z.md`).** The six drops applied together over
+the round-5 base: 30 calls (6, 4, 4, 4, 4, 4, 4), none at the cap, $0.39; section targets
+5 / 5 / 5 / 5 of 6, `scenario_013`'s requirement the one not returned, as under the base;
+nested 0 of 13 batches, no `max_tokens` stop, every plumbing check empty; 5 reads of shown
+records, 48 searches, 13 documents; 7 requirements placed, none unplaced or ambiguous. A
+first confirmation had run with the tool-shape sentences still in the text, through a
+scripting slip that matched the sentences and removed nothing: 33 calls, $0.44, the same
+five of six, and one span one word past its sealed title, the span probe's measured
+overrun, seen that once in the day; its files were discarded and the round rerun on the
+set as stated. The shipped system text is the accepted configuration's sentences, the
+first sentence rewritten for the loop, the first-message sentence, the reading plan and
+the search contract; the finalization text is one sentence asking for every fact of the
+four kinds with its exact quote. Fourteen rounds in the record: 98 runs, $7.71 by the
+account check (round 0 $0.35, rounds 1 to 4 $3.04, round 5 $0.46, the removals $3.47, the
+confirmation $0.39; the discarded confirmation $0.44 more, the dry rounds nothing).
+
+**The entry schema registered.** Nested on 0 of the day's batches under every prompt, the
+flattening amendment is not adopted and the draft's `stated_facts.entry_schema` is bound
+to the parser's identity and its schema digest (`fact-entries-1`, `6a9efba9…`), written
+through the registration codec so the file keeps its one written form; the agent's
+pending values are its roles, the re-dispatch policy and the attribution table, and the
+two tests that list the draft's pending values say so.

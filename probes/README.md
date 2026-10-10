@@ -173,3 +173,15 @@ model-free by `prompt-check/forecast.py` before any call.
 | probe | what it decides | forecast | rests on |
 |---|---|---|---|
 | **prompt-check** (`prompt-check/live_probe.py`, live, the six live-iteration scenarios of the first development world under the normal condition at the base level, Haiku 4.5 on the `eu.` profile at temperature 0 from a workstation under the administrative profile, the real evaluator in process over each export) — per scenario the calls, tokens and cost from the log; the fact-stage measures (stated against planted, admitted, refused by reason); the span outcome of every requirement stated; the nesting rate of the fact tool's input; the chain check against a clause asking for two; whether max-tokens-with-tool-use occurs. Then one comparison round per prompt sentence beyond the accepted configuration, the sentence removed whole, the same six | whether the loop runs to a valid forced finalization under the shipped prompts, what each sentence beyond the accepted configuration does to the model, and whether the entry schema is registered as the parser declares it or amended by one-level flattening | the FINDINGS entry's forecast section: no abstention, three to four logical calls a scenario, about 11,000 tokens a first request (bounded 5,500 to 13,500 by bytes), about three dollars for the whole programme; the nesting rate a guess, below one batch in four; max-tokens-with-tool-use not expected | six scenarios at temperature 0 on one development world whose corpus a single call could hold; no rate is claimed from six runs, the raw shapes are recorded beside every count, and a sentence stays only where its removal shows the named failure on the same six |
+
+**Result (2026-10-10, fourteen rounds, 98 runs, $7.76).** The loop, the forced finalization,
+the account and the parse protocol held on every run (nested 0 of every batch, no
+`max_tokens` stop, every plumbing check empty, the two-person clause through the chain
+check). The forecast's reading sentence sent the model to search for words the corpus
+never holds; it was rewritten four times against named failures until every needed section
+target was reached, then stated accurately; the seven other sentences beyond the accepted
+configuration were each removed for a round, one stayed on its failure showing and six
+were dropped, and the final set confirmed at the base's level. The entry schema is
+registered unamended. The FINDINGS entry `prompt-check` holds the forecast, every round
+and the raw shapes; `prompt-check/results/summary.md` the cross-round table from the
+result files.

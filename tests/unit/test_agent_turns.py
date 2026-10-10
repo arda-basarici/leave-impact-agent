@@ -218,7 +218,10 @@ def test_the_three_assets_load_from_the_package_with_their_digests(assets: Promp
     assert tuple(name for name, _ in assets.digests()) == tuple(sorted(ASSET_NAMES))
     assert all(len(digest) == 64 for _, digest in assets.digests())
     assert [role for role, _, _ in assets.prompt_digests("investigator")] == ["investigator"] * 3
-    assert FACT_TOOL in assets.text(SYSTEM) and FACT_TOOL in assets.text(FINALIZATION)
+    # The finalization names the fact tool; the system text stopped naming it at the prompt
+    # check, whose removal round showed the sentence moving nothing (the tool list and the
+    # forced last turn carry the name).
+    assert FACT_TOOL in assets.text(FINALIZATION) and FACT_TOOL not in assets.text(SYSTEM)
     assert set(Template(assets.text(OPENING)).get_identifiers()) == {"leave_id", "now"}
     opening = assets.opening(leave_id="leave_005", now='{"at":"x","timezone":"y"}')
     assert "leave_005" in opening and '{"at":"x","timezone":"y"}' in opening

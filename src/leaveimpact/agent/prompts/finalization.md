@@ -1,1 +1,1 @@
-This is the last turn. With one state_facts call, state every fact of the four kinds that the free text of the records read in this conversation asserts, each with its exact quote, including any fact you stated before. Do not read anything more.
+This is the last turn. With one state_facts call, state every fact of the four kinds that the free text of the records read in this conversation asserts, each with its exact quote.
