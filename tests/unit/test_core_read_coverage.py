@@ -14,6 +14,7 @@ from dataclasses import replace
 from datetime import UTC, date, timedelta
 
 from leaveimpact.core import (
+    ENUMERABLE_KINDS,
     METHOD_TABLE,
     AbsentOutcome,
     Closure,
@@ -200,10 +201,21 @@ def test_an_empty_trace_observed_nothing_and_some_slices_no_read_could_have() ->
         WindowSlice(EntityKind.EVENT, w.RELEASE_SPAN),
     ):
         assert nothing.status(where) is UNREAD
-    # The corpus has a search and no enumeration; leaves, events and teams are found by
-    # id or by window only.
+    # Leaves, events and teams are found by id or by window only; the corpus has a search,
+    # and its enumeration closes nothing for the rules (the stated exception).
     for kind in (EntityKind.DOCUMENT, EntityKind.LEAVE, EntityKind.EVENT, EntityKind.TEAM):
         assert nothing.status(KindSlice(kind)) is UNCLOSABLE
+
+
+def test_the_corpus_enumeration_covers_what_it_returned_and_closes_nothing() -> None:
+    # The baselines step, fork 8: the full-context baseline is shown every document in one
+    # read; the documents and their sections are observed, and the kind stays unclosable,
+    # so a negative rests on the same waiver under every system.
+    shown = coverage_from_reads(reads(listing("documents", RUNBOOK)))
+    assert shown.status(RecordSlice(RUNBOOK.ref)) is COVERED
+    assert shown.status(RecordSlice(clause_ref(w.STALE_CLAUSE))) is COVERED
+    assert shown.status(EVERY_DOCUMENT) is UNCLOSABLE
+    assert EntityKind.DOCUMENT not in ENUMERABLE_KINDS
 
 
 def test_a_record_is_observed_however_a_completed_read_returned_it() -> None:

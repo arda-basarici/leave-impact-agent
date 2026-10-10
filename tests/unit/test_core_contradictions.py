@@ -189,7 +189,7 @@ def test_the_corpus_is_outside_the_rule() -> None:
     held = systems()
     reads = Recorder(held)
     reads.read("document", {"id": f.RUNBOOK.id})
-    held.documents.documents[f.RUNBOOK.id] = replace(f.RUNBOOK, title="Another title")
+    held.documents.held[f.RUNBOOK.id] = replace(f.RUNBOOK, title="Another title")
     reads.read("document", {"id": f.RUNBOOK.id})
     reads.read("search", {"query": "no such words anywhere", "limit": 5})
     assert found(reads) == ()

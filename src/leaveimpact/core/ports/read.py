@@ -41,6 +41,7 @@ reading and writing never reads as a class hierarchy.
 
 from __future__ import annotations
 
+import hashlib
 from typing import Protocol
 
 from leaveimpact.core.entities import (
@@ -154,3 +155,26 @@ class DocumentReader(Protocol):
         investigator's retrieval needs is its milestone's question.
         """
         ...
+
+    def documents(self) -> tuple[Observed[Document], ...]:
+        """Every document the corpus holds, in the shown order (``shown_order_key``).
+
+        The whole-table enumeration the full-context baseline is shown in one read, the
+        same corpus a search of this reader would rank; effective dates included, as for
+        the search. The order is a fixed function of each document's id and of nothing
+        else, so it is the same on any machine and carries no rank and no trace of which
+        documents a world planted and which it added as filler (the baselines step, fork 9).
+        """
+        ...
+
+
+def shown_order_key(id: DocumentId) -> str:
+    """The sort key that puts a ``documents`` answer in its shown order: the SHA-256 of the
+    document id. Ids are numbered in minting order and a world mints its filler after
+    everything it planted, so the numeric order would show every planted document before
+    every filler one; the hash scrambles that and depends on nothing a run could vary.
+
+    >>> shown_order_key(DocumentId("doc_001"))[:16]
+    '899c9194ab2e128b'
+    """
+    return hashlib.sha256(id.encode("utf-8")).hexdigest()

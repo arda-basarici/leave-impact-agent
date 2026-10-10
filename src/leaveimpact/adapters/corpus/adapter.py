@@ -64,6 +64,7 @@ from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import DocumentId, WorldVersion
 from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.ports.observed import Observed
+from leaveimpact.core.ports.read import shown_order_key
 from leaveimpact.core.run_record import BASE_CORPUS_LEVEL
 
 Connection = psycopg.Connection[Any]
@@ -193,6 +194,23 @@ class CorpusAdapter:
         for document_id, _ in hits:
             observed = self.document(DocumentId(str(document_id)))
             assert observed is not None, "a ranked section's document exists by foreign key"
+            found.append(observed)
+        return tuple(found)
+
+    def documents(self) -> tuple[Observed[Document], ...]:
+        """Every document the level holds under this world version, in the shown order
+        (``core.ports.read.shown_order_key``): the full-context baseline's one read, over
+        the same level filter every other statement applies, so it returns exactly the
+        corpus a search of this adapter would rank."""
+        world = self._config.world_version
+        with self._guarded() as conn:
+            held = self._held(conn)
+            rows = conn.execute(_SELECT_DOCUMENT_IDS, (world, held)).fetchall()
+        ids = sorted((DocumentId(str(row[0])) for row in rows), key=shown_order_key)
+        found: list[Observed[Document]] = []
+        for id in ids:
+            observed = self.document(id)
+            assert observed is not None, "a listed document is read by its own id"
             found.append(observed)
         return tuple(found)
 

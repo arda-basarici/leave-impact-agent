@@ -15,9 +15,13 @@ What covers a slice follows the read ports' shapes (the read module):
   section is covered when a returned document holds it, a comment when a returned work
   item does.
 - *Every record of a kind* is covered by the kind's enumeration, the read that takes no
-  argument. Employees, work items and components have one. Documents, leaves, events
-  and teams do not, so that slice is *unclosable*: a search returns what matched, a
-  window what overlapped, and neither says what else exists.
+  argument. Employees, work items and components have one. Leaves, events and teams do
+  not, so that slice is *unclosable*: a window returns what overlapped and says nothing
+  of what else exists. Documents are unclosable too, by DESIGN's stated exception and
+  not for want of a read: the corpus's enumeration exists for the full-context
+  baseline's one harness read (the baselines step, fork 8), and it covers every record
+  it returns while closing nothing, since a negative that waited for the corpus would be
+  out of reach for every system that reads it by search, and the rules are one for all.
 - *A window* is covered when the completed windows of its read, taken together, contain
   it. A union of intervals is exact, and one window per question is not the only honest
   way to read a calendar.
@@ -38,7 +42,7 @@ withdrawn section: the record in doubt is exactly where the missing evidence cou
 one, as the evaluator has for a comment or a section whose text is not the sealed one.
 
 An operation is credited with what its tool observes only when it is what the tool
-declares, in every respect the method table states: the tool is one of the thirteen,
+declares, in every respect the method table states: the tool is one of the fourteen,
 the arguments are the ones it accepts, the source is the one it reads, the outcome has
 its cardinality (one record or none for a read by id, a sequence for the rest) and
 every returned record is of the kind it returns. The operation type holds none of that
@@ -106,8 +110,10 @@ ENUMERABLE_KINDS: frozenset[EntityKind] = frozenset(
     specification.facts.entity_kind
     for specification in TOOL_SPECIFICATIONS
     if specification.facts.cardinality is Cardinality.SEQUENCE and not specification.arguments
-)
-"""The kinds a read returns every record of: the ones with a read that takes no argument."""
+) - {EntityKind.DOCUMENT}
+"""The kinds a read closes by returning every record: the ones with a read that takes no
+argument, less the corpus, whose enumeration closes nothing for the rules (the module
+docstring's stated exception)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -241,12 +247,13 @@ def supplied_by(operation: Operation) -> Supplied:
                 day_window = given
             if isinstance(declared, InstantSpanArgument) and isinstance(given, InstantSpan):
                 instant_window = given
+    kind = specification.facts.entity_kind
     in_full = isinstance(outcome, RecordsOutcome) and not specification.arguments
     return Supplied(
         records=records,
         absent=absent,
         misanswered=misanswered,
-        enumerated=specification.facts.entity_kind if in_full else None,
+        enumerated=kind if in_full and kind in ENUMERABLE_KINDS else None,
         day_window=day_window,
         instant_window=instant_window,
     )

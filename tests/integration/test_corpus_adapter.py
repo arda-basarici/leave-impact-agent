@@ -32,6 +32,7 @@ from leaveimpact.core.entities import Document, DocumentSection
 from leaveimpact.core.enums import DocumentKind, Source
 from leaveimpact.core.ids import clause_id, document_id
 from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.ports.read import shown_order_key
 from tests.integration.corpus_support import (
     cache_world,
     database_url,
@@ -171,6 +172,17 @@ def test_the_level_filters_before_ranking_and_the_shared_order_is_unchanged(url:
         assert found is not None and found.value == FILLER
         assert base.held_document_ids() == {doc.id for doc in ALL}
         assert padded.held_document_ids() == {doc.id for doc in ALL} | {FILLER.id}
+        # The enumeration is the level's whole corpus in the shown order (the baselines
+        # step, forks 8 and 9): the filler at padded only, every document whole, the order
+        # the port's key fixes and not the ids' numbering.
+        at_base = [seen.value for seen in base.documents()]
+        at_padded = [seen.value for seen in padded.documents()]
+        assert sorted(doc.id for doc in at_base) == sorted(doc.id for doc in ALL)
+        assert sorted(doc.id for doc in at_padded) == sorted(doc.id for doc in (*ALL, FILLER))
+        assert [doc.id for doc in at_padded] == sorted(
+            (doc.id for doc in (*ALL, FILLER)), key=shown_order_key
+        )
+        assert all(doc in (*ALL, FILLER) for doc in at_padded)
 
         assert ids(base, "pager") == [RUNBOOK.id, NOTE.id]
         with_filler = ids(padded, "pager")

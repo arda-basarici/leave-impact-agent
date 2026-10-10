@@ -391,6 +391,7 @@ from leaveimpact.core.ports.read import (
     DocumentReader,
     PeopleReader,
     WorkReader,
+    shown_order_key,
 )
 from leaveimpact.core.predicates import REGISTRY, Predicate, PredicateName, predicate
 from leaveimpact.core.prefetch import (
@@ -1279,6 +1280,7 @@ __all__ = [
     "correction_messages",
     "object_correction",
     "role_surface",
+    "shown_order_key",
     "verdicts_by_employee",
     "view_with_stated",
     "word_pattern",

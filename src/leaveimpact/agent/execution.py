@@ -27,7 +27,7 @@ planner reads its bounds off the same declarations the validator applies and the
 cannot honestly disagree.
 
 The surface is the executor's (the registry step, fork 9): the prefetch runs over the
-harness's own, all thirteen, and the tools node builds its executor over the role's, so a
+harness's own, all fourteen, and the tools node builds its executor over the role's, so a
 known tool the role is not shown is refused at execution and never resolved through the
 global table. The recorded refusal is the detail, which names the tool or the value the
 model gave; what the model is shown is the closed correction the rendering derives from

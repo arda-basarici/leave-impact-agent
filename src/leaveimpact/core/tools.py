@@ -1,4 +1,4 @@
-"""The thirteen read tools as declarations: the name, the arguments, the one port method each is.
+"""The fourteen read tools as declarations: the name, the arguments, the one port method each is.
 
 A tool is one typed specification naming exactly one read-port method, the model's
 schema generated from it, and the tool makes no domain decision (the investigator
@@ -15,7 +15,7 @@ kind of record it returns and whether it returns one or a sequence. A specificat
 names the method and adds the model-facing name, the description and the argument
 declarations with their bounds, so no specification can contradict its method, and
 ruling 3's per-operation source is derived from the table rather than stated twice.
-The thirteen are declared in one explicit canonical order, the order a role's registry
+The fourteen are declared in one explicit canonical order, the order a role's registry
 preserves and sends, never the order a file happens to list them in.
 
 Validation is one generic function over the declarations: an exact JSON object with
@@ -37,11 +37,14 @@ sample, that nothing of the world reaches the model through an error.
 
 The registry declares per role which methods become tools, so a tool list is constructed
 and never prompted (DESIGN, the tool paragraph). One role exists, the investigator, and
-its list is the ten without the three whole-table enumerations, which the frozen prefetch
-reads and the system's turns render into the model's context before the first call, so a
-model call to one would be a whole-table re-read with nothing to discover (the registry
-step, fork 1). That ties the list to the prefetch's steps on purpose and by name: a
-prefetch change that drops an enumeration reopens the list.
+its list is the ten without the four whole-table enumerations. Three of those the frozen
+prefetch reads and the system's turns render into the model's context before the first
+call, so a model call to one would be a whole-table re-read with nothing to discover (the
+registry step, fork 1); that ties the list to the prefetch's steps on purpose and by name,
+and a prefetch change that drops an enumeration reopens the list. The fourth, the corpus
+enumeration, exists for the full-context baseline's one harness read (the baselines step,
+fork 8) and would hand the investigator the whole corpus in one call, which is that
+baseline and not the agent.
 
 The tool-surface digest hashes a versioned envelope of what a role's model sees: its
 ordered generated definitions, the definitions of the harness's own tools the role is
@@ -109,7 +112,7 @@ class Cardinality(StrEnum):
 
 
 class PortMethod(StrEnum):
-    """The thirteen read-port methods, the closed set a tool may name."""
+    """The fourteen read-port methods, the closed set a tool may name."""
 
     EMPLOYEE = "employee"
     EMPLOYEES = "employees"
@@ -123,6 +126,7 @@ class PortMethod(StrEnum):
     EVENT = "event"
     EVENTS_WITHIN = "events_within"
     DOCUMENT = "document"
+    DOCUMENTS = "documents"
     SEARCH = "search"
 
 
@@ -173,6 +177,9 @@ METHOD_TABLE: Mapping[PortMethod, MethodFacts] = MappingProxyType(
         ),
         PortMethod.DOCUMENT: MethodFacts(
             PortFamily.DOCUMENT, Source.CORPUS, EntityKind.DOCUMENT, Cardinality.SINGLE
+        ),
+        PortMethod.DOCUMENTS: MethodFacts(
+            PortFamily.DOCUMENT, Source.CORPUS, EntityKind.DOCUMENT, Cardinality.SEQUENCE
         ),
         PortMethod.SEARCH: MethodFacts(
             PortFamily.DOCUMENT, Source.CORPUS, EntityKind.DOCUMENT, Cardinality.SEQUENCE
@@ -364,13 +371,19 @@ TOOL_SPECIFICATIONS: tuple[ToolSpecification, ...] = (
         (IdArgument("id", EntityKind.DOCUMENT),),
     ),
     ToolSpecification(
+        "documents",
+        "Every document the document store holds, each with its sections.",
+        PortMethod.DOCUMENTS,
+        (),
+    ),
+    ToolSpecification(
         "search",
         "The corpus documents whose sections best match a free-text query, up to a limit.",
         PortMethod.SEARCH,
         (QueryArgument("query", 200), SEARCH_LIMIT),
     ),
 )
-"""The thirteen, in the one canonical order a registry preserves and sends."""
+"""The fourteen, in the one canonical order a registry preserves and sends."""
 
 
 # --- The roles ----------------------------------------------------------------------------
@@ -396,10 +409,12 @@ INVESTIGATOR_METHODS: frozenset[PortMethod] = frozenset(
         PortMethod.SEARCH,
     }
 )
-"""The ten the investigator is shown: every method but the three whole-table enumerations
-(``employees``, ``components``, ``work_items``), which the frozen prefetch reads for every
-run and the turns render before the first call (the registry step, fork 1). Stated as the
-included set, so the list is a positive claim and not what happens to be left over."""
+"""The ten the investigator is shown: every method but the four whole-table enumerations.
+Three (``employees``, ``components``, ``work_items``) the frozen prefetch reads for every
+run and the turns render before the first call (the registry step, fork 1); the fourth
+(``documents``) is the full-context baseline's one harness read and never a tool of the
+agent's (the baselines step, fork 8). Stated as the included set, so the list is a positive
+claim and not what happens to be left over."""
 
 ROLE_METHODS: Mapping[Role, frozenset[PortMethod]] = MappingProxyType(
     {Role.INVESTIGATOR: INVESTIGATOR_METHODS}
@@ -680,7 +695,7 @@ def tool_surface_digest(
 def specification_named(
     name: str, among: tuple[ToolSpecification, ...] = TOOL_SPECIFICATIONS
 ) -> ToolSpecification | None:
-    """The specification with ``name`` among ``among`` (the thirteen by default; a role's
+    """The specification with ``name`` among ``among`` (the fourteen by default; a role's
     surface when a role's call is resolved), or ``None`` when no tool there is so named."""
     for specification in among:
         if specification.name == name:

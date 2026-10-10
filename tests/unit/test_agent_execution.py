@@ -317,7 +317,7 @@ def test_a_models_call_outside_the_executors_surface_is_refused_and_a_prefetchs_
 ) -> None:
     """The registry step, fork 9: the tools node builds its executor over the role's surface,
     so a known tool the role is not shown is refused at execution, never resolved through
-    the thirteen; the prefetch runs over the thirteen and such a call from it is a defect."""
+    the fourteen; the prefetch runs over the fourteen and such a call from it is a defect."""
     over_role = Executor(ports_of(systems), surface=role_surface(Role.INVESTIGATOR))
     refused = over_role.call(BY_MODEL, "employees", {})
     assert isinstance(refused, RefusedCallOutcome)

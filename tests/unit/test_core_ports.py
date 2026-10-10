@@ -36,6 +36,7 @@ from leaveimpact.core import (
     WorkItemStatus,
     WorkReader,
     employee_ref,
+    shown_order_key,
 )
 from leaveimpact.core.ids import (
     clause_id,
@@ -235,6 +236,21 @@ def test_search_ranks_by_hits_and_honours_the_limit() -> None:
     assert [seen.value.id for seen in corpus.search("kafka", limit=5)] == ["doc_005", "doc_004"]
     assert [seen.value.id for seen in corpus.search("kafka", limit=1)] == ["doc_005"]
     assert corpus.search("redis", limit=5) == ()
+
+
+def test_documents_enumerates_every_document_in_the_shown_order() -> None:
+    # The baselines step, fork 9: a fixed function of the id, so the numbered minting order
+    # (planted before filler) never shows through; ids 1, 2, 3 come back as 2, 1, 3.
+    corpus = InMemoryDocuments()
+    for number in (1, 2, 3):
+        corpus.add_document(_document(number, f"Text {number}."))
+    shown = [seen.value.id for seen in corpus.documents()]
+    assert shown == ["doc_002", "doc_001", "doc_003"]
+    assert shown == sorted(shown, key=shown_order_key)
+    assert all(seen.source is Source.CORPUS for seen in corpus.documents())
+    assert InMemoryDocuments().documents() == ()
+    with pytest.raises(SourceUnreachable):
+        InMemoryDocuments(reachable=False).documents()
 
 
 # --- the faults -------------------------------------------------------------------

@@ -149,10 +149,11 @@ moved when slices replaced reachability. For a run the two come apart: a source 
 answer every call and the one record that would settle a question never be asked for,
 and an unread record is not a negative. Read by reachability alone, a run that read
 nothing would have every "not on leave" and every "lacks the skill" confirmed by its own
-silence. One slice no read can observe whole: the corpus's documents, which have a
-search and no enumeration. A negative may stand without it and says that it did, because
-a negative that waited for it would be out of reach for every system and compare
-nothing. Every answer carries what it rested on, the facts, the gaps and each slice it
+silence. One slice no read closes for the rules: the corpus's documents, which the
+investigator reads by search; the full-context baseline is shown them whole in one read,
+and that read closes nothing either, by this rule. A negative may stand without it and
+says that it did, because a negative that waited for it would be out of reach for every
+system that searches and compare nothing. Every answer carries what it rested on, the facts, the gaps and each slice it
 asked about with what the view said, and citations and the accounting of reads are
 judged against that. `ambiguous` and `conflicting` are the agent's to emit, never the
 rule's, which keeps the rule's derivation and the agent's own uncertainty apart.
@@ -242,7 +243,7 @@ with the record read and the tickets listed, a skills list without Kafka is
 is `unknown / absent`; a run that read the record and never listed the tickets has
 `unknown / insufficient`, however reachable the tracker was; and one whose tracker is
 unreachable has `unknown / inaccessible` even when the HR record shows nothing. The
-corpus is the one stated exception, since it has a search and no enumeration: a
+corpus is the one stated exception, read by search and never closed for the rules: a
 negative may stand without it and records that it did. The truth a world plants
 observes whatever its reachable sources hold, which is the case the sealed keys are
 derived in. That is

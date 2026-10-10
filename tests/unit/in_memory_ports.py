@@ -45,6 +45,7 @@ from leaveimpact.core.ids import (
     TeamId,
     WorkItemId,
 )
+from leaveimpact.core.ports.read import shown_order_key
 
 
 @dataclass
@@ -176,14 +177,14 @@ class InMemoryDocuments(_Store):
 
     Relevance is the count of sections containing the query, case-insensitive — enough
     for a test to see ordering, and no claim about what the corpus adapter's full-text
-    search returns.
+    search returns. The enumeration sorts into the shown order the port fixes.
     """
 
     source: Source = Source.CORPUS
-    documents: dict[DocumentId, Document] = field(default_factory=dict[DocumentId, Document])
+    held: dict[DocumentId, Document] = field(default_factory=dict[DocumentId, Document])
 
     def document(self, id: DocumentId) -> Observed[Document] | None:
-        return self._one(self.documents, id)
+        return self._one(self.held, id)
 
     def search(self, query: str, *, limit: int) -> tuple[Observed[Document], ...]:
         self._reach()
@@ -193,15 +194,19 @@ class InMemoryDocuments(_Store):
             return sum(needle in section.text.casefold() for section in document.sections)
 
         ranked = sorted(
-            (document for document in self.documents.values() if hits(document)),
+            (document for document in self.held.values() if hits(document)),
             key=lambda document: (-hits(document), document.id),
         )
         return tuple(self._observe(document) for document in ranked[:limit])
 
+    def documents(self) -> tuple[Observed[Document], ...]:
+        self._reach()
+        return tuple(self._observe(self.held[id]) for id in sorted(self.held, key=shown_order_key))
+
     def add_document(self, document: Document) -> str:
-        return self._add(self.documents, document.id, document, "document")
+        return self._add(self.held, document.id, document, "document")
 
     def held_document_ids(self) -> frozenset[DocumentId]:
         """The inspection outside the port, as the corpus adapter offers it to a validator."""
         self._reach()
-        return frozenset(self.documents)
+        return frozenset(self.held)

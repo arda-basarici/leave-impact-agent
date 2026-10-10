@@ -263,7 +263,7 @@ def test_the_digest_refuses_a_step_the_surface_does_not_declare() -> None:
 
 
 def _with(tool: str, **fields: object) -> tuple[ToolSpecification, ...]:
-    """The thirteen with ``tool``'s specification changed in ``fields``."""
+    """The fourteen with ``tool``'s specification changed in ``fields``."""
     return tuple(
         replace(specification, **fields) if specification.name == tool else specification
         for specification in TOOL_SPECIFICATIONS

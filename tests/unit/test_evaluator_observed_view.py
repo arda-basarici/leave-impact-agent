@@ -364,7 +364,7 @@ def test_a_section_whose_text_is_not_the_sealed_one_states_no_requirement(
         if facts[0].predicate is PredicateName.REQUIRES
     )
     parent = world.index.parts[carrier].parent
-    documents = systems.documents.documents
+    documents = systems.documents.held
     sealed_document = documents[DocumentId(parent.id)]
     documents[sealed_document.id] = replace(
         sealed_document,

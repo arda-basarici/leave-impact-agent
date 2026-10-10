@@ -239,7 +239,7 @@ def prefetch_digest(
 
 def prefetch_rule() -> PrefetchRule:
     """The rule as a run's record carries it: the identifier and the digest of the plan as it
-    is declared here over the thirteen tools."""
+    is declared here over the fourteen tools."""
     return PrefetchRule(
         PREFETCH_IDENTIFIER, prefetch_digest(PREFETCH_PROTOCOL, PREFETCH_STEPS, TOOL_SPECIFICATIONS)
     )

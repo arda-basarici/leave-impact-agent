@@ -1,4 +1,4 @@
-"""The tool specifications: thirteen in one declared order naming each method once, the
+"""The tool specifications: fourteen in one declared order naming each method once, the
 method table the single authority for a tool's source and shape, validation exact with no
 coercion and no default, the generated definition closed to unknown properties, and the
 surface digest moving on exactly what the model sees. Since the registry step: the
@@ -58,10 +58,10 @@ INSTANTS = {
 }
 
 
-def test_thirteen_specifications_name_each_method_once_in_the_declared_order() -> None:
-    assert len(TOOL_SPECIFICATIONS) == 13
+def test_fourteen_specifications_name_each_method_once_in_the_declared_order() -> None:
+    assert len(TOOL_SPECIFICATIONS) == 14
     assert [s.method for s in TOOL_SPECIFICATIONS] == list(PortMethod)
-    assert len({s.name for s in TOOL_SPECIFICATIONS}) == 13
+    assert len({s.name for s in TOOL_SPECIFICATIONS}) == 14
     assert set(METHOD_TABLE) == set(PortMethod)
     assert specification_named("slack") is None
 
@@ -78,7 +78,21 @@ def test_the_method_table_is_the_one_authority_for_source_and_shape() -> None:
     assert by_source[Source.FRAPPE] == {"employee", "employees", "team", "leave", "leaves_within"}
     assert by_source[Source.JIRA] == {"work_item", "work_items", "component", "components"}
     assert by_source[Source.CALENDAR] == {"event", "events_within"}
-    assert by_source[Source.CORPUS] == {"document", "search"}
+    assert by_source[Source.CORPUS] == {"document", "documents", "search"}
+
+
+def test_the_corpus_enumeration_takes_no_argument_and_is_no_tool_of_the_investigators() -> None:
+    # The baselines step, fork 8: the full-context baseline's one harness read, declared
+    # like the three enumerations the prefetch makes and kept out of the agent's list.
+    documents = _named("documents")
+    assert documents.arguments == ()
+    assert documents.facts.source is Source.CORPUS
+    assert documents.facts.entity_kind is EntityKind.DOCUMENT
+    assert documents.facts.cardinality is Cardinality.SEQUENCE
+    assert validate_arguments(documents, {}) == {}
+    assert PortMethod.DOCUMENTS not in INVESTIGATOR_METHODS
+    assert "documents" not in {s.name for s in role_surface(Role.INVESTIGATOR)}
+    assert [s.name for s in TOOL_SPECIFICATIONS[-3:]] == ["document", "documents", "search"]
 
 
 def test_a_specification_is_well_named_described_and_declares_each_argument_once() -> None:
@@ -251,7 +265,7 @@ def test_the_investigator_sees_the_ten_without_the_enumerations_in_canonical_ord
     ]
     assert len(surface) == 10
     left_out = {s.name for s in TOOL_SPECIFICATIONS} - {s.name for s in surface}
-    assert left_out == {"employees", "components", "work_items"}
+    assert left_out == {"employees", "components", "work_items", "documents"}
     assert all(
         s.facts.cardinality is Cardinality.SEQUENCE and s.arguments == ()
         for s in TOOL_SPECIFICATIONS
