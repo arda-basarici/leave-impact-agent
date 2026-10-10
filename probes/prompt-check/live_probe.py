@@ -84,11 +84,7 @@ from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogS
 from leaveimpact.agent.turns import InvestigatorTurns  # noqa: E402
 from leaveimpact.agent.worker import AutomaticApproval  # noqa: E402
 from leaveimpact.core.ids import ScenarioId  # noqa: E402
-from leaveimpact.core.model_calls import (  # noqa: E402
-    CompleteResponse,
-    RefusedBeforeSend,
-    RefusedInput,
-)
+from leaveimpact.core.model_calls import CompleteResponse, RefusedInput, Sends  # noqa: E402
 from leaveimpact.core.predicates import PredicateName  # noqa: E402
 from leaveimpact.core.run_export import RunExport  # noqa: E402
 from leaveimpact.core.run_export_json import decode_export_bytes  # noqa: E402
@@ -198,6 +194,7 @@ class RunResult:
     logical_calls: int
     dispatches: int
     sends: int
+    unresolved_sends: int
     stop_reasons: dict[str, int]
     finalization_entered: int | None
     max_tokens_with_tool_use: int
@@ -327,9 +324,12 @@ def reduce(
     metrics = evaluation.metrics
     dispatches = [d for call in trace.model_calls for d in call.dispatches]
     complete = [d.observation for d in dispatches if isinstance(d.observation, CompleteResponse)]
-    # A send is a dispatch that left the machine, a service error's included; only a refusal
-    # before sending made none (the close's review: the first count was of complete responses).
-    sends = sum(1 for d in dispatches if not isinstance(d.observation, RefusedBeforeSend))
+    # A send is what the export knows left the machine (``Dispatch.sends``): a service error's
+    # dispatch sent once, a refusal before sending none, and a dispatch with no recorded
+    # outcome is unknown and counted apart (the close's external review: the first count took
+    # complete responses, the second took every unrefused dispatch, an unresolved one included).
+    sends = sum(1 for d in dispatches if d.sends is Sends.ONE)
+    unresolved_sends = sum(1 for d in dispatches if d.sends is Sends.UNRESOLVED)
     stop_reasons = Counter(o.stop_reason for o in complete)
     usage_in = usage_out = 0
     for d in dispatches:
@@ -434,6 +434,7 @@ def reduce(
         logical_calls=len(trace.model_calls),
         dispatches=len(dispatches),
         sends=sends,
+        unresolved_sends=unresolved_sends,
         stop_reasons=dict(stop_reasons),
         finalization_entered=trace.finalization_entered,
         max_tokens_with_tool_use=max_tokens_tool,
