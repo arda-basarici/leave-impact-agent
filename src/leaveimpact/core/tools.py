@@ -36,8 +36,9 @@ enumerable (``correction_messages``), which is what lets the request capture pro
 sample, that nothing of the world reaches the model through an error.
 
 The registry declares per role which methods become tools, so a tool list is constructed
-and never prompted (DESIGN, the tool paragraph). One role exists, the investigator, and
-its list is the ten without the four whole-table enumerations. Three of those the frozen
+and never prompted (DESIGN, the tool paragraph). Two roles exist. The reader, which the
+two one-call baselines share, is shown no read tool at all. The investigator's list is the
+ten without the four whole-table enumerations. Three of those the frozen
 prefetch reads and the system's turns render into the model's context before the first
 call, so a model call to one would be a whole-table re-read with nothing to discover (the
 registry step, fork 1); that ties the list to the prefetch's steps on purpose and by name,
@@ -390,9 +391,11 @@ TOOL_SPECIFICATIONS: tuple[ToolSpecification, ...] = (
 
 
 class Role(StrEnum):
-    """The roles a registry constructs a tool list for; one so far, the investigator."""
+    """The roles a registry constructs a tool list for: the investigator, and the reader the
+    two one-call baselines share (the baselines step, fork 3)."""
 
     INVESTIGATOR = "investigator"
+    READER = "reader"
 
 
 INVESTIGATOR_METHODS: frozenset[PortMethod] = frozenset(
@@ -416,8 +419,13 @@ run and the turns render before the first call (the registry step, fork 1); the 
 agent's (the baselines step, fork 8). Stated as the included set, so the list is a positive
 claim and not what happens to be left over."""
 
+READER_METHODS: frozenset[PortMethod] = frozenset()
+"""The reader is shown no read tool: the single-shot and the full-context baselines make one
+model call over what the harness read for them, and the fact tool is the one tool beside
+(the baselines step, forks 2 and 3). Stated as the empty set so the list is a positive claim."""
+
 ROLE_METHODS: Mapping[Role, frozenset[PortMethod]] = MappingProxyType(
-    {Role.INVESTIGATOR: INVESTIGATOR_METHODS}
+    {Role.INVESTIGATOR: INVESTIGATOR_METHODS, Role.READER: READER_METHODS}
 )
 
 

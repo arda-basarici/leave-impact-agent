@@ -692,6 +692,7 @@ from leaveimpact.core.token_counting import (
 from leaveimpact.core.tools import (
     INVESTIGATOR_METHODS,
     METHOD_TABLE,
+    READER_METHODS,
     RESULT_CODEC,
     ROLE_METHODS,
     SEARCH_LIMIT,
@@ -843,6 +844,7 @@ __all__ = [
     "INSTANT_SPAN_VALUE",
     "KIND_BY_ENTITY_TYPE",
     "INVESTIGATOR_METHODS",
+    "READER_METHODS",
     "METHOD_TABLE",
     "NORMAL_CONDITION",
     "NUMBER_WORDS",

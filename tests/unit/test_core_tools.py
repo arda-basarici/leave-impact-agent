@@ -17,6 +17,7 @@ import pytest
 from leaveimpact.core import (
     INVESTIGATOR_METHODS,
     METHOD_TABLE,
+    READER_METHODS,
     SEARCH_LIMIT,
     TOOL_SPECIFICATIONS,
     ArgumentsRefused,
@@ -273,6 +274,14 @@ def test_the_investigator_sees_the_ten_without_the_enumerations_in_canonical_ord
     ), "what is left out is exactly a whole-table enumeration"
     assert specification_named("employees", surface) is None
     assert specification_named("employees") is not None
+
+
+def test_the_reader_is_shown_no_read_tool() -> None:
+    # The baselines step, fork 3: the one-call baselines' role, its surface the empty set
+    # by declaration, so the fact tool is the one tool its model sees.
+    assert role_surface(Role.READER) == ()
+    assert not READER_METHODS
+    assert set(Role) == {Role.INVESTIGATOR, Role.READER}
 
 
 def test_a_refusal_carries_a_correction_from_the_declaration_and_a_detail_with_the_value() -> (

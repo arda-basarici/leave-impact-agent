@@ -28,7 +28,7 @@ spans and quotes stay in the capture directory's JSON.
 ``--dry`` runs the same path under the scripted "nothing further" client and the scripted
 counter: no call, no spend, the plumbing proven end to end. A comparison round is this
 script run again under ``--round <name>`` after the prompt asset's sentence has been removed
-in ``agent/prompts/``; the digests the round ran under are recorded in its summary, so the
+in ``agent/prompts/investigator/``; the digests the round ran under are recorded in its summary, so the
 export's provenance and the report agree by construction.
 
     PYTHONPATH=. AWS_PROFILE=leave-impact LEAVE_IMPACT_SPIKE_CAPTURES=<dir> \\

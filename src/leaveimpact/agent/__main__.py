@@ -654,7 +654,7 @@ def _work(
             configuration,
             line.harness,
             rules,
-            InvestigatorTurns(load_prompt_assets()),
+            InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)),
             ConverseClient(runtime),
             CountingClient(runtime),
             ReadPorts(readers.people, readers.work, readers.calendar, corpus),

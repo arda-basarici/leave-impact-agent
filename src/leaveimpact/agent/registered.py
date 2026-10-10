@@ -326,7 +326,7 @@ def agent_provenance(
 def _agent_role(system: AgentSystem, filling: RoleFilling) -> RegisteredRole:
     """The one role the run records: the code's under a draft that holds the roles pending,
     else the registered one, which must equal the code's."""
-    assets = load_prompt_assets()
+    assets = load_prompt_assets(Role.INVESTIGATOR)
     current = RegisteredRole(
         filling.name,
         filling.configuration,

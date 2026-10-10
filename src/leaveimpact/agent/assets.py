@@ -1,12 +1,16 @@
-"""The investigator's prompt assets as package data, and their digests.
+"""The prompt assets as package data, one directory per role, and their digests.
 
-Three texts the model sees that are not data the turns render: the system text, the opening
-of the first user turn and the finalization request. They ship inside the package the way
-the generator's prompts do (``generator.prose.assets``), so the prompt a run was made under
-is the prompt in the tree at that commit and nothing an environment could swap; each
-asset's SHA-256 is one of the frozen inputs' ``prompt_digests`` for the role, which the
-worker compares at claim and the export records. A fourth model-visible text that is not
-data is a fourth asset here, never a literal in code (the graph step, fork 11).
+Three texts a role's model sees that are not data the turns render: the system text, the
+opening of the first user turn and the finalization request. They ship inside the package
+the way the generator's prompts do (``generator.prose.assets``), under ``prompts/<role>/``,
+so the prompt a run was made under is the prompt in the tree at that commit and nothing an
+environment could swap; each asset's SHA-256 is one of the frozen inputs' ``prompt_digests``
+for the role, which the worker compares at claim and the export records. A fourth
+model-visible text that is not data is a fourth asset here, never a literal in code (the
+graph step, fork 11). The investigator's texts are the prompt check's; the reader's, the
+two one-call baselines' (the baselines step, fork 3), start from them with the loop's
+sentences removed and one sentence on what the message holds, and are measured by that
+step's live probe.
 
 The opening is a template whose only parameters are the leave id and the stamped ``now``,
 the same instant every rendered result carries; the template's identifiers are checked at
@@ -25,6 +29,8 @@ from functools import cache
 from importlib import resources
 from string import Template
 from types import MappingProxyType
+
+from leaveimpact.core.tools import Role
 
 SYSTEM = "system"
 OPENING = "opening"
@@ -67,10 +73,11 @@ class PromptAssets:
 
 
 @cache
-def load_prompt_assets() -> PromptAssets:
-    """The assets shipped with this package, read once per process; ``ValueError`` when
-    the opening's identifiers are not exactly the leave id and the stamp."""
-    root = resources.files(__package__).joinpath("prompts")
+def load_prompt_assets(role: Role = Role.INVESTIGATOR) -> PromptAssets:
+    """The assets shipped with this package for ``role``, read once per process;
+    ``ValueError`` when the opening's identifiers are not exactly the leave id and the
+    stamp."""
+    root = resources.files(__package__).joinpath("prompts", role.value)
     texts = {name: root.joinpath(f"{name}.md").read_text(encoding="utf-8") for name in ASSET_NAMES}
     identifiers = frozenset(Template(texts[OPENING]).get_identifiers())
     if identifiers != OPENING_PARAMETERS:
