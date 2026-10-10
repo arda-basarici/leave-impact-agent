@@ -3606,3 +3606,58 @@ the day shared a prompt. The repeat was run in answer and found no variation, an
 reading is rewritten above as a comparison of deterministic outcomes. The round-5 call
 vector was listed sorted and is in scenario order now; the README's total read $7.76 for
 $7.71 before the repeat.
+
+
+## single-shot-query — the single-shot baseline's query chosen model-free on the first development world: a template over the leaver's component names, the limit of 20 (2026-10-11)
+
+**What ran** (`probes/single-shot-query/selection.py`, the README's preregistered entry; the
+procedure, the candidates and the tie rules fixed in the step-12 forks file before any score
+was seen). The first development world `b7ec4563…` (seed 101), loaded in the laptop's cache
+at its padded level, every scenario with an oracle answer under the normal condition; the
+scored targets are the retrieval targets that move a required key and have a document-section
+carrier, since a target carried by ticket comments alone cannot come back from the corpus. For
+each scenario the frozen prefetch ran over the planted readers and the real corpus adapter,
+each candidate was rendered over what it returned with the production rendering and searched
+once at the limit of 20, and a target counted as recovered at a limit when any of its section
+carriers' documents was among the first that many results. No model was called.
+
+| | value |
+|---|---|
+| scenarios scored | 20 of 30 (the other ten hold no required section-carried target under the normal condition) |
+| scored targets | 28 |
+| candidates | 8: three literals, five templates (`selection.py`) |
+
+| candidate | inputs | @5 | @10 | @20 | mean rendered length |
+|---|---|---|---|---|---|
+| L1 `handover or coverage or on-call or escalation` | 0 | 0 | 0 | 0 | 45.0 |
+| L2 `requires or required or responsible or owner` | 0 | 0 | 5 | 7 | 44.0 |
+| L3 `policy or runbook or account` | 0 | 6 | 11 | 12 | 28.0 |
+| T1 component names | 1 | 11 | 13 | 13 | 25.6 |
+| T2 the leaver's name | 1 | 7 | 7 | 7 | 11.5 |
+| T3 work item titles | 1 | 13 | 13 | 13 | 159.3 |
+| T4 component names or work item titles | 2 | 12 | 13 | 13 | 157.9 |
+| T5 component names or L2's words | 1 | 8 | 16 | 19 | 61.4 |
+
+**Selected by the fixed rule: T5 at the limit of 20** (`results/selection-20261010T232446Z.md`
+and `.json`): the most recovered at 20; the limit the smallest of 5, 10 and 20 within one
+target of 19, which 16 at 10 is not. Written into the draft registration through the codec
+(`query_protocol` a template of the leaver's component names and the words "requires or
+required or responsible or owner", fallback L1; `search_limit` 20), labelled development.
+
+**Readings.** L1's four words occur in no section of this world (0 of 28 at every limit),
+which the investigator's own prompt sentence ("general words such as 'procedure' or
+'coverage' occur in no section") predicted; the clause vocabulary (L2) and the component
+names carry the recall, and their disjunction beats either alone. The padded corpus is 38
+documents, so a limit of 20 returns more than half of it: on this world the single-shot at
+its limit is nearer full context than a retrieval, which is a property of the small world and
+not of the protocol (the step-12 forks file's size note; the padded level's size is the
+freeze's). The limit did not saturate: 9 of 28 required targets came back from no candidate
+at 20, so the single-shot on this world has room below the agent, which is what a baseline
+the comparison can separate needs.
+
+**Limits.** One world; the step's fork 6 approved a second development world, which needs an
+SSO session to generate and had not been sealed when this ran, so the result is labelled by
+its one world and the probe reruns over both when the second lands. Twenty scenarios and
+twenty-eight targets are not a rate: the counts are recorded and nothing is claimed beyond
+the ordering they gave under the rule written before them. The freeze re-selects by the same
+procedure on the development worlds it names.

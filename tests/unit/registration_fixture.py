@@ -6,8 +6,8 @@ They are made here once, with placeholder values that mean nothing: a role, an a
 table of one row per kind of observation, a re-dispatch bound, an entry schema.
 
 ``named`` resolves what an execution of the agent and of full context needs, so their cells
-can be built. The single-shot system stays pending under it, as the committed draft holds it
-until the selection probe sets its protocol and limit; ``frozen`` therefore drops that system
+can be built. The single-shot system keeps its pending variant and roles under it (the draft
+sets its protocol and limit since the selection probe); ``frozen`` therefore drops that system
 and everything that names it, a frozen registration having nothing pending but its world.
 """
 

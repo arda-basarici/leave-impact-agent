@@ -73,10 +73,21 @@
         "pending": "set when the single-shot baseline is built"
       },
       "query_protocol": {
-        "pending": "chosen when the single-shot baseline is built, on development worlds from other seeds with the selection procedure fixed before any candidate is tried, never on the measurement world"
+        "value": {
+          "kind": "template",
+          "parts": [
+            {
+              "input": "component_names"
+            },
+            {
+              "text": "requires or required or responsible or owner"
+            }
+          ],
+          "fallback": "handover or coverage or on-call or escalation"
+        }
       },
       "search_limit": {
-        "pending": "chosen with the query protocol, by the same procedure"
+        "value": 20
       },
       "caps": {
         "basis": "unmeasured",

@@ -188,3 +188,17 @@ exports at the close (`prompt-check/results/verdicts.md`): the final set 6 of 7,
 miss the shortened-span scenario, round 0 at 3 of 7. The FINDINGS entry `prompt-check`
 holds the forecast, every round and the raw shapes; `prompt-check/results/summary.md`
 the cross-round table from the result files.
+
+## The baselines step's query selection (written 2026-10-11, before it runs)
+
+The single-shot baseline's one search asks a registered query, a literal or a template over
+the prefetch's records, and the registration's step-6 ruling says it is chosen on development
+worlds from other seeds with the procedure fixed before any candidate is tried, never on the
+golden world. The procedure, the eight candidates and the tie rules are in the step-12 forks
+file (fork 5 as amended) and restated in `single-shot-query/selection.py`'s docstring; the
+candidates were written before any was scored, and T2 lost the team name there because the
+prefetch returns no team record.
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **single-shot-query** (`single-shot-query/selection.py`, model-free; the development worlds the laptop's cache holds at the padded level, every scenario with an answer under the normal condition; the frozen prefetch over the planted readers and the real corpus adapter, each candidate rendered with the production rendering and searched once at the limit of 20) — per candidate the required document-section targets recovered at 5, 10 and 20, pooled, and the mean rendered length | which candidate the draft registration carries as the single-shot's query protocol and at which limit, by the fixed rule: the most recovered at 20, ties by fewer inputs, shorter mean length, list position; the limit the smallest within one target of the count at 20 | no forecast of the winner is made, since a guess written here would be the methodological decision the procedure exists to keep out of the scorer's hands; the first development world's padded corpus is about 2,750 tokens of documents (the forks file), so a literal that names the clauses' own vocabulary may reach every target, and a tie is likely | one development world until the second is sealed (fork 6, approved); the result is labelled by the worlds it ran on, the registration's value is development until the freeze re-selects on the worlds it names, and the templates' inputs are values the model is shown anyway |

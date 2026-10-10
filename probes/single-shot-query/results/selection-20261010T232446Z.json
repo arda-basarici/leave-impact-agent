@@ -1,0 +1,1725 @@
+{
+  "stamp": "20261010T232446Z",
+  "level": "padded",
+  "worlds": [
+    {
+      "world": "b7ec4563",
+      "scenarios_scored": 20,
+      "scored_targets": 28
+    }
+  ],
+  "candidates": [
+    {
+      "name": "L1",
+      "inputs": 0,
+      "recovered": {
+        "5": 0,
+        "10": 0,
+        "20": 0
+      },
+      "mean_rendered_length": 45,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "L2",
+      "inputs": 0,
+      "recovered": {
+        "5": 0,
+        "10": 5,
+        "20": 7
+      },
+      "mean_rendered_length": 44,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "L3",
+      "inputs": 0,
+      "recovered": {
+        "5": 6,
+        "10": 11,
+        "20": 12
+      },
+      "mean_rendered_length": 28,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 3,
+            "10": 3,
+            "20": 3
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 1,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 3,
+            "10": 3,
+            "20": 3
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 28,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "T1",
+      "inputs": 1,
+      "recovered": {
+        "5": 11,
+        "10": 13,
+        "20": 13
+      },
+      "mean_rendered_length": 25.6,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 15,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 15,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 29,
+          "recovered": {
+            "5": 0,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 15,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 29,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 31,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 15,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 31,
+          "recovered": {
+            "5": 1,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 29,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "T2",
+      "inputs": 1,
+      "recovered": {
+        "5": 7,
+        "10": 7,
+        "20": 7
+      },
+      "mean_rendered_length": 11.5,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 2,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 10,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 9,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 10,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 10,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 11,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 10,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 13,
+          "recovered": {
+            "5": 2,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 10,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 14,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 11,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 14,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 10,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 12,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 14,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "T3",
+      "inputs": 1,
+      "recovered": {
+        "5": 13,
+        "10": 13,
+        "20": 13
+      },
+      "mean_rendered_length": 159.3,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 196,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 196,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 186,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 2,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 199,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "T4",
+      "inputs": 2,
+      "recovered": {
+        "5": 12,
+        "10": 13,
+        "20": 13
+      },
+      "mean_rendered_length": 157.9,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 194,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 45,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 194,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 193,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 192,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 193,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 198,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 197,
+          "recovered": {
+            "5": 1,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 193,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        }
+      ]
+    },
+    {
+      "name": "T5",
+      "inputs": 1,
+      "recovered": {
+        "5": 8,
+        "10": 16,
+        "20": 19
+      },
+      "mean_rendered_length": 61.4,
+      "scenarios": [
+        {
+          "scenario_id": "scenario_011",
+          "scored_targets": 3,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_012",
+          "scored_targets": 1,
+          "rendered_length": 61,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_013",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_014",
+          "scored_targets": 1,
+          "rendered_length": 63,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_015",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_016",
+          "scored_targets": 1,
+          "rendered_length": 61,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_017",
+          "scored_targets": 2,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_018",
+          "scored_targets": 1,
+          "rendered_length": 61,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_019",
+          "scored_targets": 3,
+          "rendered_length": 44,
+          "recovered": {
+            "5": 0,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_020",
+          "scored_targets": 1,
+          "rendered_length": 63,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_021",
+          "scored_targets": 1,
+          "rendered_length": 61,
+          "recovered": {
+            "5": 0,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_022",
+          "scored_targets": 1,
+          "rendered_length": 77,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 0
+          }
+        },
+        {
+          "scenario_id": "scenario_023",
+          "scored_targets": 1,
+          "rendered_length": 63,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_024",
+          "scored_targets": 1,
+          "rendered_length": 61,
+          "recovered": {
+            "5": 0,
+            "10": 0,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_025",
+          "scored_targets": 1,
+          "rendered_length": 77,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_026",
+          "scored_targets": 1,
+          "rendered_length": 79,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_027",
+          "scored_targets": 1,
+          "rendered_length": 63,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_028",
+          "scored_targets": 1,
+          "rendered_length": 61,
+          "recovered": {
+            "5": 0,
+            "10": 1,
+            "20": 1
+          }
+        },
+        {
+          "scenario_id": "scenario_029",
+          "scored_targets": 2,
+          "rendered_length": 79,
+          "recovered": {
+            "5": 1,
+            "10": 2,
+            "20": 2
+          }
+        },
+        {
+          "scenario_id": "scenario_030",
+          "scored_targets": 1,
+          "rendered_length": 77,
+          "recovered": {
+            "5": 1,
+            "10": 1,
+            "20": 1
+          }
+        }
+      ]
+    }
+  ],
+  "selected": {
+    "candidate": "T5",
+    "search_limit": 20,
+    "query_protocol": {
+      "kind": "template",
+      "parts": [
+        {
+          "input": "component_names"
+        },
+        {
+          "text": "requires or required or responsible or owner"
+        }
+      ],
+      "fallback": "handover or coverage or on-call or escalation"
+    }
+  }
+}

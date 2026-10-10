@@ -276,10 +276,11 @@ def test_the_primary_is_at_the_padded_level_with_its_breakdowns_and_the_rest_bes
     assert [each.stratum.name for each in primary.breakdowns] == [tier.value for tier in Tier]
     assert sum(each.two_by_two[1] for each in primary.breakdowns if each.two_by_two) == 6
 
-    # The agent against single-shot is registered and kept; this format cannot resolve the
-    # single-shot system, and the reason names what it waits on.
+    # The agent against single-shot is registered and kept; the single-shot system's variant
+    # and roles are pending until its runtime is built (its query protocol and limit are set
+    # since the selection probe), and the reason names what it waits on.
     assert all(
-        s.overall is None and "systems.single_shot.query_protocol" in (s.unavailable or "")
+        s.overall is None and "systems.single_shot.variant" in (s.unavailable or "")
         for s in analysis.secondary
     )
 
