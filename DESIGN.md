@@ -2924,7 +2924,7 @@ real PostgreSQL.
 | unit | is the pure core right? | rules, checks, codecs, no I/O; doctests and pytest | every push, default |
 | integration | do the seams hold against real dependencies? | the store against a real PostgreSQL service, never a SQLite stand-in, since the store is evaluated on the terms it runs on; adapters against recorded cassettes | every push, `-m integration` |
 | live contract | has an external API drifted from the cassettes? | the same adapter tests re-run against the real sandboxes under a record mode; the narrower `live` marker is a test with no cassette possible | gated by env, on demand |
-| agent smoke | does the loop's plumbing work end to end without model spend? | one scenario through the real loop with a scripted fake model | every push |
+| agent smoke | does the loop's plumbing work end to end without model spend? | the real turns over a content-scripted client, at the unit level in the worker bench and at the integration level through the work and publish commands over the real store and the real evaluator, asserting no finding the plumbing could cause | every push |
 | e2e | does the deployed thing work? | after deploy, through the public hostname | the deploy job, post-approval |
 
 Network access is blocked for every test by default, so only a cassette-marked test
@@ -3393,6 +3393,116 @@ over the replay's ordinal shift under an outage and the recovery's skipped delay
 faults the external review found and unit tests then held; the reconciliation states
 per call what each dispatch's intents and outcomes must be, never past the registered
 maximum.
+
+As built at the graph step (M2 step 11, 2026-10-09 and 2026-10-10). The investigator's
+run has one shape: the frozen prefetch, then reading turns, then one finalization. An
+abstention the prefetch decides, the leave not returned or the employee enumeration
+not covered, asks no model call and goes to its approval with the empty payload, so
+neither a count nor a send is made for a run that can state nothing. A reading turn
+shows the model the role's read tools and the fact tool with the choice open; it
+reads, and may state facts about what earlier turns returned; the loop ends when an
+answer holds no read call, whatever its stop reason, or when the account enters
+finalization, and the system then asks one finalization call, the whole conversation
+with a one-sentence request joined to its last user message and the fact tool alone,
+forced by name, so the last turn can only state facts, after which the system asks
+nothing more. The finalization is requested, never guaranteed. A loop call in progress
+when the account enters finalization keeps the purpose it was first authorized under
+and finishes from the reserve, its re-dispatch measured against the whole caps, and a
+finalization allocation that does not fit ends the run at its cap through the approval
+of what it has; the first wiring derived the call's purpose from the phase and the
+account refused the re-dispatch as a changed purpose, a defect a test reproduced
+before the rule was written. The system declares the finalization too: the model node
+appends the entry before a flagged request's first event when the account has not
+entered it, so the call is accounted as the finalization on both paths and the
+export's position shows the entry either way. A call ended as behaviour, a service
+error the registered table reads as the model's own doing, has no answer and stops
+nothing: the system reads it as an answer with no read, so a loop call ended so is
+followed by the finalization and a finalization ended so ends the asking, the run
+going to its approval with what it has; the first wiring had no reading for it and
+closed the run as a harness defect, the close's review's first finding. Whether an
+answer held a read is read off the resolutions the log holds for the call, a result or
+a skip, and not off the reader's dispositions, which leave a skip unresolved when a
+later segment wrote it: read the reader's way, one log gave a loop request on the
+first process and the finalization on a recovery, the review's second finding.
+
+The request of logical call n is a pure function of the frozen inputs, the shipped
+prompt assets and the events logged strictly below the call's first event, and nothing
+is cached across calls: the first user turn is the opening over the leave id and the
+stamped now, the public skill list, since the model has to write a skill's id the
+harness knows, and the prefetch rendered one block per operation through the harness's
+own surface, the same bytes the envelope carries as a tool result; each later exchange
+is the assistant message as it arrived, nothing projected, and a user message holding
+one tool result per tool use in content order, a read's logged resolution, a skip's
+unreachable source or its not-made reason, an undispatched call's derived reason, a
+fact call's admissions by entry index and reason code and never an entry's text, an
+unparsed call's fixed correction, so every tool use of an assistant message has its
+result in the next user message. A recovering worker therefore rebuilds the bytes a
+first process sent, and the model node holds it to that twice: a restated request
+whose digest is not its first intent's is a raised harness defect, and so is one
+restated past a count started for the call under other bytes, a count belonging to the
+call when it sits above the later of the previous call's settling outcome and the
+entry into finalization, which leaves the loop request counted before the entry behind
+as the one legitimate recount; the declared entry is appended after that boundary has
+been read, since appended first it hid the count a recovering process restated past.
+The fact tool's definition is generated from the parser's entry schema, one object, so
+the schema the model is shown and the schema the parser reads cannot differ, and the
+investigator's surface digest moved once when it landed and is pinned again. The
+admissions a fact call is answered with and the admitted statements the composer is
+given are one derivation shared with the log reader, each answer's facts under the
+gates over the reads logged strictly before it, in the order the answers were logged.
+The preconditions every rules-composed system decides, a defect at its operation, an
+abstention, the candidate universe, left the baseline for one module both systems
+call, and the transition asks it on every operation append, so a defect established by
+a prefix, a source contradicting itself among them, stops the attempt at the operation
+that established it and the first process, a recovery, the reader and an outside
+closure see the same ending; the baseline's graded test is the proof the move changed
+nothing. A draft registration holds four of the agent's frozen inputs pending, the
+roles, the attribution table, the re-dispatch policy and the entry schema, and a
+development run records this code's current value for each, the development table and
+policy having their production home in the agent package since the graph asserts a
+table on the first model call; a value the registration binds is compared and a
+difference refuses the run. The two live clients over Bedrock share a runtime client
+built with one total attempt, so a dispatch sends zero or once and every retry is the
+logged policy's, which a transport test proves at the SDK's own before-send hook; a
+service error's message enters the record as a signature with every run of digits and
+every hex run of eight or more replaced, a client-side failure as its exception's
+qualified type alone, since the job's log is public.
+
+The prompt assets ship as package data, digested into the frozen inputs, and nothing
+beyond the span probe's accepted configuration is in them without a probe that shows
+it moves the model. As shipped after the step's prompt check (the probes' findings,
+`prompt-check`: fifteen rounds, 105 runs on the first development world, every one
+closing through a valid forced fact call with the parse protocol holding and the
+tool's input as declared on every batch), the system text is the accepted
+configuration's sentences with the first rewritten for the loop, the sentence that the
+first message holds the records already read, kept because its removal showed its
+named failure, twenty re-reads of shown records against eight, a reading plan as a
+closed list of searches and the search's matching rule stated as the adapter
+implements it, which replaced a sentence that sent the model to search for words the
+corpus never holds and was revised four times against named failures until every
+needed section target was reached; six sentences were dropped when their removal
+showed nothing of the failure each was written against, and the finalization text is
+one sentence. A repeat under the identical digests reproduced its seven runs field for
+field, so a round at temperature 0 is a deterministic outcome of its prompt on this
+world and the comparisons are between outcomes, not samples. The entry schema is
+registered unamended on a nesting rate of zero.
+
+The smoke runs at two levels. In the unit bench the real turns run over a
+content-scripted client: a run that reads a planted policy and states its clause's
+requirement truthfully in the forced call, admitted and restated from every prefix a
+recovery can resume from, the text-only finalization answer its own case, and a read
+contradicting the enumeration failing the run at that read on every recovery; at the
+integration level the same run goes through the work and publish commands over the
+real store and the real evaluator, asserting no finding of a kind the plumbing could
+cause, under inputs that name this code's prefetch rule, since a fixture digest for
+the rule had held the evaluator to no plan and made the assertion vacuous on its first
+run. The crash matrix gained two focused references of the real turns, rows in the
+model-call window of every call and at the declared finalization, where the restated
+request, the reused count and the recount boundary are decided, and at the
+contradicting read and the closing, 69 of 69 forecast in the manifest and passed, the
+two scripted references kept beside them since their rows are keyed to the two-call
+reference's crossings; what a script takes of the world crosses to the child as data,
+the sealed world neither pickling nor loading in seconds.
 
 **The log fixes what happened; publication fixes what evidence can be delivered.**
 Exportability never defines an attempt's ending and a reader's version never decides a

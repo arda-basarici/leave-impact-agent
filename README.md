@@ -10,33 +10,41 @@ agent investigates the exceptions; the human decides.
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
 **Status: the world milestone closed on 2026-09-19; the investigator milestone is in
-build.** What exists is the benchmark, the evaluator that grades a run against it, and
-the first of the systems it will grade. A generator builds a synthetic organization and
-thirty scenarios in three difficulty tiers from a seed, materializes the prose those
-scenarios need through gated model calls, projects the world into real Frappe HR, Jira
-and Google Calendar instances, and seals the answer key where the application cannot
-reach it. An independent validator re-reads the live systems and approves a world only
-when every enumeration is exact and every record equals its planting. A hand-audit
-protocol, under which the first golden world was read scenario by scenario, sealed its
-audit beside the world. The evaluator takes a recorded run and the sealed answer key
-and grades the run claim by claim, checks its plan, replays its conclusions from what
-the run itself read, and computes the tables a committed preregistration names; it runs
-under its own identity and never re-reads a vendor. The rules-only baseline, the
-deterministic rules over structured reads with no model, is built and graded end to end
-on a throwaway world. No system that calls a model exists yet. The agent's shape is
-ruled and not built: the loop on LangGraph, provisional on an acceptance spike; tools as
-plain function tools generated from the read ports by a role-scoped registry, where MCP
-was weighed and not chosen because one in-process consumer of a small owned read surface
-gains nothing from a protocol and it returns with an external client that needs one;
-full-text retrieval over sections for the core, with vector retrieval as a measured
-comparison after the core has numbers. This README grows with the build and never claims
-ahead of it.
+build, and the investigator's loop has run live.** What exists is the benchmark, the
+evaluator that grades a run against it, the rules-only baseline, and the
+investigator's harness with its first system content. A generator builds a synthetic
+organization and thirty scenarios in three difficulty tiers from a seed, materializes
+the prose those scenarios need through gated model calls, projects the world into real
+Frappe HR, Jira and Google Calendar instances, and seals the answer key where the
+application cannot reach it. An independent validator re-reads the live systems and
+approves a world only when every enumeration is exact and every record equals its
+planting. A hand-audit protocol, under which the first golden world was read scenario
+by scenario, sealed its audit beside the world. The evaluator takes a recorded run and
+the sealed answer key and grades the run claim by claim, checks its plan, replays its
+conclusions from what the run itself read, and computes the tables a committed
+preregistration names; it runs under its own identity and never re-reads a vendor. The
+rules-only baseline, the deterministic rules over structured reads with no model, is
+built and graded end to end on a throwaway world. The investigator runs on LangGraph
+over an event log that is the authority for recovery, audit and the run export: a
+frozen prefetch of the structured records, reading turns through tools generated from
+the read ports by a role-scoped registry (MCP was weighed and not chosen because one
+in-process consumer of a small owned read surface gains nothing from a protocol, and
+it returns with an external client that needs one), and one forced finalization in
+which the model states facts with the words it read them from, the rules composing
+every claim; full-text retrieval over sections is the core, with vector retrieval as a
+measured comparison after the core has numbers. The loop ran live on the first
+development world under a draft registration, 105 runs across fifteen prompt rounds,
+every one closing through a valid forced fact call, the prompt revised against named
+failures and recorded with its digests; those runs are development runs, graded for
+the plumbing and not reported as a result. No measured result for the investigator
+exists yet, and this README grows with the build and never claims ahead of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
-> agent that will be graded on it. The organization is synthetic and small (about
-> thirty people, thirty scenarios); the vendor systems are real. It is not a product,
-> not a study of any real workforce, and it makes no claim about an agent's accuracy
-> yet, since no agent has run.
+> agent that will be graded on it. The organization is synthetic and small (about thirty
+> people, thirty scenarios); the vendor systems are real. It is not a product, not a
+> study of any real workforce, and it makes no claim about an agent's accuracy yet: the
+> investigator has run, and its only runs are development runs on a development world,
+> which the preregistration excludes from every table.
 
 ## What the world milestone established
 
