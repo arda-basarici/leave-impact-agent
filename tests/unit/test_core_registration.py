@@ -23,15 +23,19 @@ from leaveimpact.core import (
     CheckReading,
     FullContextSystem,
     GroupDecision,
+    LiteralQuery,
     MeasuredWorld,
     Pending,
+    QueryInput,
     Registration,
     RegistrationStatus,
     ReportingScope,
     RulesOnlySystem,
+    SingleShotSystem,
     Source,
     StratumLevel,
     SystemKind,
+    TemplateQuery,
     anchor_table_digest,
     blocking,
     condition_id,
@@ -275,10 +279,49 @@ def test_a_field_not_declared_pendable_cannot_be_pending() -> None:
         decode_registration(data)
 
 
-def test_the_query_protocol_can_only_be_pending_in_this_format() -> None:
+def test_the_query_protocol_holds_a_literal_or_a_template_and_round_trips() -> None:
+    # Format 4 (the baselines step, fork 11): the value shape the single-shot's selection
+    # probe writes; a bare string is not a protocol.
     data = _draft_tree()
+    _nested(data, "systems", 2)["query_protocol"] = {
+        "value": {"kind": "literal", "text": "handover or coverage"}
+    }
+    literal = decode_registration(data)
+    single_shot = literal.system(SystemKind.SINGLE_SHOT)
+    assert isinstance(single_shot, SingleShotSystem)
+    assert single_shot.query_protocol == LiteralQuery("handover or coverage")
+    assert decode_registration_bytes(registration_bytes(literal)) == literal
+    assert "systems.single_shot.query_protocol" not in pending_fields(literal)
+    _nested(data, "systems", 2)["query_protocol"] = {
+        "value": {
+            "kind": "template",
+            "parts": [{"input": "component_names"}, {"text": "handover"}],
+            "fallback": "handover or coverage",
+        }
+    }
+    template = decode_registration(data)
+    single_shot = template.system(SystemKind.SINGLE_SHOT)
+    assert isinstance(single_shot, SingleShotSystem)
+    assert single_shot.query_protocol == TemplateQuery(
+        (QueryInput.COMPONENT_NAMES, "handover"), "handover or coverage"
+    )
+    assert decode_registration_bytes(registration_bytes(template)) == template
     _nested(data, "systems", 2)["query_protocol"] = {"value": "leave policy"}
-    with pytest.raises(ValueError, match="query_protocol can only be pending"):
+    with pytest.raises(ValueError, match="a query protocol is a JSON object"):
+        decode_registration(data)
+
+
+def test_a_role_registers_its_context_allowance() -> None:
+    # Format 4 (the baselines step, fork 10): the model's input window, a positive count the
+    # harness checks a request against before any send, kept apart from the budget caps.
+    data = _tree(named())
+    role = cast("list[dict[str, object]]", _nested(data, "systems", 0, "roles")["value"])[0]
+    assert role["context_allowance_tokens"] == 200_000
+    role["context_allowance_tokens"] = 0
+    with pytest.raises(ValueError, match="context allowance"):
+        decode_registration(data)
+    del role["context_allowance_tokens"]
+    with pytest.raises(ValueError, match="context_allowance_tokens"):
         decode_registration(data)
 
 
@@ -574,7 +617,7 @@ def test_another_format_refuses_before_anything_else() -> None:
     data = _draft_tree()
     data["format_version"] = 1
     del data["cells"]
-    with pytest.raises(ValueError, match="this code reads registration format 3, got 1"):
+    with pytest.raises(ValueError, match="this code reads registration format 4, got 1"):
         decode_registration(data)
     data["format_version"] = True
     with pytest.raises(ValueError, match="format_version is an integer, got True"):
@@ -743,8 +786,11 @@ def test_the_redispatch_policy_states_its_backoff_as_delay_ms() -> None:
         decode_registration(tree)
 
 
-def test_a_format_2_file_is_refused_by_its_version() -> None:
-    data = _draft_tree()
-    data["format_version"] = 2
-    with pytest.raises(ValueError, match="this code reads registration format 3, got 2"):
-        decode_registration(data)
+def test_an_earlier_format_is_refused_by_its_version() -> None:
+    for earlier in (2, 3):
+        data = _draft_tree()
+        data["format_version"] = earlier
+        with pytest.raises(
+            ValueError, match=f"this code reads registration format 4, got {earlier}"
+        ):
+            decode_registration(data)

@@ -193,6 +193,7 @@ def with_setting(registration: Registration, value: object) -> Registration:
         (),
         DIGEST,
         "some-model",
+        200_000,
     )
     return replace(
         registration,
@@ -470,7 +471,7 @@ def test_a_model_systems_roles_are_compared_by_name_each_with_its_three_settings
     export = agent_export(world, world.scenarios[0], ())
     record = export.record
     ((_, model),) = record.model_configurations
-    role = RegisteredRole(ROLE, model, (("system", DIGEST),), DIGEST, "some-model")
+    role = RegisteredRole(ROLE, model, (("system", DIGEST),), DIGEST, "some-model", 200_000)
 
     def differing(*roles: RegisteredRole, of: RunExport = export) -> set[RecordedSetting]:
         registration = named(DRAFT, agent=record.system.variant, roles=roles)
@@ -512,7 +513,8 @@ def test_every_role_holds_its_own_registered_prompt_set(world: SealedWorld) -> N
     ((_, selection),) = record.pricing_selections
     both = (("report", DIGEST), ("system", DIGEST))
     roles = tuple(
-        RegisteredRole(name, model, both, DIGEST, "some-model") for name in ("checker", ROLE)
+        RegisteredRole(name, model, both, DIGEST, "some-model", 200_000)
+        for name in ("checker", ROLE)
     )
     registration = named(DRAFT, agent=record.system.variant, roles=roles)
     assert ROLE > "checker"

@@ -232,6 +232,7 @@ FILLING = RoleFilling(
     CallConfiguration("eu.vendor.model-v1", (CallSetting("temperature", 0),)),
     PricingSelection("vendor.model-v1", "eu-central-1", "on_demand"),
     "vendor.model-v1",
+    200_000,
 )
 
 
@@ -253,6 +254,7 @@ def current_role() -> RegisteredRole:
         load_prompt_assets().digests(),
         surface_digest(Role.INVESTIGATOR),
         FILLING.counting_model_id,
+        FILLING.context_allowance_tokens,
     )
 
 

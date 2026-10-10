@@ -54,6 +54,7 @@ from leaveimpact.core.attribution import AttributionTable, RedispatchPolicy
 from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.enums import Source, require_member
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
+from leaveimpact.core.query_protocol import QueryProtocol
 from leaveimpact.core.run_ending import ComposingPolicy
 from leaveimpact.core.run_record import (
     BASE_CORPUS_LEVEL,
@@ -67,7 +68,7 @@ from leaveimpact.core.run_record import (
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
 from leaveimpact.core.tools import SEARCH_LIMIT
 
-REGISTRATION_FORMAT_VERSION = 3
+REGISTRATION_FORMAT_VERSION = 4
 """The one format this code reads; a decoder refuses any other."""
 
 OUTAGE_PROTOCOL = ("whole-run-read-port-outage", 1)
@@ -183,6 +184,10 @@ class RegisteredRole:
     ``counting_model_id`` is the model the role's requests are counted against before they
     are sent. It is named and never derived from the configuration's model: the counting
     call is served for a base model and refused for the inference profile in front of it.
+    ``context_allowance_tokens`` is the model's input window as this harness reads it: a
+    request whose established bound plus its output maximum exceeds it is refused before
+    any send, as a deterministic overflow and never a transient fault (the baselines step,
+    fork 10); it is a bound of the model, kept apart from the run's budget caps.
     """
 
     name: str
@@ -190,10 +195,14 @@ class RegisteredRole:
     prompt_digests: tuple[tuple[str, str], ...]
     tool_surface_digest: str
     counting_model_id: str
+    context_allowance_tokens: int
 
     def __post_init__(self) -> None:
         require_opaque_id(self.name, "a role")
         require_opaque_id(self.counting_model_id, f"the {self.name} counting model")
+        require_integer(
+            self.context_allowance_tokens, f"the {self.name} context allowance", minimum=1
+        )
         names = [name for name, _ in self.prompt_digests]
         if len(set(names)) != len(names):
             raise ValueError(f"a prompt is digested once per name, got {names}")
@@ -247,19 +256,20 @@ class RulesOnlySystem:
 
 @dataclass(frozen=True, slots=True)
 class SingleShotSystem:
-    """The single-shot baseline: one harness-issued search, one model call, no tools.
+    """The single-shot baseline: one harness-issued search, one model call, no read tools
+    (the shared fact-output tool only).
 
-    ``query_protocol`` is only ever pending in this format: the protocol's shape (a
-    literal, or a template with its inputs, rendering and fallback) is settled when the
-    baseline is built, and arrives with a format change. ``search_limit`` lies within the
-    search tool's declared range, which the tool-surface digest binds without choosing a
-    value.
+    ``query_protocol`` is the search's text as written down before any run, a literal or a
+    template over the prefetch's records (``core.query_protocol``); it is pending in the
+    draft until the selection probe sets it (the baselines step, fork 5). ``search_limit``
+    lies within the search tool's declared range, which the tool-surface digest binds
+    without choosing a value.
     """
 
     variant: str | Pending
     retrieval: Retrieval
     roles: Roles | Pending
-    query_protocol: Pending
+    query_protocol: QueryProtocol | Pending
     search_limit: int | Pending
     caps: RegisteredCaps
 

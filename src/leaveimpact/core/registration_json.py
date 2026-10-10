@@ -60,6 +60,7 @@ from leaveimpact.core.jsonshape import (
     string_field,
     string_item,
 )
+from leaveimpact.core.query_protocol import decode_query_protocol, encode_query_protocol
 from leaveimpact.core.registration import (
     REGISTRATION_FORMAT_VERSION,
     AgentSystem,
@@ -315,6 +316,7 @@ def _encode_roles(roles: Roles) -> list[JsonObject]:
             ],
             "tool_surface_digest": role.tool_surface_digest,
             "counting_model_id": role.counting_model_id,
+            "context_allowance_tokens": role.context_allowance_tokens,
         }
         for role in roles
     ]
@@ -337,7 +339,9 @@ def _encode_system(system: RegisteredSystem) -> JsonObject:
                 head
                 | {
                     "roles": _encode_pendable(system.roles, _encode_roles),
-                    "query_protocol": _encode_pendable(system.query_protocol, _same),
+                    "query_protocol": _encode_pendable(
+                        system.query_protocol, encode_query_protocol
+                    ),
                     "search_limit": _encode_pendable(system.search_limit, _same),
                 }
                 | caps
@@ -454,7 +458,7 @@ def decode_registration_bytes(content: bytes | str) -> Registration:
     >>> decode_registration_bytes(b'{"format_version": 1}')
     Traceback (most recent call last):
     ...
-    ValueError: this code reads registration format 3, got 1
+    ValueError: this code reads registration format 4, got 1
     """
     raw = content.encode("utf-8") if isinstance(content, str) else content
     registration = decode_registration(json.loads(raw))
@@ -533,15 +537,6 @@ def _pendable[T](
     )
 
 
-def _only_pending(data: Mapping[str, object], key: str) -> Pending:
-    value = _pendable(data, key, _same)
-    if not isinstance(value, Pending):
-        raise ValueError(
-            f"{key} can only be pending in registration format {REGISTRATION_FORMAT_VERSION}"
-        )
-    return value
-
-
 def _string_of(key: str) -> Callable[[object], str]:
     return lambda value: string_item(value, key)
 
@@ -600,6 +595,7 @@ def _decode_roles(value: object) -> Roles:
                 "prompt_digests",
                 "tool_surface_digest",
                 "counting_model_id",
+                "context_allowance_tokens",
             ),
             "a role",
         )
@@ -615,6 +611,7 @@ def _decode_roles(value: object) -> Roles:
                 tuple(prompts),
                 string_field(role, "tool_surface_digest"),
                 string_field(role, "counting_model_id"),
+                integer_field(role, "context_allowance_tokens"),
             )
         )
     return tuple(roles)
@@ -637,7 +634,7 @@ def _decode_system(item: object) -> RegisteredSystem:
                 variant,
                 retrieval,
                 _pendable(data, "roles", _decode_roles),
-                _only_pending(data, "query_protocol"),
+                _pendable(data, "query_protocol", decode_query_protocol),
                 _pendable(data, "search_limit", _integer_of("search_limit")),
                 caps,
             )

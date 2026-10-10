@@ -10,8 +10,11 @@ One JSON file with a format version, decoded strictly: every field required, an 
 key refused, and the bytes accepted only if they are the one form the encoder writes. It
 is changed through the encoder and never by hand, and a line in `.gitattributes` keeps a
 checkout from rewriting its line endings, so the bytes at a commit are the bytes that were
-registered. The file is at format 3. Nothing reads format 1 or 2, and no run was made under
-either that a report could cite.
+registered. The file is at format 4, which gave the single-shot system's query protocol a
+value shape (a literal, or a template over the prefetch's records with a fallback) and each
+role a context allowance, the model's input window a request is checked against before any
+send. Nothing reads formats 1 to 3, and no run was made under any of them that a report
+could cite.
 
 Names live in the file and behaviour lives in code. The file names a check, a measure, an
 interval method, a prefetch rule, an outage protocol, a composing policy; the code holds

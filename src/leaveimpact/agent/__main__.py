@@ -257,6 +257,12 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     working.add_argument(
         "--counting-model", required=True, help="the base model the requests are counted against"
     )
+    working.add_argument(
+        "--context-allowance",
+        required=True,
+        type=int,
+        help="the model's input window in tokens; a request over it is refused before any send",
+    )
     working.add_argument("--max-tokens", required=True, type=int, help="the output maximum")
     working.add_argument("--temperature", type=float, default=None, help="the sampling temperature")
     working.add_argument("--top-p", type=float, default=None, help="the nucleus sampling share")
@@ -337,6 +343,7 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
                     CallConfiguration(parsed.model, tuple(settings)),
                     PricingSelection(parsed.pricing_key, parsed.region, parsed.billing_mode),
                     parsed.counting_model,
+                    parsed.context_allowance,
                 ),
                 parsed.prices,
                 parsed.region,

@@ -432,6 +432,19 @@ from leaveimpact.core.provenance import (
     decode_model_configuration,
     encode_model_configuration,
 )
+from leaveimpact.core.query_protocol import (
+    JOIN,
+    QUERY_MAX_LENGTH,
+    LiteralQuery,
+    QueryInput,
+    QueryProtocol,
+    TemplateQuery,
+    clip_query,
+    decode_query_protocol,
+    encode_query_protocol,
+    input_values,
+    render_query,
+)
 from leaveimpact.core.read_condition import ObservedCondition, observed_condition
 from leaveimpact.core.read_coverage import (
     ENUMERABLE_KINDS,
@@ -1299,6 +1312,17 @@ __all__ = [
     "Place",
     "RegisteredCell",
     "RegisteredRole",
+    "JOIN",
+    "QUERY_MAX_LENGTH",
+    "LiteralQuery",
+    "QueryInput",
+    "QueryProtocol",
+    "TemplateQuery",
+    "clip_query",
+    "decode_query_protocol",
+    "encode_query_protocol",
+    "input_values",
+    "render_query",
     "StatedFactContract",
     "SupportingComparison",
     "SupportingSystem",

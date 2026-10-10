@@ -234,14 +234,16 @@ step-11 build notes), and the freeze sets the registered ones."""
 @dataclass(frozen=True, slots=True)
 class RoleFilling:
     """What the composition root supplies for the investigator role: the model and settings
-    its calls run under, the rate they are priced under, and the base model its requests are
-    counted against. Under a draft the registration holds the role pending and these are
-    recorded; under a bound registration they are compared with the registered role."""
+    its calls run under, the rate they are priced under, the base model its requests are
+    counted against, and the model's context allowance in tokens. Under a draft the
+    registration holds the role pending and these are recorded; under a bound registration
+    they are compared with the registered role."""
 
     name: str
     configuration: CallConfiguration
     pricing: PricingSelection
     counting_model_id: str
+    context_allowance_tokens: int
 
 
 def effective_rules(registration: Registration) -> Rules:
@@ -331,6 +333,7 @@ def _agent_role(system: AgentSystem, filling: RoleFilling) -> RegisteredRole:
         assets.digests(),
         surface_digest(Role.INVESTIGATOR),
         filling.counting_model_id,
+        filling.context_allowance_tokens,
     )
     if isinstance(system.roles, Pending):
         return current
