@@ -1,10 +1,13 @@
-"""The admissions derivation against the reader's export: over every history the format
-fixtures describe, each answer the export states is the one the derivation gives for that
-call, the admitted statements are the export's admitted entries in outcome, batch and entry
-order, and the operations the gate reads are the export's trace. No fixture holds an
-answer a failure at the parse phase keeps out of the export; such an answer is still
-derived here, since what a response carried is a function of the response and the log, and
-the omission is the reader's reading of the ending."""
+"""The admissions derivation against the format fixtures' expected exports, each built by
+hand beside its history and never by the reader: over every history, each answer the
+expected export states is the one the derivation gives for that call, the admitted
+statements are the expected export's admitted entries in outcome, batch and entry order,
+and the operations the gate reads are its trace. The reader calls this same derivation,
+so a comparison with the reader's export held by construction (the close's review); the
+fixtures are the independent side. No fixture holds an answer a failure at the parse phase
+keeps out of the export; such an answer is still derived here, since what a response
+carried is a function of the response and the log, and the omission is the reader's
+reading of the ending."""
 
 from __future__ import annotations
 
@@ -16,9 +19,9 @@ from leaveimpact.agent.admissions import (
     gate_before,
     trace_operations,
 )
-from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import AttemptState, fold
 from leaveimpact.core.model_calls import ParsedBatch
+from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.stated import Admitted, StatedFact
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
@@ -28,8 +31,13 @@ def state_of(name: str) -> AttemptState:
     return fold(histories.HISTORIES[name](), histories.RULES)
 
 
+def expected_export(name: str) -> RunExport:
+    """The fixture's hand-built export for the history ``name``."""
+    return cases.FIXTURES[name]()
+
+
 def admitted_in_export(name: str) -> tuple[StatedFact, ...]:
-    export = export_of(state_of(name))
+    export = expected_export(name)
     return tuple(
         entry.fact
         for call in export.trace.model_calls
@@ -42,9 +50,9 @@ def admitted_in_export(name: str) -> tuple[StatedFact, ...]:
 
 
 @pytest.mark.parametrize("name", list(cases.FIXTURES))
-def test_every_answer_the_export_states_is_the_derivations(name: str) -> None:
+def test_every_answer_the_expected_export_states_is_the_derivations(name: str) -> None:
     state = state_of(name)
-    export = export_of(state)
+    export = expected_export(name)
     derived = {call.ordinal: call for call in answered_calls(state)}
     for index, call in enumerate(export.trace.model_calls, start=1):
         if call.answer is None:
@@ -67,7 +75,7 @@ def test_answered_calls_come_in_outcome_order_which_is_ordinal_order(name: str) 
 
 
 @pytest.mark.parametrize("name", list(cases.FIXTURES))
-def test_the_admitted_statements_are_the_exports_in_outcome_batch_and_entry_order(
+def test_the_admitted_statements_are_the_expected_exports_in_outcome_batch_and_entry_order(
     name: str,
 ) -> None:
     assert admitted_statements(state_of(name)) == admitted_in_export(name)
