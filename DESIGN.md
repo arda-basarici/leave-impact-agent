@@ -3482,10 +3482,11 @@ implements it, which replaced a sentence that sent the model to search for words
 corpus never holds and was revised four times against named failures until every
 needed section target was reached; six sentences were dropped when their removal
 showed nothing of the failure each was written against, and the finalization text is
-one sentence. A repeat under the identical digests reproduced its seven runs field for
-field, so a round at temperature 0 is a deterministic outcome of its prompt on this
-world and the comparisons are between outcomes, not samples. The entry schema is
-registered unamended on a nesting rate of zero.
+one sentence. One repeat of the final set under the identical digests reproduced its
+seven runs field for field, so the removal rounds were read as comparisons between
+outcomes, not samples; one repeat of one set on one world supports that reading and
+nothing wider, and whether it holds under other prompts or on the measurement world is
+unmeasured. The entry schema is registered unamended on a nesting rate of zero.
 
 The smoke runs at two levels. In the unit bench the real turns run over a
 content-scripted client: a run that reads a planted policy and states its clause's
