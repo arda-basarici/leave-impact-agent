@@ -183,6 +183,8 @@ target was reached, then stated accurately; the seven other sentences beyond the
 configuration were each removed for a round, one stayed on its failure showing and six
 were dropped, the final set confirmed at the base's level, and a repeat under the
 identical prompt reproduced its seven runs exactly. The entry schema is registered
-unamended. The FINDINGS entry `prompt-check` holds the forecast, every round
-and the raw shapes; `prompt-check/results/summary.md` the cross-round table from the
-result files.
+unamended. The correct-whole verdict of every run was read back from the captured
+exports at the close (`prompt-check/results/verdicts.md`): the final set 6 of 7, the
+miss the shortened-span scenario, round 0 at 3 of 7. The FINDINGS entry `prompt-check`
+holds the forecast, every round and the raw shapes; `prompt-check/results/summary.md`
+the cross-round table from the result files.

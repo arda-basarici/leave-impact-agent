@@ -94,7 +94,7 @@ from leaveimpact.core.run_export import RunExport  # noqa: E402
 from leaveimpact.core.run_export_json import decode_export_bytes  # noqa: E402
 from leaveimpact.core.run_timing import TreeState  # noqa: E402
 from leaveimpact.core.stated import PlacementState  # noqa: E402
-from leaveimpact.evaluator.grading import Graded  # noqa: E402
+from leaveimpact.evaluator.grading import Graded, correct_whole  # noqa: E402
 from leaveimpact.evaluator.sealed_world import SealedWorld  # noqa: E402
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run  # noqa: E402
 from leaveimpact.world.scenario import Scenario  # noqa: E402
@@ -405,6 +405,9 @@ def reduce(
     report_findings: list[str] = []
     if isinstance(outcome, Graded):
         graded = {
+            # The preregistration's first check, decided in the evaluation's claim rows and not
+            # in these findings; absent from the fifteen rounds' files (`verdicts.py` read theirs).
+            "correct_whole": correct_whole(outcome),
             "oracle_findings": len(outcome.oracle_findings or ()),
             "report_findings": len(outcome.report_findings or ()),
             "integrity": len(outcome.integrity),

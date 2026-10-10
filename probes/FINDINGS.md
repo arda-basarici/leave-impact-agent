@@ -3583,6 +3583,23 @@ through the registration codec so the file keeps its one written form; the agent
 pending values are its roles, the re-dispatch policy and the attribution table, and the
 two tests that list the draft's pending values say so.
 
+**The correct-whole verdicts, read back at the close (2026-10-11,
+`results/verdicts.md` by `verdicts.py`).** The probe's reduction carried the oracle's
+plan findings and the report findings and not the check the preregistration reads
+first, whether a report is correct in every part against the expected answer (the
+session-88 FIXLOG); the captured exports of all fifteen rounds were evaluated again
+with the real evaluator, no model called, and the probe records the verdict in its
+result files from the close on. The verdict follows the usable count exactly. The two
+structured scenarios and the seventh run are correct whole in every round.
+`scenario_013` is correct whole in the two rounds alone whose removal returned its
+requirement, the tool-shape sentences and the stop-reading sentence, 7 of 7 there, and
+in no other, its requirement withheld on the shortened span or not returned; the final
+set and its repeat stand at 6 of 7, round 0 and round 1 at 3, rounds 2 and 3 at 5,
+rounds 4 and 5 at 6. The two rounds at seven were dropped under the rule stated above,
+a sentence kept on its named failure appearing and never on the size of a difference;
+the verdict column records what that rule left on this world, one scenario's one
+search, and claims nothing beyond the deterministic outcomes it lists.
+
 *Correction, 2026-10-10 (the comparison commit's external review).* As first committed the
 removal rounds' reading named a noise floor "under identical prompts"; no two rounds of
 the day shared a prompt. The repeat was run in answer and found no variation, and the
