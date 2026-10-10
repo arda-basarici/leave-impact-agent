@@ -617,7 +617,13 @@ def _work(
         raise ValueError(
             f"run {line.attempt.run_id} attempt {line.attempt.attempt} holds no admission"
         )
-    dsn = env[DATABASE]
+    # Read as the entry reads it, not indexed: the entry validated the name before it built
+    # the store, but a caller handing in a store under another environment reaches this line
+    # first, and a missing name is a configuration fault, never an unexpected error (FIXLOG,
+    # session 86).
+    dsn = env.get(DATABASE, "").strip()
+    if not dsn:
+        raise ConfigurationError(f"{DATABASE} names the run log's database")
     world_reader = world_store_reader(world_store_from_env(env))
     version = inputs.context.world_version
     key = world_manifest_key(version)
