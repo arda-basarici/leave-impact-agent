@@ -158,3 +158,18 @@ contract step already requires, with the flattening of a singly nested list as t
 candidate amendment if a prompt written to the schema still gets it. The scrubbed response
 is `tests/fixtures/converse/parse-probe-20261006T205828Z.json`, replayed by the capture
 test with the reading above.
+
+## The investigator step's prompt check (written 2026-10-10, before it runs)
+
+The investigator's three prompt assets (`agent/prompts/`) were written from the span probe's
+accepted second-pass configuration, revised for a loop that reads through tools instead of
+being shown everything, and no real model has run the loop under them. The check is the
+step's live probe (the step-11 forks file, fork 15 with amendment 6): the real worker over
+the real store and the real turns, the live clients, the first development world read from
+the local store through the planted readers and the corpus cache, the automatic approval,
+publishing nothing; the forecast is the first section of the FINDINGS entry, computed
+model-free by `prompt-check/forecast.py` before any call.
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **prompt-check** (`prompt-check/live_probe.py`, live, the six live-iteration scenarios of the first development world under the normal condition at the base level, Haiku 4.5 on the `eu.` profile at temperature 0 from a workstation under the administrative profile, the real evaluator in process over each export) — per scenario the calls, tokens and cost from the log; the fact-stage measures (stated against planted, admitted, refused by reason); the span outcome of every requirement stated; the nesting rate of the fact tool's input; the chain check against a clause asking for two; whether max-tokens-with-tool-use occurs. Then one comparison round per prompt sentence beyond the accepted configuration, the sentence removed whole, the same six | whether the loop runs to a valid forced finalization under the shipped prompts, what each sentence beyond the accepted configuration does to the model, and whether the entry schema is registered as the parser declares it or amended by one-level flattening | the FINDINGS entry's forecast section: no abstention, three to four logical calls a scenario, about 11,000 tokens a first request (bounded 5,500 to 13,500 by bytes), about three dollars for the whole programme; the nesting rate a guess, below one batch in four; max-tokens-with-tool-use not expected | six scenarios at temperature 0 on one development world whose corpus a single call could hold; no rate is claimed from six runs, the raw shapes are recorded beside every count, and a sentence stays only where its removal shows the named failure on the same six |

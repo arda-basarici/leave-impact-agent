@@ -1,0 +1,97 @@
+[
+  {
+    "scenario_id": "scenario_009",
+    "abstains": false,
+    "first_request_bytes": 33023,
+    "finalization_request_bytes": 29437,
+    "targets": 0,
+    "targets_required": 0,
+    "targets_by_predicate": {},
+    "targets_on_comments": 0,
+    "targets_on_sections": 0,
+    "documents_with_targets": 0,
+    "document_bytes_with_targets": 0,
+    "two_person_clause": false
+  },
+  {
+    "scenario_id": "scenario_010",
+    "abstains": false,
+    "first_request_bytes": 33669,
+    "finalization_request_bytes": 30083,
+    "targets": 0,
+    "targets_required": 0,
+    "targets_by_predicate": {},
+    "targets_on_comments": 0,
+    "targets_on_sections": 0,
+    "documents_with_targets": 0,
+    "document_bytes_with_targets": 0,
+    "two_person_clause": false
+  },
+  {
+    "scenario_id": "scenario_013",
+    "abstains": false,
+    "first_request_bytes": 33217,
+    "finalization_request_bytes": 29631,
+    "targets": 3,
+    "targets_required": 2,
+    "targets_by_predicate": {
+      "requires": 1,
+      "names_responsible": 1,
+      "has_skill": 1
+    },
+    "targets_on_comments": 1,
+    "targets_on_sections": 2,
+    "documents_with_targets": 2,
+    "document_bytes_with_targets": 187,
+    "two_person_clause": false
+  },
+  {
+    "scenario_id": "scenario_018",
+    "abstains": false,
+    "first_request_bytes": 33564,
+    "finalization_request_bytes": 29978,
+    "targets": 2,
+    "targets_required": 2,
+    "targets_by_predicate": {
+      "requires": 1,
+      "has_skill": 1
+    },
+    "targets_on_comments": 1,
+    "targets_on_sections": 1,
+    "documents_with_targets": 1,
+    "document_bytes_with_targets": 159,
+    "two_person_clause": false
+  },
+  {
+    "scenario_id": "scenario_023",
+    "abstains": false,
+    "first_request_bytes": 33023,
+    "finalization_request_bytes": 29437,
+    "targets": 1,
+    "targets_required": 1,
+    "targets_by_predicate": {
+      "requires": 1
+    },
+    "targets_on_comments": 0,
+    "targets_on_sections": 1,
+    "documents_with_targets": 1,
+    "document_bytes_with_targets": 189,
+    "two_person_clause": false
+  },
+  {
+    "scenario_id": "scenario_028",
+    "abstains": false,
+    "first_request_bytes": 33217,
+    "finalization_request_bytes": 29631,
+    "targets": 1,
+    "targets_required": 1,
+    "targets_by_predicate": {
+      "owns_work_item": 1
+    },
+    "targets_on_comments": 0,
+    "targets_on_sections": 1,
+    "documents_with_targets": 1,
+    "document_bytes_with_targets": 168,
+    "two_person_clause": false
+  }
+]

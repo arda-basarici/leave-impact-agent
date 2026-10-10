@@ -1,0 +1,38 @@
+{
+  "currency": "USD",
+  "effective_from": "2026-08-01",
+  "rates": [
+    {
+      "pricing_key": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "region": "eu-central-1",
+      "billing_mode": "on_demand",
+      "token_class": "input_tokens",
+      "pico_usd_per_token": 1100000,
+      "when_absent": "unknown"
+    },
+    {
+      "pricing_key": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "region": "eu-central-1",
+      "billing_mode": "on_demand",
+      "token_class": "output_tokens",
+      "pico_usd_per_token": 5500000,
+      "when_absent": "unknown"
+    },
+    {
+      "pricing_key": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "region": "eu-central-1",
+      "billing_mode": "on_demand",
+      "token_class": "cache_write_input_tokens",
+      "pico_usd_per_token": 1375000,
+      "when_absent": "unknown"
+    },
+    {
+      "pricing_key": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "region": "eu-central-1",
+      "billing_mode": "on_demand",
+      "token_class": "cache_read_input_tokens",
+      "pico_usd_per_token": 110000,
+      "when_absent": "unknown"
+    }
+  ]
+}

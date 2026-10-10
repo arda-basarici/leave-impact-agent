@@ -3212,3 +3212,257 @@ translation is one function the prose client and the surface share; the prose wi
 pins the checker's request bytes unchanged. The worker tests' reference script reads one
 employee where it read the enumeration, since the role's surface refuses the enumeration;
 the crash manifest's counts hold.
+
+## prompt-check — the investigator's prompts run live on the first development world: the forecast, written before any call (2026-10-10)
+
+The investigator milestone's step 11 built the loop (the turns, the fact tool, the draft
+execution rule, the live clients, the smoke) under three prompt assets no real model had
+run; the step's fork 15 with amendment 6 asks for a live run of the real loop on the first
+development world, forecast first. The probe root is `probes/prompt-check/`:
+`development_world.py` (the world from `data/object-store`, the six scenarios by the
+registration's seeded draw, the configuration the work command would compose),
+`forecast.py` (this section's numbers, model-free, `forecast.md` and `forecast.json` beside
+it), `prices.json` (the Frankfurt on-demand rates the bedrock probe captured, the four token
+classes the worst case needs), `live_probe.py` (the runs). Every number below is the
+script's unless it says it is a guess.
+
+**What runs.** The six live-iteration scenarios of world `b7ec4563…` (seed 101, sealed
+unprojected at the generator step), drawn by the rule the registration step built and the
+contract step retired with the scenario sets (two per tier, a stream derived from the
+registration's seed under the name `development-scenarios` and the tier, reading nothing
+else of a key): `scenario_009`, `scenario_010`, `scenario_013`, `scenario_018`,
+`scenario_023`, `scenario_028`, the same ids the development protocol lists for the first
+world, listed bare here as there. The normal condition at the base level; the role filled
+with Haiku 4.5 on the `eu.` profile at temperature 0 and 8,192 output tokens, counted
+against the base model id (the one of four the input-bound probe found served), priced
+from `prices.json`; the draft registration's caps (20 calls and 400,000 tokens, 2 calls and
+20,000 tokens reserved for the finalization); the registration at `a0ff7f81`, the harness
+at `85eb190e` with a dirty tree, since the probe is uncommitted while it runs; the
+development attribution table and re-dispatch policy. The composition is the work
+command's with three substitutions the handoff names: the planted readers over the sealed
+world spec where production builds the vendor adapters, the corpus cache on the laptop's
+`leaveimpact_step9` (38 documents, 26 at base) where production reads the instance's, and
+a log schema of its own on that database, kept after the run. The export is published to
+an in-memory store and evaluated in process by the real evaluator; nothing is written to a
+bucket, and the raw exports, which carry the model's text, go outside the tree under
+`LEAVE_IMPACT_SPIKE_CAPTURES`, the summary tables beside the script.
+
+**Abstention: none of the six.** On the planted readers the opening read returns the leave
+and the employee enumeration completes, the two conditions under which the prefetch
+abstains, and the oracle answers all six under the normal condition. Two of the six
+(`scenario_009`, `scenario_010`) have no retrieval target: their answers rest on structured
+records alone, so every fact the model states there is unneeded, and the fact-stage
+measures on them read precision and nothing else.
+
+**What a run is shown, and what it has to read.** The first request renders the whole
+organization: 28 employees, 5 components, 34 tickets with their 3 comments (the
+enumeration returns every ticket, so the three comment-carried planted facts of the world
+are in every scenario's first message), the leave, the leaves and the events in the span.
+The documents are what remains: the world's 38 documents hold 74 sections and 9,183 bytes
+of text, 26 clauses carry 28 of its 31 planted facts, and a document read adds about 300
+bytes to the conversation. The six scenarios' retrieval targets, the statements that move
+the oracle's answer, number 7: `scenario_013` 3, `scenario_018` 2, `scenario_023` 1,
+`scenario_028` 1 (requires 3, has_skill 2, names_responsible 1, owns_work_item 1); 2 are
+carried by comments the first message holds, 5 by sections of 5 documents the model has to
+reach by a search or a read.
+
+**Calls, a forecast.** Three logical calls a scenario: one loop answer that searches the
+document store and reads the documents named, one that reads nothing, the finalization;
+four where the first answer's reads name documents to read next. The cap is not reached.
+Six scenarios: 18 to 24 calls; the seventh run below, 3 to 4 more.
+
+**Input per call, bounded by bytes.** The first request is 33,023 to 33,669 bytes a
+scenario: a fixed 9,047 bytes (the system text 3,514, the tool definitions 4,783, the
+opening 371, the skill list 379) and the prefetch's 20.3 to 21.1 KB. The finalization
+request with nothing read is 29,437 to 30,083 bytes (the fact tool alone, 841 bytes of
+tool definitions, plus one exchange). Every later call re-sends the conversation. By the
+input-bound probe's ratio a first request is 5,500 to 13,500 tokens; a point forecast of
+about 11,000, since the probe's tool-and-record-heavy requests ran near 2.5 bytes a token
+and these are the same kind. Cumulative input a scenario: about 100 KB at three calls and
+135 KB at four, 35,000 to 47,000 tokens at the point ratio; the maximum under the caps is
+400,000 a run. Spend, by hand on the captured rates ($1.10 a million input, $5.50 output):
+about $0.30 for the six and the seventh together, output included; the reservation of
+$1.45 a run is the ledger's bound, not a forecast.
+
+**The fact stages, the denominators.** Needed targets 7 (above), of which 5 need a document
+read to be returned. Planted facts a run can state at all: the 3 comment-carried has_skill
+facts every first message holds and the 28 clause-carried ones of whatever documents it
+reads. A guess, marked as one: 5 of the 7 targets returned, 4 admitted; the requires facts
+the likeliest to fail, at the span (the span probe placed 141 of 170 and left 29 unplaced
+where the target's title was not shown; here every target's title is a ticket or component
+the first message shows, so the forecast is placed on the sealed target for 2 of the 3, and
+the one-word overrun the probe measured on 0 or 1). No rate is claimed from these counts.
+
+**The nesting of the fact tool's input, a guess.** The parse probe got `[[{…}]]` once,
+under a stand-in prompt that asked for an object to be copied verbatim. The investigator's
+prompt names the shape ("Its one argument is facts, a list of entries") and the tool's
+schema declares `facts` an array of objects. Guess: the call arrives as declared on most
+batches, nested on fewer than one batch in four. The one-level flattening amendment is
+adopted only on a measured rate above zero, and the entry schema is registered after.
+
+**max-tokens-with-tool-use** (ruling 4's open record): not expected at 8,192 output tokens,
+a guess; the largest finalization batch forecast is about ten entries at about a hundred
+tokens each.
+
+**The chain check against a clause asking for two.** None of the six holds one. Two clauses
+in the world ask for two (`clause_016`, `clause_020`), and they move the answers of
+`scenario_014` and `scenario_020`. Decided under the advance ruling: a seventh run on
+`scenario_014`, for the chain check alone, its other measures reported apart from the six.
+
+**The comparison runs.** The shipped system text keeps the accepted second-pass
+configuration's sentences whole (the fact definitions, the quote rule, the several-facts
+paragraph, the requires bullet, the target-span paragraph, the carrier sentence) and
+rewrites its first sentence for the loop ("You investigate … through the tools you are
+given" for "You read the records an investigation … retrieved"), a revision the loop
+needs and not a candidate. Beyond it are six sentences in the system text and two in the
+finalization text, each compared on the same six by one round with the sentence removed
+whole and nothing reworded, against the failure it was written against:
+
+| sentence | the named failure its removal should show |
+|---|---|
+| "The first message holds the records already read for you." | the model re-reads through the tools what the first message holds (completed reads repeated) |
+| "Read more with the tools where a record you were shown names … and search the document store for the procedures that cover the leave's work." | section targets never returned (no search, no document read) |
+| "Every tool answers as of the one instant the first message states." | none measurable here: a control, expected to move nothing |
+| "State facts with the state_facts tool. Its one argument is facts, a list of entries; every entry has …" | malformed or nested entries (undecodable refusals) |
+| "You may state facts in any turn …, and a tool result tells you which entries were admitted and which were refused, …" | a refused entry never restated; or no fact stated before the last turn |
+| "When you have read what you need, stop reading; the last turn asks you to state every fact in one call." | the loop runs on (more calls, the cap) |
+| finalization: "including any fact you stated before" | the final batch omits the earlier turns' facts (the composer takes every admitted statement, so the forecast is that the sentence moves nothing but duplicates) |
+| finalization: "Do not read anything more." | none possible under the forced tool choice: a control, expected to move nothing |
+
+The opening text (the leave id, the instant, what follows) is the first turn's data and has
+no sentence to compare. Rounds: the shipped prompts first (round 0, seven runs), then one
+round a sentence (six runs each), then one confirmation round under the revised set if any
+sentence is dropped: at most 61 runs, about three dollars at the forecast's size. A sentence
+stays only where its round shows the named failure's raw shape differ from round 0's on
+the same six; a sentence whose round reads the same is dropped, as the step 16 lesson asks.
+Temperature 0 is no guarantee of identical answers, so the two rounds' raw shapes are kept
+beside every comparison.
+
+**Round 0, the shipped prompts (2026-10-10, seven runs, `results/shipped-20261010T190741Z.md`;
+prompt digests system `5a5d9530`, opening `a414b411`, finalization `e3336aa5`).** Every run
+closed completed through a valid forced `state_facts` call; the finalization position is
+recorded in every export; the fact tool's input arrived as declared on 14 of 14 batches
+(nested 0); no `max_tokens` stop; every plumbing check empty (prefetch conformance, the
+recheck, the ending, the cost, the counts, the account, the calls, the attribution), no
+self-contradiction among the reads, every citation resolving.
+
+| scenario | calls | tokens in / out | cost | model reads | targets returned / admitted / usable of n | emissions by class | refused |
+|---|---|---|---|---|---|---|---|
+| scenario_009 | 6 | 59,689 / 1,167 | $0.072 | search 5, work_item 1 | 0 / 0 / 0 of 0 | true_unneeded 6, malformed 1 | malformed_carrier 1 |
+| scenario_010 | 2 | 18,646 / 807 | $0.025 | none | 0 / 0 / 0 of 0 | true_unneeded 4, malformed 3 | malformed_carrier 3 |
+| scenario_013 | 3 | 28,391 / 903 | $0.036 | search 2 | 0 / 0 / 0 of 2 | true_unneeded 3 | none |
+| scenario_018 | 2 | 18,870 / 1,122 | $0.027 | none | 1 / 1 / 1 of 2 | needed 2, true_unneeded 4, malformed 4 | malformed_carrier 4 |
+| scenario_023 | 5 | 49,944 / 867 | $0.060 | search 4, work_item 2 | 0 / 0 / 0 of 1 | true_unneeded 2, malformed 2 | malformed_carrier 2 |
+| scenario_028 | 4 | 39,559 / 1,487 | $0.052 | search 5 | 0 / 0 / 0 of 1 | true_unneeded 6, malformed 4 | malformed_carrier 4 |
+| scenario_014 (the seventh) | 6 | 64,291 / 1,763 | $0.080 | search 3, document 4 | 1 / 1 / 1 of 1 | needed 2, true_unneeded 7, false 2 | none |
+
+The fact-stage rows count the targets that move a required key (the evaluator's `needed`),
+which is why `scenario_013` shows 2 of the forecast's 3. Emissions are counted per batch
+entry, and every loop-turn fact is restated in the finalization batch, so each class is
+about twice its distinct facts; the join counts a statement once.
+
+- **Against the forecast.** Abstention none, as forecast. Calls 2 to 6 against a forecast
+  of 3 to 4: two runs read nothing at all (two calls), three ran four or five searches
+  that returned nothing. Tokens about 9,300 a call, inside the byte bound (5,500 to
+  13,500) and under the 11,000 point. The round cost $0.352 by the account check against
+  the $0.30 forecast; 279,390 input and 8,116 output tokens by usage.
+- **Retrieval, the named failure.** Of 21 searches, 18 returned nothing, every one of them
+  a query of general words ("leave coverage procedures", "team lead responsibilities",
+  "signing keys rotation requirements", "work procedures"); the 3 that hit were all in
+  `scenario_014` and all carried a title's own words ("Event Ingestion", "migrate the retry
+  queue"), and that run then read four documents by id. The search is `websearch_to_tsquery`
+  with plain words as AND over one-sentence sections that name a ticket, a component or an
+  account and never the words "procedure", "coverage" or "leave"; the system text's own
+  instruction, "search the document store for the procedures that cover the leave's
+  work", names exactly the words the corpus does not hold. Section targets were returned on
+  0 of 3 scenarios among the six that hold one and need a read (`scenario_013`,
+  `scenario_023`, `scenario_028`); `scenario_018` made no read, its comment-carried target
+  was admitted and usable and its section target was not returned.
+- **The restated owner field.** 14 entries across five runs stated `owns_work_item` with a
+  ticket id as the carrier and the ticket's title as the quote: the ticket's `owner_id`
+  field restated, which the system text forbids ("Do not restate what a structured field
+  says") and the parser refuses as a malformed carrier. No precision cost; output tokens.
+- **The comment facts.** The three comment-carried has_skill facts the first message holds
+  were stated and admitted in every run that stated facts (true_unneeded where the
+  scenario does not need them, needed and usable in `scenario_018`).
+- **Requirements and the chain check.** `scenario_014` stated three requires facts, every
+  span placed on its sealed target with no overrun (the longer title "… ahead of the
+  freeze" distinguished from the shorter), the two-person clause among them admitted and
+  usable, and the run graded with no oracle finding and no report finding: a count of two
+  flowed through the composer and the chain check on the one run that reached it. The
+  same run stated one false fact twice: a runbook's "Can Nakamura owns the ticket …"
+  stated as names_responsible, a predicate confusion on a sentence the prompt defines as
+  owns_work_item.
+- **What stands.** The loop, the finalization, the account, the parse protocol as
+  declared, the entry schema's registration unamended on a nesting rate of 0 in 14. What
+  does not: the reading instruction, which sends the model to search for words the corpus
+  never holds.
+
+**Rounds 1 to 4, the reading sentence revised against the named failure (2026-10-10, seven
+runs each, every round's table under `results/`, every export under the capture
+directory).** The forecast planned removal rounds; round 0 showed a failure a removal
+cannot answer, so the comparison became a chain of coherent revisions of the one reading
+sentence, each round against the failure the round before it showed, the rest of the
+system text untouched until round 3, which also pinned one fact definition. The
+finalization and opening texts were never touched. Every round closed completed on all
+seven runs, nested 0 of its batches, no `max_tokens` stop, every plumbing check empty.
+
+| round | system digest | the revision | calls (the seven) | needed section targets returned, of 5 | runs at the cap | cost |
+|---|---|---|---|---|---|---|
+| 0 shipped | `5a5d9530` | "… and search the document store for the procedures that cover the leave's work" | 6, 2, 3, 2, 5, 4, 6 | 0 (the seventh's 1 of 1 aside: 1) | 0 | $0.35 |
+| 1 search-by-names | `d992a3eb` | how to search (title words, every word must match), the goal sentence dropped | 2, 2, 2, 2, 2, 2, 4 | 1 (the seventh's) | 0 | $0.20 |
+| 2 search-plan | `350a63a9` | the goal restored with a plan: the leaver's name, each ticket they own, then what a found document names | 15, 5, 7, 17, 5, 6, 7 | 4 (013, 018, 023, 014; 028 returned and misstated) | 0 | $1.06 |
+| 3 search-once | `7f4bd8e6` | each search once, nothing repeated; "X owns the ticket Y" pinned to owns_work_item, names_responsible to an account's contact | 7, 4, 5, 19, 4, 6, 5 | 4 (028 now admitted; 018 at the cap missed its meeting's policy) | 1 (018) | $0.80 |
+| 4 closed-list | `aa7a4647` | a closed list: the leaver's name, each ticket they own, each meeting they attend in the span, an account a found document names; nothing else | 14, 8, 5, 6, 4, 8, 19 | 5 of 5 | 1 (014) | $0.98 |
+
+The needed-target column counts the targets the evaluator's fact stages hold (those moving
+a required key) that a section carries: `scenario_013` 2, `scenario_018` 1, `scenario_023`
+1, `scenario_028` 1, the seventh 1; the comment-carried ones were admitted in every round
+that stated facts. Four rounds and the forecast's round 0 together cost $3.39 by the
+account check, 220 logical calls, 2.70 million input tokens.
+
+- **Round 1, the sentence that told how and dropped why.** Told the matching rule and
+  what to search by, with the goal sentence gone, the model reviewed the records and
+  searched on six of seven runs not at all (its first answer: "structured data only, no
+  free text assertions"); the one that searched was the seventh, which had searched in
+  round 0 too. A how without a why moves nothing.
+- **Round 2, the plan that worked and ran.** Every scenario with a section target reached
+  it by the leaver's name or a ticket's title ("Can Costa" found the Redfern account note,
+  whose text then named the account the handover procedure covers), and the plan's last
+  clause, "what a found document names", sent two runs through the whole corpus: 38
+  searches and 23 document reads on `scenario_018`, 23 and 12 on `scenario_009`, a
+  structured scenario with nothing to find. `scenario_028` returned its runbook and stated
+  "Elif Moreau owns the ticket …" as names_responsible, the second runbook sentence of
+  that form read as the account predicate in two rounds (the seventh run's `clause_007`
+  in rounds 0 to 2 as well): a definitional failure, not a retrieval one.
+- **Round 3, the ownership predicate pinned, the repetition forbidden.** `scenario_028`'s
+  target admitted and usable, its run graded with no oracle finding; the repetition rule
+  held literally (no query sent twice) and not in spirit: `scenario_018` invented new
+  queries through eighteen loop calls ("search for more documents with different
+  keywords"), reached the cap and finalized from the reserve with one batch, and never
+  searched the title of the meeting whose release policy its needed clause is, since the
+  plan named tickets alone.
+- **Round 4, the closed list with meetings.** Every needed section target returned,
+  emitted, admitted and usable on the five scenarios that hold one; `scenario_018` in six
+  calls and graded with no oracle finding. The closed list did not close the loop on two
+  runs: the seventh searched "responsible contact", "needs two engineers" and read twenty
+  documents to the cap "to ensure comprehensive coverage", and `scenario_009` made 25
+  searches. A run at the cap still finalizes from the reserve and its export evaluates;
+  the cap, not the sentence, is what bounds the spend (about $0.30 a capped run).
+
+**The raw shapes beside the counts.** `scenario_013`'s requires fact, admitted in rounds 2
+to 4, had its span shortened to "Redfern account" from the title "Redfern account notes"
+every time, exactly the case the target-span paragraph names ("Words such as 'account
+notes' that belong to the name are part of it"); the placement is ambiguous, nothing is
+bound, the constraint is withheld, and the run grades with two oracle plan findings on the
+responsibility impact where the round-0 run that read nothing grades with none on that
+family (the probe reduces the oracle's plan findings and the report findings; the row
+match that decides correct-whole is in the export and not in these tables, a gap for the
+close). `scenario_009` under round 4 stated nine false facts, eight of them requirements
+with an employment type the clause's text never states and one a contact the quote does
+not name; the anchor guard refused all nine (`missing_anchor`) and none entered the view.
+The ticket-owner restatement with a ticket id as carrier recurred in rounds 2 to 4 on one
+or two runs each (2 to 4 entries), refused every time. Nesting of the fact tool's input:
+0 batches in 5 rounds, 69 batches. `max_tokens` with a tool use: 0 in 220 calls.
+Temperature 0 did not make runs repeatable across prompts: the two structured scenarios
+with nothing to find made 2 to 15 calls depending on the sentence.
