@@ -84,7 +84,11 @@ from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogS
 from leaveimpact.agent.turns import InvestigatorTurns  # noqa: E402
 from leaveimpact.agent.worker import AutomaticApproval  # noqa: E402
 from leaveimpact.core.ids import ScenarioId  # noqa: E402
-from leaveimpact.core.model_calls import CompleteResponse, RefusedInput  # noqa: E402
+from leaveimpact.core.model_calls import (  # noqa: E402
+    CompleteResponse,
+    RefusedBeforeSend,
+    RefusedInput,
+)
 from leaveimpact.core.predicates import PredicateName  # noqa: E402
 from leaveimpact.core.run_export import RunExport  # noqa: E402
 from leaveimpact.core.run_export_json import decode_export_bytes  # noqa: E402
@@ -323,6 +327,9 @@ def reduce(
     metrics = evaluation.metrics
     dispatches = [d for call in trace.model_calls for d in call.dispatches]
     complete = [d.observation for d in dispatches if isinstance(d.observation, CompleteResponse)]
+    # A send is a dispatch that left the machine, a service error's included; only a refusal
+    # before sending made none (the close's review: the first count was of complete responses).
+    sends = sum(1 for d in dispatches if not isinstance(d.observation, RefusedBeforeSend))
     stop_reasons = Counter(o.stop_reason for o in complete)
     usage_in = usage_out = 0
     for d in dispatches:
@@ -423,7 +430,7 @@ def reduce(
         wall_seconds=round(wall, 1),
         logical_calls=len(trace.model_calls),
         dispatches=len(dispatches),
-        sends=len(complete),
+        sends=sends,
         stop_reasons=dict(stop_reasons),
         finalization_entered=trace.finalization_entered,
         max_tokens_with_tool_use=max_tokens_tool,

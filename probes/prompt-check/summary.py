@@ -70,8 +70,9 @@ def main() -> int:
     lines = [
         "# The prompt check's rounds, from the result files",
         "",
-        "| round | system digest | calls (the seven) | section targets returned / emitted / "
-        "admitted / usable of n | all targets, the same | runs at the cap | cost (USD) |",
+        "| round | digests (system, opening, finalization) | calls (the seven) | section "
+        "targets returned / emitted / admitted / usable of n | all targets, the same | runs at "
+        "the call cap | cost (USD) |",
         "|---|---|---|---|---|---|---|",
     ]
     for name in ORDER:
@@ -81,10 +82,17 @@ def main() -> int:
         results = cast("list[dict[str, Any]]", data["results"])
         section, every = stage_counts(results)
         calls = ", ".join(str(r["logical_calls"]) for r in results)
+        # The call cap alone: eighteen loop calls and the finalization from the reserve under
+        # the registered caps; a run that entered finalization on the token cap ends with
+        # fewer calls, and the result rows carry no field that names the account's decision.
         at_cap = sum(1 for r in results if r["logical_calls"] >= 19)
         cost = sum(r["account_pico_usd"] or 0 for r in results) / 1e12
+        # Every asset's digest, since a round may change the finalization or the opening and
+        # leave the system text as its base round's (the close's review).
+        held = data["prompt_digests"]
+        digests = ", ".join(f"`{held[a][:8]}`" for a in ("system", "opening", "finalization"))
         lines.append(
-            f"| {name} | `{data['prompt_digests']['system'][:8]}` | {calls} | "
+            f"| {name} | {digests} | {calls} | "
             f"{section[0]} / {section[1]} / {section[2]} / {section[3]} of {section[4]} | "
             f"{every[0]} / {every[1]} / {every[2]} / {every[3]} of {every[4]} | {at_cap} | "
             f"{cost:.2f} |"
