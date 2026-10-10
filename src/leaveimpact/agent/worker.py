@@ -85,6 +85,7 @@ from leaveimpact.agent.log_transition import Appended, AttemptState, Received, R
 from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.model_calls import RefusedBy
+from leaveimpact.core.query_protocol import QueryProtocol
 from leaveimpact.core.registration import RetryRule
 from leaveimpact.core.run_ending import (
     Approver,
@@ -147,6 +148,9 @@ class WorkerConfiguration:
     parser: RefusedBy
     outage: OutageAssignment
     corpus_level: str
+    query_protocol: QueryProtocol | None
+    search_limit: int | None
+    context_allowances: tuple[tuple[str, int], ...]
 
     def frozen_for(self, admitted: FrozenInputs) -> FrozenInputs:
         """The inputs this configuration would freeze for ``admitted``'s job: the five copied

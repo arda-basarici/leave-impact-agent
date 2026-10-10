@@ -275,6 +275,8 @@ def test_the_draft_gives_an_investigator_run_the_codes_values_for_what_it_holds_
     assert held.model_configurations == (("investigator", FILLING.configuration),)
     assert held.pricing_selections == (("investigator", FILLING.pricing),)
     assert held.counting_identifiers == (("investigator", "vendor.model-v1"),)
+    assert held.context_allowances == (("investigator", 200_000),)
+    assert held.query_protocol is None and held.search_limit is None
     assert held.prompt_digests == load_prompt_assets().prompt_digests("investigator")
     assert held.tool_surface_digests == (("investigator", role.tool_surface_digest),)
     assert held.attribution_table == cases.TABLE_DIGEST

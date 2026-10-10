@@ -592,6 +592,9 @@ from leaveimpact.core.run_parts_json import (
 from leaveimpact.core.run_record import (
     BASE_CORPUS_LEVEL,
     BILLED_ON_EVERY_CALL,
+    FULL_CONTEXT_DOCUMENTS_POLICY,
+    HARNESS_READ_POLICIES,
+    SINGLE_SHOT_QUERY_POLICY,
     AbsentMeaning,
     Caps,
     Failure,
@@ -608,6 +611,7 @@ from leaveimpact.core.run_record import (
     SystemKind,
     TerminalStatus,
     UsageAggregate,
+    require_system_retrieval,
 )
 from leaveimpact.core.run_timing import (
     HarnessRevision,
@@ -1144,6 +1148,10 @@ __all__ = [
     "StructuredReads",
     "System",
     "SystemKind",
+    "require_system_retrieval",
+    "SINGLE_SHOT_QUERY_POLICY",
+    "HARNESS_READ_POLICIES",
+    "FULL_CONTEXT_DOCUMENTS_POLICY",
     "Supplied",
     "Team",
     "TeamId",

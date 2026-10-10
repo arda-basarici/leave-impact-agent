@@ -136,3 +136,40 @@ def test_the_log_digest_covers_provenance_and_order() -> None:
     later = LoggedEvent(first.position, moved, first.envelope, first.event)
     assert log_digest((later, *events[1:])) != digest
     assert log_digest((events[1], events[0], *events[2:])) != digest
+
+
+def test_the_frozen_inputs_hold_the_single_shots_protocol_and_every_roles_allowance() -> None:
+    """Log format 3 (the baselines step, fork 12): the query protocol and the search limit
+    are frozen exactly for the single-shot system, the context allowances name exactly the
+    configured roles, each positive, and an admission with them round-trips."""
+    from dataclasses import replace
+
+    import pytest
+
+    from leaveimpact.agent.log_events import Admitted
+    from leaveimpact.core import LiteralQuery, RetrievalKind
+
+    single_shot = histories.inputs(reservation=5, system=histories.SINGLE_SHOT)
+    assert single_shot.query_protocol == LiteralQuery("handover or coverage")
+    assert single_shot.search_limit == 10
+    assert single_shot.context_allowance_of(cases.ROLE) == 200_000
+    admitted = histories.LoggedEvent(1, cases.ADMITTED, histories.ADMITTER, Admitted(single_shot))
+    assert decode_logged_event(encode_logged_event(admitted)) == admitted
+    full_context = histories.inputs(reservation=5, system=histories.FULL_CONTEXT)
+    assert full_context.query_protocol is None and full_context.search_limit is None
+    assert full_context.retrieval.kind is RetrievalKind.NONE
+    agent = histories.inputs(reservation=5)
+    with pytest.raises(ValueError, match="frozen exactly for the single-shot system"):
+        replace(agent, query_protocol=LiteralQuery("handover"))
+    with pytest.raises(ValueError, match="frozen exactly for the single-shot system"):
+        replace(single_shot, search_limit=None)
+    with pytest.raises(ValueError, match="the search limit lies in 1..20, got 21"):
+        replace(single_shot, search_limit=21)
+    with pytest.raises(ValueError, match="context_allowances names exactly the configured roles"):
+        replace(agent, context_allowances=())
+    with pytest.raises(ValueError, match="context allowance"):
+        replace(agent, context_allowances=((cases.ROLE, 0),))
+    with pytest.raises(ValueError, match="full context searches nothing"):
+        replace(full_context, retrieval=agent.retrieval)
+    with pytest.raises(ValueError, match="single-shot makes one search"):
+        replace(single_shot, retrieval=full_context.retrieval)

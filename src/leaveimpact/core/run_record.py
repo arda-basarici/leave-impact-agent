@@ -29,9 +29,11 @@ whose counters were incomplete says so.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import date
 from enum import StrEnum
+from types import MappingProxyType
 
 from leaveimpact.core.call_settings import CallConfiguration
 from leaveimpact.core.enums import Source
@@ -144,12 +146,49 @@ class System:
         require_opaque_id(self.variant, "an orchestration variant")
 
 
+SINGLE_SHOT_QUERY_POLICY = "single_shot_query"
+"""The policy the single-shot baseline's one harness read, its search, is issued under."""
+
+FULL_CONTEXT_DOCUMENTS_POLICY = "full_context_documents"
+"""The policy the full-context baseline's one harness read, the level's documents, is issued
+under."""
+
+HARNESS_READ_POLICIES: Mapping[SystemKind, frozenset[str]] = MappingProxyType(
+    {
+        SystemKind.AGENT: frozenset(),
+        SystemKind.RULES_ONLY: frozenset(),
+        SystemKind.SINGLE_SHOT: frozenset({SINGLE_SHOT_QUERY_POLICY}),
+        SystemKind.FULL_CONTEXT: frozenset({FULL_CONTEXT_DOCUMENTS_POLICY}),
+    }
+)
+"""The harness-read policies each system issues (the baselines step, fork 4). A read under
+another policy, or by a system that issues none, is this harness's defect, and the log
+refuses it; the agent and rules-only issue none."""
+
+
 class RetrievalKind(StrEnum):
     """The retrieval implementation behind the document search, held fixed across a comparison."""
 
     NONE = "none"
     FULL_TEXT = "full_text"
     VECTOR = "vector"
+
+
+def require_system_retrieval(kind: SystemKind, retrieval: Retrieval) -> None:
+    """Refuse a retrieval the system ``kind`` cannot have recorded (the baselines step, fork
+    12): full context is shown every document and searches nothing, so its retrieval is
+    none; the single-shot makes one search, so its retrieval names an implementation. The
+    record and the frozen inputs ask this once each, from here.
+
+    >>> require_system_retrieval(SystemKind.FULL_CONTEXT, Retrieval(RetrievalKind.FULL_TEXT, None))
+    Traceback (most recent call last):
+    ...
+    ValueError: full context searches nothing, so its retrieval is none
+    """
+    if kind is SystemKind.FULL_CONTEXT and retrieval.kind is not RetrievalKind.NONE:
+        raise ValueError("full context searches nothing, so its retrieval is none")
+    if kind is SystemKind.SINGLE_SHOT and retrieval.kind is RetrievalKind.NONE:
+        raise ValueError("single-shot makes one search, so its retrieval names an implementation")
 
 
 @dataclass(frozen=True, slots=True)
@@ -521,6 +560,7 @@ class RunRecord:
                 raise ValueError("rules-only calls no model, so it records no model configuration")
             if self.retrieval.kind is not RetrievalKind.NONE:
                 raise ValueError("rules-only retrieves nothing, so its retrieval is none")
+        require_system_retrieval(self.system.kind, self.retrieval)
         object.__setattr__(
             self, "model_configurations", tuple(sorted(self.model_configurations, key=_role))
         )

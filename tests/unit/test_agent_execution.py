@@ -328,3 +328,24 @@ def test_a_models_call_outside_the_executors_surface_is_refused_and_a_prefetchs_
     with pytest.raises(ValueError, match="the frozen prefetch made a call the surface refuses"):
         over_role.call(PREFETCH, "employees", {})
     assert isinstance(executor_over(systems).call(BY_MODEL, "employees", {}), RecordsOutcome)
+
+
+def test_a_harness_call_the_surface_refuses_is_a_harness_defect_and_raises(
+    systems: Systems,
+) -> None:
+    # The baselines step, fork 4: the harness built the arguments from the declarations the
+    # validator applies, as the prefetch did, so a refusal is this harness's and never graded.
+    from leaveimpact.core import HarnessOrigin
+
+    executor = executor_over(systems)
+    by_harness = HarnessOrigin("single_shot_query")
+    with pytest.raises(ValueError, match="the harness made a call under 'single_shot_query'"):
+        executor.call(by_harness, "search", {"query": "k" * 201, "limit": 5})
+    with pytest.raises(ValueError, match="the surface refuses: no tool named 'documentz'"):
+        executor.call(by_harness, "documentz", {})
+    assert executor.operations == []
+    listed = executor.call(HarnessOrigin("full_context_documents"), "documents", {})
+    assert isinstance(listed, RecordsOutcome)
+    (operation,) = executor.operations
+    assert operation.origin == HarnessOrigin("full_context_documents")
+    assert (operation.tool, operation.source) == ("documents", Source.CORPUS)

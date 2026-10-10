@@ -35,6 +35,8 @@ from leaveimpact.core import (
     RegisteredRole,
     Registration,
     RegistrationStatus,
+    Retrieval,
+    RetrievalKind,
     RunExport,
     Segment,
     Source,
@@ -444,6 +446,7 @@ def test_a_run_in_a_cell_whose_group_is_not_decided_as_run_is_not_a_run_of_the_p
         record=replace(
             record,
             system=System(SystemKind.FULL_CONTEXT, "all-documents"),
+            retrieval=Retrieval(RetrievalKind.NONE, None),
             outage=OutageAssignment(frozenset({Source.JIRA}), record.outage.schedule_digest),
         ),
     )

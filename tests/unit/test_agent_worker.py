@@ -563,8 +563,8 @@ def test_the_copied_fields_and_the_configuration_partition_the_frozen_inputs() -
     assert configured | set(COPIED_FROM_THE_ADMISSION) == frozen
     inputs = histories.inputs(reservation=1_000)
     assert configuration_difference(inputs, WorkerConfiguration.of(inputs).frozen_for(inputs)) == ()
-    with pytest.raises(ValueError, match="writes log format 2"):
-        WorkerConfiguration.of(inputs).frozen_for(replace(inputs, log_format_version=3))
+    with pytest.raises(ValueError, match="writes log format 3"):
+        WorkerConfiguration.of(inputs).frozen_for(replace(inputs, log_format_version=2))
 
 
 def test_a_human_approval_ends_the_segment_and_the_next_worker_resumes_without_a_send(

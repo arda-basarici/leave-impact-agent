@@ -905,3 +905,55 @@ def test_a_dispatch_outcome_after_a_stopping_defect_is_refused() -> None:
     assert isinstance(stopped, Appended) and stopped.state.stopped is not None
     late = next_state(stopped.state, restamped(events[6], position=9, offset_ms=900), RULES)
     assert isinstance(late, Refused) and late.reason.endswith(": no dispatch outcome")
+
+
+def test_a_harness_read_is_the_admitted_systems_and_precedes_the_first_call() -> None:
+    """The baselines step, fork 4: a harness read under a policy the admitted system issues,
+    before any dispatch intent, is accepted and becomes a harness-origin operation; one under
+    another system's policy, or by a system that issues none, is refused by name; and one
+    after a dispatch intent is refused, since the preparation precedes the first call."""
+    from leaveimpact.agent.admissions import trace_operations
+    from leaveimpact.core import HARNESS_READ_POLICIES, HarnessOrigin, RecordsOutcome, SystemKind
+
+    policy = "full_context_documents"
+    assert HARNESS_READ_POLICIES[SystemKind.FULL_CONTEXT] == {policy}
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=h.FULL_CONTEXT))
+    log.claim()
+    log.worker(h.harness_read(policy, 1, "documents", RecordsOutcome(())), offset=400)
+    state = fold(log.logged(), RULES)
+    assert state.open
+    (operation,) = trace_operations(state)
+    assert operation.origin == HarnessOrigin(policy) and operation.tool == "documents"
+
+    foreign = h.History()
+    foreign.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=h.FULL_CONTEXT))
+    foreign.claim()
+    before = fold(foreign.logged(), RULES)
+    arguments = {"query": "x", "limit": 5}
+    read = h.harness_read("single_shot_query", 1, "search", RecordsOutcome(()), arguments)
+    foreign.worker(read, offset=400)
+    assert next_state(before, foreign.logged()[-1], RULES) == Refused(
+        "full_context issues no harness read under 'single_shot_query'"
+    )
+
+    agent = h.History()
+    agent.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    agent.claim()
+    before = fold(agent.logged(), RULES)
+    agent.worker(h.harness_read(policy, 1, "documents", RecordsOutcome(())), offset=400)
+    assert next_state(before, agent.logged()[-1], RULES) == Refused(
+        f"agent issues no harness read under {policy!r}"
+    )
+
+    late = h.History()
+    late.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=h.FULL_CONTEXT))
+    late.claim()
+    late.worker(h.count_start("call-1"), offset=400)
+    late.worker(h.count_outcome("call-1"), offset=500)
+    late.worker(h.intent(1), offset=600)
+    before = fold(late.logged(), RULES)
+    late.worker(h.harness_read(policy, 1, "documents", RecordsOutcome(())), offset=700)
+    assert next_state(before, late.logged()[-1], RULES) == Refused(
+        "a harness read precedes the first model call"
+    )

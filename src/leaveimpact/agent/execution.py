@@ -24,7 +24,9 @@ outside the surface it was given, or arguments the validation refuses is a refus
 recorded as one and answered as one: the model's behaviour, graded. A call the frozen
 prefetch made that fails validation is a defect of this harness and raises, since the
 planner reads its bounds off the same declarations the validator applies and the two
-cannot honestly disagree.
+cannot honestly disagree; a call the harness made under a policy, the single-shot's search
+or full context's enumeration, raises the same way, since the harness built its arguments
+from the same declarations (the baselines step, fork 4).
 
 The surface is the executor's (the registry step, fork 9): the prefetch runs over the
 harness's own, all fourteen, and the tools node builds its executor over the role's, so a
@@ -71,6 +73,7 @@ from leaveimpact.core.prefetch import PlannedCall, calls_after_leave, opening_ca
 from leaveimpact.core.run_trace import (
     AbsentOutcome,
     DefectOutcome,
+    HarnessOrigin,
     Operation,
     OperationId,
     Origin,
@@ -181,6 +184,10 @@ class Executor:
     def _refused(self, origin: Origin, reason: str) -> RefusedCallOutcome:
         if isinstance(origin, PrefetchOrigin):
             raise ValueError(f"the frozen prefetch made a call the surface refuses: {reason}")
+        if isinstance(origin, HarnessOrigin):
+            raise ValueError(
+                f"the harness made a call under {origin.policy!r} the surface refuses: {reason}"
+            )
         return RefusedCallOutcome(reason)
 
     def _record(

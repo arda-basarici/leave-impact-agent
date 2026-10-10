@@ -15,7 +15,7 @@ block holding the batch's JSON; a handled fact tool is a ``toolUse`` block of ``
 
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 
@@ -35,6 +35,7 @@ from leaveimpact.agent.log_events import (
     Event,
     Failed,
     FrozenInputs,
+    HarnessReadKey,
     LoggedEvent,
     LoggedSettlement,
     ModelReadKey,
@@ -67,6 +68,7 @@ from leaveimpact.core import (
     EstablishedBound,
     FailureCategory,
     InputBoundSite,
+    LiteralQuery,
     Observed,
     OperationId,
     OperationSite,
@@ -106,18 +108,22 @@ CONFIGURATION = CallConfiguration(
 
 
 AGENT = System(SystemKind.AGENT, "reference")
+SINGLE_SHOT = System(SystemKind.SINGLE_SHOT, "reference")
+FULL_CONTEXT = System(SystemKind.FULL_CONTEXT, "reference")
 
 
 def inputs(*, reservation: int | None, system: System = AGENT) -> FrozenInputs:
     """The frozen inputs every fixture's record states, with ``reservation`` admitted."""
     calls_a_model = system.kind is not SystemKind.RULES_ONLY
+    searches = system.kind in (SystemKind.AGENT, SystemKind.SINGLE_SHOT)
+    single_shot = system.kind is SystemKind.SINGLE_SHOT
     return FrozenInputs(
         run_id="run-12",
         attempt=1,
         context=cases.CONTEXT,
         preregistration_commit=cases.COMMIT,
         system=system,
-        retrieval=Retrieval(RetrievalKind.FULL_TEXT if calls_a_model else RetrievalKind.NONE, None),
+        retrieval=Retrieval(RetrievalKind.FULL_TEXT if searches else RetrievalKind.NONE, None),
         caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", cases.METHOD),
         model_configurations=((cases.ROLE, CONFIGURATION),) if calls_a_model else (),
         pricing_selections=((cases.ROLE, cases.SELECTION),) if calls_a_model else (),
@@ -134,8 +140,11 @@ def inputs(*, reservation: int | None, system: System = AGENT) -> FrozenInputs:
         parser=refused_by(),
         outage=OutageAssignment(frozenset(), cases.DIGEST),
         corpus_level="base",
+        query_protocol=LiteralQuery("handover or coverage") if single_shot else None,
+        search_limit=10 if single_shot else None,
+        context_allowances=((cases.ROLE, 200_000),) if calls_a_model else (),
         reservation_pico_usd=reservation if calls_a_model else None,
-        log_format_version=2,
+        log_format_version=3,
     )
 
 
@@ -201,6 +210,20 @@ def prefetch(
     """The prefetch's ``ordinal``-th read, returning ``records``."""
     return OperationEvent(
         PrefetchKey(ordinal), OperationResult(tool, source, {}, RecordsOutcome(tuple(records)))
+    )
+
+
+def harness_read(
+    policy: str,
+    ordinal: int,
+    tool: str,
+    outcome: Outcome,
+    arguments: Mapping[str, object] | None = None,
+) -> OperationEvent:
+    """The ``ordinal``-th read the harness issued under ``policy``: a baseline's preparation."""
+    return OperationEvent(
+        HarnessReadKey(policy, ordinal),
+        OperationResult(tool, Source.CORPUS, dict(arguments or {}), outcome),
     )
 
 

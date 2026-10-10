@@ -320,6 +320,9 @@ def agent_provenance(
         parser=parser,
         outage=_assignment(registration, SystemKind.AGENT, condition, level),
         corpus_level=level,
+        query_protocol=None,
+        search_limit=None,
+        context_allowances=((registered_role.name, registered_role.context_allowance_tokens),),
     )
 
 

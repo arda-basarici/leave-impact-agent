@@ -145,7 +145,7 @@ from leaveimpact.core.run_ending import (
     OperationSite,
 )
 from leaveimpact.core.run_parts_json import review_payload_digest
-from leaveimpact.core.run_record import Failure, FailureCategory
+from leaveimpact.core.run_record import HARNESS_READ_POLICIES, Failure, FailureCategory
 from leaveimpact.core.run_timing import HarnessRevision
 from leaveimpact.core.run_trace import (
     Cost,
@@ -595,6 +595,16 @@ def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEv
             )
             if key.ordinal != expected:
                 return Refused(f"{key.policy}'s next read is {expected}, got {key.ordinal}")
+            # The baselines step, fork 4: a harness read is the admitted system's preparation,
+            # under a policy that system issues and before its first model call.
+            inputs = state.inputs
+            assert inputs is not None, "an operation follows an admission"
+            if key.policy not in HARNESS_READ_POLICIES[inputs.system.kind]:
+                return Refused(
+                    f"{inputs.system.kind.value} issues no harness read under {key.policy!r}"
+                )
+            if calls_of(state):
+                return Refused("a harness read precedes the first model call")
         case ModelReadKey():
             refusal = _model_read_refusal(state, key, event)
             if refusal is not None:

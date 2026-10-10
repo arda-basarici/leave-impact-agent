@@ -76,6 +76,11 @@ from leaveimpact.core.model_calls import (
     UndispatchedReason,
 )
 from leaveimpact.core.pricing import decode_rate, encode_rate
+from leaveimpact.core.query_protocol import (
+    QueryProtocol,
+    decode_query_protocol,
+    encode_query_protocol,
+)
 from leaveimpact.core.registration import RetryRule
 from leaveimpact.core.run_ending import (
     AbandonmentReason,
@@ -118,6 +123,7 @@ from leaveimpact.core.run_record import (
     RetrievalKind,
     System,
     SystemKind,
+    require_system_retrieval,
 )
 from leaveimpact.core.run_timing import HarnessRevision, TreeState, require_commit
 from leaveimpact.core.run_trace import (
@@ -132,11 +138,15 @@ from leaveimpact.core.run_trace import (
     thawed_json,
 )
 from leaveimpact.core.timeshape import decode_date, decode_instant, encode_date, encode_instant
+from leaveimpact.core.tools import SEARCH_LIMIT
 from leaveimpact.core.worldtime import RunContext
 
-LOG_FORMAT_VERSION = 2
+LOG_FORMAT_VERSION = 3
 """The log format this code writes and reads. 2: the approval request carries the ending
-it freezes toward (the worker group's review)."""
+it freezes toward (the worker group's review). 3: the admission freezes the single-shot's
+query protocol and search limit and each role's context allowance (the baselines step,
+fork 12), so a claim under a registration that differs on them is refused and a recovering
+worker renders the same request a first process did."""
 """The log format this code writes and reads: the codecs here and their canonicalization."""
 
 
@@ -285,7 +295,11 @@ class FrozenInputs:
     transition function takes the registered values from its caller and refuses ones that
     differ from these. ``counting_identifiers`` is each role's counting model id, which the
     export does not carry and the transition needs. ``parser`` is the fact parser's identity
-    and schema digest, verified at claim and used by the reader.
+    and schema digest, verified at claim and used by the reader. ``query_protocol`` and
+    ``search_limit`` are the single-shot system's and ``None`` for every other;
+    ``context_allowances`` is each role's input window in tokens (log format 3, the
+    baselines step, forks 10 and 12); none of the three reaches the export, whose trace
+    holds the rendered query and whose preregistration commit holds the registration.
     """
 
     run_id: str
@@ -310,6 +324,9 @@ class FrozenInputs:
     parser: RefusedBy
     outage: OutageAssignment
     corpus_level: str
+    query_protocol: QueryProtocol | None
+    search_limit: int | None
+    context_allowances: tuple[tuple[str, int], ...]
     reservation_pico_usd: int | None
     log_format_version: int
 
@@ -345,6 +362,25 @@ class FrozenInputs:
             require_integer(self.reservation_pico_usd, "a reservation in pico-dollars")
         if (self.system.kind is SystemKind.RULES_ONLY) != (not calls_a_model):
             raise ValueError("rules-only calls no model; every other system configures a role")
+        require_system_retrieval(self.system.kind, self.retrieval)
+        single_shot = self.system.kind is SystemKind.SINGLE_SHOT
+        for name, held in (
+            ("the query protocol", self.query_protocol),
+            ("the search limit", self.search_limit),
+        ):
+            if (held is not None) != single_shot:
+                raise ValueError(f"{name} is frozen exactly for the single-shot system")
+        if self.search_limit is not None and not (
+            SEARCH_LIMIT.minimum <= self.search_limit <= SEARCH_LIMIT.maximum
+        ):
+            raise ValueError(
+                f"the search limit lies in {SEARCH_LIMIT.minimum}..{SEARCH_LIMIT.maximum}, "
+                f"got {self.search_limit}"
+            )
+        if sorted(role for role, _ in self.context_allowances) != roles:
+            raise ValueError(f"context_allowances names exactly the configured roles {roles}")
+        for role, allowance in self.context_allowances:
+            require_integer(allowance, f"the {role} context allowance", minimum=1)
         if self.log_format_version != LOG_FORMAT_VERSION:
             raise ValueError(
                 f"this code writes log format {LOG_FORMAT_VERSION}, got {self.log_format_version}"
@@ -354,12 +390,16 @@ class FrozenInputs:
             "pricing_selections",
             "counting_identifiers",
             "tool_surface_digests",
+            "context_allowances",
         ):
             object.__setattr__(self, pairs, tuple(sorted(getattr(self, pairs), key=_first)))
         object.__setattr__(self, "prompt_digests", tuple(sorted(self.prompt_digests)))
 
     def configuration_of(self, role: str) -> CallConfiguration | None:
         return dict(self.model_configurations).get(role)
+
+    def context_allowance_of(self, role: str) -> int | None:
+        return dict(self.context_allowances).get(role)
 
     def selection_of(self, role: str) -> PricingSelection | None:
         return dict(self.pricing_selections).get(role)
@@ -1293,6 +1333,9 @@ _INPUT_FIELDS = (
     "parser",
     "outage",
     "corpus_level",
+    "query_protocol",
+    "search_limit",
+    "context_allowances",
     "reservation_pico_usd",
     "log_format_version",
 )
@@ -1375,6 +1418,13 @@ def _encode_inputs(inputs: FrozenInputs) -> JsonObject:
             "schedule_digest": inputs.outage.schedule_digest,
         },
         "corpus_level": inputs.corpus_level,
+        "query_protocol": None
+        if inputs.query_protocol is None
+        else encode_query_protocol(inputs.query_protocol),
+        "search_limit": inputs.search_limit,
+        "context_allowances": [
+            {"role": role, "tokens": tokens} for role, tokens in inputs.context_allowances
+        ],
         "reservation_pico_usd": inputs.reservation_pico_usd,
         "log_format_version": inputs.log_format_version,
     }
@@ -1413,6 +1463,8 @@ def _decode_inputs(data: Mapping[str, object]) -> FrozenInputs:
     outage = object_field(data, "outage")
     expect_fields(outage, ("scheduled_unreachable", "schedule_digest"), "the outage")
     reservation = field_of(data, "reservation_pico_usd")
+    protocol = field_of(data, "query_protocol")
+    limit = field_of(data, "search_limit")
     policy = None
     if redispatch is not None:
         held = as_object(redispatch, "the re-dispatch policy")
@@ -1479,11 +1531,22 @@ def _decode_inputs(data: Mapping[str, object]) -> FrozenInputs:
             string_field(outage, "schedule_digest"),
         ),
         corpus_level=string_field(data, "corpus_level"),
+        query_protocol=None if protocol is None else decode_query_protocol(protocol),
+        search_limit=None if limit is None else integer_field(data, "search_limit"),
+        context_allowances=tuple(
+            _decode_allowance(item) for item in array_field(data, "context_allowances")
+        ),
         reservation_pico_usd=None
         if reservation is None
         else integer_field(data, "reservation_pico_usd"),
         log_format_version=integer_field(data, "log_format_version"),
     )
+
+
+def _decode_allowance(item: object) -> tuple[str, int]:
+    data = as_object(item, "a context allowance")
+    expect_fields(data, ("role", "tokens"), "a context allowance")
+    return string_field(data, "role"), integer_field(data, "tokens")
 
 
 def _decode_configured(item: object) -> tuple[str, CallConfiguration]:
