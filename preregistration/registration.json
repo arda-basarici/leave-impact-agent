@@ -347,7 +347,10 @@
     },
     "anchor_table": "29679e4f58a0ade632c1c3a29dcdb6da0a01467e92b482595140aa28967bafbb",
     "entry_schema": {
-      "pending": "settled when the investigator graph is built, under its own prompt check"
+      "value": {
+        "parser": "fact-entries-1",
+        "digest": "6a9efba9bc7749374e066bd4f49fabbb7478fb849a4c6b4414ecb862601d6bb3"
+      }
     }
   },
   "statistics": {

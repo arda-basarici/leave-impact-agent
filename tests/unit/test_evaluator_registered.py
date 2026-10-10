@@ -343,7 +343,7 @@ def test_the_draft_projects_the_rules_only_cells_and_names_the_eighteen_it_left_
     assert [sum(cell.system is kind for cell in pending) for kind in SystemKind] == [6, 0, 6, 2]
     details = {left.cell.system: left.detail for left in projection.unbuilt}
     assert details[SystemKind.AGENT] == (
-        "systems.agent.roles, run_accounting.redispatch, attribution, stated_facts.entry_schema"
+        "systems.agent.roles, run_accounting.redispatch, attribution"
     )
     assert {left.detail for left in projection.unbuilt if left.why is WhyUnbuilt.GROUP_NOT_RUN} == {
         GROUP

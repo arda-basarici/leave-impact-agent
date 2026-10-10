@@ -242,7 +242,9 @@ No model writes a verdict. A model states facts with the words it read them from
 rules compose the claims, for every system including the baseline, which states none. The
 file binds three things about this. The composing policy, which names everything that
 decides a composed report. The anchor table the guard on stated facts is read from. And
-the entry schema a model's facts are parsed by, pending until the investigator is built.
+the entry schema a model's facts are parsed by, bound to the fact parser's identity and
+its schema's digest after the investigator's prompt check found the tool's input arriving
+as declared on every batch (the probes' findings, `prompt-check`).
 
 The harness computes the composing policy and refuses to run under another. The evaluator
 cannot compute it, and holds each run's recorded policy to the registered one. An equal

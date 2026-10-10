@@ -200,7 +200,6 @@ def test_the_drafts_pending_values_in_the_files_order() -> None:
         f"cell_groups.{GROUP}.decision",
         "run_accounting.redispatch",
         "attribution",
-        "stated_facts.entry_schema",
         "supporting.vector_retrieval.inclusion",
         "supporting.multi_agent.inclusion",
         "supporting.second_model.other_model",
@@ -218,7 +217,7 @@ def test_what_blocks_a_system_is_its_own_pending_values_and_what_every_model_cal
     # Rules only calls no model: nothing the model systems wait on blocks it, and neither
     # does the padded level's pending size.
     assert blocking(DRAFT, SystemKind.RULES_ONLY) == ()
-    shared = ("run_accounting.redispatch", "attribution", "stated_facts.entry_schema")
+    shared = ("run_accounting.redispatch", "attribution")
     assert blocking(DRAFT, SystemKind.AGENT) == ("systems.agent.roles", *shared)
     resolved = named()
     assert blocking(resolved, SystemKind.AGENT) == ()
