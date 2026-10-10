@@ -33,6 +33,7 @@ ORDER = (
     "rm-stated-before",
     "rm-no-more-reads",
     "final-set",
+    "final-set-repeat",
 )
 COMMENT_TARGETS = {("scenario_013", "has_skill"), ("scenario_018", "has_skill")}
 STAGES = ("returned", "emitted", "admitted", "usable")

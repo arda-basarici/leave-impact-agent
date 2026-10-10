@@ -3213,7 +3213,7 @@ pins the checker's request bytes unchanged. The worker tests' reference script r
 employee where it read the enumeration, since the role's surface refuses the enumeration;
 the crash manifest's counts hold.
 
-## prompt-check — the investigator's loop run live on the first development world: the loop, the finalization and the parse protocol hold on 98 runs, the reading sentence rewritten against named failures, six sentences dropped on removal rounds, the entry schema registered (2026-10-10)
+## prompt-check — the investigator's loop run live on the first development world: the loop, the finalization and the parse protocol hold on 105 runs, the reading sentence rewritten against named failures, six sentences dropped on removal rounds, the entry schema registered (2026-10-10)
 
 The investigator milestone's step 11 built the loop (the turns, the fact tool, the draft
 execution rule, the live clients, the smoke) under three prompt assets no real model had
@@ -3487,7 +3487,7 @@ stem-normalized text. The sentence now reads: the search matches the words of th
 stem for stem, against one section's text at a time; plain words must all occur in the same
 section, a quoted phrase must occur as written, and general words occur in no section. `OR`
 and exclusion exist and are left unsaid, since a broader query is what over-reads. The
-seven runs: calls 4, 4, 4, 5, 6, 6, 6, none at the cap, $0.46; section targets 5 / 5 / 5 /
+seven runs: calls 6, 6, 4, 4, 6, 5, 4, none at the cap, $0.46; section targets 5 / 5 / 5 /
 5 of 6, `scenario_013`'s requirement not returned this time (its account-note search was
 made, the second search for the account the note names was not), its names_responsible
 target returned and usable as before. Against round 4: one retrieval fewer, the one the
@@ -3496,8 +3496,8 @@ gone, one run at the cap against none, $0.98 against $0.46. The forecast's rule 
 round, "kept if retrieval holds at six of six", is missed by one search the model did not
 make; the accurate sentence is taken as the base of the removal rounds on the equal
 usable count and on its being true, a judgment recorded as one and not a measured
-superiority, since one search at temperature 0 is inside the round-to-round variation
-the structured scenarios show.
+superiority; the repeat below shows a fixed prompt reproducing its seven runs exactly, so
+the one search is the wording's doing on this scenario and not variation.
 
 **The removal rounds (2026-10-10, seven rounds of seven runs against the round-5 base,
 $3.47; every table under `results/`, the cross-round one in `results/summary.md`).** Each
@@ -3516,18 +3516,22 @@ the base is round 5. The shapes read per round, summed over the seven runs:
 | finalization: ", including any fact you stated before" | 35 | $0.46 | 5 / 5 / 5 / 5 | 8 | 37 / 14 | 7 | 0 | 7 / 0 / 0 (0) | 23 / 35 | 40 |
 | finalization: " Do not read anything more." | 35 | $0.46 | 5 / 5 / 5 / 5 | 8 | 37 / 14 | 7 | 0 | 7 / 0 / 0 (0) | 23 / 37 | 42 |
 
-Read against each sentence's named failure, with the structured scenarios' round-to-round
-spread (2 to 15 calls under identical prompts earlier in the day) as the noise floor:
+Read against each sentence's named failure. No two rounds of the day shared a prompt, so
+the day's round-to-round spread says nothing about variation under a fixed prompt; the
+repeat below measured that variation at zero on this world, so each removal round is one
+deterministic outcome set against another, and a sentence is kept on its named failure
+appearing, never on the size of a difference:
 
 - **"The first message holds the records already read for you." stays.** Its failure was
   the model re-reading through the tools what the first message holds: 20 such reads
   against the base's 8, 55 searches against 37, two runs at 13 calls, the round $0.24
   dearer. The one sentence of the seven whose removal showed its failure.
-- **"Every tool answers as of the one instant …" is dropped.** The control: nothing
-  measurable moved beyond the spread (33 calls, the same stages, 18 documents against 14).
+- **"Every tool answers as of the one instant …" is dropped.** The control: its failure has
+  no measure here, and the round showed none (33 calls, the same stages, 18 documents
+  against 14).
 - **The tool-shape sentences are dropped.** Their failure was malformed or nested entries:
-  nested 0 of 14 batches, malformed 12 against 8, inside the spread; the tool's own schema
-  carries the shape. What did move was volume: 19 requirements placed against 7 and 79
+  nested 0 of 14 batches, malformed 12 against 8 and no nested entry anywhere; the tool's
+  own schema carries the shape. What did move was volume: 19 requirements placed against 7 and 79
   true unneeded facts against 42, the model stating more of what it read, every one
   admitted. More statements are not the failure the sentence was written against, and
   they cost output tokens, not correctness; a sentence kept for volume alone would be a
@@ -3558,9 +3562,19 @@ overrun, seen that once in the day; its files were discarded and the round rerun
 set as stated. The shipped system text is the accepted configuration's sentences, the
 first sentence rewritten for the loop, the first-message sentence, the reading plan and
 the search contract; the finalization text is one sentence asking for every fact of the
-four kinds with its exact quote. Fourteen rounds in the record: 98 runs, $7.71 by the
+four kinds with its exact quote. Fifteen rounds in the record: 105 runs, $8.10 by the
 account check (round 0 $0.35, rounds 1 to 4 $3.04, round 5 $0.46, the removals $3.47, the
-confirmation $0.39; the discarded confirmation $0.44 more, the dry rounds nothing).
+confirmation $0.39, the repeat $0.39; the discarded confirmation $0.44 more, the dry rounds
+nothing).
+
+**The repeat (2026-10-10, `results/final-set-repeat-20261010T204607Z.md`; the comparison
+commit's external review).** The final set run again under the identical digests: every
+field of every run equal to the confirmation's, the calls, the tokens by usage, the reads
+by tool, the emissions by class, the placements, the account check's $0.39. At
+temperature 0 this model reproduced seven runs exactly on this world, so a round is a
+deterministic outcome of its prompt and the comparisons above are between outcomes, not
+samples; whether that holds under other prompts, other days or the measurement world is
+unmeasured, one repeat of one set.
 
 **The entry schema registered.** Nested on 0 of the day's batches under every prompt, the
 flattening amendment is not adopted and the draft's `stated_facts.entry_schema` is bound
@@ -3568,3 +3582,10 @@ to the parser's identity and its schema digest (`fact-entries-1`, `6a9efba9…`)
 through the registration codec so the file keeps its one written form; the agent's
 pending values are its roles, the re-dispatch policy and the attribution table, and the
 two tests that list the draft's pending values say so.
+
+*Correction, 2026-10-10 (the comparison commit's external review).* As first committed the
+removal rounds' reading named a noise floor "under identical prompts"; no two rounds of
+the day shared a prompt. The repeat was run in answer and found no variation, and the
+reading is rewritten above as a comparison of deterministic outcomes. The round-5 call
+vector was listed sorted and is in scenario order now; the README's total read $7.76 for
+$7.71 before the repeat.
