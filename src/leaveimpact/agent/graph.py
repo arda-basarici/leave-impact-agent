@@ -476,6 +476,8 @@ def _model_step(harness: Harness) -> tuple[str, bool]:
             return "tools", False
         if standing in (CallDecision.FAILED_BY_INFRASTRUCTURE, CallDecision.FAILED_BY_DEFECT):
             return "terminal", False
+        # A call ended as behaviour has no answer and stops nothing: the system is asked for
+        # the next call and reads the ended one as an answer with no read (the close's review).
     ordinal = len(calls) + 1
     request = harness.turns.request_for(state, ordinal)
     if request is None:

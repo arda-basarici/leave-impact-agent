@@ -50,6 +50,7 @@ from leaveimpact.agent.log_events import (
 )
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import fold
+from leaveimpact.agent.registered import NOVA_TOOL_USE_CUT
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.agent.surface import ARGUMENTS_CORRECTION, FACT_TOOL_DEFINITION
 from leaveimpact.agent.turns import InvestigatorTurns
@@ -62,6 +63,7 @@ from leaveimpact.agent.worker import (
 )
 from leaveimpact.core import Caps
 from leaveimpact.core.jsonshape import JsonObject, canonical_json
+from leaveimpact.core.model_calls import ServiceError
 from leaveimpact.core.run_account import CallPurpose
 from leaveimpact.core.run_ending import OperationSite
 from leaveimpact.core.run_record import FailureCategory
@@ -403,6 +405,78 @@ def test_a_finalization_the_account_entered_is_asked_at_the_first_call(world: Se
     assert tool_names(request.body) == [FACT_TOOL]
     loop = made.turns.request_for(made.state(below), 1)
     assert loop is not None and not loop.final and tool_choice(loop.body) == {"auto": {}}
+
+
+NOVA_CUT = ServiceError(424, "ModelErrorException", 400, NOVA_TOOL_USE_CUT, 0, "req-cut")
+"""The one evidenced behaviour-attributed service error: the fixtures' table reads it as the
+model's own doing, so the call ends as behaviour with no answer."""
+
+
+@dataclass
+class SendOrderedClient(ContentScriptedClient):
+    """The content-scripted client answering by send order instead: a call ended as behaviour
+    contributes no assistant message, so the request after it carries the same count as the
+    one before it and a script keyed by that count would answer the same twice."""
+
+    def send(self, requested_profile: str, body: JsonObject) -> support.Sent:
+        self.sends.append((requested_profile, support.request_digest(body)))
+        self.bodies.append(body)
+        return self.answers[len(self.sends) - 1]
+
+
+def test_a_loop_call_ended_as_behaviour_is_followed_by_the_finalization(
+    world: SealedWorld, assets: PromptAssets
+) -> None:
+    """The close's review, first finding: the first wiring had no reading for a call ended as
+    behaviour, asked the turns for the next call and raised on the call with no answer,
+    closing the run as a harness defect. The ended call is read as an answer with no read:
+    the finalization follows, over a conversation the ended call contributes nothing to."""
+    made = bench(world)
+    carrier, author, quote = support.a_read_comment(world)
+    entry = {"carrier": carrier, "predicate": "has_skill", "subject": author, "value": "kafka"}
+    made.client = SendOrderedClient(
+        (
+            support.observed(NOVA_CUT),
+            support.answered(
+                support.fact_tool("tu_final", {**entry, "quote": quote}), stop_reason="tool_use"
+            ),
+        )
+    )
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert len(made.client.sends) == 2
+    state = made.state()
+    second = made.client.bodies[1]
+    (user,) = messages_of(second)
+    assert text_of(content_of(user)[-1]) == assets.text(FINALIZATION)
+    assert tool_names(second) == [FACT_TOOL]
+    assert tool_choice(second) == {"tool": {"name": FACT_TOOL}}
+    request = made.turns.request_for(state, 2)
+    assert request is not None and request.final
+    assert canonical_json(request.body) == canonical_json(second)
+    assert made.turns.request_for(state, 3) is None, "after the finalization call, nothing"
+    export = export_of(state)
+    assert [call.answer is None for call in export.trace.model_calls] == [True, False]
+    assert export.record.failure is None
+
+
+def test_a_finalization_ended_as_behaviour_ends_the_run_with_the_payload_of_what_it_has(
+    world: SealedWorld,
+) -> None:
+    """The same finding at the last turn: the finalization call ends as behaviour, the system
+    asks nothing more, and the run completes through its approval with the baseline's
+    payload, since nothing was admitted."""
+    made = bench(world)
+    made.client = ContentScriptedClient(
+        (support.answered(support.text("Nothing further to read.")), support.observed(NOVA_CUT))
+    )
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert len(made.client.sends) == 2
+    state = made.state()
+    assert made.turns.request_for(state, 3) is None
+    assert admitted_statements(state) == ()
+    baseline = investigate(made.inputs.context, systems_holding(world).ports)
+    assert made.turns.payload_for(state).claims == baseline.claims
+    assert export_of(state).trace.claims == baseline.claims
 
 
 # --- The restatement equality ------------------------------------------------------------------

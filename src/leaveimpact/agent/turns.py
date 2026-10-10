@@ -19,7 +19,12 @@ finalization; the system then asks one finalization call, the whole conversation
 finalization text, the fact tool alone and forced by name, so the last turn can only state
 facts. After it the system asks nothing more. The finalization is requested, never
 guaranteed: when the account refuses its allocation the run ends at its cap through the
-approval of what it has (amendment 2).
+approval of what it has (amendment 2). A call ended as behaviour, a service error the
+registered table reads as the model's own doing, has no answer and stops nothing; it is
+read as an answer with no read call, so a loop call ended so is followed by the
+finalization, and a finalization ended so ends the asking and the run goes to its approval
+with what it has (the close's review, first finding: the first wiring had no reading for
+it and raised, closing the run as a harness defect).
 
 *What the request of call* ``n`` *is a function of.* The frozen inputs, the prompt assets
 and the events logged strictly below the call's first intent, or every event when the call
@@ -43,10 +48,11 @@ nothing projected, followed by a user message holding one ``toolResult`` per ``t
 of that message, in content order: a read's logged resolution rendered by the surface, a
 skip's unreachable source or ``not_made``, an undispatched call's ``not_made`` with its
 derived reason, a fact call's admissions, an unparsed call's fixed correction (amendment
-4). The finalization text joins the last user message, so two user turns never follow each
-other. A read call the log leaves unresolved or unreached cannot sit under a request, since
-the tools node resolves an answer's reads before the next call is asked and a stopping
-result ends the run; meeting one is a defect of this harness.
+4). A call ended as behaviour contributes no messages, since nothing arrived. The
+finalization text joins the last user message, so two user turns never follow each other.
+A read call the log leaves unresolved or unreached cannot sit under a request, since the
+tools node resolves an answer's reads before the next call is asked and a stopping result
+ends the run; meeting one is a defect of this harness.
 
 *The review payload.* The shared composer over the structured projection of every
 operation logged, the admitted statements of every answer in the order their answers were
@@ -104,7 +110,7 @@ from leaveimpact.core.model_calls import (
     Unparsed,
 )
 from leaveimpact.core.read_projection import project_reads
-from leaveimpact.core.run_trace import OperationId, thawed_json
+from leaveimpact.core.run_trace import Operation, OperationId, thawed_json
 from leaveimpact.core.skills import SKILLS
 from leaveimpact.core.timeshape import encode_instant
 from leaveimpact.core.tools import TOOL_SPECIFICATIONS, Role, ToolSpecification, role_surface
@@ -123,6 +129,15 @@ sent as; a setting outside this table cannot be sent and refuses the request."""
 
 
 @dataclass(frozen=True, slots=True)
+class EarlierCall:
+    """A settled logical call below the request being built: its events, and its answer or
+    ``None`` when it ended as behaviour, after which nothing arrived."""
+
+    events: CallEvents
+    answered: AnsweredCall | None
+
+
+@dataclass(frozen=True, slots=True)
 class InvestigatorTurns:
     """The investigator's ``Turns``: see the module."""
 
@@ -133,9 +148,9 @@ class InvestigatorTurns:
         """The request of logical call ``call``: the first, a loop or the finalization request;
         ``None`` on an abstention, which the prefetch below the call decides (the run goes to
         its approval with the empty payload and makes no model call, fork 8), and ``None``
-        once the finalization call was answered. ``ValueError`` when ``call`` is neither in
-        progress nor the next, when an earlier call has no answer, or when the role's
-        configuration holds a setting the request cannot carry."""
+        once the finalization call was answered or ended as behaviour. ``ValueError`` when
+        ``call`` is neither in progress nor the next, when an earlier call holds no outcome,
+        or when the role's configuration holds a setting the request cannot carry."""
         inputs = _inputs(state)
         calls = calls_of(state)
         if call == len(calls) + 1:
@@ -146,16 +161,19 @@ class InvestigatorTurns:
             raise ValueError(f"call {call} is neither in progress nor the next; {len(calls)} held")
         if _abstains(state, boundary):
             return None
-        earlier = tuple(self._answered(state, held) for held in calls if held.ordinal < call)
+        operations = trace_operations(state)
+        earlier = tuple(_earlier(state, held, operations) for held in calls if held.ordinal < call)
         entered = state.finalization_entered is not None and state.finalization_entered < boundary
-        if _finalization_answered(earlier, state):
+        if _finalization_asked(earlier, state):
             return None
-        final = entered or (bool(earlier) and not _reads_in(earlier[-1]))
+        final = entered or (bool(earlier) and not _reads_in(state, earlier[-1]))
         shown: list[OperationId] = []
         messages = [self._first_message(state, boundary, shown)]
-        for answered in earlier:
-            messages.append(_assistant_message(state, answered))
-            messages.append(self._results_message(state, answered, shown))
+        for held in earlier:
+            if held.answered is None:
+                continue
+            messages.append(_assistant_message(state, held.answered))
+            messages.append(self._results_message(state, held.answered, shown))
         if final:
             _append_text(messages[-1], self.assets.text(FINALIZATION))
         body: JsonObject = {
@@ -242,14 +260,6 @@ class InvestigatorTurns:
             content.append(rendered.block(use.id))
         return {"role": "user", "content": content}
 
-    def _answered(self, state: AttemptState, held: CallEvents) -> AnsweredCall:
-        answered = answer_of(state, held, trace_operations(state))
-        if answered is None:
-            raise ValueError(
-                f"call {held.ordinal} holds no complete response; no request follows it"
-            )
-        return answered
-
     def _tool_config(self, final: bool) -> JsonObject:
         if final:
             return {
@@ -294,15 +304,29 @@ def _skill_list() -> str:
     return "\n".join(lines)
 
 
-def _reads_in(answered: AnsweredCall) -> bool:
-    """Whether the answer holds a read call the loop dispatched or skipped: a call of a read
-    tool with an object for its input, under the ``tool_use`` stop (the graph's own count),
-    which became an operation or a skip for the cap or an unreachable source."""
+def _earlier(
+    state: AttemptState, held: CallEvents, operations: tuple[Operation, ...]
+) -> EarlierCall:
+    """``held`` as a settled call below the request: answered, or ended as behaviour when its
+    last dispatch holds an observation that is no complete response. ``ValueError`` when it
+    holds no outcome at all, since a call in progress is continued, never followed."""
+    if held.last_outcome is None:
+        raise ValueError(f"call {held.ordinal} holds no outcome; no request follows it")
+    return EarlierCall(held, answer_of(state, held, operations))
+
+
+def _reads_in(state: AttemptState, earlier: EarlierCall) -> bool:
+    """Whether the call's answer holds a read call the loop dispatched or skipped: a call of
+    a read tool with an object for its input, under the ``tool_use`` stop (the graph's own
+    count), which became an operation or a skip for the cap or an unreachable source. A
+    call ended as behaviour holds none."""
+    if earlier.answered is None:
+        return False
     skipped = (UndispatchedReason.CAP, UndispatchedReason.SOURCE_UNREACHABLE)
     return any(
         isinstance(call.disposition, AsOperation)
         or (isinstance(call.disposition, Undispatched) and call.disposition.reason in skipped)
-        for call in answered.answer.tool_calls
+        for call in earlier.answered.answer.tool_calls
     )
 
 
@@ -318,16 +342,15 @@ def _abstains(state: AttemptState, boundary: int) -> bool:
     return abstention_of(projection, leave_of(operations, inputs.context)) is not None
 
 
-def _finalization_answered(earlier: tuple[AnsweredCall, ...], state: AttemptState) -> bool:
-    """Whether one of ``earlier`` was the finalization call: the finalization event lies
-    below its first intent, or the answer before it held no read call."""
-    calls = calls_of(state)
-    for index, answered in enumerate(earlier):
-        first_intent = calls[answered.ordinal - 1].intents[0].position
+def _finalization_asked(earlier: tuple[EarlierCall, ...], state: AttemptState) -> bool:
+    """Whether one of ``earlier`` was the finalization call, answered or ended as behaviour:
+    the finalization event lies below its first intent, or the call before it held no read."""
+    for index, held in enumerate(earlier):
+        first_intent = held.events.intents[0].position
         entered = state.finalization_entered is not None and (
             state.finalization_entered < first_intent
         )
-        if entered or (index > 0 and not _reads_in(earlier[index - 1])):
+        if entered or (index > 0 and not _reads_in(state, earlier[index - 1])):
             return True
     return False
 
