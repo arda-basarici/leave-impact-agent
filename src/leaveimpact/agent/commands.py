@@ -1,6 +1,6 @@
-"""The job seam's commands: admit, work, deliver an approval, abandon, publish, write the
-inventory, set the threshold; each a function over plain data and no queue (the event log
-step's ruling on the job seam, part 2).
+"""The job seam's commands: admit, work, review and deliver an approval, abandon, publish,
+write the inventory, set the threshold; each a function over plain data and no queue (the
+event log step's ruling on the job seam, part 2).
 
 Jobs are started explicitly. A command takes a request type, the store, and what it
 composes over (a worker's fillings, a publisher), and returns a result type or a refusal
@@ -11,6 +11,12 @@ request over the configuration, the revision and the rules alone, and no filling
 store's own refusals and receipts are what the commands pass on: a repeated delivery is
 the store's receipt, a closed attempt answers an abandonment with its refusal, and a
 request for an attempt that exists is the admission's backstop.
+
+A human's approval is given over a payload the human read (the first live run's step, fork
+10): ``review_approval`` returns the frozen review payload of an attempt paused at its
+approval request, with the digest the delivery must carry, so a digest alone, which lets
+nobody review anything, never stands in for the reading. The payload holds the run's
+claims and is printed only where the log is private.
 
 Publication is the one command with an order of its own (the ruling on an export that will
 not construct, and the commands group's forks 6 and 7). A published record is returned as
@@ -80,10 +86,11 @@ from leaveimpact.core.inventory import (
     inventory_bytes,
     inventory_digest,
 )
+from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.run_ending import AbandonmentReason, Approver
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
 from leaveimpact.core.run_export_json import export_bytes
-from leaveimpact.core.run_parts_json import review_payload_digest
+from leaveimpact.core.run_parts_json import review_payload, review_payload_digest
 from leaveimpact.core.run_record import SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
@@ -221,6 +228,59 @@ def finalize(
     )
     return worker.finalize(
         request.run_id, request.attempt, nonce=request.nonce, override=request.override
+    )
+
+
+# --- review an approval request ----------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewRequest:
+    """Read the review payload an attempt's approval request froze."""
+
+    run_id: str
+    attempt: int
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.run_id, "a run id")
+        require_integer(self.attempt, "an attempt number", minimum=1)
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewPayload:
+    """The frozen payload as the human reads it, the position of the request that froze it,
+    whether an approval is already given, and the digest a delivery must carry."""
+
+    run_id: str
+    attempt: int
+    position: int
+    approved: bool
+    payload: JsonObject
+    digest: str
+
+
+def review_approval(
+    request: ReviewRequest, store: LogStore, *, rules: Rules
+) -> ReviewPayload | CommandRefused:
+    """The review payload of the attempt's approval request (``core.review_payload``), or a
+    refusal for a closed attempt or one with no request; an approval already given is
+    reported beside the payload, not refused, since reading harms nothing."""
+    subject = f"run {request.run_id} attempt {request.attempt}"
+    state = store.load(request.run_id, request.attempt, rules=rules)
+    if state.closed is not None:
+        return CommandRefused(subject, f"the attempt is closed at position {state.closed.position}")
+    requested = state.approval_requested
+    if requested is None:
+        return CommandRefused(subject, "no approval is requested")
+    assert isinstance(requested.event, ApprovalRequested)
+    claims, composition = requested.event.claims, requested.event.composition
+    return ReviewPayload(
+        request.run_id,
+        request.attempt,
+        requested.position,
+        state.approved is not None,
+        review_payload(claims, composition),
+        review_payload_digest(claims, composition),
     )
 
 
@@ -591,6 +651,8 @@ __all__ = [
     "InventoryWritten",
     "PublishRequest",
     "Reader",
+    "ReviewPayload",
+    "ReviewRequest",
     "TerminalComposition",
     "ThresholdRequest",
     "WorkRequest",
@@ -601,6 +663,7 @@ __all__ = [
     "finalize",
     "import_spend",
     "publish",
+    "review_approval",
     "set_threshold",
     "work",
     "write_inventory",

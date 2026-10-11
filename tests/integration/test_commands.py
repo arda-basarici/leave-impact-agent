@@ -1,13 +1,14 @@
 """The commands over the real store: the work command runs the reference script to its
-closing; a human approval is delivered as a command, refused where the ruling says, and
-repeated as a receipt; an abandonment closes a claimed and a never-claimed attempt and is
-refused on a closed one; publication is created, repeated as the record, adopted over an
-object already present (verified and, under a put-only grant, unverified), failed on a
-conflict and on a reader that cannot build, and repaired under another reader at another
-key; the export bytes of one closed log are equal across two builds; the inventory is
-sealed at the key its digest names and lists the attempt with its publication; the
-threshold command passes the store's refusal on as a value; and the evaluator's four
-audits over the real export report no finding."""
+closing; a human approval is reviewed as the frozen payload with its digest, delivered as a
+command over that digest, refused where the ruling says, and repeated as a receipt; an
+abandonment closes a claimed and a never-claimed attempt and is refused on a closed one;
+publication is created, repeated as the record, adopted over an object already present
+(verified and, under a put-only grant, unverified), failed on a conflict and on a reader
+that cannot build, and repaired under another reader at another key; the export bytes of
+one closed log are equal across two builds; the inventory is sealed at the key its digest
+names and lists the attempt with its publication; the threshold command passes the store's
+refusal on as a value; and the evaluator's four audits over the real export report no
+finding."""
 
 from __future__ import annotations
 
@@ -31,11 +32,14 @@ from leaveimpact.agent.commands import (
     CommandRefused,
     InventoryRequest,
     PublishRequest,
+    ReviewPayload,
+    ReviewRequest,
     ThresholdRequest,
     WorkRequest,
     abandon,
     deliver_approval,
     publish,
+    review_approval,
     set_threshold,
     work,
     write_inventory,
@@ -49,6 +53,7 @@ from leaveimpact.agent.worker import (
     WorkerEnding,
     WorkerEndingKind,
 )
+from leaveimpact.core.claims_json import encode_claim
 from leaveimpact.core.inventory import InventoryScope, PublicationStatus, decode_inventory_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
@@ -151,6 +156,18 @@ def test_an_approval_is_delivered_as_a_command_and_the_next_work_resumes(
     request = state.approval_requested
     assert request is not None and isinstance(request.event, ApprovalRequested)
     digest = review_payload_digest(request.event.claims, request.event.composition)
+    # The reviewer reads the payload and delivers over the digest the review printed (the
+    # first live run's step, fork 10): what is approved is what was read.
+    reviewed = review_approval(ReviewRequest(RUN, ATTEMPT), store, rules=RULES)
+    assert isinstance(reviewed, ReviewPayload)
+    assert (reviewed.digest, reviewed.position, reviewed.approved) == (
+        digest,
+        request.position,
+        False,
+    )
+    assert reviewed.payload["claims"] == [
+        encode_claim(claim) for claim in sorted(request.event.claims, key=lambda c: c.claim_id)
+    ]
     wrong = deliver_approval(
         ApprovalDelivery(RUN, ATTEMPT, "approver:a", "0" * 64), store, rules=RULES
     )
@@ -165,6 +182,8 @@ def test_an_approval_is_delivered_as_a_command_and_the_next_work_resumes(
         ApprovalDelivery(RUN, ATTEMPT, "approver:b", digest), store, rules=RULES
     )
     assert again == delivered, "a repeat with the same digest is the delivery already made"
+    reread = review_approval(ReviewRequest(RUN, ATTEMPT), store, rules=RULES)
+    assert isinstance(reread, ReviewPayload) and reread.approved
     second = work(
         WorkRequest(RUN, ATTEMPT, "nonce-2", "launch-2"),
         store,
@@ -175,6 +194,9 @@ def test_an_approval_is_delivered_as_a_command_and_the_next_work_resumes(
         ApprovalDelivery(RUN, ATTEMPT, "approver:a", digest), store, rules=RULES
     )
     assert isinstance(closed, CommandRefused) and closed.reason.startswith("the attempt is closed")
+    unreviewable = review_approval(ReviewRequest(RUN, ATTEMPT), store, rules=RULES)
+    assert isinstance(unreviewable, CommandRefused)
+    assert unreviewable.reason.startswith("the attempt is closed")
 
 
 def test_an_approval_with_none_requested_is_refused(rig: Rig, world: SealedWorld) -> None:
@@ -183,6 +205,7 @@ def test_an_approval_with_none_requested_is_refused(rig: Rig, world: SealedWorld
         ApprovalDelivery(RUN, ATTEMPT, "approver:a", "0" * 64), store, rules=RULES
     )
     assert refused == CommandRefused(f"run {RUN} attempt {ATTEMPT}", "no approval is requested")
+    assert review_approval(ReviewRequest(RUN, ATTEMPT), store, rules=RULES) == refused
 
 
 # --- abandon ---------------------------------------------------------------------------------

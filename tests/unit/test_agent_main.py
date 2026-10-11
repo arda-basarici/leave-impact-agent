@@ -25,6 +25,7 @@ from leaveimpact.agent.commands import (
     ImportRequest,
     InventoryRequest,
     PublishRequest,
+    ReviewRequest,
     ThresholdRequest,
     WorkRequest,
 )
@@ -131,6 +132,10 @@ classes read as zero when a response omits them, as the committed table's do."""
 
 
 def test_each_command_parses_to_its_request() -> None:
+    reviewed = job.parse_request(["review-approval", *ABOUT, "--registration", "reg.json"], {})
+    assert reviewed.request == ReviewRequest("run-12", 1)
+    assert reviewed.command is job.Command.REVIEW_APPROVAL
+    assert reviewed.registration == Path("reg.json")
     delivered = job.parse_request(
         ["deliver-approval", *ABOUT, "--approver", "approver:a", "--payload-digest", "f" * 64], {}
     )

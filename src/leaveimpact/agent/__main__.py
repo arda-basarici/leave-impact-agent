@@ -11,7 +11,11 @@ The commands: ``admit`` takes the request from a file (the request identity, the
 the ledger, and the frozen inputs as the admission event encodes them), since the agent
 decodes no scenario and the file is written by a launcher that may; ``deliver-approval``,
 ``abandon``, ``publish``, ``inventory``, ``set-threshold`` and ``import-spend`` take their
-fields as flags.
+fields as flags. ``review-approval`` prints the frozen review payload a human approves
+over, with the digest ``deliver-approval`` must carry (the first live run's step, fork 10):
+the one command whose output is the run's content, so it is run in a Session Manager
+session, which is account-private, and never in a workflow's log or an SSM invocation's
+stored output.
 ``work`` composes the investigator graph's real fillings over an admitted attempt (the
 graph step, fork 17): the configuration the registration and this code give the named cell
 (``registered.model_system_provenance``), the role's model, settings, rate and counting model from
@@ -85,6 +89,7 @@ from leaveimpact.agent.commands import (
     ImportRequest,
     InventoryRequest,
     PublishRequest,
+    ReviewRequest,
     TerminalComposition,
     ThresholdRequest,
     WorkerComposition,
@@ -95,6 +100,7 @@ from leaveimpact.agent.commands import (
     finalize,
     import_spend,
     publish,
+    review_approval,
     set_threshold,
     system_content,
     work,
@@ -149,6 +155,7 @@ class Command(StrEnum):
 
     ADMIT = "admit"
     WORK = "work"
+    REVIEW_APPROVAL = "review-approval"
     DELIVER_APPROVAL = "deliver-approval"
     ABANDON = "abandon"
     PUBLISH = "publish"
@@ -196,6 +203,7 @@ class WorkResolved:
 type Request = (
     AdmitFile
     | WorkLine
+    | ReviewRequest
     | ApprovalDelivery
     | AbandonRequest
     | PublishRequest
@@ -208,6 +216,7 @@ type Request = (
 type Resolved = (
     AdmissionRequest
     | WorkResolved
+    | ReviewRequest
     | ApprovalDelivery
     | AbandonRequest
     | PublishRequest
@@ -304,6 +313,11 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     working.add_argument(
         "--approval", choices=sorted(APPROVALS), default="automatic", help="who approves"
     )
+    commands.add_parser(
+        Command.REVIEW_APPROVAL.value,
+        parents=[registration, about],
+        description="Print the frozen review payload: run only where the output is private.",
+    )
     delivering = commands.add_parser(Command.DELIVER_APPROVAL.value, parents=[registration, about])
     delivering.add_argument("--approver", required=True, help="the approver's identity")
     delivering.add_argument("--payload-digest", required=True, help="the payload the approver saw")
@@ -367,6 +381,8 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
                 HarnessRevision(code_version(env), TreeState(parsed.tree_state)),
                 APPROVALS[parsed.approval],
             )
+        case Command.REVIEW_APPROVAL:
+            return ReviewRequest(parsed.run, parsed.attempt)
         case Command.DELIVER_APPROVAL:
             return ApprovalDelivery(
                 parsed.run, parsed.attempt, parsed.approver, parsed.payload_digest
@@ -597,6 +613,19 @@ def _run(
                 f"ending={ending.kind.value}",
                 f"detail={ending.detail}",
                 f"generation={ending.generation}",
+            ]
+        case ReviewRequest():
+            reviewed = review_approval(request, store, rules=rules)
+            if isinstance(reviewed, CommandRefused):
+                return _refused(reviewed)
+            # The payload is the run's content, printed on purpose for the one reader of a
+            # private session; the fields before it are what a delivery needs.
+            return 0, [
+                f"review={reviewed.run_id}/{reviewed.attempt}",
+                f"position={reviewed.position}",
+                f"approved={'yes' if reviewed.approved else 'no'}",
+                f"payload_digest={reviewed.digest}",
+                json.dumps(reviewed.payload, indent=2),
             ]
         case ApprovalDelivery():
             delivered = deliver_approval(request, store, rules=rules)
