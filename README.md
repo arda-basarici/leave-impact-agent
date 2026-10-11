@@ -10,9 +10,10 @@ agent investigates the exceptions; the human decides.
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
 **Status: the world milestone closed on 2026-09-19; the investigator milestone is in
-build, and the investigator's loop has run live.** What exists is the benchmark, the
-evaluator that grades a run against it, the rules-only baseline, and the
-investigator's harness with its first system content. A generator builds a synthetic
+build, and the investigator's loop and the two one-call baselines have run live.** What
+exists is the benchmark, the evaluator that grades a run against it, the rules-only
+baseline, the investigator's harness with its system content, and the single-shot and
+full-context baselines over the same harness. A generator builds a synthetic
 organization and thirty scenarios in three difficulty tiers from a seed, materializes
 the prose those scenarios need through gated model calls, projects the world into real
 Frappe HR, Jira and Google Calendar instances, and seals the answer key where the

@@ -3666,7 +3666,7 @@ twenty-eight targets are not a rate: the counts are recorded and nothing is clai
 the ordering they gave under the rule written before them. The freeze re-selects by the same
 procedure on the development worlds it names.
 
-## one-call — the two one-call baselines run live on the first development world: the forecast, written before the run (2026-10-11)
+## one-call — the two one-call baselines run live on the first development world: fourteen calls, every run a valid forced fact call, full context correct whole on seven of seven and the single-shot on five, the output six times the forecast, and every `false` statement but one a filler section's requirement read accurately (2026-10-11)
 
 The baselines step built the single-shot and the full-context systems over the shared
 skeleton: a sixth node issues each system's one harness read between the prefetch and its
@@ -3720,3 +3720,65 @@ corpus one call holds; this world's padded corpus is of that size too, so a full
 result here says nothing about the padded level the freeze registers. Seven scenarios at
 temperature 0 on one world are a probe of the prompts and the plumbing, never a measurement,
 and no rate is claimed from them.
+
+**Result (2026-10-11, two rounds, 14 runs, $0.73 by the account check;**
+`prompt-check/results/one-call-single-shot-20261011T113855Z.md` **and**
+`…/one-call-full-context-20261011T114259Z.md`**).** Every run completed: one logical call, one
+dispatch, one send, the stop reason `tool_use`, one fact batch parsed with nothing nested, no
+`max_tokens` stop, every plumbing check empty; the registration at `837d82e`, the tree
+dirty with the group's uncommitted patches, the reader's three digests `29290e9f`,
+`b20b6141`, `069b41c4` on every run.
+
+| | single-shot | full context |
+|---|---|---|
+| input tokens a call (usage) | 10,980 to 11,275 | 12,676 to 12,876 |
+| output tokens a call | 5,817 to 7,083 | 8,004 on every run |
+| cost a run (account check) | $0.0444 to $0.0512 | $0.0580 to $0.0582 |
+| round total | 7 calls, 77,920 in, 43,581 out, $0.3254 | 7 calls, 89,202 in, 56,028 out, $0.4063 |
+| retrieval targets returned / admitted, of 7 | 5 / 5 (`scenario_013` and `scenario_018` each 1 of 2) | 7 / 7 |
+| correct whole | 5 of 7 (`scenario_013`, `scenario_018` miss) | 7 of 7 |
+| requirements stated: placed / unplaced | 46 to 63: 11 to 14 / 1 to 5 | 65 on every run: 26 to 27 / 3 to 4 |
+| emissions `needed` / `true_unneeded` / `false` | 5 / 83 / 358 | 8 / 209 / 337 |
+| refused, all `missing_anchor` | 14 to 35 a run | 35 to 36 a run |
+
+**Against the forecast.** Input within it, at 3.8 bytes a token rather than 3.5 (the dry
+rounds' bytes over the usage). Output six to eight times the point forecast: the reader
+states every requirement of every section it is shown, 46 to 65 statements a call where the
+investigator's finalizations stated what a few reads had returned, so a call's output ran
+5,800 to 8,000 tokens and the round cost $0.73 against the $0.30 point and under the $0.90
+ceiling. Full context's 8,004 output tokens on all seven runs are the same statements over
+the same 38 documents at temperature 0; the single-shot's vary with what its search
+returned.
+
+**The verdicts beside the investigator's.** The prompt check's final set reached 6 of 7 on
+these scenarios, missing `scenario_013` on the shortened span, and the shipped prompt 3 of
+7 (`prompt-check/results/verdicts.md`). Full context, one call shown every document, reaches
+7 of 7, `scenario_013` included; the single-shot misses exactly the two scenarios where its
+search returned one of the two target documents, the selection probe's recall in another
+form (19 of 28 required section targets over the world). This is what the arms interview
+foresaw on a corpus one call holds: the strongest cheap baseline at the ceiling, and nothing
+here separates it from the agent. The separation, if any, is the padded level's at the
+freeze.
+
+**Every `false` statement but one is a filler section's requirement, read accurately.** The
+evaluator's `false` class is a statement the sealed truth holds no fact for. The 358 and 337
+false statements of the two rounds were classified by carrier
+(`false_by_carrier.py`, a scratch script over the captured details and the development
+world, to be committed with the close if the ruling below asks for a number): 358 and 336
+are `requires` facts carried by sections of the twelve filler documents, one is an
+`owns_work_item` on a scenario-owned document (`scenario_009`, full context). A filler
+section's text does assert the requirement (`clause_031`: "Implementation of Data retention
+policy: Farrowmoor requires one person with experience in Terraform"), the generator wrote it
+as prose and planted no fact under it, and the reader's instruction is to state what the text
+asserts. So the count measures how much filler a system was shown and read, not invention;
+the investigator, which read a few documents, emitted 2 in its final set. None reached a
+claim: the composition excluded them as `scope_without_one_section` or
+`conflicting_readings`, and the verdicts stand. What the class should say about a filler
+requirement, and whether the report separates filler-carried statements from invented ones,
+is a ruling for the close and the freeze's reporting design, not this probe's.
+
+**Limits.** Seven scenarios, one world, one model at temperature 0; the probe shows the
+reader's prompts yield a valid forced fact call over 11,000 to 13,000 tokens of records and
+that both systems run end to end through the production composition. No rate is claimed. The
+cost per run, about $0.05 to $0.06, is a probe's number on a corpus of 38 documents and moves
+with the padded level the freeze registers.

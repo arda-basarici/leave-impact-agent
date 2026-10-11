@@ -2298,9 +2298,10 @@ file checked against a digest it carried would show internal consistency only, a
 comparison of decoded values would hold a setting of true equal to one of 1. A change
 after full-set results is an amendment, the old numbers kept, further results on the
 same world labeled exploratory, and confirmation needs a world from a new seed. One
-limit of this format is known. The single-shot system's query protocol can only be
-pending, so that system is in no plan and no frozen file until its own step changes
-the format.
+limit of this format was known: the single-shot system's query protocol could only be
+pending, so that system was in no plan and no frozen file until its own step changed
+the format, which the baselines step did (format 4: the protocol holds a value, each
+role its context allowance, and both one-call systems are named).
 
 **Four systems, two corpus levels and five assigned conditions make twenty-four cells,
 reported in two ways.** A cell is a system under a condition at a level. Full context
@@ -3505,6 +3506,63 @@ contradicting read and the closing, 69 of 69 forecast in the manifest and passed
 two scripted references kept beside them since their rows are keyed to the two-call
 reference's crossings; what a script takes of the world crosses to the child as data,
 the sealed world neither pickling nor loading in seconds.
+
+As built at the baselines step (M2 step 12, 2026-10-11). The single-shot and the
+full-context systems run on the same skeleton as the investigator, under the same
+worker, with no path around it. The skeleton has a sixth node between the prefetch and
+the first call, the preparation, where a system issues the reads it makes on its own
+behalf under the harness-read policy the record names for its kind: the single-shot's
+one search, the registered query protocol rendered over the records the prefetch
+returned at the registered limit; full context's one enumeration, every document of
+the run's level in one read of a fourteenth tool shown to no role, its records in an
+order that is a hash of the id and never the minting order, so the planted documents do
+not precede the filler. The preparation asks the shared preconditions first, so a run
+the prefetch decides, a defect or an abstention, reads nothing and calls no model, as
+the investigator's abstention asks no call; the investigator's own preparation issues
+nothing, and the crash matrix's reference run crosses the node without writing. A
+harness read is replayed from the log by its key as the prefetch is, and a recovering
+worker that renders another query than the held one is this harness's defect, as a
+restated request is. A read the corpus does not answer is a recorded operation with the
+source stopped, and the call is still made with the failure shown; a malformed record
+is the stop the transition records at that operation.
+
+Both systems share one role, the reader, shown no read tool, and one request: the
+investigator's first message, the opening, the skill list and one block per prefetch
+operation, then one block per harness operation in the same form, then the
+finalization text, so the message ends with the ask and two user turns never follow
+each other. The request is flagged final, so the finalization is entered before its
+first event, the account authorizes it as the finalization against the whole caps with
+the reserve allowed, and the tool configuration is the finalization's exactly, the
+fact tool alone forced by name: the output channel is the investigator's own last turn,
+and the comparison between the systems is about what each was shown. Nothing is asked
+after the call's outcome, a call ended as behaviour included. The first message's form,
+a logged operation as a text block, the inference settings, the finalization's tool
+configuration and the composed payload are one module the three systems' turns share.
+A one-call system never truncates, splits or repairs its one request: a request the
+caps do not fit takes the account's at-cap path and the run ends cap-exhausted with a
+rules-only answer, and a request the caps fit but the model's window does not is
+refused before any send by the context-fit check at the dispatch, the bound plus the
+output maximum against the role's registered context allowance, its outcome a refusal
+this harness observed, read as infrastructure under the `never_sent` row and never
+re-dispatched, so the record tells the overflow from the budget's path by the
+observation itself. The account is asked before the check, since the log admits an
+intent only under the account's authorization and an outcome only under an intent;
+the overflow is recorded on a request the account authorized. The provenance of every
+model system is one function of the registration and the kind, which chooses the
+registered system and the one role it runs, and copies the single-shot's registered
+protocol and limit into the frozen inputs, so a claim under a registration whose
+protocol differs from the admission's is refused and a recovering worker renders the
+same query; the work line names the cell's system, and one chooser gives the work
+command and the probes the system's content from the same kind.
+
+The step's live probe ran both systems on the prompt check's seven scenarios at the
+padded level, one call each, every run a valid forced fact call: full context correct
+whole on seven of seven, the single-shot on five, missing exactly the two scenarios
+where its search returned one of two target documents; the output six to eight times
+the forecast, since the reader states every requirement of every section it is shown,
+and every `false` statement but one a filler section's requirement the text does
+assert, which the composition excluded and the verdicts survived. What the evaluator's
+`false` class should say about a filler requirement is a ruling the close carries.
 
 **The log fixes what happened; publication fixes what evidence can be delivered.**
 Exportability never defines an attempt's ending and a reader's version never decides a

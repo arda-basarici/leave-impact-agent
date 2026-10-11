@@ -1,0 +1,604 @@
+{
+  "round": "one-call-single-shot",
+  "dry": false,
+  "stamp": "20261011T113855Z",
+  "world": "b7ec45636101ffd29acacef70a57f13e5b5d1da8ff7a0fe77f0f36394bde3c01",
+  "harness": {
+    "commit": "837d82ed261516afde326ecee76882d90a1da90b",
+    "tree": "dirty"
+  },
+  "registration_commit": "aa020b08c5c7f2c0dc0bd63bf95d69180d09b621",
+  "system": "single_shot",
+  "role": "reader",
+  "level": "padded",
+  "prompt_digests": {
+    "finalization": "069b41c4011fb2e6e590fd399ad3892fa1b0ad20f27eebaf01a39c839d2d59fc",
+    "opening": "b20b61413c420a55d1bd504cb5995d3977223903395524485ff1fb613762c09b",
+    "system": "29290e9f49a1ba376e5f82a4641c8becbf875a5e5f1f8265cd01f96f0327c2ef"
+  },
+  "model": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "output_maximum": 8192,
+  "results": [
+    {
+      "scenario_id": "scenario_009",
+      "run_id": "pc-one-call-single-shot-scenario_009-fa8a42",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 27.8,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 17490,
+      "account_pico_usd": 47465000000,
+      "usage_input_tokens": 11075,
+      "usage_output_tokens": 6415,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 30,
+      "targets": [],
+      "emissions_by_class": {
+        "true_unneeded": 12,
+        "false": 56
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 14
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 56,
+      "placements": {
+        "unplaced": 5,
+        "placed": 11
+      },
+      "overruns": 0,
+      "exclusions": {
+        "conflicting_readings": 26,
+        "scope_without_one_section": 11
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 58,
+        "citations_resolving": 58
+      },
+      "report_findings": [],
+      "first_request_bytes": 42077,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_010",
+      "run_id": "pc-one-call-single-shot-scenario_010-a5e6ac",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 24.7,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 17355,
+      "account_pico_usd": 45842500000,
+      "usage_input_tokens": 11275,
+      "usage_output_tokens": 6080,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 60,
+      "targets": [],
+      "emissions_by_class": {
+        "true_unneeded": 12,
+        "false": 50
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 26
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 50,
+      "placements": {
+        "unplaced": 3,
+        "placed": 11
+      },
+      "overruns": 0,
+      "exclusions": {
+        "conflicting_readings": 10,
+        "scope_without_one_section": 11
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 89,
+        "citations_resolving": 89
+      },
+      "report_findings": [],
+      "first_request_bytes": 42723,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_013",
+      "run_id": "pc-one-call-single-shot-scenario_013-6911d3",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 23.4,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 16881,
+      "account_pico_usd": 44533500000,
+      "usage_input_tokens": 10980,
+      "usage_output_tokens": 5901,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 30,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": false,
+          "emitted": false,
+          "admitted": false,
+          "usable": false
+        },
+        {
+          "predicate": "names_responsible",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 9,
+        "needed": 1,
+        "false": 48
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 35
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 48,
+      "placements": {
+        "placed": 12,
+        "unplaced": 1
+      },
+      "overruns": 0,
+      "exclusions": {
+        "scope_without_one_section": 12
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": false,
+        "oracle_findings": 2,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 3,
+        "citations_resolving": 3
+      },
+      "report_findings": [],
+      "first_request_bytes": 41647,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_018",
+      "run_id": "pc-one-call-single-shot-scenario_018-5698f1",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 24.4,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 17054,
+      "account_pico_usd": 44354200000,
+      "usage_input_tokens": 11237,
+      "usage_output_tokens": 5817,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 30,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": false,
+          "emitted": false,
+          "admitted": false,
+          "usable": false
+        },
+        {
+          "predicate": "has_skill",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 13,
+        "needed": 1,
+        "false": 44
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 31
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 46,
+      "placements": {
+        "placed": 14,
+        "unplaced": 1
+      },
+      "overruns": 0,
+      "exclusions": {
+        "scope_without_one_section": 12
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": false,
+        "oracle_findings": 2,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 31,
+        "citations_resolving": 31
+      },
+      "report_findings": [],
+      "first_request_bytes": 42618,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_023",
+      "run_id": "pc-one-call-single-shot-scenario_023-79b9dc",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 24.5,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 16984,
+      "account_pico_usd": 44519200000,
+      "usage_input_tokens": 11112,
+      "usage_output_tokens": 5872,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 31,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 13,
+        "needed": 1,
+        "false": 44
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 29
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 47,
+      "placements": {
+        "placed": 13,
+        "unplaced": 5
+      },
+      "overruns": 0,
+      "exclusions": {
+        "scope_without_one_section": 10
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 115,
+        "citations_resolving": 115
+      },
+      "report_findings": [],
+      "first_request_bytes": 42198,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_028",
+      "run_id": "pc-one-call-single-shot-scenario_028-7dc105",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 25.3,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 17542,
+      "account_pico_usd": 47513400000,
+      "usage_input_tokens": 11129,
+      "usage_output_tokens": 6413,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 31,
+      "targets": [
+        {
+          "predicate": "owns_work_item",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 11,
+        "needed": 1,
+        "false": 56
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 14
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 56,
+      "placements": {
+        "unplaced": 5,
+        "placed": 11
+      },
+      "overruns": 0,
+      "exclusions": {
+        "conflicting_readings": 26,
+        "scope_without_one_section": 11
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 61,
+        "citations_resolving": 61
+      },
+      "report_findings": [],
+      "first_request_bytes": 42271,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_014",
+      "run_id": "pc-one-call-single-shot-scenario_014-6287d2",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 27.9,
+      "logical_calls": 1,
+      "dispatches": 1,
+      "sends": 1,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 1
+      },
+      "finalization_entered": 10,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 18195,
+      "account_pico_usd": 51179700000,
+      "usage_input_tokens": 11112,
+      "usage_output_tokens": 7083,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 1
+      },
+      "model_reads": 1,
+      "claims": 31,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 13,
+        "needed": 1,
+        "false": 60
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 18
+      },
+      "batches": 1,
+      "nested_batches": 0,
+      "requirements_stated": 63,
+      "placements": {
+        "placed": 14,
+        "unplaced": 5
+      },
+      "overruns": 0,
+      "exclusions": {
+        "conflicting_readings": 26,
+        "scope_without_one_section": 11
+      },
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 115,
+        "citations_resolving": 115
+      },
+      "report_findings": [],
+      "first_request_bytes": 42198,
+      "notes": []
+    }
+  ]
+}

@@ -219,3 +219,13 @@ log by the system's own turns, and recorded in `prompt-check/results/one-call-fo
 | probe | what it decides | forecast | rests on |
 |---|---|---|---|
 | **one-call** (`prompt-check/live_probe.py --system single_shot|full_context --level padded`, live, the seven prompt-check scenarios of the first development world under the normal condition at the padded level, Haiku 4.5 on the `eu.` profile at temperature 0 under the reader role, the real evaluator in process over each export) — per scenario the one call's tokens and cost, the fact-stage measures against the planted facts, the requirement placements and the correct-whole verdict read back; one round per system | whether the reader's prompts yield a valid forced fact call over the prefetch and the harness's one read, and what each system states of the planted facts on seven scenarios; a probe of the prompts and the plumbing, never a measurement | fourteen logical calls by construction, one a scenario; the first request 41,647 to 42,723 bytes for the single-shot and 48,932 to 49,578 for full context on the dry rounds, about 12,000 and 14,000 tokens at the prompt check's 3.5 bytes a token; by hand on the captured rates about $0.30 whole, under $0.90 at the output maximum on every call | seven scenarios at temperature 0 on one world whose padded corpus is 38 documents, so the search's limit of 20 returns more than half of it and full context is one call of about 14,000 tokens; the single-shot states at most what its search returned (19 of 28 required section targets on this world); no rate is claimed from seven runs |
+
+**Result (2026-10-11, two rounds, 14 runs, $0.73).** Every run one call, one send, a valid
+forced fact call, every plumbing check empty. Full context correct whole on 7 of 7, the
+single-shot on 5 of 7, missing exactly the two scenarios where its search returned one of
+the two target documents; the investigator's final set stood at 6 of 7 on the same seven.
+Input within the forecast; output six to eight times it, since the reader states every
+requirement of every section it is shown, and every `false` statement but one of the two
+rounds' 695 was a filler section's requirement the text does assert, excluded by the
+composition and surviving the verdicts. The FINDINGS entry `one-call` holds the tables,
+the forecast's check and the `false` reading, which the step's close carries as a ruling.
