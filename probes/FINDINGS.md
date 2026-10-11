@@ -3651,9 +3651,13 @@ names carry the recall, and their disjunction beats either alone. The padded cor
 documents, so a limit of 20 returns more than half of it: on this world the single-shot at
 its limit is nearer full context than a retrieval, which is a property of the small world and
 not of the protocol (the step-12 forks file's size note; the padded level's size is the
-freeze's). The limit did not saturate: 9 of 28 required targets came back from no candidate
-at 20, so the single-shot on this world has room below the agent, which is what a baseline
-the comparison can separate needs.
+freeze's). T5 missed 9 of the 28 required targets at the limit of 20, so the single-shot on
+this world has room below the agent, which is what a baseline the comparison can separate
+needs. Whether any candidate would have found them is not what the counts say: summing each
+scenario's best candidate at 20 gives 25 (by hand on the committed json, the group-1 external
+read's correction of a sentence that had read T5's misses as every candidate's), so at least
+25 of the 28 were recoverable by some candidate scenario by scenario and at most 3 by none;
+the exact union needs target identities the probe does not write.
 
 **Limits.** One world; the step's fork 6 approved a second development world, which needs an
 SSO session to generate and had not been sealed when this ran, so the result is labelled by
