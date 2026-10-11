@@ -117,6 +117,7 @@ from leaveimpact.core.run_record import (
     System,
 )
 from leaveimpact.core.run_timing import HarnessRevision
+from leaveimpact.core.worldtime import RunContext
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 """The tree a defect's location is written relative to."""
@@ -163,6 +164,21 @@ class WorkerConfiguration:
     search_limit: int | None
     context_allowances: tuple[tuple[str, int], ...]
 
+    def freeze(
+        self, run_id: str, attempt: int, context: RunContext, reservation_pico_usd: int | None
+    ) -> FrozenInputs:
+        """The inputs this configuration freezes for the job named: what a launcher admits
+        (the first live run's step, fork 1), at the log format this code writes."""
+        own = {f.name: getattr(self, f.name) for f in fields(self)}
+        return FrozenInputs(
+            **own,
+            run_id=run_id,
+            attempt=attempt,
+            context=context,
+            reservation_pico_usd=reservation_pico_usd,
+            log_format_version=LOG_FORMAT_VERSION,
+        )
+
     def frozen_for(self, admitted: FrozenInputs) -> FrozenInputs:
         """The inputs this configuration would freeze for ``admitted``'s job: the five copied
         fields from the admission, the rest from here. The log format is checked against the
@@ -172,9 +188,9 @@ class WorkerConfiguration:
                 f"this worker writes log format {LOG_FORMAT_VERSION}; the attempt holds "
                 f"{admitted.log_format_version}"
             )
-        own = {f.name: getattr(self, f.name) for f in fields(self)}
-        copied = {name: getattr(admitted, name) for name in COPIED_FROM_THE_ADMISSION}
-        return FrozenInputs(**own, **copied)
+        return self.freeze(
+            admitted.run_id, admitted.attempt, admitted.context, admitted.reservation_pico_usd
+        )
 
     @classmethod
     def of(cls, inputs: FrozenInputs) -> WorkerConfiguration:

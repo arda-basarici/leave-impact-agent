@@ -221,6 +221,13 @@ has no counted attempt either; it is counted in the whole and in no cell, since 
 inventory holds no scenario, and a publication incident is reported apart from a graded
 failure, an infrastructure failure and a run never admitted.
 
+An attempt a process left open, by dying or by losing the log, is recovered as the same
+attempt, the recovering worker replaying from the log; the launcher re-sends such an
+attempt at most twice before it holds the run for an operator. The bound is the launcher's
+own development value, stated here and registered nowhere: it bounds processes on one
+attempt, where the re-dispatch policy bounds dispatches of one call and the retry rule
+bounds attempts of one run.
+
 What a model dispatch observed and how the measurement reads it are recorded apart. The
 reading is the attribution table's: behaviour of the system, an infrastructure fault, or a
 defect of the harness, with whether the call may be dispatched again inside the run and

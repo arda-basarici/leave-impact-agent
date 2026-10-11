@@ -59,6 +59,7 @@ _RANK: dict[str, int] = {
     "evaluator": 3,  # the investigator milestone's
     "agent": 3,  # the investigator milestone's
     "cache": 3,  # the corpus cache loader, the application's own job on the instance
+    "launch": 4,  # the launcher above the agent: admissions and the lifecycle's next step
     "app": 4,  # the demo milestone's
 }
 # The shells at this rank compose the same lower packages and never one another.
@@ -71,6 +72,10 @@ _DENIED_EDGES: dict[str, frozenset[str]] = {
     # codecs, and never a benchmark job: the generator writes what it reads, the validator
     # judges it, the evaluator holds the answer key's reader.
     "cache": frozenset({"generator", "validator", "evaluator"}),
+    # The launcher composes the agent's provenance and reads the scenario specification,
+    # the question a run is asked, through the world codecs; the answer key's reader is the
+    # evaluator's and stays out of the launch path.
+    "launch": frozenset({"generator", "validator", "evaluator"}),
 }
 # The write capabilities are gated by module path, not by domain name: only the packages
 # that realize a world may import a module that declares one. An allowlist rather than a
