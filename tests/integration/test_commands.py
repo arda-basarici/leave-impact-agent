@@ -45,6 +45,7 @@ from leaveimpact.agent.commands import (
     write_inventory,
 )
 from leaveimpact.agent.inventory import PublicationRecord
+from leaveimpact.agent.ledger import LedgerEntry
 from leaveimpact.agent.log_events import ApprovalRequested
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import AttemptState
@@ -458,3 +459,23 @@ def test_the_evaluators_audits_over_the_real_export_report_no_finding(
     assert metrics.calls is not None and metrics.calls.findings == ()
     assert metrics.eligibility is not None and not metrics.eligibility.permitted
     assert metrics.ending.findings == ()
+
+
+def test_setting_the_threshold_in_force_again_is_the_entry_that_set_it(rig: Rig) -> None:
+    """A launch send sets the threshold on every run; an equal amount answers with the entry
+    in force and adds no revision, a different amount is a new entry, and the refusals stand
+    before the receipt."""
+    store = rig.store()
+    request = ThresholdRequest("ledger-again", 7, "operator:test", cases.COMMIT, 9)
+    first = set_threshold(request, store)
+    assert isinstance(first, LedgerEntry) and first.revision == 1
+    again = set_threshold(request, store)
+    assert again == first, "the entry in force, no revision added"
+    raised = set_threshold(
+        ThresholdRequest("ledger-again", 8, "operator:test", cases.COMMIT, 9), store
+    )
+    assert isinstance(raised, LedgerEntry) and raised.revision == 2
+    over = set_threshold(
+        ThresholdRequest("ledger-again", 8, "operator:test", cases.COMMIT, 7), store
+    )
+    assert isinstance(over, CommandRefused) and "above the registered limit" in over.reason

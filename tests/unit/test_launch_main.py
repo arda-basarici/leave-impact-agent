@@ -218,6 +218,8 @@ def _status(log: _Log, probe: Any, recoveries: int = 0) -> list[str]:
         str(probe.REGISTRATION_FILE),
         "--recoveries",
         str(recoveries),
+        "--approval",
+        "automatic",
     ]
 
 

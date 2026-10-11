@@ -43,6 +43,7 @@ from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import LogStore, LogStoreUnavailable
 from leaveimpact.agent.log_transition import AttemptState, Rules, Transition
 from leaveimpact.agent.worker import (
+    AutomaticApproval,
     HumanApproval,
     WorkerConfiguration,
     WorkerEnding,
@@ -86,7 +87,7 @@ def test_an_uncertain_completion_is_read_from_the_log_and_a_blind_resend_writes_
 ) -> None:
     store, inputs = completed(rig, world)
     before = store.load(RUN, ATTEMPT, rules=RULES)
-    assert next_step(before, recoveries=0) is NextStep.PUBLISH
+    assert next_step(before, recoveries=0, approval=AutomaticApproval()) is NextStep.PUBLISH
     resent = work(
         WorkRequest(RUN, ATTEMPT, "nonce-resend", "launch-2"),
         store,
@@ -104,7 +105,10 @@ def test_the_human_pause_reads_as_wait_then_work_and_the_resume_closes(
     rig: Rig, world: SealedWorld
 ) -> None:
     store, inputs = admitted(rig, world)
-    assert next_step(store.load(RUN, ATTEMPT, rules=RULES), recoveries=0) is NextStep.WORK
+    human = HumanApproval()
+    assert next_step(store.load(RUN, ATTEMPT, rules=RULES), recoveries=0, approval=human) is (
+        NextStep.WORK
+    )
     paused = work(
         WorkRequest(RUN, ATTEMPT, "nonce-1", "launch-1"),
         store,
@@ -112,21 +116,25 @@ def test_the_human_pause_reads_as_wait_then_work_and_the_resume_closes(
     )
     assert paused.kind is WorkerEndingKind.AWAITING_APPROVAL
     waiting = store.load(RUN, ATTEMPT, rules=RULES)
-    assert next_step(waiting, recoveries=RECOVERY_BOUND) is NextStep.WAIT, "nothing is re-sent"
+    assert next_step(waiting, recoveries=RECOVERY_BOUND, approval=human) is NextStep.WAIT
     reviewed = review_approval(ReviewRequest(RUN, ATTEMPT), store, rules=RULES)
     assert isinstance(reviewed, ReviewPayload) and not reviewed.approved
     delivered = deliver_approval(
         ApprovalDelivery(RUN, ATTEMPT, "human:reviewer", reviewed.digest), store, rules=RULES
     )
     assert not isinstance(delivered, CommandRefused)
-    assert next_step(store.load(RUN, ATTEMPT, rules=RULES), recoveries=0) is NextStep.WORK
+    assert next_step(store.load(RUN, ATTEMPT, rules=RULES), recoveries=0, approval=human) is (
+        NextStep.WORK
+    )
     resumed = work(
         WorkRequest(RUN, ATTEMPT, "nonce-2", "launch-2"),
         store,
         composition(inputs, world, saver_on(rig), approval=HumanApproval()),
     )
     assert resumed == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "completed")
-    assert next_step(store.load(RUN, ATTEMPT, rules=RULES), recoveries=0) is NextStep.PUBLISH
+    assert next_step(store.load(RUN, ATTEMPT, rules=RULES), recoveries=0, approval=human) is (
+        NextStep.PUBLISH
+    )
 
 
 # --- 3. the recorded stop with an open segment --------------------------------------------------
@@ -176,8 +184,9 @@ def test_a_recorded_stop_with_an_open_segment_is_recovered_by_the_terminal_path(
     state = store.load(RUN, ATTEMPT, rules=RULES)
     assert state.closed is None and state.stopped is not None
     assert state.current_segment is not None and not state.current_segment.ended
-    assert next_step(state, recoveries=0) is NextStep.RECOVER
-    assert next_step(state, recoveries=RECOVERY_BOUND) is NextStep.HOLD
+    automatic = AutomaticApproval()
+    assert next_step(state, recoveries=0, approval=automatic) is NextStep.RECOVER
+    assert next_step(state, recoveries=RECOVERY_BOUND, approval=automatic) is NextStep.HOLD
     ending = finalize(
         WorkRequest(RUN, ATTEMPT, "nonce-2", "launch-2"),
         store,

@@ -3,8 +3,8 @@ inventory commands take this code's commit from the image's identity variable an
 without it, the rules come from the registration file (each pending value ``None``, and
 the rules of a system that calls no model with no file), the admission request's file
 decodes to the request the store takes, a malformed line or file is a configuration
-fault, a missing database is one too, and an attempt at a recorded stop is closed over the
-run log alone."""
+fault, a missing database is one too, an attempt at a recorded stop is closed over the run
+log alone, and a closed one is found closed over it."""
 
 from __future__ import annotations
 
@@ -547,3 +547,59 @@ def test_an_attempt_at_a_recorded_stop_is_closed_over_the_run_log_alone(
     assert failure is not None and failure.category is FailureCategory.INFRASTRUCTURE
     assert (failure.category, failure.site) == (before.stopped.category, before.stopped.site)
     assert [segment.end_recorded for segment in export.record.timing.segments] == [False, True]
+
+
+def test_a_closed_attempt_is_found_closed_over_the_run_log_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The group's review extended fork 9's path to the closed attempt: a work command sent
+    to one, under an environment naming nothing but the code version, reports it closed with
+    exit 1 (a workflow must not proceed as if it had worked) and composes no store."""
+    registration = tmp_path / "registration.json"
+    registration.write_bytes(registration_bytes(pending_roles(DRAFT)))
+    prices = tmp_path / "prices.json"
+    prices.write_text(json.dumps(PRICES), encoding="utf-8")
+    line = [*WORK, "--registration", str(registration), "--prices", str(prices)]
+    parsed = job.parse_request(line, ENV).request
+    assert isinstance(parsed, job.WorkLine) and parsed.role is not None
+    draft = pending_roles(DRAFT)
+    configuration = model_system_provenance(
+        draft,
+        SystemKind.AGENT,
+        "normal",
+        "base",
+        preregistration_commit=cases.COMMIT,
+        pricing=basis_for(decode_price_table(PRICES), (parsed.role.pricing,)),
+        role=parsed.role,
+    )
+    world = loaded_world("golden")
+    context = world.context_of(world.scenarios[0])
+    inputs = configuration.frozen_for(support.admitted_inputs(context))
+    turns, client = support.two_call_script(context)
+    closed = _Log()
+    closed.seed(support.admission(inputs))
+    ending = Worker(
+        closed,
+        configuration,
+        parsed.harness,
+        "launcher:test",
+        effective_rules(draft),
+        turns,
+        NoPreparation(),
+        client,
+        support.ScriptedCounter(),
+        systems_holding(world).ports,
+        AutomaticApproval(),
+        InMemorySaver(),
+        sleep=lambda seconds: None,
+    ).work("run-12", 1, nonce="nonce-0")
+    assert ending.kind.value == "closed" and ending.detail == "completed"
+    status = job.main(line, ENV, closed)  # type: ignore[arg-type]
+    captured = capsys.readouterr()
+    assert status == 1, captured.err
+    assert captured.out.splitlines() == [
+        "worked=run-12/1",
+        "ending=closed_already",
+        "detail=completed",
+        "generation=1",
+    ]

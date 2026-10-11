@@ -16,8 +16,8 @@ launch identity is drawn here, as the job seam's three identities require.
 ``status`` loads one attempt's state from the run log under the registration's rules and
 prints it as fields (open or closed with its ending, the segment, the approval, a recorded
 stop, the generation) with the lifecycle's next step for the recoveries the caller counts
-(``launch.plan.next_step``). The workflow reads it between sends and after a completion the
-transport reported uncertainly.
+and the approval policy the run was dispatched under (``launch.plan.next_step``). The
+workflow reads it between sends and after a completion the transport reported uncertainly.
 
 The job's log is public, which decides what is printed: identities, counts, kinds, file
 names and the scenario id (the development protocol lists the ids as bare ids). A
@@ -55,6 +55,7 @@ from leaveimpact.agent.log_store import (
 )
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.agent.registered import effective_rules
+from leaveimpact.agent.worker import ApprovalPolicy, AutomaticApproval, HumanApproval
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.pricing import decode_price_table
 from leaveimpact.core.registration import Registration
@@ -68,6 +69,11 @@ PROGRAM = "python -m leaveimpact.launch"
 DATABASE = "DATABASE_URL"
 REQUEST_FILE = "request.json"
 WORK_ARGUMENTS_FILE = "work.args"
+APPROVALS: Mapping[str, ApprovalPolicy] = {
+    "automatic": AutomaticApproval(),
+    "human": HumanApproval(),
+}
+"""The approval policies by the work line's word (the agent's entry names the same two)."""
 
 
 class Command(StrEnum):
@@ -105,6 +111,7 @@ class StatusLine:
     attempt: int
     registration: Path
     recoveries: int
+    approval: ApprovalPolicy
 
 
 _REFUSALS = (
@@ -159,12 +166,24 @@ def parse_request(argv: Sequence[str]) -> PlanLine | StatusLine:
     status.add_argument(
         "--recoveries", type=int, default=0, help="recoveries sent so far on this attempt"
     )
+    status.add_argument(
+        "--approval",
+        required=True,
+        choices=sorted(APPROVALS),
+        help="the approval policy the work command was dispatched with",
+    )
     try:
         parsed = parser.parse_args(argv)
     except (argparse.ArgumentError, SystemExit) as error:
         raise ConfigurationError(f"the command line is not a command: {error}") from error
     if Command(parsed.command) is Command.STATUS:
-        return StatusLine(parsed.run, parsed.attempt, parsed.registration, parsed.recoveries)
+        return StatusLine(
+            parsed.run,
+            parsed.attempt,
+            parsed.registration,
+            parsed.recoveries,
+            APPROVALS[parsed.approval],
+        )
     kind = SystemKind(parsed.system)
     if kind is SystemKind.RULES_ONLY and parsed.ledger is not None:
         raise ConfigurationError("rules only reserves nothing and is admitted against no ledger")
@@ -313,15 +332,17 @@ def _specification(
 
 def _status(line: StatusLine, registration: Registration, store: LogStore) -> list[str]:
     state = store.load(line.run_id, line.attempt, rules=_rules_of(registration))
-    return status_lines(state, recoveries=line.recoveries)
+    return status_lines(state, recoveries=line.recoveries, approval=line.approval)
 
 
-def status_lines(state: AttemptState, *, recoveries: int) -> list[str]:
+def status_lines(
+    state: AttemptState, *, recoveries: int, approval: ApprovalPolicy
+) -> list[str]:
     """The attempt's state as the fields the job seam exposes, and the lifecycle's next step
-    after ``recoveries`` recoveries."""
+    after ``recoveries`` recoveries under ``approval``."""
     closing = state.closing
     segment = state.current_segment
-    approval = (
+    approval_state = (
         "none"
         if state.approval_requested is None
         else "approved"
@@ -332,10 +353,10 @@ def status_lines(state: AttemptState, *, recoveries: int) -> list[str]:
         f"attempt={'closed' if closing is not None else 'open'}",
         f"ending={kind_of(closing).value if closing is not None else 'none'}",
         f"segment={'none' if segment is None else 'ended' if segment.ended else 'open'}",
-        f"approval={approval}",
+        f"approval={approval_state}",
         f"stopped={'true' if state.stopped is not None else 'false'}",
         f"generation={state.generation}",
-        f"next={next_step(state, recoveries=recoveries).value}",
+        f"next={next_step(state, recoveries=recoveries, approval=approval).value}",
     ]
 
 

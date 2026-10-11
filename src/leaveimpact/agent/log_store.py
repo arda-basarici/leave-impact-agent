@@ -811,7 +811,10 @@ class LogStore:
     ) -> LedgerEntry:
         """The ruling on the ledger, part 10: the head created where absent, the threshold
         refused (``ValueError``) above the registered limit or below the committed total,
-        else its entry."""
+        else its entry. An amount equal to the threshold in force answers with the entry
+        that set it and writes nothing, as a repeated delivery answers with its receipt
+        (the first live run's step, group 1's review): a launch send that sets the
+        threshold on every run leaves one entry, not one per run."""
         require_opaque_id(ledger_id, "a ledger id")
         with self._guarded() as conn, conn.transaction():
             conn.execute(_INSERT_HEAD, (ledger_id,))
@@ -821,6 +824,15 @@ class LogStore:
             refusal = ledger.threshold_refusal(head, amount_pico_usd, limit_pico_usd=limit_pico_usd)
             if refusal is not None:
                 raise ValueError(refusal)
+            if head.threshold_pico_usd == amount_pico_usd:
+                rows = conn.execute(_SELECT_ENTRIES, (ledger_id, head.revision)).fetchall()
+                in_force = [
+                    entry
+                    for entry in map(_entry_of, rows)
+                    if entry.kind is ledger.EntryKind.THRESHOLD_SET
+                ]
+                assert in_force, "a head with a threshold holds the entry that set it"
+                return in_force[-1]
             entry, after = ledger.threshold_set(
                 head, amount_pico_usd, authority=authority, registration_commit=registration_commit
             )

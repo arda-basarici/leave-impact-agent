@@ -23,17 +23,18 @@ does not hold), is ``CacheJobRefused`` naming the version and what differed, rai
 the load, and the job stops there: a world the cache cannot state the provenance of is
 not served around.
 
-After the listing, the flip (the first live run's step, fork 11): every version the cache
-serves that the listing holds and the rule declined this run is demoted to not ready and
+The flip (the first live run's step, fork 11): a version the cache serves that the rule
+declines is demoted to not ready the moment its decline is read, before any later world's
+load can fail and end the run with the decline unacted on (the group's external read), and
 reported with the clause that declined it, so the serving check every attempt makes refuses
 it; no row is deleted, and a later approval under the current rule readmits it through the
-load. A version the cache serves and the listing no longer holds is reported as unlisted
-and left as it is: under a create-only prefix a version vanishes only by an operator's hand,
-which the operator finishes by hand, and on a laptop where several local roots share one
-database a flip here would unserve every other root's world at each run (the step's build
-notes). The cache is the protocol below, the loader's three functions bound to the database
-in production and a recording fake in the tests; the report goes through ``emit`` one line
-per version, the key=value lines the other jobs print.
+load. After the listing, a version the cache serves and the listing no longer holds is
+reported as unlisted and left as it is: under a create-only prefix a version vanishes only
+by an operator's hand, which the operator finishes by hand, and on a laptop where several
+local roots share one database a flip here would unserve every other root's world at each
+run (the step's build notes). The cache is the protocol below, the loader's three functions
+bound to the database in production and a recording fake in the tests; the report goes
+through ``emit`` one line per version, the key=value lines the other jobs print.
 """
 
 from __future__ import annotations
@@ -93,18 +94,24 @@ class CacheReport:
 
 def fill_cache(store: ObjectReader, *, development: bool, cache: Cache, emit: Emit) -> CacheReport:
     """Every version under ``worlds/`` admitted by the serving rule, verified and loaded into
-    ``cache``; every version the cache serves and the rule declined demoted, one it no longer
-    lists reported; one report line per version through ``emit``."""
+    ``cache``; every version the cache serves and the rule declines demoted as its decline is
+    read, one the listing no longer holds reported; one report line per version through
+    ``emit``."""
     loaded: list[WorldVersion] = []
     ready: list[WorldVersion] = []
     readmitted: list[WorldVersion] = []
     declined: list[NotServed] = []
+    demoted: list[WorldVersion] = []
     served: set[WorldVersion] = set()
+    served_before = cache.ready_versions()
     for version in discover_versions(store):
         admitted = admit(store, version, development=development)
         if isinstance(admitted, NotServed):
             declined.append(admitted)
             emit(f"declined={version} reason={admitted.reason}")
+            if cache.demote(version):
+                demoted.append(version)
+                emit(f"demoted={version} reason={admitted.reason}")
             continue
         world = cache_world_of(store, admitted)
         outcome = cache.load(world)
@@ -121,16 +128,10 @@ def fill_cache(store: ObjectReader, *, development: bool, cache: Cache, emit: Em
             f"documents={len(world.documents)} "
             f"levels={','.join(level.name for level in world.levels.levels)}"
         )
-    reasons = {declined_world.version: declined_world.reason for declined_world in declined}
-    demoted: list[WorldVersion] = []
-    unlisted: list[WorldVersion] = []
-    for version in sorted(cache.ready_versions() - served):
-        if version not in reasons:
-            unlisted.append(version)
-            emit(f"unlisted={version} note=served and no longer under the prefix; left as it is")
-        elif cache.demote(version):
-            demoted.append(version)
-            emit(f"demoted={version} reason={reasons[version]}")
+    seen = served | {declined_world.version for declined_world in declined}
+    unlisted = sorted(served_before - seen)
+    for version in unlisted:
+        emit(f"unlisted={version} note=served and no longer under the prefix; left as it is")
     return CacheReport(
         tuple(loaded),
         tuple(ready),

@@ -23,7 +23,11 @@ an attempt awaiting a human's approval, where the job ends and nothing is re-sen
 closed attempt, published and inventoried. The decision reads the attempt's state from the
 log and not the worker's printed ending, so it serves a completion the transport reported
 uncertainly as well as a clean one; the caller establishes that no process still owns the
-attempt before it acts on a recovery. ``RECOVERY_BOUND`` bounds processes on one attempt;
+attempt before it acts on a recovery. The decision also takes the approval policy the run
+was dispatched under, since the log alone cannot tell a pause from a death at the same
+position: an approval requested and not given is a human's wait under the human policy and
+a process gone under the automatic one, which a recovering worker completes with no new
+send (the group's external read). ``RECOVERY_BOUND`` bounds processes on one attempt;
 the registered re-dispatch policy bounds dispatches of one call and the retry rule bounds
 attempts of one run, and none stands in for another.
 """
@@ -41,6 +45,7 @@ from leaveimpact.agent.registered import (
     model_system_provenance,
     rules_only_configuration,
 )
+from leaveimpact.agent.worker import ApprovalPolicy
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.input_bound import output_maximum
 from leaveimpact.core.pricing import PriceTable, basis_for, run_reservation
@@ -249,9 +254,16 @@ class NextStep(StrEnum):
     """Left open past the recovery bound: an operator decides; nothing is sent."""
 
 
-def next_step(state: AttemptState, *, recoveries: int, bound: int = RECOVERY_BOUND) -> NextStep:
-    """The next step for an attempt in ``state`` after ``recoveries`` recoveries so far, for
-    a caller that has established no process owns the attempt."""
+def next_step(
+    state: AttemptState,
+    *,
+    recoveries: int,
+    approval: ApprovalPolicy,
+    bound: int = RECOVERY_BOUND,
+) -> NextStep:
+    """The next step for an attempt in ``state`` dispatched under ``approval``, after
+    ``recoveries`` recoveries so far, for a caller that has established no process owns the
+    attempt."""
     if state.inputs is None:
         raise ValueError("an attempt with no admission has no next step")
     if state.closed is not None:
@@ -259,7 +271,8 @@ def next_step(state: AttemptState, *, recoveries: int, bound: int = RECOVERY_BOU
     segment = state.current_segment
     if segment is None:
         return NextStep.WORK
-    if state.approval_requested is not None and state.approved is None:
+    human_decides = approval.approver(state) is None
+    if state.approval_requested is not None and state.approved is None and human_decides:
         return NextStep.WAIT
     if segment.ended and state.approved is not None and state.resumed is None:
         return NextStep.WORK

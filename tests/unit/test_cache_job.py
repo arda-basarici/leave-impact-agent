@@ -195,11 +195,15 @@ def test_a_served_version_the_rule_declines_now_is_demoted_and_readmitted_later(
     report = fill_cache(store, development=False, cache=cache, emit=lines.append)
     assert report.demoted == (declined_now,) and cache.demoted == [declined_now]
     assert report.unlisted == (gone,) and cache.ready_versions() == frozenset({VERSION, gone})
-    assert lines[-2:] == [
+    at = lines.index(
+        f"declined={declined_now} reason=no manifest under its final key: not a completed "
+        "projection"
+    )
+    assert lines[at + 1] == (
         f"demoted={declined_now} reason=no manifest under its final key: not a completed "
-        "projection",
-        f"unlisted={gone} note=served and no longer under the prefix; left as it is",
-    ]
+        "projection"
+    ), "the flip follows the decline at once"
+    assert lines[-1] == f"unlisted={gone} note=served and no longer under the prefix; left as it is"
     # A served version whose row an earlier run flipped is readmitted, not loaded anew.
     flipped = RecordingCache(flipped=frozenset({VERSION}))
     lines = []
@@ -293,3 +297,21 @@ def test_the_pool_of_the_levels_object_must_name_held_documents() -> None:
     sealed_world(store, levels=stray)
     message = refusal(store)
     assert "does not hold: ['doc_077']" in message and message.startswith(VERSION)
+
+
+def test_a_decline_is_acted_on_before_a_later_worlds_load_can_fail() -> None:
+    """The group's external read: a demotion postponed to the end of the listing is lost when
+    a later world refuses, and the declined version stays served. Here the declined version
+    sorts first, the served version's prefix holds a foreign document so its verification
+    refuses, and the declined one is flipped before the refusal ends the run."""
+    store = InMemoryObjectStore()
+    declined = WorldVersion("0" * 64)
+    sealed_world(store, version=declined, projected=False)
+    sealed_world(store)
+    store.put_if_absent(layout.document_key(VERSION, document_id(999)), b'{"foreign": 1}')
+    cache = RecordingCache(ready=frozenset({declined, VERSION}))
+    lines: list[str] = []
+    with pytest.raises(CacheJobRefused, match="foreign"):
+        fill_cache(store, development=False, cache=cache, emit=lines.append)
+    assert cache.demoted == [declined] and declined not in cache.ready_versions()
+    assert lines[1].startswith(f"demoted={declined} ")

@@ -29,10 +29,11 @@ worker with no model flag (the first live run's step, fork 4): its configuration
 handed refuse a send or a count as this harness's defect, and the registration's rules it
 is read under are not consulted by its fold. One command, one run, one
 attempt; the worker compares the composed configuration with the admission's and claims
-nothing on a difference. An attempt whose log already holds a recorded stopping failure
-with its segment still open takes the terminal-only path (the first live run's step, fork
-9): the state is read before anything beyond the run log is built, and the attempt is
-closed by that failure through ``commands.finalize`` with no world store, corpus reader,
+nothing on a difference. An attempt whose log already holds its ending, a recorded stopping
+failure with its segment still open or a closing, takes the terminal-only path (the first
+live run's step, fork 9, extended to the closed attempt at the group's review): the state
+is read before anything beyond the run log is built, and the attempt is closed by that
+failure, or found closed, through ``commands.finalize`` with no world store, corpus reader,
 vendor reader or client composed, so a closing the log has already decided cannot fail for
 a reason unrelated to the attempt.
 
@@ -699,11 +700,12 @@ def _work(
 
     The attempt's state is read first: the manifest and the corpus reader are functions of
     the admitted world version and level, and an attempt at a recorded stop with its
-    segment open is closed by the terminal worker before any of them is built (fork 9 of
-    the first live run's step; the FIXLOG's session-86 case). Otherwise the corpus reader
-    runs its serving check before any read port is built (``corpus_reader_for``). The
-    composed configuration is the registration's and this code's for the cell named, and
-    either worker refuses the claim where it differs from the admission's.
+    segment open, or one already closed, goes to the terminal worker before any of them is
+    built (fork 9 of the first live run's step; the FIXLOG's session-86 case). Otherwise
+    the corpus reader runs its serving check before any read port is built
+    (``corpus_reader_for``). The composed configuration is the registration's and this
+    code's for the cell named, and either worker refuses the claim where it differs from
+    the admission's.
 
     The registered outage is injected over the composed ports from the assignment the
     admission recorded, never from the line's condition again (the outage step, forks 1
@@ -738,7 +740,7 @@ def _work(
         raise ValueError(
             f"run {line.attempt.run_id} attempt {line.attempt.attempt} holds no admission"
         )
-    if state.closed is None and state.stopped is not None:
+    if state.closed is not None or state.stopped is not None:
         return finalize(
             line.attempt, store, TerminalComposition(configuration, line.harness, rules)
         )

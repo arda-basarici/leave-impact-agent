@@ -19,7 +19,13 @@ from langgraph.checkpoint.memory import InMemorySaver
 from leaveimpact.agent import __main__ as job
 from leaveimpact.agent.commands import ApprovalDelivery, CommandRefused, deliver_approval
 from leaveimpact.agent.graph import NoPreparation
-from leaveimpact.agent.log_events import Admitted, ApprovalRequested, encode_event
+from leaveimpact.agent.log_events import (
+    Admitted,
+    ApprovalRequested,
+    EventKind,
+    encode_event,
+    kind_of,
+)
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.agent.registered import model_system_provenance, rules_only_configuration
 from leaveimpact.agent.worker import (
@@ -286,13 +292,15 @@ def test_the_next_step_follows_the_attempts_state_through_a_human_approval(
     inputs = support.admitted_inputs(golden.context_of(golden.scenarios[0]))
     log = MemoryLog()
     log.seed(support.admission(inputs))
-    assert next_step(log.load(RUN, ATTEMPT, rules=RULES), recoveries=0) is NextStep.WORK
-    worker = _worker(log, inputs, golden, support.two_call_script, HumanApproval())
+    human = HumanApproval()
+    admitted = log.load(RUN, ATTEMPT, rules=RULES)
+    assert next_step(admitted, recoveries=0, approval=human) is NextStep.WORK
+    worker = _worker(log, inputs, golden, support.two_call_script, human)
     ending = worker.work(RUN, ATTEMPT, nonce="nonce-1")
     assert ending.kind is WorkerEndingKind.AWAITING_APPROVAL
     waiting = log.load(RUN, ATTEMPT, rules=RULES)
-    assert next_step(waiting, recoveries=0) is NextStep.WAIT
-    assert next_step(waiting, recoveries=RECOVERY_BOUND) is NextStep.WAIT
+    assert next_step(waiting, recoveries=0, approval=human) is NextStep.WAIT
+    assert next_step(waiting, recoveries=RECOVERY_BOUND, approval=human) is NextStep.WAIT
     requested = waiting.approval_requested
     assert requested is not None and isinstance(requested.event, ApprovalRequested)
     digest = review_payload_digest(requested.event.claims, requested.event.composition)
@@ -303,10 +311,42 @@ def test_the_next_step_follows_the_attempts_state_through_a_human_approval(
     )
     assert not isinstance(delivered, CommandRefused)
     approved = log.load(RUN, ATTEMPT, rules=RULES)
-    assert next_step(approved, recoveries=RECOVERY_BOUND) is NextStep.WORK
-    resumed = _worker(log, inputs, golden, support.two_call_script, HumanApproval())
+    assert next_step(approved, recoveries=RECOVERY_BOUND, approval=human) is NextStep.WORK
+    resumed = _worker(log, inputs, golden, support.two_call_script, human)
     assert resumed.work(RUN, ATTEMPT, nonce="nonce-2").kind is WorkerEndingKind.CLOSED
-    assert next_step(log.load(RUN, ATTEMPT, rules=RULES), recoveries=0) is NextStep.PUBLISH
+    closed = log.load(RUN, ATTEMPT, rules=RULES)
+    assert next_step(closed, recoveries=0, approval=human) is NextStep.PUBLISH
+
+
+def test_an_automatic_run_killed_after_its_approval_request_is_recovered_not_waited_for(
+    golden: SealedWorld,
+) -> None:
+    """The group's external read: under the automatic policy an approval requested and not
+    given is a process that died between the request and its own approval, which a
+    recovering worker completes with no new send; the decision reads it as a recovery, and
+    as a wait only under the human policy."""
+    inputs = support.admitted_inputs(golden.context_of(golden.scenarios[0]))
+    log = MemoryLog()
+    log.seed(support.admission(inputs))
+    _worker(log, inputs, golden, support.two_call_script, AutomaticApproval()).work(
+        RUN, ATTEMPT, nonce="nonce-1"
+    )
+    events = log.events(RUN, ATTEMPT)
+    requested = next(
+        i for i, e in enumerate(events) if kind_of(e.event) is EventKind.APPROVAL_REQUESTED
+    )
+    killed = MemoryLog()
+    killed.seed(events[: requested + 1])
+    state = killed.load(RUN, ATTEMPT, rules=RULES)
+    assert state.approval_requested is not None and state.approved is None
+    automatic = AutomaticApproval()
+    assert next_step(state, recoveries=0, approval=automatic) is NextStep.RECOVER
+    assert next_step(state, recoveries=RECOVERY_BOUND, approval=automatic) is NextStep.HOLD
+    assert next_step(state, recoveries=0, approval=HumanApproval()) is NextStep.WAIT
+    recovering = _worker(killed, inputs, golden, support.two_call_script, automatic)
+    ending = recovering.work(RUN, ATTEMPT, nonce="nonce-2")
+    assert ending.kind is WorkerEndingKind.CLOSED
+    assert isinstance(recovering.client, support.ScriptedClient) and recovering.client.sends == []
 
 
 def test_an_attempt_left_open_is_recovered_under_the_bound_and_held_past_it(
@@ -328,7 +368,8 @@ def test_an_attempt_left_open_is_recovered_under_the_bound_and_held_past_it(
     state = left_open.load(RUN, ATTEMPT, rules=RULES)
     assert state.closed is None and state.current_segment is not None
     assert not state.current_segment.ended
-    assert next_step(state, recoveries=0) is NextStep.RECOVER
-    assert next_step(state, recoveries=RECOVERY_BOUND - 1) is NextStep.RECOVER
-    assert next_step(state, recoveries=RECOVERY_BOUND) is NextStep.HOLD
+    automatic = AutomaticApproval()
+    assert next_step(state, recoveries=0, approval=automatic) is NextStep.RECOVER
+    assert next_step(state, recoveries=RECOVERY_BOUND - 1, approval=automatic) is NextStep.RECOVER
+    assert next_step(state, recoveries=RECOVERY_BOUND, approval=automatic) is NextStep.HOLD
     assert RECOVERY_BOUND == 2, "the development protocol states two recoveries"
