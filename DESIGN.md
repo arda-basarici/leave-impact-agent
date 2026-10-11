@@ -2130,6 +2130,36 @@ are the committed table's is a digest check owed when the table is an asset. The
 condition is derived from the reads that actually failed, the assigned schedule recorded
 beside it; a system that never called the failed source ran under no outage.
 
+*The read contract.* The prefetch reads are held to the frozen plan's obligations,
+reconstructed from what each read returned; the reads outside the prefetch to each
+system's contract (the outage step): rules only reads nothing else, the agent issues no
+harness read, and each one-call baseline issues exactly one harness read under its own
+policy, after the last prefetch read and before the first model intent, with no
+model-origin read beside it. The one read is owed when the trace holds a dispatch,
+permitted at most once whatever the ending, and forbidden after an opening read that
+returned no leave of the id asked; the second abstention, the employee universe not
+covered, is the harness's to derive, and the log's transition gates it. The single-shot's
+query is rendered by the function the harness renders with, over the prefetch's records
+and the leave, and compared with the operation's arguments in the key-order-free form the
+prefetch check uses; the registered protocol and limit are inputs the record does not
+carry, so without them the query comparison is not evaluated and every other check runs.
+Full context's enumeration takes no argument, and the documents it returned are compared
+with the level's sealed membership as sorted duplicate-free sets, a member not returned
+and a document returned twice being findings here and a document outside the level the
+level check's. Every finding is a harness finding; the artifact writes the check beside
+the prefetch's, at format 10.
+
+As built at the outage step (2026-10-11): the schedule is injected at the composition
+root, over the composed read ports and from the assignment the admission recorded, by
+one function (`agent.execution.ports_under`) that puts a typed reader raising the ports'
+unreachable error in front of each scheduled-out source's adapter; every reader is built
+as under the normal condition, the corpus serving check included, and the adapters,
+their credentials and their transports learn nothing of the condition. The executor
+records the first read of such a source as an unreachable operation and stops it, so an
+injected outage and a vendor's own failure leave the same trace, and the observed
+condition, the stop, the skip and the conformance checks read both alike. A recovering
+process injects what the first was admitted under.
+
 **Tables are cut by cell, and each kind of number has its own interval.** In the tables
 an arm is one system under one assigned condition at one assigned corpus level, what the
 registration calls a cell, and a table's cell is an arm at one stratum: the whole set, a

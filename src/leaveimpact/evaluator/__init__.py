@@ -49,6 +49,10 @@ operations no conforming harness records), ``cost_check`` (usage and cost recomp
 the trace in three layers), ``proof_contribution`` (which reads supplied something a proof
 rests on), ``prefetch_conformance`` (whether the prefetch reads recorded are the ones the
 frozen plan obliged, the obligations reconstructed here from what each read returned),
+``membership_conformance`` (whether the reads outside the prefetch are the ones the
+system's contract allows and obliges: the one-call baselines' one harness read, owed
+when a dispatch exists, its query compared through the shared renderer under the
+registered values, full context's enumeration against the level's sealed membership),
 ``retrieval_targets`` (the statements a scenario's answer depends on under a
 condition, by removal through the oracle) and ``retrieval`` (which of them a run's reads
 returned, and through which search at what rank).
