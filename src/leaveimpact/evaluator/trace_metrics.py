@@ -92,6 +92,7 @@ from leaveimpact.core.attribution import (
 )
 from leaveimpact.core.contradictions import Contradiction, self_contradictions
 from leaveimpact.core.facts import RunCondition
+from leaveimpact.core.query_protocol import QueryProtocol
 from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.registration import RetryRule
 from leaveimpact.core.run_ending import ClaimAuthor
@@ -114,6 +115,10 @@ from leaveimpact.evaluator.grading import (
     grade_run,
 )
 from leaveimpact.evaluator.level_check import LevelCheck, level_check
+from leaveimpact.evaluator.membership_conformance import (
+    MembershipConformance,
+    membership_conformance,
+)
 from leaveimpact.evaluator.oracle import Answerable, oracle_for, runtime_truth
 from leaveimpact.evaluator.prefetch_conformance import PrefetchConformance, prefetch_conformance
 from leaveimpact.evaluator.proof_contribution import ProofContribution, proof_contribution
@@ -136,6 +141,7 @@ class TraceMetrics:
     discipline: SourceDiscipline
     cost: CostCheck
     prefetch: PrefetchConformance
+    membership: MembershipConformance
     recheck: FactRecheck
     ending: EndingCheck
     required_sources: tuple[RequiredSourceUse, ...] | None
@@ -173,6 +179,8 @@ def evaluate_run(
     redispatch: RedispatchPolicy | None = None,
     retry: RetryRule | None = None,
     counting_identifiers: Mapping[str, str] | None = None,
+    query_protocol: QueryProtocol | None = None,
+    search_limit: int | None = None,
 ) -> Evaluation:
     """The outcome of the run ``export`` records against ``world``, and its trace metrics.
 
@@ -180,7 +188,9 @@ def evaluate_run(
     counting model id, by role name) are the registration's, each ``None`` while it is
     pending or when no registration is at hand; the attribution check is evaluated only
     with a table, the call check with a table and a policy, the eligibility check with a
-    retry rule, and the count check's registration parts with a policy and the identifiers.
+    retry rule, and the count check's registration parts with a policy and the identifiers;
+    ``query_protocol`` and ``search_limit`` are the registered single-shot values, under
+    which alone the membership check compares a single-shot's query.
 
     Raises nothing for what the run did; see ``grade_run`` and the module for what the
     sealed world can make it raise.
@@ -200,6 +210,8 @@ def evaluate_run(
             redispatch=redispatch,
             retry=retry,
             counting_identifiers=counting_identifiers,
+            query_protocol=query_protocol,
+            search_limit=search_limit,
         ),
         assigned,
         export.record.corpus_level,
@@ -217,6 +229,8 @@ def trace_metrics(
     redispatch: RedispatchPolicy | None = None,
     retry: RetryRule | None = None,
     counting_identifiers: Mapping[str, str] | None = None,
+    query_protocol: QueryProtocol | None = None,
+    search_limit: int | None = None,
 ) -> TraceMetrics:
     """What the run ``export`` records did; ``outcome`` is ``grade_run``'s for the same
     export, the keyword arguments as ``evaluate_run`` takes them."""
@@ -224,6 +238,9 @@ def trace_metrics(
     discipline = source_discipline(trace)
     cost = check_cost(export)
     prefetch = prefetch_conformance(export)
+    membership = membership_conformance(
+        world, export, query_protocol=query_protocol, search_limit=search_limit
+    )
     recheck = recheck_facts(export)
     ending = check_ending(export)
     attribution = _attribution(export, table, redispatch)
@@ -242,6 +259,7 @@ def trace_metrics(
             discipline,
             cost,
             prefetch,
+            membership,
             recheck,
             ending,
             None,
@@ -261,6 +279,7 @@ def trace_metrics(
         discipline=discipline,
         cost=cost,
         prefetch=prefetch,
+        membership=membership,
         recheck=recheck,
         ending=ending,
         required_sources=discipline.required_source_use(scenario.key.required_sources),

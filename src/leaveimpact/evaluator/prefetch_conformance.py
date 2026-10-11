@@ -46,8 +46,10 @@ kinds of finding:
 
 A finding names its kind, the plan's step and the operation, never an argument or a record.
 
-Where a prefetch operation sits among the model's own reads is not judged here; that
-needs each baseline's own contract and arrives with the baselines.
+Where a prefetch operation sits among the model's own reads is not judged here; what a
+system may read outside the prefetch is each system's contract, held by
+``membership_conformance``, which shares this module's canonical form of a call and its
+reading of the opening read (the outage step, forks 6 and 7).
 
 A run whose record names another prefetch rule than this code's was planned by another
 planner. Its conformance is not evaluated, which is a different statement from having no
@@ -57,6 +59,7 @@ finding, and no finding is manufactured from a plan it never followed.
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from typing import cast
@@ -141,11 +144,11 @@ def prefetch_conformance(export: RunExport) -> PrefetchConformance:
     plan = _plan(export.context, [operation for _, operation in made])
     exact = _exact_matches(plan, made)
     # A second read of a planned call is extra, never another call's wrong parameters.
-    planned = {_asked(call.tool, call.arguments) for call in plan}
+    planned = {asked(call.tool, call.arguments) for call in plan}
     spare = [
         slot
         for slot, (_, operation) in enumerate(made)
-        if _asked(operation.tool, _arguments(operation)) not in planned
+        if asked(operation.tool, thawed_arguments(operation)) not in planned
     ]
 
     findings: list[PrefetchFinding] = []
@@ -194,14 +197,28 @@ def _plan(context: RunContext, made: list[Operation]) -> tuple[PlannedCall, ...]
     """The whole plan of ``context`` given what its opening read returned in ``made``: the
     opening call alone, or with the calls the returned leave's own span gives."""
     opening = opening_call(context)
-    asked = _asked(opening.tool, opening.arguments)
-    answer = next((op for op in made if _asked(op.tool, _arguments(op)) == asked), None)
-    if answer is None or not isinstance(answer.outcome, RecordOutcome):
+    leave = opening_leave(context, made)
+    if leave is None:
         return (opening,)
+    return (opening, *calls_after_leave(leave, context.reference_timezone))
+
+
+def opening_leave(context: RunContext, operations: Sequence[Operation]) -> Leave | None:
+    """The leave the opening read of ``context`` returned among ``operations``, or ``None``
+    when no read with the opening call's tool and arguments returned a leave of the id
+    asked (the leave absent, unreachable, malformed or of another id): the condition the
+    plan ends on, which the membership check reuses for when a harness read is owed."""
+    opening = opening_call(context)
+    wanted = asked(opening.tool, opening.arguments)
+    answer = next(
+        (op for op in operations if asked(op.tool, thawed_arguments(op)) == wanted), None
+    )
+    if answer is None or not isinstance(answer.outcome, RecordOutcome):
+        return None
     record = answer.outcome.record.value
     if not isinstance(record, Leave) or record.id != context.leave_id:
-        return (opening,)
-    return (opening, *calls_after_leave(record, context.reference_timezone))
+        return None
+    return record
 
 
 def _exact_matches(
@@ -211,21 +228,23 @@ def _exact_matches(
     that no earlier planned call took, as its place in ``made``."""
     free: dict[tuple[str, str], list[int]] = {}
     for slot, (_, operation) in enumerate(made):
-        free.setdefault(_asked(operation.tool, _arguments(operation)), []).append(slot)
+        free.setdefault(asked(operation.tool, thawed_arguments(operation)), []).append(slot)
     matches: dict[int, int] = {}
     for index, call in enumerate(plan):
-        slots = free.get(_asked(call.tool, call.arguments))
+        slots = free.get(asked(call.tool, call.arguments))
         if slots:
             matches[index] = slots.pop(0)
     return matches
 
 
-def _arguments(operation: Operation) -> JsonObject:
+def thawed_arguments(operation: Operation) -> JsonObject:
+    """``operation``'s arguments as plain JSON data, the form ``asked`` compares."""
     return cast("JsonObject", thawed_json(operation.arguments))
 
 
-def _asked(tool: str, arguments: JsonObject) -> tuple[str, str]:
-    """What a call asks, comparable between a planned call and a recorded one.
+def asked(tool: str, arguments: JsonObject) -> tuple[str, str]:
+    """What a call asks, comparable between a planned or rendered call and a recorded one;
+    the one canonical form the prefetch check and the membership check compare in.
 
     Keys are sorted at every depth: an operation holds its arguments in key order and the
     planner spells them in the order it builds them, and the order of an object's keys is
@@ -244,5 +263,8 @@ __all__ = [
     "PrefetchConformance",
     "PrefetchFinding",
     "PrefetchFindingKind",
+    "asked",
+    "opening_leave",
     "prefetch_conformance",
+    "thawed_arguments",
 ]
