@@ -202,3 +202,20 @@ prefetch returns no team record.
 | probe | what it decides | forecast | rests on |
 |---|---|---|---|
 | **single-shot-query** (`single-shot-query/selection.py`, model-free; the development worlds the laptop's cache holds at the padded level, every scenario with an answer under the normal condition; the frozen prefetch over the planted readers and the real corpus adapter, each candidate rendered with the production rendering and searched once at the limit of 20) — per candidate the required document-section targets recovered at 5, 10 and 20, pooled, and the mean rendered length | which candidate the draft registration carries as the single-shot's query protocol and at which limit, by the fixed rule: the most recovered at 20, ties by fewer inputs, shorter mean length, list position; the limit the smallest within one target of the count at 20 | no forecast of the winner is made, since a guess written here would be the methodological decision the procedure exists to keep out of the scorer's hands; the first development world's padded corpus is about 2,750 tokens of documents (the forks file), so a literal that names the clauses' own vocabulary may reach every target, and a tie is likely | one development world until the second is sealed (fork 6, approved); the result is labelled by the worlds it ran on, the registration's value is development until the freeze re-selects on the worlds it names, and the templates' inputs are values the model is shown anyway |
+
+## The baselines step's one-call probe (written 2026-10-11, before it runs)
+
+The two one-call baselines share the `reader` role, whose three prompt assets were written
+from the investigator's with the loop sentences removed and one sentence on what the message
+holds, and no real model had read them when the runtime landed. The lesson that a contract a
+model must write to is shown a real model's output before more is built around it, and the
+step-12 forks file's fork 3, ask for a live run of both systems before anything further rests
+on those prompts. The probe is the prompt check's script with the system and the level as
+arguments; its composition is the work command's through `commands.system_content`, so the
+probe and the production path compose the same content from the same kind. The forecast's
+request sizes are measured model-free on dry rounds (`--dry`), the request rebuilt from the
+log by the system's own turns, and recorded in `prompt-check/results/one-call-forecast-*`.
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **one-call** (`prompt-check/live_probe.py --system single_shot|full_context --level padded`, live, the seven prompt-check scenarios of the first development world under the normal condition at the padded level, Haiku 4.5 on the `eu.` profile at temperature 0 under the reader role, the real evaluator in process over each export) — per scenario the one call's tokens and cost, the fact-stage measures against the planted facts, the requirement placements and the correct-whole verdict read back; one round per system | whether the reader's prompts yield a valid forced fact call over the prefetch and the harness's one read, and what each system states of the planted facts on seven scenarios; a probe of the prompts and the plumbing, never a measurement | fourteen logical calls by construction, one a scenario; the first request 41,647 to 42,723 bytes for the single-shot and 48,932 to 49,578 for full context on the dry rounds, about 12,000 and 14,000 tokens at the prompt check's 3.5 bytes a token; by hand on the captured rates about $0.30 whole, under $0.90 at the output maximum on every call | seven scenarios at temperature 0 on one world whose padded corpus is 38 documents, so the search's limit of 20 returns more than half of it and full context is one call of about 14,000 tokens; the single-shot states at most what its search returned (19 of 28 required section targets on this world); no rate is claimed from seven runs |

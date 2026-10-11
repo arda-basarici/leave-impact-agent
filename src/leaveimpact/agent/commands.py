@@ -38,8 +38,9 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from leaveimpact.adapters.object_store.layout import run_export_key
 from leaveimpact.adapters.object_store.read import AccessRefused
 from leaveimpact.adapters.wiring import InventoryPublisher, RunExportPublisher, UploadOutcome
+from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import ModelClient, Preparation, TokenCounter, Turns
+from leaveimpact.agent.graph import ModelClient, NoPreparation, Preparation, TokenCounter, Turns
 from leaveimpact.agent.inventory import PublicationRecord, inventory_of
 from leaveimpact.agent.ledger import LedgerEntry
 from leaveimpact.agent.log_events import (
@@ -58,6 +59,9 @@ from leaveimpact.agent.log_store import (
     LogStoreConflict,
 )
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused, Rules
+from leaveimpact.agent.one_call import OneCallTurns
+from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
+from leaveimpact.agent.turns import InvestigatorTurns
 from leaveimpact.agent.worker import ApprovalPolicy, Worker, WorkerConfiguration, WorkerEnding
 from leaveimpact.core.inventory import (
     Inventory,
@@ -70,8 +74,10 @@ from leaveimpact.core.run_ending import AbandonmentReason, Approver
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
 from leaveimpact.core.run_export_json import export_bytes
 from leaveimpact.core.run_parts_json import review_payload_digest
+from leaveimpact.core.run_record import SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
+from leaveimpact.core.tools import Role
 
 Reader = Callable[[AttemptState], RunExport]
 """Builds a closed attempt's export from its state: ``export_of``, or a test's stand-in."""
@@ -137,6 +143,23 @@ class WorkerComposition:
     ports: ReadPorts
     approval: ApprovalPolicy
     saver: BaseCheckpointSaver[Any]
+
+
+def system_content(kind: SystemKind) -> tuple[Turns, Preparation]:
+    """The system's content behind the skeleton's two content protocols, by kind (the
+    baselines step, fork 15): the investigator's turns over its assets with no preparation;
+    the one-call turns over the reader's assets with the single-shot's one search or full
+    context's one enumeration. The composition root and a probe that mirrors it compose
+    from here, so the two cannot drift. ``ValueError`` for a kind that runs no model."""
+    match kind:
+        case SystemKind.AGENT:
+            return InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)), NoPreparation()
+        case SystemKind.SINGLE_SHOT:
+            return OneCallTurns(load_prompt_assets(Role.READER)), SingleShotPreparation()
+        case SystemKind.FULL_CONTEXT:
+            return OneCallTurns(load_prompt_assets(Role.READER)), FullContextPreparation()
+        case _:
+            raise ValueError(f"{kind.value} runs no model and is not worked")
 
 
 def work(request: WorkRequest, store: LogStore, composition: WorkerComposition) -> WorkerEnding:

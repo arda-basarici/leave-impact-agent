@@ -25,15 +25,20 @@ tool use, and the plumbing checks that must be empty. The round's summary lands 
 file as ``results/<round>-<stamp>.json`` and ``.md`` with ids, counts and states alone; the
 spans and quotes stay in the capture directory's JSON.
 
-``--dry`` runs the same path under the scripted "nothing further" client and the scripted
-counter: no call, no spend, the plumbing proven end to end. A comparison round is this
+``--system`` names the model system the round runs, the investigator by default; the two
+one-call baselines run through the same path with the reader role, their content from
+``commands.system_content`` as the work command composes it (the baselines step, fork 3),
+and ``--level`` the corpus level, the base by default and the padded one where the
+baselines' probe runs. ``--dry`` runs the same path under the scripted "nothing further"
+client and the scripted counter: no call, no spend, the plumbing proven end to end. A comparison round is this
 script run again under ``--round <name>`` after the prompt asset's sentence has been removed
 in ``agent/prompts/investigator/``; the digests the round ran under are recorded in its summary, so the
 export's provenance and the report agree by construction.
 
     PYTHONPATH=. AWS_PROFILE=leave-impact LEAVE_IMPACT_SPIKE_CAPTURES=<dir> \\
         POSTGRES_PASSWORD=<the laptop's> uv run python probes/prompt-check/live_probe.py \\
-        --round shipped [--scenarios scenario_009,scenario_013] [--dry]
+        --round shipped [--system single_shot --level padded] \\
+        [--scenarios scenario_009,scenario_013] [--dry]
 """
 
 from __future__ import annotations
@@ -74,6 +79,7 @@ from leaveimpact.agent.commands import (  # noqa: E402
     WorkerComposition,
     WorkRequest,
     publish,
+    system_content,
     work,
 )
 from leaveimpact.agent.corpus import corpus_reader_for  # noqa: E402
@@ -81,13 +87,16 @@ from leaveimpact.agent.execution import ReadPorts  # noqa: E402
 from leaveimpact.agent.inventory import PublicationRecord  # noqa: E402
 from leaveimpact.agent.log_events import FrozenInputs, Producer  # noqa: E402
 from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore  # noqa: E402
-from leaveimpact.agent.turns import InvestigatorTurns  # noqa: E402
+from leaveimpact.agent.log_transition import calls_of, fold  # noqa: E402
+from leaveimpact.agent.registered import MODEL_SYSTEM_ROLES  # noqa: E402
 from leaveimpact.agent.worker import AutomaticApproval  # noqa: E402
 from leaveimpact.core.ids import ScenarioId  # noqa: E402
+from leaveimpact.core.jsonshape import canonical_bytes  # noqa: E402
 from leaveimpact.core.model_calls import CompleteResponse, RefusedInput, Sends  # noqa: E402
 from leaveimpact.core.predicates import PredicateName  # noqa: E402
 from leaveimpact.core.run_export import RunExport  # noqa: E402
 from leaveimpact.core.run_export_json import decode_export_bytes  # noqa: E402
+from leaveimpact.core.run_record import SystemKind  # noqa: E402
 from leaveimpact.core.run_timing import TreeState  # noqa: E402
 from leaveimpact.core.stated import PlacementState  # noqa: E402
 from leaveimpact.evaluator.grading import Graded, correct_whole  # noqa: E402
@@ -218,6 +227,7 @@ class RunResult:
     contradictions: int
     graded: dict[str, Any] | None
     report_findings: list[str]
+    first_request_bytes: int | None
     notes: list[str] = field(default_factory=list[str])
 
 
@@ -257,11 +267,13 @@ def run_one(
         corpus = corpus_reader_for(inputs, dsn=dsn)
         saver, saver_connection = saver_in_schema(dsn)
         try:
+            turns, preparation = system_content(configuration.system)
             composition = WorkerComposition(
                 configuration.worker,
                 configuration.harness,
                 configuration.rules,
-                InvestigatorTurns(load_prompt_assets()),
+                turns,
+                preparation,
                 clients.client,
                 clients.counter,
                 ReadPorts(readers.people, readers.work, readers.calendar, corpus),
@@ -273,6 +285,7 @@ def run_one(
                 store,
                 composition,
             )
+            request_bytes = first_request_bytes(store, run_id, turns, configuration.rules)
         finally:
             saver_connection.close()
             corpus.close()
@@ -301,11 +314,27 @@ def run_one(
         retry=inputs.retry,
         counting_identifiers=dict(inputs.counting_identifiers),
     )
-    result = reduce(world, scenario, run_id, ending.kind.value, export, evaluation, wall)
+    result = reduce(
+        world, scenario, run_id, ending.kind.value, export, evaluation, wall, request_bytes
+    )
     (captures / f"{scenario.spec.id}.detail.json").write_text(
         json.dumps(detail(world, export, evaluation), indent=2, default=str), encoding="utf-8"
     )
     return result
+
+
+def first_request_bytes(store: LogStore, run_id: str, turns: Any, rules: Any) -> int | None:
+    """The canonical bytes of the first logical call's request as the system's turns rebuild
+    it over the log below its first intent: the model-free size of what the model was shown,
+    recorded beside every run (the baselines step, fork 3's forecast); ``None`` for a run
+    that made no call."""
+    state = store.load(run_id, 1, rules=rules)
+    calls = calls_of(state)
+    if not calls:
+        return None
+    below = fold(state.events[: calls[0].intents[0].position - 1], rules)
+    request = turns.request_for(below, 1)
+    return None if request is None else len(canonical_bytes(request.body))
 
 
 # --- The reduction ---------------------------------------------------------------------------
@@ -319,6 +348,7 @@ def reduce(
     export: RunExport,
     evaluation: Evaluation,
     wall: float,
+    request_bytes: int | None,
 ) -> RunResult:
     trace = export.trace
     metrics = evaluation.metrics
@@ -459,6 +489,7 @@ def reduce(
         plumbing=plumbing,
         contradictions=len(evaluation.contradictions),
         graded=graded,
+        first_request_bytes=request_bytes,
         report_findings=report_findings,
     )
 
@@ -552,18 +583,28 @@ def detail(world: SealedWorld, export: RunExport, evaluation: Evaluation) -> dic
 # --- The round -------------------------------------------------------------------------------
 
 
-def markdown(round_name: str, digests: dict[str, str], results: list[RunResult], dry: bool) -> str:
+def markdown(
+    round_name: str,
+    configuration: dw.ProbeConfiguration,
+    digests: dict[str, str],
+    results: list[RunResult],
+    dry: bool,
+) -> str:
     lines = [
         f"# Round `{round_name}`{' (dry: scripted client, no call)' if dry else ''}",
+        "",
+        f"System `{configuration.system.value}` (role `{configuration.role.name}`) at level "
+        f"`{configuration.level}` under the normal condition.",
         "",
         "Prompt digests: " + ", ".join(f"{k} `{v[:8]}`" for k, v in sorted(digests.items())) + ".",
         "",
         "| scenario | ending | calls / dispatches / sends | stop reasons | finalization at | "
-        "tokens (account; usage in/out) | cost (USD) | model reads by tool | targets "
-        "returned/emitted/admitted/usable of n | emissions by class | refusals by reason | "
-        "batches (nested) | requires stated: placed/unplaced/ambiguous (overruns) | exclusions | "
-        "plumbing findings | max-tokens with tool use | wall s |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "tokens (account; usage in/out) | first request bytes | cost (USD) | reads by tool "
+        "beyond the prefetch | targets returned/emitted/admitted/usable of n | emissions by "
+        "class | refusals by reason | batches (nested) | requires stated: "
+        "placed/unplaced/ambiguous (overruns) | exclusions | plumbing findings | max-tokens "
+        "with tool use | wall s |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in results:
         n = len(r.targets)
@@ -600,6 +641,7 @@ def markdown(round_name: str, digests: dict[str, str], results: list[RunResult],
             joined(r.stop_reasons),
             str(r.finalization_entered),
             f"{r.account_tokens}; {r.usage_input_tokens}/{r.usage_output_tokens}",
+            str(r.first_request_bytes),
             cost,
             reads,
             stages,
@@ -632,12 +674,24 @@ def main() -> int:
         "--scenarios", default=None, help="comma-separated ids; default the six and the seventh"
     )
     parser.add_argument("--dry", action="store_true", help="scripted client, no call")
+    parser.add_argument(
+        "--system",
+        default=SystemKind.AGENT.value,
+        choices=[kind.value for kind in MODEL_SYSTEM_ROLES],
+        help="the model system the round runs; the investigator by default",
+    )
+    parser.add_argument(
+        "--level", default=dw.LEVEL, help="the corpus level; the base by default"
+    )
     args = parser.parse_args()
     env = dict(os.environ)
     dsn = dsn_from_env(env)
     captures = captures_root(env) / args.round
     world = dw.development_world()
-    configuration = dw.probe_configuration(tree_state=TreeState.DIRTY)
+    system = SystemKind(args.system)
+    configuration = dw.probe_configuration(
+        tree_state=TreeState.DIRTY, system=system, level=str(args.level)
+    )
     by_id = {s.spec.id: s for s in world.scenarios}
     if args.scenarios:
         ids = [ScenarioId(s.strip()) for s in str(args.scenarios).split(",") if s.strip()]
@@ -662,7 +716,7 @@ def main() -> int:
     finally:
         setup.close()
     clients = dry_clients() if args.dry else live_clients()
-    digests = dict(load_prompt_assets().digests())
+    digests = dict(load_prompt_assets(MODEL_SYSTEM_ROLES[system]).digests())
     results: list[RunResult] = []
     for scenario_id in ids:
         result = run_one(
@@ -678,6 +732,7 @@ def main() -> int:
         print(
             f"{result.scenario_id}: {result.ending}/{result.status} calls={result.logical_calls} "
             f"sends={result.sends} tokens={result.usage_input_tokens}/{result.usage_output_tokens} "
+            f"request={result.first_request_bytes}B "
             f"targets={sum(t['admitted'] for t in result.targets)}/{len(result.targets)} "
             f"batches={result.batches}({result.nested_batches}) wall={result.wall_seconds}s",
             flush=True,
@@ -694,6 +749,9 @@ def main() -> int:
             "tree": configuration.harness.tree.value,
         },
         "registration_commit": configuration.worker.preregistration_commit,
+        "system": configuration.system.value,
+        "role": configuration.role.name,
+        "level": configuration.level,
         "prompt_digests": digests,
         "model": dw.MODEL,
         "output_maximum": dw.OUTPUT_MAXIMUM,
@@ -703,7 +761,7 @@ def main() -> int:
         json.dumps(summary, indent=2), encoding="utf-8"
     )
     (RESULTS / f"{args.round}-{stamp}.md").write_text(
-        markdown(args.round, digests, results, args.dry), encoding="utf-8"
+        markdown(args.round, configuration, digests, results, args.dry), encoding="utf-8"
     )
     print(f"written: {RESULTS / f'{args.round}-{stamp}.md'}; exports under {captures}")
     return 0

@@ -68,7 +68,6 @@ from leaveimpact.adapters.wiring import (
     world_store_from_env,
     world_store_reader,
 )
-from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivery,
@@ -85,12 +84,12 @@ from leaveimpact.agent.commands import (
     import_spend,
     publish,
     set_threshold,
+    system_content,
     work,
     write_inventory,
 )
 from leaveimpact.agent.corpus import corpus_reader_for
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import NoPreparation, Preparation, Turns
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     AdmissionReceipt,
@@ -101,15 +100,12 @@ from leaveimpact.agent.log_store import (
     LogStoreUnavailable,
 )
 from leaveimpact.agent.log_transition import Rules
-from leaveimpact.agent.one_call import OneCallTurns
-from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
 from leaveimpact.agent.registered import (
     MODEL_SYSTEM_ROLES,
     RoleFilling,
     effective_rules,
     model_system_provenance,
 )
-from leaveimpact.agent.turns import InvestigatorTurns
 from leaveimpact.agent.worker import (
     ApprovalPolicy,
     AutomaticApproval,
@@ -127,7 +123,6 @@ from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
 from leaveimpact.core.run_record import PricingSelection, SystemKind
 from leaveimpact.core.run_timing import GIT_SHA_LENGTH, HarnessRevision, TreeState
-from leaveimpact.core.tools import Role
 
 PROGRAM = "python -m leaveimpact.agent"
 DATABASE = "DATABASE_URL"
@@ -618,7 +613,7 @@ def _work(
 ) -> WorkerEnding:
     """The model system's composition over the admitted attempt, worked as far as one
     process can: the system the line names chooses its content behind the skeleton's
-    protocols (``_system_content``) and its provenance. What is opened here is closed before
+    protocols (``commands.system_content``) and its provenance. What is opened here is closed before
     it returns, in the reverse of its opening: the corpus reader, the vendor readers, the
     SDK runtime client the two live clients share and the saver's connection; the
     world-store reader holds nothing to close.
@@ -630,7 +625,7 @@ def _work(
     claim where it differs from the admission's.
     """
     line = request.line
-    turns, preparation = _system_content(line.system)
+    turns, preparation = system_content(line.system)
     configuration = model_system_provenance(
         request.registration,
         line.system,
@@ -684,22 +679,6 @@ def _work(
             saver,
         )
         return work(line.attempt, store, composition)
-
-
-def _system_content(kind: SystemKind) -> tuple[Turns, Preparation]:
-    """The system's content behind the skeleton's protocols, by kind (the baselines step,
-    fork 15): the investigator's turns over its assets with no preparation; the one-call
-    turns over the reader's assets with the single-shot's one search or full context's one
-    enumeration. ``ValueError`` for a kind that runs no model."""
-    match kind:
-        case SystemKind.AGENT:
-            return InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)), NoPreparation()
-        case SystemKind.SINGLE_SHOT:
-            return OneCallTurns(load_prompt_assets(Role.READER)), SingleShotPreparation()
-        case SystemKind.FULL_CONTEXT:
-            return OneCallTurns(load_prompt_assets(Role.READER)), FullContextPreparation()
-        case _:
-            raise ValueError(f"{kind.value} runs no model and is not worked")
 
 
 def _manifest_of(content: bytes, key: str) -> WorldManifest:

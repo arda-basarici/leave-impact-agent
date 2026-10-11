@@ -3665,3 +3665,58 @@ its one world and the probe reruns over both when the second lands. Twenty scena
 twenty-eight targets are not a rate: the counts are recorded and nothing is claimed beyond
 the ordering they gave under the rule written before them. The freeze re-selects by the same
 procedure on the development worlds it names.
+
+## one-call — the two one-call baselines run live on the first development world: the forecast, written before the run (2026-10-11)
+
+The baselines step built the single-shot and the full-context systems over the shared
+skeleton: a sixth node issues each system's one harness read between the prefetch and its
+call, and one request flagged final shows the model the investigator's first message, the
+harness read's block and the finalization text, the fact tool alone and forced (the step-12
+forks file, forks 1, 2, 7, 8 and 9). The `reader` role's three prompt assets were written
+from the investigator's with the loop sentences removed and one sentence on what the message
+holds, and no real model had read them; the lesson that a contract a model must write to is
+shown a real model's output before more is built around it, and the step's fork 3, ask for a
+live run of both systems before anything further rests on the reader's prompts. The probe is
+the prompt check's script with the system and the level as arguments
+(`probes/prompt-check/live_probe.py --system single_shot|full_context --level padded`), the
+composition the work command's through `commands.system_content`, so the probe and the
+production path compose the same content from the same kind.
+
+**What runs.** The seven prompt-check scenarios of world `b7ec4563…` (the six
+live-iteration scenarios and `scenario_014`), the normal condition at the padded level, 38
+documents in the laptop's cache; the reader role filled with Haiku 4.5 on the `eu.` profile
+at temperature 0 and 8,192 output tokens, counted against the base model id and priced from
+`prompt-check/prices.json`; the draft registration's caps and the development attribution
+table and re-dispatch policy; the registration at the commit this group lands under, the
+tree dirty while the probe runs. One round per system, the correct-whole verdict read back
+by the real evaluator in process over each export, the raw exports outside the tree.
+
+**Calls: fourteen by construction.** One logical call a scenario, the finalization, and
+nothing after it; a second dispatch only where the registered table re-dispatches an
+infrastructure outcome. No abstention on the planted readers (the prompt check's reading).
+
+**Input, measured model-free on the dry rounds** (`prompt-check/results/one-call-forecast-single-shot-20261011T112816Z.md`
+and `…-full-context-20261011T112827Z.md`, the scripted client in place of the model and the
+request rebuilt from the log by the system's own turns): the single-shot's one request is
+41,647 to 42,723 bytes a scenario, full context's 48,932 to 49,578; the difference, about
+7,000 bytes, is the eighteen documents the search's limit of 20 leaves out of the 38. The
+prompt check's two-call scenarios ran near 3.5 bytes a token (18,646 and 18,870 input tokens
+over two requests of about 33,000 and 30,000 bytes), so a point forecast of about 12,000
+tokens a single-shot request and 14,000 a full-context one, 180,000 to 190,000 input tokens
+for the fourteen. By hand on the captured rates ($1.10 a million input, $5.50 output): about
+$0.20 of input; the output of a forced fact call ran under 1,000 tokens a call in the prompt
+check's finalizations, so about $0.30 whole, and under $0.90 even at the output maximum on
+every call.
+
+**What is read back, and what is not claimed.** Per scenario the one call's tokens and cost,
+the fact-stage measures against the planted facts, the requirement placements and the
+correct-whole verdict, as the prompt check records them. The single-shot can state at most
+what its search returned: on this world the selection probe recovered 19 of 28 required
+section targets at the limit of 20, and of the seven scenarios' seven targets the dry round
+shows the search returning 1 of 2 on `scenario_013` and every other target's document
+(`targets returned` in the forecast round). Full context is shown every document, the
+strongest cheap baseline the arms interview found at the ceiling on a throwaway world whose
+corpus one call holds; this world's padded corpus is of that size too, so a full-context
+result here says nothing about the padded level the freeze registers. Seven scenarios at
+temperature 0 on one world are a probe of the prompts and the plumbing, never a measurement,
+and no rate is claimed from them.

@@ -36,7 +36,12 @@ from random import Random
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.agent.log_events import FrozenInputs
 from leaveimpact.agent.log_transition import Rules
-from leaveimpact.agent.registered import RoleFilling, effective_rules, model_system_provenance
+from leaveimpact.agent.registered import (
+    MODEL_SYSTEM_ROLES,
+    RoleFilling,
+    effective_rules,
+    model_system_provenance,
+)
 from leaveimpact.agent.worker import WorkerConfiguration
 from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.ids import ScenarioId, WorldVersion
@@ -130,10 +135,13 @@ def live_iteration_scenarios(world: SealedWorld) -> tuple[Scenario, ...]:
 
 @dataclass(frozen=True)
 class ProbeConfiguration:
-    """The investigator's configuration under the draft, the rules a run is read by, and
-    the reservation one run is admitted with."""
+    """A model system's configuration under the draft (the investigator's, or a one-call
+    baseline's since the baselines step), the cell's system kind and level, the rules a run
+    is read by, and the reservation one run is admitted with."""
 
     role: RoleFilling
+    system: SystemKind
+    level: str
     rules: Rules
     worker: WorkerConfiguration
     harness: HarnessRevision
@@ -149,10 +157,14 @@ class ProbeConfiguration:
         return self.worker.frozen_for(admitted)
 
 
-def probe_configuration(*, tree_state: TreeState) -> ProbeConfiguration:
-    """The configuration the work command would compose from this probe's line."""
+def probe_configuration(
+    *, tree_state: TreeState, system: SystemKind = SystemKind.AGENT, level: str = LEVEL
+) -> ProbeConfiguration:
+    """The configuration the work command would compose from this probe's line for the
+    cell of ``system`` at ``level`` under the normal condition: the one role the system runs
+    filled with the probe's model (the baselines step, fork 15)."""
     role = RoleFilling(
-        Role.INVESTIGATOR.value,
+        MODEL_SYSTEM_ROLES[system].value,
         CallConfiguration(
             MODEL, (CallSetting("max_tokens", OUTPUT_MAXIMUM), CallSetting("temperature", 0))
         ),
@@ -164,9 +176,9 @@ def probe_configuration(*, tree_state: TreeState) -> ProbeConfiguration:
     basis = basis_for(table, (role.pricing,))
     worker = model_system_provenance(
         registration(),
-        SystemKind.AGENT,
+        system,
         CONDITION,
-        LEVEL,
+        level,
         preregistration_commit=registration_commit(),
         pricing=basis,
         role=role,
@@ -179,6 +191,8 @@ def probe_configuration(*, tree_state: TreeState) -> ProbeConfiguration:
     )
     return ProbeConfiguration(
         role,
+        system,
+        level,
         effective_rules(registration()),
         worker,
         HarnessRevision(head_commit(), tree_state),
