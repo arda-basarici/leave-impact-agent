@@ -27,6 +27,15 @@ may be a class that was billed. A cumulative cost sums the priced dispatches and
 complete only when every send was priced and every price complete, so an error that
 reported no usage, or a dispatch nobody can prove was not sent, leaves the run's cost a
 floor; a dispatch the client refused before sending was no send and costs nothing.
+
+A run's reservation, the money its admission holds against the ledger's threshold until
+the attempt settles, is derived here from the registered caps and nothing else
+(``run_reservation``, the first live run's fork 13): every input token the token cap
+admits at the dearest input-side rate, and every dispatch the call cap and the re-dispatch
+policy allow generating its output maximum at the output rate. The account authorizes a
+dispatch against that reservation as it does against the caps, so a reservation below the
+caps' own ceiling would end a run on money the caps still had room for; the figure is the
+caps' ceiling, so money is never the resource that stops a run inside its caps.
 """
 
 from __future__ import annotations
@@ -36,6 +45,7 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
 
+from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.jsonshape import (
     JsonObject,
     array_field,
@@ -49,6 +59,7 @@ from leaveimpact.core.model_calls import Dispatch, ModelCall, Sends
 from leaveimpact.core.run_record import (
     BILLED_ON_EVERY_CALL,
     AbsentMeaning,
+    Caps,
     PricingBasis,
     PricingRow,
     PricingSelection,
@@ -271,6 +282,57 @@ def worst_case_cost(
     """
     require_integer(input_tokens, "an input bound in tokens")
     require_integer(output_maximum, "an output maximum", minimum=1)
+    dearest_input, output_rate = _worst_case_rates(selection, basis)
+    return input_tokens * dearest_input + output_maximum * output_rate
+
+
+def run_reservation(
+    caps: Caps,
+    policy: RedispatchPolicy,
+    roles: Iterable[tuple[int, PricingSelection]],
+    basis: PricingBasis,
+) -> int:
+    """The most a run's dispatches can cost under ``caps``, in pico-dollars: what an
+    admission reserves. ``roles`` gives each configured role's output maximum and pricing
+    selection; a run with no role calls no model and reserves nothing, not zero, so an
+    empty ``roles`` is ``ValueError``.
+
+    The token cap bounds what the account holds in tokens across every dispatch, so the
+    input side is the whole cap at the dearest input-side rate any role is priced at; the
+    call cap bounds the logical calls and the policy the dispatches of each, so the output
+    side is that many dispatches each generating the largest output maximum at its role's
+    output rate. The finalization reserves sit inside both caps and add nothing. The two
+    maxima are taken apart, so the figure bounds a run whose roles differ in both.
+
+    >>> from datetime import date
+    >>> from leaveimpact.core.input_bound import RegisteredInputBound
+    >>> basis = PricingBasis("0" * 64, "USD", date(2026, 9, 1), tuple(
+    ...     PricingRow("model-a", "eu-central-1", "on_demand", name, rate)
+    ...     for name, rate in (("input_tokens", 1_000_000), ("output_tokens", 5_000_000),
+    ...                        ("cache_read_input_tokens", 100_000),
+    ...                        ("cache_write_input_tokens", 1_250_000))))
+    >>> caps = Caps(4, 1_000, 1, 200, "input_plus_output_cached_included",
+    ...             RegisteredInputBound("provider_count", 1))
+    >>> selection = PricingSelection("model-a", "eu-central-1", "on_demand")
+    >>> run_reservation(caps, RedispatchPolicy(3, 0), [(10, selection)], basis)
+    1850000000
+    """
+    rates = [
+        (require_integer(maximum, "an output maximum", minimum=1), *_worst_case_rates(sel, basis))
+        for maximum, sel in roles
+    ]
+    if not rates:
+        raise ValueError("a run with no role calls no model and reserves nothing, not zero")
+    dearest_input = max(dearest for _, dearest, _ in rates)
+    dearest_dispatch_output = max(maximum * output_rate for maximum, _, output_rate in rates)
+    dispatches = caps.call_cap * policy.max_dispatches
+    return caps.token_cap * dearest_input + dispatches * dearest_dispatch_output
+
+
+def _worst_case_rates(selection: PricingSelection, basis: PricingBasis) -> tuple[int, int]:
+    """The dearest input-side rate and the output rate under ``selection``, or ``ValueError``
+    when the basis leaves any of the four classes unpriced: a maximum over the rates that
+    happen to be present would be no bound."""
 
     def rate(token_class: str) -> int | None:
         return basis.rate(
@@ -286,8 +348,7 @@ def worst_case_cost(
             "worst case can be priced"
         )
     priced = {name: held for name, held in rates.items() if held is not None}
-    dearest_input = max(priced[name] for name in INPUT_SIDE_CLASSES)
-    return input_tokens * dearest_input + output_maximum * priced["output_tokens"]
+    return max(priced[name] for name in INPUT_SIDE_CLASSES), priced["output_tokens"]
 
 
 def cost_of_reported(

@@ -63,12 +63,14 @@ from leaveimpact.core.counting_operations import Counted, CountOutcome
 from leaveimpact.core.entities import Document, DocumentSection, Employee
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import ClauseId, EmployeeId, employee_id
+from leaveimpact.core.input_bound import output_maximum
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import CompleteResponse, Observation, Sent, ServiceError
 from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import Observed
 from leaveimpact.core.ports.read import PeopleReader
 from leaveimpact.core.prefetch import prefetch_rule
+from leaveimpact.core.pricing import run_reservation
 from leaveimpact.core.refs import clause_ref
 from leaveimpact.core.run_record import System
 from leaveimpact.core.run_trace import HarnessOrigin, OperationId, Outcome
@@ -146,6 +148,19 @@ def reader_inputs(context: RunContext, system: System) -> FrozenInputs:
 def admission(inputs: FrozenInputs) -> tuple[LoggedEvent, ...]:
     """The one-event log of an attempt just admitted."""
     return (LoggedEvent(1, cases.ADMITTED, ADMITTER, Admitted(inputs)),)
+
+
+def reservation_of(inputs: FrozenInputs) -> int:
+    """The reservation the registered caps of ``inputs`` derive for a model-calling run: the
+    figure an admission would hold, computed from the frozen caps, policy, roles and basis
+    the way the launcher computes it from the registration."""
+    assert inputs.redispatch is not None, "a rules-only run reserves nothing"
+    selections = dict(inputs.pricing_selections)
+    roles = [
+        (output_maximum(configuration), selections[role])
+        for role, configuration in inputs.model_configurations
+    ]
+    return run_reservation(inputs.caps, inputs.redispatch, roles, inputs.pricing)
 
 
 def request_digest(body: JsonObject) -> str:
@@ -635,6 +650,7 @@ __all__ = [
     "observed",
     "reader_inputs",
     "request_digest",
+    "reservation_of",
     "sends_of",
     "settled",
     "stating_script",

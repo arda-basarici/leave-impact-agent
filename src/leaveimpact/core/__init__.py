@@ -424,6 +424,7 @@ from leaveimpact.core.pricing import (
     encode_price_table,
     encode_rate,
     run_cost,
+    run_reservation,
     worst_case_cost,
 )
 from leaveimpact.core.provenance import (
@@ -1359,6 +1360,7 @@ __all__ = [
     "absent_as_zero",
     "INPUT_SIDE_CLASSES",
     "worst_case_cost",
+    "run_reservation",
     "INPUT_BOUND_METHODS",
     "MAX_OUTPUT_SETTING",
     "PROVIDER_COUNT",

@@ -41,7 +41,7 @@ import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, fields, replace
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 
 import pytest
@@ -1255,3 +1255,30 @@ def test_a_harness_read_the_admitted_system_does_not_issue_is_this_harnesss_defe
     assert closing.site == HarnessSite(HarnessSiteName.EVENT_APPEND)
     assert closing.reason.endswith(": operation refused")
     assert made.client.sends == []
+
+
+# --- The run's reservation over the references ----------------------------------------------
+
+
+@pytest.mark.parametrize("name", sorted(support.SCRIPTS))
+def test_no_references_summed_allocations_exceed_the_runs_reservation(
+    world: SealedWorld, name: str
+) -> None:
+    """Every run a process can be told to drive (the crash matrix's references and the
+    integration rig's), worked in memory: the money its dispatch intents allocated, summed
+    over the whole run, stays inside the reservation the registered caps derive, the figure
+    an admission holds against the threshold. The bound is on allocations, not on the
+    account's settled contributions, so no settlement is needed for it to hold."""
+    script = support.SCRIPTS[name]
+    context = world.context_of(world.scenarios[0])
+    inputs = script.inputs(context)
+    turns, client = script.over(world, context)
+    log = MemoryLog()
+    log.seed(support.admission(inputs))
+    made = Bench(log, inputs, cast(Any, turns), cast(Any, client))
+    made.ports = script.ports(systems_holding(world).ports)
+    made.work()
+    intents = intents_of(made.events())
+    assert intents, name
+    allocated = sum(intent.allocation_pico_usd for _, intent in intents)
+    assert allocated <= support.reservation_of(inputs), name

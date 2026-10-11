@@ -3,7 +3,9 @@ the rows under each selection and refuses a selection with none, a cost is the e
 product with its completeness stated, a reported class with no rate refuses, a cumulative
 cost is a floor when a send went unpriced, and an aggregate counts only reporting
 dispatches. Every rate is integer pico-dollars per token, the unit in which each published
-rate the project pays is an integer."""
+rate the project pays is an integer. A run's reservation is the caps' own ceiling, the
+dearest rate of any role on each side, and no hand-built history's summed allocations
+exceed it."""
 
 import json
 from collections.abc import Mapping
@@ -12,6 +14,7 @@ from fractions import Fraction
 
 import pytest
 
+from leaveimpact.agent.log_events import Admitted, DispatchIntent
 from leaveimpact.core import (
     UNRESOLVED_RULE,
     AbsentMeaning,
@@ -44,9 +47,15 @@ from leaveimpact.core import (
     decode_price_table,
     encode_price_table,
     run_cost,
+    run_reservation,
 )
+from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.jsonshape import canonical_json
 from leaveimpact.core.model_calls import Observation
+from leaveimpact.core.run_record import Caps
+from tests.unit import format_fixtures as cases
+from tests.unit import log_histories as histories
+from tests.unit.worker_support import reservation_of
 
 HAIKU = PricingSelection("model-a", "eu-central-1", "on_demand")
 NOVA = PricingSelection("model-b", "eu-central-1", "on_demand")
@@ -352,3 +361,45 @@ def test_every_published_rate_is_an_integer_in_pico_dollars_and_three_are_not_in
         "nova-micro cache read",
     }
     assert pico["nova-pro cache read"] / 1_000 == Fraction(525, 2)
+
+
+def test_a_runs_reservation_is_the_caps_ceiling_at_the_dearest_rate_of_any_role() -> None:
+    caps = Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", cases.METHOD)
+    policy = RedispatchPolicy(3, 0)
+    one_role = run_reservation(caps, policy, [(512, cases.SELECTION)], cases.BASIS)
+    assert one_role == 100_000 * 1_375_000 + 20 * 3 * 512 * 5_500_000
+    # A second role priced under a dearer output rate and a smaller output maximum: each
+    # side takes its own maximum, so the figure exceeds either role's alone.
+    rows = (
+        *cases.BASIS.rows,
+        PricingRow("model-b", "eu-central-1", "on_demand", "input_tokens", 500_000),
+        PricingRow("model-b", "eu-central-1", "on_demand", "output_tokens", 20_000_000),
+        PricingRow("model-b", "eu-central-1", "on_demand", "cache_read_input_tokens", 50_000),
+        PricingRow("model-b", "eu-central-1", "on_demand", "cache_write_input_tokens", 600_000),
+    )
+    basis = PricingBasis(cases.DIGEST, "USD", cases.BASIS.effective_from, rows)
+    other = PricingSelection("model-b", "eu-central-1", "on_demand")
+    two_roles = run_reservation(caps, policy, [(512, cases.SELECTION), (256, other)], basis)
+    assert two_roles == 100_000 * 1_375_000 + 20 * 3 * 256 * 20_000_000
+    assert two_roles > one_role
+    with pytest.raises(ValueError, match="reserves nothing, not zero"):
+        run_reservation(caps, policy, [], cases.BASIS)
+    with pytest.raises(ValueError, match="no rate for"):
+        run_reservation(caps, policy, [(512, other)], cases.BASIS)
+
+
+@pytest.mark.parametrize("name", sorted(histories.HISTORIES))
+def test_no_hand_built_historys_summed_allocations_exceed_the_runs_reservation(
+    name: str,
+) -> None:
+    events = histories.HISTORIES[name]()
+    admitted = events[0].event
+    assert isinstance(admitted, Admitted)
+    inputs = admitted.inputs
+    allocated = sum(
+        e.event.allocation_pico_usd for e in events if isinstance(e.event, DispatchIntent)
+    )
+    if inputs.redispatch is None:
+        assert allocated == 0 and inputs.reservation_pico_usd is None
+        return
+    assert allocated <= reservation_of(inputs)
