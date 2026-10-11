@@ -3,7 +3,8 @@ inventory commands take this code's commit from the image's identity variable an
 without it, the rules come from the registration file (each pending value ``None``, and
 the rules of a system that calls no model with no file), the admission request's file
 decodes to the request the store takes, a malformed line or file is a configuration
-fault, and a missing database is one too."""
+fault, a missing database is one too, and an attempt at a recorded stop is closed over the
+run log alone."""
 
 from __future__ import annotations
 
@@ -13,6 +14,7 @@ from types import SimpleNamespace
 from typing import Any
 
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 
 from leaveimpact.adapters.object_store.layout import world_manifest_key
 from leaveimpact.adapters.wiring import ConfigurationError
@@ -26,23 +28,31 @@ from leaveimpact.agent.commands import (
     ThresholdRequest,
     WorkRequest,
 )
-from leaveimpact.agent.log_events import Admitted, Producer, encode_event
+from leaveimpact.agent.graph import NoPreparation
+from leaveimpact.agent.log_events import Admitted, EventKind, Producer, encode_event, kind_of
+from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.agent.registered import (
     DEVELOPMENT_ATTRIBUTION_TABLE,
     DEVELOPMENT_REDISPATCH_POLICY,
     RoleFilling,
+    effective_rules,
+    model_system_provenance,
 )
-from leaveimpact.agent.worker import AutomaticApproval, HumanApproval
+from leaveimpact.agent.worker import AutomaticApproval, HumanApproval, Worker
 from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.inventory import InventoryScope
+from leaveimpact.core.pricing import basis_for, decode_price_table
 from leaveimpact.core.registration_json import registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
-from leaveimpact.core.run_record import PricingSelection, SystemKind
+from leaveimpact.core.run_record import FailureCategory, PricingSelection, SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from tests.unit import format_fixtures as cases
 from tests.unit import worker_support as support
+from tests.unit.log_store_memory import MemoryLog
+from tests.unit.reads_fixture import systems_holding
 from tests.unit.registration_fixture import DRAFT, named, pending_roles
+from tests.unit.throwaway_world import loaded_world
 
 COMMIT = "a" * 40
 ENV = {job.CODE_VERSION: COMMIT}
@@ -106,11 +116,18 @@ PRICES = {
             "billing_mode": "on_demand",
             "token_class": token_class,
             "pico_usd_per_token": 1_100_000,
-            "when_absent": "unknown",
+            "when_absent": when_absent,
         }
-        for token_class in ("input_tokens", "output_tokens")
+        for token_class, when_absent in (
+            ("input_tokens", "unknown"),
+            ("output_tokens", "unknown"),
+            ("cache_read_input_tokens", "zero"),
+            ("cache_write_input_tokens", "zero"),
+        )
     ],
 }
+"""One rate for the four classes a dispatch's worst case is priced over; the two cache
+classes read as zero when a response omits them, as the committed table's do."""
 
 
 def test_each_command_parses_to_its_request() -> None:
@@ -356,7 +373,7 @@ class _AdmittedStore(_AdmissionlessStore):
 
     def load(self, run_id: str, attempt: int, *, rules: Rules) -> Any:
         self.loaded.append((run_id, attempt))
-        return SimpleNamespace(inputs=support.admitted_inputs())
+        return SimpleNamespace(inputs=support.admitted_inputs(), closed=None, stopped=None)
 
 
 def test_a_manifest_that_does_not_decode_is_reported_without_what_it_held(
@@ -442,3 +459,86 @@ def test_a_request_file_that_does_not_decode_is_reported_without_what_it_held(
     status = job.main(["admit", "--request", str(tmp_path / "absent.json")], {})
     captured = capsys.readouterr()
     assert status == 2 and "absent.json" in captured.err and "FileNotFoundError" in captured.err
+
+
+class _Log(MemoryLog):
+    """The in-memory log as the entry's store: the entry closes what it was handed."""
+
+    def close(self) -> None:
+        pass
+
+
+def test_an_attempt_at_a_recorded_stop_is_closed_over_the_run_log_alone(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The FIXLOG's session-86 case, ruled as fork 9 of the first live run's step: the log
+    holds a recorded stopping failure and its segment was never ended (the process died
+    between the stop and its closing); the work command closes the attempt by that failure
+    through the terminal worker, under an environment that names no object store, no vendor
+    host and no database, so any store the path reached would have failed it. The export
+    then carries the recorded ending and the dead segment's unrecorded end.
+
+    The history is made by the real worker over the configuration the line composes, since
+    the terminal path compares the two before it claims; the throttled script fails the
+    first call by infrastructure at its last dispatch's send.
+    """
+    registration = pending_roles(DRAFT)
+    registration_file = tmp_path / "registration.json"
+    registration_file.write_bytes(registration_bytes(registration))
+    prices = tmp_path / "prices.json"
+    prices.write_text(json.dumps(PRICES), encoding="utf-8")
+    line = [*WORK, "--registration", str(registration_file), "--prices", str(prices)]
+    parsed = job.parse_request(line, ENV).request
+    assert isinstance(parsed, job.WorkLine) and parsed.role is not None
+    configuration = model_system_provenance(
+        registration,
+        SystemKind.AGENT,
+        "normal",
+        "base",
+        preregistration_commit=cases.COMMIT,
+        pricing=basis_for(decode_price_table(PRICES), (parsed.role.pricing,)),
+        role=parsed.role,
+    )
+    rules = effective_rules(registration)
+    world = loaded_world("golden")
+    context = world.context_of(world.scenarios[0])
+    inputs = configuration.frozen_for(support.admitted_inputs(context))
+    turns, client = support.throttled_script(context)
+    worked = _Log()
+    worked.seed(support.admission(inputs))
+    Worker(
+        worked,
+        configuration,
+        parsed.harness,
+        "launcher:test",
+        rules,
+        turns,
+        NoPreparation(),
+        client,
+        support.ScriptedCounter(),
+        systems_holding(world).ports,
+        AutomaticApproval(),
+        InMemorySaver(),
+        sleep=lambda seconds: None,
+    ).work("run-12", 1, nonce="nonce-0")
+    events = worked.events("run-12", 1)
+    assert kind_of(events[-1].event) is EventKind.FAILED
+    stopped = _Log()
+    stopped.seed(events[:-1])
+    before = stopped.load("run-12", 1, rules=rules)
+    assert before.stopped is not None and before.closed is None
+    assert before.current_segment is not None and not before.current_segment.ended
+    status = job.main(line, ENV, stopped)  # type: ignore[arg-type]
+    captured = capsys.readouterr()
+    assert status == 0, captured.err
+    assert captured.out.splitlines() == [
+        "worked=run-12/1",
+        "ending=closed",
+        "detail=failed",
+        "generation=2",
+    ]
+    export = export_of(stopped.load("run-12", 1, rules=rules))
+    failure = export.record.failure
+    assert failure is not None and failure.category is FailureCategory.INFRASTRUCTURE
+    assert (failure.category, failure.site) == (before.stopped.category, before.stopped.site)
+    assert [segment.end_recorded for segment in export.record.timing.segments] == [False, True]

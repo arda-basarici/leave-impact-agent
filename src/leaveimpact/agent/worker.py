@@ -36,6 +36,16 @@ repository-relative location and never a message. Where recording the defect its
 the attempt stays open, and a refused terminalization is read once more for closure and
 ownership, never recorded as a second defect.
 
+*The terminal path alone* (the first live run's step, fork 9). An attempt whose log already
+holds a recorded stopping failure with its segment still open, a process having died
+between the stop and its closing, has its ending decided: the worker above claims and
+finalizes without running the graph, and needs none of its fillings to do so. The
+composition root that sees such an attempt composes ``TerminalWorker`` instead, which does
+the load, the comparison, the claim and the closing over the run log and nothing else, so
+a closing that is already decided cannot fail for a reason unrelated to the attempt (a
+world store unreachable, a corpus not served, a vendor host down). The two workers share
+``Claimant``, the half of the order that touches the log alone.
+
 Nothing here logs. The ending names what happened in kinds and field names, and a job that
 prints it prints no scenario content.
 """
@@ -253,32 +263,31 @@ class WorkerEnding:
 
 
 @dataclass(frozen=True)
-class Worker:
-    """One worker's composition: the log, its configuration and provenance, the system's
-    fillings and the seams. ``work`` is the command."""
+class Claimant:
+    """What any process that takes ownership of an attempt does over the run log alone: the
+    load, the configuration comparison, the claim, and the endings that write nothing but
+    the log (a recorded stop finalized, a defect recorded, a closing refused and read back
+    for closure and ownership). ``Worker`` runs the skeleton between the claim and the
+    ending; ``TerminalWorker`` runs nothing there."""
 
     store: LogCommands
     configuration: WorkerConfiguration
     harness: HarnessRevision
     launch: str
     rules: Rules
-    turns: Turns
-    preparation: Preparation
-    client: ModelClient
-    counter: TokenCounter
-    ports: ReadPorts
-    approval: ApprovalPolicy
-    saver: BaseCheckpointSaver[Any]
-    monotonic: Callable[[], float] = time.monotonic
-    sleep: Callable[[float], None] = time.sleep
-    boundary: Callable[[str], None] = lambda name: None
-    """Named points of the approval handoff a crash check kills at, beside the store's own
-    boundaries and the saver's seams; a no-op in production."""
 
-    def work(
-        self, run_id: str, attempt: int, *, nonce: str, override: CommitOverride | None = None
-    ) -> WorkerEnding:
-        """Bring the attempt as far as this process can: see the module for the order."""
+    def claim(
+        self,
+        run_id: str,
+        attempt: int,
+        *,
+        nonce: str,
+        override: CommitOverride | None,
+        monotonic: Callable[[], float],
+    ) -> WorkerEnding | Appender:
+        """The order up to and including the claim (see the module): the appender of the
+        segment the claim opened, its clock started by ``monotonic``, or the ending that
+        stopped short of a claim."""
         try:
             state = self.store.load(run_id, attempt, rules=self.rules)
         except LogStoreUnavailable:
@@ -332,10 +341,84 @@ class Worker:
                 raise RuntimeError("a fresh nonce was received as a repeated claim")
             case Appended(state=after):
                 pass
-        appender = Appender.after_claim(
-            self.store, after, rules=self.rules, monotonic=self.monotonic
+        return Appender.after_claim(self.store, after, rules=self.rules, monotonic=monotonic)
+
+    # --- the endings over the log alone --------------------------------------------------
+
+    def _settled_elsewhere(self, appender: Appender, latest: AttemptState) -> WorkerEnding | None:
+        if latest.closed is not None:
+            return self._ending(appender, WorkerEndingKind.CLOSED_ALREADY, _closing_kind(latest))
+        if latest.generation != appender.generation:
+            return self._ending(
+                appender, WorkerEndingKind.FENCED, f"generation {latest.generation}"
+            )
+        current = latest.current_segment
+        if current is not None and current.ended:
+            return self._ending(appender, WorkerEndingKind.SEGMENT_ENDED, "segment ended")
+        return None
+
+    def _finalize(self, appender: Appender) -> WorkerEnding:
+        stopped = appender.state.stopped
+        assert stopped is not None
+        closing = Failed(stopped.category, stopped.site, stopped.reason, None)
+        return self._close(appender, closing)
+
+    def _record_defect(
+        self, appender: Appender, site: HarnessSiteName, fault: BaseException
+    ) -> WorkerEnding:
+        closing = Failed(FailureCategory.DEFECT, HarnessSite(site), _reason(fault), None)
+        return self._close(appender, closing)
+
+    def _close(self, appender: Appender, closing: Failed) -> WorkerEnding:
+        """The closing event, once; a refusal is read for closure and ownership and never
+        recorded as a second defect; a store fault leaves the attempt open."""
+        try:
+            appender.close(closing)
+        except AppendRefused:
+            try:
+                latest = self.store.load(appender.run_id, appender.attempt, rules=self.rules)
+            except LogStoreUnavailable:
+                return self._ending(appender, WorkerEndingKind.LEFT_OPEN, "log unavailable")
+            settled = self._settled_elsewhere(appender, latest)
+            if settled is not None:
+                return settled
+            return self._ending(appender, WorkerEndingKind.LEFT_OPEN, "terminalization refused")
+        except (LogStoreUnavailable, LogStoreConflict, LogStoreInvariantBroken):
+            return self._ending(appender, WorkerEndingKind.LEFT_OPEN, "recording failed")
+        return self._ending(appender, WorkerEndingKind.CLOSED, kind_of(closing).value)
+
+    def _ending(self, appender: Appender, kind: WorkerEndingKind, detail: str) -> WorkerEnding:
+        return WorkerEnding(kind, appender.run_id, appender.attempt, appender.generation, detail)
+
+
+@dataclass(frozen=True)
+class Worker(Claimant):
+    """One worker's composition: the log, its configuration and provenance, the system's
+    fillings and the seams. ``work`` is the command."""
+
+    turns: Turns
+    preparation: Preparation
+    client: ModelClient
+    counter: TokenCounter
+    ports: ReadPorts
+    approval: ApprovalPolicy
+    saver: BaseCheckpointSaver[Any]
+    monotonic: Callable[[], float] = time.monotonic
+    sleep: Callable[[float], None] = time.sleep
+    boundary: Callable[[str], None] = lambda name: None
+    """Named points of the approval handoff a crash check kills at, beside the store's own
+    boundaries and the saver's seams; a no-op in production."""
+
+    def work(
+        self, run_id: str, attempt: int, *, nonce: str, override: CommitOverride | None = None
+    ) -> WorkerEnding:
+        """Bring the attempt as far as this process can: see the module for the order."""
+        claimed = self.claim(
+            run_id, attempt, nonce=nonce, override=override, monotonic=self.monotonic
         )
-        return self._run(appender)
+        if isinstance(claimed, WorkerEnding):
+            return claimed
+        return self._run(claimed)
 
     # --- the run and its handler -------------------------------------------------------
 
@@ -421,48 +504,6 @@ class Worker:
             return self._finalize(appender)
         return self._record_defect(appender, HarnessSiteName.EVENT_APPEND, refused)
 
-    def _settled_elsewhere(self, appender: Appender, latest: AttemptState) -> WorkerEnding | None:
-        if latest.closed is not None:
-            return self._ending(appender, WorkerEndingKind.CLOSED_ALREADY, _closing_kind(latest))
-        if latest.generation != appender.generation:
-            return self._ending(
-                appender, WorkerEndingKind.FENCED, f"generation {latest.generation}"
-            )
-        current = latest.current_segment
-        if current is not None and current.ended:
-            return self._ending(appender, WorkerEndingKind.SEGMENT_ENDED, "segment ended")
-        return None
-
-    def _finalize(self, appender: Appender) -> WorkerEnding:
-        stopped = appender.state.stopped
-        assert stopped is not None
-        closing = Failed(stopped.category, stopped.site, stopped.reason, None)
-        return self._close(appender, closing)
-
-    def _record_defect(
-        self, appender: Appender, site: HarnessSiteName, fault: BaseException
-    ) -> WorkerEnding:
-        closing = Failed(FailureCategory.DEFECT, HarnessSite(site), _reason(fault), None)
-        return self._close(appender, closing)
-
-    def _close(self, appender: Appender, closing: Failed) -> WorkerEnding:
-        """The closing event, once; a refusal is read for closure and ownership and never
-        recorded as a second defect; a store fault leaves the attempt open."""
-        try:
-            appender.close(closing)
-        except AppendRefused:
-            try:
-                latest = self.store.load(appender.run_id, appender.attempt, rules=self.rules)
-            except LogStoreUnavailable:
-                return self._ending(appender, WorkerEndingKind.LEFT_OPEN, "log unavailable")
-            settled = self._settled_elsewhere(appender, latest)
-            if settled is not None:
-                return settled
-            return self._ending(appender, WorkerEndingKind.LEFT_OPEN, "terminalization refused")
-        except (LogStoreUnavailable, LogStoreConflict, LogStoreInvariantBroken):
-            return self._ending(appender, WorkerEndingKind.LEFT_OPEN, "recording failed")
-        return self._ending(appender, WorkerEndingKind.CLOSED, kind_of(closing).value)
-
     def _end_segment(self, appender: Appender) -> None:
         """Best effort on a stop signal: the segment's end where an append is still possible."""
         try:
@@ -470,8 +511,38 @@ class Worker:
         except (AppendRefused, LogStoreUnavailable, LogStoreConflict, LogStoreInvariantBroken):
             return
 
-    def _ending(self, appender: Appender, kind: WorkerEndingKind, detail: str) -> WorkerEnding:
-        return WorkerEnding(kind, appender.run_id, appender.attempt, appender.generation, detail)
+
+@dataclass(frozen=True)
+class TerminalWorker(Claimant):
+    """The worker's terminal path alone (the first live run's step, fork 9): for an attempt
+    whose log holds a recorded stopping failure with its segment still open, the claim and
+    the closing by that failure, and nothing of the skeleton. Composed over the run log and
+    nothing else; the composition root chooses it from the loaded state, and the stop it
+    saw there is the one the claim finds, since a recorded stop is kept once held. An
+    attempt handed here whose claimed state holds no recorded stop is this harness's
+    defect, recorded at the ``unhandled`` site and closing the attempt, as the worker
+    records any illegal event of its own: a retry could hide the composition that misread
+    the log."""
+
+    monotonic: Callable[[], float] = time.monotonic
+
+    def finalize(
+        self, run_id: str, attempt: int, *, nonce: str, override: CommitOverride | None = None
+    ) -> WorkerEnding:
+        """Claim the attempt and close it by its recorded stopping failure."""
+        claimed = self.claim(
+            run_id, attempt, nonce=nonce, override=override, monotonic=self.monotonic
+        )
+        if isinstance(claimed, WorkerEnding):
+            return claimed
+        try:
+            if claimed.state.stopped is None:
+                raise RuntimeError(
+                    "composed for a recorded stop, and the claimed attempt holds none"
+                )
+            return self._finalize(claimed)
+        except Exception as exc:
+            return self._record_defect(claimed, HarnessSiteName.UNHANDLED, exc)
 
 
 # --- Readers ---------------------------------------------------------------------------------
@@ -508,7 +579,9 @@ __all__ = [
     "COPIED_FROM_THE_ADMISSION",
     "ApprovalPolicy",
     "AutomaticApproval",
+    "Claimant",
     "HumanApproval",
+    "TerminalWorker",
     "Worker",
     "WorkerConfiguration",
     "WorkerEnding",

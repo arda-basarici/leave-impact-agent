@@ -90,6 +90,7 @@ from leaveimpact.agent.worker import (
     COPIED_FROM_THE_ADMISSION,
     AutomaticApproval,
     HumanApproval,
+    TerminalWorker,
     Worker,
     WorkerConfiguration,
     WorkerEnding,
@@ -698,6 +699,65 @@ def test_a_recorded_stopping_failure_is_finalized_without_running_the_graph(
     assert recovering.kinds()[-2:] == ["segment_started", "failed"]
     closing = recovering.log.load(RUN, ATTEMPT, rules=rules).closing
     assert isinstance(closing, Failed) and closing.category is FailureCategory.INFRASTRUCTURE
+
+
+def test_the_terminal_worker_closes_a_recorded_stop_over_the_log_alone(
+    world: SealedWorld,
+) -> None:
+    """The first live run's step, fork 9: an attempt whose log holds a recorded stopping
+    failure with its segment still open (the throttled run's closing dropped, as a death
+    between the stop and its closing leaves it) is claimed and closed by that failure by a
+    worker composed over the log alone, with no turns, client, counter, port or saver; the
+    closing is the stop's category and site, and the same claim path leaves a closed attempt
+    at the load."""
+    made = bench(world, script=throttled_script)
+    assert made.work().detail == "failed"
+    events = made.events()
+    stopped = bench(world, events=events[:-1])
+    before = stopped.log.load(RUN, ATTEMPT, rules=RULES)
+    assert before.stopped is not None and before.closed is None
+    assert before.current_segment is not None and not before.current_segment.ended
+    terminal = TerminalWorker(
+        stopped.log, WorkerConfiguration.of(stopped.inputs), cases.REVISION, "launch-1", RULES
+    )
+    ending = terminal.finalize(RUN, ATTEMPT, nonce="nonce-terminal")
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "failed")
+    assert stopped.kinds()[-2:] == ["segment_started", "failed"]
+    closing = stopped.log.load(RUN, ATTEMPT, rules=RULES).closing
+    assert isinstance(closing, Failed)
+    assert (closing.category, closing.site) == (before.stopped.category, before.stopped.site)
+    again = terminal.finalize(RUN, ATTEMPT, nonce="nonce-again")
+    assert again == WorkerEnding(WorkerEndingKind.CLOSED_ALREADY, RUN, ATTEMPT, 2, "failed")
+
+
+def test_the_terminal_worker_over_an_attempt_with_no_recorded_stop_records_a_defect(
+    world: SealedWorld,
+) -> None:
+    """The branch the composition root never reaches, since a recorded stop is kept across
+    the claim: a terminal worker handed an attempt whose claimed state holds no stop closes
+    it as this harness's defect at the ``unhandled`` site, the reason a type and a location in
+    the worker module, so a composition that misread the log is recorded and never retried;
+    and a differing configuration claims nothing, as for any worker."""
+    made = bench(world)
+    other = replace(WorkerConfiguration.of(made.inputs), corpus_level="padded")
+    mismatched = TerminalWorker(made.log, other, cases.REVISION, "launch-1", RULES)
+    ending = mismatched.finalize(RUN, ATTEMPT, nonce="nonce-1")
+    assert ending == WorkerEnding(
+        WorkerEndingKind.CONFIGURATION_MISMATCH, RUN, ATTEMPT, 0, "corpus_level"
+    )
+    assert made.kinds() == ["admitted"]
+    terminal = TerminalWorker(
+        made.log, WorkerConfiguration.of(made.inputs), cases.REVISION, "launch-1", RULES
+    )
+    ending = terminal.finalize(RUN, ATTEMPT, nonce="nonce-2")
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    closing = made.log.load(RUN, ATTEMPT, rules=RULES).closing
+    assert isinstance(closing, Failed)
+    assert closing.category is FailureCategory.DEFECT
+    assert closing.site == HarnessSite(HarnessSiteName.UNHANDLED)
+    assert re.fullmatch(
+        r"builtins\.RuntimeError at src/leaveimpact/agent/worker\.py:\d+", closing.reason
+    ), closing.reason
 
 
 def test_a_closed_attempt_is_left_at_the_load_and_a_claim_on_it_is_refused(

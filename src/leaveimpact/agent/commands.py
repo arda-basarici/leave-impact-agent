@@ -5,9 +5,12 @@ step's ruling on the job seam, part 2).
 Jobs are started explicitly. A command takes a request type, the store, and what it
 composes over (a worker's fillings, a publisher), and returns a result type or a refusal
 as a value; nothing here reads a clock, a file or the environment, which is the
-command-line entry's. The store's own refusals and receipts are what the commands pass
-on: a repeated delivery is the store's receipt, a closed attempt answers an abandonment
-with its refusal, and a request for an attempt that exists is the admission's backstop.
+command-line entry's. The work command has a terminal-only form, ``finalize``, for an
+attempt whose log already holds its ending (the first live run's step, fork 9): the same
+request over the configuration, the revision and the rules alone, and no filling. The
+store's own refusals and receipts are what the commands pass on: a repeated delivery is
+the store's receipt, a closed attempt answers an abandonment with its refusal, and a
+request for an attempt that exists is the admission's backstop.
 
 Publication is the one command with an order of its own (the ruling on an export that will
 not construct, and the commands group's forks 6 and 7). A published record is returned as
@@ -63,7 +66,13 @@ from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
 from leaveimpact.agent.rules_only import RulesOnlyTurns
 from leaveimpact.agent.turns import InvestigatorTurns
-from leaveimpact.agent.worker import ApprovalPolicy, Worker, WorkerConfiguration, WorkerEnding
+from leaveimpact.agent.worker import (
+    ApprovalPolicy,
+    TerminalWorker,
+    Worker,
+    WorkerConfiguration,
+    WorkerEnding,
+)
 from leaveimpact.core.inventory import (
     Inventory,
     InventoryScope,
@@ -182,6 +191,35 @@ def work(request: WorkRequest, store: LogStore, composition: WorkerComposition) 
         composition.saver,
     )
     return worker.work(
+        request.run_id, request.attempt, nonce=request.nonce, override=request.override
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class TerminalComposition:
+    """What the terminal-only path is composed over: the effective configuration compared
+    with the admission's, the harness revision and the registered rules; no content, no
+    client, no port and no saver, since nothing of the skeleton runs."""
+
+    configuration: WorkerConfiguration
+    harness: HarnessRevision
+    rules: Rules
+
+
+def finalize(
+    request: WorkRequest, store: LogStore, composition: TerminalComposition
+) -> WorkerEnding:
+    """Close an attempt whose log holds a recorded stopping failure by that failure, as the
+    terminal worker does: load, compare the configuration, claim, close; nothing beyond the
+    run log is touched (the first live run's step, fork 9)."""
+    worker = TerminalWorker(
+        store,
+        composition.configuration,
+        composition.harness,
+        request.launch,
+        composition.rules,
+    )
+    return worker.finalize(
         request.run_id, request.attempt, nonce=request.nonce, override=request.override
     )
 
@@ -553,12 +591,14 @@ __all__ = [
     "InventoryWritten",
     "PublishRequest",
     "Reader",
+    "TerminalComposition",
     "ThresholdRequest",
     "WorkRequest",
     "WorkerComposition",
     "abandon",
     "admit",
     "deliver_approval",
+    "finalize",
     "import_spend",
     "publish",
     "set_threshold",

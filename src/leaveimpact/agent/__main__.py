@@ -25,7 +25,12 @@ worker with no model flag (the first live run's step, fork 4): its configuration
 handed refuse a send or a count as this harness's defect, and the registration's rules it
 is read under are not consulted by its fold. One command, one run, one
 attempt; the worker compares the composed configuration with the admission's and claims
-nothing on a difference.
+nothing on a difference. An attempt whose log already holds a recorded stopping failure
+with its segment still open takes the terminal-only path (the first live run's step, fork
+9): the state is read before anything beyond the run log is built, and the attempt is
+closed by that failure through ``commands.finalize`` with no world store, corpus reader,
+vendor reader or client composed, so a closing the log has already decided cannot fail for
+a reason unrelated to the attempt.
 
 The job's log is public, which decides what this module prints: a result as the fields its
 command returns, a refusal of a known kind as its message (files, keys, commits, counts
@@ -80,12 +85,14 @@ from leaveimpact.agent.commands import (
     ImportRequest,
     InventoryRequest,
     PublishRequest,
+    TerminalComposition,
     ThresholdRequest,
     WorkerComposition,
     WorkRequest,
     abandon,
     admit,
     deliver_approval,
+    finalize,
     import_spend,
     publish,
     set_threshold,
@@ -661,11 +668,13 @@ def _work(
     SDK runtime client the two live clients share and the saver's connection; the
     world-store reader holds nothing to close.
 
-    The admitted inputs are read first, since the manifest and the corpus reader are
-    functions of the admitted world version and level; the corpus reader runs its serving
-    check before any read port is built (``corpus_reader_for``). The composed configuration
-    is the registration's and this code's for the cell named, and the worker refuses the
-    claim where it differs from the admission's.
+    The attempt's state is read first: the manifest and the corpus reader are functions of
+    the admitted world version and level, and an attempt at a recorded stop with its
+    segment open is closed by the terminal worker before any of them is built (fork 9 of
+    the first live run's step; the FIXLOG's session-86 case). Otherwise the corpus reader
+    runs its serving check before any read port is built (``corpus_reader_for``). The
+    composed configuration is the registration's and this code's for the cell named, and
+    either worker refuses the claim where it differs from the admission's.
 
     The registered outage is injected over the composed ports from the assignment the
     admission recorded, never from the line's condition again (the outage step, forks 1
@@ -694,10 +703,15 @@ def _work(
             pricing=basis_for(request.prices, (line.role.pricing,)),
             role=line.role,
         )
-    inputs = store.load(line.attempt.run_id, line.attempt.attempt, rules=rules).inputs
+    state = store.load(line.attempt.run_id, line.attempt.attempt, rules=rules)
+    inputs = state.inputs
     if inputs is None:
         raise ValueError(
             f"run {line.attempt.run_id} attempt {line.attempt.attempt} holds no admission"
+        )
+    if state.closed is None and state.stopped is not None:
+        return finalize(
+            line.attempt, store, TerminalComposition(configuration, line.harness, rules)
         )
     # Read as the entry reads it, not indexed: the entry validated the name before it built
     # the store, but a caller handing in a store under another environment reaches this line
