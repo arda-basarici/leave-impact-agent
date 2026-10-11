@@ -50,17 +50,47 @@ that operation and the reads the plan would have made after it are not made; a l
 returned, returned absent, or returned as another record ends the plan at the first
 operation. What an ending means is the system's to conclude from the trace, not this
 module's.
+
+The registered outage is injected here too, in front of the ports and behind nothing else
+(the outage step, fork 1). ``ports_under`` replaces each scheduled-out source's reader with
+``ScheduledOut``, whose every method raises ``SourceUnreachable``, so the executor records
+the first read of that source as an unreachable operation and stops it, and the observed
+condition, the stop, the skip and the conformance checks see an injected outage and a
+vendor's own failure as the same trace. The read port is the boundary the registered
+protocol names (``whole-run-read-port-outage``); the adapters, their credentials and their
+transports learn nothing of the condition, and the one place that varies by it is the
+composition root's call of this function over the admission's recorded assignment.
+``ScheduledOut`` spells out every method of the four protocols instead of catching the
+attribute, so the type checker proves it conforms and a method added to a protocol later
+fails typing instead of passing through unseen.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass, field
 from itertools import count
-from typing import cast
+from typing import NoReturn, cast
 
-from leaveimpact.core.entities import Leave
+from leaveimpact.core.entities import (
+    CalendarEvent,
+    Component,
+    Document,
+    Employee,
+    Leave,
+    Team,
+    WorkItem,
+)
 from leaveimpact.core.enums import Source
+from leaveimpact.core.ids import (
+    ComponentId,
+    DocumentId,
+    EmployeeId,
+    EventId,
+    LeaveId,
+    TeamId,
+    WorkItemId,
+)
 from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.ports.read import (
@@ -91,7 +121,7 @@ from leaveimpact.core.tools import (
     specification_named,
     validate_arguments,
 )
-from leaveimpact.core.worldtime import RunContext
+from leaveimpact.core.worldtime import DateSpan, InstantSpan, RunContext
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,6 +144,105 @@ class ReadPorts:
                 return self.calendar
             case PortFamily.DOCUMENT:
                 return self.documents
+
+
+SCHEDULED_OUT_REASON = "scheduled unreachable for this run"
+"""The reason every read of a scheduled-out source records. It is recorded in the operation
+and the export and never rendered to the model, which is shown the source alone."""
+
+
+@dataclass(frozen=True, slots=True)
+class ScheduledOut:
+    """The reader of ``source`` under the registered outage: every method of the four read
+    protocols raises ``SourceUnreachable`` with the one fixed reason, so the first read of
+    the source is recorded unreachable and the source stops for the run.
+
+    One class for the four protocols, each method written out, so that conformance is the
+    type checker's proof and not an attribute hook's silence.
+
+    >>> try:
+    ...     ScheduledOut(Source.JIRA).work_items()
+    ... except SourceUnreachable as unreachable:
+    ...     (unreachable.source, unreachable.reason)
+    (<Source.JIRA: 'jira'>, 'scheduled unreachable for this run')
+    """
+
+    source: Source
+
+    def _unreachable(self) -> NoReturn:
+        raise SourceUnreachable(self.source, SCHEDULED_OUT_REASON)
+
+    # PeopleReader
+
+    def employee(self, id: EmployeeId) -> Observed[Employee] | None:
+        self._unreachable()
+
+    def employees(self) -> tuple[Observed[Employee], ...]:
+        self._unreachable()
+
+    def team(self, id: TeamId) -> Observed[Team] | None:
+        self._unreachable()
+
+    def leave(self, id: LeaveId) -> Observed[Leave] | None:
+        self._unreachable()
+
+    def leaves_within(self, span: DateSpan) -> tuple[Observed[Leave], ...]:
+        self._unreachable()
+
+    # WorkReader
+
+    def work_item(self, id: WorkItemId) -> Observed[WorkItem] | None:
+        self._unreachable()
+
+    def work_items(self) -> tuple[Observed[WorkItem], ...]:
+        self._unreachable()
+
+    def component(self, id: ComponentId) -> Observed[Component] | None:
+        self._unreachable()
+
+    def components(self) -> tuple[Observed[Component], ...]:
+        self._unreachable()
+
+    # CalendarReader
+
+    def event(self, id: EventId) -> Observed[CalendarEvent] | None:
+        self._unreachable()
+
+    def events_within(self, span: InstantSpan) -> tuple[Observed[CalendarEvent], ...]:
+        self._unreachable()
+
+    # DocumentReader
+
+    def document(self, id: DocumentId) -> Observed[Document] | None:
+        self._unreachable()
+
+    def search(self, query: str, *, limit: int) -> tuple[Observed[Document], ...]:
+        self._unreachable()
+
+    def documents(self) -> tuple[Observed[Document], ...]:
+        self._unreachable()
+
+
+def ports_under(ports: ReadPorts, scheduled_unreachable: Iterable[Source]) -> ReadPorts:
+    """``ports`` under the assigned outage: each source in ``scheduled_unreachable`` read
+    through ``ScheduledOut`` in place of its reader, every other reader as given. Under the
+    normal condition the readers are ``ports``'s own.
+
+    The mapping from a source to the port it answers is this function's: Frappe is the
+    people port, Jira the work port, the calendar its own, the corpus the document port.
+
+    >>> bare = ReadPorts(None, None, None, None)  # type: ignore[arg-type]
+    >>> under = ports_under(bare, {Source.JIRA})
+    >>> (under.work, under.people)
+    (ScheduledOut(source=<Source.JIRA: 'jira'>), None)
+    """
+    out = frozenset(scheduled_unreachable)
+    return ReadPorts(
+        people=ScheduledOut(Source.FRAPPE) if Source.FRAPPE in out else ports.people,
+        work=ScheduledOut(Source.JIRA) if Source.JIRA in out else ports.work,
+        calendar=ScheduledOut(Source.CALENDAR) if Source.CALENDAR in out else ports.calendar,
+        documents=ScheduledOut(Source.CORPUS) if Source.CORPUS in out else ports.documents,
+    )
 
 
 def sequential_ids(prefix: str = "op") -> Callable[[], OperationId]:
@@ -264,10 +393,13 @@ def _source_of(planned: PlannedCall) -> Source:
 
 
 __all__ = [
+    "SCHEDULED_OUT_REASON",
     "Executor",
     "PrefetchResult",
     "ReadPorts",
+    "ScheduledOut",
     "leave_asked_for",
+    "ports_under",
     "run_prefetch",
     "sequential_ids",
 ]

@@ -3,13 +3,22 @@ arguments as given and the source the method table names; who asked decides what
 is, the model's recorded and the prefetch's raised; a source stops at its first unreachable
 answer and a call against it is the caller's error. The prefetch over it makes the plan's
 calls in the plan's order and ends at the first operation when the leave asked for did not
-come back."""
+come back. The registered outage, injected over the ports, leaves the trace the fixtures'
+reachability switch leaves, the reason text aside."""
 
 from dataclasses import dataclass, replace
 
 import pytest
 
-from leaveimpact.agent.execution import Executor, ReadPorts, run_prefetch, sequential_ids
+from leaveimpact.agent.execution import (
+    SCHEDULED_OUT_REASON,
+    Executor,
+    ReadPorts,
+    ScheduledOut,
+    ports_under,
+    run_prefetch,
+    sequential_ids,
+)
 from leaveimpact.core import (
     AbsentOutcome,
     Component,
@@ -30,6 +39,7 @@ from leaveimpact.core import (
     Role,
     RunContext,
     Source,
+    SourceUnreachable,
     UnreachableOutcome,
     calls_after_leave,
     opening_call,
@@ -349,3 +359,104 @@ def test_a_harness_call_the_surface_refuses_is_a_harness_defect_and_raises(
     (operation,) = executor.operations
     assert operation.origin == HarnessOrigin("full_context_documents")
     assert (operation.tool, operation.source) == ("documents", Source.CORPUS)
+
+
+# --- The registered outage, injected over the ports ----------------------------------------------
+
+READS_OF_EVERY_METHOD: tuple[tuple[str, tuple[object, ...], dict[str, object]], ...] = (
+    ("employee", (employee_id(1),), {}),
+    ("employees", (), {}),
+    ("team", ("team-1",), {}),
+    ("leave", (leave_id(1),), {}),
+    ("leaves_within", (None,), {}),
+    ("work_item", ("item-1",), {}),
+    ("work_items", (), {}),
+    ("component", ("component-1",), {}),
+    ("components", (), {}),
+    ("event", ("event-1",), {}),
+    ("events_within", (None,), {}),
+    ("document", ("document-1",), {}),
+    ("search", ("handover",), {"limit": 5}),
+    ("documents", (), {}),
+)
+"""Every method of the four read protocols, with arguments of the shape it takes; the reader
+under test never reads them, so an id's spelling is not checked here."""
+
+
+def test_a_scheduled_out_reader_refuses_every_method_of_the_four_protocols() -> None:
+    """Fork 3: one class for the four protocols, every method written out and raising the
+    one fixed reason; the list above is the fourteen, so a protocol method missing from the
+    class would fail here as it fails typing."""
+    reader = ScheduledOut(Source.CALENDAR)
+    for method, positional, keyword in READS_OF_EVERY_METHOD:
+        with pytest.raises(SourceUnreachable) as raised:
+            getattr(reader, method)(*positional, **keyword)
+        assert (raised.value.source, raised.value.reason) == (
+            Source.CALENDAR,
+            SCHEDULED_OUT_REASON,
+        ), method
+    assert len(READS_OF_EVERY_METHOD) == 14
+
+
+def test_ports_under_replaces_the_scheduled_sources_readers_and_keeps_the_rest(
+    systems: Systems,
+) -> None:
+    """Fork 1: under the normal condition the readers are the given ports' own; under an
+    outage exactly the scheduled source's family reads through ``ScheduledOut``, by the
+    function's own source-to-port mapping; the given ports are not changed."""
+    given = ports_of(systems)
+    normal = ports_under(given, ())
+    assert (normal.people, normal.work, normal.calendar, normal.documents) == (
+        given.people,
+        given.work,
+        given.calendar,
+        given.documents,
+    )
+    for source, family in (
+        (Source.FRAPPE, "people"),
+        (Source.JIRA, "work"),
+        (Source.CALENDAR, "calendar"),
+        (Source.CORPUS, "documents"),
+    ):
+        under = ports_under(given, {source})
+        for name in ("people", "work", "calendar", "documents"):
+            reader = getattr(under, name)
+            if name == family:
+                assert reader == ScheduledOut(source), name
+            else:
+                assert reader is getattr(given, name), name
+    assert ports_of(systems) == given, "the given ports are read, never changed"
+
+
+@pytest.mark.parametrize("source", [Source.FRAPPE, Source.JIRA, Source.CALENDAR])
+def test_an_injected_outage_leaves_the_trace_the_fixtures_switch_leaves(
+    world: SealedWorld, scenario: Scenario, source: Source
+) -> None:
+    """Fork 1's claim: an injected outage and a vendor's own failure are the same trace. The
+    prefetch under ``ports_under`` and under the planted store's reachability switch make the
+    same calls with the same outcome kinds and stop the same source; only the reason text
+    differs, the wrapper's constant against the fixture's."""
+    context = world.context_of(scenario)
+    injected = Executor(ports_under(ports_of(systems_holding(world)), {source}))
+    run_prefetch(injected, context)
+    switched_systems = systems_holding(world)
+    for port in (switched_systems.people, switched_systems.work, switched_systems.calendar):
+        port.reachable = port.source is not source
+    switched = executor_over(switched_systems)
+    run_prefetch(switched, context)
+    assert made(injected) == made(switched)
+    assert injected.stopped == switched.stopped == {source}
+    outcomes = [op.outcome for op in injected.operations]
+    reasons = {o.reason for o in outcomes if isinstance(o, UnreachableOutcome)}
+    assert reasons == {SCHEDULED_OUT_REASON}
+
+
+def test_an_injected_corpus_outage_is_not_met_by_the_prefetch(
+    world: SealedWorld, scenario: Scenario
+) -> None:
+    """The prefetch reads no document, so the corpus scheduled out leaves its trace the
+    normal one and stops nothing: the outage is met, if at all, by a later read."""
+    executor = Executor(ports_under(ports_of(systems_holding(world)), {Source.CORPUS}))
+    run_prefetch(executor, world.context_of(scenario))
+    assert executor.stopped == set()
+    assert all(isinstance(op.outcome, RecordOutcome | RecordsOutcome) for op in executor.operations)
