@@ -4,7 +4,10 @@
 # reproduces when the resolver replaying it matches. The base image is multi-arch;
 # CI builds linux/arm64 (the Graviton instance) and linux/amd64 (the workstation)
 # from this one file.
-FROM python:3.13-slim-bookworm AS builder
+# Pulled from the public ECR mirror of the Docker Hub library, the same tags at the
+# same digests: the shared GitHub runner pool's anonymous Docker Hub quota failed CI
+# closed before checkout (2026-10-10), and a rerun only redraws the pool's IP.
+FROM public.ecr.aws/docker/library/python:3.13-slim-bookworm AS builder
 COPY --from=ghcr.io/astral-sh/uv:0.11.26 /uv /usr/local/bin/uv
 
 WORKDIR /app
@@ -25,7 +28,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen --no-dev
 
 
-FROM python:3.13-slim-bookworm
+FROM public.ecr.aws/docker/library/python:3.13-slim-bookworm
 
 # Code identity baked at build time: no repo survives into a container. An image
 # that cannot state its provenance refuses to BUILD — fail at the cause, not at

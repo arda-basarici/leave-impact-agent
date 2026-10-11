@@ -20,10 +20,12 @@ jobs:
 
     # The integration level runs against the store it ships with — PostgreSQL, never
     # a SQLite stand-in (DESIGN: "Verification"). Declared from the first commit so
-    # the wiring exists before the first test needs it.
+    # the wiring exists before the first test needs it. The image comes from the public
+    # ECR mirror of the Docker Hub library (same tag, same digest), as the Dockerfile's
+    # base does: the runner pool's anonymous Docker Hub quota failed CI closed.
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16-alpine
         env:
           POSTGRES_USER: leaveimpact
           POSTGRES_PASSWORD: leaveimpact
@@ -101,7 +103,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: public.ecr.aws/docker/library/postgres:16-alpine
         env:
           POSTGRES_USER: leaveimpact
           POSTGRES_PASSWORD: leaveimpact
