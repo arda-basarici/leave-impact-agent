@@ -229,3 +229,7 @@ requirement of every section it is shown, and every `false` statement but one of
 rounds' 695 was a filler section's requirement the text does assert, excluded by the
 composition and surviving the verdicts. The FINDINGS entry `one-call` holds the tables,
 the forecast's check and the `false` reading, which the step's close carries as a ruling.
+The close recorded the first reading: `false` is today the union of filler-carried
+statements and the rest, separable by the sealed filler pool's membership, the class itself
+ruled at the freeze; `prompt-check/false_by_carrier.py` makes the split from the captures
+and writes `prompt-check/results/false_by_carrier.md`.

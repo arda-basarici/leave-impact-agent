@@ -3765,8 +3765,8 @@ freeze.
 **Every `false` statement but one is a filler section's requirement, read accurately.** The
 evaluator's `false` class is a statement the sealed truth holds no fact for. The 358 and 337
 false statements of the two rounds were classified by carrier
-(`false_by_carrier.py`, a scratch script over the captured details and the development
-world, to be committed with the close if the ruling below asks for a number): 358 and 336
+(`prompt-check/false_by_carrier.py` over the captured details and the development world,
+its table in `prompt-check/results/false_by_carrier.md`): 358 and 336
 are `requires` facts carried by sections of the twelve filler documents, one is an
 `owns_work_item` on a scenario-owned document (`scenario_009`, full context). A filler
 section's text does assert the requirement (`clause_031`: "Implementation of Data retention
@@ -3778,6 +3778,17 @@ claim: the composition excluded them as `scope_without_one_section` or
 `conflicting_readings`, and the verdicts stand. What the class should say about a filler
 requirement, and whether the report separates filler-carried statements from invented ones,
 is a ruling for the close and the freeze's reporting design, not this probe's.
+
+*The close's first reading (2026-10-11, session 92).* Today's `false` is the union of two
+populations the record tells apart model-free: a statement on a section of a filler
+document, which the sealed filler pool names, and the rest. The report separates them by
+that membership; the filler-carried count reads as how much filler a system was shown and
+read, the remainder as the invention count, and neither is a correctness measure. The
+evaluator cannot check that the filler text asserts the statement, since filler briefs
+permit by subject and enumerate no statements, so an invention on a filler carrier would
+land on the filler side; the quote guard bounds it. The class itself, a wire format whose
+bump moves the result codec and the digests that hash it, is ruled at the freeze's
+reporting design.
 
 **Limits.** Seven scenarios, one world, one model at temperature 0; the probe shows the
 reader's prompts yield a valid forced fact call over 11,000 to 13,000 tokens of records and

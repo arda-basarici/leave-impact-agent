@@ -3547,7 +3547,10 @@ this harness observed, read as infrastructure under the `never_sent` row and nev
 re-dispatched, so the record tells the overflow from the budget's path by the
 observation itself. The account is asked before the check, since the log admits an
 intent only under the account's authorization and an outcome only under an intent;
-the overflow is recorded on a request the account authorized. The provenance of every
+the overflow is recorded on a request the account authorized. A request that both
+overflows the window and would put the account at its cap is recorded as at-cap, since
+the account answers first; the freeze's cap rule makes the overlap a case the caps
+catch. The provenance of every
 model system is one function of the registration and the kind, which chooses the
 registered system and the one role it runs, and copies the single-shot's registered
 protocol and limit into the frozen inputs, so a claim under a registration whose
