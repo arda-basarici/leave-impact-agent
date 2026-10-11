@@ -560,6 +560,14 @@ class RunRecord:
                 raise ValueError("rules-only calls no model, so it records no model configuration")
             if self.retrieval.kind is not RetrievalKind.NONE:
                 raise ValueError("rules-only retrieves nothing, so its retrieval is none")
+        elif not self.model_configurations:
+            # The admission already refuses this history; the export's constructor refuses it
+            # too, so a decoded record of a one-call baseline with no role never grades (the
+            # group-1 external read). An abstention sends nothing and still records its role.
+            raise ValueError(
+                f"{self.system.kind.value} calls a model, so it records at least one role's "
+                "configuration"
+            )
         require_system_retrieval(self.system.kind, self.retrieval)
         object.__setattr__(
             self, "model_configurations", tuple(sorted(self.model_configurations, key=_role))

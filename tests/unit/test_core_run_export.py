@@ -754,6 +754,23 @@ def test_rules_only_calls_no_model_and_retrieves_nothing() -> None:
     assert SystemKind.FULL_CONTEXT.value == "full_context"
 
 
+def test_a_one_call_baseline_records_its_role_and_its_retrieval_kind() -> None:
+    # The group-1 external read: the admission refused a model system with no role and the
+    # export's constructor did not, so a decoded baseline record with no role could grade.
+    full_context = System(SystemKind.FULL_CONTEXT, "all-documents")
+    single_shot = System(SystemKind.SINGLE_SHOT, "one-search")
+    none = Retrieval(RetrievalKind.NONE, None)
+    for system in (full_context, single_shot):
+        with pytest.raises(ValueError, match="records at least one role's configuration"):
+            _record(system=system, retrieval=none, configurations=())
+    with pytest.raises(ValueError, match="full context searches nothing"):
+        _record(system=full_context)
+    with pytest.raises(ValueError, match="single-shot makes one search"):
+        _record(system=single_shot, retrieval=none)
+    assert _record(system=full_context, retrieval=none).system is full_context
+    assert _record(system=single_shot).system is single_shot
+
+
 def test_what_only_a_model_system_has_is_recorded_exactly_when_a_role_calls_a_model() -> None:
     with pytest.raises(ValueError, match="an attribution table is named exactly when"):
         replace(_record(), attribution_table=None)
