@@ -25,7 +25,11 @@ stopped, and it is declined rather than loaded as a partial world marked ready (
 external review's second finding).
 
 Two kinds of outcome are kept apart. ``NotServed`` is the rule's own answer, a world the
-listing holds and the rule declines, reported by name and never loaded. ``ServingRefused``
+listing holds and the rule declines, reported by name and never loaded; its reason names
+the clause that declined, and for the verdict clause what the verdicts read said (none
+under the prefix, refused, another world, another manifest, an older validator version),
+since "no approved verdict" alone read the same for a world never validated and a world
+validated under the previous rule (the first live run's step, fork 11). ``ServingRefused``
 is a fault in what the store holds: a key under ``worlds/`` that is not a version's, a
 manifest or a verdict that does not decode, a manifest naming another version than its
 key. The layout puts nothing but versions under the prefix and nothing but these objects
@@ -46,7 +50,12 @@ from leaveimpact.adapters.object_store.layout import (
     worlds_prefix,
 )
 from leaveimpact.adapters.object_store.read import ObjectReader
-from leaveimpact.adapters.object_store.verdicts import decode_verdict_summary
+from leaveimpact.adapters.object_store.verdicts import (
+    VALIDATOR_VERSION,
+    Approval,
+    VerdictSummary,
+    decode_verdict_summary,
+)
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.run_record import WorldProjection
 from leaveimpact.world.artifacts import SHA256_HEX
@@ -117,6 +126,7 @@ def admit(
         )
     digest = hashlib.sha256(stored.content).hexdigest()
     verdict_keys = store.list_keys(verdicts_prefix(version))
+    read: list[VerdictSummary] = []
     for key in verdict_keys:
         verdict = store.get(key)
         if verdict is None:
@@ -127,7 +137,33 @@ def admit(
             raise ServingRefused(f"{key!r} does not decode as a verdict: {error}") from error
         if summary.approves(version, digest):
             return ServedWorld(version, WorldProjection.PROJECTED, manifest, digest, key)
-    return NotServed(
-        version,
-        f"no approved verdict judges manifest {digest[:12]}…: {len(verdict_keys)} verdict(s) read",
+        read.append(summary)
+    return NotServed(version, decline_reason(version, digest, read))
+
+
+def decline_reason(version: WorldVersion, digest: str, read: list[VerdictSummary]) -> str:
+    """Why the verdict clause declined: which of the verdicts read fell on which clause, in
+    the order the clause checks them (the word, the world, the manifest, the validator
+    version), so an operator can tell a world never validated from one validated under the
+    previous rule."""
+    if not read:
+        return "no verdict under its prefix: not validated yet"
+    fell: dict[str, int] = {}
+    for summary in read:
+        if summary.approval is not Approval.APPROVED:
+            clause = "refused"
+        elif summary.world_version != version:
+            clause = "names another world"
+        elif summary.manifest_digest != digest:
+            clause = "judges another manifest"
+        else:
+            clause = (
+                f"approves under validator version {summary.validator_version}, and "
+                f"{VALIDATOR_VERSION} is current"
+            )
+        fell[clause] = fell.get(clause, 0) + 1
+    clauses = "; ".join(f"{count} {clause}" for clause, count in fell.items())
+    return (
+        f"no approved verdict judges manifest {digest[:12]}… under validator version "
+        f"{VALIDATOR_VERSION}: {len(read)} verdict(s) read, {clauses}"
     )

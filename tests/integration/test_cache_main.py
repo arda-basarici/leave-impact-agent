@@ -7,7 +7,9 @@ store swapped (the M2 step 9 design, the loader run locally over a development w
 The test holds the whole chain: the job admits the manifest-less world as a development
 world, loads its documents and its levels object, reports the version, exits zero; a
 second run finds it ready; the adapter at the base level reads every sealed document; and
-a configuration the job cannot start from exits 2 before any store is touched.
+a configuration the job cannot start from exits 2 before any store is touched. A version
+the rule stops serving between two runs is demoted, so the adapter's serving check refuses
+it, and readmitted when the rule serves it again (the first live run's step, fork 11).
 """
 
 from __future__ import annotations
@@ -18,7 +20,8 @@ from pathlib import Path
 
 import pytest
 
-from leaveimpact.adapters.corpus import CorpusAdapter, CorpusConfig
+from leaveimpact.adapters.corpus import CorpusAdapter, CorpusConfig, UnservedCorpus
+from leaveimpact.adapters.object_store import layout
 from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
 from leaveimpact.cache.__main__ import main
 from leaveimpact.generator.projection import world_entities
@@ -60,7 +63,7 @@ def test_the_job_loads_a_sealed_development_world_and_the_adapter_reads_it_back(
     assert lines[1] == (
         f"loaded={version} projection=unprojected documents={len(sealed_documents)} levels=base"
     )
-    assert lines[-1] == "loaded=1 already_ready=0 declined=0"
+    assert lines[-1].startswith("loaded=1 already_ready=0 readmitted=0 declined=0 demoted=0")
 
     assert main(env=env) == 0
     assert f"already_ready={version} " in capsys.readouterr().out
@@ -71,6 +74,42 @@ def test_the_job_loads_a_sealed_development_world_and_the_adapter_reads_it_back(
         for document in sealed_documents:
             found = adapter.document(document.id)
             assert found is not None and found.value == document
+    finally:
+        adapter.close()
+
+
+def test_a_version_the_rule_stops_serving_is_demoted_and_readmitted_when_served_again(
+    development_root: tuple[Path, str], url: str, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The levels object is what admits a development world; with it gone the rule declines
+    the version the first run loaded, the second run flips it not ready and the adapter's
+    serving check refuses it; with it back the third run readmits it and the adapter reads."""
+    root, version = development_root
+    env = {"LEAVE_IMPACT_OBJECT_STORE_ROOT": str(root), "DATABASE_URL": url}
+    assert main(env=env) == 0
+    capsys.readouterr()
+    levels = root / "world" / layout.levels_key(version)  # type: ignore[arg-type]
+    held = levels.read_bytes()
+    levels.unlink()
+    assert main(env=env) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1].startswith(f"declined={version} reason=no levels object")
+    assert any(line.startswith(f"demoted={version} reason=no levels object") for line in lines)
+    assert lines[-1].startswith("loaded=0 already_ready=0 readmitted=0 declined=1 demoted=1")
+    adapter = CorpusAdapter(dsn=url, config=CorpusConfig(version), level="base")  # type: ignore[arg-type]
+    try:
+        with pytest.raises(UnservedCorpus):
+            adapter.serving_check()
+    finally:
+        adapter.close()
+    levels.write_bytes(held)
+    assert main(env=env) == 0
+    lines = capsys.readouterr().out.splitlines()
+    assert lines[1].startswith(f"readmitted={version} projection=unprojected ")
+    assert lines[-1].startswith("loaded=0 already_ready=0 readmitted=1 declined=0 demoted=0")
+    adapter = CorpusAdapter(dsn=url, config=CorpusConfig(version), level="base")  # type: ignore[arg-type]
+    try:
+        assert adapter.serving_check() == 0
     finally:
         adapter.close()
 

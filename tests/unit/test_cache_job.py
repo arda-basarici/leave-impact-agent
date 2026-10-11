@@ -1,5 +1,5 @@
-"""The cache job over an in-memory store and a recording loader: what it hands the loader,
-what it verifies first, and what it reports.
+"""The cache job over an in-memory store and a recording cache: what it hands the loader,
+what it verifies first, what it demotes, and what it reports.
 
 A projected world with an approving verdict is read whole and handed over with its
 manifest digest, its levels and every receipted document; a world sealed before the
@@ -7,7 +7,9 @@ levels object existed reads as the base level alone; a development world is decl
 under a bucket and loaded on a development root; and each clause of "verified against the
 manifest" refuses by name before any load: a foreign or missing document key, an object
 read back under another version id than the manifest vouches for, a levels object the
-manifest vouches for that is not there.
+manifest vouches for that is not there. A version the cache serves and the rule declines
+now is demoted with the clause that declined it; one the listing no longer holds is
+reported and left; a served one is not touched (the first live run's step, fork 11).
 """
 
 from __future__ import annotations
@@ -52,14 +54,41 @@ FILLER = Document(
 LEVELS = CorpusLevels((SealedLevel("base", 0), SealedLevel("padded", 1)), (FILLER.id,))
 
 
-class RecordingLoad:
-    def __init__(self, ready: frozenset[WorldVersion] = frozenset()) -> None:
-        self.worlds: list[CacheWorld] = []
-        self.ready = ready
+class RecordingCache:
+    """The job's cache as a record: what it was handed to load, which versions it holds
+    ready (and which it holds flipped not ready, for the readmission outcome), and what it
+    was asked to demote."""
 
-    def __call__(self, world: CacheWorld) -> LoadOutcome:
+    def __init__(
+        self,
+        ready: frozenset[WorldVersion] = frozenset(),
+        flipped: frozenset[WorldVersion] = frozenset(),
+    ) -> None:
+        self.worlds: list[CacheWorld] = []
+        self.ready = set(ready)
+        self.flipped = set(flipped)
+        self.demoted: list[WorldVersion] = []
+
+    def load(self, world: CacheWorld) -> LoadOutcome:
         self.worlds.append(world)
-        return LoadOutcome.ALREADY_READY if world.version in self.ready else LoadOutcome.LOADED
+        if world.version in self.ready:
+            return LoadOutcome.ALREADY_READY
+        if world.version in self.flipped:
+            self.flipped.discard(world.version)
+            self.ready.add(world.version)
+            return LoadOutcome.READMITTED
+        self.ready.add(world.version)
+        return LoadOutcome.LOADED
+
+    def ready_versions(self) -> frozenset[WorldVersion]:
+        return frozenset(self.ready)
+
+    def demote(self, version: WorldVersion) -> bool:
+        if version not in self.ready:
+            return False
+        self.ready.discard(version)
+        self.demoted.append(version)
+        return True
 
 
 def sealed_world(
@@ -113,12 +142,12 @@ def sealed_world(
 def test_a_projected_world_is_read_whole_and_handed_over_with_its_digest_and_levels() -> None:
     store = InMemoryObjectStore()
     sealed_world(store)
-    load = RecordingLoad()
+    cache = RecordingCache()
     lines: list[str] = []
-    report = fill_cache(store, development=False, load=load, emit=lines.append)
+    report = fill_cache(store, development=False, cache=cache, emit=lines.append)
 
     assert report.loaded == (VERSION,) and report.already_ready == () and report.declined == ()
-    [world] = load.worlds
+    [world] = cache.worlds
     manifest_object = store.get(layout.world_manifest_key(VERSION))
     assert manifest_object is not None
     assert world == CacheWorld(
@@ -136,26 +165,57 @@ def test_a_ready_version_is_reported_as_such_and_a_declined_one_by_its_reason() 
     sealed_world(store)
     other = WorldVersion("b" * 64)
     sealed_world(store, version=other, projected=False)
-    load = RecordingLoad(ready=frozenset({VERSION}))
+    cache = RecordingCache(ready=frozenset({VERSION}))
     lines: list[str] = []
-    report = fill_cache(store, development=False, load=load, emit=lines.append)
+    report = fill_cache(store, development=False, cache=cache, emit=lines.append)
     assert report.already_ready == (VERSION,) and report.loaded == ()
     assert [declined.version for declined in report.declined] == [other]
-    assert [world.version for world in load.worlds] == [VERSION], "a declined world is not read"
+    assert [world.version for world in cache.worlds] == [VERSION], "a declined world is not read"
     assert lines[0].startswith(f"already_ready={VERSION} ")
     assert (
         lines[1]
         == f"declined={other} reason=no manifest under its final key: not a completed projection"
     )
+    assert report.demoted == () and cache.demoted == [], "a declined world never served stays"
+
+
+def test_a_served_version_the_rule_declines_now_is_demoted_and_readmitted_later() -> None:
+    """The instance's case (FIXLOG, session 82): a version an earlier deploy served under the
+    previous rule is declined by the current one and flipped not ready with the clause that
+    declined it; a version the listing no longer holds is reported and left; a served
+    version is not touched; and once the rule admits the flipped version again the load
+    readmits it."""
+    store = InMemoryObjectStore()
+    sealed_world(store)
+    declined_now = WorldVersion("b" * 64)
+    sealed_world(store, version=declined_now, projected=False)
+    gone = WorldVersion("c" * 64)
+    cache = RecordingCache(ready=frozenset({VERSION, declined_now, gone}))
+    lines: list[str] = []
+    report = fill_cache(store, development=False, cache=cache, emit=lines.append)
+    assert report.demoted == (declined_now,) and cache.demoted == [declined_now]
+    assert report.unlisted == (gone,) and cache.ready_versions() == frozenset({VERSION, gone})
+    assert lines[-2:] == [
+        f"demoted={declined_now} reason=no manifest under its final key: not a completed "
+        "projection",
+        f"unlisted={gone} note=served and no longer under the prefix; left as it is",
+    ]
+    # A served version whose row an earlier run flipped is readmitted, not loaded anew.
+    flipped = RecordingCache(flipped=frozenset({VERSION}))
+    lines = []
+    report = fill_cache(store, development=False, cache=flipped, emit=lines.append)
+    assert report.readmitted == (VERSION,) and report.loaded == () and report.demoted == ()
+    assert lines[0].startswith(f"readmitted={VERSION} ")
+    assert flipped.ready_versions() == frozenset({VERSION})
 
 
 def test_a_development_world_is_loaded_on_a_development_root_as_unprojected() -> None:
     store = InMemoryObjectStore()
     sealed_world(store, projected=False)
-    load = RecordingLoad()
-    report = fill_cache(store, development=True, load=load, emit=lambda line: None)
+    cache = RecordingCache()
+    report = fill_cache(store, development=True, cache=cache, emit=lambda line: None)
     assert report.loaded == (VERSION,)
-    [world] = load.worlds
+    [world] = cache.worlds
     assert world.projection is WorldProjection.UNPROJECTED and world.manifest_digest is None
     assert world.levels == LEVELS and world.documents == (POLICY, FILLER)
 
@@ -166,9 +226,9 @@ def test_a_development_sealing_that_stopped_before_its_levels_object_is_declined
     # last write of an unprojected sealing and the admission requires it.
     store = InMemoryObjectStore()
     sealed_world(store, levels=None, projected=False)
-    load = RecordingLoad()
-    report = fill_cache(store, development=True, load=load, emit=lambda line: None)
-    assert load.worlds == [] and report.loaded == ()
+    cache = RecordingCache()
+    report = fill_cache(store, development=True, cache=cache, emit=lambda line: None)
+    assert cache.worlds == [] and report.loaded == ()
     [declined] = report.declined
     assert declined.reason.startswith("no levels object")
 
@@ -176,17 +236,17 @@ def test_a_development_sealing_that_stopped_before_its_levels_object_is_declined
 def test_a_world_sealed_before_the_levels_object_reads_as_the_base_level_alone() -> None:
     store = InMemoryObjectStore()
     sealed_world(store, documents=(POLICY,), levels=None)
-    load = RecordingLoad()
-    fill_cache(store, development=False, load=load, emit=lambda line: None)
-    [world] = load.worlds
+    cache = RecordingCache()
+    fill_cache(store, development=False, cache=cache, emit=lambda line: None)
+    [world] = cache.worlds
     assert world.levels == BASE_CORPUS_LEVELS and world.documents == (POLICY,)
 
 
 def refusal(store: InMemoryObjectStore, *, development: bool = False) -> str:
-    load = RecordingLoad()
+    cache = RecordingCache()
     with pytest.raises(CacheJobRefused) as caught:
-        fill_cache(store, development=development, load=load, emit=lambda line: None)
-    assert load.worlds == [], "nothing is loaded after a refusal"
+        fill_cache(store, development=development, cache=cache, emit=lambda line: None)
+    assert cache.worlds == [], "nothing is loaded after a refusal"
     return str(caught.value)
 
 

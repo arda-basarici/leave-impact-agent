@@ -23,6 +23,7 @@ from leaveimpact.adapters.object_store.serving import (
     ServedWorld,
     ServingRefused,
     admit,
+    decline_reason,
     discover_versions,
 )
 from leaveimpact.adapters.object_store.verdicts import (
@@ -179,3 +180,24 @@ def test_the_summary_reads_what_the_validator_wrote_and_refuses_another_format_o
         decode_verdict_summary(json.dumps({**encoded, "format": 3}))
     with pytest.raises(ValueError, match="approval is one of"):
         decode_verdict_summary(json.dumps({**encoded, "approval": "maybe"}))
+
+
+def test_the_decline_reason_names_the_clause_each_verdict_fell_on() -> None:
+    """FIXLOG, session 82: the instance's two versions, approved under validator version 1,
+    read "no approved verdict judges manifest" like a world never validated. The reason now
+    says what the verdicts read said, in the clause order, and a world with no verdict says
+    so."""
+    digest = "e" * 64
+    assert decline_reason(VERSION, digest, []) == "no verdict under its prefix: not validated yet"
+    older = VerdictSummary(VERSION, "1", digest, Approval.APPROVED)
+    refused = VerdictSummary(VERSION, VALIDATOR_VERSION, digest, Approval.REFUSED)
+    other_world = VerdictSummary(OTHER, VALIDATOR_VERSION, digest, Approval.APPROVED)
+    other_manifest = VerdictSummary(VERSION, VALIDATOR_VERSION, "f" * 64, Approval.APPROVED)
+    reason = decline_reason(VERSION, digest, [older, older, refused, other_world, other_manifest])
+    assert reason == (
+        f"no approved verdict judges manifest {digest[:12]}… under validator version "
+        f"{VALIDATOR_VERSION}: 5 verdict(s) read, 2 approves under validator version 1, and "
+        f"{VALIDATOR_VERSION} is current; 1 refused; 1 names another world; 1 judges another "
+        "manifest"
+    )
+    assert VALIDATOR_VERSION != "1", "the case is an older version; the current one moved past it"

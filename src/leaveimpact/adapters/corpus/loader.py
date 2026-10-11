@@ -26,6 +26,17 @@ one version serialize on a transaction-scoped advisory lock keyed by the version
 before the row is read, since a row lock cannot cover a row that is not there yet; the
 second finds the first's commit.
 
+**The status flip (the first live run's step, fork 11).** The serving rule is the current
+check list, and a version a deploy served under an older rule may be declined by the
+current one (a verdict of an older validator version, the instance's two since the levels
+check joined). ``demote`` flips such a version's row to not ready, so every read joining on
+``ready`` refuses it; nothing is deleted, since the rows are byte-verified objects of a
+sealed version. Because the loading transaction never commits a row half filled, a row
+that is not ready is one this flip left, and ``load_world`` over a version served again
+(validated anew under the current rule) finds the row, checks the provenance and the
+counts as for a ready one, and flips it back: ``READMITTED``. ``ready_versions`` is what
+the job compares the listing with.
+
 **Bootstrap, never migration.** ``ensure_schema`` applies the idempotent DDL beside the
 adapter (``schema.sql``) and then reads the ``document`` table's columns back and refuses
 a table of an older shape by name, since ``CREATE TABLE IF NOT EXISTS`` alters nothing
@@ -92,6 +103,8 @@ _INSERT_SECTION = """
 _COUNT_DOCUMENTS = "SELECT count(*) FROM document WHERE world_version = %s"
 _COUNT_SECTIONS = "SELECT count(*) FROM section WHERE world_version = %s"
 _MARK_READY = "UPDATE world SET ready = true WHERE world_version = %s"
+_MARK_NOT_READY = "UPDATE world SET ready = false WHERE world_version = %s AND ready"
+_SELECT_READY = "SELECT world_version FROM world WHERE ready"
 
 
 class CacheRefused(Exception):
@@ -103,6 +116,9 @@ class LoadOutcome(StrEnum):
 
     LOADED = "loaded"
     ALREADY_READY = "already_ready"
+    READMITTED = "readmitted"
+    """The version's row was flipped not ready by an earlier deploy's serving rule and the
+    world is served again now: its rows checked whole and the flag flipped back."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,25 +191,30 @@ def ensure_schema(dsn: str, *, connect: Connect | None = None) -> None:
 
 def load_world(dsn: str, world: CacheWorld, *, connect: Connect | None = None) -> LoadOutcome:
     """``world`` into the cache under its version, in one transaction, ready last; a version
-    already ready is left as it is."""
+    already ready is left as it is; one flipped not ready by an earlier deploy is checked
+    whole and flipped back."""
     version = world.version
     with _connection(dsn, connect) as conn, conn.transaction():
         conn.execute(_LOCK_VERSION, (version,))
         row = conn.execute(_SELECT_WORLD, (version,)).fetchone()
         if row is not None:
             projection, digest, ready = str(row[0]), row[1], bool(row[2])
-            if not ready:
-                raise CacheRefused(
-                    f"world {version} has a row and is not ready: a load that neither "
-                    "committed nor rolled back, which this loader never leaves"
-                )
             if (projection, digest) != (world.projection.value, world.manifest_digest):
                 raise CacheRefused(
-                    f"world {version} is ready as {projection} under manifest {digest}, and "
+                    f"world {version} is cached as {projection} under manifest {digest}, and "
                     f"the served world is {world.projection.value} under "
                     f"{world.manifest_digest}: a version is cached once, and not as another"
                 )
-            return LoadOutcome.ALREADY_READY
+            if ready:
+                return LoadOutcome.ALREADY_READY
+            # Not ready is the flip's mark, never a half load, which the one transaction
+            # below never commits; the rows are read back against the served world before
+            # the flag returns.
+            _check_count(conn, _COUNT_DOCUMENTS, version, len(world.documents), "documents")
+            sections = sum(len(document.sections) for document in world.documents)
+            _check_count(conn, _COUNT_SECTIONS, version, sections, "sections")
+            conn.execute(_MARK_READY, (version,))
+            return LoadOutcome.READMITTED
         conn.execute(
             _INSERT_WORLD, records.world_params(version, world.projection, world.manifest_digest)
         )
@@ -211,6 +232,22 @@ def load_world(dsn: str, world: CacheWorld, *, connect: Connect | None = None) -
         _check_count(conn, _COUNT_SECTIONS, version, sections, "sections")
         conn.execute(_MARK_READY, (version,))
     return LoadOutcome.LOADED
+
+
+def ready_versions(dsn: str, *, connect: Connect | None = None) -> frozenset[WorldVersion]:
+    """Every version the cache serves now: the world rows marked ready."""
+    with _connection(dsn, connect) as conn, conn.transaction():
+        rows = conn.execute(_SELECT_READY).fetchall()
+    return frozenset(WorldVersion(str(row[0])) for row in rows)
+
+
+def demote(dsn: str, version: WorldVersion, *, connect: Connect | None = None) -> bool:
+    """Flip ``version`` to not ready, so no read joins on it; whether a ready row was there to
+    flip. The rows stay, for ``load_world`` to readmit under a later approval."""
+    with _connection(dsn, connect) as conn, conn.transaction():
+        conn.execute(_LOCK_VERSION, (version,))
+        flipped = conn.execute(_MARK_NOT_READY, (version,)).rowcount
+    return flipped == 1
 
 
 def _check_count(

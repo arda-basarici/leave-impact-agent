@@ -1,5 +1,5 @@
-"""The cache job over a store reader and a loading callable: discover, admit, read, verify,
-load, report.
+"""The cache job over a store reader and the cache's three operations: discover, admit,
+read, verify, load, demote what the rule no longer serves, report.
 
 One version at a time, in the listing's order. The serving rule (``adapters.object_store
 .serving``) says whether a version is served and why not; a version it declines is
@@ -21,15 +21,26 @@ prefix holds none, reads as the base level over an empty pool.
 Every mismatch, and a world that cannot be one world (a pool naming a document the prefix
 does not hold), is ``CacheJobRefused`` naming the version and what differed, raised before
 the load, and the job stops there: a world the cache cannot state the provenance of is
-not served around. The loading callable is the loader's ``load_world`` bound to the
-database in production and a recording fake in the tests; the report goes through
-``emit`` one line per version, the key=value lines the other jobs print.
+not served around.
+
+After the listing, the flip (the first live run's step, fork 11): every version the cache
+serves that the listing holds and the rule declined this run is demoted to not ready and
+reported with the clause that declined it, so the serving check every attempt makes refuses
+it; no row is deleted, and a later approval under the current rule readmits it through the
+load. A version the cache serves and the listing no longer holds is reported as unlisted
+and left as it is: under a create-only prefix a version vanishes only by an operator's hand,
+which the operator finishes by hand, and on a laptop where several local roots share one
+database a flip here would unserve every other root's world at each run (the step's build
+notes). The cache is the protocol below, the loader's three functions bound to the database
+in production and a recording fake in the tests; the report goes through ``emit`` one line
+per version, the key=value lines the other jobs print.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
+from typing import Protocol
 
 from leaveimpact.adapters.corpus.loader import CacheWorld, LoadOutcome
 from leaveimpact.adapters.manifest import WorldManifest
@@ -47,7 +58,17 @@ from leaveimpact.core.ids import DocumentId, WorldVersion
 from leaveimpact.world.decoders import decode_levels
 from leaveimpact.world.levels import BASE_CORPUS_LEVELS, CorpusLevels
 
-Load = Callable[[CacheWorld], LoadOutcome]
+
+class Cache(Protocol):
+    """The cache as the job drives it: a load, the versions served now, and the flip."""
+
+    def load(self, world: CacheWorld) -> LoadOutcome: ...
+
+    def ready_versions(self) -> frozenset[WorldVersion]: ...
+
+    def demote(self, version: WorldVersion) -> bool: ...
+
+
 Emit = Callable[[str], None]
 
 
@@ -58,34 +79,66 @@ class CacheJobRefused(Exception):
 
 @dataclass(frozen=True, slots=True)
 class CacheReport:
-    """What one run of the job did: the versions loaded, found ready, and declined."""
+    """What one run of the job did: the versions loaded, found ready, readmitted, declined,
+    demoted (served before this run and declined by the rule now) and unlisted (served
+    before this run and no longer under the prefix, left as they are)."""
 
     loaded: tuple[WorldVersion, ...]
     already_ready: tuple[WorldVersion, ...]
+    readmitted: tuple[WorldVersion, ...]
     declined: tuple[NotServed, ...]
+    demoted: tuple[WorldVersion, ...]
+    unlisted: tuple[WorldVersion, ...]
 
 
-def fill_cache(store: ObjectReader, *, development: bool, load: Load, emit: Emit) -> CacheReport:
-    """Every version under ``worlds/`` admitted by the serving rule, verified and loaded through
-    ``load``; one report line per version through ``emit``."""
+def fill_cache(store: ObjectReader, *, development: bool, cache: Cache, emit: Emit) -> CacheReport:
+    """Every version under ``worlds/`` admitted by the serving rule, verified and loaded into
+    ``cache``; every version the cache serves and the rule declined demoted, one it no longer
+    lists reported; one report line per version through ``emit``."""
     loaded: list[WorldVersion] = []
     ready: list[WorldVersion] = []
+    readmitted: list[WorldVersion] = []
     declined: list[NotServed] = []
+    served: set[WorldVersion] = set()
     for version in discover_versions(store):
-        served = admit(store, version, development=development)
-        if isinstance(served, NotServed):
-            declined.append(served)
-            emit(f"declined={version} reason={served.reason}")
+        admitted = admit(store, version, development=development)
+        if isinstance(admitted, NotServed):
+            declined.append(admitted)
+            emit(f"declined={version} reason={admitted.reason}")
             continue
-        world = cache_world_of(store, served)
-        outcome = load(world)
-        (loaded if outcome is LoadOutcome.LOADED else ready).append(version)
+        world = cache_world_of(store, admitted)
+        outcome = cache.load(world)
+        served.add(version)
+        match outcome:
+            case LoadOutcome.LOADED:
+                loaded.append(version)
+            case LoadOutcome.ALREADY_READY:
+                ready.append(version)
+            case LoadOutcome.READMITTED:
+                readmitted.append(version)
         emit(
             f"{outcome.value}={version} projection={world.projection.value} "
             f"documents={len(world.documents)} "
             f"levels={','.join(level.name for level in world.levels.levels)}"
         )
-    return CacheReport(tuple(loaded), tuple(ready), tuple(declined))
+    reasons = {declined_world.version: declined_world.reason for declined_world in declined}
+    demoted: list[WorldVersion] = []
+    unlisted: list[WorldVersion] = []
+    for version in sorted(cache.ready_versions() - served):
+        if version not in reasons:
+            unlisted.append(version)
+            emit(f"unlisted={version} note=served and no longer under the prefix; left as it is")
+        elif cache.demote(version):
+            demoted.append(version)
+            emit(f"demoted={version} reason={reasons[version]}")
+    return CacheReport(
+        tuple(loaded),
+        tuple(ready),
+        tuple(readmitted),
+        tuple(declined),
+        tuple(demoted),
+        tuple(unlisted),
+    )
 
 
 def cache_world_of(store: ObjectReader, served: ServedWorld) -> CacheWorld:
