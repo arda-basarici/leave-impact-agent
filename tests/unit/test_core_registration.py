@@ -14,12 +14,16 @@ from typing import cast
 
 import pytest
 
+from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
+from leaveimpact.agent.surface import surface_digest
 from leaveimpact.core import (
     OUTAGE_PROTOCOL,
     PREFETCH_PROTOCOL,
     AgentSystem,
     Basis,
+    CallConfiguration,
+    CallSetting,
     CheckReading,
     FullContextSystem,
     GroupDecision,
@@ -27,6 +31,7 @@ from leaveimpact.core import (
     MeasuredWorld,
     Pending,
     QueryInput,
+    RegisteredRole,
     Registration,
     RegistrationStatus,
     ReportingScope,
@@ -50,6 +55,7 @@ from leaveimpact.core import (
     schedule_digest,
 )
 from leaveimpact.core.attribution import AttributionTable, Match, ObservationKind
+from leaveimpact.core.tools import Role
 from tests.unit.registration_fixture import (
     COMMIT,
     DIGEST,
@@ -62,6 +68,7 @@ from tests.unit.registration_fixture import (
     decided,
     frozen,
     named,
+    pending_roles,
 )
 
 GROUP = "full_context_under_outage"
@@ -145,6 +152,36 @@ def test_the_draft_names_what_this_code_computes() -> None:
     assert DRAFT.stated_facts.anchor_table == anchor_table_digest()
 
 
+def test_the_drafts_roles_are_the_ones_the_tree_ships_for_the_development_runs() -> None:
+    """The first live run's fork 5: the three model systems' roles are set in the draft to
+    what this tree runs, Haiku 4.5 on the EU profile at temperature 0 with an 8,192-token
+    output maximum for both roles, counted against the base model inside a 200,000-token
+    window, the shipped prompt assets' digests and the shipped tool surface's digest. A
+    registration edited after an image is a new image, so the digests are compared with
+    the tree, not copied from it."""
+    configuration = CallConfiguration(
+        "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+        (CallSetting("max_tokens", 8_192), CallSetting("temperature", 0)),
+    )
+    for kind, role in (
+        (SystemKind.AGENT, Role.INVESTIGATOR),
+        (SystemKind.SINGLE_SHOT, Role.READER),
+        (SystemKind.FULL_CONTEXT, Role.READER),
+    ):
+        system = DRAFT.system(kind)
+        assert isinstance(system, AgentSystem | SingleShotSystem | FullContextSystem)
+        assert system.roles == (
+            RegisteredRole(
+                role.value,
+                configuration,
+                load_prompt_assets(role).digests(),
+                surface_digest(role),
+                "anthropic.claude-haiku-4-5-20251001-v1:0",
+                200_000,
+            ),
+        ), kind
+
+
 def test_the_draft_marks_its_numbers_unmeasured_amends_nothing_and_tunes_on_no_scenario() -> None:
     assert {system.caps.basis for system in DRAFT.systems} == {Basis.UNMEASURED}
     assert DRAFT.budget.basis is Basis.UNMEASURED
@@ -193,9 +230,6 @@ def test_the_draft_registers_one_primary_and_what_is_named_beside_it() -> None:
 def test_the_drafts_pending_values_in_the_files_order() -> None:
     assert pending_fields(DRAFT) == (
         "world.version",
-        "systems.agent.roles",
-        "systems.single_shot.roles",
-        "systems.full_context.roles",
         "corpus_levels.padded.filler_tokens",
         f"cell_groups.{GROUP}.decision",
         "run_accounting.redispatch",
@@ -218,12 +252,15 @@ def test_what_blocks_a_system_is_its_own_pending_values_and_what_every_model_cal
     # does the padded level's pending size.
     assert blocking(DRAFT, SystemKind.RULES_ONLY) == ()
     shared = ("run_accounting.redispatch", "attribution")
-    assert blocking(DRAFT, SystemKind.AGENT) == ("systems.agent.roles", *shared)
+    assert blocking(DRAFT, SystemKind.AGENT) == shared
+    unbuilt = pending_roles(DRAFT)
+    assert blocking(unbuilt, SystemKind.AGENT) == ("systems.agent.roles", *shared)
     resolved = named()
     assert blocking(resolved, SystemKind.AGENT) == ()
     assert blocking(resolved, SystemKind.FULL_CONTEXT) == ()
-    # The query protocol, the limit and the variant are set (the baselines step); the
-    # single-shot's roles stay pending under the draft, as the agent's do.
+    # The committed draft sets the single-shot's protocol, limit, variant and roles; the
+    # fixture's ``named`` leaves its roles pending on purpose.
+    assert blocking(DRAFT, SystemKind.SINGLE_SHOT) == shared
     assert blocking(resolved, SystemKind.SINGLE_SHOT) == ("systems.single_shot.roles",)
     # A named system is still blocked while the table its dispatches are read by is pending.
     untabled = replace(resolved, attribution=Pending("the rows"))
@@ -380,7 +417,9 @@ def test_a_frozen_registration_has_nothing_pending_but_its_worlds_version() -> N
     # The draft frozen as it stands names every one of them at once.
     data = _draft_tree()
     data["status"] = "frozen"
-    with pytest.raises(ValueError, match="nothing pending but its world, got systems.agent"):
+    with pytest.raises(
+        ValueError, match="nothing pending but its world, got corpus_levels.padded.filler_tokens"
+    ):
         decode_registration(data)
 
 

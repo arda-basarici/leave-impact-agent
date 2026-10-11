@@ -150,7 +150,11 @@ that calls no model and reads no prose; a single-shot baseline that makes one mo
 over the shared prefetch and one fixed retrieval; and full context, the same single call
 shown every document instead of a retrieval's hits. A system that calls a model registers
 its roles by name, each with its model configuration, its prompts and its tool surface, and
-a run is compared with them role by role.
+a run is compared with them role by role. The draft names the roles since the first
+live run's step, as what the tree runs for the development measurements (one model for
+both roles, its settings, the shipped prompts and tool surface by digest), so a
+development export cites a registration that names the role it ran under; the freeze
+confirms or changes them.
 
 A *condition* is the set of sources scheduled unreachable for a whole run, injected where
 the system reads. Conditions are reported in one of two ways, and the name describes the

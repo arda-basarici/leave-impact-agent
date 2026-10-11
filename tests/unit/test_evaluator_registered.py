@@ -342,9 +342,9 @@ def test_the_draft_projects_the_rules_only_cells_and_names_the_eighteen_it_left_
     pending = by_why[WhyUnbuilt.SYSTEM_PENDING]
     assert [sum(cell.system is kind for cell in pending) for kind in SystemKind] == [6, 0, 6, 2]
     details = {left.cell.system: left.detail for left in projection.unbuilt}
-    assert details[SystemKind.AGENT] == (
-        "systems.agent.roles, run_accounting.redispatch, attribution"
-    )
+    # The roles are set in the draft since the first live run's step; the two values every
+    # model call needs are what still blocks the agent.
+    assert details[SystemKind.AGENT] == "run_accounting.redispatch, attribution"
     assert {left.detail for left in projection.unbuilt if left.why is WhyUnbuilt.GROUP_NOT_RUN} == {
         GROUP
     }
@@ -357,7 +357,7 @@ def test_a_cell_is_built_once_its_system_is_resolved_and_its_group_decided_as_ru
     # The agent's six, the baseline's six, full context under the normal condition at both.
     assert [sum(kind is each for kind, _ in built) for each in SystemKind] == [6, 6, 0, 2]
     assert (SystemKind.FULL_CONTEXT, "padded") in built
-    # Single-shot's query protocol can only be pending in this format: never built here.
+    # The fixture's ``named`` leaves the single-shot's roles pending: never built here.
     assert {left.cell.system for left in resolved.unbuilt} == {
         SystemKind.SINGLE_SHOT,
         SystemKind.FULL_CONTEXT,

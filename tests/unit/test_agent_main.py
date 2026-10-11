@@ -42,7 +42,7 @@ from leaveimpact.core.run_record import PricingSelection, SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from tests.unit import format_fixtures as cases
 from tests.unit import worker_support as support
-from tests.unit.registration_fixture import DRAFT, named
+from tests.unit.registration_fixture import DRAFT, named, pending_roles
 
 COMMIT = "a" * 40
 ENV = {job.CODE_VERSION: COMMIT}
@@ -301,7 +301,7 @@ def test_the_work_command_decodes_its_files_composes_the_cell_and_reads_the_admi
     draft before the store is read, and an attempt with no admission is a refusal; nothing
     further is composed, so no host, store or client is needed."""
     registration = tmp_path / "registration.json"
-    registration.write_bytes(registration_bytes(DRAFT))
+    registration.write_bytes(registration_bytes(pending_roles(DRAFT)))
     prices = tmp_path / "prices.json"
     prices.write_text(json.dumps(PRICES), encoding="utf-8")
     line = [*WORK, "--registration", str(registration), "--prices", str(prices)]
@@ -342,7 +342,7 @@ def test_a_manifest_that_does_not_decode_is_reported_without_what_it_held(
     found, so a malformed object in the world store could print its own field names to the
     public log; the entry reports the key and the exception's type."""
     registration = tmp_path / "registration.json"
-    registration.write_bytes(registration_bytes(DRAFT))
+    registration.write_bytes(registration_bytes(pending_roles(DRAFT)))
     prices = tmp_path / "prices.json"
     prices.write_text(json.dumps(PRICES), encoding="utf-8")
     version = support.admitted_inputs().context.world_version

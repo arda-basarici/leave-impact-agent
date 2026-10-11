@@ -23,7 +23,41 @@
         "embedding_model": null
       },
       "roles": {
-        "pending": "set when the investigator's tool registry and graph are built"
+        "value": [
+          {
+            "name": "investigator",
+            "configuration": {
+              "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "settings": [
+                {
+                  "name": "max_tokens",
+                  "value": 8192
+                },
+                {
+                  "name": "temperature",
+                  "value": 0
+                }
+              ]
+            },
+            "prompt_digests": [
+              {
+                "name": "finalization",
+                "digest": "d495fefbc1ae90107c3219075ca08144cefd287f3c7a2648c81c6fb3f79785cb"
+              },
+              {
+                "name": "opening",
+                "digest": "a414b4112d86682b7d2d2ed879c00a7632536bf34f2753c193ad78ddfa8af60a"
+              },
+              {
+                "name": "system",
+                "digest": "24b7414476ab01ba7f622605098d77a362853e375dfe24c99004ee8666bd3e9b"
+              }
+            ],
+            "tool_surface_digest": "17c16eb1231cc91164e40ffaf55bf5b8d80ed31d4dbfa3398f9092fcad8b7399",
+            "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
+            "context_allowance_tokens": 200000
+          }
+        ]
       },
       "caps": {
         "basis": "unmeasured",
@@ -70,7 +104,41 @@
         "embedding_model": null
       },
       "roles": {
-        "pending": "set when the single-shot baseline is built"
+        "value": [
+          {
+            "name": "reader",
+            "configuration": {
+              "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "settings": [
+                {
+                  "name": "max_tokens",
+                  "value": 8192
+                },
+                {
+                  "name": "temperature",
+                  "value": 0
+                }
+              ]
+            },
+            "prompt_digests": [
+              {
+                "name": "finalization",
+                "digest": "069b41c4011fb2e6e590fd399ad3892fa1b0ad20f27eebaf01a39c839d2d59fc"
+              },
+              {
+                "name": "opening",
+                "digest": "b20b61413c420a55d1bd504cb5995d3977223903395524485ff1fb613762c09b"
+              },
+              {
+                "name": "system",
+                "digest": "29290e9f49a1ba376e5f82a4641c8becbf875a5e5f1f8265cd01f96f0327c2ef"
+              }
+            ],
+            "tool_surface_digest": "1269562f1353b5ff4b2816d7500426bfc5011ddc57df0c435aa4c1114b81923f",
+            "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
+            "context_allowance_tokens": 200000
+          }
+        ]
       },
       "query_protocol": {
         "value": {
@@ -112,7 +180,41 @@
         "embedding_model": null
       },
       "roles": {
-        "pending": "set when the full-context baseline is built"
+        "value": [
+          {
+            "name": "reader",
+            "configuration": {
+              "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "settings": [
+                {
+                  "name": "max_tokens",
+                  "value": 8192
+                },
+                {
+                  "name": "temperature",
+                  "value": 0
+                }
+              ]
+            },
+            "prompt_digests": [
+              {
+                "name": "finalization",
+                "digest": "069b41c4011fb2e6e590fd399ad3892fa1b0ad20f27eebaf01a39c839d2d59fc"
+              },
+              {
+                "name": "opening",
+                "digest": "b20b61413c420a55d1bd504cb5995d3977223903395524485ff1fb613762c09b"
+              },
+              {
+                "name": "system",
+                "digest": "29290e9f49a1ba376e5f82a4641c8becbf875a5e5f1f8265cd01f96f0327c2ef"
+              }
+            ],
+            "tool_surface_digest": "1269562f1353b5ff4b2816d7500426bfc5011ddc57df0c435aa4c1114b81923f",
+            "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
+            "context_allowance_tokens": 200000
+          }
+        ]
       },
       "caps": {
         "basis": "unmeasured",

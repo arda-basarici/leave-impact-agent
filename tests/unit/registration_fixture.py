@@ -6,10 +6,14 @@ They are made here once, with placeholder values that mean nothing: a role, an a
 table of one row per kind of observation, a re-dispatch bound, an entry schema.
 
 ``named`` resolves what an execution of the agent and of full context needs, so their cells
-can be built. The single-shot system keeps its pending roles under it (the draft names every
-variant and sets the single-shot's protocol and limit since the baselines step); ``frozen``
-therefore drops that system and everything that names it, a frozen registration having
-nothing pending but its world.
+can be built, and leaves the single-shot system's roles pending on purpose, so a plan built
+from it has one system that cannot be built, the case the analysis tests need. The committed
+draft names every variant, sets the single-shot's protocol and limit (the baselines step) and
+the three model systems' roles (the first live run's step, to what the tree ships);
+``pending_roles`` puts every model system's roles back to pending, the state a draft is in
+before its systems are built, for tests of what a run records under a role nobody has
+registered. ``frozen`` drops the single-shot system and everything that names it, a frozen
+registration having nothing pending but its world.
 """
 
 from __future__ import annotations
@@ -67,6 +71,18 @@ TABLE = AttributionTable(
 MECHANISM = MechanismMeasure("needed_prose_facts", ("returned", "emitted", "admitted", "usable"))
 
 
+def pending_roles(registration: Registration) -> Registration:
+    """``registration`` with every model system's roles pending, as a draft holds them before
+    its systems are built."""
+
+    def unroled(system: RegisteredSystem) -> RegisteredSystem:
+        if isinstance(system, AgentSystem | SingleShotSystem | FullContextSystem):
+            return replace(system, roles=Pending("set when the system is built"))
+        return system
+
+    return replace(registration, systems=tuple(unroled(system) for system in registration.systems))
+
+
 def light(registration: Registration, resamples: int = 200) -> Registration:
     """``registration`` with fewer resamples: the registered count buys precision a test
     of shape does not need."""
@@ -80,15 +96,17 @@ def named(
     full_context: str = "all-documents",
     roles: tuple[RegisteredRole, ...] = (ROLE,),
 ) -> Registration:
-    """``registration`` with the agent and full context named and given ``roles``, and the
-    three values every model system's execution needs set: the attribution table, the
-    re-dispatch policy and the entry schema."""
+    """``registration`` with the agent and full context named and given ``roles``, the
+    single-shot system's roles pending, and the three values every model system's execution
+    needs set: the attribution table, the re-dispatch policy and the entry schema."""
 
     def resolved(system: RegisteredSystem) -> RegisteredSystem:
         if isinstance(system, AgentSystem):
             return replace(system, variant=agent, roles=roles)
         if isinstance(system, FullContextSystem):
             return replace(system, variant=full_context, roles=roles)
+        if isinstance(system, SingleShotSystem):
+            return replace(system, roles=Pending("left pending by the fixture, one unbuilt system"))
         return system
 
     return replace(
@@ -177,6 +195,7 @@ __all__ = [
     "COMMIT",
     "DIGEST",
     "DRAFT",
+    "pending_roles",
     "DRAFT_FILE",
     "MECHANISM",
     "ROLE",

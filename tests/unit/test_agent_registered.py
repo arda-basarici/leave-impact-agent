@@ -64,7 +64,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.tools import Role
 from tests.unit import format_fixtures as cases
-from tests.unit.registration_fixture import DRAFT, ROLE, decided, frozen, named
+from tests.unit.registration_fixture import DRAFT, ROLE, decided, frozen, named, pending_roles
 
 HARNESS = HarnessRevision("b" * 40, TreeState.CLEAN)
 COMMIT = "c" * 40
@@ -259,8 +259,13 @@ READER = RoleFilling(
 )
 
 
+PENDING = pending_roles(DRAFT)
+"""The committed draft before the first live run's step set its roles: what a run records
+under a role nobody has registered is this code's."""
+
+
 def baseline(
-    kind: SystemKind, registration: Registration = DRAFT, role: RoleFilling = READER
+    kind: SystemKind, registration: Registration = PENDING, role: RoleFilling = READER
 ) -> Any:
     return model_system_provenance(
         registration,
@@ -295,7 +300,7 @@ def test_the_draft_names_the_variant_and_the_development_table_is_the_fixtures()
 
 
 def test_the_draft_gives_an_investigator_run_the_codes_values_for_what_it_holds_pending() -> None:
-    held = agent(DRAFT)
+    held = agent(PENDING)
     role = current_role()
     assert held.system == System(SystemKind.AGENT, "tool_loop_then_finalization")
     assert held.model_configurations == (("investigator", FILLING.configuration),)
@@ -322,7 +327,35 @@ def test_the_draft_gives_an_investigator_run_the_codes_values_for_what_it_holds_
     assert held.composing_policy == composing_policy()
     assert held.claim_author is ClaimAuthor.RULES
     # The configuration freezes whole for an admission, every role tuple naming one role.
-    assert agent(DRAFT, "jira_down").outage.scheduled_unreachable == frozenset({Source.JIRA})
+    assert agent(PENDING, "jira_down").outage.scheduled_unreachable == frozenset({Source.JIRA})
+
+
+def test_the_committed_draft_holds_a_run_to_the_roles_it_names() -> None:
+    """Since the first live run's step the draft names each model system's role; a filling
+    that is not the registered one refuses by field, and the registered one is recorded."""
+    with pytest.raises(ValueError, match="registered investigator role differs .* configuration"):
+        agent(DRAFT)
+    system = DRAFT.system(SystemKind.AGENT)
+    assert isinstance(system, AgentSystem) and isinstance(system.roles, tuple)
+    (registered,) = system.roles
+    shipped = RoleFilling(
+        registered.name,
+        registered.configuration,
+        FILLING.pricing,
+        registered.counting_model_id,
+        registered.context_allowance_tokens,
+    )
+    held = model_system_provenance(
+        DRAFT,
+        SystemKind.AGENT,
+        "normal",
+        "base",
+        preregistration_commit=COMMIT,
+        pricing=PRICING,
+        role=shipped,
+    )
+    assert held.model_configurations == (("investigator", registered.configuration),)
+    assert held.tool_surface_digests == (("investigator", registered.tool_surface_digest),)
 
 
 def test_the_effective_rules_are_the_development_ones_under_the_draft_else_the_named() -> None:
@@ -390,7 +423,7 @@ def test_the_draft_gives_a_one_call_baseline_the_readers_values_and_its_register
         single.prompt_digests,
         single.tool_surface_digests,
     )
-    investigator = agent(DRAFT)
+    investigator = agent(PENDING)
     assert investigator.prompt_digests != single.prompt_digests
     assert investigator.tool_surface_digests[0][1] != single.tool_surface_digests[0][1]
     assert full.outage == OutageAssignment(frozenset(), schedule_digest(DRAFT.outage))
