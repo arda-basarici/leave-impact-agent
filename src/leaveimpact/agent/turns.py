@@ -59,35 +59,30 @@ operation logged, the admitted statements of every answer in the order their ans
 logged, the leave the opening read returned and the universe, under the one composing
 policy; an abstention's payload is empty, as is a defect's, and a run at the cap composes
 from what it has. Nothing the model wrote is a claim.
+
+The first message's form, a logged operation as a text block, the inference settings, the
+finalization's tool configuration and the composed payload are ``request_parts``, shared
+with the one-call baselines' turns (``one_call``), so the comparison between the systems is
+about what each shows the model (the baselines step, fork 9).
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from types import MappingProxyType
 from typing import cast
 
-from leaveimpact.agent.admissions import (
-    AnsweredCall,
-    admitted_statements,
-    answer_of,
-    trace_operations,
-)
+from leaveimpact.agent.admissions import AnsweredCall, answer_of, trace_operations
 from leaveimpact.agent.answer_parse import FACT_TOOL, ToolUse, tool_uses
 from leaveimpact.agent.assets import FINALIZATION, SYSTEM, PromptAssets
-from leaveimpact.agent.composer import compose, rules_only_composition
-from leaveimpact.agent.conclusion import abstention_of, defect_of, leave_of, universe_of
 from leaveimpact.agent.graph import ReviewPayload, TurnRequest
 from leaveimpact.agent.log_events import (
     DispatchOutcome,
-    FrozenInputs,
     ModelReadKey,
     OperationEvent,
     OperationKey,
     OperationResult,
     OperationSkip,
-    PrefetchKey,
     operation_id,
 )
 from leaveimpact.agent.log_transition import (
@@ -96,6 +91,15 @@ from leaveimpact.agent.log_transition import (
     calls_of,
     derived_abstention,
     operations_of,
+)
+from leaveimpact.agent.request_parts import (
+    append_text,
+    composed_payload,
+    configured,
+    fact_forced_tool_config,
+    frozen_inputs,
+    inference_config,
+    opening_message,
 )
 from leaveimpact.agent.surface import (
     RenderedResult,
@@ -106,26 +110,11 @@ from leaveimpact.agent.surface import (
     render_undispatched,
     render_unparsed,
 )
-from leaveimpact.core.call_settings import CallConfiguration
-from leaveimpact.core.jsonshape import JsonObject, canonical_json
+from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.model_calls import HandledAsBatch, Undispatched, Unparsed
-from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.run_trace import Operation, OperationId, thawed_json
-from leaveimpact.core.skills import SKILLS
-from leaveimpact.core.timeshape import encode_instant
-from leaveimpact.core.tools import TOOL_SPECIFICATIONS, Role, ToolSpecification, role_surface
+from leaveimpact.core.tools import Role, ToolSpecification, role_surface
 from leaveimpact.core.worldtime import RunContext
-
-INFERENCE_FIELDS: Mapping[str, str] = MappingProxyType(
-    {
-        "max_tokens": "maxTokens",
-        "temperature": "temperature",
-        "top_p": "topP",
-        "stop_sequences": "stopSequences",
-    }
-)
-"""The registered settings a role's configuration may hold, by the Converse field each is
-sent as; a setting outside this table cannot be sent and refuses the request."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,7 +140,7 @@ class InvestigatorTurns:
         once the finalization call was answered or ended as behaviour. ``ValueError`` when
         ``call`` is neither in progress nor the next, when an earlier call holds no outcome,
         or when the role's configuration holds a setting the request cannot carry."""
-        inputs = _inputs(state)
+        inputs = frozen_inputs(state)
         calls = calls_of(state)
         if call == len(calls) + 1:
             boundary = state.last_position + 1
@@ -168,75 +157,34 @@ class InvestigatorTurns:
             return None
         final = entered or (bool(earlier) and not _reads_in(state, earlier[-1]))
         shown: list[OperationId] = []
-        messages = [self._first_message(state, boundary, shown)]
+        messages = [opening_message(self.assets, state, boundary, shown)]
         for held in earlier:
             if held.answered is None:
                 continue
             messages.append(_assistant_message(state, held.answered))
             messages.append(self._results_message(state, held.answered, shown))
         if final:
-            _append_text(messages[-1], self.assets.text(FINALIZATION))
+            append_text(messages[-1], self.assets.text(FINALIZATION))
         body: JsonObject = {
             "system": [{"text": self.assets.text(SYSTEM)}],
             "messages": messages,
             "toolConfig": self._tool_config(final),
-            "inferenceConfig": _inference_config(_configuration(inputs, self.role.value)),
+            "inferenceConfig": inference_config(configured(inputs, self.role.value)),
         }
         return TurnRequest(self.role.value, body, tuple(shown), final)
 
     def payload_for(self, state: AttemptState) -> ReviewPayload:
         """The review payload over everything the log holds: empty under a defect or an
-        abstention, else the composer's claims over the admitted statements."""
-        inputs = _inputs(state)
-        operations = trace_operations(state)
-        projection = project_reads(operations, inputs.context.today)
-        leave = leave_of(operations, inputs.context)
-        if defect_of(operations, projection, inputs.context, leave) is not None:
-            return ReviewPayload((), rules_only_composition())
-        if abstention_of(projection, leave) is not None:
-            return ReviewPayload((), rules_only_composition())
-        assert leave is not None
-        composed = compose(
-            projection, admitted_statements(state), inputs.context, leave, universe_of(projection)
-        )
-        return ReviewPayload(composed.claims, composed.composition)
+        abstention, else the composer's claims over the admitted statements
+        (``request_parts``)."""
+        return composed_payload(state)
 
     # --- the messages ----------------------------------------------------------------------
-
-    def _first_message(
-        self, state: AttemptState, boundary: int, shown: list[OperationId]
-    ) -> JsonObject:
-        inputs = _inputs(state)
-        context = inputs.context
-        opening = self.assets.opening(
-            leave_id=str(context.leave_id), now=canonical_json(encode_instant(context.now))
-        )
-        content: list[JsonObject] = [{"text": opening}, {"text": _skill_list()}]
-        for logged in operations_of(state):
-            if logged.position >= boundary:
-                break
-            event = logged.event
-            assert isinstance(event, OperationEvent)
-            if not isinstance(event.key, PrefetchKey):
-                continue
-            result = event.resolution
-            assert isinstance(result, OperationResult), "a prefetch read is never skipped"
-            rendered = render_result(
-                result, tool=result.tool, surface=TOOL_SPECIFICATIONS, context=context
-            )
-            block: JsonObject = {
-                "tool": result.tool,
-                "arguments": thawed_json(result.arguments),
-                "result": rendered.content,
-            }
-            content.append({"text": canonical_json(block)})
-            shown.append(operation_id(event.key))
-        return {"role": "user", "content": content}
 
     def _results_message(
         self, state: AttemptState, answered: AnsweredCall, shown: list[OperationId]
     ) -> JsonObject:
-        context = _inputs(state).context
+        context = frozen_inputs(state).context
         surface = role_surface(self.role)
         dispositions = {call.id: call.disposition for call in answered.answer.tool_calls}
         held = _held_reads(state, answered.ordinal)
@@ -262,10 +210,7 @@ class InvestigatorTurns:
 
     def _tool_config(self, final: bool) -> JsonObject:
         if final:
-            return {
-                "tools": list(converse_harness_tools()),
-                "toolChoice": {"tool": {"name": FACT_TOOL}},
-            }
+            return fact_forced_tool_config()
         return {
             "tools": [*converse_tools(self.role), *converse_harness_tools()],
             "toolChoice": {"auto": {}},
@@ -273,35 +218,6 @@ class InvestigatorTurns:
 
 
 # --- Readers -----------------------------------------------------------------------------------
-
-
-def _inputs(state: AttemptState) -> FrozenInputs:
-    inputs = state.inputs
-    assert inputs is not None, "a request is built over an admitted attempt"
-    return inputs
-
-
-def _configuration(inputs: FrozenInputs, role: str) -> CallConfiguration:
-    configuration = inputs.configuration_of(role)
-    if configuration is None:
-        raise ValueError(f"{role!r} is not a configured role")
-    return configuration
-
-
-def _inference_config(configuration: CallConfiguration) -> JsonObject:
-    config: JsonObject = {}
-    for setting in configuration.settings:
-        field = INFERENCE_FIELDS.get(setting.name)
-        if field is None:
-            raise ValueError(f"the setting {setting.name!r} cannot be sent in a Converse request")
-        config[field] = thawed_json(setting.value)
-    return config
-
-
-def _skill_list() -> str:
-    lines = ["Skill list (id: name):"]
-    lines.extend(f"- {skill.id}: {skill.name}" for skill in SKILLS)
-    return "\n".join(lines)
 
 
 def _earlier(
@@ -399,9 +315,4 @@ def _rendered_read(
     return render_result(resolution, tool=use.name, surface=surface, context=context)
 
 
-def _append_text(message: JsonObject, text: str) -> None:
-    content = cast("list[JsonObject]", message["content"])
-    content.append({"text": text})
-
-
-__all__ = ["INFERENCE_FIELDS", "InvestigatorTurns"]
+__all__ = ["InvestigatorTurns"]

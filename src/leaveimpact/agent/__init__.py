@@ -2,10 +2,10 @@
 
 The investigator gathers evidence about one leave across the organizational systems
 through the read ports alone, emits claims in the frozen vocabulary and a coverage plan
-for a human to approve, and never decides. Beside it stand the two preregistered
-baselines it is measured against, rules-only and single-shot, sharing its ports, its
-claim vocabulary and its run export. The loop's framework is contained inside this
-package: the ports, the tool registry and the run record know nothing of it.
+for a human to approve, and never decides. Beside it stand the three preregistered
+baselines it is measured against, rules-only, single-shot and full context, sharing its
+ports, its claim vocabulary and its run export. The loop's framework is contained inside
+this package: the ports, the tool registry and the run record know nothing of it.
 
 Boundary: the investigator is blind to the benchmark by the import law, not by
 convention. Imports ``adapters`` and ``core``; never ``world``, ``generator``,
@@ -35,7 +35,12 @@ data, digested), ``surface`` (what the model sees of a read, the fact tool's def
 and what the harness answers a fact call, an unparsed call or an undispatched call with),
 ``admissions`` (each answer's facts under the gates over the reads logged before it, one
 derivation for the export and the turns) and ``turns`` (the request of each logical call
-and the review payload, both pure functions of the log).
+and the review payload, both pure functions of the log). The two one-call baselines share
+``one_call`` (one request flagged final over the prefetch and the reads the harness issued,
+then nothing more) and the ``reader`` role; what every model system's request builds the
+same way, the first message over the prefetch, a logged operation as a text block, the
+inference settings, the finalization's tool configuration and the composed payload, is
+``request_parts``.
 
 The event log is the agent's own execution control, ownership and accounting, which the
 evaluator never reads. Its pure half: ``log_events`` (the sixteen event kinds, their keys,

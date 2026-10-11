@@ -119,6 +119,30 @@ def investigator_inputs(context: RunContext) -> FrozenInputs:
     )
 
 
+def reader_inputs(context: RunContext, system: System) -> FrozenInputs:
+    """The frozen inputs of a one-call baseline run under the real turns: the fixtures' for
+    ``system`` with the ``reader`` role in the investigator's place, its prompt digests and
+    its empty surface's digest as this code computes them, and the prefetch rule and the
+    composing policy the provenance freezes."""
+    base = admitted_inputs(context, system=system)
+    role = Role.READER.value
+
+    def rekeyed[T](pairs: tuple[tuple[str, T], ...]) -> tuple[tuple[str, T], ...]:
+        return tuple((role, value) for _, value in pairs)
+
+    return replace(
+        base,
+        prefetch_rule=prefetch_rule(),
+        model_configurations=rekeyed(base.model_configurations),
+        pricing_selections=rekeyed(base.pricing_selections),
+        counting_identifiers=rekeyed(base.counting_identifiers),
+        context_allowances=rekeyed(base.context_allowances),
+        prompt_digests=load_prompt_assets(Role.READER).prompt_digests(role),
+        tool_surface_digests=((role, surface_digest(Role.READER)),),
+        composing_policy=composing_policy(),
+    )
+
+
 def admission(inputs: FrozenInputs) -> tuple[LoggedEvent, ...]:
     """The one-event log of an attempt just admitted."""
     return (LoggedEvent(1, cases.ADMITTED, ADMITTER, Admitted(inputs)),)
@@ -609,6 +633,7 @@ __all__ = [
     "investigator_inputs",
     "investigator_script",
     "observed",
+    "reader_inputs",
     "request_digest",
     "sends_of",
     "settled",
