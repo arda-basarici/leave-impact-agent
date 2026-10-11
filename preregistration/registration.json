@@ -63,7 +63,7 @@
     {
       "kind": "single_shot",
       "variant": {
-        "pending": "set when the single-shot baseline is built"
+        "value": "prefetch_then_one_search_one_call"
       },
       "retrieval": {
         "kind": "full_text",
@@ -105,7 +105,7 @@
     {
       "kind": "full_context",
       "variant": {
-        "pending": "set when the full-context baseline is built"
+        "value": "prefetch_then_level_documents_one_call"
       },
       "retrieval": {
         "kind": "none",

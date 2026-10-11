@@ -14,7 +14,7 @@ decodes no scenario and the file is written by a launcher that may; ``deliver-ap
 fields as flags.
 ``work`` composes the investigator graph's real fillings over an admitted attempt (the
 graph step, fork 17): the configuration the registration and this code give the named cell
-(``registered.agent_provenance``), the role's model, settings, rate and counting model from
+(``registered.model_system_provenance``), the role's model, settings, rate and counting model from
 flags, the price table from a file, the vendor hosts from the environment, the world
 manifest from the world store at the admitted version, the corpus reader from the admitted
 version and level before any read (the registry step's forward), the live clients from the
@@ -90,7 +90,7 @@ from leaveimpact.agent.commands import (
 )
 from leaveimpact.agent.corpus import corpus_reader_for
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import NoPreparation
+from leaveimpact.agent.graph import NoPreparation, Preparation, Turns
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     AdmissionReceipt,
@@ -101,7 +101,14 @@ from leaveimpact.agent.log_store import (
     LogStoreUnavailable,
 )
 from leaveimpact.agent.log_transition import Rules
-from leaveimpact.agent.registered import RoleFilling, agent_provenance, effective_rules
+from leaveimpact.agent.one_call import OneCallTurns
+from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
+from leaveimpact.agent.registered import (
+    MODEL_SYSTEM_ROLES,
+    RoleFilling,
+    effective_rules,
+    model_system_provenance,
+)
 from leaveimpact.agent.turns import InvestigatorTurns
 from leaveimpact.agent.worker import (
     ApprovalPolicy,
@@ -118,7 +125,7 @@ from leaveimpact.core.pricing import PriceTable, basis_for, decode_price_table
 from leaveimpact.core.registration import Registration
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
-from leaveimpact.core.run_record import PricingSelection
+from leaveimpact.core.run_record import PricingSelection, SystemKind
 from leaveimpact.core.run_timing import GIT_SHA_LENGTH, HarnessRevision, TreeState
 from leaveimpact.core.tools import Role
 
@@ -150,13 +157,15 @@ class AdmitFile:
 @dataclass(frozen=True, slots=True)
 class WorkLine:
     """The work command as the line states it: the attempt with its nonce and launch
-    identity, the registered cell, the registration's commit, the role's filling, the
-    price table's file, the region the clients call from, the harness revision this code
-    claims, and who approves. The registration file is the shared flag's."""
+    identity, the registered cell (its system kind, condition and level), the registration's
+    commit, the filling of the one role the system runs, the price table's file, the region
+    the clients call from, the harness revision this code claims, and who approves. The
+    registration file is the shared flag's."""
 
     attempt: WorkRequest
     condition: str
     level: str
+    system: SystemKind
     registration_commit: str
     role: RoleFilling
     prices: Path
@@ -253,6 +262,12 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     working.add_argument("--launch", required=True, help="the launch identity recorded")
     working.add_argument("--condition", required=True, help="the registered condition")
     working.add_argument("--level", required=True, help="the registered corpus level")
+    working.add_argument(
+        "--system",
+        required=True,
+        choices=[kind.value for kind in MODEL_SYSTEM_ROLES],
+        help="the registered model system the cell belongs to",
+    )
     working.add_argument("--registration-commit", required=True, help="the registration's commit")
     working.add_argument("--model", required=True, help="the model id the role's calls run under")
     working.add_argument(
@@ -334,13 +349,15 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
             for name, value in (("temperature", parsed.temperature), ("top_p", parsed.top_p)):
                 if value is not None:
                     settings.append(CallSetting(name, value))
+            kind = SystemKind(parsed.system)
             return WorkLine(
                 WorkRequest(parsed.run, parsed.attempt, parsed.nonce, parsed.launch),
                 parsed.condition,
                 parsed.level,
+                kind,
                 parsed.registration_commit,
                 RoleFilling(
-                    Role.INVESTIGATOR.value,
+                    MODEL_SYSTEM_ROLES[kind].value,
                     CallConfiguration(parsed.model, tuple(settings)),
                     PricingSelection(parsed.pricing_key, parsed.region, parsed.billing_mode),
                     parsed.counting_model,
@@ -599,11 +616,12 @@ def _run(
 def _work(
     request: WorkResolved, store: LogStore, rules: Rules, env: Mapping[str, str]
 ) -> WorkerEnding:
-    """The investigator's composition over the admitted attempt, worked as far as one
-    process can. What is opened here is closed before it returns, in the reverse of its
-    opening: the corpus reader, the vendor readers, the SDK runtime client the two live
-    clients share and the saver's connection; the world-store reader holds nothing to
-    close.
+    """The model system's composition over the admitted attempt, worked as far as one
+    process can: the system the line names chooses its content behind the skeleton's
+    protocols (``_system_content``) and its provenance. What is opened here is closed before
+    it returns, in the reverse of its opening: the corpus reader, the vendor readers, the
+    SDK runtime client the two live clients share and the saver's connection; the
+    world-store reader holds nothing to close.
 
     The admitted inputs are read first, since the manifest and the corpus reader are
     functions of the admitted world version and level; the corpus reader runs its serving
@@ -612,8 +630,10 @@ def _work(
     claim where it differs from the admission's.
     """
     line = request.line
-    configuration = agent_provenance(
+    turns, preparation = _system_content(line.system)
+    configuration = model_system_provenance(
         request.registration,
+        line.system,
         line.condition,
         line.level,
         preregistration_commit=line.registration_commit,
@@ -655,8 +675,8 @@ def _work(
             configuration,
             line.harness,
             rules,
-            InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)),
-            NoPreparation(),
+            turns,
+            preparation,
             ConverseClient(runtime),
             CountingClient(runtime),
             ReadPorts(readers.people, readers.work, readers.calendar, corpus),
@@ -664,6 +684,22 @@ def _work(
             saver,
         )
         return work(line.attempt, store, composition)
+
+
+def _system_content(kind: SystemKind) -> tuple[Turns, Preparation]:
+    """The system's content behind the skeleton's protocols, by kind (the baselines step,
+    fork 15): the investigator's turns over its assets with no preparation; the one-call
+    turns over the reader's assets with the single-shot's one search or full context's one
+    enumeration. ``ValueError`` for a kind that runs no model."""
+    match kind:
+        case SystemKind.AGENT:
+            return InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)), NoPreparation()
+        case SystemKind.SINGLE_SHOT:
+            return OneCallTurns(load_prompt_assets(Role.READER)), SingleShotPreparation()
+        case SystemKind.FULL_CONTEXT:
+            return OneCallTurns(load_prompt_assets(Role.READER)), FullContextPreparation()
+        case _:
+            raise ValueError(f"{kind.value} runs no model and is not worked")
 
 
 def _manifest_of(content: bytes, key: str) -> WorldManifest:

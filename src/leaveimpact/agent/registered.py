@@ -19,19 +19,26 @@ draft, whose runs the evaluator labels development. What only a composition root
 harness revision, the commit the registration is read at and the price table, arrives as
 arguments; nothing here reads a file or the repository.
 
-The agent's provenance is every frozen input the admission does not copy, and under a draft
-the registration holds some of them pending (the graph step, fork 14): the roles, the
-attribution table, the re-dispatch policy and the entry schema. A draft run uses this code's
-current value for each and records it, so the export says what the run ran under and the
-evaluator labels it development as it does every draft run; the development table and
-policy live here, since the graph asserts a table on the first model call and the fixtures
-are no production home. A registration past its draft may hold nothing an agent run needs
-pending, and every value it binds is compared as the baseline's are.
+A model system's provenance, the agent's or a one-call baseline's, is every frozen input the
+admission does not copy, and under a draft the registration holds some of them pending (the
+graph step, fork 14): the roles, the attribution table, the re-dispatch policy and the entry
+schema. A draft run uses this code's current value for each and records it, so the export
+says what the run ran under and the evaluator labels it development as it does every draft
+run; the development table and policy live here, since the graph asserts a table on the
+first model call and the fixtures are no production home. A registration past its draft may
+hold nothing a model system's run needs pending, and every value it binds is compared as
+the baseline's are. The kind chooses the registered system and the one role it runs (the
+baselines step, fork 15): the investigator for the agent, the reader for both one-call
+baselines; the single-shot's registered query protocol and limit are copied into the frozen
+inputs, so the worker's configuration comparison holds a claim to the admission's (fork 12
+as amended).
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, fields
+from types import MappingProxyType
 
 from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
@@ -55,12 +62,14 @@ from leaveimpact.core.prefetch import PREFETCH_PROTOCOL, prefetch_rule
 from leaveimpact.core.registration import (
     OUTAGE_PROTOCOL,
     AgentSystem,
+    FullContextSystem,
     Injection,
     Pending,
     RegisteredRole,
     Registration,
     Roles,
     RulesOnlySystem,
+    SingleShotSystem,
     blocking,
     schedule_digest,
 )
@@ -231,9 +240,22 @@ holds the policy pending. The values are a guess with no measured basis behind t
 step-11 build notes), and the freeze sets the registered ones."""
 
 
+MODEL_SYSTEM_ROLES: Mapping[SystemKind, Role] = MappingProxyType(
+    {
+        SystemKind.AGENT: Role.INVESTIGATOR,
+        SystemKind.SINGLE_SHOT: Role.READER,
+        SystemKind.FULL_CONTEXT: Role.READER,
+    }
+)
+"""The one role each model system runs (the baselines step, forks 3 and 15); rules-only
+runs none and is absent."""
+
+type ModelSystem = AgentSystem | SingleShotSystem | FullContextSystem
+
+
 @dataclass(frozen=True, slots=True)
 class RoleFilling:
-    """What the composition root supplies for the investigator role: the model and settings
+    """What the composition root supplies for a system's one role: the model and settings
     its calls run under, the rate they are priced under, the base model its requests are
     counted against, and the model's context allowance in tokens. Under a draft the
     registration holds the role pending and these are recorded; under a bound registration
@@ -259,8 +281,9 @@ def effective_rules(registration: Registration) -> Rules:
     )
 
 
-def agent_provenance(
+def model_system_provenance(
     registration: Registration,
+    kind: SystemKind,
     condition: str,
     level: str,
     *,
@@ -268,39 +291,58 @@ def agent_provenance(
     pricing: PricingBasis,
     role: RoleFilling,
 ) -> WorkerConfiguration:
-    """Every frozen input of an investigator run under ``condition`` at ``level`` but the
-    five the admission copies, as ``registration`` fixes them and this code supplies them:
-    what a development export records (the graph step, fork 14).
+    """Every frozen input of a run of the model system ``kind`` under ``condition`` at
+    ``level`` but the five the admission copies, as ``registration`` fixes them and this
+    code supplies them: what a development export records (the graph step, fork 14; the
+    baselines step, fork 15).
 
     Where the registration binds a value it is compared with this code's or with ``role``
-    and a difference refuses the run: the variant, the retrieval, the caps and the retry
-    rule are taken as registered; the outage protocol, the prefetch, the composing policy
-    and the anchor table must be the ones this code executes; a registered role must be
-    the one ``role`` and the shipped assets give; a registered entry schema must be the
-    fact parser's; a registered table and policy are the rules. Where the registration is
-    a draft holding a value pending, this code's current value is used and recorded: the
-    role from ``role``, the prompt assets and the investigator's tool surface; the
-    attribution table and the re-dispatch policy from the development values; the entry
-    schema from the fact parser. A pending value is a draft's by construction: the
-    registration type refuses a frozen or bound registration holding anything pending but
-    its world, so no check here asks the status.
+    and a difference refuses the run: the variant, the retrieval, the caps, the retry rule
+    and the single-shot's query protocol and limit are taken as registered; the outage
+    protocol, the prefetch, the composing policy and the anchor table must be the ones this
+    code executes; a registered role must be the one ``role`` and the shipped assets give;
+    a registered entry schema must be the fact parser's; a registered table and policy are
+    the rules. Where the registration is a draft holding a value pending, this code's
+    current value is used and recorded: the role from ``role``, the prompt assets and the
+    tool surface of the role the kind runs (``MODEL_SYSTEM_ROLES``); the attribution table
+    and the re-dispatch policy from the development values; the entry schema from the fact
+    parser. A pending value is a draft's by construction: the registration type refuses a
+    frozen or bound registration holding anything pending but its world, so no check here
+    asks the status.
 
-    Raises ``ValueError`` naming what refuses: no agent system or a pending variant, a
-    cell not registered or not decided as run, or any of the differences above.
+    Raises ``ValueError`` naming what refuses: a kind that calls no model, no system of the
+    kind or a pending variant, a single-shot protocol or limit pending, a filling for
+    another role than the kind runs, a cell not registered or not decided as run, or any of
+    the differences above.
     """
-    system = registration.system(SystemKind.AGENT)
-    if not isinstance(system, AgentSystem):
-        raise ValueError("the registration names no agent system")
+    expected = MODEL_SYSTEM_ROLES.get(kind)
+    if expected is None:
+        raise ValueError(f"{kind.value} calls no model; its provenance is the rules-only one")
+    system = registration.system(kind)
+    if not isinstance(system, AgentSystem | SingleShotSystem | FullContextSystem):
+        raise ValueError(f"the registration names no {kind.value} system")
     if not isinstance(system.variant, str):
-        raise ValueError("the agent's variant is pending, and a run records it")
+        raise ValueError(f"the {kind.value}'s variant is pending, and a run records it")
+    if role.name != expected.value:
+        raise ValueError(
+            f"{kind.value} runs the {expected.value} role; the line fills {role.name!r}"
+        )
+    query_protocol = search_limit = None
+    if isinstance(system, SingleShotSystem):
+        if isinstance(system.query_protocol, Pending) or isinstance(system.search_limit, Pending):
+            raise ValueError(
+                "the single-shot's query protocol or search limit is pending, and a run "
+                "freezes both"
+            )
+        query_protocol, search_limit = system.query_protocol, system.search_limit
     _require_registered_composing(registration)
     rules = effective_rules(registration)
     assert rules.table is not None and rules.redispatch is not None
-    registered_role = _agent_role(system, role)
+    registered_role = _model_role(system, role, expected)
     parser = _entry_schema(registration)
     return WorkerConfiguration(
         preregistration_commit=preregistration_commit,
-        system=System(SystemKind.AGENT, system.variant),
+        system=System(kind, system.variant),
         retrieval=system.retrieval,
         caps=system.caps.caps,
         model_configurations=((registered_role.name, registered_role.configuration),),
@@ -318,32 +360,33 @@ def agent_provenance(
         composing_policy=composing_policy(),
         claim_author=ClaimAuthor.RULES,
         parser=parser,
-        outage=_assignment(registration, SystemKind.AGENT, condition, level),
+        outage=_assignment(registration, kind, condition, level),
         corpus_level=level,
-        query_protocol=None,
-        search_limit=None,
+        query_protocol=query_protocol,
+        search_limit=search_limit,
         context_allowances=((registered_role.name, registered_role.context_allowance_tokens),),
     )
 
 
-def _agent_role(system: AgentSystem, filling: RoleFilling) -> RegisteredRole:
-    """The one role the run records: the code's under a draft that holds the roles pending,
-    else the registered one, which must equal the code's."""
-    assets = load_prompt_assets(Role.INVESTIGATOR)
+def _model_role(system: ModelSystem, filling: RoleFilling, role: Role) -> RegisteredRole:
+    """The one role the run records, ``role``'s assets and surface under ``filling``: the
+    code's under a draft that holds the roles pending, else the registered one, which must
+    equal the code's."""
+    assets = load_prompt_assets(role)
     current = RegisteredRole(
         filling.name,
         filling.configuration,
         assets.digests(),
-        surface_digest(Role.INVESTIGATOR),
+        surface_digest(role),
         filling.counting_model_id,
         filling.context_allowance_tokens,
     )
     if isinstance(system.roles, Pending):
         return current
-    if [role.name for role in system.roles] != [current.name]:
+    if [held.name for held in system.roles] != [current.name]:
         raise ValueError(
-            f"the registered agent roles are {_role_names(system.roles)}, this harness runs "
-            f"one, {current.name}"
+            f"the registered {system.kind.value} roles are {_role_names(system.roles)}, this "
+            f"harness runs one, {current.name}"
         )
     (registered,) = system.roles
     differing = [
@@ -384,9 +427,11 @@ def _role_names(roles: Roles) -> str:
 __all__ = [
     "DEVELOPMENT_ATTRIBUTION_TABLE",
     "DEVELOPMENT_REDISPATCH_POLICY",
+    "MODEL_SYSTEM_ROLES",
     "NOVA_TOOL_USE_CUT",
+    "ModelSystem",
     "RoleFilling",
-    "agent_provenance",
     "effective_rules",
+    "model_system_provenance",
     "rules_only_provenance",
 ]

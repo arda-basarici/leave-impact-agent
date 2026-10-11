@@ -20,7 +20,7 @@ role filled with Haiku 4.5 on the ``eu.`` profile at temperature 0 and an output
 the bedrock probe captured, the four classes the worst case needs) and counted against the
 base model id, the one identifier of four the input-bound probe found served. The draft
 registration holds the roles, the attribution table, the re-dispatch policy and the entry
-schema pending, so ``agent_provenance`` records this code's current values, as a
+schema pending, so ``model_system_provenance`` records this code's current values, as a
 development run does.
 """
 
@@ -36,14 +36,14 @@ from random import Random
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.agent.log_events import FrozenInputs
 from leaveimpact.agent.log_transition import Rules
-from leaveimpact.agent.registered import RoleFilling, agent_provenance, effective_rules
+from leaveimpact.agent.registered import RoleFilling, effective_rules, model_system_provenance
 from leaveimpact.agent.worker import WorkerConfiguration
 from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.pricing import PriceTable, basis_for, decode_price_table, worst_case_cost
 from leaveimpact.core.registration import Registration
 from leaveimpact.core.registration_json import decode_registration_bytes
-from leaveimpact.core.run_record import PricingSelection
+from leaveimpact.core.run_record import PricingSelection, SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from leaveimpact.core.tools import Role
 from leaveimpact.core.worldtime import RunContext
@@ -162,8 +162,9 @@ def probe_configuration(*, tree_state: TreeState) -> ProbeConfiguration:
     )
     table = price_table()
     basis = basis_for(table, (role.pricing,))
-    worker = agent_provenance(
+    worker = model_system_provenance(
         registration(),
+        SystemKind.AGENT,
         CONDITION,
         LEVEL,
         preregistration_commit=registration_commit(),

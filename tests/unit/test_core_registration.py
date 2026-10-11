@@ -194,9 +194,7 @@ def test_the_drafts_pending_values_in_the_files_order() -> None:
     assert pending_fields(DRAFT) == (
         "world.version",
         "systems.agent.roles",
-        "systems.single_shot.variant",
         "systems.single_shot.roles",
-        "systems.full_context.variant",
         "systems.full_context.roles",
         "corpus_levels.padded.filler_tokens",
         f"cell_groups.{GROUP}.decision",
@@ -224,12 +222,9 @@ def test_what_blocks_a_system_is_its_own_pending_values_and_what_every_model_cal
     resolved = named()
     assert blocking(resolved, SystemKind.AGENT) == ()
     assert blocking(resolved, SystemKind.FULL_CONTEXT) == ()
-    # The query protocol and the limit are set (the selection probe, 2026-10-11); the
-    # single-shot's variant and roles stay pending until its runtime is built.
-    assert blocking(resolved, SystemKind.SINGLE_SHOT) == (
-        "systems.single_shot.variant",
-        "systems.single_shot.roles",
-    )
+    # The query protocol, the limit and the variant are set (the baselines step); the
+    # single-shot's roles stay pending under the draft, as the agent's do.
+    assert blocking(resolved, SystemKind.SINGLE_SHOT) == ("systems.single_shot.roles",)
     # A named system is still blocked while the table its dispatches are read by is pending.
     untabled = replace(resolved, attribution=Pending("the rows"))
     assert blocking(untabled, SystemKind.AGENT) == ("attribution",)

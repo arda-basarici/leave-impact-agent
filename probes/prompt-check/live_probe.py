@@ -10,7 +10,7 @@ the forecast names: ``adapters.plantings.sealed_readers`` over the local truth r
 vendor adapters, the laptop's ``leaveimpact_step9`` cache for the instance's, and a log
 schema of its own on that database (``prompt_check``), created if absent and kept, so every
 run's log survives for a later read. The frozen inputs are the draft registration's through
-``agent_provenance`` (``development_world.probe_configuration``), as a production admission
+``model_system_provenance`` (``development_world.probe_configuration``), as a production admission
 records them; the ledger's threshold is set once per schema, far above what a round can
 spend, since the caps are the registration's and the ledger is not what bounds a run here.
 

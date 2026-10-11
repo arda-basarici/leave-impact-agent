@@ -6,9 +6,10 @@ They are made here once, with placeholder values that mean nothing: a role, an a
 table of one row per kind of observation, a re-dispatch bound, an entry schema.
 
 ``named`` resolves what an execution of the agent and of full context needs, so their cells
-can be built. The single-shot system keeps its pending variant and roles under it (the draft
-sets its protocol and limit since the selection probe); ``frozen`` therefore drops that system
-and everything that names it, a frozen registration having nothing pending but its world.
+can be built. The single-shot system keeps its pending roles under it (the draft names every
+variant and sets the single-shot's protocol and limit since the baselines step); ``frozen``
+therefore drops that system and everything that names it, a frozen registration having
+nothing pending but its world.
 """
 
 from __future__ import annotations

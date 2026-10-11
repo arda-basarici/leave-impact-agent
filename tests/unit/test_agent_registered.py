@@ -28,8 +28,8 @@ from leaveimpact.agent.registered import (
     DEVELOPMENT_ATTRIBUTION_TABLE,
     DEVELOPMENT_REDISPATCH_POLICY,
     RoleFilling,
-    agent_provenance,
     effective_rules,
+    model_system_provenance,
     rules_only_provenance,
 )
 from leaveimpact.agent.surface import surface_digest
@@ -51,7 +51,9 @@ from leaveimpact.core import (
     RegisteredRole,
     Registration,
     RegistrationStatus,
+    RetrievalKind,
     RulesOnlySystem,
+    SingleShotSystem,
     Source,
     System,
     SystemKind,
@@ -237,13 +239,37 @@ FILLING = RoleFilling(
 
 
 def agent(registration: Registration, condition: str = "normal", level: str = "base") -> Any:
-    return agent_provenance(
+    return model_system_provenance(
         registration,
+        SystemKind.AGENT,
         condition,
         level,
         preregistration_commit=COMMIT,
         pricing=PRICING,
         role=FILLING,
+    )
+
+
+READER = RoleFilling(
+    "reader",
+    FILLING.configuration,
+    FILLING.pricing,
+    FILLING.counting_model_id,
+    FILLING.context_allowance_tokens,
+)
+
+
+def baseline(
+    kind: SystemKind, registration: Registration = DRAFT, role: RoleFilling = READER
+) -> Any:
+    return model_system_provenance(
+        registration,
+        kind,
+        "normal",
+        "base",
+        preregistration_commit=COMMIT,
+        pricing=PRICING,
+        role=role,
     )
 
 
@@ -331,6 +357,72 @@ def test_a_registered_role_or_entry_schema_that_is_not_the_codes_refuses() -> No
     assert isinstance(settled.attribution, AttributionTable)
     assert held.attribution_table == attribution_table_digest(settled.attribution)
     assert held.redispatch == RedispatchPolicy(2, 1_000)
+
+
+# --- The one-call baselines under a draft (the baselines step, forks 15 and 16) ---------------
+
+
+def test_the_draft_gives_a_one_call_baseline_the_readers_values_and_its_registered_retrieval() -> (
+    None
+):
+    """Both baselines record the reader role with this code's assets and empty surface, the
+    variant the draft names, and the retrieval as registered; the single-shot's frozen
+    inputs copy the registered query protocol and limit, full context's hold none."""
+    single = baseline(SystemKind.SINGLE_SHOT)
+    registered = DRAFT.system(SystemKind.SINGLE_SHOT)
+    assert isinstance(registered, SingleShotSystem)
+    assert single.system == System(SystemKind.SINGLE_SHOT, "prefetch_then_one_search_one_call")
+    assert (single.query_protocol, single.search_limit) == (
+        registered.query_protocol,
+        registered.search_limit,
+    )
+    assert single.search_limit == 20 and single.retrieval.kind is RetrievalKind.FULL_TEXT
+    assert single.model_configurations == (("reader", FILLING.configuration),)
+    assert single.prompt_digests == load_prompt_assets(Role.READER).prompt_digests("reader")
+    assert single.tool_surface_digests == (("reader", surface_digest(Role.READER)),)
+    assert single.context_allowances == (("reader", 200_000),)
+    assert single.caps == registered.caps.caps
+    full = baseline(SystemKind.FULL_CONTEXT)
+    assert full.system == System(SystemKind.FULL_CONTEXT, "prefetch_then_level_documents_one_call")
+    assert full.query_protocol is None and full.search_limit is None
+    assert full.retrieval.kind is RetrievalKind.NONE
+    assert (full.prompt_digests, full.tool_surface_digests) == (
+        single.prompt_digests,
+        single.tool_surface_digests,
+    )
+    investigator = agent(DRAFT)
+    assert investigator.prompt_digests != single.prompt_digests
+    assert investigator.tool_surface_digests[0][1] != single.tool_surface_digests[0][1]
+    assert full.outage == OutageAssignment(frozenset(), schedule_digest(DRAFT.outage))
+
+
+def test_a_filling_for_another_role_than_the_kind_runs_refuses_as_does_a_model_free_kind() -> None:
+    with pytest.raises(ValueError, match="single_shot runs the reader role; the line fills"):
+        baseline(SystemKind.SINGLE_SHOT, role=FILLING)
+    with pytest.raises(ValueError, match="agent runs the investigator role; the line fills"):
+        baseline(SystemKind.AGENT, role=READER)
+    with pytest.raises(ValueError, match="rules_only calls no model"):
+        baseline(SystemKind.RULES_ONLY)
+
+
+def test_a_pending_single_shot_protocol_or_limit_refuses() -> None:
+    def with_pending(**held: Any) -> Registration:
+        return replace(
+            DRAFT,
+            systems=tuple(
+                replace(system, **held) if isinstance(system, SingleShotSystem) else system
+                for system in DRAFT.systems
+            ),
+        )
+
+    for pending in (
+        with_pending(query_protocol=Pending("later")),
+        with_pending(search_limit=Pending("later")),
+    ):
+        with pytest.raises(ValueError, match="query protocol or search limit is pending"):
+            baseline(SystemKind.SINGLE_SHOT, pending)
+    with pytest.raises(ValueError, match="the single_shot's variant is pending"):
+        baseline(SystemKind.SINGLE_SHOT, with_pending(variant=Pending("later")))
 
 
 def test_a_frozen_registration_is_executed_as_registered_and_a_pending_variant_refuses() -> None:

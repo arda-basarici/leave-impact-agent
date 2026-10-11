@@ -38,7 +38,7 @@ from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.inventory import InventoryScope
 from leaveimpact.core.registration_json import registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
-from leaveimpact.core.run_record import PricingSelection
+from leaveimpact.core.run_record import PricingSelection, SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from tests.unit import format_fixtures as cases
 from tests.unit import worker_support as support
@@ -74,7 +74,17 @@ WORK = [
     "vendor.model-v1",
     "--region",
     "eu-central-1",
+    "--system",
+    "agent",
 ]
+"""The investigator's work line; the system is the last pair, so ``for_system`` can swap it."""
+
+
+def for_system(system: str) -> list[str]:
+    """``WORK`` naming ``system`` as the cell's system."""
+    return [*WORK[:-2], "--system", system]
+
+
 PRICES = {
     "currency": "USD",
     "effective_from": "2026-09-01",
@@ -230,6 +240,7 @@ def test_the_work_line_parses_to_its_request_under_a_registration() -> None:
         WorkRequest("run-12", 1, "nonce-1", "launcher:test"),
         "normal",
         "base",
+        SystemKind.AGENT,
         cases.COMMIT,
         RoleFilling(
             "investigator",
@@ -249,6 +260,19 @@ def test_the_work_line_parses_to_its_request_under_a_registration() -> None:
     default = job.parse_request([*WORK, "--registration", "r.json", "--prices", "p.json"], ENV)
     assert isinstance(default.request, job.WorkLine)
     assert default.request.approval == AutomaticApproval()
+    # The baselines step, fork 15: the line names the cell's system, and the role filled is
+    # the one that system runs, the reader for both one-call baselines.
+    for system in ("single_shot", "full_context"):
+        reader = job.parse_request(
+            [*for_system(system), "--registration", "r.json", "--prices", "p.json"], ENV
+        )
+        assert isinstance(reader.request, job.WorkLine)
+        assert reader.request.system is SystemKind(system)
+        assert reader.request.role.name == "reader"
+    with pytest.raises(ConfigurationError, match="not a command"):
+        job.parse_request(
+            [*for_system("rules_only"), "--registration", "r.json", "--prices", "p.json"], ENV
+        )
     with pytest.raises(ConfigurationError, match="work runs under a registration"):
         job.parse_request([*WORK, "--prices", "p.json"], ENV)
     with pytest.raises(ConfigurationError, match="LEAVEIMPACT_CODE_VERSION"):
