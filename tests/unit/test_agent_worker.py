@@ -62,6 +62,7 @@ from leaveimpact.agent.log_events import (
     Completed,
     CountOutcomeLogged,
     DispatchIntent,
+    DispatchOutcome,
     EventKind,
     Failed,
     FrozenInputs,
@@ -116,7 +117,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.attribution import RedispatchPolicy
 from leaveimpact.core.counting_operations import Counted, CountServiceError
-from leaveimpact.core.model_calls import ServiceError
+from leaveimpact.core.model_calls import RefusedBeforeSend, ServiceError
 from leaveimpact.core.run_account import CallPurpose
 from leaveimpact.core.run_parts_json import review_payload_digest
 from leaveimpact.core.run_record import System
@@ -1047,6 +1048,67 @@ def test_the_closing_kind_must_be_the_one_the_request_froze_toward(world: Sealed
         RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), CapExhausted(None), rules=RULES, state=state
     )
     assert isinstance(closed, Appended)
+
+
+# --- The context-fit check (the baselines step, fork 10 as amended) --------------------------
+
+
+def with_allowance(world: SealedWorld, allowance: int) -> Bench:
+    """The reference bench with the investigator role's context allowance set to ``allowance``
+    tokens, the caps as the fixtures have them (a token cap of 100,000)."""
+    context = world.context_of(world.scenarios[0])
+    inputs = replace(
+        support.admitted_inputs(context), context_allowances=((cases.ROLE, allowance),)
+    )
+    turns, client = support.two_call_script(context)
+    log = MemoryLog()
+    log.seed(support.admission(inputs))
+    made = Bench(log, inputs, turns, client)
+    made.ports = systems_holding(world).ports
+    return made
+
+
+def test_a_request_over_the_roles_context_allowance_is_refused_before_the_send(
+    world: SealedWorld,
+) -> None:
+    """Fork 10 as amended: a request under the token cap and over the allowance makes one
+    intent and one outcome whose observation is a refusal before the send naming the
+    allowance and the two numbers, attributed under ``never_sent``; nothing is sent, the call
+    stands failed by infrastructure at its first dispatch's send, no second logical call."""
+    worst_case = cases.INPUT_BOUND + cases.OUTPUT_MAXIMUM
+    made = with_allowance(world, worst_case - 1)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    assert made.client.sends == []
+    assert made.kinds()[-3:] == ["dispatch_intent", "dispatch_outcome", "failed"]
+    state = made.log.load(RUN, ATTEMPT, rules=RULES)
+    (call,) = calls_of(state)
+    assert call.last_number == 1
+    outcome = call.last_outcome
+    assert outcome is not None
+    observed = outcome.event
+    assert isinstance(observed, DispatchOutcome)
+    assert isinstance(observed.observation, RefusedBeforeSend)
+    assert observed.observation.reason == (
+        f"the request's {cases.INPUT_BOUND} input tokens plus the output maximum "
+        f"{cases.OUTPUT_MAXIMUM} exceed the {cases.ROLE} role's context allowance of "
+        f"{worst_case - 1} tokens"
+    )
+    assert observed.attribution.rule == "never_sent"
+    assert observed.attribution.kind is AttributionKind.INFRASTRUCTURE
+    closing = state.closing
+    assert isinstance(closing, Failed)
+    assert closing.category is FailureCategory.INFRASTRUCTURE
+    assert closing.site == DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.SEND)
+    export = export_of(state)
+    assert decode_export_bytes(export_bytes(export)) == export
+
+
+def test_a_request_that_exactly_fits_the_allowance_is_sent(world: SealedWorld) -> None:
+    """The check's boundary: the bound plus the output maximum equal to the allowance fits,
+    and the reference run completes with its two sends."""
+    made = with_allowance(world, cases.INPUT_BOUND + cases.OUTPUT_MAXIMUM)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert support.sends_of(made.client) == 2
 
 
 # --- The preparation node (the baselines step, forks 1 and 7) --------------------------------

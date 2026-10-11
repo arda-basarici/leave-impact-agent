@@ -61,7 +61,17 @@ check has read the boundary, so a declared finalization hides no count.
 The intent is appended and committed before anything leaves the machine (the ruling on one
 writer, part 5); the outcome is appended as it arrived, attributed by the registered table;
 then the within-call decision says whether to dispatch again after the registered delay,
-measured from the outcome's logged timestamp on the log's own clock.
+measured from the outcome's logged timestamp on the log's own clock. Between the intent and
+the send sits the context-fit check (the baselines step, fork 10 as amended): the bound plus
+the output maximum against the role's registered context allowance, and a request over it
+is never sent; its outcome is a refusal before the send that names the three numbers, which
+the registered table reads as infrastructure under the ``never_sent`` row and never
+re-dispatches, so the call stands failed and the record tells the overflow from the budget's
+at-cap path by the observation itself. The account is asked before the check, since the log
+admits an intent only under the account's authorization and an outcome only under an intent;
+a request the account refuses takes the account's path, and the overflow is recorded on a
+request it authorized. A one-call system never truncates, splits or repairs its one request
+(fork 10): what does not fit is refused, by the account or by this check.
 
 *What a read call gets.* A call of the fact tool and a call whose arguments are no object
 run nothing (the parse module handles them); a read against a source a durable outcome has
@@ -145,6 +155,7 @@ from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import (
     TOOL_USE_STOP,
     CompleteResponse,
+    RefusedBeforeSend,
     Sent,
     UndispatchedReason,
 )
@@ -568,6 +579,15 @@ def _dispatch(
     if bound is None:
         return "terminal", False
     maximum = output_maximum(configuration)
+    allowance = inputs.context_allowance_of(role)
+    assert allowance is not None, "the frozen inputs hold every configured role's allowance"
+    # The context-fit check (the baselines step, fork 10 as amended): a request the model's
+    # window cannot hold is never sent, and its refusal is this harness's own observation,
+    # so the record tells the overflow from the budget's at-cap path by the observation. The
+    # account is still asked first, since the log admits an intent only under its
+    # authorization and an outcome only under an intent; a request the account refuses takes
+    # the account's path, and the overflow is recorded on an authorized one.
+    fits = bound.input_tokens + maximum <= allowance
     tokens = worst_case_tokens(bound, maximum)
     money = worst_case_cost(bound.input_tokens, maximum, selection, inputs.pricing)
     state = appender.state
@@ -614,7 +634,14 @@ def _dispatch(
             money,
         )
     )
-    sent = harness.client.send(configuration.model_id, request.body)
+    if fits:
+        sent = harness.client.send(configuration.model_id, request.body)
+    else:
+        refused = RefusedBeforeSend(
+            f"the request's {bound.input_tokens} input tokens plus the output maximum "
+            f"{maximum} exceed the {role} role's context allowance of {allowance} tokens"
+        )
+        sent = Sent(refused, None, None)
     attribution, _ = attribute(_table(harness), sent.observation)
     appender.append(
         DispatchOutcome(
