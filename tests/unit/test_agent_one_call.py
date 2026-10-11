@@ -22,7 +22,7 @@ the forced fact call with one truthful fact. The claims:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, cast
 from uuid import uuid4
 
@@ -33,13 +33,18 @@ from leaveimpact.agent.admissions import admitted_statements
 from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.assets import FINALIZATION, PromptAssets, load_prompt_assets
 from leaveimpact.agent.log_events import (
+    ApprovalRequested,
     DispatchIntent,
+    DispatchOutcome,
     FinalizationEntered,
     FrozenInputs,
+    HarnessReadKey,
     LoggedEvent,
+    OperationEvent,
+    kind_of,
 )
 from leaveimpact.agent.log_reader import export_of
-from leaveimpact.agent.log_transition import call_purpose, fold
+from leaveimpact.agent.log_transition import call_purpose, calls_of, fold
 from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.worker import (
     AutomaticApproval,
@@ -48,7 +53,9 @@ from leaveimpact.agent.worker import (
     WorkerEnding,
     WorkerEndingKind,
 )
+from leaveimpact.core import decode_export_bytes, export_bytes
 from leaveimpact.core.jsonshape import JsonObject
+from leaveimpact.core.query_protocol import LiteralQuery
 from leaveimpact.core.run_account import CallPurpose
 from leaveimpact.core.run_record import System
 from leaveimpact.core.tools import Role
@@ -126,12 +133,21 @@ class Bench:
         return fold(self.events() if events is None else events, RULES)
 
 
-def bench(world: SealedWorld, system: str, *, outage: str | None = None) -> Bench:
+def bench(
+    world: SealedWorld,
+    system: str,
+    *,
+    outage: str | None = None,
+    events: tuple[LoggedEvent, ...] | None = None,
+    inputs: FrozenInputs | None = None,
+) -> Bench:
     """The ``system``'s run over the golden world's first scenario, the people system's
-    ``outage`` method unreachable when given."""
+    ``outage`` method unreachable when given, over ``events`` instead of a fresh admission
+    when given, under ``inputs`` instead of the reader's fixtures when given."""
     admitted, (policy, read) = SYSTEMS[system]
     context = world.context_of(world.scenarios[0])
-    inputs = support.reader_inputs(context, admitted)
+    if inputs is None:
+        inputs = support.reader_inputs(context, admitted)
     planted = support.a_planted_requirement(world)
     client = ContentScriptedClient(
         (
@@ -145,9 +161,23 @@ def bench(world: SealedWorld, system: str, *, outage: str | None = None) -> Benc
     if outage is not None:
         ports = support.with_unreachable(ports, outage)
     log = MemoryLog()
-    log.seed(support.admission(inputs))
+    log.seed(events if events is not None else support.admission(inputs))
     turns = OneCallTurns(load_prompt_assets(Role.READER))
     return Bench(log, inputs, turns, ScriptedPreparation(policy, (read,)), client, ports)
+
+
+def position_of(events: tuple[LoggedEvent, ...], kind: str) -> int:
+    """The position of the first event of ``kind``: ``harness_read`` for the harness's
+    operation, else the event kind's wire name."""
+    for logged in events:
+        if kind == "harness_read":
+            if isinstance(logged.event, OperationEvent) and isinstance(
+                logged.event.key, HarnessReadKey
+            ):
+                return logged.position
+        elif kind_of(logged.event).value == kind:
+            return logged.position
+    raise AssertionError(f"no {kind} in the log")
 
 
 # --- Readers of a body -----------------------------------------------------------------------
@@ -259,20 +289,120 @@ def test_an_abstention_asks_no_call(world: SealedWorld) -> None:
     assert made.turns.payload_for(state).claims == ()
 
 
+@pytest.mark.parametrize("system", sorted(SYSTEMS))
 def test_an_unanswered_harness_read_is_shown_as_its_error_and_the_call_is_still_made(
-    world: SealedWorld,
+    world: SealedWorld, system: str
 ) -> None:
-    """Fork 7: the corpus unreachable at the harness read: the block shows the unreachable
-    source as the surface renders it, the operation is named among the input reads, and the
-    one call is made."""
-    made = bench(world, "single_shot")
-    made.ports = support.with_corpus_unreachable(made.ports, "search")
+    """Fork 7, and fork 17's added case: the corpus unreachable at the harness read, the
+    search or the enumeration: the block shows the unreachable source as the surface renders
+    it, the operation is named among the input reads, and the one call is made."""
+    policy, (tool, _) = SYSTEMS[system][1]
+    made = bench(world, system)
+    made.ports = support.with_corpus_unreachable(made.ports, tool)
     assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
     (body,) = made.client.bodies
     (message,) = messages_of(body)
     harness_block = texts_of(message)[-2]
-    assert '"tool":"search"' in harness_block
+    assert f'"tool":"{tool}"' in harness_block
     assert '"unreachable":{"source":"corpus"}' in harness_block
     intent = the_intent(made.events()).event
     assert isinstance(intent, DispatchIntent)
-    assert intent.input_reads[-1] == "single_shot_query/1"
+    assert intent.input_reads[-1] == f"{policy}/1"
+
+
+# --- The recovery and acceptance cases (fork 17) -----------------------------------------------
+
+
+def test_a_search_with_no_hit_is_shown_empty_and_the_call_is_made(world: SealedWorld) -> None:
+    """Fork 17: a registered literal no section holds returns no document; the block shows
+    the empty result and the call is made all the same."""
+    context = world.context_of(world.scenarios[0])
+    inputs = replace(
+        support.reader_inputs(context, histories.SINGLE_SHOT),
+        query_protocol=LiteralQuery("zzzz-no-section-holds-this"),
+    )
+    made = bench(world, "single_shot", inputs=inputs)
+    made.preparation = ScriptedPreparation(
+        "single_shot_query", (("search", {"query": "zzzz-no-section-holds-this", "limit": 10}),)
+    )
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    (body,) = made.client.bodies
+    (message,) = messages_of(body)
+    harness_block = texts_of(message)[-2]
+    assert '"tool":"search"' in harness_block and '"records":[]' in harness_block
+    assert len(made.client.bodies) == 1
+
+
+@pytest.mark.parametrize("system", sorted(SYSTEMS))
+def test_a_request_over_the_token_cap_ends_cap_exhausted_with_no_send(
+    world: SealedWorld, system: str
+) -> None:
+    """Fork 10: a one-call system never truncates, splits or repairs its one request; when
+    the finalization allocation does not fit the caps the account answers at-cap, no intent
+    and no send are made, and the run ends cap-exhausted through the approval of what it
+    has, a rules-only answer."""
+    context = world.context_of(world.scenarios[0])
+    admitted = support.reader_inputs(context, SYSTEMS[system][0])
+    # A token cap below the one request's worst case, the reserve inside it.
+    caps = replace(
+        admitted.caps,
+        token_cap=cases.INPUT_BOUND,
+        finalization_token_reserve=cases.INPUT_BOUND // 2,
+    )
+    inputs = replace(admitted, caps=caps)
+    made = bench(world, system, inputs=inputs)
+    ending = made.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "cap_exhausted")
+    assert made.client.bodies == []
+    kinds = [kind_of(e.event).value for e in made.events()]
+    assert "dispatch_intent" not in kinds and kinds.count("count_started") == 1
+    state = made.state()
+    request = state.approval_requested
+    assert request is not None and isinstance(request.event, ApprovalRequested)
+    assert request.event.at_cap
+    assert admitted_statements(state) == ()
+    export = export_of(state)
+    assert decode_export_bytes(export_bytes(export)) == export
+    assert export.trace.model_calls == ()
+
+
+@pytest.mark.parametrize("system", sorted(SYSTEMS))
+@pytest.mark.parametrize("after", ["harness_read", "dispatch_intent", "dispatch_outcome"])
+def test_a_recovery_after_a_kill_makes_no_extra_logical_call_and_restates_the_same_bytes(
+    world: SealedWorld, system: str, after: str
+) -> None:
+    """Fork 17 with its two added cases: a kill after the harness read's append, after the
+    dispatch intent's append and before the outcome's, or after the model outcome's append,
+    leaves the committed prefix; a second worker recovers it with one logical call in all,
+    restates the same request bytes where it sends at all (an intent left in flight is
+    re-dispatched under the next number with the first intent's digest), sends nothing after
+    a held outcome, and ends with the reference's claims."""
+    reference = bench(world, system)
+    reference.work()
+    whole = reference.events()
+    cut = position_of(whole, after)
+    recovering = bench(world, system, events=whole[:cut])
+    ending = recovering.work()
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 2, "completed")
+    recovered = recovering.events()
+    assert recovered[:cut] == whole[:cut]
+    state = recovering.state()
+    (call,) = calls_of(state)
+    intents = [e.event for e in recovered if isinstance(e.event, DispatchIntent)]
+    assert len({intent.request_digest for intent in intents}) == 1
+    assert len(intents) == (2 if after == "dispatch_intent" else 1)
+    assert call.last_number == len(intents)
+    if after == "dispatch_outcome":
+        assert recovering.client.bodies == []
+    else:
+        assert recovering.client.bodies == reference.client.bodies
+    assert sum(isinstance(e.event, DispatchOutcome) for e in recovered) == 1
+    held = [
+        (e.event.key, e.event.resolution) for e in recovered if isinstance(e.event, OperationEvent)
+    ]
+    first = [
+        (e.event.key, e.event.resolution) for e in whole if isinstance(e.event, OperationEvent)
+    ]
+    assert held == first
+    assert export_of(state).trace.claims == export_of(reference.state()).trace.claims
+    assert export_of(state).trace.claims != ()
