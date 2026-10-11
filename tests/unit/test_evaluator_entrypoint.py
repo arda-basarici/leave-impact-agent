@@ -39,6 +39,7 @@ from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
     HarnessRevision,
     Inventory,
+    PriceTable,
     PricingBasis,
     Registration,
     TreeState,
@@ -46,6 +47,7 @@ from leaveimpact.core import (
     export_bytes,
     inventory_bytes,
     inventory_digest,
+    price_table_bytes,
     registration_bytes,
 )
 from leaveimpact.core.ids import WorldVersion
@@ -53,6 +55,7 @@ from leaveimpact.evaluator import __main__ as job
 from leaveimpact.evaluator.entrypoint import Command, parse_request, prove, require_undisclosed
 from leaveimpact.evaluator.repository import (
     IMPLEMENTATION,
+    PRICES_PATH,
     REGISTRATION_PATH,
     Repository,
     RepositoryRefused,
@@ -61,7 +64,7 @@ from leaveimpact.evaluator.repository import (
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Disclosure, Scenario, bundle
 from leaveimpact.world.scenario import ScenarioClassName, Tier
-from tests.unit.export_fixture import export_baseline
+from tests.unit.export_fixture import BASIS, export_baseline
 from tests.unit.inventory_fixture import (
     closed_without_export,
     inventory_over,
@@ -79,6 +82,8 @@ RUNNER = {"GITHUB_RUN_ID": "77", "GITHUB_RUN_ATTEMPT": "1"}
 
 DRAFT = light(COMMITTED)
 DRAFT_BYTES = registration_bytes(DRAFT)
+PRICES_BYTES = price_table_bytes(PriceTable("USD", BASIS.effective_from, BASIS.rows))
+"""A committed table whose digest is not the fixture exports' hand digest."""
 
 
 def git(root: Path, *arguments: str) -> str:
@@ -102,9 +107,14 @@ def checkout(tmp_path: Path) -> Repository:
     committed once."""
     root = tmp_path / "checkout"
     registration = root / REGISTRATION_PATH
+    prices = root / PRICES_PATH
     module = root / "src" / "leaveimpact" / "evaluator" / "tables.py"
-    for path, content in ((registration, DRAFT_BYTES), (module, b"FIRST = 1\n")):
-        path.parent.mkdir(parents=True)
+    for path, content in (
+        (registration, DRAFT_BYTES),
+        (prices, PRICES_BYTES),
+        (module, b"FIRST = 1\n"),
+    ):
+        path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
     (root / "pyproject.toml").write_bytes(b"[project]\n")
     git(root, "init", "--quiet")
@@ -334,6 +344,13 @@ def test_evaluating_publishes_one_artifact_over_every_stored_object(
     artifact = json.loads(stored.content)
     assert artifact["world"]["version"] == world.version
     assert artifact["evaluator"] == {"commit": head, "registration_commit": head, "changed": []}
+    # The checkout commits a price table beside the registration, and the baseline exports
+    # embed the fixture's hand digest, so each one citing the head is held to the table and
+    # found not priced from it; the one citing an absent commit is held to nothing.
+    by_run = {entry["key"].rsplit("/", 2)[1]: entry for entry in artifact["listing"]}
+    for name in ("run-1-1", "run-2-1"):
+        assert by_run[name]["cost"]["findings"] == [{"kind": "basis_not_committed", "at": None}]
+    assert by_run["run-3-1"]["cost"]["findings"] == []
     held = LocalObjectReader(twin / "world")
     for entry in artifact["listing"]:
         read = held.get(entry["key"])

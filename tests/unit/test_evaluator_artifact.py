@@ -25,11 +25,13 @@ from leaveimpact.core import (
     CallConfiguration,
     CallSetting,
     Caps,
+    Cost,
     HarnessRevision,
     Inventory,
     MechanismMeasure,
     OutageAssignment,
     PrefetchRule,
+    PriceTable,
     PricingBasis,
     PublicationStatus,
     RegisteredRole,
@@ -43,8 +45,10 @@ from leaveimpact.core import (
     System,
     SystemKind,
     TreeState,
+    basis_for,
     condition_id,
     export_bytes,
+    price_table_bytes,
     procedure_digest,
     registration_bytes,
 )
@@ -71,13 +75,21 @@ from leaveimpact.evaluator.artifact import (
 )
 from leaveimpact.evaluator.attribution_check import AttributionFindingKind
 from leaveimpact.evaluator.cells import StratumKind
+from leaveimpact.evaluator.cost_check import CostFindingKind
 from leaveimpact.evaluator.ending_check import EndingFinding
 from leaveimpact.evaluator.grading import Graded
 from leaveimpact.evaluator.incidents import ProvenanceIncident
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.world import Scenario
 from leaveimpact.world.artifacts import digest
-from tests.unit.export_fixture import ROLE, agent_export, answered_call, export_baseline
+from tests.unit.export_fixture import (
+    BASIS,
+    ROLE,
+    SELECTION,
+    agent_export,
+    answered_call,
+    export_baseline,
+)
 from tests.unit.inventory_fixture import (
     READER,
     as_read,
@@ -155,16 +167,25 @@ def artifact_of(
     at: Mapping[str, bytes | None] | None = None,
     evaluator: EvaluatorRevision = UNCHANGED,
     inventory: Inventory | None = None,
+    prices_at: Mapping[str, bytes | None] | None = None,
 ) -> EvaluationArtifact:
     """The artifact over ``runs``, held to ``inventory`` or, when none is given, to one
-    listing every export among them as published at its key."""
+    listing every export among them as published at its key; ``prices_at`` as the
+    artifact takes it, no commit holding a price table unless given."""
     resolved = {COMMIT: registration} if at is None else at
     held = inventory
     if held is None:
         held = inventory_over(world.version, {run.key: run.content for run in runs})
     decoded, read = as_read(held)
     return evaluation_artifact(
-        world, registration, runs, resolved, evaluator, inventory=decoded, inventory_read=read
+        world,
+        registration,
+        runs,
+        resolved,
+        evaluator,
+        inventory=decoded,
+        inventory_read=read,
+        prices_at=prices_at,
     )
 
 
@@ -1019,3 +1040,33 @@ def test_the_inventory_lists_every_world_and_the_artifact_is_held_to_its_own(
     assert (artifact.coverage.admitted, artifact.coverage.open) == (1, 0)
     assert only(artifact).disposition is Disposition.ELIGIBLE
 
+
+
+# --- The committed price table ---------------------------------------------------------------
+
+
+def test_an_exports_basis_is_held_to_the_price_table_at_its_cited_commit(
+    world: SealedWorld,
+) -> None:
+    """The table at the run's cited commit decides the check: a run whose embedded basis is
+    that table's under its selection carries no cost finding, one whose basis is another's
+    carries the finding, a run citing a commit with no table is not checked, and an export of
+    another world is held to it too, since its cost is computed; a table that does not
+    decode refuses the artifact naming the commit."""
+    table = PriceTable("USD", BASIS.effective_from, BASIS.rows)
+    committed = {COMMIT: price_table_bytes(table)}
+    usage = {"inputTokens": 300, "outputTokens": 40}
+    calls = (answered_call(1, usage, Cost(300 * 1_100_000 + 40 * 5_500_000, True)),)
+    own = agent_export(world, world.scenarios[0], calls, basis=basis_for(table, (SELECTION,)))
+    foreign = replace(agent_export(world, world.scenarios[1], calls), run_id="run-2")
+    runs = (stored("runs/own", own), stored("runs/foreign", foreign))
+    checked = artifact_of(world, *runs, prices_at=committed)
+    by_key = {entry.key: entry for entry in checked.listing}
+    assert by_key["runs/own"].cost is not None and by_key["runs/own"].cost.findings == ()
+    assert by_key["runs/foreign"].cost is not None and [
+        f.kind for f in by_key["runs/foreign"].cost.findings
+    ] == [CostFindingKind.BASIS_NOT_COMMITTED]
+    unchecked = artifact_of(world, *runs)
+    assert all(entry.cost is not None and entry.cost.findings == () for entry in unchecked.listing)
+    with pytest.raises(ValueError, match=f"price table at {COMMIT} does not decode"):
+        artifact_of(world, *runs, prices_at={COMMIT: b"not a table"})

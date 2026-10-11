@@ -92,6 +92,7 @@ from leaveimpact.core.attribution import (
 )
 from leaveimpact.core.contradictions import Contradiction, self_contradictions
 from leaveimpact.core.facts import RunCondition
+from leaveimpact.core.pricing import PriceTable
 from leaveimpact.core.query_protocol import QueryProtocol
 from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.registration import RetryRule
@@ -181,6 +182,7 @@ def evaluate_run(
     counting_identifiers: Mapping[str, str] | None = None,
     query_protocol: QueryProtocol | None = None,
     search_limit: int | None = None,
+    price_table: PriceTable | None = None,
 ) -> Evaluation:
     """The outcome of the run ``export`` records against ``world``, and its trace metrics.
 
@@ -190,7 +192,9 @@ def evaluate_run(
     with a table, the call check with a table and a policy, the eligibility check with a
     retry rule, and the count check's registration parts with a policy and the identifiers;
     ``query_protocol`` and ``search_limit`` are the registered single-shot values, under
-    which alone the membership check compares a single-shot's query.
+    which alone the membership check compares a single-shot's query. ``price_table`` is
+    the committed table at the commit the record cites, ``None`` when that commit holds
+    none, under which alone the cost check holds the embedded basis to the table.
 
     Raises nothing for what the run did; see ``grade_run`` and the module for what the
     sealed world can make it raise.
@@ -212,6 +216,7 @@ def evaluate_run(
             counting_identifiers=counting_identifiers,
             query_protocol=query_protocol,
             search_limit=search_limit,
+            price_table=price_table,
         ),
         assigned,
         export.record.corpus_level,
@@ -231,12 +236,13 @@ def trace_metrics(
     counting_identifiers: Mapping[str, str] | None = None,
     query_protocol: QueryProtocol | None = None,
     search_limit: int | None = None,
+    price_table: PriceTable | None = None,
 ) -> TraceMetrics:
     """What the run ``export`` records did; ``outcome`` is ``grade_run``'s for the same
     export, the keyword arguments as ``evaluate_run`` takes them."""
     trace = export.trace
     discipline = source_discipline(trace)
-    cost = check_cost(export)
+    cost = check_cost(export, price_table)
     prefetch = prefetch_conformance(export)
     membership = membership_conformance(
         world, export, query_protocol=query_protocol, search_limit=search_limit

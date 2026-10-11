@@ -29,12 +29,19 @@ records no cost. Neither raises, and neither removes the run: the recomputed num
 stand, and a dispatch that cannot be priced leaves the run's cost a floor, as one that
 reported no usage or was never resolved does (``Cost.complete``).
 
-Three limits. The run's duration is its evidenced active time, computed from the segments
+The rates themselves are held to the committed table when the caller has one (the first
+live run's step, fork 6; the debt the fourth step's ruling 5 left): the table the
+repository holds at the commit the record cites, decoded. The basis the record embeds
+must be exactly what that table gives for the record's selections, digest, currency,
+date and rows, through the same function the harness built it with; anything else, a
+selection the table has no rows for included, is the one pricing finding about the run
+as a whole. With no table, a record made under a commit before the table existed, the
+check is not made and nothing is found.
+
+Two limits. The run's duration is its evidenced active time, computed from the segments
 the record holds, which are the harness's own and are taken as recorded. A zero-cost rule
 a dispatch names is taken as recorded too: whether the rule is evidenced for the
-configuration is the price table's to say, owed when the table is an asset. And this
-verifies arithmetic against the rates the record embeds, not that those rates are the
-committed table's; that is the same debt.
+configuration is the price table's to say, owed when a rule is registered.
 """
 
 from __future__ import annotations
@@ -43,19 +50,21 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.pricing import (
+    PriceTable,
     aggregate_usage,
+    basis_for,
     billed_dispatches,
     cost_of_reported,
     cumulative_cost,
 )
 from leaveimpact.core.run_export import RunExport
-from leaveimpact.core.run_record import UsageAggregate
+from leaveimpact.core.run_record import PricingBasis, RunRecord, UsageAggregate
 from leaveimpact.core.run_timing import evidenced_active_ms
 from leaveimpact.core.run_trace import USAGE_COUNTER_NAMES, Cost, ModelCallId
 
 
 class CostFindingKind(StrEnum):
-    """What the verification can find; a member is the wire format."""
+    """What the verification can find; a member is the wire format. The order is append-only."""
 
     USAGE_DIFFERS = "usage_differs"
     CALL_COUNT_DIFFERS = "call_count_differs"
@@ -63,12 +72,18 @@ class CostFindingKind(StrEnum):
     CUMULATIVE_COST_DIFFERS = "cumulative_cost_differs"
     RATE_MISSING = "rate_missing"
     CALL_NOT_PRICED = "call_not_priced"
+    BASIS_NOT_COMMITTED = "basis_not_committed"
 
     @property
     def is_pricing(self) -> bool:
-        """Whether the embedded rates could not price what was reported; the other kinds are
-        the harness's reading of its own trace differing from the trace."""
-        return self in (CostFindingKind.RATE_MISSING, CostFindingKind.CALL_NOT_PRICED)
+        """Whether the finding is about the embedded rates, which could not price what was
+        reported or are not the committed table's; the other kinds are the harness's reading
+        of its own trace differing from the trace."""
+        return self in (
+            CostFindingKind.RATE_MISSING,
+            CostFindingKind.CALL_NOT_PRICED,
+            CostFindingKind.BASIS_NOT_COMMITTED,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,11 +118,15 @@ class CostCheck:
     findings: tuple[CostFinding, ...]
 
 
-def check_cost(export: RunExport) -> CostCheck:
+def check_cost(export: RunExport, committed: PriceTable | None = None) -> CostCheck:
     """The usage and the cost of the run ``export`` records, recomputed, with every
-    disagreement between them and the record. Raises nothing for what the record states."""
+    disagreement between them and the record; with ``committed``, the price table at the
+    record's cited commit, the embedded basis is held to it as well. Raises nothing for
+    what the record states."""
     record, calls = export.record, export.trace.model_calls
     findings: list[CostFinding] = []
+    if committed is not None and not _basis_is_committed(record.pricing, committed, record):
+        findings.append(CostFinding(CostFindingKind.BASIS_NOT_COMMITTED))
 
     usage = aggregate_usage(calls)
     if (usage.model_calls, usage.dispatches) != (
@@ -159,3 +178,13 @@ def check_cost(export: RunExport) -> CostCheck:
 
 
 __all__ = ["CostCheck", "CostFinding", "CostFindingKind", "check_cost"]
+
+
+def _basis_is_committed(embedded: PricingBasis, table: PriceTable, record: RunRecord) -> bool:
+    """Whether ``embedded`` is exactly what ``table`` gives for the record's selections, as
+    the harness builds a basis; a selection the table has no rows for makes it not so."""
+    try:
+        expected = basis_for(table, (selection for _, selection in record.pricing_selections))
+    except ValueError:
+        return False
+    return expected == embedded

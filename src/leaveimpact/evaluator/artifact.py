@@ -62,6 +62,7 @@ frozen commit is one more.
 
 from __future__ import annotations
 
+import json
 from collections import Counter
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
@@ -70,6 +71,7 @@ from enum import StrEnum
 from leaveimpact.core.attribution import attribution_table_digest
 from leaveimpact.core.inventory import Inventory
 from leaveimpact.core.jsonshape import canonical_bytes
+from leaveimpact.core.pricing import PriceTable, decode_price_table
 from leaveimpact.core.registration import (
     Amendment,
     Pending,
@@ -317,14 +319,19 @@ def evaluation_artifact(
     *,
     inventory: Inventory,
     inventory_read: HarnessInventoryRead,
+    prices_at: Mapping[str, bytes | None] | None = None,
 ) -> EvaluationArtifact:
     """The evaluation of ``runs`` against ``world`` under the registration whose bytes are
     ``registration_content``, held to the harness's ``inventory``, read as ``inventory_read``
     says.
 
     ``registrations_at`` gives, for a cited commit, the registration file's bytes at it, or
-    ``None`` (or no entry) when the commit resolves to none. Raises ``ValueError`` for a
-    registration that does not decode or that this evaluator cannot read as a plan,
+    ``None`` (or no entry) when the commit resolves to none; ``prices_at`` the same for the
+    committed price table, under which an export's embedded basis is held to the table at
+    its cited commit (a commit before the table existed holds none, and nothing is checked).
+    Raises ``ValueError`` for a
+    registration that does not decode or that this evaluator cannot read as a plan, or a
+    price table at a cited commit that does not decode,
     ``MissingPublications`` when a published object the inventory lists is not among
     ``runs`` with its digest, ``OpenAttempts`` for a reported evaluation while an attempt
     in its scope is open, and ``AmbiguousRuns`` for two eligible exports of one run and
@@ -353,8 +360,18 @@ def evaluation_artifact(
             "a reported evaluation waits for every attempt in its scope to close; open: "
             + ", ".join(f"{each.run_id} attempt {each.attempt}" for each in held_open)
         )
+    tables: Mapping[str, bytes | None] = {} if prices_at is None else prices_at
     listing = tuple(
-        _entry(world, run, registration, registration_content, registrations_at, label, inventory)
+        _entry(
+            world,
+            run,
+            registration,
+            registration_content,
+            registrations_at,
+            tables,
+            label,
+            inventory,
+        )
         for run in sorted(runs, key=lambda run: run.key)
     )
     eligible = [entry for entry in listing if entry.disposition is Disposition.ELIGIBLE]
@@ -540,6 +557,7 @@ def _entry(
     registration: Registration,
     registration_content: bytes,
     registrations_at: Mapping[str, bytes | None],
+    prices_at: Mapping[str, bytes | None],
     label: Label,
     inventory: Inventory,
 ) -> ListingEntry:
@@ -563,17 +581,23 @@ def _entry(
         # evaluated, for what its reads show of a source contradicting itself.
         if export is None:
             return entry(_STANDINGS[standing], None, None)
+        prices = _price_table_at(prices_at, export.record.preregistration_commit)
         if export.context.world_version != world.version:
-            return entry(_STANDINGS[standing], None, check_cost(export))
-        evaluation = _evaluated(world, export, registration, registration_content, registrations_at)
+            return entry(_STANDINGS[standing], None, check_cost(export, prices))
+        evaluation = _evaluated(
+            world, export, registration, registration_content, registrations_at, prices
+        )
         return entry(_STANDINGS[standing], evaluation, evaluation.metrics.cost)
     if export is None:
         return entry(Disposition.NOT_AN_EXPORT, None, None)
+    prices = _price_table_at(prices_at, export.record.preregistration_commit)
     if export.context.world_version != world.version:
-        return entry(Disposition.ANOTHER_WORLD, None, check_cost(export))
+        return entry(Disposition.ANOTHER_WORLD, None, check_cost(export, prices))
     record = export.record
     cited = registrations_at.get(record.preregistration_commit)
-    evaluation = _evaluated(world, export, registration, registration_content, registrations_at)
+    evaluation = _evaluated(
+        world, export, registration, registration_content, registrations_at, prices
+    )
     cost = evaluation.metrics.cost
     if cited is None:
         return entry(Disposition.REGISTRATION_NOT_RESOLVED, evaluation, cost, (), Label.UNKNOWN)
@@ -593,16 +617,30 @@ def _entry(
     return entry(Disposition.ELIGIBLE, evaluation, cost, (), label)
 
 
+def _price_table_at(prices_at: Mapping[str, bytes | None], commit: str) -> PriceTable | None:
+    """The committed price table at ``commit``, ``None`` when the commit holds none;
+    ``ValueError`` naming the commit when the file there does not decode as a table."""
+    content = prices_at.get(commit)
+    if content is None:
+        return None
+    try:
+        return decode_price_table(json.loads(content))
+    except ValueError as error:
+        raise ValueError(f"the price table at {commit} does not decode: {error}") from error
+
+
 def _evaluated(
     world: SealedWorld,
     export: RunExport,
     registration: Registration,
     registration_content: bytes,
     registrations_at: Mapping[str, bytes | None],
+    price_table: PriceTable | None,
 ) -> Evaluation:
     """``export`` evaluated against ``world``, held to the registration's table, re-dispatch
     bound, retry rule and counting identifiers exactly when it was made under this
-    registration."""
+    registration, and its embedded basis to ``price_table``, the committed table at the
+    commit it cites."""
     cited = registrations_at.get(export.record.preregistration_commit)
     # A run is held to this registration's table and re-dispatch bound only when it was made
     # under this registration. The record names the table by digest and the bound not at
@@ -626,6 +664,7 @@ def _evaluated(
         counting_identifiers=_counting_identifiers(registration, export) if own else None,
         query_protocol=query_protocol,
         search_limit=search_limit,
+        price_table=price_table,
     )
 
 

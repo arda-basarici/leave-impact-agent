@@ -16,6 +16,15 @@ role a context allowance, the model's input window a request is checked against 
 send. Nothing reads formats 1 to 3, and no run was made under any of them that a report
 could cite.
 
+Beside it, `prices.json` is the price table every run is priced from and every
+reservation is sized by: integer pico-dollars per token, one row per model, region,
+billing mode and token class, with the table's policy on a counter the provider omits.
+It is written through its encoder too, and `PRICES.md` beside it cites where each row was
+read and when. A run embeds the rows of the table under its roles' selections with the
+table's digest, and the evaluator holds that embedding to the table at the commit the run
+cites; a run whose embedded rates are not that table's is counted with a finding, like a
+cost that does not add up.
+
 Names live in the file and behaviour lives in code. The file names a check, a measure, an
 interval method, a prefetch rule, an outage protocol, a composing policy; the code holds
 what each name means. Each consumer compares what the file names with what its own code
@@ -215,9 +224,9 @@ whether a failure there allows a new attempt. The table is registered so that wh
 failures count against a system is fixed before any result exists.
 
 A run that carries a finding (its reads differ from the sealed world, an operation no
-conforming harness records, a cost that does not add up, a prefetch that is not the
-registered plan) stays in the tables and is counted beside them. Keeping a run is not
-vouching for it.
+conforming harness records, a cost that does not add up or was priced under rates that
+are not the committed table's, a prefetch that is not the registered plan) stays in the
+tables and is counted beside them. Keeping a run is not vouching for it.
 
 Three more findings are counted the same way. A run whose recorded admissions or
 composition are not what the gates and the composing rules give again. A run shown a

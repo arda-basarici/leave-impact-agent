@@ -61,7 +61,7 @@ HERE = Path(__file__).resolve().parent
 REPOSITORY = HERE.parents[1]
 STORE_ROOT = REPOSITORY / "data" / "object-store"
 REGISTRATION_FILE = REPOSITORY / "preregistration" / "registration.json"
-PRICES_FILE = HERE / "prices.json"
+PRICES_FILE = REPOSITORY / "preregistration" / "prices.json"
 
 WORLD = WorldVersion("b7ec45636101ffd29acacef70a57f13e5b5d1da8ff7a0fe77f0f36394bde3c01")
 """The first development world: seed 101, the golden plan, sealed unprojected."""

@@ -41,6 +41,7 @@ caps' ceiling, so money is never the resource that stops a run inside its caps.
 from __future__ import annotations
 
 import hashlib
+import json
 from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import date
@@ -105,6 +106,13 @@ def encode_price_table(table: PriceTable) -> JsonObject:
         "effective_from": encode_date(table.effective_from),
         "rates": [encode_rate(row) for row in table.rows],
     }
+
+
+def price_table_bytes(table: PriceTable) -> bytes:
+    """The bytes the committed table file holds: the encoding, indented, one trailing
+    newline. The file is written through this and never by hand, so a diff of it is a diff
+    of rates."""
+    return (json.dumps(encode_price_table(table), indent=2) + "\n").encode("utf-8")
 
 
 def encode_rate(row: PricingRow) -> JsonObject:

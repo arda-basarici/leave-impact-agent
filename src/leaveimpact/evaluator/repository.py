@@ -29,6 +29,10 @@ from leaveimpact.evaluator.artifact import ChangedPath, EvaluatorRevision
 REGISTRATION_PATH = "preregistration/registration.json"
 """Where the registration lives in the repository, at every commit."""
 
+PRICES_PATH = "preregistration/prices.json"
+"""Where the committed price table lives, beside the registration, since the first live
+run's step; a commit before it holds none."""
+
 IMPLEMENTATION: tuple[str, ...] = (
     "src/leaveimpact/evaluator",
     "src/leaveimpact/core",

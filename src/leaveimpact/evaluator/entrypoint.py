@@ -64,6 +64,7 @@ from leaveimpact.evaluator.harness_inventory import (
 )
 from leaveimpact.evaluator.oracle import Answerable, oracle_for
 from leaveimpact.evaluator.repository import (
+    PRICES_PATH,
     REGISTRATION_PATH,
     Repository,
     RepositoryRefused,
@@ -262,10 +263,9 @@ def evaluate(
             f"nothing is stored under {runs_prefix(version)} and the inventory lists no attempt "
             "of the world: there is no run to evaluate"
         )
-    registrations_at = {
-        commit: repository.file_at(commit, REGISTRATION_PATH)
-        for commit in cited_commits(runs, inventory)
-    }
+    cited = cited_commits(runs, inventory)
+    registrations_at = {commit: repository.file_at(commit, REGISTRATION_PATH) for commit in cited}
+    prices_at = {commit: repository.file_at(commit, PRICES_PATH) for commit in cited}
     artifact = evaluation_artifact(
         world,
         registration,
@@ -274,6 +274,7 @@ def evaluate(
         evaluator_revision(repository),
         inventory=inventory,
         inventory_read=inventory_read,
+        prices_at=prices_at,
     )
     version_id = publish(version, request.run_id, request.run_attempt, artifact_bytes(artifact))
     tally = Counter(entry.disposition for entry in artifact.listing)

@@ -19,12 +19,14 @@ from leaveimpact.core import (
     FailureCategory,
     ModelCall,
     ModelCallId,
+    PriceTable,
     PricingBasis,
     PricingRow,
     RefusedBeforeSend,
     ReportedUsage,
     RunExport,
     UsageAggregate,
+    basis_for,
     cost_of_reported,
 )
 from leaveimpact.evaluator.cost_check import CostFinding, CostFindingKind, check_cost
@@ -301,3 +303,41 @@ def test_a_usage_read_with_an_anomaly_is_a_floor_whatever_the_harness_recorded(
         CostFinding(KINDS.CUMULATIVE_COST_DIFFERS),
     )
     assert check.cost == Cost(300 * INPUT + 40 * OUTPUT, complete=False)
+
+
+# --- The committed table ---------------------------------------------------------------------
+
+
+def test_the_embedded_basis_is_held_to_the_committed_table_only_when_one_is_given(
+    world: SealedWorld,
+) -> None:
+    """The table at the run's cited commit: a basis built from it for the record's selections
+    verifies clean; the fixture's hand digest, a table lacking the selection, and a table whose
+    rows differ under an equal selection are each the one pricing finding about the whole run;
+    with no table nothing is checked."""
+    table = PriceTable("USD", BASIS.effective_from, BASIS.rows)
+    calls = (answered(1, usage(300, 40)),)
+    committed = agent_export(world, world.scenarios[0], calls, basis=basis_for(table, (SELECTION,)))
+    assert check_cost(committed, table).findings == ()
+    assert check_cost(committed, None).findings == ()
+
+    hand_digest = agent_export(world, world.scenarios[0], calls)
+    assert hand_digest.record.pricing.table_digest == DIGEST != table.digest
+    assert check_cost(hand_digest).findings == ()
+    (finding,) = check_cost(hand_digest, table).findings
+    assert finding == CostFinding(KINDS.BASIS_NOT_COMMITTED) and finding.kind.is_pricing
+
+    other_model = PriceTable(
+        "USD",
+        BASIS.effective_from,
+        tuple(replace(row, pricing_key="model-b") for row in BASIS.rows),
+    )
+    assert check_cost(committed, other_model).findings == (CostFinding(KINDS.BASIS_NOT_COMMITTED),)
+    dearer = PriceTable(
+        "USD",
+        BASIS.effective_from,
+        tuple(
+            replace(row, pico_usd_per_token=row.pico_usd_per_token + 1) for row in BASIS.rows
+        ),
+    )
+    assert check_cost(committed, dearer).findings == (CostFinding(KINDS.BASIS_NOT_COMMITTED),)
