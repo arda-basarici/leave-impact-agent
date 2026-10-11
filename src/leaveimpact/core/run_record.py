@@ -165,6 +165,14 @@ HARNESS_READ_POLICIES: Mapping[SystemKind, frozenset[str]] = MappingProxyType(
 another policy, or by a system that issues none, is this harness's defect, and the log
 refuses it; the agent and rules-only issue none."""
 
+HARNESS_READS_PER_POLICY: Mapping[str, int] = MappingProxyType(
+    {SINGLE_SHOT_QUERY_POLICY: 1, FULL_CONTEXT_DOCUMENTS_POLICY: 1}
+)
+"""How many reads each policy issues: one search, one enumeration (the baselines step, forks
+4 and 8 as amended). A read past a policy's count is this harness's defect, and the log
+refuses it at the append, so a worker that issued two could not record the second (the
+group-2 external read's finding)."""
+
 
 class RetrievalKind(StrEnum):
     """The retrieval implementation behind the document search, held fixed across a comparison."""

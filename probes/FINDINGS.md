@@ -3713,8 +3713,10 @@ the fact-stage measures against the planted facts, the requirement placements an
 correct-whole verdict, as the prompt check records them. The single-shot can state at most
 what its search returned: on this world the selection probe recovered 19 of 28 required
 section targets at the limit of 20, and of the seven scenarios' seven targets the dry round
-shows the search returning 1 of 2 on `scenario_013` and every other target's document
-(`targets returned` in the forecast round). Full context is shown every document, the
+shows the search returning 1 of 2 on `scenario_013` and on `scenario_018` and every other
+target's document, 5 of 7 in all (`targets returned` in the forecast round; the group-2
+external read corrected a first reading that named `scenario_013` alone). Full context is
+shown every document, the
 strongest cheap baseline the arms interview found at the ceiling on a throwaway world whose
 corpus one call holds; this world's padded corpus is of that size too, so a full-context
 result here says nothing about the padded level the freeze registers. Seven scenarios at

@@ -957,3 +957,34 @@ def test_a_harness_read_is_the_admitted_systems_and_precedes_the_first_call() ->
     assert next_state(before, late.logged()[-1], RULES) == Refused(
         "a harness read precedes the first model call"
     )
+
+
+@pytest.mark.parametrize(
+    ("system", "policy", "tool", "arguments"),
+    [
+        (h.SINGLE_SHOT, "single_shot_query", "search", {"query": "x", "limit": 5}),
+        (h.FULL_CONTEXT, "full_context_documents", "documents", None),
+    ],
+    ids=["single_shot", "full_context"],
+)
+def test_a_harness_read_past_the_policys_count_is_refused_and_a_re_append_is_received(
+    system: object, policy: str, tool: str, arguments: dict[str, object] | None
+) -> None:
+    """The group-2 external read's finding: each policy issues one read (``core.run_record``'s
+    count), and the log refused nothing past it, so a worker that issued two could record
+    both. A fresh ordinal 2 is refused by name; the identical re-append of ordinal 1 is
+    received, as any duplicate is."""
+    from leaveimpact.core import HARNESS_READS_PER_POLICY, RecordsOutcome
+
+    assert HARNESS_READS_PER_POLICY[policy] == 1
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=system))  # type: ignore[arg-type]
+    log.claim()
+    log.worker(h.harness_read(policy, 1, tool, RecordsOutcome(()), arguments), offset=400)
+    before = fold(log.logged(), RULES)
+    first = log.logged()[-1]
+    assert isinstance(next_state(before, first, RULES), Received)
+    log.worker(h.harness_read(policy, 2, tool, RecordsOutcome(()), arguments), offset=500)
+    assert next_state(before, log.logged()[-1], RULES) == Refused(
+        f"{policy} issues 1 read(s), got ordinal 2"
+    )

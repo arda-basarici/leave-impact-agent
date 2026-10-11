@@ -145,7 +145,12 @@ from leaveimpact.core.run_ending import (
     OperationSite,
 )
 from leaveimpact.core.run_parts_json import review_payload_digest
-from leaveimpact.core.run_record import HARNESS_READ_POLICIES, Failure, FailureCategory
+from leaveimpact.core.run_record import (
+    HARNESS_READ_POLICIES,
+    HARNESS_READS_PER_POLICY,
+    Failure,
+    FailureCategory,
+)
 from leaveimpact.core.run_timing import HarnessRevision
 from leaveimpact.core.run_trace import (
     Cost,
@@ -602,6 +607,11 @@ def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEv
             if key.policy not in HARNESS_READ_POLICIES[inputs.system.kind]:
                 return Refused(
                     f"{inputs.system.kind.value} issues no harness read under {key.policy!r}"
+                )
+            if key.ordinal > HARNESS_READS_PER_POLICY[key.policy]:
+                return Refused(
+                    f"{key.policy} issues {HARNESS_READS_PER_POLICY[key.policy]} read(s), "
+                    f"got ordinal {key.ordinal}"
                 )
             if calls_of(state):
                 return Refused("a harness read precedes the first model call")
