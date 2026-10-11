@@ -49,7 +49,7 @@ from leaveimpact.adapters.wiring import inventory_publisher_over, run_export_pub
 from leaveimpact.agent import commands
 from leaveimpact.agent.appender import LogCommands
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import ModelClient
+from leaveimpact.agent.graph import ModelClient, NoPreparation
 from leaveimpact.agent.log_events import (
     ClosingEvent,
     CommitOverride,
@@ -400,6 +400,7 @@ def work(
         f"launch-{os.getpid()}",
         histories.RULES,
         turns,
+        NoPreparation(),
         WitnessedClient(client),
         ScriptedCounter(),
         witnessed_ports(named.ports(systems.ports)),

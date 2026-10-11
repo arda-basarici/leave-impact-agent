@@ -61,6 +61,7 @@ from leaveimpact.agent.graph import (
     INITIAL,
     Harness,
     ModelClient,
+    Preparation,
     TokenCounter,
     Turns,
     build,
@@ -262,6 +263,7 @@ class Worker:
     launch: str
     rules: Rules
     turns: Turns
+    preparation: Preparation
     client: ModelClient
     counter: TokenCounter
     ports: ReadPorts
@@ -344,6 +346,7 @@ class Worker:
             harness = Harness(
                 appender,
                 self.turns,
+                self.preparation,
                 self.client,
                 self.counter,
                 self.ports,

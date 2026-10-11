@@ -37,11 +37,18 @@ from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import ModelClient, ReviewPayload, TurnRequest, Turns
+from leaveimpact.agent.graph import (
+    LoggedExecutor,
+    ModelClient,
+    ReviewPayload,
+    TurnRequest,
+    Turns,
+)
 from leaveimpact.agent.log_events import (
     Admitted,
     EventKind,
     FrozenInputs,
+    HarnessReadKey,
     LoggedEvent,
     Producer,
     SegmentEnded,
@@ -58,12 +65,13 @@ from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import ClauseId, EmployeeId, employee_id
 from leaveimpact.core.jsonshape import JsonObject, canonical_bytes
 from leaveimpact.core.model_calls import CompleteResponse, Observation, Sent, ServiceError
-from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.ports.errors import MalformedRecord, SourceUnreachable
 from leaveimpact.core.ports.observed import Observed
 from leaveimpact.core.ports.read import PeopleReader
 from leaveimpact.core.prefetch import prefetch_rule
 from leaveimpact.core.refs import clause_ref
-from leaveimpact.core.run_trace import OperationId
+from leaveimpact.core.run_record import System
+from leaveimpact.core.run_trace import HarnessOrigin, OperationId, Outcome
 from leaveimpact.core.stated import StatedFact
 from leaveimpact.core.tools import Role
 from leaveimpact.core.values import Requirement, SkillCriterion
@@ -85,10 +93,14 @@ def golden_context() -> RunContext:
     return world.context_of(world.scenarios[0])
 
 
-def admitted_inputs(context: RunContext | None = None) -> FrozenInputs:
-    """The fixtures' frozen inputs for a model-calling run of ``context``."""
+def admitted_inputs(
+    context: RunContext | None = None, *, system: System = histories.AGENT
+) -> FrozenInputs:
+    """The fixtures' frozen inputs for a model-calling run of ``context`` by ``system``, the
+    agent unless a test admits a baseline (a harness read is refused unless the admitted
+    system issues its policy)."""
     return replace(
-        histories.inputs(reservation=RESERVATION),
+        histories.inputs(reservation=RESERVATION, system=system),
         context=context if context is not None else golden_context(),
     )
 
@@ -148,6 +160,22 @@ class ScriptedTurns:
 
     def payload_for(self, state: AttemptState) -> ReviewPayload:
         return self.payload
+
+
+@dataclass
+class ScriptedPreparation:
+    """A preparation issuing ``reads`` in order under ``policy``, each a tool and its
+    arguments, resolved through the executor under the next harness key; every outcome the
+    executor answered is recorded, so a test sees whether the node asked at all."""
+
+    policy: str
+    reads: Sequence[tuple[str, Mapping[str, object]]]
+    outcomes: list[Outcome] = field(default_factory=list[Outcome])
+
+    def prepare(self, executor: LoggedExecutor, state: AttemptState) -> None:
+        for ordinal, (tool, arguments) in enumerate(self.reads, start=1):
+            key = HarnessReadKey(self.policy, ordinal)
+            self.outcomes.append(executor.resolve(key, HarnessOrigin(self.policy), tool, arguments))
 
 
 @dataclass
@@ -305,6 +333,44 @@ def with_unreachable(ports: ReadPorts, method: str, *, after: int = 0) -> ReadPo
     return replace(
         ports,
         people=UnreachableMethod(ports.people, method, Source.FRAPPE, after),  # type: ignore[arg-type]
+    )
+
+
+def with_corpus_unreachable(ports: ReadPorts, method: str) -> ReadPorts:
+    """``ports`` with the corpus's ``method`` unreachable from its first call: the outage a
+    harness read of the single-shot's search or full context's enumeration meets."""
+    return replace(
+        ports,
+        documents=UnreachableMethod(ports.documents, method, Source.CORPUS),  # type: ignore[arg-type]
+    )
+
+
+class MalformedMethod:
+    """A port whose one method answers a malformed record on every call, every other call
+    passing through: the adapter failing to translate what the source returned, the defect
+    that fails the run at that operation."""
+
+    def __init__(self, inner: object, method: str, source: Source) -> None:
+        self._inner = inner
+        self._method = method
+        self._source = source
+
+    def __getattr__(self, name: str) -> Any:
+        attribute = getattr(self._inner, name)
+        if name != self._method:
+            return attribute
+
+        def malformed(*args: Any, **kwargs: Any) -> Any:
+            raise MalformedRecord(self._source, "provoked/1", "provoked by the test")
+
+        return malformed
+
+
+def with_corpus_malformed(ports: ReadPorts, method: str) -> ReadPorts:
+    """``ports`` with the corpus's ``method`` answering a malformed record."""
+    return replace(
+        ports,
+        documents=MalformedMethod(ports.documents, method, Source.CORPUS),  # type: ignore[arg-type]
     )
 
 
@@ -527,6 +593,7 @@ __all__ = [
     "RunScript",
     "ScriptedClient",
     "ScriptedCounter",
+    "ScriptedPreparation",
     "ScriptedTurns",
     "admission",
     "a_planted_requirement",
@@ -552,5 +619,7 @@ __all__ = [
     "throttled_script",
     "two_call_script",
     "with_contradicting_employee",
+    "with_corpus_malformed",
+    "with_corpus_unreachable",
     "with_unreachable",
 ]

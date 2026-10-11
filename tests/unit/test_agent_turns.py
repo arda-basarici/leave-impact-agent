@@ -40,6 +40,7 @@ from leaveimpact.agent.assets import (
     load_prompt_assets,
 )
 from leaveimpact.agent.composer import rules_only_composition
+from leaveimpact.agent.graph import NoPreparation
 from leaveimpact.agent.log_events import (
     CountStarted,
     DispatchIntent,
@@ -119,6 +120,7 @@ class Bench:
             "launch-1",
             RULES,
             self.turns,
+            NoPreparation(),
             self.client,
             self.counter,
             self.ports,

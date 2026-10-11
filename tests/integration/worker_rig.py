@@ -17,6 +17,7 @@ from psycopg.conninfo import make_conninfo
 from psycopg.rows import DictRow, dict_row
 
 from leaveimpact.agent.commands import WorkerComposition, WorkRequest, work
+from leaveimpact.agent.graph import NoPreparation
 from leaveimpact.agent.log_events import FrozenInputs
 from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore
 from leaveimpact.agent.worker import (
@@ -97,6 +98,7 @@ def composition(
         cases.REVISION,
         RULES,
         turns,
+        NoPreparation(),
         client,
         support.ScriptedCounter(),
         script.ports(systems_holding(world).ports),

@@ -21,6 +21,7 @@ from typing import Any
 import pytest
 from langgraph.checkpoint.postgres import PostgresSaver
 
+from leaveimpact.agent.graph import NoPreparation
 from leaveimpact.agent.log_events import (
     Approved,
     DispatchIntent,
@@ -87,6 +88,7 @@ def worker_over(
         "launch-1",
         RULES,
         turns,
+        NoPreparation(),
         client,
         ScriptedCounter(),
         systems_holding(world).ports,

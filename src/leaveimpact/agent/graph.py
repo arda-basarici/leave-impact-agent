@@ -1,5 +1,5 @@
-"""The execution skeleton: the five nodes of an attempt, each writing through the appender
-before it returns, with the system's own content supplied through two small protocols.
+"""The execution skeleton: the six nodes of an attempt, each writing through the appender
+before it returns, with the system's own content supplied through three small protocols.
 
 The investigator's prompts, tools and composition are later build steps'; what every one
 of their nodes needs is here, once: the prefetch over the executor with each read appended
@@ -14,14 +14,29 @@ rulings on tool calls from the log, parts 5 and 8, and on recovery, part 4). Che
 state is a cursor, the route and the positions reached, and never something a result could
 be rebuilt from.
 
-*The system's two protocols.* ``Turns`` gives the request a logical call makes, as a
+*The system's three protocols.* ``Turns`` gives the request a logical call makes, as a
 function of the state before it, and the review payload the run ends with; the request of
 a call in progress must come back as the same bytes, since a re-dispatch sends the request
-its first intent named, and a difference is this harness's defect. ``ModelClient`` sends a
-body to a profile and answers with what arrived, the observation, the response for a
-complete one and the digest of the bytes sent when it recorded them; ``TokenCounter``
-answers the counting call. The tests fill the three with scripts; the live run fills them
-with the Bedrock clients.
+its first intent named, and a difference is this harness's defect. ``Preparation`` issues
+the reads a system makes on its own behalf between the prefetch and its first call, under
+the harness-read policy the record names for its kind (the baselines step, fork 1): the
+single-shot's one search, full context's one enumeration; the investigator, whose model
+reads through its tools, issues none. ``ModelClient`` sends a body to a profile and
+answers with what arrived, the observation, the response for a complete one and the digest
+of the bytes sent when it recorded them; ``TokenCounter`` answers the counting call. The
+tests fill the four with scripts; the live run fills them with the system's own and the
+Bedrock clients.
+
+*The preparation, in order.* The node runs the shared preconditions over the prefetch's
+operations first: a defect has already routed the run to its terminal, and an abstention
+(the leave not returned, the employee universe not covered) issues nothing, so no read, no
+count and no send follow it, as the turns answer none for the investigator (fork 7).
+Otherwise the system's preparation issues its reads through the logged executor under
+``HarnessReadKey``s, replayed by key as the prefetch is: a held read is answered from the
+log, an unlogged one is made once more, and a read whose arguments differ from the held
+one's is this harness's defect. A source the read finds unreachable is stopped and the run
+goes on to its call with the failure shown; a malformed record is the stop the transition
+records at that operation, and the node routes to the terminal.
 
 *The model call, in order.* The account is asked first, with the worst case the bound and
 the output maximum give: a loop allocation that does not fit enters finalization and the
@@ -91,6 +106,7 @@ from leaveimpact.agent.log_events import (
     Failed,
     FinalizationEntered,
     FrozenInputs,
+    HarnessReadKey,
     LoggedEvent,
     ModelReadKey,
     OperationEvent,
@@ -110,6 +126,7 @@ from leaveimpact.agent.log_transition import (
     calls_of,
     count_group,
     counts_of,
+    derived_abstention,
     operations_of,
 )
 from leaveimpact.core.attribution import AttributionTable, RedispatchPolicy, attribute
@@ -190,6 +207,26 @@ class Turns(Protocol):
     def payload_for(self, state: AttemptState) -> ReviewPayload: ...
 
 
+class Preparation(Protocol):
+    """The reads the system issues on its own behalf between the prefetch and its first
+    call, under the harness-read policy the record names for its kind (the baselines step,
+    fork 1): each made through ``executor.resolve`` under ``HarnessReadKey(policy, ordinal)``
+    with ``HarnessOrigin(policy)``, so a held read is replayed and an unlogged one made once.
+    Asked only when the prefetch decided neither a defect nor an abstention (see the module);
+    a function of the state alone, as the turns are, so a recovering worker asks the same
+    reads with the same arguments."""
+
+    def prepare(self, executor: LoggedExecutor, state: AttemptState) -> None: ...
+
+
+class NoPreparation:
+    """The preparation of a system that issues no harness read: the investigator's, whose
+    model reads through its tools, and the protocol's null filling."""
+
+    def prepare(self, executor: LoggedExecutor, state: AttemptState) -> None:
+        return None
+
+
 class ModelClient(Protocol):
     """One serialized client of the inference API: the operation it calls and the region it
     calls from are the intent's provenance; ``send`` makes exactly one send."""
@@ -211,11 +248,12 @@ class TokenCounter(Protocol):
 
 @dataclass(frozen=True)
 class Harness:
-    """What the nodes work with: the appender of this generation, the system's turns, the
-    two clients, the ports the executor reads through, and the wait seam."""
+    """What the nodes work with: the appender of this generation, the system's turns and
+    preparation, the two clients, the ports the executor reads through, and the wait seam."""
 
     appender: Appender
     turns: Turns
+    preparation: Preparation
     client: ModelClient
     counter: TokenCounter
     ports: ReadPorts
@@ -360,6 +398,16 @@ def build(harness: Harness, saver: BaseCheckpointSaver[Any]) -> Any:
             harness.inputs.context,
             halted=lambda: appender.state.stopped is not None,
         )
+        route = "terminal" if appender.state.stopped is not None else "prepare"
+        return {"route": route, "reached": _reached(appender.state.events, since)}
+
+    def prepare(state: Cursor) -> dict[str, Any]:
+        since = appender.state.last_position
+        if derived_abstention(appender.state) is None:
+            executor = LoggedExecutor(
+                harness, replaying=lambda key: isinstance(key, HarnessReadKey)
+            )
+            harness.preparation.prepare(executor, appender.state)
         route = "terminal" if appender.state.stopped is not None else "model"
         return {"route": route, "reached": _reached(appender.state.events, since)}
 
@@ -412,10 +460,13 @@ def build(harness: Harness, saver: BaseCheckpointSaver[Any]) -> Any:
         return {"route": "", "reached": _reached(appender.state.events, since)}
 
     builder = StateGraph(Cursor)
-    for node in (prefetch, model, tools, approval, terminal):
+    for node in (prefetch, prepare, model, tools, approval, terminal):
         builder.add_node(node.__name__, node)  # pyright: ignore[reportUnknownMemberType]
     builder.add_edge(START, "prefetch")
-    builder.add_conditional_edges("prefetch", _route, {"model": "model", "terminal": "terminal"})
+    builder.add_conditional_edges(
+        "prefetch", _route, {"prepare": "prepare", "terminal": "terminal"}
+    )
+    builder.add_conditional_edges("prepare", _route, {"model": "model", "terminal": "terminal"})
     builder.add_conditional_edges(
         "model",
         _route,
@@ -770,6 +821,8 @@ __all__ = [
     "Harness",
     "LoggedExecutor",
     "ModelClient",
+    "NoPreparation",
+    "Preparation",
     "ReviewPayload",
     "TokenCounter",
     "TurnRequest",

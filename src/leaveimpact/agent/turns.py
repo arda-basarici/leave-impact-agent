@@ -90,7 +90,13 @@ from leaveimpact.agent.log_events import (
     PrefetchKey,
     operation_id,
 )
-from leaveimpact.agent.log_transition import AttemptState, CallEvents, calls_of, operations_of
+from leaveimpact.agent.log_transition import (
+    AttemptState,
+    CallEvents,
+    calls_of,
+    derived_abstention,
+    operations_of,
+)
 from leaveimpact.agent.surface import (
     RenderedResult,
     converse_harness_tools,
@@ -331,13 +337,8 @@ def _reads_in(state: AttemptState, earlier: EarlierCall) -> bool:
 def _abstains(state: AttemptState, boundary: int) -> bool:
     """Whether the operations logged below ``boundary`` decide an abstention: the leave not
     returned or the universe not covered, both facts of the prefetch, so a request in
-    progress reads the same answer as the first."""
-    inputs = _inputs(state)
-    operations = tuple(
-        op for op in trace_operations(state) if op.position is not None and op.position < boundary
-    )
-    projection = project_reads(operations, inputs.context.today)
-    return abstention_of(projection, leave_of(operations, inputs.context)) is not None
+    progress reads the same answer as the first; the derivation the preparation node shares."""
+    return derived_abstention(state, below=boundary) is not None
 
 
 def _finalization_asked(earlier: tuple[EarlierCall, ...], state: AttemptState) -> bool:

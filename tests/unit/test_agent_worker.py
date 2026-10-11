@@ -47,8 +47,14 @@ from uuid import uuid4
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
+from leaveimpact.agent.admissions import trace_operations
 from leaveimpact.agent.appender import LogCommands
-from leaveimpact.agent.graph import count_boundary, restated_since_counted
+from leaveimpact.agent.graph import (
+    NoPreparation,
+    Preparation,
+    count_boundary,
+    restated_since_counted,
+)
 from leaveimpact.agent.log_events import (
     ApprovalRequested,
     Approved,
@@ -59,6 +65,7 @@ from leaveimpact.agent.log_events import (
     EventKind,
     Failed,
     FrozenInputs,
+    HarnessReadKey,
     LoggedEvent,
     ModelReadKey,
     OperationEvent,
@@ -95,12 +102,15 @@ from leaveimpact.core import (
     DispatchPhase,
     DispatchSite,
     FailureCategory,
+    HarnessOrigin,
     HarnessSite,
     HarnessSiteName,
     ModelCallId,
     Observed,
     OperationId,
     OperationSite,
+    RecordsOutcome,
+    UnreachableOutcome,
     decode_export_bytes,
     export_bytes,
 )
@@ -109,6 +119,7 @@ from leaveimpact.core.counting_operations import Counted, CountServiceError
 from leaveimpact.core.model_calls import ServiceError
 from leaveimpact.core.run_account import CallPurpose
 from leaveimpact.core.run_parts_json import review_payload_digest
+from leaveimpact.core.run_record import System
 from leaveimpact.evaluator.account_check import check_account
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit import format_fixtures as cases
@@ -120,6 +131,7 @@ from tests.unit.throwaway_world import loaded_world
 from tests.unit.worker_support import (
     ScriptedClient,
     ScriptedCounter,
+    ScriptedPreparation,
     ScriptedTurns,
     in_flight,
     settled,
@@ -144,6 +156,7 @@ class Bench:
     turns: ScriptedTurns
     client: ScriptedClient
     counter: ScriptedCounter = field(default_factory=ScriptedCounter)
+    preparation: Preparation = field(default_factory=NoPreparation)
     waits: list[float] = field(default_factory=list[float])
     nonces: int = 0
 
@@ -163,6 +176,7 @@ class Bench:
             "launch-1",
             rules,
             self.turns,
+            self.preparation,
             self.client,
             self.counter,
             ports if ports is not None else self.ports,
@@ -190,15 +204,19 @@ def bench(
     script: Callable[[Any], tuple[ScriptedTurns, ScriptedClient]] = support.two_call_script,
     events: Sequence[LoggedEvent] | None = None,
     rules: Rules = RULES,
+    system: System = histories.AGENT,
+    preparation: Preparation | None = None,
 ) -> Bench:
     context = world.context_of(world.scenarios[0])
-    inputs = support.admitted_inputs(context)
+    inputs = support.admitted_inputs(context, system=system)
     if rules.redispatch is not None and rules.redispatch != inputs.redispatch:
         inputs = replace(inputs, redispatch=rules.redispatch)
     turns, client = script(context)
     log = MemoryLog()
     log.seed(tuple(events) if events is not None else support.admission(inputs))
     made = Bench(log, inputs, turns, client)
+    if preparation is not None:
+        made.preparation = preparation
     made.ports = systems_holding(world).ports
     return made
 
@@ -280,13 +298,16 @@ def recovers_from_prefix(
     outage: str | None = None,
     after: int = 0,
     after_recovering: int | None = None,
+    system: System = histories.AGENT,
+    preparation: Callable[[], Preparation] = NoPreparation,
 ) -> tuple[LoggedEvent, ...]:
     """The recovery invariant from the prefix of ``cut`` events of the reference run, the
     people system's ``outage`` method unreachable from its ``after``-th call in the reference
     and from its ``after_recovering``-th in the recovery (the same by default; zero when the
-    recovery replays the calls before the outage from the log and makes none itself); the
-    reference log, for a test that places its cut."""
-    reference = bench(world)
+    recovery replays the calls before the outage from the log and makes none itself), the
+    run admitted for ``system`` with a fresh ``preparation`` per worker; the reference log,
+    for a test that places its cut."""
+    reference = bench(world, system=system, preparation=preparation())
     if outage is not None:
         reference.ports = support.with_unreachable(reference.ports, outage, after=after)
     reference.work()
@@ -294,7 +315,7 @@ def recovers_from_prefix(
     if cut >= len(whole):
         pytest.skip("the prefix is the whole log")
     prefix = whole[:cut]
-    recovering = bench(world, events=prefix)
+    recovering = bench(world, events=prefix, system=system, preparation=preparation())
     if outage is not None:
         later = after if after_recovering is None else after_recovering
         recovering.ports = support.with_unreachable(recovering.ports, outage, after=later)
@@ -1026,3 +1047,149 @@ def test_the_closing_kind_must_be_the_one_the_request_froze_toward(world: Sealed
         RUN, ATTEMPT, WorkerStamp(1, 1, 10_000), CapExhausted(None), rules=RULES, state=state
     )
     assert isinstance(closed, Appended)
+
+
+# --- The preparation node (the baselines step, forks 1 and 7) --------------------------------
+
+POLICY = "single_shot_query"
+SEARCH_READ: tuple[str, dict[str, object]] = (
+    "search",
+    {"query": "handover or coverage", "limit": 10},
+)
+
+
+def prepared(
+    world: SealedWorld,
+    *,
+    reads: Sequence[tuple[str, dict[str, object]]] = (SEARCH_READ,),
+    ports: Callable[[Any], Any] | None = None,
+) -> tuple[Bench, ScriptedPreparation]:
+    """A single-shot admission over the two-call script, its preparation issuing ``reads``
+    under the single-shot's policy, over the planted ports or ``ports`` of them."""
+    preparation = ScriptedPreparation(POLICY, reads)
+    made = bench(world, system=histories.SINGLE_SHOT, preparation=preparation)
+    if ports is not None:
+        made.ports = ports(made.ports)
+    return made, preparation
+
+
+def harness_read_positions(events: Sequence[LoggedEvent]) -> list[int]:
+    return [
+        e.position
+        for e in events
+        if isinstance(e.event, OperationEvent) and isinstance(e.event.key, HarnessReadKey)
+    ]
+
+
+def test_a_preparations_read_is_logged_under_its_policy_before_the_first_count(
+    world: SealedWorld,
+) -> None:
+    """Fork 1: the harness read follows the prefetch's operations and precedes the first
+    count, is held under the harness origin with the tool and arguments the preparation gave,
+    and the run completes with its two calls as the reference does; the export round-trips."""
+    made, preparation = prepared(world)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    kinds = made.kinds()
+    first_count = kinds.index("count_started")
+    assert kinds[2:first_count] == ["operation"] * (first_count - 2)
+    assert harness_read_positions(made.events()) == [first_count]
+    state = made.log.load(RUN, ATTEMPT, rules=RULES)
+    harness_reads = [op for op in trace_operations(state) if isinstance(op.origin, HarnessOrigin)]
+    assert [(op.id, op.origin, op.tool, dict(op.arguments)) for op in harness_reads] == [
+        (OperationId("single_shot_query/1"), HarnessOrigin(POLICY), "search", SEARCH_READ[1])
+    ]
+    assert len(preparation.outcomes) == 1
+    assert isinstance(preparation.outcomes[0], RecordsOutcome)
+    assert support.sends_of(made.client) == 2
+    export = export_of(state)
+    assert decode_export_bytes(export_bytes(export)) == export
+
+
+def test_the_investigators_preparation_issues_nothing_and_the_reference_log_stands(
+    world: SealedWorld,
+) -> None:
+    """Fork 1: the investigator's filling is the null preparation, so the sixth node writes
+    nothing in the reference run and the log the rulings fix is the one the reference test
+    pins; stated here beside the node so the claim is read where the node is tested."""
+    made = bench(world)
+    made.work()
+    assert isinstance(made.preparation, NoPreparation)
+    assert harness_read_positions(made.events()) == []
+
+
+@pytest.mark.parametrize("cut", range(2, len(REFERENCE_KINDS)))
+def test_a_recovery_replays_a_held_harness_read_and_makes_an_unlogged_one_once(
+    world: SealedWorld, cut: int
+) -> None:
+    """Fork 1: the recovery invariant over the single-shot run: a cut before the harness
+    read's append makes the read once more, a cut after it replays the held read by key, and
+    no logged inference or read is repeated."""
+    recovers_from_prefix(
+        world,
+        cut,
+        system=histories.SINGLE_SHOT,
+        preparation=lambda: ScriptedPreparation(POLICY, (SEARCH_READ,)),
+    )
+
+
+def test_a_malformed_record_at_a_harness_read_fails_the_run_at_that_operation_with_no_call(
+    world: SealedWorld,
+) -> None:
+    """Fork 7: a malformed record the corpus answers the preparation's read with is the
+    defect the transition records at that operation; the node routes to the terminal, and
+    nothing is counted or sent."""
+    made, _ = prepared(world, ports=lambda ports: support.with_corpus_malformed(ports, "search"))
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    assert made.client.sends == [] and made.counter.asked == []
+    closing = made.log.load(RUN, ATTEMPT, rules=RULES).closing
+    assert isinstance(closing, Failed)
+    assert closing.category is FailureCategory.DEFECT
+    assert closing.site == OperationSite(OperationId("single_shot_query/1"))
+
+
+def test_an_unreachable_corpus_at_a_harness_read_is_recorded_and_the_call_is_still_made(
+    world: SealedWorld,
+) -> None:
+    """Fork 7: the corpus unreachable at the preparation's read is a recorded operation with
+    the source stopped, and the one call is still made, the model shown the failure; the run
+    completes."""
+    made, preparation = prepared(
+        world, ports=lambda ports: support.with_corpus_unreachable(ports, "search")
+    )
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert len(preparation.outcomes) == 1
+    assert isinstance(preparation.outcomes[0], UnreachableOutcome)
+    assert harness_read_positions(made.events()) != [] and support.sends_of(made.client) == 2
+
+
+def test_an_abstaining_run_asks_no_preparation(world: SealedWorld) -> None:
+    """Fork 7: the opening read unreachable, the leave not returned: the node asks the
+    preparation nothing and no harness read is logged; the run goes on as the system's turns
+    decide (the scripted turns here ask no call, so it completes with none)."""
+    preparation = ScriptedPreparation(POLICY, (SEARCH_READ,))
+    made = bench(
+        world,
+        script=lambda context: (ScriptedTurns(()), ScriptedClient({})),
+        system=histories.SINGLE_SHOT,
+        preparation=preparation,
+    )
+    made.ports = support.with_unreachable(made.ports, "leave")
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    assert preparation.outcomes == [] and made.client.sends == []
+    assert harness_read_positions(made.events()) == []
+
+
+def test_a_harness_read_the_admitted_system_does_not_issue_is_this_harnesss_defect(
+    world: SealedWorld,
+) -> None:
+    """Fork 4 at the node: a preparation issuing under full context's policy on a single-shot
+    admission is refused by the log, and the worker records the defect at the event-append
+    site, the refused event named."""
+    preparation = ScriptedPreparation("full_context_documents", (("documents", {}),))
+    made = bench(world, system=histories.SINGLE_SHOT, preparation=preparation)
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "failed")
+    closing = made.log.load(RUN, ATTEMPT, rules=RULES).closing
+    assert isinstance(closing, Failed)
+    assert closing.site == HarnessSite(HarnessSiteName.EVENT_APPEND)
+    assert closing.reason.endswith(": operation refused")
+    assert made.client.sends == []

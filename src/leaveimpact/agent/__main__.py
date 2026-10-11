@@ -90,6 +90,7 @@ from leaveimpact.agent.commands import (
 )
 from leaveimpact.agent.corpus import corpus_reader_for
 from leaveimpact.agent.execution import ReadPorts
+from leaveimpact.agent.graph import NoPreparation
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     AdmissionReceipt,
@@ -655,6 +656,7 @@ def _work(
             line.harness,
             rules,
             InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)),
+            NoPreparation(),
             ConverseClient(runtime),
             CountingClient(runtime),
             ReadPorts(readers.people, readers.work, readers.calendar, corpus),

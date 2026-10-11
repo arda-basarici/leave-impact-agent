@@ -66,7 +66,7 @@ from leaveimpact.agent.answer_parse import (
     stop_reason_of,
     tool_uses,
 )
-from leaveimpact.agent.conclusion import defect_of, leave_of
+from leaveimpact.agent.conclusion import Abstention, abstention_of, defect_of, leave_of
 from leaveimpact.agent.log_events import (
     Abandoned,
     Admitted,
@@ -637,6 +637,24 @@ def derived_defect(state: AttemptState) -> Failure | None:
     return defect_of(operations, projection, inputs.context, leave_of(operations, inputs.context))
 
 
+def derived_abstention(state: AttemptState, *, below: int | None = None) -> Abstention | None:
+    """Why the operations ``state`` holds make the run abstain, or ``None``: the leave not
+    returned or the employee universe not covered, the same function the baseline and the
+    turns ask, over the trace's view of the log, and the one the preparation node asks before
+    any harness read (the baselines step, fork 7). With ``below``, over the operations logged
+    under that position alone, so a request in progress reads the answer its first intent
+    did."""
+    inputs = state.inputs
+    assert inputs is not None
+    operations = tuple(
+        operation
+        for operation in trace_operations(state)
+        if below is None or (operation.position is not None and operation.position < below)
+    )
+    projection = project_reads(operations, inputs.context.today)
+    return abstention_of(projection, leave_of(operations, inputs.context))
+
+
 def trace_operations(state: AttemptState) -> tuple[Operation, ...]:
     """Every operation the log holds a result for, as the trace holds it, in position order;
     a skip is no operation."""
@@ -1168,6 +1186,7 @@ __all__ = [
     "calls_of",
     "count_group",
     "counts_of",
+    "derived_abstention",
     "fold",
     "held_operation_ids",
     "next_state",

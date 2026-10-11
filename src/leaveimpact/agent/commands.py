@@ -39,7 +39,7 @@ from leaveimpact.adapters.object_store.layout import run_export_key
 from leaveimpact.adapters.object_store.read import AccessRefused
 from leaveimpact.adapters.wiring import InventoryPublisher, RunExportPublisher, UploadOutcome
 from leaveimpact.agent.execution import ReadPorts
-from leaveimpact.agent.graph import ModelClient, TokenCounter, Turns
+from leaveimpact.agent.graph import ModelClient, Preparation, TokenCounter, Turns
 from leaveimpact.agent.inventory import PublicationRecord, inventory_of
 from leaveimpact.agent.ledger import LedgerEntry
 from leaveimpact.agent.log_events import (
@@ -122,14 +122,16 @@ class WorkRequest:
 class WorkerComposition:
     """What a worker is composed over, as the composition root supplies it: the effective
     configuration compared with the admission's, the harness revision, the registered
-    rules, the system's two protocols, the token counter, the read ports, the approval
-    policy and the checkpoint saver. The real fillings are the investigator graph's and
-    the first live run's; a test composes scripted ones."""
+    rules, the system's three protocols (its turns, its preparation and the model client),
+    the token counter, the read ports, the approval policy and the checkpoint saver. The
+    real fillings are the system's own and the live clients'; a test composes scripted
+    ones."""
 
     configuration: WorkerConfiguration
     harness: HarnessRevision
     rules: Rules
     turns: Turns
+    preparation: Preparation
     client: ModelClient
     counter: TokenCounter
     ports: ReadPorts
@@ -147,6 +149,7 @@ def work(request: WorkRequest, store: LogStore, composition: WorkerComposition) 
         request.launch,
         composition.rules,
         composition.turns,
+        composition.preparation,
         composition.client,
         composition.counter,
         composition.ports,

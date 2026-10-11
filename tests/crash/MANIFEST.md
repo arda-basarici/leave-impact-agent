@@ -9,7 +9,10 @@ The reference run is the worker group's two-call script over the golden world's 
 scenario: the claim, six prefetch reads, a count and a dispatch for call 1, two reads the
 model asked for, a count and a dispatch for call 2, the finalization, the approval request,
 the automatic approval, the resume, the completion. Every crossing the reference makes is a
-row; a kill point is named `<family>#<occurrence in its process>`.
+row; a kill point is named `<family>#<occurrence in its process>`. Since the baselines step
+the skeleton has a sixth node, the preparation, between the prefetch and the first call; the
+reference run is the investigator's, whose preparation issues no read, so the node writes
+nothing in it and adds no row.
 
 ## What holds at every row
 
