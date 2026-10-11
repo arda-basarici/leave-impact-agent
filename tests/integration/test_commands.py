@@ -54,6 +54,7 @@ from leaveimpact.core.run_ending import AbandonmentReason
 from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
 from leaveimpact.core.run_export_json import decode_export_bytes, export_bytes
 from leaveimpact.core.run_parts_json import review_payload_digest
+from leaveimpact.core.run_record import SystemKind
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from tests.integration.log_store_support import Rig, Scripted, rig
@@ -69,6 +70,7 @@ from tests.integration.worker_rig import (
     saver_on,
 )
 from tests.unit import format_fixtures as cases
+from tests.unit import worker_support as support
 from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.throwaway_world import loaded_world
 
@@ -98,6 +100,41 @@ def test_the_work_command_runs_the_reference_script_to_its_closing(
 ) -> None:
     store, _ = completed(rig, world)
     assert store.load(RUN, ATTEMPT, rules=RULES).closed is not None
+
+
+def test_a_rules_only_attempt_is_worked_published_and_listed_under_the_registrations_rules(
+    rig: Rig, world: SealedWorld
+) -> None:
+    """The external read of the first live run's first six commits: the baseline's lifecycle
+    on the real store, every command holding the registration's rules, which a run that
+    calls no model is read under without consulting them. Worked to its closing with no
+    send, published as its export with no model call and no reservation, and listed by the
+    inventory with its status beside the publication."""
+    script = support.SCRIPTS["rules-only"]
+    store, inputs = admitted(rig, world, inputs_for=script.inputs)
+    ending = work(
+        WorkRequest(RUN, ATTEMPT, "nonce-1", "launch-1"),
+        store,
+        composition(inputs, world, saver_on(rig), script=script),
+    )
+    assert ending == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
+    memory = InMemoryObjectStore()
+    publisher = run_export_publisher_over(memory)
+    record = publish(PublishRequest(RUN, ATTEMPT, READER), store, publisher, rules=RULES)
+    assert isinstance(record, PublicationRecord) and record.state is PublicationStatus.PUBLISHED
+    held = memory.get(published_key(inputs))
+    assert held is not None
+    export = decode_export_bytes(held.content)
+    assert export.record.system.kind is SystemKind.RULES_ONLY
+    assert export.trace.model_calls == () and export.record.reservation is None
+    assert export.trace.claims, "the baseline states the sealed key's structured claims"
+    scope = InventoryScope(inputs.context.world_version, cases.COMMIT, LEDGER)
+    written = write_inventory(
+        InventoryRequest(scope, cases.COMMIT), store, inventory_publisher_over(memory), rules=RULES
+    )
+    (listed,) = written.inventory.attempts
+    assert listed.closed and listed.status is not None and listed.publication is not None
+    assert listed.status.ending is not None and listed.ledger_id is None
 
 
 def test_an_approval_is_delivered_as_a_command_and_the_next_work_resumes(

@@ -30,16 +30,22 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, replace
+from datetime import date
 from hashlib import sha256
+from pathlib import Path
 from typing import Any, cast
+from uuid import uuid4
+
+from langgraph.checkpoint.memory import InMemorySaver
 
 from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
-from leaveimpact.agent.execution import ReadPorts
+from leaveimpact.agent.execution import ReadPorts, ports_under
 from leaveimpact.agent.graph import (
     LoggedExecutor,
     ModelClient,
+    NoPreparation,
     ReviewPayload,
     TurnRequest,
     Turns,
@@ -56,9 +62,12 @@ from leaveimpact.agent.log_events import (
     event_key,
     kind_of,
 )
-from leaveimpact.agent.log_transition import AttemptState, calls_of
+from leaveimpact.agent.log_transition import AttemptState, Rules, calls_of
+from leaveimpact.agent.registered import rules_only_configuration
+from leaveimpact.agent.rules_only import NoCounter, NoModelClient, RulesOnlyTurns
 from leaveimpact.agent.surface import surface_digest
 from leaveimpact.agent.turns import InvestigatorTurns
+from leaveimpact.agent.worker import AutomaticApproval, Worker, WorkerConfiguration, WorkerEnding
 from leaveimpact.core.counting_operations import Counted, CountOutcome
 from leaveimpact.core.entities import Document, DocumentSection, Employee
 from leaveimpact.core.enums import Source
@@ -72,7 +81,9 @@ from leaveimpact.core.ports.read import PeopleReader
 from leaveimpact.core.prefetch import prefetch_rule
 from leaveimpact.core.pricing import run_reservation
 from leaveimpact.core.refs import clause_ref
-from leaveimpact.core.run_record import System
+from leaveimpact.core.registration import condition_id
+from leaveimpact.core.registration_json import decode_registration_bytes
+from leaveimpact.core.run_record import PricingBasis, System, SystemKind
 from leaveimpact.core.run_trace import HarnessOrigin, OperationId, Outcome
 from leaveimpact.core.stated import StatedFact
 from leaveimpact.core.tools import Role
@@ -81,12 +92,19 @@ from leaveimpact.core.worldtime import RunContext
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
+from tests.unit.log_store_memory import MemoryLog
+from tests.unit.reads_fixture import systems_holding
 from tests.unit.stating_fixture import title_of
 from tests.unit.throwaway_world import loaded_world
 
 ADMITTER = Producer("admitter")
 RESERVATION = 10 * cases.ALLOCATION
 """Room for ten dispatches at the fixtures' worst case."""
+RULES_ONLY = System(SystemKind.RULES_ONLY, "reference")
+REGISTRATION_FILE = Path(__file__).resolve().parents[2] / "preregistration" / "registration.json"
+NO_RATES = PricingBasis("a" * 64, "USD", date(2026, 9, 1), ())
+"""The basis a rules-only run embeds in these tests: a table's digest and no row, as the
+work line's ``basis_for(table, ())`` gives."""
 
 
 def golden_context() -> RunContext:
@@ -145,9 +163,70 @@ def reader_inputs(context: RunContext, system: System) -> FrozenInputs:
     )
 
 
+def rules_only_inputs(context: RunContext, down: frozenset[Source] = frozenset()) -> FrozenInputs:
+    """The frozen inputs of a rules-only run of ``context`` under the committed registration's
+    cell for ``down`` at the base level: ``registered.rules_only_configuration`` over the
+    fixtures' copied fields, no role, no table, no policy and no reservation (the first live
+    run's step, fork 4)."""
+    registration = decode_registration_bytes(REGISTRATION_FILE.read_bytes())
+    configuration = rules_only_configuration(
+        registration,
+        condition_id(down),
+        "base",
+        preregistration_commit=cases.COMMIT,
+        pricing=NO_RATES,
+    )
+    admitted = replace(histories.inputs(reservation=None, system=RULES_ONLY), context=context)
+    return configuration.frozen_for(admitted)
+
+
+def rules_only_script(context: RunContext) -> tuple[RulesOnlyTurns, NoModelClient]:
+    """The baseline's turns and the client it is handed: nothing is asked, a send raises."""
+    return RulesOnlyTurns(), NoModelClient("eu-central-1")
+
+
 def admission(inputs: FrozenInputs) -> tuple[LoggedEvent, ...]:
     """The one-event log of an attempt just admitted."""
     return (LoggedEvent(1, cases.ADMITTED, ADMITTER, Admitted(inputs)),)
+
+
+def worked_log(
+    world: SealedWorld,
+    script: str,
+    *,
+    down: frozenset[Source] = frozenset(),
+    rules: Rules = histories.RULES,
+) -> tuple[MemoryLog, WorkerEnding]:
+    """``SCRIPTS[script]`` run to its ending by one worker over a fresh in-memory log holding
+    its admission, under the registration's ``rules`` and the planted systems' ports with
+    ``down`` unreachable; the log and the ending, for a test that needs a worked attempt's
+    events (an inventory, a publication) without the worker tests' bench."""
+    named = SCRIPTS[script]
+    context = world.context_of(world.scenarios[0])
+    inputs = named.inputs(context)
+    if script == "rules-only":
+        inputs = rules_only_inputs(context, down)
+    turns, client = named.over(world, context)
+    log = MemoryLog()
+    log.seed(admission(inputs))
+    counter: Any = NoCounter() if script == "rules-only" else ScriptedCounter()
+    worker = Worker(
+        log,
+        WorkerConfiguration.of(inputs),
+        cases.REVISION,
+        "launch-1",
+        rules,
+        turns,
+        NoPreparation(),
+        client,
+        counter,
+        ports_under(named.ports(systems_holding(world).ports), down),
+        AutomaticApproval(),
+        InMemorySaver(),
+        sleep=lambda seconds: None,
+    )
+    ending = worker.work(inputs.run_id, inputs.attempt, nonce=f"nonce-{uuid4().hex[:8]}")
+    return log, ending
 
 
 def reservation_of(inputs: FrozenInputs) -> int:
@@ -607,6 +686,9 @@ def _scripted(
 SCRIPTS: Mapping[str, RunScript[Any]] = {
     "two-call": _scripted(two_call_script),
     "throttled": _scripted(throttled_script),
+    "rules-only": RunScript(
+        lambda material, context: rules_only_script(context), lambda world: None, rules_only_inputs
+    ),
     "stating": RunScript(stating_script, a_planted_requirement, investigator_inputs),
     "contradicting": RunScript(
         stating_script, a_planted_requirement, investigator_inputs, with_contradicting_employee
@@ -625,7 +707,10 @@ def calls_in(state: AttemptState) -> int:
 
 __all__ = [
     "ADMITTER",
+    "NO_RATES",
+    "REGISTRATION_FILE",
     "RESERVATION",
+    "RULES_ONLY",
     "ContentScriptedClient",
     "PlantedRequirement",
     "RenamingRead",
@@ -651,9 +736,12 @@ __all__ = [
     "reader_inputs",
     "request_digest",
     "reservation_of",
+    "rules_only_inputs",
+    "rules_only_script",
     "sends_of",
     "settled",
     "stating_script",
+    "worked_log",
     "text",
     "text_only_finalization",
     "tool_use",

@@ -54,15 +54,14 @@ from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import (
     AttemptState,
     Refused,
-    Rules,
     derived_abstention,
     fold,
     next_state,
 )
 from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
-from leaveimpact.agent.registered import rules_only_configuration, rules_only_provenance
-from leaveimpact.agent.rules_only import NoCounter, NoModelClient, RulesOnlyTurns, investigate
+from leaveimpact.agent.registered import rules_only_provenance
+from leaveimpact.agent.rules_only import investigate
 from leaveimpact.agent.worker import (
     AutomaticApproval,
     Worker,
@@ -90,7 +89,7 @@ from leaveimpact.core import (
     export_bytes,
 )
 from leaveimpact.core.read_condition import observed_condition
-from leaveimpact.core.run_record import System, SystemKind
+from leaveimpact.core.run_record import System
 from leaveimpact.core.run_trace import OperationId
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.source_discipline import Ended
@@ -525,39 +524,15 @@ def test_rules_only_through_the_worker_equals_the_direct_run_under_each_conditio
     produce, claim for claim and operation for operation, the differences allowed being the
     fields the log stamps: the timing, the operations' ids and positions, and the
     finalization position the approval node appends. The clients a rules-only run is handed
-    refuse any send or count, so a closed attempt is itself the proof that none was asked."""
+    refuse any send or count, so a closed attempt is itself the proof that none was asked.
+    The worker and the reader hold the registration's development rules, which a run that
+    calls no model is read under without consulting them (the external read of the first
+    six commits)."""
     context = world.context_of(scenario)
-    basis = PricingBasis("a" * 64, "USD", date(2026, 9, 1), ())
-    configuration = rules_only_configuration(
-        REGISTRATION, condition_id(down), "base", preregistration_commit=COMMIT, pricing=basis
-    )
-    admitted = replace(
-        histories.inputs(reservation=None, system=System(SystemKind.RULES_ONLY, "reference")),
-        context=context,
-    )
-    inputs = configuration.frozen_for(admitted)
-    log = MemoryLog()
-    log.seed(support.admission(inputs))
-    ports = ports_under(systems_holding(world).ports, down)
-    no_rules = Rules(None, None)
-    worker = Worker(
-        log,
-        configuration,
-        cases.REVISION,
-        "launch-1",
-        no_rules,
-        RulesOnlyTurns(),
-        NoPreparation(),
-        NoModelClient("eu-central-1"),
-        NoCounter(),
-        ports,
-        AutomaticApproval(),
-        InMemorySaver(),
-        sleep=lambda seconds: None,
-    )
-    ending = worker.work(RUN, ATTEMPT, nonce=f"nonce-{uuid4().hex[:8]}")
+    log, ending = support.worked_log(world, "rules-only", down=down, rules=RULES)
     assert ending.kind is WorkerEndingKind.CLOSED, ending
-    through = export_of(log.load(RUN, ATTEMPT, rules=no_rules))
+    through = export_of(log.load(RUN, ATTEMPT, rules=RULES))
+    ports = ports_under(systems_holding(world).ports, down)
     assert decode_export_bytes(export_bytes(through)) == through
     direct = export_baseline(
         investigate(context, ports), context, provenance(down), run_id=RUN, attempt=ATTEMPT

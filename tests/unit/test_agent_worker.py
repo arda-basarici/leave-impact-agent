@@ -1268,7 +1268,8 @@ def test_no_references_summed_allocations_exceed_the_runs_reservation(
     integration rig's), worked in memory: the money its dispatch intents allocated, summed
     over the whole run, stays inside the reservation the registered caps derive, the figure
     an admission holds against the threshold. The bound is on allocations, not on the
-    account's settled contributions, so no settlement is needed for it to hold."""
+    account's settled contributions, so no settlement is needed for it to hold. The
+    rules-only script dispatches nothing and reserves nothing."""
     script = support.SCRIPTS[name]
     context = world.context_of(world.scenarios[0])
     inputs = script.inputs(context)
@@ -1279,6 +1280,9 @@ def test_no_references_summed_allocations_exceed_the_runs_reservation(
     made.ports = script.ports(systems_holding(world).ports)
     made.work()
     intents = intents_of(made.events())
+    if inputs.redispatch is None:
+        assert not intents and inputs.reservation_pico_usd is None, name
+        return
     assert intents, name
     allocated = sum(intent.allocation_pico_usd for _, intent in intents)
     assert allocated <= support.reservation_of(inputs), name

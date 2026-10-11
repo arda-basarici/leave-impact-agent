@@ -19,9 +19,9 @@ role filled with Haiku 4.5 on the ``eu.`` profile at temperature 0 and an output
 8,192 tokens, priced from ``prices.json`` beside this file (the Frankfurt on-demand rates
 the bedrock probe captured, the four classes the worst case needs) and counted against the
 base model id, the one identifier of four the input-bound probe found served. The draft
-registration holds the roles, the attribution table, the re-dispatch policy and the entry
-schema pending, so ``model_system_provenance`` records this code's current values, as a
-development run does.
+registration names the roles since step 14 and holds the attribution table, the re-dispatch
+policy and the entry schema pending, so ``model_system_provenance`` records this code's
+current values for those, as a development run does.
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ from leaveimpact.agent.registered import (
 from leaveimpact.agent.worker import WorkerConfiguration
 from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.ids import ScenarioId, WorldVersion
-from leaveimpact.core.pricing import PriceTable, basis_for, decode_price_table, worst_case_cost
+from leaveimpact.core.pricing import PriceTable, basis_for, decode_price_table, run_reservation
 from leaveimpact.core.registration import Registration
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_record import PricingSelection, SystemKind
@@ -183,11 +183,13 @@ def probe_configuration(
         pricing=basis,
         role=role,
     )
-    caps = worker.caps
-    # Every token of the run's cap at the dearest input rate and every call's whole output
-    # maximum: more than a run can spend, so the ledger never ends one early.
-    reservation = worst_case_cost(
-        caps.token_cap, caps.call_cap * OUTPUT_MAXIMUM, role.pricing, basis
+    # The caps' ceiling as the launcher reserves it (step 14, fork 13): the token cap at the
+    # dearest input-side rate and every dispatch the call cap and the development re-dispatch
+    # policy allow at the output maximum, so money never ends a run the caps still admit.
+    rules = effective_rules(registration())
+    assert rules.redispatch is not None
+    reservation = run_reservation(
+        worker.caps, rules.redispatch, [(OUTPUT_MAXIMUM, role.pricing)], basis
     )
     return ProbeConfiguration(
         role,

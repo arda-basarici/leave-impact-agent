@@ -213,11 +213,6 @@ def test_the_rules_come_from_the_registration_file_or_are_a_model_free_systems(
     assert job.rules_of(draft) == Rules(
         DEVELOPMENT_ATTRIBUTION_TABLE, DEVELOPMENT_REDISPATCH_POLICY
     ), "the draft holds both pending, so a run under it is read by the development values"
-    # A rules-only work line names the file for its configuration and is read by no rules
-    # all the same (the first live run's step, fork 4); a model system's line by the file's.
-    files = ["--registration", str(draft), "--prices", "p.json"]
-    assert job.rules_for(job.parse_request([*RULES_ONLY_WORK, *files], ENV)) == Rules(None, None)
-    assert job.rules_for(job.parse_request([*WORK, *files], ENV)) == job.rules_of(draft)
     settled = tmp_path / "settled.json"
     settled.write_bytes(registration_bytes(named(DRAFT)))
     rules = job.rules_of(settled)

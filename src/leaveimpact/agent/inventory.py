@@ -12,8 +12,10 @@ An attempt admitted under rules that are not the builder's cannot be folded by i
 transition refuses every event after the admission on the attribution table or the
 re-dispatch policy. Such an attempt is listed from its row alone, open or closed, with no
 status and no figures, which is what an evaluation under another registration needs of it
-(ruling 10, part 9: an open attempt outside the scope blocks nothing). Any other log that
-will not fold is an invariant broken, raised naming the run and the attempt.
+(ruling 10, part 9: an open attempt outside the scope blocks nothing). An attempt that
+calls no model is read under none and folds under the builder's rules like any other, so
+one inventory describes a world's model and rules-only attempts together. Any other log
+that will not fold is an invariant broken, raised naming the run and the attempt.
 """
 
 from __future__ import annotations

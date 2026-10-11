@@ -1,6 +1,7 @@
 """The inventory built from a hand-built snapshot: every attempt listed in order with the
 fold's status, figures, position and prefix digest, an attempt under another registration's
-rules listed from its row alone, the ledger and the publication records projected field for
+rules listed from its row alone, a rules-only attempt folded beside a model one under the
+registration's rules, the ledger and the publication records projected field for
 field, the refusals carried, the forecast figures of the unresolved-dispatch history
 reproduced, and a row that disagrees with its log or a log that will not fold refused
 naming the attempt; the result round-trips through the codec."""
@@ -33,6 +34,8 @@ from leaveimpact.core.run_ending import AbandonmentReason, ApprovalState, Segmen
 from leaveimpact.core.run_record import FailureCategory, TerminalStatus
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
+from tests.unit import worker_support as support
+from tests.unit.throwaway_world import loaded_world
 
 RULES = histories.RULES
 AT = datetime(2026, 10, 7, 10, 0, tzinfo=UTC)
@@ -233,3 +236,31 @@ def test_a_snapshot_of_another_ledger_than_the_scopes_is_refused() -> None:
         ValueError, match="read ledger ledger-other and the scope names ledger-test"
     ):
         inventory_of(other, SCOPE, builder_commit=BUILDER, rules=RULES)
+
+
+def test_a_rules_only_attempt_folds_beside_a_model_one_under_the_registrations_rules() -> None:
+    """The external read of the first live run's first six commits: one builder holding the
+    registration's rules describes a mixed inventory. The rules-only attempt, worked in memory
+    through the real worker, is read under no rules whatever the builder holds, so it is
+    listed with its status and figures, as the model attempt is; under rules that are not the
+    model attempt's, the model attempt alone falls back to its row."""
+    log, ending = support.worked_log(loaded_world("golden"), "rules-only")
+    assert ending.detail == "completed"
+    rules_only = renamed(log.events(ending.run_id, ending.attempt), "run-d")
+    mixed = replace(
+        SNAPSHOT,
+        attempts=(
+            attempt(UNRESOLVED, "run-b", closed=True),
+            attempt(rules_only, "run-d", closed=True),
+        ),
+    )
+    inventory = inventory_of(mixed, SCOPE, builder_commit=BUILDER, rules=RULES)
+    model, baseline = inventory.attempts
+    assert model.status is not None and model.figures is not None
+    assert baseline.status is not None and baseline.status.ending is not None
+    assert baseline.status.ending.status is TerminalStatus.COMPLETED
+    assert baseline.status.approval is ApprovalState.APPROVED
+    assert baseline.figures is not None and baseline.figures.total_pico_usd == 0
+    assert baseline.ledger_id is None, "nothing was reserved"
+    foreign = inventory_of(mixed, SCOPE, builder_commit=BUILDER, rules=Rules(None, None))
+    assert [a.status is None for a in foreign.attempts] == [True, False]

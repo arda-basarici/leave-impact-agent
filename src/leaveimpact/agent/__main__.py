@@ -21,8 +21,9 @@ version and level before any read (the registry step's forward), the live client
 region, the turns over the shipped prompts, the checkpoint saver on the run log's database,
 and the approval policy named. A rules-only cell runs the same command through the same
 worker with no model flag (the first live run's step, fork 4): its configuration is
-``registered.rules_only_configuration``, its turns ask nothing, and the clients it is
-handed refuse a send or a count as this harness's defect. One command, one run, one
+``registered.rules_only_configuration``, its turns ask nothing, the clients it is
+handed refuse a send or a count as this harness's defect, and the registration's rules it
+is read under are not consulted by its fold. One command, one run, one
 attempt; the worker compares the composed configuration with the admission's and claims
 nothing on a difference.
 
@@ -407,23 +408,13 @@ def code_version(env: Mapping[str, str]) -> str:
 def rules_of(registration: Path | None) -> Rules:
     """The attribution table and re-dispatch policy a run under the registration file is read
     by: the registered ones, or the development values while a draft holds them pending
-    (``registered.effective_rules``); with no file, the rules of a system that calls no
-    model."""
+    (``registered.effective_rules``); with no file, none. An attempt that calls no model is
+    read under none whatever the file names (``log_transition.rules_differ``), so one choice
+    serves every command, a mixed inventory included.
+    """
     if registration is None:
         return Rules(None, None)
     return effective_rules(decode_registration_bytes(registration.read_bytes()))
-
-
-def rules_for(parsed: Parsed) -> Rules:
-    """The rules the command's attempt is read by: ``rules_of`` the registration flag, except
-    that a work line for a system that calls no model is read by none whatever file it names
-    (the log refuses a table or a policy on such a run); the work line needs the file for
-    its configuration all the same."""
-    if isinstance(parsed.request, WorkLine) and parsed.request.role is None:
-        return Rules(None, None)
-    if parsed.registration is None:
-        return Rules(None, None)
-    return _decoded(parsed.registration, "the registration", rules_of)
 
 
 def admission_request_of(content: bytes | str, rules: Rules) -> AdmissionRequest:
@@ -459,7 +450,11 @@ def main(
     environment = os.environ if env is None else env
     try:
         parsed = parse_request(sys.argv[1:] if argv is None else argv, environment)
-        rules = rules_for(parsed)
+        rules = (
+            Rules(None, None)
+            if parsed.registration is None
+            else _decoded(parsed.registration, "the registration", rules_of)
+        )
         request = _resolved(parsed, rules)
         if store is None:
             dsn = environment.get(DATABASE, "").strip()

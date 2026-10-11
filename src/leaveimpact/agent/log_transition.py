@@ -1125,10 +1125,16 @@ def _held_under(state: AttemptState, key: EventKey) -> LoggedEvent | None:
 def rules_differ(inputs: FrozenInputs, rules: Rules) -> str | None:
     """Why ``rules`` are not the ones ``inputs`` froze, or ``None`` when they are: the
     transition refuses every event after the admission on this, and the inventory's builder
-    lists an attempt it cannot fold on it."""
+    lists an attempt it cannot fold on it.
+
+    An admission that names no table is a run that calls no model; its log holds no
+    dispatch, so no table and no policy is consulted in its fold, and it is read under
+    none whatever ``rules`` the caller holds. One caller, the registration's rules in hand,
+    reads every attempt of a world, model and rules-only alike (the first live run's step,
+    the external read of its first six commits); a model attempt's table and policy are
+    held to the admission's as before.
+    """
     if inputs.attribution_table is None:
-        if rules.table is not None or rules.redispatch is not None:
-            return "a system that calls no model registers no table and no policy"
         return None
     if rules.table is None or rules.redispatch is None:
         return "the registered table and policy are needed and absent"

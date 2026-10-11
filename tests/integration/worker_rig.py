@@ -65,7 +65,8 @@ def admitted(
 ) -> tuple[LogStore, FrozenInputs]:
     """A store over the rig with the ledger's threshold set and a run admitted for the
     world's ``scenario``-th scenario under ``inputs_for``'s frozen inputs, the fixtures'
-    unless the run is the real turns'; the frozen inputs beside it."""
+    unless the run is the real turns'; the frozen inputs beside it. A run that reserves
+    nothing (rules only) is admitted against no ledger, as the request type requires."""
     store = rig.store()
     store.set_threshold(
         LEDGER,
@@ -75,8 +76,9 @@ def admitted(
         limit_pico_usd=PLENTY,
     )
     inputs = inputs_for(world.context_of(world.scenarios[scenario]))
+    ledger = LEDGER if inputs.reservation_pico_usd is not None else None
     receipt = store.admit(
-        AdmissionRequest(f"req-{uuid4().hex[:12]}", inputs, support.ADMITTER, LEDGER, RULES)
+        AdmissionRequest(f"req-{uuid4().hex[:12]}", inputs, support.ADMITTER, ledger, RULES)
     )
     assert isinstance(receipt, AdmissionReceipt)
     return store, inputs
