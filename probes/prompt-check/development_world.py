@@ -64,6 +64,9 @@ WORLD = WorldVersion("b7ec45636101ffd29acacef70a57f13e5b5d1da8ff7a0fe77f0f36394b
 CONDITION, LEVEL = "normal", "base"
 MODEL = "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
 COUNTING_MODEL = "anthropic.claude-haiku-4-5-20251001-v1:0"
+CONTEXT_ALLOWANCE = 200_000
+"""Haiku 4.5's input window in tokens, the role's context allowance since registration format
+4 (the baselines step, fork 10); a request over it is refused before any send."""
 REGION = "eu-central-1"
 OUTPUT_MAXIMUM = 8_192
 """Room for a finalization call that states every fact of a scenario in one batch; the
@@ -155,6 +158,7 @@ def probe_configuration(*, tree_state: TreeState) -> ProbeConfiguration:
         ),
         PricingSelection(MODEL, REGION, "on_demand"),
         COUNTING_MODEL,
+        CONTEXT_ALLOWANCE,
     )
     table = price_table()
     basis = basis_for(table, (role.pricing,))
