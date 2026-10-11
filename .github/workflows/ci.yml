@@ -195,9 +195,25 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+      # The smoke (the first live run's step, fork 8): the image just pushed, pulled back by
+      # its digest and run once on the runner's own platform, loads both roles' prompt
+      # assets through the loader the work command composes with and prints their digests
+      # beside the code version; a prompt file the packaging dropped fails the job here,
+      # before any deploy. The identity line stays the container's default, since the
+      # deploy reads it as its evidence.
+      - name: Smoke the built image
+        run: |
+          set -euo pipefail
+          docker run --rm --platform linux/amd64 \
+            "ghcr.io/${{ github.repository }}@${{ steps.build.outputs.digest }}" \
+            python -m leaveimpact smoke | tee smoke.txt
+          grep -qx "code_version=${{ steps.stamp.outputs.sha }}" smoke.txt
+          grep -q '^investigator\.' smoke.txt && grep -q '^reader\.' smoke.txt
+
       # The log then says which bytes a sha tag pointed at when it was built, since the
       # tag itself cannot; carrying the digest into the deploy is M2-entry work with the
-      # base-image pins and a final-image smoke (the M1 audit's F-010, in part).
+      # base-image pins (the M1 audit's F-010, in part); the smoke above is the final-image
+      # check the same finding asked for.
       - name: Record the image digest
         run: |
           {
