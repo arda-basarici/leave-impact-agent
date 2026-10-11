@@ -16,6 +16,7 @@ analysis.arms[].cells[].accounting.level_not_evaluated
 analysis.arms[].cells[].accounting.limited
 analysis.arms[].cells[].accounting.limited_structurally_invalid
 analysis.arms[].cells[].accounting.made
+analysis.arms[].cells[].accounting.membership_not_evaluated
 analysis.arms[].cells[].accounting.missing
 analysis.arms[].cells[].accounting.observed
 analysis.arms[].cells[].accounting.observed[][].unreachable
@@ -37,6 +38,7 @@ analysis.arms[].cells[].accounting.with_ending_findings
 analysis.arms[].cells[].accounting.with_fact_findings
 analysis.arms[].cells[].accounting.with_integrity_findings
 analysis.arms[].cells[].accounting.with_level_findings
+analysis.arms[].cells[].accounting.with_membership_findings
 analysis.arms[].cells[].accounting.with_operation_findings
 analysis.arms[].cells[].accounting.with_prefetch_findings
 analysis.arms[].cells[].accounting.with_retried_sends
@@ -54,6 +56,7 @@ analysis.arms[].cells[].attempts.graded
 analysis.arms[].cells[].attempts.history
 analysis.arms[].cells[].attempts.level_not_evaluated
 analysis.arms[].cells[].attempts.limited
+analysis.arms[].cells[].attempts.membership_not_evaluated
 analysis.arms[].cells[].attempts.prefetch_not_evaluated
 analysis.arms[].cells[].attempts.record_disagreements
 analysis.arms[].cells[].attempts.runs_recovered
@@ -68,6 +71,7 @@ analysis.arms[].cells[].attempts.with_ending_findings
 analysis.arms[].cells[].attempts.with_fact_findings
 analysis.arms[].cells[].attempts.with_integrity_findings
 analysis.arms[].cells[].attempts.with_level_findings
+analysis.arms[].cells[].attempts.with_membership_findings
 analysis.arms[].cells[].attempts.with_operation_findings
 analysis.arms[].cells[].attempts.with_prefetch_findings
 analysis.arms[].cells[].attempts.with_retried_sends
@@ -667,6 +671,15 @@ listing[].run.level_check.findings[].document.id
 listing[].run.level_check.findings[].document.kind
 listing[].run.level_check.findings[].operation
 listing[].run.level_check.level
+listing[].run.membership
+listing[].run.membership.findings
+listing[].run.membership.findings[].document
+listing[].run.membership.findings[].document.id
+listing[].run.membership.findings[].document.kind
+listing[].run.membership.findings[].kind
+listing[].run.membership.findings[].operation
+listing[].run.membership.membership
+listing[].run.membership.query
 listing[].run.operation_findings
 listing[].run.operation_findings[].kind
 listing[].run.operation_findings[].operation

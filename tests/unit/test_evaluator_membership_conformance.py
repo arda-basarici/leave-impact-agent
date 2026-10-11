@@ -19,6 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import replace
+from typing import Any
 
 import pytest
 
@@ -35,6 +36,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.query_protocol import LiteralQuery
 from leaveimpact.core.run_record import Retrieval, RetrievalKind, System
+from leaveimpact.evaluator.cells import accounting_of, arms, attempt_summary_of, cells_of
 from leaveimpact.evaluator.membership_conformance import (
     Comparison,
     MembershipConformance,
@@ -42,9 +44,10 @@ from leaveimpact.evaluator.membership_conformance import (
     MembershipFindingKind,
     membership_conformance,
 )
+from leaveimpact.evaluator.registered import preregistered
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
-from tests.unit.test_agent_outage_matrix import CONDITIONS, bench, condition_name
+from tests.unit.test_agent_outage_matrix import CONDITIONS, REGISTRATION, bench, condition_name
 from tests.unit.throwaway_world import loaded_world
 
 K = MembershipFindingKind
@@ -337,3 +340,26 @@ def test_an_enumeration_that_returned_nothing_is_not_compared(world: SealedWorld
     result = conformance(world, export)
     assert result == NONE
 
+
+# --- The accounting ------------------------------------------------------------------------------
+
+
+def test_the_accounting_counts_the_runs_with_findings_and_the_ones_not_evaluated(
+    world: SealedWorld,
+) -> None:
+    export = exported(world, "single_shot")
+    read = harness_read_of(export)
+    conforming = evaluate_run(world, export, query_protocol=PROTOCOL, search_limit=LIMIT)
+    other_limit = with_read(export, replace(read, arguments={**dict(read.arguments), "limit": 3}))
+    found = evaluate_run(
+        world, replace(other_limit, run_id="run-2"), query_protocol=PROTOCOL, search_limit=LIMIT
+    )
+    unevaluated = evaluate_run(world, replace(export, run_id="run-3"))
+    plan = preregistered(REGISTRATION).plan
+    runs: list[Any] = [conforming, found, unevaluated]
+    arm = next(arm for arm in arms(world, runs, plan) if any(s.attempts for s in arm.scenarios))
+    whole = cells_of(arm)[0]
+    accounting = accounting_of(whole, plan)
+    assert (accounting.with_membership_findings, accounting.membership_not_evaluated) == (1, 1)
+    summary = attempt_summary_of(whole)
+    assert (summary.with_membership_findings, summary.membership_not_evaluated) == (1, 1)

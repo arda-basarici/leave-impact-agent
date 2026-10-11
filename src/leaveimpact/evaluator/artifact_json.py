@@ -128,6 +128,7 @@ def _run(evaluation: Evaluation) -> JsonObject:
         "outcome": _outcome(evaluation.outcome),
         "operation_findings": _written(metrics.discipline.findings),
         "prefetch": _written(metrics.prefetch),
+        "membership": _written(metrics.membership),
         "fact_recheck": _written(metrics.recheck),
         "level_check": _written(metrics.level),
         "contradiction_not_failed": evaluation.contradiction_not_failed,

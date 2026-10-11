@@ -26,6 +26,7 @@ from leaveimpact.core import (
     Component,
     CoverageAction,
     Document,
+    HarnessOrigin,
     HarnessRevision,
     InventoryAttempt,
     MalformedRecord,
@@ -36,6 +37,7 @@ from leaveimpact.core import (
     PrefetchRule,
     PricingBasis,
     RecordOutcome,
+    RecordsOutcome,
     ReportedUsage,
     RunExport,
     Segment,
@@ -103,6 +105,7 @@ from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import TABLE, decided, light, named
 from tests.unit.report_fixture import of_type, without
 from tests.unit.stating_fixture import stating_export, truthful_stater_runs
+from tests.unit.test_agent_outage_matrix import bench
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
@@ -448,6 +451,24 @@ def with_audit_findings(world: SealedWorld) -> EvaluationArtifact:
     return over_inventory(world, registration, (run,), {COMMIT: registration}, REVISION)
 
 
+def with_membership_findings(world: SealedWorld) -> EvaluationArtifact:
+    """An artifact under the same registration holding one full-context run whose
+    enumeration returned every document of its level but the first, so the membership
+    check's finding, the one with a document, is reached (the outage step, fork 6); the run
+    is the outage matrix's real bench, every other path of its block the real producer's."""
+    registration = registration_bytes(named(DRAFT))
+    made = bench(world, "full_context", frozenset())
+    made.work()
+    export = made.export()
+    (read,) = [op for op in export.trace.operations if isinstance(op.origin, HarnessOrigin)]
+    assert isinstance(read.outcome, RecordsOutcome)
+    fewer = replace(read, outcome=RecordsOutcome(read.outcome.records[1:]))
+    operations = tuple(fewer if op.id == read.id else op for op in export.trace.operations)
+    missing_one = replace(export, trace=replace(export.trace, operations=operations))
+    run = StoredRun("runs/membership", "v-runs/membership", export_bytes(missing_one))
+    return over_inventory(world, registration, (run,), {COMMIT: registration}, REVISION)
+
+
 def with_unexported_attempts(world: SealedWorld) -> EvaluationArtifact:
     """An artifact whose inventory lists, beside one exported run, a second attempt of it
     still open and another run closed with a publication incident: the coverage's rows
@@ -514,7 +535,7 @@ def test_two_evaluations_of_the_same_stored_runs_are_the_same_bytes(
         "coverage",
         "analysis",
     ]
-    assert (decoded["format_version"], decoded["label"]) == (9, "development")
+    assert (decoded["format_version"], decoded["label"]) == (10, "development")
     assert decoded["harness_inventory"]["world_version"] == world.version
     assert decoded["coverage"]["unexported"] == []
     assert decoded["world"]["truth_manifest"] == {
@@ -543,6 +564,7 @@ def test_a_run_is_written_as_its_outcome_and_findings_and_nothing_recomputable(
         "outcome",
         "operation_findings",
         "prefetch",
+        "membership",
         "fact_recheck",
         "level_check",
         "contradiction_not_failed",
@@ -653,6 +675,7 @@ def test_every_key_path_the_walk_writes_is_the_pinned_one(
         named_systems(world, 2),
         held_to_a_table(world),
         with_audit_findings(world),
+        with_membership_findings(world),
         with_unexported_attempts(world),
     ):
         written |= paths(encode_artifact(held))

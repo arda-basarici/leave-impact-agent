@@ -83,6 +83,7 @@ from leaveimpact.evaluator.grading import (
     LimitedReason,
 )
 from leaveimpact.evaluator.harness_inventory import UnexportedAttempt
+from leaveimpact.evaluator.membership_conformance import Comparison
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation
 from leaveimpact.world.scenario import ScenarioClassName, Tier
@@ -294,6 +295,8 @@ class Accounting:
     with_unexported_attempts: int
     with_prefetch_findings: int
     prefetch_not_evaluated: int
+    with_membership_findings: int
+    membership_not_evaluated: int
     with_fact_findings: int
     with_level_findings: int
     level_not_evaluated: int
@@ -346,6 +349,8 @@ class AttemptSummary:
     history: tuple[tuple[HistoryFinding, int], ...]
     with_prefetch_findings: int
     prefetch_not_evaluated: int
+    with_membership_findings: int
+    membership_not_evaluated: int
     with_fact_findings: int
     with_level_findings: int
     level_not_evaluated: int
@@ -526,6 +531,14 @@ def _shared_finding_counts(evaluations: Sequence[Evaluation]) -> dict[str, int]:
     calls = [evaluation.metrics.calls for evaluation in evaluations]
     eligibilities = [evaluation.metrics.eligibility for evaluation in evaluations]
     return {
+        "with_membership_findings": sum(
+            bool(evaluation.metrics.membership.findings) for evaluation in evaluations
+        ),
+        "membership_not_evaluated": sum(
+            Comparison.NOT_EVALUATED
+            in (evaluation.metrics.membership.query, evaluation.metrics.membership.membership)
+            for evaluation in evaluations
+        ),
         "with_fact_findings": sum(
             bool(evaluation.metrics.recheck.findings) for evaluation in evaluations
         ),

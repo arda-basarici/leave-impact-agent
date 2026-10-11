@@ -846,7 +846,7 @@ def test_the_artifact_names_the_inventory_it_read_and_reports_its_coverage(
 ) -> None:
     run = stored("runs/a", exported(world, world.scenarios[0]))
     artifact = artifact_of(world, run)
-    assert artifact.format_version == 9
+    assert artifact.format_version == 10
     inventory = inventory_over(world.version, {run.key: run.content})
     _, read = as_read(inventory)
     assert artifact.harness_inventory == read

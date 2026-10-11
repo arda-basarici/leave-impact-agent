@@ -75,6 +75,7 @@ from leaveimpact.core.registration import (
     Pending,
     Registration,
     RegistrationStatus,
+    SingleShotSystem,
     blocking,
     condition_id,
     roles_of,
@@ -87,7 +88,7 @@ from leaveimpact.core.registration_json import (
 )
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_export_json import decode_export_bytes
-from leaveimpact.core.run_record import PrefetchRule
+from leaveimpact.core.run_record import PrefetchRule, SystemKind
 from leaveimpact.core.run_timing import TreeState
 from leaveimpact.evaluator.analysis import Analysis, analyse
 from leaveimpact.evaluator.cells import StratumKind
@@ -110,7 +111,7 @@ from leaveimpact.evaluator.sealed_world import SealedSource, SealedWorld
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world.artifacts import digest
 
-ARTIFACT_FORMAT_VERSION = 9
+ARTIFACT_FORMAT_VERSION = 10
 """The format of the evaluation artifact as this code writes it; 3 since an estimate states
 why a bootstrap resolved no interval and a comparison of single runs carries one, 4 since
 the analysis holds the mechanism measure and a run its fact recheck, its level check and
@@ -609,6 +610,13 @@ def _evaluated(
     # it never ran under.
     own = cited == registration_content
     table, redispatch = registration.attribution, registration.run_accounting.redispatch
+    single_shot = registration.system(SystemKind.SINGLE_SHOT)
+    query_protocol = search_limit = None
+    if own and isinstance(single_shot, SingleShotSystem):
+        if not isinstance(single_shot.query_protocol, Pending):
+            query_protocol = single_shot.query_protocol
+        if not isinstance(single_shot.search_limit, Pending):
+            search_limit = single_shot.search_limit
     return evaluate_run(
         world,
         export,
@@ -616,6 +624,8 @@ def _evaluated(
         redispatch=None if not own or isinstance(redispatch, Pending) else redispatch,
         retry=registration.run_accounting.retry if own else None,
         counting_identifiers=_counting_identifiers(registration, export) if own else None,
+        query_protocol=query_protocol,
+        search_limit=search_limit,
     )
 
 
