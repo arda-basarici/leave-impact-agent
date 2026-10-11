@@ -1,16 +1,20 @@
 """The registered outage injected over the ports, every system under every registered condition,
 model-free (the outage step, fork 5 as amended by the external read).
 
-Each case states its assignment, the condition the trace should show and the exposure the
-evaluator should read, apart: under ``corpus_down`` rules only reads no document and an agent
-that never searches observes the normal condition with unexercised exposure, so assignment and
-observation are not asked to agree. What every case asserts is that the record agrees with
-the trace (the harness's own derived condition is the one the evaluator derives, no mixed
-source) and that the exposure reads as expected; the shape of the run (its operations, its
-sends, its harness read) is asserted where the condition decides it. Two agent cases request
-the failed source through scripted turns: a call against a stopped source is skipped and
-never made, and a search under a corpus outage is recorded unreachable and stops the source.
-A recovering worker injects the outage from the admission again and makes no vendor call.
+The agent runs under the scripted two-call turns; the two one-call baselines run their real
+turns over the reader's assets with the forced call answered by a script, so their exports
+have the registered shape, one logical call and no model-origin read (the external read of
+group 1). Each case states its assignment, the condition the trace should show and the
+exposure the evaluator should read, apart: under ``corpus_down`` rules only reads no document
+and an agent that never searches observes the normal condition with unexercised exposure, so
+assignment and observation are not asked to agree. What every case asserts is that the record
+agrees with the trace (the harness's own derived condition is the one the evaluator derives,
+no mixed source) and that the exposure reads as expected; the shape of the run (its
+operations, its sends, its harness read) is asserted where the condition decides it. Two agent
+cases request the failed source through scripted turns: a call against a stopped source is
+skipped and never made, and a search under a corpus outage is recorded unreachable and stops
+the source. A recovering worker injects the outage from the admission again and makes no
+vendor call.
 
 The conditions are the registration's own, read from the committed draft, so a condition
 added there is a case here.
@@ -28,6 +32,7 @@ from uuid import uuid4
 import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
+from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.execution import ReadPorts, ports_under
 from leaveimpact.agent.export import RunProvenance
 from leaveimpact.agent.graph import NoPreparation, Preparation, ReviewPayload, TurnRequest
@@ -40,6 +45,7 @@ from leaveimpact.agent.log_events import (
 )
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import AttemptState, derived_abstention
+from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
 from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
@@ -57,6 +63,7 @@ from leaveimpact.core import (
     OutageAssignment,
     PrefetchOrigin,
     PricingBasis,
+    Role,
     RunCondition,
     RunExport,
     Source,
@@ -79,7 +86,13 @@ from tests.unit.export_fixture import export_baseline
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.throwaway_world import loaded_world
-from tests.unit.worker_support import ScriptedClient, ScriptedCounter, ScriptedTurns, settled
+from tests.unit.worker_support import (
+    ContentScriptedClient,
+    ScriptedClient,
+    ScriptedCounter,
+    ScriptedTurns,
+    settled,
+)
 
 RULES = histories.RULES
 RUN, ATTEMPT = "run-12", 1
@@ -195,9 +208,9 @@ class Bench:
 
     log: MemoryLog
     inputs: FrozenInputs
-    turns: PreconditionedTurns
+    turns: PreconditionedTurns | OneCallTurns
     preparation: Preparation
-    client: ScriptedClient
+    client: ScriptedClient | ContentScriptedClient
     ports: Any
     counter: ScriptedCounter = field(default_factory=ScriptedCounter)
 
@@ -246,6 +259,17 @@ class PreconditionedTurns:
         return self.inner.payload_for(state)
 
 
+def one_call_script(world: SealedWorld) -> tuple[OneCallTurns, ContentScriptedClient]:
+    """The real one-call turns over the reader's assets, the forced fact call answered with
+    the planted requirement stated truthfully (the one-call tests' bench): one logical call,
+    no model-origin read, the preconditions the turns apply themselves."""
+    planted = support.a_planted_requirement(world)
+    answer = support.answered(
+        support.fact_tool("tu_final", histories.entry_of(planted.stated)), stop_reason="tool_use"
+    )
+    return OneCallTurns(load_prompt_assets(Role.READER)), ContentScriptedClient((answer,))
+
+
 MODEL_SYSTEMS: dict[str, tuple[System, Callable[[], Preparation]]] = {
     "agent": (histories.AGENT, NoPreparation),
     "single_shot": (histories.SINGLE_SHOT, SingleShotPreparation),
@@ -264,20 +288,24 @@ def bench(
 ) -> Bench:
     """The ``system``'s run of the golden world's first scenario admitted under ``down``,
     the ports injected as the composition root injects them, over ``events`` instead of a
-    fresh admission when given."""
+    fresh admission when given. The agent runs ``script`` behind the preconditions; a
+    one-call baseline runs its real turns under the reader's inputs."""
     admitted, preparation = MODEL_SYSTEMS[system]
     context = world.context_of(world.scenarios[0])
-    inputs = replace(
-        support.admitted_inputs(context, system=admitted),
-        outage=OutageAssignment(down, cases.DIGEST),
-    )
-    turns, client = script(context)
+    assignment = OutageAssignment(down, cases.DIGEST)
+    turns: PreconditionedTurns | OneCallTurns
+    client: ScriptedClient | ContentScriptedClient
+    if system == "agent":
+        inputs = replace(support.admitted_inputs(context, system=admitted), outage=assignment)
+        scripted, client = script(context)
+        turns = PreconditionedTurns(scripted)
+    else:
+        inputs = replace(support.reader_inputs(context, admitted), outage=assignment)
+        turns, client = one_call_script(world)
     log = MemoryLog()
     log.seed(tuple(events) if events is not None else support.admission(inputs))
     given = systems_holding(world).ports if ports is None else ports
-    return Bench(
-        log, inputs, PreconditionedTurns(turns), preparation(), client, ports_under(given, down)
-    )
+    return Bench(log, inputs, turns, preparation(), client, ports_under(given, down))
 
 
 def harness_reads(export: RunExport) -> list[Any]:
@@ -291,9 +319,10 @@ def test_each_model_system_under_each_registered_condition(
 ) -> None:
     """The two-call script asks the people system only, so the agent never reads the
     corpus; the one-call baselines read it in their preparation. Under the HR system's
-    outage every system abstains at its opening read with no send; under the others the
-    run completes with its two sends, the one-call systems' harness read made and, under
-    the corpus's outage, recorded unreachable with the call still made (step 12, fork 7)."""
+    outage every system abstains at its opening read with no send and no call; under the
+    others the agent completes with its two sends, and a one-call baseline with its one
+    logical call and no model-origin read, its harness read made and, under the corpus's
+    outage, recorded unreachable with the call still made (step 12, fork 7)."""
     made = bench(world, system, down)
     assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "completed")
     export = made.export()
@@ -302,15 +331,19 @@ def test_each_model_system_under_each_registered_condition(
     evaluation = assert_record_agrees_with_trace(world, export, down, expected)
     assert evaluation.level == "base"
     reads = harness_reads(export)
+    by_model = [op for op in export.trace.operations if isinstance(op.origin, ModelOrigin)]
     if Source.FRAPPE in down:
-        assert support.sends_of(made.client) == 0 and reads == []
+        assert len(made.client.sends) == 0 and export.trace.model_calls == ()
+        assert reads == [] and by_model == []
         assert len(export.trace.operations) == 1
         assert isinstance(export.trace.operations[0].outcome, UnreachableOutcome)
         return
-    assert support.sends_of(made.client) == 2
     if system == "agent":
+        assert len(made.client.sends) == 2 and len(export.trace.model_calls) == 2
         assert reads == []
         return
+    assert len(made.client.sends) == 1 and len(export.trace.model_calls) == 1
+    assert by_model == [], "a one-call baseline makes no model-origin read"
     (read,) = reads
     assert read.tool == ("search" if system == "single_shot" else "documents")
     if Source.CORPUS in down:
