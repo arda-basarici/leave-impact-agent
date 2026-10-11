@@ -89,7 +89,7 @@ from leaveimpact.agent.commands import (
     write_inventory,
 )
 from leaveimpact.agent.corpus import corpus_reader_for
-from leaveimpact.agent.execution import ReadPorts
+from leaveimpact.agent.execution import ReadPorts, ports_under
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     AdmissionReceipt,
@@ -623,6 +623,13 @@ def _work(
     check before any read port is built (``corpus_reader_for``). The composed configuration
     is the registration's and this code's for the cell named, and the worker refuses the
     claim where it differs from the admission's.
+
+    The registered outage is injected over the composed ports from the assignment the
+    admission recorded, never from the line's condition again (the outage step, forks 1
+    and 2): a recovering process injects what the first was admitted under. Every reader
+    is built as under the normal condition, the serving check included, and the
+    scheduled-out ones are wrapped in front of their adapters, so the wiring, the
+    credentials it requires and the closing are one path whatever the condition (fork 4).
     """
     line = request.line
     turns, preparation = system_content(line.system)
@@ -674,7 +681,10 @@ def _work(
             preparation,
             ConverseClient(runtime),
             CountingClient(runtime),
-            ReadPorts(readers.people, readers.work, readers.calendar, corpus),
+            ports_under(
+                ReadPorts(readers.people, readers.work, readers.calendar, corpus),
+                inputs.outage.scheduled_unreachable,
+            ),
             line.approval,
             saver,
         )
