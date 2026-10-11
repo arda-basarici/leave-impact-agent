@@ -14,7 +14,8 @@ operations, its sends, its harness read) is asserted where the condition decides
 cases request the failed source through scripted turns: a call against a stopped source is
 skipped and never made, and a search under a corpus outage is recorded unreachable and stops
 the source. A recovering worker injects the outage from the admission again and makes no
-vendor call.
+vendor call. The log refuses a harness read after the derived universe abstention, a history
+the preparation node never writes and the append had accepted (group 2's external read).
 
 The conditions are the registration's own, read from the committed draft, so a condition
 added there is a case here.
@@ -33,18 +34,28 @@ import pytest
 from langgraph.checkpoint.memory import InMemorySaver
 
 from leaveimpact.agent.assets import load_prompt_assets
+from leaveimpact.agent.conclusion import Abstention
 from leaveimpact.agent.execution import ReadPorts, ports_under
 from leaveimpact.agent.export import RunProvenance
 from leaveimpact.agent.graph import NoPreparation, Preparation, ReviewPayload, TurnRequest
 from leaveimpact.agent.log_events import (
     CountStarted,
     FrozenInputs,
+    HarnessReadKey,
     LoggedEvent,
     OperationEvent,
+    OperationResult,
     OperationSkip,
+    PrefetchKey,
 )
 from leaveimpact.agent.log_reader import export_of
-from leaveimpact.agent.log_transition import AttemptState, derived_abstention
+from leaveimpact.agent.log_transition import (
+    AttemptState,
+    Refused,
+    derived_abstention,
+    fold,
+    next_state,
+)
 from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
 from leaveimpact.agent.registered import rules_only_provenance
@@ -458,4 +469,38 @@ def test_a_recovering_worker_injects_the_outage_from_the_admission_and_makes_no_
     assert settled(recovered) == settled(whole)
     assert recovering.export().record.observed_condition == RunCondition.all_reachable().without(
         Source.JIRA
+    )
+
+
+def test_a_harness_read_after_the_universe_abstention_is_refused_at_the_append(
+    world: SealedWorld,
+) -> None:
+    """Group 2's external read: the preparation node asks the derived abstention before it
+    issues a read and the log had not, so a worker reading past the abstention could record
+    the read and an export would hold a count of one with no dispatch, which the membership
+    check cannot tell from an ended run. Over the full-context run's own events with the
+    employee enumeration made unreachable, the abstention is derived and the read the run then
+    made is refused by name; the identical re-append of a held read is received as before."""
+    reference = bench(world, "full_context", frozenset())
+    reference.work()
+    before: list[LoggedEvent] = []
+    read: LoggedEvent | None = None
+    for logged in reference.events():
+        event = logged.event
+        if isinstance(event, OperationEvent) and isinstance(event.key, HarnessReadKey):
+            read = logged
+            break
+        if isinstance(event, OperationEvent) and isinstance(event.key, PrefetchKey):
+            result = event.resolution
+            assert isinstance(result, OperationResult)
+            if result.tool == "employees":
+                unreachable = UnreachableOutcome(Source.FRAPPE, "made unreachable by the test")
+                resolution = replace(result, outcome=unreachable)
+                logged = replace(logged, event=replace(event, resolution=resolution))
+        before.append(logged)
+    assert read is not None, "the full-context run issues its harness read"
+    state = fold(before, RULES)
+    assert derived_abstention(state) is Abstention.UNIVERSE_NOT_COVERED
+    assert next_state(state, read, RULES) == Refused(
+        "a harness read after the run's abstention: universe_not_covered"
     )

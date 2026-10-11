@@ -615,6 +615,13 @@ def _operation_next(state: AttemptState, logged: LoggedEvent, event: OperationEv
                 )
             if calls_of(state):
                 return Refused("a harness read precedes the first model call")
+            # The preparation node asks the derived abstention before it issues a read
+            # (the baselines step, fork 7); the log asks the same question at the append,
+            # so a read after either abstention reaches no export (the outage step,
+            # group 2's external read: the graph alone had held it).
+            abstention = derived_abstention(state)
+            if abstention is not None:
+                return Refused(f"a harness read after the run's abstention: {abstention.value}")
         case ModelReadKey():
             refusal = _model_read_refusal(state, key, event)
             if refusal is not None:

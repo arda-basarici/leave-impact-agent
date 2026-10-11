@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 
 from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.fact_entries import refused_by
@@ -68,6 +68,9 @@ from leaveimpact.core import (
     EstablishedBound,
     FailureCategory,
     InputBoundSite,
+    Leave,
+    LeaveKind,
+    LeaveStatus,
     LiteralQuery,
     Observed,
     OperationId,
@@ -87,6 +90,7 @@ from leaveimpact.core import (
     attribution_table_digest,
 )
 from leaveimpact.core.counting_operations import CountOutcome
+from leaveimpact.core.ids import leave_id
 from leaveimpact.core.input_bound import CountResult
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.model_calls import CompleteResponse, Observation
@@ -211,6 +215,31 @@ def prefetch(
     return OperationEvent(
         PrefetchKey(ordinal), OperationResult(tool, source, {}, RecordsOutcome(tuple(records)))
     )
+
+
+LEAVE = Observed[Entity](
+    Leave(
+        leave_id(5),
+        f.ALICE.id,
+        date(2026, 3, 9),
+        date(2026, 3, 11),
+        LeaveKind.ANNUAL,
+        LeaveStatus.APPROVED,
+    ),
+    Source.FRAPPE,
+)
+"""The leave the fixtures' context names (``format_fixtures.CONTEXT``), Alice's, as the opening
+read returns it."""
+
+
+def preconditions(log: History) -> None:
+    """The two prefetch reads the harness's preconditions rest on, logged after the claim: the
+    context's leave returned by the opening read and the employee universe enumerated (Alice and
+    Deniz), so a harness read may follow (the outage step, group 2's external read: the log
+    refuses one after either derived abstention)."""
+    opening = OperationResult("leave", Source.FRAPPE, {"id": "leave_005"}, RecordOutcome(LEAVE))
+    log.worker(OperationEvent(PrefetchKey(1), opening), offset=100)
+    log.worker(prefetch(2, "employees", Source.FRAPPE, PEOPLE), offset=200)
 
 
 def harness_read(

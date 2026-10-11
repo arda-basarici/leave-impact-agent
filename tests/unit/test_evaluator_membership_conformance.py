@@ -8,17 +8,18 @@ through the shared renderer, full context's enumeration against the level's seal
 membership. The finding kinds are then each provoked by one change to a real export, positions
 kept one order, so that the case shows the check and not the fixture: a model read by a
 one-call system, the read missing where a dispatch exists, a second read, a read under another
-policy, the read after an absent leave, the read after the first intent, the wrong tool, the
-wrong arguments (and the same arguments with their keys reordered, which conform), a member
-not returned, a document returned twice. The registered values are inputs: without them the
-query comparison is not evaluated and every other check runs. The accounting counts the runs
-with findings and the ones whose comparison was not evaluated.
+policy, the read after an absent leave, the read after the first intent, the read a dispatch's
+declared inputs omit (on a run whose one call was sent twice as well, the first send throttled),
+the wrong tool, the wrong arguments (and the same arguments with their keys reordered, which
+conform), a member not returned, a document returned twice. The registered values are inputs:
+without them the query comparison is not evaluated and every other check runs. The accounting
+counts the runs with findings and the ones whose comparison was not evaluated.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from typing import Any
 
 import pytest
@@ -34,6 +35,7 @@ from leaveimpact.core import (
     SystemKind,
     UnreachableOutcome,
 )
+from leaveimpact.core.model_calls import Sent, ServiceError
 from leaveimpact.core.query_protocol import LiteralQuery
 from leaveimpact.core.run_record import Retrieval, RetrievalKind, System
 from leaveimpact.evaluator.cells import accounting_of, arms, attempt_summary_of, cells_of
@@ -49,6 +51,7 @@ from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.trace_metrics import evaluate_run
 from tests.unit.test_agent_outage_matrix import CONDITIONS, REGISTRATION, bench, condition_name
 from tests.unit.throwaway_world import loaded_world
+from tests.unit.worker_support import ContentScriptedClient, observed
 
 K = MembershipFindingKind
 NONE = MembershipConformance(Comparison.NOT_APPLICABLE, Comparison.NOT_APPLICABLE, ())
@@ -67,6 +70,33 @@ def exported(world: SealedWorld, system: str, *down: Source) -> RunExport:
     made = bench(world, system, frozenset(down))
     made.work()
     return made.export()
+
+
+@dataclass
+class _RetriedClient:
+    """Answers the first send with a throttle and every later one with ``answer``: one logical
+    call of two dispatches, the one-call request restated."""
+
+    answer: Sent
+    sends: int = 0
+    operation: str = "Converse"
+    client_region: str = "eu-central-1"
+
+    def send(self, requested_profile: str, body: Any) -> Sent:
+        self.sends += 1
+        if self.sends == 1:
+            return observed(ServiceError(429, "ThrottlingException", None, "too many requests"))
+        return self.answer
+
+
+def redispatched(world: SealedWorld, system: str) -> RunExport:
+    """The matrix bench's real export of ``system`` under no outage, its one call sent twice,
+    the first send throttled."""
+    made = bench(world, system, frozenset())
+    assert isinstance(made.client, ContentScriptedClient)
+    retried = replace(made, client=_RetriedClient(made.client.answers[0]))  # type: ignore[arg-type]
+    retried.work()
+    return retried.export()
 
 
 def conformance(world: SealedWorld, export: RunExport, *, registered: bool = True):
@@ -282,10 +312,41 @@ def test_a_read_after_an_absent_leave_is_a_finding(world: SealedWorld) -> None:
 
 
 def test_a_read_after_the_first_intent_is_out_of_order(world: SealedWorld) -> None:
+    """A read logged after the intent was shown to no dispatch either, so the two findings
+    come together."""
     export = exported(world, "single_shot")
     read = harness_read_of(export)
     moved = replace(read, position=last_position(export) + 1)
-    assert kinds(conformance(world, with_read(export, moved, shown=False))) == [K.OUT_OF_ORDER]
+    result = conformance(world, with_read(export, moved, shown=False))
+    assert kinds(result) == [K.OUT_OF_ORDER, K.READ_NOT_SHOWN]
+
+
+@pytest.mark.parametrize("system", ["single_shot", "full_context"])
+def test_a_read_absent_from_a_dispatchs_declared_inputs_is_a_finding(
+    world: SealedWorld, system: str
+) -> None:
+    """Group 2's external read: the harness fetched the read and the request did not render it,
+    the request-composition fault a comparison would read as the baseline's own weakness. The
+    read's comparisons still run. A real run whose call was sent twice conforms, both dispatches
+    naming the read, and the finding is named once when either omits it."""
+    export = exported(world, system)
+    read = harness_read_of(export)
+    whole = conformance(world, export)
+    result = conformance(world, with_read(export, read, shown=False))
+    assert kinds(result) == [K.READ_NOT_SHOWN]
+    assert (result.query, result.membership) == (whole.query, whole.membership)
+
+    twice = redispatched(world, system)
+    (call,) = twice.trace.model_calls
+    first, second = call.dispatches
+    restated = harness_read_of(twice)
+    assert restated.id in first.input_reads and restated.id in second.input_reads
+    assert kinds(conformance(world, twice)) == []
+    omitted = replace(first, input_reads=tuple(r for r in first.input_reads if r != restated.id))
+    calls = (replace(call, dispatches=(omitted, second)),)
+    partial = replace(twice, trace=replace(twice.trace, model_calls=calls))
+    assert kinds(conformance(world, partial)) == [K.READ_NOT_SHOWN]
+    assert kinds(conformance(world, with_read(twice, restated, shown=False))) == [K.READ_NOT_SHOWN]
 
 
 def test_the_wrong_tool_is_a_finding_and_ends_the_reads_comparison(world: SealedWorld) -> None:

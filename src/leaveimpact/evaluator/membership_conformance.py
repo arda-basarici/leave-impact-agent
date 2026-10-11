@@ -7,9 +7,12 @@ outage step, fork 6 as amended by the external read): rules only reads nothing e
 reads through its tools and issues no harness read; the single-shot baseline issues exactly
 one harness search of the registered query at the registered limit, and the full-context
 baseline exactly one harness enumeration of its level's documents, each between the prefetch
-and the one model call, and neither makes a model-origin read. The log refuses most of these
-at the append, since the harness itself knows the policies; this is the evaluator saying so
-from the trace, for every export that decodes, a failed attempt as much as a completed one.
+and the one model call, and neither makes a model-origin read. The one read is also named
+among every dispatch's declared inputs: a read the harness fetched and the request did not
+render is a request-composition fault that a comparison would read as the baseline's own
+weakness (group 2's external read). The log refuses most of these at the append, since the
+harness itself knows the policies; this is the evaluator saying so from the trace, for every
+export that decodes, a failed attempt as much as a completed one.
 Every finding is a harness finding: the one-call systems' model is shown no read tool, so it
 cannot cause one, and nothing here is filled from sealed truth but the level's membership.
 
@@ -30,8 +33,10 @@ evaluator may not import. Three statements:
 
 The known limit: the second abstention, the employee universe not covered, is derived by the
 harness's preconditions and not here, so a harness read issued after it shows as a count of one
-with no dispatch and passes this check; the log's transition, which knows the preconditions,
-gates that history.
+with no dispatch and passes this check. The log's transition refuses that read at the append,
+asking the same derivation the preparation node asks before it issues one
+(``agent.log_transition``, the harness-read case; group 2's external read found the graph
+alone holding it), so no export of a log the transition kept holds the history.
 
 What the read contains is compared in one canonical form through the code the harness renders
 with (the step-6 lesson on a planned value against a recorded one): the single-shot's query is
@@ -90,6 +95,9 @@ class MembershipFindingKind(StrEnum):
     """A harness read though the opening read returned no leave of the id asked."""
     OUT_OF_ORDER = "out_of_order"
     """The harness read is positioned before a prefetch read or after the first intent."""
+    READ_NOT_SHOWN = "read_not_shown"
+    """A dispatch's declared inputs do not name the harness read: fetched and not rendered.
+    Named once for the run, since the dispatches of the one call restate one request."""
     WRONG_TOOL = "wrong_tool"
     """The harness read is not the policy's tool."""
     WRONG_ARGUMENTS = "wrong_arguments"
@@ -142,7 +150,7 @@ class MembershipConformance:
     membership (not applicable to another system or to a read that returned nothing, not
     evaluated for a level the world seals no membership for). ``findings`` are in the order
     the checks are made: the model reads and the foreign and further harness reads in the
-    trace's order, then the one read's count, place, tool, arguments and membership.
+    trace's order, then the one read's count, place, showing, tool, arguments and membership.
     """
 
     query: Comparison
@@ -205,6 +213,8 @@ def membership_conformance(
         findings.append(MembershipFinding(MembershipFindingKind.READ_AFTER_ABSENT_LEAVE, read.id))
     if _out_of_order(read, prefetched, export):
         findings.append(MembershipFinding(MembershipFindingKind.OUT_OF_ORDER, read.id))
+    if any(read.id not in sent.input_reads for sent in export.trace.dispatches):
+        findings.append(MembershipFinding(MembershipFindingKind.READ_NOT_SHOWN, read.id))
     expected_tool = "search" if kind is SystemKind.SINGLE_SHOT else "documents"
     if read.tool != expected_tool:
         findings.append(MembershipFinding(MembershipFindingKind.WRONG_TOOL, read.id))

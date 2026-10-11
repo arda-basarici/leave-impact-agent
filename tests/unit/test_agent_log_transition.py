@@ -911,7 +911,9 @@ def test_a_harness_read_is_the_admitted_systems_and_precedes_the_first_call() ->
     """The baselines step, fork 4: a harness read under a policy the admitted system issues,
     before any dispatch intent, is accepted and becomes a harness-origin operation; one under
     another system's policy, or by a system that issues none, is refused by name; and one
-    after a dispatch intent is refused, since the preparation precedes the first call."""
+    after a dispatch intent is refused, since the preparation precedes the first call. The
+    accepted read follows the preconditions' two reads, since the log refuses a read after
+    either derived abstention (group 2's external read at the outage step)."""
     from leaveimpact.agent.admissions import trace_operations
     from leaveimpact.core import HARNESS_READ_POLICIES, HarnessOrigin, RecordsOutcome, SystemKind
 
@@ -920,11 +922,21 @@ def test_a_harness_read_is_the_admitted_systems_and_precedes_the_first_call() ->
     log = h.History()
     log.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=h.FULL_CONTEXT))
     log.claim()
+    h.preconditions(log)
     log.worker(h.harness_read(policy, 1, "documents", RecordsOutcome(())), offset=400)
     state = fold(log.logged(), RULES)
     assert state.open
-    (operation,) = trace_operations(state)
+    (*_, operation) = trace_operations(state)
     assert operation.origin == HarnessOrigin(policy) and operation.tool == "documents"
+
+    bare = h.History()
+    bare.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=h.FULL_CONTEXT))
+    bare.claim()
+    before = fold(bare.logged(), RULES)
+    bare.worker(h.harness_read(policy, 1, "documents", RecordsOutcome(())), offset=400)
+    assert next_state(before, bare.logged()[-1], RULES) == Refused(
+        "a harness read after the run's abstention: leave_not_returned"
+    )
 
     foreign = h.History()
     foreign.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=h.FULL_CONTEXT))
@@ -980,6 +992,7 @@ def test_a_harness_read_past_the_policys_count_is_refused_and_a_re_append_is_rec
     log = h.History()
     log.admit(h.inputs(reservation=10 * cases.ALLOCATION, system=system))  # type: ignore[arg-type]
     log.claim()
+    h.preconditions(log)
     log.worker(h.harness_read(policy, 1, tool, RecordsOutcome(()), arguments), offset=400)
     before = fold(log.logged(), RULES)
     first = log.logged()[-1]

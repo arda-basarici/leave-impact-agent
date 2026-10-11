@@ -2147,7 +2147,9 @@ Full context's enumeration takes no argument, and the documents it returned are 
 with the level's sealed membership as sorted duplicate-free sets, a member not returned
 and a document returned twice being findings here and a document outside the level the
 level check's. Every finding is a harness finding; the artifact writes the check beside
-the prefetch's, at format 10.
+the prefetch's, at format 10. The one read is also named among every dispatch's declared
+inputs, since a read the harness fetched and the request did not render is a
+request-composition fault a comparison would read as the baseline's own weakness.
 
 As built at the outage step (2026-10-11): the schedule is injected at the composition
 root, over the composed read ports and from the assignment the admission recorded, by
