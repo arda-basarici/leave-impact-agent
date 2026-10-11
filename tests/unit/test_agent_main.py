@@ -85,6 +85,17 @@ def for_system(system: str) -> list[str]:
     return [*WORK[:-2], "--system", system]
 
 
+RULES_ONLY_WORK = [
+    *WORK[: WORK.index("--model")],
+    "--region",
+    "eu-central-1",
+    "--system",
+    "rules_only",
+]
+"""The work line of a rules-only cell: the cell, the registration's commit and the region,
+no model flag."""
+
+
 PRICES = {
     "currency": "USD",
     "effective_from": "2026-09-01",
@@ -202,6 +213,11 @@ def test_the_rules_come_from_the_registration_file_or_are_a_model_free_systems(
     assert job.rules_of(draft) == Rules(
         DEVELOPMENT_ATTRIBUTION_TABLE, DEVELOPMENT_REDISPATCH_POLICY
     ), "the draft holds both pending, so a run under it is read by the development values"
+    # A rules-only work line names the file for its configuration and is read by no rules
+    # all the same (the first live run's step, fork 4); a model system's line by the file's.
+    files = ["--registration", str(draft), "--prices", "p.json"]
+    assert job.rules_for(job.parse_request([*RULES_ONLY_WORK, *files], ENV)) == Rules(None, None)
+    assert job.rules_for(job.parse_request([*WORK, *files], ENV)) == job.rules_of(draft)
     settled = tmp_path / "settled.json"
     settled.write_bytes(registration_bytes(named(DRAFT)))
     rules = job.rules_of(settled)
@@ -268,10 +284,23 @@ def test_the_work_line_parses_to_its_request_under_a_registration() -> None:
         )
         assert isinstance(reader.request, job.WorkLine)
         assert reader.request.system is SystemKind(system)
-        assert reader.request.role.name == "reader"
-    with pytest.raises(ConfigurationError, match="not a command"):
+        assert reader.request.role is not None and reader.request.role.name == "reader"
+    # The first live run's step, fork 4: rules only runs through the same line with no
+    # model flag; a model flag on it is refused by name, as a missing one is on a model system.
+    with pytest.raises(ConfigurationError, match="rules only runs no model; --model, .* refused"):
         job.parse_request(
             [*for_system("rules_only"), "--registration", "r.json", "--prices", "p.json"], ENV
+        )
+    rules_only = job.parse_request(
+        [*RULES_ONLY_WORK, "--registration", "r.json", "--prices", "p.json"], ENV
+    )
+    assert isinstance(rules_only.request, job.WorkLine)
+    assert rules_only.request.system is SystemKind.RULES_ONLY and rules_only.request.role is None
+    with pytest.raises(ConfigurationError, match="agent runs a model; --model, --counting-model"):
+        job.parse_request(
+            [*RULES_ONLY_WORK[:-2], "--system", "agent", "--registration", "r.json"]
+            + ["--prices", "p.json"],
+            ENV,
         )
     with pytest.raises(ConfigurationError, match="work runs under a registration"):
         job.parse_request([*WORK, "--prices", "p.json"], ENV)

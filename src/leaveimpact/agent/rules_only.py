@@ -20,17 +20,35 @@ universe is the distinct employee ids the enumeration returned, in the code-poin
 the ids; the rest is the composer's, the path every rules-composed system shares, given no
 stated fact: the impacts the rules ground for the leaver over the returned leave's span,
 ``core``'s composing pass with no constraint, the report's claims.
+
+Since the first live run's step (fork 4) the baseline runs through the same worker, log,
+approval and publication as the model systems: ``RulesOnlyTurns`` asks no call, so the
+skeleton goes from the prefetch's preconditions to the approval with the payload the
+shared composer gives over the log, which is ``investigate``'s answer read from the
+events instead of the executor. The composition root hands such a run ``NoModelClient``
+and ``NoCounter``, so a send or a count under rules only is this harness's defect and
+never a quiet call; its frozen inputs name no role, no policy and no reservation
+(``log_events.FrozenInputs``). ``investigate`` stays the in-memory run the mixed-bundle
+gate replays and the forecast is measured against: on every registered condition the
+worker's export equals the direct one claim for claim and operation for operation, apart
+from the fields the log stamps (the outage matrix test).
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 
 from leaveimpact.agent.composer import compose
 from leaveimpact.agent.conclusion import Abstention, abstention_of, defect_of, universe_of
 from leaveimpact.agent.execution import Executor, ReadPorts, run_prefetch
+from leaveimpact.agent.graph import ReviewPayload, TurnRequest
+from leaveimpact.agent.log_transition import AttemptState
+from leaveimpact.agent.request_parts import composed_payload
 from leaveimpact.core.claims import Claim
+from leaveimpact.core.counting_operations import CountOutcome
+from leaveimpact.core.jsonshape import JsonObject
+from leaveimpact.core.model_calls import Sent
 from leaveimpact.core.read_condition import ObservedCondition
 from leaveimpact.core.read_projection import project_reads
 from leaveimpact.core.run_record import Failure
@@ -84,4 +102,52 @@ def investigate(
     return RulesOnlyRun(operations, composed.claims, projection.condition, None, None)
 
 
-__all__ = ["Abstention", "RulesOnlyRun", "investigate"]
+@dataclass(frozen=True, slots=True)
+class RulesOnlyTurns:
+    """The baseline's ``Turns``: nothing to ask at any call, and the composed payload over
+    the log, empty under a defect or an abstention the prefetch decided."""
+
+    def request_for(self, state: AttemptState, call: int) -> TurnRequest | None:
+        """``None`` for every call: the baseline makes no model call, so the skeleton
+        finalizes at the first one it would ask for."""
+        return None
+
+    def payload_for(self, state: AttemptState) -> ReviewPayload:
+        """The shared composer's claims over the operations the log holds, with no stated
+        fact (``request_parts.composed_payload``)."""
+        return composed_payload(state)
+
+
+@dataclass(frozen=True, slots=True)
+class NoModelClient:
+    """The ``ModelClient`` of a run that calls no model: a send is this harness's defect."""
+
+    region: str
+
+    @property
+    def operation(self) -> str:
+        return "none"
+
+    @property
+    def client_region(self) -> str:
+        return self.region
+
+    def send(self, requested_profile: str, body: JsonObject) -> Sent:
+        raise RuntimeError("rules only runs no model; the harness asked to send a request")
+
+
+class NoCounter:
+    """The ``TokenCounter`` of a run that calls no model: a count is this harness's defect."""
+
+    def count(self, counting_identifier: str, projection: Mapping[str, object]) -> CountOutcome:
+        raise RuntimeError("rules only runs no model; the harness asked to count a request")
+
+
+__all__ = [
+    "Abstention",
+    "NoCounter",
+    "NoModelClient",
+    "RulesOnlyRun",
+    "RulesOnlyTurns",
+    "investigate",
+]

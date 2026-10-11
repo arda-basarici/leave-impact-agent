@@ -18,7 +18,9 @@ vendor call. The log refuses a harness read after the derived universe abstentio
 the preparation node never writes and the append had accepted (group 2's external read).
 
 The conditions are the registration's own, read from the committed draft, so a condition
-added there is a case here.
+added there is a case here. Rules only runs through the worker too (the first live run's
+step, fork 4), and its export under each condition equals the direct run's apart from
+what the log stamps, the forecast committed before that build.
 """
 
 from __future__ import annotations
@@ -52,14 +54,15 @@ from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import (
     AttemptState,
     Refused,
+    Rules,
     derived_abstention,
     fold,
     next_state,
 )
 from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
-from leaveimpact.agent.registered import rules_only_provenance
-from leaveimpact.agent.rules_only import investigate
+from leaveimpact.agent.registered import rules_only_configuration, rules_only_provenance
+from leaveimpact.agent.rules_only import NoCounter, NoModelClient, RulesOnlyTurns, investigate
 from leaveimpact.agent.worker import (
     AutomaticApproval,
     Worker,
@@ -82,10 +85,13 @@ from leaveimpact.core import (
     UndispatchedReason,
     UnreachableOutcome,
     condition_id,
+    decode_export_bytes,
     decode_registration_bytes,
+    export_bytes,
 )
 from leaveimpact.core.read_condition import observed_condition
-from leaveimpact.core.run_record import System
+from leaveimpact.core.run_record import System, SystemKind
+from leaveimpact.core.run_trace import OperationId
 from leaveimpact.evaluator.sealed_world import SealedWorld
 from leaveimpact.evaluator.source_discipline import Ended
 from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
@@ -504,3 +510,75 @@ def test_a_harness_read_after_the_universe_abstention_is_refused_at_the_append(
     assert next_state(state, read, RULES) == Refused(
         "a harness read after the run's abstention: universe_not_covered"
     )
+
+
+# --- Rules only, through the worker --------------------------------------------------------------
+
+
+@pytest.mark.parametrize("down", CONDITIONS, ids=condition_name)
+def test_rules_only_through_the_worker_equals_the_direct_run_under_each_condition(
+    world: SealedWorld, scenario: Scenario, down: frozenset[Source]
+) -> None:
+    """Fork 4's forecast, committed before the build: on every registered condition the
+    export the worker produces for rules only, through the prefetch, the preconditions and
+    the approval with no call, equals the export the in-memory run and its direct exporter
+    produce, claim for claim and operation for operation, the differences allowed being the
+    fields the log stamps: the timing, the operations' ids and positions, and the
+    finalization position the approval node appends. The clients a rules-only run is handed
+    refuse any send or count, so a closed attempt is itself the proof that none was asked."""
+    context = world.context_of(scenario)
+    basis = PricingBasis("a" * 64, "USD", date(2026, 9, 1), ())
+    configuration = rules_only_configuration(
+        REGISTRATION, condition_id(down), "base", preregistration_commit=COMMIT, pricing=basis
+    )
+    admitted = replace(
+        histories.inputs(reservation=None, system=System(SystemKind.RULES_ONLY, "reference")),
+        context=context,
+    )
+    inputs = configuration.frozen_for(admitted)
+    log = MemoryLog()
+    log.seed(support.admission(inputs))
+    ports = ports_under(systems_holding(world).ports, down)
+    no_rules = Rules(None, None)
+    worker = Worker(
+        log,
+        configuration,
+        cases.REVISION,
+        "launch-1",
+        no_rules,
+        RulesOnlyTurns(),
+        NoPreparation(),
+        NoModelClient("eu-central-1"),
+        NoCounter(),
+        ports,
+        AutomaticApproval(),
+        InMemorySaver(),
+        sleep=lambda seconds: None,
+    )
+    ending = worker.work(RUN, ATTEMPT, nonce=f"nonce-{uuid4().hex[:8]}")
+    assert ending.kind is WorkerEndingKind.CLOSED, ending
+    through = export_of(log.load(RUN, ATTEMPT, rules=no_rules))
+    assert decode_export_bytes(export_bytes(through)) == through
+    direct = export_baseline(
+        investigate(context, ports), context, provenance(down), run_id=RUN, attempt=ATTEMPT
+    )
+    assert through.trace.claims == direct.trace.claims
+    # The log names a prefetch read by its key (``prefetch/N``) at its log position, which
+    # follows the admission and the segment start; the in-memory executor names it by its
+    # counter (``op-N``) from one. Both are the trace's own naming; the order and the
+    # content of every operation are equal.
+    def unstamped_operations(export: RunExport) -> tuple[Any, ...]:
+        return tuple(
+            replace(op, id=OperationId(f"read-{index}"), position=None)
+            for index, op in enumerate(export.trace.operations, start=1)
+        )
+
+    assert unstamped_operations(through) == unstamped_operations(direct)
+    assert through.trace.model_calls == () and through.record.usage.dispatches == 0
+    unstamped = replace(
+        through,
+        record=replace(through.record, timing=direct.record.timing),
+        trace=replace(through.trace, operations=direct.trace.operations, finalization_entered=None),
+    )
+    assert unstamped == direct
+    assert evaluate_run(world, through).outcome == evaluate_run(world, direct).outcome

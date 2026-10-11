@@ -19,8 +19,12 @@ flags, the price table from a file, the vendor hosts from the environment, the w
 manifest from the world store at the admitted version, the corpus reader from the admitted
 version and level before any read (the registry step's forward), the live clients from the
 region, the turns over the shipped prompts, the checkpoint saver on the run log's database,
-and the approval policy named. One command, one run, one attempt; the worker compares the
-composed configuration with the admission's and claims nothing on a difference.
+and the approval policy named. A rules-only cell runs the same command through the same
+worker with no model flag (the first live run's step, fork 4): its configuration is
+``registered.rules_only_configuration``, its turns ask nothing, and the clients it is
+handed refuse a send or a count as this harness's defect. One command, one run, one
+attempt; the worker compares the composed configuration with the admission's and claims
+nothing on a difference.
 
 The job's log is public, which decides what this module prints: a result as the fields its
 command returns, a refusal of a known kind as its message (files, keys, commits, counts
@@ -90,6 +94,7 @@ from leaveimpact.agent.commands import (
 )
 from leaveimpact.agent.corpus import corpus_reader_for
 from leaveimpact.agent.execution import ReadPorts, ports_under
+from leaveimpact.agent.graph import ModelClient, TokenCounter
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     AdmissionReceipt,
@@ -105,7 +110,9 @@ from leaveimpact.agent.registered import (
     RoleFilling,
     effective_rules,
     model_system_provenance,
+    rules_only_configuration,
 )
+from leaveimpact.agent.rules_only import NoCounter, NoModelClient
 from leaveimpact.agent.worker import (
     ApprovalPolicy,
     AutomaticApproval,
@@ -153,16 +160,16 @@ class AdmitFile:
 class WorkLine:
     """The work command as the line states it: the attempt with its nonce and launch
     identity, the registered cell (its system kind, condition and level), the registration's
-    commit, the filling of the one role the system runs, the price table's file, the region
-    the clients call from, the harness revision this code claims, and who approves. The
-    registration file is the shared flag's."""
+    commit, the filling of the one role the system runs (``None`` for rules only, which runs
+    none), the price table's file, the region the clients call from, the harness revision
+    this code claims, and who approves. The registration file is the shared flag's."""
 
     attempt: WorkRequest
     condition: str
     level: str
     system: SystemKind
     registration_commit: str
-    role: RoleFilling
+    role: RoleFilling | None
     prices: Path
     region: str
     harness: HarnessRevision
@@ -260,24 +267,23 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     working.add_argument(
         "--system",
         required=True,
-        choices=[kind.value for kind in MODEL_SYSTEM_ROLES],
-        help="the registered model system the cell belongs to",
+        choices=[kind.value for kind in SystemKind],
+        help="the registered system the cell belongs to",
     )
     working.add_argument("--registration-commit", required=True, help="the registration's commit")
-    working.add_argument("--model", required=True, help="the model id the role's calls run under")
-    working.add_argument(
-        "--counting-model", required=True, help="the base model the requests are counted against"
-    )
+    # The model flags: required for a system that runs a role, refused for rules only, which
+    # runs none; ``_role_filling`` holds both rules, since argparse cannot state them.
+    working.add_argument("--model", help="the model id the role's calls run under")
+    working.add_argument("--counting-model", help="the base model the requests are counted against")
     working.add_argument(
         "--context-allowance",
-        required=True,
         type=int,
         help="the model's input window in tokens; a request over it is refused before any send",
     )
-    working.add_argument("--max-tokens", required=True, type=int, help="the output maximum")
+    working.add_argument("--max-tokens", type=int, help="the output maximum")
     working.add_argument("--temperature", type=float, default=None, help="the sampling temperature")
     working.add_argument("--top-p", type=float, default=None, help="the nucleus sampling share")
-    working.add_argument("--pricing-key", required=True, help="the rate's key in the price table")
+    working.add_argument("--pricing-key", help="the rate's key in the price table")
     working.add_argument("--billing-mode", default="on_demand", help="the rate's billing mode")
     working.add_argument("--region", required=True, help="the region the clients call from")
     working.add_argument("--prices", required=True, type=Path, help="the price table's file")
@@ -340,10 +346,6 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
         case Command.WORK:
             if parsed.registration is None:
                 raise ConfigurationError("work runs under a registration: --registration")
-            settings = [CallSetting("max_tokens", parsed.max_tokens)]
-            for name, value in (("temperature", parsed.temperature), ("top_p", parsed.top_p)):
-                if value is not None:
-                    settings.append(CallSetting(name, value))
             kind = SystemKind(parsed.system)
             return WorkLine(
                 WorkRequest(parsed.run, parsed.attempt, parsed.nonce, parsed.launch),
@@ -351,13 +353,7 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
                 parsed.level,
                 kind,
                 parsed.registration_commit,
-                RoleFilling(
-                    MODEL_SYSTEM_ROLES[kind].value,
-                    CallConfiguration(parsed.model, tuple(settings)),
-                    PricingSelection(parsed.pricing_key, parsed.region, parsed.billing_mode),
-                    parsed.counting_model,
-                    parsed.context_allowance,
-                ),
+                _role_filling(kind, parsed),
                 parsed.prices,
                 parsed.region,
                 HarnessRevision(code_version(env), TreeState(parsed.tree_state)),
@@ -418,6 +414,18 @@ def rules_of(registration: Path | None) -> Rules:
     return effective_rules(decode_registration_bytes(registration.read_bytes()))
 
 
+def rules_for(parsed: Parsed) -> Rules:
+    """The rules the command's attempt is read by: ``rules_of`` the registration flag, except
+    that a work line for a system that calls no model is read by none whatever file it names
+    (the log refuses a table or a policy on such a run); the work line needs the file for
+    its configuration all the same."""
+    if isinstance(parsed.request, WorkLine) and parsed.request.role is None:
+        return Rules(None, None)
+    if parsed.registration is None:
+        return Rules(None, None)
+    return _decoded(parsed.registration, "the registration", rules_of)
+
+
 def admission_request_of(content: bytes | str, rules: Rules) -> AdmissionRequest:
     """The admission request a file holds: the request identity, the admitter's identity,
     the ledger (``null`` when the inputs reserve nothing) and the frozen inputs under
@@ -451,11 +459,7 @@ def main(
     environment = os.environ if env is None else env
     try:
         parsed = parse_request(sys.argv[1:] if argv is None else argv, environment)
-        rules = (
-            Rules(None, None)
-            if parsed.registration is None
-            else _decoded(parsed.registration, "the registration", rules_of)
-        )
+        rules = rules_for(parsed)
         request = _resolved(parsed, rules)
         if store is None:
             dsn = environment.get(DATABASE, "").strip()
@@ -496,6 +500,50 @@ def _decoded[T](path: Path, what: str, decode: Callable[[Path], T]) -> T:
         raise ConfigurationError(
             f"{what} {path} does not read or decode ({type(error).__name__})"
         ) from None
+
+
+_MODEL_FLAGS = (
+    "--model",
+    "--counting-model",
+    "--context-allowance",
+    "--max-tokens",
+    "--temperature",
+    "--top-p",
+    "--pricing-key",
+)
+_REQUIRED_MODEL_FLAGS = (
+    "--model",
+    "--counting-model",
+    "--context-allowance",
+    "--max-tokens",
+    "--pricing-key",
+)
+
+
+def _role_filling(kind: SystemKind, parsed: argparse.Namespace) -> RoleFilling | None:
+    """The one role's filling from the model flags for a system that runs a role, ``None``
+    for rules only; ``ValueError`` naming the flags a rules-only line gives or a model
+    system's line lacks."""
+    given = {flag: getattr(parsed, flag[2:].replace("-", "_")) for flag in _MODEL_FLAGS}
+    if kind is SystemKind.RULES_ONLY:
+        offered = [flag for flag, value in given.items() if value is not None]
+        if offered:
+            raise ValueError(f"rules only runs no model; {', '.join(offered)} refused")
+        return None
+    missing = [flag for flag in _REQUIRED_MODEL_FLAGS if given[flag] is None]
+    if missing:
+        raise ValueError(f"{kind.value} runs a model; {', '.join(missing)} required")
+    settings = [CallSetting("max_tokens", parsed.max_tokens)]
+    for name, value in (("temperature", parsed.temperature), ("top_p", parsed.top_p)):
+        if value is not None:
+            settings.append(CallSetting(name, value))
+    return RoleFilling(
+        MODEL_SYSTEM_ROLES[kind].value,
+        CallConfiguration(parsed.model, tuple(settings)),
+        PricingSelection(parsed.pricing_key, parsed.region, parsed.billing_mode),
+        parsed.counting_model,
+        parsed.context_allowance,
+    )
 
 
 def _resolved(parsed: Parsed, rules: Rules) -> Resolved:
@@ -633,15 +681,24 @@ def _work(
     """
     line = request.line
     turns, preparation = system_content(line.system)
-    configuration = model_system_provenance(
-        request.registration,
-        line.system,
-        line.condition,
-        line.level,
-        preregistration_commit=line.registration_commit,
-        pricing=basis_for(request.prices, (line.role.pricing,)),
-        role=line.role,
-    )
+    if line.role is None:
+        configuration = rules_only_configuration(
+            request.registration,
+            line.condition,
+            line.level,
+            preregistration_commit=line.registration_commit,
+            pricing=basis_for(request.prices, ()),
+        )
+    else:
+        configuration = model_system_provenance(
+            request.registration,
+            line.system,
+            line.condition,
+            line.level,
+            preregistration_commit=line.registration_commit,
+            pricing=basis_for(request.prices, (line.role.pricing,)),
+            role=line.role,
+        )
     inputs = store.load(line.attempt.run_id, line.attempt.attempt, rules=rules).inputs
     if inputs is None:
         raise ValueError(
@@ -669,7 +726,13 @@ def _work(
         corpus = opened.enter_context(closing(corpus_reader_for(inputs, dsn=dsn)))
         hosts = hosts_from_env(env, jira_at_gateway=True)
         readers = opened.enter_context(closing(build_readers(hosts, manifest, world_reader)))
-        runtime = opened.enter_context(closing(inference_client(line.region)))
+        # A rules-only run is handed no runtime: no client is built, and the two it gets
+        # refuse a send or a count as this harness's defect.
+        client: ModelClient = NoModelClient(line.region)
+        counter: TokenCounter = NoCounter()
+        if line.role is not None:
+            runtime = opened.enter_context(closing(inference_client(line.region)))
+            client, counter = ConverseClient(runtime), CountingClient(runtime)
         connection = opened.enter_context(closing(_saver_connection(dsn)))
         saver = PostgresSaver(connection)
         saver.setup()
@@ -679,8 +742,8 @@ def _work(
             rules,
             turns,
             preparation,
-            ConverseClient(runtime),
-            CountingClient(runtime),
+            client,
+            counter,
             ports_under(
                 ReadPorts(readers.people, readers.work, readers.calendar, corpus),
                 inputs.outage.scheduled_unreachable,

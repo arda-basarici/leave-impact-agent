@@ -61,6 +61,7 @@ from leaveimpact.agent.log_store import (
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused, Rules
 from leaveimpact.agent.one_call import OneCallTurns
 from leaveimpact.agent.preparations import FullContextPreparation, SingleShotPreparation
+from leaveimpact.agent.rules_only import RulesOnlyTurns
 from leaveimpact.agent.turns import InvestigatorTurns
 from leaveimpact.agent.worker import ApprovalPolicy, Worker, WorkerConfiguration, WorkerEnding
 from leaveimpact.core.inventory import (
@@ -149,8 +150,9 @@ def system_content(kind: SystemKind) -> tuple[Turns, Preparation]:
     """The system's content behind the skeleton's two content protocols, by kind (the
     baselines step, fork 15): the investigator's turns over its assets with no preparation;
     the one-call turns over the reader's assets with the single-shot's one search or full
-    context's one enumeration. The composition root and a probe that mirrors it compose
-    from here, so the two cannot drift. ``ValueError`` for a kind that runs no model."""
+    context's one enumeration; the rules-only turns, which ask nothing, with no preparation
+    (the first live run's step, fork 4). The composition root and a probe that mirrors it
+    compose from here, so the two cannot drift."""
     match kind:
         case SystemKind.AGENT:
             return InvestigatorTurns(load_prompt_assets(Role.INVESTIGATOR)), NoPreparation()
@@ -158,8 +160,8 @@ def system_content(kind: SystemKind) -> tuple[Turns, Preparation]:
             return OneCallTurns(load_prompt_assets(Role.READER)), SingleShotPreparation()
         case SystemKind.FULL_CONTEXT:
             return OneCallTurns(load_prompt_assets(Role.READER)), FullContextPreparation()
-        case _:
-            raise ValueError(f"{kind.value} runs no model and is not worked")
+        case SystemKind.RULES_ONLY:
+            return RulesOnlyTurns(), NoPreparation()
 
 
 def work(request: WorkRequest, store: LogStore, composition: WorkerComposition) -> WorkerEnding:

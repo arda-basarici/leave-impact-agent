@@ -30,6 +30,7 @@ from leaveimpact.agent.registered import (
     RoleFilling,
     effective_rules,
     model_system_provenance,
+    rules_only_configuration,
     rules_only_provenance,
 )
 from leaveimpact.agent.surface import surface_digest
@@ -51,6 +52,7 @@ from leaveimpact.core import (
     RegisteredRole,
     Registration,
     RegistrationStatus,
+    Retrieval,
     RetrievalKind,
     RulesOnlySystem,
     SingleShotSystem,
@@ -64,6 +66,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.tools import Role
 from tests.unit import format_fixtures as cases
+from tests.unit import log_histories as histories
 from tests.unit.registration_fixture import DRAFT, ROLE, decided, frozen, named, pending_roles
 
 HARNESS = HarnessRevision("b" * 40, TreeState.CLEAN)
@@ -487,3 +490,39 @@ def test_a_frozen_registration_is_executed_as_registered_and_a_pending_variant_r
     )
     with pytest.raises(ValueError, match="the agent's variant is pending"):
         agent(unnamed)
+
+
+def test_the_rules_only_configuration_is_the_provenance_in_the_lifecycles_form() -> None:
+    """The first live run's step, fork 4: the frozen inputs of a rules-only run through the
+    worker name no role, no table, no policy and no retrieval, and otherwise what
+    ``rules_only_provenance`` fixes for the cell; a cell that is not registered refuses the
+    same way."""
+    configuration = rules_only_configuration(
+        DRAFT, "jira_down", "base", preregistration_commit=COMMIT, pricing=PRICING
+    )
+    direct = provenance(DRAFT, "jira_down")
+    assert configuration.system == System(SystemKind.RULES_ONLY, direct.variant)
+    assert configuration.retrieval == Retrieval(RetrievalKind.NONE, None)
+    assert (configuration.caps, configuration.outage, configuration.pricing) == (
+        direct.caps,
+        direct.outage,
+        direct.pricing,
+    )
+    assert (configuration.corpus_level, configuration.preregistration_commit) == ("base", COMMIT)
+    assert configuration.model_configurations == () and configuration.pricing_selections == ()
+    assert configuration.prompt_digests == () and configuration.tool_surface_digests == ()
+    assert configuration.attribution_table is None and configuration.redispatch is None
+    assert configuration.query_protocol is None and configuration.search_limit is None
+    assert configuration.context_allowances == ()
+    assert configuration.retry == DRAFT.run_accounting.retry
+    assert configuration.composing_policy == composing_policy()
+    assert configuration.claim_author is ClaimAuthor.RULES
+    frozen_inputs = configuration.frozen_for(
+        histories.inputs(reservation=None, system=System(SystemKind.RULES_ONLY, "reference"))
+    )
+    assert frozen_inputs.reservation_pico_usd is None
+    assert frozen_inputs.system.kind is SystemKind.RULES_ONLY
+    with pytest.raises(ValueError, match="no cell is registered for rules_only under 'slack_down'"):
+        rules_only_configuration(
+            DRAFT, "slack_down", "base", preregistration_commit=COMMIT, pricing=PRICING
+        )

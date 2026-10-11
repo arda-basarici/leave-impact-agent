@@ -79,10 +79,12 @@ from leaveimpact.core.run_record import (
     PrefetchRule,
     PricingBasis,
     PricingSelection,
+    Retrieval,
+    RetrievalKind,
     System,
     SystemKind,
 )
-from leaveimpact.core.run_timing import HarnessRevision
+from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from leaveimpact.core.tools import Role
 
 
@@ -124,6 +126,55 @@ def rules_only_provenance(
         caps=system.caps.caps,
         pricing=pricing,
         variant=system.variant,
+    )
+
+
+def rules_only_configuration(
+    registration: Registration,
+    condition: str,
+    level: str,
+    *,
+    preregistration_commit: str,
+    pricing: PricingBasis,
+) -> WorkerConfiguration:
+    """Every frozen input of a rules-only run under ``condition`` at ``level`` but the five
+    the admission copies, as ``registration`` fixes them: the lifecycle's form of
+    ``rules_only_provenance`` (the first live run's step, fork 4). No role, no attribution
+    table, no re-dispatch policy and no retrieval, since the baseline calls no model and
+    reads no document; ``pricing`` is the committed table's basis under no selection, so
+    the export names the table it would have been priced from. Raises what
+    ``rules_only_provenance`` raises."""
+    provenance = rules_only_provenance(
+        registration,
+        condition,
+        level,
+        harness=HarnessRevision(preregistration_commit, TreeState.CLEAN),
+        preregistration_commit=preregistration_commit,
+        pricing=pricing,
+    )
+    return WorkerConfiguration(
+        preregistration_commit=preregistration_commit,
+        system=System(SystemKind.RULES_ONLY, provenance.variant),
+        retrieval=Retrieval(RetrievalKind.NONE, None),
+        caps=provenance.caps,
+        model_configurations=(),
+        pricing_selections=(),
+        counting_identifiers=(),
+        pricing=pricing,
+        prompt_digests=(),
+        tool_surface_digests=(),
+        attribution_table=None,
+        redispatch=None,
+        retry=registration.run_accounting.retry,
+        prefetch_rule=_registered_prefetch_rule(registration),
+        composing_policy=composing_policy(),
+        claim_author=ClaimAuthor.RULES,
+        parser=_entry_schema(registration),
+        outage=provenance.outage,
+        corpus_level=level,
+        query_protocol=None,
+        search_limit=None,
+        context_allowances=(),
     )
 
 
