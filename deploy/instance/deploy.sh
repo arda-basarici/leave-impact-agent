@@ -16,7 +16,17 @@ REPO=arda-basarici/leave-impact-agent
 REGION=eu-central-1
 APP_DIR=/srv/app
 
-param() { aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text; }
+# A parameter's value, or a failed deploy when it still holds the `UNSET` placeholder
+# the platform stack creates it with (its ceremony puts the real value): a placeholder
+# handed to compose would reach a host as a credential and fail there, later and worse.
+param() {
+  local value
+  value=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text)
+  case "$value" in
+    UNSET*) echo "parameter $1 is not put: it still holds the UNSET placeholder" >&2; return 1 ;;
+  esac
+  printf '%s' "$value"
+}
 
 cd "$APP_DIR"
 curl -fsSL "https://raw.githubusercontent.com/$REPO/$DEPLOY_SHA/compose.yaml" -o compose.yaml

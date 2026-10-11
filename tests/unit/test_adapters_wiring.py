@@ -1,8 +1,10 @@
 """The shared wiring: the deployment from the environment with each missing name named, a base
-URL required to carry its scheme, the Google credential read from the file the variable names
-and refused when absent or not the authorized-user JSON, the local twin and the buckets
-exclusive, the credential values absent from every repr; the stores opened as readers only;
-the four readers built from a manifest's resolved configuration, the object-store ones with
+URL required to carry its scheme, a value still holding Parameter Store's placeholder refused
+as not put, the Google credential read from the file the variable names or from the value
+itself and never both, refused when absent or not the authorized-user JSON, the local twin
+and the buckets exclusive, the credential values absent from every repr; the stores opened as
+readers only; the four readers built from a manifest's resolved configuration, the
+object-store ones with
 no write method at runtime and the vendor ones typed at their read ports; no writer class
 nameable through the wiring module; and the verdict publisher writing exactly its one key
 under the verdicts prefix, a second execution a new object and the same execution again
@@ -125,6 +127,40 @@ def test_a_url_without_a_scheme_and_a_bad_google_file_are_refused(tmp_path: Path
         (tmp_path / "google.json").write_text(content, encoding="utf-8")
         with pytest.raises(ConfigurationError, match="not the authorized-user JSON"):
             deployment_from_env(env)
+
+
+PLACEHOLDER = "UNSET — put the real value out-of-band; see secrets.tf"
+
+
+@pytest.mark.parametrize("name", ["FRAPPE_API_KEY", "JIRA_TOKEN", "GOOGLE_AUTHORIZED_USER_JSON"])
+def test_a_value_still_holding_the_placeholder_is_refused_as_not_put(
+    tmp_path: Path, name: str
+) -> None:
+    env = environment(tmp_path, **{name: PLACEHOLDER})
+    if name == "GOOGLE_AUTHORIZED_USER_JSON":
+        del env[PREFIX + "GOOGLE_AUTHORIZED_USER_FILE"]
+    with pytest.raises(ConfigurationError, match=f"{PREFIX}{name} is not put"):
+        deployment_from_env(env)
+
+
+def test_the_google_credential_comes_as_the_file_or_the_value_and_never_both(
+    tmp_path: Path,
+) -> None:
+    from_file = deployment_from_env(environment(tmp_path))
+    text = (tmp_path / "google.json").read_text(encoding="utf-8")
+    inline = environment(tmp_path, GOOGLE_AUTHORIZED_USER_JSON=text)
+    with pytest.raises(ConfigurationError, match="both set"):
+        deployment_from_env(inline)
+    del inline[PREFIX + "GOOGLE_AUTHORIZED_USER_FILE"]
+    assert (
+        deployment_from_env(inline).hosts.calendar_credential == from_file.hosts.calendar_credential
+    )
+    inline[PREFIX + "GOOGLE_AUTHORIZED_USER_JSON"] = '{"client_id": "cid"}'
+    with pytest.raises(ConfigurationError, match="USER_JSON is not the authorized-user JSON"):
+        deployment_from_env(inline)
+    del inline[PREFIX + "GOOGLE_AUTHORIZED_USER_JSON"]
+    with pytest.raises(ConfigurationError, match="neither .*_FILE nor .*_JSON is set"):
+        deployment_from_env(inline)
 
 
 GATEWAY = "https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af"

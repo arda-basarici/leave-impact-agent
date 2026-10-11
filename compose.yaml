@@ -25,6 +25,19 @@ services:
       LEAVE_IMPACT_WORLD_BUCKET: ${LEAVE_IMPACT_WORLD_BUCKET:-}
       LEAVE_IMPACT_AWS_REGION: ${LEAVE_IMPACT_AWS_REGION:-}
       LEAVE_IMPACT_OBJECT_STORE_ROOT: ${LEAVE_IMPACT_OBJECT_STORE_ROOT:-}
+      # The investigator's read-only vendor principals (the platform contract's five
+      # parameters under /leave-agent/) and the two base URLs, exported into the
+      # environment by the run's send script on the instance the way the deploy script
+      # exports the PostgreSQL password; empty for the deploy and the cache loader,
+      # which read no vendor. The Google credential travels as the JSON value, never
+      # a file (step 14, fork 2).
+      LEAVE_IMPACT_FRAPPE_BASE_URL: ${LEAVE_IMPACT_FRAPPE_BASE_URL:-}
+      LEAVE_IMPACT_FRAPPE_API_KEY: ${LEAVE_IMPACT_FRAPPE_API_KEY:-}
+      LEAVE_IMPACT_FRAPPE_API_SECRET: ${LEAVE_IMPACT_FRAPPE_API_SECRET:-}
+      LEAVE_IMPACT_JIRA_BASE_URL: ${LEAVE_IMPACT_JIRA_BASE_URL:-}
+      LEAVE_IMPACT_JIRA_EMAIL: ${LEAVE_IMPACT_JIRA_EMAIL:-}
+      LEAVE_IMPACT_JIRA_TOKEN: ${LEAVE_IMPACT_JIRA_TOKEN:-}
+      LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON:-}
     # No long-running process yet — the baseline image identifies itself and
     # exits. Flips to `unless-stopped` with the first service entry point.
     restart: "no"

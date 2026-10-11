@@ -29,9 +29,18 @@ two buckets with their region or the local twin's root. The names, listed once:
   honoured at; ``deployment_from_env(..., jira_at_gateway=True)`` refuses anything
   else, so the credential's read-only property never rests on an operator's string
   (the read principals' ruling 2, 2026-09-22). The generator keeps the site URL.
-- ``LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE`` — the path of the authorized-user JSON
-  google-auth wrote at consent; the workflow writes the secret to a file on the
-  runner's ephemeral disk and passes the path, since the value is multi-line.
+- ``LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE`` or ``LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON``,
+  exactly one of the two — the authorized-user JSON google-auth wrote at consent, as the
+  path of a file holding it or as the value itself. The validator's workflow writes the
+  secret to a file on the runner's ephemeral disk and passes the path; the instance
+  passes the parameter's value straight from Parameter Store into the container's
+  environment, since nothing there renders a secret to disk (step 14, fork 2). Both
+  set is refused as ambiguous.
+
+A value that still reads as Parameter Store's ``UNSET`` placeholder (the platform
+contract: a vendor parameter holds it until its ceremony puts the real value) is refused
+as not put, naming the variable, before any client is built; the placeholder is never
+offered to a host as a credential (step 14, fork 3).
 - ``LEAVE_IMPACT_WORLD_BUCKET``, ``LEAVE_IMPACT_TRUTH_BUCKET``, ``LEAVE_IMPACT_AWS_REGION``
   — the two buckets and their region, for the S3 stores on the ambient AWS credentials
   the workflow's OIDC exchange exports.
@@ -93,6 +102,10 @@ from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.ports.read import CalendarReader, PeopleReader, WorkReader
 
 PREFIX = "LEAVE_IMPACT_"
+
+# Parameter Store's value for a vendor parameter nobody has put yet (the platform stack's
+# `secrets.tf`); the contract has the application treat it as absent.
+UNSET_PLACEHOLDER = "UNSET"
 
 
 class ConfigurationError(Exception):
@@ -464,6 +477,11 @@ def _required(env: Mapping[str, str], name: str) -> str:
     value = env.get(PREFIX + name, "").strip()
     if not value:
         raise ConfigurationError(f"{PREFIX}{name} is not set and the job needs it")
+    if value.startswith(UNSET_PLACEHOLDER):
+        raise ConfigurationError(
+            f"{PREFIX}{name} is not put: it still holds Parameter Store's "
+            f"{UNSET_PLACEHOLDER!r} placeholder, and the job needs the real value"
+        )
     return value
 
 
@@ -507,15 +525,37 @@ def _url(env: Mapping[str, str], name: str) -> str:
 
 
 def _calendar_credential(env: Mapping[str, str]) -> CalendarCredential:
-    name = "GOOGLE_AUTHORIZED_USER_FILE"
-    path = Path(_required(env, name))
+    file_name, value_name = "GOOGLE_AUTHORIZED_USER_FILE", "GOOGLE_AUTHORIZED_USER_JSON"
+    as_file = bool(env.get(PREFIX + file_name, "").strip())
+    as_value = bool(env.get(PREFIX + value_name, "").strip())
+    if as_file and as_value:
+        raise ConfigurationError(
+            f"{PREFIX}{file_name} and {PREFIX}{value_name} are both set; the Google credential "
+            "comes as the file's path or as the value, never both"
+        )
+    if not as_file and not as_value:
+        raise ConfigurationError(
+            f"neither {PREFIX}{file_name} nor {PREFIX}{value_name} is set and the job needs "
+            "the Google credential as one of them"
+        )
+    if as_value:
+        return _authorized_user(_required(env, value_name), f"{PREFIX}{value_name}")
+    path = Path(_required(env, file_name))
     try:
-        info = cast("dict[str, Any]", json.loads(path.read_text(encoding="utf-8")))
-        return CalendarCredential.from_authorized_user_info(info)
+        text = path.read_text(encoding="utf-8")
     except OSError as error:
-        raise ConfigurationError(f"{PREFIX}{name} names {path}, which cannot be read") from error
+        raise ConfigurationError(
+            f"{PREFIX}{file_name} names {path}, which cannot be read"
+        ) from error
+    return _authorized_user(text, f"{PREFIX}{file_name} names {path}, which")
+
+
+def _authorized_user(text: str, source: str) -> CalendarCredential:
+    try:
+        info = cast("dict[str, Any]", json.loads(text))
+        return CalendarCredential.from_authorized_user_info(info)
     except (ValueError, KeyError, TypeError) as error:
         raise ConfigurationError(
-            f"{PREFIX}{name} names {path}, which is not the authorized-user JSON google-auth "
-            "writes (client id, client secret, refresh token)"
+            f"{source} is not the authorized-user JSON google-auth writes "
+            "(client id, client secret, refresh token)"
         ) from error
