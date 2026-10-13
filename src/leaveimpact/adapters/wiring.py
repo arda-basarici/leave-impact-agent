@@ -359,8 +359,10 @@ def evaluation_publisher(stores: Stores) -> EvaluationPublisher:
     return publish
 
 
-def run_export_publisher(stores: Stores) -> RunExportPublisher:
-    """A callable that seals one attempt's export at its key in the world store.
+def run_export_publisher(store: WorldStore) -> RunExportPublisher:
+    """A callable that seals one attempt's export at its key in the world store, where
+    ``store`` says it is: the application's half, which never names the truth bucket (the
+    first live run's publish was refused for that name until this took ``WorldStore``).
 
     The same shape as the evaluation's publication, with the key a function the caller
     shares: the publish command records the key and digest it intends before the put and
@@ -368,7 +370,7 @@ def run_export_publisher(stores: Stores) -> RunExportPublisher:
     function is public and this closure uses no other. A conflict comes back as a value,
     since the agent may not import the writer's exception, and nothing overwrites.
     """
-    return run_export_publisher_over(_world_writer(stores))
+    return run_export_publisher_over(_world_store_writer(store))
 
 
 def run_export_publisher_over(writer: ObjectWriter) -> RunExportPublisher:
@@ -382,10 +384,11 @@ def run_export_publisher_over(writer: ObjectWriter) -> RunExportPublisher:
     return publish
 
 
-def inventory_publisher(stores: Stores) -> InventoryPublisher:
-    """A callable that seals one inventory at the key its digest names in the world store;
-    the digest is computed here from the bytes, so the key cannot misname its content."""
-    return inventory_publisher_over(_world_writer(stores))
+def inventory_publisher(store: WorldStore) -> InventoryPublisher:
+    """A callable that seals one inventory at the key its digest names in the world store,
+    where ``store`` says it is (the application's half, as ``run_export_publisher``); the
+    digest is computed here from the bytes, so the key cannot misname its content."""
+    return inventory_publisher_over(_world_store_writer(store))
 
 
 def inventory_publisher_over(writer: ObjectWriter) -> InventoryPublisher:
@@ -414,15 +417,15 @@ def _upload(writer: ObjectWriter, key: str, content: bytes) -> Upload:
             assert_never(receipt.outcome)
 
 
-def _world_writer(stores: Stores) -> ObjectWriter:
+def _world_store_writer(store: WorldStore) -> ObjectWriter:
     # Imported here and not at module scope, for the reason given in ``verdict_publisher``.
     from leaveimpact.adapters.object_store.local_write import LocalObjectWriter
     from leaveimpact.adapters.object_store.s3_write import S3ObjectWriter
 
-    if stores.local_root is not None:
-        return LocalObjectWriter(stores.local_root / "world")
-    assert stores.buckets is not None, "the stores are a root or the buckets"
-    return S3ObjectWriter(s3_client(stores.buckets.region), stores.buckets.world)
+    if store.local_root is not None:
+        return LocalObjectWriter(store.local_root / "world")
+    assert store.bucket is not None and store.region is not None, "a root or the bucket"
+    return S3ObjectWriter(s3_client(store.region), store.bucket)
 
 
 def verdict_publisher(deployment: Deployment) -> VerdictPublisher:

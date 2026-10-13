@@ -84,7 +84,6 @@ from leaveimpact.adapters.wiring import (
     hosts_from_env,
     inventory_publisher,
     run_export_publisher,
-    stores_from_env,
     world_store_from_env,
     world_store_reader,
 )
@@ -668,8 +667,8 @@ def _run(
                 f"position={closed.position}",
             ]
         case PublishRequest():
-            stores = stores_from_env(env)
-            record = publish(request, store, run_export_publisher(stores), rules=rules)
+            publisher = run_export_publisher(world_store_from_env(env))
+            record = publish(request, store, publisher, rules=rules)
             if isinstance(record, CommandRefused):
                 return _refused(record)
             return 1 if record.state is PublicationStatus.FAILED else 0, [
@@ -680,8 +679,8 @@ def _run(
                 f"incident={record.incident}",
             ]
         case InventoryRequest():
-            stores = stores_from_env(env)
-            written = write_inventory(request, store, inventory_publisher(stores), rules=rules)
+            publisher = inventory_publisher(world_store_from_env(env))
+            written = write_inventory(request, store, publisher, rules=rules)
             return 0, [
                 f"inventory_digest={written.digest}",
                 f"inventory_key={written.key}",

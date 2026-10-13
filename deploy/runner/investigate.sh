@@ -3,8 +3,10 @@
 # `ssm send-command` of deploy/instance/lifecycle.sh to the app host, waited for
 # and read back, and the next step is what the launcher's `status` command answers
 # (the first live run's step, forks 1 and 9). Run by the investigate workflow
-# (MODE=run: launch, then work) and the approve-run workflow (MODE=approve:
-# deliver the approval, then continue from status). Everything it needs is in the
+# (MODE=run: launch, then work) and the continue-run workflow (MODE=continue:
+# deliver a human's approval when a payload digest is given, then continue from
+# status; with no digest, continue from status alone, which is how an attempt whose
+# job ended after its closing gets its publish and inventory). Everything it needs is in the
 # environment, so the workflow files stay a list of inputs and this file is what
 # the fake-binary tests and shellcheck read.
 #
@@ -42,7 +44,7 @@
 # carry no secret; the host reads those from Parameter Store itself.
 set -euo pipefail
 
-: "${MODE:?run or approve}"
+: "${MODE:?run or continue}"
 : "${GITHUB_SHA:?}" "${GITHUB_RUN_ID:?}" "${GITHUB_RUN_ATTEMPT:?}" "${GITHUB_ACTOR:?}"
 : "${LEDGER:?the ledger the run is admitted against}"
 HOST_SCRIPT=${HOST_SCRIPT:-deploy/instance/lifecycle.sh}
@@ -69,14 +71,17 @@ case "$MODE" in
     APPROVAL="$INPUT_APPROVAL"
     LAUNCH=""
     ;;
-  approve)
-    : "${INPUT_RUN_ID:?}" "${INPUT_ATTEMPT:?}" "${INPUT_LAUNCH:?}" "${INPUT_PAYLOAD_DIGEST:?}"
+  continue)
+    : "${INPUT_RUN_ID:?}" "${INPUT_ATTEMPT:?}" "${INPUT_LAUNCH:?}"
+    INPUT_PAYLOAD_DIGEST=${INPUT_PAYLOAD_DIGEST:-}
     RUN_ID="$INPUT_RUN_ID"
     ATTEMPT="$INPUT_ATTEMPT"
+    # A continued attempt resumes under the human policy whether or not a delivery is
+    # made now: an approval already given reads as approved, and none requested as work.
     APPROVAL=human
     LAUNCH="$INPUT_LAUNCH"
     ;;
-  *) echo "MODE is run or approve, not $MODE" >&2; exit 2 ;;
+  *) echo "MODE is run or continue, not $MODE" >&2; exit 2 ;;
 esac
 REQUEST_ID="req-$RUN_ID-a$ATTEMPT"
 # The registration's commit and its budget, from the checkout the run rides: the
@@ -160,9 +165,11 @@ case "$MODE" in
     test -n "$LAUNCH" || { echo "launch printed no launch identity"; exit 1; }
     step=work
     ;;
-  approve)
-    send deliver "${common[@]}" LIFECYCLE_COMMAND=deliver \
-      "APPROVER=github:$GITHUB_ACTOR" "PAYLOAD_DIGEST=$INPUT_PAYLOAD_DIGEST"
+  continue)
+    if [ -n "$INPUT_PAYLOAD_DIGEST" ]; then
+      send deliver "${common[@]}" LIFECYCLE_COMMAND=deliver \
+        "APPROVER=github:$GITHUB_ACTOR" "PAYLOAD_DIGEST=$INPUT_PAYLOAD_DIGEST"
+    fi
     step=status
     ;;
 esac
@@ -202,7 +209,7 @@ while :; do
         work) step=work ;;
         recover) recoveries=$((recoveries + 1)); step=work ;;
         wait)
-          echo "## $RUN_ID attempt $ATTEMPT waits for a human: review-approval in Session Manager, then approve-run with launch=$LAUNCH" >> "$SUMMARY"
+          echo "## $RUN_ID attempt $ATTEMPT waits for a human: review-approval in Session Manager, then continue-run with launch=$LAUNCH" >> "$SUMMARY"
           echo "the attempt waits for a human's approval; this job ends"
           exit 0
           ;;

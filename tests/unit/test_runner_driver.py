@@ -37,8 +37,8 @@ RUN_INPUTS = {
     "INPUT_FRAPPE_BASE_URL": "https://hr-w3.example.test",
     "INPUT_JIRA_BASE_URL": "https://api.atlassian.com/ex/jira/cloud-id",
 }
-APPROVE_INPUTS = {
-    "MODE": "approve",
+CONTINUE_INPUTS = {
+    "MODE": "continue",
     "INPUT_RUN_ID": "run-9",
     "INPUT_ATTEMPT": "2",
     "INPUT_LAUNCH": "launch-earlier",
@@ -147,7 +147,7 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     assert "inventory_digest=" + "e" * 64 in (tmp_path / "summary.md").read_text()
 
 
-def test_a_human_pause_ends_the_job_green_and_names_the_launch_for_the_approve_dispatch(
+def test_a_human_pause_ends_the_job_green_and_names_the_launch_for_the_continue_dispatch(
     driver: tuple[FakeBinaries, dict[str, str]], tmp_path: Path
 ) -> None:
     fakes, env = driver
@@ -162,7 +162,7 @@ def test_a_human_pause_ends_the_job_green_and_names_the_launch_for_the_approve_d
     assert _words(fakes) == ["launch", "work", "status"]
     assert fakes.payload_exports(3)["APPROVAL"] == "human"
     assert "waits for a human" in out
-    assert "approve-run with launch=launch-1" in (tmp_path / "summary.md").read_text()
+    assert "continue-run with launch=launch-1" in (tmp_path / "summary.md").read_text()
 
 
 def test_recoveries_are_counted_to_the_status_command_and_a_hold_ends_the_job_red(
@@ -281,7 +281,7 @@ def test_an_approval_delivers_then_continues_from_the_state_under_the_human_poli
         OK,
         OK,
     )
-    status, _, err = _run(fakes, env, **APPROVE_INPUTS)
+    status, _, err = _run(fakes, env, **CONTINUE_INPUTS)
     assert status == 0, err
     assert _words(fakes) == ["deliver", "status", "work", "status", "publish", "inventory"]
     deliver = fakes.payload_exports(1)
@@ -340,3 +340,17 @@ def test_a_work_the_host_refused_beside_a_running_container_is_not_a_counted_sen
     assert status == 0
     assert _words(fakes) == ["launch", "work", "status", "work", "status", "publish", "inventory"]
     assert fakes.payload_exports(5)["RECOVERIES"] == "1"
+
+
+def test_a_continuation_without_a_delivery_starts_at_the_state_and_publishes_a_closed_attempt(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """The job that closed the attempt ended before its publish (the fourth live dispatch):
+    the continuation reads the state, finds it closed, and publishes and lists it."""
+    fakes, env = driver
+    _script(fakes, ("Success", 0, "container=none\nnext=publish\n"), OK, OK)
+    inputs = {**CONTINUE_INPUTS, "INPUT_PAYLOAD_DIGEST": ""}
+    status, _, err = _run(fakes, env, **inputs)
+    assert status == 0, err
+    assert _words(fakes) == ["status", "publish", "inventory"]
+    assert fakes.payload_exports(1)["APPROVAL"] == "human"

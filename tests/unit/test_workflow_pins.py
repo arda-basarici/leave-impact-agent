@@ -55,4 +55,4 @@ def test_a_dispatched_workflow_stays_under_the_input_cap(workflow: Path) -> None
 
 def test_the_two_lifecycle_workflows_are_among_those_checked() -> None:
     names = {path.name for path in WORKFLOWS}
-    assert {"investigate.yml", "approve-run.yml", "ci.yml"} <= names
+    assert {"investigate.yml", "continue-run.yml", "ci.yml"} <= names

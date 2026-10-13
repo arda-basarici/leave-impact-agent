@@ -1,34 +1,36 @@
-# The human's approval delivered to a waiting run, and the run continued (the first
-# live run's step, fork 10): dispatched by the reviewer after reading the frozen
-# payload with `review-approval` in a Session Manager session, which is where the
-# run's content may be shown. The payload digest typed here is what the delivery
-# must carry, so an approval names what the human read. The job then sends
-# `status` under the human policy and walks the rest of the lifecycle as the
-# investigate workflow does (deploy/runner/investigate.sh, MODE=approve): the
-# resumed work, publish and inventory. The approver recorded is the dispatching
-# account. The run, attempt and launch identity are the waiting job's, printed in
-# its log and summary. Same environment, same credentials, same pinning rule as
-# the investigate workflow.
-name: approve run
+# An attempt continued from its recorded state (the first live run's step, forks 1 and
+# 10): dispatched by hand for two cases. A reviewer who has read the frozen payload with
+# `review-approval` in a Session Manager session, where the run's content may be shown,
+# types its digest here; the job delivers the approval, so an approval names what the
+# human read, then continues. Or an attempt whose job ended after the attempt itself
+# did (a failed publish, a runner lost after the closing): with no digest the job
+# reads the state and takes the lifecycle from there, the publish and the inventory
+# included. Both run deploy/runner/investigate.sh in MODE=continue under the human
+# policy, which reads an approval already given as approved and none requested as
+# work. The approver recorded is the dispatching account. The run, attempt and launch
+# identity are the earlier job's, printed in its log and summary. Same environment,
+# same credentials, same pinning rule as the investigate workflow.
+name: continue run
 on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: the waiting run's id (run-<workflow run id>)
+        description: the attempt's run id (run-<workflow run id>)
         required: true
         type: string
       attempt:
-        description: the waiting attempt's number
+        description: the attempt's number
         required: true
         type: string
       launch:
-        description: the launch identity the waiting job printed (launch=…)
+        description: the launch identity the earlier job printed (launch=…)
         required: true
         type: string
       payload_digest:
-        description: the 64-hex digest review-approval printed for the payload you read
-        required: true
+        description: the 64-hex digest review-approval printed for the payload you read; empty to continue without delivering an approval
+        required: false
         type: string
+        default: ""
 permissions: {}
 
 concurrency:
@@ -36,7 +38,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  approve:
+  continue:
     runs-on: ubuntu-latest
     environment: production
     timeout-minutes: 90
@@ -65,9 +67,9 @@ jobs:
           role-to-assume: arn:aws:iam::445743457479:role/leave-agent-deploy
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Deliver the approval and continue the lifecycle
+      - name: Continue the lifecycle on the app host
         env:
-          MODE: approve
+          MODE: continue
           LEDGER: ledger-development
           INPUT_RUN_ID: ${{ inputs.run_id }}
           INPUT_ATTEMPT: ${{ inputs.attempt }}

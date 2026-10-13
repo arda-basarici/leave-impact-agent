@@ -24,8 +24,8 @@ from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.adapters.wiring import (
     PREFIX,
     ConfigurationError,
-    Stores,
     UploadOutcome,
+    WorldStore,
     build_readers,
     deployment_from_env,
     hosts_from_env,
@@ -272,8 +272,8 @@ OTHER_READER = "d" * 40
 def test_the_run_export_publisher_writes_its_key_and_another_reader_is_another_object(
     tmp_path: Path,
 ) -> None:
-    stores = Stores(buckets=None, local_root=tmp_path / "store")
-    publish = run_export_publisher(stores)
+    store = WorldStore(bucket=None, region=None, local_root=tmp_path / "store")
+    publish = run_export_publisher(store)
     version = manifest().world_version
     first = publish(version, "37135207381", 1, COMMIT, b'{"export": 1}')
     again = publish(version, "37135207381", 1, COMMIT, b'{"export": 1}')
@@ -311,8 +311,8 @@ def test_a_put_only_grant_reports_the_unverified_presence() -> None:
 
 
 def test_the_inventory_publisher_names_the_key_by_the_digest_of_the_bytes(tmp_path: Path) -> None:
-    stores = Stores(buckets=None, local_root=tmp_path / "store")
-    publish = inventory_publisher(stores)
+    store = WorldStore(bucket=None, region=None, local_root=tmp_path / "store")
+    publish = inventory_publisher(store)
     version = manifest().world_version
     content = b'{"format_version": 1}'
     upload = publish(version, content)
