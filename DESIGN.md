@@ -2992,6 +2992,38 @@ in CI so a module that fails to import fails the push; a `justfile` whose `check
 recipe is the fast subset of the CI gate; the pre-commit framework so a fresh clone
 is scanned; Compose health checks; the deploy transport SSM, not SSH.
 
+**The image waits on what the image ships; the rest runs beside it.** The `check` job
+(lint, types, the unit level with doctests, integration against the PostgreSQL service,
+the docs build) is the gate the image and the deploy wait for; the generator's slow
+sweeps and the crash matrix run on every push as jobs of their own and gate nothing.
+The sweeps test the generator, whose product reaches the instance only through the
+validator's verdict and the serving rule, never through the image. The crash matrix
+tests the worker the image ships, and its detachment is a development tradeoff stated
+as one: the matrix is the longest job (fourteen and a half minutes against the gate's
+ten on the CI run of `a7f1d22`, run 38453066430 attempt 1, read 2026-10-13 off the
+Actions API with `gh run view --json jobs`), so a development deploy approved before it
+ended is
+provisional, and a red matrix on a deployed commit is an incident recorded before the
+next live run. For the measurement world the tradeoff is not taken: at the freeze the
+dispatching workflow requires, for the exact deployed sha, that every named required
+job of the CI run that produced it (by run and attempt) concluded success, pending,
+failed and cancelled all disqualifying, independent of the host's own deployed-sha
+check.
+
+**A change to the run's host path is rehearsed on the laptop before its first
+dispatch** (ruled at the first live run's close, unbuilt). The fake-binary tests run
+every step and every branch of the two lifecycle scripts and see no user, no schema and
+no environment, the classes of three of the four live findings of that step's first
+dispatches. The rehearsal runs the real lifecycle script from WSL Ubuntu, so the
+image's uid and the 0700 directory are real, over the local Compose stack, a local app
+directory and a fake `aws` that answers parameters from the environment and runs each
+sent payload locally for the driver, with the development world in the laptop cache and
+the real sandboxes. Its trigger: the first dispatch after a change to the two lifecycle
+scripts, the two run workflows, the Dockerfile, the compose file or the composition's
+environment reading in `adapters/wiring.py`, and the first reported dispatch if nothing
+earlier fires. It is a probe under `probes/` with its runbook, and this passage becomes
+as-built text on its first run.
+
 ---
 
 ## The deployment the evidence is served from

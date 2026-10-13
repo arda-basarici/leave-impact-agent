@@ -6,6 +6,19 @@ name: CI
 # unit for both platforms and pushes it to GHCR; the deploy job then waits behind
 # the `production` environment's reviewer gate and, once approved, lands that
 # exact commit on the instance over SSM with OIDC-federated credentials.
+#
+# The image waits on `check` alone (DESIGN, "Verification", the first live run's
+# close): the generator's slow sweeps and the crash matrix are jobs of their own
+# that run on every push and gate nothing. The sweeps test the generator, whose
+# product reaches the instance only through the validator's verdict and the serving
+# rule, never through the image; the matrix tests the worker the image ships, and
+# its detachment is a stated development tradeoff, the matrix being the longest job
+# (14:30 against the gate's 9:50 on run 38453066430, attempt 1, of `a7f1d22`, read
+# 2026-10-13 off the Actions API with `gh run view 38453066430 --json jobs`; the
+# check job's own stages and the whole pipeline are in DESIGN). A deploy approved before
+# the matrix ended is provisional; a red matrix on a deployed commit is an incident
+# before the next live run. The measurement world's dispatch guard, at the freeze,
+# requires every named job of the deployed sha's run green.
 on:
   push:
     branches: [main]
@@ -88,8 +101,6 @@ jobs:
       # file's tests would rebuild it on every worker that got one.
       - name: Pytest (unit level, doctests)
         run: uv run pytest -q -n auto --dist loadfile
-      - name: Pytest (the slow sweeps, twenty seeds per generator invariant)
-        run: uv run pytest -q -n auto -m slow
 
       - name: Pytest (integration, against the PostgreSQL service)
         run: uv run pytest -q -m integration
@@ -99,10 +110,32 @@ jobs:
       - name: Docs build (pdoc)
         run: uv run python scripts/regen_docs.py
 
+  # The slow sweeps, twenty seeds per generator invariant, detached from the gate at the
+  # first live run's close (the header above): two unit files, no service, in parallel.
+  sweeps:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v10.0.1
+        with:
+          version: "0.11.26"
+          python-version: "3.13"
+          enable-cache: true
+
+      - name: Sync the locked environment
+        run: uv sync --locked
+
+      - name: Pytest (the slow sweeps, twenty seeds per generator invariant)
+        run: uv run pytest -q -n auto -m slow
+
   # The crash matrix (the event log step's ruling on placement and acceptance, part 8): the
   # worker killed at every named crossing of its reference run in child processes and
   # recovered, against the same PostgreSQL service, under its own marker so the check job's
-  # minutes stay its own. `tests/crash/MANIFEST.md` holds the kill points and forecasts.
+  # minutes stay its own, and since the first live run's close not in the image's `needs`
+  # (the header above). `tests/crash/MANIFEST.md` holds the kill points and forecasts.
   crash-matrix:
     runs-on: ubuntu-latest
 
@@ -141,10 +174,11 @@ jobs:
 
   image:
     # Push-to-main only: PRs get checked, never published. `needs: check` is
-    # load-bearing — the instance only ever runs an image that passed CI, so a
-    # red commit must never mint a `latest`.
+    # load-bearing — the instance only ever runs an image that passed the gate, so a
+    # red commit must never mint a `latest`; the sweeps and the matrix run beside it
+    # (the header above).
     if: github.ref == 'refs/heads/main'
-    needs: [check, crash-matrix]
+    needs: check
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.stamp.outputs.sha }}
