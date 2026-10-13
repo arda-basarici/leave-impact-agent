@@ -13,7 +13,9 @@ copying the payload, and an invocation read with the test's scripted ``response-
 ``InProgress`` first as many times as ``pending-<n>`` holds. ``docker`` records its line and
 the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its environment,
 writes the plan's two files under the mounted run directory for a ``plan`` command and
-prints ``launch=launch-fake``, and prints the scripted ``status.txt`` for a ``status``.
+prints ``launch=launch-fake``, prints the scripted ``status.txt`` for a ``status``, and
+answers a ``ps`` with the scripted ``running.txt`` (the attempt's container, when the test
+says it still runs).
 """
 
 from __future__ import annotations
@@ -91,6 +93,8 @@ if [[ " $* " == *" leaveimpact.launch plan "* ]]; then
   echo "launch=launch-fake"
 elif [[ " $* " == *" leaveimpact.launch status "* ]]; then
   cat "$FAKE_DIR/status.txt" 2>/dev/null || true
+elif [ "$1" = ps ]; then
+  cat "$FAKE_DIR/running.txt" 2>/dev/null || true
 fi
 exit "${FAKE_DOCKER_EXIT:-0}"
 """

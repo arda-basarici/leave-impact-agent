@@ -75,6 +75,10 @@ step from what the launcher's `status` answers. The run rides the dispatched
 commit: the host refuses a step whose sha is not `DEPLOYED`'s. A run's files live
 under `/run/leaveimpact/<run id>/` on tmpfs, root only, bind-mounted into every
 container of the run; a reboot clears them and a later step says so. Secrets reach
-the container through the process environment only. Both scripts' headers carry
+the container through the process environment only. The work container is named for
+its attempt: the SSM agent ends a timed-out command with SIGKILL to the host's
+process tree and the container outlives its client (the step's two probes), so
+`status` reports that container first and the driver reads the state again while it
+runs instead of re-sending work. Both scripts' headers carry
 the rules; the fake-binary tests under `tests/unit/` run every step and every
 branch of the walk, and CI runs shellcheck over this directory and `../runner/`.

@@ -69,7 +69,7 @@ def test_launch_plans_receipts_the_threshold_and_admits_in_one_run_directory(
 ) -> None:
     fakes, env = host
     _launched(fakes, env)
-    runs = fakes.lines("docker ")
+    runs = fakes.lines("docker compose run")
     assert len(runs) == 3
     plan, threshold, admit = runs
     mount = f"-v {posix(tmp_path / 'run')}/run-1:/run/job"
@@ -111,7 +111,7 @@ def test_rules_only_plans_against_no_ledger_and_sends_no_threshold(
 ) -> None:
     fakes, env = host
     _launched(fakes, env, SYSTEM="rules_only")
-    runs = fakes.lines("docker ")
+    runs = fakes.lines("docker compose run")
     assert len(runs) == 2
     assert "--ledger" not in runs[0]
     assert "set-threshold" not in " ".join(runs)
@@ -125,7 +125,7 @@ def test_a_dispatched_commit_other_than_the_deployed_one_is_refused_before_anyth
     status, err = _run(fakes, {**env, "RUN_SHA": "e" * 40}, "launch", **LAUNCH_INPUTS)
     assert status == 2
     assert f"the dispatched commit {'e' * 40} is not the deployed one {SHA}" in err
-    assert fakes.lines("docker ") == [] and fakes.lines("curl ") == []
+    assert fakes.lines("docker compose run") == [] and fakes.lines("curl ") == []
 
 
 def test_work_hands_the_vendor_principals_to_the_container_environment_and_no_command_line(
@@ -135,8 +135,10 @@ def test_work_hands_the_vendor_principals_to_the_container_environment_and_no_co
     _launched(fakes, env)
     status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="human")
     assert status == 0, err
-    work = fakes.lines("docker ")[3]
+    work = fakes.lines("docker compose run")[3]
     assert re.search(r" --nonce nonce-[0-9a-f]{32} --launch launch-fake ", work)
+    assert " --name lifecycle-run-1-a1 " in work
+    assert "docker rm -f lifecycle-run-1-a1" in fakes.lines("docker rm")[0]
     assert (
         "--approval human --system agent --condition normal --level base --region eu-central-1"
         in work
@@ -177,7 +179,7 @@ def test_a_parameter_still_holding_the_placeholder_fails_the_step(
     assert (
         "parameter /leave-agent/jira-token is not put: it still holds the UNSET placeholder" in err
     )
-    assert len(fakes.lines("docker ")) == 3, "no work container ran"
+    assert len(fakes.lines("docker compose run")) == 3, "no work container ran"
 
 
 def test_a_word_after_a_cleared_run_directory_stops_and_says_why(
@@ -187,7 +189,7 @@ def test_a_word_after_a_cleared_run_directory_stops_and_says_why(
     status, err = _run(fakes, env, "status", RECOVERIES="0", APPROVAL="automatic")
     assert status == 2
     assert "holds no run.env: the host's tmpfs was cleared since the launch" in err
-    assert fakes.lines("docker ") == []
+    assert fakes.lines("docker compose run") == []
 
 
 @pytest.mark.parametrize(
@@ -227,7 +229,7 @@ def test_each_later_word_composes_its_one_command(
     _launched(fakes, env)
     status, err = _run(fakes, env, word, **step)
     assert status == 0, err
-    assert fakes.lines("docker ")[3].endswith(expected)
+    assert fakes.lines("docker compose run")[3].endswith(expected)
 
 
 def test_the_python_exit_status_is_the_steps(host: tuple[FakeBinaries, dict[str, str]]) -> None:
@@ -243,3 +245,32 @@ def test_an_unknown_word_is_refused(host: tuple[FakeBinaries, dict[str, str]]) -
     status, err = _run(fakes, env, "review-approval")
     assert status == 2
     assert "not review-approval" in err
+
+
+def test_work_refuses_to_start_beside_the_attempts_running_container(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    fakes, env = host
+    _launched(fakes, env)
+    (fakes.fake_dir / "running.txt").write_text("lifecycle-run-1-a1\n")
+    status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="automatic")
+    assert status == 4
+    assert "a work container of this attempt is still running: lifecycle-run-1-a1" in err
+    assert len(fakes.lines("docker compose run")) == 3, "no work container started"
+    assert fakes.lines("docker rm") == []
+
+
+def test_status_reports_the_attempts_container_before_the_launchers_answer(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    fakes, env = host
+    _launched(fakes, env)
+    (fakes.fake_dir / "status.txt").write_text("attempt=open\nnext=recover\n")
+    line = {**env, "LIFECYCLE_COMMAND": "status", "RECOVERIES": "0", "APPROVAL": "automatic"}
+    assert run_script(HOST_SCRIPT, line).stdout.splitlines() == [
+        "container=none",
+        "attempt=open",
+        "next=recover",
+    ]
+    (fakes.fake_dir / "running.txt").write_text("lifecycle-run-1-a1\n")
+    assert run_script(HOST_SCRIPT, line).stdout.splitlines()[0] == "container=running"

@@ -299,3 +299,44 @@ def test_no_running_instance_ends_the_job_before_any_send(
     assert status == 1
     assert "no running leave-agent-app instance" in out
     assert not (fakes.fake_dir / "sends").exists()
+
+
+def test_a_running_container_after_an_uncertain_completion_is_read_again_and_never_re_sent(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    fakes, env = driver
+    _script(
+        fakes,
+        LAUNCHED,
+        ("TimedOut", 137, ""),
+        ("Success", 0, "container=running\nnext=recover\n"),
+        ("Success", 0, "container=running\nnext=recover\n"),
+        ("Success", 0, "container=none\nnext=publish\n"),
+        OK,
+        OK,
+    )
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 0
+    assert _words(fakes) == ["launch", "work", "status", "status", "status", "publish", "inventory"]
+    assert out.count("work container is still running") == 2
+    assert [fakes.payload_exports(n)["RECOVERIES"] for n in (3, 4, 5)] == ["0", "0", "0"]
+
+
+def test_a_work_the_host_refused_beside_a_running_container_is_not_a_counted_send(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    fakes, env = driver
+    _script(
+        fakes,
+        LAUNCHED,
+        ("Failed", 4, ""),
+        ("Success", 0, "container=none\nnext=recover\n"),
+        OK,
+        ("Success", 0, "container=none\nnext=publish\n"),
+        OK,
+        OK,
+    )
+    status, _, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 0
+    assert _words(fakes) == ["launch", "work", "status", "work", "status", "publish", "inventory"]
+    assert fakes.payload_exports(5)["RECOVERIES"] == "1"

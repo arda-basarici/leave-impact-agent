@@ -23,6 +23,13 @@
 # step that finds it gone says so and stops, since the attempt's files cannot be
 # rebuilt from a later step's inputs.
 #
+# The work container is named for its attempt, because the SSM agent ends a timed-out
+# command with SIGKILL to the host's process tree and the container outlives its
+# client (the step's two timeout probes, 2026-10-13): `status` reports first whether
+# that container is still running, so the driver polls instead of re-sending, and
+# `work` refuses to start beside a running one (exit 4). A container that exited is
+# removed before a new one takes the name.
+#
 # Secrets (the PostgreSQL password; for `work`, the investigator's five read-only
 # vendor principals from Parameter Store) enter the container through the process
 # environment compose interpolates, never a command line, so neither `ps` nor the
@@ -89,6 +96,11 @@ export LEAVE_IMPACT_AWS_REGION="$REGION"
 run_app() {
   docker compose run --rm -v "$run_dir:$JOB_DIR" app "$@"
 }
+container="lifecycle-$RUN_ID-a$ATTEMPT"
+# The attempt's work container, if the daemon still runs it.
+running_container() {
+  docker ps --filter "name=^${container}\$" --filter status=running --format '{{.Names}}'
+}
 registration="$JOB_DIR/registration.json"
 prices="$JOB_DIR/prices.json"
 
@@ -144,15 +156,23 @@ case "$LIFECYCLE_COMMAND" in
     LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
     export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
     export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+    if [ -n "$(running_container)" ]; then
+      echo "a work container of this attempt is still running: $container; the state is read until it ends" >&2
+      exit 4
+    fi
+    # An exited container of the name holds no process; a new one takes the name.
+    docker rm -f "$container" > /dev/null 2>&1 || true
     # One nonce per process: a re-sent work is a new claimant of the same attempt.
     nonce="nonce-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
     mapfile -t cell < "$attempt_dir/work.args"
-    run_app python -m leaveimpact.agent work --run "$RUN_ID" --attempt "$ATTEMPT" \
+    docker compose run --rm --name "$container" -v "$run_dir:$JOB_DIR" app \
+      python -m leaveimpact.agent work --run "$RUN_ID" --attempt "$ATTEMPT" \
       --nonce "$nonce" --launch "$LAUNCH" --registration "$registration" --prices "$prices" \
       --approval "$APPROVAL" "${cell[@]}"
     ;;
   status)
     : "${RECOVERIES:?recoveries sent so far}" "${APPROVAL:?the policy work was dispatched with}"
+    if [ -n "$(running_container)" ]; then echo "container=running"; else echo "container=none"; fi
     run_app python -m leaveimpact.launch status --run "$RUN_ID" --attempt "$ATTEMPT" \
       --registration "$registration" --recoveries "$RECOVERIES" --approval "$APPROVAL"
     ;;

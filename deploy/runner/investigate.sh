@@ -16,11 +16,17 @@
 # failure) ends the job red at once: that is not a transport uncertainty and a
 # re-send would meet it again. A send the transport reports uncertainly (timed out,
 # cancelled, lost) is never re-sent blind: the state is read first, and an in-flight
-# command is never re-sent at all. Work sends are bounded at four in one job (the
-# first, two recoveries, one resumption after an approval), so a state that never
-# progresses cannot loop. Every other step must succeed, and a refusal (exit 1)
-# ends the job red with the printed reason: the agent's entry says a workflow must
-# not proceed past one.
+# command is never re-sent at all. The step's two probes (2026-10-13) showed what
+# the timeout does: the agent kills the host's process tree with SIGKILL at the
+# execution timeout (exit 137, no trap runs), and the work container outlives its
+# killed client and runs on. So the host's `status` reports the attempt's container
+# first, and while it reports `running` the driver only reads the state again, every
+# poll interval, until the container has ended and the launcher's answer is acted
+# on; a work the host refused beside a running container (exit 4) takes the same
+# path. Work sends are bounded at four in one job (the first, two recoveries, one
+# resumption after an approval), so a state that never progresses cannot loop.
+# Every other step must succeed, and a refusal (exit 1) ends the job red with the
+# printed reason: the agent's entry says a workflow must not proceed past one.
 #
 # Identities are the workflow run's: run id `run-<GITHUB_RUN_ID>`, attempt
 # `GITHUB_RUN_ATTEMPT`, request id `req-<run id>-a<attempt>` (a re-run of the job
@@ -171,16 +177,27 @@ while :; do
       fi
       outcome=0
       send work "${common[@]}" LIFECYCLE_COMMAND=work "LAUNCH=$LAUNCH" "APPROVAL=$APPROVAL" || outcome=$?
-      if [ "$outcome" -eq 1 ] && [ "$RESPONSE_CODE" != 1 ]; then
+      if [ "$outcome" -eq 1 ] && [ "$RESPONSE_CODE" != 1 ] && [ "$RESPONSE_CODE" != 4 ]; then
         echo "work failed with exit status $RESPONSE_CODE, which no re-send cures"
         exit 1
+      fi
+      if [ "$outcome" -eq 1 ] && [ "$RESPONSE_CODE" = 4 ]; then
+        # The host refused to start beside the attempt's running container: not a
+        # work send that counts, and the state is read until that container ends.
+        work_sends=$((work_sends - 1))
       fi
       step=status
       ;;
     status)
       send status "${common[@]}" LIFECYCLE_COMMAND=status "RECOVERIES=$recoveries" "APPROVAL=$APPROVAL"
       next=$(field "$LAST_OUT" next)
-      echo "status: next=$next after $recoveries recoveries"
+      container=$(field "$LAST_OUT" container)
+      echo "status: next=$next after $recoveries recoveries, container=$container"
+      if [ "$container" = running ] && { [ "$next" = work ] || [ "$next" = recover ]; }; then
+        echo "status: the attempt's work container is still running; read again in $POLL_SECONDS s"
+        sleep "$POLL_SECONDS"
+        continue
+      fi
       case "$next" in
         work) step=work ;;
         recover) recoveries=$((recoveries + 1)); step=work ;;
