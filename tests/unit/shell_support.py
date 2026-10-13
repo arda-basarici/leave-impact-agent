@@ -1,6 +1,7 @@
 """Running the two lifecycle shell scripts under fake binaries: a ``bash`` found beside git
-on Windows (the system one there may be WSL's), a directory of fake ``aws``, ``docker`` and
-``curl`` scripts put first on ``PATH``, and a log every fake appends its command line to.
+on Windows (the system one there may be WSL's), a directory of fake ``aws``, ``docker``,
+``curl`` and ``chown`` scripts put first on ``PATH``, and a log every fake appends its
+command line to.
 
 The fakes answer what the scripts read and record what they ran, so a test asserts the
 composed command lines, the environment a container was handed, and the sequence of sends,
@@ -15,7 +16,8 @@ the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its e
 writes the plan's two files under the mounted run directory for a ``plan`` command and
 prints ``launch=launch-fake``, prints the scripted ``status.txt`` for a ``status``, and
 answers a ``ps`` with the scripted ``running.txt`` (the attempt's container, when the test
-says it still runs).
+says it still runs). ``chown`` only records, since the real one is a no-op on Windows and
+the handover to the image's user is what a test asserts.
 """
 
 from __future__ import annotations
@@ -97,6 +99,10 @@ elif [ "$1" = ps ]; then
   cat "$FAKE_DIR/running.txt" 2>/dev/null || true
 fi
 exit "${FAKE_DOCKER_EXIT:-0}"
+"""
+
+_FAKE_CHOWN = r"""#!/usr/bin/env bash
+printf '%s\n' "chown $*" >> "$FAKE_LOG"
 """
 
 _FAKE_CURL = r"""#!/usr/bin/env bash
@@ -183,7 +189,12 @@ def fake_binaries(root: Path) -> FakeBinaries:
     """The three fakes written under ``root``, executable, with an empty scratch dir."""
     bin_dir = root / "bin"
     bin_dir.mkdir()
-    for name, body in (("aws", _FAKE_AWS), ("docker", _FAKE_DOCKER), ("curl", _FAKE_CURL)):
+    for name, body in (
+        ("aws", _FAKE_AWS),
+        ("docker", _FAKE_DOCKER),
+        ("curl", _FAKE_CURL),
+        ("chown", _FAKE_CHOWN),
+    ):
         script = bin_dir / name
         script.write_text(body, newline="\n")
         script.chmod(0o755)

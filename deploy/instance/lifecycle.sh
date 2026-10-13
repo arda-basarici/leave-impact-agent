@@ -14,8 +14,9 @@
 # runner cites are all of one commit. A push between a deploy and a dispatch is
 # refused here, and the run is re-dispatched after the next deploy.
 #
-# A run's files live under /run/leaveimpact/<run id>/ on the host's tmpfs, root
-# only, bind-mounted into every container of the run at /run/job: the request file
+# A run's files live under /run/leaveimpact/<run id>/ on the host's tmpfs, owned by
+# the image's unprivileged user (uid 1000, the Dockerfile's `app`) and readable by
+# nobody else, bind-mounted into every container of the run at /run/job: the request file
 # the launcher writes (the scenario's leave and instant, never on a log), the work
 # command's cell flags, the two preregistration files, and run.env, the launch's
 # non-secret inputs the later steps read back so their payloads carry only the
@@ -50,6 +51,8 @@ APP_DIR=${APP_DIR:-/srv/app}
 RUN_ROOT=${RUN_ROOT:-/run/leaveimpact}
 JOB_DIR=/run/job
 WORLD_BUCKET=leave-impact-world-445743457479
+APP_UID=1000
+APP_GID=1000
 
 # The twin of deploy.sh's `param`: a parameter's value, or a failed step when it still
 # holds the `UNSET` placeholder the platform stack creates it with. A change is made in
@@ -84,6 +87,10 @@ fetch() {
 }
 fetch registration.json
 fetch prices.json
+# The container runs as the image's user and the directory is 0700: it is handed over
+# whole, the files root wrote included (the first live dispatch failed on exactly this,
+# the launcher refused the registration with a permission error).
+chown -R "$APP_UID:$APP_GID" "$run_dir"
 
 cd "$APP_DIR"
 export APP_TAG="$RUN_SHA"

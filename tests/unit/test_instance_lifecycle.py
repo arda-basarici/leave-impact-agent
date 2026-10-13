@@ -104,6 +104,12 @@ def test_launch_plans_receipts_the_threshold_and_admits_in_one_run_directory(
     fetched = fakes.lines("curl ")
     assert len(fetched) == 2
     assert all(f"/{SHA}/preregistration/" in line for line in fetched)
+    # The directory is handed to the image's user after the files are fetched and before
+    # any container reads it: the first live dispatch failed on a root-only directory.
+    log = fakes.log.read_text().splitlines()
+    handover = log.index(f"chown -R 1000:1000 {posix(tmp_path / 'run')}/run-1")
+    assert handover > log.index(fetched[1])
+    assert handover < log.index(runs[0])
 
 
 def test_rules_only_plans_against_no_ledger_and_sends_no_threshold(

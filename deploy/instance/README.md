@@ -73,8 +73,8 @@ runner-side driver `../runner/investigate.sh` sends it over `ssm send-command` w
 the step's `export` lines in the payload, reads each step back, and takes the next
 step from what the launcher's `status` answers. The run rides the dispatched
 commit: the host refuses a step whose sha is not `DEPLOYED`'s. A run's files live
-under `/run/leaveimpact/<run id>/` on tmpfs, root only, bind-mounted into every
-container of the run; a reboot clears them and a later step says so. Secrets reach
+under `/run/leaveimpact/<run id>/` on tmpfs, owned by the image's user and readable
+by nobody else, bind-mounted into every container of the run; a reboot clears them and a later step says so. Secrets reach
 the container through the process environment only. The work container is named for
 its attempt: the SSM agent ends a timed-out command with SIGKILL to the host's
 process tree and the container outlives its client (the step's two probes), so
