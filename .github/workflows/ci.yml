@@ -75,6 +75,11 @@ jobs:
       - name: Ruff (lint)
         run: uv run ruff check
 
+      # The two lifecycle scripts the workflows send to the host (and the deploy's), on
+      # the runner image's own shellcheck: the laptop has none and gains no dependency.
+      - name: Shellcheck (the host and runner scripts)
+        run: shellcheck deploy/instance/*.sh deploy/runner/*.sh
+
       - name: Pyright (types, strict)
         run: uv run pyright
 

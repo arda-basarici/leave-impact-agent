@@ -7,7 +7,10 @@ names, the budget, and the cloud-init that lays the host down all live in its
 `terraform/stacks/leave-impact-prod/`; the contract values this repository
 consumes are published in its `projects/leave-impact/README.md`. This
 directory holds what the application itself owns: its deployment entrypoint
-(`deploy.sh`, the only thing the workflow's deploy job runs on the host).
+(`deploy.sh`, the only thing the workflow's deploy job runs on the host) and,
+since the first live run's step, the run lifecycle's host side (`lifecycle.sh`,
+sent step by step by the investigate and approve-run workflows through the driver
+in `../runner/`).
 
 ## What moved, and where (2026-08-27)
 
@@ -60,3 +63,18 @@ in the workflow log, and re-runs the script. Making the marker a ledger of
 verified releases waits for the service to be long-running (the M1 repository
 audit's F-012); today the app is a one-shot stub and nothing serves traffic in
 the window.
+
+## The run lifecycle
+
+`lifecycle.sh` is one step of a run on the host: `launch` (the launcher's plan, the
+ledger threshold as a receipt, the admission), `work`, `status`, `deliver`,
+`publish` or `inventory`, each one `docker compose run` of the deployed image. The
+runner-side driver `../runner/investigate.sh` sends it over `ssm send-command` with
+the step's `export` lines in the payload, reads each step back, and takes the next
+step from what the launcher's `status` answers. The run rides the dispatched
+commit: the host refuses a step whose sha is not `DEPLOYED`'s. A run's files live
+under `/run/leaveimpact/<run id>/` on tmpfs, root only, bind-mounted into every
+container of the run; a reboot clears them and a later step says so. Secrets reach
+the container through the process environment only. Both scripts' headers carry
+the rules; the fake-binary tests under `tests/unit/` run every step and every
+branch of the walk, and CI runs shellcheck over this directory and `../runner/`.

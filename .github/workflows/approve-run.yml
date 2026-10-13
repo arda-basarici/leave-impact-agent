@@ -1,0 +1,76 @@
+# The human's approval delivered to a waiting run, and the run continued (the first
+# live run's step, fork 10): dispatched by the reviewer after reading the frozen
+# payload with `review-approval` in a Session Manager session, which is where the
+# run's content may be shown. The payload digest typed here is what the delivery
+# must carry, so an approval names what the human read. The job then sends
+# `status` under the human policy and walks the rest of the lifecycle as the
+# investigate workflow does (deploy/runner/investigate.sh, MODE=approve): the
+# resumed work, publish and inventory. The approver recorded is the dispatching
+# account. The run, attempt and launch identity are the waiting job's, printed in
+# its log and summary. Same environment, same credentials, same pinning rule as
+# the investigate workflow.
+name: approve run
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: the waiting run's id (run-<workflow run id>)
+        required: true
+        type: string
+      attempt:
+        description: the waiting attempt's number
+        required: true
+        type: string
+      launch:
+        description: the launch identity the waiting job printed (launch=…)
+        required: true
+        type: string
+      payload_digest:
+        description: the 64-hex digest review-approval printed for the payload you read
+        required: true
+        type: string
+permissions: {}
+
+concurrency:
+  group: instance-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  approve:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: eu-central-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Record the OIDC subject
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deliver the approval and continue the lifecycle
+        env:
+          MODE: approve
+          LEDGER: ledger-development
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_ATTEMPT: ${{ inputs.attempt }}
+          INPUT_LAUNCH: ${{ inputs.launch }}
+          INPUT_PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+        run: bash deploy/runner/investigate.sh

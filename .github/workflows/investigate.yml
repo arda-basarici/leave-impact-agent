@@ -1,0 +1,122 @@
+# One run of a registered system on the app host (the first live run's step, fork 1):
+# dispatched by hand under the `production` environment, whose reviewer rule and
+# `main`-only rule stand between a dispatch and the instance. The job's one step
+# runs deploy/runner/investigate.sh, which sends deploy/instance/lifecycle.sh to the
+# host over SSM step by step (launch, work, then whatever the launcher's `status`
+# answers: another work, a human's wait, publish and inventory, or a hold) and
+# reads each step back; the file's header states the walk and its bounds.
+#
+# The run rides the commit this workflow is dispatched from: the host refuses the
+# step when its DEPLOYED sha differs, so a run follows a deploy and never precedes
+# one. The model settings are not inputs: the launcher fills the role from the
+# registration, and the price key is the model id. The threshold receipt's amounts
+# are read from the registration in this checkout. Credentials are the deploy
+# role's (OIDC) for the sends and the instance role's on the host; the repository
+# stores no key and the payloads carry no secret.
+#
+# The job log is public: the steps print identities, counts, kinds, file names
+# and the reservation. The request file (the scenario's leave and instant) stays
+# on the host's tmpfs, and the review payload is read in Session Manager only,
+# never here. Every action is pinned by full commit SHA, because `id-token: write`
+# is a job-level permission and a moved tag would be a moved trust boundary.
+name: investigate
+on:
+  workflow_dispatch:
+    inputs:
+      world_version:
+        description: the 64-hex world version the run is on
+        required: true
+        type: string
+      scenario:
+        description: the scenario id (the development protocol lists them)
+        required: true
+        type: string
+      system:
+        description: the registered system
+        required: true
+        type: choice
+        options:
+          - agent
+          - rules_only
+          - single_shot
+          - full_context
+      condition:
+        description: the registered condition
+        required: true
+        type: string
+        default: normal
+      level:
+        description: the registered corpus level
+        required: true
+        type: string
+        default: base
+      approval:
+        description: who approves the plan before delivery
+        required: true
+        type: choice
+        default: automatic
+        options:
+          - automatic
+          - human
+      frappe_base_url:
+        description: the world's HR site (the development world's by default)
+        required: true
+        type: string
+        default: https://hr-w3.ardabasarici.dev
+      jira_base_url:
+        description: the world's tracker base URL (the development world's by default)
+        required: true
+        type: string
+        default: https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
+permissions: {}
+
+# One run at a time on the instance: the lifecycle's steps are sends to one host,
+# and two runs' containers would share its memory bound.
+concurrency:
+  group: instance-lifecycle
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      AWS_REGION: eu-central-1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The registration's commit is cited from history.
+          fetch-depth: 0
+
+      - name: Record the OIDC subject
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const token = await core.getIDToken('sts.amazonaws.com');
+            const claims = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+            core.info(`sub=${claims.sub}`);
+            core.info(`aud=${claims.aud} repository_id=${claims.repository_id} ref=${claims.ref}`);
+            await core.summary.addHeading('OIDC subject').addCodeBlock(claims.sub).write();
+
+      - uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6.2.3
+        with:
+          role-to-assume: arn:aws:iam::445743457479:role/leave-agent-deploy
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run the lifecycle on the app host
+        env:
+          MODE: run
+          LEDGER: ledger-development
+          INPUT_WORLD_VERSION: ${{ inputs.world_version }}
+          INPUT_SCENARIO: ${{ inputs.scenario }}
+          INPUT_SYSTEM: ${{ inputs.system }}
+          INPUT_CONDITION: ${{ inputs.condition }}
+          INPUT_LEVEL: ${{ inputs.level }}
+          INPUT_APPROVAL: ${{ inputs.approval }}
+          INPUT_FRAPPE_BASE_URL: ${{ inputs.frappe_base_url }}
+          INPUT_JIRA_BASE_URL: ${{ inputs.jira_base_url }}
+        run: bash deploy/runner/investigate.sh
