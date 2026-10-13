@@ -1,0 +1,202 @@
+"""Running the two lifecycle shell scripts under fake binaries: a ``bash`` found beside git
+on Windows (the system one there may be WSL's), a directory of fake ``aws``, ``docker`` and
+``curl`` scripts put first on ``PATH``, and a log every fake appends its command line to.
+
+The fakes answer what the scripts read and record what they ran, so a test asserts the
+composed command lines, the environment a container was handed, and the sequence of sends,
+without an instance, a daemon or a network (the forecast lesson applied to shell: the path
+a design promises runs on fakes before the promise is written). ``aws`` answers a parameter
+read with ``value-of-<name>`` (or the ``UNSET`` placeholder for the one name in
+``FAKE_UNSET_PARAMETER``), an instance lookup with ``i-fake`` (nothing under
+``FAKE_NO_INSTANCE``), a send with ``cmd-<n>`` after
+copying the payload, and an invocation read with the test's scripted ``response-<n>.json``,
+``InProgress`` first as many times as ``pending-<n>`` holds. ``docker`` records its line and
+the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its environment,
+writes the plan's two files under the mounted run directory for a ``plan`` command and
+prints ``launch=launch-fake``, and prints the scripted ``status.txt`` for a ``status``.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+from collections.abc import Mapping
+from dataclasses import dataclass
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+HOST_SCRIPT = REPO_ROOT / "deploy" / "instance" / "lifecycle.sh"
+DRIVER_SCRIPT = REPO_ROOT / "deploy" / "runner" / "investigate.sh"
+
+_FAKE_AWS = r"""#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "aws $*" >> "$FAKE_LOG"
+value_after() {
+  local i
+  for ((i = 2; i <= $#; i++)); do
+    if [ "${!i}" = "$1" ]; then i=$((i + 1)); printf '%s' "${!i}"; return; fi
+  done
+}
+case "$1 $2" in
+  "ssm get-parameter")
+    name=$(value_after --name "$@")
+    if [ "$name" = "${FAKE_UNSET_PARAMETER:-}" ]; then echo "UNSET"; else echo "value-of-$name"; fi
+    ;;
+  "ec2 describe-instances") [ -n "${FAKE_NO_INSTANCE:-}" ] || echo i-fake ;;
+  "ssm send-command")
+    n=$(( $(cat "$FAKE_DIR/sends" 2>/dev/null || echo 0) + 1 ))
+    echo "$n" > "$FAKE_DIR/sends"
+    source=$(value_after --parameters "$@")
+    cp "${source#file://}" "$FAKE_DIR/payload-$n.json"
+    echo "cmd-$n" ;;
+  "ssm get-command-invocation")
+    cid=$(value_after --command-id "$@")
+    n=${cid#cmd-}
+    printf '%s\n' "invocation $n" >> "$FAKE_LOG"
+    pending=$(cat "$FAKE_DIR/pending-$n" 2>/dev/null || echo 0)
+    if [ "$pending" -gt 0 ]; then
+      echo $((pending - 1)) > "$FAKE_DIR/pending-$n"; echo InProgress; exit 0
+    fi
+    response="$FAKE_DIR/response-$n.json"
+    test -f "$response" || { echo "no scripted response $n" >&2; exit 1; }
+    if [ "$(value_after --query "$@")" = Status ]; then
+      jq -r .Status "$response"
+    else
+      cat "$response"
+    fi
+    ;;
+  *) echo "fake aws: $*" >&2; exit 1 ;;
+esac
+"""
+
+_FAKE_DOCKER = r"""#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "docker $*" >> "$FAKE_LOG"
+n=$(( $(cat "$FAKE_DIR/containers" 2>/dev/null || echo 0) + 1 ))
+echo "$n" > "$FAKE_DIR/containers"
+env | grep -E '^(LEAVE_IMPACT_|POSTGRES_PASSWORD=|APP_TAG=)' | sort > "$FAKE_DIR/docker-env-$n.txt"
+mount=""
+for ((i = 1; i <= $#; i++)); do if [ "${!i}" = "-v" ]; then i=$((i + 1)); mount="${!i}"; fi; done
+host_dir="${mount%%:*}"
+container_dir="${mount#*:}"
+if [[ " $* " == *" leaveimpact.launch plan "* ]]; then
+  out=""
+  for ((i = 1; i <= $#; i++)); do if [ "${!i}" = "--out" ]; then i=$((i + 1)); out="${!i}"; fi; done
+  target="$host_dir${out#"$container_dir"}"
+  mkdir -p "$target"
+  echo '{"request_id": "fake"}' > "$target/request.json"
+  printf '%s\n' --system agent --condition normal --level base --region eu-central-1 \
+    > "$target/work.args"
+  echo "launch=launch-fake"
+elif [[ " $* " == *" leaveimpact.launch status "* ]]; then
+  cat "$FAKE_DIR/status.txt" 2>/dev/null || true
+fi
+exit "${FAKE_DOCKER_EXIT:-0}"
+"""
+
+_FAKE_CURL = r"""#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "curl $*" >> "$FAKE_LOG"
+for ((i = 1; i <= $#; i++)); do
+  if [ "${!i}" = "-o" ]; then i=$((i + 1)); echo '{}' > "${!i}"; fi
+done
+"""
+
+
+def posix(path: Path) -> str:
+    """``path`` as the bash under test spells it: on Windows the git bash form
+    (``/c/Users/...``), elsewhere the path itself."""
+    text = str(path)
+    if os.name == "nt" and len(text) > 1 and text[1] == ":":
+        return "/" + text[0].lower() + text[2:].replace("\\", "/")
+    return text
+
+
+def bash_path() -> str:
+    """The bash the scripts run under: on Windows the one shipped with git, since the
+    system's ``bash.exe`` may be WSL's and cannot see this filesystem the same way."""
+    git = shutil.which("git")
+    if os.name == "nt" and git is not None:
+        for candidate in (
+            Path(git).parents[1] / "usr" / "bin" / "bash.exe",
+            Path(git).parents[2] / "usr" / "bin" / "bash.exe",
+        ):
+            if candidate.exists():
+                return str(candidate)
+    found = shutil.which("bash")
+    if found is None:
+        raise RuntimeError("no bash on PATH")
+    return found
+
+
+@dataclass(frozen=True)
+class FakeBinaries:
+    """The fakes' directory (first on ``PATH``), their shared scratch directory and the
+    invocation log, with the environment that wires them."""
+
+    bin_dir: Path
+    fake_dir: Path
+    log: Path
+
+    def environment(self, **extra: str) -> dict[str, str]:
+        """The process environment with the fakes first on ``PATH``, every ``LEAVE_IMPACT_*``
+        variable and the compose secrets of this machine removed: what a container is handed
+        must come from the script alone."""
+        env = {
+            name: value
+            for name, value in os.environ.items()
+            if not name.startswith("LEAVE_IMPACT_") and name not in ("POSTGRES_PASSWORD", "APP_TAG")
+        }
+        env["PATH"] = str(self.bin_dir) + os.pathsep + env.get("PATH", "")
+        env["FAKE_DIR"] = str(self.fake_dir)
+        env["FAKE_LOG"] = str(self.log)
+        env.update(extra)
+        return env
+
+    def lines(self, prefix: str) -> list[str]:
+        """The recorded invocations of one fake, in order."""
+        if not self.log.exists():
+            return []
+        return [line for line in self.log.read_text().splitlines() if line.startswith(prefix)]
+
+    def payload_exports(self, n: int) -> dict[str, str]:
+        """The ``export`` lines of the ``n``-th send's payload, as name to value (the values
+        bash-quoted by ``%q``, which these ids and URLs leave unchanged)."""
+        import json
+
+        payload = json.loads((self.fake_dir / f"payload-{n}.json").read_text())
+        command = payload["commands"][0]
+        exports: dict[str, str] = {}
+        for line in command.splitlines():
+            if line.startswith("export "):
+                name, _, value = line[len("export ") :].partition("=")
+                exports[name] = value
+        return exports
+
+
+def fake_binaries(root: Path) -> FakeBinaries:
+    """The three fakes written under ``root``, executable, with an empty scratch dir."""
+    bin_dir = root / "bin"
+    bin_dir.mkdir()
+    for name, body in (("aws", _FAKE_AWS), ("docker", _FAKE_DOCKER), ("curl", _FAKE_CURL)):
+        script = bin_dir / name
+        script.write_text(body, newline="\n")
+        script.chmod(0o755)
+    fake_dir = root / "fake"
+    fake_dir.mkdir()
+    return FakeBinaries(bin_dir, fake_dir, fake_dir / "invocations.log")
+
+
+def run_script(
+    script: Path, env: Mapping[str, str], cwd: Path | None = None
+) -> subprocess.CompletedProcess[str]:
+    """The script under bash with ``env``, output captured, never raising on its status."""
+    return subprocess.run(
+        [bash_path(), str(script)],
+        env=dict(env),
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
