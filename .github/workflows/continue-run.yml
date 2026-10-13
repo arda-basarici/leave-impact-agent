@@ -5,10 +5,12 @@
 # human read, then continues. Or an attempt whose job ended after the attempt itself
 # did (a failed publish, a runner lost after the closing): with no digest the job
 # reads the state and takes the lifecycle from there, the publish and the inventory
-# included. Both run deploy/runner/investigate.sh in MODE=continue under the human
-# policy, which reads an approval already given as approved and none requested as
-# work. The approver recorded is the dispatching account. The run, attempt and launch
-# identity are the earlier job's, printed in its log and summary. Same environment,
+# included. Both run deploy/runner/investigate.sh in MODE=continue under the policy
+# the attempt was dispatched with (the step's batch review): the human policy reads
+# an approval already given as approved and none requested as work; the automatic
+# policy recovers a request a dead process left open instead of waiting for a human.
+# The approver recorded is the dispatching account. The run, attempt, launch identity
+# and policy are the earlier job's, printed in its log and summary. Same environment,
 # same credentials, same pinning rule as the investigate workflow.
 name: continue run
 on:
@@ -31,6 +33,11 @@ on:
         required: false
         type: string
         default: ""
+      approval:
+        description: the approval policy the attempt was dispatched under
+        required: true
+        type: choice
+        options: [automatic, human]
 permissions: {}
 
 concurrency:
@@ -75,4 +82,5 @@ jobs:
           INPUT_ATTEMPT: ${{ inputs.attempt }}
           INPUT_LAUNCH: ${{ inputs.launch }}
           INPUT_PAYLOAD_DIGEST: ${{ inputs.payload_digest }}
+          INPUT_APPROVAL: ${{ inputs.approval }}
         run: bash deploy/runner/investigate.sh

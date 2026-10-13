@@ -66,8 +66,9 @@ def test_the_publish_command_gets_past_its_configuration_on_compose_names(
 ) -> None:
     """The entry builds the publisher from the environment before it reads the log, and a
     configuration fault is exit 2 by its contract: under compose's names the command gets
-    past that point (the suite's network block ends the S3 put it then attempts, which is
-    exit 3, and a refusal by the log is exit 1; either is past the configuration)."""
+    past that point. What ends it is the in-memory log's refusal of an attempt it does not
+    hold, exit 1, which comes after the publisher was built and before any put; the S3
+    client is constructed and never called."""
     line = ["publish", "--run", "run-12", "--attempt", "1"]
     status = job.main(line, compose_environment(), _Log())  # type: ignore[arg-type]
     err = capsys.readouterr().err

@@ -280,3 +280,62 @@ def test_status_reports_the_attempts_container_before_the_launchers_answer(
     ]
     (fakes.fake_dir / "running.txt").write_text("lifecycle-run-1-a1\n")
     assert run_script(HOST_SCRIPT, line).stdout.splitlines()[0] == "container=running"
+
+
+def test_a_failing_parameter_read_ends_the_step_with_the_clis_own_error(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """Bash drops errexit inside a command substitution: without the explicit return the
+    value came back empty with status 0 and the container refused with "is not set", the
+    wrong cause (the step's batch review)."""
+    fakes, env = host
+    _launched(fakes, env)
+    status, err = _run(
+        fakes,
+        {**env, "FAKE_PARAMETER_FAIL": "/leave-agent/jira-token"},
+        "work",
+        LAUNCH="launch-fake",
+        APPROVAL="automatic",
+    )
+    assert status == 254
+    assert "ThrottlingException" in err
+    assert "is not set" not in err
+    assert len(fakes.lines("docker compose run")) == 3, "no work container ran"
+
+
+def test_a_transfer_that_died_mid_body_leaves_no_file_and_the_next_launch_fetches_it_whole(
+    host: tuple[FakeBinaries, dict[str, str]], tmp_path: Path
+) -> None:
+    fakes, env = host
+    failing = {**env, "FAKE_CURL_FAIL_ONCE": "1"}
+    status, err = _run(fakes, failing, "launch", **LAUNCH_INPUTS)
+    assert status == 18
+    assert "fetching preregistration/registration.json at " + SHA + " failed (curl exit 18)" in err
+    run_dir = tmp_path / "run" / "run-1"
+    assert not (run_dir / "registration.json").exists()
+    assert list(run_dir.glob("*.part")) == []
+    assert fakes.lines("docker compose run") == []
+    status, err = _run(fakes, failing, "launch", **LAUNCH_INPUTS)
+    assert status == 0, err
+    assert (run_dir / "registration.json").read_text().strip() == "{}"
+    assert (run_dir / "prices.json").read_text().strip() == "{}"
+
+
+def test_publish_after_a_cleared_run_directory_remakes_it_and_fetches_the_registration(
+    host: tuple[FakeBinaries, dict[str, str]], tmp_path: Path
+) -> None:
+    """A reboot between an attempt's close and its publish: publish needs the registration
+    and the two ids alone, so it is the one later word that recreates the directory."""
+    fakes, env = host
+    status, err = _run(fakes, env, "publish")
+    assert status == 0, err
+    run_dir = tmp_path / "run" / "run-1"
+    assert (run_dir / "registration.json").exists() and (run_dir / "prices.json").exists()
+    assert fakes.lines("chown") == [f"chown -R 1000:1000 {posix(run_dir)}"]
+    assert fakes.lines("docker compose run")[0].endswith(
+        "python -m leaveimpact.agent publish --registration /run/job/registration.json "
+        "--run run-1 --attempt 1"
+    )
+    status, err = _run(fakes, env, "inventory")
+    assert status == 2
+    assert "holds no run.env" in err

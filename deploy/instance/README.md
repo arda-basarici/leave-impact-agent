@@ -9,7 +9,7 @@ consumes are published in its `projects/leave-impact/README.md`. This
 directory holds what the application itself owns: its deployment entrypoint
 (`deploy.sh`, the only thing the workflow's deploy job runs on the host) and,
 since the first live run's step, the run lifecycle's host side (`lifecycle.sh`,
-sent step by step by the investigate and approve-run workflows through the driver
+sent step by step by the investigate and continue-run workflows through the driver
 in `../runner/`).
 
 ## What moved, and where (2026-08-27)
@@ -74,11 +74,19 @@ the step's `export` lines in the payload, reads each step back, and takes the ne
 step from what the launcher's `status` answers. The run rides the dispatched
 commit: the host refuses a step whose sha is not `DEPLOYED`'s. A run's files live
 under `/run/leaveimpact/<run id>/` on tmpfs, owned by the image's user and readable
-by nobody else, bind-mounted into every container of the run; a reboot clears them and a later step says so. Secrets reach
-the container through the process environment only. The work container is named for
-its attempt: the SSM agent ends a timed-out command with SIGKILL to the host's
-process tree and the container outlives its client (the step's two probes), so
-`status` reports that container first and the driver reads the state again while it
-runs instead of re-sending work. Both scripts' headers carry
-the rules; the fake-binary tests under `tests/unit/` run every step and every
-branch of the walk, and CI runs shellcheck over this directory and `../runner/`.
+by nobody else, bind-mounted into every container of the run; a reboot clears them
+and a later step says so, except `publish`, which needs only the pinned registration
+and remakes the directory, so a closed attempt is published after a reboot
+(`inventory` still waits for the launch's values; FIXLOG). Secrets reach the
+container through the process environment only, and a Parameter Store read that
+fails ends the step with the CLI's error. The work container is named for its
+attempt: the SSM agent ends a timed-out command with SIGKILL to the host's process
+tree and the container outlives its client (the step's two probes), so `status`
+reports that container first and the driver reads the state again while it runs
+instead of re-sending work; a work process the host killed (137 under the memory
+limit) is read the same way, and only the process's own exits 2 and 3 end the job at
+once. The driver's poll is bounded and classifies its failures, and a send it cannot
+read past ends the job naming `continue-run`, which takes the attempt's approval
+policy as an input. Both scripts' headers carry the rules; the fake-binary tests
+under `tests/unit/` run every step and every branch of the walk, and CI runs
+shellcheck over this directory and `../runner/`.

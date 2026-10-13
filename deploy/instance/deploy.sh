@@ -8,8 +8,10 @@
 # *of that commit*; both fetched by sha so the host runs exactly what CI tested,
 # and a rollback is this script with an older sha. Secrets come from Parameter
 # Store into the process environment for `compose up` — nothing is rendered to
-# disk (compose.yaml's own rule).
+# disk (compose.yaml's own rule). A failing `aws` inside `param` ends the deploy with
+# the CLI's own error (the explicit return and `inherit_errexit`, as lifecycle.sh).
 set -euo pipefail
+shopt -s inherit_errexit
 
 : "${DEPLOY_SHA:?full commit sha to deploy}"
 REPO=arda-basarici/leave-impact-agent
@@ -21,7 +23,7 @@ APP_DIR=/srv/app
 # handed to compose would reach a host as a credential and fail there, later and worse.
 param() {
   local value
-  value=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text)
+  value=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text) || return $?
   case "$value" in
     UNSET*) echo "parameter $1 is not put: it still holds the UNSET placeholder" >&2; return 1 ;;
   esac

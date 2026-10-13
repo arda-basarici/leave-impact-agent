@@ -1,6 +1,6 @@
 #!/bin/bash
 # One step of a run's lifecycle on the app host, run as root over `ssm send-command`
-# by the investigate and approve-run workflows (the first live run's step, fork 1):
+# by the investigate and continue-run workflows (the first live run's step, fork 1):
 # the script travels inside the command payload after the `export` lines that
 # name the step, so nothing is fetched from anywhere the host could be lied to by.
 # LIFECYCLE_COMMAND is one word: `launch` (the plan, the ledger threshold as a
@@ -22,7 +22,11 @@
 # non-secret inputs the later steps read back so their payloads carry only the
 # step's own. Nothing is rendered to disk; a reboot clears the directory, and a
 # step that finds it gone says so and stops, since the attempt's files cannot be
-# rebuilt from a later step's inputs.
+# rebuilt from a later step's inputs. `publish` is the exception (the step's batch
+# review): it needs the registration and the two ids alone, so it recreates the
+# private directory and fetches the pinned files, and a closed attempt is published
+# after a reboot; `inventory` still needs the launch's values and waits for the
+# directory to carry them again (FIXLOG).
 #
 # The work container is named for its attempt, because the SSM agent ends a timed-out
 # command with SIGKILL to the host's process tree and the container outlives its
@@ -38,7 +42,13 @@
 # What it prints is what the lifecycle commands print: identities, counts, kinds,
 # file names, the reservation. `review-approval` is not a word here, by that
 # command's own rule (its output is the run's content; Session Manager only).
+#
+# A failing `aws` inside `param` ends the step with the CLI's own error: bash drops
+# errexit inside a command substitution unless told to inherit it, and without the
+# explicit return the value came back empty with status 0 and the container refused
+# with "is not set", the wrong cause (the step's batch review).
 set -euo pipefail
+shopt -s inherit_errexit
 
 : "${LIFECYCLE_COMMAND:?launch, work, status, deliver, publish or inventory}"
 : "${RUN_SHA:?the commit the workflow was dispatched from}"
@@ -59,7 +69,7 @@ APP_GID=1000
 # both; the payload carries one script and bash has no import.
 param() {
   local value
-  value=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text)
+  value=$(aws ssm get-parameter --region "$REGION" --with-decryption --name "$1" --query Parameter.Value --output text) || return $?
   case "$value" in
     UNSET*) echo "parameter $1 is not put: it still holds the UNSET placeholder" >&2; return 1 ;;
   esac
@@ -74,16 +84,34 @@ fi
 
 run_dir="$RUN_ROOT/$RUN_ID"
 attempt_dir="$run_dir/attempt-$ATTEMPT"
-if [ "$LIFECYCLE_COMMAND" = launch ]; then
-  mkdir -p "$run_dir"
-  chmod 0700 "$RUN_ROOT" "$run_dir"
-elif [ ! -f "$run_dir/run.env" ]; then
-  echo "the run directory $run_dir holds no run.env: the host's tmpfs was cleared since the launch, and the attempt's files cannot be rebuilt by a later step" >&2
-  exit 2
-fi
+case "$LIFECYCLE_COMMAND" in
+  launch|publish)
+    # The two words that need nothing a reboot clears: the directory is made or remade.
+    mkdir -p "$run_dir"
+    chmod 0700 "$RUN_ROOT" "$run_dir"
+    ;;
+  *)
+    if [ ! -f "$run_dir/run.env" ]; then
+      echo "the run directory $run_dir holds no run.env: the host's tmpfs was cleared since the launch, and the attempt's files cannot be rebuilt by a later step" >&2
+      exit 2
+    fi
+    ;;
+esac
 
+# A complete file is kept; an absent one is fetched to a temporary name and moved into
+# place only when the transfer succeeded, so a transfer that died mid-body leaves no
+# partial file for the next step or the next attempt of the run to read as the
+# registration (the step's batch review).
 fetch() {
-  [ -s "$run_dir/$1" ] || curl -fsSL "https://raw.githubusercontent.com/$REPO/$RUN_SHA/preregistration/$1" -o "$run_dir/$1"
+  [ -s "$run_dir/$1" ] && return 0
+  local part="$run_dir/$1.part" status=0
+  curl -fsSL "https://raw.githubusercontent.com/$REPO/$RUN_SHA/preregistration/$1" -o "$part" || status=$?
+  if [ "$status" -ne 0 ]; then
+    rm -f "$part"
+    echo "fetching preregistration/$1 at $RUN_SHA failed (curl exit $status); nothing was kept" >&2
+    return "$status"
+  fi
+  mv "$part" "$run_dir/$1"
 }
 fetch registration.json
 fetch prices.json

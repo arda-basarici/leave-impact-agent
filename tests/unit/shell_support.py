@@ -11,7 +11,12 @@ read with ``value-of-<name>`` (or the ``UNSET`` placeholder for the one name in
 ``FAKE_UNSET_PARAMETER``), an instance lookup with ``i-fake`` (nothing under
 ``FAKE_NO_INSTANCE``), a send with ``cmd-<n>`` after
 copying the payload, and an invocation read with the test's scripted ``response-<n>.json``,
-``InProgress`` first as many times as ``pending-<n>`` holds. ``docker`` records its line and
+``InProgress`` first as many times as ``pending-<n>`` holds, an ``InvocationDoesNotExist``
+error first as many times as ``missing-<n>`` holds, and an ``ExpiredToken`` error on every
+invocation read after the ``FAKE_INVOCATION_FAIL_AFTER``-th; a parameter read of the name
+in ``FAKE_PARAMETER_FAIL`` fails as a throttled CLI does. ``curl`` writes an empty JSON
+object to the ``-o`` path, or, once, under ``FAKE_CURL_FAIL_ONCE``, half a document and
+exit 18. ``docker`` records its line and
 the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its environment,
 writes the plan's two files under the mounted run directory for a ``plan`` command and
 prints ``launch=launch-fake``, prints the scripted ``status.txt`` for a ``status``, and
@@ -45,6 +50,10 @@ value_after() {
 case "$1 $2" in
   "ssm get-parameter")
     name=$(value_after --name "$@")
+    if [ "$name" = "${FAKE_PARAMETER_FAIL:-}" ]; then
+      echo "An error occurred (ThrottlingException) when calling GetParameter: Rate exceeded" >&2
+      exit 254
+    fi
     if [ "$name" = "${FAKE_UNSET_PARAMETER:-}" ]; then echo "UNSET"; else echo "value-of-$name"; fi
     ;;
   "ec2 describe-instances") [ -n "${FAKE_NO_INSTANCE:-}" ] || echo i-fake ;;
@@ -58,6 +67,18 @@ case "$1 $2" in
     cid=$(value_after --command-id "$@")
     n=${cid#cmd-}
     printf '%s\n' "invocation $n" >> "$FAKE_LOG"
+    reads=$(grep -c '^invocation ' "$FAKE_LOG")
+    fail_after=${FAKE_INVOCATION_FAIL_AFTER:-}
+    if [ -n "$fail_after" ] && [ "$reads" -gt "$fail_after" ]; then
+      echo "An error occurred (ExpiredTokenException): the security token is expired" >&2
+      exit 255
+    fi
+    missing=$(cat "$FAKE_DIR/missing-$n" 2>/dev/null || echo 0)
+    if [ "$missing" -gt 0 ]; then
+      echo $((missing - 1)) > "$FAKE_DIR/missing-$n"
+      echo "An error occurred (InvocationDoesNotExist) when calling GetCommandInvocation" >&2
+      exit 255
+    fi
     pending=$(cat "$FAKE_DIR/pending-$n" 2>/dev/null || echo 0)
     if [ "$pending" -gt 0 ]; then
       echo $((pending - 1)) > "$FAKE_DIR/pending-$n"; echo InProgress; exit 0
@@ -109,7 +130,16 @@ _FAKE_CURL = r"""#!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "curl $*" >> "$FAKE_LOG"
 for ((i = 1; i <= $#; i++)); do
-  if [ "${!i}" = "-o" ]; then i=$((i + 1)); echo '{}' > "${!i}"; fi
+  if [ "${!i}" = "-o" ]; then
+    i=$((i + 1))
+    if [ -n "${FAKE_CURL_FAIL_ONCE:-}" ] && [ ! -f "$FAKE_DIR/curl-failed" ]; then
+      # A transfer that died mid-body: half a document on disk, the real curl's exit 18.
+      touch "$FAKE_DIR/curl-failed"
+      printf '{"half' > "${!i}"
+      exit 18
+    fi
+    echo '{}' > "${!i}"
+  fi
 done
 """
 

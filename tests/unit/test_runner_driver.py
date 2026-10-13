@@ -43,6 +43,7 @@ CONTINUE_INPUTS = {
     "INPUT_ATTEMPT": "2",
     "INPUT_LAUNCH": "launch-earlier",
     "INPUT_PAYLOAD_DIGEST": "d" * 64,
+    "INPUT_APPROVAL": "human",
 }
 
 
@@ -214,7 +215,10 @@ def test_a_work_process_that_exited_with_a_fault_ends_the_job_without_a_status_r
     status, out, _ = _run(fakes, env, **RUN_INPUTS)
     assert status == 1
     assert _words(fakes) == ["launch", "work"]
-    assert "work failed with exit status 2, which no re-send cures" in out
+    assert (
+        "work failed with exit status 2 (a configuration fault or an unexpected failure), "
+        "which no re-send cures"
+    ) in out
 
 
 def test_a_refused_work_reads_the_state_since_a_receipt_path_refuses_too(
@@ -354,3 +358,114 @@ def test_a_continuation_without_a_delivery_starts_at_the_state_and_publishes_a_c
     assert status == 0, err
     assert _words(fakes) == ["status", "publish", "inventory"]
     assert fakes.payload_exports(1)["APPROVAL"] == "human"
+
+
+def test_a_work_process_the_host_killed_is_read_and_recovered_not_ended(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """Exit 137 is the container's memory limit, not the process's own code: the state is
+    read, the launcher answers recover, and the walk goes on (the step's batch review)."""
+    fakes, env = driver
+    _script(
+        fakes,
+        LAUNCHED,
+        ("Failed", 137, ""),
+        ("Success", 0, "container=none\nnext=recover\n"),
+        OK,
+        ("Success", 0, "container=none\nnext=publish\n"),
+        OK,
+        OK,
+    )
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 0
+    assert _words(fakes) == ["launch", "work", "status", "work", "status", "publish", "inventory"]
+    assert "status 137, which it does not choose for itself" in out
+    assert fakes.payload_exports(5)["RECOVERIES"] == "1"
+
+
+def test_a_continuation_carries_the_policy_the_attempt_was_dispatched_under(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """An automatic attempt continued from another job is recovered under its own policy,
+    so its export never records a human approver it did not have."""
+    fakes, env = driver
+    _script(
+        fakes,
+        ("Success", 0, "container=none\nnext=work\n"),
+        OK,
+        ("Success", 0, "container=none\nnext=publish\n"),
+        OK,
+        OK,
+    )
+    inputs = {**CONTINUE_INPUTS, "INPUT_PAYLOAD_DIGEST": "", "INPUT_APPROVAL": "automatic"}
+    status, _, err = _run(fakes, env, **inputs)
+    assert status == 0, err
+    assert _words(fakes) == ["status", "work", "status", "publish", "inventory"]
+    assert fakes.payload_exports(1)["APPROVAL"] == "automatic"
+    assert fakes.payload_exports(2)["APPROVAL"] == "automatic"
+
+
+def test_an_invocation_the_agent_has_not_reported_yet_is_waited_through(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    fakes, env = driver
+    _script(fakes, LAUNCHED, OK, ("Success", 0, "next=publish\n"), OK, OK)
+    (fakes.fake_dir / "missing-2").write_text("2")
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 0
+    assert _words(fakes) == ["launch", "work", "status", "publish", "inventory"]
+    polls = fakes.lines("invocation 2")
+    assert len(polls) >= 4, "two not-yet-reported answers, the status, the read"
+    assert "uncertain" not in out
+
+
+def test_six_failed_polls_make_the_send_uncertain_and_an_unreadable_job_names_the_continuation(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """The deploy role's session expires under a long work send: every poll fails, the
+    send is uncertain, the state read fails the same way, and the job ends red naming
+    continue-run instead of spinning to the workflow's timeout."""
+    fakes, env = driver
+    _script(fakes, LAUNCHED, OK)
+    status, out, _ = _run(fakes, env, **{**RUN_INPUTS, "FAKE_INVOCATION_FAIL_AFTER": "2"})
+    assert status == 1
+    assert _words(fakes) == ["launch", "work", "status"]
+    assert "work: 6 polls in a row failed, the last: An error occurred (ExpiredTokenException)" in (
+        out
+    )
+    assert "dispatch continue-run for run-77 attempt 1 with launch=launch-1" in out
+    assert len(fakes.lines("invocation 2")) == 6 and len(fakes.lines("invocation 3")) == 6
+
+
+def test_a_result_that_cannot_be_read_after_a_terminal_status_is_uncertain(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    fakes, env = driver
+    _script(fakes, LAUNCHED, OK)
+    status, out, _ = _run(fakes, env, **{**RUN_INPUTS, "FAKE_INVOCATION_FAIL_AFTER": "3"})
+    assert status == 1
+    assert _words(fakes) == ["launch", "work", "status"]
+    assert "work: the command ended Success and its result could not be read" in out
+
+
+def test_the_poll_is_bounded_by_the_execution_timeout_and_its_margin(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """A command the agent never reports terminal is not polled forever: past the
+    execution timeout plus the margin the send is uncertain and the state is read."""
+    fakes, env = driver
+    _script(
+        fakes,
+        LAUNCHED,
+        OK,
+        ("Success", 0, "container=none\nnext=publish\n"),
+        OK,
+        OK,
+    )
+    (fakes.fake_dir / "pending-2").write_text("30")
+    bounds = {"EXECUTION_TIMEOUT": "3", "POLL_MARGIN_SECONDS": "0", "POLL_SECONDS": "1"}
+    status, out, _ = _run(fakes, env, **{**RUN_INPUTS, **bounds})
+    assert status == 0
+    assert _words(fakes) == ["launch", "work", "status", "publish", "inventory"]
+    assert "work: the poll passed the execution timeout plus its margin" in out
+    assert len(fakes.lines("invocation 2")) < 30
