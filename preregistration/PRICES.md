@@ -54,6 +54,10 @@ yet the entry.
   (`https://docs.aws.amazon.com/bedrock/latest/userguide/count-tokens.html`, read
   2026-10-11) says "Using the CountTokens API doesn't incur charges." The registered
   input-bound method counts every request before it is sent, and no row prices a count.
+  The production counting client counted from the instance on 2026-10-13 (the `step-14`
+  entry in `probes/FINDINGS.md`; `captures/investigator-principals/instance-run-02.txt`),
+  so the first bill that covers the live runs is where a charge for counting would show
+  if the sentence were wrong.
 
 ## What waits for the freeze
 

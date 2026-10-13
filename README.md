@@ -10,10 +10,12 @@ agent investigates the exceptions; the human decides.
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
 **Status: the world milestone closed on 2026-09-19; the investigator milestone is in
-build, and the investigator's loop and the two one-call baselines have run live.** What
-exists is the benchmark, the evaluator that grades a run against it, the rules-only
-baseline, the investigator's harness with its system content, and the single-shot and
-full-context baselines over the same harness. A generator builds a synthetic
+build, and the four systems have each run once through the deployed lifecycle on the
+instance and been graded in one evaluation.** What exists is the benchmark, the
+evaluator that grades a run against it, the rules-only baseline, the investigator's
+harness with its system content, the single-shot and full-context baselines over the
+same harness, and the launch path that runs any of them on the instance from a
+dispatched workflow and publishes the export. A generator builds a synthetic
 organization and thirty scenarios in three difficulty tiers from a seed, materializes
 the prose those scenarios need through gated model calls, projects the world into real
 Frappe HR, Jira and Google Calendar instances, and seals the answer key where the
@@ -37,8 +39,15 @@ measured comparison after the core has numbers. The loop ran live on the first
 development world under a draft registration, 105 runs across fifteen prompt rounds,
 every one closing through a valid forced fact call, the prompt revised against named
 failures and recorded with its digests; those runs are development runs, graded for
-the plumbing and not reported as a result. No measured result for the investigator
-exists yet, and this README grows with the build and never claims ahead of it.
+the plumbing and not reported as a result. The lifecycle then ran under production:
+a workflow sends each step to the instance, the host runs the deployed image against
+the live vendor systems and the real store, a human approves in a private session when
+the policy asks for one, and the export is published where the evaluator reads it; the
+investigator under both approval policies and the three baselines each ran once on one
+scenario of a development world, every job green on its first dispatch after four
+fixes the laptop's fakes could not have found, and one evaluation graded all five. No
+measured result for the investigator exists yet, and this README grows with the build
+and never claims ahead of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
 > agent that will be graded on it. The organization is synthetic and small (about thirty

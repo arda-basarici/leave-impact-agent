@@ -233,3 +233,16 @@ The close recorded the first reading: `false` is today the union of filler-carri
 statements and the rest, separable by the sealed filler pool's membership, the class itself
 ruled at the freeze; `prompt-check/false_by_carrier.py` makes the split from the captures
 and writes `prompt-check/results/false_by_carrier.md`.
+
+## The first live run's instance probe (run 2026-10-11 and 2026-10-13)
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **read-principals/instance** (`read-principals/instance/probe.py`, sent by `send.ps1` through `host.sh` over SSM, run inside the deployed image under the instance role and the investigator's five parameters) — the manifest and the three readers under the production path, one `Converse`, the production counting client on both model ids, the world bucket's create-only rule from the instance | P3 to P5 green (the investigator-principals ticket's acceptance); `Converse` passes; counting denied before the grant and `Counted` on the base model id after it (the counting-grant ticket's acceptance); 200 / 412 / AccessDenied on the three puts | the platform's two tickets and the step's forks file |
+
+**Result (two runs, `captures/investigator-principals/instance-run-01.txt` and
+`instance-run-02.txt`).** Both as forecast: 28 employees, 33 work items, 25 events, by-id
+reads on each; `end_turn` at 14 and 4 tokens; counting denied on both ids on 2026-10-11 and
+counted on the base model id (30 tokens, 52 ms) on 2026-10-13 with the profile id still
+denied, as the grant states; the create-only rule held from the instance. The FINDINGS
+entry `step-14` carries the runs with the five lifecycle runs that followed them.

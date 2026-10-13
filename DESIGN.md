@@ -3284,8 +3284,17 @@ contributions; a kept attempt that is later resolved reopens nothing and rewrite
 export, and no adjustment entry exists yet. A threshold is an entry naming its
 authority and the registration commit it came from, applied prospectively, never above
 the registered limit and never below the committed total, so no allowance shrinks and
-no closed attempt is repriced. The size of a run's reservation is not ruled: it needs
-the price table of the first live run.
+no closed attempt is repriced. A run's reservation is the most its dispatches can cost
+under the caps (`core.pricing.run_reservation`, the first live run's step): the whole
+token cap at the dearest input-side rate any role is priced at, cache writes included,
+plus every dispatch the call cap and the re-dispatch policy allow at the largest output
+maximum at its role's output rate, the finalization reserves inside both caps and
+adding nothing; a run with no role calls no model and reserves nothing, not zero. The
+two maxima are taken apart, so the figure bounds a run whose roles differ in both, and
+no recorded history's summed allocations exceed it. Under the committed table and the
+development caps it is $3.25336 a model run, which the first live runs settled at
+between half a percent and 1.6 percent of; the figure is the price of never refusing an
+admitted run for money, and the freeze may tighten the caps, not the rule.
 
 **A request is authorized on an established upper bound of its input tokens, by one
 registered method, and the token cap counts logical calls.** Which token classes a cap
@@ -3330,8 +3339,12 @@ attempt permitted; a validation, access or resource refusal is a defect at once,
 registered configuration being wrong; anything else ends the attempt at once by
 infrastructure with no rule permitting a new attempt, over calling it a defect, which
 would assert a cause nobody has. A denied count therefore ends by infrastructure
-though no retry can cure a missing grant; the deployed role's grant for the counting
-call is the first live run's, a platform ticket. Only a durable successful count is
+though no retry can cure a missing grant. The deployed role's grant for the counting
+call came with the first live run's step as a platform ticket, on the foundation-model
+resources alone, since the action evaluates no inference-profile resource, so the
+counting identifier is the profile's base model, registered by value with no lookup;
+the production client counted from the instance under that grant before the first run
+(the probes' `step-14` entry). Only a durable successful count is
 reused, under the request's digest, the counting identifier and the method's version,
 by a re-dispatch and by a resumed worker alike; the request is frozen before it is
 counted, and the check under the lock after the count rejects a changed request, lost
@@ -3359,9 +3372,12 @@ and a worker in a new segment compares the database's time with that timestamp a
 waits the remainder, since offsets of two segments cannot be subtracted; the wall
 clock is used for a wait and never for order, and a wait in a running worker is active
 time while downtime is not. The table's rows and the policy's values are pending until
-the freeze, a model-calling run is not admitted under a pending value, and a
-development registration carries provisional ones. A new attempt is always an explicit
-admission request; no worker re-admits a run.
+the freeze. Under a frozen or bound registration a model-calling run is not admitted
+under a pending value; under a draft the harness stands in with this code's development
+table and policy and records them in the frozen inputs, as the registration passage
+says and the `agent.registered` module states, so a development export carries the
+values it ran under and no table reads it as measured. A new attempt is always an
+explicit admission request; no worker re-admits a run.
 
 **A tool call is resolved once from the log, by a result or a skip, and what is not
 proven unreached is unresolved.** The outcome event holds the response as it arrived,
@@ -3721,6 +3737,126 @@ events describe what happened, that nothing was spent outside the ledger, or tha
 attempt is missing from both the inventory and storage. Protection against a harness
 that omits would need an observation the harness does not write, and the project has
 none; CloudWatch counts the same tokens through another path.
+
+**A run is launched by a dispatched workflow that sends its lifecycle to the instance,
+one word a send, and rides the commit it was dispatched from.** The investigate
+workflow under the production environment runs a committed driver on the runner; each
+step is one `ssm send-command` carrying one host script in its payload, so nothing is
+fetched from anywhere the host could be lied to by, and each step is one
+`docker compose run` of the deployed image: launch (the launcher's plan from the
+registered role alone, the ledger threshold set as a receipt on an equal amount, the
+admission), work, status, deliver, publish, inventory. The host refuses a step whose
+sha is not the deployed one, so the image, the registration and price files fetched at
+that sha and the registration commit the runner cites are one commit; a push between a
+deploy and a dispatch is re-dispatched after the next deploy, which is the right order
+anyway. The run's files live on the host's tmpfs under a directory readable by the
+image's user alone and bind-mounted into every container of the run: the request file
+(the scenario's leave and instant, which no log carries), the work line's cell flags,
+the two preregistration files and the launch's non-secret inputs, read back by the
+later steps so each payload carries only its own; a reboot clears them and a later step
+says so, since an attempt's files cannot be rebuilt from a later step's inputs.
+Secrets enter the container through the environment compose interpolates, never a
+command line, and the host script never runs under a shell trace; the Google
+credential travels as the authorized-user JSON value, the file form kept for the
+laptop, exactly one of the two set; a parameter still holding the platform's `UNSET`
+placeholder is refused as not put, by name, before any client is built. The identities
+are the workflow run's: the run id and attempt from the run, the request id held across
+transport retries, a nonce drawn on the host for every work process, the launch
+identity from the plan's output and held for every work send of the job; the admitter
+and the threshold's authority are the workflow, the approver the human who dispatched
+the continuation after reading the payload. The rules-only system runs the same
+lifecycle, with turns that ask nothing, a configuration with no role, table or policy,
+clients that refuse a send or a count, and no reservation (none, not zero); its export
+equals the direct run's on every registered condition apart from the stamps, which the
+mixed-bundle gate's replay keeps checkable. The development registration's role
+fillings are set through the codec to what the tree ships, the world version left
+pending since a development run names its world, and the registration commit a run
+records is the image's code version: the file in the image is the file at that commit,
+and a registration edited after the image is a new image. Rejected: a hand session over
+Session Manager, which the deploy script's own rule excludes for anything that counts;
+the launcher on the runner with the request shipped to the instance, one run across
+two environments and two approvals.
+
+**The driver walks the launcher's answer and never re-sends blind; a timed-out client
+leaves its container running.** After a work send the attempt's state is read with
+status and its next word acted on: work or recover sends work again, a recovery of an
+attempt a process left open counted against the launcher's own bound of two, stated in
+PROTOCOL and never the registered re-dispatch policy, which bounds dispatches of one
+logical call inside a worker; wait ends the job green with a human to decide; publish
+sends publish then inventory; hold ends it red. A work whose process chose its own
+exit for a configuration fault or an unexpected failure ends the job red at once,
+since a re-send would meet it again; a status the process did not choose, the
+container's memory limit or a daemon-side kill, is the host's doing and the state is
+read, which is exactly what the recover answer exists for; a refusal ends the job red
+with the printed reason; work sends are bounded at four in one job, so a state that
+never progresses cannot loop. A transport status that is uncertain (timed out,
+cancelled, lost) reads the state before any re-send, and a command in flight is never
+re-sent. The poll on a sent command is bounded and classifies its own failures: an
+invocation the agent has not reported yet is the eventual consistency the poll waits
+through, any other failure is counted, and six in a row, a poll past the execution
+timeout plus a margin, or a result that cannot be read after a terminal status end the
+send as uncertain. The job's credentials are the deploy role's one-hour session while a
+work send may run an hour, so an uncertain end can be one the job cannot read past; it
+then ends red naming the continuation workflow, which reads the state under fresh
+credentials, and nothing in the job renews them (a two-hour session is a platform
+ticket; it shortens the window and does not remove the path). Two live probes fixed the
+rest: the SSM agent ends a timed-out command by SIGKILL to the host's process tree, no
+trap running, and the work container outlives its killed client and runs on. So the
+container is named for its attempt, status reports first whether it still runs, work
+refuses to start beside a running one, and the driver reads the state again at every
+poll until it ends; what a killed client's container writes is harmless to the record
+by the log's fence, and the cost it risks is one in-flight dispatch's money, never a
+duplicated record. An attempt whose log holds a recorded stop with its segment still
+open is closed over the run log alone: the composition root reads the attempt's state
+before any store beyond the log is built and chooses the terminal worker, so that
+closing never fails for the world store's reasons, the case the first worker group's
+review had parked. The recovery count is the dispatching job's: a continuation counts
+from zero again, so PROTOCOL's bound of two holds per job, and a count durable over
+the attempt's history is defined before the first reported dispatch, not as the number
+of the log's claims, since an approval's resumption opens a generation that is no
+recovery.
+
+**A human approval is given on what the human read, and a closed attempt is published
+without re-running.** The review command prints the attempt's frozen review payload
+with the digest a delivery must carry, and runs only in a Session Manager session,
+which is account-private, never in a workflow log or a stored invocation's output; the
+continuation workflow takes the policy the attempt was dispatched under, delivers the
+approval bound to that digest and continues from status, or with no digest continues
+from status alone, which is how an attempt whose job ended after its closing gets its
+publish and inventory, and how an automatic attempt a dead process left at its request
+is recovered rather than waited for. A digest identifies a payload and lets nobody
+review it, which is why the command exists. A reboot between an attempt's close and its
+publish clears the run's files; publish needs the pinned registration and the two ids
+alone, so it remakes the private directory and fetches them, while inventory needs the
+launch's values and is the one word a reboot still strands, to be carried by the
+continuation before the first reported dispatch; until then a publish followed by a
+refused inventory ends the job red, a visibly incomplete lifecycle. A fetched file is
+moved into place only when its transfer succeeded, so a transfer that died mid-body
+leaves nothing a later step or a later attempt of the run reads as the registration,
+and a Parameter Store read that fails ends the step with the CLI's own error rather
+than an empty value the container refuses for the wrong cause.
+
+**The first live dispatches found what the fakes cannot see, and the cache flips what
+the rule declines.** The fake-binary tests run every lifecycle word and every branch of
+the driver's walk under fakes for the cloud CLI, the container engine, the fetch and
+the ownership change, and the first four dispatches each found a class those fakes have
+no model of: the run directory root-only against the image's unprivileged user (handed
+over whole after the fetch, before any container), the guard refusing a dispatch ahead
+of its deploy (by design), a run log never bootstrapped (a bootstrap command the deploy
+runs after the cache job at every landing: tables created where missing, the version
+row written where absent and checked, a mismatch failing the deploy before the
+application is declared landed), and the publishers composing the two-bucket stores
+from the environment names (both take the world store, and a test runs publish under
+compose's own names). The cache job at each deploy demotes every served version the
+listing holds and the serving rule declines, deleting no row, and readmits a flipped
+version the rule serves again, so a run naming a declined version is refused by the
+serving check and not by chance; the decline reason names the clause each verdict read
+fell on. The first publication's outcome on a successful create-only put is created;
+present-and-unverified is the 412-then-refused-read-back case, exercised in the
+recovery acceptance and seen in no live run. Five runs on one scenario, the four
+systems and both approval policies, each green on its first dispatch after those fixes
+and graded in one evaluation, are the step's record (the probes' `step-14` entry); they
+are development runs on a development world and no table reads them.
 
 **The investigator's runtime policy keeps the fault triad's meanings.** A missing
 record is evidence; the first unreachable source marks that source unreachable for

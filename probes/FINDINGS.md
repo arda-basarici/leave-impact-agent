@@ -3795,3 +3795,126 @@ reader's prompts yield a valid forced fact call over 11,000 to 13,000 tokens of 
 that both systems run end to end through the production composition. No rate is claimed. The
 cost per run, about $0.05 to $0.06, is a probe's number on a corpus of 38 documents and moves
 with the padded level the freeze registers.
+
+## step-14 — the first live run: the instance's own path probed, the counting grant accepted, five lifecycle runs on one scenario under production with every system graded, and the reservation six times the hand forecast by rule (2026-10-11 to 13)
+
+The investigator milestone's step 14 (commits `64ab1c5` to `a7f1d22`) built the launch
+path: the launcher package, the host and runner lifecycle scripts, the investigate and
+continue-run workflows, the rules-only system through the shared worker, the committed
+price table and the reservation derived from the registered caps. Its evidence, in order;
+every number below is pinned by a job log kept in the stream's step file, by the
+evaluation artifact `evaluations/7b806ed6…/38461907818-1.json`, or by a run of
+`core.pricing.run_reservation` over the committed registration and price table at this
+close.
+
+**The instance's own path, probed before any run (2026-10-11, session 94).** The probe
+`read-principals/instance/probe.py` ran inside the deployed image `8b27e525…` over SSM
+(command `0ef3e1ab…`; `captures/investigator-principals/instance-run-01.txt`). The five
+vendor parameters were put (set, none `UNSET`). The development world `7b806ed6…`'s
+manifest read from the world bucket under the instance role (stage projected, three
+artifacts) and the three readers built from it under the investigator principals: 28
+employees and a by-id read, 33 work items and a by-id read, 25 calendar events in the
+probe's span, the acceptance of the investigator-principals ticket. `Converse` on the
+registered `eu.` Haiku 4.5 profile ended `end_turn` at 14 input and 4 output tokens, both
+cache counters present and zero on a call with no cache point (data for the price table's
+`when_absent` entry, not yet the entry). `CountTokens` through the production client was
+denied on the profile id and on the base model id alike (`AccessDeniedException` from the
+instance role), the finding that became the platform's counting-grant ticket. The world
+bucket's create-only rule held from the instance: 200 on the first put with
+`If-None-Match: *`, 412 `PreconditionFailed` on the same put again, `AccessDenied` without
+the header.
+
+**The counting grant, accepted from the instance (2026-10-13, session 97).** The platform
+applied the counting statement over the model half of the shortlist (its commit
+`b242958`, plan 0/1/0, the simulator allowing the foundation-model ARNs and implicitly
+denying the profile ARN). The probe re-sent against `8cb71803…` with the three create-only
+puts removed (command `bce58840…`, 24 s; `instance-run-02.txt`): the production
+`CountingClient` under the role counted 30 input tokens against the base model id in 52 ms;
+the profile id stayed denied, as the ticket allowed, since the action evaluates only the
+foundation-model resource type; `Converse` on the profile and the three vendor reads were
+unchanged. The user guide says counting incurs no charge (`preregistration/PRICES.md`);
+the bill's confirmation waits for the account's first statement that covers these runs.
+
+**Five runs on one scenario, each on its first dispatch after the fixes.** On the
+development world `7b806ed6…`, `scenario_013` (the one scenario of the world that requires
+all three vendors, counted on the truth manifest with counts alone), the normal condition,
+the base level, from `main` at `a7f1d22`, which the instance held deployed:
+
+| system | approval | investigate job | continuation | export digest |
+|---|---|---|---|---|
+| agent | automatic | `38451098371` (session 97) | continue-run `38455347582` | `b3bb883e…` |
+| agent | human | `38459124374` | continue-run `38460205544` | `f5b8de4c…` |
+| rules_only | automatic | `38460597691` | none | `0f671cce…` |
+| single_shot | automatic | `38460902135` | none | `cb52cec8…` |
+| full_context | automatic | `38461520053` | none | `37083f15…` |
+
+The human-approval run paused at position 31 with `next=wait`; `review-approval` ran in a
+Session Manager session through the deployed image with the run directory mounted as the
+host script mounts it, printed the payload digest, and continue-run delivered the approval
+at position 33, resumed to a closed attempt and published it. Each publication's first put
+returned `created`, the outcome a successful create-only put reports (the step's forks
+file corrected fork 12's expectation: `PRESENT_UNVERIFIED` is a 412 followed by a
+read-back the policy refuses, exercised in the recovery acceptance), with no incident; the
+inventories grew one attempt a run to five.
+
+**The first run's four dispatches were each a finding the fake-binary tests could not
+see** (session 97; the step's forks file): the run directory root-only against the image's
+uid 1000 (`498917c`); the guard refusing a dispatch whose sha the host had not yet deployed,
+by design; the instance's run log never bootstrapped, so the first ledger command refused
+(`ce0cbd1`, a `bootstrap-log` command the deploy runs after the cache job); publish and
+inventory still composing the two-bucket stores from the environment names
+(`a7f1d22`). Three are a user, a schema and an environment, the classes DESIGN's
+verification passage names as the fakes' gap.
+
+**The reservation, reproduced at this close.** Every model run's launch printed
+`reservation_pico_usd=3253360000000`, $3.25336; rules only printed `None`, since it
+freezes no reservation. Recomputed from `preregistration/registration.json` and
+`prices.json` through `core.pricing.run_reservation` with the registered caps (call cap
+20, token cap 400,000, output maximum 8,192) and the re-dispatch policy (three dispatches
+a call): the whole token cap at the dearest input-side rate, the cache-write class at
+$1.375 a million, is $0.55; twenty calls times three dispatches at the output maximum and
+$5.50 a million is $2.70336; the sum is the printed figure. The step's hand forecast before
+the build read about $0.44 input plus $0.11 output: it priced the cap at the plain input
+rate and one dispatch a call. The registered figure is 5.9 times it by the derivation's
+rule (fork 13), not by an error in either.
+
+**The accounts, each read off the evaluation's listing and reconciled by hand with its
+call costs:**
+
+| system | calls | input tokens | output tokens | charge | model time |
+|---|---|---|---|---|---|
+| agent, automatic | 4 | 40,531 | 1,241 | $0.051410 | 18.5 s |
+| agent, human | 4 | 40,531 | 1,241 | $0.051410 | 19.1 s |
+| rules_only | 0 | 0 | 0 | none | 7.5 s elapsed |
+| single_shot | 1 | 9,071 | 1,183 | $0.016485 | 13.3 s |
+| full_context | 1 | 10,461 | 2,815 | $0.026990 | 21.2 s |
+
+The agent's charge is 1.6 percent of its reservation. The two agent attempts are equal
+field for field, the identical prompt at temperature 0; the development ledger carried
+four admissions at the reservation and settled each at its charge.
+
+**The evaluation on the five-attempt inventory** (`evaluate-run` `38461907818`): coverage
+180 intended, 5 admitted, 5 exported, none open, none closed without export, no
+publication incident, no defect, no infrastructure failure; label development, since the
+registration is a draft. The listing: four attempts `settings_differ: pending` (the draft's
+ten pending values are the model systems' and the world's) and the rules-only attempt
+`eligible` in its arm's base cell, one of thirty intended, because a pending value blocks
+only the execution that needs it (DESIGN's registration passage). The separation on this
+scenario: the agent under both approval policies and full context correct whole, all 33
+claims reproduced; rules only and single shot each with 31 claims, no constraint claim,
+two `oracle_plan` findings (`emp_001` assigned against the truth's `non_viable` verdict;
+`clause_022` asks for one assignee and none viable was assigned), 27 viable verdicts
+against the truth's six. Both are the recorded expectation: the rules-only module's
+docstring (no corpus read, the empty constraint list a premise, wrong with confidence
+where the key lives in a clause) and the `one-call` entry above, where the single-shot's
+search returned one of the two target documents on this scenario.
+
+**Three lines differed from the session-98 baton's forecast, none a finding:** the
+listing's one eligible attempt (the forecast said five pending, written from one agent
+attempt); the two baselines' findings (declared by their modules); the second agent
+attempt's equality with the first (temperature 0). The lifecycle lines held one for one.
+
+**What this is not.** One scenario on a tuned development world, read under a draft
+registration: a plumbing reading in no model cell, which the development evaluations of
+step 15 and the freeze's measurement world supersede. The bill's line for these runs is
+still to be read against the table.

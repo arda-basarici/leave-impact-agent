@@ -1,0 +1,66 @@
+P1 DEPLOYED=8b27e52545f3c65e0607b327424217480e2f043e
+P1 image 8b27e52545f3c65e0607b327424217480e2f043e 2026-10-11 17:42:10 +0000 UTC
+P1 disk used 3.3G of 12G (28%)
+P2 frappe-api-key set
+P2 frappe-api-secret set
+P2 jira-email set
+P2 jira-token set
+P2 google-authorized-user-json set
+{
+ "code_version": "8b27e52545f3c65e0607b327424217480e2f043e",
+ "python": "3.13.16",
+ "P0_manifest": {
+  "found": true,
+  "stage": "projected",
+  "observed_sites": {
+   "frappe": "hr-w3.ardabasarici.dev",
+   "jira": "leave-impact-probe.atlassian.net"
+  },
+  "artifacts": 3
+ },
+ "P0_readers": "built",
+ "P3_frappe": {
+  "employees": 28,
+  "by_id": true
+ },
+ "P4_jira": {
+  "work_items": 33,
+  "by_id": true
+ },
+ "P5_calendar": {
+  "events": 25
+ },
+ "P6_invoke": {
+  "stop": "end_turn",
+  "usage": {
+   "inputTokens": 14,
+   "outputTokens": 4,
+   "totalTokens": 18,
+   "cacheReadInputTokens": 0,
+   "cacheWriteInputTokens": 0
+  },
+  "request_id": "36171795-79f9-45c0-b93c-e37243595f3e"
+ },
+ "P7_count_profile": {
+  "outcome": "CountServiceError",
+  "fields": "CountServiceError(http_status=403, code='AccessDeniedException', message_signature='User: arn:aws:sts::#:assumed-role/leave-agent-instance/i-# is not authorized to perform: bedrock:CountTokens on resource: arn:aws:bedrock:eu-central-#:#:inf"
+ },
+ "P7_count_base_model": {
+  "outcome": "CountServiceError",
+  "fields": "CountServiceError(http_status=403, code='AccessDeniedException', message_signature='User: arn:aws:sts::#:assumed-role/leave-agent-instance/i-# is not authorized to perform: bedrock:CountTokens on resource: arn:aws:bedrock:eu-central-#::foun"
+ },
+ "P8_put_create_only": {
+  "status": 200
+ },
+ "P8_put_again_create_only": {
+  "error": "ClientError",
+  "detail": "An error occurred (PreconditionFailed) when calling the PutObject operation: At least one of the pre-conditions you specified did not hold"
+ },
+ "P8_put_without_header": {
+  "error": "AccessDenied",
+  "detail": "An error occurred (AccessDenied) when calling the PutObject operation: User: arn:aws:sts::445743457479:assumed-role/leave-agent-instance/i-03f6f59aec7e9716c is not authorized to perform: s3:PutObject on resource: \"arn:aws:s3:::leave-impact-"
+ },
+ "probe_key": "runs/probe-20261011T175023Z/instance-create-only.txt"
+}
+P9 container exit 0
+
