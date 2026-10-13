@@ -24,6 +24,7 @@ from leaveimpact.adapters.wiring import (
     inventory_publisher_over,
     run_export_publisher_over,
 )
+from leaveimpact.agent import __main__ as job
 from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivered,
@@ -48,6 +49,7 @@ from leaveimpact.agent.inventory import PublicationRecord
 from leaveimpact.agent.ledger import LedgerEntry
 from leaveimpact.agent.log_events import ApprovalRequested
 from leaveimpact.agent.log_reader import export_of
+from leaveimpact.agent.log_store import SCHEMA_VERSION
 from leaveimpact.agent.log_transition import AttemptState
 from leaveimpact.agent.worker import (
     HumanApproval,
@@ -426,6 +428,21 @@ def test_the_threshold_command_passes_the_stores_refusal_on_as_a_value(rig: Rig)
         ThresholdRequest("ledger-t", PLENTY + 1, "operator:test", cases.COMMIT, PLENTY), store
     )
     assert isinstance(refused, CommandRefused) and refused.subject == "ledger ledger-t"
+
+
+def test_the_bootstrap_command_prepares_a_fresh_log_and_answers_a_prepared_one_the_same(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The deploy's command: the first call creates the tables and the version row, the
+    second finds them and checks the version, both print the same receipt, and a store
+    opened afterwards reads an empty log."""
+    for _ in range(2):
+        assert job.main(["bootstrap-log"], {}, store=rig.store()) == 0
+        assert capsys.readouterr().out.splitlines() == [
+            "bootstrapped=log_schema",
+            f"version={SCHEMA_VERSION}",
+        ]
+    assert rig.store().open_attempts() == ()
 
 
 # --- the four audits over the real export ----------------------------------------------------

@@ -47,6 +47,11 @@ docker compose up -d --wait postgres
 export LEAVE_IMPACT_WORLD_BUCKET=leave-impact-world-445743457479
 export LEAVE_IMPACT_AWS_REGION="$REGION"
 docker compose run --rm app python -m leaveimpact.cache
+# The run log's schema, the same way: tables created where missing, the version row
+# written where absent, the version checked, and a mismatch fails the deploy here.
+# Nothing else creates them; the first live dispatch (2026-10-13) reached an instance
+# that had never been bootstrapped and refused at its first ledger command.
+docker compose run --rm app python -m leaveimpact.agent bootstrap-log
 # The baseline app has no long-running service yet: it identifies itself and
 # exits, and that identity line is the deploy's evidence (the `oidc-deploy`
 # probe's "response"). Flips to `up -d app` with the first service entry point.

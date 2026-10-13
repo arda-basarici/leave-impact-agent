@@ -16,6 +16,11 @@ over, with the digest ``deliver-approval`` must carry (the first live run's step
 the one command whose output is the run's content, so it is run in a Session Manager
 session, which is account-private, and never in a workflow's log or an SSM invocation's
 stored output.
+``bootstrap-log`` creates the run log's tables where missing, writes the schema version
+where absent and checks it, and never alters an existing table: the deploy script runs it
+at every landing, as it runs the corpus cache's, so a fresh instance holds the log before
+any lifecycle command reaches it (the first live dispatch of 2026-10-13 found one that
+never had).
 ``work`` composes the investigator graph's real fillings over an admitted attempt (the
 graph step, fork 17): the configuration the registration and this code give the named cell
 (``registered.model_system_provenance``), the role's model, settings, rate and counting model from
@@ -112,6 +117,7 @@ from leaveimpact.agent.execution import ReadPorts, ports_under
 from leaveimpact.agent.graph import ModelClient, TokenCounter
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
+    SCHEMA_VERSION,
     AdmissionReceipt,
     AdmissionRequest,
     LogStore,
@@ -163,6 +169,12 @@ class Command(StrEnum):
     INVENTORY = "inventory"
     SET_THRESHOLD = "set-threshold"
     IMPORT_SPEND = "import-spend"
+    BOOTSTRAP_LOG = "bootstrap-log"
+
+
+@dataclass(frozen=True, slots=True)
+class BootstrapLog:
+    """The run log's schema bootstrap; the command takes nothing."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -211,6 +223,7 @@ type Request = (
     | InventoryRequest
     | ThresholdRequest
     | ImportRequest
+    | BootstrapLog
 )
 
 
@@ -224,6 +237,7 @@ type Resolved = (
     | InventoryRequest
     | ThresholdRequest
     | ImportRequest
+    | BootstrapLog
 )
 
 
@@ -350,6 +364,12 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
         "--authority", required=True, help="who established the amount, and from what"
     )
     importing.add_argument("--registration-commit", required=True, help="the registration's commit")
+    commands.add_parser(
+        Command.BOOTSTRAP_LOG.value,
+        description=(
+            "Create the run log's tables where missing and check its version; the deploy runs it."
+        ),
+    )
     try:
         parsed = parser.parse_args(argv)
     except (argparse.ArgumentError, SystemExit) as error:
@@ -417,6 +437,8 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
                 parsed.authority,
                 parsed.registration_commit,
             )
+        case Command.BOOTSTRAP_LOG:
+            return BootstrapLog()
 
 
 def code_version(env: Mapping[str, str]) -> str:
@@ -686,6 +708,9 @@ def _run(
                 f"amount_pico_usd={entry.amount_pico_usd}",
                 f"total_after_pico_usd={entry.total_after_pico_usd}",
             ]
+        case BootstrapLog():
+            store.ensure_schema()
+            return 0, ["bootstrapped=log_schema", f"version={SCHEMA_VERSION}"]
 
 
 def _work(
