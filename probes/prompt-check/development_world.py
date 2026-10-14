@@ -1,11 +1,14 @@
-"""What the prompt check's scripts share: the first development world read from the local
-object store, its six live-iteration scenarios by the registration's seeded draw, and the
-investigator's configuration under the draft registration as the production work command
-would compose it.
+"""What the prompt check's scripts share: a development world read from the local object
+store, the first by default, its six live-iteration scenarios by the registration's seeded
+draw, and the investigator's configuration under the draft registration as the production
+work command would compose it.
 
-The world is the generator step's, seed 101, sealed unprojected under
-``data/object-store`` (the generator-step findings); the probe reads it as the evaluator
-does, from the truth root and the world root, and never from a bucket. The six scenarios
+The default world is the generator step's, seed 101, sealed unprojected under
+``data/object-store`` (the generator-step findings); the freeze step's calibration runs
+read the second development world (seed 103, the 432-document filler pool and its three
+padded levels) by passing its version, since the live probe is the calibration's script
+(the step-15 handoff). The probe reads a world as the evaluator does, from the truth root
+and the world root, and never from a bucket. The six scenarios
 are drawn by the rule the registration step built and the contract step retired with the
 scenario sets (``development_selection``, commit ``281ac3f``): the registered number from
 each tier, two, sampled by a stream derived from the registration's statistics seed under
@@ -111,10 +114,11 @@ def price_table() -> PriceTable:
 
 
 @cache
-def development_world() -> SealedWorld:
-    """The development world joined and proven from the local store's two roots."""
+def development_world(version: WorldVersion = WORLD) -> SealedWorld:
+    """The development world ``version`` joined and proven from the local store's two roots;
+    the first development world by default."""
     return load_sealed_world(
-        WORLD, LocalObjectReader(STORE_ROOT / "truth"), LocalObjectReader(STORE_ROOT / "world")
+        version, LocalObjectReader(STORE_ROOT / "truth"), LocalObjectReader(STORE_ROOT / "world")
     )
 
 
@@ -158,11 +162,23 @@ class ProbeConfiguration:
 
 
 def probe_configuration(
-    *, tree_state: TreeState, system: SystemKind = SystemKind.AGENT, level: str = LEVEL
+    *,
+    tree_state: TreeState,
+    system: SystemKind = SystemKind.AGENT,
+    level: str = LEVEL,
+    registered_level: str | None = None,
 ) -> ProbeConfiguration:
     """The configuration the work command would compose from this probe's line for the
     cell of ``system`` at ``level`` under the normal condition: the one role the system runs
-    filled with the probe's model (the baselines step, fork 15)."""
+    filled with the probe's model (the baselines step, fork 15).
+
+    ``registered_level`` names the registered cell when the world's level is not a
+    registered name: the second development world seals its three candidate paddings as
+    ``padded_40k``, ``padded_70k`` and ``padded_90k``, and the registration knows one
+    ``padded`` cell whose size those calibration runs decide (step 15, fork 2). The cell's
+    assignment is read under ``registered_level`` and the run reads, and its export records,
+    the world's ``level``; nothing in production composes a run this way, since a work line
+    names one level and the measurement world seals that name."""
     role = RoleFilling(
         MODEL_SYSTEM_ROLES[system].value,
         CallConfiguration(
@@ -178,11 +194,13 @@ def probe_configuration(
         registration(),
         system,
         CONDITION,
-        level,
+        registered_level or level,
         preregistration_commit=registration_commit(),
         pricing=basis,
         role=role,
     )
+    if registered_level is not None:
+        worker = replace(worker, corpus_level=level)
     # The caps' ceiling as the launcher reserves it (step 14, fork 13): the token cap at the
     # dearest input-side rate and every dispatch the call cap and the development re-dispatch
     # policy allow at the output maximum, so money never ends a run the caps still admit.

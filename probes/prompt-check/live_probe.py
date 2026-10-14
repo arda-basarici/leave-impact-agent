@@ -1,10 +1,12 @@
 """The prompt check's live run (the step's fork 15 with amendment 6): the real worker over the
-real store and the real turns, the live clients, the first development world through the
-planted readers and the corpus cache, the automatic approval, each export evaluated in
+real store and the real turns, the live clients, a development world (the first by default,
+``--world`` names another the local cache holds) through the planted readers and the corpus
+cache, the automatic approval, each export evaluated in
 process by the real evaluator; publishing nothing.
 
 One round is one prompt configuration over a list of scenarios, by default the six
-live-iteration scenarios and the seventh the forecast added for the chain check. The
+live-iteration scenarios and, on the first development world, the seventh the forecast
+added for the chain check (a scenario of that world alone). The
 composition mirrors the work command's (``agent/__main__.py``) with the three substitutions
 the forecast names: ``adapters.plantings.sealed_readers`` over the local truth root for the
 vendor adapters, the laptop's ``leaveimpact_step9`` cache for the instance's, and a log
@@ -29,7 +31,10 @@ spans and quotes stay in the capture directory's JSON.
 one-call baselines run through the same path with the reader role, their content from
 ``commands.system_content`` as the work command composes it (the baselines step, fork 3),
 and ``--level`` the corpus level, the base by default and the padded one where the
-baselines' probe runs. ``--dry`` runs the same path under the scripted "nothing further"
+baselines' probe runs; ``--registered-level`` names the registered cell when the level is
+a world's own name, as the calibration runs read the second world's three candidate
+paddings under the one registered ``padded`` cell (step 15, fork 2).
+``--dry`` runs the same path under the scripted "nothing further"
 client and the scripted counter: no call, no spend, the plumbing proven end to end. A comparison round is this
 script run again under ``--round <name>`` after the prompt asset's sentence has been removed
 in ``agent/prompts/investigator/``; the digests the round ran under are recorded in its summary, so the
@@ -37,7 +42,8 @@ export's provenance and the report agree by construction.
 
     PYTHONPATH=. AWS_PROFILE=leave-impact LEAVE_IMPACT_SPIKE_CAPTURES=<dir> \\
         POSTGRES_PASSWORD=<the laptop's> uv run python probes/prompt-check/live_probe.py \\
-        --round shipped [--system single_shot --level padded] \\
+        --round shipped [--system single_shot --level padded] [--world <version>] \\
+        [--registered-level padded] \\
         [--scenarios scenario_009,scenario_013] [--dry]
 """
 
@@ -90,7 +96,7 @@ from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogS
 from leaveimpact.agent.log_transition import calls_of, fold  # noqa: E402
 from leaveimpact.agent.registered import MODEL_SYSTEM_ROLES  # noqa: E402
 from leaveimpact.agent.worker import AutomaticApproval  # noqa: E402
-from leaveimpact.core.ids import ScenarioId  # noqa: E402
+from leaveimpact.core.ids import ScenarioId, WorldVersion  # noqa: E402
 from leaveimpact.core.jsonshape import canonical_bytes  # noqa: E402
 from leaveimpact.core.model_calls import CompleteResponse, RefusedInput, Sends  # noqa: E402
 from leaveimpact.core.predicates import PredicateName  # noqa: E402
@@ -119,7 +125,8 @@ LIMIT_PICO_USD = 270 * 10**12
 ADMITTER = Producer("probe:prompt-check")
 CHAIN_CHECK_SCENARIO = "scenario_014"
 """The forecast's seventh run: the one scenario of the two holding a clause asking for two
-with the lower id."""
+with the lower id, a scenario of the first development world; another world's scenario of
+the same id is a different scenario, so the seventh never joins the default list there."""
 NESTED_DETAIL = "an entry is an object, got list"
 
 
@@ -263,7 +270,7 @@ def run_one(
     started = time.monotonic()
     try:
         inputs = admit(store, configuration, world, scenario, run_id)
-        readers = sealed_readers(LocalObjectReader(dw.STORE_ROOT / "truth"), dw.WORLD)
+        readers = sealed_readers(LocalObjectReader(dw.STORE_ROOT / "truth"), world.version)
         corpus = corpus_reader_for(inputs, dsn=dsn)
         saver, saver_connection = saver_in_schema(dsn)
         try:
@@ -683,22 +690,35 @@ def main() -> int:
     parser.add_argument(
         "--level", default=dw.LEVEL, help="the corpus level; the base by default"
     )
+    parser.add_argument(
+        "--world",
+        default=dw.WORLD,
+        help="the development world's version in the local cache; the first by default",
+    )
+    parser.add_argument(
+        "--registered-level",
+        default=None,
+        help="the registered cell's level when --level is a world's own name (padded_40k)",
+    )
     args = parser.parse_args()
     env = dict(os.environ)
     dsn = dsn_from_env(env)
     captures = captures_root(env) / args.round
-    world = dw.development_world()
+    world = dw.development_world(WorldVersion(str(args.world)))
     system = SystemKind(args.system)
     configuration = dw.probe_configuration(
-        tree_state=TreeState.DIRTY, system=system, level=str(args.level)
+        tree_state=TreeState.DIRTY,
+        system=system,
+        level=str(args.level),
+        registered_level=args.registered_level,
     )
     by_id = {s.spec.id: s for s in world.scenarios}
     if args.scenarios:
         ids = [ScenarioId(s.strip()) for s in str(args.scenarios).split(",") if s.strip()]
     else:
-        ids = [s.spec.id for s in dw.live_iteration_scenarios(world)] + [
-            ScenarioId(CHAIN_CHECK_SCENARIO)
-        ]
+        ids = [s.spec.id for s in dw.live_iteration_scenarios(world)]
+        if world.version == dw.WORLD:
+            ids.append(ScenarioId(CHAIN_CHECK_SCENARIO))
     missing = [i for i in ids if i not in by_id]
     if missing:
         raise SystemExit(f"not scenarios of the world: {missing}")
@@ -743,7 +763,7 @@ def main() -> int:
         "round": args.round,
         "dry": args.dry,
         "stamp": stamp,
-        "world": dw.WORLD,
+        "world": world.version,
         "harness": {
             "commit": configuration.harness.commit,
             "tree": configuration.harness.tree.value,
