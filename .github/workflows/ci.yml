@@ -33,12 +33,20 @@ jobs:
 
     # The integration level runs against the store it ships with — PostgreSQL, never
     # a SQLite stand-in (DESIGN: "Verification"). Declared from the first commit so
-    # the wiring exists before the first test needs it. The image comes from the public
-    # ECR mirror of the Docker Hub library (same tag, same digest), as the Dockerfile's
-    # base does: the runner pool's anonymous Docker Hub quota failed CI closed.
+    # the wiring exists before the first test needs it. The image is this repository's
+    # GHCR mirror of the Docker Hub library at the library's own digest, pulled with the
+    # workflow token, as the Dockerfile's base is: the runner pool's anonymous quota
+    # failed CI closed on Docker Hub and then on the public ECR mirror
+    # (mirror-base-images.yml).
+    permissions:
+      contents: read
+      packages: read
     services:
       postgres:
-        image: public.ecr.aws/docker/library/postgres:16-alpine
+        image: ghcr.io/arda-basarici/leave-impact-agent/postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           POSTGRES_USER: leaveimpact
           POSTGRES_PASSWORD: leaveimpact
@@ -139,9 +147,15 @@ jobs:
   crash-matrix:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: read
+      packages: read
     services:
       postgres:
-        image: public.ecr.aws/docker/library/postgres:16-alpine
+        image: ghcr.io/arda-basarici/leave-impact-agent/postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+        credentials:
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
         env:
           POSTGRES_USER: leaveimpact
           POSTGRES_PASSWORD: leaveimpact
