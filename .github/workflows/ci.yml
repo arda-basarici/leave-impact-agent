@@ -182,6 +182,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       sha: ${{ steps.stamp.outputs.sha }}
+      digest: ${{ steps.build.outputs.digest }}
     permissions:
       contents: read
       packages: write
@@ -250,9 +251,10 @@ jobs:
           grep -q '^investigator\.' smoke.txt && grep -q '^reader\.' smoke.txt
 
       # The log then says which bytes a sha tag pointed at when it was built, since the
-      # tag itself cannot; carrying the digest into the deploy is M2-entry work with the
-      # base-image pins (the M1 audit's F-010, in part); the smoke above is the final-image
-      # check the same finding asked for.
+      # tag itself cannot; the deploy job below carries the same digest to the host, which
+      # pulls by it (the freeze step, fork 10 with fork 32's split; the M1 audit's F-010 in
+      # part, the base-image pins still to come); the smoke above is the final-image check
+      # the same finding asked for.
       - name: Record the image digest
         run: |
           {
@@ -301,8 +303,12 @@ jobs:
       # a workflow edit. The script travels inside the command payload — nothing
       # is fetched from anywhere the host could be lied to by.
       - name: Deploy to the app host
+        env:
+          # The manifest digest the image job recorded: the host pulls the image by it.
+          IMAGE_DIGEST: ${{ needs.image.outputs.digest }}
         run: |
           set -euo pipefail
+          test -n "$IMAGE_DIGEST" || { echo "the image job recorded no digest"; exit 1; }
           IID=$(aws ec2 describe-instances \
             --filters Name=tag:Name,Values=leave-agent-app Name=instance-state-name,Values=running \
             --query 'Reservations[].Instances[].InstanceId' --output text)
@@ -311,9 +317,10 @@ jobs:
           # bucket unreachable from the instance role, the public evidence of the sealed
           # answer key (ruling 1 of the step 12 interview). A failed probe fails this
           # step with no rollback — the app may be healthy while the boundary is not.
-          jq -n --arg sha "$GITHUB_SHA" --rawfile script deploy/instance/deploy.sh \
+          jq -n --arg sha "$GITHUB_SHA" --arg digest "$IMAGE_DIGEST" \
+            --rawfile script deploy/instance/deploy.sh \
             --rawfile probe deploy/instance/assert-truth-unreachable.sh \
-            '{commands: ["export DEPLOY_SHA=\($sha)", $script, $probe]}' > payload.json
+            '{commands: ["export DEPLOY_SHA=\($sha)", "export DEPLOY_DIGEST=\($digest)", $script, $probe]}' > payload.json
           CID=$(aws ssm send-command --instance-ids "$IID" --document-name AWS-RunShellScript \
             --comment "deploy $GITHUB_SHA" --parameters file://payload.json \
             --query Command.CommandId --output text)

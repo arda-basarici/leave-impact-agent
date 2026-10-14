@@ -1,22 +1,27 @@
 #!/bin/bash
 # Lands one commit of the application on the host. Run as root on the instance
 # by the workflow's deploy job over `ssm send-command` (never by hand — the
-# job's approval gate is the only path to production), with DEPLOY_SHA in the
-# environment: the full commit sha, which is also the image tag CI pushed.
+# job's approval gate is the only path to production), with DEPLOY_SHA and
+# DEPLOY_DIGEST in the environment: the full commit sha, which is also the image
+# tag CI pushed, and the manifest digest CI recorded for the image it built.
 #
 # What "deploy" means here: the compose file *of that commit* plus the image
-# *of that commit*; both fetched by sha so the host runs exactly what CI tested,
-# and a rollback is this script with an older sha. Secrets come from Parameter
-# Store into the process environment for `compose up` — nothing is rendered to
+# *of that commit*; the file fetched by sha and the image pulled by its digest, so
+# the host runs exactly the bytes CI built and smoked, since a tag is a label the
+# registry can move and the digest is the image's identity (the freeze step, fork 10
+# with fork 32's split). A rollback is this script with an older sha and its digest.
+# Secrets come from Parameter Store into the process environment for `compose up` —
+# nothing is rendered to
 # disk (compose.yaml's own rule). A failing `aws` inside `param` ends the deploy with
 # the CLI's own error (the explicit return and `inherit_errexit`, as lifecycle.sh).
 set -euo pipefail
 shopt -s inherit_errexit
 
 : "${DEPLOY_SHA:?full commit sha to deploy}"
+: "${DEPLOY_DIGEST:?the manifest digest CI recorded for the image of that commit}"
 REPO=arda-basarici/leave-impact-agent
 REGION=eu-central-1
-APP_DIR=/srv/app
+APP_DIR=${APP_DIR:-/srv/app}
 
 # A parameter's value, or a failed deploy when it still holds the `UNSET` placeholder
 # the platform stack creates it with (its ceremony puts the real value): a placeholder
@@ -38,7 +43,12 @@ export PGDATA_HOST=/srv/pgdata
 POSTGRES_PASSWORD=$(param /leave-agent/postgres-password)
 export POSTGRES_PASSWORD
 
-docker compose pull --quiet
+# The app image by its digest, then given the sha tag the compose file names, so
+# compose finds the tag present and pulls nothing for it; the service image is pulled
+# by compose under its own pinned tag.
+docker pull --quiet "ghcr.io/$REPO@$DEPLOY_DIGEST"
+docker tag "ghcr.io/$REPO@$DEPLOY_DIGEST" "ghcr.io/$REPO:$DEPLOY_SHA"
+docker compose pull --quiet postgres
 docker compose up -d --wait postgres
 # The corpus cache: every world under `worlds/` the serving rule admits is loaded
 # into PostgreSQL under its version, verified against its manifest, and marked
@@ -72,4 +82,4 @@ docker images "ghcr.io/$REPO" --format '{{.ID}}' | sort -u | awk -v keep="$KEEP_
 docker image prune -f
 
 echo "$DEPLOY_SHA" > "$APP_DIR/DEPLOYED"
-echo "deployed $DEPLOY_SHA at $(date -u +%FT%TZ)"
+echo "deployed $DEPLOY_SHA ($DEPLOY_DIGEST) at $(date -u +%FT%TZ)"

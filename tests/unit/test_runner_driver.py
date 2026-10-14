@@ -1,6 +1,7 @@
-"""The runner-side driver under a fake ``aws``: the lifecycle's sends in the order the
-launcher's ``status`` answers dictate, each payload carrying the step's exports and the host
-script, the identities derived from the workflow run, the threshold amounts from the
+"""The runner-side driver under a fake ``aws`` and a fake ``gh``: the CI guard that reads
+the dispatched commit's CI run before any send, the lifecycle's sends in the order the
+launcher's ``status`` answers dictate, each payload carrying the step's exports and the
+host script, the identities derived from the workflow run, the threshold amounts from the
 registration's own budget, and the ends the walk can reach (published, waiting, held, a
 fault no re-send cures, an uncertain completion read before any re-send)."""
 
@@ -25,6 +26,10 @@ from tests.unit.shell_support import (
 
 SHA = "a" * 40
 REGISTRATION = REPO_ROOT / "preregistration" / "registration.json"
+REPOSITORY = "arda-basarici/leave-impact-agent"
+CI_RUN, CI_ATTEMPT = 4242, 2
+REQUIRED_JOBS = ("check", "sweeps", "crash-matrix", "image", "deploy")
+GREEN: dict[str, tuple[str, str | None]] = {job: ("completed", "success") for job in REQUIRED_JOBS}
 
 RUN_INPUTS = {
     "MODE": "run",
@@ -68,13 +73,45 @@ def _head(checkout: Path) -> str:
     ).stdout.strip()
 
 
+def _ci(
+    fakes: FakeBinaries,
+    jobs: dict[str, tuple[str, str | None]] = GREEN,
+    *,
+    runs: tuple[tuple[int, int, str, str], ...] = ((CI_RUN, CI_ATTEMPT, "push", "main"),),
+) -> None:
+    """What the fake Actions API answers: the CI workflow's runs at the dispatched sha (id,
+    attempt, event, branch) and the latest attempt's jobs by name (status, conclusion)."""
+    (fakes.fake_dir / "ci-runs.json").write_text(
+        json.dumps(
+            {
+                "workflow_runs": [
+                    {"id": run, "run_attempt": attempt, "event": event, "head_branch": branch}
+                    for run, attempt, event, branch in runs
+                ]
+            }
+        )
+    )
+    (fakes.fake_dir / "ci-jobs.json").write_text(
+        json.dumps(
+            {
+                "jobs": [
+                    {"name": name, "status": status, "conclusion": conclusion}
+                    for name, (status, conclusion) in jobs.items()
+                ]
+            }
+        )
+    )
+
+
 @pytest.fixture
 def driver(tmp_path: Path, checkout: Path) -> tuple[FakeBinaries, dict[str, str]]:
     fakes = fake_binaries(tmp_path)
+    _ci(fakes)
     env = fakes.environment(
         CHECKOUT=str(checkout),
         HOST_SCRIPT=posix(HOST_SCRIPT),
         GITHUB_SHA=SHA,
+        GITHUB_REPOSITORY=REPOSITORY,
         GITHUB_RUN_ID="77",
         GITHUB_RUN_ATTEMPT="1",
         GITHUB_ACTOR="arda",
@@ -123,6 +160,14 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     )
     status, out, err = _run(fakes, env, **RUN_INPUTS)
     assert status == 0, err
+    # The CI guard read the run and its latest attempt before the first send.
+    assert fakes.lines("gh api") == [
+        f"gh api repos/{REPOSITORY}/actions/workflows/ci.yml/runs"
+        f"?head_sha={SHA}&event=push&per_page=100",
+        f"gh api repos/{REPOSITORY}/actions/runs/{CI_RUN}/jobs?filter=latest&per_page=100",
+    ]
+    jobs = " ".join(REQUIRED_JOBS)
+    assert f"CI run {CI_RUN} attempt {CI_ATTEMPT} of {SHA}: {jobs} concluded success" in out
     assert _words(fakes) == ["launch", "work", "status", "publish", "inventory"]
     launch = fakes.payload_exports(1)
     budget = json.loads(REGISTRATION.read_text())["budget"]
@@ -146,6 +191,82 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     assert payload["executionTimeout"] == ["3600"]
     assert "inventory: inventory_digest=" + "e" * 64 in out
     assert "inventory_digest=" + "e" * 64 in (tmp_path / "summary.md").read_text()
+
+
+@pytest.mark.parametrize(
+    ("jobs", "refused"),
+    [
+        ({**GREEN, "crash-matrix": ("in_progress", None)}, "crash-matrix=in_progress/null"),
+        ({**GREEN, "image": ("completed", "failure")}, "image=completed/failure"),
+        ({**GREEN, "sweeps": ("completed", "cancelled")}, "sweeps=completed/cancelled"),
+        ({**GREEN, "deploy": ("completed", "skipped")}, "deploy=completed/skipped"),
+        ({job: GREEN[job] for job in REQUIRED_JOBS if job != "check"}, "check=absent"),
+        (
+            {**GREEN, "sweeps": ("queued", None), "deploy": ("completed", "failure")},
+            "sweeps=queued/null deploy=completed/failure",
+        ),
+    ],
+    ids=["pending", "failed", "cancelled", "skipped", "absent", "two"],
+)
+def test_a_required_job_not_concluded_success_refuses_the_dispatch_before_any_send(
+    driver: tuple[FakeBinaries, dict[str, str]],
+    jobs: dict[str, tuple[str, str | None]],
+    refused: str,
+) -> None:
+    """The freeze step's fork 10: a pending, failed, cancelled, skipped or absent required
+    job of the deployed sha's CI run ends the job red naming the run, the attempt and each
+    job's state, and nothing is sent to the host."""
+    fakes, env = driver
+    _ci(fakes, jobs)
+    _script(fakes, LAUNCHED)
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 1
+    assert (
+        f"CI run {CI_RUN} attempt {CI_ATTEMPT} of {SHA} has required jobs not concluded "
+        f"success: {refused}; nothing is dispatched"
+    ) in out
+    assert not (fakes.fake_dir / "sends").exists()
+
+
+@pytest.mark.parametrize(
+    ("runs", "message"),
+    [
+        ((), f"no push run of ci.yml on main built {SHA}; nothing is dispatched"),
+        (
+            ((CI_RUN, 1, "push", "feature"),),
+            f"no push run of ci.yml on main built {SHA}; nothing is dispatched",
+        ),
+        (
+            ((CI_RUN, 1, "push", "main"), (CI_RUN + 1, 1, "push", "main")),
+            f"2 push runs of ci.yml on main built {SHA} ({CI_RUN} {CI_RUN + 1}); one is expected, "
+            "nothing is dispatched",
+        ),
+    ],
+    ids=["none", "another-branch", "two"],
+)
+def test_the_guard_wants_exactly_one_push_run_of_ci_on_main_for_the_sha(
+    driver: tuple[FakeBinaries, dict[str, str]],
+    runs: tuple[tuple[int, int, str, str], ...],
+    message: str,
+) -> None:
+    fakes, env = driver
+    _ci(fakes, runs=runs)
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 1
+    assert message in out
+    assert fakes.lines("gh api")[1:] == [] and not (fakes.fake_dir / "sends").exists()
+
+
+def test_a_continuation_passes_the_guard_too(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """The continue-run workflow runs the same driver, so an attempt is continued only on a
+    commit whose CI run is green."""
+    fakes, env = driver
+    _ci(fakes, {**GREEN, "image": ("completed", "failure")})
+    status, out, _ = _run(fakes, env, **CONTINUE_INPUTS)
+    assert status == 1 and "image=completed/failure" in out
+    assert not (fakes.fake_dir / "sends").exists()
 
 
 def test_a_human_pause_ends_the_job_green_and_names_the_launch_for_the_continue_dispatch(

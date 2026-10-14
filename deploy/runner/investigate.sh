@@ -57,6 +57,10 @@
 # human who dispatched the continue-run workflow after reading the
 # payload in Session Manager.
 #
+# Before any send the CI run that built the dispatched commit is read off the Actions
+# API and every named required job must have concluded success (the guard below, the
+# freeze step's fork 10); the workflow grants `actions: read` and the token for it.
+#
 # The job log is public: what this prints is each step's stored output (ids,
 # counts, kinds, file names, the reservation) and its own decisions. The payloads
 # carry no secret; the host reads those from Parameter Store itself.
@@ -116,6 +120,48 @@ REGISTRATION_COMMIT=$(git log -1 --format=%H -- "$REGISTRATION_FILE")
 test -n "$REGISTRATION_COMMIT" || { echo "no commit touches $REGISTRATION_FILE"; exit 2; }
 THRESHOLD_PICO=$(( $(jq -r .budget.admission_threshold_usd "$REGISTRATION_FILE") * 1000000000000 ))
 LIMIT_PICO=$(( $(jq -r .budget.admission_threshold_limit_usd "$REGISTRATION_FILE") * 1000000000000 ))
+
+# The CI guard (the freeze step, fork 10; ruled at the first live run's close). The host's
+# DEPLOYED check says the dispatched commit is the deployed one, not that the CI run that
+# built it was green: a development deploy may be approved before the crash matrix ends,
+# and a red matrix on a deployed commit is an incident, not a refusal. For the measurement
+# this is not enough, so before any send the Actions API is read for the push run of the
+# CI workflow on main at this commit, and every named required job of its latest attempt
+# must have concluded success; pending, failed, cancelled, skipped and absent each refuse
+# the dispatch, and the run and attempt read are printed. The two guards are independent.
+# Probed on run 38615543839 (2026-10-14): attempt 1 failed the image job and skipped the
+# deploy, attempt 2 re-ran every job, and `filter=latest` lists the five jobs at attempt 2.
+CI_WORKFLOW=${CI_WORKFLOW:-ci.yml}
+CI_REQUIRED_JOBS=${CI_REQUIRED_JOBS:-"check sweeps crash-matrix image deploy"}
+: "${GITHUB_REPOSITORY:?}"
+gh api "repos/$GITHUB_REPOSITORY/actions/workflows/$CI_WORKFLOW/runs?head_sha=$GITHUB_SHA&event=push&per_page=100" \
+  > "$OUT_DIR/ci-runs.json"
+# `tr` strips the carriage return a Windows jq appends, so the fake-binary tests read the
+# same bytes the runner's jq prints.
+mapfile -t ci_runs < <(jq -r '.workflow_runs[] | select(.head_branch == "main") | .id' "$OUT_DIR/ci-runs.json" | tr -d '\r')
+case "${#ci_runs[@]}" in
+  0) echo "no push run of $CI_WORKFLOW on main built $GITHUB_SHA; nothing is dispatched"; exit 1 ;;
+  1) ;;
+  *)
+    echo "${#ci_runs[@]} push runs of $CI_WORKFLOW on main built $GITHUB_SHA (${ci_runs[*]}); one is expected, nothing is dispatched"
+    exit 1
+    ;;
+esac
+ci_run=${ci_runs[0]}
+ci_attempt=$(jq -r --argjson id "$ci_run" '.workflow_runs[] | select(.id == $id) | .run_attempt' "$OUT_DIR/ci-runs.json" | tr -d '\r')
+gh api "repos/$GITHUB_REPOSITORY/actions/runs/$ci_run/jobs?filter=latest&per_page=100" > "$OUT_DIR/ci-jobs.json"
+ci_refused=""
+for job in $CI_REQUIRED_JOBS; do
+  state=$(jq -r --arg name "$job" \
+    '[.jobs[] | select(.name == $name)] | if length == 0 then "absent" else "\(.[0].status)/\(.[0].conclusion)" end' \
+    "$OUT_DIR/ci-jobs.json" | tr -d '\r')
+  [ "$state" = "completed/success" ] || ci_refused="$ci_refused $job=$state"
+done
+if [ -n "$ci_refused" ]; then
+  echo "CI run $ci_run attempt $ci_attempt of $GITHUB_SHA has required jobs not concluded success:$ci_refused; nothing is dispatched"
+  exit 1
+fi
+echo "CI run $ci_run attempt $ci_attempt of $GITHUB_SHA: $CI_REQUIRED_JOBS concluded success"
 
 IID=$(aws ec2 describe-instances \
   --filters "Name=tag:Name,Values=$INSTANCE_TAG" Name=instance-state-name,Values=running \

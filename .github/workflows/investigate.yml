@@ -8,8 +8,10 @@
 #
 # The run rides the commit this workflow is dispatched from: the host refuses the
 # step when its DEPLOYED sha differs, so a run follows a deploy and never precedes
-# one. The model settings are not inputs: the launcher fills the role from the
-# registration, and the price key is the model id. The threshold receipt's amounts
+# one; and the driver refuses to send anything until the CI run that built the commit
+# shows every named job concluded success (the freeze step, fork 10). The model
+# settings are not inputs: the launcher fills the role from the registration, and the
+# price key is the model id. The threshold receipt's amounts
 # are read from the registration in this checkout. Credentials are the deploy
 # role's (OIDC) for the sends and the instance role's on the host; the repository
 # stores no key and the payloads carry no secret.
@@ -84,8 +86,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      # The driver reads the CI run of the dispatched commit off the Actions API before
+      # any send (the freeze step, fork 10).
+      actions: read
     env:
       AWS_REGION: eu-central-1
+      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

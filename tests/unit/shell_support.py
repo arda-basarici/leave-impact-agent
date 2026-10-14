@@ -1,7 +1,7 @@
-"""Running the two lifecycle shell scripts under fake binaries: a ``bash`` found beside git
-on Windows (the system one there may be WSL's), a directory of fake ``aws``, ``docker``,
-``curl`` and ``chown`` scripts put first on ``PATH``, and a log every fake appends its
-command line to.
+"""Running the lifecycle and deploy shell scripts under fake binaries: a ``bash`` found
+beside git on Windows (the system one there may be WSL's), a directory of fake ``aws``,
+``docker``, ``curl``, ``chown`` and ``gh`` scripts put first on ``PATH``, and a log every
+fake appends its command line to.
 
 The fakes answer what the scripts read and record what they ran, so a test asserts the
 composed command lines, the environment a container was handed, and the sequence of sends,
@@ -22,7 +22,9 @@ writes the plan's two files under the mounted run directory for a ``plan`` comma
 prints ``launch=launch-fake``, prints the scripted ``status.txt`` for a ``status``, and
 answers a ``ps`` with the scripted ``running.txt`` (the attempt's container, when the test
 says it still runs). ``chown`` only records, since the real one is a no-op on Windows and
-the handover to the image's user is what a test asserts.
+the handover to the image's user is what a test asserts. ``gh`` answers the two Actions
+API reads the driver's CI guard makes with the test's scripted ``ci-runs.json`` and
+``ci-jobs.json``.
 """
 
 from __future__ import annotations
@@ -37,6 +39,7 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parents[2]
 HOST_SCRIPT = REPO_ROOT / "deploy" / "instance" / "lifecycle.sh"
 DRIVER_SCRIPT = REPO_ROOT / "deploy" / "runner" / "investigate.sh"
+DEPLOY_SCRIPT = REPO_ROOT / "deploy" / "instance" / "deploy.sh"
 
 _FAKE_AWS = r"""#!/usr/bin/env bash
 set -euo pipefail
@@ -120,6 +123,17 @@ elif [ "$1" = ps ]; then
   cat "$FAKE_DIR/running.txt" 2>/dev/null || true
 fi
 exit "${FAKE_DOCKER_EXIT:-0}"
+"""
+
+_FAKE_GH = r"""#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "gh $*" >> "$FAKE_LOG"
+[ "$1" = api ] || { echo "fake gh: $*" >&2; exit 1; }
+case "$2" in
+  */actions/workflows/*/runs\?*) cat "$FAKE_DIR/ci-runs.json" ;;
+  */actions/runs/*/jobs\?*) cat "$FAKE_DIR/ci-jobs.json" ;;
+  *) echo "fake gh: $*" >&2; exit 1 ;;
+esac
 """
 
 _FAKE_CHOWN = r"""#!/usr/bin/env bash
@@ -224,6 +238,7 @@ def fake_binaries(root: Path) -> FakeBinaries:
         ("docker", _FAKE_DOCKER),
         ("curl", _FAKE_CURL),
         ("chown", _FAKE_CHOWN),
+        ("gh", _FAKE_GH),
     ):
         script = bin_dir / name
         script.write_text(body, newline="\n")
