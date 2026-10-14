@@ -101,7 +101,12 @@ ADMITTER = Producer("admitter")
 RESERVATION = 10 * cases.ALLOCATION
 """Room for ten dispatches at the fixtures' worst case."""
 RULES_ONLY = System(SystemKind.RULES_ONLY, "reference")
-REGISTRATION_FILE = Path(__file__).resolve().parents[2] / "preregistration" / "registration.json"
+REGISTRATION_FILE = (
+    Path(__file__).resolve().parents[2] / "tests" / "fixtures" / "registration-draft.json"
+)
+"""The draft fixture (``registration_fixture``): it registers a rules-only cell under every
+condition, which the outage matrix runs through the worker. The committed file froze on
+2026-10-14 with those cells cut, and a run is composed only for a registered cell."""
 NO_RATES = PricingBasis("a" * 64, "USD", date(2026, 9, 1), ())
 """The basis a rules-only run embeds in these tests: a table's digest and no row, as the
 work line's ``basis_for(table, ())`` gives."""
@@ -164,8 +169,8 @@ def reader_inputs(context: RunContext, system: System) -> FrozenInputs:
 
 
 def rules_only_inputs(context: RunContext, down: frozenset[Source] = frozenset()) -> FrozenInputs:
-    """The frozen inputs of a rules-only run of ``context`` under the committed registration's
-    cell for ``down`` at the base level: ``registered.rules_only_configuration`` over the
+    """The frozen inputs of a rules-only run of ``context`` under the draft fixture's cell for
+    ``down`` at the base level: ``registered.rules_only_configuration`` over the
     fixtures' copied fields, no role, no table, no policy and no reservation (the first live
     run's step, fork 4)."""
     registration = decode_registration_bytes(REGISTRATION_FILE.read_bytes())

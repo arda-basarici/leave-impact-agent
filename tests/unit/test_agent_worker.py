@@ -1163,6 +1163,43 @@ def test_a_request_over_the_roles_context_allowance_is_refused_before_the_send(
     assert decode_export_bytes(export_bytes(export)) == export
 
 
+OVER_CAP = Caps(
+    20,
+    cases.INPUT_BOUND + cases.OUTPUT_MAXIMUM - 1,
+    2,
+    20,
+    "input_plus_output_cached_included",
+    cases.METHOD,
+)
+"""A token cap one token under the fixtures' worst case for a single dispatch: neither the
+loop's allocation nor the finalization's fits, so the run ends at its cap before any send."""
+
+
+def test_a_request_over_the_token_cap_and_under_the_allowance_ends_at_the_cap_before_any_send(
+    world: SealedWorld,
+) -> None:
+    """The freeze step, fork 5: full context's registered token cap is its allowance less the
+    output maximum, so a level too large for the model meets the cap path before the
+    allowance check. No dispatch intent is logged, nothing is sent, and the run ends
+    ``cap_exhausted`` through the approval of what it has, a graded ending of the system and
+    never an infrastructure failure; a refusal before the send stays the credential class's
+    (the test above)."""
+    made = bench(world)
+    made.inputs = replace(made.inputs, caps=OVER_CAP)
+    made.log = MemoryLog()
+    made.log.seed(support.admission(made.inputs))
+    assert made.work() == WorkerEnding(WorkerEndingKind.CLOSED, RUN, ATTEMPT, 1, "cap_exhausted")
+    assert made.client.sends == []
+    kinds = made.kinds()
+    assert "dispatch_intent" not in kinds and "finalization_entered" in kinds
+    state = made.log.load(RUN, ATTEMPT, rules=RULES)
+    assert not isinstance(state.closing, Failed)
+    request = state.approval_requested
+    assert request is not None and isinstance(request.event, ApprovalRequested)
+    assert request.event.at_cap is True
+    assert export_of(state).record.status.value == "cap_exhausted"
+
+
 def test_a_request_that_exactly_fits_the_allowance_is_sent(world: SealedWorld) -> None:
     """The check's boundary: the bound plus the output maximum equal to the allowance fits,
     and the reference run completes with its two sends."""

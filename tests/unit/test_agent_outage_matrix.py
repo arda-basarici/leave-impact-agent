@@ -17,7 +17,7 @@ the source. A recovering worker injects the outage from the admission again and 
 vendor call. The log refuses a harness read after the derived universe abstention, a history
 the preparation node never writes and the append had accepted (group 2's external read).
 
-The conditions are the registration's own, read from the committed draft, so a condition
+The conditions are the registration's own, read from the committed file, so a condition
 added there is a case here. Rules only runs through the worker too (the first live run's
 step, fork 4), and its export under each condition equals the direct run's apart from
 what the log stamps, the forecast committed before that build.
@@ -28,7 +28,6 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
-from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
@@ -85,7 +84,6 @@ from leaveimpact.core import (
     UnreachableOutcome,
     condition_id,
     decode_export_bytes,
-    decode_registration_bytes,
     export_bytes,
 )
 from leaveimpact.core.read_condition import observed_condition
@@ -101,6 +99,7 @@ from tests.unit import worker_support as support
 from tests.unit.export_fixture import export_baseline
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.reads_fixture import systems_holding
+from tests.unit.registration_fixture import COMMITTED, DRAFT
 from tests.unit.throwaway_world import loaded_world
 from tests.unit.worker_support import (
     ContentScriptedClient,
@@ -113,13 +112,20 @@ from tests.unit.worker_support import (
 RULES = histories.RULES
 RUN, ATTEMPT = "run-12", 1
 COMMIT = "b" * 40
-REGISTRATION = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
+REGISTRATION = DRAFT
+"""The registration the runs are composed under: the draft fixture, which registers a cell
+for every system under every condition. The committed file froze on 2026-10-14 with the
+outage cells of three systems cut (the freeze step, fork 1), and a run is composed only for
+a registered cell; the conditions themselves stay registered there, and the test below holds
+the two files to the same five."""
 CONDITIONS: tuple[frozenset[Source], ...] = tuple(
-    condition.unreachable for condition in REGISTRATION.outage.conditions
+    condition.unreachable for condition in COMMITTED.outage.conditions
 )
-"""The five registered conditions, by the sources they schedule out."""
+"""The five registered conditions, by the sources they schedule out, the committed file's."""
+
+
+def test_the_committed_file_schedules_the_conditions_the_runs_here_are_composed_under() -> None:
+    assert COMMITTED.outage == REGISTRATION.outage
 
 
 def condition_name(down: frozenset[Source]) -> str:

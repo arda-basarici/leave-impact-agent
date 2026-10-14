@@ -10,7 +10,6 @@ degraded states as the evaluator sees them, and a failed run excluded by its def
 from collections import Counter
 from dataclasses import dataclass, replace
 from datetime import date
-from pathlib import Path
 
 import pytest
 
@@ -29,7 +28,6 @@ from leaveimpact.core import (
     TerminalStatus,
     TreeState,
     condition_id,
-    decode_registration_bytes,
     export_bytes,
     prefetch_rule,
 )
@@ -48,6 +46,7 @@ from leaveimpact.world import Scenario
 from tests.unit.export_fixture import export_baseline
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import Systems, systems_holding
+from tests.unit.registration_fixture import DRAFT
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
@@ -70,9 +69,9 @@ CORRECT_WHOLE: dict[tuple[Source, ...], dict[str, int]] = {
     (Source.CALENDAR,): {"structured": 10, "fragmented": 3, "adversarial": 0},
 }
 
-REGISTRATION = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
+REGISTRATION = DRAFT
+"""The draft fixture, which registers the baseline under every condition; the committed
+file froze on 2026-10-14 with the outage cells of three systems cut (the freeze step)."""
 
 
 def provenance(*down: Source) -> RunProvenance:

@@ -1,6 +1,6 @@
 {
   "format_version": 5,
-  "status": "draft",
+  "status": "frozen",
   "amendment": {
     "amends": null,
     "prior_full_set_results": false
@@ -60,9 +60,9 @@
         ]
       },
       "caps": {
-        "basis": "unmeasured",
-        "call_cap": 20,
-        "token_cap": 400000,
+        "basis": "calibrated",
+        "call_cap": 14,
+        "token_cap": 200000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
         "counting_rule": "input_plus_output_cached_included",
@@ -82,9 +82,9 @@
         "embedding_model": null
       },
       "caps": {
-        "basis": "unmeasured",
-        "call_cap": 20,
-        "token_cap": 400000,
+        "basis": "calibrated",
+        "call_cap": 8,
+        "token_cap": 30000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
         "counting_rule": "input_plus_output_cached_included",
@@ -158,9 +158,9 @@
         "value": 20
       },
       "caps": {
-        "basis": "unmeasured",
-        "call_cap": 20,
-        "token_cap": 400000,
+        "basis": "calibrated",
+        "call_cap": 8,
+        "token_cap": 50000,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
         "counting_rule": "input_plus_output_cached_included",
@@ -217,9 +217,9 @@
         ]
       },
       "caps": {
-        "basis": "unmeasured",
-        "call_cap": 20,
-        "token_cap": 400000,
+        "basis": "calibrated",
+        "call_cap": 8,
+        "token_cap": 191808,
         "finalization_call_reserve": 2,
         "finalization_token_reserve": 20000,
         "counting_rule": "input_plus_output_cached_included",
@@ -237,16 +237,22 @@
         "value": 0
       },
       "full_context_input_tokens": {
-        "pending": "measured at the procedure freeze from the calibration runs' full-context requests, by the provider's usage"
+        "value": {
+          "low": 10359,
+          "high": 10611
+        }
       }
     },
     {
       "name": "padded",
       "filler_documents": {
-        "pending": "set by the level-selection rule at the procedure freeze, as the count of filler documents the measurement world seals for the level"
+        "value": 160
       },
       "full_context_input_tokens": {
-        "pending": "measured at the procedure freeze from the calibration runs' full-context requests, by the provider's usage"
+        "value": {
+          "low": 42390,
+          "high": 42642
+        }
       }
     }
   ],
@@ -292,7 +298,10 @@
       "name": "full_context_under_outage",
       "rule": "run only if the reforecast leaves budget for them, decided before any measurement result exists, all four or none",
       "decision": {
-        "pending": "decided from the reforecast at the procedure freeze"
+        "value": {
+          "run": false,
+          "reason": "not run before the milestone's exit: the outage matrix was cut from the registered measurement on 2026-10-14 for time and cost, and the behaviour under each outage is reported as development evidence, one demonstration per condition on one scenario"
+        }
       }
     }
   ],
@@ -346,46 +355,10 @@
       "group": null
     },
     {
-      "system": "agent",
-      "condition": "jira_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "rules_only",
-      "condition": "jira_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "single_shot",
-      "condition": "jira_down",
-      "level": "base",
-      "group": null
-    },
-    {
       "system": "full_context",
       "condition": "jira_down",
       "level": "base",
       "group": "full_context_under_outage"
-    },
-    {
-      "system": "agent",
-      "condition": "calendar_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "rules_only",
-      "condition": "calendar_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "single_shot",
-      "condition": "calendar_down",
-      "level": "base",
-      "group": null
     },
     {
       "system": "full_context",
@@ -394,46 +367,10 @@
       "group": "full_context_under_outage"
     },
     {
-      "system": "agent",
-      "condition": "frappe_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "rules_only",
-      "condition": "frappe_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "single_shot",
-      "condition": "frappe_down",
-      "level": "base",
-      "group": null
-    },
-    {
       "system": "full_context",
       "condition": "frappe_down",
       "level": "base",
       "group": "full_context_under_outage"
-    },
-    {
-      "system": "agent",
-      "condition": "corpus_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "rules_only",
-      "condition": "corpus_down",
-      "level": "base",
-      "group": null
-    },
-    {
-      "system": "single_shot",
-      "condition": "corpus_down",
-      "level": "base",
-      "group": null
     },
     {
       "system": "full_context",
@@ -451,13 +388,121 @@
     },
     "counted_attempt": "earliest_not_infrastructure",
     "redispatch": {
-      "pending": "the most dispatches of a logical call and the backoff before each later one, set at the procedure freeze"
+      "value": {
+        "max_dispatches": 3,
+        "delay_ms": 1000
+      }
     },
     "count_retry": "redispatch_policy",
     "estimand": "the registered system with up to two retries after an infrastructure failure"
   },
   "attribution": {
-    "pending": "the table's rows, set at the procedure freeze"
+    "value": [
+      {
+        "identifier": "registered-stop-reason",
+        "match": {
+          "observation": "complete_response",
+          "stop_reasons": null,
+          "http_statuses": null,
+          "codes": null,
+          "original_statuses": null,
+          "message_signatures": null,
+          "client_errors": null,
+          "cause": null
+        },
+        "reading": "behaviour",
+        "redispatch": false,
+        "new_attempt": false,
+        "unmatched": false
+      },
+      {
+        "identifier": "stream",
+        "match": {
+          "observation": "broken_stream",
+          "stop_reasons": null,
+          "http_statuses": null,
+          "codes": null,
+          "original_statuses": null,
+          "message_signatures": null,
+          "client_errors": null,
+          "cause": null
+        },
+        "reading": "infrastructure",
+        "redispatch": false,
+        "new_attempt": false,
+        "unmatched": false
+      },
+      {
+        "identifier": "nova-cut-tool-use",
+        "match": {
+          "observation": "service_error",
+          "stop_reasons": null,
+          "http_statuses": null,
+          "codes": null,
+          "original_statuses": null,
+          "message_signatures": [
+            "Model produced invalid sequence as part of ToolUse"
+          ],
+          "client_errors": null,
+          "cause": null
+        },
+        "reading": "behaviour",
+        "redispatch": false,
+        "new_attempt": false,
+        "unmatched": false
+      },
+      {
+        "identifier": "unmatched",
+        "match": {
+          "observation": "service_error",
+          "stop_reasons": null,
+          "http_statuses": null,
+          "codes": null,
+          "original_statuses": null,
+          "message_signatures": null,
+          "client_errors": null,
+          "cause": null
+        },
+        "reading": "infrastructure",
+        "redispatch": true,
+        "new_attempt": false,
+        "unmatched": true
+      },
+      {
+        "identifier": "gave_up",
+        "match": {
+          "observation": "client_error",
+          "stop_reasons": null,
+          "http_statuses": null,
+          "codes": null,
+          "original_statuses": null,
+          "message_signatures": null,
+          "client_errors": null,
+          "cause": null
+        },
+        "reading": "infrastructure",
+        "redispatch": false,
+        "new_attempt": false,
+        "unmatched": false
+      },
+      {
+        "identifier": "never_sent",
+        "match": {
+          "observation": "refused_before_send",
+          "stop_reasons": null,
+          "http_statuses": null,
+          "codes": null,
+          "original_statuses": null,
+          "message_signatures": null,
+          "client_errors": null,
+          "cause": null
+        },
+        "reading": "infrastructure",
+        "redispatch": false,
+        "new_attempt": false,
+        "unmatched": false
+      }
+    ]
   },
   "stated_facts": {
     "composing_policy": {
@@ -559,14 +604,6 @@
         {
           "condition": "normal",
           "level": "padded"
-        },
-        {
-          "condition": "jira_down",
-          "level": "base"
-        },
-        {
-          "condition": "calendar_down",
-          "level": "base"
         }
       ],
       "pairs": [
@@ -694,7 +731,12 @@
       "endpoint": "retrieval_target_coverage_within_limit",
       "analysis": "paired_scenario_bootstrap_within_tier",
       "inclusion": {
-        "pending": "decided at the procedure freeze from full-text coverage on the development worlds at the padded level"
+        "value": {
+          "not_built": {
+            "reason": "not run before the milestone's exit, decided 2026-10-14 from time and cost before any measurement result exists; a vector arm built later is exploratory on this world",
+            "development_number": "single-shot full-text retrieval returned 3 of 7 required targets at the padded level on the second development world (the calibration round of 2026-10-14)"
+          }
+        }
       }
     },
     {
@@ -717,7 +759,12 @@
       "endpoint": "correct_whole_end_to_end",
       "analysis": "paired_scenario_bootstrap_within_tier",
       "inclusion": {
-        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+        "value": {
+          "not_built": {
+            "reason": "not run before the milestone's exit, decided 2026-10-14 from time and cost before any measurement result exists",
+            "development_number": null
+          }
+        }
       }
     },
     {
@@ -735,12 +782,17 @@
         }
       ],
       "other_model": {
-        "pending": "one model, named at the procedure freeze"
+        "value": null
       },
       "endpoint": "correct_whole_end_to_end",
       "analysis": "paired_scenario_bootstrap_within_tier",
       "inclusion": {
-        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+        "value": {
+          "not_built": {
+            "reason": "not run before the milestone's exit, decided 2026-10-14 from time and cost before any measurement result exists; no second model is named, since none runs and no counting probe is spent on one",
+            "development_number": null
+          }
+        }
       }
     },
     {
@@ -763,7 +815,12 @@
       "endpoint": "correct_whole_end_to_end",
       "analysis": "paired_scenario_bootstrap_within_tier",
       "inclusion": {
-        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+        "value": {
+          "not_built": {
+            "reason": "not run before the milestone's exit, decided 2026-10-14 from time and cost before any measurement result exists",
+            "development_number": "a model writing every claim was correct whole on 0 of 6 scenarios of a throwaway world where the rules composing over model-stated facts reached the ceiling (the probe of 2026-10-04)"
+          }
+        }
       }
     }
   ],
@@ -773,11 +830,11 @@
     "digest": "5bd949650749369ac4ec0b6eda452302f5d2cf4789e56edfb06ecbc92931057c"
   },
   "budget": {
-    "basis": "unmeasured",
-    "expected_usd": 150,
-    "ceiling_usd": 300,
+    "basis": "calibrated",
+    "expected_usd": 45,
+    "ceiling_usd": 90,
     "reforecast_after_runs": 10,
-    "admission_threshold_usd": 50,
-    "admission_threshold_limit_usd": 270
+    "admission_threshold_usd": 45,
+    "admission_threshold_limit_usd": 90
   }
 }

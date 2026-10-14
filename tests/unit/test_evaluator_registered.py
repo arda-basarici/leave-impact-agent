@@ -58,7 +58,14 @@ from leaveimpact.evaluator.trace_metrics import Evaluation, evaluate_run
 from leaveimpact.world import Scenario
 from tests.unit.evaluation_fixture import NORMAL, REFERENCE, evaluated, relabelled, truthful
 from tests.unit.export_fixture import provider_failed_export
-from tests.unit.registration_fixture import DRAFT, MECHANISM, decided, frozen, named
+from tests.unit.registration_fixture import (
+    COMMITTED,
+    DRAFT,
+    MECHANISM,
+    decided,
+    frozen,
+    named,
+)
 from tests.unit.report_fixture import of_type, renumbered, swapped, without
 from tests.unit.throwaway_world import loaded_world
 
@@ -349,6 +356,21 @@ def test_the_draft_projects_the_rules_only_cells_and_names_the_eighteen_it_left_
         GROUP
     }
     assert mechanism_pending(DRAFT) is None
+
+
+def test_the_frozen_registration_builds_eight_cells_and_leaves_the_grouped_four_unbuilt() -> None:
+    """The committed file since the freeze step: every system at both levels under the
+    normal condition is an arm, and full context's four outage cells wait on nothing but
+    their group's decision, which is not run."""
+    projection = preregistered(COMMITTED)
+    normal = RunCondition.all_reachable()
+    built = {(system.kind, condition, level) for system, condition, level in projection.plan.arms}
+    assert built == {(kind, normal, level) for kind in SystemKind for level in ("base", "padded")}
+    assert len(projection.plan.arms) == 8
+    assert [(left.cell.system, left.why, left.detail) for left in projection.unbuilt] == [
+        (SystemKind.FULL_CONTEXT, WhyUnbuilt.GROUP_NOT_RUN, GROUP)
+    ] * 4
+    assert mechanism_pending(COMMITTED) is None
 
 
 def test_a_cell_is_built_once_its_system_is_resolved_and_its_group_decided_as_run() -> None:

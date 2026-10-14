@@ -16,20 +16,28 @@ import pytest
 
 from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.composer import composing_policy
+from leaveimpact.agent.registered import (
+    DEVELOPMENT_ATTRIBUTION_TABLE,
+    DEVELOPMENT_REDISPATCH_POLICY,
+)
 from leaveimpact.agent.surface import surface_digest
 from leaveimpact.core import (
     OUTAGE_PROTOCOL,
     PREFETCH_PROTOCOL,
     AgentSystem,
     Basis,
+    Budget,
     CallConfiguration,
     CallSetting,
     CheckReading,
     FullContextSystem,
     GroupDecision,
+    InputTokenRange,
     LiteralQuery,
     MeasuredWorld,
+    NotBuilt,
     Pending,
+    Place,
     QueryInput,
     RegisteredRole,
     Registration,
@@ -190,6 +198,101 @@ def test_the_registered_roles_are_the_ones_the_tree_ships(held: Registration) ->
                 200_000,
             ),
         ), kind
+
+
+def test_the_committed_registration_is_frozen_as_ruled_at_the_freeze() -> None:
+    """The freeze step's rulings of 2026-10-14 as the committed file holds them: frozen with
+    the world's version alone pending; the padded level at 160 filler documents, both levels
+    carrying the full-context request size the calibration measured (fork 2); the caps by
+    the calibration rule with full context's token cap the allowance less the output
+    maximum (fork 4); the eight cells of every system at both levels under the normal
+    condition, with full context's four outage cells kept in their group decided not run
+    (forks 1 and 7) and the five conditions still scheduled; one repeat (fork 3); the
+    development table and re-dispatch policy registered unchanged (forks 5 and 6); the
+    descriptive places cut to the two normal ones; every supporting comparison not built
+    before exit, the second model unnamed (fork 8); the budget cumulative over the milestone
+    (fork 9). Everything the freeze did not rule is the draft's, held equal field by field."""
+    held = COMMITTED
+    assert held.status is RegistrationStatus.FROZEN
+    assert pending_fields(held) == ("world.version",)
+    assert (held.world.tuned_scenarios, held.world.frozen_commit) == (0, None)
+    assert (held.amendment.amends, held.amendment.prior_full_set_results) == (None, False)
+    base, padded = held.corpus_levels
+    assert (base.name, base.filler_documents, base.full_context_input_tokens) == (
+        "base",
+        0,
+        InputTokenRange(10_359, 10_611),
+    )
+    assert (padded.name, padded.filler_documents, padded.full_context_input_tokens) == (
+        "padded",
+        160,
+        InputTokenRange(42_390, 42_642),
+    )
+    caps = {
+        system.kind: (system.caps.basis, system.caps.caps.call_cap, system.caps.caps.token_cap)
+        for system in held.systems
+    }
+    assert caps == {
+        SystemKind.AGENT: (Basis.CALIBRATED, 14, 200_000),
+        SystemKind.RULES_ONLY: (Basis.CALIBRATED, 8, 30_000),
+        SystemKind.SINGLE_SHOT: (Basis.CALIBRATED, 8, 50_000),
+        SystemKind.FULL_CONTEXT: (Basis.CALIBRATED, 8, 191_808),
+    }
+    assert {
+        (system.caps.caps.finalization_call_reserve, system.caps.caps.finalization_token_reserve)
+        for system in held.systems
+    } == {(2, 20_000)}
+    assert {cell.place for cell in held.cells if cell.group is None} == {
+        (kind, "normal", level) for kind in SystemKind for level in ("base", "padded")
+    }
+    grouped = [cell for cell in held.cells if cell.group is not None]
+    assert {cell.place for cell in grouped} == {
+        (SystemKind.FULL_CONTEXT, condition, "base")
+        for condition in ("jira_down", "calendar_down", "frappe_down", "corpus_down")
+    }
+    assert [condition.id for condition in held.outage.conditions] == [
+        "normal",
+        "jira_down",
+        "calendar_down",
+        "frappe_down",
+        "corpus_down",
+    ]
+    (group,) = held.cell_groups
+    assert group.name == GROUP and isinstance(group.decision, GroupDecision)
+    assert not group.decision.run and group.decision.reason is not None
+    assert "cut from the registered measurement on 2026-10-14" in group.decision.reason
+    assert not any(held.runs(cell) for cell in grouped)
+    assert all(held.runs(cell) for cell in held.cells if cell.group is None)
+    assert held.run_accounting.repeats == 1
+    assert held.run_accounting.redispatch == DEVELOPMENT_REDISPATCH_POLICY
+    assert held.attribution == DEVELOPMENT_ATTRIBUTION_TABLE
+    assert held.statistics.descriptive.places == (
+        Place("normal", "base"),
+        Place("normal", "padded"),
+    )
+    inclusions = {entry.identifier: entry.inclusion for entry in held.supporting}
+    assert all(isinstance(state, NotBuilt) for state in inclusions.values())
+    assert all(entry.other_model is None for entry in held.supporting)
+    assert {
+        name
+        for name, state in inclusions.items()
+        if isinstance(state, NotBuilt) and state.development_number is not None
+    } == {"vector_retrieval", "authoring"}
+    assert held.budget == Budget(Basis.CALIBRATED, 45, 90, 10, 45, 90)
+    # What the freeze did not rule is the draft's.
+    for kind in SystemKind:
+        before, after = DRAFT.system(kind), held.system(kind)
+        assert before is not None and after is not None
+        assert replace(after, caps=before.caps) == before, kind
+    assert (held.outage, held.stated_facts, held.prefetch) == (
+        DRAFT.outage,
+        DRAFT.stated_facts,
+        DRAFT.prefetch,
+    )
+    assert replace(held.statistics, descriptive=DRAFT.statistics.descriptive) == DRAFT.statistics
+    assert replace(held.run_accounting, redispatch=DRAFT.run_accounting.redispatch) == (
+        DRAFT.run_accounting
+    )
 
 
 def test_the_draft_marks_its_numbers_unmeasured_amends_nothing_and_tunes_on_no_scenario() -> None:

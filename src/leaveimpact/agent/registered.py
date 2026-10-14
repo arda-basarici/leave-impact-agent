@@ -283,12 +283,17 @@ model's behaviour under any stop reason; a broken stream, a client that gave up 
 request never sent are infrastructure; a service error is infrastructure and re-dispatched
 unless it carries the one evidenced signature of the model's own doing. The rows are the
 fixtures' since the contract step, so every fixture record names this digest; the freeze
-registers the table it measures under, which may differ."""
+registered these rows unchanged (the freeze step, fork 5: no row is added without a
+development run that produced the observation, and none did), so the registered table and
+this value coincide, and this value stands only for a draft."""
 
 DEVELOPMENT_REDISPATCH_POLICY = RedispatchPolicy(3, 1_000)
 """At most three dispatches of a logical call, a second between them, while the registration
-holds the policy pending. The values are a guess with no measured basis behind them (the
-step-11 build notes), and the freeze sets the registered ones."""
+holds the policy pending. The values were a guess with no measured basis behind them (the
+step-11 build notes); the freeze registered them unchanged (the freeze step, fork 6), since
+the first live run's production runs and the prompt check's 105 development runs
+re-dispatched nothing, so no measurement argued for another bound, and the one-hour work
+send bounds the total."""
 
 
 MODEL_SYSTEM_ROLES: Mapping[SystemKind, Role] = MappingProxyType(

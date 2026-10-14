@@ -9,7 +9,6 @@ code does not plan."""
 
 from dataclasses import dataclass, replace
 from datetime import date, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -33,7 +32,6 @@ from leaveimpact.core import (
     calls_after_leave,
     condition_id,
     decode_export_bytes,
-    decode_registration_bytes,
     export_bytes,
 )
 from leaveimpact.core.ids import LeaveId
@@ -52,6 +50,7 @@ from leaveimpact.world import Scenario
 from tests.unit.export_fixture import export_baseline, logged_in_order
 from tests.unit.in_memory_ports import InMemoryWork
 from tests.unit.reads_fixture import FakeSystems, Systems, fakes_holding, systems_holding
+from tests.unit.registration_fixture import DRAFT
 from tests.unit.throwaway_world import loaded_world
 
 DIGEST = "a" * 64
@@ -70,9 +69,9 @@ CONDITIONS: tuple[tuple[Source, ...], ...] = (
     (Source.CORPUS,),
 )
 
-REGISTRATION = decode_registration_bytes(
-    (Path(__file__).resolve().parents[2] / "preregistration" / "registration.json").read_bytes()
-)
+REGISTRATION = DRAFT
+"""The draft fixture, which registers the baseline under every condition; the committed
+file froze on 2026-10-14 with the outage cells of three systems cut (the freeze step)."""
 
 
 @pytest.fixture(scope="module")

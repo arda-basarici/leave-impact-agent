@@ -62,6 +62,7 @@ from tests.unit.launch_fixture import (
 )
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.reads_fixture import systems_holding
+from tests.unit.registration_fixture import DRAFT
 from tests.unit.throwaway_world import loaded_world
 
 RUN, ATTEMPT = "run-12", 1
@@ -215,9 +216,11 @@ def test_pending_roles_and_an_unstated_setting_are_refused_by_name(
     probe: Any, development: SealedDevelopment
 ) -> None:
     """A draft holding the roles pending gives the launcher nothing to fill a role from; a
-    registered setting the work line has no flag for cannot be restated and is refused."""
+    registered setting the work line has no flag for cannot be restated and is refused. The
+    draft fixture, since only a draft can hold a role pending (the committed file is frozen
+    since the freeze step)."""
     scenario = probe.live_iteration_scenarios(development.world)[0]
-    registration = probe.registration()
+    registration = DRAFT
     agent = registration.system(SystemKind.AGENT)
     assert isinstance(agent, AgentSystem) and not isinstance(agent.roles, Pending)
 
