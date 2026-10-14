@@ -28,8 +28,8 @@ from pathlib import Path
 from threading import Lock
 
 from leaveimpact.core.jsonshape import JsonObject, as_object, expect_fields, string_field
-from leaveimpact.world import TargetRecord, encode_target_record
-from leaveimpact.world.truth_decoder import decode_target_record
+from leaveimpact.world import TargetRecord
+from leaveimpact.world.target_records import decode_target_record, encode_target_record
 
 __all__ = ["CheckpointUnreadable", "Checkpointed", "ProseCheckpoint"]
 

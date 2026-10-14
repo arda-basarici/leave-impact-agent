@@ -112,9 +112,6 @@ from leaveimpact.world.plan import PlanRow
 from leaveimpact.world.prose import (
     MaterializationRecord,
     Namespace,
-    Proposition,
-    Refusal,
-    TargetRecord,
 )
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -132,6 +129,7 @@ from leaveimpact.world.scenario import (
     Tier,
     require_coherent_key,
 )
+from leaveimpact.world.target_records import encode_target_record
 from leaveimpact.world.version import GeneratorVersion
 
 WORLD_SPEC = "world-spec.json"
@@ -701,45 +699,6 @@ def encode_materialization(record: MaterializationRecord) -> JsonObject:
     if record.metrics is not None:
         encoded["metrics"] = dict(record.metrics.counters)
     return encoded
-
-
-def encode_target_record(target: TargetRecord) -> JsonObject:
-    """One target's record as the truth manifest carries it; the prose checkpoint keeps the
-    same shape beside each body."""
-    return {
-        "target_id": target.target_id,
-        "attempts": target.attempts,
-        "refusals": [_refusal(refusal) for refusal in target.refusals],
-        "request_digest": target.request_digest,
-        "accepted_body_digest": target.accepted_body_digest,
-        "propositions": [encode_proposition(read) for read in target.propositions],
-    }
-
-
-def _refusal(refusal: Refusal) -> JsonObject:
-    encoded: JsonObject = {
-        "attempt": refusal.attempt,
-        "guard": refusal.guard.value,
-        "count": refusal.count,
-    }
-    # Absent, never empty, on a refusal recorded before reasons were: the decoder reads the
-    # difference back, and the bytes of records sealed before stay what they were.
-    if refusal.reasons is not None:
-        encoded["reasons"] = [
-            {"reason": reason.value, "count": count} for reason, count in refusal.reasons
-        ]
-    return encoded
-
-
-def encode_proposition(read: Proposition) -> JsonObject:
-    """A checker's reading of a text, its value tagged by the predicate's spec like a fact's."""
-    return {
-        "subject": None if read.subject is None else encode_ref(read.subject),
-        "predicate": read.predicate.value,
-        "value": encode_value(read.value, predicate(read.predicate).value_spec),
-        "polarity": read.polarity.value,
-        "assertion_mode": read.assertion_mode.value,
-    }
 
 
 def _key(key: TruthKey) -> JsonObject:

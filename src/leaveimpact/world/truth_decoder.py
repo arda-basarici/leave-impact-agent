@@ -70,7 +70,7 @@ from leaveimpact.core.jsonshape import (
 )
 from leaveimpact.core.predicates import PredicateName, predicate
 from leaveimpact.core.provenance import decode_model_configuration
-from leaveimpact.core.refs import EntityRef, EvidenceRef, require_id
+from leaveimpact.core.refs import EvidenceRef, require_id
 from leaveimpact.core.values_json import decode_ref, decode_value
 from leaveimpact.core.worldtime import date_at
 from leaveimpact.world.artifacts import (
@@ -90,19 +90,11 @@ from leaveimpact.world.briefs import (
     SectionTarget,
 )
 from leaveimpact.world.prose import (
-    AssertionMode,
     FactRole,
-    GuardName,
     MaterializationMetrics,
     MaterializationRecord,
     Namespace,
-    Polarity,
-    Proposition,
-    ReasonCount,
-    Refusal,
-    RefusalReason,
     SurfaceForm,
-    TargetRecord,
 )
 from leaveimpact.world.scenario import (
     AuthoredVerdict,
@@ -115,6 +107,7 @@ from leaveimpact.world.scenario import (
     ScenarioClassName,
     Tier,
 )
+from leaveimpact.world.target_records import decode_target_record
 
 _KEY_FIELDS = (
     "scenario_id",
@@ -449,72 +442,6 @@ def _prompt(item: object) -> tuple[str, str]:
     return (string_field(data, "name"), string_field(data, "digest"))
 
 
-def decode_target_record(item: object) -> TargetRecord:
-    """The inverse of ``encode_target_record``, refusing a missing or malformed field by name."""
-    data = as_object(item, "a target record")
-    expect_fields(
-        data,
-        (
-            "target_id",
-            "attempts",
-            "refusals",
-            "request_digest",
-            "accepted_body_digest",
-            "propositions",
-        ),
-        "a target record",
-    )
-    return TargetRecord(
-        target_id=string_field(data, "target_id"),
-        attempts=integer_field(data, "attempts"),
-        refusals=tuple(_refusal(entry) for entry in array_field(data, "refusals")),
-        request_digest=string_field(data, "request_digest"),
-        accepted_body_digest=string_field(data, "accepted_body_digest"),
-        propositions=tuple(_proposition(entry) for entry in array_field(data, "propositions")),
-    )
-
-
-def _refusal(item: object) -> Refusal:
-    data = as_object(item, "a refusal")
-    # Reasons joined the refusal after the measurement world was sealed; their field is the
-    # one allowed to be absent, and absent decodes as unavailable, never as no reasons.
-    reasoned = "reasons" in data
-    expect_fields(
-        data, ("attempt", "guard", "count") + (("reasons",) if reasoned else ()), "a refusal"
-    )
-    return Refusal(
-        integer_field(data, "attempt"),
-        GuardName(string_field(data, "guard")),
-        integer_field(data, "count"),
-        tuple(_reason(entry) for entry in array_field(data, "reasons")) if reasoned else None,
-    )
-
-
-def _reason(item: object) -> ReasonCount:
-    data = as_object(item, "a reason count")
-    expect_fields(data, ("reason", "count"), "a reason count")
-    return (RefusalReason(string_field(data, "reason")), integer_field(data, "count"))
-
-
-def _proposition(item: object) -> Proposition:
-    data = as_object(item, "a proposition")
-    expect_fields(
-        data, ("subject", "predicate", "value", "polarity", "assertion_mode"), "a proposition"
-    )
-    name = PredicateName(string_field(data, "predicate"))
-    raw_subject = field_of(data, "subject")
-    subject: EntityRef | None = None
-    if raw_subject is not None:
-        subject = decode_ref(as_object(raw_subject, "a proposition's subject"))
-    return Proposition(
-        subject,
-        name,
-        decode_value(object_field(data, "value"), predicate(name).value_spec),
-        Polarity(string_field(data, "polarity")),
-        AssertionMode(string_field(data, "assertion_mode")),
-    )
-
-
 # --- Ids and scalars ----------------------------------------------------------------------
 
 
@@ -541,4 +468,4 @@ def _integer_item(value: object, key: str) -> int:
     return value
 
 
-__all__ = ["decode_target_record", "decode_truth_manifest"]
+__all__ = ["decode_truth_manifest"]

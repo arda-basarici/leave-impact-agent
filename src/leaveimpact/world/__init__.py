@@ -64,10 +64,8 @@ from leaveimpact.world.artifacts import (
     bundle,
     canonical_bytes,
     encode_materialization,
-    encode_proposition,
     encode_scenario_specs,
     encode_semantic_world,
-    encode_target_record,
     encode_truth_manifest,
     encode_world_spec,
     planted_world_spec,
@@ -253,6 +251,7 @@ from leaveimpact.world.structured import (
     StructuredMeeting,
     StructuredMixed,
 )
+from leaveimpact.world.target_records import encode_proposition, encode_target_record
 from leaveimpact.world.truth_facts import (
     SYSTEM_OF,
     derive_org,
