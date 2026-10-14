@@ -255,3 +255,17 @@ reads on each; `end_turn` at 14 and 4 tokens; counting denied on both ids on 202
 counted on the base model id (30 tokens, 52 ms) on 2026-10-13 with the profile id still
 denied, as the grant states; the create-only rule held from the instance. The FINDINGS
 entry `step-14` carries the runs with the five lifecycle runs that followed them.
+
+## The measurement world's acceptance reads (run 2026-10-15)
+
+| probe | what it decides | forecast | rests on |
+|---|---|---|---|
+| **measurement-acceptance** (`measurement-acceptance/draw.py`, then `filler_read.py`, under the SSO profile; the draw by the development draw's rule from the frozen registration's statistics seed, the filler read one forced-tool Nova Pro call per document with the names compared in code against the world's lexicon) — whether the measurement world's five drawn filler documents read as the requirement they imitate and name nothing of the world (PROTOCOL, "How the measurement world is accepted"; fork 16) | five of five on both halves, since the generator's exact-spelling guard refused no filler on this world and the second development world's pool read the same way at the calibration; a hit would be a world defect and a numbered redraw | the sealed world read from both buckets, the lexicon the filler mint itself refuses against, and the comparator's positive controls (an exact team name, a lower-cased person, a person inside a longer phrase) |
+
+**Result.** As forecast: five of five read as the requirement they imitate, five of five name
+nothing of the world against 182 forms compared; the names listed were each document's own
+fictional release or client and the skills its briefs carry. One answer omitted the
+`reads_as` field the schema requires; the verdict field was present on all five. 3,599
+input and 353 output tokens. The three traces are the next session's hand audit; the
+folder's README has the run.
+
