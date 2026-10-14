@@ -199,6 +199,21 @@ def test_a_short_world_form_matches_only_in_exact_spelling(
     assert "names skill go" in refused.message
 
 
+def test_a_team_or_component_name_matches_only_in_exact_spelling(
+    brief: Brief, world_forms: tuple[SurfaceForm, ...]
+) -> None:
+    """Team and component names are dictionary words by design; matched in any case, the
+    team "Data" refused every client-notes section whose skills made the writer say "data
+    setup", 463 of 2,209 attempts and eight sections at the cap on the second development
+    world's draw (2026-10-14). Exact spelling keeps the reference refused and lets the word
+    through, the trade the short-form rule already makes."""
+    assert any(form.kind == "team" and form.form == "Data" for form in world_forms)
+    assert namespace_findings("The data pipeline setup needs Kafka.", brief, world_forms) == ()
+    [refused] = namespace_findings("The Data team owns the Kafka side.", brief, world_forms)
+    assert "names team" in refused.message
+    assert namespace_findings("The mobile build is Kafka-free.", brief, world_forms) == ()
+
+
 def test_dates_and_numbers_outside_the_brief_are_refused(
     brief: Brief, world_forms: tuple[SurfaceForm, ...]
 ) -> None:

@@ -131,9 +131,7 @@ def namespace_findings(
     # one it sits inside ("Deniz Kowalski") before the foreign form could match.
     for form in _longest_first(tuple(brief.namespace.forms) + tuple(world_forms)):
         admitted = (form.kind, form.id) in allowed or form.form.casefold() in allowed_spellings
-        pattern = word_pattern(
-            form.form, re.IGNORECASE if admitted else _disallowed_flags(form.form)
-        )
+        pattern = word_pattern(form.form, re.IGNORECASE if admitted else _disallowed_flags(form))
         hits = len(pattern.findall(masked))
         if not hits:
             continue
@@ -321,9 +319,20 @@ def _decoy_findings(brief: FillerBrief, extraction: Extraction) -> tuple[Finding
 SHORT_FORM = 3
 """Forms this short ("Go", "AWS") match only in exact spelling: common words in another case."""
 
+EXACT_SPELLING_KINDS: frozenset[str] = frozenset(
+    {EntityKind.TEAM.value, EntityKind.COMPONENT.value}
+)
+"""Kinds whose names are dictionary words by design ("Data", "Platform", "Mobile"), matched in
+exact spelling for the same reason as the short forms. Matched in any case, the team "Data"
+refused every client-notes section whose skills made the writer say "data setup": 463 of
+2,209 attempts and eight sections at the cap of sixteen on the second development world's
+first full draw (seed 103, 2026-10-14), a world that could not seal. The reference ("the Data
+team") stays refused; the word passes."""
 
-def _disallowed_flags(spelling: str) -> int:
-    return 0 if len(spelling) <= SHORT_FORM else re.IGNORECASE
+
+def _disallowed_flags(form: SurfaceForm) -> int:
+    exact = len(form.form) <= SHORT_FORM or form.kind in EXACT_SPELLING_KINDS
+    return 0 if exact else re.IGNORECASE
 
 
 def _longest_first(forms: Sequence[SurfaceForm]) -> list[SurfaceForm]:
