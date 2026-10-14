@@ -96,6 +96,10 @@ def test_the_prose_controls_default_and_are_validated() -> None:
         parse_recipe([*base, "--attempt-cap", "0"])
     with pytest.raises(ConfigurationError, match="--resume is a 64-hex world version"):
         parse_recipe([*base, "--resume", "not-a-version"])
+    assert parse_recipe(base).prose_workers == 1
+    assert parse_recipe([*base, "--prose-workers", "4"]).prose_workers == 4
+    with pytest.raises(ConfigurationError, match="--prose-workers is at least one"):
+        parse_recipe([*base, "--prose-workers", "0"])
 
 
 def test_the_filler_plan_defaults_to_no_pool_and_is_read_from_its_three_options() -> None:

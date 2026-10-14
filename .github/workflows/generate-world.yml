@@ -71,6 +71,11 @@ on:
         required: false
         type: number
         default: 5
+      filler:
+        description: "the filler pool: DOCUMENTS SECTIONS LEVEL=COUNT..., space-separated (540 4 padded=540); empty for none"
+        required: false
+        type: string
+        default: ""
       attempt_cap:
         description: fresh attempts per prose target before the target fails (default 8, the entry point's own)
         required: false
@@ -163,7 +168,11 @@ jobs:
           INPUT_ORG_SIZE: ${{ inputs.org_size }}
           INPUT_TEAM_COUNT: ${{ inputs.team_count }}
           INPUT_ATTEMPT_CAP: ${{ inputs.attempt_cap }}
+          INPUT_FILLER: ${{ inputs.filler }}
           INPUT_RESUME: ${{ inputs.resume }}
+          # The prose stage's concurrency, a run control sealed nowhere: four briefs in flight
+          # keep a 100,000-token pool inside the job's six-hour limit (the freeze step).
+          PROSE_WORKERS: "4"
         run: |
           set -euo pipefail
           aws sts get-caller-identity --query Arn --output text | tee identity.txt
@@ -174,8 +183,14 @@ jobs:
           unset LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
           args=(--seed-source "$INPUT_SEED_SOURCE" --world-start "$INPUT_WORLD_START" --plan "$INPUT_PLAN"
                 --org-size "$INPUT_ORG_SIZE" --team-count "$INPUT_TEAM_COUNT"
-                --attempt-cap "$INPUT_ATTEMPT_CAP")
+                --attempt-cap "$INPUT_ATTEMPT_CAP" --prose-workers "$PROSE_WORKERS")
           if [ "$INPUT_SEED_SOURCE" = "input" ]; then args+=(--seed "$INPUT_SEED"); fi
+          if [ -n "$INPUT_FILLER" ]; then
+            # shellcheck disable=SC2086  # word-split on purpose: DOCUMENTS SECTIONS LEVEL=COUNT...
+            set -- $INPUT_FILLER
+            args+=(--filler-documents "$1" --filler-sections "$2"); shift 2
+            for level in "$@"; do args+=(--level "$level"); done
+          fi
           if [ "$INPUT_EMBARGOED" = "true" ]; then args+=(--embargoed); fi
           if [ -n "$INPUT_RESUME" ]; then args+=(--resume "$INPUT_RESUME"); fi
           uv run python -m leaveimpact.generator "${args[@]}" | tee generate.log

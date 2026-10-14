@@ -41,7 +41,9 @@ class WorldRecipe:
     ``disclosure`` is the mark the world is sealed under, embargoed for a measurement
     world (the generator step's ruling 5); ``unprojected`` is the development path of
     ruling 7, the world sealed and never projected onto a vendor, a run control sealed
-    nowhere, so the same world sealed either way has one version.
+    nowhere, so the same world sealed either way has one version; ``prose_workers`` is the
+    materializer's concurrency, a run control sealed nowhere for the same reason (the
+    freeze step's ruling on the pool's generation time).
     """
 
     seed: int
@@ -53,3 +55,4 @@ class WorldRecipe:
     filler: FillerPlan = NO_FILLER
     disclosure: Disclosure = Disclosure.OPEN
     unprojected: bool = False
+    prose_workers: int = 1

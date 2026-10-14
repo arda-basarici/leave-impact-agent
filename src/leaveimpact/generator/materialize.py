@@ -1,12 +1,13 @@
 """The attempt loop: every pending brief written, gated, and either accepted with its record or
 refused until the cap, the whole stage before any byte of the world is fixed.
 
-One function, ``materialize``, walks the semantic world's briefs in order — scenario by
-scenario, brief by brief, which is the execution order the record preserves — and for each
-runs the loop the step 14 rulings fixed (DESIGN, "Truth before prose"): render the brief, ask the
-writer, run the namespace scanner and the required-fact check, ask the checker, parse its
-reading, run the containment check; accept on a clean pass, otherwise discard the draft
-whole and try again from the same prompt, with nothing fed back, up to the cap. Each attempt
+One function, ``materialize``, takes the semantic world's briefs in order — scenario by
+scenario, brief by brief, which is the order the record preserves whatever ran first — and
+for each runs the loop the step 14 rulings fixed (DESIGN, "Truth before prose"): render the
+brief, ask the writer, run the namespace scanner and the required-fact check, ask the
+checker, parse its reading, run the containment check; accept on a clean pass, otherwise
+discard the draft whole and try again from the same prompt, with nothing fed back, up to the
+cap. Each attempt
 is a fresh sample from the same configuration: the orchestration creates no dependence
 between attempts, which is the property claimed.
 
@@ -29,12 +30,25 @@ refusals per guard, checker retries and unusable checkers) with tokens and laten
 them. The log receives ids, attempt numbers, guard names and counts and never a sentence,
 since the job log is public; the private detail of a refusal exists only inside this
 function and is dropped.
+
+Briefs are independent by the property claimed above, so ``workers`` of them run at once on
+a thread pool (the freeze step's ruling on the pool's generation time: a 100,000-token
+filler pool is about 2,500 attempts, about eighty minutes sequentially at the 1.9 seconds
+an attempt the first development world measured, a quarter of that at four workers, and a
+world regenerated on a defect pays it again). Each brief's loop keeps its own tally and
+the tallies are merged in brief order, so the record and the metrics are the same sums at
+any worker count; the log is serialized so lines never interleave mid-line. Nothing the
+world seals changes with the count, which is why it is a run control and no generator
+version moves with it. Throttling is the SDK's standard retry with backoff first and the
+bounded retry here after it, as before.
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
+from concurrent.futures import FIRST_EXCEPTION, ThreadPoolExecutor, wait
 from dataclasses import dataclass, field, fields
+from threading import Lock
 
 from leaveimpact.adapters.prose.seam import (
     ModelAccessRefused,
@@ -114,6 +128,11 @@ class ProseMetrics:
         """The counters frozen for the record, every field in its declared order."""
         return MaterializationMetrics(tuple((f.name, getattr(self, f.name)) for f in fields(self)))
 
+    def absorb(self, other: ProseMetrics) -> None:
+        """Adds ``other``'s counters into these, field by field: a brief's tally into the run's."""
+        for f in fields(self):
+            setattr(self, f.name, getattr(self, f.name) + getattr(other, f.name))
+
 
 @dataclass(frozen=True, slots=True)
 class Materialized:
@@ -148,7 +167,7 @@ class MaterializationAborted(Exception):
 
 @dataclass(slots=True)
 class _Loop:
-    """The state one run of the loop carries: the models, the assets, the tallies, the log."""
+    """What one brief's loop carries: the shared models, assets and log, and its own tally."""
 
     writer: ProseWriter
     checker: ProseChecker
@@ -165,16 +184,22 @@ def materialize(
     assets: PromptAssets,
     attempt_cap: int,
     log: Callable[[str], None],
+    workers: int = 1,
 ) -> Materialized:
     """Every pending brief of ``semantic`` written and accepted, or the run's failures by name.
 
-    Raises ``MaterializationFailed`` after the whole stage when any target exhausted the cap,
-    ``MaterializationAborted`` at once when a model is unusable. Raises nothing and calls no
-    model for a world with no pending prose.
+    ``workers`` briefs are in flight at once; one is the sequential loop. The record lists
+    the targets in brief order and the metrics are the same sums at any count. Raises
+    ``MaterializationFailed`` after the whole stage when any target exhausted the cap,
+    ``MaterializationAborted`` at once when a model is unusable, the briefs not yet started
+    cancelled and the ones in flight finished first, the adapter's fault chained as the
+    cause. Raises nothing and calls no model for a world with no pending prose.
     """
     if attempt_cap < 1:
         raise ValueError(f"the attempt cap is at least one, got {attempt_cap}")
-    loop = _Loop(writer, checker, assets, attempt_cap, log)
+    if workers < 1:
+        raise ValueError(f"the worker count is at least one, got {workers}")
+    template = _Loop(writer, checker, assets, attempt_cap, _serialized(log))
     lexicon = lexicon_of(
         semantic.org,
         [p.entity for s in semantic.scenarios for p in s.owned.work_items],
@@ -182,28 +207,94 @@ def materialize(
         [p.entity for s in semantic.scenarios for p in s.owned.events],
     )
     world_forms = lexicon.forms()
+    briefs = [brief for scenario in semantic.scenarios for brief in scenario.briefs]
+    ordered = (*briefs, *semantic.filler_briefs)
+    outcomes = _run_all(template, ordered, lexicon, world_forms, workers)
+    metrics = ProseMetrics()
     prose: dict[str, str] = {}
     targets: list[TargetRecord] = []
     failed: dict[str, tuple[Refusal, ...]] = {}
-    briefs = [brief for scenario in semantic.scenarios for brief in scenario.briefs]
-    for brief in (*briefs, *semantic.filler_briefs):
-        accepted = _materialize_one(loop, brief, lexicon, world_forms)
-        if isinstance(accepted, _Accepted):
-            prose[brief.id] = accepted.body
-            targets.append(accepted.record)
+    for brief, outcome in zip(ordered, outcomes, strict=True):
+        metrics.absorb(outcome.tally)
+        if isinstance(outcome.result, _Accepted):
+            prose[brief.id] = outcome.result.body
+            targets.append(outcome.result.record)
         else:
-            failed[brief.id] = accepted
+            failed[brief.id] = outcome.result
     if failed:
-        raise MaterializationFailed(failed, loop.metrics)
+        raise MaterializationFailed(failed, metrics)
     record = MaterializationRecord(
         writer=ModelConfiguration(writer.model_id, WRITER_INFERENCE.settings()),
         checker=ModelConfiguration(checker.model_id, CHECKER_INFERENCE.settings()),
         prompt_digests=assets.digests(),
         attempt_cap=attempt_cap,
         targets=tuple(targets),
-        metrics=loop.metrics.sealed(),
+        metrics=metrics.sealed(),
     )
-    return Materialized(prose, record, loop.metrics)
+    return Materialized(prose, record, metrics)
+
+
+@dataclass(frozen=True, slots=True)
+class _Outcome:
+    """One brief's result with the tally its loop kept."""
+
+    result: _Accepted | tuple[Refusal, ...]
+    tally: ProseMetrics
+
+
+def _run_all(
+    template: _Loop,
+    ordered: Sequence[Brief],
+    lexicon: Lexicon,
+    world_forms: tuple[SurfaceForm, ...],
+    workers: int,
+) -> list[_Outcome]:
+    """Every brief's outcome in brief order, ``workers`` at a time. The first abort cancels
+    the briefs not yet started, lets the ones in flight finish, and is re-raised carrying
+    every finished brief's tally merged with the aborted ones', the adapter's fault still
+    the cause."""
+
+    def one(brief: Brief) -> _Outcome:
+        loop = _Loop(
+            template.writer, template.checker, template.assets, template.attempt_cap, template.log
+        )
+        return _Outcome(_materialize_one(loop, brief, lexicon, world_forms), loop.metrics)
+
+    with ThreadPoolExecutor(max_workers=workers) as pool:
+        futures = [pool.submit(one, brief) for brief in ordered]
+        done, _ = wait(futures, return_when=FIRST_EXCEPTION)
+        if any(future.exception() is not None for future in done):
+            for future in futures:
+                future.cancel()
+    outcomes: list[_Outcome] = []
+    merged = ProseMetrics()
+    first: MaterializationAborted | None = None
+    for future in futures:
+        if future.cancelled():
+            continue
+        error = future.exception()
+        if error is None:
+            outcomes.append(future.result())
+            merged.absorb(future.result().tally)
+        elif isinstance(error, MaterializationAborted):
+            merged.absorb(error.metrics)
+            first = first or error
+        else:
+            raise error
+    if first is not None:
+        raise MaterializationAborted(first.which, first.target, merged) from first.__cause__
+    return outcomes
+
+
+def _serialized(log: Callable[[str], None]) -> Callable[[str], None]:
+    """``log`` under a lock, so lines from concurrent briefs never interleave mid-line."""
+    lock = Lock()
+
+    def write(line: str) -> None:
+        with lock:
+            log(line)
+
+    return write
 
 
 @dataclass(frozen=True, slots=True)

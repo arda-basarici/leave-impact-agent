@@ -38,6 +38,7 @@ from leaveimpact.world import (
     GuardName,
     Refusal,
     RefusalReason,
+    SemanticWorld,
     assemble_semantic_world,
     bundle,
     compose,
@@ -308,6 +309,72 @@ def test_a_reversed_pair_the_checker_wrote_is_counted_once_it_is_put_the_right_w
     )
     assert materialized.metrics.canonicalized_pairs == 1
     assert lines[0].endswith("(1 findings: 1 not_permitted_fact)")
+
+
+def four_filler_briefs() -> tuple[SemanticWorld, tuple[Brief, ...]]:
+    """A world with no planted prose and four pending filler briefs, so every brief takes the
+    same answer and the order the fakes are asked in does not matter."""
+    from leaveimpact.world import with_filler
+    from tests.unit.filler_fixture import filler_brief, filler_documents, next_numbers
+
+    semantic = assemble_semantic_world(7, DEFAULT_PARAMS, WORLD_START)
+    pool = filler_documents(semantic, 4, pending=4)
+    _, first_clause = next_numbers(semantic)
+    fillers = tuple(filler_brief(pool[i].entity, first_clause + 1 + i) for i in range(4))
+    return with_filler(semantic, pool, briefs=fillers), fillers
+
+
+FILLER_BODY = "Cover is named before the change window."
+EMPTY_READING: dict[str, object] = {"propositions": [], "other_claims": []}
+
+
+def test_several_workers_give_the_record_in_brief_order_and_the_same_sums() -> None:
+    padded, fillers = four_filler_briefs()
+    sequential = materialize(
+        padded,
+        ScriptedWriter([FILLER_BODY] * 4),
+        ScriptedChecker([EMPTY_READING] * 4),
+        ASSETS,
+        4,
+        lambda _: None,
+    )
+    lines: list[str] = []
+    concurrent = materialize(
+        padded,
+        ScriptedWriter([FILLER_BODY] * 4),
+        ScriptedChecker([EMPTY_READING] * 4),
+        ASSETS,
+        4,
+        lines.append,
+        workers=3,
+    )
+    assert [t.target_id for t in concurrent.record.targets] == [b.id for b in fillers]
+    assert concurrent.prose == sequential.prose
+    assert concurrent.metrics == sequential.metrics
+    assert concurrent.record.metrics == sequential.record.metrics
+    assert concurrent.metrics.writer_attempts == 4
+    assert sorted(lines) == sorted(f"{b.id}: accepted on attempt 1" for b in fillers)
+
+
+def test_an_abort_under_several_workers_merges_the_tallies_and_keeps_the_cause() -> None:
+    padded, _ = four_filler_briefs()
+    writer = ScriptedWriter([ModelUnreachable("fake-writer")] * (4 * (CALL_RETRIES + 1)))
+    with pytest.raises(MaterializationAborted, match="writer unusable") as aborted:
+        materialize(padded, writer, ScriptedChecker([]), ASSETS, 4, lambda _: None, workers=2)
+    assert isinstance(aborted.value.__cause__, ModelUnreachable)
+    # Every brief that started made CALL_RETRIES + 1 calls and CALL_RETRIES retries; which
+    # briefs started before the cancel is a race, the sum over them is not.
+    started, remainder = divmod(len(writer.requests), CALL_RETRIES + 1)
+    assert remainder == 0 and 1 <= started <= 4
+    assert aborted.value.metrics.writer_retries == started * CALL_RETRIES
+
+
+def test_a_worker_count_below_one_is_refused() -> None:
+    padded, _ = four_filler_briefs()
+    with pytest.raises(ValueError, match="the worker count is at least one"):
+        materialize(
+            padded, ScriptedWriter([]), ScriptedChecker([]), ASSETS, 4, lambda _: None, workers=0
+        )
 
 
 def test_a_filler_brief_is_materialized_after_the_scenarios_briefs() -> None:

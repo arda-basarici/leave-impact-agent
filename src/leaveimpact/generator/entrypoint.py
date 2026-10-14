@@ -127,6 +127,12 @@ def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> W
         help="fresh attempts per prose target before the target fails (default 8)",
     )
     parser.add_argument(
+        "--prose-workers",
+        type=int,
+        default=1,
+        help="briefs written and checked at once in the prose stage (default 1, sequential)",
+    )
+    parser.add_argument(
         "--filler-documents",
         type=int,
         default=0,
@@ -169,6 +175,8 @@ def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> W
         )
     if parsed.attempt_cap < 1:
         raise ConfigurationError(f"--attempt-cap is at least one, got {parsed.attempt_cap}")
+    if parsed.prose_workers < 1:
+        raise ConfigurationError(f"--prose-workers is at least one, got {parsed.prose_workers}")
     resume: WorldVersion | None = None
     if parsed.resume is not None:
         if not SHA256_HEX.fullmatch(parsed.resume):
@@ -203,6 +211,7 @@ def parse_recipe(argv: Sequence[str], env: Mapping[str, str] | None = None) -> W
         filler,
         disclosure,
         parsed.unprojected,
+        parsed.prose_workers,
     )
 
 

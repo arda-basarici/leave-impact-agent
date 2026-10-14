@@ -52,7 +52,13 @@ def fresh_world(
         recipe.seed, recipe.params, recipe.world_start, recipe.plan_name, recipe.filler
     )
     materialized = materialize(
-        semantic, writer, checker, load_prompt_assets(), recipe.attempt_cap, log
+        semantic,
+        writer,
+        checker,
+        load_prompt_assets(),
+        recipe.attempt_cap,
+        log,
+        recipe.prose_workers,
     )
     world = compose(semantic, materialized.prose, materialized.record, recipe.disclosure)
     return FreshWorld(world, bundle(world), materialized.metrics)
