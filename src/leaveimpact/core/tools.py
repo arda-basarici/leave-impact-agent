@@ -379,7 +379,9 @@ TOOL_SPECIFICATIONS: tuple[ToolSpecification, ...] = (
     ),
     ToolSpecification(
         "search",
-        "The corpus documents whose sections best match a free-text query, up to a limit.",
+        "The corpus documents with a section matching a free-text query, stem for stem, up "
+        "to a limit: plain words must all occur in one section, a quoted phrase as written, "
+        "and the documents come in the order of their best section's rank.",
         PortMethod.SEARCH,
         (QueryArgument("query", 200), SEARCH_LIMIT),
     ),

@@ -53,7 +53,7 @@
                 "digest": "24b7414476ab01ba7f622605098d77a362853e375dfe24c99004ee8666bd3e9b"
               }
             ],
-            "tool_surface_digest": "17c16eb1231cc91164e40ffaf55bf5b8d80ed31d4dbfa3398f9092fcad8b7399",
+            "tool_surface_digest": "61c8cffad6d8d2e7858fb7749be3fde19a247282653e60130e5e6f9c0608c574",
             "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
             "context_allowance_tokens": 200000
           }

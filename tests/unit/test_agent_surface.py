@@ -71,10 +71,11 @@ from tests.unit.throwaway_world import loaded_world
 BY_MODEL = ModelOrigin(ModelCallId("call-1"))
 SURFACE = role_surface(Role.INVESTIGATOR)
 
-INVESTIGATOR_SURFACE_DIGEST = "17c16eb1231cc91164e40ffaf55bf5b8d80ed31d4dbfa3398f9092fcad8b7399"
+INVESTIGATOR_SURFACE_DIGEST = "61c8cffad6d8d2e7858fb7749be3fde19a247282653e60130e5e6f9c0608c574"
 """The investigator's surface as the model sees it: the ten read tools and the fact tool,
 pinned at the graph step, when the fact tool's definition moved it once from the read tools'
-own digest."""
+own digest, and re-pinned at the freeze step when the search tool's description gained the
+matching rule (step 15, fork 12)."""
 
 
 @pytest.fixture(scope="module")

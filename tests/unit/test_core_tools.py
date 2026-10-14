@@ -253,10 +253,11 @@ def test_the_surface_digest_moves_on_what_the_model_sees_and_on_nothing_else() -
 # --- The roles, the refusal and the pinned surface (the registry step) ---------------------
 
 
-READ_TOOLS_DIGEST = "df9a3f2a572f09b8ae5dd14b8fd462a39f0d1aca5da94b76929bb3d85698f7ad"
+READ_TOOLS_DIGEST = "5ad72f74b67efd95a9fa79ee6713b2f183e363d391c02b801b0c5d0414f751a5"
 """The investigator's ten read tools alone, with no harness tool: the envelope as the
 registry step built it, which the fact tool's definition moved the surface digest from
-at the graph step."""
+at the graph step; re-pinned at the freeze step when the search tool's description gained
+the matching rule (step 15, fork 12)."""
 
 
 def test_the_investigator_sees_the_ten_without_the_enumerations_in_canonical_order() -> None:
