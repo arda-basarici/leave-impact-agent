@@ -1,0 +1,507 @@
+{
+  "round": "calibration-agent-padded_40k",
+  "dry": false,
+  "stamp": "20261014T181525Z",
+  "world": "3e00fc803b3e14e3e22b3007452ba43377ba1cff0ae235489646bb79b5922a17",
+  "harness": {
+    "commit": "e4d087a6f9780a449fad962c65ee9f6cbf229b7d",
+    "tree": "dirty"
+  },
+  "registration_commit": "b66b4fd508818c9ee181cc217dee08df1a3595f1",
+  "system": "agent",
+  "role": "investigator",
+  "level": "padded_40k",
+  "prompt_digests": {
+    "finalization": "d495fefbc1ae90107c3219075ca08144cefd287f3c7a2648c81c6fb3f79785cb",
+    "opening": "a414b4112d86682b7d2d2ed879c00a7632536bf34f2753c193ad78ddfa8af60a",
+    "system": "24b7414476ab01ba7f622605098d77a362853e375dfe24c99004ee8666bd3e9b"
+  },
+  "model": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+  "output_maximum": 8192,
+  "results": [
+    {
+      "scenario_id": "scenario_009",
+      "run_id": "pc-calibration-agent-padded_40k-scenario_009-84abc8",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 14.8,
+      "logical_calls": 4,
+      "dispatches": 4,
+      "sends": 4,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 4
+      },
+      "finalization_entered": 27,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 42243,
+      "account_pico_usd": 53001300000,
+      "usage_input_tokens": 40758,
+      "usage_output_tokens": 1485,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 4,
+        "document": 2
+      },
+      "model_reads": 6,
+      "claims": 30,
+      "targets": [],
+      "emissions_by_class": {
+        "true_unneeded": 6,
+        "true_in_a_structured_record": 3,
+        "false": 2
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 3
+      },
+      "batches": 2,
+      "nested_batches": 0,
+      "requirements_stated": 2,
+      "placements": {
+        "placed": 1
+      },
+      "overruns": 0,
+      "exclusions": {},
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 59,
+        "citations_resolving": 59
+      },
+      "report_findings": [],
+      "first_request_bytes": 33389,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_010",
+      "run_id": "pc-calibration-agent-padded_40k-scenario_010-d869a9",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 45.3,
+      "logical_calls": 7,
+      "dispatches": 7,
+      "sends": 7,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 6,
+        "max_tokens": 1
+      },
+      "finalization_entered": 43,
+      "max_tokens_with_tool_use": 1,
+      "account_tokens": 97446,
+      "account_pico_usd": 148577000000,
+      "usage_input_tokens": 88040,
+      "usage_output_tokens": 9406,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 10
+      },
+      "model_reads": 10,
+      "claims": 30,
+      "targets": [],
+      "emissions_by_class": {
+        "malformed": 3
+      },
+      "refusals_by_reason": {},
+      "batches": 2,
+      "nested_batches": 0,
+      "requirements_stated": 0,
+      "placements": {},
+      "overruns": 0,
+      "exclusions": {},
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 32,
+        "citations_resolving": 32
+      },
+      "report_findings": [],
+      "first_request_bytes": 34043,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_013",
+      "run_id": "pc-calibration-agent-padded_40k-scenario_013-600f1d",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 9.5,
+      "logical_calls": 4,
+      "dispatches": 4,
+      "sends": 4,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 4
+      },
+      "finalization_entered": 25,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 40486,
+      "account_pico_usd": 49040200000,
+      "usage_input_tokens": 39462,
+      "usage_output_tokens": 1024,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 2,
+        "document": 1,
+        "work_item": 1
+      },
+      "model_reads": 4,
+      "claims": 30,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": false,
+          "emitted": false,
+          "admitted": false,
+          "usable": false
+        },
+        {
+          "predicate": "names_responsible",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_in_a_structured_record": 3,
+        "true_unneeded": 4,
+        "needed": 2
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 3
+      },
+      "batches": 2,
+      "nested_batches": 0,
+      "requirements_stated": 0,
+      "placements": {},
+      "overruns": 0,
+      "exclusions": {},
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": false,
+        "oracle_findings": 2,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 2,
+        "citations_resolving": 2
+      },
+      "report_findings": [],
+      "first_request_bytes": 33195,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_018",
+      "run_id": "pc-calibration-agent-padded_40k-scenario_018-b7b73b",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 13.6,
+      "logical_calls": 4,
+      "dispatches": 4,
+      "sends": 4,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 4
+      },
+      "finalization_entered": 32,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 45450,
+      "account_pico_usd": 58588200000,
+      "usage_input_tokens": 43497,
+      "usage_output_tokens": 1953,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 6,
+        "document": 5
+      },
+      "model_reads": 11,
+      "claims": 33,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        },
+        {
+          "predicate": "has_skill",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 12,
+        "needed": 3,
+        "true_in_a_structured_record": 2
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 2
+      },
+      "batches": 2,
+      "nested_batches": 0,
+      "requirements_stated": 8,
+      "placements": {
+        "placed": 4
+      },
+      "overruns": 0,
+      "exclusions": {},
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 89,
+        "citations_resolving": 89
+      },
+      "report_findings": [],
+      "first_request_bytes": 33537,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_023",
+      "run_id": "pc-calibration-agent-padded_40k-scenario_023-8eeb8c",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 11.8,
+      "logical_calls": 5,
+      "dispatches": 5,
+      "sends": 5,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 5
+      },
+      "finalization_entered": 35,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 54051,
+      "account_pico_usd": 65136500000,
+      "usage_input_tokens": 52760,
+      "usage_output_tokens": 1291,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 4,
+        "document": 2,
+        "work_item": 4
+      },
+      "model_reads": 10,
+      "claims": 31,
+      "targets": [
+        {
+          "predicate": "owns_work_item",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 4,
+        "true_in_a_structured_record": 2,
+        "needed": 2
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 2
+      },
+      "batches": 2,
+      "nested_batches": 0,
+      "requirements_stated": 2,
+      "placements": {
+        "placed": 1
+      },
+      "overruns": 0,
+      "exclusions": {},
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 60,
+        "citations_resolving": 60
+      },
+      "report_findings": [],
+      "first_request_bytes": 33195,
+      "notes": []
+    },
+    {
+      "scenario_id": "scenario_028",
+      "run_id": "pc-calibration-agent-padded_40k-scenario_028-722fb6",
+      "ending": "closed",
+      "status": "completed",
+      "failure": null,
+      "wall_seconds": 27.3,
+      "logical_calls": 4,
+      "dispatches": 4,
+      "sends": 4,
+      "unresolved_sends": 0,
+      "stop_reasons": {
+        "tool_use": 4
+      },
+      "finalization_entered": 29,
+      "max_tokens_with_tool_use": 0,
+      "account_tokens": 45503,
+      "account_pico_usd": 61493300000,
+      "usage_input_tokens": 42903,
+      "usage_output_tokens": 2600,
+      "operations_by_tool": {
+        "leave": 1,
+        "employees": 1,
+        "leaves_within": 1,
+        "components": 1,
+        "work_items": 1,
+        "events_within": 1,
+        "search": 8
+      },
+      "model_reads": 8,
+      "claims": 33,
+      "targets": [
+        {
+          "predicate": "requires",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        },
+        {
+          "predicate": "owns_work_item",
+          "returned": true,
+          "emitted": true,
+          "admitted": true,
+          "usable": true
+        }
+      ],
+      "emissions_by_class": {
+        "true_unneeded": 15,
+        "needed": 4,
+        "true_in_a_structured_record": 2
+      },
+      "refusals_by_reason": {
+        "missing_anchor": 2
+      },
+      "batches": 2,
+      "nested_batches": 0,
+      "requirements_stated": 10,
+      "placements": {
+        "placed": 5
+      },
+      "overruns": 0,
+      "exclusions": {},
+      "plumbing": {
+        "prefetch": 0,
+        "recheck": 0,
+        "ending": 0,
+        "cost": 0,
+        "counts": 0,
+        "account": 0,
+        "calls": 0,
+        "attribution": 0
+      },
+      "contradictions": 0,
+      "graded": {
+        "correct_whole": true,
+        "oracle_findings": 0,
+        "report_findings": 0,
+        "integrity": 0,
+        "harness_findings": [],
+        "citations": 118,
+        "citations_resolving": 118
+      },
+      "report_findings": [],
+      "first_request_bytes": 33195,
+      "notes": []
+    }
+  ]
+}

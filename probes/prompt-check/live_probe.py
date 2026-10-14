@@ -118,8 +118,12 @@ RESULTS = HERE / "results"
 SCHEMA = "prompt_check"
 DATABASE = "leaveimpact_step9"
 LEDGER = "ledger-prompt-check"
-THRESHOLD_PICO_USD = 20 * 10**12
-"""Twenty dollars for the schema's whole life: a bound on the ledger, never on a round."""
+THRESHOLD_PICO_USD = 100 * 10**12
+"""A hundred dollars for the schema's whole life: a bound on the ledger, never on a round.
+Twenty until the freeze step's calibration, when the schema's accumulated spend left less
+room than one run's $3.25 reservation and four rounds were refused at admission; the
+development spend this ledger sees is accounted in FINDINGS and imported into the real
+ledger from there (step 15, fork 9), so this number carries no budget."""
 LIMIT_PICO_USD = 270 * 10**12
 """The registered admission threshold limit (the draft's budget section)."""
 ADMITTER = Producer("probe:prompt-check")

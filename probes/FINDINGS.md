@@ -3918,3 +3918,164 @@ attempt's equality with the first (temperature 0). The lifecycle lines held one 
 registration: a plumbing reading in no model cell, which the development evaluations of
 step 15 and the freeze's measurement world supersede. The bill's line for these runs is
 still to be read against the table.
+
+## step-15-calibration — the freeze's calibration on the second development world: the reader instruction probed in four rounds, the padded level chosen by the stated rule at 40,000, seven cells measured at base and at the level, the caps derived and replayed, $4.70 (2026-10-14)
+
+The freeze step's design pass (the step-15 forks file, forks 2, 4, 12, 13 and 21) left four
+measurements to the calibration before the registration's pending values are written: which
+instruction the one-call readers finalize under, the padded level by a rule stated before
+the runs, the caps by a rule from the calibration histories, and the owner-field
+restatements counted on the investigator's runs. The probe is the prompt check's script
+with the world as a parameter (`probes/prompt-check/live_probe.py --world … --level …
+--registered-level padded`): the second development world `3e00fc80…` seals its three
+candidate paddings as `padded_40k`, `padded_70k` and `padded_90k` (160, 320 and 432
+filler documents over 26 planted), and the draft registration knows one `padded` cell, so
+the probe reads the cell's assignment under the registered name and the run reads, and its
+export records, the world's own level; nothing in production composes a run that way, since
+a work line names one level and the measurement world seals that name. Every round runs the
+six scenarios the registration's seeded draw gives this world (`scenario_009`, `_010`,
+`_013`, `_018`, `_023`, `_028`), 7 required free-text facts in all, the structured tier's
+two carrying none by construction; the correct-whole verdict is the real evaluator's over
+each export; the exports stay outside the tree; the search tool's description carries the
+matching rule since `b66b4fd` (fork 12), so every round ran the final surface.
+
+**The reader instruction (fork 21): four rounds, $2.03.** Both one-call readers at
+`padded_90k`, under the shipped finalization ("state every fact of the four kinds …") and
+under a task-relevant one written for the probe alone ("… about the person on leave, the
+tickets they own, the meetings they attend in the leave's span and the accounts the
+documents covering those name …"), the latter in the reader's asset on a dirty tree with
+the draft registration's two reader rows carrying its digest for the round, both restored
+afterwards; the summaries record the digests each round ran under
+(`results/reader-exhaustive-full_context-20261014T174645Z.md`,
+`reader-exhaustive-single_shot-20261014T175030Z.md`,
+`reader-relevant-full_context-20261014T175247Z.md`,
+`reader-relevant-single_shot-20261014T175529Z.md`).
+
+| round | input tokens | stopped at the 8,192 maximum | output tokens | required facts admitted | correct whole |
+|---|---|---|---|---|---|
+| full context, shipped | 97,394 to 97,646 | 5 of 6 | 8,192 ×5, 1,838 | 0 of 7 | 2 of 6 |
+| single shot, shipped | 12,288 to 12,820 | 6 of 6 | 8,192 ×6 | 0 of 7 | 2 of 6 |
+| full context, task-relevant | 97,422 to 97,674 | 0 of 6 | 229 to 1,474 | 1 of 7 | 2 of 6 |
+| single shot, task-relevant | 12,316 to 12,848 | 1 of 6 | 157 to 453, one 8,192 | 2 of 7 | 3 of 6 |
+
+Three mechanisms, read off the exports. *Saturation is total.* A call that stops at the
+output maximum inside a tool use comes back from Bedrock with the tool input as an empty
+object, so the batch is recorded malformed with raw `{}` and nothing of its tokens survives;
+eleven of the twelve shipped-instruction calls ended so. The single-shot's saturation was not
+forecast: on the first world it wrote 5,800 to 7,100 tokens over 11,000 of input (the
+`one-call` entry), and here, over 12,500 from a filler-rich search result, it reached the
+ceiling on six of six. *The task-relevant sentence trades saturation for under-statement.*
+The stops were clean and the output a few hundred tokens, and the readers then skipped the
+requirement sections they were shown: on most scenarios the targets were returned and none
+emitted. *Id discipline breaks at this size.* Under both instructions the model wrote
+document ids where the entry schema wants section ids, as the carrier under the
+task-relevant sentence (36 `malformed_carrier` refusals across the full-context round) and
+as the subject under the shipped one (13 `undecodable`, "a clause id has the form
+clause_NNN, got 'doc_002'"); section ids have the `clause_NNN` form in both worlds, read
+back through the corpus adapter, so this is the model's error and not a rendering
+difference. Whether the first world's one-call rounds had any of it is not recoverable:
+their summaries recorded no emission classes. The reading offered for the ruling: register
+the shipped instruction, since the task-relevant one restored no recall and added a failure
+of its own, was one unprobed sentence, and keeping it keeps the investigator's finalization
+and the prompt check's pins untouched; the report then states that at the padded levels the
+one-call baselines fail by output saturation against the registered maximum and by id
+discipline, not by any shown input limit (fork 21's amendment). The larger output maximum a
+reader role could carry is the lever fork 25 ruled reported and not fixed.
+
+**The padded level (fork 2): 40,000 by the stated rule.** The rule, stated before the runs:
+the smallest candidate at which full context is not correct whole on every calibration
+scenario, else the largest, never enlarged afterwards. Full context under the shipped
+configuration at the three candidates
+(`results/calibration-full_context-padded_40k-20261014T180454Z.md`,
+`…-padded_70k-20261014T180823Z.md`; the 90k point is the shipped-instruction reader round
+above, the same configuration):
+
+| level | request tokens by usage | stopped at the maximum | required facts admitted | correct whole |
+|---|---|---|---|---|
+| `padded_40k` (160 documents) | 42,390 to 42,642 | 6 of 6 | 0 of 7 | 2 of 6 |
+| `padded_70k` (320) | 74,189 to 74,441 | 5 of 6 | 1 of 7 | 2 of 6 |
+| `padded_90k` (432) | 97,394 to 97,646 | 5 of 6 | 0 of 7 | 2 of 6 |
+
+The grading is the same at every size: whole on the two structured scenarios, which need no
+free-text fact, and not whole on the four that need one. Read as "not whole on at least one
+scenario", the rule picks 40,000; read as "not whole on every scenario", no candidate can
+qualify, since the structured tier passes at any size by construction, and the fallback
+would give 90,000. The first reading is the one the rule's purpose supports and is the one
+offered; the ruling is the freeze commit's, where the registration records the level, its
+measured request size and the rule.
+
+**The cells at base and at the level: the level separates.** The investigator, the
+single-shot and full context, each at `base` and at `padded_40k`, six scenarios each
+(`results/calibration-agent-base-20261014T181036Z.md`,
+`…-agent-padded_40k-20261014T181525Z.md`, `…-single_shot-base-20261014T181620Z.md`,
+`…-single_shot-padded_40k-20261014T181915Z.md`,
+`…-full_context-base-20261014T182047Z.md`, the full-context 40k round above):
+
+| system | level | correct whole | required facts | calls | stopped at the maximum | cost by the account check |
+|---|---|---|---|---|---|---|
+| investigator | base | 5 of 6 | 6 of 7 | 28 | 0 | $0.3811 |
+| investigator | `padded_40k` | 5 of 6 | 6 of 7 | 28 | 1 | $0.4358 |
+| single shot | base | 5 of 6 | 6 of 7 | 6 | 0 | $0.1094 |
+| single shot | `padded_40k` | 2 of 6 | 1 of 7 | 6 | 5 | $0.3091 |
+| full context | base | 6 of 6 | 7 of 7 | 6 | 0 | $0.1633 |
+| full context | `padded_40k` | 2 of 6 | 0 of 7 | 6 | 6 | $0.5506 |
+
+At base, with 26 planted documents and 10,000 to 13,000 tokens shown, every system is at
+or near whole; full context is the ceiling at six of six. At the level the investigator
+holds its five, reading what its searches return, and both one-call baselines collapse to
+the two structured scenarios, by saturation. The investigator's one miss is the same
+scenario at both levels, `scenario_013`: its two searches never returned the `requires`
+section of `clause_002`, a retrieval miss and not a reading one. The level is doing what
+it is registered to do, and the mechanism by which it does it is the output ceiling, which
+the report states.
+
+**The caps (fork 4), derived and replayed.** The rule as ruled: per system, the call cap
+twice the largest completed calibration run's call count and at least 8; the token cap
+twice the largest completed run's counted tokens, rounded up to a multiple of 10,000; the
+finalization reserve 2 calls and 20,000 tokens; full context's token cap the context
+allowance less the output maximum (200,000 − 8,192), the step-12 ruling. The counts are
+read off each run's own account through the evaluator's check, and every one of the 36
+cell histories is replayed through the same check with the candidate caps substituted into
+its record, model-free (`probes/prompt-check/caps_replay.py`,
+`results/caps-replay-20261014T182409Z.md`):
+
+| system | runs | largest calls | largest counted tokens | call cap | token cap |
+|---|---|---|---|---|---|
+| investigator | 12 | 7 | 97,446 | 14 | 200,000 |
+| single shot | 12 | 1 | 20,808 | 8 | 50,000 |
+| full context | 12 | 1 | 50,834 | 8 | 191,808 |
+
+No history is stopped under the candidate caps; under the control of half each system's
+largest count, 30 of 36 are, the six at full context's base level fitting under half of its
+padded maximum, so the replay reads the caps it is given. The investigator's token cap
+equals its context allowance, a cumulative count over a run's calls where the allowance
+bounds one request, so the two coincide without one implying the other. Basis to record:
+"calibration, world `3e00fc80…`, 12 runs" per system.
+
+**Owner-field restatements (fork 13): none.** The investigator's twelve calibration runs
+hold no `malformed_carrier` entry with a ticket as the carrier, zero per run at both levels
+(the prompt check saw 2 to 14 a round); the two `malformed_carrier` entries at the level
+name documents. The task-relevant reader round holds 5 on one scenario, the pattern the
+watch was set for, on an instruction not registered. No change.
+
+**The probe's own ledger bound a round.** The prompt-check schema's ledger threshold was
+$20 for the schema's life, set as a bound never meant to touch a round; the schema's spend
+since the prompt check left $3.24 of room against a $3.25 reservation, and four rounds were
+refused at admission with no call made (`a reservation of 3253360000000 pico-dollars
+exceeds the room of 3237414600000 under the threshold of 20000000000000`). The threshold is
+$100 in the same commit as this entry, with the reason on the constant; the development
+spend the ledger sees is accounted here and imported from here (fork 9).
+
+**Cost.** Eleven rounds, $4.7032 by the account check: the four reader rounds $2.0297, the
+two full-context level rounds $1.2748 (the 90k point counted once, in the reader rounds),
+the five remaining cell rounds $1.3987; sums done by hand over the eleven summaries' "Round
+total" lines, each named above. Against fork 9's "calibration and the reader probe about
+$5". The bill's line for 2026-10-14 is still to be read against the account check.
+
+**Limits.** Six scenarios of one world under one model at temperature 0, one repeat; 7
+required facts is a thin denominator for recall, and the differences between the two
+instructions on it are not claimed as rates. What is claimed: that the one-call readers
+saturate the registered output maximum at every candidate padding and at the single-shot's
+search result on this world, that the investigator does not, and that the caps derived by
+the rule stop no calibration history. The ruling on the instruction, the level's wording
+and the caps are the freeze commit's; this entry is their evidence.
