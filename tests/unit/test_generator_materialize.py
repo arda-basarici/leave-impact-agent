@@ -7,7 +7,8 @@ briefs calling no model; the log carrying ids, attempts, guard names and counts 
 
 import json
 from collections.abc import Callable
-from dataclasses import dataclass, field, fields
+from dataclasses import dataclass, field, fields, replace
+from pathlib import Path
 
 import pytest
 
@@ -21,6 +22,7 @@ from leaveimpact.adapters.prose import (
     WriterRequest,
     WrittenText,
 )
+from leaveimpact.generator.checkpoint import ProseCheckpoint
 from leaveimpact.generator.materialize import (
     CALL_RETRIES,
     MaterializationAborted,
@@ -43,6 +45,7 @@ from leaveimpact.world import (
     bundle,
     compose,
 )
+from leaveimpact.world.artifacts import digest
 from tests.unit.prose_fixture import (
     KAFKA,
     ORG,
@@ -145,7 +148,7 @@ def test_a_clean_first_attempt_is_accepted_recorded_and_seals_into_a_world() -> 
         metrics.targets_eventual_pass,
     ) == (1, 1, 1)
     assert metrics.writer_input_tokens == 100 and metrics.checker_latency_ms == 500
-    assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 17
+    assert "prose_writer_attempts=1" in metrics.lines() and len(metrics.lines()) == 18
     # The same counters are sealed into the record, so a run that dies after sealing keeps them.
     assert materialized.record.metrics == metrics.sealed()
     assert metrics.sealed().value("writer_input_tokens") == 100
@@ -367,6 +370,73 @@ def test_an_abort_under_several_workers_merges_the_tallies_and_keeps_the_cause()
     started, remainder = divmod(len(writer.requests), CALL_RETRIES + 1)
     assert remainder == 0 and 1 <= started <= 4
     assert aborted.value.metrics.writer_retries == started * CALL_RETRIES
+
+
+def test_a_checkpoint_keeps_each_accepted_body_and_a_rerun_reuses_them_with_no_call(
+    tmp_path: Path,
+) -> None:
+    padded, fillers = four_filler_briefs()
+    checkpoint = ProseCheckpoint(tmp_path / "seed-7.jsonl")
+    first = materialize(
+        padded,
+        ScriptedWriter([FILLER_BODY] * 4),
+        ScriptedChecker([EMPTY_READING] * 4),
+        ASSETS,
+        4,
+        lambda _: None,
+        checkpoint=checkpoint,
+    )
+    assert set(checkpoint.load()) == {b.id for b in fillers}
+    writer, checker, lines = ScriptedWriter([]), ScriptedChecker([]), list[str]()
+    second = materialize(
+        padded, writer, checker, ASSETS, 4, lines.append, workers=2, checkpoint=checkpoint
+    )
+    assert writer.requests == [] and checker.requests == []
+    assert second.prose == first.prose
+    assert second.record.targets == first.record.targets
+    assert second.metrics.targets_reused_from_checkpoint == 4
+    assert second.metrics.writer_attempts == 0
+    assert all("reused from the checkpoint" in line for line in lines) and len(lines) == 4
+
+
+def test_a_kept_body_is_rewritten_when_its_request_moved_or_a_guard_refuses_it_now(
+    tmp_path: Path,
+) -> None:
+    padded, fillers = four_filler_briefs()
+    checkpoint = ProseCheckpoint(tmp_path / "seed-7.jsonl")
+    first = materialize(
+        padded,
+        ScriptedWriter([FILLER_BODY] * 4),
+        ScriptedChecker([EMPTY_READING] * 4),
+        ASSETS,
+        4,
+        lambda _: None,
+        checkpoint=checkpoint,
+    )
+    stale, refused, *_ = first.record.targets
+    # The first brief's entry names a request that no longer exists; the second's body now
+    # names a team, which the namespace guard refuses whatever an earlier run accepted.
+    checkpoint.keep(FILLER_BODY, replace(stale, request_digest="0" * 64))
+    naming = f"{FILLER_BODY} The Data team owns it."
+    checkpoint.keep(
+        naming, replace(refused, accepted_body_digest=digest(naming.encode("utf-8")))
+    )
+    writer = ScriptedWriter([FILLER_BODY] * 2)
+    second = materialize(
+        padded,
+        writer,
+        ScriptedChecker([EMPTY_READING] * 2),
+        ASSETS,
+        4,
+        lambda _: None,
+        checkpoint=checkpoint,
+    )
+    assert len(writer.requests) == 2
+    assert second.metrics.targets_reused_from_checkpoint == 2
+    assert second.metrics.writer_attempts == 2
+    assert [t.target_id for t in second.record.targets] == [b.id for b in fillers]
+    assert second.prose[fillers[1].id] == FILLER_BODY
+    assert len(checkpoint.load()) == 4 and checkpoint.load()[fillers[1].id].body == FILLER_BODY
 
 
 def test_a_worker_count_below_one_is_refused() -> None:

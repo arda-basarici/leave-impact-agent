@@ -18,6 +18,7 @@ import pytest
 
 from leaveimpact.adapters.wiring import PREFIX
 from leaveimpact.generator import __main__ as job
+from leaveimpact.generator.checkpoint import ProseCheckpoint
 from leaveimpact.generator.materialize import (
     MaterializationAborted,
     MaterializationFailed,
@@ -37,6 +38,25 @@ def _unprojected_environment(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) ->
 
 def _no_models(models: object) -> tuple[object, object]:
     return object(), object()
+
+
+def test_a_local_root_gives_the_stage_a_checkpoint_beside_its_stores(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _unprojected_environment(monkeypatch, tmp_path)
+    seen: dict[str, object] = {}
+
+    def stage(*args: object, **kwargs: object) -> NoReturn:
+        seen.update(kwargs)
+        raise MaterializationAborted("writer", "clause_001", ProseMetrics())
+
+    monkeypatch.setattr(job, "prose_models_for", _no_models)
+    monkeypatch.setattr(job, "fresh_world", stage)
+    with pytest.raises(MaterializationAborted):
+        job.main(["--seed", "101", "--world-start", "2026-01-05", "--unprojected"])
+    checkpoint = seen["checkpoint"]
+    assert isinstance(checkpoint, ProseCheckpoint)
+    assert checkpoint.path == tmp_path / "store" / "prose-checkpoints" / "seed-101.jsonl"
 
 
 def _cap_exhausted(metrics: ProseMetrics) -> Exception:

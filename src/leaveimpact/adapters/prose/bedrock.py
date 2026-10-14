@@ -69,11 +69,15 @@ UNREACHABLE_CODES: frozenset[str] = frozenset(
 
 
 def bedrock_client(region: str) -> BedrockRuntimeClient:
-    """The runtime client on the ambient credentials, the SDK's standard retries on."""
+    """The runtime client on the ambient credentials, the SDK's adaptive retries on: a
+    client-side rate limiter that backs off on the service's throttle and ten attempts, so
+    four concurrent writers settle at the quota instead of burning the materializer's three
+    retries in a second (the second development world's first run, 2026-10-14, aborted on
+    a throttle after 135 attempts with nothing kept)."""
     return boto3.client(  # pyright: ignore[reportUnknownMemberType]
         "bedrock-runtime",
         region_name=region,
-        config=Config(retries={"mode": "standard", "max_attempts": 3}),
+        config=Config(retries={"mode": "adaptive", "max_attempts": 10}),
     )
 
 

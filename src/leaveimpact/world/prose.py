@@ -399,6 +399,7 @@ COUNTER_NAMES: tuple[str, ...] = (
     "writer_latency_ms",
     "checker_latency_ms",
     "canonicalized_pairs",
+    "targets_reused_from_checkpoint",
 )
 """Every counter the stage has sealed, in the order it seals them: append-only, so a record
 sealed with fewer holds a prefix of this order. A counter the loop gains is appended here,

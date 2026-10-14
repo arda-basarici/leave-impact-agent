@@ -39,8 +39,16 @@ world regenerated on a defect pays it again). Each brief's loop keeps its own ta
 the tallies are merged in brief order, so the record and the metrics are the same sums at
 any worker count; the log is serialized so lines never interleave mid-line. Nothing the
 world seals changes with the count, which is why it is a run control and no generator
-version moves with it. Throttling is the SDK's standard retry with backoff first and the
-bounded retry here after it, as before.
+version moves with it. Throttling is the SDK's adaptive retry with backoff first and the
+bounded retry here after it.
+
+A ``checkpoint`` (its module) is a private file of the bodies this seed's briefs were
+accepted with. A brief whose kept entry carries the current request digest, whose body
+still has the recorded digest, and whose body passes the two free guards again is accepted
+from the file with the record its acceptance made, no model called, counted as reused; any
+other brief is written as usual and kept as it passes. The checker is not re-run on a kept
+body: the request digest fixes the brief the containment check was made against, and the
+free guards are re-run because they are free and may have changed.
 """
 
 from __future__ import annotations
@@ -63,6 +71,7 @@ from leaveimpact.adapters.prose.seam import (
 )
 from leaveimpact.core.jsonshape import canonical_bytes
 from leaveimpact.core.provenance import ModelConfiguration
+from leaveimpact.generator.checkpoint import Checkpointed, ProseCheckpoint
 from leaveimpact.generator.guards import (
     Finding,
     containment_findings,
@@ -119,6 +128,7 @@ class ProseMetrics:
     writer_latency_ms: int = 0
     checker_latency_ms: int = 0
     canonicalized_pairs: int = 0
+    targets_reused_from_checkpoint: int = 0
 
     def lines(self) -> tuple[str, ...]:
         """The metrics as the run prints them, one number per line."""
@@ -185,11 +195,14 @@ def materialize(
     attempt_cap: int,
     log: Callable[[str], None],
     workers: int = 1,
+    checkpoint: ProseCheckpoint | None = None,
 ) -> Materialized:
     """Every pending brief of ``semantic`` written and accepted, or the run's failures by name.
 
     ``workers`` briefs are in flight at once; one is the sequential loop. The record lists
-    the targets in brief order and the metrics are the same sums at any count. Raises
+    the targets in brief order and the metrics are the same sums at any count. A
+    ``checkpoint`` supplies bodies accepted by an earlier run of the seed on the module's
+    terms and receives each body accepted by this one. Raises
     ``MaterializationFailed`` after the whole stage when any target exhausted the cap,
     ``MaterializationAborted`` at once when a model is unusable, the briefs not yet started
     cancelled and the ones in flight finished first, the adapter's fault chained as the
@@ -209,7 +222,9 @@ def materialize(
     world_forms = lexicon.forms()
     briefs = [brief for scenario in semantic.scenarios for brief in scenario.briefs]
     ordered = (*briefs, *semantic.filler_briefs)
-    outcomes = _run_all(template, ordered, lexicon, world_forms, workers)
+    kept = {} if checkpoint is None else checkpoint.load()
+    keep = None if checkpoint is None else checkpoint.keep
+    outcomes = _run_all(template, ordered, lexicon, world_forms, workers, kept, keep)
     metrics = ProseMetrics()
     prose: dict[str, str] = {}
     targets: list[TargetRecord] = []
@@ -248,6 +263,8 @@ def _run_all(
     lexicon: Lexicon,
     world_forms: tuple[SurfaceForm, ...],
     workers: int,
+    kept: Mapping[str, Checkpointed],
+    keep: Callable[[str, TargetRecord], None] | None,
 ) -> list[_Outcome]:
     """Every brief's outcome in brief order, ``workers`` at a time. The first abort cancels
     the briefs not yet started, lets the ones in flight finish, and is re-raised carrying
@@ -258,7 +275,8 @@ def _run_all(
         loop = _Loop(
             template.writer, template.checker, template.assets, template.attempt_cap, template.log
         )
-        return _Outcome(_materialize_one(loop, brief, lexicon, world_forms), loop.metrics)
+        accepted = _materialize_one(loop, brief, lexicon, world_forms, kept.get(brief.id), keep)
+        return _Outcome(accepted, loop.metrics)
 
     with ThreadPoolExecutor(max_workers=workers) as pool:
         futures = [pool.submit(one, brief) for brief in ordered]
@@ -304,9 +322,15 @@ class _Accepted:
 
 
 def _materialize_one(
-    loop: _Loop, brief: Brief, lexicon: Lexicon, world_forms: tuple[SurfaceForm, ...]
+    loop: _Loop,
+    brief: Brief,
+    lexicon: Lexicon,
+    world_forms: tuple[SurfaceForm, ...],
+    kept: Checkpointed | None = None,
+    keep: Callable[[str, TargetRecord], None] | None = None,
 ) -> _Accepted | tuple[Refusal, ...]:
-    """The loop for one brief: an accepted body with its record, or the refusals at the cap."""
+    """The loop for one brief: an accepted body with its record, or the refusals at the cap;
+    ``kept`` is reused on the module's terms and ``keep`` receives a fresh acceptance."""
     refusals: list[Refusal] = []
     request = writer_request(brief, lexicon, loop.assets)
     request_digest = digest(
@@ -318,6 +342,10 @@ def _materialize_one(
             }
         )
     )
+    if kept is not None and _reusable(loop, brief, kept, request_digest, lexicon, world_forms):
+        loop.metrics.targets_reused_from_checkpoint += 1
+        loop.log(f"{brief.id}: reused from the checkpoint (attempt {kept.record.attempts})")
+        return _Accepted(kept.body, kept.record)
     for attempt in range(1, loop.attempt_cap + 1):
         written = _write(loop, brief.id, request)
         loop.metrics.writer_attempts += 1
@@ -349,10 +377,29 @@ def _materialize_one(
             digest(body.encode("utf-8")),
             extraction.propositions,
         )
+        if keep is not None:
+            keep(body, record)
         return _Accepted(body, record)
     loop.metrics.targets_cap_exhausted += 1
     loop.log(f"{brief.id}: cap of {loop.attempt_cap} exhausted")
     return tuple(refusals)
+
+
+def _reusable(
+    loop: _Loop,
+    brief: Brief,
+    kept: Checkpointed,
+    request_digest: str,
+    lexicon: Lexicon,
+    world_forms: tuple[SurfaceForm, ...],
+) -> bool:
+    """Whether a kept body stands for this brief today: the same request, the recorded body,
+    the free guards passing again."""
+    if kept.record.request_digest != request_digest:
+        return False
+    if kept.record.accepted_body_digest != digest(kept.body.encode("utf-8")):
+        return False
+    return _gate(loop, brief, kept.body, lexicon, world_forms) is None
 
 
 def _gate(

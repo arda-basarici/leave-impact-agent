@@ -431,7 +431,7 @@ def _record(data: Mapping[str, object]) -> MaterializationRecord:
         checker=decode_model_configuration(object_field(data, "checker")),
         prompt_digests=tuple(_prompt(item) for item in array_field(data, "prompt_digests")),
         attempt_cap=integer_field(data, "attempt_cap"),
-        targets=tuple(_target_record(item) for item in array_field(data, "targets")),
+        targets=tuple(decode_target_record(item) for item in array_field(data, "targets")),
         metrics=_metrics(object_field(data, "metrics")) if counted else None,
     )
 
@@ -449,7 +449,8 @@ def _prompt(item: object) -> tuple[str, str]:
     return (string_field(data, "name"), string_field(data, "digest"))
 
 
-def _target_record(item: object) -> TargetRecord:
+def decode_target_record(item: object) -> TargetRecord:
+    """The inverse of ``encode_target_record``, refusing a missing or malformed field by name."""
     data = as_object(item, "a target record")
     expect_fields(
         data,
@@ -540,4 +541,4 @@ def _integer_item(value: object, key: str) -> int:
     return value
 
 
-__all__ = ["decode_truth_manifest"]
+__all__ = ["decode_target_record", "decode_truth_manifest"]

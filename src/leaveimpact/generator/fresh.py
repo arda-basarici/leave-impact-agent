@@ -23,6 +23,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 from leaveimpact.adapters.prose import ProseChecker, ProseWriter
+from leaveimpact.generator.checkpoint import ProseCheckpoint
 from leaveimpact.generator.materialize import ProseMetrics, materialize
 from leaveimpact.generator.prose.assets import load_prompt_assets
 from leaveimpact.generator.recipe import WorldRecipe
@@ -45,9 +46,10 @@ def fresh_world(
     writer: ProseWriter,
     checker: ProseChecker,
     log: Callable[[str], None],
+    checkpoint: ProseCheckpoint | None = None,
 ) -> FreshWorld:
     """Assemble, materialize, compose and bundle ``recipe``; ``log`` takes the materializer's
-    lines."""
+    lines and ``checkpoint``, when a local root offers one, its accepted bodies."""
     semantic = assemble_semantic_world(
         recipe.seed, recipe.params, recipe.world_start, recipe.plan_name, recipe.filler
     )
@@ -59,6 +61,7 @@ def fresh_world(
         recipe.attempt_cap,
         log,
         recipe.prose_workers,
+        checkpoint,
     )
     world = compose(semantic, materialized.prose, materialized.record, recipe.disclosure)
     return FreshWorld(world, bundle(world), materialized.metrics)

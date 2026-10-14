@@ -36,6 +36,7 @@ import time
 from collections.abc import Sequence
 
 from leaveimpact.adapters.wiring import Stores, stores_from_env
+from leaveimpact.generator.checkpoint import ProseCheckpoint
 from leaveimpact.generator.entrypoint import (
     ConfigurationError,
     check_local_root,
@@ -76,8 +77,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         world, sealed = resume_world(recipe.resume, truth)
     else:
         writer, checker = prose_models_for(models)
+        # A local root keeps the seed's accepted bodies beside its stores, so a rerun after
+        # a failed stage pays for the briefs that failed; a bucket root keeps none, since the
+        # job's log is public and its filesystem is gone with the job (the checkpoint module).
+        checkpoint = (
+            None
+            if stores.local_root is None
+            else ProseCheckpoint.under(stores.local_root, recipe.seed)
+        )
         try:
-            fresh = fresh_world(recipe, writer, checker, print)
+            fresh = fresh_world(recipe, writer, checker, print, checkpoint=checkpoint)
         except (MaterializationFailed, MaterializationAborted) as failure:
             # A target that exhausted its cap, or a model that became unusable, ends the
             # run before any write, and the attempts and tokens it paid for are counted

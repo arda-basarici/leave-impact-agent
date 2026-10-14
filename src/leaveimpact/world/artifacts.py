@@ -696,14 +696,16 @@ def encode_materialization(record: MaterializationRecord) -> JsonObject:
             {"name": name, "digest": value} for name, value in record.prompt_digests
         ],
         "attempt_cap": record.attempt_cap,
-        "targets": [_target_record(target) for target in record.targets],
+        "targets": [encode_target_record(target) for target in record.targets],
     }
     if record.metrics is not None:
         encoded["metrics"] = dict(record.metrics.counters)
     return encoded
 
 
-def _target_record(target: TargetRecord) -> JsonObject:
+def encode_target_record(target: TargetRecord) -> JsonObject:
+    """One target's record as the truth manifest carries it; the prose checkpoint keeps the
+    same shape beside each body."""
     return {
         "target_id": target.target_id,
         "attempts": target.attempts,
