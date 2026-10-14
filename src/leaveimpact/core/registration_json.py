@@ -79,6 +79,7 @@ from leaveimpact.core.registration import (
     GroupDecision,
     HeadroomProcedure,
     Injection,
+    InputTokenRange,
     LevelContrast,
     MeasuredWorld,
     MechanismMeasure,
@@ -191,7 +192,14 @@ def encode_registration(registration: Registration) -> JsonObject:
         },
         "systems": [_encode_system(system) for system in registration.systems],
         "corpus_levels": [
-            {"name": level.name, "filler_tokens": _encode_pendable(level.filler_tokens, _same)}
+            {
+                "name": level.name,
+                "filler_documents": _encode_pendable(level.filler_documents, _same),
+                "full_context_input_tokens": _encode_pendable(
+                    level.full_context_input_tokens,
+                    lambda measured: {"low": measured.low, "high": measured.high},
+                ),
+            }
             for level in registration.corpus_levels
         ],
         "outage": _encode_outage(registration.outage),
@@ -458,7 +466,7 @@ def decode_registration_bytes(content: bytes | str) -> Registration:
     >>> decode_registration_bytes(b'{"format_version": 1}')
     Traceback (most recent call last):
     ...
-    ValueError: this code reads registration format 4, got 1
+    ValueError: this code reads registration format 5, got 1
     """
     raw = content.encode("utf-8") if isinstance(content, str) else content
     registration = decode_registration(json.loads(raw))
@@ -648,11 +656,18 @@ def _decode_system(item: object) -> RegisteredSystem:
 
 def _decode_level(item: object) -> CorpusLevel:
     data = as_object(item, "a corpus level")
-    expect_fields(data, ("name", "filler_tokens"), "a corpus level")
+    expect_fields(data, ("name", "filler_documents", "full_context_input_tokens"), "a corpus level")
     return CorpusLevel(
         string_field(data, "name"),
-        _pendable(data, "filler_tokens", _integer_of("filler_tokens")),
+        _pendable(data, "filler_documents", _integer_of("filler_documents")),
+        _pendable(data, "full_context_input_tokens", _decode_token_range),
     )
+
+
+def _decode_token_range(value: object) -> InputTokenRange:
+    data = as_object(value, "a token range")
+    expect_fields(data, ("low", "high"), "a token range")
+    return InputTokenRange(integer_field(data, "low"), integer_field(data, "high"))
 
 
 def _decode_outage(data: Mapping[str, object]) -> OutageSchedule:

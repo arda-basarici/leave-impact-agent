@@ -1,0 +1,783 @@
+{
+  "format_version": 5,
+  "status": "draft",
+  "amendment": {
+    "amends": null,
+    "prior_full_set_results": false
+  },
+  "world": {
+    "version": {
+      "pending": "bound after the measurement world is generated, validated and audited, the procedure frozen before it exists"
+    },
+    "frozen_commit": null,
+    "tuned_scenarios": 0
+  },
+  "systems": [
+    {
+      "kind": "agent",
+      "variant": {
+        "value": "tool_loop_then_finalization"
+      },
+      "retrieval": {
+        "kind": "full_text",
+        "embedding_model": null
+      },
+      "roles": {
+        "value": [
+          {
+            "name": "investigator",
+            "configuration": {
+              "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "settings": [
+                {
+                  "name": "max_tokens",
+                  "value": 8192
+                },
+                {
+                  "name": "temperature",
+                  "value": 0
+                }
+              ]
+            },
+            "prompt_digests": [
+              {
+                "name": "finalization",
+                "digest": "d495fefbc1ae90107c3219075ca08144cefd287f3c7a2648c81c6fb3f79785cb"
+              },
+              {
+                "name": "opening",
+                "digest": "a414b4112d86682b7d2d2ed879c00a7632536bf34f2753c193ad78ddfa8af60a"
+              },
+              {
+                "name": "system",
+                "digest": "24b7414476ab01ba7f622605098d77a362853e375dfe24c99004ee8666bd3e9b"
+              }
+            ],
+            "tool_surface_digest": "61c8cffad6d8d2e7858fb7749be3fde19a247282653e60130e5e6f9c0608c574",
+            "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
+            "context_allowance_tokens": 200000
+          }
+        ]
+      },
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
+      }
+    },
+    {
+      "kind": "rules_only",
+      "variant": {
+        "value": "reference"
+      },
+      "retrieval": {
+        "kind": "none",
+        "embedding_model": null
+      },
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
+      }
+    },
+    {
+      "kind": "single_shot",
+      "variant": {
+        "value": "prefetch_then_one_search_one_call"
+      },
+      "retrieval": {
+        "kind": "full_text",
+        "embedding_model": null
+      },
+      "roles": {
+        "value": [
+          {
+            "name": "reader",
+            "configuration": {
+              "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "settings": [
+                {
+                  "name": "max_tokens",
+                  "value": 8192
+                },
+                {
+                  "name": "temperature",
+                  "value": 0
+                }
+              ]
+            },
+            "prompt_digests": [
+              {
+                "name": "finalization",
+                "digest": "069b41c4011fb2e6e590fd399ad3892fa1b0ad20f27eebaf01a39c839d2d59fc"
+              },
+              {
+                "name": "opening",
+                "digest": "b20b61413c420a55d1bd504cb5995d3977223903395524485ff1fb613762c09b"
+              },
+              {
+                "name": "system",
+                "digest": "29290e9f49a1ba376e5f82a4641c8becbf875a5e5f1f8265cd01f96f0327c2ef"
+              }
+            ],
+            "tool_surface_digest": "1269562f1353b5ff4b2816d7500426bfc5011ddc57df0c435aa4c1114b81923f",
+            "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
+            "context_allowance_tokens": 200000
+          }
+        ]
+      },
+      "query_protocol": {
+        "value": {
+          "kind": "template",
+          "parts": [
+            {
+              "input": "component_names"
+            },
+            {
+              "text": "requires or required or responsible or owner"
+            }
+          ],
+          "fallback": "handover or coverage or on-call or escalation"
+        }
+      },
+      "search_limit": {
+        "value": 20
+      },
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
+      }
+    },
+    {
+      "kind": "full_context",
+      "variant": {
+        "value": "prefetch_then_level_documents_one_call"
+      },
+      "retrieval": {
+        "kind": "none",
+        "embedding_model": null
+      },
+      "roles": {
+        "value": [
+          {
+            "name": "reader",
+            "configuration": {
+              "model_id": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+              "settings": [
+                {
+                  "name": "max_tokens",
+                  "value": 8192
+                },
+                {
+                  "name": "temperature",
+                  "value": 0
+                }
+              ]
+            },
+            "prompt_digests": [
+              {
+                "name": "finalization",
+                "digest": "069b41c4011fb2e6e590fd399ad3892fa1b0ad20f27eebaf01a39c839d2d59fc"
+              },
+              {
+                "name": "opening",
+                "digest": "b20b61413c420a55d1bd504cb5995d3977223903395524485ff1fb613762c09b"
+              },
+              {
+                "name": "system",
+                "digest": "29290e9f49a1ba376e5f82a4641c8becbf875a5e5f1f8265cd01f96f0327c2ef"
+              }
+            ],
+            "tool_surface_digest": "1269562f1353b5ff4b2816d7500426bfc5011ddc57df0c435aa4c1114b81923f",
+            "counting_model_id": "anthropic.claude-haiku-4-5-20251001-v1:0",
+            "context_allowance_tokens": 200000
+          }
+        ]
+      },
+      "caps": {
+        "basis": "unmeasured",
+        "call_cap": 20,
+        "token_cap": 400000,
+        "finalization_call_reserve": 2,
+        "finalization_token_reserve": 20000,
+        "counting_rule": "input_plus_output_cached_included",
+        "input_bound": {
+          "method": "provider_count",
+          "version": 1
+        }
+      }
+    }
+  ],
+  "corpus_levels": [
+    {
+      "name": "base",
+      "filler_documents": {
+        "value": 0
+      },
+      "full_context_input_tokens": {
+        "pending": "measured at the procedure freeze from the calibration runs' full-context requests, by the provider's usage"
+      }
+    },
+    {
+      "name": "padded",
+      "filler_documents": {
+        "pending": "set by the level-selection rule at the procedure freeze, as the count of filler documents the measurement world seals for the level"
+      },
+      "full_context_input_tokens": {
+        "pending": "measured at the procedure freeze from the calibration runs' full-context requests, by the provider's usage"
+      }
+    }
+  ],
+  "outage": {
+    "protocol": {
+      "id": "whole-run-read-port-outage",
+      "version": 1
+    },
+    "injection": "whole_run_at_read_port",
+    "conditions": [
+      {
+        "unreachable": [],
+        "reporting": "answer_quality"
+      },
+      {
+        "unreachable": [
+          "jira"
+        ],
+        "reporting": "answer_quality"
+      },
+      {
+        "unreachable": [
+          "calendar"
+        ],
+        "reporting": "answer_quality"
+      },
+      {
+        "unreachable": [
+          "frappe"
+        ],
+        "reporting": "degraded_condition"
+      },
+      {
+        "unreachable": [
+          "corpus"
+        ],
+        "reporting": "degraded_condition"
+      }
+    ]
+  },
+  "cell_groups": [
+    {
+      "name": "full_context_under_outage",
+      "rule": "run only if the reforecast leaves budget for them, decided before any measurement result exists, all four or none",
+      "decision": {
+        "pending": "decided from the reforecast at the procedure freeze"
+      }
+    }
+  ],
+  "cells": [
+    {
+      "system": "agent",
+      "condition": "normal",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "normal",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "normal",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "normal",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "agent",
+      "condition": "normal",
+      "level": "padded",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "normal",
+      "level": "padded",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "normal",
+      "level": "padded",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "normal",
+      "level": "padded",
+      "group": null
+    },
+    {
+      "system": "agent",
+      "condition": "jira_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "jira_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "jira_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "jira_down",
+      "level": "base",
+      "group": "full_context_under_outage"
+    },
+    {
+      "system": "agent",
+      "condition": "calendar_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "calendar_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "calendar_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "calendar_down",
+      "level": "base",
+      "group": "full_context_under_outage"
+    },
+    {
+      "system": "agent",
+      "condition": "frappe_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "frappe_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "frappe_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "frappe_down",
+      "level": "base",
+      "group": "full_context_under_outage"
+    },
+    {
+      "system": "agent",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "rules_only",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "single_shot",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": null
+    },
+    {
+      "system": "full_context",
+      "condition": "corpus_down",
+      "level": "base",
+      "group": "full_context_under_outage"
+    }
+  ],
+  "run_accounting": {
+    "repeats": 1,
+    "missing_run": "not_passed",
+    "retry": {
+      "after": "infrastructure",
+      "max_attempts": 3
+    },
+    "counted_attempt": "earliest_not_infrastructure",
+    "redispatch": {
+      "pending": "the most dispatches of a logical call and the backoff before each later one, set at the procedure freeze"
+    },
+    "count_retry": "redispatch_policy",
+    "estimand": "the registered system with up to two retries after an infrastructure failure"
+  },
+  "attribution": {
+    "pending": "the table's rows, set at the procedure freeze"
+  },
+  "stated_facts": {
+    "composing_policy": {
+      "identifier": "rules-composer",
+      "digest": "bbcdbd9e23b4f2da3b583e2ec141d000f583f8d0e1764c47686d448c8ceabdfa"
+    },
+    "anchor_table": "29679e4f58a0ade632c1c3a29dcdb6da0a01467e92b482595140aa28967bafbb",
+    "entry_schema": {
+      "value": {
+        "parser": "fact-entries-1",
+        "digest": "6a9efba9bc7749374e066bd4f49fabbb7478fb849a4c6b4414ecb862601d6bb3"
+      }
+    }
+  },
+  "statistics": {
+    "confidence_percent": 95,
+    "seed": 20261003,
+    "resamples": 10000,
+    "interval_method": "paired_scenario_bootstrap_within_tier",
+    "checks": [
+      "correct_whole",
+      "expected_action",
+      "reproduced_whole"
+    ],
+    "measures": [
+      "strict_precision",
+      "type_local_precision",
+      "recall",
+      "payload_accuracy",
+      "conflict_observations_holding",
+      "claims_reproduced",
+      "claims_contradicted",
+      "claims_unsupported",
+      "claims_failing_locally",
+      "claims_grounded_end_to_end",
+      "claims_strictly_grounded",
+      "claims_citing",
+      "citations_resolving",
+      "citations_retrieved",
+      "citations_used",
+      "reproduced_claims_citing_a_witness",
+      "required_sources_asked",
+      "required_sources_answered",
+      "tool_requests_refused",
+      "completed_reads_repeated",
+      "completed_reads_extra",
+      "targets_retrieved",
+      "required_targets_retrieved",
+      "searches_with_a_hit",
+      "targets_per_search"
+    ],
+    "primary": {
+      "check": "correct_whole",
+      "reading": "end_to_end",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        "agent",
+        "full_context"
+      ],
+      "breakdowns": [
+        "tier"
+      ]
+    },
+    "secondary": [
+      {
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "level": "base",
+        "systems": [
+          "agent",
+          "single_shot"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      },
+      {
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "level": "padded",
+        "systems": [
+          "agent",
+          "single_shot"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      }
+    ],
+    "descriptive": {
+      "places": [
+        {
+          "condition": "normal",
+          "level": "base"
+        },
+        {
+          "condition": "normal",
+          "level": "padded"
+        },
+        {
+          "condition": "jira_down",
+          "level": "base"
+        },
+        {
+          "condition": "calendar_down",
+          "level": "base"
+        }
+      ],
+      "pairs": [
+        [
+          "agent",
+          "full_context"
+        ],
+        [
+          "agent",
+          "single_shot"
+        ],
+        [
+          "agent",
+          "rules_only"
+        ],
+        [
+          "full_context",
+          "single_shot"
+        ],
+        [
+          "full_context",
+          "rules_only"
+        ],
+        [
+          "single_shot",
+          "rules_only"
+        ]
+      ],
+      "strata": [
+        "overall",
+        "tier"
+      ],
+      "checks": [
+        "correct_whole",
+        "expected_action",
+        "reproduced_whole"
+      ],
+      "readings": [
+        "end_to_end",
+        "conditional"
+      ],
+      "measures": [
+        "strict_precision",
+        "type_local_precision",
+        "recall",
+        "payload_accuracy"
+      ]
+    },
+    "level_contrasts": [
+      {
+        "system": "agent",
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "levels": [
+          "padded",
+          "base"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      },
+      {
+        "system": "single_shot",
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "levels": [
+          "padded",
+          "base"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      },
+      {
+        "system": "full_context",
+        "check": "correct_whole",
+        "reading": "end_to_end",
+        "condition": "normal",
+        "levels": [
+          "padded",
+          "base"
+        ],
+        "breakdowns": [
+          "tier"
+        ]
+      }
+    ],
+    "mechanism": {
+      "value": {
+        "name": "needed_prose_facts",
+        "stages": [
+          "returned",
+          "emitted",
+          "admitted",
+          "usable"
+        ]
+      }
+    },
+    "headroom": {
+      "reference": "rules_only",
+      "check": "correct_whole",
+      "reading": "end_to_end"
+    }
+  },
+  "supporting": [
+    {
+      "identifier": "vector_retrieval",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        {
+          "kind": "single_shot",
+          "variant": "vector"
+        },
+        {
+          "kind": "single_shot",
+          "variant": "full_text"
+        }
+      ],
+      "other_model": {
+        "value": null
+      },
+      "endpoint": "retrieval_target_coverage_within_limit",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from full-text coverage on the development worlds at the padded level"
+      }
+    },
+    {
+      "identifier": "multi_agent",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        {
+          "kind": "agent",
+          "variant": "by_source"
+        },
+        {
+          "kind": "agent",
+          "variant": "single"
+        }
+      ],
+      "other_model": {
+        "value": null
+      },
+      "endpoint": "correct_whole_end_to_end",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+      }
+    },
+    {
+      "identifier": "second_model",
+      "condition": "normal",
+      "level": "padded",
+      "systems": [
+        {
+          "kind": "agent",
+          "variant": "second_model"
+        },
+        {
+          "kind": "full_context",
+          "variant": "second_model"
+        }
+      ],
+      "other_model": {
+        "pending": "one model, named at the procedure freeze"
+      },
+      "endpoint": "correct_whole_end_to_end",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+      }
+    },
+    {
+      "identifier": "authoring",
+      "condition": "normal",
+      "level": "base",
+      "systems": [
+        {
+          "kind": "full_context",
+          "variant": "model_authored"
+        },
+        {
+          "kind": "full_context",
+          "variant": "rules_composed"
+        }
+      ],
+      "other_model": {
+        "value": null
+      },
+      "endpoint": "correct_whole_end_to_end",
+      "analysis": "paired_scenario_bootstrap_within_tier",
+      "inclusion": {
+        "pending": "decided at the procedure freeze from time and cost, before any measurement result is seen"
+      }
+    }
+  ],
+  "prefetch": {
+    "identifier": "leave-span-prefetch",
+    "protocol_version": 1,
+    "digest": "5bd949650749369ac4ec0b6eda452302f5d2cf4789e56edfb06ecbc92931057c"
+  },
+  "budget": {
+    "basis": "unmeasured",
+    "expected_usd": 150,
+    "ceiling_usd": 300,
+    "reforecast_after_runs": 10,
+    "admission_threshold_usd": 50,
+    "admission_threshold_limit_usd": 270
+  }
+}

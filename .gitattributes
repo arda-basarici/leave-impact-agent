@@ -1,2 +1,3 @@
 preregistration/registration.json -text
 preregistration/prices.json -text
+tests/fixtures/registration-draft.json -text

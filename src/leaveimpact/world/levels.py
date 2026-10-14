@@ -9,9 +9,11 @@ the arms interview fixed (2026-10-04). The base level is the world with no fille
 it is always sealed, so the evaluator's level reader answers it for a world sealed before
 any pool existed and answers nothing for a name the world never sealed.
 
-The registration's ``CorpusLevel`` carries the token size a level was built to; this
-type carries a count, because a token count is one tokenizer's and the world is
-model-neutral (the generator step's rulings 1 and 6).
+The registration's ``CorpusLevel`` carries the same count (``filler_documents``, what
+``levels.json`` seals) and, since the freeze step, the measured input size of the
+full-context request at the level; this type is the sealed side, a count and no token
+size, because a token count is one tokenizer's and the world is model-neutral (the
+generator step's rulings 1 and 6).
 
 The invariants live here, apart from the world types, because the semantic world and
 the sealed spec both hold a pool and must state the same things of it, and so does the

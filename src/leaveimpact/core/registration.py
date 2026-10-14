@@ -68,8 +68,10 @@ from leaveimpact.core.run_record import (
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
 from leaveimpact.core.tools import SEARCH_LIMIT
 
-REGISTRATION_FORMAT_VERSION = 4
-"""The one format this code reads; a decoder refuses any other."""
+REGISTRATION_FORMAT_VERSION = 5
+"""The one format this code reads; a decoder refuses any other. Format 5 (the freeze step)
+gave a corpus level the count of filler documents it holds and the measured size of the
+full-context request at it, in place of a filler token size nothing sealed or compared."""
 
 OUTAGE_PROTOCOL = ("whole-run-read-port-outage", 1)
 """The injection behaviour and its version: raised on a semantic change to how an assigned
@@ -360,19 +362,48 @@ def pending_in(system: RegisteredSystem) -> tuple[tuple[str, Pending], ...]:
 
 
 @dataclass(frozen=True, slots=True)
+class InputTokenRange:
+    """The input tokens of one request shape over the scenarios it was measured on, the
+    smallest and the largest, as the provider's usage reports them.
+
+    >>> InputTokenRange(42_642, 42_390)
+    Traceback (most recent call last):
+    ...
+    ValueError: a token range runs low to high, got 42642 to 42390
+    """
+
+    low: int
+    high: int
+
+    def __post_init__(self) -> None:
+        require_integer(self.low, "the range's low")
+        require_integer(self.high, "the range's high")
+        if self.low > self.high:
+            raise ValueError(f"a token range runs low to high, got {self.low} to {self.high}")
+
+
+@dataclass(frozen=True, slots=True)
 class CorpusLevel:
-    """One registered corpus level: its name, and how many tokens of answer-neutral filler
-    it adds to the world's own documents. The base level adds none. Which documents a level
-    holds is sealed with the world; this is the size the level was built to."""
+    """One registered corpus level: its name, how many documents of the world's
+    answer-neutral filler pool it holds on top of the world's own documents, and the size of
+    the full-context request at it.
+
+    The base level holds no filler. The count is what the world seals for the level
+    (``world.levels``), so it is the one number of a level a bound world can be compared
+    with; a token size is one tokenizer's and the world is model-neutral, so the level's
+    size in tokens is recorded as a measurement, the input tokens of the full-context
+    request over the calibration scenarios, and never as a target the level was built to.
+    """
 
     name: str
-    filler_tokens: int | Pending
+    filler_documents: int | Pending
+    full_context_input_tokens: InputTokenRange | Pending
 
     def __post_init__(self) -> None:
         require_opaque_id(self.name, "a corpus level")
-        if not isinstance(self.filler_tokens, Pending):
-            require_integer(self.filler_tokens, "filler_tokens")
-        if self.name == BASE_CORPUS_LEVEL and self.filler_tokens != 0:
+        if not isinstance(self.filler_documents, Pending):
+            require_integer(self.filler_documents, "filler_documents")
+        if self.name == BASE_CORPUS_LEVEL and self.filler_documents != 0:
             raise ValueError("the base level is the world with no filler added")
 
 
@@ -1170,11 +1201,15 @@ def pending_fields(registration: Registration) -> tuple[str, ...]:
         found.append("world.version")
     for system in registration.systems:
         found.extend(f"systems.{system.kind.value}.{name}" for name, _ in pending_in(system))
-    found.extend(
-        f"corpus_levels.{level.name}.filler_tokens"
-        for level in registration.corpus_levels
-        if isinstance(level.filler_tokens, Pending)
-    )
+    for level in registration.corpus_levels:
+        found.extend(
+            f"corpus_levels.{level.name}.{name}"
+            for name, value in (
+                ("filler_documents", level.filler_documents),
+                ("full_context_input_tokens", level.full_context_input_tokens),
+            )
+            if isinstance(value, Pending)
+        )
     found.extend(
         f"cell_groups.{group.name}.decision"
         for group in registration.cell_groups
@@ -1244,6 +1279,7 @@ __all__ = [
     "GroupDecision",
     "HeadroomProcedure",
     "Injection",
+    "InputTokenRange",
     "LevelContrast",
     "MeasuredWorld",
     "MechanismMeasure",

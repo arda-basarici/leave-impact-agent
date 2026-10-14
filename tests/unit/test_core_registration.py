@@ -58,6 +58,8 @@ from leaveimpact.core.attribution import AttributionTable, Match, ObservationKin
 from leaveimpact.core.tools import Role
 from tests.unit.registration_fixture import (
     COMMIT,
+    COMMITTED,
+    COMMITTED_FILE,
     DIGEST,
     DRAFT,
     DRAFT_FILE,
@@ -99,9 +101,10 @@ def _cells(data: dict[str, object]) -> list[dict[str, object]]:
 # --- The committed draft ----------------------------------------------------------------------
 
 
-def test_the_committed_draft_is_the_encoders_own_bytes() -> None:
-    raw = DRAFT_FILE.read_bytes()
-    assert registration_bytes(decode_registration_bytes(raw)) == raw
+def test_the_committed_registration_and_the_fixture_draft_are_the_encoders_own_bytes() -> None:
+    for path in (COMMITTED_FILE, DRAFT_FILE):
+        raw = path.read_bytes()
+        assert registration_bytes(decode_registration_bytes(raw)) == raw, path
 
 
 def test_the_draft_lists_twenty_four_cells_twenty_with_no_group_and_four_in_one() -> None:
@@ -115,10 +118,10 @@ def test_the_draft_lists_twenty_four_cells_twenty_with_no_group_and_four_in_one(
         "frappe_down": ReportingScope.DEGRADED_CONDITION,
         "corpus_down": ReportingScope.DEGRADED_CONDITION,
     }
-    assert [(level.name, level.filler_tokens == 0) for level in DRAFT.corpus_levels] == [
-        ("base", True),
-        ("padded", False),
-    ]
+    base, padded = DRAFT.corpus_levels
+    assert (base.name, base.filler_documents) == ("base", 0)
+    assert padded.name == "padded" and isinstance(padded.filler_documents, Pending)
+    assert all(isinstance(level.full_context_input_tokens, Pending) for level in (base, padded))
     # Every system under the normal condition at both levels, and under each outage at the
     # base level alone: no outage is crossed with a size.
     assert {cell.place for cell in DRAFT.cells} == {
@@ -141,24 +144,31 @@ def test_the_draft_lists_twenty_four_cells_twenty_with_no_group_and_four_in_one(
     assert all(DRAFT.runs(cell) for cell in DRAFT.cells if cell.group is None)
 
 
-def test_the_draft_names_what_this_code_computes() -> None:
+BOTH_FILES = pytest.mark.parametrize("held", [DRAFT, COMMITTED], ids=["draft", "committed"])
+"""The draft fixture and the committed registration: what the tree computes is held against
+both, the committed one being the file a run cites."""
+
+
+@BOTH_FILES
+def test_the_registration_names_what_this_code_computes(held: Registration) -> None:
     rule = prefetch_rule()
-    registered = DRAFT.prefetch
+    registered = held.prefetch
     assert (registered.identifier, registered.digest) == (rule.identifier, rule.digest)
     assert registered.protocol_version == PREFETCH_PROTOCOL[1]
-    assert DRAFT.outage.protocol == OUTAGE_PROTOCOL
+    assert held.outage.protocol == OUTAGE_PROTOCOL
     # The composing policy is the harness's to compute and the anchor table core's.
-    assert DRAFT.stated_facts.composing_policy == composing_policy()
-    assert DRAFT.stated_facts.anchor_table == anchor_table_digest()
+    assert held.stated_facts.composing_policy == composing_policy()
+    assert held.stated_facts.anchor_table == anchor_table_digest()
 
 
-def test_the_drafts_roles_are_the_ones_the_tree_ships_for_the_development_runs() -> None:
+@BOTH_FILES
+def test_the_registered_roles_are_the_ones_the_tree_ships(held: Registration) -> None:
     """The first live run's fork 5: the three model systems' roles are set in the draft to
     what this tree runs, Haiku 4.5 on the EU profile at temperature 0 with an 8,192-token
     output maximum for both roles, counted against the base model inside a 200,000-token
-    window, the shipped prompt assets' digests and the shipped tool surface's digest. A
-    registration edited after an image is a new image, so the digests are compared with
-    the tree, not copied from it."""
+    window, the shipped prompt assets' digests and the shipped tool surface's digest, and
+    the freeze confirmed them (the freeze step). A registration edited after an image is a
+    new image, so the digests are compared with the tree, not copied from it."""
     configuration = CallConfiguration(
         "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
         (CallSetting("max_tokens", 8_192), CallSetting("temperature", 0)),
@@ -168,7 +178,7 @@ def test_the_drafts_roles_are_the_ones_the_tree_ships_for_the_development_runs()
         (SystemKind.SINGLE_SHOT, Role.READER),
         (SystemKind.FULL_CONTEXT, Role.READER),
     ):
-        system = DRAFT.system(kind)
+        system = held.system(kind)
         assert isinstance(system, AgentSystem | SingleShotSystem | FullContextSystem)
         assert system.roles == (
             RegisteredRole(
@@ -230,7 +240,9 @@ def test_the_draft_registers_one_primary_and_what_is_named_beside_it() -> None:
 def test_the_drafts_pending_values_in_the_files_order() -> None:
     assert pending_fields(DRAFT) == (
         "world.version",
-        "corpus_levels.padded.filler_tokens",
+        "corpus_levels.base.full_context_input_tokens",
+        "corpus_levels.padded.filler_documents",
+        "corpus_levels.padded.full_context_input_tokens",
         f"cell_groups.{GROUP}.decision",
         "run_accounting.redispatch",
         "attribution",
@@ -383,8 +395,14 @@ def test_a_frozen_registration_has_nothing_pending_but_its_worlds_version() -> N
         "systems.full_context.roles": {
             "systems": systems(replace(full_context, roles=waiting), 2)
         },
-        "corpus_levels.padded.filler_tokens": {
-            "corpus_levels": (held.corpus_levels[0], replace(padded, filler_tokens=waiting))
+        "corpus_levels.padded.filler_documents": {
+            "corpus_levels": (held.corpus_levels[0], replace(padded, filler_documents=waiting))
+        },
+        "corpus_levels.padded.full_context_input_tokens": {
+            "corpus_levels": (
+                held.corpus_levels[0],
+                replace(padded, full_context_input_tokens=waiting),
+            )
         },
         f"cell_groups.{GROUP}.decision": {"cell_groups": (replace(group, decision=waiting),)},
         "run_accounting.redispatch": {
@@ -418,7 +436,8 @@ def test_a_frozen_registration_has_nothing_pending_but_its_worlds_version() -> N
     data = _draft_tree()
     data["status"] = "frozen"
     with pytest.raises(
-        ValueError, match="nothing pending but its world, got corpus_levels.padded.filler_tokens"
+        ValueError,
+        match="nothing pending but its world, got corpus_levels.base.full_context_input_tokens",
     ):
         decode_registration(data)
 
@@ -530,8 +549,19 @@ def test_a_system_kind_a_level_and_a_condition_are_each_registered_once() -> Non
     with pytest.raises(ValueError, match="a corpus level is registered once"):
         decode_registration(data)
     data = _draft_tree()
-    _nested(data, "corpus_levels", 0)["filler_tokens"] = {"value": 5}
+    _nested(data, "corpus_levels", 0)["filler_documents"] = {"value": 5}
     with pytest.raises(ValueError, match="the base level is the world with no filler added"):
+        decode_registration(data)
+    # The measured size of the full-context request at a level runs low to high.
+    data = _draft_tree()
+    _nested(data, "corpus_levels", 1)["full_context_input_tokens"] = {
+        "value": {"low": 42_642, "high": 42_390}
+    }
+    with pytest.raises(ValueError, match="a token range runs low to high, got 42642 to 42390"):
+        decode_registration(data)
+    data = _draft_tree()
+    _nested(data, "corpus_levels", 1)["full_context_input_tokens"] = {"value": {"low": 42_390}}
+    with pytest.raises(ValueError, match="a token range"):
         decode_registration(data)
 
 
@@ -648,7 +678,7 @@ def test_another_format_refuses_before_anything_else() -> None:
     data = _draft_tree()
     data["format_version"] = 1
     del data["cells"]
-    with pytest.raises(ValueError, match="this code reads registration format 4, got 1"):
+    with pytest.raises(ValueError, match="this code reads registration format 5, got 1"):
         decode_registration(data)
     data["format_version"] = True
     with pytest.raises(ValueError, match="format_version is an integer, got True"):
@@ -818,10 +848,10 @@ def test_the_redispatch_policy_states_its_backoff_as_delay_ms() -> None:
 
 
 def test_an_earlier_format_is_refused_by_its_version() -> None:
-    for earlier in (2, 3):
+    for earlier in (2, 3, 4):
         data = _draft_tree()
         data["format_version"] = earlier
         with pytest.raises(
-            ValueError, match=f"this code reads registration format 4, got {earlier}"
+            ValueError, match=f"this code reads registration format 5, got {earlier}"
         ):
             decode_registration(data)

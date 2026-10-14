@@ -1,5 +1,5 @@
 {
-  "format_version": 4,
+  "format_version": 5,
   "status": "draft",
   "amendment": {
     "amends": null,
@@ -233,14 +233,20 @@
   "corpus_levels": [
     {
       "name": "base",
-      "filler_tokens": {
+      "filler_documents": {
         "value": 0
+      },
+      "full_context_input_tokens": {
+        "pending": "measured at the procedure freeze from the calibration runs' full-context requests, by the provider's usage"
       }
     },
     {
       "name": "padded",
-      "filler_tokens": {
-        "pending": "set by the level-selection rule at the procedure freeze"
+      "filler_documents": {
+        "pending": "set by the level-selection rule at the procedure freeze, as the count of filler documents the measurement world seals for the level"
+      },
+      "full_context_input_tokens": {
+        "pending": "measured at the procedure freeze from the calibration runs' full-context requests, by the provider's usage"
       }
     }
   ],

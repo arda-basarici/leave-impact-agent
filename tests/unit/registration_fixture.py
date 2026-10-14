@@ -1,9 +1,13 @@
-"""Registrations for tests: the committed draft, and versions of it with its choices made.
+"""Registrations for tests: the draft, and versions of it with its choices made.
 
-Test infrastructure. The committed draft holds most of its systems pending, so a test of
-what a resolved, a frozen or a bound registration does has to make those choices first.
-They are made here once, with placeholder values that mean nothing: a role, an attribution
-table of one row per kind of observation, a re-dispatch bound, an entry schema.
+Test infrastructure. ``DRAFT`` is the registration as it stood before the freeze, a copy
+of the committed draft kept under ``tests/fixtures`` so that what a draft means, which
+values a pending one blocks and how a plan leaves cells out, stays testable after the
+committed file froze (the freeze step); ``COMMITTED`` is the committed file itself,
+whatever its status. The draft holds most of its choices pending, so a test of what a
+resolved, a frozen or a bound registration does has to make those choices first. They are
+made here once, with placeholder values that mean nothing: a role, an attribution table of
+one row per kind of observation, a re-dispatch bound, an entry schema.
 
 ``named`` resolves what an execution of the agent and of full context needs, so their cells
 can be built, and leaves the single-shot system's roles pending on purpose, so a plan built
@@ -30,6 +34,7 @@ from leaveimpact.core import (
     EntrySchema,
     FullContextSystem,
     GroupDecision,
+    InputTokenRange,
     MeasuredWorld,
     MechanismMeasure,
     NotBuilt,
@@ -50,8 +55,11 @@ from leaveimpact.core.attribution import (
     RedispatchPolicy,
 )
 
-DRAFT_FILE = Path(__file__).resolve().parents[2] / "preregistration" / "registration.json"
+_ROOT = Path(__file__).resolve().parents[2]
+DRAFT_FILE = _ROOT / "tests" / "fixtures" / "registration-draft.json"
 DRAFT = decode_registration_bytes(DRAFT_FILE.read_bytes())
+COMMITTED_FILE = _ROOT / "preregistration" / "registration.json"
+COMMITTED = decode_registration_bytes(COMMITTED_FILE.read_bytes())
 DIGEST = "ab" * 32
 COMMIT = "c" * 40
 ROLE = RegisteredRole(
@@ -162,9 +170,13 @@ def frozen(registration: Registration = DRAFT, *, run_group: bool = True) -> Reg
         status=RegistrationStatus.FROZEN,
         systems=calibrated,
         corpus_levels=tuple(
-            replace(level, filler_tokens=100_000)
-            if isinstance(level.filler_tokens, Pending)
-            else level
+            replace(
+                level,
+                filler_documents=0 if level.name == "base" else 160,
+                full_context_input_tokens=InputTokenRange(10_000, 11_000)
+                if level.name == "base"
+                else InputTokenRange(40_000, 43_000),
+            )
             for level in resolved.corpus_levels
         ),
         statistics=replace(resolved.statistics, mechanism=MECHANISM),
@@ -193,6 +205,8 @@ def bound(
 
 __all__ = [
     "COMMIT",
+    "COMMITTED",
+    "COMMITTED_FILE",
     "DIGEST",
     "DRAFT",
     "pending_roles",
