@@ -580,8 +580,8 @@ over the corpus with filler in it and again at load, one matcher on both sides.
 Titles stay unmarked in clause text; the span-loss rate is measured on development
 worlds, and marking is reconsidered at the freeze only if that loss is large. A
 token count is one tokenizer's, so the world seals document counts and the
-registration records the padded level's request size, measured at the freeze under
-the named counting rule.
+registration records each level's count and its full-context request size, the input
+tokens the provider reported over the calibration scenarios at the freeze.
 
 **Generated text is accepted only under semantic containment**: every required
 planted fact is present and no additional benchmark-relevant fact is introduced,
@@ -2335,6 +2335,15 @@ pending, so that system was in no plan and no frozen file until its own step cha
 the format, which the baselines step did (format 4: the protocol holds a value, each
 role its context allowance, and both one-call systems are named).
 
+The freeze step moved the file to format 5 (2026-10-14): a corpus level holds the
+count of filler documents the world seals for it, the one number of a level a bound
+world can be compared with, and the measured size of the full-context request at it,
+the input tokens the provider reported over the calibration scenarios, in place of a
+filler token size that nothing sealed or compared and whose ruled value, a request
+budget, the field's own meaning contradicted. The committed file is frozen since that
+commit, with the world's version alone pending; the draft as it stood before the
+freeze is kept under `tests/fixtures/`, so what a draft means stays testable.
+
 **Four systems, two corpus levels and five assigned conditions make twenty-four cells,
 reported in two ways.** A cell is a system under a condition at a level. Full context
 joins the three: the single-shot path shown every document of the level in place of a
@@ -2361,6 +2370,53 @@ unexercised. Each outage is whole-run at the read-port boundary, because a fault
 partway through gives a mixed condition the evaluator limits; no two-source outage is
 registered. The schedule's digest covers the source sets, the injection and a protocol
 version, and a run records it.
+
+**The freeze registered twelve of the twenty-four cells and runs eight** (2026-10-14,
+the freeze step's forks 1 and 7, ruled on the remaining path's time and money). Every
+system under the normal condition at both levels is run, 240 attempts at one repeat, 180
+of them model attempts; full context's four outage cells stay registered in their group,
+decided not run with the reason in the file, so the amendment history reads; the twelve
+outage cells of the other three systems are not registered. The outage matrix was the
+benchmark's second story and the vector arm the career map's RAG closer, and both are
+registered as not run before the milestone's exit, the report saying so; the behaviour
+under each outage is reported as development evidence, one demonstration per condition
+on one scenario, and the headroom diagnostic is computed on the two normal places. Rules
+only is run at the padded level all the same: the descriptive pairs are one list over
+every place and three of them name it, so its padded cell costs thirty model-free
+attempts and keeps the format and the report whole. The five conditions stay scheduled,
+so the schedule digest every development export carries stands. The repeat is one, a
+budget decision: at temperature 0 a repeat under identical digests reproduced seven runs
+field for field, so the intervals describe variation across scenarios and say nothing of
+run-to-run variability. The attribution table and the re-dispatch policy are the
+development values unchanged, since no development run produced an observation for
+another row and none re-dispatched; the budget is $45 expected, $90 ceiling, the
+admission threshold $45 with its limit $90, cumulative over the milestone from the
+measured per-attempt charges and the spend to date.
+
+**The freeze's values came from a calibration on the second development world**
+(2026-10-14; FINDINGS, `step-15-calibration`). The padded level was chosen by a rule
+stated before the runs: of three candidate paddings, full-context requests of about
+40,000, 70,000 and 90,000 tokens, the smallest at which full context is not correct whole
+on at least one calibration scenario, else the largest, never enlarged afterwards. Full
+context graded the same at every size, whole on the two structured scenarios and not on
+the four that need a prose fact, so the rule gave the first candidate: 160 filler
+documents, the request measured at 42,390 to 42,642 input tokens over the six scenarios
+and recorded beside the level, the base level's at 10,359 to 10,611. The caps per system
+are twice the largest completed calibration run's call count, at least eight, and twice
+its counted tokens rounded up to ten thousand, with full context's token cap the
+allowance less the output maximum and rules only, which calls no model, at the rule's
+floor of eight calls and the smallest multiple of ten thousand above the reserve; every
+one of the 36 calibration histories replayed
+under them stops nowhere and 30 of 36 stop under a halved control
+(`probes/prompt-check/caps_replay.py`). At the padded levels the one-call readers fail
+by output saturation against the registered 8,192 maximum, eleven of twelve calls at
+the largest padding stopping there, a stop inside a tool use returning the tool input
+empty, and by id discipline, document ids written where section ids belong; a
+task-relevant finalization sentence probed against the shipped one ended the saturation
+and restored no recall, so the shipped sentence stays for both roles, and the report
+states the mechanism as such and never as evidence of an input limit. The search tool's
+description states the matching rule the system text states, and every calibration
+round ran that final surface.
 
 **A run is retried after an infrastructure failure only, and the attempt that counts
 is the earliest that did not fail by infrastructure.** Two retries at most. A defect
@@ -2420,8 +2476,9 @@ normal condition at the padded level, over all thirty scenarios. The overall con
 is the claim; tier contrasts are breakdowns named in advance, and no claim of success
 is made from a tier, an outage cell or any other comparison. Named beside it and
 carrying none: the agent against single-shot at both levels; every pair of systems at
-four named places, the normal condition at both levels and the two answer-quality
-outages at the base level, named outright because the outages run at one level; and
+the named places, named outright because the outages ran at one level (four in the
+draft, the normal condition at both levels and the two answer-quality outages at the
+base level; the two normal ones since the freeze); and
 the level contrasts, one system against itself, padded less base, under the normal
 condition, for the three systems that read documents, which measure sensitivity to
 the padding and do not say why a system changed. A comparison one of whose cells
@@ -2450,6 +2507,15 @@ an inclusion decided when the procedure is frozen, before the measurement world
 exists; anything added later is exploratory and says so. This format registers one
 system of each kind, so it cannot state that a supporting system is included, and the
 format that can arrives with the first one built.
+
+At the freeze (2026-10-14) all four were decided not built before the milestone's exit,
+from time and cost, and the file holds each decision with its reason and the development
+number it rests on where one exists: the single shot's full-text retrieval returned 3 of
+7 required targets at the padded level on the second development world, and a model
+writing every claim was correct whole on none of six scenarios of a throwaway world where
+the rules composing over model-stated facts reached the ceiling (the probe of
+2026-10-04). The second model stays unnamed, since none runs and no counting probe is
+spent on one; a vector arm built after the exit is exploratory on this world.
 
 **No scenario of the measured world is tuned on.** The registration declares the
 count in its world section and a frozen file requires it to be zero, so the statement
@@ -3010,19 +3076,35 @@ job of the CI run that produced it (by run and attempt) concluded success, pendi
 failed and cancelled all disqualifying, independent of the host's own deployed-sha
 check.
 
-**A change to the run's host path is rehearsed on the laptop before its first
-dispatch** (ruled at the first live run's close, unbuilt). The fake-binary tests run
-every step and every branch of the two lifecycle scripts and see no user, no schema and
-no environment, the classes of three of the four live findings of that step's first
-dispatches. The rehearsal runs the real lifecycle script from WSL Ubuntu, so the
-image's uid and the 0700 directory are real, over the local Compose stack, a local app
-directory and a fake `aws` that answers parameters from the environment and runs each
-sent payload locally for the driver, with the development world in the laptop cache and
-the real sandboxes. Its trigger: the first dispatch after a change to the two lifecycle
-scripts, the two run workflows, the Dockerfile, the compose file or the composition's
-environment reading in `adapters/wiring.py`, and the first reported dispatch if nothing
-earlier fires. It is a probe under `probes/` with its runbook, and this passage becomes
-as-built text on its first run.
+Built at the freeze (2026-10-14, the freeze step's fork 10 with fork 32's split). Before
+any send the driver reads the push run of the CI workflow on main at the dispatched
+commit off the Actions API and requires the five named jobs of its latest attempt
+concluded success; pending, failed, cancelled, skipped and absent each refuse the
+dispatch with the run, the attempt and each job's state printed, and the continue-run
+workflow passes the same guard. Probed on run 38615543839 before the shape was chosen:
+attempt 1 failed the image job on the mirror's pull limit and skipped the deploy,
+attempt 2 re-ran every job, and the latest-attempt listing names the five at attempt 2.
+The deploy carries the manifest digest the image job recorded and the host pulls the
+image by it, giving it the commit's tag locally, so a tag the registry moved cannot
+reach the host; the fake-binary tests cover both guards' refusals.
+
+**A change to the run's host path is smoked in production on the rules-only run before
+its first model dispatch** (ruled at the first live run's close as a laptop rehearsal,
+narrowed at the freeze step's fork 30 on cost, run and closed 2026-10-14). The
+fake-binary tests run every step and every branch of the two lifecycle scripts and see
+no user, no schema and no environment, the classes of three of the four live findings of
+that step's first dispatches. The laptop rehearsal, the real lifecycle script from WSL
+over the local Compose stack and a fake `aws`, was costed at half a day and replaced by a
+live pair on the client's own path, which no workstation stand-in rides: the rules-only
+run on one scenario at the production gate, no
+model call and no reservation, then one continue-run on the same attempt, which together
+exercise the driver's poll and classification, the fetch, publish after the run and
+continue-run's inputs; a fault strands an attempt, whose recovery is proven under
+production. The pair ran green on the closed attempt `38586941974` once the new sha was
+deployed: status read the attempt closed, completed, approved, generation 1, next publish
+after 0 recoveries, and publish answered the published state without re-running. It does
+not exercise polling failures, exit 137, partial downloads or expired credentials, which
+the step-14 review's tests cover under fakes.
 
 ---
 

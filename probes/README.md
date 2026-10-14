@@ -189,6 +189,15 @@ miss the shortened-span scenario, round 0 at 3 of 7. The FINDINGS entry `prompt-
 holds the forecast, every round and the raw shapes; `prompt-check/results/summary.md`
 the cross-round table from the result files.
 
+The freeze step's calibration (2026-10-14) ran the same script on the second development
+world (`--world`, with `--registered-level padded` reading the world's `padded_40k`,
+`padded_70k` or `padded_90k` cell under the one registered name): the reader instruction
+in four rounds, full context at the three candidate paddings, and the seven cells at base
+and at the level; `prompt-check/caps_replay.py` then replayed every calibration history
+through the evaluator's account check under the candidate caps, model-free. The FINDINGS
+entry `step-15-calibration` holds the rounds and `step-15-freeze` the values the
+registration took from them.
+
 ## The baselines step's query selection (written 2026-10-11, before it runs)
 
 The single-shot baseline's one search asks a registered query, a literal or a template over

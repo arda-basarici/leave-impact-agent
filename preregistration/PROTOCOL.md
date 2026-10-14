@@ -10,11 +10,14 @@ One JSON file with a format version, decoded strictly: every field required, an 
 key refused, and the bytes accepted only if they are the one form the encoder writes. It
 is changed through the encoder and never by hand, and a line in `.gitattributes` keeps a
 checkout from rewriting its line endings, so the bytes at a commit are the bytes that were
-registered. The file is at format 4, which gave the single-shot system's query protocol a
-value shape (a literal, or a template over the prefetch's records with a fallback) and each
-role a context allowance, the model's input window a request is checked against before any
-send. Nothing reads formats 1 to 3, and no run was made under any of them that a report
-could cite.
+registered. The file is at format 5. Format 4 gave the single-shot system's query protocol
+a value shape (a literal, or a template over the prefetch's records with a fallback) and
+each role a context allowance, the model's input window a request is checked against
+before any send; format 5, the freeze step's, gave each corpus level the count of filler
+documents the world seals for it and the measured size of the full-context request at it,
+in place of a filler token size nothing sealed or compared. Nothing reads formats 1 to 4;
+no reported run was made under any of them, and the development runs the freeze rested
+on were made under the format-4 draft and are cited as development evidence.
 
 Beside it, `prices.json` is the price table every run is priced from and every
 reservation is sized by: integer pico-dollars per token, one row per model, region,
@@ -55,16 +58,16 @@ the named commit, requires it to be frozen there, and compares the two procedure
 written. A bound file whose procedure differs from the frozen one's, or that is evaluated
 against another world, refuses the whole evaluation.
 
-The freeze comes after the calibration runs, when the forecast of the whole registered
-workload fits under the spending threshold with what has already been spent. What the
-freeze sets is in the file as pending today: the padded level's size, the repeat count,
-the caps, the attribution table's rows, the re-dispatch bound, the decision on the
-conditional cells and the inclusion of each supporting comparison. If the forecast does
-not fit, the file stays a draft and the measurement does not start.
+The freeze came after the calibration runs (2026-10-14), when the forecast of the whole
+registered workload fit under the spending threshold with what had already been spent.
+What the freeze set had been in the file as pending: the padded level's size, the repeat
+count, the caps, the attribution table's rows, the re-dispatch bound, the decision on the
+conditional cells and the inclusion of each supporting comparison. Had the forecast not
+fit, the file would have stayed a draft and the measurement would not have started.
 
-Every dollar figure in the file is a placeholder carried from the design, cumulative over
-the milestone, and marked unmeasured. None is a target or an accepted spend. They are set
-again from real usage before the freeze.
+Every dollar figure in the file was a placeholder carried from the design until the
+freeze, cumulative over the milestone and marked unmeasured; the frozen file carries the
+figures set from real usage, still cumulative, and none is a target or an accepted spend.
 
 ## The world
 
@@ -119,9 +122,10 @@ development world does not later become a projected one; it stays unprojected.
 
 ## How the measurement world is accepted
 
-A draft, written at the generator step's close. The definitions, the sampling rules and the
-replacement rules are frozen with the procedure, before the world is drawn; the numbers are
-set at the freeze from development evidence. Nothing here is decided by a result.
+Written at the generator step's close. The definitions, the sampling rules and the
+replacement rules are frozen with the procedure, before the world is drawn; the numbers
+were set at the freeze (2026-10-14) from development evidence. Nothing here is decided by
+a result.
 
 A *world defect* is one of three things: the validator refuses the world; a scope problem,
 a clause whose target the index cannot resolve to one artifact or a handle two artifacts
@@ -134,14 +138,17 @@ regenerates the world from a fresh draw. Neither repair is ever made on agent pe
 Seeds are drawn one at a time, each thirty-two bytes of fresh entropy, numbered. Every
 rejection, by the reservation book or by a defect, is recorded with its number, its reason
 and the version of the world it refused, in a private record this repository does not hold;
-the accepted world's version is the one the registration binds. The number of draws before
-the procedure is abandoned is the freeze's.
+the accepted world's version is the one the registration binds. The procedure is
+abandoned after three draws (the freeze step's fork 16; the evidence so far is one
+exhausted planted brief in two development draws).
 
 Before the world is bound, two samples are read by hand. A seeded draw of *k* scenarios per
 tier, stratified because the slots are shuffled, each traced by the world milestone's audit
 method (`AUDIT_METHODOLOGY.md`); and *n* filler documents drawn by the same rule and read
 by a person or by a model of another family than the writer's, checking that each reads as
-the requirement it imitates and names nothing of the world. *k* and *n* are the freeze's.
+the requirement it imitates and names nothing of the world. *k* is one scenario per tier
+and *n* five filler documents, read by Nova Pro (the freeze step's fork 16); both are spot
+checks and establish no defect rate over the pool.
 
 ## What is measured
 
@@ -174,21 +181,32 @@ same at every one. There are two, the base level with none of the pool and a pad
 Membership is derived from the count and listed nowhere in the truth; the world seals the
 levels and the pool's order beside its documents (`levels.json`), which the deployed
 corpus cache filters every read by and the validator compares with the spec before a world
-is served. The file records beside the padded
-level the size of the full-context request at that level in tokens, measured at the freeze
-under the registered counting rule, because the world is model-neutral and a token count is
-one tokenizer's.
+is served. The file records beside each level the count of filler documents the world
+seals for it and the size of the full-context request at it, the input tokens the
+provider's usage reported over the calibration scenarios at the freeze, because the world
+is model-neutral and a token count is one tokenizer's.
+
+The padded level's size was chosen by a rule stated before the calibration runs: the
+smallest of the candidate paddings at which full context is not correct whole on at least
+one calibration scenario, else the largest, never enlarged afterwards. The candidates were
+requests of about 40,000, 70,000 and 90,000 tokens on the second development world; full
+context graded the same at every one, so the rule gave the first, 160 filler documents.
+The rule and its evidence are disclosed in the report.
 
 A *cell* is one system under one condition at one level. Every system runs the normal
-condition at both levels. The outages run at the base level only, so no outage is crossed
-with a size. Rules only reads no document and gives the same answers at both levels; it is
-run at each all the same, so that each cell has its own runs and the report can show they
-are equal.
+condition at both levels. The outage cells were registered at the base level only, so no
+outage is crossed with a size; at the freeze the outage matrix was cut from the registered
+measurement for time and cost, and only full context's four outage cells remain
+registered, in the conditional group below. Rules only reads no document and gives the
+same answers at both levels; it is run at each all the same, so that each cell has its own
+runs and the report can show they are equal.
 
 Four cells are conditional: full context under each outage. They form one group with one
 rule and one decision, all four or none, taken from the cost forecast before any
 measurement result exists. Until the group is decided as run nobody executes those cells
-and nothing is reported for them.
+and nothing is reported for them. At the freeze the group was decided not run, with the
+reason in the file; the behaviour under each outage is reported as development evidence,
+one demonstration per condition on one scenario.
 
 A run is counted in the cell it was assigned to and graded against the condition its own
 reads show. A system that never called the failed source ran under no outage and is still
@@ -347,10 +365,11 @@ scenario out. It is a diagnostic, not the most a system could improve by.
 Four comparisons are declared with their place, their two systems, their endpoint and
 their analysis: vector retrieval against full-text retrieval in single-shot, a multi-agent
 layout against the single investigator, the primary contrast under a second model, and a
-model-authored report against rule composition. Whether each is built is decided at the
-freeze, from time and cost, before any measurement result is seen. The list closes there.
-A comparison on it is prespecified whenever it runs; anything added later is exploratory
-and says so.
+model-authored report against rule composition. Whether each is built was decided at the
+freeze, from time and cost, before any measurement result is seen: all four not built
+before the milestone's exit, each with its reason in the file and, where one exists, the
+development number the decision rests on. The list is closed. A comparison on it is
+prespecified whenever it runs; anything added later is exploratory and says so.
 
 This format registers one system of each kind, so it can declare a supporting comparison
 and cannot yet register the second system one would run. That arrives with the first one

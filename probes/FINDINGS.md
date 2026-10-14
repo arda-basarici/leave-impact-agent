@@ -4079,3 +4079,133 @@ saturate the registered output maximum at every candidate padding and at the sin
 search result on this world, that the investigator does not, and that the caps derived by
 the rule stop no calibration history. The ruling on the instruction, the level's wording
 and the caps are the freeze commit's; this entry is their evidence.
+
+## second-development-world — seed 103's second draw sealed with a 432-document filler pool and three candidate paddings, after a throttle abort and a namespace-guard refusal (2026-10-14)
+
+The freeze step's calibration needed a development world whose filler pool reaches a
+full-context request near 100,000 tokens (the step-15 forks file, forks 2 and 29); the
+first development world's twelve filler documents put full context at the ceiling on seven
+of seven. Three local runs under SSO, unprojected, writer Haiku 4.5 and checker Nova Pro on
+the EU profiles, four prose workers (`--prose-workers`, the concurrent filler loop built
+for this world after the first forecast of eighty sequential minutes was corrected to the
+first world's measured 1.9 s an attempt):
+
+- **Seed 102, aborted** after 135 writer attempts on a Haiku throttle at four workers, about
+  $0.30 of calls lost since the stage kept nothing until every brief passed. Two fixes
+  followed: the prose client's retries moved to the SDK's adaptive mode with ten attempts,
+  and a private per-seed checkpoint of accepted bodies under a local root, reused on a rerun
+  when the request digest, the body digest and the two free guards hold (`generator/
+  checkpoint.py`; the step's `2701e95`). In the same run the planted `clause_004`
+  (`scenario_027`, a runbook stating a ticket's owner) exhausted sixteen attempts, ten of
+  them the checker's untyped proposition: a defect in a planted part, repaired by a fresh
+  draw as PROTOCOL says. One exhausted planted brief in two development draws is the draw
+  cap's evidence (fork 16).
+- **Seed 103, the first draw refused:** 463 of 2,209 attempts refused by the namespace
+  guard and eight client-notes sections exhausted the cap of sixteen, the world unsealed and
+  about $5 of calls kept nowhere. The form, read off the refusals: the team "Data" matched in
+  any case against "data setup" and "data pipeline", which every brief carrying the dbt or
+  PostgreSQL skill makes the writer say. The fix is the guard's (fork 26, reversed on this
+  measured rate): team and component names, dictionary words by design, match in exact
+  spelling only (`EXACT_SPELLING_KINDS` in `generator/guards.py`); no seed's organization
+  changes, the vocabulary digest stands, and the generator version moved to 19.
+- **Seed 103, the second draw, sealed:** version
+  `3e00fc803b3e14e3e22b3007452ba43377ba1cff0ae235489646bb79b5922a17`, 462 objects, 458
+  documents (26 planted, 432 filler), levels `base`, `padded_40k` = 160, `padded_70k` = 320,
+  `padded_90k` = 432 (the filler name book holds 36 releases and 36 clients by six title
+  templates, 432 titles, so the pool stops there; raising the book moves a vocabulary digest
+  a test pins to the generator version, not worth the last 10,000 tokens). The metrics
+  block: 1,751 writer attempts over 1,740 targets, 1,732 passing first time, none exhausted,
+  0 namespace refusals (463 on the first draw: the guard fix confirmed at scale), 11
+  extraction refusals; writer 1,069,772 input and 53,469 output tokens, checker 2,695,124 and
+  202,716; 2,070.7 s wall at four workers against 3,076 s of call latency summed, so the quota
+  held the parallelism near 1.5, about 1.2 s an attempt.
+
+**Cost, priced by hand** from the metrics block at the captured rates: the writer $1.47;
+the checker $2.80 to $3.68 depending on which Nova Pro series the EU profile bills under (the
+`step-14` entry's open question), so the world about $4.30 to $5.15; with the first draw and
+seed 102 the second development world cost about $10 and three runs. The figure enters the
+ledger once the bill read settles the series. The proof and the cache load ran after the
+seal; the calibration (`step-15-calibration`) and the freeze read this world.
+
+**Limits.** One world from one seed under one writer and one checker; the per-attempt wall
+clock and the parallelism are this run's under this quota and claim nothing about the job's
+runner. The namespace-guard rate (463 of 2,209) is the first draw's and the fix is judged on
+the second draw's zero, not on a sweep over seeds.
+
+## step-15-freeze — the registration frozen at format 5 with the calibration's values, the CI guard on the dispatching driver and the digest-verified deploy (2026-10-14)
+
+The freeze commit's record: what the frozen file holds and what pinned each value; the
+rulings are the step-15 forks file's (groups A and B, the calibration rulings, the freeze
+rulings of session 102), the evidence the `step-15-calibration` and
+`second-development-world` entries'.
+
+**Format 5.** A corpus level's `filler_tokens` meant tokens of filler added; the ruled
+value, 40,000, was a full-context request budget, about 32,000 of filler by subtraction, and
+PROTOCOL promised a measured request size the type had no field for. Format 5 gives a level
+`filler_documents` (0 and 160, the count `levels.json` seals, so a bound world can one day be
+compared with it) and `full_context_input_tokens` as a measured low and high. Nothing
+outside `core` read the old field (grep over `src`); the type, the codec, the fixture and
+three tests moved, and the draft as it stood before the freeze is kept at format 5 under
+`tests/fixtures/registration-draft.json`, so the draft's semantics (which pending value
+blocks what, how a plan leaves cells out, the outage matrix through the worker) stay
+testable after the committed file froze. The committed file re-encoded at format 5 as a
+draft, then frozen, is 21,646 bytes, the encoder's own.
+
+**The values**, each read back by `tests/unit/test_core_registration.py` (the frozen-shape
+test) and the tree's digests compared with the file on both the draft fixture and the
+committed file:
+
+| field | value | pinned by |
+|---|---|---|
+| `padded` level | 160 filler documents; full-context input 42,390 to 42,642 tokens | the calibration's `padded_40k` round, six scenarios |
+| `base` level | 0; 10,359 to 10,611 | the calibration's full-context base round |
+| caps, investigator | 14 calls, 200,000 tokens | 12 calibration runs, largest 7 calls and 97,446 tokens, doubled and rounded; the replay |
+| caps, single shot | 8, 50,000 | largest 1 call and 20,808 tokens |
+| caps, full context | 8, 191,808 | the allowance less the output maximum (the step-12 ruling) |
+| caps, rules only | 8, 30,000 | the rule's floor: no model call, the smallest multiple of 10,000 above the 20,000 reserve |
+| reserves | 2 calls, 20,000 tokens, every system | unchanged |
+| cells | 8 run (every system, normal, both levels); full context's 4 outage cells kept in the group, decided not run | forks 1 and 7; the format requires a group to hold a cell and a descriptive pair's cell at every place |
+| conditions | the five, unchanged | the schedule digest development exports carry stands |
+| repeats | 1 | fork 3 |
+| re-dispatch | 3 dispatches, 1,000 ms | fork 6: the development policy, nothing re-dispatched in the step-14 and prompt-check runs |
+| attribution | the development table's six rows | fork 5; the oversized-level case pinned in `test_agent_worker.py` (cap path before any send, graded `cap_exhausted`) |
+| descriptive places | normal at base, normal at padded | the two outage places dropped with their cells |
+| supporting | all four not built before exit; `second_model.other_model` null | fork 8; development numbers on the vector arm (3 of 7 required targets returned at the padded level) and the authoring arm (0 of 6 model-authored on the 2026-10-04 probe) |
+| budget | expected $45, ceiling $90, threshold $45, limit $90, reforecast after 10 | fork 9 |
+| status | frozen; pending `world.version` alone | the type's lifecycle check |
+
+Where the forks file said seven cells, the file holds eight: rules only runs at the padded
+level, since the descriptive pairs are one list over every place and three name it, and the
+cell costs thirty model-free attempts (the freeze rulings, fork B). The textual basis the
+rulings asked for ("calibration, world `3e00fc80…`, 12 runs") has no field; it lives here and
+in DESIGN, the file carrying `calibrated`.
+
+**The CI guard (fork 10).** The driver `deploy/runner/investigate.sh`, which both dispatching
+workflows run, reads the Actions API before any send: the push run of `ci.yml` on `main` at
+the dispatched sha (exactly one expected) and the latest attempt's jobs, requiring `check`,
+`sweeps`, `crash-matrix`, `image` and `deploy` each `completed/success`; pending, failed,
+cancelled, skipped and absent refuse with the run, attempt and each state printed, and
+nothing is sent. The workflows grant `actions: read` and the token. Probed before the shape
+was chosen on the deployed commit's own run, `38615543839` of `9a5303d`: attempt 1 had the
+image job fail on the ECR public mirror's pull limit (`toomanyrequests: Data limit exceeded`
+on `python:3.13-slim-bookworm`'s manifest, the third hit of the pull-limit class and the
+first on the image build rather than a service pull) and the deploy skipped; attempt 2 re-ran
+every job; `filter=latest` lists the five at `run_attempt` 2 and `filter=all` lists both
+attempts. A re-run of failed jobs alone was not probed; a job the latest listing omits reads
+as absent and refuses, the safe side. Under the fake-binary tests
+(`tests/unit/test_runner_driver.py`) a Windows `jq` printed CRLF and the run id carried a
+carriage return into the second URL; the three reads strip it, a no-op on the runner.
+
+**The digest-verified deploy (fork 32's split).** The image job exports the manifest digest
+it recorded, the deploy job puts it in the host payload, and `deploy/instance/deploy.sh`
+pulls `ghcr.io/…@<digest>`, tags it with the commit sha and lets compose find the tag
+present, the service image still pulled by compose; a missing digest refuses before any pull.
+The script has its first tests (`tests/unit/test_instance_deploy.py`): the pull and tag order,
+the three container runs, the secrets in the containers' environment and on no command line,
+the two refusals.
+
+**Limits.** The frozen values are one calibration's on one development world; the file is
+frozen before the measurement world exists and binds it only after validation and the
+audit. The guard's re-run-failed-jobs case is reasoned, not probed. The digest deploy is
+tested under fakes and runs for the first time on this commit's own deploy, which is the
+probe of the pull-by-digest path on the host.

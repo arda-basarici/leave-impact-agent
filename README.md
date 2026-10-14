@@ -116,7 +116,8 @@ probe proves on every deploy.
   `agent` (the systems under test, today the rules-only baseline). The layout and its
   import law are in ARCHITECTURE.md and enforced by `tests/unit/test_import_law.py`.
 - `preregistration/` — `registration.json`, what the investigator milestone measures and
-  how the result is read, a draft until the freeze; `prices.json`, the price table every
+  how the result is read, frozen on 2026-10-14 before the measurement world exists and
+  bound to it once the world is accepted; `prices.json`, the price table every
   run is priced from, with its sources in `PRICES.md`; `PROTOCOL.md` explains the files.
 - `tests/{unit,integration,live,e2e}/` — the test levels (DESIGN, "Verification"); the
   vendor cassettes live under `tests/integration/cassettes/`.
