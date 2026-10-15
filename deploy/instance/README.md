@@ -74,10 +74,11 @@ the step's `export` lines in the payload, reads each step back, and takes the ne
 step from what the launcher's `status` answers. The run rides the dispatched
 commit: the host refuses a step whose sha is not `DEPLOYED`'s. A run's files live
 under `/run/leaveimpact/<run id>/` on tmpfs, owned by the image's user and readable
-by nobody else, bind-mounted into every container of the run; a reboot clears them
-and a later step says so, except `publish`, which needs only the pinned registration
-and remakes the directory, so a closed attempt is published after a reboot
-(`inventory` still waits for the launch's values; FIXLOG). Secrets reach the
+by nobody else, bind-mounted into every container of the run; a reboot clears them,
+`work` says so and stops, and every other word remakes the directory and fetches the
+pinned registration, `inventory` taking its scope (the admission's world version and
+registration commit) from the payload the driver read off `status`, so a closed
+attempt is published and listed after a reboot. Secrets reach the
 container through the process environment only, and a Parameter Store read that
 fails ends the step with the CLI's error. The work container is named for its
 attempt: the SSM agent ends a timed-out command with SIGKILL to the host's process

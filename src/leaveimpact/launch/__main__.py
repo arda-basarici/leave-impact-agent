@@ -332,7 +332,12 @@ def _status(line: StatusLine, registration: Registration, store: LogStore) -> li
 
 def status_lines(state: AttemptState, *, approval: ApprovalPolicy) -> list[str]:
     """The attempt's state as the fields the job seam exposes, the recoveries its log
-    counts, and the lifecycle's next step under ``approval``."""
+    counts, the world version and registration commit it was admitted under (the
+    inventory's scope, which the driver hands on so a continuation needs nothing the host
+    kept), and the lifecycle's next step under ``approval``."""
+    inputs = state.inputs
+    if inputs is None:
+        raise ValueError("an attempt with no admission has no status")
     closing = state.closing
     segment = state.current_segment
     approval_state = (
@@ -350,6 +355,8 @@ def status_lines(state: AttemptState, *, approval: ApprovalPolicy) -> list[str]:
         f"stopped={'true' if state.stopped is not None else 'false'}",
         f"generation={state.generation}",
         f"recoveries={state.recoveries}",
+        f"world_version={inputs.context.world_version}",
+        f"registration_commit={inputs.preregistration_commit}",
         f"next={next_step(state, approval=approval).value}",
     ]
 

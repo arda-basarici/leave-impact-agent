@@ -1,7 +1,8 @@
 """The host-side lifecycle script under fake binaries: each lifecycle word composes the one
-command line the docs promise, the launch writes the files the later words read back, the
-dispatched commit must be the deployed one, a cleared run directory stops a later word, and
-no secret ever reaches a command line (they reach the container's environment only)."""
+command line the docs promise, the launch writes the files the work word reads back, the
+dispatched commit must be the deployed one, a cleared run directory stops work and no other
+word, and no secret ever reaches a command line (they reach the container's environment
+only)."""
 
 from __future__ import annotations
 
@@ -188,11 +189,11 @@ def test_a_parameter_still_holding_the_placeholder_fails_the_step(
     assert len(fakes.lines("docker compose run")) == 3, "no work container ran"
 
 
-def test_a_word_after_a_cleared_run_directory_stops_and_says_why(
+def test_work_after_a_cleared_run_directory_stops_and_says_why(
     host: tuple[FakeBinaries, dict[str, str]],
 ) -> None:
     fakes, env = host
-    status, err = _run(fakes, env, "status", APPROVAL="automatic")
+    status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="automatic")
     assert status == 2
     assert "holds no run.env: the host's tmpfs was cleared since the launch" in err
     assert fakes.lines("docker compose run") == []
@@ -222,7 +223,7 @@ def test_a_word_after_a_cleared_run_directory_stops_and_says_why(
         ),
         (
             "inventory",
-            {},
+            {"WORLD_VERSION": WORLD, "REGISTRATION_COMMIT": COMMIT, "LEDGER": "ledger-development"},
             "python -m leaveimpact.agent inventory --registration /run/job/registration.json "
             f"--world-version {WORLD} --registration-commit {COMMIT} --ledger ledger-development",
         ),
@@ -321,21 +322,51 @@ def test_a_transfer_that_died_mid_body_leaves_no_file_and_the_next_launch_fetche
     assert (run_dir / "prices.json").read_text().strip() == "{}"
 
 
-def test_publish_after_a_cleared_run_directory_remakes_it_and_fetches_the_registration(
+def test_every_word_but_work_runs_after_a_cleared_run_directory(
     host: tuple[FakeBinaries, dict[str, str]], tmp_path: Path
 ) -> None:
-    """A reboot between an attempt's close and its publish: publish needs the registration
-    and the two ids alone, so it is the one later word that recreates the directory."""
+    """A reboot between an attempt's close and its publish: status, publish and inventory
+    need the pinned registration, the two ids and the scope the driver read off status, so
+    each remakes the directory and runs (the step-14 review's finding); an approval is
+    delivered the same way, and the work that would follow it is what refuses."""
     fakes, env = host
-    status, err = _run(fakes, env, "publish")
-    assert status == 0, err
     run_dir = tmp_path / "run" / "run-1"
+    status, err = _run(fakes, env, "status", APPROVAL="human")
+    assert status == 0, err
     assert (run_dir / "registration.json").exists() and (run_dir / "prices.json").exists()
     assert fakes.lines("chown") == [f"chown -R 1000:1000 {posix(run_dir)}"]
-    assert fakes.lines("docker compose run")[0].endswith(
-        "python -m leaveimpact.agent publish --registration /run/job/registration.json "
-        "--run run-1 --attempt 1"
+    status, err = _run(fakes, env, "publish")
+    assert status == 0, err
+    status, err = _run(
+        fakes, env, "inventory", WORLD_VERSION=WORLD, REGISTRATION_COMMIT=COMMIT, LEDGER="ledger-x"
     )
-    status, err = _run(fakes, env, "inventory")
+    assert status == 0, err
+    status, err = _run(fakes, env, "deliver", APPROVER="github:arda", PAYLOAD_DIGEST="d" * 64)
+    assert status == 0, err
+    runs = fakes.lines("docker compose run")
+    commands = [line.split(" python -m leaveimpact.")[1] for line in runs]
+    assert commands == [
+        "launch status --run run-1 --attempt 1 --registration /run/job/registration.json "
+        "--approval human",
+        "agent publish --registration /run/job/registration.json --run run-1 --attempt 1",
+        "agent inventory --registration /run/job/registration.json "
+        f"--world-version {WORLD} --registration-commit {COMMIT} --ledger ledger-x",
+        "agent deliver-approval --registration /run/job/registration.json --run run-1 --attempt 1 "
+        "--approver github:arda --payload-digest " + "d" * 64,
+    ]
+    status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="human")
     assert status == 2
     assert "holds no run.env" in err
+
+
+def test_inventory_refuses_a_payload_that_names_no_scope(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """The scope is the payload's and never read back from the launch's files, so a
+    payload without it stops before any container runs."""
+    fakes, env = host
+    _launched(fakes, env)
+    status, err = _run(fakes, env, "inventory", LEDGER="ledger-development")
+    assert status != 0
+    assert "WORLD_VERSION" in err
+    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"

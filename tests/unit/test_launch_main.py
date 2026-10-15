@@ -226,7 +226,9 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
 ) -> None:
     """An admitted attempt: open, no segment, work next. The throttled run with its closing
     dropped: open, segment open, a recorded stop, recover next, and hold at the bound, the
-    count the log's own and printed. Closed: publish, with its ending named."""
+    count the log's own and printed. Closed: publish, with its ending named. Every answer
+    names the world and the registration commit the attempt was admitted under, the
+    inventory's scope."""
     # The attempt is read under the registration file's rules, so the history is made under
     # them: the development table and policy a draft resolves to.
     rules = effective_rules(probe.registration())
@@ -247,6 +249,8 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
         "stopped=false",
         "generation=0",
         "recoveries=0",
+        f"world_version={inputs.context.world_version}",
+        f"registration_commit={inputs.preregistration_commit}",
         "next=work",
     ]
     turns, client = support.throttled_script(inputs.context)
@@ -276,11 +280,13 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
         "stopped=true",
         "generation=1",
         "recoveries=0",
+        f"world_version={inputs.context.world_version}",
+        f"registration_commit={inputs.preregistration_commit}",
         "next=recover",
     ]
     state = left_open.load(RUN, ATTEMPT, rules=rules)
     at_bound = launcher.status_lines(replace(state, recoveries=2), approval=AutomaticApproval())
-    assert at_bound[-2:] == ["recoveries=2", "next=hold"]
+    assert "recoveries=2" in at_bound and at_bound[-1] == "next=hold"
     assert launcher.main(_status(log, probe), {}, log) == 0  # type: ignore[arg-type]
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "attempt=closed" and out[1] == "ending=failed" and out[-1] == "next=publish"

@@ -3835,8 +3835,14 @@ anyway. The run's files live on the host's tmpfs under a directory readable by t
 image's user alone and bind-mounted into every container of the run: the request file
 (the scenario's leave and instant, which no log carries), the work line's cell flags,
 the two preregistration files and the launch's non-secret inputs, read back by the
-later steps so each payload carries only its own; a reboot clears them and a later step
-says so, since an attempt's files cannot be rebuilt from a later step's inputs.
+later steps so each payload carries only its own. A reboot clears them: `work` says so and
+stops, since the cell's files cannot be rebuilt from a later step's inputs, while status,
+deliver, publish and inventory need nothing the reboot clears, the inventory's scope (the
+world version and the registration commit the attempt was admitted under) read off the
+status output, so a closed attempt is published and listed after a reboot, an attempt is
+listed under the commit it was admitted under and not a continuation checkout's, and an
+approval is recorded even where no work can yet follow it (the step-14 review's finding,
+built 2026-10-15 before the first reported dispatch).
 Secrets enter the container through the environment compose interpolates, never a
 command line, and the host script never runs under a shell trace; the Google
 credential travels as the authorized-user JSON value, the file form kept for the

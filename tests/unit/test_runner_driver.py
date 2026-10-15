@@ -144,6 +144,11 @@ def _run(fakes: FakeBinaries, env: dict[str, str], **inputs: str) -> tuple[int, 
 
 OK = ("Success", 0, "")
 LAUNCHED = ("Success", 0, "launch=launch-1\nrun=run-77\nreservation_pico_usd=3253360000000\n")
+ADMITTED_WORLD = "5" * 64
+ADMITTED_COMMIT = "a" * 40
+ADMITTED = f"world_version={ADMITTED_WORLD}\nregistration_commit={ADMITTED_COMMIT}\n"
+"""What status prints of the admission: the inventory's scope, which is the attempt's and
+not the dispatch's inputs or the checkout's commit."""
 
 
 def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_inventory(
@@ -154,7 +159,7 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
         fakes,
         LAUNCHED,
         ("Success", 0, "worked=run-77/1\nending=closed\n"),
-        ("Success", 0, "attempt=closed\nnext=publish\n"),
+        ("Success", 0, "attempt=closed\n" + ADMITTED + "next=publish\n"),
         ("Success", 0, "publication=run-77/1\nstate=published\n"),
         ("Success", 0, "inventory_digest=" + "e" * 64 + "\n"),
     )
@@ -186,6 +191,10 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     work = fakes.payload_exports(2)
     assert work["LAUNCH"] == "launch-1" and work["APPROVAL"] == "automatic"
     assert "RECOVERIES" not in fakes.payload_exports(3), "the count is the log's, not the job's"
+    inventory = fakes.payload_exports(5)
+    assert inventory["WORLD_VERSION"] == ADMITTED_WORLD != RUN_INPUTS["INPUT_WORLD_VERSION"]
+    assert inventory["REGISTRATION_COMMIT"] == ADMITTED_COMMIT != _head(Path(env["CHECKOUT"]))
+    assert inventory["LEDGER"] == "ledger-development"
     payload = json.loads((fakes.fake_dir / "payload-1.json").read_text())
     assert payload["commands"][0].endswith(HOST_SCRIPT.read_text())
     assert payload["executionTimeout"] == ["3600"]
@@ -322,7 +331,7 @@ def test_an_uncertain_completion_is_read_before_any_re_send(
         ("TimedOut", 0, ""),
         ("Success", 0, "next=recover\n"),
         OK,
-        ("Success", 0, "next=publish\n"),
+        ("Success", 0, ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -354,7 +363,7 @@ def test_a_refused_work_reads_the_state_since_a_receipt_path_refuses_too(
         fakes,
         LAUNCHED,
         ("Failed", 1, "refused=run-77/1\nreason=closed_already\n"),
-        ("Success", 0, "next=publish\n"),
+        ("Success", 0, ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -388,7 +397,7 @@ def test_a_pending_command_is_polled_and_never_re_sent(
     driver: tuple[FakeBinaries, dict[str, str]],
 ) -> None:
     fakes, env = driver
-    _script(fakes, LAUNCHED, OK, ("Success", 0, "next=publish\n"), OK, OK)
+    _script(fakes, LAUNCHED, OK, ("Success", 0, ADMITTED + "next=publish\n"), OK, OK)
     (fakes.fake_dir / "pending-2").write_text("3")
     status, _, _ = _run(fakes, env, **RUN_INPUTS)
     assert status == 0
@@ -406,7 +415,7 @@ def test_an_approval_delivers_then_continues_from_the_state_under_the_human_poli
         ("Success", 0, "approved=run-9/2\nposition=7\n"),
         ("Success", 0, "next=work\n"),
         OK,
-        ("Success", 0, "next=publish\n"),
+        ("Success", 0, ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -440,7 +449,7 @@ def test_a_running_container_after_an_uncertain_completion_is_read_again_and_nev
         ("TimedOut", 137, ""),
         ("Success", 0, "container=running\nnext=recover\n"),
         ("Success", 0, "container=running\nnext=recover\n"),
-        ("Success", 0, "container=none\nnext=publish\n"),
+        ("Success", 0, "container=none\n" + ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -460,7 +469,7 @@ def test_a_work_the_host_refused_beside_a_running_container_is_not_a_counted_sen
         ("Failed", 4, ""),
         ("Success", 0, "container=none\nnext=recover\n"),
         OK,
-        ("Success", 0, "container=none\nnext=publish\n"),
+        ("Success", 0, "container=none\n" + ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -475,12 +484,29 @@ def test_a_continuation_without_a_delivery_starts_at_the_state_and_publishes_a_c
     """The job that closed the attempt ended before its publish (the fourth live dispatch):
     the continuation reads the state, finds it closed, and publishes and lists it."""
     fakes, env = driver
-    _script(fakes, ("Success", 0, "container=none\nnext=publish\n"), OK, OK)
+    _script(fakes, ("Success", 0, "container=none\n" + ADMITTED + "next=publish\n"), OK, OK)
     inputs = {**CONTINUE_INPUTS, "INPUT_PAYLOAD_DIGEST": ""}
     status, _, err = _run(fakes, env, **inputs)
     assert status == 0, err
     assert _words(fakes) == ["status", "publish", "inventory"]
     assert fakes.payload_exports(1)["APPROVAL"] == "human"
+    # The continuation carries no world or commit input: the inventory's scope is what the
+    # status printed of the admission (the step-14 review's finding).
+    inventory = fakes.payload_exports(3)
+    assert inventory["WORLD_VERSION"] == ADMITTED_WORLD
+    assert inventory["REGISTRATION_COMMIT"] == ADMITTED_COMMIT != _head(Path(env["CHECKOUT"]))
+
+
+def test_a_status_that_names_no_admission_ends_the_job_before_publish(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """Nothing is published whose inventory could not be scoped."""
+    fakes, env = driver
+    _script(fakes, LAUNCHED, OK, ("Success", 0, "next=publish\n"))
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 1
+    assert _words(fakes) == ["launch", "work", "status"]
+    assert "status printed no world version or registration commit" in out
 
 
 def test_a_work_process_the_host_killed_is_read_and_recovered_not_ended(
@@ -495,7 +521,7 @@ def test_a_work_process_the_host_killed_is_read_and_recovered_not_ended(
         ("Failed", 137, ""),
         ("Success", 0, "container=none\nnext=recover\n"),
         OK,
-        ("Success", 0, "container=none\nnext=publish\n"),
+        ("Success", 0, "container=none\n" + ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -515,7 +541,7 @@ def test_a_continuation_carries_the_policy_the_attempt_was_dispatched_under(
         fakes,
         ("Success", 0, "container=none\nnext=work\n"),
         OK,
-        ("Success", 0, "container=none\nnext=publish\n"),
+        ("Success", 0, "container=none\n" + ADMITTED + "next=publish\n"),
         OK,
         OK,
     )
@@ -531,7 +557,7 @@ def test_an_invocation_the_agent_has_not_reported_yet_is_waited_through(
     driver: tuple[FakeBinaries, dict[str, str]],
 ) -> None:
     fakes, env = driver
-    _script(fakes, LAUNCHED, OK, ("Success", 0, "next=publish\n"), OK, OK)
+    _script(fakes, LAUNCHED, OK, ("Success", 0, ADMITTED + "next=publish\n"), OK, OK)
     (fakes.fake_dir / "missing-2").write_text("2")
     status, out, _ = _run(fakes, env, **RUN_INPUTS)
     assert status == 0
@@ -580,7 +606,7 @@ def test_the_poll_is_bounded_by_the_execution_timeout_and_its_margin(
         fakes,
         LAUNCHED,
         OK,
-        ("Success", 0, "container=none\nnext=publish\n"),
+        ("Success", 0, "container=none\n" + ADMITTED + "next=publish\n"),
         OK,
         OK,
     )

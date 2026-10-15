@@ -49,6 +49,15 @@
 # continuation granted the bound again (the step-14 review's finding). What this job
 # bounds itself is its work sends, above.
 #
+# The inventory's scope is the admission's. `status` prints the world version and the
+# registration commit the attempt was admitted under, and the publish step hands them
+# with the workflow's ledger to `inventory`, so a continuation after a reboot of the
+# host, whose run directory is gone, still publishes and lists a closed attempt (the
+# step-14 review's finding, before the first reported dispatch), and an attempt is
+# listed under the commit it was admitted under and never a later checkout's. A status
+# that printed neither ends the job red before publish, since the inventory could not
+# be scoped.
+#
 # Identities are the workflow run's: run id `run-<GITHUB_RUN_ID>`, attempt
 # `GITHUB_RUN_ATTEMPT`, request id `req-<run id>-a<attempt>` (a re-run of the job
 # is the next attempt; a retry of a send inside the job is the same request, and
@@ -265,6 +274,8 @@ common=(
 )
 
 work_sends=0
+ADMITTED_WORLD=""
+ADMITTED_COMMIT=""
 case "$MODE" in
   run)
     must launch "${common[@]}" LIFECYCLE_COMMAND=launch \
@@ -321,6 +332,8 @@ while :; do
       next=$(field "$LAST_OUT" next)
       container=$(field "$LAST_OUT" container)
       recoveries=$(field "$LAST_OUT" recoveries)
+      ADMITTED_WORLD=$(field "$LAST_OUT" world_version)
+      ADMITTED_COMMIT=$(field "$LAST_OUT" registration_commit)
       echo "status: next=$next after ${recoveries:-?} recoveries, container=$container"
       if [ "$container" = running ] && { [ "$next" = work ] || [ "$next" = recover ]; }; then
         echo "status: the attempt's work container is still running; read again in $POLL_SECONDS s"
@@ -344,8 +357,13 @@ while :; do
       esac
       ;;
     publish)
+      if [ -z "$ADMITTED_WORLD" ] || [ -z "$ADMITTED_COMMIT" ]; then
+        echo "status printed no world version or registration commit for the attempt; the inventory cannot be scoped and nothing is published"
+        exit 1
+      fi
       must publish "${common[@]}" LIFECYCLE_COMMAND=publish
-      must inventory "${common[@]}" LIFECYCLE_COMMAND=inventory
+      must inventory "${common[@]}" LIFECYCLE_COMMAND=inventory \
+        "WORLD_VERSION=$ADMITTED_WORLD" "REGISTRATION_COMMIT=$ADMITTED_COMMIT" "LEDGER=$LEDGER"
       {
         echo "## $RUN_ID attempt $ATTEMPT published"
         echo

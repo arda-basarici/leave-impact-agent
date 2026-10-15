@@ -20,13 +20,17 @@
 # the launcher writes (the scenario's leave and instant, never on a log), the work
 # command's cell flags, the two preregistration files, and run.env, the launch's
 # non-secret inputs the later steps read back so their payloads carry only the
-# step's own. Nothing is rendered to disk; a reboot clears the directory, and a
-# step that finds it gone says so and stops, since the attempt's files cannot be
-# rebuilt from a later step's inputs. `publish` is the exception (the step's batch
-# review): it needs the registration and the two ids alone, so it recreates the
-# private directory and fetches the pinned files, and a closed attempt is published
-# after a reboot; `inventory` still needs the launch's values and waits for the
-# directory to carry them again (FIXLOG).
+# step's own. Nothing is rendered to disk; a reboot clears the directory. `work` is
+# the one word that reads the launch's files (the cell flags, run.env's site URLs), so
+# it alone says so and stops when they are gone, since they cannot be rebuilt from a
+# later step's inputs. Every other word needs nothing a reboot clears: it remakes the
+# private directory and fetches the pinned files (publish since the step's batch
+# review; status, deliver and inventory since the step-14 review's finding, built
+# before the first reported dispatch). `inventory` takes its scope, the world version
+# and the registration commit the attempt was admitted under, from the step's own
+# payload, which the driver read off `status`; so a closed attempt is published and
+# listed after a reboot, and an approval is recorded even where no work can yet
+# follow it.
 #
 # The work container is named for its attempt, because the SSM agent ends a timed-out
 # command with SIGKILL to the host's process tree and the container outlives its
@@ -85,16 +89,17 @@ fi
 run_dir="$RUN_ROOT/$RUN_ID"
 attempt_dir="$run_dir/attempt-$ATTEMPT"
 case "$LIFECYCLE_COMMAND" in
-  launch|publish)
-    # The two words that need nothing a reboot clears: the directory is made or remade.
-    mkdir -p "$run_dir"
-    chmod 0700 "$RUN_ROOT" "$run_dir"
-    ;;
-  *)
+  work)
+    # The one word that reads the launch's files (the header).
     if [ ! -f "$run_dir/run.env" ]; then
       echo "the run directory $run_dir holds no run.env: the host's tmpfs was cleared since the launch, and the attempt's files cannot be rebuilt by a later step" >&2
       exit 2
     fi
+    ;;
+  launch|status|deliver|publish|inventory)
+    # The words that need nothing a reboot clears: the directory is made or remade.
+    mkdir -p "$run_dir"
+    chmod 0700 "$RUN_ROOT" "$run_dir"
     ;;
 esac
 
@@ -221,8 +226,9 @@ case "$LIFECYCLE_COMMAND" in
       --run "$RUN_ID" --attempt "$ATTEMPT"
     ;;
   inventory)
-    # shellcheck source=/dev/null
-    . "$run_dir/run.env"
+    : "${WORLD_VERSION:?the world the attempt was admitted on}"
+    : "${REGISTRATION_COMMIT:?the registration commit the attempt was admitted under}"
+    : "${LEDGER:?the ledger id}"
     run_app python -m leaveimpact.agent inventory --registration "$registration" \
       --world-version "$WORLD_VERSION" --registration-commit "$REGISTRATION_COMMIT" \
       --ledger "$LEDGER"
