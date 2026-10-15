@@ -58,6 +58,17 @@ shopt -s inherit_errexit
 : "${RUN_SHA:?the commit the workflow was dispatched from}"
 : "${RUN_ID:?the run id}"
 : "${ATTEMPT:?the attempt number}"
+# The two ids name a directory this script makes and hands over recursively as root, and
+# the continue-run workflow takes both as typed inputs: each is held to its one shape
+# before anything on the filesystem (the external read of the pre-dispatch commits).
+if ! [[ "$RUN_ID" =~ ^run-[0-9]+$ ]]; then
+  echo "RUN_ID is run-<workflow run id>, not '$RUN_ID'" >&2
+  exit 2
+fi
+if ! [[ "$ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+  echo "ATTEMPT is a positive integer, not '$ATTEMPT'" >&2
+  exit 2
+fi
 REPO=arda-basarici/leave-impact-agent
 REGION=eu-central-1
 # Overridable for the fake-binary tests only; the instance has the defaults.

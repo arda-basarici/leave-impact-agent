@@ -370,3 +370,24 @@ def test_inventory_refuses_a_payload_that_names_no_scope(
     assert status != 0
     assert "WORLD_VERSION" in err
     assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
+
+
+@pytest.mark.parametrize(
+    ("run_id", "attempt", "named"),
+    [
+        ("../../srv", "1", "RUN_ID"),
+        ("run-1;rm", "1", "RUN_ID"),
+        ("run-1", "0", "ATTEMPT"),
+        ("run-1", "1/../2", "ATTEMPT"),
+    ],
+)
+def test_a_malformed_run_id_or_attempt_stops_before_the_filesystem(
+    host: tuple[FakeBinaries, dict[str, str]], run_id: str, attempt: str, named: str
+) -> None:
+    """Both ids name a directory the script makes and hands over as root, and continue-run
+    takes them typed: a shape that is not the one refuses before mkdir or chown runs."""
+    fakes, env = host
+    status, err = _run(fakes, {**env, "RUN_ID": run_id, "ATTEMPT": attempt}, "publish")
+    assert status == 2
+    assert named in err
+    assert fakes.lines("chown") == [] and fakes.lines("docker compose run") == []

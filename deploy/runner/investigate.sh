@@ -113,6 +113,14 @@ case "$MODE" in
   continue)
     : "${INPUT_RUN_ID:?}" "${INPUT_ATTEMPT:?}" "${INPUT_LAUNCH:?}" "${INPUT_APPROVAL:?}"
     INPUT_PAYLOAD_DIGEST=${INPUT_PAYLOAD_DIGEST:-}
+    # Typed by a human: held to their shapes here, before any send, as the host holds them
+    # again before it touches the filesystem.
+    if ! [[ "$INPUT_RUN_ID" =~ ^run-[0-9]+$ ]]; then
+      echo "run_id is run-<workflow run id>, not '$INPUT_RUN_ID'"; exit 2
+    fi
+    if ! [[ "$INPUT_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+      echo "attempt is a positive integer, not '$INPUT_ATTEMPT'"; exit 2
+    fi
     RUN_ID="$INPUT_RUN_ID"
     ATTEMPT="$INPUT_ATTEMPT"
     # A continued attempt resumes under the policy it was dispatched with: under the

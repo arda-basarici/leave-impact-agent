@@ -617,3 +617,21 @@ def test_the_poll_is_bounded_by_the_execution_timeout_and_its_margin(
     assert _words(fakes) == ["launch", "work", "status", "publish", "inventory"]
     assert "work: the poll passed the execution timeout plus its margin" in out
     assert len(fakes.lines("invocation 2")) < 30
+
+
+@pytest.mark.parametrize(
+    ("inputs", "named"),
+    [
+        ({"INPUT_RUN_ID": "../../srv"}, "run_id"),
+        ({"INPUT_ATTEMPT": "0"}, "attempt"),
+        ({"INPUT_ATTEMPT": "two"}, "attempt"),
+    ],
+)
+def test_a_continuation_with_a_malformed_id_ends_before_any_send(
+    driver: tuple[FakeBinaries, dict[str, str]], inputs: dict[str, str], named: str
+) -> None:
+    fakes, env = driver
+    status, out, _ = _run(fakes, env, **{**CONTINUE_INPUTS, **inputs})
+    assert status == 2
+    assert named in out
+    assert not (fakes.fake_dir / "sends").exists(), "nothing was sent"
