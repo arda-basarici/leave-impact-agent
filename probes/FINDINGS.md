@@ -4209,3 +4209,57 @@ frozen before the measurement world exists and binds it only after validation an
 audit. The guard's re-run-failed-jobs case is reasoned, not probed. The digest deploy is
 tested under fakes and runs for the first time on this commit's own deploy, which is the
 probe of the pull-by-digest path on the host.
+
+## measurement-audit — the measurement world accepted: validated under validator version 2, three scenarios traced by the audit method with a blind model reader, five filler documents read, the audit sealed (2026-10-15)
+
+The acceptance of the measurement world under the freeze's rule (PROTOCOL, "How the
+measurement world is accepted"; the step 15 forks file, fork 16): the validator's verdict,
+one scenario per tier traced by the world milestone's audit method, five filler documents
+read by a model of another family than the writer's. Nothing here names the world's seed,
+its scenario-specs digest, its semantic digest, a tier beside a scenario id, or any
+retrieval-target count; the world is sealed embargoed until the last measurement on it.
+
+**The world.** Version `2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c`,
+generator version 19, sealed by the resume run `38652893341` on `hr-w4` (the
+`measurement-world` entry has the two refusals before it); validated in run `38654375403`
+under validator version 2, verdict `verdicts/38654375403-1.json`: 7 of 7 exactness, 7 of 7
+fidelity, 30 of 30 views, the levels check, every status passed.
+
+**The traces.** Three scenarios drawn by the development draw's rule from the frozen
+registration's statistics seed (`probes/measurement-acceptance/draw.py`): `scenario_006`,
+`scenario_014`, `scenario_028`. Each traced under `AUDIT_METHODOLOGY.md` section 4's ten
+steps in the interview shape, the rules read in the code at the time of the trace; three
+accept, zero defect, zero open question. Each trace reached the key's outcome by a hand
+count over the sheet's criterion universe with the criteria fixed before the people were
+read, equal to the generator's outcome witness, and every must-assess verdict, expected
+unknown and expected conflict derived from rows observable at the scenario's `now`. The
+method's external reader (section 5: readings re-verified before entry, never a ruling) was
+a Claude Sonnet subagent per scenario, given the sheet block, the step list and the rules
+modules and blind to the main reading; its three readings agreed with the main ones on
+every step and every count, and the three open questions it raised closed on the sheet or
+the method before entry. Its cost was about 300,000 tokens over the three.
+
+**The filler read.** Five documents drawn by the same rule, read by Nova Pro through one
+forced tool per document (`filler_read.py`): five of five read as the requirement they
+imitate, five of five name nothing of the world against the 182 non-skill forms of the
+world's lexicon, the comparator's positive controls hitting; the `measurement-acceptance`
+section of the probes index has the run.
+
+**The audit sealed.** The index built from the auditor's declaration and the sealed spec
+through the repository's one byte rule, verified, and uploaded under the truth bucket's
+create-only `audit/` prefix, one conditional create per object, each read back equal: the
+identity (the index's sha256, the prefix's last segment) is
+`8ae837022c456ac91a660ba89bb0aaa86028046975446f28bea796635d6c02fc`; `traced_stratified`
+the three ids, no targeted tranche, no coverage notes, `supersedes` null, started and
+completed 2026-10-15. The checklist bound is the golden world's unchanged, the trace being
+its ten steps. The object version ids are in the private stream's audit folder; the
+record and the summary are the bucket's and are not copied into any repository.
+
+**Limits.** Three traces and five reads are spot checks and establish no defect rate over
+the pool, as fork 16 words them; the twenty-seven untraced scenarios rest on the
+validator's verdict and the generator's class contracts. The outage-by-outage
+required-sources derivation was reasoned in each trace from the predicate registry's
+domains and the rules, not executed. The sheet's rollups label the filler register `?`, a
+rendering gap carried in the stream's FIXLOG; no trace reads the rollups, and the digest
+bound is this rendering's. The bind of the registration to this world is the commit after
+this entry's.

@@ -266,6 +266,7 @@ entry `step-14` carries the runs with the five lifecycle runs that followed them
 nothing of the world against 182 forms compared; the names listed were each document's own
 fictional release or client and the skills its briefs carry. One answer omitted the
 `reads_as` field the schema requires; the verdict field was present on all five. 3,599
-input and 353 output tokens. The three traces are the next session's hand audit; the
-folder's README has the run.
+input and 353 output tokens. The three traces ran the same day in session 104, three
+accept, and the audit sealed under the identity `8ae83702…`; the FINDINGS entry
+`measurement-audit` has the counts. The folder's README has the run.
 

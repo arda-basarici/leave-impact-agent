@@ -71,8 +71,9 @@ figures set from real usage, still cumulative, and none is a target or an accept
 
 ## The world
 
-The measured world does not exist yet. It is generated from a seed drawn from a secret
-after the procedure is frozen, and bound once it has been validated and audited. No prompt
+The measured world was generated from a seed drawn from a secret after the procedure was
+frozen, validated, audited and bound on 2026-10-15 (the FINDINGS entry `measurement-audit`;
+the file names the freeze commit it binds). No prompt
 and no setting is tuned on any of its scenarios, and the file says so in a field a frozen
 registration requires to be zero. That zero is the measurement world's. Development
 happens on other worlds, and a development run names its world itself: under a draft or a
