@@ -72,7 +72,12 @@ ledger threshold as a receipt, the admission), `work`, `status`, `deliver`,
 runner-side driver `../runner/investigate.sh` sends it over `ssm send-command` with
 the step's `export` lines in the payload, reads each step back, and takes the next
 step from what the launcher's `status` answers. The run rides the dispatched
-commit: the host refuses a step whose sha is not `DEPLOYED`'s. A run's files live
+commit: the host refuses a step whose sha is not `DEPLOYED`'s. A deploy is approved in
+Actions only between runs: the deploy job shares no concurrency group with the two run
+workflows, so the environment's review gate is what keeps an image pull, the cache load
+and a postgres recreation off a host with a work container running (the external read
+of the pre-dispatch commits, 2026-10-16; a shared group waits on a probe of whether a
+job pending review holds the group's one slot). A run's files live
 under `/run/leaveimpact/<run id>/` on tmpfs, owned by the image's user and readable
 by nobody else, bind-mounted into every container of the run; a reboot clears them,
 `work` says so and stops, and every other word remakes the directory and fetches the
