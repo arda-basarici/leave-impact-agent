@@ -3106,6 +3106,13 @@ after 0 recoveries, and publish answered the published state without re-running.
 not exercise polling failures, exit 137, partial downloads or expired credentials, which
 the step-14 review's tests cover under fakes.
 
+Applied again on 2026-10-16, after the mirror commit changed the Dockerfile's base
+reference and compose's postgres image and the two pre-dispatch commits changed both
+lifecycle scripts and the status output: the same world and scenario, run 38811391087
+closed at generation 1 with zero recoveries and published, its continuation 38812053005
+reading the attempt's scope off status, publish answering the same object digest without
+re-running and inventory listing seven attempts.
+
 ---
 
 ## The deployment the evidence is served from
