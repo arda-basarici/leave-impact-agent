@@ -257,7 +257,9 @@ def test_the_check_is_evaluated_only_for_a_run_whose_record_names_the_table(
 
 
 def test_a_misread_run_and_one_held_to_no_table_are_counted_apart(world: SealedWorld) -> None:
-    plan = preregistered(light(decided(named(DRAFT), True))).plan
+    # Three runs of one scenario, so three intended: a run beyond the intended is surplus and
+    # in no count over counted runs (the protocol's counting rule).
+    plan = replace(preregistered(light(decided(named(DRAFT), True))).plan, intended_repeats=3)
     misread = under(world, sent(1, TIMEOUT, INFRASTRUCTURE, "a-rule"))
     conforming = replace(under(world, as_the_table_reads(1, TIMEOUT)), run_id="run-9")
     unheld = replace(misread, run_id="run-10")

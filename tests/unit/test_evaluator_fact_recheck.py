@@ -310,6 +310,8 @@ def test_a_run_whose_record_the_rerun_disputes_is_counted_and_stays(
 ) -> None:
     disputed = stating_export(world, scenario, gated=False)
     runs = [evaluate_run(world, truthful), evaluate_run(world, replace(disputed, run_id="run-9"))]
-    (arm,) = (held for held in arms(world, runs, plan()) if not held.registered)
-    accounting = accounting_of(cells_of(arm)[0], plan())
+    # Two runs of one scenario, so two intended (the protocol's counting rule).
+    two = replace(plan(), intended_repeats=2)
+    (arm,) = (held for held in arms(world, runs, two) if not held.registered)
+    accounting = accounting_of(cells_of(arm)[0], two)
     assert (accounting.made, accounting.graded, accounting.with_fact_findings) == (2, 2, 1)

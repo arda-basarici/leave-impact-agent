@@ -169,6 +169,24 @@ def test_a_shortfall_and_a_surplus_of_runs_are_counted_per_scenario_and_never_ca
     accounting = accounting_of(Cell(arm, OVERALL, arm.scenarios[:3]), two_intended)
     assert (accounting.intended, accounting.made) == (6, 4)
     assert (accounting.missing, accounting.surplus) == (3, 1)
+    # The surplus run is kept for the ledger and read by no estimate: two counted, three
+    # attempts, three histories (the external read, 2026-10-16).
+    surplus = by_id[three.spec.id]
+    assert [e.outcome.header.run_id for e in surplus.counted] == ["run-1", "run-2"]
+    assert (len(surplus.attempts), len(surplus.histories)) == (3, 3)
+
+
+def test_the_intended_runs_are_the_earliest_by_dispatch_order_not_by_text(
+    world: SealedWorld,
+) -> None:
+    """The workflow's run ids grow with time and gain digits; the ninth dispatch precedes the
+    tenth, which a text order would reverse."""
+    scenario = world.scenarios[0]
+    runs = [relabelled(evaluated(world, scenario), run_id=f"run-{n}") for n in (10, 9)]
+    (arm,) = arms(world, runs, plan(intended_repeats=1))
+    scenario_runs = next(each for each in arm.scenarios if each.scenario_id == scenario.spec.id)
+    assert [e.outcome.header.run_id for e in scenario_runs.counted] == ["run-9"]
+    assert [h.run_id for h in scenario_runs.histories] == ["run-9", "run-10"]
 
 
 def test_the_accounting_says_how_each_counted_run_ended(world: SealedWorld) -> None:

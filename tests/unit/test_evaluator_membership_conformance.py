@@ -416,7 +416,8 @@ def test_the_accounting_counts_the_runs_with_findings_and_the_ones_not_evaluated
         world, replace(other_limit, run_id="run-2"), query_protocol=PROTOCOL, search_limit=LIMIT
     )
     unevaluated = evaluate_run(world, replace(export, run_id="run-3"))
-    plan = preregistered(REGISTRATION).plan
+    # Three runs of one scenario, so three intended (the protocol's counting rule).
+    plan = replace(preregistered(REGISTRATION).plan, intended_repeats=3)
     runs: list[Any] = [conforming, found, unevaluated]
     arm = next(arm for arm in arms(world, runs, plan) if any(s.attempts for s in arm.scenarios))
     whole = cells_of(arm)[0]

@@ -142,7 +142,8 @@ def test_a_level_the_world_seals_no_membership_for_is_not_evaluated(
 def test_a_run_outside_its_level_and_a_run_held_to_none_are_counted_apart(
     world: SealedWorld, export: RunExport
 ) -> None:
-    plan = preregistered(light(decided(named(DRAFT), True))).plan
+    # Two runs of one scenario at base, so two intended (the protocol's counting rule).
+    plan = replace(preregistered(light(decided(named(DRAFT), True))).plan, intended_repeats=2)
     by_id = documents_read(export)[0]
     strayed = with_operations(
         export,

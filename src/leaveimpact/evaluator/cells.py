@@ -158,10 +158,14 @@ OVERALL = Stratum(StratumKind.OVERALL, "overall")
 class ScenarioRuns:
     """One scenario's runs in one arm of one system: the cluster every estimate resamples.
 
-    ``counted`` holds one evaluation per run whose history gives one, the attempt the plan
-    counts, in run order; ``attempts`` every attempt of every run, for the cost ledger;
-    ``missing`` how many intended runs were never made; ``histories`` every run's attempt
-    history, in run order.
+    ``counted`` holds one evaluation per intended run whose history gives one, the attempt
+    the plan counts, in run order; a run beyond the intended number is surplus, kept in
+    ``histories`` and ``attempts`` and read by no estimate, since the registered repeats
+    say how many runs a scenario contributes and a later dispatch cannot add to them (the
+    protocol's counting rule, 2026-10-16). ``attempts`` holds every attempt of every run,
+    surplus included, for the cost ledger; ``missing`` how many intended runs were never
+    made; ``histories`` every run's attempt history, in run order. Run order is dispatch
+    order: the workflow's run ids compare by their number, any other id after them by text.
     """
 
     scenario_id: ScenarioId
@@ -231,7 +235,8 @@ class Accounting:
 
     ``intended`` is the plan's repeats times the scenarios; ``made`` the runs present,
     ``missing`` the shortfall and ``surplus`` the runs beyond what was intended, each summed
-    per scenario so that one scenario's surplus never hides another's shortfall.
+    per scenario so that one scenario's surplus never hides another's shortfall; a surplus
+    run is among ``made`` and ``attempts`` and in no count over counted runs.
     ``unverifiable_history`` counts the runs made whose attempt numbers have a gap or
     whose history holds an attempt with no export: they are among ``made`` and in no count
     of how a run ended, having no counted attempt; ``with_unexported_attempts`` counts the
@@ -600,17 +605,27 @@ def _scenario_runs(
             plan.max_attempts,
             unexported=unexported.get(run_id, ()),
         )
-        for run_id in sorted(by_run)
+        for run_id in sorted(by_run, key=_run_order)
     )
+    intended = histories[: plan.intended_repeats]
     return ScenarioRuns(
         scenario_id,
         tier,
         scenario_class,
-        tuple(history.counted for history in histories if history.counted is not None),
+        tuple(history.counted for history in intended if history.counted is not None),
         tuple(each for history in histories for each in history.attempts),
         max(plan.intended_repeats - len(by_run), 0),
         histories,
     )
+
+
+def _run_order(run_id: str) -> tuple[int, int, str]:
+    """Dispatch order: the workflow's ``run-<number>`` ids by their number, so that a later
+    dispatch is a later run whatever its digit count, and any other id after them by text."""
+    prefix, _, number = run_id.partition("-")
+    if prefix == "run" and number.isdigit():
+        return (0, int(number), run_id)
+    return (1, 0, run_id)
 
 
 def _arm_order(arm: Arm) -> tuple[str, str, int, str, str]:

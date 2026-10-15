@@ -216,7 +216,11 @@ a run of the outage cell, counted there as unexercised.
 ## How a run is counted
 
 Every cell runs each scenario the registered number of times. A run that was intended and
-never made does not pass in the end-to-end reading; it is not left out.
+never made does not pass in the end-to-end reading; it is not left out. A run made beyond
+that number is surplus: the earliest runs in dispatch order are the intended ones, and a
+later run keeps its cost and its attempt summaries, is counted as surplus in the
+accounting, and enters no estimate (ruled 2026-10-16 on an external read, before the first
+reported dispatch; until then every run of a scenario entered its estimates).
 
 A run is retried after an infrastructure failure and after nothing else. A defect is not
 retried, because a retry could hide it. The attempt that counts is chosen among the

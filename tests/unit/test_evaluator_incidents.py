@@ -152,7 +152,9 @@ def test_an_incident_lists_every_arm_with_the_attempts_that_met_it_and_those_tha
         # Another scenario, untouched.
         evaluated(world, second),
     ]
-    both = plan((OTHER, NORMAL, BASE), (REFERENCE, NORMAL, BASE))
+    # The other system ran the scenario twice, so two intended: a run beyond the intended
+    # would be surplus and not among the counted (the protocol's counting rule).
+    both = replace(plan((OTHER, NORMAL, BASE), (REFERENCE, NORMAL, BASE)), intended_repeats=2)
     built = arms(world, runs, both)
     (incident,) = incidents_of(built)
     assert incident == Incident(
