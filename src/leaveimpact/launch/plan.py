@@ -27,9 +27,11 @@ attempt before it acts on a recovery. The decision also takes the approval polic
 was dispatched under, since the log alone cannot tell a pause from a death at the same
 position: an approval requested and not given is a human's wait under the human policy and
 a process gone under the automatic one, which a recovering worker completes with no new
-send (the group's external read). ``RECOVERY_BOUND`` bounds processes on one attempt;
-the registered re-dispatch policy bounds dispatches of one call and the retry rule bounds
-attempts of one run, and none stands in for another.
+send (the group's external read). ``RECOVERY_BOUND`` bounds recoveries on one attempt over
+its whole history, the count the log's fold carries and the transition's ``next_claim``
+defines (the step-14 review's finding: the count was the dispatching job's, so every
+continuation granted the bound again); the registered re-dispatch policy bounds dispatches
+of one call and the retry rule bounds attempts of one run, and none stands in for another.
 """
 
 from __future__ import annotations
@@ -38,7 +40,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.agent.log_events import FrozenInputs
-from leaveimpact.agent.log_transition import AttemptState
+from leaveimpact.agent.log_transition import AttemptState, ClaimKind, next_claim
 from leaveimpact.agent.registered import (
     RoleFilling,
     effective_rules,
@@ -61,9 +63,9 @@ from leaveimpact.core.worldtime import RunContext
 from leaveimpact.world.scenario import ScenarioSpec
 
 RECOVERY_BOUND = 2
-"""How many times the launcher re-sends a work command on an attempt a process left open
-before it holds the run for an operator: a development value of the launcher's own, stated
-in the development protocol and registered nowhere."""
+"""How many recoveries an attempt may hold in its log before the launcher holds the run for
+an operator instead of sending work again: a development value of the launcher's own,
+stated in the development protocol and registered nowhere."""
 
 STATED_SETTINGS = ("max_tokens", "temperature", "top_p")
 """The inference settings the work command's line can state, as flags of the same names."""
@@ -255,28 +257,21 @@ class NextStep(StrEnum):
 
 
 def next_step(
-    state: AttemptState,
-    *,
-    recoveries: int,
-    approval: ApprovalPolicy,
-    bound: int = RECOVERY_BOUND,
+    state: AttemptState, *, approval: ApprovalPolicy, bound: int = RECOVERY_BOUND
 ) -> NextStep:
-    """The next step for an attempt in ``state`` dispatched under ``approval``, after
-    ``recoveries`` recoveries so far, for a caller that has established no process owns the
-    attempt."""
+    """The next step for an attempt in ``state`` dispatched under ``approval``, for a caller
+    that has established no process owns the attempt; the recoveries so far are the
+    state's own count."""
     if state.inputs is None:
         raise ValueError("an attempt with no admission has no next step")
     if state.closed is not None:
         return NextStep.PUBLISH
-    segment = state.current_segment
-    if segment is None:
+    if next_claim(state) is not ClaimKind.RECOVERY:
         return NextStep.WORK
     human_decides = approval.approver(state) is None
     if state.approval_requested is not None and state.approved is None and human_decides:
         return NextStep.WAIT
-    if segment.ended and state.approved is not None and state.resumed is None:
-        return NextStep.WORK
-    return NextStep.RECOVER if recoveries < bound else NextStep.HOLD
+    return NextStep.RECOVER if state.recoveries < bound else NextStep.HOLD
 
 
 __all__ = [

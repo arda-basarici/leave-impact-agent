@@ -42,9 +42,12 @@
 # status, end the send as uncertain. The job's credentials are the deploy role's
 # one-hour session and a work send may run an hour, so an uncertain end can be one
 # this job cannot read past: it then ends red naming continue-run as the path, which
-# reads the state under fresh credentials. The recovery count is this job's: a
-# continuation job counts from zero again, so the bound of two in PROTOCOL holds per
-# job until a durable count is defined (FIXLOG, before the first reported dispatch).
+# reads the state under fresh credentials. The recovery count is the attempt's own,
+# counted by the log's fold at each claim and printed by `status` (`recoveries=`), so a
+# continuation job continues the count and the bound of two in PROTOCOL holds over the
+# attempt's whole history; until 2026-10-15 the count was this job's and every
+# continuation granted the bound again (the step-14 review's finding). What this job
+# bounds itself is its work sends, above.
 #
 # Identities are the workflow run's: run id `run-<GITHUB_RUN_ID>`, attempt
 # `GITHUB_RUN_ATTEMPT`, request id `req-<run id>-a<attempt>` (a re-run of the job
@@ -262,7 +265,6 @@ common=(
 )
 
 work_sends=0
-recoveries=0
 case "$MODE" in
   run)
     must launch "${common[@]}" LIFECYCLE_COMMAND=launch \
@@ -315,10 +317,11 @@ while :; do
       step=status
       ;;
     status)
-      must status "${common[@]}" LIFECYCLE_COMMAND=status "RECOVERIES=$recoveries" "APPROVAL=$APPROVAL"
+      must status "${common[@]}" LIFECYCLE_COMMAND=status "APPROVAL=$APPROVAL"
       next=$(field "$LAST_OUT" next)
       container=$(field "$LAST_OUT" container)
-      echo "status: next=$next after $recoveries recoveries, container=$container"
+      recoveries=$(field "$LAST_OUT" recoveries)
+      echo "status: next=$next after ${recoveries:-?} recoveries, container=$container"
       if [ "$container" = running ] && { [ "$next" = work ] || [ "$next" = recover ]; }; then
         echo "status: the attempt's work container is still running; read again in $POLL_SECONDS s"
         sleep "$POLL_SECONDS"
@@ -326,7 +329,7 @@ while :; do
       fi
       case "$next" in
         work) step=work ;;
-        recover) recoveries=$((recoveries + 1)); step=work ;;
+        recover) step=work ;;
         wait)
           echo "## $RUN_ID attempt $ATTEMPT waits for a human: review-approval in Session Manager, then continue-run with launch=$LAUNCH" >> "$SUMMARY"
           echo "the attempt waits for a human's approval; this job ends"

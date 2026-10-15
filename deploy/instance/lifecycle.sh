@@ -206,10 +206,10 @@ case "$LIFECYCLE_COMMAND" in
       --approval "$APPROVAL" "${cell[@]}"
     ;;
   status)
-    : "${RECOVERIES:?recoveries sent so far}" "${APPROVAL:?the policy work was dispatched with}"
+    : "${APPROVAL:?the policy work was dispatched with}"
     if [ -n "$(running_container)" ]; then echo "container=running"; else echo "container=none"; fi
     run_app python -m leaveimpact.launch status --run "$RUN_ID" --attempt "$ATTEMPT" \
-      --registration "$registration" --recoveries "$RECOVERIES" --approval "$APPROVAL"
+      --registration "$registration" --approval "$APPROVAL"
     ;;
   deliver)
     : "${APPROVER:?the identity of the approver}" "${PAYLOAD_DIGEST:?the payload the approver read}"

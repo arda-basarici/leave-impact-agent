@@ -110,7 +110,6 @@ class StatusLine:
     run_id: str
     attempt: int
     registration: Path
-    recoveries: int
     approval: ApprovalPolicy
 
 
@@ -164,9 +163,6 @@ def parse_request(argv: Sequence[str]) -> PlanLine | StatusLine:
     status.add_argument("--attempt", required=True, type=int, help="the attempt number")
     status.add_argument("--registration", required=True, type=Path, help="the registration file")
     status.add_argument(
-        "--recoveries", type=int, default=0, help="recoveries sent so far on this attempt"
-    )
-    status.add_argument(
         "--approval",
         required=True,
         choices=sorted(APPROVALS),
@@ -181,7 +177,6 @@ def parse_request(argv: Sequence[str]) -> PlanLine | StatusLine:
             parsed.run,
             parsed.attempt,
             parsed.registration,
-            parsed.recoveries,
             APPROVALS[parsed.approval],
         )
     kind = SystemKind(parsed.system)
@@ -332,14 +327,12 @@ def _specification(
 
 def _status(line: StatusLine, registration: Registration, store: LogStore) -> list[str]:
     state = store.load(line.run_id, line.attempt, rules=_rules_of(registration))
-    return status_lines(state, recoveries=line.recoveries, approval=line.approval)
+    return status_lines(state, approval=line.approval)
 
 
-def status_lines(
-    state: AttemptState, *, recoveries: int, approval: ApprovalPolicy
-) -> list[str]:
-    """The attempt's state as the fields the job seam exposes, and the lifecycle's next step
-    after ``recoveries`` recoveries under ``approval``."""
+def status_lines(state: AttemptState, *, approval: ApprovalPolicy) -> list[str]:
+    """The attempt's state as the fields the job seam exposes, the recoveries its log
+    counts, and the lifecycle's next step under ``approval``."""
     closing = state.closing
     segment = state.current_segment
     approval_state = (
@@ -356,7 +349,8 @@ def status_lines(
         f"approval={approval_state}",
         f"stopped={'true' if state.stopped is not None else 'false'}",
         f"generation={state.generation}",
-        f"next={next_step(state, recoveries=recoveries, approval=approval).value}",
+        f"recoveries={state.recoveries}",
+        f"next={next_step(state, approval=approval).value}",
     ]
 
 

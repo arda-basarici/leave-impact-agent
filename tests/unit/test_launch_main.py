@@ -207,7 +207,7 @@ def golden() -> SealedWorld:
     return loaded_world("golden")
 
 
-def _status(log: _Log, probe: Any, recoveries: int = 0) -> list[str]:
+def _status(log: _Log, probe: Any) -> list[str]:
     return [
         "status",
         "--run",
@@ -216,8 +216,6 @@ def _status(log: _Log, probe: Any, recoveries: int = 0) -> list[str]:
         str(ATTEMPT),
         "--registration",
         str(probe.REGISTRATION_FILE),
-        "--recoveries",
-        str(recoveries),
         "--approval",
         "automatic",
     ]
@@ -227,8 +225,8 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
     probe: Any, golden: SealedWorld, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """An admitted attempt: open, no segment, work next. The throttled run with its closing
-    dropped: open, segment open, a recorded stop, recover next, hold at the bound. Closed:
-    publish, with its ending named."""
+    dropped: open, segment open, a recorded stop, recover next, and hold at the bound, the
+    count the log's own and printed. Closed: publish, with its ending named."""
     # The attempt is read under the registration file's rules, so the history is made under
     # them: the development table and policy a draft resolves to.
     rules = effective_rules(probe.registration())
@@ -248,6 +246,7 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
         "approval=none",
         "stopped=false",
         "generation=0",
+        "recoveries=0",
         "next=work",
     ]
     turns, client = support.throttled_script(inputs.context)
@@ -268,7 +267,7 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
     ).work(RUN, ATTEMPT, nonce="nonce-1")
     left_open = _Log()
     left_open.seed(log.events(RUN, ATTEMPT)[:-1])
-    assert launcher.main(_status(left_open, probe, recoveries=1), {}, left_open) == 0  # type: ignore[arg-type]
+    assert launcher.main(_status(left_open, probe), {}, left_open) == 0  # type: ignore[arg-type]
     assert capsys.readouterr().out.splitlines() == [
         "attempt=open",
         "ending=none",
@@ -276,10 +275,12 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
         "approval=none",
         "stopped=true",
         "generation=1",
+        "recoveries=0",
         "next=recover",
     ]
-    assert launcher.main(_status(left_open, probe, recoveries=2), {}, left_open) == 0  # type: ignore[arg-type]
-    assert capsys.readouterr().out.splitlines()[-1] == "next=hold"
+    state = left_open.load(RUN, ATTEMPT, rules=rules)
+    at_bound = launcher.status_lines(replace(state, recoveries=2), approval=AutomaticApproval())
+    assert at_bound[-2:] == ["recoveries=2", "next=hold"]
     assert launcher.main(_status(log, probe), {}, log) == 0  # type: ignore[arg-type]
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "attempt=closed" and out[1] == "ending=failed" and out[-1] == "next=publish"

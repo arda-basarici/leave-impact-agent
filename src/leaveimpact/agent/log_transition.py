@@ -50,15 +50,27 @@ What the function refuses, by the rulings it enforces:
 The state is public, since the worker authorizes and recovers from it and the reader reads
 it: the frozen inputs, the events so far, the generation, the segments with their last
 offsets, the closing event, the approval's progress, the finalization position, the
-account's fold and the first stopping failure. The per-call and per-count views are
-projections over the events (``calls_of``, ``counts_of``, ``operations_of``), computed
-where needed rather than kept, so no two fields can disagree.
+recoveries so far, the account's fold and the first stopping failure. The per-call and
+per-count views are projections over the events (``calls_of``, ``counts_of``,
+``operations_of``), computed where needed rather than kept, so no two fields can disagree.
+
+*The recoveries* are counted at the claim, from the events alone, so the count is the
+attempt's over its whole history and not a dispatching job's (the step-14 review's
+finding, built before the first reported dispatch). A claim after the first is a recovery
+unless it is the resumption an approval earns: the first claim after the approval event,
+and only when the segment before it ended cleanly. A worker that claims after the approval
+and is stopped before its resume event ends its segment cleanly too, so the exemption is
+consumed by that claim and the next one counts, which the resume event alone could not say.
+The launcher's bound reads the count (``launch.plan``); the transition refuses nothing on
+it, so a log past any bound folds and reports its count. A process that dies before it
+claims leaves no event and is outside the count.
 """
 
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, replace
+from enum import StrEnum
 
 from leaveimpact.agent.answer_parse import (
     FACT_TOOL,
@@ -253,6 +265,7 @@ class AttemptState:
     approval_requested: LoggedEvent | None = None
     approved: LoggedEvent | None = None
     resumed: LoggedEvent | None = None
+    recoveries: int = 0
     account: RunAccount = RunAccount()
     stopped: Failure | None = None
 
@@ -508,6 +521,42 @@ def fold(events: Iterable[LoggedEvent], rules: Rules) -> AttemptState:
     return state
 
 
+# --- The next claim --------------------------------------------------------------------------
+
+
+class ClaimKind(StrEnum):
+    """What the next claim on an attempt would be, read from its log (the module's
+    paragraph on the recoveries)."""
+
+    FIRST = "first"
+    """No segment yet: the first worker."""
+    RESUMPTION = "resumption"
+    """The first claim after an approval, the segment before it ended cleanly: the worker
+    that resumes, no recovery."""
+    RECOVERY = "recovery"
+    """Any other claim: a segment left open by a process that is gone, or a claim the
+    exemption no longer covers."""
+
+
+def next_claim(state: AttemptState) -> ClaimKind:
+    """The kind of the claim that would come next on ``state``; the transition counts a
+    ``RECOVERY`` and the launcher sends work or holds on the same reading."""
+    previous = state.current_segment
+    if previous is None:
+        return ClaimKind.FIRST
+    approved = state.approved
+    if previous.ended and approved is not None and approved.position > _last_claim_position(state):
+        return ClaimKind.RESUMPTION
+    return ClaimKind.RECOVERY
+
+
+def _last_claim_position(state: AttemptState) -> int:
+    for logged in reversed(state.events):
+        if isinstance(logged.event, SegmentStarted):
+            return logged.position
+    raise ValueError("a state with a segment holds the claim that opened it")
+
+
 # --- The admission and the claim -------------------------------------------------------------
 
 
@@ -549,11 +598,13 @@ def _claim(
                 f"which is {first[:12]}"
             )
     opened = SegmentState(number, event.harness, 0, False)
+    recovery = next_claim(state) is ClaimKind.RECOVERY
     after = replace(
         state,
         events=(*state.events, logged),
         generation=number,
         segments=(*state.segments, opened),
+        recoveries=state.recoveries + (1 if recovery else 0),
     )
     stop = _dead_segment_stop(after, rules)
     return Appended(after if stop is None else _stop(after, stop))
@@ -1199,6 +1250,7 @@ __all__ = [
     "rules_differ",
     "AttemptState",
     "CallEvents",
+    "ClaimKind",
     "CountEvents",
     "Received",
     "Refused",
@@ -1212,6 +1264,7 @@ __all__ = [
     "derived_abstention",
     "fold",
     "held_operation_ids",
+    "next_claim",
     "next_state",
     "operations_of",
     "results_of",

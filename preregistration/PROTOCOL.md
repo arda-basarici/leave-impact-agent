@@ -242,13 +242,19 @@ failure, an infrastructure failure and a run never admitted.
 
 An attempt a process left open, by dying or by losing the log, is recovered as the same
 attempt, the recovering worker replaying from the log; the launcher re-sends such an
-attempt at most twice in one job before it holds the run for an operator. The bound is the
-launcher's own development value, stated here and registered nowhere: it bounds processes
-on one attempt, where the re-dispatch policy bounds dispatches of one call and the retry
-rule bounds attempts of one run. The count is the dispatching job's, so a continuation job
-counts from zero again; a count durable over the attempt's whole history is defined before
-the first reported dispatch, and it is not the number of the log's claims, since an
-approval's resumption opens a generation that is no recovery.
+attempt at most twice over the attempt's whole history before it holds the run for an
+operator. The bound is the launcher's own development value, stated here and registered
+nowhere: it bounds recoveries of one attempt, where the re-dispatch policy bounds
+dispatches of one call and the retry rule bounds attempts of one run. The count is the
+attempt's, read from its log: a claim after the first is a recovery unless it is the
+resumption an approval earns, the first claim after the approval event with the segment
+before it ended cleanly, so a continuation job continues the count and the resumption is
+not in it, and a worker stopped after that claim and before its resume event has consumed
+the exemption (defined 2026-10-15, before the first reported dispatch; until then the
+count was the dispatching job's and every continuation granted the bound again). A process
+that dies before it claims leaves no event and is outside the count, bounded by the job's
+own bound on work sends and by the human who dispatches the next job. The log's rules
+refuse nothing on the count: a log past the bound folds, reports its count and is held.
 
 What a model dispatch observed and how the measurement reads it are recorded apart. The
 reading is the attribution table's: behaviour of the system, an infrastructure fault, or a

@@ -192,7 +192,7 @@ def test_a_word_after_a_cleared_run_directory_stops_and_says_why(
     host: tuple[FakeBinaries, dict[str, str]],
 ) -> None:
     fakes, env = host
-    status, err = _run(fakes, env, "status", RECOVERIES="0", APPROVAL="automatic")
+    status, err = _run(fakes, env, "status", APPROVAL="automatic")
     assert status == 2
     assert "holds no run.env: the host's tmpfs was cleared since the launch" in err
     assert fakes.lines("docker compose run") == []
@@ -203,9 +203,9 @@ def test_a_word_after_a_cleared_run_directory_stops_and_says_why(
     [
         (
             "status",
-            {"RECOVERIES": "2", "APPROVAL": "automatic"},
+            {"APPROVAL": "automatic"},
             "python -m leaveimpact.launch status --run run-1 --attempt 1 "
-            "--registration /run/job/registration.json --recoveries 2 --approval automatic",
+            "--registration /run/job/registration.json --approval automatic",
         ),
         (
             "deliver",
@@ -272,7 +272,7 @@ def test_status_reports_the_attempts_container_before_the_launchers_answer(
     fakes, env = host
     _launched(fakes, env)
     (fakes.fake_dir / "status.txt").write_text("attempt=open\nnext=recover\n")
-    line = {**env, "LIFECYCLE_COMMAND": "status", "RECOVERIES": "0", "APPROVAL": "automatic"}
+    line = {**env, "LIFECYCLE_COMMAND": "status", "APPROVAL": "automatic"}
     assert run_script(HOST_SCRIPT, line).stdout.splitlines() == [
         "container=none",
         "attempt=open",

@@ -842,6 +842,45 @@ def input_bound_exhausted() -> tuple[LoggedEvent, ...]:
     return log.logged()
 
 
+def approved_then_stopped_before_resume() -> tuple[LoggedEvent, ...]:
+    """The resumption stopped before its resume event (the pre-dispatch list's fork 23, the
+    external read's history): the pause, a human's approval between segments, a worker that
+    claims and is stopped with its segment ended cleanly and no resume, then the worker that
+    resumes and completes. Closed; outside ``HISTORIES`` since no fixture record pairs with
+    it."""
+    fixture = cases.approval_wait_across_restart()
+    expected = fixture.record.reservation
+    assert expected is not None
+    log = History()
+    _one_call_prefix(log, expected.pico_usd)
+    log.worker(intent(1), offset=600)
+    log.worker(outcome(1, 1, complete(), response=body("end_turn", text("Done."))), offset=1_500)
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=7_000)
+    log.worker(SegmentEnded(), offset=7_900)
+    log.outside(
+        "human:arda", Approved(Approver.HUMAN, cases.review_payload_digest((), cases.RULES))
+    )
+    log.claim()
+    log.worker(SegmentEnded(), offset=40)
+    log.claim()
+    log.worker(Resumed(), offset=50)
+    log.worker(Completed(settlement_of(expected)), offset=2_050)
+    return log.logged()
+
+
+def left_open_claims(claims: int) -> tuple[LoggedEvent, ...]:
+    """An admission and ``claims`` claims, every segment left open by a process that is
+    gone: an open log whose recoveries are one fewer than its claims, past any bound once
+    ``claims`` is large enough."""
+    expected = cases.recovered_attempt().record.reservation
+    assert expected is not None
+    log = History()
+    log.admit(inputs(reservation=expected.pico_usd))
+    for _ in range(claims):
+        log.claim()
+    return log.logged()
+
+
 HISTORIES: dict[str, Build] = {
     "facts beside tools in one answer": facts_beside_tools,
     "a malformed batch": malformed_batch,
@@ -863,4 +902,12 @@ HISTORIES: dict[str, Build] = {
 """Each fixture's history, by the fixture's name."""
 
 
-__all__ = ["HISTORIES", "RULES", "History", "inputs", "settlement_of"]
+__all__ = [
+    "HISTORIES",
+    "RULES",
+    "History",
+    "approved_then_stopped_before_resume",
+    "inputs",
+    "left_open_claims",
+    "settlement_of",
+]

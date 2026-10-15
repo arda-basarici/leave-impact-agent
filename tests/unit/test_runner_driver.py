@@ -185,7 +185,7 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     assert launch["FRAPPE_BASE_URL"] == "https://hr-w3.example.test"
     work = fakes.payload_exports(2)
     assert work["LAUNCH"] == "launch-1" and work["APPROVAL"] == "automatic"
-    assert fakes.payload_exports(3)["RECOVERIES"] == "0"
+    assert "RECOVERIES" not in fakes.payload_exports(3), "the count is the log's, not the job's"
     payload = json.loads((fakes.fake_dir / "payload-1.json").read_text())
     assert payload["commands"][0].endswith(HOST_SCRIPT.read_text())
     assert payload["executionTimeout"] == ["3600"]
@@ -287,24 +287,28 @@ def test_a_human_pause_ends_the_job_green_and_names_the_launch_for_the_continue_
     assert "continue-run with launch=launch-1" in (tmp_path / "summary.md").read_text()
 
 
-def test_recoveries_are_counted_to_the_status_command_and_a_hold_ends_the_job_red(
+def test_the_recovery_count_is_read_from_the_status_output_and_a_hold_ends_the_job_red(
     driver: tuple[FakeBinaries, dict[str, str]],
 ) -> None:
+    """The launcher counts the log's recoveries and answers hold at the bound; the driver
+    sends no count of its own and prints the one it read (the step-14 review's finding)."""
     fakes, env = driver
     _script(
         fakes,
         LAUNCHED,
         OK,
-        ("Success", 0, "next=recover\n"),
+        ("Success", 0, "recoveries=0\nnext=recover\n"),
         OK,
-        ("Success", 0, "next=recover\n"),
+        ("Success", 0, "recoveries=1\nnext=recover\n"),
         OK,
-        ("Success", 0, "next=hold\n"),
+        ("Success", 0, "recoveries=2\nnext=hold\n"),
     )
     status, out, _ = _run(fakes, env, **RUN_INPUTS)
     assert status == 1
     assert _words(fakes) == ["launch", "work", "status", "work", "status", "work", "status"]
-    assert [fakes.payload_exports(n)["RECOVERIES"] for n in (3, 5, 7)] == ["0", "1", "2"]
+    assert all("RECOVERIES" not in fakes.payload_exports(n) for n in (3, 5, 7))
+    assert "status: next=recover after 1 recoveries" in out
+    assert "status: next=hold after 2 recoveries" in out
     assert "held past the recovery bound" in out
 
 
@@ -444,7 +448,6 @@ def test_a_running_container_after_an_uncertain_completion_is_read_again_and_nev
     assert status == 0
     assert _words(fakes) == ["launch", "work", "status", "status", "status", "publish", "inventory"]
     assert out.count("work container is still running") == 2
-    assert [fakes.payload_exports(n)["RECOVERIES"] for n in (3, 4, 5)] == ["0", "0", "0"]
 
 
 def test_a_work_the_host_refused_beside_a_running_container_is_not_a_counted_send(
@@ -464,7 +467,6 @@ def test_a_work_the_host_refused_beside_a_running_container_is_not_a_counted_sen
     status, _, _ = _run(fakes, env, **RUN_INPUTS)
     assert status == 0
     assert _words(fakes) == ["launch", "work", "status", "work", "status", "publish", "inventory"]
-    assert fakes.payload_exports(5)["RECOVERIES"] == "1"
 
 
 def test_a_continuation_without_a_delivery_starts_at_the_state_and_publishes_a_closed_attempt(
@@ -501,7 +503,6 @@ def test_a_work_process_the_host_killed_is_read_and_recovered_not_ended(
     assert status == 0
     assert _words(fakes) == ["launch", "work", "status", "work", "status", "publish", "inventory"]
     assert "status 137, which it does not choose for itself" in out
-    assert fakes.payload_exports(5)["RECOVERIES"] == "1"
 
 
 def test_a_continuation_carries_the_policy_the_attempt_was_dispatched_under(

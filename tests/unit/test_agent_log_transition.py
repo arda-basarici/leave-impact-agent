@@ -34,10 +34,12 @@ from leaveimpact.agent.log_events import (
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_transition import (
     Appended,
+    ClaimKind,
     Received,
     Refused,
     Rules,
     fold,
+    next_claim,
     next_state,
 )
 from leaveimpact.core import (
@@ -1001,3 +1003,54 @@ def test_a_harness_read_past_the_policys_count_is_refused_and_a_re_append_is_rec
     assert next_state(before, log.logged()[-1], RULES) == Refused(
         f"{policy} issues 1 read(s), got ordinal 2"
     )
+
+
+# --- The recoveries --------------------------------------------------------------------------
+
+
+def _claims(events: tuple[LoggedEvent, ...]) -> list[int]:
+    return [i for i, e in enumerate(events) if isinstance(e.event, SegmentStarted)]
+
+
+def test_a_claim_after_a_segment_left_open_counts_a_recovery() -> None:
+    events = h.HISTORIES["a recovered attempt"]()
+    first, second = _claims(events)
+    assert next_claim(fold(events[:first], RULES)) is ClaimKind.FIRST
+    assert next_claim(fold(events[:second], RULES)) is ClaimKind.RECOVERY
+    state = fold(events, RULES)
+    assert (state.generation, state.recoveries) == (2, 1)
+
+
+def test_the_resumption_is_no_recovery_and_its_exemption_is_consumed_by_one_claim() -> None:
+    """The external read's history: the worker that claims after the approval and is stopped
+    before its resume event ends its segment cleanly, which the old reading took for another
+    resumption; the claim after it is a recovery."""
+    events = h.approved_then_stopped_before_resume()
+    _, resumption, after_stop = _claims(events)
+    assert next_claim(fold(events[:resumption], RULES)) is ClaimKind.RESUMPTION
+    assert fold(events[: resumption + 1], RULES).recoveries == 0
+    stopped = fold(events[:after_stop], RULES)
+    assert stopped.current_segment is not None and stopped.current_segment.ended
+    assert stopped.approved is not None and stopped.resumed is None
+    assert next_claim(stopped) is ClaimKind.RECOVERY
+    state = fold(events, RULES)
+    assert state.closed is not None and (state.generation, state.recoveries) == (3, 1)
+
+
+def test_the_restart_history_counts_two_recoveries_around_its_approval() -> None:
+    """The second claim comes while the request waits, the third after a segment left open
+    with the approval inside it: neither is the resumption the approval earns."""
+    state = fold(h.HISTORIES["an approval wait across a restart"](), RULES)
+    assert (state.generation, state.recoveries) == (3, 2)
+
+
+def test_an_identical_claim_re_appended_at_the_bound_is_received_and_counts_nothing() -> None:
+    events = h.left_open_claims(3)
+    state = fold(events, RULES)
+    assert state.recoveries == 2
+    assert next_state(state, events[-1], RULES) == Received(events[-1].position)
+
+
+def test_a_log_past_any_bound_folds_and_reports_its_count() -> None:
+    state = fold(h.left_open_claims(5), RULES)
+    assert state.open and (state.generation, state.recoveries) == (5, 4)
