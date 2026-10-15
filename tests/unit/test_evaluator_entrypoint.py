@@ -61,7 +61,7 @@ from leaveimpact.evaluator.repository import (
     RepositoryRefused,
     evaluator_revision,
 )
-from leaveimpact.evaluator.sealed_world import SealedWorld
+from leaveimpact.evaluator.sealed_world import SealedWorld, load_sealed_world
 from leaveimpact.world import Disclosure, Scenario, bundle
 from leaveimpact.world.scenario import ScenarioClassName, Tier
 from tests.unit.export_fixture import BASIS, export_baseline
@@ -74,7 +74,12 @@ from tests.unit.inventory_fixture import (
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.registration_fixture import DRAFT as COMMITTED
 from tests.unit.registration_fixture import bound, frozen, light
-from tests.unit.throwaway_world import composed_world, loaded_world
+from tests.unit.throwaway_world import (
+    composed_world,
+    composed_world_with_filler,
+    loaded_world,
+    sealed_stores,
+)
 
 DIGEST = "a" * 64
 ABSENT_COMMIT = "c" * 40
@@ -718,3 +723,55 @@ def test_an_evaluation_of_an_embargoed_world_scans_before_it_lists(
     assert LocalObjectReader(embargoed_twin / "truth").list_keys(
         evaluations_prefix(embargoed.version)
     ) == ()
+
+
+def test_a_bound_registration_is_refused_when_the_world_sealed_its_level_with_another_count(
+    twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The registered padded level is what the report claims each run was shown; the sealed
+    one is what the cache served. Unequal counts refuse before anything is listed, equal
+    ones evaluate (the external read of the pre-dispatch commits, 2026-10-16)."""
+    sealed = bundle(composed_world_with_filler(3))
+    truth, held = LocalObjectWriter(twin / "truth"), LocalObjectWriter(twin / "world")
+    truth.put_if_absent(world_spec_key(sealed.world_version), sealed.world_spec.content)
+    truth.put_if_absent(truth_manifest_key(sealed.world_version), sealed.truth_manifest.content)
+    held.put_if_absent(scenario_specs_key(sealed.world_version), sealed.scenario_specs.content)
+    stores_of_padded = sealed_stores(sealed)
+    padded = load_sealed_world(sealed.world_version, stores_of_padded.truth, stores_of_padded.world)
+    sealed_count = next(level.filler_count for level in padded.levels if level.name == "padded")
+    procedure = light(frozen())
+    frozen_at = commit_registration(checkout, procedure, "the procedure, frozen")
+    made = bound(padded.version, procedure, frozen_commit=frozen_at)
+    head = commit_registration(checkout, made, "bound to the padded world")
+    digest = store_runs(
+        twin,
+        padded,
+        **{"run-1-1": export_of(padded, padded.scenarios[0], head, "run-1", registration=made)},
+    )
+    arguments = ("evaluate", "--world-version", padded.version, "--inventory", digest)
+    status, out, err = run_job(capsys, twin, checkout, *arguments)
+    assert (status, out) == (1, "")
+    assert (
+        f"names the corpus level padded with 160 filler documents, and the world sealed it "
+        f"with {sealed_count}"
+    ) in err
+    matched = replace(
+        procedure,
+        corpus_levels=tuple(
+            replace(level, filler_documents=sealed_count) if level.name == "padded" else level
+            for level in procedure.corpus_levels
+        ),
+    )
+    matched_at = commit_registration(checkout, matched, "the procedure, frozen at the sealed count")
+    agreed = bound(padded.version, matched, frozen_commit=matched_at)
+    head = commit_registration(checkout, agreed, "bound at the sealed count")
+    digest = store_runs(
+        twin,
+        padded,
+        **{"run-2-1": export_of(padded, padded.scenarios[0], head, "run-2", registration=agreed)},
+    )
+    status, out, err = run_job(
+        capsys, twin, checkout, "evaluate", "--world-version", padded.version, "--inventory", digest
+    )
+    assert (status, err) == (0, ""), err
+    assert "label=reported" in out.splitlines()

@@ -44,7 +44,7 @@ from leaveimpact.adapters.wiring import ConfigurationError, EvaluationPublisher,
 from leaveimpact.core.facts import RunCondition
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.inventory import Inventory
-from leaveimpact.core.registration import Registration, RegistrationStatus
+from leaveimpact.core.registration import Pending, Registration, RegistrationStatus
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.evaluator.artifact import (
     Disposition,
@@ -242,7 +242,8 @@ def evaluate(
     ``EvaluationRefused`` for a request naming no inventory or one that is absent,
     misnamed, undecodable or of another world, for an empty or a moving listing, for a
     bound registration that binds another world or a procedure other than the frozen one
-    it names and for an embargoed world whose digest the checkout publishes, and whatever
+    it names, for a bound registration whose corpus level the world sealed with another
+    filler count, and for an embargoed world whose digest the checkout publishes, and whatever
     the artifact refuses: a registration it cannot read as a plan,
     a listed publication the store does not hold as recorded, an open attempt under a
     reported label, two eligible exports of one run.
@@ -253,9 +254,11 @@ def evaluate(
     if registration is None:
         raise RepositoryRefused(f"the checkout holds no {REGISTRATION_PATH}")
     version = request.world_version
-    _require_bound_as_frozen(decode_registration_bytes(registration), version, repository)
+    decoded = decode_registration_bytes(registration)
+    _require_bound_as_frozen(decoded, version, repository)
     inventory, inventory_read = _named_inventory(stores, version, request.inventory)
     world = load_sealed_world(version, stores.truth, stores.world)
+    _require_registered_levels_sealed(decoded, world)
     require_undisclosed(world, repository, head)
     runs = _stored_runs(stores, version)
     if not runs and not attempts_of_world(inventory, version):
@@ -322,6 +325,27 @@ def _require_bound_as_frozen(
     # Raised after the handler has ended, so the decoder's own exception, whose message may
     # quote the file, is no part of what a traceback prints.
     raise EvaluationRefused(reason)
+
+
+def _require_registered_levels_sealed(registration: Registration, world: SealedWorld) -> None:
+    """Refuse a bound ``registration`` whose corpus level ``world`` sealed with another
+    filler count: the registered level is what the report claims every run at it was shown,
+    and the sealed level is what the cache served, so the two are one number or the
+    evaluation is of another corpus than the one registered (the external read of the
+    pre-dispatch commits, 2026-10-16). A registered level the world does not seal is left to
+    the level check, which reports every run at it as held to no level."""
+    if registration.status is not RegistrationStatus.BOUND:
+        return
+    sealed = {level.name: level.filler_count for level in world.levels}
+    for level in registration.corpus_levels:
+        count = level.filler_documents
+        if isinstance(count, Pending) or level.name not in sealed:
+            continue
+        if sealed[level.name] != count:
+            raise EvaluationRefused(
+                f"the registration names the corpus level {level.name} with {count} filler "
+                f"documents, and the world sealed it with {sealed[level.name]}"
+            )
 
 
 def _named_inventory(
