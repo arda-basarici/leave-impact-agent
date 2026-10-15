@@ -127,6 +127,40 @@ def document_text(document: Document) -> str:
     return f"Title: {document.title}\n\n{sections}"
 
 
+def parse_answer(document_id: str, raw: dict[str, Any]) -> dict[str, Any]:
+    """The reader's answer with its two fields present and typed: ``names`` a list of
+    strings and ``reads_as_requirement`` a boolean. A missing or mistyped field is a refusal
+    naming the document, never a default, since an empty list would pass the world-hit
+    count at zero with nothing read (the external read of the pre-dispatch commits,
+    2026-10-16; the five saved answers re-validated the same day through ``--revalidate``)."""
+    names = cast(object, raw.get("names"))
+    if not isinstance(names, list) or not all(
+        isinstance(name, str) for name in cast(list[object], names)
+    ):
+        raise RuntimeError(
+            f"{document_id}: the answer holds no names list of strings; fields {sorted(raw)}"
+        )
+    if not isinstance(raw.get("reads_as_requirement"), bool):
+        raise RuntimeError(
+            f"{document_id}: the answer holds no boolean reads_as_requirement; fields {sorted(raw)}"
+        )
+    return raw
+
+
+def revalidate(path: Path) -> int:
+    """Every saved reading's answer through ``parse_answer``, no call made; the counts the
+    run printed, printed again."""
+    record = json.loads(path.read_text(encoding="utf-8"))
+    for reading in record["readings"]:
+        answer = parse_answer(reading["document_id"], reading["answer"])
+        print(
+            f"{reading['document_id']}: reads as requirement={answer['reads_as_requirement']}, "
+            f"names listed={len(answer['names'])}, world hits={len(reading['world_hits'])}"
+        )
+    print(f"revalidated {len(record['readings'])} readings of {record['world_version'][:8]}")
+    return 0
+
+
 def read_one(client: Any, document: Document) -> tuple[dict[str, Any], dict[str, int]]:
     response = client.converse(
         modelId=READER_MODEL,
@@ -149,8 +183,10 @@ def read_one(client: Any, document: Document) -> tuple[dict[str, Any], dict[str,
 
 
 def main() -> int:
+    if len(sys.argv) == 3 and sys.argv[1] == "--revalidate":
+        return revalidate(Path(sys.argv[2]))
     if len(sys.argv) != 2:
-        print("usage: filler_read.py <world_version>", file=sys.stderr)
+        print("usage: filler_read.py <world_version> | --revalidate <record>", file=sys.stderr)
         return 2
     version = WorldVersion(sys.argv[1])
     draw_path = OUT_DIR / f"acceptance_draw_{version[:8]}.json"
@@ -175,7 +211,8 @@ def main() -> int:
             raise RuntimeError(f"{document_id} is not in the world bucket under {version[:8]}")
         document = decode_document(stored.content)
         answer, usage = read_one(client, document)
-        found = hits(list(answer.get("names", [])), forms)
+        answer = parse_answer(document_id, answer)
+        found = hits(answer["names"], forms)
         readings.append(
             {
                 "document_id": document_id,
@@ -190,8 +227,8 @@ def main() -> int:
         for key in totals:
             totals[key] += usage[key]
         print(
-            f"{document_id}: reads as requirement={answer.get('reads_as_requirement')}, "
-            f"names listed={len(answer.get('names', []))}, world hits={len(found)}"
+            f"{document_id}: reads as requirement={answer['reads_as_requirement']}, "
+            f"names listed={len(answer['names'])}, world hits={len(found)}"
         )
     record = {
         "world_version": version,
