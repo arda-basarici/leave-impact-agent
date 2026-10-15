@@ -391,3 +391,18 @@ def test_a_malformed_run_id_or_attempt_stops_before_the_filesystem(
     assert status == 2
     assert named in err
     assert fakes.lines("chown") == [] and fakes.lines("docker compose run") == []
+
+
+def test_work_refuses_beside_another_attempts_running_container_as_a_fault(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """A container a killed job left on another attempt shares the host's memory bound:
+    work ends as a fault an operator decides (exit 3), which the driver never re-sends,
+    where its own attempt's container is waited for (exit 4)."""
+    fakes, env = host
+    _launched(fakes, env)
+    (fakes.fake_dir / "running.txt").write_text("lifecycle-run-2-a1\n")
+    status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="automatic")
+    assert status == 3
+    assert "another attempt's work container is running on this host: lifecycle-run-2-a1" in err
+    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no work container"

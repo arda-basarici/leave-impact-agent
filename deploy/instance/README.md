@@ -84,7 +84,8 @@ fails ends the step with the CLI's error. The work container is named for its
 attempt: the SSM agent ends a timed-out command with SIGKILL to the host's process
 tree and the container outlives its client (the step's two probes), so `status`
 reports that container first and the driver reads the state again while it runs
-instead of re-sending work; a work process the host killed (137 under the memory
+instead of re-sending work, and `work` refuses to start beside another attempt's
+running container as a fault for an operator; a work process the host killed (137 under the memory
 limit) is read the same way, and only the process's own exits 2 and 3 end the job at
 once. The driver's poll is bounded and classifies its failures, and a send it cannot
 read past ends the job naming `continue-run`, which takes the attempt's approval

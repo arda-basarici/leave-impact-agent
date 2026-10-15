@@ -37,7 +37,12 @@
 # client (the step's two timeout probes, 2026-10-13): `status` reports first whether
 # that container is still running, so the driver polls instead of re-sending, and
 # `work` refuses to start beside a running one (exit 4). A container that exited is
-# removed before a new one takes the name.
+# removed before a new one takes the name. A work container of another attempt still
+# running (a job the agent killed at its timeout leaves its container alive for up to
+# an hour, and the next dispatch starts once that job has ended) would share the
+# host's memory bound with the new one: `work` refuses it as a fault an operator
+# decides (exit 3), never waited for or re-sent (the external read of the pre-dispatch
+# commits).
 #
 # Secrets (the PostgreSQL password; for `work`, the investigator's five read-only
 # vendor principals from Parameter Store) enter the container through the process
@@ -207,6 +212,11 @@ case "$LIFECYCLE_COMMAND" in
     LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
     export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
     export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+    foreign=$(docker ps --filter "name=^lifecycle-" --filter status=running --format '{{.Names}}' | grep -vx "$container" || true)
+    if [ -n "$foreign" ]; then
+      echo "another attempt's work container is running on this host: $foreign; an operator decides before this attempt's work is sent again" >&2
+      exit 3
+    fi
     if [ -n "$(running_container)" ]; then
       echo "a work container of this attempt is still running: $container; the state is read until it ends" >&2
       exit 4
