@@ -61,12 +61,12 @@ on:
           - automatic
           - human
       frappe_base_url:
-        description: the world's HR site (the development world's by default)
+        description: the world's HR site (the measurement world's by default; the development world is hr-w3)
         required: true
         type: string
-        default: https://hr-w3.ardabasarici.dev
+        default: https://hr-w4.ardabasarici.dev
       jira_base_url:
-        description: the world's tracker base URL (the development world's by default)
+        description: the world's tracker base URL (one tracker site serves every world)
         required: true
         type: string
         default: https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
