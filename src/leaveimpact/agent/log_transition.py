@@ -58,9 +58,12 @@ per-count views are projections over the events (``calls_of``, ``counts_of``,
 attempt's over its whole history and not a dispatching job's (the step-14 review's
 finding, built before the first reported dispatch). A claim after the first is a recovery
 unless it is the resumption an approval earns: the first claim after the approval event,
-and only when the segment before it ended cleanly. A worker that claims after the approval
-and is stopped before its resume event ends its segment cleanly too, so the exemption is
-consumed by that claim and the next one counts, which the resume event alone could not say.
+only when the segment before it ended cleanly, and only while no resume event exists. A
+worker that claims after the approval and is stopped before its resume event ends its
+segment cleanly too, so the exemption is consumed by that claim and the next one counts,
+which the resume event alone could not say; and a worker that approved and resumed in its
+own segment and was then stopped cleanly has no resumption left to earn, which the claim
+order alone could not say (the external read of the pre-dispatch commits, 2026-10-16).
 The launcher's bound reads the count (``launch.plan``); the transition refuses nothing on
 it, so a log past any bound folds and reports its count. A process that dies before it
 claims leaves no event and is outside the count.
@@ -531,8 +534,8 @@ class ClaimKind(StrEnum):
     FIRST = "first"
     """No segment yet: the first worker."""
     RESUMPTION = "resumption"
-    """The first claim after an approval, the segment before it ended cleanly: the worker
-    that resumes, no recovery."""
+    """The first claim after an approval not yet resumed, the segment before it ended
+    cleanly: the worker that resumes, no recovery."""
     RECOVERY = "recovery"
     """Any other claim: a segment left open by a process that is gone, or a claim the
     exemption no longer covers."""
@@ -545,7 +548,12 @@ def next_claim(state: AttemptState) -> ClaimKind:
     if previous is None:
         return ClaimKind.FIRST
     approved = state.approved
-    if previous.ended and approved is not None and approved.position > _last_claim_position(state):
+    if (
+        previous.ended
+        and approved is not None
+        and state.resumed is None
+        and approved.position > _last_claim_position(state)
+    ):
         return ClaimKind.RESUMPTION
     return ClaimKind.RECOVERY
 

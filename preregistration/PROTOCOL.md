@@ -248,10 +248,12 @@ nowhere: it bounds recoveries of one attempt, where the re-dispatch policy bound
 dispatches of one call and the retry rule bounds attempts of one run. The count is the
 attempt's, read from its log: a claim after the first is a recovery unless it is the
 resumption an approval earns, the first claim after the approval event with the segment
-before it ended cleanly, so a continuation job continues the count and the resumption is
-not in it, and a worker stopped after that claim and before its resume event has consumed
-the exemption (defined 2026-10-15, before the first reported dispatch; until then the
-count was the dispatching job's and every continuation granted the bound again). A process
+before it ended cleanly and no resume event yet, so a continuation job continues the count
+and the resumption is not in it, a worker stopped after that claim and before its resume
+event has consumed the exemption, and a worker stopped cleanly after its own approval and
+resume earns none (defined 2026-10-15 and amended 2026-10-16 on an external read, before
+the first reported dispatch; until then the count was the dispatching job's and every
+continuation granted the bound again). A process
 that dies before it claims leaves no event and is outside the count, bounded by the job's
 own bound on work sends and by the human who dispatches the next job. The log's rules
 refuse nothing on the count: a log past the bound folds, reports its count and is held.

@@ -401,3 +401,8 @@ def test_the_count_is_the_logs_own_and_a_stopped_resumption_is_recovered() -> No
     past = fold(histories.left_open_claims(RECOVERY_BOUND + 1), histories.RULES)
     assert past.recoveries == RECOVERY_BOUND
     assert next_step(past, approval=AutomaticApproval()) is NextStep.HOLD
+    # Approved and resumed in its own segment, then stopped cleanly at the bound: hold, not
+    # another free resumption (the external read's reproduction, 2026-10-16).
+    resumed = fold(histories.resumed_then_stopped_at_the_bound(), histories.RULES)
+    assert resumed.recoveries == RECOVERY_BOUND
+    assert next_step(resumed, approval=AutomaticApproval()) is NextStep.HOLD

@@ -1054,3 +1054,13 @@ def test_an_identical_claim_re_appended_at_the_bound_is_received_and_counts_noth
 def test_a_log_past_any_bound_folds_and_reports_its_count() -> None:
     state = fold(h.left_open_claims(5), RULES)
     assert state.open and (state.generation, state.recoveries) == (5, 4)
+
+
+def test_a_worker_stopped_cleanly_after_its_own_resume_earns_no_resumption() -> None:
+    """The external read's second history: approved and resumed in one segment, then a clean
+    stop; the next claim is a recovery, since the approval has no resumption left to earn."""
+    state = fold(h.resumed_then_stopped_at_the_bound(), RULES)
+    assert state.open and state.recoveries == 2
+    assert state.approved is not None and state.resumed is not None
+    assert state.current_segment is not None and state.current_segment.ended
+    assert next_claim(state) is ClaimKind.RECOVERY

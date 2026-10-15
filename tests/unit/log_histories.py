@@ -868,6 +868,27 @@ def approved_then_stopped_before_resume() -> tuple[LoggedEvent, ...]:
     return log.logged()
 
 
+def resumed_then_stopped_at_the_bound() -> tuple[LoggedEvent, ...]:
+    """The external read's second history (2026-10-16): two recoveries already, then the
+    third worker requests, is approved automatically, resumes and is stopped cleanly before
+    it terminalizes. Open; the next claim is a recovery past the bound, not a resumption."""
+    expected = cases.recovered_attempt().record.reservation
+    assert expected is not None
+    log = History()
+    log.admit(inputs(reservation=expected.pico_usd))
+    log.claim()
+    log.claim()
+    log.claim()
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=100)
+    log.outside(
+        AUTOMATIC.identity,
+        Approved(Approver.AUTOMATIC, cases.review_payload_digest((), cases.RULES)),
+    )
+    log.worker(Resumed(), offset=200)
+    log.worker(SegmentEnded(), offset=300)
+    return log.logged()
+
+
 def left_open_claims(claims: int) -> tuple[LoggedEvent, ...]:
     """An admission and ``claims`` claims, every segment left open by a process that is
     gone: an open log whose recoveries are one fewer than its claims, past any bound once
@@ -909,5 +930,6 @@ __all__ = [
     "approved_then_stopped_before_resume",
     "inputs",
     "left_open_claims",
+    "resumed_then_stopped_at_the_bound",
     "settlement_of",
 ]
