@@ -153,6 +153,13 @@ def test_the_draft_lists_twenty_four_cells_twenty_with_no_group_and_four_in_one(
 
 
 BOTH_FILES = pytest.mark.parametrize("held", [DRAFT, COMMITTED], ids=["draft", "committed"])
+
+MEASUREMENT_WORLD = "2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c"
+"""The measurement world the committed registration binds (its acceptance: the FINDINGS entry
+`measurement-audit`)."""
+FREEZE_COMMIT = "3cd334ffcbaa7d2ce28ad5b0bb73a628b83aa62e"
+"""The commit of the frozen registration the committed file names; the evaluator reads the
+file there and holds the two procedures equal."""
 """The draft fixture and the committed registration: what the tree computes is held against
 both, the committed one being the file a run cites."""
 
@@ -200,10 +207,11 @@ def test_the_registered_roles_are_the_ones_the_tree_ships(held: Registration) ->
         ), kind
 
 
-def test_the_committed_registration_is_frozen_as_ruled_at_the_freeze() -> None:
-    """The freeze step's rulings of 2026-10-14 as the committed file holds them: frozen with
-    the world's version alone pending; the padded level at 160 filler documents, both levels
-    carrying the full-context request size the calibration measured (fork 2); the caps by
+def test_the_committed_registration_is_bound_as_ruled_at_the_freeze_and_the_bind() -> None:
+    """The freeze step's rulings of 2026-10-14 as the committed file holds them, bound on
+    2026-10-15 to the measurement world against the freeze commit with nothing else
+    moved; the padded level at 160 filler documents, both levels carrying the
+    full-context request size the calibration measured (fork 2); the caps by
     the calibration rule with full context's token cap the allowance less the output
     maximum (fork 4); the eight cells of every system at both levels under the normal
     condition, with full context's four outage cells kept in their group decided not run
@@ -213,9 +221,10 @@ def test_the_committed_registration_is_frozen_as_ruled_at_the_freeze() -> None:
     before exit, the second model unnamed (fork 8); the budget cumulative over the milestone
     (fork 9). Everything the freeze did not rule is the draft's, held equal field by field."""
     held = COMMITTED
-    assert held.status is RegistrationStatus.FROZEN
-    assert pending_fields(held) == ("world.version",)
-    assert (held.world.tuned_scenarios, held.world.frozen_commit) == (0, None)
+    assert held.status is RegistrationStatus.BOUND
+    assert pending_fields(held) == ()
+    assert held.world.version == MEASUREMENT_WORLD
+    assert (held.world.tuned_scenarios, held.world.frozen_commit) == (0, FREEZE_COMMIT)
     assert (held.amendment.amends, held.amendment.prior_full_set_results) == (None, False)
     base, padded = held.corpus_levels
     assert (base.name, base.filler_documents, base.full_context_input_tokens) == (

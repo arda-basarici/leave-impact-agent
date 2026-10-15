@@ -1,15 +1,15 @@
 {
   "format_version": 5,
-  "status": "frozen",
+  "status": "bound",
   "amendment": {
     "amends": null,
     "prior_full_set_results": false
   },
   "world": {
     "version": {
-      "pending": "bound after the measurement world is generated, validated and audited, the procedure frozen before it exists"
+      "value": "2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c"
     },
-    "frozen_commit": null,
+    "frozen_commit": "3cd334ffcbaa7d2ce28ad5b0bb73a628b83aa62e",
     "tuned_scenarios": 0
   },
   "systems": [
