@@ -220,7 +220,13 @@ never made does not pass in the end-to-end reading; it is not left out. A run ma
 that number is surplus: the earliest runs in dispatch order are the intended ones, and a
 later run keeps its cost and its attempt summaries, is counted as surplus in the
 accounting, and enters no estimate (ruled 2026-10-16 on an external read, before the first
-reported dispatch; until then every run of a scenario entered its estimates).
+reported dispatch; until then every run of a scenario entered its estimates). A run the
+inventory lists with no export of any attempt is placed in no cell, since the inventory
+holds no scenario, and is counted in the whole; the operator dispatches no further run of
+its cell on its account, since a replacement would take the intended slot the unpublished
+run holds, and the whole's accounting shows the unexported attempt either way (the same
+read's second pass; the inventory carrying the scenario, which would place such a run in
+its cell, is deferred past the exit).
 
 A run is retried after an infrastructure failure and after nothing else. A defect is not
 retried, because a retry could hide it. The attempt that counts is chosen among the
