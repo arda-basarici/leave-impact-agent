@@ -42,8 +42,12 @@ click 240 times over, and a dispatch the plan did not make still waits for a hum
 Dispatching goes through the `gh` CLI, which prints no run id for a dispatch; the driver
 notes the time, then takes the one investigate run created after it that the ledger does
 not know. Two such runs mean someone else dispatched, and the driver stops rather than
-guess. A dispatch whose result the CLI could not report (a timeout) stops the driver too,
-since the run may or may not exist and only the Actions page can say.
+guess. A dispatch whose result the CLI could not report (a timeout, a dropped connection)
+is never sent again blind: the driver reads whether a run was created anyway, adopts it
+with the lost response recorded on its `dispatched` line, and stops only when none appears
+within a minute. The case is real: the thirtieth agent run's dispatch reached GitHub and
+its response was lost to a local connection abort (2026-10-16); the first driver stopped
+there and the run was adopted by hand from the Actions listing.
 
 Usage, from the repository root with `gh` logged in:
 
@@ -97,6 +101,7 @@ BUSY_STATUSES = frozenset({"queued", "in_progress", "requested", "pending", "wai
 POLL_SECONDS = 20
 IDLE_POLL_SECONDS = 60
 RUN_ID_WAIT_SECONDS = 180
+ADOPTION_WAIT_SECONDS = 60
 RUN_WAIT_SECONDS = 3 * 3600
 REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
 GATED_ENVIRONMENT = "production"
@@ -249,7 +254,13 @@ def wait_until_idle() -> None:
         time.sleep(IDLE_POLL_SECONDS)
 
 
-def dispatch(key: Key) -> datetime:
+def dispatch(key: Key) -> tuple[datetime, str | None]:
+    """Send the dispatch; the time before it and, when the call did not report success, why.
+
+    A failed call does not mean no run: the thirtieth agent run's dispatch reached GitHub
+    and its response was lost to a local connection abort (2026-10-16), so the caller reads
+    the state rather than sending again, as the runner does for its own sends.
+    """
     before = now()
     args = [
         "workflow",
@@ -271,17 +282,16 @@ def dispatch(key: Key) -> datetime:
     try:
         gh(*args, timeout=120)
     except subprocess.TimeoutExpired:
-        raise Stop(
-            f"the dispatch of {key.text} timed out; whether a run exists only the Actions "
-            "page can say, and nothing is recorded for it"
-        ) from None
+        return before, "the dispatch call timed out"
     except RuntimeError as error:
-        raise Stop(f"the dispatch of {key.text} was refused: {error}") from None
-    return before
+        return before, str(error)
+    return before, None
 
 
-def resolve_run_id(dispatched_at: datetime, known: set[int]) -> tuple[int, str]:
-    deadline = now() + timedelta(seconds=RUN_ID_WAIT_SECONDS)
+def resolve_run_id(
+    dispatched_at: datetime, known: set[int], wait_seconds: int = RUN_ID_WAIT_SECONDS
+) -> tuple[int, str]:
+    deadline = now() + timedelta(seconds=wait_seconds)
     floor = dispatched_at - timedelta(seconds=30)
     while True:
         runs = gh_json(
@@ -465,19 +475,33 @@ def run(max_dispatches: int, dry_run: bool) -> int:
                 log(f"dry run: the next dispatch would be {key.text}; nothing sent")
                 return 0
             wait_until_idle()
-            dispatched_at = dispatch(key)
-            run_id, sha = resolve_run_id(dispatched_at, known)
+            dispatched_at, failure = dispatch(key)
+            if failure is not None:
+                log(f"the dispatch call for {key.text} failed ({failure}); reading for a run")
+            try:
+                run_id, sha = resolve_run_id(
+                    dispatched_at,
+                    known,
+                    ADOPTION_WAIT_SECONDS if failure is not None else RUN_ID_WAIT_SECONDS,
+                )
+            except Stop as none_found:
+                if failure is not None:
+                    raise Stop(
+                        f"the dispatch of {key.text} failed and no run appeared: {failure}"
+                    ) from None
+                raise none_found
             known.add(run_id)
             dispatched += 1
-            append_ledger(
-                {
-                    "kind": "dispatched",
-                    "key": key.text,
-                    "run_id": run_id,
-                    "head_sha": sha,
-                    "dispatched_at": stamp(dispatched_at),
-                }
-            )
+            line = {
+                "kind": "dispatched",
+                "key": key.text,
+                "run_id": run_id,
+                "head_sha": sha,
+                "dispatched_at": stamp(dispatched_at),
+            }
+            if failure is not None:
+                line["dispatch_response"] = f"lost: {failure}"
+            append_ledger(line)
             log(f"dispatched {key.text}: run {run_id} on {sha[:7]}")
             if last_sha is not None and sha != last_sha:
                 log(f"NOTE the dispatched commit changed from {last_sha[:7]} to {sha[:7]}")
