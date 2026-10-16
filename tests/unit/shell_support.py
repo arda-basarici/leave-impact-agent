@@ -120,6 +120,7 @@ if [[ " $* " == *" leaveimpact.launch plan "* ]]; then
 elif [[ " $* " == *" leaveimpact.launch status "* ]]; then
   cat "$FAKE_DIR/status.txt" 2>/dev/null || true
 elif [ "$1" = ps ]; then
+  [ -z "${FAKE_DOCKER_PS_EXIT:-}" ] || exit "$FAKE_DOCKER_PS_EXIT"
   cat "$FAKE_DIR/running.txt" 2>/dev/null || true
 fi
 exit "${FAKE_DOCKER_EXIT:-0}"

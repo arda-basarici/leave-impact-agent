@@ -406,3 +406,21 @@ def test_work_refuses_beside_another_attempts_running_container_as_a_fault(
     assert status == 3
     assert "another attempt's work container is running on this host: lifecycle-run-2-a1" in err
     assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no work container"
+
+
+def test_a_failed_container_listing_refuses_work_and_status_instead_of_reading_as_none(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """A daemon that does not answer is not "no container": work ends as a fault (exit 3)
+    and status as a refusal (exit 2), neither having run a container (the read's second
+    pass, 2026-10-16)."""
+    fakes, env = host
+    _launched(fakes, env)
+    failing = {**env, "FAKE_DOCKER_PS_EXIT": "1"}
+    status, err = _run(fakes, failing, "work", LAUNCH="launch-fake", APPROVAL="automatic")
+    assert status == 3
+    assert "container listing failed (docker ps exit 1); work is not started" in err
+    status, err = _run(fakes, failing, "status", APPROVAL="automatic")
+    assert status == 2
+    assert "container listing failed (docker ps exit 1); the attempt's container state" in err
+    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, nothing after"

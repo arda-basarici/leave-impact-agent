@@ -42,7 +42,10 @@
 # an hour, and the next dispatch starts once that job has ended) would share the
 # host's memory bound with the new one: `work` refuses it as a fault an operator
 # decides (exit 3), never waited for or re-sent (the external read of the pre-dispatch
-# commits).
+# commits). The listing is read once into a variable and a failed `docker ps` ends the
+# word (work 3, status 2): inside a substitution a failure reads as an empty listing,
+# which is "no container", the one answer a daemon that did not answer cannot give (the
+# read's second pass).
 #
 # Secrets (the PostgreSQL password; for `work`, the investigator's five read-only
 # vendor principals from Parameter Store) enter the container through the process
@@ -153,9 +156,10 @@ run_app() {
   docker compose run --rm -v "$run_dir:$JOB_DIR" app "$@"
 }
 container="lifecycle-$RUN_ID-a$ATTEMPT"
-# The attempt's work container, if the daemon still runs it.
-running_container() {
-  docker ps --filter "name=^${container}\$" --filter status=running --format '{{.Names}}'
+# Every lifecycle container the daemon still runs, one name a line; a failed listing is
+# the caller's to refuse, so the read is never inside a conditional or a pipeline.
+running_lifecycle_containers() {
+  docker ps --filter "name=^lifecycle-" --filter status=running --format '{{.Names}}'
 }
 registration="$JOB_DIR/registration.json"
 prices="$JOB_DIR/prices.json"
@@ -212,12 +216,16 @@ case "$LIFECYCLE_COMMAND" in
     LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
     export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
     export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
-    foreign=$(docker ps --filter "name=^lifecycle-" --filter status=running --format '{{.Names}}' | grep -vx "$container" || true)
+    listing=$(running_lifecycle_containers) || {
+      echo "the host's container listing failed (docker ps exit $?); work is not started on a host whose containers could not be read" >&2
+      exit 3
+    }
+    foreign=$(printf '%s\n' "$listing" | grep -vx "$container" | grep -v '^$' || true)
     if [ -n "$foreign" ]; then
       echo "another attempt's work container is running on this host: $foreign; an operator decides before this attempt's work is sent again" >&2
       exit 3
     fi
-    if [ -n "$(running_container)" ]; then
+    if printf '%s\n' "$listing" | grep -qx "$container"; then
       echo "a work container of this attempt is still running: $container; the state is read until it ends" >&2
       exit 4
     fi
@@ -233,7 +241,11 @@ case "$LIFECYCLE_COMMAND" in
     ;;
   status)
     : "${APPROVAL:?the policy work was dispatched with}"
-    if [ -n "$(running_container)" ]; then echo "container=running"; else echo "container=none"; fi
+    listing=$(running_lifecycle_containers) || {
+      echo "the host's container listing failed (docker ps exit $?); the attempt's container state is not reported" >&2
+      exit 2
+    }
+    if printf '%s\n' "$listing" | grep -qx "$container"; then echo "container=running"; else echo "container=none"; fi
     run_app python -m leaveimpact.launch status --run "$RUN_ID" --attempt "$ATTEMPT" \
       --registration "$registration" --approval "$APPROVAL"
     ;;
