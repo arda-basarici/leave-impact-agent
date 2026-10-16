@@ -4070,7 +4070,12 @@ spend the ledger sees is accounted here and imported from here (fork 9).
 two full-context level rounds $1.2748 (the 90k point counted once, in the reader rounds),
 the five remaining cell rounds $1.3987; sums done by hand over the eleven summaries' "Round
 total" lines, each named above. Against fork 9's "calibration and the reader probe about
-$5". The bill's line for 2026-10-14 is still to be read against the account check.
+$5". The bill's line for 2026-10-14, read 2026-10-16: Haiku $9.8231 for the day, which
+holds the calibration beside the second development world's writer ($1.47), seed 102's
+abort (about $0.30) and the writers of seed 103's refused draw and the measurement world's
+first draw; the account check's $4.7032 cannot be isolated from the day, and the residue of
+about $3.35 for the two other writers is the size their attempt counts give. The 13th
+carried $0.15 of Haiku and nothing else, so nothing of the calibration fell on it.
 
 **Limits.** Six scenarios of one world under one model at temperature 0, one repeat; 7
 required facts is a thin denominator for recall, and the differences between the two
@@ -4124,7 +4129,20 @@ first world's measured 1.9 s an attempt):
 the checker $2.80 to $3.68 depending on which Nova Pro series the EU profile bills under (the
 `step-14` entry's open question), so the world about $4.30 to $5.15; with the first draw and
 seed 102 the second development world cost about $10 and three runs. The figure enters the
-ledger once the bill read settles the series. The proof and the cache load ran after the
+ledger once the bill read settles the series.
+
+*The bill read (2026-10-16, Cost Explorer by usage type for 2026-10-14, cost and usage
+quantity through the API).* The `eu.` profile bills Nova Pro under the Frankfurt in-region
+series: `EUC1-NovaPro-input-tokens` 8,274 thousand tokens for $8.6874 and
+`EUC1-NovaPro-output-tokens` 622 thousand for $2.6107, which divide to $1.05 and $4.20 a
+million, the Pricing API's Frankfurt rates the `bedrock-shortlist` entry captured. So the
+checker is $3.6813 and the world $5.1521 (writer 1,069,772 × 1.10 + 53,469 × 5.50, checker
+2,695,124 × 1.05 + 202,716 × 4.20, over a million; arithmetic by script), the figure the
+ledger import carries. The day's Nova tokens, 8.27 million in and 0.62 million out, are the
+three checkers of the 14th together (seed 102's abort, seed 103's refused first draw, this
+world and the measurement world's first draw), so no finer split exists; the Bedrock line held
+nothing but Nova Pro that day, and the two marketplace usage types, $7.17 and $2.65, are
+Haiku's. The proof and the cache load ran after the
 seal; the calibration (`step-15-calibration`) and the freeze read this world.
 
 **Limits.** One world from one seed under one writer and one checker; the per-attempt wall
