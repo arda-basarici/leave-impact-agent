@@ -4075,7 +4075,10 @@ holds the calibration beside the second development world's writer ($1.47), seed
 abort (about $0.30) and the writers of seed 103's refused draw and the measurement world's
 first draw; the account check's $4.7032 cannot be isolated from the day, and the residue of
 about $3.35 for the two other writers is the size their attempt counts give. The 13th
-carried $0.15 of Haiku and nothing else, so nothing of the calibration fell on it.
+carried $0.15 of Haiku and nothing else, so nothing of the calibration fell on it. The
+$4.7032 was imported 2026-10-16 as revision 10 of `ledger-development` under the request
+identity `import-calibration-2026-10-14`; the ledger held $0.1463 before it, the step-14
+live runs' settled spend, which is the 13th's Haiku line to the cent.
 
 **Limits.** Six scenarios of one world under one model at temperature 0, one repeat; 7
 required facts is a thin denominator for recall, and the differences between the two
@@ -4138,7 +4141,10 @@ series: `EUC1-NovaPro-input-tokens` 8,274 thousand tokens for $8.6874 and
 million, the Pricing API's Frankfurt rates the `bedrock-shortlist` entry captured. So the
 checker is $3.6813 and the world $5.1521 (writer 1,069,772 × 1.10 + 53,469 × 5.50, checker
 2,695,124 × 1.05 + 202,716 × 4.20, over a million; arithmetic by script), the figure the
-ledger import carries. The day's Nova tokens, 8.27 million in and 0.62 million out, are the
+ledger import carries: imported the same day as revision 11 of `ledger-development` under
+the request identity `import-second-development-world-2026-10-14`, the ledger's total after
+it $10.0016 against the frozen commit. The day's Nova tokens, 8.27 million in and 0.62
+million out, are the
 three checkers of the 14th together (seed 102's abort, seed 103's refused first draw, this
 world and the measurement world's first draw), so no finer split exists; the Bedrock line held
 nothing but Nova Pro that day, and the two marketplace usage types, $7.17 and $2.65, are
