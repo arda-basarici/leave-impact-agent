@@ -1,0 +1,52 @@
+# Phase C: dispatching the reported runs
+
+The 240 reported runs of M2's exit (four systems at the base and the padded level over
+the measurement world's thirty scenarios, one repeat) go through `investigate.yml` one
+at a time. `dispatch.py` sends them in the plan's fixed order and writes the ledger that
+records each; its module docstring carries the rules it keeps and why. This file is the
+runbook.
+
+- `plan.json`: the order, written once by `plan` and committed; the script refuses a plan
+  that differs from its own constants.
+- `ledger.jsonl`: append-only, committed at the end of every sitting. One `dispatched`
+  line per run as soon as its id is known, one `finished` line when the job has ended
+  with the runner's markers and the reasons the driver stopped, if any. A key with a
+  `dispatched` line is never sent again.
+- `data/phase-c-dispatch/driver.log` (git-ignored): every printed line, for a second
+  terminal to follow.
+
+## Running it
+
+From the repository root, `gh` logged in, in a terminal that outlives the chat:
+
+```
+uv run python probes/phase-c-dispatch/dispatch.py status
+uv run python probes/phase-c-dispatch/dispatch.py run --max 1
+uv run python probes/phase-c-dispatch/dispatch.py run
+```
+
+The first run of a sitting is sent with `--max 1` and read before the rest. `Ctrl+C` is
+safe at any moment: a run already dispatched is resumed by the next invocation, which
+waits on it and records it.
+
+## When it stops
+
+The driver prints `STOP` with the reason and exits 1. The reason is one of: the job did
+not succeed; the attempt's ending is not closed and completed (a cap, a defect, an
+infrastructure failure); the publication is not published or carries an incident; the
+inventory was not created; or the admission names another scenario, system or world than
+the key. Each is an operator's decision under PROTOCOL ("How a run is counted") and the
+decision is written in the session log before anything else is sent. The driver never
+re-dispatches the key: a replacement would be surplus, or would take the slot an
+unexported run holds. A retry an attribution row permits goes through `continue-run.yml`
+by hand, outside the driver.
+
+## Deploys
+
+The driver refuses to dispatch while any run of `investigate.yml`, `continue-run.yml` or
+`ci.yml` is queued, running or waiting at its gate, and says which. A push during the
+phase therefore pauses the driver until its deploy is approved or rejected; approve one
+only while the driver is stopped or paused, never during a run (the instance README).
+During the phase the ledger is committed locally and pushed at the end of a sitting; the
+push's deploy is approved before the next sitting's first dispatch, so the image's commit
+stays one across a sitting.
