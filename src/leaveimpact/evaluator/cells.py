@@ -164,8 +164,9 @@ class ScenarioRuns:
     say how many runs a scenario contributes and a later dispatch cannot add to them (the
     protocol's counting rule, 2026-10-16). ``attempts`` holds every attempt of every run,
     surplus included, for the cost ledger; ``missing`` how many intended runs were never
-    made; ``histories`` every run's attempt history, in run order. Run order is dispatch
-    order: the workflow's run ids compare by their number, any other id after them by text.
+    made; ``histories`` every run's attempt history, in run order; ``intended`` the plan's
+    repeats, the number of histories that are intended ones. Run order is dispatch order:
+    the workflow's run ids compare by their number, any other id after them by text.
     """
 
     scenario_id: ScenarioId
@@ -175,12 +176,15 @@ class ScenarioRuns:
     attempts: tuple[Evaluation, ...]
     missing: int
     histories: tuple[RunHistory, ...]
+    intended: int
 
     @property
     def unverifiable(self) -> int:
-        """How many runs were made and have no counted attempt, their history holding a gap
-        or an attempt with no export."""
-        return sum(history.counted is None for history in self.histories)
+        """How many intended runs were made and have no counted attempt, their history
+        holding a gap or an attempt with no export. A surplus run with such a history is
+        among ``histories`` and in no estimate's denominator, as the counted runs are the
+        intended ones (the read's second pass, 2026-10-16)."""
+        return sum(history.counted is None for history in self.histories[: self.intended])
 
 
 @dataclass(frozen=True, slots=True)
@@ -237,9 +241,9 @@ class Accounting:
     ``missing`` the shortfall and ``surplus`` the runs beyond what was intended, each summed
     per scenario so that one scenario's surplus never hides another's shortfall; a surplus
     run is among ``made`` and ``attempts`` and in no count over counted runs.
-    ``unverifiable_history`` counts the runs made whose attempt numbers have a gap or
-    whose history holds an attempt with no export: they are among ``made`` and in no count
-    of how a run ended, having no counted attempt; ``with_unexported_attempts`` counts the
+    ``unverifiable_history`` counts the intended runs made whose attempt numbers have a gap
+    or whose history holds an attempt with no export: they are among ``made`` and in no
+    count of how a run ended, having no counted attempt; ``with_unexported_attempts`` counts the
     latter among them, the runs the harness has not finished or could not publish.
     ``attempts`` counts every exported attempt, retries included. A structurally invalid report is
     counted where its run ended: among the graded, where it was graded with zero credit, or
@@ -616,6 +620,7 @@ def _scenario_runs(
         tuple(each for history in histories for each in history.attempts),
         max(plan.intended_repeats - len(by_run), 0),
         histories,
+        plan.intended_repeats,
     )
 
 

@@ -320,3 +320,27 @@ def test_the_plan_refuses_what_no_preregistration_could_mean() -> None:
         Preregistered(0.95, 7, 0, 1, *kept)
     with pytest.raises(ValueError, match="at least one run per scenario"):
         Preregistered(0.95, 7, 1_000, 0, *kept)
+
+
+def test_a_surplus_run_with_an_unverifiable_history_is_in_no_denominator(
+    world: SealedWorld,
+) -> None:
+    """The read's second pass: the counted runs were the intended subset while the
+    unverifiable count read every history, so a surplus run whose attempt numbers have a
+    gap halved an end-to-end score; it is surplus, made, and unverifiable nowhere."""
+    scenario = world.scenarios[0]
+    runs = [
+        relabelled(evaluated(world, scenario), run_id="run-1"),
+        relabelled(evaluated(world, scenario), run_id="run-2", attempt=2),
+    ]
+    (arm,) = arms(world, runs, plan(intended_repeats=1))
+    scenario_runs = next(each for each in arm.scenarios if each.scenario_id == scenario.spec.id)
+    assert [h.run_id for h in scenario_runs.histories] == ["run-1", "run-2"]
+    assert scenario_runs.histories[1].counted is None, "a gap: no attempt 1"
+    assert (scenario_runs.unverifiable, len(scenario_runs.counted)) == (0, 1)
+    accounting = accounting_of(Cell(arm, OVERALL, (scenario_runs,)), plan(intended_repeats=1))
+    assert (accounting.made, accounting.surplus, accounting.unverifiable_history) == (2, 1, 0)
+    # The same history as the intended run is unverifiable.
+    (alone,) = arms(world, runs[1:], plan(intended_repeats=1))
+    only = next(each for each in alone.scenarios if each.scenario_id == scenario.spec.id)
+    assert (only.unverifiable, len(only.counted)) == (1, 0)
