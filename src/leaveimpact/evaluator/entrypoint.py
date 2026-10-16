@@ -242,8 +242,9 @@ def evaluate(
     ``EvaluationRefused`` for a request naming no inventory or one that is absent,
     misnamed, undecodable or of another world, for an empty or a moving listing, for a
     bound registration that binds another world or a procedure other than the frozen one
-    it names, for a bound registration whose corpus level the world sealed with another
-    filler count, and for an embargoed world whose digest the checkout publishes, and whatever
+    it names, for a bound registration whose corpus level the world did not seal or sealed
+    with another filler count, and for an embargoed world whose digest the checkout
+    publishes, and whatever
     the artifact refuses: a registration it cannot read as a plan,
     a listed publication the store does not hold as recorded, an open attempt under a
     reported label, two eligible exports of one run.
@@ -328,19 +329,25 @@ def _require_bound_as_frozen(
 
 
 def _require_registered_levels_sealed(registration: Registration, world: SealedWorld) -> None:
-    """Refuse a bound ``registration`` whose corpus level ``world`` sealed with another
-    filler count: the registered level is what the report claims every run at it was shown,
-    and the sealed level is what the cache served, so the two are one number or the
-    evaluation is of another corpus than the one registered (the external read of the
-    pre-dispatch commits, 2026-10-16). A registered level the world does not seal is left to
-    the level check, which reports every run at it as held to no level."""
+    """Refuse a bound ``registration`` whose corpus level ``world`` did not seal or sealed
+    with another filler count: the registered level is what the report claims every run at
+    it was shown, and the sealed level is what the cache served, so the two are one number
+    or the evaluation is of another corpus than the one registered (the external read of the
+    pre-dispatch commits, 2026-10-16). A level the world does not seal at all was first left
+    to the level check, which holds every run at it to no level while the artifact still
+    read reported; the read's second pass made it a refusal."""
     if registration.status is not RegistrationStatus.BOUND:
         return
     sealed = {level.name: level.filler_count for level in world.levels}
     for level in registration.corpus_levels:
         count = level.filler_documents
-        if isinstance(count, Pending) or level.name not in sealed:
+        if isinstance(count, Pending):
             continue
+        if level.name not in sealed:
+            raise EvaluationRefused(
+                f"the registration names the corpus level {level.name}, which the world did "
+                f"not seal (sealed: {', '.join(sorted(sealed)) or 'none'})"
+            )
         if sealed[level.name] != count:
             raise EvaluationRefused(
                 f"the registration names the corpus level {level.name} with {count} filler "

@@ -174,6 +174,30 @@ def export_of(
     )
 
 
+def padded_world(twin: Path) -> tuple[SealedWorld, Registration]:
+    """The with-filler fixture world seeded into the twin's three sealed files, and the
+    frozen procedure with its padded level at the world's sealed count: what a bound
+    registration needs, since a bound evaluation refuses a registered level the world did
+    not seal or sealed with another count."""
+    sealed = bundle(composed_world_with_filler(3))
+    truth, held = LocalObjectWriter(twin / "truth"), LocalObjectWriter(twin / "world")
+    truth.put_if_absent(world_spec_key(sealed.world_version), sealed.world_spec.content)
+    truth.put_if_absent(truth_manifest_key(sealed.world_version), sealed.truth_manifest.content)
+    held.put_if_absent(scenario_specs_key(sealed.world_version), sealed.scenario_specs.content)
+    stores_of_padded = sealed_stores(sealed)
+    world = load_sealed_world(sealed.world_version, stores_of_padded.truth, stores_of_padded.world)
+    count = next(level.filler_count for level in world.levels if level.name == "padded")
+    procedure = light(frozen())
+    matched = replace(
+        procedure,
+        corpus_levels=tuple(
+            replace(level, filler_documents=count) if level.name == "padded" else level
+            for level in procedure.corpus_levels
+        ),
+    )
+    return world, matched
+
+
 def store_runs(twin: Path, world: SealedWorld, **runs: bytes) -> str:
     """``runs`` stored under their names, and an inventory listing every export among them
     as published at its key; its digest, which an evaluation names."""
@@ -507,20 +531,20 @@ def test_an_open_attempt_in_scope_holds_a_reported_evaluation_and_is_counted_by_
     assert (status, err) == (0, "")
     assert "label=development" in out and "coverage[open]=1" in out
 
-    procedure = light(frozen())
+    padded, procedure = padded_world(twin)
     frozen_at = commit_registration(checkout, procedure, "the procedure, frozen")
-    made = bound(world.version, procedure, frozen_commit=frozen_at)
+    made = bound(padded.version, procedure, frozen_commit=frozen_at)
     head = commit_registration(checkout, made, "the world, bound")
     scoped = {
-        f"{runs_prefix(world.version)}run-3-1/export.json": export_of(
-            world, world.scenarios[2], head, "run-3", registration=made
+        f"{runs_prefix(padded.version)}run-3-1/export.json": export_of(
+            padded, padded.scenarios[2], head, "run-3", registration=made
         )
     }
     LocalObjectWriter(twin / "world").put_if_absent(*next(iter(scoped.items())))
-    still_open = open_attempt(world.version, "run-4", 1, registration_commit=head)
-    digest = store_inventory(twin, inventory_over(world.version, scoped, extra=(still_open,)))
+    still_open = open_attempt(padded.version, "run-4", 1, registration_commit=head)
+    digest = store_inventory(twin, inventory_over(padded.version, scoped, extra=(still_open,)))
     status, out, err = run_job(
-        capsys, twin, checkout, "evaluate", "--world-version", world.version, "--inventory", digest
+        capsys, twin, checkout, "evaluate", "--world-version", padded.version, "--inventory", digest
     )
     assert (status, out) == (1, "")
     assert "waits for every attempt in its scope to close; open: run-4 attempt 1" in err
@@ -556,9 +580,9 @@ def commit_registration(checkout: Repository, registration: Registration, messag
 
 
 def test_a_bound_registration_is_evaluated_when_its_procedure_is_the_frozen_one(
-    world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
+    twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    procedure = light(frozen())
+    world, procedure = padded_world(twin)
     frozen_at = commit_registration(checkout, procedure, "the procedure, frozen")
     made = bound(world.version, procedure, frozen_commit=frozen_at)
     head = commit_registration(checkout, made, "the world, bound")
@@ -725,24 +749,19 @@ def test_an_evaluation_of_an_embargoed_world_scans_before_it_lists(
     ) == ()
 
 
-def test_a_bound_registration_is_refused_when_the_world_sealed_its_level_with_another_count(
-    twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
+def test_a_bound_registration_is_refused_unless_the_world_sealed_its_levels_at_its_counts(
+    world: SealedWorld, twin: Path, checkout: Repository, capsys: pytest.CaptureFixture[str]
 ) -> None:
     """The registered padded level is what the report claims each run was shown; the sealed
-    one is what the cache served. Unequal counts refuse before anything is listed, equal
-    ones evaluate (the external read of the pre-dispatch commits, 2026-10-16)."""
-    sealed = bundle(composed_world_with_filler(3))
-    truth, held = LocalObjectWriter(twin / "truth"), LocalObjectWriter(twin / "world")
-    truth.put_if_absent(world_spec_key(sealed.world_version), sealed.world_spec.content)
-    truth.put_if_absent(truth_manifest_key(sealed.world_version), sealed.truth_manifest.content)
-    held.put_if_absent(scenario_specs_key(sealed.world_version), sealed.scenario_specs.content)
-    stores_of_padded = sealed_stores(sealed)
-    padded = load_sealed_world(sealed.world_version, stores_of_padded.truth, stores_of_padded.world)
+    one is what the cache served. Another count refuses, a level the world never sealed
+    refuses (the read's second pass), and the matched count evaluates as reported (the
+    external read of the pre-dispatch commits, 2026-10-16)."""
+    padded, matched = padded_world(twin)
     sealed_count = next(level.filler_count for level in padded.levels if level.name == "padded")
-    procedure = light(frozen())
-    frozen_at = commit_registration(checkout, procedure, "the procedure, frozen")
-    made = bound(padded.version, procedure, frozen_commit=frozen_at)
-    head = commit_registration(checkout, made, "bound to the padded world")
+    at_160 = light(frozen())
+    frozen_at = commit_registration(checkout, at_160, "the procedure, frozen at 160")
+    made = bound(padded.version, at_160, frozen_commit=frozen_at)
+    head = commit_registration(checkout, made, "bound to the padded world at 160")
     digest = store_runs(
         twin,
         padded,
@@ -755,13 +774,19 @@ def test_a_bound_registration_is_refused_when_the_world_sealed_its_level_with_an
         f"names the corpus level padded with 160 filler documents, and the world sealed it "
         f"with {sealed_count}"
     ) in err
-    matched = replace(
-        procedure,
-        corpus_levels=tuple(
-            replace(level, filler_documents=sealed_count) if level.name == "padded" else level
-            for level in procedure.corpus_levels
-        ),
+    # The base-only fixture world seals no padded level at all.
+    unsealed = bound(world.version, at_160, frozen_commit=frozen_at)
+    head = commit_registration(checkout, unsealed, "bound to the base-only world")
+    digest = store_runs(
+        twin,
+        world,
+        **{"run-3-1": export_of(world, world.scenarios[0], head, "run-3", registration=unsealed)},
     )
+    status, out, err = run_job(
+        capsys, twin, checkout, "evaluate", "--world-version", world.version, "--inventory", digest
+    )
+    assert (status, out) == (1, "")
+    assert "names the corpus level padded, which the world did not seal (sealed: base)" in err
     matched_at = commit_registration(checkout, matched, "the procedure, frozen at the sealed count")
     agreed = bound(padded.version, matched, frozen_commit=matched_at)
     head = commit_registration(checkout, agreed, "bound at the sealed count")
