@@ -31,6 +31,14 @@ counts. The driver also refuses to dispatch while any run of the two run workflo
 CI is queued, in progress or waiting at its gate, so a pending deploy is decided before the
 phase continues, never during a run.
 
+Every dispatched run waits at the production environment's review, the rule that stands
+between the instance and any dispatch (DESIGN's launch passage). The driver approves the
+review of each run it has itself dispatched, under the operator's own login through the
+API, and writes an `approved` line beside the `dispatched` one; the plan is committed and
+every dispatch of it is intended, so the review it answers would have been the operator's
+click 240 times over, and a dispatch the plan did not make still waits for a human (ruled
+2026-10-16, after the phase's first run was approved by hand).
+
 Dispatching goes through the `gh` CLI, which prints no run id for a dispatch; the driver
 notes the time, then takes the one investigate run created after it that the ledger does
 not know. Two such runs mean someone else dispatched, and the driver stops rather than
@@ -90,6 +98,9 @@ POLL_SECONDS = 20
 IDLE_POLL_SECONDS = 60
 RUN_ID_WAIT_SECONDS = 180
 RUN_WAIT_SECONDS = 3 * 3600
+REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
+GATED_ENVIRONMENT = "production"
+REVIEW_WAIT_SECONDS = 90
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
 
 
@@ -128,9 +139,14 @@ def log(line: str) -> None:
         handle.write(text + "\n")
 
 
-def gh(*args: str, timeout: int = 60) -> str:
+def gh(*args: str, timeout: int = 60, input: str | None = None) -> str:
     completed = subprocess.run(
-        ["gh", *args], capture_output=True, text=True, timeout=timeout, check=False
+        ["gh", *args],
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+        check=False,
+        input=input,
     )
     if completed.returncode != 0:
         raise RuntimeError(f"gh {' '.join(args[:2])} failed: {completed.stderr.strip()}")
@@ -297,6 +313,42 @@ def resolve_run_id(dispatched_at: datetime, known: set[int]) -> tuple[int, str]:
         time.sleep(5)
 
 
+def approve_if_pending(run_id: int) -> str | None:
+    """Approve the run's production review if it is pending; the approval's time, or None.
+
+    A dispatched run is created waiting at the environment's review, so the pending
+    deployment is normally listed at the first read; the wait covers the moments before
+    GitHub lists it. A run already past the review (resumed after the driver died between
+    the dispatch and the approval, or approved by hand) has nothing pending and nothing is
+    sent.
+    """
+    deadline = now() + timedelta(seconds=REVIEW_WAIT_SECONDS)
+    path = f"repos/{REPOSITORY_NAME}/actions/runs/{run_id}/pending_deployments"
+    while True:
+        pending = gh_json("api", path)
+        assert isinstance(pending, list)
+        ours = [p for p in pending if p["environment"]["name"] == GATED_ENVIRONMENT]
+        if ours:
+            if not ours[0]["current_user_can_approve"]:
+                raise Stop(f"run {run_id} waits for a review this login cannot approve")
+            body = json.dumps(
+                {
+                    "environment_ids": [ours[0]["environment"]["id"]],
+                    "state": "approved",
+                    "comment": "phase C dispatcher: a run of the committed plan",
+                }
+            )
+            gh("api", "-X", "POST", path, "--input", "-", input=body)
+            return stamp(now())
+        run = gh_json("run", "view", str(run_id), "--json", "status")
+        assert isinstance(run, dict)
+        if run["status"] in ("in_progress", "completed"):
+            return None
+        if now() > deadline:
+            raise Stop(f"run {run_id} lists no pending review and has not started; check Actions")
+        time.sleep(5)
+
+
 def wait_for_run(run_id: int) -> str:
     deadline = now() + timedelta(seconds=RUN_WAIT_SECONDS)
     while True:
@@ -430,6 +482,12 @@ def run(max_dispatches: int, dry_run: bool) -> int:
             if last_sha is not None and sha != last_sha:
                 log(f"NOTE the dispatched commit changed from {last_sha[:7]} to {sha[:7]}")
             last_sha = sha
+        approved_at = approve_if_pending(run_id)
+        if approved_at is not None:
+            append_ledger(
+                {"kind": "approved", "key": key.text, "run_id": run_id, "approved_at": approved_at}
+            )
+            log(f"approved {key.text}: run {run_id}'s {GATED_ENVIRONMENT} review, this login")
         record = finish(key, run_id)
         if record["stop_reasons"]:
             raise Stop(f"{key.text} run {run_id}: " + "; ".join(record["stop_reasons"]))

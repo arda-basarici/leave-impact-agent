@@ -29,6 +29,15 @@ The first run of a sitting is sent with `--max 1` and read before the rest. `Ctr
 safe at any moment: a run already dispatched is resumed by the next invocation, which
 waits on it and records it.
 
+## The review
+
+Each dispatched run waits at the `production` environment's review. The driver approves
+it under your `gh` login right after the `dispatched` line is written, and records an
+`approved` line; the plan is committed, so every dispatch of it is intended (ruled
+2026-10-16). A run dispatched and not yet approved when the driver died is approved on
+resume; one you approved by hand is left alone. A dispatch the plan did not make still
+waits for you.
+
 ## When it stops
 
 The driver prints `STOP` with the reason and exits 1. The reason is one of: the job did

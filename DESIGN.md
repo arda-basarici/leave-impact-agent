@@ -3872,6 +3872,14 @@ Session Manager, which the deploy script's own rule excludes for anything that c
 the launcher on the runner with the request shipped to the instance, one run across
 two environments and two approvals.
 
+For the reported runs the phase C dispatcher (`probes/phase-c-dispatch/`) approves the
+production review of each run it has itself dispatched, under the operator's own login
+through the API, the approval recorded in its ledger beside the dispatch. The plan is
+committed and every dispatch of it is intended, so the review it answers would have been
+the operator's click 240 times over; the review still stands between the instance and
+any dispatch the plan did not make, and the deploy job's review is untouched (ruled
+2026-10-16, after the phase's first run was approved by hand).
+
 **The driver walks the launcher's answer and never re-sends blind; a timed-out client
 leaves its container running.** After a work send the attempt's state is read with
 status and its next word acted on: work or recover sends work again, a recovery of an
