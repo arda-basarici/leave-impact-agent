@@ -270,3 +270,17 @@ input and 353 output tokens. The three traces ran the same day in session 104, t
 accept, and the audit sealed under the identity `8ae83702…`; the FINDINGS entry
 `measurement-audit` has the counts. The folder's README has the run.
 
+
+## Phase C, the reported runs (dispatched 2026-10-16 to 17)
+
+Not a probe: an operator's program with its record. `phase-c-dispatch/dispatch.py` sent
+the 240 registered runs through `investigate.yml` one at a time in the order
+`plan.json` commits and wrote `ledger.jsonl`, append-only, one `dispatched` and one
+`finished` line per run with the runner's markers; its module docstring and the folder's
+README carry the rules it keeps (a key never sent twice, a stop on anything an operator
+decides, no dispatch while another run is queued or gated) and why. `tally.py` prints the
+operational table from the ledger and the runs' exports, `report.py` the evaluation's
+tables from the reported artifact, which it refuses to mistake for another. The FINDINGS
+entry `phase-c` cites both and has the result: 240 of 240 closed completed, $9.96, the
+investigator 24 of 30 at both levels, full context 30 and 14, the primary difference 0.20
+to 0.47.

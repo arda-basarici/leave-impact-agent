@@ -4287,3 +4287,120 @@ domains and the rules, not executed. The sheet's rollups label the filler regist
 rendering gap carried in the stream's FIXLOG; no trace reads the rollups, and the digest
 bound is this rendering's. The bind of the registration to this world is the commit after
 this entry's.
+
+## phase-c — the 240 reported runs and the reported evaluation: the investigator correct whole on 24 of 30 at both levels, full context 30 of 30 at base and 14 of 30 at padded, the primary difference 0.20 to 0.47 (2026-10-16 to 17)
+
+The investigator milestone's exit as the freeze registered it (DESIGN, "The freeze
+registered twelve of the twenty-four cells and runs eight"): four systems under the normal
+condition at the base and the padded level over the measurement world's thirty scenarios,
+one repeat, 240 runs, under the registration bound against `3cd334f` (digest
+`acb11ce1…8f4c6`) on world `2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c`.
+The runs went through `investigate.yml` one at a time in the order
+`probes/phase-c-dispatch/plan.json` commits, dispatched by `dispatch.py` and recorded in
+its ledger, 2026-10-16 20:26 to 2026-10-17 18:36 UTC with a pause overnight. The operational
+numbers below are `tally.py`'s over the runs' exports and the evaluation's are
+`report.py`'s over the artifact; the probe's README has both commands, and a number here
+that neither prints is marked as arithmetic by hand.
+
+**The evaluation.** Run `39061375799` of `evaluate-run.yml`, label `reported`, artifact
+`evaluations/2e6705ba…341c/39061375799-1.json` in the truth bucket at version id
+`oOBaiqTYdK9aqtdTH5bGDoCZLXPsfcVG`, format 10, 6.4 MB; the harness inventory
+`6adafc5d…9621` at 248 attempts (the 240 and the eight admitted before the phase, none in
+scope). Coverage: 240 intended, 240 admitted, 240 exported,
+nothing open, nothing closed without export, no publication incident, no attempt failed by
+defect or by infrastructure, no incident of any kind. Every run's prefetch, membership,
+fact recheck, level check and ending checks are evaluated with no finding, the model
+systems' attribution, call and account checks too; the rules-only cells' three are not
+evaluated, since those runs send nothing. No run was limited or excluded. The evaluator's commit is `8acbc66`, which
+differs from the bind's in `evaluator/cells.py` and `evaluator/entrypoint.py` (the second
+read's two fixes after the bind), so the artifact carries `evaluated_by_changed_code`
+true and names the two files; the registration bytes are the bound ones.
+
+**The runs.** Every one of the 240 closed completed on its first attempt, no recovery, no
+run at a cap. Cost $9.9594 over the phase against the about $12 the freeze's forks file
+forecast by hand from the calibration's per-run figures.
+
+| cell | cost | mean a run | calls a run | input tokens a run | stopped at the output maximum |
+|---|---|---|---|---|---|
+| rules only, base | $0 | $0 | 0 | 0 | 0 |
+| rules only, padded | $0 | $0 | 0 | 0 | 0 |
+| agent, base | $2.2125 | $0.0738 | 4 to 12 | 39,678 to 159,172 | 0 |
+| agent, padded | $2.1773 | $0.0726 | 4 to 9 | 39,678 to 115,610 | 0 |
+| full context, base | $0.8166 | $0.0272 | 1 | 10,517 to 10,877 | 0 |
+| full context, padded | $2.5618 | $0.0854 | 1 | 42,232 to 42,592 | 24 of 30 |
+| single shot, base | $0.5178 | $0.0173 | 1 | 8,755 to 9,765 | 0 |
+| single shot, padded | $1.6735 | $0.0558 | 1 | 12,162 to 12,809 | 25 of 30 |
+
+The agent's input tokens are summed over its calls; a run that stopped at the maximum is
+one whose one call ended with `max_tokens` and whose fact batch did not parse, the two
+counts equal in both padded cells. Against the forks file's per-run figures, the agent at base ran $0.0738
+against $0.051 (the step-14 single run) and the single shot at padded $0.0558 against about
+$0.05; the agent at padded $0.0726 against about $0.08, full context at padded $0.0854
+against about $0.155 (figured at a 100,000-token request the level never reached), and the
+two base one-call cells within a thousandth of theirs. The padded full-context request measured 42,232
+to 42,592 input tokens against the registered level's 42,390 to 42,642.
+
+**Every arm, correct whole read end to end, with the Wilson interval at 95 percent, by tier
+(ten scenarios each), and strict precision over all claims.**
+
+| arm | overall | interval | structured | fragmented | adversarial | strict precision |
+|---|---|---|---|---|---|---|
+| agent, base | 24 of 30 | 0.63 to 0.90 | 10 | 4 | 10 | 884 of 986 |
+| agent, padded | 24 of 30 | 0.63 to 0.90 | 10 | 4 | 10 | 884 of 986 |
+| full context, base | 30 of 30 | 0.89 to 1.00 | 10 | 10 | 10 | 1,001 of 1,001 |
+| full context, padded | 14 of 30 | 0.30 to 0.64 | 10 | 1 | 3 | 584 of 817 |
+| single shot, base | 22 of 30 | 0.56 to 0.86 | 10 | 2 | 10 | 803 of 977 |
+| single shot, padded | 10 of 30 | 0.19 to 0.51 | 10 | 0 | 0 | 498 of 810 |
+| rules only, base | 10 of 30 | 0.19 to 0.51 | 10 | 0 | 0 | 498 of 810 |
+| rules only, padded | 10 of 30 | 0.19 to 0.51 | 10 | 0 | 0 | 498 of 810 |
+
+The headroom diagnostic is 20 of 30 at each level: the structured tier is exactly what the
+rules alone pass, and the twenty prose scenarios are where any system can differ.
+
+**The primary comparison, the investigator against full context at the padded level:** 24
+of 30 against 14 of 30, both pass on 14, the investigator alone on 10, full context alone
+on none, neither on 6; the difference 0.20 to 0.47 at 95 percent (10,000 resamples of
+whole scenarios within tiers, paired). By tier, structured 10 and 10 with every resample
+equal, fragmented 4 and 1 (0.00 to 0.60), adversarial 10 and 3 (0.40 to 1.00). The overall
+contrast is the claim; the tier rows are breakdowns and carry none.
+
+**The comparisons carrying no claim.** The investigator against single shot: at base 24
+and 22, not separated (0.00 to 0.17, which includes differences in either direction); at
+padded 24 and 10 (0.37 to 0.57). The level contrasts, padded less base: the investigator 24
+and 24 with the same six scenarios failing at both levels and every resample equal; single
+shot 10 and 22 (-0.50 to -0.33); full context 14 and 30 (-0.63 to -0.40), the loss entire
+on the two prose tiers. The descriptive pairs are in the artifact.
+
+**The mechanism measure, needed prose facts over 31 statements in 20 scenarios, returned
+then emitted then admitted then usable.** The investigator at either level: 31, 26, 26, 25.
+Full context at base: 31 at every stage; at padded: 31 returned, 6 emitted, 6, 6. Single
+shot at base: 23 at every stage; at padded: 10 returned, 0 emitted. The investigator's six
+misses are all fragmented-tier scenarios, the same six at both levels; every needed
+carrier was returned to those runs, and the statements short of 31 were read and not
+stated or not usable. Full context at padded was returned every carrier and stated six.
+
+**The reading.** A single call over the whole corpus is perfect when the corpus fits
+(30 of 30 at base, every one of its 1,001 claims strictly correct) and fails by output
+saturation when it does not: at the padded level 24 of its 30 calls stopped at the
+registered 8,192-token output maximum with the fact batch malformed, and the system is at
+14 of 30. The freeze ruled before the runs that output saturation is reported as a
+mechanism and never as evidence of an input limit (DESIGN, the calibration passage; the
+calibration had shown the same stop on eleven of twelve calls at the largest padding, and
+a task-relevant instruction ended the stop without restoring recall). The investigator is
+level-invariant on this world, 24 of 30 at both, and ahead at the padded level for that
+reason; the single shot sits between, correct where its one search returns what the
+scenario needs and saturated at the padded level like the other one-call reader. What the
+investigator does not do is state what it read: the fragmented tier, 4 of 10 at both
+levels, is where its facts were returned and not emitted.
+
+**Not run, not built, and the limits.** Full context's four outage cells are registered
+and decided not run at the freeze, and the artifact lists them as `group_not_run`; the
+other three systems' outage cells and the four supporting comparisons (vector retrieval,
+a multi-agent layout, a second model, a model-authored report) were not registered or not
+built, as DESIGN records with each reason. One repeat a scenario: the intervals describe
+variation across scenarios of this generator in one organization and say nothing of
+run-to-run variability, which at temperature 0 a repeat under identical digests had shown
+to be none on seven runs. The evaluation was produced by code two files different from
+the bind's, disclosed above. No prose of the measurement world, its seed, its scenario-spec
+digest or its semantic digest is named here; the world stays embargoed until the last
+measurement on it.
