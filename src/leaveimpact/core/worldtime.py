@@ -217,7 +217,9 @@ class DateSpan:
 
         The mirror of ``InstantSpan.local_dates``, and the window rule of the event reads:
         the events a run reads for a span of days are those overlapping its instants in
-        the reference zone.
+        the reference zone. A midnight the zone skips (a spring-forward at 00:00) resolves
+        to the pre-transition offset, which is the day's first real instant, so no
+        special case is needed; the Beirut test in the unit suite pins it.
 
         >>> DateSpan(date(2026, 3, 28), date(2026, 3, 29)).instants_in("Europe/Berlin").duration
         datetime.timedelta(days=1, seconds=82800)

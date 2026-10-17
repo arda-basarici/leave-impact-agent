@@ -145,3 +145,15 @@ def test_local_dates_of_a_span_ending_at_midnight_after_a_fall_back() -> None:
         datetime(2026, 10, 25, 23, 0, tzinfo=LONDON), datetime(2026, 10, 26, 0, 0, tzinfo=LONDON)
     )
     assert span.local_dates("Europe/London") == DateSpan(date(2026, 10, 25), date(2026, 10, 25))
+
+
+def test_a_day_whose_midnight_does_not_exist_starts_at_its_first_real_instant() -> None:
+    # Beirut springs forward at midnight: 2026-03-29 00:00 never happens, the day opens
+    # at 01:00 EEST, which is 22:00 UTC on the 28th. The span's start is that instant,
+    # and the day is one elapsed hour short, so a planner reading the span needs no
+    # special case for the missing hour.
+    span = DateSpan(date(2026, 3, 29), date(2026, 3, 29)).instants_in("Asia/Beirut")
+    assert span.start.astimezone(UTC) == datetime(2026, 3, 28, 22, 0, tzinfo=UTC)
+    assert span.end.astimezone(UTC) == datetime(2026, 3, 29, 21, 0, tzinfo=UTC)
+    assert span.duration == timedelta(hours=23)
+    assert span.local_dates("Asia/Beirut") == DateSpan(date(2026, 3, 29), date(2026, 3, 29))
