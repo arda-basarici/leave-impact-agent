@@ -8,6 +8,12 @@ the object identity the job log printed, and prints one row per cell. Nothing he
 correctness measure: the evaluator's artifact under the bound registration is the only
 reading of the runs' answers, and this script never opens a claim or a stated fact.
 
+A total is printed only over complete costs: a run that made a model call and records
+no cost, or a cost the record marks incomplete (a lower bound), is refused by run id
+rather than summed as zero or as the bound, since a silent zero in one row is a wrong
+total in the last (the external read of 2026-10-17). A rules-only run records no cost
+and made no call, and counts as zero.
+
 Usage, from the repository root with `gh` logged in and the SSO profile valid:
 
     uv run python probes/phase-c-dispatch/tally.py
@@ -53,7 +59,19 @@ def export_of(run_id: int) -> dict:
     return json.loads(body)
 
 
-def row_of(export: dict) -> dict:
+def complete_cost_usd(export: dict, run_id: int) -> float:
+    record = export["record"]
+    cost = record["cost"]
+    if cost is None:
+        if record["usage"]["model_calls"]:
+            raise RuntimeError(f"{run_id}: model calls were made and no cost is recorded")
+        return 0.0
+    if not cost["complete"]:
+        raise RuntimeError(f"{run_id}: the recorded cost is a lower bound, not a total")
+    return cost["pico_usd"] / 1e12
+
+
+def row_of(export: dict, run_id: int) -> dict:
     record = export["record"]
     counters = {c["name"]: c["value"] for c in record["usage"]["counters"]}
     calls = export["trace"]["model_calls"]
@@ -65,7 +83,7 @@ def row_of(export: dict) -> dict:
         "calls": record["usage"]["model_calls"],
         "input": counters.get("input_tokens", 0),
         "output": counters.get("output_tokens", 0),
-        "cost": (record["cost"] or {}).get("pico_usd", 0) / 1e12,
+        "cost": complete_cost_usd(export, run_id),
         "saturated": saturated,
         "unparsed": unparsed,
         "operations": len(export["trace"]["operations"]),
@@ -82,7 +100,7 @@ def main() -> int:
     cells: dict[str, list[dict]] = {}
     for r in finished:
         system, level, _ = r["key"].split("/")
-        row = row_of(export_of(r["run_id"]))
+        row = row_of(export_of(r["run_id"]), r["run_id"])
         row["ending"] = r["markers"]["work.detail"]
         row["recoveries"] = int(r["markers"]["status.recoveries"] or 0)
         cells.setdefault(f"{system}/{level}", []).append(row)

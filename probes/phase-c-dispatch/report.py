@@ -10,10 +10,11 @@ error. The operational side (cost per cell, calls, saturation) is `tally.py`'s, 
 the runs' exports rather than from the evaluation.
 
 The artifact is read from a local path rather than fetched, so the script runs without
-credentials; the identity it reads back (format, label, world version, inventory digest,
-run count) is checked against the values recorded below, which are the reported
-evaluation's, so a different artifact is refused by name rather than printed as if it
-were the one FINDINGS cites. Fetching the file is one command in the runbook.
+credentials; the file's sha256 and the identity it reads back (format, label, world
+version, inventory digest, run count) are checked against the values recorded below,
+which are the reported evaluation's, so a different artifact, or the same one altered,
+is refused by name rather than printed as if it were the one FINDINGS cites. Fetching
+the file is one command in the runbook.
 
 Usage, from the repository root:
 
@@ -23,11 +24,13 @@ Usage, from the repository root:
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
 from pathlib import Path
 
 REPORTED = {
+    "sha256": "fc0607bb65c5535de2280268a785029e866e66cdb9418797e1cc975a86ea0721",
     "format_version": 10,
     "label": "reported",
     "world": "2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c",
@@ -38,8 +41,9 @@ SYSTEM_ORDER = ["agent", "full_context", "single_shot", "rules_only"]
 TIERS = ["structured", "fragmented", "adversarial"]
 
 
-def refuse_unless_reported(artifact: dict) -> None:
+def refuse_unless_reported(artifact: dict, raw: bytes) -> None:
     found = {
+        "sha256": hashlib.sha256(raw).hexdigest(),
         "format_version": artifact["format_version"],
         "label": artifact["label"],
         "world": artifact["world"]["version"],
@@ -172,7 +176,7 @@ def print_mechanism(mechanism: dict) -> None:
 
 
 def print_headroom_and_unbuilt(analysis: dict) -> None:
-    print("\nheadroom: scenarios no system passed")
+    print("\nheadroom: scenarios the rules-only baseline does not pass")
     for row in analysis["headroom"]:
         print(f"  {row['condition']} at {row['level']}: {row['not_passed']} of {row['scenarios']}")
     print("\nnot run")
@@ -188,8 +192,9 @@ def main(argv: list[str]) -> int:
     if len(argv) != 2:
         print("usage: report.py <evaluation artifact path>", file=sys.stderr)
         return 2
-    artifact = json.loads(Path(argv[1]).read_text(encoding="utf-8"))
-    refuse_unless_reported(artifact)
+    raw = Path(argv[1]).read_bytes()
+    artifact = json.loads(raw.decode("utf-8"))
+    refuse_unless_reported(artifact, raw)
     analysis = artifact["analysis"]
     print_identity(artifact)
     print_arms(analysis["arms"])
