@@ -2436,8 +2436,8 @@ is 24 of 30 at both levels, the same six fragmented-tier scenarios failing at ea
 and the mechanism measure places its loss after retrieval: every needed carrier was
 returned to those runs and the facts were not stated. Rules only is the structured
 tier exactly, 10 of 30 at each level, so the headroom is 20 of 30. Against the single
-shot the investigator is not separated at base (0.00 to 0.17, which includes
-differences in either direction) and separated at padded (0.37 to 0.57); no
+shot the investigator is not separated at base (0.00 to 0.17, a lower end at zero,
+so no difference is not excluded) and separated at padded (0.37 to 0.57); no
 comparison was registered as a test of superiority and none is read as one. Full
 context's four outage cells and the four supporting comparisons stand as decided at
 the freeze, not run and not built, the report saying so. One repeat a scenario, so

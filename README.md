@@ -12,9 +12,10 @@ agent investigates the exceptions; the human decides.
 **Status: the world milestone closed on 2026-09-19; the investigator milestone's
 measurement ran on 2026-10-16 and 17 and its result is recorded: on the measurement
 world's thirty scenarios the investigator is correct in every part on 24 at both corpus
-levels, against a full-context single call that is 30 of 30 when the corpus fits its
-call and 14 of 30 when it does not, the registered primary difference 0.20 to 0.47 at
-95 percent (`probes/FINDINGS.md`, `phase-c`).** What exists is the benchmark, the
+levels, against a full-context single call that is 30 of 30 at the base level and 14 of
+30 at the padded level, where 24 of its 30 calls stop at the 8,192-token output maximum;
+the registered primary difference is 0.20 to 0.47 at 95 percent
+(`probes/FINDINGS.md`, `phase-c`).** What exists is the benchmark, the
 evaluator that grades a run against it, the rules-only baseline, the investigator's
 harness with its system content, the single-shot and full-context baselines over the
 same harness, and the launch path that runs any of them on the instance from a

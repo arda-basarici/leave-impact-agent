@@ -4365,7 +4365,8 @@ equal, fragmented 4 and 1 (0.00 to 0.60), adversarial 10 and 3 (0.40 to 1.00). T
 contrast is the claim; the tier rows are breakdowns and carry none.
 
 **The comparisons carrying no claim.** The investigator against single shot: at base 24
-and 22, not separated (0.00 to 0.17, which includes differences in either direction); at
+and 22, not separated (0.00 to 0.17, a lower end at zero, so no difference is not
+excluded); at
 padded 24 and 10 (0.37 to 0.57). The level contrasts, padded less base: the investigator 24
 and 24 with the same six scenarios failing at both levels and every resample equal; single
 shot 10 and 22 (-0.50 to -0.33); full context 14 and 30 (-0.63 to -0.40), the loss entire
@@ -4379,9 +4380,10 @@ misses are all fragmented-tier scenarios, the same six at both levels; every nee
 carrier was returned to those runs, and the statements short of 31 were read and not
 stated or not usable. Full context at padded was returned every carrier and stated six.
 
-**The reading.** A single call over the whole corpus is perfect when the corpus fits
-(30 of 30 at base, every one of its 1,001 claims strictly correct) and fails by output
-saturation when it does not: at the padded level 24 of its 30 calls stopped at the
+**The reading.** A single call over the whole corpus is perfect when its answer fits
+the output allowance (30 of 30 at base, every one of its 1,001 claims strictly correct)
+and fails by output saturation when it does not: at the padded level 24 of its 30 calls
+stopped at the
 registered 8,192-token output maximum with the fact batch malformed, and the system is at
 14 of 30. The freeze ruled before the runs that output saturation is reported as a
 mechanism and never as evidence of an input limit (DESIGN, the calibration passage; the

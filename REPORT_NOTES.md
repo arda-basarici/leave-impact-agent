@@ -7,7 +7,7 @@ decisions it feeds.
 
 ---
 
-## 2026-10-17 — The single call is perfect when the corpus fits and collapses when it does not, and the agent is ahead for that reason and no other
+## 2026-10-17 — The single call is perfect when its answer fits the output allowance and stops at the maximum when it does not, and the agent is ahead at the padded level where that happens
 
 *M2, phase C: the 240 registered runs on the measurement world and the one reported
 evaluation, the milestone's exit. Feeds: the M2 report's results section, on what the
@@ -30,7 +30,8 @@ printed by `probes/phase-c-dispatch/report.py` over that artifact or by `tally.p
 over the runs' exports, and the FINDINGS entry `phase-c` holds the tables).
 
 The result has one shape. The full-context single call, the system that is handed
-every document of the corpus and asked once, is perfect when the corpus fits its call:
+every document of the corpus and asked once, is perfect when its answer fits the
+output allowance:
 30 of 30 scenarios correct in every part at the base level, every one of its 1,001
 claims strictly correct. At the padded level the same system is 14 of 30, and the
 mechanism is visible in the exports rather than inferred: 24 of its 30 calls stopped
@@ -41,8 +42,8 @@ stopping at the same wall. The investigator is 24 of 30 at both levels, the same
 scenarios failing at each, and the registered primary comparison, the investigator
 against full context at the padded level, is 24 against 14 with a difference of 0.20
 to 0.47 at 95 percent, ten scenarios the investigator alone passes and none the other
-way. Against the single shot it is not separated at the base level (0.00 to 0.17, an
-interval that includes differences in either direction) and separated at the padded
+way. Against the single shot it is not separated at the base level (0.00 to 0.17, a
+lower end at zero, so no difference is not excluded) and separated at the padded
 level (0.37 to 0.57).
 
 What keeps the headline honest is a ruling made at the freeze, before any reported
@@ -56,13 +57,14 @@ ruling the report could say "the agent beats full context", which is true of the
 numbers and false of the world: the agent is ahead at the padded level because the
 one-call reader runs out of output, and a reader with a larger output allowance, or a
 batched finalization, would face a different comparison. The honest sentence is the
-one the freeze fixed in advance: a single call is perfect when the corpus fits and
-fails by saturation when it does not, and the investigator is level-invariant on this
+one the freeze fixed in advance: a single call is perfect when its answer fits the
+output allowance and stops at the maximum when it does not, and the investigator is
+level-invariant on this
 world. The uncertainty is about new scenarios from this generator in one organization,
 with one run a scenario; the intervals say nothing of run-to-run variability, which a
 repeat under identical digests had earlier shown to be none at temperature 0 on seven
-runs. [The level-invariance is one world's finding; a world padded past 40,000 tokens
-would test it again.]
+runs. [The level-invariance is one world's finding; a world padded past this level's
+request size, about 42,400 tokens, would test it again.]
 
 The investigator's six misses are the most useful number in the artifact. All six are
 fragmented-tier scenarios, where the answer depends on prose facts scattered across
