@@ -59,3 +59,21 @@ only while the driver is stopped or paused, never during a run (the instance REA
 During the phase the ledger is committed locally and pushed at the end of a sitting; the
 push's deploy is approved before the next sitting's first dispatch, so the image's commit
 stays one across a sitting.
+
+## Reading the result
+
+`tally.py` prints the operational table (cost, calls, saturation per cell) from the
+runs' exports; `report.py` prints the evaluation's tables (each arm's correct-whole
+count, the registered comparisons with their intervals, the mechanism stages, the arms
+not run) from the reported artifact. FINDINGS `phase-c` cites both. The artifact is read
+from a local file, which one fetch under the SSO profile produces:
+
+```
+aws s3api get-object --profile leave-impact --bucket leave-impact-truth-445743457479 \
+  --key evaluations/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c/39061375799-1.json \
+  --version-id oOBaiqTYdK9aqtdTH5bGDoCZLXPsfcVG data/phase-c-dispatch/evaluation-39061375799-1.json
+uv run python probes/phase-c-dispatch/report.py data/phase-c-dispatch/evaluation-39061375799-1.json
+```
+
+The script refuses any artifact but the reported one by its format, label, world,
+inventory digest and run count, so a figure it prints is that artifact's.
