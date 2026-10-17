@@ -9,9 +9,12 @@ agent investigates the exceptions; the human decides.
 
 [![CI](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml/badge.svg)](https://github.com/arda-basarici/leave-impact-agent/actions/workflows/ci.yml)
 
-**Status: the world milestone closed on 2026-09-19; the investigator milestone is in
-build, and the four systems have each run once through the deployed lifecycle on the
-instance and been graded in one evaluation.** What exists is the benchmark, the
+**Status: the world milestone closed on 2026-09-19; the investigator milestone's
+measurement ran on 2026-10-16 and 17 and its result is recorded: on the measurement
+world's thirty scenarios the investigator is correct in every part on 24 at both corpus
+levels, against a full-context single call that is 30 of 30 when the corpus fits its
+call and 14 of 30 when it does not, the registered primary difference 0.20 to 0.47 at
+95 percent (`probes/FINDINGS.md`, `phase-c`).** What exists is the benchmark, the
 evaluator that grades a run against it, the rules-only baseline, the investigator's
 harness with its system content, the single-shot and full-context baselines over the
 same harness, and the launch path that runs any of them on the instance from a
@@ -45,16 +48,20 @@ the live vendor systems and the real store, a human approves in a private sessio
 the policy asks for one, and the export is published where the evaluator reads it; the
 investigator under both approval policies and the three baselines each ran once on one
 scenario of a development world, every job green on its first dispatch after four
-fixes the laptop's fakes could not have found, and one evaluation graded all five. No
-measured result for the investigator exists yet, and this README grows with the build
+fixes the laptop's fakes could not have found, and one evaluation graded all five. The
+procedure was then frozen before the measurement world existed, that world drawn from
+a secret seed, validated and audited, the registration bound to it, and the 240
+registered runs dispatched one at a time through the deployed lifecycle and graded in
+one reported evaluation; the demo milestone is next. This README grows with the build
 and never claims ahead of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
 > agent that will be graded on it. The organization is synthetic and small (about thirty
 > people, thirty scenarios); the vendor systems are real. It is not a product, not a
-> study of any real workforce, and it makes no claim about an agent's accuracy yet: the
-> investigator has run, and its only runs are development runs on a development world,
-> which the preregistration excludes from every table.
+> study of any real workforce, and its one claim about an agent's accuracy is the
+> registered primary comparison above: thirty scenarios of one synthetic organization,
+> one run each, intervals wide at that size, every development run excluded from the
+> tables by the preregistration.
 
 ## What the world milestone established
 
@@ -70,6 +77,29 @@ and never claims ahead of it.
   guard, an extraction check by a second model family, a human read of every
   answer-changing text); the stage costs well under a dollar per world, and its
   accepted texts converge on one sentence frame, a realism limitation on record.
+
+## What the investigator milestone established
+
+- The primary comparison, registered before the measurement world existed: the
+  investigator correct in every part on 24 of 30 scenarios at the padded corpus level
+  against full context's 14, the difference 0.20 to 0.47 at 95 percent, ten scenarios
+  the investigator alone passes and none the other way. The investigator is 24 of 30 at
+  both levels; rules alone pass the structured ten and nothing else, so twenty scenarios
+  are where any system can differ.
+- Why the one-call reader loses: at the base level full context is 30 of 30 with every
+  claim strictly correct, and at the padded level 24 of its 30 calls stop at the output
+  maximum with the fact batch malformed. The freeze ruled that output saturation is
+  reported as a mechanism and never as evidence of an input limit, and the report keeps
+  to that. The investigator's six misses are all fragmented-tier scenarios at both
+  levels; its mechanism measure shows every needed carrier returned and the facts not
+  stated.
+- The measurement discipline: the procedure frozen at a commit before the world was
+  drawn, the world from a secret seed, validated and hand-audited, the registration
+  bound to it, every run through the deployed lifecycle, the evaluation under its own
+  identity with the harness inventory it was held to. One repeat a scenario, so the
+  intervals are over scenarios and say nothing of run-to-run variability; four outage
+  cells and four supporting comparisons were decided not run at the freeze and are
+  reported as such; the 240 runs cost $9.96 of model spend.
 
 ## Run the checks
 
@@ -113,8 +143,9 @@ probe proves on every deploy.
   `adapters` (one external boundary each: Frappe HR, Jira, Google Calendar, the document
   corpus, the prose models, the object store) · `generator`, `validator` and
   `evaluator` (the shells that build a world, check its projection and grade a run) ·
-  `agent` (the systems under test, today the rules-only baseline). The layout and its
-  import law are in ARCHITECTURE.md and enforced by `tests/unit/test_import_law.py`.
+  `agent` (the investigator and the three baselines it is measured against). The layout
+  and its import law are in ARCHITECTURE.md and enforced by
+  `tests/unit/test_import_law.py`.
 - `preregistration/` — `registration.json`, what the investigator milestone measures and
   how the result is read, frozen on 2026-10-14 before the measurement world exists and
   bound to it once the world is accepted; `prices.json`, the price table every
@@ -127,7 +158,9 @@ probe proves on every deploy.
   answer keys and stays in the truth bucket, never in this tree;
   `docs/examples/audit_sheet_throwaway.md` shows the sheet's shape, keys included, on a
   throwaway-seed world that is never sealed or scored.
-- `probes/` — the preregistered unknowns of the probe days and their findings;
+- `probes/` — the preregistered unknowns of the probe days, the build's probes (each
+  written before it ran), the phase C dispatcher with its committed plan and ledger and
+  the two scripts behind the reported numbers, and `FINDINGS.md`, every outcome;
   `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
 - `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
   `compose.dev.yaml` — the laptop overlay; `deploy/` — the deployment entrypoint the

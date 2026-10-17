@@ -2418,6 +2418,32 @@ states the mechanism as such and never as evidence of an input limit. The search
 description states the matching rule the system text states, and every calibration
 round ran that final surface.
 
+**The reported runs ran as registered, and the exit's result is the `phase-c`
+findings entry's** (2026-10-16 to 17). The 240 runs closed completed at the first
+attempt, none at a cap, $9.96 of model spend against the about $12 forecast by hand
+at the freeze; the evaluation under the bound registration (run `39061375799`, label
+reported) holds every intended run, no incident and no finding, and was produced by
+an evaluator two files different from the bind's, which the artifact discloses by
+name. The primary comparison: the investigator correct whole on 24 of 30 scenarios at
+the padded level against full context's 14, the difference 0.20 to 0.47 at 95
+percent, the investigator alone passing ten scenarios and full context alone none.
+Full context is 30 of 30 at the base level with every one of its 1,001 claims
+strictly correct, and loses sixteen scenarios at the padded level by output
+saturation, 24 of its 30 calls stopping at the 8,192-token maximum with the fact
+batch malformed; that is the mechanism the calibration showed and the freeze ruled is
+reported as such, and the single shot reads the same way, 22 and 10. The investigator
+is 24 of 30 at both levels, the same six fragmented-tier scenarios failing at each,
+and the mechanism measure places its loss after retrieval: every needed carrier was
+returned to those runs and the facts were not stated. Rules only is the structured
+tier exactly, 10 of 30 at each level, so the headroom is 20 of 30. Against the single
+shot the investigator is not separated at base (0.00 to 0.17, which includes
+differences in either direction) and separated at padded (0.37 to 0.57); no
+comparison was registered as a test of superiority and none is read as one. Full
+context's four outage cells and the four supporting comparisons stand as decided at
+the freeze, not run and not built, the report saying so. One repeat a scenario, so
+the intervals are over scenarios of this generator in one organization and say
+nothing of run-to-run variability.
+
 **A run is retried after an infrastructure failure only, and the attempt that counts
 is the earliest that did not fail by infrastructure.** Two retries at most. A defect
 is not retried, because a retry could conceal it, not because it is deterministic.
@@ -3879,6 +3905,25 @@ committed and every dispatch of it is intended, so the review it answers would h
 the operator's click 240 times over; the review still stands between the instance and
 any dispatch the plan did not make, and the deploy job's review is untouched (ruled
 2026-10-16, after the phase's first run was approved by hand).
+
+The dispatcher keeps PROTOCOL's counting rules by construction rather than by an
+operator's care over 240 sends. The order is a committed plan the script refuses to
+differ from (rules only at the base level first, the model-free shakedown, then the
+primary pair, then the rest); each run has a `dispatched` ledger line before the
+driver waits on it and a `finished` line with the runner's markers after; a key with
+a `dispatched` line is never sent again, since a replacement would be surplus or take
+the slot an unexported run holds; and the driver stops on anything an operator
+decides under PROTOCOL (a job that did not succeed, an ending other than closed and
+completed, an unpublished attempt, an uncreated inventory, an admission naming
+another key) and sends nothing while any investigate, continue-run or CI run is
+queued, running or waiting at its gate, so a push during the phase pauses it until
+the deploy is approved or rejected and the image's commit stays one across a sitting.
+A dispatch whose response was lost after GitHub had created the run is read back and
+adopted into the ledger rather than sent again, the one case the phase met. What it
+lacks is a release path for a run that was never admitted, which PROTOCOL lets be
+dispatched again and the driver does not; none occurred. The ledger of all 240 is
+committed beside the plan, and the phase's operational numbers are read from it and
+the runs' exports by `tally.py`, the evaluation's from the artifact by `report.py`.
 
 **The driver walks the launcher's answer and never re-sends blind; a timed-out client
 leaves its container running.** After a work send the attempt's state is read with
