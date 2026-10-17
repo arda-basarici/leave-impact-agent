@@ -7,6 +7,119 @@ decisions it feeds.
 
 ---
 
+## 2026-10-17 — The single call is perfect when the corpus fits and collapses when it does not, and the agent is ahead for that reason and no other
+
+*M2, phase C: the 240 registered runs on the measurement world and the one reported
+evaluation, the milestone's exit. Feeds: the M2 report's results section, on what the
+primary comparison says and what it does not; the evaluation-design section, on a
+ruling made before the runs that decides how a headline may be worded; the method
+section, on a driver that keeps the counting rules by construction; and the M3 entry,
+on where the investigator's remaining loss sits.*
+
+The benchmark had been padded at the freeze step because one call shown the whole
+world reached the ceiling on a throwaway world, and a comparison with nothing to
+separate is not a comparison (the 2026-10-04 and 2026-10-08 entries below tell how the
+padding was chosen and why every step of it was measured). Phase C is what that
+padding was for. Four systems ran under the normal condition at the base and the
+padded corpus level over the measurement world's thirty scenarios, one run each, 240
+runs in all, under a registration frozen before the world was drawn and bound to it
+after the world was accepted; one evaluation under that bound registration graded
+them (run `39061375799` of the evaluate-run workflow, label `reported`, the artifact at
+version `oOBaiqTYdK9aqtdTH5bGDoCZLXPsfcVG` in the truth bucket; every number below is
+printed by `probes/phase-c-dispatch/report.py` over that artifact or by `tally.py`
+over the runs' exports, and the FINDINGS entry `phase-c` holds the tables).
+
+The result has one shape. The full-context single call, the system that is handed
+every document of the corpus and asked once, is perfect when the corpus fits its call:
+30 of 30 scenarios correct in every part at the base level, every one of its 1,001
+claims strictly correct. At the padded level the same system is 14 of 30, and the
+mechanism is visible in the exports rather than inferred: 24 of its 30 calls stopped
+at the registered 8,192-token output maximum with the fact batch malformed, so the
+system had read everything and could not finish saying it. The single shot, one search
+then one call, reads the same way at 22 and 10, with 25 of its 30 padded calls
+stopping at the same wall. The investigator is 24 of 30 at both levels, the same six
+scenarios failing at each, and the registered primary comparison, the investigator
+against full context at the padded level, is 24 against 14 with a difference of 0.20
+to 0.47 at 95 percent, ten scenarios the investigator alone passes and none the other
+way. Against the single shot it is not separated at the base level (0.00 to 0.17, an
+interval that includes differences in either direction) and separated at the padded
+level (0.37 to 0.57).
+
+What keeps the headline honest is a ruling made at the freeze, before any reported
+run existed. The calibration on the second development world had shown the one-call
+readers saturating at the padded level, eleven of twelve calls at the largest padding,
+and a paired probe had tried a task-relevant extraction instruction against the
+exhaustive one: the instruction ended the saturation and restored no recall. So the
+freeze ruled that output saturation is reported as a mechanism and never as evidence
+of an input limit, and that the shipped instruction stays for both roles. Without that
+ruling the report could say "the agent beats full context", which is true of the
+numbers and false of the world: the agent is ahead at the padded level because the
+one-call reader runs out of output, and a reader with a larger output allowance, or a
+batched finalization, would face a different comparison. The honest sentence is the
+one the freeze fixed in advance: a single call is perfect when the corpus fits and
+fails by saturation when it does not, and the investigator is level-invariant on this
+world. The uncertainty is about new scenarios from this generator in one organization,
+with one run a scenario; the intervals say nothing of run-to-run variability, which a
+repeat under identical digests had earlier shown to be none at temperature 0 on seven
+runs. [The level-invariance is one world's finding; a world padded past 40,000 tokens
+would test it again.]
+
+The investigator's six misses are the most useful number in the artifact. All six are
+fragmented-tier scenarios, where the answer depends on prose facts scattered across
+several documents, and they are the same six at both levels with every resample equal,
+so the padding changed nothing for the agent. The mechanism measure, four stages over
+the 31 prose statements the required rows of twenty scenarios depend on, places the
+loss after retrieval: 31 of 31 needed carriers were returned to the runs, 26 of the 31
+statements were stated, 26 admitted, 25 usable. The agent read what it needed and did
+not state it. That is a finalization question, what the model does with a document in
+front of it at the moment it is asked for facts, and not a retrieval one, and it is
+the first thing the next design session has to look at; the rules alone pass the ten
+structured scenarios and nothing else, so twenty scenarios are the room any system has,
+and the investigator holds fourteen of them.
+
+The operational side is a story about not deciding things by hand. Dispatching 240
+runs at two to four minutes each through the production workflow would have been a
+day of clicks and 240 chances to send a key twice, so a driver did it: a committed plan
+fixing the order (rules only at the base level first, the model-free shakedown, then
+the primary pair, then the rest), an append-only ledger with a `dispatched` line
+written before the driver waits and a `finished` line with the runner's markers after,
+a key with a `dispatched` line never sent again, a stop on anything the protocol makes
+an operator's decision (a job that did not succeed, an ending other than closed and
+completed, an unpublished attempt, an admission naming another key), and no dispatch
+while any other run was queued or gated. The first dispatch then waited at the
+production environment's human review, as every run of that workflow does by design,
+and the choice was 240 clicks or a driver that approves its own dispatches under the
+operator's login and records it; the ruling (2026-10-16) was that the committed plan
+makes every dispatch intended, so the review it answers would have been the same click
+240 times, while a dispatch the plan did not make still waits for a human and the
+deploy job's review is untouched. One incident over the phase: the thirtieth agent
+run's dispatch call died on a local connection abort after GitHub had created the run,
+the driver stopped rather than send again, the run was adopted into the ledger by hand
+with the lost response on its line, and the driver now reads for a run when a response
+is lost. Every one of the 240 closed completed on its first attempt, no recovery, no
+run at a cap, $9.96 of model spend against the about $12 the freeze's forks file had
+forecast by hand from the calibration (`tally.py`); the agent at the base level was the
+largest overrun, $0.0738 a run against $0.051 from a single step-14 run, the single shot
+at the padded level a shade over its figure, and every other model cell under.
+
+Two things the report says against itself. The evaluator that produced the artifact
+ran at a commit two files different from the one the registration was bound at, the
+second read's fixes to the cells and the entrypoint after the bind, and the artifact
+carries that as a flag naming both files; the registration bytes are the bound ones,
+and the disclosure is the artifact's own, not a footnote added later. And four cells
+and four comparisons the registration once held are not in the result: full context's
+four outage cells, decided not run at the freeze and listed in the artifact as such,
+and the four supporting comparisons, vector retrieval among them, which was the
+career map's retrieval-versus-agent closer and is now an exploratory arm at best on
+this world. The report says so where the numbers are, so a reader does not find it in
+an appendix.
+
+Figure: the four systems' pass counts at the base and the padded level side by side,
+with the saturation counts under the two one-call readers; or the eight-arm table
+with its tier columns.
+
+---
+
 ## 2026-10-09 — Three readers found three faults of one shape in a day, each a thing nobody had vouched for, and then the deploy met its forecast line for line
 
 *M2, step 9, the corpus cache the instance fills from the world bucket: the levels
