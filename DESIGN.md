@@ -25,6 +25,15 @@ whose plan satisfies the scenario's planted constraints, and whose unknowns are
 stated rather than invented. It is measured across an evaluation spine by difficulty
 tier, and served from a deployment that exists from the first milestone on.
 
+**The investigator milestone's outcome (2026-10-17).** The 240 registered runs on
+the measurement world closed without incident at $9.96 of model spend, and the one
+reported evaluation holds the primary comparison: the investigator correct whole on
+24 of 30 scenarios at the padded corpus level against full context's 14, the
+difference 0.20 to 0.47 at 95 percent; at the base level, where one call reads the
+whole corpus, full context is 30 of 30 and the investigator 24. The figures are
+the `phase-c` findings entry's, the narrative is the deployment section's "The
+reported runs ran as registered", and the demo milestone builds on them.
+
 **Probes preceded the remaining design.** The fatal unknowns (Frappe standing at its
 real footprint, Frappe's REST surface including its `leave_approver` wart, Jira,
 Google Calendar, the generator's seed spike) and the two deployment floors (the
@@ -34,8 +43,8 @@ on them, each pass criterion fixed before its probe ran and recorded in
 Later rulings cite those findings by name; the Bedrock shortlist and Slack were
 allowed to trail into the world milestone without blocking its entry. The framework,
 tool-layer and post-approval questions were deliberately not decided before that
-evidence existed; they remain open below, pinned to the milestone that produces
-theirs.
+evidence existed; each was closed at the investigator milestone's entry on it, and
+the open-questions section at the end holds the tombstones.
 
 ---
 
@@ -4255,5 +4264,8 @@ vision's deferred list.
 - **Conversational-surface mechanics**: grounding method, refusal behaviour,
   evaluation reuse; decided at the conversation milestone's entry, strictly after
   the demo ships.
-- **Per-run token cost**: the estimate is re-derived from the first ten
-  representative runs at the investigator milestone; the reforecast is mandatory.
+- **Per-run token cost**: closed 2026-10-14 at the freeze, the whole registered
+  workload forecast at about $12 from the calibration runs' per-run figures, and
+  measured 2026-10-17 at $9.96 over the 240 reported runs, a mean of $0.017 to
+  $0.085 a run by cell (FINDINGS `phase-c`), against the vision's $150 expected
+  and $300 ceiling, which assumed a larger model than the one that ran.

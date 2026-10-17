@@ -38,8 +38,9 @@ the read ports by a role-scoped registry (MCP was weighed and not chosen because
 in-process consumer of a small owned read surface gains nothing from a protocol, and
 it returns with an external client that needs one), and one forced finalization in
 which the model states facts with the words it read them from, the rules composing
-every claim; full-text retrieval over sections is the core, with vector retrieval as a
-measured comparison after the core has numbers. The loop ran live on the first
+every claim; full-text retrieval over sections is the core, and the vector arm,
+declared as a supporting comparison, was decided not built at the freeze and is
+exploratory on the measured world after it. The loop ran live on the first
 development world under a draft registration, 105 runs across fifteen prompt rounds,
 every one closing through a valid forced fact call, the prompt revised against named
 failures and recorded with its digests; those runs are development runs, graded for
