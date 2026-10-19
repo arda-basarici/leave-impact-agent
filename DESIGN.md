@@ -4129,6 +4129,107 @@ the demo milestone's entry or observed abuse before it: Access gives the token-g
 property without a tunnel or a third control plane, and nothing in the investigator
 milestone needs a hostname to be unreachable.
 
+**The demo milestone's surface, ruled at its entry (2026-10-19).** The exit is a
+public, replay-first demo of the golden world, M1's audited world whose recipe is
+public: understandable reports over finished runs, evidence self-contained per
+reference kind, readable audit trails, an accurately labelled results page for the
+investigator milestone's measurement, and a demonstrated restore. The measurement
+world cannot be shown, since its prose, seed and digests stay withheld until the last
+measurement on it, which the conversation milestone makes; a fresh demo world was
+weighed and declined on cost (a site, a generation day, a vendor ceremony, for a padded
+level no replay needs), kept on the trigger of a page claim that needs a world nobody
+tuned against. Capped live investigations are an enhancement behind an operator flag,
+off until their lifecycle checks pass. Out, with the reason: scenario generation by a
+visitor (generation is a reviewer-gated workflow writing three vendors), adjusting a
+plan (no vocabulary, no state), any change to the investigator (the registration's
+rule: a change on the measured world is exploratory, a confirmatory claim needs a
+held-out world), the arms, the conversation.
+
+**Publishability is one predicate on every read.** The surface serves the one world
+version its configuration names (an allowlist of one) when the cache serves it, and an
+attempt only when an app-owned table of publishable attempts holds it, a row written by
+the operator for each replay and by the public start command in its admission
+transaction for a live run; pages, evidence and the narration stream pass the same
+admission, so the embargoed world's runs in the same log are unreachable by
+construction. The structural form the entry first wanted, admission by the disclosure
+mark the generator seals, could not be built: the mark lives in the world spec in the
+truth bucket the instance cannot read, and an absent mark reads open, the right rule
+for the benchmark's readers and the wrong default for a public surface. It returns
+when a generator version seals the mark into an application-readable object with an
+absent mark reading as refused; until then the offline acceptance command that
+regenerates the results page's data also reads the allowlisted version's spec at the
+truth bucket and fails if it is embargoed.
+
+**The shell and the report view.** FastAPI with server-side templates, one process on
+the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
+types and their codecs authoritative; a read model returns public view data; two narrow
+commands (start a run, decide on a plan) carry their own admission; store access is
+synchronous on the thread pool with nothing held open while a browser waits, so the
+synchronous saver stands and the asynchronous one is not needed. A report page is
+rendered from the export and the corpus cache, nothing re-read from a vendor, identical
+for a replay and a finished live run; the ending comes first and an empty report never
+reads as an all-clear; evidence is rendered by its reference kind (a vendor record's
+fields as the operation recorded them, a corpus section resolved by the run's exact
+world version with the stated quote marked and "unavailable" on a miss, a derivation's
+supporting claims, an unknown's recorded reason); two times are labelled apart, the
+scenario date the rules apply and the moment execution read each record; "admitted"
+means passed the fact-admission rules and nothing about the key; a rationale is
+labelled model-generated. No grading overlay, since the surface may not import the
+grader and the artifacts live where the instance cannot read. Narration is a
+deterministic rendering of the existing log events, one line per event claiming only
+what that event establishes, streamed per attempt by position with a closing event and
+a 204 past the terminal, an asynchronous subscription over short synchronous reads so a
+waiting stream holds no thread or transaction; replays show the same lines as a
+timeline, never paced; token streaming is out for a product reason, the event stream
+gives the progress the product promised and partial model text is not report content.
+
+**The live path.** A long-running single-flight worker service runs the existing
+commands, provisional on a blocked-work timeout probe with a supervised child as the
+fallback; one execution slot in the store, locked by every claim from either path,
+released at segment end or by reconciliation; no automatic recovery of investigation
+work, only lifecycle reconciliation (a recorded stopping defect finished as that
+defect, closed attempts published, approval waits kept to their deadline, interrupted
+work fenced and closed with its liabilities). The visitor supplies a scenario of the
+served world and nothing else; admission checks the daily count, the single open
+attempt and the reservation in one transaction under the ledger's lock with an
+idempotent identity; the initiating browser holds an attempt-scoped capability, and
+approve or decline require it and the frozen payload digest; a decline is a
+first-class `Declined` ending, human, terminal, never recoverable, a log format bump
+read for its blast radius before the build; a visitor who leaves is closed by a sweeper
+after fifteen minutes with the reservation settled, not released. The bounds, in the
+order of what they protect: the demo's own ledger threshold set from the residual
+budget; a daily count cap that bounds volume (the dollar bound is the count times the
+maximum reservation under the threshold, and the page says so); single flight with no
+queue; a wall-clock bound beside the registered caps. Abuse is held by the cap and an
+edge rate limit, no accounts and no CAPTCHA until abuse is observed.
+
+**Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
+is declined unrun on scope (the surface is the deliverable; the comparison of always-on
+against per-run compute is not established and is recorded as unknown), its criteria
+kept in the future-work item. The budget by hand: the instance, the volume and the
+Elastic IP (every public IPv4 address since February 2024) near $19 a month against
+the $30 line, so the demo's threshold is about $8 the first month and the count cap
+starts at five, the line's re-cut deferred to the first bill. Backup mirrors the
+box's existing backup pattern with S3 as the off-host store: a nightly archive put by
+conditional creation under a create-only prefix the writer cannot read or delete, a
+checksum recorded, the restore itself the verification (a listing is a preflight only),
+the drill comparing a restored scratch database's replay and ledger figures with the
+dump's own snapshot under execution disabled, the recovery-point limitation recorded
+(a day of admissions and spend; paid starts stay off after a recovery until the window
+is reconciled from billing). The model served is the registered Haiku 4.5, labelled as
+registered rather than chosen on a table, since the model arm was not run.
+
+**Platform-side at the demo's entry.** The agent's hostname goes public after a
+disclosure sweep of the tree and the pages, behind the free plan's WAF and a rate limit
+on the start route, with a deployed probe deciding the proxy's streaming behaviour.
+Access in front of the Frappe hostnames, not landed in the investigator milestone,
+lands within the demo milestone after the live path's first acceptance, so one thing
+changes at a time. Private connectivity between the hosts enters the demo milestone by
+ruling as the last, optional, time-boxed item outside the exit, with its own
+design pass on the runner story (the hard client is the GitHub runner, which must join
+per run); it slips without the milestone being unfinished. The golden world's site
+stays as the demo world's HR system.
+
 ---
 
 ## Scope & non-goals
@@ -4203,6 +4304,12 @@ milestone needs a hostname to be unreachable.
   two days; idle baseline under five dollars a month; no NAT Gateway. Pass, and the
   demo ships on it; fail, and the instance stays with the measured numbers as the
   tombstone.
+  Declined unrun at the demo milestone's entry (2026-10-19), which is neither pass nor
+  fail: the surface is that milestone's deliverable and the week of plumbing would come
+  out of it, and the cost comparison between always-on and per-run compute at the
+  demo's volume is not established, since nothing measured it. The criteria above stay;
+  reopened on a concrete capacity, isolation or cost need, or a second tenant on the
+  stack.
 - **Vector retrieval as a measured arm.** The investigator milestone's core runs on
   the existing full-text search over sections, the section the unit of chunking by
   construction; pgvector in the cache and an embedding model on the platform's list
@@ -4269,3 +4376,16 @@ vision's deferred list.
   measured 2026-10-17 at $9.96 over the 240 reported runs, a mean of $0.017 to
   $0.085 a run by cell (FINDINGS `phase-c`), against the vision's $150 expected
   and $300 ceiling, which assumed a larger model than the one that ran.
+- **The asynchronous saver and token streaming**: closed 2026-10-19 at the demo
+  milestone's entry, neither needed; the web process never touches the saver, the
+  narration stream is an asynchronous subscription over short synchronous reads of
+  the log, and partial model text is not report content (the demo passage in the
+  deployment section).
+- **A human declining a plan**: closed 2026-10-19, a first-class `Declined` ending,
+  human and terminal, a log format bump built in the demo milestone (the live-path
+  passage).
+- **The ephemeral-compute probe**: closed 2026-10-19 as declined unrun (the
+  future-work item carries the reason and the trigger).
+- **The world the demo serves and what a release may contain**: closed 2026-10-19,
+  the golden world, its scenario specs and keys released with the demo; nothing of
+  the measurement world until the conversation milestone's last measurement.
