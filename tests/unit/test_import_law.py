@@ -53,6 +53,7 @@ SRC = Path(__file__).resolve().parents[2] / "src" / PKG
 _RANK: dict[str, int] = {
     "core": 0,
     "world": 1,
+    "results": 1,  # the public results schema the demo surface reads and the evaluator writes
     "adapters": 2,
     "generator": 3,
     "validator": 3,
@@ -133,7 +134,7 @@ _TRUTH_DECODER_READERS: frozenset[tuple[str, ...]] = frozenset(
 )
 REPOSITORY = Path(__file__).resolve().parents[2]
 _OPERATOR_ROOTS = ("scripts", "probes")
-_PURE = frozenset({"core", "world"})
+_PURE = frozenset({"core", "world", "results"})
 # The top level is the package docstring and the composition root, nothing else: a module
 # here has no rank, so the edge scan could not see what it re-exports.
 _TOP_LEVEL_MODULES = frozenset({"__init__.py", "__main__.py"})
