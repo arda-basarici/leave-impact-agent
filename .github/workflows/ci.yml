@@ -263,6 +263,7 @@ jobs:
             python -m leaveimpact smoke | tee smoke.txt
           grep -qx "code_version=${{ steps.stamp.outputs.sha }}" smoke.txt
           grep -q '^investigator\.' smoke.txt && grep -q '^reader\.' smoke.txt
+          grep -q '^results\.m2-reported=' smoke.txt
 
       # The log then says which bytes a sha tag pointed at when it was built, since the
       # tag itself cannot; the deploy job below carries the same digest to the host, which
