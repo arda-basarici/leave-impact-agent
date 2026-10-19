@@ -4406,3 +4406,40 @@ to be none on seven runs. The evaluation was produced by code two files differen
 the bind's, disclosed above. No prose of the measurement world, its seed, its scenario-spec
 digest or its semantic digest is named here; the world stays embargoed until the last
 measurement on it.
+
+## public-results — PASS (2026-10-19)
+
+The committed public results (`src/leaveimpact/results/m2-reported.json`, format 1) are
+the projection of the reported evaluation above, accepted on the first run of the offline
+command (DESIGN, the demo milestone's results-page ruling: the acceptance command passes
+over the pinned artifact and its run is recorded; CI validates only the public file's
+schema and gains no truth access):
+
+```
+uv run python scripts/accept_public_results.py \
+    data/phase-c-dispatch/evaluation-39061375799-1.json \
+    --served-world 7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4 \
+    --profile leave-impact
+```
+
+printed `artifact_sha256` and `recorded_sha256` both `fc0607bb…0721`, the measurement
+world `2e6705ba…341c` sealed `embargoed` and the served world `7b806ed6…3ad4` (the golden
+world, M1's audited one) sealed `open`, read from the two world specs in the truth bucket
+under the SSO profile, and `verdict=accepted` with no finding. The artifact was hashed
+before it was parsed, the projection regenerated under the sealed mark and compared byte
+for byte with the committed file (2,027,258 bytes; the step's forks file records the
+size against the pass's forecast of 300 to 400 KB and Arda's ruling to commit whole).
+
+The phase-C entry's prose was then read against the file, figure by figure: every arm
+row (correct whole, the Wilson interval, the tiers, strict precision), every cell's cost
+and mean per run and the $9.9594 total (the file sums to 9,959,447,300,000 pico-dollars),
+the headroom, the primary with its two-by-two table and tier breakdowns, both secondaries,
+the three level contrasts, every mechanism stage, the not-run cells, the coverage and the
+two changed files agree; the "stopped at the output maximum" counts are `tally.py`'s over
+the exports and are not in the file. The interpretive sentences were read beside their
+numbers: "level-invariant" rests on the agent's level contrast (24 and 24, both passed on
+24, neither on 6, every resample equal), "the same six scenarios" on that two-by-two
+table, "output saturation reported as a mechanism" on the padded full-context stages (31
+returned, 6 emitted) with the freeze's wording kept. No correction to the entry. The
+headline figures are pinned in `tests/unit/test_results_committed.py`, so a regeneration
+that moves one fails CI before the prose is wrong.
