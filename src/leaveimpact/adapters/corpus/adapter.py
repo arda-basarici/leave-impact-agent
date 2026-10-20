@@ -138,6 +138,23 @@ def _connect(dsn: str) -> Connection:
     return psycopg.connect(dsn, connect_timeout=_CONNECT_TIMEOUT_S, autocommit=True)
 
 
+_SELECT_SERVED = "SELECT world_version FROM world WHERE ready"
+
+
+def served_versions(dsn: str, *, connect: Connect = _connect) -> frozenset[WorldVersion]:
+    """Every world version the cache serves now, the rows marked ready: the predicate every
+    document read of this module joins on, read once over a fresh connection, so the demo
+    surface's readiness is answered by the read side and never through the loader the
+    import law gates to the cache job. ``SourceUnreachable`` when the store does not answer
+    within the connect timeout."""
+    try:
+        with connect(dsn) as conn:
+            rows = conn.execute(_SELECT_SERVED).fetchall()
+    except psycopg.OperationalError as exc:
+        raise SourceUnreachable(Source.CORPUS, f"connection refused: {type(exc).__name__}") from exc
+    return frozenset(WorldVersion(str(row[0])) for row in rows)
+
+
 class CorpusAdapter:
     """Document reader over one PostgreSQL cache, scoped to one world version at one level."""
 

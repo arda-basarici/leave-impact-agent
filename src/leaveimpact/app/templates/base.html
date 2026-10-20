@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Leave Impact Agent{% endblock %}</title>
+<style>
+  :root { --ink: #1f2933; --muted: #52606d; --rule: #d9dee3; --navy: #1b3a5c; }
+  body { margin: 0; padding: 0 16px; font: 16px/1.5 system-ui, sans-serif; color: var(--ink); background: #fff; }
+  main { max-width: 72ch; margin: 2rem auto; }
+  h1 { color: var(--navy); font-size: 1.6rem; margin-bottom: .25rem; }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; }
+  dt { color: var(--muted); }
+  dd { margin: 0; font-family: ui-monospace, monospace; overflow-wrap: anywhere; }
+  footer { margin-top: 2rem; padding-top: .75rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+</style>
+</head>
+<body>
+<main>
+{% block content %}{% endblock %}
+<footer>Leave Impact Agent · revision {{ code_version }}</footer>
+</main>
+</body>
+</html>

@@ -1,14 +1,18 @@
-"""The container's entry: the identity line the deploy reads, the smoke that loads both
-roles' prompt assets and prints the digests a run freezes and then the committed public
-results' artifact digest, its refusal on an asset or a results file that does not load, and
-the refusals of a missing code version and an unknown argument."""
+"""The container's entry: serving is the default and gets the environment, the identity
+line the deploy reads as its image check, the smoke that loads both roles' prompt assets
+and prints the digests a run freezes, then the committed public results' artifact digest
+and the demo configuration's served world, its refusal on any of the three that does not
+load, and the refusals of a missing code version and an unknown argument."""
 
 from __future__ import annotations
+
+from collections.abc import Mapping
 
 import pytest
 
 from leaveimpact.__main__ import main
 from leaveimpact.agent.assets import ASSET_NAMES, PromptAssets, load_prompt_assets
+from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.core.tools import Role
 from leaveimpact.results.committed import M2_REPORTED, committed_results
 from leaveimpact.results.public import PublicResults
@@ -16,15 +20,34 @@ from leaveimpact.results.public import PublicResults
 ENV = {"LEAVEIMPACT_CODE_VERSION": "a" * 40}
 
 
-def test_the_identity_line_is_the_default(capsys: pytest.CaptureFixture[str]) -> None:
-    assert main([], ENV) == 0
-    assert capsys.readouterr().out == (
-        f"leaveimpact {'a' * 40}: no service yet; the baseline image runs and identifies itself\n"
-    )
-    assert main([], {}) == 1
+def test_serving_is_the_default_and_the_identity_line_a_command(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    served: list[Mapping[str, str]] = []
+
+    def fake_serve(environment: Mapping[str, str]) -> int:
+        served.append(environment)
+        return 0
+
+    assert main([], ENV, serve=fake_serve) == 0
+    assert served == [ENV]
+    assert main(["identity"], ENV, serve=fake_serve) == 0
+    assert capsys.readouterr().out == f"leaveimpact {'a' * 40}: the demo surface's image\n"
+    assert len(served) == 1
+    assert main([], {}, serve=fake_serve) == 1
     assert "LEAVEIMPACT_CODE_VERSION unset" in capsys.readouterr().err
-    assert main(["serve"], ENV) == 2
+    assert main(["serve"], ENV, serve=fake_serve) == 2
     assert "unknown arguments ['serve']" in capsys.readouterr().err
+    assert len(served) == 1
+
+
+def test_serving_refuses_an_environment_without_a_database_before_binding(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The real serve path up to its composition: no DATABASE_URL is a refusal naming it,
+    never a bound socket."""
+    assert main([], ENV) == 1
+    assert "DATABASE_URL is not set" in capsys.readouterr().err
 
 
 def test_the_smoke_prints_every_roles_asset_digests_beside_the_code_version(
@@ -39,9 +62,10 @@ def test_the_smoke_prints_every_roles_asset_digests_beside_the_code_version(
         for role in Role
         for name, digest in load_prompt_assets(role).digests()
     ]
-    assert lines[1:-1] == expected
+    assert lines[1:-2] == expected
     assert len(expected) == len(Role) * len(ASSET_NAMES)
-    assert lines[-1] == f"results.{M2_REPORTED}={committed_results().provenance.artifact_digest}"
+    assert lines[-2] == f"results.{M2_REPORTED}={committed_results().provenance.artifact_digest}"
+    assert lines[-1] == f"demo.demo.json={committed_configuration().served_world_version}"
 
 
 def test_the_smoke_refuses_an_asset_that_does_not_load(
@@ -78,3 +102,18 @@ def test_the_smoke_refuses_committed_results_that_do_not_load(
         captured = capsys.readouterr()
         assert f"the committed public results do not load ({name})" in captured.err
         assert "results." not in captured.out
+
+
+def test_the_smoke_refuses_a_demo_configuration_that_does_not_load(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The same for the configuration the page and the acceptance read: after the results
+    line, the image fails its smoke."""
+
+    def malformed() -> DemoConfiguration:
+        raise ValueError("the demo configuration is format 1, got 2")
+
+    assert main(["smoke"], ENV, configuration=malformed) == 1
+    captured = capsys.readouterr()
+    assert "the demo configuration does not load (ValueError)" in captured.err
+    assert "results." in captured.out and "demo." not in captured.out

@@ -257,8 +257,8 @@ jobs:
       # its digest and run once on the runner's own platform, loads both roles' prompt
       # assets through the loader the work command composes with and prints their digests
       # beside the code version; a prompt file the packaging dropped fails the job here,
-      # before any deploy. The identity line stays the container's default, since the
-      # deploy reads it as its evidence.
+      # before any deploy. The identity line is a command since the demo milestone's
+      # scaffold step (serving is the default), and the deploy runs it as its image check.
       - name: Smoke the built image
         run: |
           set -euo pipefail
@@ -268,6 +268,7 @@ jobs:
           grep -qx "code_version=${{ steps.stamp.outputs.sha }}" smoke.txt
           grep -q '^investigator\.' smoke.txt && grep -q '^reader\.' smoke.txt
           grep -q '^results\.m2-reported\.json=' smoke.txt
+          grep -q '^demo\.demo\.json=' smoke.txt
 
       # The log then says which bytes a sha tag pointed at when it was built, since the
       # tag itself cannot; the deploy job below carries the same digest to the host, which

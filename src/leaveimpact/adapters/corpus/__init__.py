@@ -13,6 +13,11 @@ idempotent DDL. The loader is not re-exported here on purpose: a package that na
 would put it behind an import the law reads as the package.
 """
 
-from leaveimpact.adapters.corpus.adapter import CorpusAdapter, CorpusConfig, UnservedCorpus
+from leaveimpact.adapters.corpus.adapter import (
+    CorpusAdapter,
+    CorpusConfig,
+    UnservedCorpus,
+    served_versions,
+)
 
-__all__ = ["CorpusAdapter", "CorpusConfig", "UnservedCorpus"]
+__all__ = ["CorpusAdapter", "CorpusConfig", "UnservedCorpus", "served_versions"]

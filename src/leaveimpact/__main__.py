@@ -1,12 +1,16 @@
-"""The container's command: state the image's identity, and under ``smoke`` prove the image
-carries what a run loads.
+"""The container's command: serve the demo surface with no argument, state the image's
+identity under ``identity``, and under ``smoke`` prove the image carries what a run and a
+page load.
 
 An image that can say which commit built it is the provenance floor every later artifact
 (event logs, eval runs, reports) inherits: the Dockerfile refuses to build without
-``CODE_VERSION``, and this entry point is how a running container proves it received one.
-The identity line is the container's default and the deploy's evidence (the deploy script
-runs the image once and reads it); it is replaced by the real service entry point when the
-first HTTP surface lands, and Compose's ``restart`` policy flips with it.
+``CODE_VERSION``, and every command here refuses to run without it. The identity line was
+the container's default from the first deploy until the demo milestone's scaffold step put
+the service in its place; it stays as a command, since the deploy script runs it as the
+image check beside the readiness read of the running service (the entry's HTTP-shell
+ruling: the old check never remains the sole gate by omission). ``identity`` and ``smoke``
+need no database, no cache and no vendor credential, so they run on a runner, on a laptop
+and on the instance alike; only serving reads the store.
 
 ``python -m leaveimpact smoke`` (the first live run's step, fork 8) is what the CI image job
 runs the pushed image once with, on the runner's own platform: it loads both roles' prompt
@@ -15,9 +19,17 @@ beside the code version, refusing on an asset that is missing or malformed, so a
 whose packaging dropped a prompt file fails before it is deployed. The digests are the ones
 a run freezes (``agent.registered``), so the smoke's output is what a registration's role
 compares with. It then reads the committed public results by package name and prints the
-digest of the artifact they were cut from, so an image whose packaging dropped the results
-file, or carries one not of the declared types, fails the same way before the results page
-ever renders it (the demo milestone's first build step).
+digest of the artifact they were cut from, and since the scaffold step the demo
+configuration the same way, printing the served world it allowlists, so an image whose
+packaging dropped either file, or carries one not of the declared shape, fails before the
+page ever renders it.
+
+Serving binds the application to every interface of the container on port 8000; the proxy
+reaches it over the shared ``web`` network and nothing is published to the host (compose).
+One Uvicorn worker: store access is synchronous on Starlette's thread pool and the demo's
+load is a stranger reading pages. Forwarded headers are left at Uvicorn's defaults, trusted
+from the loopback only, until the proxy upstream flips to the application and the deployed
+streaming probe of that platform ticket says what the proxy sends.
 """
 
 from __future__ import annotations
@@ -27,12 +39,17 @@ import sys
 from collections.abc import Callable, Mapping, Sequence
 
 from leaveimpact.agent.assets import PromptAssets, load_prompt_assets
+from leaveimpact.app.config import DEMO, DemoConfiguration, committed_configuration
 from leaveimpact.core.tools import Role
 from leaveimpact.results.committed import M2_REPORTED, committed_results
 from leaveimpact.results.public import PublicResults
 
 CODE_VERSION = "LEAVEIMPACT_CODE_VERSION"
+IDENTITY = "identity"
 SMOKE = "smoke"
+PORT = 8000
+
+Serve = Callable[[Mapping[str, str]], int]
 
 
 def main(
@@ -40,10 +57,12 @@ def main(
     env: Mapping[str, str] | None = None,
     load: Callable[[Role], PromptAssets] = load_prompt_assets,
     results: Callable[[], PublicResults] = committed_results,
+    configuration: Callable[[], DemoConfiguration] = committed_configuration,
+    serve: Serve | None = None,
 ) -> int:
-    """The identity line with no argument, the smoke under ``smoke``; 1 without a code
-    version, on an asset that does not load or on committed results that do not, 2 on any
-    other argument."""
+    """Serve with no argument, the identity line under ``identity``, the smoke under
+    ``smoke``; 1 without a code version, on an asset, a results file or a configuration
+    that does not load, or when serving refuses to start, 2 on any other argument."""
     arguments = list(sys.argv[1:] if argv is None else argv)
     environment = os.environ if env is None else env
     version = environment.get(CODE_VERSION, "")
@@ -53,21 +72,26 @@ def main(
             file=sys.stderr,
         )
         return 1
+    if arguments == [IDENTITY]:
+        print(f"leaveimpact {version}: the demo surface's image")
+        return 0
     if arguments == [SMOKE]:
-        return _smoke(version, load, results)
+        return _smoke(version, load, results, configuration)
     if arguments:
         print(
             f"leaveimpact: unknown arguments {arguments}; the image answers to no argument "
-            f"or {SMOKE!r}",
+            f"(serve), {IDENTITY!r} or {SMOKE!r}",
             file=sys.stderr,
         )
         return 2
-    print(f"leaveimpact {version}: no service yet; the baseline image runs and identifies itself")
-    return 0
+    return (_serve if serve is None else serve)(environment)
 
 
 def _smoke(
-    version: str, load: Callable[[Role], PromptAssets], results: Callable[[], PublicResults]
+    version: str,
+    load: Callable[[Role], PromptAssets],
+    results: Callable[[], PublicResults],
+    configuration: Callable[[], DemoConfiguration],
 ) -> int:
     print(f"code_version={version}")
     for role in Role:
@@ -92,6 +116,33 @@ def _smoke(
         )
         return 1
     print(f"results.{M2_REPORTED}={committed.provenance.artifact_digest}")
+    try:
+        demo = configuration()
+    except (OSError, ValueError) as error:
+        print(
+            f"leaveimpact: the demo configuration does not load ({type(error).__name__}): "
+            "the image is incomplete",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"demo.{DEMO}={demo.served_world_version}")
+    return 0
+
+
+def _serve(environment: Mapping[str, str]) -> int:
+    """The real server: the application composed from the environment, run by Uvicorn until
+    the stop signal; a composition the environment cannot satisfy is refused before any
+    socket is bound."""
+    import uvicorn
+
+    from leaveimpact.app.main import app_from_env
+
+    try:
+        application = app_from_env(environment)
+    except ValueError as error:
+        print(f"leaveimpact: {error}", file=sys.stderr)
+        return 1
+    uvicorn.run(application, host="0.0.0.0", port=PORT, log_level="info")
     return 0
 
 
