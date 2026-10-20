@@ -164,6 +164,10 @@ probe proves on every deploy.
   written before it ran), the phase C dispatcher with its committed plan and ledger and
   the two scripts behind the reported numbers, and `FINDINGS.md`, every outcome;
   `scripts/regen_docs.py` — the API reference, generated from docstrings, never edited.
+- `report/` — the milestone report: committed Markdown chapters, the pins that read
+  every figure a chapter states from the committed results, the registration or a
+  recorded FINDINGS row, the figure scripts, and the build (`just report`); the
+  rendered PDF is committed at the freeze and served from the portfolio site.
 - `Dockerfile`, `compose.yaml` — the deploy unit and the instance's stack;
   `compose.dev.yaml` — the laptop overlay; `deploy/` — the deployment entrypoint the
   CI deploy job runs on the host. The host itself (Terraform, the deploy role, the

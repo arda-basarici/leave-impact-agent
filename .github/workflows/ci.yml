@@ -78,7 +78,7 @@ jobs:
           enable-cache: true
 
       - name: Sync the locked environment
-        run: uv sync --locked
+        run: uv sync --locked --group report
 
       # Secrets: the pre-commit hook only runs where someone ran `just hooks`, so CI
       # is the gate that cannot be skipped. Full history, not just the diff — a secret

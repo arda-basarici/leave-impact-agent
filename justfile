@@ -96,3 +96,8 @@ docs:
 # One-time per clone: installs the pre-commit hooks (secret scan + lint).
 hooks:
     uv run pre-commit install
+
+# The milestone report, built from its chapters with every pin resolved; the `report`
+# dependency group holds the page and figure engines and never enters the image.
+report:
+    uv run --group report python -m report.generate

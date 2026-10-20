@@ -42,3 +42,6 @@ Thumbs.db
 # --- Test fixture strays ---
 # The wiring test's placeholder credential file, should a probe ever write it into the tree.
 google.json
+
+# --- the report: its rendered PDF is committed at the freeze and ignored until then ---
+report/*.pdf
