@@ -6,6 +6,8 @@ from __future__ import annotations
 import pytest
 
 from report.markup import (
+    Callout,
+    Contents,
     Figure,
     Heading,
     Paragraph,
@@ -18,6 +20,11 @@ from report.markup import (
 
 CHAPTER = """\
 # A chapter
+
+{{contents}}
+
+> The result,
+> set apart.
 
 Two lines
 of one paragraph with {{pin:whole.agent.base}}.
@@ -32,9 +39,11 @@ of one paragraph with {{pin:whole.agent.base}}.
 """
 
 
-def test_the_subset_parses_to_its_four_block_kinds_in_order() -> None:
+def test_the_subset_parses_to_its_block_kinds_in_order() -> None:
     assert parse_chapter(CHAPTER) == (
         Heading(1, "A chapter"),
+        Contents(),
+        Callout("The result, set apart."),
         Paragraph("Two lines of one paragraph with {{pin:whole.agent.base}}."),
         Heading(2, "A section"),
         Figure("headline.png", "The caption, with {{pin:runs.total}}."),
@@ -46,7 +55,8 @@ def test_the_subset_parses_to_its_four_block_kinds_in_order() -> None:
     ("text", "line", "what"),
     [
         ("Fine.\n\n- a list item\n", 3, "a bulleted list"),
-        ("Fine.\n\n> a quote\n", 3, "a block quote"),
+        ("> a callout\nwithout its mark\n", 2, "every line of a callout"),
+        ("{{contents}}\nand more\n", 1, "the contents directive stands alone"),
         ("```\ncode\n```\n", 1, "a fenced block"),
         ("#### Too deep\n", 1, "a heading deeper than three levels"),
         ("1. a numbered item\n", 1, "a numbered list"),

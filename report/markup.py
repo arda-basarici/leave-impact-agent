@@ -3,11 +3,12 @@ blocks, and the inline forms a block's text may carry.
 
 Chapters are committed Markdown so that a fact-checker, a proofreader and an external
 reader meet prose rather than paragraph strings in Python. The subset is deliberate and
-closed: a heading of up to three levels, a paragraph, a figure directive, a pipe table,
-and inside text the two emphases, a code span for an identifier or a path, and a pin
-reference. Anything else refuses the chapter
-by line, so a construct joins the subset by a decision here and never through a
-renderer's tolerance. Parsing is pure; what a block becomes on a page is ``generate``'s.
+closed: a heading of up to three levels, a paragraph, a callout (a quoted paragraph set
+in a shaded box), a figure directive, a pipe table, a contents directive, and inside
+text the two emphases, a code span for an identifier or a path, and a pin reference.
+Anything else refuses the chapter by line, so a construct joins the subset by a decision
+here and never through a renderer's tolerance. Parsing is pure; what a block becomes on a
+page is ``generate``'s.
 
 A pin reference, ``{{pin:name}}``, is how a chapter states a figure: the build resolves
 it from the record that holds it (``pins``), and a chapter cannot carry a number the
@@ -24,6 +25,8 @@ from dataclasses import dataclass
 __all__ = [
     "PIN_REFERENCE",
     "Block",
+    "Callout",
+    "Contents",
     "Figure",
     "Heading",
     "Paragraph",
@@ -51,6 +54,20 @@ class Paragraph:
 
 
 @dataclass(frozen=True, slots=True)
+class Callout:
+    """A paragraph the page sets apart in a shaded box: the result a skimming reader
+    must not miss. Written as a quoted paragraph, every line starting with ``> ``."""
+
+    text: str
+
+
+@dataclass(frozen=True, slots=True)
+class Contents:
+    """The place the table of contents is rendered, with page numbers the build fills
+    in; written as the directive ``{{contents}}`` on a line of its own."""
+
+
+@dataclass(frozen=True, slots=True)
 class Figure:
     """An image under the report's figures directory, by its file name, with its caption."""
 
@@ -66,7 +83,7 @@ class Table:
     rows: tuple[tuple[str, ...], ...]
 
 
-Block = Heading | Paragraph | Figure | Table
+Block = Heading | Paragraph | Callout | Figure | Table | Contents
 
 PIN_REFERENCE = re.compile(r"\{\{pin:([a-z0-9_.]+)\}\}")
 """A pin reference inside text: the pin's name, lower case, dots and underscores."""
@@ -81,7 +98,6 @@ _NUMBER = re.compile(r"\d[\d,.]*\d|\d")
 _OUTSIDE = (
     ("- ", "a bulleted list"),
     ("* ", "a bulleted list"),
-    ("> ", "a block quote"),
     ("```", "a fenced block"),
     ("#", "a heading deeper than three levels or without its space"),
 )
@@ -98,6 +114,8 @@ def parse_chapter(text: str) -> tuple[Block, ...]:
     ['Heading', 'Paragraph']
     >>> parse_chapter("One\\ntwo.")[0].text
     'One two.'
+    >>> parse_chapter("{{contents}}")
+    (Contents(),)
     """
     return tuple(_block(number, lines) for number, lines in _chunks(text))
 
@@ -130,6 +148,17 @@ def _block(number: int, lines: tuple[str, ...]) -> Block:
         return Figure(figure.group(2), figure.group(1).strip())
     if first.startswith("|"):
         return _table(number, lines)
+    if first == "{{contents}}":
+        if len(lines) > 1:
+            raise ValueError(f"line {number}: the contents directive stands alone")
+        return Contents()
+    if first.startswith("> "):
+        for offset, line in enumerate(lines):
+            if not line.startswith("> "):
+                raise ValueError(
+                    f"line {number + offset}: every line of a callout starts with '> '"
+                )
+        return Callout(" ".join(line[2:].strip() for line in lines))
     for offset, line in enumerate(lines):
         for start, what in _OUTSIDE:
             if line.lstrip().startswith(start):
@@ -216,8 +245,10 @@ def unpinned_numbers(blocks: tuple[Block, ...]) -> tuple[tuple[str, str], ...]:
 def _texts(blocks: tuple[Block, ...]) -> Iterator[str]:
     for block in blocks:
         match block:
-            case Heading(_, text) | Paragraph(text) | Figure(_, text):
+            case Heading(_, text) | Paragraph(text) | Callout(text) | Figure(_, text):
                 yield text
+            case Contents():
+                pass
             case Table(header, rows):
                 yield from header
                 for row in rows:
