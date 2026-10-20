@@ -12,6 +12,7 @@ import psycopg
 import pytest
 
 from leaveimpact.app.__main__ import main
+from leaveimpact.app.public import PublicId
 from leaveimpact.app.store import (
     CONNECT_TIMEOUT_S,
     SCHEMA_VERSION,
@@ -20,6 +21,7 @@ from leaveimpact.app.store import (
     AppStoreInvariantBroken,
     AppStoreUnavailable,
 )
+from leaveimpact.core.ids import WorldVersion
 
 DSN = "postgresql://nobody@localhost/none"
 
@@ -115,6 +117,22 @@ def test_ensure_schema_applies_the_ddl_writes_the_version_once_and_refuses_anoth
     assert fresh.closed
     with pytest.raises(AppStoreInvariantBroken, match=f"version {SCHEMA_VERSION}, the database"):
         store.ensure_schema()
+
+
+def test_a_content_read_on_another_version_is_refused_before_any_content_statement() -> None:
+    """The step's external read: readiness answering 503 does not stop requests reaching the
+    process, so every read and write of the publishable table checks the version on its own
+    connection first, as the log store does, and a database at another layout or none
+    serves no row and takes none."""
+    older = Answering(SCHEMA_VERSION + 1)
+    never = NoTable(None)
+    store, _ = store_over(older, never)
+    with pytest.raises(AppStoreInvariantBroken, match=f"holds {SCHEMA_VERSION + 1}; run"):
+        store.rows_for(WorldVersion("w" * 64))
+    assert older.executed == ["SELECT version FROM app_schema"] and older.closed
+    with pytest.raises(AppStoreInvariantBroken, match="holds none; run"):
+        store.row_of(PublicId("anyone"))
+    assert never.executed == ["SELECT version FROM app_schema"] and never.closed
 
 
 def test_a_database_without_the_run_log_is_refused_by_name_before_any_version_row() -> None:

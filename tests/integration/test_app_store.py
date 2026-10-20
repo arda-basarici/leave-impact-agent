@@ -123,6 +123,14 @@ def test_another_version_is_unsupported_and_the_bootstrap_refuses_it(rig: Rig) -
     assert store.schema_supported() is False
     with pytest.raises(AppStoreInvariantBroken, match=f"holds version {SCHEMA_VERSION + 1}"):
         store.ensure_schema()
+    # Every read and write of the publishable table refuses too, on its own connection
+    # (the step's external read: an unhealthy readiness stops no request).
+    with pytest.raises(AppStoreInvariantBroken, match=f"holds {SCHEMA_VERSION + 1}"):
+        store.rows_for(SERVED)
+    with pytest.raises(AppStoreInvariantBroken, match=f"holds {SCHEMA_VERSION + 1}"):
+        store.row_of(PublicId("anyone"))
+    with pytest.raises(AppStoreInvariantBroken, match=f"holds {SCHEMA_VERSION + 1}"):
+        store.publish(draft("example", "run-12"))
 
 
 def test_a_publishable_row_for_an_attempt_the_log_does_not_hold_cannot_exist(rig: Rig) -> None:

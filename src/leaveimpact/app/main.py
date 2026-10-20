@@ -27,10 +27,10 @@ distinguishes a published name from an unknown one. The replay page is this step
 the row's public data and the attempt's ending; the report view replaces its body at the
 next step.
 
-Statement bounds, per request: the listing makes one app-store statement and one cache
-read; the replay page one app-store statement, the log's reads of one attempt on one
-connection, and one cache read; each under the store's three-second connect and
-three-second statement bounds.
+Statement bounds, per request: the listing makes one app-store operation (the version check
+and one statement) and one cache read; the replay page one app-store operation, the log's
+reads of one attempt on one connection, and one cache read; each under the store's
+three-second connect and three-second statement bounds.
 
 Templates live beside this module and are packaged with it, read by package name like the
 committed configuration. Autoescape is on for them through Jinja2's extension selection,

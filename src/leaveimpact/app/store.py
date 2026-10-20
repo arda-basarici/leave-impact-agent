@@ -12,8 +12,9 @@ store opens a fresh connection per operation, three seconds to connect and three
 statement, and closes it before returning, so a request holds nothing while a browser
 waits and a blocked statement ends the request instead of a thread. The bounds are per
 statement, not per request: each operation of this module states how many statements it
-makes (the reads one, the publication up to three), and a page that performs several
-operations is bounded by their sum, which each route's docstring states.
+makes (the version check first, then the reads one and the publication up to three), and a
+page that performs several operations is bounded by their sum, which each route's docstring
+states.
 
 Two refusals, by name and never by driver message: ``AppStoreUnavailable`` when the store
 did not answer within either bound (a cancelled statement is an operational error to the
@@ -150,7 +151,7 @@ class AppStore:
         when the database holds another version, ``AppStoreUnavailable`` when it does not
         answer."""
         ddl = resources.files(__package__).joinpath("schema.sql").read_text(encoding="utf-8")
-        with self._connection() as conn:
+        with self._connection(check_version=False) as conn:
             try:
                 with conn.transaction():
                     conn.execute(ddl.encode())
@@ -174,20 +175,22 @@ class AppStore:
         route's third bit. False for a missing table or another version, never an
         exception, since a deploy that skipped the bootstrap is a state the route reports;
         ``AppStoreUnavailable`` when the store does not answer."""
-        with self._connection() as conn:
+        with self._connection(check_version=False) as conn:
             return _version_of(conn) == SCHEMA_VERSION
 
     # --- the publishable table ---------------------------------------------------------
 
     def rows_for(self, world_version: WorldVersion) -> tuple[PublishableRow, ...]:
         """Every published row of ``world_version``, oldest first and by name within one
-        instant: the listing's projection, which reads no log. One statement."""
+        instant: the listing's projection, which reads no log. The version check and one
+        statement."""
         with self._connection() as conn:
             rows = conn.execute(_SELECT_ROWS_FOR, (world_version,)).fetchall()
         return tuple(_row_of(row) for row in rows)
 
     def row_of(self, public_id: PublicId) -> PublishableRow | None:
-        """The row ``public_id`` names, ``None`` when none does. One statement."""
+        """The row ``public_id`` names, ``None`` when none does. The version check and one
+        statement."""
         with self._connection() as conn:
             row = conn.execute(_SELECT_ROW, (public_id,)).fetchone()
         return None if row is None else _row_of(row)
@@ -199,7 +202,8 @@ class AppStore:
         which, so two operators publishing at once get the same answers one after another
         would. A repeat identical to the row is ``AlreadyPublished`` with the first
         timestamp; the same id and attempt with another title or author is
-        ``PublicationConflict``; nothing here updates or deletes. Up to three statements."""
+        ``PublicationConflict``; nothing here updates or deletes. The version check and up to
+        three statements."""
         with self._connection() as conn:
             try:
                 written = conn.execute(
@@ -228,9 +232,22 @@ class AppStore:
         return Published(_row_of(written))
 
     @contextmanager
-    def _connection(self) -> Generator[Connection]:
+    def _connection(self, *, check_version: bool = True) -> Generator[Connection]:
+        """One operation's connection, the schema version checked on it first unless the
+        operation is the check itself or the bootstrap: a database at another layout
+        refuses every read and write of the publishable table, as the log store refuses on
+        every connection, so an unready schema never serves a page or takes a row while the
+        readiness route says 503 (the step's external read)."""
         try:
             with self._connect(self._dsn) as conn:
+                if check_version:
+                    version = _version_of(conn)
+                    if version != SCHEMA_VERSION:
+                        raise AppStoreInvariantBroken(
+                            f"this code reads and writes app schema version {SCHEMA_VERSION}, "
+                            f"the database holds {'none' if version is None else version}; run "
+                            "`python -m leaveimpact.app bootstrap`"
+                        )
                 yield conn
         except psycopg.OperationalError as exc:
             raise AppStoreUnavailable(

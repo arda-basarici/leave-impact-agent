@@ -5,5 +5,8 @@
 !src
 !pyproject.toml
 !uv.lock
+# The committed registration the demo surface folds replays under (the publishability
+# step); named by file, so nothing else under preregistration/ enters the context.
+!preregistration/registration.json
 
 src/**/__pycache__

@@ -125,6 +125,19 @@ def test_the_embargoed_attempt_is_unreachable_through_every_read_surface(rig: Ri
         assert web.get("/ready").status_code == 503
 
 
+def test_a_database_at_another_app_schema_version_serves_no_page(rig: Rig) -> None:
+    """Readiness says 503, and so does every page, since each content read checks the
+    version on its own connection; a schema the code does not know serves nothing."""
+    store = app_store(rig)
+    store.ensure_schema()
+    with rig.observer() as observer:
+        observer.execute(in_schema(rig, "UPDATE {}.app_schema SET version = 99"))
+    with client(rig, store) as web:
+        assert web.get("/ready").status_code == 503
+        assert web.get("/replays").status_code == 503
+        assert web.get("/replays/served").status_code == 503
+
+
 def test_a_database_without_the_app_schema_is_unavailable_not_an_error(rig: Rig) -> None:
     store = app_store(rig)
     store.ensure_schema()
