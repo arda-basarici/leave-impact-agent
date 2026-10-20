@@ -49,7 +49,7 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     assert [line for line in docker if "compose run" in line] == [
         "docker compose run --rm app python -m leaveimpact.cache",
         "docker compose run --rm app python -m leaveimpact.agent bootstrap-log",
-        "docker compose run --rm app identity",
+        "docker compose run --rm app python -m leaveimpact identity",
     ]
     # The service after the cache and the log are prepared, readiness read through the
     # bounded wait and then once more as the printed evidence.

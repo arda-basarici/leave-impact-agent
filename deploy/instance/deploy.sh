@@ -68,7 +68,9 @@ docker compose run --rm app python -m leaveimpact.agent bootstrap-log
 # The image check: the identity command states the commit the image was built from,
 # the deploy's evidence since the `oidc-deploy` probe, and a container that cannot say
 # so fails here before the service starts.
-IDENTITY=$(docker compose run --rm app identity)
+# The command is spelled whole: a `run` argument replaces the image's CMD, so a bare
+# `identity` would be looked up as an executable, as the lifecycle's commands know.
+IDENTITY=$(docker compose run --rm app python -m leaveimpact identity)
 echo "identity: $IDENTITY"
 [[ "$IDENTITY" == "leaveimpact $DEPLOY_SHA:"* ]]
 # The readiness check: the service started and `--wait` returns on the compose
@@ -80,7 +82,7 @@ echo "identity: $IDENTITY"
 # container stays as it is for diagnosis, and a rollback is this script with the
 # older sha and its digest.
 docker compose up -d --wait --wait-timeout 120 app
-READY=$(docker compose exec -T app python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5).read().decode())")
+READY=$(docker compose exec -T app python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=8).read().decode())")
 echo "ready: $READY"
 grep -q "\"code_version\":\"$DEPLOY_SHA\"" <<< "$READY"
 grep -q '"ready":true' <<< "$READY"

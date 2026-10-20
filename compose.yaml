@@ -48,10 +48,12 @@ services:
     # image carries no curl): 200 only when the store answers and the cache serves the
     # allowlisted world, so `up --wait` returns when the demo can be served and the
     # deploy's readiness check reads the same route. A 503 raises in urlopen and exits 1.
+    # The client's eight seconds cover the route's own bounds (three to connect, three for
+    # the statement, in the corpus adapter) with room to answer.
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5)"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=8)"]
       interval: 10s
-      timeout: 6s
+      timeout: 10s
       retries: 6
       start_period: 15s
     # Two processes on a 2 GB instance: bound each so one cannot OOM the other;

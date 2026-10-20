@@ -119,7 +119,7 @@ if [[ " $* " == *" leaveimpact.launch plan "* ]]; then
   echo "launch=launch-fake"
 elif [[ " $* " == *" leaveimpact.launch status "* ]]; then
   cat "$FAKE_DIR/status.txt" 2>/dev/null || true
-elif [[ " $* " == *" run --rm app identity"* ]]; then
+elif [[ " $* " == *" run --rm app python -m leaveimpact identity"* ]]; then
   # The image's identity line, the deploy's image check; FAKE_IDENTITY_SHA scripts a stale image.
   echo "leaveimpact ${FAKE_IDENTITY_SHA:-$DEPLOY_SHA}: the demo surface's image"
 elif [[ " $* " == *" exec -T app python -c "* ]] && [[ " $* " == *"/ready"* ]]; then

@@ -139,19 +139,39 @@ def _connect(dsn: str) -> Connection:
 
 
 _SELECT_SERVED = "SELECT world_version FROM world WHERE ready"
+# The readiness read is bounded twice, since a probe that cannot end holds a thread and a
+# connection per repeat: the connect timeout bounds reaching the store, the statement
+# timeout bounds the query itself (a transaction holding the `world` table's lock lets a
+# connection succeed and blocks the select until it ends; PostgreSQL bounds neither by
+# default). Their sum, six seconds, stays under the eight-second client timeout of the
+# compose healthcheck and the deploy's read, so the route answers before the probe gives up.
+READINESS_CONNECT_TIMEOUT_S = 3
+READINESS_STATEMENT_TIMEOUT_MS = 3000
 
 
-def served_versions(dsn: str, *, connect: Connect = _connect) -> frozenset[WorldVersion]:
+def _connect_bounded(dsn: str) -> Connection:
+    return psycopg.connect(
+        dsn,
+        connect_timeout=READINESS_CONNECT_TIMEOUT_S,
+        options=f"-c statement_timeout={READINESS_STATEMENT_TIMEOUT_MS}",
+        autocommit=True,
+    )
+
+
+def served_versions(dsn: str, *, connect: Connect = _connect_bounded) -> frozenset[WorldVersion]:
     """Every world version the cache serves now, the rows marked ready: the predicate every
-    document read of this module joins on, read once over a fresh connection, so the demo
-    surface's readiness is answered by the read side and never through the loader the
-    import law gates to the cache job. ``SourceUnreachable`` when the store does not answer
-    within the connect timeout."""
+    document read of this module joins on, read once over a fresh connection bounded on
+    the connect and on the statement, so the demo surface's readiness is answered by the
+    read side and never through the loader the import law gates to the cache job.
+    ``SourceUnreachable`` when the store does not answer within either bound (a cancelled
+    statement is an operational error to the driver), so the next read starts clean."""
     try:
         with connect(dsn) as conn:
             rows = conn.execute(_SELECT_SERVED).fetchall()
     except psycopg.OperationalError as exc:
-        raise SourceUnreachable(Source.CORPUS, f"connection refused: {type(exc).__name__}") from exc
+        raise SourceUnreachable(
+            Source.CORPUS, f"the readiness read did not complete: {type(exc).__name__}"
+        ) from exc
     return frozenset(WorldVersion(str(row[0])) for row in rows)
 
 
