@@ -73,10 +73,16 @@ _TEXT_WIDTH = _PAGE_WIDTH - 2 * _MARGIN
 _BODY = ParagraphStyle("body", fontName="Helvetica", fontSize=10.5, leading=14.5, spaceAfter=7)
 _TITLE = ParagraphStyle("title", fontName="Helvetica-Bold", fontSize=22, leading=27, spaceAfter=10)
 _CHAPTER = ParagraphStyle(
-    "chapter", fontName="Helvetica-Bold", fontSize=16, leading=20, spaceAfter=10
+    "chapter", fontName="Helvetica-Bold", fontSize=16, leading=20, spaceAfter=10, keepWithNext=1
 )
 _SECTION = ParagraphStyle(
-    "section", fontName="Helvetica-Bold", fontSize=12.5, leading=16, spaceBefore=8, spaceAfter=5
+    "section",
+    fontName="Helvetica-Bold",
+    fontSize=12.5,
+    leading=16,
+    spaceBefore=8,
+    spaceAfter=5,
+    keepWithNext=1,
 )
 _SUBSECTION = ParagraphStyle(
     "subsection",
@@ -85,6 +91,7 @@ _SUBSECTION = ParagraphStyle(
     leading=14,
     spaceBefore=6,
     spaceAfter=4,
+    keepWithNext=1,
 )
 _CAPTION = ParagraphStyle(
     "caption", fontName="Helvetica-Oblique", fontSize=9, leading=12, spaceBefore=3, spaceAfter=10
@@ -169,7 +176,10 @@ def _table(
 ) -> Flowable:
     cells = [[Paragraph(inline_markup(cell, pins), _HEADER_CELL) for cell in header]]
     cells.extend([Paragraph(inline_markup(cell, pins), _CELL) for cell in row] for row in rows)
-    table = Table(cells, hAlign="LEFT")
+    columns = len(header)
+    first = _TEXT_WIDTH * (0.3 if columns > 2 else 0.5)
+    rest = (_TEXT_WIDTH - first) / max(columns - 1, 1)
+    table = Table(cells, hAlign="LEFT", colWidths=[first, *([rest] * (columns - 1))])
     table.setStyle(
         TableStyle(
             [
