@@ -51,8 +51,8 @@ The one-call readers' fact inventories did not fit the output budget they ran un
 and the stopped calls are recorded in the exports, call by call. That budget,
 {{pin:roles.agent.investigator.max_tokens}} output tokens per call, is the setting the
 systems were developed under and was registered unchanged for every system; nothing in
-the evaluation varies it. The stop accounts for nearly every padded loss and not for
-all of it: of full context's sixteen failures,
+the evaluation varies it. Most padded failures coincided with a cut-off call and some
+did not: of full context's sixteen failures,
 {{pin:stops.full_context.padded.not_stopped_and_failed}} had no stopped call, and of
 single shot's twenty, {{pin:stops.single_shot.padded.not_stopped_and_failed}} did not.
 The stop is not evidence of an input-context limit, and the report makes no claim that

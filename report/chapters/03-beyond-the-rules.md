@@ -18,21 +18,27 @@ they came from.
 
 The investigator is a Python service running the loop on LangGraph, with Claude Haiku
 4.5 reached through Amazon Bedrock and its state in PostgreSQL. Four decisions in its
-construction are worth a hiring reader's attention, each tied to the failure it
-prevents. The event log is the authority: recovery replays the log, the audit reads it,
-and the run's export is built from it, so a crashed worker resumes from what was
-recorded rather than from a framework checkpoint that might disagree with it. A claim
-on a run fences a generation, and a dispatch authorized before the fence and sent after
-it is cancelled, so a worker that lost its claim cannot append to a run another worker
-now owns. Every model call is authorized against the budget before it is sent, carrying
-the input bound it was authorized on and the role's output maximum, and an attempt that
-closes without an export lists its known consumption and its retained liability as two
-numbers, since an absent export is not zero cost. The evaluator runs under its own
-identity, reads exports and never re-reads a vendor, so grading cannot touch the systems
-it grades. Before any reported run, the worker was killed at every boundary two
-reference runs cross, {{pin:crash_matrix.rows}} rows in all, recovering as forecast
-once two forecasts had been corrected, and the integration level of the test suite runs
-the real log against a PostgreSQL service.
+construction are each tied to the failure they prevent.
+
+- *The event log is the authority.* Recovery replays the log, the audit reads it, and
+  the run's export is built from it, so a crashed worker resumes from what was recorded
+  rather than from a framework checkpoint that might disagree with it.
+- *A claim fences a generation.* A new claim on a run fences the previous worker's
+  authoritative writes: after it, the old worker authorizes nothing and appends no
+  outcome. A request it had already authorized may still be sent or remain in flight;
+  its outcome is never accepted, and it stays unresolved with its worst-case allocation
+  retained.
+- *Budget before inference.* Every model call is authorized against the budget before
+  it is sent, carrying the input bound it was authorized on and the role's output
+  maximum, and an attempt that closes without an export lists its known consumption and
+  its retained liability as two numbers, since an absent export is not zero cost.
+- *The evaluator is isolated.* It runs under its own identity, reads exports and never
+  re-reads a vendor, so grading cannot touch the systems it grades.
+
+Before any reported run, the worker was killed at every boundary two reference runs
+cross, {{pin:crash_matrix.rows}} rows in all, recovering as forecast once two forecasts
+had been corrected, and the integration level of the test suite runs the real log
+against a PostgreSQL service.
 
 ## The rules alone
 

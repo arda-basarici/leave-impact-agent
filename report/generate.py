@@ -39,6 +39,8 @@ from reportlab.platypus import (
     HRFlowable,
     Image,
     KeepTogether,
+    ListFlowable,
+    ListItem,
     NextPageTemplate,
     PageBreak,
     PageTemplate,
@@ -58,6 +60,9 @@ from report.markup import (
     inline_markup,
     parse_chapter,
     unpinned_numbers,
+)
+from report.markup import (
+    List as Bullets,
 )
 from report.markup import (
     Paragraph as Prose,
@@ -107,8 +112,16 @@ _REGULAR, _BOLD, _ITALIC, _BOLD_ITALIC = (
 _MONO = "Courier"
 
 _BODY = ParagraphStyle(
-    "body", fontName=_REGULAR, fontSize=10.5, leading=14.5, spaceAfter=7, textColor=INK
+    "body",
+    fontName=_REGULAR,
+    fontSize=10.5,
+    leading=14.5,
+    spaceAfter=7,
+    textColor=INK,
+    allowWidows=0,
+    allowOrphans=0,
 )
+_ITEM = ParagraphStyle("item", parent=_BODY, spaceAfter=3)
 _TITLE = ParagraphStyle(
     "title", fontName=_BOLD, fontSize=24, leading=29, spaceAfter=6, textColor=NAVY
 )
@@ -234,13 +247,28 @@ def _flowables(
                 flowables.append(Paragraph(inline_markup(text, pins), _BODY))
             case Callout(text):
                 flowables.append(_callout(inline_markup(text, pins)))
+            case Bullets(items):
+                flowables.append(_bullets([inline_markup(item, pins) for item in items]))
             case Figure(name, caption):
                 flowables.append(_figure(figures_dir / name, inline_markup(caption, pins)))
             case Grid(header, rows):
                 flowables.append(_table(header, rows, pins))
             case Contents():
                 flowables.append(_contents())
+            case _:
+                raise ValueError(f"no rendering for a {type(block).__name__} block")
     return flowables
+
+
+def _bullets(items: Sequence[str]) -> Flowable:
+    return ListFlowable(
+        [ListItem(Paragraph(item, _ITEM), leftIndent=14) for item in items],
+        bulletType="bullet",
+        bulletFontSize=7,
+        bulletOffsetY=-1,
+        leftIndent=14,
+        spaceAfter=6,
+    )
 
 
 def _callout(markup: str) -> Flowable:
@@ -367,7 +395,20 @@ class _Document(BaseDocTemplate):
         canvas.drawCentredString(centre, top - 166, PROMISE)
         canvas.setFillColor(colors.HexColor("#9cc0ee"))
         canvas.setFont(_REGULAR, 10.5)
-        canvas.drawCentredString(centre, bottom + 58, f"{SITE}  ·  {REPOSITORY_URL}")
+        links = f"{SITE}  ·  {REPOSITORY_URL}"
+        canvas.drawCentredString(centre, bottom + 58, links)
+        width = canvas.stringWidth(links, _REGULAR, 10.5)
+        left = centre - width / 2
+        site_width = canvas.stringWidth(SITE, _REGULAR, 10.5)
+        repository_width = canvas.stringWidth(REPOSITORY_URL, _REGULAR, 10.5)
+        canvas.linkURL(
+            f"https://{SITE}/", (left, bottom + 54, left + site_width, bottom + 70), relative=0
+        )
+        canvas.linkURL(
+            f"https://{REPOSITORY_URL}",
+            (left + width - repository_width, bottom + 54, left + width, bottom + 70),
+            relative=0,
+        )
         canvas.setFillColor(colors.white)
         canvas.drawCentredString(centre, bottom + 36, f"{AUTHOR}  ·  {DATE}")
         if self.draft:

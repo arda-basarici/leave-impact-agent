@@ -65,7 +65,7 @@ has no capability over the bucket that holds it, every final object is a create-
 write with a recorded version, and a boundary probe on every deployment checks that the
 application still cannot reach the key.
 
-![The instrument. One generator produces two worlds through the same pipeline; validation precedes measurement; the application never holds a capability over the truth bucket; the measurement world's identity stays embargoed.](instrument.png)
+![The instrument. One generator produces two worlds through the same pipeline; validation precedes measurement; the application never holds a capability over the truth bucket; the measurement world's contents and seed stay withheld.](instrument.png)
 
 ## Two worlds
 

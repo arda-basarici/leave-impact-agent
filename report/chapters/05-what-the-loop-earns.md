@@ -17,9 +17,11 @@ investigator may make {{pin:caps.agent.calls}} calls and spend
 maximum; rules only, which calls no model, {{pin:caps.rules_only.calls}} and
 {{pin:caps.rules_only.tokens}} as the floor the cap rule sets. Every model call in
 every system runs under the same output maximum of
-{{pin:roles.agent.investigator.max_tokens}} tokens. A run that reaches a cap is graded
-on what it has and reported as capped. None of the {{pin:runs.total}} reported runs
-reached one.
+{{pin:roles.agent.investigator.max_tokens}} tokens. A run that reaches its call cap or
+its token cap is graded on what it has and reported as capped. None of the
+{{pin:runs.total}} reported runs reached either; what many one-call runs reached is the
+per-call output maximum, which chapter 4 describes and which caps nothing at the run's
+level.
 
 The registration also fixed the money: {{pin:budget.expected_usd}} expected and
 {{pin:budget.ceiling_usd}} as the ceiling, cumulative over the milestone, with the
@@ -51,8 +53,8 @@ for them; chapter 6 records this as a gap.
 Per-run cost is the cell's total divided by its thirty runs. The token columns give the
 lowest and highest run in the cell; the investigator's figures are summed over its
 calls. Output is the axis on which the systems are least alike: over its thirty padded
-runs the investigator wrote {{pin:output_tokens.agent.padded}} output tokens in up to
-{{pin:caps.agent.calls}} calls, against full context's
+runs the investigator wrote {{pin:output_tokens.agent.padded}} output tokens over
+{{pin:calls_per_run.agent.padded}} calls a run, against full context's
 {{pin:output_tokens.full_context.padded}} in one call each, because a loop states the
 facts its searches returned where the one call must state everything it was shown.
 

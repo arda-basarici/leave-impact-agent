@@ -17,7 +17,8 @@ number derived by hand says so where it appears.
 
 | Handle | Value |
 |---|---|
-| Repository | github.com/arda-basarici/leave-impact-agent |
+| Repository | [github.com/arda-basarici/leave-impact-agent](https://github.com/arda-basarici/leave-impact-agent) |
+| Portfolio | [ardabasarici.dev](https://ardabasarici.dev/) |
 | Committed results file | `src/leaveimpact/results/m2-reported.json` |
 | Evaluation artifact, SHA-256 | {{pin:provenance.artifact_digest}} |
 | Measurement world, version | {{pin:provenance.world_version}} |

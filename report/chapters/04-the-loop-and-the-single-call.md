@@ -24,8 +24,8 @@ That base-level result was foreseen, and it is the reason the benchmark has a pa
 level. Before the harness, or any model-reading system, was built, a probe on a
 throwaway world put the whole corpus, about ten thousand tokens, in front of one call to
 the development model. The call scored at the ceiling. On a corpus that small a loop
-could at best tie the single call, and two retrieval methods would both find everything,
-so the comparisons the project wanted had little room. Padding the same world to about
+could at best tie the single call, so the comparison the benchmark exists for had no
+room above the baseline. Padding the same world to about
 a hundred thousand tokens brought the same call down to stating two thirds of the
 planted facts with inventions among them. Those are preliminary numbers from one world
 and one model, recorded as a direction and not a result. The direction was that a
@@ -74,15 +74,18 @@ had a stopped call and {{pin:stops.full_context.padded.not_stopped_and_failed}} 
 not; {{pin:stops.full_context.padded.stopped_and_passed}} stopped calls belonged to
 scenarios that passed anyway. Of single shot's twenty failures,
 {{pin:stops.single_shot.padded.stopped_and_failed}} had a stopped call and
-{{pin:stops.single_shot.padded.not_stopped_and_failed}} did not. So the stop accounts
-for nearly every loss and not for all of it, and a stop is not a loss where the
-scenario needed nothing the call was cut off from.
+{{pin:stops.single_shot.padded.not_stopped_and_failed}} did not. So most padded
+failures coincided with a cut-off call and some did not, and a cut-off call was not a
+failure where the scenario needed nothing it was cut off from. The malformed fact batch
+is the concrete mechanism; the overlap alone does not say how many scenarios a larger
+allowance would have passed.
 
 The obvious objection was tested before the runs. A task-relevant instruction, asking
 only for facts about the person on leave, was probed against the exhaustive one on the
-calibration world: it ended the stops and restored little of what was missed, trading
-saturation for under-statement, so the registration kept the exhaustive instruction for
-both one-call readers. That probe is development evidence and sits outside the reported
+calibration world: it nearly ended the stops, none of six full-context calls and one of
+six single-shot calls, and restored little of what was missed, trading saturation for
+under-statement, so the registration kept the exhaustive instruction for both one-call
+readers. That probe is development evidence and sits outside the reported
 comparison.
 
 ![Scenarios correct whole out of thirty for each system at each corpus level, with Wilson intervals at {{pin:statistics.confidence_percent}} percent. Filled marks are the base level, hollow marks the padded level.](headline.png)

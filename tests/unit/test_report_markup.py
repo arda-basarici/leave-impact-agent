@@ -10,6 +10,7 @@ from report.markup import (
     Contents,
     Figure,
     Heading,
+    List,
     Paragraph,
     Table,
     inline_markup,
@@ -25,6 +26,10 @@ CHAPTER = """\
 
 > The result,
 > set apart.
+
+- one item
+- a second item
+  that continues
 
 Two lines
 of one paragraph with {{pin:whole.agent.base}}.
@@ -44,6 +49,7 @@ def test_the_subset_parses_to_its_block_kinds_in_order() -> None:
         Heading(1, "A chapter"),
         Contents(),
         Callout("The result, set apart."),
+        List(("one item", "a second item that continues")),
         Paragraph("Two lines of one paragraph with {{pin:whole.agent.base}}."),
         Heading(2, "A section"),
         Figure("headline.png", "The caption, with {{pin:runs.total}}."),
@@ -54,7 +60,8 @@ def test_the_subset_parses_to_its_block_kinds_in_order() -> None:
 @pytest.mark.parametrize(
     ("text", "line", "what"),
     [
-        ("Fine.\n\n- a list item\n", 3, "a bulleted list"),
+        ("Fine.\n\n* a list item\n", 3, "a bulleted list with asterisks"),
+        ("- an item\nnot continued\n", 2, "a list item starts with"),
         ("> a callout\nwithout its mark\n", 2, "every line of a callout"),
         ("{{contents}}\nand more\n", 1, "the contents directive stands alone"),
         ("```\ncode\n```\n", 1, "a fenced block"),
@@ -73,6 +80,12 @@ def test_a_construct_outside_the_subset_refuses_by_line(text: str, line: int, wh
 def test_inline_markup_resolves_pins_escapes_and_marks_emphasis() -> None:
     marked = inline_markup("**{{pin:n}}** of *30* & <all>", {"n": "24"})
     assert marked == "<b>24</b> of <i>30</i> &amp; &lt;all&gt;"
+
+
+def test_a_link_becomes_an_anchor() -> None:
+    assert inline_markup("see [the site](https://example.org/x) now", {}) == (
+        'see <a href="https://example.org/x" color="#2a78d6">the site</a> now'
+    )
 
 
 def test_a_code_span_is_set_in_the_monospace_face() -> None:

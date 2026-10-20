@@ -4,8 +4,9 @@ blocks, and the inline forms a block's text may carry.
 Chapters are committed Markdown so that a fact-checker, a proofreader and an external
 reader meet prose rather than paragraph strings in Python. The subset is deliberate and
 closed: a heading of up to three levels, a paragraph, a callout (a quoted paragraph set
-in a shaded box), a figure directive, a pipe table, a contents directive, and inside
-text the two emphases, a code span for an identifier or a path, and a pin reference.
+in a shaded box), a bulleted list, a figure directive, a pipe table, a contents
+directive, and inside text the two emphases, a code span for an identifier or a path,
+a link, and a pin reference.
 Anything else refuses the chapter by line, so a construct joins the subset by a decision
 here and never through a renderer's tolerance. Parsing is pure; what a block becomes on a
 page is ``generate``'s.
@@ -29,6 +30,7 @@ __all__ = [
     "Contents",
     "Figure",
     "Heading",
+    "List",
     "Paragraph",
     "Table",
     "inline_markup",
@@ -68,6 +70,14 @@ class Contents:
 
 
 @dataclass(frozen=True, slots=True)
+class List:
+    """A bulleted list, one item per line starting with ``- ``; an item continues on
+    the following lines when they are indented by two spaces."""
+
+    items: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class Figure:
     """An image under the report's figures directory, by its file name, with its caption."""
 
@@ -83,7 +93,7 @@ class Table:
     rows: tuple[tuple[str, ...], ...]
 
 
-Block = Heading | Paragraph | Callout | Figure | Table | Contents
+Block = Heading | Paragraph | Callout | List | Figure | Table | Contents
 
 PIN_REFERENCE = re.compile(r"\{\{pin:([a-z0-9_.]+)\}\}")
 """A pin reference inside text: the pin's name, lower case, dots and underscores."""
@@ -94,10 +104,10 @@ _TABLE_RULE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC = re.compile(r"\*(.+?)\*")
 _CODE = re.compile(r"`([^`]+)`")
+_LINK = re.compile(r"\[([^\]]+)\]\((https?://[^)\s]+)\)")
 _NUMBER = re.compile(r"\d[\d,.]*\d|\d")
 _OUTSIDE = (
-    ("- ", "a bulleted list"),
-    ("* ", "a bulleted list"),
+    ("* ", "a bulleted list with asterisks"),
     ("```", "a fenced block"),
     ("#", "a heading deeper than three levels or without its space"),
 )
@@ -152,6 +162,8 @@ def _block(number: int, lines: tuple[str, ...]) -> Block:
         if len(lines) > 1:
             raise ValueError(f"line {number}: the contents directive stands alone")
         return Contents()
+    if first.startswith("- "):
+        return _list(number, lines)
     if first.startswith("> "):
         for offset, line in enumerate(lines):
             if not line.startswith("> "):
@@ -168,6 +180,20 @@ def _block(number: int, lines: tuple[str, ...]) -> Block:
                 f"line {number + offset}: a numbered list is outside the chapter subset"
             )
     return Paragraph(" ".join(line.strip() for line in lines))
+
+
+def _list(number: int, lines: tuple[str, ...]) -> List:
+    items: list[str] = []
+    for offset, line in enumerate(lines):
+        if line.startswith("- "):
+            items.append(line[2:].strip())
+        elif line.startswith("  ") and items:
+            items[-1] = f"{items[-1]} {line.strip()}"
+        else:
+            raise ValueError(
+                f"line {number + offset}: a list item starts with '- ' or continues indented"
+            )
+    return List(tuple(items))
 
 
 def _table(number: int, lines: tuple[str, ...]) -> Table:
@@ -216,6 +242,7 @@ def inline_markup(text: str, pins: Mapping[str, str]) -> str:
     escaped = resolved.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     marked = _ITALIC.sub(r"<i>\1</i>", _BOLD.sub(r"<b>\1</b>", escaped))
     marked = _CODE.sub(r'<font face="Courier">\1</font>', marked)
+    marked = _LINK.sub(r'<a href="\2" color="#2a78d6">\1</a>', marked)
     if "*" in marked or "`" in marked:
         raise ValueError(f"unbalanced emphasis in {text!r}")
     return marked
@@ -247,6 +274,8 @@ def _texts(blocks: tuple[Block, ...]) -> Iterator[str]:
         match block:
             case Heading(_, text) | Paragraph(text) | Callout(text) | Figure(_, text):
                 yield text
+            case List(items):
+                yield from items
             case Contents():
                 pass
             case Table(header, rows):
