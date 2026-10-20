@@ -4,16 +4,18 @@ artifact, compare, and hold both worlds' sealed marks, under the administrator p
 The results page renders a committed file and never a live decode (the demo milestone's
 seventh entry ruling); this is the check that the file is the artifact's projection and
 that the demo's served world is open, run on the workstation whenever the projector, the
-artifact or the committed file changes, each run recorded in FINDINGS. The artifact is
-the local copy the phase-C runbook fetches (`probes/phase-c-dispatch/README.md`); the two
-world specs are read from the truth bucket, which only the administrator profile can read.
-Nothing sealed is printed: a verdict names paths, marks and public digests.
+artifact, the committed file or the demo configuration changes, each run recorded in
+FINDINGS. The artifact is the local copy the phase-C runbook fetches
+(`probes/phase-c-dispatch/README.md`); the served world is the one the demo configuration
+allowlists (`leaveimpact.app.config`, the demo milestone's scaffold step), so an embargoed
+world cannot be allowlisted without a red run here; the two world specs are read from the
+truth bucket, which only the administrator profile can read. Nothing sealed is printed: a
+verdict names paths, marks and public digests.
 
 Usage, from the repository root, after `aws sso login --profile leave-impact`:
 
     uv run python scripts/accept_public_results.py \\
-        data/phase-c-dispatch/evaluation-39061375799-1.json \\
-        --served-world <the demo's world version> --profile leave-impact
+        data/phase-c-dispatch/evaluation-39061375799-1.json --profile leave-impact
 
 Exit status: 0 accepted, 1 refused with the findings printed, 2 for a configuration or
 read fault.
@@ -30,11 +32,11 @@ import boto3
 
 from leaveimpact.adapters.object_store.layout import world_spec_key
 from leaveimpact.adapters.object_store.s3 import S3ObjectReader
+from leaveimpact.app.config import committed_configuration
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.evaluator.public_acceptance import accept_public_results
 from leaveimpact.results.codec import decode_public_results
 from leaveimpact.results.committed import M2_REPORTED, committed_results_bytes
-from leaveimpact.world.artifacts import SHA256_HEX
 from leaveimpact.world.decoders import decode_world_spec
 from leaveimpact.world.disclosure import Disclosure
 
@@ -56,21 +58,15 @@ def main(argv: list[str]) -> int:
         "compare, and hold the measurement world's and the served world's sealed marks.",
     )
     parser.add_argument("artifact", type=Path, help="the local evaluation artifact")
-    parser.add_argument(
-        "--served-world", required=True, help="the 64-hex version of the world the demo serves"
-    )
     parser.add_argument("--committed", default=M2_REPORTED, help="the committed file's name")
     parser.add_argument(
         "--profile", default=None, help="the AWS profile that reads the truth bucket"
     )
     parsed = parser.parse_args(argv)
-    if not SHA256_HEX.fullmatch(parsed.served_world):
-        print("accept_public_results: --served-world is a 64-hex world version", file=sys.stderr)
-        return 2
 
     committed = committed_results_bytes(parsed.committed)
     measurement = WorldVersion(decode_public_results(committed).provenance.world_version)
-    served = WorldVersion(parsed.served_world)
+    served = committed_configuration().served_world_version
     session = boto3.Session(region_name=REGION, profile_name=parsed.profile)
     truth = S3ObjectReader(session.client("s3"), TRUTH_BUCKET)  # pyright: ignore[reportUnknownMemberType]
     measurement_mark = sealed_disclosure(truth, measurement, "measurement world")
