@@ -72,7 +72,7 @@ from leaveimpact.core.entities import (
 )
 from leaveimpact.core.enums import Source
 from leaveimpact.core.ids import ClaimId
-from leaveimpact.core.model_calls import ParsedBatch
+from leaveimpact.core.model_calls import ParsedBatch, Sends
 from leaveimpact.core.ports.observed import Entity, Observed
 from leaveimpact.core.predicates import PredicateName
 from leaveimpact.core.read_coverage import coverage_from_reads
@@ -96,7 +96,7 @@ from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import TerminalStatus
 from leaveimpact.core.run_trace import Operation, is_completed_read, is_failed_read, records_of
 from leaveimpact.core.stated import Admitted, StatedFact
-from leaveimpact.core.token_counting import COUNTING_RULES
+from leaveimpact.core.token_counting import count_tokens
 from leaveimpact.core.values import (
     FactValue,
     Requirement,
@@ -649,18 +649,22 @@ def _cap_lines(export: RunExport) -> tuple[CapLine, ...]:
             usage.model_calls >= caps.call_cap,
         )
     ]
+    # Counted per dispatch by the registered rule, as the trail counts it, so the two pages
+    # agree: the record's aggregate sums counters and cannot say whether each reading was
+    # complete (an undeclared field beside four reported counters is not established). An
+    # absent counter is unknown to the page, never zero; the harness alone knows whether
+    # the configuration proves its absence, so nothing is passed as proven.
     total = 0
     whole = True
-    for name in COUNTING_RULES[caps.counting_rule]:
-        held = usage.value(name)
-        if held is None:
-            # An unreported counter is unknown to the page, never zero; the harness alone
-            # knows whether the configuration proves its absence (``count_tokens``).
+    for dispatch in export.trace.dispatches:
+        if dispatch.sends is Sends.NONE:
+            continue
+        if dispatch.usage is None:
             whole = False
             continue
-        value, reported = held
-        total += value
-        whole = whole and reported == usage.dispatches
+        counted = count_tokens(caps.counting_rule, dispatch.usage, frozenset())
+        total += counted.tokens
+        whole = whole and counted.established
     consumed = f"{total:,}" if whole else f"at least {total:,}"
     lines.append(
         CapLine(
@@ -768,6 +772,20 @@ def _leave(
     )
 
 
+def condition_view(export: RunExport) -> ConditionView:
+    """The sources the run could not reach and the unknowns recorded as caused by that; the
+    banner both pages carry."""
+    unreachable = tuple(sorted(set(Source) - export.record.observed_condition.reachable))
+    return ConditionView(
+        unreachable,
+        tuple(
+            c.claim_id
+            for c in export.trace.claims
+            if isinstance(c, Unknown) and c.reason is UnknownReason.INACCESSIBLE
+        ),
+    )
+
+
 def header_view(replay: PublicReplay, export: RunExport) -> ReportHeader:
     """The identity both pages open with: the public name, the context and the run's window."""
     record = export.record
@@ -799,14 +817,25 @@ def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> 
     impacts = sorted((c for c in claims if isinstance(c, Impact)), key=lambda c: key_order(c.key))
     assessments = [c for c in claims if isinstance(c, CandidateAssessment)]
     actions = [c for c in claims if isinstance(c, CoverageAction)]
+    # Two impact claims with one grading key are a defect the structural check reports; the
+    # children of that key sit under the first such impact alone, so no claim is rendered
+    # twice and no anchor is minted twice (the step's external read).
     impact_keys: dict[ImpactKey, ClaimId] = {}
     for impact in impacts:
         impact_keys.setdefault(impact.key, impact.claim_id)
     sections = tuple(
         ImpactSection(
             block(impact),
-            tuple(block(c) for c in assessments if c.impact_key == impact.key),
-            tuple(block(c) for c in actions if c.impact_key == impact.key),
+            tuple(
+                block(c)
+                for c in assessments
+                if c.impact_key == impact.key and impact_keys[impact.key] == impact.claim_id
+            ),
+            tuple(
+                block(c)
+                for c in actions
+                if c.impact_key == impact.key and impact_keys[impact.key] == impact.claim_id
+            ),
         )
         for impact in impacts
     )
@@ -825,20 +854,11 @@ def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> 
         for c in claims
         if isinstance(c, CandidateAssessment | CoverageAction) and c.impact_key not in impact_keys
     )
-    record = export.record
     context = export.context
-    unreachable = tuple(sorted(set(Source) - record.observed_condition.reachable))
     return ReportView(
         header=header_view(replay, export),
         ending=ending_view(export, empty=not impacts),
-        condition=ConditionView(
-            unreachable,
-            tuple(
-                c.claim_id
-                for c in claims
-                if isinstance(c, Unknown) and c.reason is UnknownReason.INACCESSIBLE
-            ),
-        ),
+        condition=condition_view(export),
         leave_id=context.leave_id,
         leave=_leave(export, reads, statements, instants),
         impacts=sections,
@@ -865,6 +885,7 @@ __all__ = [
     "QuoteView",
     "ReportHeader",
     "ReportView",
+    "condition_view",
     "ending_view",
     "header_view",
     "report_view",

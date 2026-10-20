@@ -34,6 +34,8 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.ids import claim_id, skill_id
+from leaveimpact.core.pricing import aggregate_usage
+from leaveimpact.core.usage import ReportedUsage
 from tests.unit import format_fixtures as cases
 from tests.unit import report_view_fixture as fixture
 from tests.unit import stated_fixture as f
@@ -239,8 +241,15 @@ def test_a_record_returned_two_ways_is_withdrawn_with_nothing_credited() -> None
 def test_a_claim_set_that_is_not_well_formed_still_renders_every_claim_once() -> None:
     view = view_of(fixture.malformed_set())
     ids = view.claim_ids()
-    assert len(ids) == 12 and len(set(ids)) == 12
+    assert len(ids) == 13 and len(set(ids)) == 13
     assert [b.claim_id for b in view.unlinked] == ["claim_012"]
+    deadline, duplicate = (
+        s for s in view.impacts if s.impact.claim_id in ("claim_001", "claim_013")
+    )
+    assert [b.claim_id for b in deadline.assessments] == ["claim_005"]
+    assert [b.claim_id for b in deadline.actions] == ["claim_007"]
+    assert duplicate.assessments == () and duplicate.actions == ()
+    assert any("two impact claims with one grading key" in line for line in view.problems)
     viable = view.impacts[0].assessments[0]
     assert [(link.claim_id, link.available) for link in viable.derived_from] == [
         ("claim_001", True),
@@ -293,6 +302,36 @@ def test_a_cap_exhausted_run_shows_the_caps_beside_its_accounted_consumption() -
     )
     assert tokens.consumed == "at least 150" and tokens.cap == "100,000" and not tokens.at_cap
     assert "Finalization reserve: 2 calls, 5,000 tokens." in ending.details
+
+
+def test_a_cap_line_counts_tokens_per_dispatch_and_keeps_a_partial_reading_a_floor() -> None:
+    """Every counter reported and an undeclared field beside them: the counting function
+    reads the usage as not established, and the cap line says "at least" with it."""
+    export = fixture.all_types()
+    (call,) = export.trace.model_calls
+    (dispatch,) = call.dispatches
+    reported = ReportedUsage(
+        {
+            "inputTokens": 120,
+            "outputTokens": 30,
+            "cacheReadInputTokens": 0,
+            "cacheWriteInputTokens": 0,
+            "totalTokens": 150,
+            "reasoningTokens": 9,
+        }
+    )
+    read = replace(dispatch, usage=reported)
+    calls = (replace(call, dispatches=(read,)),)
+    capped = replace(
+        export,
+        record=replace(
+            export.record, status=TerminalStatus.CAP_EXHAUSTED, usage=aggregate_usage(calls)
+        ),
+        trace=replace(export.trace, model_calls=calls),
+    )
+    assert export.record.usage.dispatches == 1
+    _, tokens = view_of(capped).ending.caps
+    assert tokens.consumed == "at least 150" and not tokens.at_cap
 
 
 def test_the_condition_names_the_unreachable_sources_and_links_their_unknowns() -> None:

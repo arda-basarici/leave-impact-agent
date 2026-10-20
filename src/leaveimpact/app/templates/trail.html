@@ -21,6 +21,17 @@
 <p class="meta">{{ view.ending.reads_summary }}</p>
 </div>
 
+{% if view.condition.unreachable %}
+<div class="banner">
+  <strong>Degraded run.</strong> The run could not reach
+  {% for source in view.condition.unreachable %}{{ source.value }}{% if not loop.last %}, {% endif %}{% endfor %}.
+  {% if view.condition.unknown_ids %}
+  Unknowns recorded as caused by that, on the report:
+  {% for id in view.condition.unknown_ids %}<a href="/replays/{{ header.public_id }}#{{ id }}">{{ id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.
+  {% else %}No unknown was recorded as caused by that.{% endif %}
+</div>
+{% endif %}
+
 <section class="claims">
 <h2>Operations</h2>
 {% if not view.operations %}<p class="meta">No read was made.</p>{% endif %}

@@ -11,7 +11,8 @@ found, its cost and its count under the registered rule, and the bound it was au
 under; the answer's tool calls with what became of each and the fact batches with every
 statement, admitted or refused and why, and every input no statement could be made of,
 whole; the counting operations; the ledger's figures; the approval with its two stamps; the
-composition's placements and exclusions; and the ending the report opens with.
+composition's placements and exclusions; the ending the report opens with; and the run's
+condition as the same banner the report carries, its unknowns linked back to the report.
 
 Three amounts stay apart (the report step's external read): the observed model spend, the
 sum of what the dispatches were priced at, complete or a floor; the ledger's charge, which
@@ -31,7 +32,15 @@ from typing import assert_never
 
 from leaveimpact.app.amounts import cost_label, counter_label, dollars, token_label
 from leaveimpact.app.public import PublicReplay
-from leaveimpact.app.report import EndingView, Instants, ReportHeader, ending_view, header_view
+from leaveimpact.app.report import (
+    ConditionView,
+    EndingView,
+    Instants,
+    ReportHeader,
+    condition_view,
+    ending_view,
+    header_view,
+)
 from leaveimpact.core.claims import ClaimType
 from leaveimpact.core.counting_operations import (
     CountClientError,
@@ -247,6 +256,7 @@ class TrailView:
 
     header: ReportHeader
     ending: EndingView
+    condition: ConditionView
     segments: tuple[str, ...]
     finalization_entered: Moment | None
     operations: tuple[OperationView, ...]
@@ -687,6 +697,7 @@ def trail_view(replay: PublicReplay, export: RunExport, instants: Instants) -> T
     return TrailView(
         header=header_view(replay, export),
         ending=ending_view(export, empty=not has_impact),
+        condition=condition_view(export),
         segments=segments,
         finalization_entered=(
             None

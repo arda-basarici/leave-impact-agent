@@ -116,6 +116,8 @@ def test_a_degraded_run_renders_the_condition_banner_with_its_unknowns_linked() 
     anchors_once(page, view)
     assert "Degraded run." in page and "could not reach\n  corpus." in page
     assert 'href="#claim_013"' in page
+    trail = trail_of(degraded)
+    assert "Degraded run." in trail and 'href="/replays/page#claim_013"' in trail
 
 
 def test_a_cap_exhausted_ending_renders_its_table_and_a_never_run_attempt_its_headline() -> None:

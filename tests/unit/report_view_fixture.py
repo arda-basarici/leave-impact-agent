@@ -448,8 +448,9 @@ ORPHAN = ImpactKey(LEAVE.id, ImpactSubtype.DEADLINE, f.REGIONAL_REF)
 
 def malformed_set() -> RunExport:
     """A decodable export whose claim set is not well-formed: the viable assessment derived
-    from a claim not in the set, the two plan actions derived from each other, and an
-    assessment for an impact nobody claimed."""
+    from a claim not in the set, the two plan actions derived from each other, an
+    assessment for an impact nobody claimed, and a second impact claim with the deadline's
+    grading key."""
     held = list(claims())
     viable = held[4]
     assert isinstance(viable, CandidateAssessment)
@@ -466,6 +467,15 @@ def malformed_set() -> RunExport:
             impact_key=ORPHAN,
             employee_id=f.DENIZ.id,
             verdict=Verdict.UNKNOWN,
+        )
+    )
+    held.append(
+        Impact(
+            claim_id=_id(13),
+            evidence_refs=(),
+            leave_id=LEAVE.id,
+            subtype=ImpactSubtype.DEADLINE,
+            artifact=f.TICKET_REF,
         )
     )
     return cases.export(
