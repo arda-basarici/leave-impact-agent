@@ -4407,6 +4407,30 @@ the bind's, disclosed above. No prose of the measurement world, its seed, its sc
 digest or its semantic digest is named here; the world stays embargoed until the last
 measurement on it.
 
+**Stopped calls against failed scenarios, and output tokens, read on 2026-10-20 for the
+M2 report** (`stops_by_scenario.py` beside the dispatcher, over the cached exports and
+the local artifact; its hand reading of correct whole from the artifact's listed rows
+reproduces the eight whole-correct counts above before it prints anything). Per cell:
+output tokens summed over the runs, the lowest and highest run, the stopped calls, the
+failed scenarios, and the four cells of stopped against failed.
+
+| cell | output tokens | per run | stopped | failed | stopped and failed | stopped and passed | not stopped and failed | not stopped and passed |
+|---|---|---|---|---|---|---|---|---|
+| agent, base | 48,680 | 698 to 3,433 | 0 | 6 | 0 | 0 | 6 | 24 |
+| agent, padded | 47,806 | 698 to 2,956 | 0 | 6 | 0 | 0 | 6 | 24 |
+| full context, base | 84,976 | 2,704 to 2,838 | 0 | 0 | 0 | 0 | 0 | 30 |
+| full context, padded | 211,989 | 1,541 to 8,192 | 24 | 16 | 15 | 9 | 1 | 5 |
+| single shot, base | 38,479 | 780 to 1,691 | 0 | 8 | 0 | 0 | 8 | 22 |
+| single shot, padded | 230,254 | 657 to 8,192 | 25 | 20 | 16 | 9 | 4 | 1 |
+| rules only, both levels | 0 | 0 | 0 | 20 | 0 | 0 | 20 | 10 |
+
+Of full context's sixteen padded failures, fifteen had a stopped call and one
+(`scenario_016`) did not; nine stopped calls belonged to scenarios that passed anyway.
+Of single shot's twenty, sixteen had a stopped call and four (`scenario_015`,
+`scenario_024`, `scenario_027`, `scenario_028`) did not. The investigator wrote 47,806
+output tokens over its thirty padded runs against full context's 211,989: the loop's
+several calls write less than the one call that must state everything it read.
+
 ## public-results — PASS (2026-10-19)
 
 The committed public results (`src/leaveimpact/results/m2-reported.json`, format 1) are

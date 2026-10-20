@@ -10,10 +10,12 @@ the measurement world, and the primary comparison was the investigator against f
 context at the padded level on correct whole. The registration reads a comparison as an
 interval and never as a test of superiority, and the primary interval,
 {{pin:difference.agent.full_context.padded}}, excludes zero. No other comparison carries a
-claim. The evaluator that produced the evaluation artifact ran at a commit that differs by two
-files from the commit at which the registration was bound; both are fixes to the
-evaluator's cells and entrypoint made after the bind. The artifact names both files, and
-the registration's bytes are the bound ones.
+registered claim; the base-level comparison that chapters 4 and 5 draw on is
+descriptive and is reported as such. The evaluator that produced the evaluation
+artifact ran at a commit that differs by two files from the commit at which the
+registration was bound; both are fixes to the evaluator's cells and entrypoint made
+after the bind. The artifact names both files, and the registration's bytes are the
+bound ones.
 
 ## One world, one repeat, one model
 
@@ -22,10 +24,16 @@ of about thirty people, with one run per scenario. They say nothing about run-to
 variability. During development, a repeat under identical prompts at temperature zero
 reproduced its runs exactly; that repeat covered a handful of runs and is not part of
 the reported evaluation. In every system measured, one model, Claude Haiku 4.5, played
-every role. Nothing here says how a different model, or the same model at another
-temperature, would rank. A change to the registration after these results, which a
-changed system would need, makes later evaluations on this world exploratory by the
-registration's own rule; confirmation needs a world from a new seed.
+every role at temperature zero. Nothing here says how a different model, or the same
+model at another temperature, would rank. A change to the registration after these
+results, which a changed system would need, makes later evaluations on this world
+exploratory by the registration's own rule; confirmation needs a world from a new seed.
+
+The thirty scenarios fall into eleven classes within the three tiers, between one and
+four scenarios each. The bootstrap resamples whole scenarios within tiers and does not
+account for clustering by class, so scenarios of one class that share a weakness count
+as independent evidence of it; the six scenarios the investigator misses are spread
+over three classes.
 
 ## The padded level was chosen so the baseline would fail
 
@@ -39,14 +47,26 @@ that regime only.
 
 ## Output saturation is the mechanism, and only that
 
-The one-call readers' answers did not fit the output budget they ran under, and the
-stopped calls are recorded in the exports, call by call. How many of their lost
-scenarios the stopped calls account for is not recorded. The stop is not evidence of an
-input-context limit, and the report makes no claim that the model could not read the
-padded request. A one-call reader with a larger output allowance, or a batched
-finalization, would face a different comparison. The investigator's level invariance,
-the same count and the same six misses at both levels, is one world's finding; a world
-padded past this level's request size would test it again.
+The one-call readers' fact inventories did not fit the output budget they ran under,
+and the stopped calls are recorded in the exports, call by call. That budget,
+{{pin:roles.agent.investigator.max_tokens}} output tokens per call, is the setting the
+systems were developed under and was registered unchanged for every system; nothing in
+the evaluation varies it. The stop accounts for nearly every padded loss and not for
+all of it: of full context's sixteen failures,
+{{pin:stops.full_context.padded.not_stopped_and_failed}} had no stopped call, and of
+single shot's twenty, {{pin:stops.single_shot.padded.not_stopped_and_failed}} did not.
+The stop is not evidence of an input-context limit, and the report makes no claim that
+the model could not read the padded request. A one-call reader with a larger output
+allowance, or a batched finalization, would face a different comparison. The
+investigator's level invariance, the same count and the same six misses at both
+levels, is one world's finding; a world padded past this level's request size would
+test it again.
+
+The two kinds of system were not tuned alike. The investigator's prompts went through
+fifteen rounds of development runs on the first development world, each revised against
+named failures; the one-call readers' extraction instruction was settled in four
+calibration rounds, with one alternative probed. A reader who suspects the one-call readers could be prompted past
+their stop is entitled to; this evaluation did not try.
 
 ## The registered ranges are envelopes, not bounds
 
@@ -93,12 +113,10 @@ development evidence only.
 
 ## Recorded gaps
 
-The harness records input and output tokens for every call; this report's cost table
-presents input tokens and calls, and no output-token total is aggregated here. The
-model spend is the harness's own pricing from the provider's published rates and has
-not been reconciled against the provider's bill for the two days of the runs. No single
-figure exists for the milestone's total model spend including development. Run times
-are recorded per cell in the evaluation artifact and not reported here. The harness publishes its
-own inventory of attempts, and the evaluator checks its listing against that inventory.
-This check finds implementation mistakes. It does not prove that every admission was
-logged or that nothing was spent outside the ledger.
+The model spend is the harness's own pricing from the provider's published rates and
+has not been reconciled against the provider's bill for the two days of the runs. No
+single figure exists for the milestone's total model spend including development. Run
+times are recorded per cell in the evaluation artifact and not reported here. The
+harness publishes its own inventory of attempts, and the evaluator checks its listing
+against that inventory. This check finds implementation mistakes. It does not prove
+that every admission was logged or that nothing was spent outside the ledger.

@@ -104,6 +104,61 @@ _SINGLE_PADDED = _phase_c_row(
     "single shot, padded", "$1.6735", "$0.0558", "1", "12,162 to 12,809", "25 of 30"
 )
 _STOPPED = "the last column of the phase-c cost table: calls that ended at the output maximum"
+
+def _stops_row(label: str, *cells: str) -> str:
+    return "| " + " | ".join((label, *cells)) + " |"
+
+
+_STOPS: dict[str, str] = {
+    "agent.base": _stops_row(
+        "agent, base", "48,680", "698 to 3,433", "0", "6", "0", "0", "6", "24"
+    ),
+    "agent.padded": _stops_row(
+        "agent, padded", "47,806", "698 to 2,956", "0", "6", "0", "0", "6", "24"
+    ),
+    "full_context.base": _stops_row(
+        "full context, base", "84,976", "2,704 to 2,838", "0", "0", "0", "0", "0", "30"
+    ),
+    "full_context.padded": _stops_row(
+        "full context, padded", "211,989", "1,541 to 8,192", "24", "16", "15", "9", "1", "5"
+    ),
+    "single_shot.base": _stops_row(
+        "single shot, base", "38,479", "780 to 1,691", "0", "8", "0", "0", "8", "22"
+    ),
+    "single_shot.padded": _stops_row(
+        "single shot, padded", "230,254", "657 to 8,192", "25", "20", "16", "9", "4", "1"
+    ),
+}
+_STOPS_TABLE = "the phase-c stopped-against-failed table, read on 2026-10-20"
+
+
+def _stops_pins() -> tuple[RecordAnchor, ...]:
+    """Output tokens per cell and the stopped-against-failed cells, from the addendum."""
+    pins: list[RecordAnchor] = []
+    for place, row in _STOPS.items():
+        cells = [c.strip() for c in row.strip("|").split("|")]
+        total, per_run, _, _, stopped_failed, stopped_passed, went_failed, _ = cells[1:]
+        pins.append(_findings(f"output_tokens.{place}", "phase-c", row, total, _STOPS_TABLE))
+        pins.append(
+            _findings(f"output_tokens.{place}.per_run", "phase-c", row, per_run, _STOPS_TABLE)
+        )
+        pins.append(
+            _findings(
+                f"stops.{place}.stopped_and_failed", "phase-c", row, stopped_failed, _STOPS_TABLE
+            )
+        )
+        pins.append(
+            _findings(
+                f"stops.{place}.stopped_and_passed", "phase-c", row, stopped_passed, _STOPS_TABLE
+            )
+        )
+        pins.append(
+            _findings(
+                f"stops.{place}.not_stopped_and_failed", "phase-c", row, went_failed, _STOPS_TABLE
+            )
+        )
+    return tuple(pins)
+
 _TOKENS = "the phase-c cost table's input-token column: the lowest and highest run"
 _CALLS = "the phase-c cost table's calls column: the fewest and most calls a run made"
 _AUDIT_HEADING = (
@@ -215,6 +270,7 @@ RECORD_ANCHORS: tuple[RecordAnchor, ...] = (
         "seventeen",
         "the golden audit's outcome box, the same line",
     ),
+    *_stops_pins(),
 )
 """The record passages the report reads, each checked against its file at every build."""
 

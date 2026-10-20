@@ -89,6 +89,7 @@ stop at the output maximum; its query returned
 {{pin:mechanism.single_shot.padded.returned}} of the needed facts and the model stated
 none of them, so its contribution at this level is exactly nothing and the rules'
 report stands alone. The investigator's counts do not move. The model's contribution,
-then, has three parts: ten scenarios of trap-finding that any reading buys, a few
+then, has three parts: ten scenarios of trap-finding that any reading which finishes
+its call buys, a few
 scenarios of scattered prose that depend on how the reading is done, and a dependence
 on the call finishing, which chapter 4 measures.

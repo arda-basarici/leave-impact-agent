@@ -12,11 +12,11 @@ With no filler in the corpus, full context is correct whole on
 investigator is correct whole on {{pin:whole.agent.base}}. The paired difference,
 investigator less full context, is {{pin:descriptive.agent.full_context.base}}: the
 single call passes six scenarios that the loop fails, and the loop passes none that the
-single call fails ({{pin:descriptive.agent.full_context.base.two_by_two}}). This is a
-descriptive comparison, not the registered one, and it is stated first because it is the
-half of the result a reader could otherwise miss. When the whole corpus fits one request
-with room to answer, a model shown all of it and asked once is the best reader in this
-evaluation.
+single call fails (both, loop alone, single call alone, neither:
+{{pin:descriptive.agent.full_context.base.two_by_two}}). This is a descriptive
+comparison, not the registered one, and it is stated first because it is the half of
+the result a reader could otherwise miss. When the whole corpus fits one request with
+room to answer, a model shown all of it and asked once is the best reader at this level.
 
 ## Why the corpus was padded
 
@@ -44,7 +44,8 @@ candidates, so the rule chose the smallest, a full-context request of about
 filler documents, registered as {{pin:level.padded.full_context_input_tokens}} input
 tokens against the base level's {{pin:level.base.full_context_input_tokens}}. The padded
 level was chosen so that the single-call baseline would fail on a development world,
-before the measurement world existed.
+before the measurement world existed, and the calibration that chose it had six
+scenarios.
 
 ## At the padded level, the single call stops
 
@@ -53,19 +54,29 @@ of {{pin:scenarios.per_arm}}. Its level contrast, padded less base, is
 {{pin:level_contrast.full_context}}, and the loss is entirely on the two prose tiers.
 The exports record the mechanism directly: {{pin:stopped.full_context.padded}} of its
 calls ended at the registered output maximum of
-{{pin:roles.full_context.reader.max_tokens}} tokens with the fact batch cut off. What
-the call is asked to write explains why. The one-call reader is instructed to state
-every fact of four kinds that the supplied text asserts, each with its exact quote, in
-one call, so what it produces is an inventory of facts for the rules, not the coverage
-report, and padding grows the text that inventory is drawn from. Exhaustive extraction
-over more text is an output-volume problem under a fixed single-call allowance. A call
-that stops inside a tool use returns its arguments as an empty object, so none of the
-facts the model had begun to state survive. Single shot shows the same pattern:
-{{pin:whole.single_shot.base}} at base and {{pin:whole.single_shot.padded}} at padded,
-with {{pin:stopped.single_shot.padded}} of its padded calls stopping at the same wall;
-its level contrast is {{pin:level_contrast.single_shot}}. How many of the lost scenarios
-the stopped calls account for is not recorded; the counts are stated side by side and
-not as one causing the other.
+{{pin:roles.full_context.reader.max_tokens}} tokens with the fact batch cut off. That
+maximum is the output setting the systems were developed under, carried into the
+registration unchanged; it bounds what a call may write, not what it may read. What the
+call is asked to write explains why it matters. The one-call reader is instructed to
+state every fact of four kinds that the supplied text asserts, each with its exact
+quote, in one call, so what it produces is an inventory of facts for the rules, not the
+coverage report, and padding grows the text that inventory is drawn from. Exhaustive
+extraction over more text is an output-volume problem under a fixed single-call
+allowance. A call that stops inside a tool use returns its arguments as an empty object,
+so none of the facts the model had begun to state survive. Single shot shows the same
+pattern: {{pin:whole.single_shot.base}} at base and {{pin:whole.single_shot.padded}} at
+padded, with {{pin:stopped.single_shot.padded}} of its padded calls stopping at the same
+wall; its level contrast is {{pin:level_contrast.single_shot}}.
+
+The stopped calls and the failed scenarios overlap but are not the same set. Of full
+context's sixteen padded failures, {{pin:stops.full_context.padded.stopped_and_failed}}
+had a stopped call and {{pin:stops.full_context.padded.not_stopped_and_failed}} did
+not; {{pin:stops.full_context.padded.stopped_and_passed}} stopped calls belonged to
+scenarios that passed anyway. Of single shot's twenty failures,
+{{pin:stops.single_shot.padded.stopped_and_failed}} had a stopped call and
+{{pin:stops.single_shot.padded.not_stopped_and_failed}} did not. So the stop accounts
+for nearly every loss and not for all of it, and a stop is not a loss where the
+scenario needed nothing the call was cut off from.
 
 The obvious objection was tested before the runs. A task-relevant instruction, asking
 only for facts about the person on leave, was probed against the exhaustive one on the

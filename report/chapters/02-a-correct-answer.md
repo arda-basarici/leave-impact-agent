@@ -98,6 +98,9 @@ A single system's pass count carries a Wilson interval at
 of thirty trials. A difference between two systems is paired on scenario: each scenario
 contributes whether the first system passed it and whether the second did, and the
 difference is resampled {{pin:statistics.resamples}} times over whole scenarios within
-tiers, giving a percentile interval at the same confidence. Every scenario ran once, so
+tiers, giving a percentile interval at the same confidence. Beside each paired
+difference the report prints its two-by-two table as four counts in a fixed order: the
+scenarios both systems passed, the first alone passed, the second alone passed, and
+neither passed. Every scenario ran once, so
 no term for run-to-run variation enters either interval; they describe variation across
 scenarios of this generator in one organization and nothing else.
