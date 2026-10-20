@@ -177,7 +177,7 @@ def _table(
     cells = [[Paragraph(inline_markup(cell, pins), _HEADER_CELL) for cell in header]]
     cells.extend([Paragraph(inline_markup(cell, pins), _CELL) for cell in row] for row in rows)
     columns = len(header)
-    first = _TEXT_WIDTH * (0.3 if columns > 2 else 0.5)
+    first = _TEXT_WIDTH * (0.3 if columns > 2 else 0.4)
     rest = (_TEXT_WIDTH - first) / max(columns - 1, 1)
     table = Table(cells, hAlign="LEFT", colWidths=[first, *([rest] * (columns - 1))])
     table.setStyle(

@@ -278,8 +278,8 @@ def draw_cost_quality(results: PublicResults, out: Path) -> None:
     # Two pairs of marks sit on top of each other (the investigator's levels, rules
     # only's), so their labels are placed above and below by hand.
     offsets = {
-        ("agent", "base"): (8, -11),
-        ("agent", "padded"): (8, 6),
+        ("agent", "base"): (22, -22),
+        ("agent", "padded"): (22, 16),
         ("rules_only", "base"): (8, 6),
         ("rules_only", "padded"): (8, -11),
     }
@@ -297,6 +297,7 @@ def draw_cost_quality(results: PublicResults, out: Path) -> None:
                 markerfacecolor=colour if level == "base" else "white",
                 markeredgewidth=1.6,
             )
+            leader = {"arrowstyle": "-", "color": MUTED, "linewidth": 0.6}
             ax.annotate(
                 f"{label}, {level}",
                 (per_run, passed),
@@ -304,11 +305,12 @@ def draw_cost_quality(results: PublicResults, out: Path) -> None:
                 textcoords="offset points",
                 fontsize=7.5,
                 color=INK,
+                arrowprops=leader if system == "agent" else None,
             )
     ax.set_xlim(-0.004, 0.1)
     ax.set_ylim(0, 32)
     ax.set_yticks([0, 10, 20, 30])
-    ax.set_xlabel("cost per run, dollars")
+    ax.set_xlabel("mean model cost per run (USD)")
     ax.set_ylabel("scenarios correct whole, of 30")
     ax.yaxis.grid(True, color=GRID, linewidth=0.6)
     ax.set_axisbelow(True)

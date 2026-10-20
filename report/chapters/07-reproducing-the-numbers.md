@@ -15,10 +15,21 @@ the prose about the instrument and the calibration, such as the probe's counts a
 forty seeds of the runtime-truth comparison, are quoted from the cited records, and a
 number derived by hand says so where it appears.
 
-The repository holds the generator, the validator, the evaluator, the four systems, the
-registration with its protocol, the findings, and the report's chapters, pins and figure
-scripts. The committed results file is validated by the test suite on every change, and
-the headline figures this report cites are asserted there against the values the
-findings record. The measurement world's contents stay embargoed. The golden world's
-seed and recipe are open and its audit findings are published; its scenario keys and its
-audit record are released with the project's demo, not before.
+| Handle | Value |
+|---|---|
+| Repository | github.com/arda-basarici/leave-impact-agent |
+| Committed results file | `src/leaveimpact/results/m2-reported.json` |
+| Evaluation artifact, SHA-256 | {{pin:provenance.artifact_digest}} |
+| Measurement world, version | {{pin:provenance.world_version}} |
+| Registration, digest | {{pin:provenance.registration_digest}} |
+| Registration, bound at commit | {{pin:provenance.registration_commit}} |
+| Evaluator, commit | {{pin:provenance.evaluator_commit}} |
+| Registration and protocol | `preregistration/registration.json`, `preregistration/PROTOCOL.md` |
+| Findings | `probes/FINDINGS.md`, section `phase-c` |
+| This report's chapters, pins and figures | `report/chapters/`, `report/pins.py`, `report/figures/` |
+
+The committed results file is validated by the test suite on every change, and the
+headline figures this report cites are asserted there against the values the findings
+record. The measurement world's contents stay embargoed. The golden world's seed and
+recipe are open and its audit findings are published; its scenario keys and its audit
+record are released with the project's demo, not before.

@@ -93,7 +93,8 @@ development evidence only.
 
 ## Recorded gaps
 
-The harness records input tokens and calls per run, but no output-token totals. The
+The harness records input and output tokens for every call; this report's cost table
+presents input tokens and calls, and no output-token total is aggregated here. The
 model spend is the harness's own pricing from the provider's published rates and has
 not been reconciled against the provider's bill for the two days of the runs. No single
 figure exists for the milestone's total model spend including development. Run times

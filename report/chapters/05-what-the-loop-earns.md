@@ -62,8 +62,9 @@ answer, there is no case for the loop in this evaluation, on quality or on cost.
 
 At the padded level the single call shown everything is both more expensive and less
 accurate than the investigator. It now costs {{pin:cost.full_context.padded.per_run_usd}}
-a run, more than the investigator's {{pin:cost.agent.padded.per_run_usd}}, because it
-pays for every filler document on every call. It is also correct on
+a run, more than the investigator's {{pin:cost.agent.padded.per_run_usd}}; the report
+does not decompose that rise between the level's input and the call's output. It is
+also correct on
 {{pin:whole.full_context.padded}} scenarios to the investigator's
 {{pin:whole.agent.padded}}. The investigator's cost barely moved between levels; it
 reads what its searches return and the filler is answer-neutral, though how many filler

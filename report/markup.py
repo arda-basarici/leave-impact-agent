@@ -4,7 +4,8 @@ blocks, and the inline forms a block's text may carry.
 Chapters are committed Markdown so that a fact-checker, a proofreader and an external
 reader meet prose rather than paragraph strings in Python. The subset is deliberate and
 closed: a heading of up to three levels, a paragraph, a figure directive, a pipe table,
-and inside text the two emphases and a pin reference. Anything else refuses the chapter
+and inside text the two emphases, a code span for an identifier or a path, and a pin
+reference. Anything else refuses the chapter
 by line, so a construct joins the subset by a decision here and never through a
 renderer's tolerance. Parsing is pure; what a block becomes on a page is ``generate``'s.
 
@@ -75,6 +76,7 @@ _FIGURE = re.compile(r"^!\[(.*)\]\(([^()\s]+)\)$")
 _TABLE_RULE = re.compile(r"^\|(?:\s*:?-+:?\s*\|)+$")
 _BOLD = re.compile(r"\*\*(.+?)\*\*")
 _ITALIC = re.compile(r"\*(.+?)\*")
+_CODE = re.compile(r"`([^`]+)`")
 _NUMBER = re.compile(r"\d[\d,.]*\d|\d")
 _OUTSIDE = (
     ("- ", "a bulleted list"),
@@ -166,9 +168,10 @@ def _cells(line: str) -> tuple[str, ...]:
 def inline_markup(text: str, pins: Mapping[str, str]) -> str:
     """The page markup for ``text``: every pin reference replaced by its rendered text
     from ``pins`` (name to text), the characters the page markup reserves escaped, and
-    ``**strong**`` and ``*emphasis*`` turned into their tags. Refuses an unknown pin by
-    name and an asterisk left over after both emphases, since a stray asterisk beside a
-    figure is a wrong figure's neighbour.
+    ``**strong**`` and ``*emphasis*`` turned into their tags, a backticked span set in
+    the monospace face. Refuses an unknown pin by name, and an asterisk or a backtick
+    left over after the substitutions, since a stray mark beside a figure is a wrong
+    figure's neighbour.
 
     >>> inline_markup("The loop passed {{pin:n}} of **30** & *more*", {"n": "24"})
     'The loop passed 24 of <b>30</b> &amp; <i>more</i>'
@@ -183,7 +186,8 @@ def inline_markup(text: str, pins: Mapping[str, str]) -> str:
     resolved = PIN_REFERENCE.sub(pin, text)
     escaped = resolved.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     marked = _ITALIC.sub(r"<i>\1</i>", _BOLD.sub(r"<b>\1</b>", escaped))
-    if "*" in marked:
+    marked = _CODE.sub(r'<font face="Courier">\1</font>', marked)
+    if "*" in marked or "`" in marked:
         raise ValueError(f"unbalanced emphasis in {text!r}")
     return marked
 

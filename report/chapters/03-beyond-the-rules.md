@@ -12,9 +12,27 @@ that states facts from what came back. *Full context* puts every document of the
 level into one call. The *investigator* runs a tool loop: the model reads in turns
 through role-scoped tools over the same records and a full-text search over document
 sections, then is asked once, at the end, to state the facts it read with the words
-they came from. The investigator's event log is the authority for recovery and export.
-Before any reported run, it was put through a crash matrix that killed the worker at
-every boundary two reference runs cross.
+they came from.
+
+## The investigator as built
+
+The investigator is a Python service running the loop on LangGraph, with Claude Haiku
+4.5 reached through Amazon Bedrock and its state in PostgreSQL. Four decisions in its
+construction are worth a hiring reader's attention, each tied to the failure it
+prevents. The event log is the authority: recovery replays the log, the audit reads it,
+and the run's export is built from it, so a crashed worker resumes from what was
+recorded rather than from a framework checkpoint that might disagree with it. A claim
+on a run fences a generation, and a dispatch authorized before the fence and sent after
+it is cancelled, so a worker that lost its claim cannot append to a run another worker
+now owns. Every model call is authorized against the budget before it is sent, carrying
+the input bound it was authorized on and the role's output maximum, and an attempt that
+closes without an export lists its known consumption and its retained liability as two
+numbers, since an absent export is not zero cost. The evaluator runs under its own
+identity, reads exports and never re-reads a vendor, so grading cannot touch the systems
+it grades. Before any reported run, the worker was killed at every boundary two
+reference runs cross, {{pin:crash_matrix.rows}} rows in all, recovering as forecast
+once two forecasts had been corrected, and the integration level of the test suite runs
+the real log against a PostgreSQL service.
 
 ## The rules alone
 

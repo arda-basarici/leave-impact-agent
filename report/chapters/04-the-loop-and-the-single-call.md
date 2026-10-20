@@ -23,16 +23,17 @@ evaluation.
 That base-level result was foreseen, and it is the reason the benchmark has a padded
 level. Before the harness, or any model-reading system, was built, a probe on a
 throwaway world put the whole corpus, about ten thousand tokens, in front of one call to
-the development model. The call scored at the ceiling, so a comparison between a loop
-and that call would have had nothing to separate, and the same held for comparisons
-between models or between retrieval methods. Padding the same world to about a hundred
-thousand tokens brought the same call down to stating two thirds of the planted facts
-with inventions among them. Those are preliminary numbers from one world and one model,
-recorded as a direction and not a result. The direction was that a comparison needed a
-corpus much larger than the unpadded one to have anything to separate; where a loop
-earns its place was not tested.
+the development model. The call scored at the ceiling. On a corpus that small a loop
+could at best tie the single call, and two retrieval methods would both find everything,
+so the comparisons the project wanted had little room. Padding the same world to about
+a hundred thousand tokens brought the same call down to stating two thirds of the
+planted facts with inventions among them. Those are preliminary numbers from one world
+and one model, recorded as a direction and not a result. The direction was that a
+second, larger workload was needed beside the small one; where a loop earns its place
+was not tested.
 
-So the measurement world carries the filler pool described in chapter 1. The padded
+So the measurement world carries the filler pool described in chapter 1, and the base
+level keeps the small regime while the padded level adds a larger one. The padded
 level's size was chosen by a rule written before the calibration runs: the smallest of
 three candidate paddings at which full context is not correct whole on at least one
 calibration scenario of a development world, never enlarged afterwards. The rule as
@@ -52,15 +53,26 @@ of {{pin:scenarios.per_arm}}. Its level contrast, padded less base, is
 {{pin:level_contrast.full_context}}, and the loss is entirely on the two prose tiers.
 The exports record the mechanism directly: {{pin:stopped.full_context.padded}} of its
 calls ended at the registered output maximum of
-{{pin:roles.full_context.reader.max_tokens}} tokens with the fact batch cut off. A call
+{{pin:roles.full_context.reader.max_tokens}} tokens with the fact batch cut off. What
+the call is asked to write explains why. The one-call reader is instructed to state
+every fact of four kinds that the supplied text asserts, each with its exact quote, in
+one call, so what it produces is an inventory of facts for the rules, not the coverage
+report, and padding grows the text that inventory is drawn from. Exhaustive extraction
+over more text is an output-volume problem under a fixed single-call allowance. A call
 that stops inside a tool use returns its arguments as an empty object, so none of the
-facts the model had begun to state survive. Every carrier was in its request, and the
-call ended before it finished stating them. Single shot shows the same pattern:
+facts the model had begun to state survive. Single shot shows the same pattern:
 {{pin:whole.single_shot.base}} at base and {{pin:whole.single_shot.padded}} at padded,
 with {{pin:stopped.single_shot.padded}} of its padded calls stopping at the same wall;
 its level contrast is {{pin:level_contrast.single_shot}}. How many of the lost scenarios
 the stopped calls account for is not recorded; the counts are stated side by side and
 not as one causing the other.
+
+The obvious objection was tested before the runs. A task-relevant instruction, asking
+only for facts about the person on leave, was probed against the exhaustive one on the
+calibration world: it ended the stops and restored little of what was missed, trading
+saturation for under-statement, so the registration kept the exhaustive instruction for
+both one-call readers. That probe is development evidence and sits outside the reported
+comparison.
 
 ![Scenarios correct whole out of thirty for each system at each corpus level, with Wilson intervals at {{pin:statistics.confidence_percent}} percent. Filled marks are the base level, hollow marks the padded level.](headline.png)
 
@@ -69,18 +81,19 @@ at the base. Its level contrast is zero in every resample
 ({{pin:level_contrast.agent.two_by_two}} paired), and the same six scenarios fail at
 both levels. The registered primary comparison, the investigator against full context
 at the padded level, is {{pin:whole.agent.padded}} against
-{{pin:whole.full_context.padded}} with a paired difference of
-{{pin:difference.agent.full_context.padded}} at {{pin:statistics.confidence_percent}}
-percent: both pass fourteen scenarios, the investigator alone passes ten, full context
-alone passes none, neither passes six
+{{pin:whole.full_context.padded}}: an observed difference of
+{{pin:difference.agent.full_context.padded.points}} percentage points of scenarios, with
+a paired interval of {{pin:difference.agent.full_context.padded.points_interval}} points
+at {{pin:statistics.confidence_percent}} percent. Both pass fourteen scenarios, the
+investigator alone passes ten, full context alone passes none, neither passes six
 ({{pin:difference.agent.full_context.padded.two_by_two}}). The interval excludes zero.
 Against single shot at the padded level the investigator's difference is
 {{pin:difference.agent.single_shot.padded}}.
 
 The preceding paragraphs make three kinds of statement, and the report keeps them
 apart. The counts and the interval are what was observed. The stopped calls are
-recorded evidence of a mechanism: the one-call readers' single answer did not fit the
-output budget the registration gave them. The experiment cannot establish anything
+recorded evidence of a mechanism: the one-call readers' fact inventories did not fit
+the output budget the registration gave them. The experiment cannot establish anything
 about input. It does not show that the model could not read a
 {{pin:calibration.padded_level_tokens}}-token request, and the freeze ruled, before any
 run, that output saturation is reported as such and never as evidence of an input
@@ -91,7 +104,7 @@ batches, would face a different comparison, and this report makes no claim about
 
 The six scenarios the investigator misses are the most informative result in the
 evaluation. All six are fragmented-tier scenarios, and the mechanism measure says where
-in the pipeline they are lost. It follows the
+in the pipeline the facts they need are lost. It follows the
 {{pin:mechanism.agent.padded.denominator}} prose facts that the required rows of
 twenty scenarios depend on through four recorded stages,
 {{pin:mechanism.stage_names}}: whether the document carrying the fact (its *carrier*)
@@ -102,11 +115,13 @@ admitted it, and whether it was usable by the rules.
 
 For the investigator at the padded level the stages read
 {{pin:mechanism.agent.padded.stages}}. Every needed carrier was returned, so retrieval
-is complete. By subtraction, five of the six lost facts were returned and not emitted,
-and one was emitted and admitted but not usable by the rules. The loss sits at the
-moment the model is asked to state what it read, and that is the first thing the next
-design pass has to look at: a finalization problem, not a retrieval one. For full
-context at the padded level the same stages read
+is complete and the losses occur after it. By subtraction, five facts were returned and
+not emitted, and one was emitted and admitted but not usable by the rules. Six missing
+usable facts and six failed scenarios are different units, and equal totals do not
+establish a one-to-one match; what the funnel supports is that the five omissions sit
+at the moment the model is asked to state what it read, a finalization question, and
+that the one usability loss needs its own explanation. That is the first thing the next
+design pass has to look at. For full context at the padded level the same stages read
 {{pin:mechanism.full_context.padded.stages}}: every carrier was in the request, and
 almost nothing was stated, which is the stopped call of the previous section seen fact
 by fact.

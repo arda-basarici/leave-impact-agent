@@ -26,8 +26,10 @@ one can cover.
 Each scenario belongs to a class, and a class states what it needs as a query over the
 organization. A seeded choice picks one admissible construction, plants the entities
 and writes the expected answer. The shared rules that every system later uses to compose
-its report are then run over the planted truth as an independent check: if the rules and
-the construction disagree, that is a named construction error, never a retry. The same
+its report are then run over the planted truth as a consistency check: if the rules and
+the construction disagree, that is a named construction error, never a retry. The check
+shares its rules with every system, so a defect the rules themselves carry would pass
+it; the audits described below are the check on the rules. The same
 rules are asked again under each single-source outage, which is how the key records
 which sources a scenario's answer depends on. Not every seed yields a world; a refusal
 is recorded and reported, never repaired.
@@ -70,16 +72,18 @@ application still cannot reach the key.
 Two worlds matter here. The *golden world* is open in its seed and recipe, and it
 carried the benchmark's audit. Every one of its {{pin:golden.audit.acceptance_scenarios}}
 scenarios passed a human acceptance pass, {{pin:golden.audit.deep_traces}} received a deep
-trace from the planted records to the key's outcome, a four-seat panel read the audit
-blind, and the audit record was sealed under its content address. The audit's findings
+trace from the planted records to the key's outcome, a panel of four model reviewers
+read the audit blind with every disagreement adjudicated by hand, and the audit record
+was sealed under its content address. The audit's findings
 are public; its record holds answer keys and stays with the truth. The *measurement
 world* is the one the numbers in this report come from. Its seed was drawn from thirty-two
 bytes of entropy after the registration was frozen, so no system was tuned against it.
 It was validated under validator version 2, {{pin:audit.measurement.traces}} of its
 scenarios were traced by the same audit method with a blind model reader, and
 {{pin:audit.measurement.filler_reads}} of its filler documents were read to confirm they
-name nothing of the world. Its identity is embargoed until the project's last
-measurement on it, which is why this report cites its results and not its contents.
+name nothing of the world. Its version is public; its contents, its seed and the digests
+that would identify them are withheld until the project's last measurement on it, which
+is why this report cites its results and not its contents.
 
 The measurement world also carries something the golden world does not: a pool of filler
 documents, requirement-style texts about fictional releases and clients that no scenario

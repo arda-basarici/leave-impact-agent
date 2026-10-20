@@ -159,6 +159,14 @@ RECORD_ANCHORS: tuple[RecordAnchor, ...] = (
         "36 of 32,960",
         "pairs the evaluator derives on which the dated and runtime views differ, forty worlds",
     ),
+    _findings(
+        "crash_matrix.rows",
+        "crash-matrix",
+        "## crash-matrix — the real worker and the job seam's commands killed at every boundary "
+        "their reference runs cross, 469 rows recovering as forecast",
+        "469",
+        "the crash matrix's rows, the entry's heading",
+    ),
     _findings("golden.people", "golden-world", _GOLDEN_LINE, "28", "the golden world's head count"),
     _findings("golden.teams", "golden-world", _GOLDEN_LINE, "5", "the golden world's team count"),
     _findings(
@@ -271,6 +279,8 @@ def _results_pins(results: PublicResults) -> Iterator[Pin]:
     yield Pin("runs.total", str(total_runs), "results", "the sum of every arm's run count")
     total_note = f"every arm's cost summed, {total_pico} pico-dollars"
     yield Pin("cost.total_usd", _usd(total_pico), "results", total_note)
+    cents = (Decimal(total_pico) / PICO_PER_USD).quantize(Decimal("0.01"))
+    yield Pin("cost.total_usd.rounded", f"${cents}", "results", "the same total to cents")
     for level in ("base", "padded"):
         agent, full = per_run_pico.get(("agent", level)), per_run_pico.get(("full_context", level))
         if agent and full:
@@ -282,6 +292,17 @@ def _results_pins(results: PublicResults) -> Iterator[Pin]:
                 f"the investigator's per-run cost divided by full context's at {level}, "
                 f"{agent:.0f} over {full:.0f} pico-dollars, to one decimal",
             )
+    provenance = results.provenance
+    for field in (
+        "artifact_digest",
+        "world_version",
+        "registration_digest",
+        "registration_commit",
+        "evaluator_commit",
+    ):
+        value = getattr(provenance, field)
+        if isinstance(value, str):
+            yield Pin(f"provenance.{field}", value, "results", f"provenance.{field}")
     for comparison in (results.primary, *results.secondary):
         first, second = comparison.registered.systems
         level = comparison.registered.level
@@ -358,6 +379,22 @@ def _contrast_pins(name: str, contrast: CheckComparison | None) -> Iterator[Pin]
     if contrast.interval is not None:
         note = f"{contrast.first_arm} less {contrast.second_arm}, paired on scenario"
         yield Pin(name, _interval(contrast.interval), "results", note)
+        if contrast.first is not None and contrast.second is not None:
+            points = round((contrast.first - contrast.second) * 100)
+            yield Pin(
+                f"{name}.points",
+                str(points),
+                "results",
+                f"the first arm's pass fraction less the second's, times 100, rounded: "
+                f"{contrast.first:.4f} less {contrast.second:.4f}",
+            )
+            low, high = contrast.interval.low * 100, contrast.interval.high * 100
+            yield Pin(
+                f"{name}.points_interval",
+                f"{low:.0f} to {high:.0f}",
+                "results",
+                "the same interval, times 100, rounded",
+            )
     if contrast.two_by_two is not None:
         cells = ", ".join(str(n) for n in contrast.two_by_two)
         note = "both passed, the first only, the second only, neither"

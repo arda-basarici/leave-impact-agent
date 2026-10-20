@@ -1,20 +1,29 @@
 # What a correct answer contains
 
 A system's answer is a report: a set of typed claims about one leave, in a vocabulary
-frozen at the world milestone and shared with the answer key. Six claim types cover it.
-An *impact* is something the leave affects, a deadline, a meeting or a standing
-responsibility. A *constraint* is what a valid response must obey, and it is keyed by
-the policy clause it comes from, so a constraint a system cannot trace to a clause
-cannot be expressed at all. A *candidate assessment* says whether a named person could
-cover a named impact, and why. A *coverage action* says what the plan does about an
-impact: assign someone, leave it uncovered, or admit it cannot tell. A *source conflict*
-records two records that disagree and which one the authority rule trusts. An *unknown*
-records a fact the answer needed and the systems did not hold. Every claim carries the
-evidence it was read from.
+frozen at the world milestone and shared with the answer key. An illustrative example
+first, with invented names. Dana is on leave for two weeks. The tracker shows a release
+ticket due in that window, so the report claims an *impact*. A policy clause says a
+release needs an engineer with iOS experience, so it claims a *constraint* keyed by that
+clause. The HR system lists nobody with that skill, but a ticket comment says "Priya has
+shipped two iOS releases", so a system that read the comment states that fact with those
+words, and the rules then assess Priya as viable and propose assigning her: a *candidate
+assessment* and a *coverage action*. A system that never read the comment assesses
+nobody as viable and must either leave the impact uncovered or admit an *unknown*. If
+the HR record and the comment disagreed about Priya, the report would carry a *source
+conflict* naming which the authority rule trusts.
 
-A claim's identity is computed from its fields rather than from an id, so a report and
-the key can be compared even when their writers assigned different ids. Grading compares
-the two sets of claims on that identity.
+Those are the six claim types. An impact is something the leave affects, a deadline, a
+meeting or a standing responsibility. A constraint is what a valid response must obey,
+keyed by the policy clause it comes from, so a constraint a system cannot trace to a
+clause cannot be expressed at all. A candidate assessment says whether a named person
+could cover a named impact, and why. A coverage action says what the plan does about an
+impact: assign someone, leave it uncovered, or admit it cannot tell. A source conflict
+records two records that disagree and which one the authority rule trusts. An unknown
+records a fact the answer needed and the systems did not hold. Every claim carries the
+evidence it was read from. A claim's identity is computed from its fields rather than
+from an id, so a report and the key can be compared even when their writers assigned
+different ids.
 
 ## Who writes the claims
 
@@ -67,9 +76,8 @@ on the day it runs, not the dated view the generator used while constructing the
 scenario. The two were compared on forty seeds before the choice was made. They agree on
 every outcome and on every must-assess pair under the normal condition, and they
 disagree on {{pin:runtime_truth.other_pairs_differ}} pairs the evaluator derives
-itself, which is why the key
-follows what a run can obtain rather than what the construction assumed. The key is
-sealed before any run and read by the evaluator alone.
+itself, which is why the key follows what a run can obtain rather than what the
+construction assumed. The key is sealed before any run and read by the evaluator alone.
 
 ## The terms were fixed before the world existed
 
@@ -82,3 +90,14 @@ retried, and a fixed rule over the run's own log, not an operator, chooses the c
 attempt. The evaluator reads the file at the freeze commit and refuses to run on a
 difference. The evaluation this report cites carries the label *reported*, which the
 evaluator derived from that bound registration.
+
+## How the intervals are computed
+
+A single system's pass count carries a Wilson interval at
+{{pin:statistics.confidence_percent}} percent, the textbook interval for a proportion
+of thirty trials. A difference between two systems is paired on scenario: each scenario
+contributes whether the first system passed it and whether the second did, and the
+difference is resampled {{pin:statistics.resamples}} times over whole scenarios within
+tiers, giving a percentile interval at the same confidence. Every scenario ran once, so
+no term for run-to-run variation enters either interval; they describe variation across
+scenarios of this generator in one organization and nothing else.

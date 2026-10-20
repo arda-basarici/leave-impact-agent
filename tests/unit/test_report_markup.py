@@ -65,6 +65,14 @@ def test_inline_markup_resolves_pins_escapes_and_marks_emphasis() -> None:
     assert marked == "<b>24</b> of <i>30</i> &amp; &lt;all&gt;"
 
 
+def test_a_code_span_is_set_in_the_monospace_face() -> None:
+    assert inline_markup("read `a/b.json` once", {}) == (
+        'read <font face="Courier">a/b.json</font> once'
+    )
+    with pytest.raises(ValueError, match="unbalanced emphasis"):
+        inline_markup("a ` stray", {})
+
+
 def test_an_unknown_pin_and_an_unbalanced_emphasis_refuse() -> None:
     with pytest.raises(ValueError, match="unknown pin 'nope'"):
         inline_markup("{{pin:nope}}", {})
