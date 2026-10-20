@@ -4183,6 +4183,35 @@ ships the committed registration and the composition root refuses one whose dige
 not the configuration's, which makes the configured digest a live check of what the
 service loads.
 
+As built at the report step (M3 step 5, 2026-10-21, the forks read externally before
+the build). The report view and the audit trail are pure
+functions from a closed attempt's export to plain view data, rendered by templates that
+format nothing themselves; the replay route branches on the admitted state, an open
+attempt keeping its progress header and a closed one folded by the log reader, a closed
+attempt the reader refuses being a logged defect answered as the unavailable page. One
+sentence of the entry ruling is amended on a fact it did not have in view: the export
+holds every record the run read whole, a document with its sections' text and a ticket
+with its comments, so a corpus section or a comment is rendered from the run's own
+recorded read by the id a claim cites, nothing is resolved from the cache at render time,
+and a citation no completed read of the run returned renders "evidence unavailable" with
+the page intact. A record the run's own reads returned two ways is withdrawn by the core's
+coverage rule, the same rule the harness concluded under and the evaluator replays over,
+with nothing credited and every returning position linked; a person is named exactly when
+an employee record with that id is among the reads. The page's one input beyond the
+export is the log's accept instant per position, labelled "recorded in the log at", since
+an export holds positions and the timeline shows the same clock. The grouping loses no
+claim: assessments and actions sit under the impact their key names, an orphan is listed
+as unlinked, a derivation is an anchor and never a nested render, and the core's structural
+check is shown as a defect banner; the acceptance asserts every claim appears exactly
+once on a well-formed set and a malformed one. A cap-exhausted run shows the registered
+caps beside its accounted consumption and names no stopping bound, since the log records
+that the approval was requested at the cap and not which resource. The trail keeps the
+observed model spend, the ledger's charge and the retained liability apart, a floor
+truncated and never rounded up, shows a refused input's raw entry whole in a collapsed
+block, and marks a model-supplied quotation inside the text it was read from by splitting
+on the plain quotation and escaping every piece, so neither the prose nor the quotation
+can carry markup through; an undefined name in a template is an error, never empty text.
+
 **The shell and the report view.** FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow
