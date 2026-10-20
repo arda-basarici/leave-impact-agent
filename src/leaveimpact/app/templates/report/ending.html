@@ -1,0 +1,15 @@
+<div class="ending" id="ending">
+<h2>{{ view.ending.headline }}</h2>
+{% for line in view.ending.details %}
+<p>{% if loop.first and view.ending.failure_anchor %}<a href="/replays/{{ view.header.public_id }}/trail#{{ view.ending.failure_anchor }}">{{ line }}</a>{% else %}{{ line }}{% endif %}</p>
+{% endfor %}
+{% if view.ending.caps %}
+<table class="caps">
+<tr><th>resource</th><th>consumed</th><th>cap</th></tr>
+{% for cap in view.ending.caps %}
+<tr><td>{{ cap.resource }}</td><td>{{ cap.consumed }}{% if cap.at_cap %} (at the cap){% endif %}</td><td>{{ cap.cap }}</td></tr>
+{% endfor %}
+</table>
+{% endif %}
+<p class="meta">{{ view.ending.reads_summary }}</p>
+</div>

@@ -130,6 +130,9 @@ class QuoteView:
     text: str
     predicate: str
     found: bool
+    excluded: str | None
+    """The composition's reason for leaving the admitted statement out of the view, when it
+    did (a carrier withdrawn, a structured field contradicting it); ``None`` when it stands."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -351,8 +354,17 @@ def _parts_of(record: Observed[Entity]) -> tuple[tuple[EntityRef, _Part], ...]:
     return ()
 
 
-def _admitted_quotes(export: RunExport) -> dict[EntityRef, tuple[StatedFact, ...]]:
-    """The statements the fact-admission rules admitted, by the carrier they were read from."""
+@dataclass(frozen=True, slots=True)
+class _Statements:
+    """The admitted statements by the carrier they were read from, and the composition's
+    exclusion reason for each it left out of the view."""
+
+    by_carrier: Mapping[EntityRef, tuple[StatedFact, ...]]
+    excluded: Mapping[StatedFact, str]
+
+
+def _admitted_statements(export: RunExport) -> _Statements:
+    """The statements the fact-admission rules admitted, by carrier, with the exclusions."""
     by_carrier: dict[EntityRef, list[StatedFact]] = {}
     for call in export.trace.model_calls:
         if call.answer is None:
@@ -363,7 +375,11 @@ def _admitted_quotes(export: RunExport) -> dict[EntityRef, tuple[StatedFact, ...
             for entry in batch.entries:
                 if isinstance(entry, Admitted):
                     by_carrier.setdefault(entry.fact.carrier, []).append(entry.fact)
-    return {carrier: tuple(facts) for carrier, facts in by_carrier.items()}
+    excluded = {
+        left_out.fact: left_out.reason.value.replace("_", " ")
+        for left_out in export.trace.composition.exclusions
+    }
+    return _Statements({carrier: tuple(facts) for carrier, facts in by_carrier.items()}, excluded)
 
 
 def _text(value: object) -> str:
@@ -392,7 +408,7 @@ def _fields_of(record: Observed[Entity]) -> tuple[tuple[str, str], ...]:
 def _evidence(
     cited: EvidenceRef,
     reads: _Reads,
-    quotes: Mapping[EntityRef, tuple[StatedFact, ...]],
+    statements: _Statements,
     instants: Instants,
 ) -> EvidenceItem:
     target = cited.target
@@ -418,8 +434,13 @@ def _evidence(
         text=text,
         held_by=reads.label(part.parent) if part is not None else None,
         quotes=tuple(
-            QuoteView(fact.quote, fact.predicate.value, text is not None and fact.quote in text)
-            for fact in quotes.get(target, ())
+            QuoteView(
+                fact.quote,
+                fact.predicate.value,
+                text is not None and fact.quote in text,
+                statements.excluded.get(fact),
+            )
+            for fact in statements.by_carrier.get(target, ())
         ),
         positions=positions,
         recorded_at=recorded_at,
@@ -569,7 +590,7 @@ def sentence_of(claim: Claim, reads: _Reads) -> str:
 def _block(
     claim: Claim,
     reads: _Reads,
-    quotes: Mapping[EntityRef, tuple[StatedFact, ...]],
+    statements: _Statements,
     instants: Instants,
     held: frozenset[ClaimId],
 ) -> ClaimBlock:
@@ -586,7 +607,9 @@ def _block(
         claim_id=claim.claim_id,
         kind=claim.claim_type,
         sentence=sentence_of(claim, reads),
-        evidence=tuple(_evidence(cited, reads, quotes, instants) for cited in claim.evidence_refs),
+        evidence=tuple(
+            _evidence(cited, reads, statements, instants) for cited in claim.evidence_refs
+        ),
         derived_from=tuple(
             DerivationLink(other, other in held) for other in claim.derived_from_claim_ids
         ),
@@ -669,7 +692,9 @@ def _failure_anchor(export: RunExport) -> str | None:
             assert_never(site)
 
 
-def _ending(export: RunExport, empty: bool) -> EndingView:
+def ending_view(export: RunExport, *, empty: bool) -> EndingView:
+    """How ``export``'s run ended, as both pages state it first; ``empty`` when the report
+    holds no impact claim."""
     record = export.record
     details: list[str] = []
     never_claimed = not record.timing.segments
@@ -724,7 +749,9 @@ def _ending(export: RunExport, empty: bool) -> EndingView:
     )
 
 
-def _leave(export: RunExport, reads: _Reads, instants: Instants) -> LeaveView | None:
+def _leave(
+    export: RunExport, reads: _Reads, statements: _Statements, instants: Instants
+) -> LeaveView | None:
     ref = leave_ref(export.context.leave_id)
     record = reads.first.get(ref)
     if record is None or ref in reads.withdrawn or not isinstance(record.value, Leave):
@@ -737,7 +764,24 @@ def _leave(export: RunExport, reads: _Reads, instants: Instants) -> LeaveView | 
         days=DateSpan(leave.start, leave.end).days,
         kind=leave.kind.value,
         status=leave.status.value,
-        evidence=_evidence(EvidenceRef(record.source, ref), reads, {}, instants),
+        evidence=_evidence(EvidenceRef(record.source, ref), reads, statements, instants),
+    )
+
+
+def header_view(replay: PublicReplay, export: RunExport) -> ReportHeader:
+    """The identity both pages open with: the public name, the context and the run's window."""
+    record = export.record
+    context = export.context
+    return ReportHeader(
+        public_id=replay.public_id,
+        title=replay.title,
+        scenario_id=context.scenario_id,
+        scenario_date=context.today,
+        timezone=context.reference_timezone,
+        system=f"{record.system.kind.value} ({record.system.variant})",
+        world_version=context.world_version,
+        admitted_at=record.timing.admitted_at,
+        terminal_at=record.timing.terminal_at,
     )
 
 
@@ -746,11 +790,11 @@ def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> 
     log instant from ``instants``; pure, and total over any export the type admits."""
     claims = export.trace.claims
     reads = _Reads(export.trace.operations)
-    quotes = _admitted_quotes(export)
+    statements = _admitted_statements(export)
     held = frozenset(claim.claim_id for claim in claims)
 
     def block(claim: Claim) -> ClaimBlock:
-        return _block(claim, reads, quotes, instants, held)
+        return _block(claim, reads, statements, instants, held)
 
     impacts = sorted((c for c in claims if isinstance(c, Impact)), key=lambda c: key_order(c.key))
     assessments = [c for c in claims if isinstance(c, CandidateAssessment)]
@@ -785,18 +829,8 @@ def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> 
     context = export.context
     unreachable = tuple(sorted(set(Source) - record.observed_condition.reachable))
     return ReportView(
-        header=ReportHeader(
-            public_id=replay.public_id,
-            title=replay.title,
-            scenario_id=context.scenario_id,
-            scenario_date=context.today,
-            timezone=context.reference_timezone,
-            system=f"{record.system.kind.value} ({record.system.variant})",
-            world_version=context.world_version,
-            admitted_at=record.timing.admitted_at,
-            terminal_at=record.timing.terminal_at,
-        ),
-        ending=_ending(export, empty=not impacts),
+        header=header_view(replay, export),
+        ending=ending_view(export, empty=not impacts),
         condition=ConditionView(
             unreachable,
             tuple(
@@ -806,7 +840,7 @@ def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> 
             ),
         ),
         leave_id=context.leave_id,
-        leave=_leave(export, reads, instants),
+        leave=_leave(export, reads, statements, instants),
         impacts=sections,
         constraints=constraints,
         unknowns=unknowns,
@@ -831,6 +865,8 @@ __all__ = [
     "QuoteView",
     "ReportHeader",
     "ReportView",
+    "ending_view",
+    "header_view",
     "report_view",
     "sentence_of",
     "value_text",

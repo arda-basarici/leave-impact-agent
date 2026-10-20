@@ -23,9 +23,13 @@ byte-identical for an unknown name, a name the predicate refuses and a name the 
 contradicts, so a forced row reveals nothing; a store that does not answer, a database
 without the app schema, and a served world the cache does not mark ready are the
 unavailable page, 503, answered after admission is resolved, so an unavailable cache never
-distinguishes a published name from an unknown one. The replay page is this step's header,
-the row's public data and the attempt's ending; the report view replaces its body at the
-next step.
+distinguishes a published name from an unknown one. The replay page branches on the
+admitted state: an open attempt (a live run investigating or awaiting its decision) is the
+progress header, and a closed one is the report, the export folded from the state by the
+log reader and rendered as the report view (``report``); a closed attempt the reader
+refuses to fold is a defect of the deployment, logged by name and answered as the
+unavailable page, never the not-found page, which would say the name does not exist. The
+trail page (``trail``) is the same path with the trail view built instead of the report's.
 
 Statement bounds, per request: the listing makes one app-store operation (the version check
 and one statement) and one cache read; the replay page one app-store operation, the log's
@@ -35,44 +39,56 @@ three-second connect and three-second statement bounds.
 Templates live beside this module and are packaged with it, read by package name like the
 committed configuration. Autoescape is on for them through Jinja2's extension selection,
 which the test holds by rendering the real page with a string carrying markup: the world's
-prose is model-written and the surface must render it as text.
+prose is model-written and the surface must render it as text. An undefined name in a
+template is an error, never empty text, so a template that names a view field wrongly
+fails its test instead of dropping a section from the page.
 """
 
 from __future__ import annotations
 
+import logging
 import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from enum import Enum
 from importlib.resources import files
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
+from jinja2 import StrictUndefined
 
 from leaveimpact.adapters.corpus import served_versions
+from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
-from leaveimpact.app.public import public_id_of
+from leaveimpact.app.markup import mark_quotes
+from leaveimpact.app.public import PublicReplay, public_id_of
 from leaveimpact.app.read_model import (
     LogSession,
     PublishableReads,
     admitted,
+    instants_of,
     listing,
     replay_view,
     rules_under,
 )
 from leaveimpact.app.ready import AppSchema, ReadyVersions, readiness
+from leaveimpact.app.report import Instants, report_view
 from leaveimpact.app.store import (
     AppStore,
     AppStoreInvariantBroken,
     AppStoreUnavailable,
     connect_bounded,
 )
+from leaveimpact.app.trail import trail_view
 from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.run_export import RunExport
+
+_log = logging.getLogger(__name__)
 
 CODE_VERSION = "LEAVEIMPACT_CODE_VERSION"
 DATABASE = "DATABASE_URL"
@@ -90,6 +106,10 @@ _UNAVAILABLE = (
     LogStoreInvariantBroken,
     SourceUnreachable,
 )
+
+
+Build = Callable[[PublicReplay, RunExport, Instants], object]
+"""A page's view built from the public header, the folded export and the log's instants."""
 
 
 class Surface(Enum):
@@ -113,6 +133,7 @@ ROUTES: tuple[RouteClass, ...] = (
     RouteClass("/ready", Surface.PUBLIC_GLOBAL),
     RouteClass("/replays", Surface.PUBLIC_GLOBAL),
     RouteClass("/replays/{public_id}", Surface.ATTEMPT_SCOPED),
+    RouteClass("/replays/{public_id}/trail", Surface.ATTEMPT_SCOPED),
 )
 """Every route the application registers, classified; the acceptance sweep compares this
 with the route table and walks each attempt-scoped path with a name the predicate refuses."""
@@ -131,11 +152,25 @@ class Services:
     rules: Rules
 
 
+def templating() -> Jinja2Templates:
+    """The template environment every page renders through: the packaged templates, the
+    quote-marking filter, and an undefined name refused rather than rendered as nothing, so
+    a mistyped attribute fails a test instead of hiding a section (the renderer lesson of the
+    report step)."""
+    templates = Jinja2Templates(directory=str(TEMPLATES))
+    templates.env.undefined = StrictUndefined
+    # Jinja types its filter table by its built-in filters' signatures; a filter of our own
+    # is registered through the table's untyped face.
+    filters = cast(dict[str, Any], templates.env.filters)
+    filters["mark_quotes"] = mark_quotes
+    return templates
+
+
 def create_app(services: Services) -> FastAPI:
     """The application over ``services``: the index, the readiness route, the listing of
     published replays and the replay page."""
     app = FastAPI(title="Leave Impact Agent", docs_url=None, redoc_url=None, openapi_url=None)
-    templates = Jinja2Templates(directory=str(TEMPLATES))
+    templates = templating()
     configuration = services.configuration
     common: dict[str, Any] = {
         "code_version": services.code_version,
@@ -174,7 +209,9 @@ def create_app(services: Services) -> FastAPI:
             return unavailable(request)
         return page(request, "replays.html", entries=entries)
 
-    def replay(request: Request, public_id: str) -> HTMLResponse:
+    def attempt_page(request: Request, public_id: str, template: str, build: Build) -> HTMLResponse:
+        """The two attempt-scoped pages share one path: the admission, the open-attempt
+        header, the fold, and ``build`` of the page's view from the export."""
         try:
             name = public_id_of(public_id)
         except ValueError:
@@ -184,23 +221,45 @@ def create_app(services: Services) -> FastAPI:
             admission = admitted(name, services.rows, session, configuration, services.rules)
             if admission is None:
                 return not_found(request)
-            view = replay_view(admission)
+            header = replay_view(admission)
             if not cache_serves():
                 return unavailable(request)
+            state = admission.state
+            if state.closed is None:
+                return page(request, "replay.html", replay=header)
+            try:
+                export = export_of(state)
+            except ValueError as error:
+                _log.warning(
+                    "publishable row %r names a closed attempt the reader cannot fold: %s",
+                    name,
+                    error,
+                )
+                return unavailable(request)
+            view = build(header, export, instants_of(state))
         except _UNAVAILABLE:
             return unavailable(request)
         finally:
             session.close()
-        return page(request, "replay.html", replay=view)
+        return page(request, template, replay=header, view=view)
+
+    def replay(request: Request, public_id: str) -> HTMLResponse:
+        return attempt_page(request, public_id, "report.html", report_view)
+
+    def trail(request: Request, public_id: str) -> HTMLResponse:
+        return attempt_page(request, public_id, "trail.html", trail_view)
 
     # Registered by call rather than by decorator so the handlers are plain closures over
     # the services, named and typed where they are read; the paths are ROUTES' strings so
     # the table and the registration cannot drift.
-    index_path, ready_path, replays_path, replay_path = (route.path for route in ROUTES)
+    index_path, ready_path, replays_path, replay_path, trail_path = (
+        route.path for route in ROUTES
+    )
     app.add_api_route(index_path, index, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(ready_path, ready, methods=["GET"])
     app.add_api_route(replays_path, replays, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(replay_path, replay, methods=["GET"], response_class=HTMLResponse)
+    app.add_api_route(trail_path, trail, methods=["GET"], response_class=HTMLResponse)
     return app
 
 

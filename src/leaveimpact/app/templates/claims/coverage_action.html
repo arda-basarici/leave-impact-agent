@@ -1,0 +1,8 @@
+<div class="claim" id="{{ block.claim_id }}">
+<p class="sentence">{{ block.sentence }}</p>
+{% if block.rationale %}
+<div class="rationale"><span class="label">model-generated rationale</span><p>{{ block.rationale }}</p></div>
+{% endif %}
+{% with items=block.evidence %}{% include "claims/_evidence.html" %}{% endwith %}
+{% include "claims/_derivations.html" %}
+</div>

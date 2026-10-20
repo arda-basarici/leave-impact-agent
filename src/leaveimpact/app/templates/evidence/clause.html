@@ -1,0 +1,5 @@
+<p class="meta">As read, inside {{ item.held_by }}:</p>
+<blockquote>{{ item.text | mark_quotes(item.quotes | map(attribute="text") | list) }}</blockquote>
+{% for quote in item.quotes %}
+<p class="meta">Model-supplied quotation ({{ quote.predicate }}){% if quote.found %}, marked above{% else %}, <em>not found in the text as read</em>: “{{ quote.text }}”{% endif %}{% if quote.excluded %}; excluded from the view: {{ quote.excluded }}{% endif %}.</p>
+{% endfor %}

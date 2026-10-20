@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Audit trail · {{ view.header.title or view.header.public_id }} · Leave Impact Agent{% endblock %}
+{% block content %}
+{% macro moment(at) %}position {{ at.position }}{% if at.recorded_at %}, recorded in the log at {{ at.recorded_at.isoformat() }}{% endif %}{% endmacro %}
+{% set header = view.header %}
+<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ header.public_id }}">The report</a></p>
+<h1>Audit trail: {{ header.title or header.public_id }}</h1>
+<dl>
+  <dt>Scenario</dt><dd>{{ header.scenario_id }}, scenario date {{ header.scenario_date.isoformat() }} ({{ header.timezone }})</dd>
+  <dt>Ending</dt><dd>{{ replay.status_label }}</dd>
+  <dt>System</dt><dd>{{ header.system }}</dd>
+  <dt>Run</dt><dd>admitted {{ header.admitted_at.isoformat() }} · closed {{ header.terminal_at.isoformat() }}</dd>
+  {% for segment in view.segments %}<dt>Execution</dt><dd>{{ segment }}</dd>{% endfor %}
+  {% if view.finalization_entered %}<dt>Finalization</dt><dd>entered at {{ moment(view.finalization_entered) }}</dd>{% endif %}
+</dl>
+<p class="meta">Positions are the attempt's one event order; an instant is when the log accepted the event, not when a vendor observed anything.</p>
+
+<div class="ending">
+<h2>{{ view.ending.headline }}</h2>
+{% for line in view.ending.details %}<p>{{ line }}</p>{% endfor %}
+<p class="meta">{{ view.ending.reads_summary }}</p>
+</div>
+
+<section class="claims">
+<h2>Operations</h2>
+{% if not view.operations %}<p class="meta">No read was made.</p>{% endif %}
+{% for op in view.operations %}
+<div class="claim" id="{{ op.anchor }}">
+<p class="sentence"><strong>{{ op.tool }}</strong> on {{ op.source }}{% if op.failed %} <em>(failed)</em>{% endif %} · {{ op.outcome }}</p>
+<dl>
+  <dt>asked by</dt><dd>{% if op.origin_anchor %}<a href="#{{ op.origin_anchor }}">{{ op.origin }}</a>{% else %}{{ op.origin }}{% endif %}</dd>
+  <dt>arguments</dt><dd>{{ op.arguments }}</dd>
+  {% if op.records %}<dt>returned</dt><dd>{{ op.records | join(", ") }}</dd>{% endif %}
+  <dt>logged</dt><dd>{{ moment(op.at) }} ({{ op.id }})</dd>
+</dl>
+</div>
+{% endfor %}
+</section>
+
+<section class="claims">
+<h2>Model calls</h2>
+{% if not view.calls %}<p class="meta">No model was called.</p>{% endif %}
+{% for call in view.calls %}
+<div class="claim" id="{{ call.anchor }}">
+<p class="sentence"><strong>{{ call.id }}</strong> as {{ call.role }} · {{ call.state }}</p>
+<dl><dt>configuration</dt><dd>{{ call.configuration }}</dd></dl>
+{% for d in call.dispatches %}
+<div class="evidence">
+<span class="label">dispatch {{ d.number }} · segment {{ d.segment }}</span>
+<dl>
+  <dt>request</dt><dd>{{ d.request }}</dd>
+  <dt>intent</dt><dd>{{ moment(d.intent) }}</dd>
+  <dt>outcome</dt><dd>{% if d.outcome %}{{ moment(d.outcome) }}{% else %}none recorded{% endif %}</dd>
+  <dt>shown</dt><dd>{% if d.shown %}{% for at in d.shown %}<a href="#op-{{ at.position }}">operation at position {{ at.position }}</a>{% if not loop.last %}, {% endif %}{% endfor %}{% else %}no read{% endif %}</dd>
+  <dt>observation</dt><dd>{{ d.observation }}</dd>
+  <dt>attribution</dt><dd>{{ d.attribution }}</dd>
+  <dt>usage</dt><dd>{% if d.usage %}{{ d.usage | join("; ") }}{% else %}none reported{% endif %}{% for a in d.anomalies %}; anomaly: {{ a }}{% endfor %}</dd>
+  <dt>counted</dt><dd>{{ d.tokens }}</dd>
+  <dt>cost</dt><dd>{{ d.cost }}{% if d.zero_cost_rule %} (zero under {{ d.zero_cost_rule }}){% endif %}</dd>
+  <dt>allocation</dt><dd>{{ d.allocation }}</dd>
+  <dt>bound</dt><dd><a href="#{{ d.bound_anchor }}">{{ d.bound }}</a>; output maximum {{ d.output_maximum }} tokens</dd>
+</dl>
+</div>
+{% endfor %}
+{% if call.answer %}
+<h4>The answer</h4>
+<p class="meta">{% if call.answer.text_present %}Carried text (not shown: model prose is not report content).{% else %}Carried no text.{% endif %}</p>
+{% for t in call.answer.tool_calls %}
+<p>Tool call <code>{{ t.name }}</code> ({{ t.id }}): {% if t.anchor %}<a href="#{{ t.anchor }}">{{ t.disposition }}</a>{% else %}{{ t.disposition }}{% endif %}.</p>
+{% if t.raw is not none %}<details><summary>The arguments as they arrived</summary><pre>{{ t.raw }}</pre></details>{% endif %}
+{% endfor %}
+{% for batch in call.answer.batches %}
+<div class="evidence">
+<span class="label">fact batch {{ batch.index }}</span>
+{% if batch.malformed_raw is not none %}
+<p><em>Malformed: the parser {{ batch.refused_by }} could not read it as a batch.</em></p>
+<details><summary>The payload as it arrived</summary><pre>{{ batch.malformed_raw }}</pre></details>
+{% endif %}
+{% for e in batch.entries %}
+<p><strong>{{ e.kind }}</strong>: {{ e.summary }}{% if e.reason %} · {{ e.reason }}{% if e.detail %} ({{ e.detail }}){% endif %}{% endif %}{% if e.excluded %} · excluded from the view: {{ e.excluded }}{% endif %}</p>
+{% if e.quote %}<blockquote>{{ e.quote }}</blockquote>{% if e.target_span %}<p class="meta">Target span: “{{ e.target_span }}”</p>{% endif %}{% endif %}
+{% if e.raw is not none %}<details><summary>The entry as it arrived</summary><pre>{{ e.raw }}</pre></details>{% endif %}
+{% endfor %}
+</div>
+{% endfor %}
+{% endif %}
+</div>
+{% endfor %}
+</section>
+
+<section class="claims">
+<h2>Counting operations</h2>
+{% if not view.counts %}<p class="meta">No request was counted.</p>{% endif %}
+{% for c in view.counts %}
+<div class="claim" id="{{ c.anchor }}">
+<p class="sentence"><strong>{{ c.id }}</strong> · {{ c.outcome }} · read as {{ c.reading }}</p>
+<dl>
+  <dt>method</dt><dd>{{ c.method }} against {{ c.counting_identifier }}, request digest {{ c.request_digest }}</dd>
+  <dt>started</dt><dd>{{ moment(c.start) }}, segment {{ c.segment }}</dd>
+  <dt>outcome</dt><dd>{% if c.outcome_at %}{{ moment(c.outcome_at) }}{% else %}none recorded{% endif %}</dd>
+</dl>
+</div>
+{% endfor %}
+</section>
+
+<section class="claims">
+<h2>The ledger</h2>
+<dl>
+  <dt>observed spend</dt><dd>{{ view.charges.observed }} (the dispatches' priced amounts summed; a floor when any send was not priced whole)</dd>
+  <dt>known</dt><dd>{{ view.charges.known }}</dd>
+  {% if view.charges.reserved %}
+  <dt>reserved</dt><dd>{{ view.charges.reserved }} at ledger revision {{ view.charges.ledger_revision }}, {{ view.charges.state }}{% if view.charges.kept_reason %} ({{ view.charges.kept_reason }}){% endif %}</dd>
+  <dt>charged</dt><dd>{{ view.charges.charged }}</dd>
+  <dt>retained liability</dt><dd>{{ view.charges.retained }} (allocations held for sends not priced whole; not established cost)</dd>
+  {% else %}
+  <dt>reserved</dt><dd>nothing: no model was called</dd>
+  {% endif %}
+  <dt>usage</dt><dd>{{ view.charges.calls }} model calls, {{ view.charges.dispatches }} dispatches{% for line in view.charges.usage %}; {{ line }}{% endfor %}</dd>
+</dl>
+</section>
+
+<section class="claims">
+<h2>The approval</h2>
+<dl>
+  <dt>state</dt><dd>{{ view.approval.state }}{% if view.approval.approver %}, by {{ view.approval.approver }}{% endif %}</dd>
+  {% if view.approval.payload_digest %}<dt>review payload</dt><dd>digest {{ view.approval.payload_digest }}</dd>{% endif %}
+  {% if view.approval.requested %}<dt>requested</dt><dd>{{ moment(view.approval.requested) }}</dd>{% endif %}
+  {% if view.approval.resumed %}<dt>resumed</dt><dd>{{ moment(view.approval.resumed) }}</dd>{% endif %}
+</dl>
+</section>
+
+<section class="claims">
+<h2>The composition</h2>
+<dl>
+  <dt>author</dt><dd>{{ view.composition.author }} under {{ view.composition.policy }}</dd>
+  {% for line in view.composition.placements %}<dt>placement</dt><dd>{{ line }}</dd>{% endfor %}
+  {% for line in view.composition.exclusions %}<dt>excluded</dt><dd>{{ line }}</dd>{% endfor %}
+</dl>
+</section>
+{% endblock %}

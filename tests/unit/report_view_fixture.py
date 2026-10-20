@@ -20,6 +20,16 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import date, timedelta
 
+from leaveimpact.agent.log_events import (
+    ApprovalRequested,
+    Approved,
+    Completed,
+    LoggedEvent,
+    OperationEvent,
+    OperationResult,
+    PrefetchKey,
+    Resumed,
+)
 from leaveimpact.core import (
     Admitted,
     Answer,
@@ -74,8 +84,18 @@ from leaveimpact.core import (
     team_ref,
     work_item_ref,
 )
-from leaveimpact.core.ids import claim_id, clause_id, leave_id, skill_id, team_id, work_item_id
+from leaveimpact.core.ids import (
+    WorldVersion,
+    claim_id,
+    clause_id,
+    leave_id,
+    skill_id,
+    team_id,
+    work_item_id,
+)
+from leaveimpact.core.run_ending import Approver
 from tests.unit import format_fixtures as cases
+from tests.unit import log_histories as histories
 from tests.unit import stated_fixture as f
 
 TEAM = Team(team_id(1), "Payments team")
@@ -352,6 +372,77 @@ def citing_an_unread_record() -> RunExport:
     )
 
 
+def reported_history(
+    world_version: WorldVersion = cases.CONTEXT.world_version, *, run_id: str = "run-12"
+) -> tuple[LoggedEvent, ...]:
+    """The all-types run as the log holds it, under ``world_version`` and ``run_id``, for the
+    page tests: the same reads and claims, the one call admitting the skill statement alone
+    (the two runbook statements are hand-built admissions the fold's own gates need not
+    reproduce), approved automatically and completed."""
+    expected = cases.facts_beside_tools().record.reservation
+    assert expected is not None
+    log = histories.History()
+    frozen = histories.inputs(reservation=expected.pico_usd)
+    context = replace(frozen.context, world_version=world_version)
+    log.admit(replace(frozen, run_id=run_id, context=context))
+    log.claim()
+    leave_read = OperationResult(
+        "leave",
+        Source.FRAPPE,
+        {"id": LEAVE.id},
+        RecordOutcome(Observed[Entity](LEAVE, Source.FRAPPE)),
+    )
+    team_read = OperationResult(
+        "team", Source.FRAPPE, {"id": TEAM.id}, RecordOutcome(Observed[Entity](TEAM, Source.FRAPPE))
+    )
+    reads = (
+        OperationEvent(PrefetchKey(1), leave_read),
+        histories.prefetch(2, "employees", Source.FRAPPE, cases.PEOPLE),
+        OperationEvent(PrefetchKey(3), team_read),
+        histories.prefetch(
+            4, "components", Source.JIRA, (Observed[Entity](f.PAYMENTS, Source.JIRA),)
+        ),
+        histories.prefetch(5, "work_items", Source.JIRA, cases.TICKETS),
+        histories.prefetch(
+            6, "events_within", Source.CALENDAR, (Observed[Entity](f.MEETING, Source.CALENDAR),)
+        ),
+        histories.document_read(7, f.RUNBOOK),
+    )
+    for ordinal, read in enumerate(reads, start=1):
+        log.worker(read, offset=100 + ordinal)
+    log.worker(histories.count_start("call-1"), offset=400)
+    log.worker(histories.count_outcome("call-1"), offset=500)
+    log.worker(histories.intent(1, shown=("prefetch/1",)), offset=600)
+    log.worker(
+        histories.outcome(
+            1,
+            1,
+            histories.complete("tool_use"),
+            response=histories.body(
+                "tool_use",
+                histories.text("Looking at the ticket."),
+                histories.tool_use("tu_1", "work_item", {"id": "ticket_042"}),
+                histories.payload_text(histories.entry_of(cases.SKILL)),
+            ),
+        ),
+        offset=1_500,
+    )
+    log.worker(histories.model_read(1, "tu_1", RecordOutcome(cases.TICKETS[0])), offset=1_700)
+    held = claims()
+    log.worker(ApprovalRequested(held, cases.RULES, False), offset=8_700)
+    log.outside(
+        histories.AUTOMATIC.identity,
+        Approved(Approver.AUTOMATIC, cases.review_payload_digest(held, cases.RULES)),
+    )
+    log.worker(Resumed(), offset=8_800)
+    log.worker(
+        Completed(histories.settlement_of(expected)),
+        offset=9_000,
+        at=cases.ADMITTED + timedelta(milliseconds=9_000),
+    )
+    return log.logged()
+
+
 ORPHAN = ImpactKey(LEAVE.id, ImpactSubtype.DEADLINE, f.REGIONAL_REF)
 
 
@@ -393,5 +484,6 @@ __all__ = [
     "citing_an_unread_record",
     "claims",
     "malformed_set",
+    "reported_history",
     "ticket_returned_two_ways",
 ]

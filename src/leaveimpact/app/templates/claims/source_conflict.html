@@ -1,0 +1,6 @@
+<div class="claim" id="{{ block.claim_id }}">
+<p class="sentence">{{ block.sentence }}</p>
+<dl>{% for source, value in block.observations %}<dt>{{ source }}</dt><dd>{{ value }}</dd>{% endfor %}</dl>
+{% with items=block.evidence %}{% include "claims/_evidence.html" %}{% endwith %}
+{% include "claims/_derivations.html" %}
+</div>

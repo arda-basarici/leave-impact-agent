@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}{{ view.header.title or view.header.public_id }} · Leave Impact Agent{% endblock %}
+{% block content %}
+{% set header = view.header %}
+<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ header.public_id }}/trail">Audit trail</a></p>
+<h1>{{ header.title or header.public_id }}</h1>
+<dl>
+  <dt>Scenario</dt><dd>{{ header.scenario_id }}</dd>
+  <dt>Scenario date</dt><dd>{{ header.scenario_date.isoformat() }} ({{ header.timezone }}), the date the rules apply</dd>
+  <dt>Ending</dt><dd>{{ replay.status_label }}</dd>
+  <dt>System</dt><dd>{{ header.system }}</dd>
+  <dt>Run</dt><dd>admitted {{ header.admitted_at.isoformat() }} · closed {{ header.terminal_at.isoformat() }}</dd>
+  <dt>World</dt><dd>{{ header.world_version }}</dd>
+  <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
+</dl>
+{% include "report/ending.html" %}
+{% if view.condition.unreachable %}
+<div class="banner">
+  <strong>Degraded run.</strong> The run could not reach
+  {% for source in view.condition.unreachable %}{{ source.value }}{% if not loop.last %}, {% endif %}{% endfor %}.
+  {% if view.condition.unknown_ids %}
+  Unknowns recorded as caused by that:
+  {% for id in view.condition.unknown_ids %}<a href="#{{ id }}">{{ id }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.
+  {% else %}No unknown was recorded as caused by that.{% endif %}
+</div>
+{% endif %}
+{% if view.problems %}
+<div class="banner defect">
+  <strong>Defect: the claim set is not well-formed.</strong> Every claim is still shown.
+  <ul>{% for line in view.problems %}<li>{{ line }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<section class="claims">
+<h2>The leave</h2>
+{% if view.leave %}
+<p>{{ view.leave.person }} is on {{ view.leave.kind }} leave from {{ view.leave.start.isoformat() }} to {{ view.leave.end.isoformat() }} ({{ view.leave.days }} days, {{ view.leave.status }}).</p>
+{% with items=[view.leave.evidence] %}{% include "claims/_evidence.html" %}{% endwith %}
+{% else %}
+<p>The leave record ({{ view.leave_id }}) is not among this run's reads.</p>
+{% endif %}
+</section>
+
+<section class="claims">
+<h2>Impacts</h2>
+{% if not view.impacts %}<p class="meta">The run reported no impact.</p>{% endif %}
+{% for section in view.impacts %}
+  {% with block=section.impact %}{% include "claims/impact.html" %}{% endwith %}
+  <div class="nested">
+  {% if section.assessments %}<h4>Candidates</h4>{% endif %}
+  {% for block in section.assessments %}{% include "claims/candidate_assessment.html" %}{% endfor %}
+  {% if section.actions %}<h4>The plan</h4>{% endif %}
+  {% for block in section.actions %}{% include "claims/coverage_action.html" %}{% endfor %}
+  </div>
+{% endfor %}
+</section>
+
+<section class="claims">
+<h2>Constraints that apply</h2>
+{% if not view.constraints %}<p class="meta">The run reported no constraint.</p>{% endif %}
+{% for section in view.constraints %}
+  {% with block=section.constraint, impact_id=section.impact_id %}{% include "claims/constraint.html" %}{% endwith %}
+{% endfor %}
+</section>
+
+<section class="claims">
+<h2>Stated unknowns</h2>
+{% if not view.unknowns %}<p class="meta">The run reported no unknown.</p>{% endif %}
+{% for block in view.unknowns %}{% include "claims/unknown.html" %}{% endfor %}
+</section>
+
+<section class="claims">
+<h2>Source conflicts</h2>
+{% if not view.conflicts %}<p class="meta">The run reported no conflict.</p>{% endif %}
+{% for block in view.conflicts %}{% include "claims/source_conflict.html" %}{% endfor %}
+</section>
+
+{% if view.unlinked %}
+<section class="claims">
+<h2>Unlinked claims</h2>
+<p class="meta">Assessments and actions whose impact the report does not state.</p>
+{% for block in view.unlinked %}
+  {% include "claims/" ~ block.kind.value ~ ".html" %}
+{% endfor %}
+</section>
+{% endif %}
+{% endblock %}

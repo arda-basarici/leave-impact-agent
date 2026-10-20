@@ -25,6 +25,10 @@ cache's half of the predicate (the served version marked ready) is the route's q
 answered 503 after admission is resolved, since an unavailable cache is an operational
 state and not a secret.
 
+``instants_of`` is the one thing a page reads beyond an attempt's export: the log's accept
+instant per position, since an export holds positions and not instants and the report
+labels each record with when the log took it (the report step's second fork).
+
 ``rules_under`` is the surface's reading of the registration: folding a model run needs
 the registered attribution table and re-dispatch policy, so the composition root loads the
 registration the image ships and this function refuses one whose digest is not the
@@ -38,6 +42,7 @@ import hashlib
 import logging
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from typing import Protocol
 
 from leaveimpact.agent.log_ending import status_of
@@ -139,6 +144,11 @@ def admitted(
         )
         return None
     return Admitted(row, state)
+
+
+def instants_of(state: AttemptState) -> dict[int, datetime]:
+    """The log's accept instant of every event of ``state``, by position."""
+    return {event.position: event.timestamp for event in state.events}
 
 
 def replay_view(admitted: Admitted) -> PublicReplay:

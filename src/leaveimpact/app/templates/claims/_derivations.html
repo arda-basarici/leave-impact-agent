@@ -1,0 +1,4 @@
+{% if block.derived_from %}
+<p class="meta">Derived from
+{% for link in block.derived_from %}{% if link.available %}<a href="#{{ link.claim_id }}">{{ link.claim_id }}</a>{% else %}{{ link.claim_id }} (unavailable){% endif %}{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+{% endif %}

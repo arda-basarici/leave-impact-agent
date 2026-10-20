@@ -1,0 +1,1 @@
+<dl>{% for name, value in item.fields %}<dt{% if name == item.field %} class="cited"{% endif %}>{{ name }}</dt><dd{% if name == item.field %} class="cited"{% endif %}>{{ value }}</dd>{% endfor %}</dl>

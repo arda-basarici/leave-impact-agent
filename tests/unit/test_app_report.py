@@ -156,7 +156,7 @@ def test_every_citation_is_shown_from_the_runs_own_reads_with_its_positions_and_
     assert skills.target == f.DENIZ_REF and comment.target == f.COMMENT_REF
     assert ("skills", "none") in skills.fields and ("manager_id", "emp_017") in skills.fields
     assert comment.text == f.COMMENT.text and comment.held_by == f"{f.TITLE} (ticket_042)"
-    assert [(q.text, q.found) for q in comment.quotes] == [(f.REMARK, True)]
+    assert [(q.text, q.found, q.excluded) for q in comment.quotes] == [(f.REMARK, True, None)]
     clause = view.constraints[0].constraint.evidence[0]
     assert clause.text == f.CLAUSE_TEXT and clause.held_by == "Payments runbook (doc_003)"
     assert [(q.predicate, q.found) for q in clause.quotes] == [
@@ -227,7 +227,9 @@ def test_a_record_returned_two_ways_is_withdrawn_with_nothing_credited() -> None
     comment = view.impacts[0].assessments[0].evidence[1]
     assert comment.target == f.COMMENT_REF
     assert comment.text is None and comment.held_by == f"{f.TITLE} (ticket_042)"
-    assert [(q.text, q.found) for q in comment.quotes] == [(f.REMARK, False)]
+    assert [(q.text, q.found, q.excluded) for q in comment.quotes] == [
+        (f.REMARK, False, "carrier withdrawn")
+    ]
     # The sentences still name the ticket by its first return: the label is not evidence.
     assert (
         view.impacts[0].impact.sentence == f"A deadline the leave affects: {f.TITLE} (ticket_042)."

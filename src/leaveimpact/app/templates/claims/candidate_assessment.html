@@ -1,0 +1,5 @@
+<div class="claim" id="{{ block.claim_id }}">
+<p class="sentence">{{ block.sentence }}</p>
+{% with items=block.evidence %}{% include "claims/_evidence.html" %}{% endwith %}
+{% include "claims/_derivations.html" %}
+</div>

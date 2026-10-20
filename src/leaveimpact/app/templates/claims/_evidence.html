@@ -1,0 +1,20 @@
+{% for item in items %}
+<div class="evidence">
+  <span class="label">{{ item.source.value }} · {{ item.target.kind.value }}</span>
+  <strong>{{ item.label }}</strong>{% if item.field %}, the field <span class="cited">{{ item.field }}</span>{% endif %}
+  {% if item.status.value == "unavailable" %}
+  <p><em>Evidence unavailable: no completed read of this run returned it.</em></p>
+  {% elif item.status.value == "withdrawn" %}
+  <p><em>Withdrawn: this run's own reads returned it with different contents; nothing is credited.</em></p>
+  {% for quote in item.quotes %}
+  <p class="meta">Model-supplied quotation ({{ quote.predicate }}) read from it{% if quote.excluded %}; excluded from the view: {{ quote.excluded }}{% endif %}.</p>
+  {% endfor %}
+  {% else %}
+  {% include "evidence/" ~ item.target.kind.value ~ ".html" %}
+  {% endif %}
+  {% if item.positions %}
+  <p class="meta">Recorded in the log at {{ item.recorded_at.isoformat() if item.recorded_at else "an unknown instant" }},
+  {% for position in item.positions %}<a href="/replays/{{ view.header.public_id }}/trail#op-{{ position }}">position {{ position }}</a>{% if not loop.last %}, {% endif %}{% endfor %}.</p>
+  {% endif %}
+</div>
+{% endfor %}
