@@ -34,6 +34,9 @@ from leaveimpact.app.store import AppStore
 
 CODE_VERSION = "LEAVEIMPACT_CODE_VERSION"
 DATABASE = "DATABASE_URL"
+REGISTRATION_FILE = "LEAVEIMPACT_REGISTRATION_FILE"
+"""The registration the image ships, set by the Dockerfile; the surface folds every attempt
+under its rules after checking its digest is the committed configuration's."""
 TEMPLATES = files("leaveimpact.app").joinpath("templates")
 
 

@@ -201,5 +201,5 @@ def test_another_command_line_or_no_database_exits_2_before_any_store(
     assert main(["bootstrap"], {}, store=FakeStore) == 2  # type: ignore[arg-type]
     assert FakeStore.built == []
     err = capsys.readouterr().err
-    assert "the one command is 'bootstrap'" in err
+    assert "usage: python -m leaveimpact.app" in err
     assert "DATABASE_URL is not set" in err

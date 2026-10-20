@@ -48,9 +48,14 @@ RUN groupadd --gid 1000 app && useradd --uid 1000 --gid app --no-create-home app
 WORKDIR /app
 COPY --from=builder /app/.venv ./.venv
 COPY src ./src
+# The committed registration, so the demo surface folds a replayed run under the rules its
+# admission froze; the service checks the file's digest against the demo configuration's
+# registration digest at start, so the copy can never silently drift from the configuration.
+COPY preregistration/registration.json ./preregistration/registration.json
 
 # Container-shape defaults only; secrets and host specifics come from Compose.
-ENV PATH="/app/.venv/bin:$PATH"
+ENV PATH="/app/.venv/bin:$PATH" \
+    LEAVEIMPACT_REGISTRATION_FILE=/app/preregistration/registration.json
 
 USER app
 
