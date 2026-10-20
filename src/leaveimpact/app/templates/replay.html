@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}{{ replay.title or replay.public_id }} · Leave Impact Agent{% endblock %}
+{% block content %}
+<p class="meta"><a href="/replays">All replays</a></p>
+<h1>{{ replay.title or replay.public_id }}</h1>
+<dl>
+  <dt>Scenario</dt><dd>{{ replay.scenario_id }}</dd>
+  <dt>Ending</dt><dd>{{ replay.status_label }}</dd>
+  <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
+</dl>
+<p class="meta">The report and its evidence render here at the next step.</p>
+{% endblock %}

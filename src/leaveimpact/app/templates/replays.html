@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Replays · Leave Impact Agent{% endblock %}
+{% block content %}
+<h1>Replays</h1>
+<p>Recorded investigations of the served world, each replayed from its own log: what the
+agent read, what it concluded, and the evidence behind every claim.</p>
+{% if entries %}
+<ul class="replays">
+{% for entry in entries %}
+  <li>
+    <a href="/replays/{{ entry.public_id }}">{{ entry.title or entry.public_id }}</a>
+    <span class="meta">{{ entry.scenario_id }} · published {{ entry.published_at.date().isoformat() }}</span>
+  </li>
+{% endfor %}
+</ul>
+{% else %}
+<p class="meta">No replay is published yet.</p>
+{% endif %}
+{% endblock %}

@@ -4160,6 +4160,29 @@ absent mark reading as refused; until then the offline acceptance command that
 regenerates the results page's data also reads the allowlisted version's spec at the
 truth bucket and fails if it is embargoed.
 
+As built at the publishability step (M3 step 4, 2026-10-20, with one external read). The
+table of publishable attempts lives in the app's own schema file beside the log's, with a
+singleton version row the readiness route reports as its third bit, and references the
+log's attempt row; the deploy applies it after the log's bootstrap. A replay is addressed
+by a slug the operator chooses at publication, never by the run id or the attempt number.
+The admission has two functions because the two reads cost differently: the listing reads
+the table's projection of the served version and no log; every content read, the
+narration stream included, loads the attempt and compares the admission's world version
+and scenario with the row before returning anything, since the row's world version is an
+operator's projection and the admission is what the attempt is, so a forged or mistaken
+row carrying the allowlisted version serves nothing. Every refusal is one not-found page,
+byte-identical for an unknown name and a refused one; a store that does not answer, a
+missing app schema and a served world the cache does not mark ready are the unavailable
+page, answered after admission is resolved. Both stores are request-scoped under the
+app's bounds (three seconds to connect, three per statement), since the log store keeps
+its connection. The publication's outcomes are decided by the two uniqueness constraints,
+an identical repeat keeping the first timestamp and a repeat with other content a named
+conflict; no withdraw command exists, and a failed public attempt keeps its row under the
+live path's lifecycle. Folding a model run needs the registration's rules, so the image
+ships the committed registration and the composition root refuses one whose digest is
+not the configuration's, which makes the configured digest a live check of what the
+service loads.
+
 **The shell and the report view.** FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow

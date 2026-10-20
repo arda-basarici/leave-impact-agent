@@ -27,15 +27,14 @@ import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
 from pathlib import Path
-from typing import Protocol
 
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
-from leaveimpact.agent.log_transition import AttemptState, Rules
+from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.main import DATABASE, REGISTRATION_FILE
 from leaveimpact.app.public import public_id_of
 from leaveimpact.app.publishing import PublishRefused, PublishRequest, draft_of
-from leaveimpact.app.read_model import rules_under
+from leaveimpact.app.read_model import LogSession, rules_under
 from leaveimpact.app.store import (
     SCHEMA_VERSION,
     AlreadyPublished,
@@ -51,15 +50,6 @@ from leaveimpact.app.store import (
 
 BOOTSTRAP = "bootstrap"
 PUBLISH = "publish"
-
-
-class LogSession(Protocol):
-    """The log for one command: loaded from, then closed."""
-
-    def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState: ...
-
-    def close(self) -> None: ...
-
 
 MakeStore = Callable[[str], AppStore]
 MakeLog = Callable[[str], LogSession]

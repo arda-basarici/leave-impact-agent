@@ -16,10 +16,10 @@ import pytest
 
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.agent.registered import effective_rules
-from leaveimpact.app.public import PublicAttempt, PublicId, PublishableRow
+from leaveimpact.app.public import PublicAttempt, PublicId
 from leaveimpact.app.publishing import PublishRefused, PublishRequest, draft_of
 from leaveimpact.app.read_model import Admitted, admitted, listing, replay_view, rules_under
-from leaveimpact.core.ids import ScenarioId, WorldVersion
+from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.run_record import TerminalStatus
 from tests.unit import log_histories as histories
 from tests.unit.log_store_memory import MemoryLog
@@ -28,35 +28,16 @@ from tests.unit.publishable_fixture import (
     CONFIGURATION,
     OTHER_WORLD,
     SERVED,
+    Rows,
     admission_only,
     history_in_world,
+    row,
 )
 from tests.unit.registration_fixture import COMMITTED, COMMITTED_FILE
 
 RULES = histories.RULES
 SCENARIO = ScenarioId("scenario_003")
 AT = datetime(2026, 10, 20, 12, 0, tzinfo=UTC)
-
-
-def row(
-    public_id: str, run_id: str, world: WorldVersion, scenario: ScenarioId = SCENARIO
-) -> PublishableRow:
-    return PublishableRow(
-        PublicId(public_id), run_id, 1, world, scenario, None, AT, "operator:test"
-    )
-
-
-class Rows:
-    """The table as a list, the two reads over it."""
-
-    def __init__(self, *rows: PublishableRow) -> None:
-        self.rows = rows
-
-    def rows_for(self, world_version: WorldVersion) -> tuple[PublishableRow, ...]:
-        return tuple(each for each in self.rows if each.world_version == world_version)
-
-    def row_of(self, public_id: PublicId) -> PublishableRow | None:
-        return next((each for each in self.rows if each.public_id == public_id), None)
 
 
 class CountingLog:

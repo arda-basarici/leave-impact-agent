@@ -69,6 +69,13 @@ class LogReads(Protocol):
     def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState: ...
 
 
+class LogSession(LogReads, Protocol):
+    """A log opened for one request or one command, closed by its opener: the log store
+    keeps its connection, so a session is never shared across requests."""
+
+    def close(self) -> None: ...
+
+
 @dataclass(frozen=True, slots=True)
 class Admitted:
     """A content read's admission: the row and the attempt's state the log folds to, the

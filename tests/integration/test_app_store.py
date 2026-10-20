@@ -56,13 +56,15 @@ BY = "operator:test"
 
 
 def app_store(rig: Rig) -> AppStore:
-    """The store over the rig's schema with the production bounds, since the rig's own
-    connector carries no statement timeout."""
+    """The store over the rig's schema with the production statement bound, since the rig's
+    own connector carries none; the connect bound is the rig's, since a loaded machine (the
+    unit suite running beside this level) took the production three seconds to connect once
+    and these tests say nothing about connecting."""
 
     def connect(dsn: str) -> psycopg.Connection[Any]:
         return psycopg.connect(
             dsn,
-            connect_timeout=3,
+            connect_timeout=10,  # the rig's: the statement bound is what these tests exercise
             autocommit=True,
             options=f"-c statement_timeout={STATEMENT_TIMEOUT_MS} -c search_path={rig.schema}",
         )

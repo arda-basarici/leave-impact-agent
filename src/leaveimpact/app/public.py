@@ -108,3 +108,24 @@ class PublicReplay:
     title: str | None
     published_at: datetime
     status: TerminalStatus | None
+
+    @property
+    def status_label(self) -> str:
+        """The ending as a page says it.
+
+        >>> at = datetime(2026, 1, 1)
+        >>> PublicReplay(PublicId("x"), ScenarioId("s"), None, at, None).status_label
+        'in progress'
+        >>> capped = TerminalStatus.CAP_EXHAUSTED
+        >>> PublicReplay(PublicId("x"), ScenarioId("s"), None, at, capped).status_label
+        'stopped at the cap'
+        """
+        match self.status:
+            case None:
+                return "in progress"
+            case TerminalStatus.COMPLETED:
+                return "completed"
+            case TerminalStatus.CAP_EXHAUSTED:
+                return "stopped at the cap"
+            case TerminalStatus.FAILED:
+                return "failed"

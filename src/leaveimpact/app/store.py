@@ -236,6 +236,13 @@ class AppStore:
             raise AppStoreUnavailable(
                 f"the app store did not answer: {type(exc).__name__}"
             ) from exc
+        except psycopg.errors.UndefinedTable as exc:
+            # A read of the publishable table on a database the bootstrap never reached:
+            # the readiness route reports it as a state, and a page answers 503, never a
+            # driver's traceback.
+            raise AppStoreInvariantBroken(
+                "the app schema is not bootstrapped: run `python -m leaveimpact.app bootstrap`"
+            ) from exc
 
 
 def _refusal_of(

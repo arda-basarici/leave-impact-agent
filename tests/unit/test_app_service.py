@@ -8,14 +8,20 @@ from __future__ import annotations
 
 from dataclasses import replace
 
+import pytest
 from fastapi.testclient import TestClient
 
+from leaveimpact.agent.registered import effective_rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.main import Services, create_app, services_from_env
 from leaveimpact.app.ready import Readiness, readiness
 from leaveimpact.app.store import AppStoreUnavailable
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.ports.errors import Source, SourceUnreachable
+from tests.unit import log_histories as histories
+from tests.unit.log_store_memory import MemoryLog
+from tests.unit.publishable_fixture import Rows
+from tests.unit.registration_fixture import COMMITTED, COMMITTED_FILE, DRAFT_FILE
 
 CODE = "b" * 40
 CONFIGURATION = committed_configuration()
@@ -48,7 +54,16 @@ class FlippingStore:
 def services(
     store: FlippingStore, code: str = CODE, configuration: DemoConfiguration = CONFIGURATION
 ) -> Services:
-    return Services(code, configuration, store.ready_versions, store.app_schema)
+    # No replay is published and no log is read by the routes these tests exercise.
+    return Services(
+        code,
+        configuration,
+        store.ready_versions,
+        store.app_schema,
+        Rows(),
+        lambda: MemoryLog(),  # type: ignore[arg-type, return-value]
+        histories.RULES,
+    )
 
 
 def client(store: FlippingStore, code: str = CODE) -> TestClient:
@@ -132,11 +147,16 @@ def test_the_real_page_escapes_a_recorded_string_with_markup() -> None:
 
 
 def test_the_composition_root_names_what_the_environment_lacks() -> None:
-    env = {"LEAVEIMPACT_CODE_VERSION": CODE, "DATABASE_URL": "postgresql://x@localhost/x"}
+    env = {
+        "LEAVEIMPACT_CODE_VERSION": CODE,
+        "DATABASE_URL": "postgresql://x@localhost/x",
+        "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE),
+    }
     services = services_from_env(env)
     assert services.code_version == CODE
     assert services.configuration == CONFIGURATION
-    for missing in ("LEAVEIMPACT_CODE_VERSION", "DATABASE_URL"):
+    assert services.rules == effective_rules(COMMITTED)
+    for missing in ("LEAVEIMPACT_CODE_VERSION", "DATABASE_URL", "LEAVEIMPACT_REGISTRATION_FILE"):
         partial = {key: value for key, value in env.items() if key != missing}
         try:
             services_from_env(partial)
@@ -144,6 +164,12 @@ def test_the_composition_root_names_what_the_environment_lacks() -> None:
             assert missing in str(error)
         else:
             raise AssertionError(f"composed without {missing}")
+    foreign = {**env, "LEAVEIMPACT_REGISTRATION_FILE": str(DRAFT_FILE)}
+    with pytest.raises(ValueError, match="registration file's digest"):
+        services_from_env(foreign)
+    missing_file = {**env, "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE) + ".none"}
+    with pytest.raises(ValueError, match="LEAVEIMPACT_REGISTRATION_FILE names"):
+        services_from_env(missing_file)
 
 
 def test_a_live_configuration_shows_on_the_page() -> None:
