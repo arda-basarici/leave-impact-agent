@@ -127,7 +127,7 @@ elif [[ " $* " == *" exec -T app python -c "* ]] && [[ " $* " == *"/ready"* ]]; 
   # script an unready service and a stale container answering for the new one.
   ready="${FAKE_READY:-true}"; sha="${FAKE_READY_SHA:-$DEPLOY_SHA}"
   printf '{"ready":%s,"code_version":"%s","served_world_version":"7b806ed6",' "$ready" "$sha"
-  printf '"store_reachable":true,"served_world_ready":%s}
+  printf '"store_reachable":true,"served_world_ready":%s,"app_schema":true}
 ' "$ready"
 elif [ "$1" = ps ]; then
   [ -z "${FAKE_DOCKER_PS_EXIT:-}" ] || exit "$FAKE_DOCKER_PS_EXIT"

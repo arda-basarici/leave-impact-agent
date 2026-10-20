@@ -45,11 +45,13 @@ services:
     # since Docker restarts no container for failing its health check.
     restart: unless-stopped
     # The readiness route from inside the container with Python's own client (the slim
-    # image carries no curl): 200 only when the store answers and the cache serves the
-    # allowlisted world, so `up --wait` returns when the demo can be served and the
-    # deploy's readiness check reads the same route. A 503 raises in urlopen and exits 1.
-    # The client's eight seconds cover the route's own bounds (three to connect, three for
-    # the statement, in the corpus adapter) with room to answer.
+    # image carries no curl): 200 only when the store answers, the cache serves the
+    # allowlisted world and the app schema is at the code's version, so `up --wait`
+    # returns when the demo can be served and the deploy's readiness check reads the same
+    # route. A 503 raises in urlopen and exits 1. The route makes two bounded reads
+    # (three seconds to connect and three per statement, each); the client's eight
+    # seconds cover the normal path, and a probe that gives up on a blocked store reads
+    # unhealthy exactly as a 503 would.
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=8)"]
       interval: 10s

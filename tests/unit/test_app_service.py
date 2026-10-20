@@ -10,9 +10,10 @@ from dataclasses import replace
 
 from fastapi.testclient import TestClient
 
-from leaveimpact.app.config import committed_configuration
+from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.main import Services, create_app, services_from_env
 from leaveimpact.app.ready import Readiness, readiness
+from leaveimpact.app.store import AppStoreUnavailable
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.ports.errors import Source, SourceUnreachable
 
@@ -26,31 +27,55 @@ RECORDED_MARKUP = "<script>alert('the world's prose')</script> & <b>bold</b>"
 class FlippingStore:
     """A store whose state a test moves between reads, as an outage and its end would."""
 
-    def __init__(self, versions: frozenset[WorldVersion], reachable: bool = True) -> None:
+    def __init__(
+        self, versions: frozenset[WorldVersion], reachable: bool = True, schema: bool = True
+    ) -> None:
         self.versions = versions
         self.reachable = reachable
+        self.schema = schema
 
     def ready_versions(self) -> frozenset[WorldVersion]:
         if not self.reachable:
             raise SourceUnreachable(Source.CORPUS, "connection refused: OperationalError")
         return self.versions
 
+    def app_schema(self) -> bool:
+        if not self.reachable:
+            raise AppStoreUnavailable("the app store did not answer: OperationalError")
+        return self.schema
+
+
+def services(
+    store: FlippingStore, code: str = CODE, configuration: DemoConfiguration = CONFIGURATION
+) -> Services:
+    return Services(code, configuration, store.ready_versions, store.app_schema)
+
 
 def client(store: FlippingStore, code: str = CODE) -> TestClient:
-    return TestClient(create_app(Services(code, CONFIGURATION, store.ready_versions)))
+    return TestClient(create_app(services(store, code)))
 
 
-def test_readiness_is_the_store_answering_and_the_served_world_ready() -> None:
+def test_readiness_is_the_store_answering_the_served_world_ready_and_the_schema() -> None:
     store = FlippingStore(frozenset({GOLDEN, OTHER}))
-    assert readiness(CODE, CONFIGURATION, store.ready_versions) == Readiness(
-        CODE, GOLDEN, store_reachable=True, served_world_ready=True
+    assert readiness(CODE, CONFIGURATION, store.ready_versions, store.app_schema) == Readiness(
+        CODE, GOLDEN, store_reachable=True, served_world_ready=True, app_schema=True
     )
     store.versions = frozenset({OTHER})
-    read = readiness(CODE, CONFIGURATION, store.ready_versions)
-    assert (read.store_reachable, read.served_world_ready, read.ready) == (True, False, False)
+    read = readiness(CODE, CONFIGURATION, store.ready_versions, store.app_schema)
+    assert (read.store_reachable, read.served_world_ready, read.app_schema, read.ready) == (
+        True, False, True, False
+    )
+    store.versions = frozenset({GOLDEN})
+    store.schema = False
+    read = readiness(CODE, CONFIGURATION, store.ready_versions, store.app_schema)
+    assert (read.store_reachable, read.served_world_ready, read.app_schema, read.ready) == (
+        True, True, False, False
+    )
     store.reachable = False
-    read = readiness(CODE, CONFIGURATION, store.ready_versions)
-    assert (read.store_reachable, read.served_world_ready, read.ready) == (False, False, False)
+    read = readiness(CODE, CONFIGURATION, store.ready_versions, store.app_schema)
+    assert (read.store_reachable, read.served_world_ready, read.app_schema, read.ready) == (
+        False, False, False, False
+    )
 
 
 def test_the_ready_route_answers_200_503_and_200_again_from_one_process() -> None:
@@ -64,6 +89,7 @@ def test_the_ready_route_answers_200_503_and_200_again_from_one_process() -> Non
             "served_world_version": GOLDEN,
             "store_reachable": True,
             "served_world_ready": True,
+            "app_schema": True,
         }
         store.reachable = False
         down = web.get("/ready")
@@ -77,6 +103,11 @@ def test_the_ready_route_answers_200_503_and_200_again_from_one_process() -> Non
         assert unready.json()["store_reachable"] is True
         assert unready.json()["served_world_ready"] is False
         store.versions = frozenset({GOLDEN})
+        store.schema = False
+        unbootstrapped = web.get("/ready")
+        assert unbootstrapped.status_code == 503
+        assert unbootstrapped.json()["app_schema"] is False
+        store.schema = True
         assert web.get("/ready").status_code == 200
 
 
@@ -118,5 +149,5 @@ def test_the_composition_root_names_what_the_environment_lacks() -> None:
 def test_a_live_configuration_shows_on_the_page() -> None:
     live = replace(CONFIGURATION, live_runs=True)
     store = FlippingStore(frozenset({GOLDEN}))
-    with TestClient(create_app(Services(CODE, live, store.ready_versions))) as web:
+    with TestClient(create_app(services(store, configuration=live))) as web:
         assert ">on<" in web.get("/").text

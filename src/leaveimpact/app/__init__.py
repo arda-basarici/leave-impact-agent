@@ -22,7 +22,10 @@ A rank-4 shell beside the launcher, importing the agent, the cache, the adapters
 public results and the core, and never ``world``, ``generator``, ``validator`` or
 ``evaluator``: the answer key is unreachable from the page at source level, as it is from
 the investigator (the import law's denied edges). ``config`` is the demo's own
-configuration file and its strict decoder; ``ready`` the readiness read the deploy and the
-proxy's monitor consult; ``main`` the application factory; ``__main__`` under the package
-root dispatches serving, the identity line and the image smoke.
+configuration file and its strict decoder; ``store`` the surface's own PostgreSQL module
+(the app schema in ``schema.sql`` beside it, the table of publishable attempts and its
+version row, bounded connections per operation) with ``__main__``'s ``bootstrap`` the
+deploy runs to apply it; ``ready`` the readiness read the deploy and the proxy's monitor
+consult; ``main`` the application factory; ``__main__`` under the package root dispatches
+serving, the identity line and the image smoke.
 """

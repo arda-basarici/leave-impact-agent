@@ -29,7 +29,8 @@ from fastapi.templating import Jinja2Templates
 
 from leaveimpact.adapters.corpus import served_versions
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
-from leaveimpact.app.ready import ReadyVersions, readiness
+from leaveimpact.app.ready import AppSchema, ReadyVersions, readiness
+from leaveimpact.app.store import AppStore
 
 CODE_VERSION = "LEAVEIMPACT_CODE_VERSION"
 DATABASE = "DATABASE_URL"
@@ -43,6 +44,7 @@ class Services:
     code_version: str
     configuration: DemoConfiguration
     ready_versions: ReadyVersions
+    app_schema: AppSchema
 
 
 def create_app(services: Services) -> FastAPI:
@@ -62,7 +64,12 @@ def create_app(services: Services) -> FastAPI:
         )
 
     def ready() -> JSONResponse:
-        read = readiness(services.code_version, services.configuration, services.ready_versions)
+        read = readiness(
+            services.code_version,
+            services.configuration,
+            services.ready_versions,
+            services.app_schema,
+        )
         return JSONResponse(read.as_json(), status_code=200 if read.ready else 503)
 
     # Registered by call rather than by decorator so the handlers are plain closures over
@@ -86,6 +93,7 @@ def services_from_env(env: Mapping[str, str] | None = None) -> Services:
         code_version=code_version,
         configuration=committed_configuration(),
         ready_versions=lambda: served_versions(dsn),
+        app_schema=AppStore(dsn=dsn).schema_supported,
     )
 
 

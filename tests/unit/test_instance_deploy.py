@@ -49,6 +49,7 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     assert [line for line in docker if "compose run" in line] == [
         "docker compose run --rm app python -m leaveimpact.cache",
         "docker compose run --rm app python -m leaveimpact.agent bootstrap-log",
+        "docker compose run --rm app python -m leaveimpact.app bootstrap",
         "docker compose run --rm app python -m leaveimpact identity",
     ]
     # The service after the cache and the log are prepared, readiness read through the
@@ -67,9 +68,9 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     ]
     # Every container saw the tag, the bucket and the password in its environment, and no
     # command line carried the password. The fake numbers every docker invocation, so the
-    # containers' environments are the ones at the three `compose run` positions.
+    # containers' environments are the ones at the four `compose run` positions.
     runs = [n for n, line in enumerate(docker, start=1) if "compose run" in line]
-    assert len(runs) == 3
+    assert len(runs) == 4
     for n in runs:
         held = (fakes.fake_dir / f"docker-env-{n}.txt").read_text()
         assert f"APP_TAG={SHA}" in held

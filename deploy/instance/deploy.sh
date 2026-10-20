@@ -64,6 +64,10 @@ docker compose run --rm app python -m leaveimpact.cache
 # Nothing else creates them; the first live dispatch (2026-10-13) reached an instance
 # that had never been bootstrapped and refused at its first ledger command.
 docker compose run --rm app python -m leaveimpact.agent bootstrap-log
+# The demo surface's own schema (the table of publishable attempts and its version row),
+# the same way and apart from the log's: the readiness route reports the version as its
+# third bit, so a deploy that skipped this line fails at the readiness check below.
+docker compose run --rm app python -m leaveimpact.app bootstrap
 # Two named checks, neither the sole gate (the demo entry's HTTP-shell ruling).
 # The image check: the identity command states the commit the image was built from,
 # the deploy's evidence since the `oidc-deploy` probe, and a container that cannot say
