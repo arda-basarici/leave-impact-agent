@@ -20,8 +20,9 @@ hold a rank before the build accepts it; relative imports — which the edge sca
 rank — are banned outright; the top level holds only the package docstring and the
 composition root, so no unranked module can launder an import for a ranked one; and an
 ``ImportFrom`` is read with its aliases, so ``from leaveimpact import world`` names
-``world`` as plainly as ``import leaveimpact.world`` does. The rank table names a package
-that does not exist yet (``app``); declared ahead is fine, existing unranked is not.
+``world`` as plainly as ``import leaveimpact.world`` does. The rank table may name a
+package ahead of its milestone (``app`` was, until the demo milestone's scaffold); declared
+ahead is fine, existing unranked is not.
 
 Three spellings the edge scan read as something they were not are closed by name. A name
 imported from a module that itself imported it is followed to the module that defines it,
@@ -61,7 +62,7 @@ _RANK: dict[str, int] = {
     "agent": 3,  # the investigator milestone's
     "cache": 3,  # the corpus cache loader, the application's own job on the instance
     "launch": 4,  # the launcher above the agent: admissions and the lifecycle's next step
-    "app": 4,  # the demo milestone's
+    "app": 4,  # the demo surface, beside the launcher and never importing it
 }
 # The shells at this rank compose the same lower packages and never one another.
 _LATERAL_FORBIDDEN_RANK = 3
