@@ -64,10 +64,26 @@ docker compose run --rm app python -m leaveimpact.cache
 # Nothing else creates them; the first live dispatch (2026-10-13) reached an instance
 # that had never been bootstrapped and refused at its first ledger command.
 docker compose run --rm app python -m leaveimpact.agent bootstrap-log
-# The baseline app has no long-running service yet: it identifies itself and
-# exits, and that identity line is the deploy's evidence (the `oidc-deploy`
-# probe's "response"). Flips to `up -d app` with the first service entry point.
-docker compose run --rm app
+# Two named checks, neither the sole gate (the demo entry's HTTP-shell ruling).
+# The image check: the identity command states the commit the image was built from,
+# the deploy's evidence since the `oidc-deploy` probe, and a container that cannot say
+# so fails here before the service starts.
+IDENTITY=$(docker compose run --rm app identity)
+echo "identity: $IDENTITY"
+[[ "$IDENTITY" == "leaveimpact $DEPLOY_SHA:"* ]]
+# The readiness check: the service started and `--wait` returns on the compose
+# healthcheck, which reads the readiness route; the bounded wait fails the deploy on
+# a service that never becomes ready. The route's body is then read once more and
+# printed as the deploy's evidence, and its revision must be the deployed sha, so a
+# stale container answering "ready" cannot pass for the new one. On a failure here
+# the script stops: the DEPLOYED marker below keeps the previous sha, the new
+# container stays as it is for diagnosis, and a rollback is this script with the
+# older sha and its digest.
+docker compose up -d --wait --wait-timeout 120 app
+READY=$(docker compose exec -T app python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5).read().decode())")
+echo "ready: $READY"
+grep -q "\"code_version\":\"$DEPLOY_SHA\"" <<< "$READY"
+grep -q '"ready":true' <<< "$READY"
 
 # Every deploy pulls a new image and nothing ever removed the old ones: about 130
 # deploys in a week filled the 12 GB root and the pull itself failed (2026-09-15,

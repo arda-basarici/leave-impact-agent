@@ -1,7 +1,11 @@
 """The deploy script under fake binaries: the app image pulled by the digest CI recorded and
 given the commit's tag, the service image pulled by compose, the secrets reaching the
-containers' environment and never a command line, the deployed sha written last, and the
-refusals before any pull (no digest, a parameter still holding its placeholder)."""
+containers' environment and never a command line, the two named checks (the identity
+command as the image check, the readiness route read after `up --wait` as the readiness
+check) with the deployed sha written last and only after both, and the refusals: before
+any pull (no digest, a parameter still holding its placeholder), and after the service
+started (a service that is not ready, a container answering with another revision), each
+leaving no DEPLOYED marker."""
 
 from __future__ import annotations
 
@@ -45,8 +49,15 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     assert [line for line in docker if "compose run" in line] == [
         "docker compose run --rm app python -m leaveimpact.cache",
         "docker compose run --rm app python -m leaveimpact.agent bootstrap-log",
-        "docker compose run --rm app",
+        "docker compose run --rm app identity",
     ]
+    # The service after the cache and the log are prepared, readiness read through the
+    # bounded wait and then once more as the printed evidence.
+    service = [line for line in docker if line.endswith(" app") or " exec -T app " in line]
+    assert service[0] == "docker compose up -d --wait --wait-timeout 120 app"
+    assert service[1].startswith("docker compose exec -T app python -c ") and "/ready" in service[1]
+    assert f"identity: leaveimpact {SHA}: the demo surface's image" in completed.stdout
+    assert f'ready: {{"ready":true,"code_version":"{SHA}"' in completed.stdout
     assert (app_dir / "DEPLOYED").read_text() == SHA + "\n"
     assert f"deployed {SHA} ({DIGEST}) at " in completed.stdout
     # The compose file of the commit, fetched by sha into the app directory.
@@ -88,3 +99,29 @@ def test_a_parameter_still_holding_its_placeholder_fails_the_deploy_before_any_p
     assert completed.returncode != 0
     assert "parameter /leave-agent/postgres-password is not put" in completed.stderr
     assert fakes.lines("docker") == []
+
+
+@pytest.mark.parametrize(
+    ("scripted", "stage"),
+    [
+        ({"FAKE_IDENTITY_SHA": "e" * 40}, "identity"),
+        ({"FAKE_READY": "false"}, "ready"),
+        ({"FAKE_READY_SHA": "e" * 40}, "ready"),
+    ],
+)
+def test_a_failed_check_leaves_no_deployed_marker(
+    host: tuple[FakeBinaries, dict[str, str], Path], scripted: dict[str, str], stage: str
+) -> None:
+    """A stale image answering the identity command, a service that is not ready, or a
+    container answering the readiness route with another revision: the deploy fails after
+    that check, writes no DEPLOYED and claims no deploy, so a failed readiness keeps the
+    previous marker and a rollback is the script with the older sha."""
+    fakes, env, app_dir = host
+    env.update(scripted)
+    completed = run_script(DEPLOY_SCRIPT, env)
+    assert completed.returncode != 0
+    assert not (app_dir / "DEPLOYED").exists()
+    assert "deployed " not in completed.stdout
+    docker = fakes.lines("docker ")
+    started = any(line == "docker compose up -d --wait --wait-timeout 120 app" for line in docker)
+    assert started == (stage == "ready")

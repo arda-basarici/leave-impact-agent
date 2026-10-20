@@ -119,6 +119,16 @@ if [[ " $* " == *" leaveimpact.launch plan "* ]]; then
   echo "launch=launch-fake"
 elif [[ " $* " == *" leaveimpact.launch status "* ]]; then
   cat "$FAKE_DIR/status.txt" 2>/dev/null || true
+elif [[ " $* " == *" run --rm app identity"* ]]; then
+  # The image's identity line, the deploy's image check; FAKE_IDENTITY_SHA scripts a stale image.
+  echo "leaveimpact ${FAKE_IDENTITY_SHA:-$DEPLOY_SHA}: the demo surface's image"
+elif [[ " $* " == *" exec -T app python -c "* ]] && [[ " $* " == *"/ready"* ]]; then
+  # The readiness route's body as the service answers it; FAKE_READY and FAKE_READY_SHA
+  # script an unready service and a stale container answering for the new one.
+  ready="${FAKE_READY:-true}"; sha="${FAKE_READY_SHA:-$DEPLOY_SHA}"
+  printf '{"ready":%s,"code_version":"%s","served_world_version":"7b806ed6",' "$ready" "$sha"
+  printf '"store_reachable":true,"served_world_ready":%s}
+' "$ready"
 elif [ "$1" = ps ]; then
   [ -z "${FAKE_DOCKER_PS_EXIT:-}" ] || exit "$FAKE_DOCKER_PS_EXIT"
   cat "$FAKE_DIR/running.txt" 2>/dev/null || true

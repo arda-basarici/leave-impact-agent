@@ -38,9 +38,22 @@ services:
       LEAVE_IMPACT_JIRA_EMAIL: ${LEAVE_IMPACT_JIRA_EMAIL:-}
       LEAVE_IMPACT_JIRA_TOKEN: ${LEAVE_IMPACT_JIRA_TOKEN:-}
       LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON:-}
-    # No long-running process yet — the baseline image identifies itself and
-    # exits. Flips to `unless-stopped` with the first service entry point.
-    restart: "no"
+    # The service since the demo milestone's scaffold step: restarted on exit unless
+    # stopped by hand, so a crash comes back and a deploy's stop stays stopped. The
+    # restart policy governs container exits only; an unhealthy readiness below is a
+    # signal to the deploy (`up --wait`) and to the platform's monitor, never a repair,
+    # since Docker restarts no container for failing its health check.
+    restart: unless-stopped
+    # The readiness route from inside the container with Python's own client (the slim
+    # image carries no curl): 200 only when the store answers and the cache serves the
+    # allowlisted world, so `up --wait` returns when the demo can be served and the
+    # deploy's readiness check reads the same route. A 503 raises in urlopen and exits 1.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=5)"]
+      interval: 10s
+      timeout: 6s
+      retries: 6
+      start_period: 15s
     # Two processes on a 2 GB instance: bound each so one cannot OOM the other;
     # rotate logs so a chatty event stream cannot fill the root volume.
     mem_limit: 768m
