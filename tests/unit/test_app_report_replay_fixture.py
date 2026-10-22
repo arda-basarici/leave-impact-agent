@@ -95,7 +95,7 @@ def test_the_report_states_every_claim_once_with_its_walkthrough_above_the_endin
         assert page.count(f'id="{claim_id}"') == 1, claim_id
     assert TITLE in page and "Walkthrough" in page
     assert page.index("Walkthrough") < page.index("The run completed.")
-    assert "two coverage actions" in page, "the committed walkthrough names this replay"
+    assert "then the two coverage actions" in page, "the committed walkthrough names this replay"
     assert len(view.impacts) == 2, "the structured example has two impacts"
 
 
