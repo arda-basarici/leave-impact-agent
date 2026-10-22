@@ -7,7 +7,8 @@ clock (an unrelated run in the same window is ignored, a late listing is waited 
 bearers stop, a run on another commit stops); a crash after GitHub accepted the send is
 reconciled from the intent without a second send; an intent with no run is uncertain, never
 sent again, and cleared only by the operator's release; a release of a finished run reads
-the launch send off the job log and refuses one the runner could not read past; a full
+the launch send off the job log and, for any sent launch, the host store's refusal of the
+attempt off a continuation made after the host command's bound; a full
 listing younger than the intent proves no absence; a dry run ends before any approval or
 ledger line; a recorded stop stands across invocations until acknowledged; the stop check
 expects the plan's ledger from the admission's own marker. The fake answers with the fields
@@ -39,6 +40,7 @@ HEAD = "c" * 40
 OTHER_HEAD = "d" * 40
 TOKEN = "dsp-000000000001"  # the driver draws twelve hex digits; a fixed low-entropy one here
 INTENDED_AT = "2026-10-22T12:00:00Z"  # the listings' runs are created five seconds later
+LAUNCH_ENDED = "2026-10-22T12:10:00Z"  # when a finished run's job ended, as `gh run view` says
 
 
 @pytest.fixture(scope="module")
@@ -82,7 +84,8 @@ class FakeGitHub:
         if args[:2] == ("run", "list"):
             return self.listings.pop(0) if len(self.listings) > 1 else self.listings[0]
         if args[:2] == ("run", "view"):
-            return self.views.get(int(args[2]), {"status": "completed", "conclusion": "success"})
+            default = {"status": "completed", "conclusion": "success", "updatedAt": LAUNCH_ENDED}
+            return self.views.get(int(args[2]), default)
         if args[0] == "api":
             return self.pending
         raise AssertionError(f"unexpected read {args}")
@@ -415,50 +418,107 @@ def test_a_run_that_failed_before_admission_is_released_once_completed(
     assert 14 in driver.known_run_ids(records), "the released run stays known"
 
 
-def test_release_reads_the_launch_send_off_the_log_and_refuses_an_uncertain_one(
-    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
-) -> None:
-    plan = scratch_plan(tmp_path, driver)
-    key = plan.order[0]
+def stopped_after_launch(driver: ModuleType, plan: Any, key: Any, run_id: int) -> None:
     driver.append_ledger(
-        plan, {"kind": "dispatched", "key": key.text, "token": TOKEN, "run_id": 40}
+        plan, {"kind": "dispatched", "key": key.text, "token": TOKEN, "run_id": run_id}
     )
     driver.append_ledger(
         plan,
         {
             "kind": "finished",
             "key": key.text,
-            "run_id": 40,
+            "run_id": run_id,
             "stop_reasons": ["job conclusion failure"],
             "markers": {"launch.admitted": None},
         },
     )
+
+
+def continuation(created_at: str, *lines: str) -> tuple[dict[str, Any], str]:
+    """A completed continue-run as `gh run view` lists it, and its log in the runner's lines."""
+    view = {"status": "completed", "workflowName": "continue run", "createdAt": created_at}
+    return view, "".join(
+        f"continue\tContinue the run\t2026-10-22T14:30:00.0000000Z {text}\n" for text in lines
+    )
+
+
+NO_ATTEMPT = (
+    "status: sending",
+    "status: command 5555-6666 on i-0abc",
+    "status (stderr): leaveimpact.launch: refused: run run-40 has no attempt 1",
+    "status: the process exited 1",
+)
+LATE_ENOUGH = "2026-10-22T14:10:00Z"  # two hours after LAUNCH_ENDED, the host command's bound
+
+
+def test_release_of_a_sent_launch_needs_the_host_stores_answer_not_the_logs_shape(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The two histories the second external read constructed: a response lost after SSM
+    accepted the send (no command id on the log, the host running the command anyway), and
+    a commit whose acknowledgement was lost (an unsuccessful exit without the marker, the
+    admission committed). Neither is releasable from the log; both are from the store's
+    refusal on a continuation made after the host command's bound."""
+    plan = scratch_plan(tmp_path, driver)
+    key = plan.order[0]
+    stopped_after_launch(driver, plan, key, 40)
     github = FakeGitHub([[]])
     wire(driver, monkeypatch, github)
     with pytest.raises(driver.Stop, match="log is empty"):
         driver.release(plan, key, "the job failed")
-    sent = "launch: command 1111-2222 on i-0abc"
-    github.logs[40] = runner_log(
-        sent,
-        "launch: the poll passed the execution timeout plus its margin with no terminal "
-        "status; the send is uncertain",
+    lost_response = runner_log(
+        "launch: sending",
+        "Connection was closed before we received a valid response from endpoint URL",
     )
-    with pytest.raises(driver.Stop, match="ended uncertain"):
-        driver.release(plan, key, "the job failed")
-    github.logs[40] = runner_log(sent)  # cancelled mid-poll: nothing after the send
-    with pytest.raises(driver.Stop, match="ended uncertain"):
-        driver.release(plan, key, "the job was cancelled")
-    github.logs[40] = runner_log(sent, "launch: admitted=run-40/1", "work: command 3333 on i-0abc")
-    with pytest.raises(driver.Stop, match="carries an admission"):
-        driver.release(plan, key, "the work failed")
-    github.logs[40] = runner_log(
-        sent,
-        "launch (stderr): the dispatched commit abc1234 is not the deployed one def5678",
-        "launch: the process exited 2",
+    lost_acknowledgement = runner_log(
+        "launch: sending",
+        "launch: command 1111-2222 on i-0abc",
+        "launch (stderr): leaveimpact.agent: the connection was lost while the admission committed",
+        "launch: the process exited 1",
     )
-    assert driver.release(plan, key, "the deploy was pending") == 0
+    for history in (lost_response, lost_acknowledgement):
+        github.logs[40] = history
+        with pytest.raises(driver.Stop, match="pass its run id as --status-run"):
+            driver.release(plan, key, "the launch failed")
+        github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *NO_ATTEMPT)
+        github.views[41]["workflowName"] = "investigate"
+        with pytest.raises(driver.Stop, match="not a completed 'continue run'"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        github.views[41], github.logs[41] = continuation("2026-10-22T13:00:00Z", *NO_ATTEMPT)
+        with pytest.raises(driver.Stop, match="not yet about the launch's end"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        answered = ("status: sending", "status: command 7 on i-0abc", "status: attempt=open")
+        github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *answered)
+        with pytest.raises(driver.Stop, match="the attempt exists and the run holds its slot"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        other = tuple(line.replace("run-40", "run-39") for line in NO_ATTEMPT)
+        github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *other)
+        with pytest.raises(driver.Stop, match="read run-39, not run-40"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        assert [r["kind"] for r in driver.read_ledger(plan)] == ["dispatched", "finished"]
+    github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *NO_ATTEMPT)
+    assert driver.release(plan, key, "the launch failed", status_run=41) == 0
     read = driver.read_ledger(plan)[-1]["read"]
-    assert read == "run 40 completed; its launch ended on the host before any admission"
+    assert read == (
+        "continue-run 41, 7200 s after the launch job ended, read the store: run-40 has no "
+        "attempt 1"
+    )
+
+
+def test_an_admission_on_the_log_refuses_release_whatever_the_markers_say(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    plan = scratch_plan(tmp_path, driver)
+    key = plan.order[0]
+    stopped_after_launch(driver, plan, key, 40)
+    github = FakeGitHub([[]])
+    wire(driver, monkeypatch, github)
+    github.logs[40] = runner_log(
+        "launch: sending", "launch: command 1 on i-0abc", "launch: admitted=run-40/1"
+    )
+    github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *NO_ATTEMPT)
+    with pytest.raises(driver.Stop, match="carries an admission"):
+        driver.release(plan, key, "the work failed", status_run=41)
 
 
 def test_a_full_listing_younger_than_the_intent_proves_no_absence(

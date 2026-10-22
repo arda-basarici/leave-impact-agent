@@ -62,10 +62,17 @@ records that it was read, so a restart never walks past it. The driver never
 re-dispatches the key: a replacement would be surplus, or would take the slot an
 unexported run holds. A retry an attribution row permits goes through `continue-run.yml`
 by hand, outside the driver. The one exception is a run that admitted nothing: `release
---key K --reason R` clears it after reading the job log, and only when the log shows the
-launch never sent or the runner relaying the host process's exit; a launch send the
-runner could not read past (its poll timed out, the job was cancelled) may have admitted
-on the host, and the key stays until the host's state is read in Session Manager.
+--key K --reason R` clears it after reading the job log. A log with no `launch: sending`
+line (the job ended before its first send) is evidence by itself. Any sent launch is the
+host's store to answer, since a lost response leaves no command id and the host runs the
+command anyway, and a relayed exit proves nothing about a commit whose acknowledgement
+was lost: dispatch `continue-run.yml` by hand for `run-<run id>`, attempt 1, the plan's
+ledger and any launch identity, no sooner than two hours after the job ended (SSM may
+deliver and run the launch command for that long after the job that sent it), and pass
+its run id as `--status-run`. The driver reads that run's log and releases only on the
+store's own refusal ("run run-N has no attempt 1") with the status step's relayed exit; a
+status that answered a state means the attempt exists, the run holds its slot, and the
+continuation is how it is finished.
 
 ## Deploys
 

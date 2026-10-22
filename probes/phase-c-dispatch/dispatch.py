@@ -40,12 +40,14 @@ which `run` walks past the stopped key, which keeps its record and its slot. A `
 line carrying stop reasons stops every later invocation until one of those two operator
 lines stands beside it, so a restart never walks past a stop nobody read. A key with a
 `dispatched` line and no `finished` one is resumed by waiting on its run. A release of a
-finished run reads the job log for its launch send: a launch never sent, or one whose exit
-the runner relayed, admitted nothing and admits nothing later; a send the runner could not
-read past may have admitted on a host whose command may still run, and the key stays until
-the host's state is read in Session Manager (the external read of the replay step, which
-also found the dry run approving a standing run's review: it now ends before any send,
-approval or ledger line).
+finished run reads the job log for its launch send: a launch never sent admitted nothing;
+any sent launch is the host's store to answer, since a lost response leaves no command id
+and the host runs the command anyway, and a relayed exit says nothing about a commit whose
+acknowledgement was lost. The operator dispatches a continue-run for the run by hand, two
+hours after the job ended (the bound on how long SSM may deliver and run the command), and
+the driver reads its log for the store's own refusal of the attempt before it releases
+(the two external reads of the replay step, the first of which also found the dry run
+approving a standing run's review: it now ends before any send, approval or ledger line).
 
 A send's identity is its token. `gh workflow run` prints no run id, and the first driver
 took the one new run created after the send, a clock window that would have adopted a
@@ -84,7 +86,8 @@ unless `--plan-dir` names another:
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run --dry-run
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run --max 1
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run
-    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] release --key K --reason R
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] release --key K --reason R \
+        [--status-run ID]
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] acknowledge --key K \
         --reason R
 
@@ -126,11 +129,19 @@ REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
 GATED_ENVIRONMENT = "production"
 REVIEW_WAIT_SECONDS = 90
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
-# The runner's own lines around a launch send (deploy/runner/investigate.sh): the send's
-# command id, the relayed exit status of the host's process, the admit command's marker.
-LAUNCH_SENT = re.compile(r"\blaunch: command \S+ on \S+")
-LAUNCH_EXITED = re.compile(r"\blaunch: the process exited \d+")
+# The runner's own lines (deploy/runner/investigate.sh): the line before a send, the admit
+# command's marker, and on a continuation the launcher's refusal the store answers for a
+# run with no attempt, relayed from stderr, with the status step's relayed exit.
+LAUNCH_SENDING = re.compile(r"\blaunch: sending\b")
 LAUNCH_ADMITTED = re.compile(r"\blaunch: admitted=\S+")
+STATUS_NO_ATTEMPT = re.compile(
+    r"\bstatus \(stderr\): leaveimpact\.launch: refused: run (run-\d+) has no attempt (\d+)"
+)
+STATUS_EXITED = re.compile(r"\bstatus: the process exited \d+")
+CONTINUATION_WORKFLOW_NAME = "continue run"
+# SSM's delivery timeout (the send's default, 3600 s) and the payload's execution timeout
+# (3600 s): a launch command the job sent has ended this long after the job ended.
+HOST_COMMAND_BOUND_SECONDS = 7200
 TOKEN = re.compile(r"^dsp-[0-9a-f]{12}$")
 RUN_FIELDS = "databaseId,createdAt,headSha,displayTitle"
 
@@ -742,36 +753,76 @@ def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
 def launch_read(run_id: int) -> str:
     """How far the job's launch send is known to have gone, read off the run log.
 
-    ``none``: the runner sent no launch, since the job ended before its first send (no
-    running instance, a failed checkout). ``admitted``: the admit command's marker came back.
-    ``ended``: the runner relayed the process's exit status, which SSM reports only after
-    the process ended, so the host admits nothing later. ``uncertain``: the send is on the
-    log and neither came back, because the poll passed its bound, a read failed or the job
-    was cancelled mid-poll; the admission may have committed and the host's command may
-    still be running. The markers alone cannot tell the last two apart, since both leave
-    the admission marker absent (the external read of the replay step).
+    ``none``: the runner printed no sending line, so the job ended before its first send
+    (no running instance, a failed checkout). ``admitted``: the admit command's marker came
+    back. ``sent``: everything else, which is all the log can say. A response lost after
+    SSM accepted the command leaves no command id on the log and the host runs the command
+    anyway; a relayed exit proves the process cannot admit later and not that it never
+    admitted, since a commit whose acknowledgement was lost exits unsuccessfully without
+    the marker (the two external reads of the replay step). Whether a sent launch admitted
+    is the host's store to answer, through ``host_read``.
     """
     text = gh("run", "view", str(run_id), "--log", timeout=120)
     if not text.strip():
         raise Stop(f"run {run_id}'s log is empty; nothing is read from it")
     if LAUNCH_ADMITTED.search(text):
         return "admitted"
-    if LAUNCH_EXITED.search(text):
-        return "ended"
-    if LAUNCH_SENT.search(text):
-        return "uncertain"
+    if LAUNCH_SENDING.search(text):
+        return "sent"
     return "none"
 
 
-def release(plan: Plan, key: Key, reason: str) -> int:
+def host_read(status_run: int, run_id: int, launch_ended_at: str) -> str:
+    """The host store's answer about the launch's attempt, read off a continue-run the
+    operator dispatched by hand for ``run-<run_id>``: the one durable evidence that a sent
+    launch admitted nothing. The continuation's status step runs the launcher on the host,
+    which asks the store for the attempt and prints the store's refusal when there is none,
+    and the runner relays it with the process's exit. The read counts only when that run
+    completed and was created at least ``HOST_COMMAND_BOUND_SECONDS`` after the launch job
+    ended: SSM may deliver and run a command the job sent for that long after the job, and
+    a store read before its end would answer about a host that had not admitted yet. A
+    status that answered a state means the attempt exists and the run holds its slot."""
+    run = gh_json("run", "view", str(status_run), "--json", "status,workflowName,createdAt")
+    assert isinstance(run, dict)
+    if run["workflowName"] != CONTINUATION_WORKFLOW_NAME or run["status"] != "completed":
+        raise Stop(
+            f"run {status_run} is {run['status']} of {run['workflowName']!r}, not a completed "
+            f"{CONTINUATION_WORKFLOW_NAME!r}"
+        )
+    created = datetime.fromisoformat(str(run["createdAt"]))
+    waited = int((created - datetime.fromisoformat(launch_ended_at)).total_seconds())
+    if waited < HOST_COMMAND_BOUND_SECONDS:
+        raise Stop(
+            f"continue-run {status_run} was created {waited} s after run {run_id}'s job ended; "
+            f"the host may run the launch command for {HOST_COMMAND_BOUND_SECONDS} s after it, "
+            "so the store's answer is not yet about the launch's end"
+        )
+    text = gh("run", "view", str(status_run), "--log", timeout=120)
+    found = STATUS_NO_ATTEMPT.search(text)
+    if found is None or not STATUS_EXITED.search(text):
+        raise Stop(
+            f"continue-run {status_run}'s log holds no store refusal of an attempt of "
+            f"run-{run_id} with the status step's relayed exit; a status that answered a state "
+            "means the attempt exists and the run holds its slot"
+        )
+    if found.group(1) != f"run-{run_id}":
+        raise Stop(f"continue-run {status_run} read {found.group(1)}, not run-{run_id}")
+    return (
+        f"continue-run {status_run}, {waited} s after the launch job ended, read the store: "
+        f"run-{run_id} has no attempt {found.group(2)}"
+    )
+
+
+def release(plan: Plan, key: Key, reason: str, status_run: int | None = None) -> int:
     """The operator's line after reading Actions: a key whose intent stands with no run
     bearing its token, or whose finished run stopped the driver before any attempt was
     admitted, may be sent once more. The line names what was read: for an intent, that no
     run bears the token in a listing reaching back past the intent; for a finished run,
-    that the run is completed and its log shows the launch never sent or ended on the host
-    before any admission. Any other state is refused: a run that admitted an attempt holds
-    its slot under PROTOCOL, a launch send the runner could not read past may have admitted
-    and is read on the host, not here, and the fold's history is never edited."""
+    that the run is completed and either its log shows no launch was sent, or the host's
+    store, read through the continue-run ``status_run`` names, holds no attempt of it. Any
+    other state is refused: a run that admitted an attempt holds its slot under PROTOCOL, a
+    sent launch without the host's answer may have admitted, and the fold's history is
+    never edited."""
     entry = fold(read_ledger(plan)).get(key.text, empty_entry())
     if entry["intent"] is None and entry["dispatched"] is None:
         raise Stop(f"{key.text} has nothing to release: it was never sent")
@@ -784,7 +835,7 @@ def release(plan: Plan, key: Key, reason: str) -> int:
                 "its slot under PROTOCOL; a retry goes through continue-run by hand"
             )
         run_id = entry["finished"]["run_id"]
-        run = gh_json("run", "view", str(run_id), "--json", "status")
+        run = gh_json("run", "view", str(run_id), "--json", "status,updatedAt")
         assert isinstance(run, dict)
         if run["status"] != "completed":
             raise Stop(f"run {run_id} is {run['status']}, not completed; it may still admit")
@@ -794,15 +845,17 @@ def release(plan: Plan, key: Key, reason: str) -> int:
                 f"run {run_id}'s log carries an admission its markers did not; the run holds "
                 "its slot under PROTOCOL"
             )
-        if launch == "uncertain":
+        if launch == "none":
+            read = f"run {run_id} completed; its launch was never sent"
+        elif status_run is None:
             raise Stop(
-                f"run {run_id}'s launch send ended uncertain: the host may have admitted and "
-                "its command may still be running; its state is read in Session Manager, the "
-                "key stays, and a retry goes through continue-run by hand"
+                f"run {run_id} sent its launch, and the log cannot say whether the host "
+                "admitted; dispatch continue-run by hand for run-"
+                f"{run_id} attempt 1 no sooner than {HOST_COMMAND_BOUND_SECONDS} s after the job "
+                "ended, and pass its run id as --status-run"
             )
-        read = f"run {run_id} completed; its launch " + (
-            "was never sent" if launch == "none" else "ended on the host before any admission"
-        )
+        else:
+            read = host_read(status_run, run_id, str(run["updatedAt"]))
     elif entry["dispatched"] is not None:
         raise Stop(
             f"{key.text} has run {entry['dispatched']['run_id']} dispatched and not finished; "
@@ -922,6 +975,12 @@ def main(argv: list[str]) -> int:
     releasing = sub.add_parser("release")
     releasing.add_argument("--key", required=True, help="system/level/scenario")
     releasing.add_argument("--reason", required=True, help="what Actions showed, in your words")
+    releasing.add_argument(
+        "--status-run",
+        type=int,
+        help="a completed continue-run of the launch's run id whose status read found no "
+        "attempt; required for a finished run whose launch was sent",
+    )
     acknowledging = sub.add_parser("acknowledge")
     acknowledging.add_argument("--key", required=True, help="system/level/scenario")
     acknowledging.add_argument(
@@ -934,7 +993,7 @@ def main(argv: list[str]) -> int:
         if args.command == "status":
             return status(plan)
         if args.command == "release":
-            return release(plan, Key.of(args.key), args.reason)
+            return release(plan, Key.of(args.key), args.reason, args.status_run)
         if args.command == "acknowledge":
             return acknowledge(plan, Key.of(args.key), args.reason)
         return run(plan, args.max, args.dry_run)
