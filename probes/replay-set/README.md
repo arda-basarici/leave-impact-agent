@@ -15,7 +15,8 @@ for this plan.
 - `ledger.jsonl`: append-only, committed at the end of every sitting; one `intent` line
   before each send, one `dispatched` line when the run bearing the send's token is
   found, one `approved` line, one `finished` line with the runner's markers; a
-  `released` line only by an operator's hand through `release`.
+  `released` or an `acknowledged` line only by an operator's hand through `release` or
+  `acknowledge`, the phase-C README saying when each applies.
 - `data/replay-set/driver.log` (git-ignored): every printed line.
 
 ## Running it

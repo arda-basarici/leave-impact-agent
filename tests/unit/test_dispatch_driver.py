@@ -6,10 +6,14 @@ carries the plan's site, ledger and its token; a run is found by its token and n
 clock (an unrelated run in the same window is ignored, a late listing is waited for, two
 bearers stop, a run on another commit stops); a crash after GitHub accepted the send is
 reconciled from the intent without a second send; an intent with no run is uncertain, never
-sent again, and cleared only by the operator's release; the stop check expects the plan's
-ledger from the admission's own marker. The fake answers with the fields the real tool
-documents (`gh run list --json` lists `databaseId,createdAt,headSha,displayTitle`), never
-with a line copied from the code under test."""
+sent again, and cleared only by the operator's release; a release of a finished run reads
+the launch send off the job log and refuses one the runner could not read past; a full
+listing younger than the intent proves no absence; a dry run ends before any approval or
+ledger line; a recorded stop stands across invocations until acknowledged; the stop check
+expects the plan's ledger from the admission's own marker. The fake answers with the fields
+the real tool documents (`gh run list --json` lists `databaseId,createdAt,headSha,
+displayTitle`; the runner's log lines are the runner script's own), never with a line
+copied from the code under test."""
 
 from __future__ import annotations
 
@@ -34,6 +38,7 @@ WORLD = "ab" * 32
 HEAD = "c" * 40
 OTHER_HEAD = "d" * 40
 TOKEN = "dsp-000000000001"  # the driver draws twelve hex digits; a fixed low-entropy one here
+INTENDED_AT = "2026-10-22T12:00:00Z"  # the listings' runs are created five seconds later
 
 
 @pytest.fixture(scope="module")
@@ -63,12 +68,15 @@ class FakeClock:
 
 class FakeGitHub:
     """`gh_json` and `gh` as the driver calls them: run listings served in sequence (the
-    last repeated), every other read a quiet success, every send recorded."""
+    last repeated), a run's log and its pending reviews as set, every other read a quiet
+    success, every send recorded."""
 
     def __init__(self, listings: list[list[dict[str, Any]]]) -> None:
         self.listings = list(listings)
         self.sent: list[tuple[str, ...]] = []
         self.views: dict[int, dict[str, Any]] = {}
+        self.logs: dict[int, str] = {}
+        self.pending: list[dict[str, Any]] = []
 
     def gh_json(self, *args: str) -> object:
         if args[:2] == ("run", "list"):
@@ -76,12 +84,25 @@ class FakeGitHub:
         if args[:2] == ("run", "view"):
             return self.views.get(int(args[2]), {"status": "completed", "conclusion": "success"})
         if args[0] == "api":
-            return []
+            return self.pending
         raise AssertionError(f"unexpected read {args}")
 
     def gh(self, *args: str, **_: object) -> str:
+        if args[:2] == ("run", "view") and "--log" in args:
+            return self.logs.get(int(args[2]), "")
         self.sent.append(args)
         return ""
+
+
+def runner_log(*lines: str) -> str:
+    """Lines as `gh run view --log` prints them: job, step and time before the runner's text."""
+    return "".join(
+        f"investigate\tRun the plan\t2026-10-22T12:01:00.0000000Z {text}\n" for text in lines
+    )
+
+
+def production_review() -> list[dict[str, Any]]:
+    return [{"environment": {"name": "production", "id": 5}, "current_user_can_approve": True}]
 
 
 def listed(run_id: int, title: str, sha: str = HEAD) -> dict[str, Any]:
@@ -238,7 +259,7 @@ def test_the_run_is_found_by_its_token_not_the_clock_and_a_late_listing_is_waite
         [[], [hand], [hand, listed(9, f"investigate agent base scenario_001 {TOKEN}")]]
     )
     wire(driver, monkeypatch, github)
-    assert driver.resolve_run(plan, TOKEN, HEAD, 180) == (9, HEAD)
+    assert driver.resolve_run(plan, TOKEN, HEAD, 180, INTENDED_AT) == (9, HEAD)
     assert clock.slept == 10, "two empty reads, five seconds each"
 
 
@@ -248,7 +269,7 @@ def test_only_an_unrelated_run_within_the_wait_is_uncertain_and_stops(
     plan = scratch_plan(tmp_path, driver)
     wire(driver, monkeypatch, FakeGitHub([[listed(8, "investigate agent base scenario_009 ")]]))
     with pytest.raises(driver.Stop, match="the intent stands"):
-        driver.resolve_run(plan, TOKEN, HEAD, 60)
+        driver.resolve_run(plan, TOKEN, HEAD, 60, INTENDED_AT)
     assert clock.slept >= 60
 
 
@@ -259,7 +280,7 @@ def test_two_runs_bearing_the_token_stop_the_driver(
     github = FakeGitHub([[listed(8, f"x {TOKEN}"), listed(9, f"y {TOKEN}")]])
     wire(driver, monkeypatch, github)
     with pytest.raises(driver.Stop, match="more than one run bears"):
-        driver.resolve_run(plan, TOKEN, HEAD, 60)
+        driver.resolve_run(plan, TOKEN, HEAD, 60, INTENDED_AT)
 
 
 def test_a_run_on_another_commit_than_the_checkouts_stops_before_approval(
@@ -268,7 +289,7 @@ def test_a_run_on_another_commit_than_the_checkouts_stops_before_approval(
     plan = scratch_plan(tmp_path, driver)
     wire(driver, monkeypatch, FakeGitHub([[listed(8, f"x {TOKEN}", sha=OTHER_HEAD)]]))
     with pytest.raises(driver.Stop, match="did not dispatch from"):
-        driver.resolve_run(plan, TOKEN, HEAD, 60)
+        driver.resolve_run(plan, TOKEN, HEAD, 60, INTENDED_AT)
 
 
 # --- The intent across a crash -----------------------------------------------------------------
@@ -284,7 +305,7 @@ def intent_line(key: Any) -> dict[str, str]:
         "key": key.text,
         "token": TOKEN,
         "head_sha": HEAD,
-        "intended_at": "2026-10-22T12:00:00Z",
+        "intended_at": INTENDED_AT,
     }
 
 
@@ -382,13 +403,166 @@ def test_a_run_that_failed_before_admission_is_released_once_completed(
     )
     github = FakeGitHub([[]])
     github.views[14] = {"status": "in_progress"}
+    github.logs[14] = runner_log("no running leave-impact instance")
     wire(driver, monkeypatch, github)
     with pytest.raises(driver.Stop, match="not completed"):
         driver.release(plan, key, "the launch failed on a stopped instance")
     github.views[14] = {"status": "completed"}
     assert driver.release(plan, key, "the launch failed on a stopped instance") == 0
-    assert driver.fold(driver.read_ledger(plan))[key.text] == driver.empty_entry()
-    assert 14 in driver.known_run_ids(driver.read_ledger(plan)), "the released run stays known"
+    records = driver.read_ledger(plan)
+    assert records[-1]["read"] == "run 14 completed; its launch was never sent"
+    assert driver.fold(records)[key.text] == driver.empty_entry()
+    assert 14 in driver.known_run_ids(records), "the released run stays known"
+
+
+def test_release_reads_the_launch_send_off_the_log_and_refuses_an_uncertain_one(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    plan = scratch_plan(tmp_path, driver)
+    key = plan.order[0]
+    driver.append_ledger(
+        plan, {"kind": "dispatched", "key": key.text, "token": TOKEN, "run_id": 40}
+    )
+    driver.append_ledger(
+        plan,
+        {
+            "kind": "finished",
+            "key": key.text,
+            "run_id": 40,
+            "stop_reasons": ["job conclusion failure"],
+            "markers": {"launch.admitted": None},
+        },
+    )
+    github = FakeGitHub([[]])
+    wire(driver, monkeypatch, github)
+    with pytest.raises(driver.Stop, match="log is empty"):
+        driver.release(plan, key, "the job failed")
+    sent = "launch: command 1111-2222 on i-0abc"
+    github.logs[40] = runner_log(
+        sent,
+        "launch: the poll passed the execution timeout plus its margin with no terminal "
+        "status; the send is uncertain",
+    )
+    with pytest.raises(driver.Stop, match="ended uncertain"):
+        driver.release(plan, key, "the job failed")
+    github.logs[40] = runner_log(sent)  # cancelled mid-poll: nothing after the send
+    with pytest.raises(driver.Stop, match="ended uncertain"):
+        driver.release(plan, key, "the job was cancelled")
+    github.logs[40] = runner_log(sent, "launch: admitted=run-40/1", "work: command 3333 on i-0abc")
+    with pytest.raises(driver.Stop, match="carries an admission"):
+        driver.release(plan, key, "the work failed")
+    github.logs[40] = runner_log(
+        sent,
+        "launch (stderr): the dispatched commit abc1234 is not the deployed one def5678",
+        "launch: the process exited 2",
+    )
+    assert driver.release(plan, key, "the deploy was pending") == 0
+    read = driver.read_ledger(plan)[-1]["read"]
+    assert read == "run 40 completed; its launch ended on the host before any admission"
+
+
+def test_a_full_listing_younger_than_the_intent_proves_no_absence(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    plan = scratch_plan(tmp_path, driver)
+    key = plan.order[0]
+    driver.append_ledger(plan, intent_line(key))
+    limit = int(driver.LISTING_LIMIT)
+    young = [listed(100 + i, f"investigate x {i + 2:012x}") for i in range(limit)]
+    wire(driver, monkeypatch, FakeGitHub([young]))
+    with pytest.raises(driver.Stop, match="may lie past the listing"):
+        driver.release(plan, key, "Actions lists no run")
+    assert [r["kind"] for r in driver.read_ledger(plan)] == ["intent"]
+    reaching_back = young[:-1] + [dict(young[-1], createdAt="2026-10-22T11:59:00Z")]
+    wire(driver, monkeypatch, FakeGitHub([reaching_back]))
+    assert driver.release(plan, key, "Actions lists no run") == 0
+
+
+# --- The dry run and the standing stop ---------------------------------------------------------
+
+
+def test_a_dry_run_ends_before_any_approval_or_ledger_line(
+    tmp_path: Path,
+    driver: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    clock: FakeClock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan = scratch_plan(tmp_path, driver)
+    first, second = plan.order
+    driver.append_ledger(plan, intent_line(first))
+    driver.append_ledger(
+        plan, {"kind": "dispatched", "key": second.text, "token": "dsp-ffffffffffff", "run_id": 21}
+    )
+    github = FakeGitHub([[listed(20, f"investigate agent base scenario_001 {TOKEN}")]])
+    github.pending = production_review()
+    wire(driver, monkeypatch, github)
+    monkeypatch.setattr(driver, "dispatch", no_second_send)
+    before = driver.read_ledger(plan)
+    assert driver.run(plan, 0, True) == 0
+    assert driver.read_ledger(plan) == before and github.sent == []
+    assert f"the run bearing {TOKEN} would be adopted for {first.text}" in capsys.readouterr().out
+    (tmp_path / "resumed").mkdir()
+    resumed = scratch_plan(tmp_path / "resumed", driver)
+    driver.append_ledger(
+        resumed, {"kind": "dispatched", "key": first.text, "token": TOKEN, "run_id": 21}
+    )
+    assert driver.run(resumed, 0, True) == 0
+    assert [r["kind"] for r in driver.read_ledger(resumed)] == ["dispatched"] and github.sent == []
+    assert f"run 21 would be resumed for {first.text}" in capsys.readouterr().out
+    # The control: the same state under a real run adopts, approves and finishes both runs.
+    good = {20: good_markers(plan, first), 21: good_markers(plan, second)}
+    monkeypatch.setattr(driver, "markers_of", good.__getitem__)
+    assert driver.run(plan, 0, False) == 0
+    assert [args[:3] for args in github.sent] == [("api", "-X", "POST")] * 2
+
+
+def test_a_recorded_stop_stands_across_invocations_until_acknowledged(
+    tmp_path: Path,
+    driver: ModuleType,
+    monkeypatch: pytest.MonkeyPatch,
+    clock: FakeClock,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    plan = scratch_plan(tmp_path, driver)
+    first, second = plan.order
+    driver.append_ledger(
+        plan, {"kind": "dispatched", "key": first.text, "token": TOKEN, "run_id": 30}
+    )
+    driver.append_ledger(
+        plan,
+        {
+            "kind": "finished",
+            "key": first.text,
+            "run_id": 30,
+            "stop_reasons": ["work.ending is 'open'"],
+            "markers": {"launch.admitted": "run-30/1"},
+        },
+    )
+    wire(driver, monkeypatch, FakeGitHub([[]]))
+    monkeypatch.setattr(driver, "dispatch", no_second_send)
+    for dry_run in (False, True):
+        with pytest.raises(driver.Stop, match="the stop stands until"):
+            driver.run(plan, 0, dry_run)
+    assert [r["kind"] for r in driver.read_ledger(plan)] == ["dispatched", "finished"]
+    with pytest.raises(driver.Stop, match="no finished run"):
+        driver.acknowledge(plan, second, "nothing here")
+    assert driver.acknowledge(plan, first, "the attempt is open on the host; the slot is held") == 0
+    with pytest.raises(driver.Stop, match="already"):
+        driver.acknowledge(plan, first, "again")
+    assert driver.run(plan, 0, True) == 0
+    assert f"the next dispatch would be {second.text}" in capsys.readouterr().out
+    driver.status(plan)
+    assert f"stopped: {first.text} run 30 (acknowledged): work.ending" in capsys.readouterr().out
+    driver.append_ledger(
+        plan, {"kind": "dispatched", "key": second.text, "token": "dsp-ffffffffffff", "run_id": 31}
+    )
+    driver.append_ledger(
+        plan,
+        {"kind": "finished", "key": second.text, "run_id": 31, "stop_reasons": [], "markers": {}},
+    )
+    with pytest.raises(driver.Stop, match="nothing to acknowledge"):
+        driver.acknowledge(plan, second, "it went well")
 
 
 # --- The stop check ----------------------------------------------------------------------------

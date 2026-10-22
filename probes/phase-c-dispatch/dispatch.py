@@ -35,8 +35,17 @@ object digest, the inventory's digest and outcome); and a `released` line, writt
 operator through `release` after reading Actions, after which the key may be sent once
 more, the one path by which a key with a `dispatched` line is ever sent again (the other
 parked defect: a run that failed before admission holds no slot, and PROTOCOL lets it be
-dispatched again). A key with a `dispatched` line and no `finished` one is resumed by
-waiting on its run.
+dispatched again); and an `acknowledged` line, the operator's after reading a stop, after
+which `run` walks past the stopped key, which keeps its record and its slot. A `finished`
+line carrying stop reasons stops every later invocation until one of those two operator
+lines stands beside it, so a restart never walks past a stop nobody read. A key with a
+`dispatched` line and no `finished` one is resumed by waiting on its run. A release of a
+finished run reads the job log for its launch send: a launch never sent, or one whose exit
+the runner relayed, admitted nothing and admits nothing later; a send the runner could not
+read past may have admitted on a host whose command may still run, and the key stays until
+the host's state is read in Session Manager (the external read of the replay step, which
+also found the dry run approving a standing run's review: it now ends before any send,
+approval or ledger line).
 
 A send's identity is its token. `gh workflow run` prints no run id, and the first driver
 took the one new run created after the send, a clock window that would have adopted a
@@ -76,6 +85,8 @@ unless `--plan-dir` names another:
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run --max 1
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run
     uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] release --key K --reason R
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] acknowledge --key K \
+        --reason R
 
 Every printed line is also appended to `data/<plan directory name>/driver.log`
 (git-ignored) so a second terminal can follow it.
@@ -115,6 +126,11 @@ REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
 GATED_ENVIRONMENT = "production"
 REVIEW_WAIT_SECONDS = 90
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
+# The runner's own lines around a launch send (deploy/runner/investigate.sh): the send's
+# command id, the relayed exit status of the host's process, the admit command's marker.
+LAUNCH_SENT = re.compile(r"\blaunch: command \S+ on \S+")
+LAUNCH_EXITED = re.compile(r"\blaunch: the process exited \d+")
+LAUNCH_ADMITTED = re.compile(r"\blaunch: admitted=\S+")
 TOKEN = re.compile(r"^dsp-[0-9a-f]{12}$")
 RUN_FIELDS = "databaseId,createdAt,headSha,displayTitle"
 
@@ -298,12 +314,13 @@ def append_ledger(plan: Plan, record: dict) -> None:
 
 
 def empty_entry() -> dict[str, dict | None]:
-    return {"intent": None, "dispatched": None, "finished": None}
+    return {"intent": None, "dispatched": None, "finished": None, "acknowledged": None}
 
 
 def fold(records: list[dict]) -> dict[str, dict[str, dict | None]]:
-    """Each key's standing intent, dispatch and finish; a `released` line clears all three
-    so the key reads as unsent, while every run id the records name stays known."""
+    """Each key's standing intent, dispatch, finish and the operator's acknowledgement of a
+    finish that stopped the driver; a `released` line clears all four so the key reads as
+    unsent, while every run id the records name stays known."""
     state: dict[str, dict[str, dict | None]] = {}
     for record in records:
         entry = state.setdefault(record["key"], empty_entry())
@@ -393,19 +410,37 @@ def dispatch(plan: Plan, key: Key, token: str) -> str | None:
     return None
 
 
-def runs_bearing(plan: Plan, token: str) -> list[dict]:
+def runs_bearing(plan: Plan, token: str, intended_at: str) -> list[dict]:
     """The workflow's recent runs whose name carries ``token``: the run name is the one
     channel a dispatch input comes back through (`run-name` in the workflow), and the
     token is twelve hex digits drawn for one send, so a run of another driver, a hand
-    dispatch or a continuation never matches."""
+    dispatch or a continuation never matches.
+
+    An empty answer is a proof of absence only when the listing reaches back past the
+    intent: the run was created after ``intended_at``, so a full listing whose oldest run
+    is younger than the intent may have the bearer past its end, and the driver stops
+    rather than conclude anything from it (the external read of the replay step).
+    """
     runs = gh_json(
         "run", "list", "--workflow", plan.workflow, "--limit", LISTING_LIMIT, "--json", RUN_FIELDS
     )
     assert isinstance(runs, list)
-    return [run for run in runs if token in str(run.get("displayTitle", ""))]
+    bearing = [run for run in runs if token in str(run.get("displayTitle", ""))]
+    if bearing or len(runs) < int(LISTING_LIMIT):
+        return bearing
+    since = datetime.fromisoformat(intended_at)
+    if all(datetime.fromisoformat(str(run["createdAt"])) > since for run in runs):
+        raise Stop(
+            f"the last {LISTING_LIMIT} runs of {plan.workflow} were all created after the intent "
+            f"at {intended_at}, so a run bearing {token} may lie past the listing; nothing is "
+            "concluded from it"
+        )
+    return bearing
 
 
-def resolve_run(plan: Plan, token: str, head_sha: str, wait_seconds: int) -> tuple[int, str]:
+def resolve_run(
+    plan: Plan, token: str, head_sha: str, wait_seconds: int, intended_at: str
+) -> tuple[int, str]:
     """The one run bearing ``token``, polled for up to ``wait_seconds``: its id and sha.
 
     Two runs bearing it stop the driver, since the token was drawn for one send. None
@@ -416,7 +451,7 @@ def resolve_run(plan: Plan, token: str, head_sha: str, wait_seconds: int) -> tup
     """
     deadline = now() + timedelta(seconds=wait_seconds)
     while True:
-        found = runs_bearing(plan, token)
+        found = runs_bearing(plan, token, intended_at)
         if len(found) == 1:
             run_id, sha = int(found[0]["databaseId"]), str(found[0]["headSha"])
             if sha != head_sha:
@@ -577,6 +612,7 @@ def send(plan: Plan, key: Key) -> tuple[int, str]:
     token and recorded; the run's id and the sha it rides."""
     token = new_token()
     head = local_head()
+    intended_at = stamp(now())
     append_ledger(
         plan,
         {
@@ -584,14 +620,18 @@ def send(plan: Plan, key: Key) -> tuple[int, str]:
             "key": key.text,
             "token": token,
             "head_sha": head,
-            "intended_at": stamp(now()),
+            "intended_at": intended_at,
         },
     )
     failure = dispatch(plan, key, token)
     if failure is not None:
         log(f"the dispatch call for {key.text} failed ({failure}); reading for {token}")
     run_id, sha = resolve_run(
-        plan, token, head, ADOPTION_WAIT_SECONDS if failure is not None else RUN_ID_WAIT_SECONDS
+        plan,
+        token,
+        head,
+        ADOPTION_WAIT_SECONDS if failure is not None else RUN_ID_WAIT_SECONDS,
+        intended_at,
     )
     line = {
         "kind": "dispatched",
@@ -614,7 +654,9 @@ def adopt(plan: Plan, key: Key, intent: dict) -> tuple[int, str]:
     stops the driver with the intent still standing, never a second send."""
     token = intent["token"]
     log(f"{key.text} has an intent bearing {token} and no dispatched line; reading for its run")
-    run_id, sha = resolve_run(plan, token, intent["head_sha"], ADOPTION_WAIT_SECONDS)
+    run_id, sha = resolve_run(
+        plan, token, intent["head_sha"], ADOPTION_WAIT_SECONDS, intent["intended_at"]
+    )
     append_ledger(
         plan,
         {
@@ -631,15 +673,43 @@ def adopt(plan: Plan, key: Key, intent: dict) -> tuple[int, str]:
     return run_id, sha
 
 
+def next_action(key: Key, entry: dict[str, dict | None]) -> str:
+    """What `run` does with an unfinished key, in words: the dry run's whole output."""
+    if entry["dispatched"] is not None:
+        return f"run {entry['dispatched']['run_id']} would be resumed for {key.text}"
+    if entry["intent"] is not None:
+        return f"the run bearing {entry['intent']['token']} would be adopted for {key.text}"
+    return f"the next dispatch would be {key.text}"
+
+
 def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
+    """The plan from its first unfinished key: each resumed, adopted or sent, approved and
+    waited for, until the plan is complete, the dispatch bound is reached or the driver
+    stops. A finished run whose record carries stop reasons stops every invocation until
+    the operator's `acknowledged` line stands beside it or a `released` line clears the
+    key, so a stop read by nobody is never walked past by a restart. A dry run names what
+    the first unfinished key would get and ends there, before any send, approval or ledger
+    line (both from the external read of the replay step).
+    """
     records = read_ledger(plan)
     state = fold(records)
     dispatched = 0
     last_sha: str | None = None
     for key in plan.order:
         entry = state.get(key.text, empty_entry())
-        if entry["finished"] is not None:
+        finished = entry["finished"]
+        if finished is not None:
+            if finished["stop_reasons"] and entry["acknowledged"] is None:
+                raise Stop(
+                    f"{key.text} run {finished['run_id']} stopped the driver ("
+                    + "; ".join(finished["stop_reasons"])
+                    + "); the stop stands until `acknowledge --key` records that it was read, "
+                    "or `release` clears the key"
+                )
             continue
+        if dry_run:
+            log(f"dry run: {next_action(key, entry)}; nothing sent, nothing written")
+            return 0
         if entry["dispatched"] is not None:
             run_id = entry["dispatched"]["run_id"]
             log(f"resuming {key.text}: run {run_id} was dispatched and never recorded as finished")
@@ -648,9 +718,6 @@ def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
         else:
             if max_dispatches and dispatched >= max_dispatches:
                 log(f"dispatch bound {max_dispatches} reached; next is {key.text}")
-                return 0
-            if dry_run:
-                log(f"dry run: the next dispatch would be {key.text}; nothing sent")
                 return 0
             wait_until_idle()
             run_id, sha = send(plan, key)
@@ -672,13 +739,39 @@ def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
     return 0
 
 
+def launch_read(run_id: int) -> str:
+    """How far the job's launch send is known to have gone, read off the run log.
+
+    ``none``: the runner sent no launch, since the job ended before its first send (no
+    running instance, a failed checkout). ``admitted``: the admit command's marker came back.
+    ``ended``: the runner relayed the process's exit status, which SSM reports only after
+    the process ended, so the host admits nothing later. ``uncertain``: the send is on the
+    log and neither came back, because the poll passed its bound, a read failed or the job
+    was cancelled mid-poll; the admission may have committed and the host's command may
+    still be running. The markers alone cannot tell the last two apart, since both leave
+    the admission marker absent (the external read of the replay step).
+    """
+    text = gh("run", "view", str(run_id), "--log", timeout=120)
+    if not text.strip():
+        raise Stop(f"run {run_id}'s log is empty; nothing is read from it")
+    if LAUNCH_ADMITTED.search(text):
+        return "admitted"
+    if LAUNCH_EXITED.search(text):
+        return "ended"
+    if LAUNCH_SENT.search(text):
+        return "uncertain"
+    return "none"
+
+
 def release(plan: Plan, key: Key, reason: str) -> int:
     """The operator's line after reading Actions: a key whose intent stands with no run
     bearing its token, or whose finished run stopped the driver before any attempt was
     admitted, may be sent once more. The line names what was read: for an intent, that no
-    run bears the token now; for a finished run, that the run is completed, so it can admit
-    nothing later. Any other state is refused: a run that admitted an attempt holds its
-    slot under PROTOCOL, and the fold's history is never edited."""
+    run bears the token in a listing reaching back past the intent; for a finished run,
+    that the run is completed and its log shows the launch never sent or ended on the host
+    before any admission. Any other state is refused: a run that admitted an attempt holds
+    its slot under PROTOCOL, a launch send the runner could not read past may have admitted
+    and is read on the host, not here, and the fold's history is never edited."""
     entry = fold(read_ledger(plan)).get(key.text, empty_entry())
     if entry["intent"] is None and entry["dispatched"] is None:
         raise Stop(f"{key.text} has nothing to release: it was never sent")
@@ -695,7 +788,21 @@ def release(plan: Plan, key: Key, reason: str) -> int:
         assert isinstance(run, dict)
         if run["status"] != "completed":
             raise Stop(f"run {run_id} is {run['status']}, not completed; it may still admit")
-        read = f"run {run_id} completed, no admission in its markers"
+        launch = launch_read(run_id)
+        if launch == "admitted":
+            raise Stop(
+                f"run {run_id}'s log carries an admission its markers did not; the run holds "
+                "its slot under PROTOCOL"
+            )
+        if launch == "uncertain":
+            raise Stop(
+                f"run {run_id}'s launch send ended uncertain: the host may have admitted and "
+                "its command may still be running; its state is read in Session Manager, the "
+                "key stays, and a retry goes through continue-run by hand"
+            )
+        read = f"run {run_id} completed; its launch " + (
+            "was never sent" if launch == "none" else "ended on the host before any admission"
+        )
     elif entry["dispatched"] is not None:
         raise Stop(
             f"{key.text} has run {entry['dispatched']['run_id']} dispatched and not finished; "
@@ -704,7 +811,7 @@ def release(plan: Plan, key: Key, reason: str) -> int:
     else:
         assert entry["intent"] is not None
         token = entry["intent"]["token"]
-        found = runs_bearing(plan, token)
+        found = runs_bearing(plan, token, entry["intent"]["intended_at"])
         if found:
             raise Stop(f"a run bears {token} ({found[0]['databaseId']}); `run` adopts it")
         run_id = None
@@ -724,10 +831,38 @@ def release(plan: Plan, key: Key, reason: str) -> int:
     return 0
 
 
+def acknowledge(plan: Plan, key: Key, reason: str) -> int:
+    """The operator's line after reading a stop: the key's finished run keeps its record and
+    its slot, and `run` walks past it from then on. Refused for a key with no finished run,
+    a finish that stopped nothing, or a stop already acknowledged."""
+    entry = fold(read_ledger(plan)).get(key.text, empty_entry())
+    finished = entry["finished"]
+    if finished is None:
+        raise Stop(f"{key.text} has no finished run to acknowledge")
+    if not finished["stop_reasons"]:
+        raise Stop(f"{key.text} finished without a stop; there is nothing to acknowledge")
+    if entry["acknowledged"] is not None:
+        raise Stop(
+            f"{key.text} was acknowledged at {entry['acknowledged']['acknowledged_at']} already"
+        )
+    append_ledger(
+        plan,
+        {
+            "kind": "acknowledged",
+            "key": key.text,
+            "run_id": finished["run_id"],
+            "reason": reason,
+            "acknowledged_at": stamp(now()),
+        },
+    )
+    log(f"acknowledged {key.text}: run {finished['run_id']}'s stop was read ({reason})")
+    return 0
+
+
 def status(plan: Plan) -> int:
     state = fold(read_ledger(plan))
     per_cell: dict[str, list[int]] = {}
-    stopped = []
+    stopped: list[str] = []
     next_key = None
     last_inventory = None
     for key in plan.order:
@@ -746,7 +881,9 @@ def status(plan: Plan) -> int:
         counts[0] += 1
         if entry["finished"]["stop_reasons"]:
             stopped.append(
-                f"{key.text} run {entry['finished']['run_id']}: "
+                f"{key.text} run {entry['finished']['run_id']}"
+                + (" (acknowledged)" if entry["acknowledged"] is not None else "")
+                + ": "
                 + "; ".join(entry["finished"]["stop_reasons"])
             )
         last_inventory = entry["finished"]["markers"].get("inventory.inventory_digest")
@@ -785,6 +922,11 @@ def main(argv: list[str]) -> int:
     releasing = sub.add_parser("release")
     releasing.add_argument("--key", required=True, help="system/level/scenario")
     releasing.add_argument("--reason", required=True, help="what Actions showed, in your words")
+    acknowledging = sub.add_parser("acknowledge")
+    acknowledging.add_argument("--key", required=True, help="system/level/scenario")
+    acknowledging.add_argument(
+        "--reason", required=True, help="what the stop's run showed and why the plan continues"
+    )
     args = parser.parse_args(argv)
     try:
         plan = read_plan(args.plan_dir.resolve())
@@ -793,6 +935,8 @@ def main(argv: list[str]) -> int:
             return status(plan)
         if args.command == "release":
             return release(plan, Key.of(args.key), args.reason)
+        if args.command == "acknowledge":
+            return acknowledge(plan, Key.of(args.key), args.reason)
         return run(plan, args.max, args.dry_run)
     except Stop as stop:
         log(f"STOP {stop}")

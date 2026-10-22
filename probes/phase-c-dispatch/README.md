@@ -17,7 +17,9 @@ runbook.
   with the runner's markers and the reasons the driver stopped, if any. A key with a
   `dispatched` line is never sent again by the driver; since the replay step the driver
   also writes an `intent` line before each send and finds the run by the token the send
-  carries, and an operator's `released` line is the one way a key is sent once more.
+  carries; an operator's `released` line is the one way a key is sent once more, and an
+  operator's `acknowledged` line the one way the driver walks past a `finished` line that
+  stopped it.
 - `data/phase-c-dispatch/driver.log` (git-ignored): every printed line, for a second
   terminal to follow.
 
@@ -54,10 +56,16 @@ not succeed; the attempt's ending is not closed and completed (a cap, a defect, 
 infrastructure failure); the publication is not published or carries an incident; the
 inventory was not created; or the admission names another scenario, system or world than
 the key. Each is an operator's decision under PROTOCOL ("How a run is counted") and the
-decision is written in the session log before anything else is sent. The driver never
+decision is written in the session log before anything else is sent, and the stop stands
+in the ledger: every later `run` stops on it until `acknowledge --key K --reason R`
+records that it was read, so a restart never walks past it. The driver never
 re-dispatches the key: a replacement would be surplus, or would take the slot an
 unexported run holds. A retry an attribution row permits goes through `continue-run.yml`
-by hand, outside the driver.
+by hand, outside the driver. The one exception is a run that admitted nothing: `release
+--key K --reason R` clears it after reading the job log, and only when the log shows the
+launch never sent or the runner relaying the host process's exit; a launch send the
+runner could not read past (its poll timed out, the job was cancelled) may have admitted
+on the host, and the key stays until the host's state is read in Session Manager.
 
 ## Deploys
 
