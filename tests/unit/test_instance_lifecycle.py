@@ -372,6 +372,26 @@ def test_inventory_refuses_a_payload_that_names_no_scope(
     assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
 
 
+def test_inventory_refuses_a_ledger_other_than_the_launchs_while_run_env_stands(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """The ledger is the continuing job's input and the admission record holds no ledger id
+    (the replay step's external read), so the launch's run.env is the record the name is
+    checked against where it is used; the launch's own ledger passes, another is refused
+    before the container runs, and the cleared-directory case above runs on the input
+    alone."""
+    fakes, env = host
+    _launched(fakes, env)
+    scope = {"WORLD_VERSION": WORLD, "REGISTRATION_COMMIT": COMMIT}
+    status, err = _run(fakes, env, "inventory", LEDGER="ledger-demo", **scope)
+    assert status == 2
+    assert "ledger-demo" in err and "ledger-development" in err
+    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
+    status, err = _run(fakes, env, "inventory", LEDGER="ledger-development", **scope)
+    assert status == 0, err
+    assert fakes.lines("docker compose run")[-1].endswith("--ledger ledger-development")
+
+
 @pytest.mark.parametrize(
     ("run_id", "attempt", "named"),
     [

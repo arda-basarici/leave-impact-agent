@@ -262,6 +262,17 @@ case "$LIFECYCLE_COMMAND" in
     : "${WORLD_VERSION:?the world the attempt was admitted on}"
     : "${REGISTRATION_COMMIT:?the registration commit the attempt was admitted under}"
     : "${LEDGER:?the ledger id}"
+    # The ledger is the continuing job's input, and the admission record holds no ledger
+    # id to read it back from; the launch's run.env does, while the tmpfs keeps it, so a
+    # continuation that names another ledger than the launch's is refused here, where the
+    # name is used. After a reboot the input stands alone (the instance README).
+    if [ -f "$run_dir/run.env" ]; then
+      launched_ledger=$(sed -n 's/^LEDGER=//p' "$run_dir/run.env")
+      if [ -n "$launched_ledger" ] && [ "$launched_ledger" != "$LEDGER" ]; then
+        echo "the inventory names ledger $LEDGER and the launch admitted against $launched_ledger; the continuation's ledger input is wrong" >&2
+        exit 2
+      fi
+    fi
     run_app python -m leaveimpact.agent inventory --registration "$registration" \
       --world-version "$WORLD_VERSION" --registration-commit "$REGISTRATION_COMMIT" \
       --ledger "$LEDGER"

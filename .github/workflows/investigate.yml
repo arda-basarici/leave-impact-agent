@@ -12,7 +12,12 @@
 # shows every named job concluded success (the freeze step, fork 10). The model
 # settings are not inputs: the launcher fills the role from the registration, and the
 # price key is the model id. The threshold receipt's amounts
-# are read from the registration in this checkout. Credentials are the deploy
+# are read from the registration in this checkout. The ledger is an input since the demo
+# milestone's replay set (its step 8): the development ledger for measurement and
+# development runs, the demo ledger for the runs the demo surface shows and its live
+# path charges. The dispatch token is the dispatcher's identity for one send, carried
+# into the run name so the driver that sent it finds its run by that name and never by
+# the clock; a hand dispatch leaves it blank. Credentials are the deploy
 # role's (OIDC) for the sends and the instance role's on the host; the repository
 # stores no key and the payloads carry no secret.
 #
@@ -22,6 +27,7 @@
 # never here. Every action is pinned by full commit SHA, because `id-token: write`
 # is a job-level permission and a moved tag would be a moved trust boundary.
 name: investigate
+run-name: investigate ${{ inputs.system }} ${{ inputs.level }} ${{ inputs.scenario }} ${{ inputs.dispatch_token }}
 on:
   workflow_dispatch:
     inputs:
@@ -70,6 +76,19 @@ on:
         required: true
         type: string
         default: https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
+      ledger:
+        description: the ledger the run is admitted against (development for measurement and development runs, demo for the demo surface's)
+        required: true
+        type: choice
+        default: ledger-development
+        options:
+          - ledger-development
+          - ledger-demo
+      dispatch_token:
+        description: the dispatcher's identity for this send, shown in the run name; blank for a hand dispatch
+        required: false
+        type: string
+        default: ""
 permissions: {}
 
 # One run at a time on the instance: the lifecycle's steps are sends to one host,
@@ -117,7 +136,7 @@ jobs:
       - name: Run the lifecycle on the app host
         env:
           MODE: run
-          LEDGER: ledger-development
+          LEDGER: ${{ inputs.ledger }}
           INPUT_WORLD_VERSION: ${{ inputs.world_version }}
           INPUT_SCENARIO: ${{ inputs.scenario }}
           INPUT_SYSTEM: ${{ inputs.system }}

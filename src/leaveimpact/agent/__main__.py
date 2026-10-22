@@ -625,6 +625,7 @@ def _run(
                     f"admitted={result.run_id}/{result.attempt}",
                     f"recorded_at={result.recorded_at.isoformat()}",
                     f"ledger_revision={result.ledger_revision}",
+                    f"ledger={request.ledger_id or 'none'}",
                 ]
             return 1, [f"refused={result.run_id}/{result.attempt}", f"reason={result.reason}"]
         case WorkResolved():
