@@ -2,12 +2,14 @@
 `probes/replay-set/grade_replays.py` over the thirty replays' exports): one verdict per key
 of the committed plan, every public name distinct and the scenario id's hyphenated form,
 every verdict's run and attempt the admission the committed ledger recorded for that key,
-the header's counts the verdicts' own, and a run graded correct whole exactly when its
+the header's counts the verdicts' own, the record of the committed grader over committed inputs,
+and a run graded correct whole exactly when its
 disagreement list is empty and no oracle finding stands. The file is a record of a paid
 batch; this test holds it to the ledger it was graded from so neither drifts alone."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -69,6 +71,20 @@ def test_every_verdict_grades_the_run_the_ledger_admitted_for_its_key(
             r"export-[0-9a-f]{40}\.json",
             row["export"]["key"],
         )
+
+
+def test_the_record_is_of_the_committed_grader_and_committed_inputs(
+    grading: dict[str, Any],
+) -> None:
+    """A record names the grader that wrote it: the first one carried a commit the grader
+    was not in (the fourth external read). The digest reads line endings as LF, as the
+    grader does, so a converting checkout and a plain one agree; a grader change makes
+    the record stale until it is regenerated."""
+    grader = PLAN_DIR / "grade_replays.py"
+    digest = hashlib.sha256(grader.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
+    assert grading["grader_sha256"] == digest, "regenerate grading.json with the committed grader"
+    assert grading["inputs_clean"] is True
+    assert re.fullmatch(r"[0-9a-f]{40}", grading["tree"])
 
 
 def test_the_headers_counts_are_the_verdicts_own(grading: dict[str, Any]) -> None:
