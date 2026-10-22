@@ -1,0 +1,1216 @@
+{
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "plan": "replay-set",
+  "ledger_sha256": "f158884352bcb19558d2062889849cc032862e05469e0ca15388ee6c689a5333",
+  "graded_at": "2026-10-22T21:25:23Z",
+  "tree": "a4707cba3b31e8eedd85af5973b353b21d4029db",
+  "runs_wanted": 30,
+  "runs_graded": 30,
+  "runs_without_export": [],
+  "correct_whole": 26,
+  "by_tier": {
+    "adversarial": {
+      "runs": 10,
+      "correct_whole": 9
+    },
+    "fragmented": {
+      "runs": 10,
+      "correct_whole": 7
+    },
+    "structured": {
+      "runs": 10,
+      "correct_whole": 10
+    }
+  },
+  "verdicts": [
+    {
+      "run_id": "run-39842390519",
+      "attempt": 1,
+      "scenario_id": "scenario_001",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_001",
+      "public_id": "scenario-001",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39842390519-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "OOv32Z29EvJAE_KbvtNUttQSh5DF7yUk",
+        "sha256": "c850cd041b73fda12732b722f132acd15c723b1f345a8f5695098f9b8f2c0488",
+        "bytes": 64988
+      }
+    },
+    {
+      "run_id": "run-39844399184",
+      "attempt": 1,
+      "scenario_id": "scenario_002",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_002",
+      "public_id": "scenario-002",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39844399184-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "vb3wb9wG_HfzftCnYaL3R4_dv_qACmKR",
+        "sha256": "f8fd63fb7ef55561734b5d837c5c20ceb49525d111f28172d4965791fc18e669",
+        "bytes": 46167
+      }
+    },
+    {
+      "run_id": "run-39844843150",
+      "attempt": 1,
+      "scenario_id": "scenario_003",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_003",
+      "public_id": "scenario-003",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39844843150-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "DzRLSO5viAeh7oR6uNJTXzHk_R9sMG8c",
+        "sha256": "6152fa1ec3adccbfd9a713113e5b812be588a51b480be45a80845dba4cc74e6b",
+        "bytes": 50923
+      }
+    },
+    {
+      "run_id": "run-39845308738",
+      "attempt": 1,
+      "scenario_id": "scenario_004",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 2,
+        "constraints": 0,
+        "assessments": 56,
+        "actions": 2,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_004",
+      "public_id": "scenario-004",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39845308738-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "8tEgnMXJjaxLkRRWx_4g0GjsanC5.n3c",
+        "sha256": "e6653f715adb121766208ceb22c44c61f8648eaea4a4451d97f8d85597280bc7",
+        "bytes": 79037
+      }
+    },
+    {
+      "run_id": "run-39845770423",
+      "attempt": 1,
+      "scenario_id": "scenario_005",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_005",
+      "public_id": "scenario-005",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39845770423-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "gRJ2B9e.BGUU.X.cZM9As2fmzbj0JqPi",
+        "sha256": "c9ddf8c536ca75098508d6bf1517c0727f5ea562c90340cdc84f43190e8851cd",
+        "bytes": 54879
+      }
+    },
+    {
+      "run_id": "run-39846178095",
+      "attempt": 1,
+      "scenario_id": "scenario_006",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_006",
+      "public_id": "scenario-006",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39846178095-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "AaBu_hPWn9.Pz9wca0f6c_I47T5p6ngK",
+        "sha256": "3cd1149295450825c96a129322e367ad0051233a4db2b89353e9deda192ac6b8",
+        "bytes": 70147
+      }
+    },
+    {
+      "run_id": "run-39846636021",
+      "attempt": 1,
+      "scenario_id": "scenario_007",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_007",
+      "public_id": "scenario-007",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39846636021-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "7TyhGe.DtuE2O2HqZI0y70Ql5yJ3ETfD",
+        "sha256": "e9c8937121c33491bd4da6fb4d1a17d13749a00cd775e3144257d5b39765c65b",
+        "bytes": 53682
+      }
+    },
+    {
+      "run_id": "run-39847043321",
+      "attempt": 1,
+      "scenario_id": "scenario_008",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 2,
+        "constraints": 0,
+        "assessments": 56,
+        "actions": 2,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_008",
+      "public_id": "scenario-008",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39847043321-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "6nQp.xdj.bR3MECv.cp0ES.WU9wkjzii",
+        "sha256": "5dcad316e5f8faf65cdb1743c0f29a8151232c1bfd3e62f54a6459bef1f22b84",
+        "bytes": 66572
+      }
+    },
+    {
+      "run_id": "run-39847509632",
+      "attempt": 1,
+      "scenario_id": "scenario_009",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_009",
+      "public_id": "scenario-009",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39847509632-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "L.4fE0vX9wYdKzUTlN94II0EqDAoMzGh",
+        "sha256": "68d92443cf82daed7e3b45d6c199146729eb4a35d2ef0764b2bed7fe510503d9",
+        "bytes": 47960
+      }
+    },
+    {
+      "run_id": "run-39847973579",
+      "attempt": 1,
+      "scenario_id": "scenario_010",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_010",
+      "public_id": "scenario-010",
+      "tier": "structured",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39847973579-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "S1ik9LRN_JeAWUdXH0BXz9L5iP217qkz",
+        "sha256": "7bc263bc872fb95d2167a904de9dc63c01d088aa588b22ff3e84aeaca3fe2357",
+        "bytes": 61156
+      }
+    },
+    {
+      "run_id": "run-39848371652",
+      "attempt": 1,
+      "scenario_id": "scenario_011",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 2
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_011",
+      "public_id": "scenario-011",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39848371652-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "LP.9Rf837gIkcx7CEJ5010dzXjVwEeCZ",
+        "sha256": "5b61ec40a9ee8ac4d3f763e203c610354e8e16ae2753ca6849466f704e093863",
+        "bytes": 58720
+      }
+    },
+    {
+      "run_id": "run-39848779933",
+      "attempt": 1,
+      "scenario_id": "scenario_012",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 2
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_012",
+      "public_id": "scenario-012",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39848779933-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "F3muR1EEALijOdn6Vw25K8H6yPj_PDTc",
+        "sha256": "55edf2bd73d0be1b3b6a64fdd71974b19e4db204d82836b7a885a5b34f052c8e",
+        "bytes": 59424
+      }
+    },
+    {
+      "run_id": "run-39849177560",
+      "attempt": 1,
+      "scenario_id": "scenario_013",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 2
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_013",
+      "public_id": "scenario-013",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39849177560-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "pAkmSDfc0fSYYH_DTM4gVNPqCrgtQQhT",
+        "sha256": "b868b7af132ba56bc3e5b71c1fe6c6da62907fa9e736e6ffd75b470b6be2bcdf",
+        "bytes": 59956
+      }
+    },
+    {
+      "run_id": "run-39849588337",
+      "attempt": 1,
+      "scenario_id": "scenario_014",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 2
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_014",
+      "public_id": "scenario-014",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39849588337-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "4aFYiNfa11o8A9yGvi4IYgdC5BU1.PAT",
+        "sha256": "4904ed497a4ee286ee707a9c0eeef9c6aa58a11aa77126eefddb32c3dc6beba0",
+        "bytes": 59482
+      }
+    },
+    {
+      "run_id": "run-39850048177",
+      "attempt": 1,
+      "scenario_id": "scenario_015",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_015",
+      "public_id": "scenario-015",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39850048177-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "FyGInXTxlVMSBMx9QyjhNAFFW8P.tU0K",
+        "sha256": "c38b503826d5e98c9725f80ecb098c6639bf146e61dfe16facd0a32b451d8465",
+        "bytes": 59666
+      }
+    },
+    {
+      "run_id": "run-39850435364",
+      "attempt": 1,
+      "scenario_id": "scenario_016",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_016",
+      "public_id": "scenario-016",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39850435364-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "cHDJi3j3J0aOb.mIisnPNImqDu6GdRL0",
+        "sha256": "fceb1dc5dff725240a9567f711151420b2c93b639f668a30130d64a4568ee716",
+        "bytes": 77015
+      }
+    },
+    {
+      "run_id": "run-39850870425",
+      "attempt": 1,
+      "scenario_id": "scenario_017",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": false,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [
+        "constraints: 1 required and not reported",
+        "assessments: 25 payload differs"
+      ],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_017",
+      "public_id": "scenario-017",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39850870425-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "UszabRsQgc3JoxydOU9G82.mEcowOzEW",
+        "sha256": "a3fa1beb239c1a5779ed9b90843e2d58ce132c842af5aafaf8ab00a85d5c5ff8",
+        "bytes": 55971
+      }
+    },
+    {
+      "run_id": "run-39851311541",
+      "attempt": 1,
+      "scenario_id": "scenario_018",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": false,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [
+        "constraints: 1 required and not reported",
+        "assessments: 22 payload differs"
+      ],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_018",
+      "public_id": "scenario-018",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39851311541-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "LpxurkD1z0rCdC1WRk5bPrKFbet6cmjO",
+        "sha256": "4b01a63ec348134e8169d680c2e00fecbf9d207c419b6314665290b1aa60c723",
+        "bytes": 53544
+      }
+    },
+    {
+      "run_id": "run-39851692150",
+      "attempt": 1,
+      "scenario_id": "scenario_019",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": false,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [
+        "constraints: 1 required and not reported",
+        "assessments: 17 payload differs"
+      ],
+      "oracle_findings": 2,
+      "oracle_finding_kinds": [
+        "oracle_plan: insufficient_cardinality",
+        "oracle_plan: non_viable_assignee"
+      ],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_019",
+      "public_id": "scenario-019",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39851692150-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "mAAWyMc46HS5PNijtriZRyOZokGimOPF",
+        "sha256": "3317e242002ee0491b6a6aeb82c7f3864319ff1300a4570cb2df2ec66b743f82",
+        "bytes": 54648
+      }
+    },
+    {
+      "run_id": "run-39852067426",
+      "attempt": 1,
+      "scenario_id": "scenario_020",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 2
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_020",
+      "public_id": "scenario-020",
+      "tier": "fragmented",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39852067426-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "IQIWw_XjLor2G4OzdCfGaiElDvFXfhsW",
+        "sha256": "4f1d228fd5a967a1d51b249cba48e88c4baca14dcbb814a8c78494c4a1935aae",
+        "bytes": 54926
+      }
+    },
+    {
+      "run_id": "run-39852503587",
+      "attempt": 1,
+      "scenario_id": "scenario_021",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 1
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_021",
+      "public_id": "scenario-021",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39852503587-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": ".pXTH10IvS2EwoJEo3mXJUVeaTOZxO1e",
+        "sha256": "a48c6155b5a0d763e79b787776b27d8b2ab54cc9b44f3f4a84e7a79294df6410",
+        "bytes": 66719
+      }
+    },
+    {
+      "run_id": "run-39852874587",
+      "attempt": 1,
+      "scenario_id": "scenario_022",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 1,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_022",
+      "public_id": "scenario-022",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39852874587-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "MTBFsa5pezBfWSok6lQ8z_9GT7BJKorv",
+        "sha256": "2ec529a2477c57df39fb466e788d9a2705c384c34860bc5dd238117d1db15002",
+        "bytes": 66501
+      }
+    },
+    {
+      "run_id": "run-39853257145",
+      "attempt": 1,
+      "scenario_id": "scenario_023",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 1,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_023",
+      "public_id": "scenario-023",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39853257145-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "4HFwk7UI3xVaGRCi_GwwMdt9GAE.OMsT",
+        "sha256": "c0f9da214d1a87b5be32acff7c906084381b69acec695a15d9b67548c59c59f0",
+        "bytes": 53748
+      }
+    },
+    {
+      "run_id": "run-39853644979",
+      "attempt": 1,
+      "scenario_id": "scenario_024",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 0,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 1,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_024",
+      "public_id": "scenario-024",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39853644979-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "4JX.FFdMBcaesyLdf.JoUc9qdGxBxrEs",
+        "sha256": "acce9ead67f3ab88ef44788f5fc1af754ff969d5894fbf423d2bb446c4b41145",
+        "bytes": 61089
+      }
+    },
+    {
+      "run_id": "run-39854046456",
+      "attempt": 1,
+      "scenario_id": "scenario_025",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": false,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [
+        "constraints: 1 required and not reported",
+        "assessments: 26 payload differs",
+        "actions: 1 payload differs"
+      ],
+      "oracle_findings": 2,
+      "oracle_finding_kinds": [
+        "oracle_plan: insufficient_cardinality",
+        "oracle_plan: non_viable_assignee"
+      ],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_025",
+      "public_id": "scenario-025",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39854046456-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "mnj_jlzZJteLsWaLLd.v6rvVbOgLY3PG",
+        "sha256": "a5a18ff5c4d05b3f61dcbeadc596a16f5231508bbe5193e0aacb5ae6e9913fd5",
+        "bytes": 53009
+      }
+    },
+    {
+      "run_id": "run-39854422586",
+      "attempt": 1,
+      "scenario_id": "scenario_026",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 1
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_026",
+      "public_id": "scenario-026",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39854422586-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "I.JKjv6y1v5mYtYnlgApIy2vjaTE3zQg",
+        "sha256": "a4c263e3d990e98fbdfddd745030814fbecc3b2ddd2637fdbd5a66c578416021",
+        "bytes": 70958
+      }
+    },
+    {
+      "run_id": "run-39854839118",
+      "attempt": 1,
+      "scenario_id": "scenario_027",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_027",
+      "public_id": "scenario-027",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39854839118-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "PvBaoz2blOSdAGoRKahRtNTGlHECZa2U",
+        "sha256": "cc9bb408639cba584f8049b79d576138c9c1908f9859e4c1280c389aafb46218",
+        "bytes": 70391
+      }
+    },
+    {
+      "run_id": "run-39855249103",
+      "attempt": 1,
+      "scenario_id": "scenario_028",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 1
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_028",
+      "public_id": "scenario-028",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39855249103-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "csYC6uyMWJnryUt6J.1PaGGEMU74FYlP",
+        "sha256": "4fd0769755d401c97a1572824914ff1c0cd3b0462fa20e4a9f834291f4204529",
+        "bytes": 65599
+      }
+    },
+    {
+      "run_id": "run-39855616737",
+      "attempt": 1,
+      "scenario_id": "scenario_029",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 0,
+        "unknowns": 0
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_029",
+      "public_id": "scenario-029",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39855616737-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "goIoNcUvYzhxygULncMUqpOOLKxQ3ffS",
+        "sha256": "57eddd028705d9d9c7bf4241714ceafe3f5646c7a8b38a76a1f28f9bb4494621",
+        "bytes": 59871
+      }
+    },
+    {
+      "run_id": "run-39856048195",
+      "attempt": 1,
+      "scenario_id": "scenario_030",
+      "status": "completed",
+      "outcome": "graded",
+      "correct_whole": true,
+      "rows": {
+        "impacts": 1,
+        "constraints": 1,
+        "assessments": 28,
+        "actions": 1,
+        "conflicts": 1,
+        "unknowns": 1
+      },
+      "structural_problems": 0,
+      "disagreements": [],
+      "oracle_findings": 0,
+      "oracle_finding_kinds": [],
+      "condition": [
+        "calendar",
+        "corpus",
+        "frappe",
+        "jira"
+      ],
+      "report_findings": 0,
+      "coverage_gaps": 0,
+      "integrity_findings": 0,
+      "harness_findings": 0,
+      "plan_key": "agent/base/scenario_030",
+      "public_id": "scenario-030",
+      "tier": "adversarial",
+      "export": {
+        "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39856048195-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+        "version_id": "oQaY6EyXyEkIkkED9DCW5lo7tgUDaeQj",
+        "sha256": "2256642899ed9ec0568de56a66c38cd3adf9c341d960de9a8a4db64e48ef69e7",
+        "bytes": 88812
+      }
+    }
+  ]
+}

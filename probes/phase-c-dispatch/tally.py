@@ -14,16 +14,18 @@ rather than summed as zero or as the bound, since a silent zero in one row is a 
 total in the last (the external read of 2026-10-17). A rules-only run records no cost
 and made no call, and counts as zero.
 
-Usage, from the repository root with `gh` logged in and the SSO profile valid:
+Usage, from the repository root with `gh` logged in and the SSO profile valid; another
+plan directory of the same driver (the demo's replay set) tallies by `--plan-dir`:
 
-    uv run python probes/phase-c-dispatch/tally.py
+    uv run python probes/phase-c-dispatch/tally.py [--plan-dir probes/replay-set]
 
-The exports are cached under `data/phase-c-dispatch/exports/` (git-ignored) so a rerun
-costs no bucket reads.
+The exports are cached under `data/<plan>/exports/` (git-ignored) so a rerun costs no
+bucket reads.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 import re
 import subprocess
@@ -31,15 +33,13 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY = HERE.parents[1]
-LEDGER_FILE = HERE / "ledger.jsonl"
-CACHE = REPOSITORY / "data" / "phase-c-dispatch" / "exports"
 BUCKET = "leave-impact-world-445743457479"
 PROFILE = "leave-impact"
 OBJECT_IDENTITY = re.compile(r"object_identity=(\S+)")
 
 
-def export_of(run_id: int) -> dict:
-    cached = CACHE / f"{run_id}.json"
+def export_of(run_id: int, cache: Path) -> dict:
+    cached = cache / f"{run_id}.json"
     if cached.exists():
         return json.loads(cached.read_text(encoding="utf-8"))
     log = subprocess.run(
@@ -54,7 +54,7 @@ def export_of(run_id: int) -> dict:
         text=True,
         check=True,
     ).stdout
-    CACHE.mkdir(parents=True, exist_ok=True)
+    cache.mkdir(parents=True, exist_ok=True)
     cached.write_text(body, encoding="utf-8")
     return json.loads(body)
 
@@ -91,16 +91,20 @@ def row_of(export: dict, run_id: int) -> dict:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="the operational tally of a driver plan")
+    parser.add_argument("--plan-dir", type=Path, default=HERE)
+    plan_dir = parser.parse_args().plan_dir.resolve()
+    cache = REPOSITORY / "data" / plan_dir.name / "exports"
     records = [
         json.loads(line)
-        for line in LEDGER_FILE.read_text(encoding="utf-8").splitlines()
+        for line in (plan_dir / "ledger.jsonl").read_text(encoding="utf-8").splitlines()
         if line.strip()
     ]
     finished = [r for r in records if r["kind"] == "finished"]
     cells: dict[str, list[dict]] = {}
     for r in finished:
         system, level, _ = r["key"].split("/")
-        row = row_of(export_of(r["run_id"]), r["run_id"])
+        row = row_of(export_of(r["run_id"], cache), r["run_id"])
         row["ending"] = r["markers"]["work.detail"]
         row["recoveries"] = int(r["markers"]["status.recoveries"] or 0)
         cells.setdefault(f"{system}/{level}", []).append(row)

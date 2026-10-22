@@ -39,5 +39,29 @@ recorded is adopted by its token, and a key is never sent twice by the driver.
 ## After the batch
 
 Each finished record's `launch.admitted` names the run and attempt the `publish`
-operator command takes on the host; the generated command list and the grading of the
-thirty exports live beside this file once the batch has run.
+operator command takes on the host. `publish_list.py` generates the thirty commands from
+the ledger, in plan order, with the host's preamble (the deployed tag and the database
+password exported the deploy script's way), so no run id is ever typed; it refuses an
+incomplete plan, a stopped run, a malformed admission or a title naming no row:
+
+```
+uv run python probes/replay-set/publish_list.py --titles data/replay-set/titles.json
+```
+
+The titles file (public id to title, the three introduced examples) is written after the
+local grading picks them, since a published row's title is fixed at its publish.
+
+`grade_replays.py` grades the thirty admitted exports locally against the golden world with
+the evaluator's own grader and writes `grading.json` beside this file: per run the outcome,
+correct whole or not, where a miss falls short (rows unexpected, not matched, required and
+not reported, or differing in payload, per kind) and the oracle's plan findings by kind,
+with the tier, the export's key, version id and digest; never a claim's or the world's
+text. It reads the two buckets under the administrator profile, since the golden world's
+`runs/` prefix also holds older development runs a workflow evaluation would take as the
+scenarios' first runs. `tests/unit/test_replay_grading.py` holds the committed file to the
+plan and the ledger. The operational tally (cost, calls, tokens) is the phase-C script's:
+
+```
+AWS_PROFILE=leave-impact uv run python probes/replay-set/grade_replays.py
+AWS_PROFILE=leave-impact uv run python probes/phase-c-dispatch/tally.py --plan-dir probes/replay-set
+```
