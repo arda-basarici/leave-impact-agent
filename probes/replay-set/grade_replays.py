@@ -16,7 +16,8 @@ carries scenario ids, tiers, outcome kinds and counts, and for a miss where the 
 short in the reading `correct_whole` makes and which plan checks found what, by kind;
 never a claim's text, a payload, a person or a world's content. Verdict rows are keyed by
 the public name the surface will carry. The header records what graded: the commit, whether
-the tree was clean, and this file's digest, so a record is of a grader in the tree.
+the grading's inputs were committed at it, and this file's digest, so a record is of a
+grader in the tree.
 
     AWS_PROFILE=leave-impact uv run python probes/replay-set/grade_replays.py \
         [--plan-dir probes/replay-set] [--out probes/replay-set/grading.json]
@@ -234,23 +235,37 @@ def grade(plan_dir: Path, env: dict[str, str]) -> dict:
     }
 
 
+GRADING_INPUTS = ("src", "probes/replay-set/grade_replays.py", "probes/replay-set/plan.json")
+"""What a grading reads from the tree: the package (the evaluator, the loaders, the codecs),
+this grader and the plan. The ledger is named by its digest in the record itself."""
+
+
 def provenance() -> dict:
-    """What graded: the tree's commit, whether the working tree was clean (an uncommitted
-    grader or evaluator is otherwise unaccounted for; the first record named a commit the
-    grader was not in, the external read of 2026-10-23), and this file's own digest, which
-    the test over the committed record holds to the committed file."""
+    """What graded: the tree's commit, whether every input of the grading was committed at
+    it (an uncommitted grader or evaluator is otherwise unaccounted for; the first record
+    named a commit the grader was not in, the external read of 2026-10-23), and this file's
+    own digest, which the test over the committed record holds to the committed file."""
     git = ["git", "-C", str(REPOSITORY)]
     head = subprocess.run(
         [*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True
     ).stdout.strip()
     porcelain = subprocess.run(
-        [*git, "status", "--porcelain"], capture_output=True, text=True, check=True
+        [*git, "status", "--porcelain", "--", *GRADING_INPUTS],
+        capture_output=True,
+        text=True,
+        check=True,
     ).stdout
     return {
         "tree": head,
-        "tree_clean": porcelain.strip() == "",
-        "grader_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
+        "inputs_clean": porcelain.strip() == "",
+        "grader_sha256": source_digest(Path(__file__)),
     }
+
+
+def source_digest(path: Path) -> str:
+    """The file's sha256 with line endings read as LF, so a checkout that converts them
+    (this repository's Windows clones do) and the one that does not name one grader."""
+    return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()
 
 
 def main(argv: list[str]) -> int:
