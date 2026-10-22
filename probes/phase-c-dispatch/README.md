@@ -6,12 +6,18 @@ at a time. `dispatch.py` sends them in the plan's fixed order and writes the led
 records each; its module docstring carries the rules it keeps and why. This file is the
 runbook.
 
-- `plan.json`: the order, written once by `plan` and committed; the script refuses a plan
-  that differs from its own constants.
+- `plan.json`: the order, written once (by the driver's then `plan` command, from constants
+  it no longer holds) and committed; the plan file is the authority since the demo
+  milestone's replay set, and the driver refuses an order that is not the cells' product
+  with the scenarios. This plan predates the site and ledger fields and reads them as the
+  workflow's then defaults (`hr-w4`, the development ledger); every other plan states them
+  (`../replay-set/`).
 - `ledger.jsonl`: append-only, committed at the end of every sitting. One `dispatched`
   line per run as soon as its id is known, one `finished` line when the job has ended
   with the runner's markers and the reasons the driver stopped, if any. A key with a
-  `dispatched` line is never sent again.
+  `dispatched` line is never sent again by the driver; since the replay step the driver
+  also writes an `intent` line before each send and finds the run by the token the send
+  carries, and an operator's `released` line is the one way a key is sent once more.
 - `data/phase-c-dispatch/driver.log` (git-ignored): every printed line, for a second
   terminal to follow.
 
@@ -24,6 +30,9 @@ uv run python probes/phase-c-dispatch/dispatch.py status
 uv run python probes/phase-c-dispatch/dispatch.py run --max 1
 uv run python probes/phase-c-dispatch/dispatch.py run
 ```
+
+This plan is complete; the commands above read its record. Another plan is driven with
+`--plan-dir <directory>` before the command (`../replay-set/README.md`).
 
 The first run of a sitting is sent with `--max 1` and read before the rest. `Ctrl+C` is
 safe at any moment: a run already dispatched is resumed by the next invocation, which

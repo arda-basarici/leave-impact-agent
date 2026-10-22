@@ -1,64 +1,84 @@
-"""The phase C dispatcher: one reported run at a time, each recorded before the next.
+"""The dispatcher: one run of a committed plan at a time, each recorded before the next.
 
-Phase C measures the four systems on the measurement world at the base and the padded
+Phase C measured the four systems on the measurement world at the base and the padded
 corpus level, thirty scenarios each at one repeat: 240 runs through the `investigate.yml`
-workflow. PROTOCOL ("How a run is counted") makes two rules of the dispatch itself: the
-intended run of a cell and scenario is the earliest in dispatch order, so a second
-dispatch of the same pair is surplus and enters no estimate; and a run whose attempt was
-never exported holds its slot, so its cell is never dispatched again on that account. The
-instance README adds a third: a deploy is approved only between runs. Hand dispatching
-240 runs of two to four minutes each would have to keep all three by habit over eight to
-fourteen hours of wall clock; this driver keeps them by construction.
+workflow, and this driver was written for them. PROTOCOL ("How a run is counted") makes two
+rules of the dispatch itself: the intended run of a cell and scenario is the earliest in
+dispatch order, so a second dispatch of the same pair is surplus and enters no estimate;
+and a run whose attempt was never exported holds its slot, so its cell is never dispatched
+again on that account. The instance README adds a third: a deploy is approved only between
+runs. Hand dispatching 240 runs of two to four minutes each would have to keep all three by
+habit over eight to fourteen hours of wall clock; this driver keeps them by construction.
+The demo milestone's replay set (its step 8) is the second plan it drives: the registered
+investigator at the base level over the golden world's thirty scenarios, on the golden
+world's HR site and against the demo ledger, so the plan file became the authority and
+this module keeps no plan of its own.
 
-The plan is a fixed order written once to `plan.json`: rules only at the base level
-first, since it calls no model and proves the pipeline over every scenario at no cost;
-then the two cells of the registered headline comparison, the agent and full context at
-the padded level, so that an interrupted phase still holds its primary result; then the
-remaining five cells. The ledger `ledger.jsonl` is append-only and is the record: a
-`dispatched` line is written as soon as the workflow run's id is known, before the driver
-waits on it, and a `finished` line when the job has ended, carrying the job's conclusion
-and the markers the runner prints (the admission, the attempt's ending, the recovery
-count, the publication's state and object digest, the inventory's digest and outcome). A
-key with a `dispatched` line is never dispatched again, in this process or a later one; a
-key with a `dispatched` line and no `finished` one is resumed by waiting on its run.
+A plan is a directory holding `plan.json`, the driver's `ledger.jsonl` and a README; the
+plan names the world version, the condition, the approval policy, the workflow, the cells
+and the scenarios in a fixed order, the HR site URL and the ledger the runs are admitted
+against. The phase-C plan predates the last two fields and ran on the workflow's then
+defaults, so a plan on the measurement world reads them as those defaults; any other plan
+states them. The driver refuses a plan whose order is not its cells' product with its
+scenarios. Phase C's order: rules only at the base level first, since it calls no model
+and proves the pipeline over every scenario at no cost; then the two cells of the
+registered headline comparison; then the remaining five cells.
+
+The ledger is append-only and is the record, one line a kind: an `intent` line is written
+before the send, holding the token the send carries, so a crash between the send and the
+next line leaves a key the fold sees as sent-and-unresolved rather than unsent (the parked
+defect of 2026-10-17); a `dispatched` line as soon as the run's id is known; an `approved`
+line when the driver answered the run's review; a `finished` line when the job has ended,
+carrying the job's conclusion and the markers the runner prints (the admission, the ledger
+it reserved against, the attempt's ending, the recovery count, the publication's state and
+object digest, the inventory's digest and outcome); and a `released` line, written by an
+operator through `release` after reading Actions, after which the key may be sent once
+more, the one path by which a key with a `dispatched` line is ever sent again (the other
+parked defect: a run that failed before admission holds no slot, and PROTOCOL lets it be
+dispatched again). A key with a `dispatched` line and no `finished` one is resumed by
+waiting on its run.
+
+A send's identity is its token. `gh workflow run` prints no run id, and the first driver
+took the one new run created after the send, a clock window that would have adopted a
+hand dispatch made in the same minute and approved its review. The workflow carries the
+token into its run name since the replay step, and the driver finds its run by that name
+and the commit it dispatched from: one run bearing the token is the run; two stop the
+driver; none within the wait is uncertain, never absent, and stops the driver with the
+intent standing, so the next invocation looks for the run again and an operator who has
+read Actions releases the key when GitHub created nothing. A key with an unresolved intent
+is never sent again by the driver. A dispatch call whose result the CLI could not report
+(a timeout, a dropped connection) is read the same way; the case is real: the thirtieth
+agent run's dispatch reached GitHub and its response was lost to a local connection abort
+(2026-10-16).
 
 The driver stops, with the reason printed and kept in the ledger, on anything an operator
 decides: a job that did not succeed, an attempt whose ending is not a closed and completed
 one, a publication not in the published state or with an incident, an inventory not
-created, or a run whose admission names another scenario, system or world than the key's.
-A recovery count above zero is printed and does not stop the driver, since the attempt
-counts. The driver also refuses to dispatch while any run of the two run workflows or of
-CI is queued, in progress or waiting at its gate, so a pending deploy is decided before the
-phase continues, never during a run.
+created, or a run whose admission names another scenario, system, world or ledger than the
+plan's. A recovery count above zero is printed and does not stop the driver, since the
+attempt counts. The driver also refuses to dispatch while any run of the two run workflows
+or of CI is queued, in progress or waiting at its gate, so a pending deploy is decided
+before the plan continues, never during a run.
 
 Every dispatched run waits at the production environment's review, the rule that stands
 between the instance and any dispatch (DESIGN's launch passage). The driver approves the
 review of each run it has itself dispatched, under the operator's own login through the
 API, and writes an `approved` line beside the `dispatched` one; the plan is committed and
 every dispatch of it is intended, so the review it answers would have been the operator's
-click 240 times over, and a dispatch the plan did not make still waits for a human (ruled
-2026-10-16, after the phase's first run was approved by hand).
+click once per run, and a dispatch the plan did not make still waits for a human (ruled
+2026-10-16 for phase C, extended to the committed replay plan 2026-10-22).
 
-Dispatching goes through the `gh` CLI, which prints no run id for a dispatch; the driver
-notes the time, then takes the one investigate run created after it that the ledger does
-not know. Two such runs mean someone else dispatched, and the driver stops rather than
-guess. A dispatch whose result the CLI could not report (a timeout, a dropped connection)
-is never sent again blind: the driver reads whether a run was created anyway, adopts it
-with the lost response recorded on its `dispatched` line, and stops only when none appears
-within a minute. The case is real: the thirtieth agent run's dispatch reached GitHub and
-its response was lost to a local connection abort (2026-10-16); the first driver stopped
-there and the run was adopted by hand from the Actions listing.
+Usage, from the repository root with `gh` logged in, the plan directory this file's own
+unless `--plan-dir` names another:
 
-Usage, from the repository root with `gh` logged in:
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] status
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run --dry-run
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run --max 1
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] run
+    uv run python probes/phase-c-dispatch/dispatch.py [--plan-dir DIR] release --key K --reason R
 
-    uv run python probes/phase-c-dispatch/dispatch.py plan            # write plan.json once
-    uv run python probes/phase-c-dispatch/dispatch.py status          # what is done, what is next
-    uv run python probes/phase-c-dispatch/dispatch.py run --dry-run   # the next dispatch, not sent
-    uv run python probes/phase-c-dispatch/dispatch.py run --max 1     # one dispatch, then stop
-    uv run python probes/phase-c-dispatch/dispatch.py run             # the rest of the plan
-
-Every printed line is also appended to `data/phase-c-dispatch/driver.log` (git-ignored)
-so a second terminal can follow it.
+Every printed line is also appended to `data/<plan directory name>/driver.log`
+(git-ignored) so a second terminal can follow it.
 """
 
 from __future__ import annotations
@@ -66,34 +86,21 @@ from __future__ import annotations
 import argparse
 import json
 import re
+import secrets
 import subprocess
 import sys
 import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPOSITORY = HERE.parents[1]
-PLAN_FILE = HERE / "plan.json"
-LEDGER_FILE = HERE / "ledger.jsonl"
-LOG_FILE = REPOSITORY / "data" / "phase-c-dispatch" / "driver.log"
 
-WORLD_VERSION = "2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c"
-CONDITION = "normal"
-APPROVAL = "automatic"
-WORKFLOW = "investigate.yml"
-SCENARIOS = [f"scenario_{n:03d}" for n in range(1, 31)]
-CELLS = [
-    ("rules_only", "base"),
-    ("agent", "padded"),
-    ("full_context", "padded"),
-    ("rules_only", "padded"),
-    ("single_shot", "base"),
-    ("single_shot", "padded"),
-    ("full_context", "base"),
-    ("agent", "base"),
-]
+PHASE_C_WORLD = "2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c"
+# The workflow's defaults when phase C ran, read into a plan on its world and no other.
+PHASE_C_FRAPPE_BASE_URL = "https://hr-w4.ardabasarici.dev"
+PHASE_C_LEDGER = "ledger-development"
 ACCEPTED_ENDING = "closed"
 ACCEPTED_DETAILS = frozenset({"completed"})
 BUSY_WORKFLOWS = ("investigate.yml", "continue-run.yml", "ci.yml")
@@ -103,10 +110,13 @@ IDLE_POLL_SECONDS = 60
 RUN_ID_WAIT_SECONDS = 180
 ADOPTION_WAIT_SECONDS = 60
 RUN_WAIT_SECONDS = 3 * 3600
+LISTING_LIMIT = "50"
 REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
 GATED_ENVIRONMENT = "production"
 REVIEW_WAIT_SECONDS = 90
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
+TOKEN = re.compile(r"^dsp-[0-9a-f]{12}$")
+RUN_FIELDS = "databaseId,createdAt,headSha,displayTitle"
 
 
 class Stop(Exception):
@@ -123,9 +133,56 @@ class Key:
     def text(self) -> str:
         return f"{self.system}/{self.level}/{self.scenario}"
 
+    @staticmethod
+    def of(text: str) -> Key:
+        system, level, scenario = text.split("/")
+        return Key(system, level, scenario)
+
+
+@dataclass(frozen=True)
+class Plan:
+    """A committed plan as `plan.json` states it, with the files that record its driving."""
+
+    directory: Path
+    world_version: str
+    condition: str
+    approval: str
+    workflow: str
+    cells: tuple[tuple[str, str], ...]
+    scenarios: tuple[str, ...]
+    order: tuple[Key, ...]
+    frappe_base_url: str
+    ledger: str
+
+    @property
+    def name(self) -> str:
+        return self.directory.name
+
+    @property
+    def ledger_file(self) -> Path:
+        return self.directory / "ledger.jsonl"
+
+    @property
+    def log_file(self) -> Path:
+        return REPOSITORY / "data" / self.name / "driver.log"
+
+    def expected_ledger(self, key: Key) -> str:
+        """What the admission prints as its ledger: rules only reserves nothing."""
+        return "none" if key.system == "rules_only" else self.ledger
+
+
+_log_file: Path | None = None
+
+
+def _system_clock() -> datetime:
+    return datetime.now(UTC)
+
+
+_clock = _system_clock
+
 
 def now() -> datetime:
-    return datetime.now(timezone.utc)
+    return _clock()
 
 
 def stamp(moment: datetime) -> str:
@@ -139,8 +196,10 @@ def parse_stamp(text: str) -> datetime:
 def log(line: str) -> None:
     text = f"{stamp(now())} {line}"
     print(text, flush=True)
-    LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with LOG_FILE.open("a", encoding="utf-8") as handle:
+    if _log_file is None:
+        return
+    _log_file.parent.mkdir(parents=True, exist_ok=True)
+    with _log_file.open("a", encoding="utf-8") as handle:
         handle.write(text + "\n")
 
 
@@ -171,58 +230,99 @@ def gh_json(*args: str) -> object:
             time.sleep(POLL_SECONDS)
 
 
-def plan_order() -> list[Key]:
-    return [Key(system, level, scenario) for system, level in CELLS for scenario in SCENARIOS]
+def local_head() -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False, cwd=REPOSITORY
+    )
+    if completed.returncode != 0:
+        raise Stop(f"git rev-parse HEAD failed: {completed.stderr.strip()}")
+    return completed.stdout.strip()
 
 
-def write_plan() -> None:
-    plan = {
-        "world_version": WORLD_VERSION,
-        "condition": CONDITION,
-        "approval": APPROVAL,
-        "workflow": WORKFLOW,
-        "cells": [{"system": s, "level": lv} for s, lv in CELLS],
-        "scenarios": SCENARIOS,
-        "order": [k.text for k in plan_order()],
-    }
-    PLAN_FILE.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8", newline="\n")
-    log(f"plan written: {len(plan['order'])} runs over {len(CELLS)} cells to {PLAN_FILE.name}")
+# --- The plan and the ledger ------------------------------------------------------------------
 
 
-def read_plan() -> list[Key]:
-    if not PLAN_FILE.exists():
-        raise Stop("no plan.json; run `plan` first")
-    plan = json.loads(PLAN_FILE.read_text(encoding="utf-8"))
-    if plan["world_version"] != WORLD_VERSION:
-        raise Stop("plan.json names another world than this script")
-    keys = [Key(*text.split("/")) for text in plan["order"]]
-    if keys != plan_order():
-        raise Stop("plan.json's order differs from this script's; the plan is fixed")
-    return keys
+def read_plan(directory: Path) -> Plan:
+    """The plan a directory holds, refused when its order is not its cells' product with
+    its scenarios or when a plan off the measurement world omits its site or its ledger."""
+    file = directory / "plan.json"
+    if not file.exists():
+        raise Stop(f"no plan.json under {directory}")
+    data = json.loads(file.read_text(encoding="utf-8"))
+    cells = tuple((cell["system"], cell["level"]) for cell in data["cells"])
+    scenarios = tuple(data["scenarios"])
+    order = tuple(Key.of(text) for text in data["order"])
+    product = tuple(
+        Key(system, level, scenario) for system, level in cells for scenario in scenarios
+    )
+    if order != product:
+        raise Stop(
+            f"{file}'s order is not its cells' product with its scenarios; the plan is fixed"
+        )
+    world = data["world_version"]
+    if world == PHASE_C_WORLD:
+        site = data.get("frappe_base_url", PHASE_C_FRAPPE_BASE_URL)
+        ledger = data.get("ledger", PHASE_C_LEDGER)
+    else:
+        missing = [field for field in ("frappe_base_url", "ledger") if field not in data]
+        if missing:
+            raise Stop(
+                f"{file} is a plan off the measurement world and omits {', '.join(missing)}; "
+                "a plan states its site and its ledger"
+            )
+        site, ledger = data["frappe_base_url"], data["ledger"]
+    return Plan(
+        directory=directory,
+        world_version=world,
+        condition=data["condition"],
+        approval=data["approval"],
+        workflow=data["workflow"],
+        cells=cells,
+        scenarios=scenarios,
+        order=order,
+        frappe_base_url=site,
+        ledger=ledger,
+    )
 
 
-def read_ledger() -> list[dict]:
-    if not LEDGER_FILE.exists():
+def read_ledger(plan: Plan) -> list[dict]:
+    if not plan.ledger_file.exists():
         return []
-    lines = LEDGER_FILE.read_text(encoding="utf-8").splitlines()
+    lines = plan.ledger_file.read_text(encoding="utf-8").splitlines()
     return [json.loads(line) for line in lines if line.strip()]
 
 
-def append_ledger(record: dict) -> None:
-    with LEDGER_FILE.open("a", encoding="utf-8", newline="\n") as handle:
+def append_ledger(plan: Plan, record: dict) -> None:
+    with plan.ledger_file.open("a", encoding="utf-8", newline="\n") as handle:
         handle.write(json.dumps(record, sort_keys=True) + "\n")
 
 
+def empty_entry() -> dict[str, dict | None]:
+    return {"intent": None, "dispatched": None, "finished": None}
+
+
 def fold(records: list[dict]) -> dict[str, dict[str, dict | None]]:
+    """Each key's standing intent, dispatch and finish; a `released` line clears all three
+    so the key reads as unsent, while every run id the records name stays known."""
     state: dict[str, dict[str, dict | None]] = {}
     for record in records:
-        entry = state.setdefault(record["key"], {"dispatched": None, "finished": None})
-        entry[record["kind"]] = record
+        entry = state.setdefault(record["key"], empty_entry())
+        if record["kind"] == "released":
+            entry.update(empty_entry())
+        elif record["kind"] in entry:
+            entry[record["kind"]] = record
     return state
 
 
 def known_run_ids(records: list[dict]) -> set[int]:
     return {r["run_id"] for r in records if r["kind"] == "dispatched"}
+
+
+def new_token() -> str:
+    return f"dsp-{secrets.token_hex(6)}"
+
+
+# --- GitHub -------------------------------------------------------------------------------------
 
 
 def busy_runs() -> list[str]:
@@ -254,76 +354,90 @@ def wait_until_idle() -> None:
         time.sleep(IDLE_POLL_SECONDS)
 
 
-def dispatch(key: Key) -> tuple[datetime, str | None]:
-    """Send the dispatch; the time before it and, when the call did not report success, why.
+def dispatch(plan: Plan, key: Key, token: str) -> str | None:
+    """Send the dispatch bearing ``token``; when the call did not report success, why.
 
     A failed call does not mean no run: the thirtieth agent run's dispatch reached GitHub
     and its response was lost to a local connection abort (2026-10-16), so the caller reads
-    the state rather than sending again, as the runner does for its own sends.
+    for the run bearing the token rather than sending again.
     """
-    before = now()
     args = [
         "workflow",
         "run",
-        WORKFLOW,
+        plan.workflow,
         "-f",
-        f"world_version={WORLD_VERSION}",
+        f"world_version={plan.world_version}",
         "-f",
         f"scenario={key.scenario}",
         "-f",
         f"system={key.system}",
         "-f",
-        f"condition={CONDITION}",
+        f"condition={plan.condition}",
         "-f",
         f"level={key.level}",
         "-f",
-        f"approval={APPROVAL}",
+        f"approval={plan.approval}",
+        "-f",
+        f"frappe_base_url={plan.frappe_base_url}",
+        "-f",
+        f"ledger={plan.ledger}",
+        "-f",
+        f"dispatch_token={token}",
     ]
     try:
         gh(*args, timeout=120)
     except subprocess.TimeoutExpired:
-        return before, "the dispatch call timed out"
+        return "the dispatch call timed out"
     except RuntimeError as error:
-        return before, str(error)
-    return before, None
+        return str(error)
+    return None
 
 
-def resolve_run_id(
-    dispatched_at: datetime, known: set[int], wait_seconds: int = RUN_ID_WAIT_SECONDS
-) -> tuple[int, str]:
+def runs_bearing(plan: Plan, token: str) -> list[dict]:
+    """The workflow's recent runs whose name carries ``token``: the run name is the one
+    channel a dispatch input comes back through (`run-name` in the workflow), and the
+    token is twelve hex digits drawn for one send, so a run of another driver, a hand
+    dispatch or a continuation never matches."""
+    runs = gh_json(
+        "run", "list", "--workflow", plan.workflow, "--limit", LISTING_LIMIT, "--json", RUN_FIELDS
+    )
+    assert isinstance(runs, list)
+    return [run for run in runs if token in str(run.get("displayTitle", ""))]
+
+
+def resolve_run(plan: Plan, token: str, head_sha: str, wait_seconds: int) -> tuple[int, str]:
+    """The one run bearing ``token``, polled for up to ``wait_seconds``: its id and sha.
+
+    Two runs bearing it stop the driver, since the token was drawn for one send. None
+    within the wait is uncertain, not absent: GitHub may hold the run and list it late, so
+    the driver stops with the intent standing and the next invocation looks again. A run
+    on another commit than this checkout's is this driver's run on a tree it did not
+    dispatch from, and stops the driver before any approval.
+    """
     deadline = now() + timedelta(seconds=wait_seconds)
-    floor = dispatched_at - timedelta(seconds=30)
     while True:
-        runs = gh_json(
-            "run",
-            "list",
-            "--workflow",
-            WORKFLOW,
-            "--limit",
-            "10",
-            "--json",
-            "databaseId,createdAt,headSha",
-        )
-        assert isinstance(runs, list)
-        fresh = [
-            r for r in runs if r["databaseId"] not in known and parse_stamp(r["createdAt"]) >= floor
-        ]
-        if len(fresh) == 1:
-            return fresh[0]["databaseId"], fresh[0]["headSha"]
-        if len(fresh) > 1:
-            ids = ", ".join(str(r["databaseId"]) for r in fresh)
-            raise Stop(
-                f"more than one new investigate run after the dispatch ({ids}); "
-                "someone else dispatched"
-            )
+        found = runs_bearing(plan, token)
+        if len(found) == 1:
+            run_id, sha = int(found[0]["databaseId"]), str(found[0]["headSha"])
+            if sha != head_sha:
+                raise Stop(
+                    f"run {run_id} bears {token} on {sha[:7]}, this checkout is {head_sha[:7]}; "
+                    "the dispatch ran on a tree this driver did not dispatch from"
+                )
+            return run_id, sha
+        if len(found) > 1:
+            ids = ", ".join(str(run["databaseId"]) for run in found)
+            raise Stop(f"more than one run bears {token} ({ids}); a token names one send")
         if now() > deadline:
             raise Stop(
-                "no investigate run appeared after the dispatch within the wait; check Actions"
+                f"no run bearing {token} appeared within {wait_seconds} s; the intent stands: "
+                "the next `run` looks again, and `release` clears it once Actions shows GitHub "
+                "created nothing"
             )
         time.sleep(5)
 
 
-def approve_if_pending(run_id: int) -> str | None:
+def approve_if_pending(plan: Plan, run_id: int) -> str | None:
     """Approve the run's production review if it is pending; the approval's time, or None.
 
     A dispatched run is created waiting at the environment's review, so the pending
@@ -345,7 +459,7 @@ def approve_if_pending(run_id: int) -> str | None:
                 {
                     "environment_ids": [ours[0]["environment"]["id"]],
                     "state": "approved",
-                    "comment": "phase C dispatcher: a run of the committed plan",
+                    "comment": f"dispatcher: a run of the committed plan {plan.name}",
                 }
             )
             gh("api", "-X", "POST", path, "--input", "-", input=body)
@@ -380,18 +494,44 @@ def markers_of(run_id: int) -> dict[str, str]:
     return found
 
 
-def reasons_to_stop(key: Key, conclusion: str, markers: dict[str, str]) -> list[str]:
+# --- The records of one run -------------------------------------------------------------------
+
+
+KEPT_MARKERS = (
+    "launch.admitted",
+    "launch.reservation_pico_usd",
+    "launch.ledger_revision",
+    "launch.ledger",
+    "launch.scenario",
+    "launch.system",
+    "launch.world_version",
+    "work.ending",
+    "work.detail",
+    "status.recoveries",
+    "status.generation",
+    "publish.state",
+    "publish.object_digest",
+    "publish.incident",
+    "inventory.inventory_digest",
+    "inventory.outcome",
+    "inventory.attempts",
+    "inventory.refused",
+)
+
+
+def reasons_to_stop(plan: Plan, key: Key, conclusion: str, markers: dict[str, str]) -> list[str]:
     reasons = []
     if conclusion != "success":
         reasons.append(f"job conclusion {conclusion}")
     expected = {
         "launch.scenario": key.scenario,
         "launch.system": key.system,
-        "launch.world_version": WORLD_VERSION,
+        "launch.world_version": plan.world_version,
+        "launch.ledger": plan.expected_ledger(key),
     }
     for field, value in expected.items():
         if markers.get(field) != value:
-            reasons.append(f"{field} is {markers.get(field)!r}, the key says {value!r}")
+            reasons.append(f"{field} is {markers.get(field)!r}, the plan says {value!r}")
     if markers.get("work.ending") != ACCEPTED_ENDING:
         reasons.append(f"work.ending is {markers.get('work.ending')!r}")
     if markers.get("work.detail") not in ACCEPTED_DETAILS:
@@ -405,32 +545,11 @@ def reasons_to_stop(key: Key, conclusion: str, markers: dict[str, str]) -> list[
     return reasons
 
 
-def finish(key: Key, run_id: int) -> dict:
+def finish(plan: Plan, key: Key, run_id: int) -> dict:
     conclusion = wait_for_run(run_id)
     markers = markers_of(run_id)
-    kept = {
-        name: markers.get(name)
-        for name in (
-            "launch.admitted",
-            "launch.reservation_pico_usd",
-            "launch.ledger_revision",
-            "launch.scenario",
-            "launch.system",
-            "launch.world_version",
-            "work.ending",
-            "work.detail",
-            "status.recoveries",
-            "status.generation",
-            "publish.state",
-            "publish.object_digest",
-            "publish.incident",
-            "inventory.inventory_digest",
-            "inventory.outcome",
-            "inventory.attempts",
-            "inventory.refused",
-        )
-    }
-    reasons = reasons_to_stop(key, conclusion, markers)
+    kept = {name: markers.get(name) for name in KEPT_MARKERS}
+    reasons = reasons_to_stop(plan, key, conclusion, markers)
     record = {
         "kind": "finished",
         "key": key.text,
@@ -440,7 +559,7 @@ def finish(key: Key, run_id: int) -> dict:
         "markers": kept,
         "stop_reasons": reasons,
     }
-    append_ledger(record)
+    append_ledger(plan, record)
     recoveries = kept.get("status.recoveries")
     log(
         f"finished {key.text} run {run_id}: {conclusion}, ending={kept.get('work.ending')}/"
@@ -453,20 +572,79 @@ def finish(key: Key, run_id: int) -> dict:
     return record
 
 
-def run(max_dispatches: int, dry_run: bool) -> int:
-    order = read_plan()
-    records = read_ledger()
+def send(plan: Plan, key: Key) -> tuple[int, str]:
+    """One send of ``key``: the intent written, the dispatch made, the run resolved by its
+    token and recorded; the run's id and the sha it rides."""
+    token = new_token()
+    head = local_head()
+    append_ledger(
+        plan,
+        {
+            "kind": "intent",
+            "key": key.text,
+            "token": token,
+            "head_sha": head,
+            "intended_at": stamp(now()),
+        },
+    )
+    failure = dispatch(plan, key, token)
+    if failure is not None:
+        log(f"the dispatch call for {key.text} failed ({failure}); reading for {token}")
+    run_id, sha = resolve_run(
+        plan, token, head, ADOPTION_WAIT_SECONDS if failure is not None else RUN_ID_WAIT_SECONDS
+    )
+    line = {
+        "kind": "dispatched",
+        "key": key.text,
+        "token": token,
+        "run_id": run_id,
+        "head_sha": sha,
+        "dispatched_at": stamp(now()),
+    }
+    if failure is not None:
+        line["dispatch_response"] = f"lost: {failure}"
+    append_ledger(plan, line)
+    log(f"dispatched {key.text}: run {run_id} on {sha[:7]} bearing {token}")
+    return run_id, sha
+
+
+def adopt(plan: Plan, key: Key, intent: dict) -> tuple[int, str]:
+    """A key whose intent stands with no dispatched line: the earlier invocation died
+    between its send and its record. The run bearing the intent's token is adopted; none
+    stops the driver with the intent still standing, never a second send."""
+    token = intent["token"]
+    log(f"{key.text} has an intent bearing {token} and no dispatched line; reading for its run")
+    run_id, sha = resolve_run(plan, token, intent["head_sha"], ADOPTION_WAIT_SECONDS)
+    append_ledger(
+        plan,
+        {
+            "kind": "dispatched",
+            "key": key.text,
+            "token": token,
+            "run_id": run_id,
+            "head_sha": sha,
+            "dispatched_at": stamp(now()),
+            "adopted": "from the intent, by a later invocation",
+        },
+    )
+    log(f"adopted {key.text}: run {run_id} on {sha[:7]} bearing {token}")
+    return run_id, sha
+
+
+def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
+    records = read_ledger(plan)
     state = fold(records)
-    known = known_run_ids(records)
     dispatched = 0
     last_sha: str | None = None
-    for key in order:
-        entry = state.get(key.text, {"dispatched": None, "finished": None})
+    for key in plan.order:
+        entry = state.get(key.text, empty_entry())
         if entry["finished"] is not None:
             continue
         if entry["dispatched"] is not None:
             run_id = entry["dispatched"]["run_id"]
             log(f"resuming {key.text}: run {run_id} was dispatched and never recorded as finished")
+        elif entry["intent"] is not None:
+            run_id, _ = adopt(plan, key, entry["intent"])
         else:
             if max_dispatches and dispatched >= max_dispatches:
                 log(f"dispatch bound {max_dispatches} reached; next is {key.text}")
@@ -475,69 +653,95 @@ def run(max_dispatches: int, dry_run: bool) -> int:
                 log(f"dry run: the next dispatch would be {key.text}; nothing sent")
                 return 0
             wait_until_idle()
-            dispatched_at, failure = dispatch(key)
-            if failure is not None:
-                log(f"the dispatch call for {key.text} failed ({failure}); reading for a run")
-            try:
-                run_id, sha = resolve_run_id(
-                    dispatched_at,
-                    known,
-                    ADOPTION_WAIT_SECONDS if failure is not None else RUN_ID_WAIT_SECONDS,
-                )
-            except Stop as none_found:
-                if failure is not None:
-                    raise Stop(
-                        f"the dispatch of {key.text} failed and no run appeared: {failure}"
-                    ) from None
-                raise none_found
-            known.add(run_id)
+            run_id, sha = send(plan, key)
             dispatched += 1
-            line = {
-                "kind": "dispatched",
-                "key": key.text,
-                "run_id": run_id,
-                "head_sha": sha,
-                "dispatched_at": stamp(dispatched_at),
-            }
-            if failure is not None:
-                line["dispatch_response"] = f"lost: {failure}"
-            append_ledger(line)
-            log(f"dispatched {key.text}: run {run_id} on {sha[:7]}")
             if last_sha is not None and sha != last_sha:
                 log(f"NOTE the dispatched commit changed from {last_sha[:7]} to {sha[:7]}")
             last_sha = sha
-        approved_at = approve_if_pending(run_id)
+        approved_at = approve_if_pending(plan, run_id)
         if approved_at is not None:
             append_ledger(
-                {"kind": "approved", "key": key.text, "run_id": run_id, "approved_at": approved_at}
+                plan,
+                {"kind": "approved", "key": key.text, "run_id": run_id, "approved_at": approved_at},
             )
             log(f"approved {key.text}: run {run_id}'s {GATED_ENVIRONMENT} review, this login")
-        record = finish(key, run_id)
+        record = finish(plan, key, run_id)
         if record["stop_reasons"]:
             raise Stop(f"{key.text} run {run_id}: " + "; ".join(record["stop_reasons"]))
     log("the plan is complete: every key has a finished record")
     return 0
 
 
-def status() -> int:
-    order = read_plan()
-    state = fold(read_ledger())
+def release(plan: Plan, key: Key, reason: str) -> int:
+    """The operator's line after reading Actions: a key whose intent stands with no run
+    bearing its token, or whose finished run stopped the driver before any attempt was
+    admitted, may be sent once more. The line names what was read: for an intent, that no
+    run bears the token now; for a finished run, that the run is completed, so it can admit
+    nothing later. Any other state is refused: a run that admitted an attempt holds its
+    slot under PROTOCOL, and the fold's history is never edited."""
+    entry = fold(read_ledger(plan)).get(key.text, empty_entry())
+    if entry["intent"] is None and entry["dispatched"] is None:
+        raise Stop(f"{key.text} has nothing to release: it was never sent")
+    if entry["finished"] is not None:
+        if not entry["finished"]["stop_reasons"]:
+            raise Stop(f"{key.text} finished without a stop reason and holds its slot")
+        if entry["finished"]["markers"].get("launch.admitted"):
+            raise Stop(
+                f"{key.text} admitted {entry['finished']['markers']['launch.admitted']} and holds "
+                "its slot under PROTOCOL; a retry goes through continue-run by hand"
+            )
+        run_id = entry["finished"]["run_id"]
+        run = gh_json("run", "view", str(run_id), "--json", "status")
+        assert isinstance(run, dict)
+        if run["status"] != "completed":
+            raise Stop(f"run {run_id} is {run['status']}, not completed; it may still admit")
+        read = f"run {run_id} completed, no admission in its markers"
+    elif entry["dispatched"] is not None:
+        raise Stop(
+            f"{key.text} has run {entry['dispatched']['run_id']} dispatched and not finished; "
+            "`run` resumes it"
+        )
+    else:
+        assert entry["intent"] is not None
+        token = entry["intent"]["token"]
+        found = runs_bearing(plan, token)
+        if found:
+            raise Stop(f"a run bears {token} ({found[0]['databaseId']}); `run` adopts it")
+        run_id = None
+        read = f"no run bears {token} among the last {LISTING_LIMIT} runs of {plan.workflow}"
+    append_ledger(
+        plan,
+        {
+            "kind": "released",
+            "key": key.text,
+            "run_id": run_id,
+            "reason": reason,
+            "read": read,
+            "released_at": stamp(now()),
+        },
+    )
+    log(f"released {key.text}: {reason} ({read})")
+    return 0
+
+
+def status(plan: Plan) -> int:
+    state = fold(read_ledger(plan))
     per_cell: dict[str, list[int]] = {}
     stopped = []
     next_key = None
     last_inventory = None
-    for key in order:
+    for key in plan.order:
         cell = f"{key.system}/{key.level}"
         counts = per_cell.setdefault(cell, [0, 0])
         entry = state.get(key.text)
-        if entry is None:
+        if entry is None or (entry["intent"] is None and entry["dispatched"] is None):
             if next_key is None:
                 next_key = key.text
             continue
         if entry["finished"] is None:
             counts[1] += 1
             if next_key is None:
-                next_key = key.text + " (resume)"
+                next_key = key.text + (" (adopt)" if entry["dispatched"] is None else " (resume)")
             continue
         counts[0] += 1
         if entry["finished"]["stop_reasons"]:
@@ -546,6 +750,10 @@ def status() -> int:
                 + "; ".join(entry["finished"]["stop_reasons"])
             )
         last_inventory = entry["finished"]["markers"].get("inventory.inventory_digest")
+    print(
+        f"plan {plan.name}: world {plan.world_version[:12]}, site {plan.frappe_base_url}, "
+        f"ledger {plan.ledger}"
+    )
     print(f"{'cell':<24}{'finished':>10}{'open':>6}")
     for cell, (done, open_) in per_cell.items():
         print(f"{cell:<24}{done:>10}{open_:>6}")
@@ -557,9 +765,15 @@ def status() -> int:
 
 
 def main(argv: list[str]) -> int:
-    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    global _log_file
+    parser = argparse.ArgumentParser(description="the dispatcher of a committed plan")
+    parser.add_argument(
+        "--plan-dir",
+        type=Path,
+        default=HERE,
+        help="the directory holding plan.json and ledger.jsonl; this file's own by default",
+    )
     sub = parser.add_subparsers(dest="command", required=True)
-    sub.add_parser("plan")
     sub.add_parser("status")
     runner = sub.add_parser("run")
     runner.add_argument(
@@ -568,14 +782,18 @@ def main(argv: list[str]) -> int:
     runner.add_argument(
         "--dry-run", action="store_true", help="name the next dispatch and send nothing"
     )
+    releasing = sub.add_parser("release")
+    releasing.add_argument("--key", required=True, help="system/level/scenario")
+    releasing.add_argument("--reason", required=True, help="what Actions showed, in your words")
     args = parser.parse_args(argv)
     try:
-        if args.command == "plan":
-            write_plan()
-            return 0
+        plan = read_plan(args.plan_dir.resolve())
+        _log_file = plan.log_file
         if args.command == "status":
-            return status()
-        return run(args.max, args.dry_run)
+            return status(plan)
+        if args.command == "release":
+            return release(plan, Key.of(args.key), args.reason)
+        return run(plan, args.max, args.dry_run)
     except Stop as stop:
         log(f"STOP {stop}")
         return 1
