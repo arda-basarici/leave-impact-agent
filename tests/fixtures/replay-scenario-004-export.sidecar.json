@@ -1,0 +1,13 @@
+{
+  "public_id": "scenario-004",
+  "plan_key": "agent/base/scenario_004",
+  "scenario_id": "scenario_004",
+  "tier": "structured",
+  "world_version": "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4",
+  "key": "runs/7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4/run-39845308738-1/export-a4707cba3b31e8eedd85af5973b353b21d4029db.json",
+  "version_id": "8tEgnMXJjaxLkRRWx_4g0GjsanC5.n3c",
+  "sha256": "e6653f715adb121766208ceb22c44c61f8648eaea4a4451d97f8d85597280bc7",
+  "bytes": 79037,
+  "graded_in": "probes/replay-set/grading.json",
+  "fetched_at": "2026-10-22T23:15:45Z"
+}
