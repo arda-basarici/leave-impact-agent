@@ -4467,3 +4467,76 @@ table, "output saturation reported as a mechanism" on the padded full-context st
 returned, 6 emitted) with the freeze's wording kept. No correction to the entry. The
 headline figures are pinned in `tests/unit/test_results_committed.py`, so a regeneration
 that moves one fails CI before the prose is wrong.
+
+## replay-set — the demo's thirty replays on the golden world: every run admitted and finished, the investigator correct whole on 26 of 30 in the operator's offline grading, $2.0967 (2026-10-22 to 23)
+
+The demo milestone's replay step (its forks file in the stream, `m3-build/2026-10-22-step-8-forks.md`):
+the registered investigator at the base level over the golden world's thirty scenarios, run
+through `investigate.yml` against the golden world's HR site (`hr-w3`) and the demo ledger
+(`ledger-demo`, threshold 45 USD, limit 90), dispatched one at a time by
+`probes/phase-c-dispatch/dispatch.py` from `probes/replay-set/plan.json` (equal to the demo
+configuration, a unit test holds it) and recorded in `probes/replay-set/ledger.jsonl`. The
+numbers here are `tally.py --plan-dir probes/replay-set`'s over the exports and
+`grade_replays.py`'s in `probes/replay-set/grading.json`, the latter pinned by
+`tests/unit/test_replay_grading.py`; a number neither prints is marked as arithmetic by hand.
+
+**The wiring run** (`39842390519`, `scenario_001`, 2026-10-22 19:42 to 19:54 UTC) was read
+before the rest was sent, against the forks' forecast: the admission's marker `ledger=ledger-demo`,
+the site `hr-w3` in the launch, `ledger_revision=2` after the threshold entry
+(`amount_pico_usd=45000000000000`, the ledger's head created and the threshold written as its
+first entry, the admission its second), the registration's reservation `2167352000000`
+pico-dollars; met exactly. Two driver findings came out of it and were fixed before the batch
+(a review approved by hand on a run GitHub still queued read as missing; the run bound counted
+sends and not resumed runs), recorded in the forks file.
+
+**The batch** (the remaining 29, 19:58 to 21:20 UTC, one invocation, no stop): 30 intents, 30
+dispatched, 29 approvals by the driver under the operator's login (the wiring run's by hand),
+30 finished with empty stop reasons; every admission attempt 1 of its run on `ledger-demo`, the
+ledger revisions the even numbers 2 to 60 (one reserve and one commit a run); every run closed
+completed on its first attempt, no recovery, published, the inventory created each time (the
+last `8bc1369cee5d…`).
+
+| cell | runs | cost | mean a run | calls a run | input tokens a run | stopped at the output maximum | unparsed | completed | recoveries |
+|---|---|---|---|---|---|---|---|---|---|
+| agent, base | 30 | $2.0967 | $0.0699 | 4 to 9 | 38,933 to 98,575 | 0 | 0 | 30 | 0 |
+
+The forks' forecast was about $2.10, taken by hand from the phase-C base cell's mean of $0.0738
+over thirty runs ($2.21). The reservation is thirty-one times the mean actual (by hand:
+2.167352 over 0.0699), which is the cap's design.
+
+**The grading** is the operator's offline reading, not a registered measurement: the golden
+world is the development world the investigator was built against (DESIGN, the demo's entry
+ruling), and its `runs/` prefix also holds eight development runs of October 13 to 16 that a
+workflow evaluation would take as the scenarios' first, so `grade_replays.py` grades exactly the
+admitted runs the ledger names, through `grade_run`, from the workstation under the administrator
+profile. Thirty graded, none without an export, none limited or excluded, every run under the
+normal condition. The record (`grading.json`, sha256 `44adaebf32465da8…`) names the ledger it
+graded from (`f158884352bcb195…`), the commit its inputs were committed at and the grader's own
+digest; the regenerated record came back identical to the first row for row.
+
+| tier | runs | correct whole |
+|---|---|---|
+| structured | 10 | 10 |
+| fragmented | 10 | 7 |
+| adversarial | 10 | 9 |
+| all | 30 | 26 |
+
+The four misses (`scenario_017`, `_018`, `_019`, `_025`) share one shape, read off the graded
+rows the record carries: the required constraint row, the corpus clause's requirement on the
+impacted clause or ticket, has no claim, so the colleagues the clause disqualifies are assessed
+viable (25, 22, 17 and 26 assessment payloads differ, almost all `non_viable` for the skill
+expected and `viable` reported, two a run `unknown` expected and `viable` reported). In `_017`
+and `_018` the assignee happens to be viable and the plan checks find nothing; in `_019` and
+`_025` the assignee is one the clause disqualifies and the plan checks add `non_viable_assignee`
+and `insufficient_cardinality`, `_025` expecting `uncovered`. This is the mechanism the phase-C
+reading registered on the measurement world (every miss in the fragmented tier, facts returned
+and not emitted); the two worlds differ, so the counts are not one comparison.
+
+**The three introduced examples**, ruled from that table: `scenario_004` (structured, two
+impacts of one leave, two assignments, every row agreeing), `scenario_019` (the miss with its
+consequence on the plan; `_017` the same mechanism without one), `scenario_030` (adversarial, a
+conflict resolved by the system of record, the requirement stated, the action `unknown` on an
+absent skill fact). Their walkthroughs are the committed `src/leaveimpact/app/walkthroughs.json`;
+their titles are fixed at the operator's publish. The structured example's export is committed
+as `tests/fixtures/replay-scenario-004-export.json` with its sidecar (key, version id, digest),
+the real-export rendering test of the report step re-pointed at it.

@@ -4279,6 +4279,34 @@ the released report. Tables only; the acceptance renders the committed file thro
 real template and reads the base loss and the padded gain each from the section whose
 heading names its pair and level.
 
+As built at the replay step (M3 step 8, 2026-10-22 to 23, the forks read externally before
+the build and the pushed commits read four times after). The thirty replays are thirty runs
+of the investigate workflow on the golden world's own HR site against the demo ledger,
+dispatched one at a time by the phase-C driver from a committed plan equal to the demo
+configuration, each approved by the driver under the operator's login and recorded in an
+append-only ledger with the runner's markers; every run admitted at attempt 1, closed
+completed, published and inventoried, the ledger's revision moving by one reserve and one
+commit a run. A key is never sent twice by the driver; a run that stopped it stands in the
+ledger until an operator's acknowledgement, and is sent again only on an operator's release
+with evidence the driver verifies (a launch never sent, read from the log; a sent launch
+only from a continue-run the operator dispatched two hours after the job, whose log carries
+the store's refusal of the attempt and the host's listing of no attempt-named container,
+for a launch whose own log shows the host created that container). The replays were graded
+offline by the operator with the evaluator's own grader, from the workstation under the
+administrator profile, because the golden world's prefix also holds development runs a
+workflow evaluation would take as the scenarios' first; the record is committed with the
+ledger's digest, the grader's digest and the commit its inputs were committed at, and a
+test pins the record to the grader, so the surface imports no grader and no grading reaches
+a page except as the operator's prose. The operator publishes each replay by the
+application's own command on the host, the public name the scenario's with a hyphen, and
+fixes a title at the publish for the three introduced examples, one per tier (a structured
+pass, the fragmented miss, an adversarial run with a conflict the rules resolve and an
+assignment they refuse); a committed file beside the page supplies each introduced row's
+walkthrough, what to inspect and what to see, decoded once at the application's creation
+like the results, so the prose is reviewed with the tree and no column moves; the listing
+shows the three first and the report page carries its walkthrough above the ending, and a
+titled row the file does not name renders its title alone.
+
 **The shell and the report view.** FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow
