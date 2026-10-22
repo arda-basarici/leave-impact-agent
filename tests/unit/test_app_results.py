@@ -44,7 +44,9 @@ def test_an_arm_row_states_its_count_over_the_scenarios_with_its_wilson_interval
         "0.63 to 0.90",
     )
     assert agent.unavailable is None
-    assert [(tier.tier, tier.count) for tier in agent.tiers] == [("structured", "24 of 30")]
+    assert [(tier.tier, tier.count, tier.interval) for tier in agent.tiers] == [
+        ("structured", "24 of 30", "0.63 to 0.90")
+    ]
     assert degraded.count is None and degraded.interval is None
     assert degraded.unavailable == "no answer-quality checks (degraded condition)"
 
@@ -79,6 +81,10 @@ def test_a_lower_bound_cost_says_at_least_and_rounds_down() -> None:
     assert cost is not None
     # 2212544400000 over 30 runs is 73,751,480,000 pico-dollars: $0.07375…, truncated.
     assert (cost.total, cost.mean_per_run) == ("at least $2.2125", "at least $0.0737")
+    # The median 69,066,800,000 and the range are lower bounds too, each said and truncated.
+    assert cost.median_per_run == (
+        "at least $0.0690 (from at least $0.0485 to at least $0.1939)"
+    )
     assert built.spend == replace(built.spend, total="at least $2.2125", floor=True)
 
 
@@ -200,6 +206,11 @@ def test_the_labels_are_built_from_the_file_and_the_captions_are_the_same_senten
         "bind: src/leaveimpact/evaluator/cells.py."
     )
     assert built.labels[4].startswith("The measurement world is embargoed:")
+    assert built.labels[2].startswith("At the padded level both one-call systems")
+    assert "did not correspond one to one with failure" in built.labels[2]
+    assert [(f.path, f.before, f.after) for f in built.disclosures.changed] == [
+        ("src/leaveimpact/evaluator/cells.py", "0" * 40, "c" * 40)
+    ]
     assert built.disclosures.repeats == built.labels[1]
     assert built.interval_method == (
         "Intervals are at 95%: Wilson for a count; a paired scenario bootstrap of 10,000 "
@@ -253,7 +264,11 @@ def test_the_committed_results_render_every_arm_in_the_files_order() -> None:
         ("single_shot", "padded", "10 of 30"),
     ]
     assert all(row.unavailable is None and row.cost is not None for row in built.arms)
-    assert [tier.count for tier in built.arms[1].tiers] == ["10 of 10", "4 of 10", "10 of 10"]
+    assert [(tier.count, tier.interval) for tier in built.arms[1].tiers] == [
+        ("10 of 10", "0.72 to 1.00"),
+        ("4 of 10", "0.17 to 0.69"),
+        ("10 of 10", "0.72 to 1.00"),
+    ]
     assert built.spend == replace(built.spend, total="$9.9594", runs=240, floor=False)
 
 

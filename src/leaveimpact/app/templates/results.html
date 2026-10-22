@@ -50,7 +50,7 @@ output maximum, which this file does not.</p>
   <tr>
     <td>{{ arm.name|capitalize }}</td>
     <td>{{ arm.level }}</td>
-    <td>{% if arm.count is not none %}{{ arm.count }}{% if arm.tiers %}<span class="tiers">{% for tier in arm.tiers %}{{ tier.tier }} {{ tier.count }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}{% else %}unavailable: {{ arm.unavailable }}{% endif %}</td>
+    <td>{% if arm.count is not none %}{{ arm.count }}{% if arm.tiers %}<span class="tiers">{% for tier in arm.tiers %}{{ tier.tier }} {{ tier.count }}{% if tier.interval is not none %} ({{ tier.interval }}){% endif %}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}{% else %}unavailable: {{ arm.unavailable }}{% endif %}</td>
     <td>{% if arm.interval is not none %}{{ arm.interval }}{% elif arm.count is not none %}none recorded{% else %}unavailable{% endif %}</td>
     {% if arm.cost is not none %}
     <td>{{ arm.cost.total }}</td>
@@ -111,7 +111,9 @@ calibration and the worlds' generation were paid separately.</p>
 <h2>Disclosures</h2>
 <ul>
   <li>{{ view.disclosures.world }}</li>
-  <li>{{ view.disclosures.changed_code }}</li>
+  <li>{{ view.disclosures.changed_code }}{% if view.disclosures.changed %}
+    <dl>{% for file in view.disclosures.changed %}<dt>{{ file.path }}</dt><dd>bound {{ file.before }} · ran {{ file.after }}</dd>{% endfor %}</dl>
+  {% endif %}</li>
   <li>{{ view.disclosures.repeats }}</li>
   <li>{{ view.disclosures.incidents }}</li>
 </ul>

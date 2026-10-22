@@ -339,6 +339,8 @@ def test_the_results_page_states_the_labels_and_the_figures_in_their_rows() -> N
     assert "unavailable: no answer-quality checks (degraded condition)" in text
     assert "20 of 30 scenarios the rules-only reference did not pass" in text
     assert "where-the-single-call-stops.pdf" in text
+    assert "structured 24 of 30 (0.63 to 0.90)" in text
+    assert "<dt>src/leaveimpact/evaluator/cells.py</dt><dd>bound " + "0" * 40 in text
 
 
 def test_every_page_the_surface_answers_carries_the_served_world_line() -> None:

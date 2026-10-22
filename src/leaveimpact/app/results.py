@@ -57,6 +57,7 @@ __all__ = [
     "SERVED_WORLD_LABEL",
     "TRUNCATION_LABEL",
     "ArmRow",
+    "ChangedFile",
     "ComparisonRow",
     "CostView",
     "DifferenceView",
@@ -90,13 +91,17 @@ SERVED_WORLD_LABEL = (
 """On every page of the surface, and first in the results page's block."""
 
 TRUNCATION_LABEL = (
-    "The one-call systems' padded failures came with calls stopped at the registered output "
-    "maximum. That stop is reported as an observed mechanism, not as an established sole "
-    "cause and not as evidence of an input-context limit; the counts of stopped calls are in "
-    "the report, not in this file. Every system's base result is shown beside its padded "
-    "result."
+    "At the padded level both one-call systems had calls stopped at the registered output "
+    "maximum, and the stop did not correspond one to one with failure: some failures had no "
+    "stopped call and some stopped calls passed. The stop is reported as an observed "
+    "mechanism, not as an established sole cause and not as evidence of an input-context "
+    "limit; the counts of stopped calls are in the report, not in this file. Every system's "
+    "base result is shown beside its padded result."
 )
-"""The freeze's wording on the padded level; the caption of the comparisons."""
+"""The freeze's wording on the padded level; the caption of the comparisons. The
+cross-tab behind "not one to one" is the report's (chapter 6, from FINDINGS): at padded,
+one of full context's sixteen failures and four of single shot's twenty had no stopped
+call, and nine stopped calls of each passed."""
 
 MECHANISM_CAPTION = (
     "Counts are needed facts reaching each stage, over the facts the first stage counts: not "
@@ -126,17 +131,21 @@ def system_name(system: str) -> str:
 
 @dataclass(frozen=True, slots=True)
 class TierCount:
-    """One tier's headline count, ``count`` as "n of N"."""
+    """One tier's headline count, ``count`` as "n of N", with its Wilson interval or
+    ``None`` when the file records none."""
 
     tier: str
     count: str
+    interval: str | None
 
 
 @dataclass(frozen=True, slots=True)
 class CostView:
-    """A cell's model spend: the total (prefixed "at least" when a run's cost is a lower
-    bound), the mean per run (the total over the runs), the recorded median with its range,
-    and the run count the mean divides by."""
+    """A cell's model spend: the total, the mean per run (the total over the runs), the
+    recorded median with its range, and the run count the mean divides by. When a run's
+    cost is a lower bound every figure is one, since each order statistic of amounts that
+    can only be larger can only be larger: each is prefixed "at least" and rounded down
+    (the external read of the step's commits, first finding)."""
 
     total: str
     mean_per_run: str
@@ -255,9 +264,20 @@ class SpendView:
 
 
 @dataclass(frozen=True, slots=True)
+class ChangedFile:
+    """One file the evaluation ran with, by path, with the blob the registration bound and
+    the blob the evaluation ran, "absent" where the file was not on that side."""
+
+    path: str
+    before: str
+    after: str
+
+
+@dataclass(frozen=True, slots=True)
 class DisclosureView:
     world: str
     changed_code: str
+    changed: tuple[ChangedFile, ...]
     repeats: str
     incidents: str
 
@@ -385,6 +405,10 @@ def results_view(results: PublicResults) -> ResultsView:
         disclosures=DisclosureView(
             world=embargo_label(results.disclosures),
             changed_code=changed_code_label(results.disclosures),
+            changed=tuple(
+                ChangedFile(change.path, change.before or "absent", change.after or "absent")
+                for change in results.disclosures.changed
+            ),
             repeats=repeats_label(results.disclosures),
             incidents=(
                 f"{results.disclosures.incidents} incidents recorded by the evaluation, "
@@ -426,7 +450,11 @@ def _arm_row(arm: ResultArm) -> ArmRow:
         count = _of(int(headline.passed), headline.scenarios)
         interval = _range(headline.wilson.low, headline.wilson.high) if headline.wilson else None
     tiers = tuple(
-        TierCount(cell.stratum.name, _of(int(check.passed), check.scenarios))
+        TierCount(
+            cell.stratum.name,
+            _of(int(check.passed), check.scenarios),
+            _range(check.wilson.low, check.wilson.high) if check.wilson else None,
+        )
         for cell in arm.cells
         if cell.stratum.kind == "tier"
         for check in (_headline(cell),)
@@ -454,13 +482,15 @@ def _cost(cell: Cell) -> tuple[CostView | None, str | None]:
     if cost.per_run is None:
         return None, "no per-run spread recorded"
     floor = cost.floors > 0
-    total = dollars(cost.pico_usd, floor=floor)
-    mean = dollars(cost.pico_usd // cost.runs, floor=floor)
-    if floor:
-        total, mean = f"at least {total}", f"at least {mean}"
     spread = cost.per_run
-    median = f"{dollars(int(spread.median))} (from {dollars(spread.low)} to {dollars(spread.high)})"
-    return CostView(total, mean, median, cost.runs), None
+
+    def amount(pico: int) -> str:
+        return f"at least {dollars(pico, floor=True)}" if floor else dollars(pico)
+
+    median = f"{amount(int(spread.median))} (from {amount(spread.low)} to {amount(spread.high)})"
+    return CostView(
+        amount(cost.pico_usd), amount(cost.pico_usd // cost.runs), median, cost.runs
+    ), None
 
 
 def _difference(comparison: CheckComparison) -> DifferenceView:
