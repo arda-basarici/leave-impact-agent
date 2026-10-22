@@ -65,6 +65,7 @@ def services(
         lambda: MemoryLog(),  # type: ignore[arg-type, return-value]
         histories.RULES,
         results,
+        lambda: (),
     )
 
 

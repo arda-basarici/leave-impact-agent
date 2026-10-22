@@ -82,6 +82,7 @@ def client(rig: Rig, store: AppStore, *, served: bool = True) -> TestClient:
         log_sessions=log_session,
         rules=histories.RULES,
         results=committed_results,
+        walkthroughs=lambda: (),
     )
     return TestClient(create_app(services))
 

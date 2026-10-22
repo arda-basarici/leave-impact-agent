@@ -114,6 +114,12 @@ from leaveimpact.app.stream import (
     frames,
 )
 from leaveimpact.app.trail import trail_view
+from leaveimpact.app.walkthroughs import (
+    Walkthrough,
+    committed_walkthroughs,
+    listing_view,
+    walkthrough_for,
+)
 from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.results.committed import committed_results
@@ -176,7 +182,8 @@ with the route table and walks each attempt-scoped path with a name the predicat
 @dataclass(frozen=True, slots=True)
 class Services:
     """What the routes need, bound once at the composition root; ``results`` reads the
-    public results the page renders, called once at the application's creation."""
+    public results the page renders and ``walkthroughs`` the introduced replays' prose, each
+    called once at the application's creation."""
 
     code_version: str
     configuration: DemoConfiguration
@@ -186,6 +193,7 @@ class Services:
     log_sessions: Callable[[], LogSession]
     rules: Rules
     results: Callable[[], PublicResults]
+    walkthroughs: Callable[[], tuple[Walkthrough, ...]]
 
 
 def templating() -> Jinja2Templates:
@@ -207,17 +215,19 @@ def templating() -> Jinja2Templates:
 
 def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     """The application over ``services``: the index, the readiness route, the listing of
-    published replays, the results page over the public results read once here, the replay,
-    report, trail and timeline pages, and the narration stream paced by ``pacing`` (the
-    module's constants unless a test passes faster ones); the process's subscription bound
-    is reachable as ``app.state.subscriptions``. Raises what ``services.results`` raises, so
-    an undecodable results file is a creation failure."""
+    published replays with the introduced ones first, the results page over the public
+    results read once here, the replay, report, trail and timeline pages, the report carrying
+    its walkthrough when the file names the row, and the narration stream paced by ``pacing``
+    (the module's constants unless a test passes faster ones); the process's subscription
+    bound is reachable as ``app.state.subscriptions``. Raises what ``services.results`` and
+    ``services.walkthroughs`` raise, so an undecodable committed file is a creation failure."""
     app = FastAPI(title="Leave Impact Agent", docs_url=None, redoc_url=None, openapi_url=None)
     templates = templating()
     configuration = services.configuration
     subscriptions = Subscriptions(pacing.bound)
     app.state.subscriptions = subscriptions
     measurement = results_view(services.results())
+    walkthroughs = services.walkthroughs()
     common: dict[str, Any] = {
         "code_version": services.code_version,
         "served_world_version": configuration.served_world_version,
@@ -253,7 +263,7 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
                 return unavailable(request)
         except _UNAVAILABLE:
             return unavailable(request)
-        return page(request, "replays.html", entries=entries)
+        return page(request, "replays.html", view=listing_view(entries, walkthroughs))
 
     def results(request: Request) -> HTMLResponse:
         return page(request, "results.html", view=measurement)
@@ -303,7 +313,8 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
             )
             return unavailable(request)
         view = build(header, export, instants_of(state))
-        return page(request, template, replay=header, view=view)
+        walkthrough = walkthrough_for(walkthroughs, header.public_id, header.title)
+        return page(request, template, replay=header, view=view, walkthrough=walkthrough)
 
     def replay(request: Request, public_id: str) -> HTMLResponse:
         return attempt_page(request, public_id, "report.html", report_view)
@@ -418,6 +429,7 @@ def services_from_env(env: Mapping[str, str] | None = None) -> Services:
         log_sessions=lambda: LogStore(dsn=dsn, connect=connect_bounded),
         rules=rules_under(configuration, registration),
         results=committed_results,
+        walkthroughs=committed_walkthroughs,
     )
 
 

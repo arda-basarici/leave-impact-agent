@@ -108,6 +108,7 @@ def pages(rig: Rig, log: LogStore, inputs: FrozenInputs) -> tuple[str, str, Repo
         log_sessions=rig.store,
         rules=RULES,
         results=committed_results,
+        walkthroughs=lambda: (),
     )
     with TestClient(create_app(services)) as web:
         report = web.get(f"/replays/{SLUG}")

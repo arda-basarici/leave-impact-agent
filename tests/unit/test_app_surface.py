@@ -25,8 +25,10 @@ from markupsafe import escape
 from leaveimpact.agent.log_events import Admitted, RefusedBy
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.main import ROUTES, Services, Surface, create_app
+from leaveimpact.app.public import PublicId
 from leaveimpact.app.results import SERVED_WORLD_LABEL, results_view
 from leaveimpact.app.store import AppStoreInvariantBroken, AppStoreUnavailable
+from leaveimpact.app.walkthroughs import Walkthrough
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.ports.errors import Source, SourceUnreachable
 from leaveimpact.results.committed import committed_results
@@ -128,11 +130,15 @@ class Rig:
             row("unfoldable", "run-17", SERVED),
         )
 
-    def client(self) -> TestClient:
-        return TestClient(create_app(services(self)))
+    def client(self, walkthroughs: tuple[Walkthrough, ...] = ()) -> TestClient:
+        return TestClient(create_app(services(self, walkthroughs=walkthroughs)))
 
 
-def services(rig: Rig, results: Callable[[], PublicResults] = codec.results) -> Services:
+def services(
+    rig: Rig,
+    results: Callable[[], PublicResults] = codec.results,
+    walkthroughs: tuple[Walkthrough, ...] = (),
+) -> Services:
     return Services(
         CODE,
         CONFIGURATION,
@@ -142,6 +148,7 @@ def services(rig: Rig, results: Callable[[], PublicResults] = codec.results) -> 
         rig.sessions,
         histories.RULES,
         results,
+        lambda: walkthroughs,
     )
 
 
@@ -408,3 +415,44 @@ def test_the_committed_results_render_the_base_loss_and_the_padded_gain_in_their
     assert "both 14 · first only 10 · second only 0 · neither 6" in padded
     assert "$9.9594 over 240 runs" in text
     assert text.count("<tr>") >= 8 + 6 + 4
+
+
+INTRODUCED = (
+    Walkthrough(
+        PublicId("served"),
+        "structured",
+        "Read the one action and the assessments beneath it.",
+        "Every row agrees with the answer key; nothing here reads a document.",
+    ),
+)
+
+
+def test_the_listing_introduces_a_titled_row_the_file_names_before_the_full_list() -> None:
+    rig = Rig()
+    with rig.client(INTRODUCED) as web:
+        page = web.get("/replays")
+    assert page.status_code == 200
+    text = page.text
+    start, everything = text.index("Start here"), text.index("All replays")
+    assert start < everything < text.index('<ul class="replays">')
+    assert "Read the one action and the assessments beneath it." in text
+    assert text.count('href="/replays/served"') == 2, "introduced once, listed once"
+    assert "structured" in text and "scenario_003" in text
+    with rig.client() as web:
+        plain = web.get("/replays").text
+    assert "Start here" not in plain and "All replays" not in plain
+    assert 'href="/replays/served"' in plain
+
+
+def test_the_report_carries_its_walkthrough_above_the_ending_only_for_a_named_titled_row() -> None:
+    rig = Rig()
+    with rig.client(INTRODUCED) as web:
+        page = web.get("/replays/served")
+        other = web.get("/replays/reported")
+    text = page.text
+    assert "Walkthrough" in text
+    assert text.index("Every row agrees with the answer key") < text.index("The run completed.")
+    assert "Walkthrough" not in other.text, "a titled row the file does not name renders alone"
+    with rig.client() as web:
+        plain = web.get("/replays/served").text
+    assert "Walkthrough" not in plain

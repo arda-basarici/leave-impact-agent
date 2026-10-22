@@ -4,9 +4,21 @@
 <h1>Replays</h1>
 <p>Recorded investigations of the served world, each replayed from its own log: what the
 agent read, what it concluded, and the evidence behind every claim.</p>
-{% if entries %}
+{% if view.introduced %}
+<h2>Start here</h2>
+<p class="meta">Three replays, one per tier of the served world, each with what to inspect on its page and what to see there.</p>
+{% for item in view.introduced %}
+<section class="walkthrough">
+  <h3><a href="/replays/{{ item.entry.public_id }}">{{ item.entry.title }}</a> <span class="label">{{ item.walkthrough.tier }}</span></h3>
+  <p><strong>Inspect.</strong> {{ item.walkthrough.inspect }}</p>
+  <p><strong>See.</strong> {{ item.walkthrough.see }}</p>
+</section>
+{% endfor %}
+<h2>All replays</h2>
+{% endif %}
+{% if view.entries %}
 <ul class="replays">
-{% for entry in entries %}
+{% for entry in view.entries %}
   <li>
     <a href="/replays/{{ entry.public_id }}">{{ entry.title or entry.public_id }}</a>
     <span class="meta">{{ entry.scenario_id }} · published {{ entry.published_at.date().isoformat() }}</span>

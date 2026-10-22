@@ -102,6 +102,7 @@ def test_a_stream_over_a_live_run_delivers_its_lines_before_the_worker_closes_it
         log_sessions=rig.store,
         rules=RULES,
         results=committed_results,
+        walkthroughs=lambda: (),
     )
     approval = GatedApproval()
     composed = composition(inputs, world, saver_on(rig), approval=approval, script=named)

@@ -44,6 +44,7 @@ def rendered(export: RunExport, title: str | None = "A <b>title</b>") -> tuple[s
         code_version="b" * 40,
         served_world_version="7" * 64,
         live_runs=False,
+        walkthrough=None,
     )
     return page, view
 

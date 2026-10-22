@@ -1,0 +1,23 @@
+{
+  "format_version": 1,
+  "walkthroughs": [
+    {
+      "public_id": "scenario-004",
+      "tier": "structured",
+      "inspect": "One leave, two impacts: a ticket due during the absence and a meeting the person was to attend. Read the two coverage actions and, beneath each, the assessment of every colleague; follow a claim's evidence link to the record the run read.",
+      "see": "The structured tier is where the HR system, the tracker and the calendar hold the facts the rules need, so the run reads records and the rules conclude. The report states no requirement from a policy document and no unknown. In the operator's offline grading every row of this report agrees with the answer key, and the two assignments are the expected ones; what the page shows is the floor the rules set on their own, not how far the investigator reaches."
+    },
+    {
+      "public_id": "scenario-019",
+      "tier": "fragmented",
+      "inspect": "A responsibility a policy clause names falls to someone on leave, and a second clause says who may cover it. Read the coverage action and the assessments beneath it: nearly every colleague is assessed viable.",
+      "see": "The run stated no requirement for the covering person, so colleagues the clause rules out are assessed viable, and the person assigned is one of them. In the operator's offline grading this report misses on that one unstated requirement and on everything that follows from it, which is the mechanism the measurement registered for the fragmented tier: what the run reads from the documents, it does not always state."
+    },
+    {
+      "public_id": "scenario-030",
+      "tier": "adversarial",
+      "inspect": "Two sources disagree on who owns the ticket at risk. Read the conflict the report states and the rule that resolves it, the requirement the clause places on a cover, and the coverage action, which assigns nobody.",
+      "see": "The rules resolve the disagreement by the system of record, the report states the ticket's requirement, and the action is unknown rather than an assignment: a fact the rules need about one candidate, a skill, is absent from every source the run can read, and the report says what it cannot know instead of covering the gap with a guess. In the operator's offline grading every row of this report agrees with the answer key."
+    }
+  ]
+}

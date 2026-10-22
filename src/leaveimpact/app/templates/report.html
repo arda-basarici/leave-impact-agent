@@ -13,6 +13,13 @@
   <dt>World</dt><dd>{{ header.world_version }}</dd>
   <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
 </dl>
+{% if walkthrough %}
+<section class="walkthrough">
+  <h2>Walkthrough <span class="label">{{ walkthrough.tier }}</span></h2>
+  <p><strong>Inspect.</strong> {{ walkthrough.inspect }}</p>
+  <p><strong>See.</strong> {{ walkthrough.see }}</p>
+</section>
+{% endif %}
 {% include "report/ending.html" %}
 {% if view.condition.unreachable %}
 <div class="banner">
