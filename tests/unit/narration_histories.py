@@ -44,10 +44,13 @@ from leaveimpact.core import (
     CountLocalError,
     CountResult,
     CountServiceError,
+    DispatchPhase,
+    DispatchSite,
     FailureCategory,
     HarnessRevision,
     HarnessSite,
     HarnessSiteName,
+    ModelCallId,
     RefusedBeforeSend,
     RefusedCallOutcome,
     ReservationState,
@@ -208,6 +211,31 @@ def overridden_claim_after_a_human_approval() -> tuple[LoggedEvent, ...]:
     return log.logged()
 
 
+def parse_failed_response() -> tuple[LoggedEvent, ...]:
+    """A complete response whose body has no output object, which the log accepts, followed
+    by the worker's failure at the dispatch's parse phase (the external read of the step's
+    commits, second finding)."""
+    log = _claimed()
+    _counted(log)
+    log.worker(h.intent(1), offset=600)
+    unreadable: dict[str, object] = {
+        "stopReason": "end_turn",
+        "usage": dict(cases.REPORTED),
+        "metrics": {"latencyMs": 840},
+    }
+    log.worker(h.outcome(1, 1, h.complete(), response=unreadable), offset=700)
+    log.worker(
+        Failed(
+            FailureCategory.DEFECT,
+            DispatchSite(ModelCallId("call-1"), 1, DispatchPhase.PARSE),
+            "a response holds an output object",
+            SETTLEMENT,
+        ),
+        offset=800,
+    )
+    return log.logged()
+
+
 def failed_in_the_harness() -> tuple[LoggedEvent, ...]:
     log = _claimed()
     log.worker(
@@ -234,5 +262,6 @@ VARIANTS: dict[str, Build] = {
     "a finalization that ends at the cap": finalized_at_the_cap,
     "a human's approval resumed under an override": overridden_claim_after_a_human_approval,
     "a failure in the harness's prefetch": failed_in_the_harness,
+    "a response the parser cannot read": parse_failed_response,
 }
 """Each variant history by what it holds."""

@@ -151,6 +151,9 @@ class Subscriptions:
 
 # --- The cursor -------------------------------------------------------------------------
 
+_CURSOR_DIGITS = 18
+"""The most digits a cursor may have; every position of every log fits."""
+
 
 @dataclass(frozen=True, slots=True)
 class Cursor:
@@ -178,12 +181,19 @@ def cursor_of(
     (Cursor(position=5), 'the cursor is beyond the last committed position')
     >>> cursor_of("x", None, 5).reason, cursor_of("-1", None, 5).reason
     ('the cursor is not a position', 'the cursor is not a position')
+
+    A position is ASCII decimal digits, bounded in length: ``str.isdigit`` admits other
+    scripts' digits that ``int`` refuses, and the conversion itself is limited in digits
+    (the external read of the step's commits, first finding).
+
+    >>> cursor_of("\\u00b2", None, 5).reason, cursor_of("9" * 5000, None, 5).reason
+    ('the cursor is not a position', 'the cursor is not a position')
     """
     raw = after if last_event_id is None else last_event_id
     if raw is None:
         return Cursor(0)
     text = raw.strip()
-    if not text.isdigit():
+    if not (text.isascii() and text.isdigit() and len(text) <= _CURSOR_DIGITS):
         return RejectedCursor("the cursor is not a position")
     position = int(text)
     if position > last_position:

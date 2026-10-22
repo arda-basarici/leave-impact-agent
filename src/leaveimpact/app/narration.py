@@ -31,7 +31,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import assert_never
 
-from leaveimpact.agent.admissions import answered_calls
+from leaveimpact.agent.admissions import answer_of
 from leaveimpact.agent.log_events import (
     Abandoned,
     Admitted,
@@ -64,8 +64,10 @@ from leaveimpact.agent.log_transition import (
     AttemptState,
     ClaimKind,
     Rules,
+    call_of,
     next_claim,
     next_state,
+    trace_operations,
 )
 from leaveimpact.app.amounts import dollars
 from leaveimpact.core.counting_operations import (
@@ -374,11 +376,20 @@ def _outcome(after: AttemptState, position: int, event: DispatchOutcome) -> str:
                 f"{head} answered: a complete response (stop reason {observation.stop_reason}, "
                 f"{observation.provider_latency_ms:,} ms{retries}); "
             )
-            answered = next((c for c in answered_calls(after) if c.position == position), None)
             # The transition settles a call on its complete response, so its answer is
-            # derivable from the state just after this event; a missing one is a defect of
-            # this module's reading, not of the log.
-            assert answered is not None, "a complete response has an answer"
+            # derivable from the state just after this event. A body the parser cannot read
+            # (no output object, no content list) is accepted by the log and followed by a
+            # failure at the dispatch's parse phase, which the reader consults and this line
+            # may not, since it lies in the future: the line says the answer could not be
+            # read, and nothing more (the external read of the step's commits, second
+            # finding).
+            call = call_of(after, event.call)
+            assert call is not None, "a dispatch outcome follows its intent"
+            try:
+                answered = answer_of(after, call, trace_operations(after))
+            except ValueError as error:
+                return f"{arrived}the response could not be read as an answer ({error}); {reading}"
+            assert answered is not None and answered.position == position
             return arrived + _answer_brief(answered.answer) + f"; {reading}"
         case BrokenStream():
             return f"{head}: the stream broke ({observation.reason}); {reading}"

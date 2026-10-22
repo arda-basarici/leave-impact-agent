@@ -300,8 +300,8 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         return page(request, "timeline.html", replay=replay_view(admission), view=view)
 
     def events(request: Request, public_id: str, after: str | None = None) -> Response:
-        """The narration stream: the admission as the pages make it; then the subscription
-        bound and the cursor, in that order; then the frames over a session per tick.
+        """The narration stream: the admission as the pages make it; then the cursor and
+        the subscription bound, in that order; then the frames over a session per tick.
         ``after`` is read as text, since a typed parameter would be refused before the
         admission."""
         admission = admit(request, public_id)
@@ -310,17 +310,18 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         state = admission.state
         inputs = state.inputs
         assert inputs is not None, "an admitted attempt holds its admission"
-        slot = subscriptions.try_acquire()
-        if slot is None:
-            return unavailable(request)
         cursor = cursor_of(after, request.headers.get("last-event-id"), state.last_position)
         if isinstance(cursor, RejectedCursor):
-            slot.release()
             return PlainTextResponse(cursor.reason, status_code=400)
         closed = state.closed
         if closed is not None and cursor.position >= closed.position:
-            slot.release()
             return Response(status_code=204)
+        # The slot is acquired last, once nothing else can refuse, and held by the route
+        # only until the response owns it: a fault in between gives it back (the external
+        # read of the step's commits, first finding).
+        slot = subscriptions.try_acquire()
+        if slot is None:
+            return unavailable(request)
         run_id, attempt = inputs.run_id, inputs.attempt
 
         def read() -> AttemptState:
@@ -330,13 +331,17 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
             finally:
                 tick.close()
 
-        body = frames(read, services.rules, cursor=cursor.position, pacing=pacing, slot=slot)
-        return StreamingResponse(
-            body,
-            media_type=MEDIA_TYPE,
-            headers={"Cache-Control": "no-store"},
-            background=BackgroundTask(slot.release),
-        )
+        try:
+            body = frames(read, services.rules, cursor=cursor.position, pacing=pacing, slot=slot)
+            return StreamingResponse(
+                body,
+                media_type=MEDIA_TYPE,
+                headers={"Cache-Control": "no-store"},
+                background=BackgroundTask(slot.release),
+            )
+        except BaseException:
+            slot.release()
+            raise
 
     # Registered by call rather than by decorator so the handlers are plain closures over
     # the services, named and typed where they are read; the paths are ROUTES' strings so

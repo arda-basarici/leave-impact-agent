@@ -14,11 +14,12 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Iterator
+from dataclasses import replace
 from typing import Any, cast
 
 from fastapi.testclient import TestClient
 
-from leaveimpact.agent.log_events import LoggedEvent
+from leaveimpact.agent.log_events import Admitted, LoggedEvent
 from leaveimpact.agent.log_store import LogStoreUnavailable
 from leaveimpact.agent.log_transition import AttemptState, Rules, fold
 from leaveimpact.app.main import Services, create_app
@@ -31,7 +32,14 @@ from leaveimpact.app.stream import (
     Subscriptions,
 )
 from tests.unit import log_histories as histories
-from tests.unit.publishable_fixture import CLOSED, CONFIGURATION, SERVED, history_in_world
+from tests.unit import narration_histories as variants
+from tests.unit.publishable_fixture import (
+    CLOSED,
+    CONFIGURATION,
+    SERVED,
+    history_in_world,
+    row,
+)
 from tests.unit.test_app_surface import CODE, FORGED, Rig, Sessions
 
 FAST = Pacing(tick_seconds=0.01, heartbeat_seconds=0.08, bound=2)
@@ -142,6 +150,40 @@ def test_a_reconnection_with_the_last_id_yields_the_remainder_with_no_duplicate(
         assert [f["data"]["position"] for f in frames_of(response.iter_lines())] == [
             line["position"] for line in lines[5:]
         ]
+
+
+def test_malformed_cursors_leave_every_slot_free_for_the_next_subscriber() -> None:
+    """The external read's first finding: a superscript digit passes ``str.isdigit`` and
+    fails ``int``, and the slot had been acquired before the cursor was read, so eight such
+    requests held every slot until a restart."""
+    rig = Rig()
+    client = client_of(rig)
+    for cursor in ("²", "9" * 5000, "١"):
+        for _ in range(FAST.bound + 1):
+            assert client.get(f"/replays/served/events?after={cursor}").status_code == 400
+    assert subscriptions_of(client).held == 0
+    with client.stream("GET", "/replays/served/events") as response:
+        assert response.status_code == 200
+
+
+def test_a_stream_over_a_run_whose_answer_could_not_be_parsed_reaches_its_closing_frame() -> None:
+    """The external read's second finding: the log admits a complete response the parser
+    cannot read, followed by a failure at the parse phase; the stream and the timeline say
+    so at the outcome and reach the terminal."""
+    rig = Rig()
+    events = variants.parse_failed_response()
+    first = events[0]
+    assert isinstance(first.event, Admitted)
+    inputs = first.event.inputs
+    moved = replace(inputs, context=replace(inputs.context, world_version=SERVED), run_id="run-18")
+    rig.sessions.memory.seed((replace(first, event=Admitted(moved)), *events[1:]))
+    rig.rows.rows = (*rig.rows.rows, row("unparsed", "run-18", SERVED))
+    client = client_of(rig)
+    with client.stream("GET", "/replays/unparsed/events") as response:
+        frames = list(frames_of(response.iter_lines()))
+    assert frames[-1]["event"] == CLOSED_EVENT and frames[-1]["data"]["status"] == "failed"
+    assert any("could not be read as an answer" in f["data"]["text"] for f in frames)
+    assert client.get("/replays/unparsed/timeline").status_code == 200
 
 
 def test_a_cursor_at_the_terminal_is_a_204_and_one_beyond_or_malformed_a_400() -> None:

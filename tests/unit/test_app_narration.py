@@ -360,7 +360,25 @@ VARIANT_LINES: tuple[tuple[str, EventKind, int, str], ...] = (
 )
 
 
-@pytest.mark.parametrize(("name", "kind", "nth", "expected"), VARIANT_LINES)
+PARSE_FAILED: tuple[tuple[str, EventKind, int, str], ...] = (
+    (
+        "a response the parser cannot read",
+        EventKind.DISPATCH_OUTCOME,
+        1,
+        "model call 1, dispatch 1 answered: a complete response (stop reason end_turn, 840 "
+        "ms); the response could not be read as an answer (a response holds an output "
+        "object); read as the model's behaviour under rule registered-stop-reason",
+    ),
+    (
+        "a response the parser cannot read",
+        EventKind.FAILED,
+        1,
+        "the run failed: a defect at call-1 dispatch 1 (parse): a response holds an output object",
+    ),
+)
+
+
+@pytest.mark.parametrize(("name", "kind", "nth", "expected"), (*VARIANT_LINES, *PARSE_FAILED))
 def test_every_outcome_variant_names_itself(
     name: str, kind: EventKind, nth: int, expected: str
 ) -> None:
@@ -374,7 +392,13 @@ def test_an_answer_lines_counts_are_the_admissions_over_the_reads_below_it() -> 
     for name in ALL:
         events = ALL[name]()
         lines = lines_of(events)
-        for call in answered_calls(fold(events, histories.RULES)):
+        try:
+            answered = answered_calls(fold(events, histories.RULES))
+        except ValueError:
+            # A body the parser cannot read: the module refuses it by design, and the
+            # line for it is asserted on its own above.
+            continue
+        for call in answered:
             admitted = sum(
                 isinstance(entry, Admitted)
                 for batch in call.answer.fact_batches
