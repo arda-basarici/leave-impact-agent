@@ -4212,6 +4212,41 @@ block, and marks a model-supplied quotation inside the text it was read from by 
 on the plain quotation and escaping every piece, so neither the prose nor the quotation
 can carry markup through; an undefined name in a template is an error, never empty text.
 
+As built at the narration step (M3 step 6, 2026-10-22, the forks read externally before
+the build). The narration is one line per logged event, built by replaying the log through
+the transition function so each line reads the state before its event: a claim is first, a
+resumption or a recovery by the reading the recovery count uses, and the counts an answer
+line states are the admissions module's over the state just after its outcome, never over
+the whole log, so a tool call's later disposition is not on the line. The property is
+pinned as an equality, the lines over any prefix the prefix of the lines over the whole,
+on every history the suite holds, with the outcome variants the fixtures lacked added as
+histories of their own; about thirty-five distinct lines cover the sixteen kinds. One
+timeline page serves an open and a closed attempt alike, the lines server-rendered and an
+open attempt's page following the stream from its last rendered position through a short
+inline script that places each line as text and keys it by attempt and position; the
+stream is a second attempt-scoped route, both in the classified route table. The cursor
+rule: equal to the terminal position, 204; beyond the last committed position or not a
+non-negative integer, 400, decided after admission so an unpublished name stays the one
+not-found page; below the terminal, the remainder and then the closing frame, which is the
+closing event's own line with the ending's status beside it, so a live visitor reads the
+terminal line a replay shows. Ordinary frames are one named event with the kind inside the
+JSON, since a browser's named events bypass its default handler. Each tick is one
+synchronous function that opens a log session, loads the attempt and closes the session,
+about three statements and a connect, each under the store's bounds, so a wedged tick is
+bounded at twelve seconds under the fifteen-second heartbeat; a waiting stream holds no
+thread, connection or transaction. Subscriptions are bounded at eight per process, a slot
+acquired before the response starts and released idempotently by the generator's
+``finally`` and the response's background task, so a disconnection before the first frame
+leaks nothing; the mechanism was probed on the pinned stack before the shape was chosen
+(Uvicorn 0.54 declares ASGI spec 2.3, so Starlette's disconnect listener cancels the
+generator at its next await, within a millisecond, under the test client the same), and no
+disconnect polling is done. The acceptance's live case holds a line observed while the
+real worker is held at its approval on the real stores, since lines read after completion
+prove only the replay. The streaming response through the platform's proxy and the inline
+script under any response-header rule are the deployed streaming probe of the public-surface
+ticket at the disclosure step, not this step's; the stream was held on the local server and
+the test client alone.
+
 **The shell and the report view.** FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow
