@@ -1,17 +1,21 @@
-# gitleaks over the default rules, with one allowance.
+# gitleaks over the default rules, with one allowance by form.
 #
 # The dispatch driver (probes/phase-c-dispatch/dispatch.py) names every send with a
 # twelve-hex-digit dispatch name, `dsp-<hex>`, recorded in a plan's ledger under `token`
 # and carried as the GitHub run's display title; it is the identity the driver finds its
 # run by, visible to anyone who can see the run, and no credential. The generic API key
-# rule matches it on the key word, so the name's exact form is allowed in the ledgers alone.
+# rule matches it on the key word. The allowance is on the secret's exact form and nothing
+# else: no path, since a path allowance skips a whole file and would let any other secret
+# written into a ledger pass, and no `[[allowlists]]` table, which gitleaks before 8.25
+# reads as nothing. This singular table reads the same on 8.24.3 and 8.30.1, checked on
+# the ledger (allowed), a dispatch name elsewhere (allowed, by design) and another secret
+# planted in a ledger-shaped file (found).
 title = "leave-impact-agent"
 
 [extend]
 useDefault = true
 
-[[allowlists]]
-description = "the dispatch driver's run names in a plan's ledger"
-regexTarget = "match"
-regexes = ['''"token": "dsp-[0-9a-f]{12}"''']
-paths = ['''probes/[^/]+/ledger\.jsonl$''']
+[allowlist]
+description = "the dispatch driver's run names, dsp- and twelve hex digits, wherever recorded"
+regexTarget = "secret"
+regexes = ['''^dsp-[0-9a-f]{12}$''']
