@@ -1,0 +1,17 @@
+# gitleaks over the default rules, with one allowance.
+#
+# The dispatch driver (probes/phase-c-dispatch/dispatch.py) names every send with a
+# twelve-hex-digit dispatch name, `dsp-<hex>`, recorded in a plan's ledger under `token`
+# and carried as the GitHub run's display title; it is the identity the driver finds its
+# run by, visible to anyone who can see the run, and no credential. The generic API key
+# rule matches it on the key word, so the name's exact form is allowed in the ledgers alone.
+title = "leave-impact-agent"
+
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "the dispatch driver's run names in a plan's ledger"
+regexTarget = "match"
+regexes = ['''"token": "dsp-[0-9a-f]{12}"''']
+paths = ['''probes/[^/]+/ledger\.jsonl$''']
