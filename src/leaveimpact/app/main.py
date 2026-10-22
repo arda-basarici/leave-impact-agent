@@ -30,10 +30,14 @@ log reader and rendered as the report view (``report``); a closed attempt the re
 refuses to fold is a defect of the deployment, logged by name and answered as the
 unavailable page, never the not-found page, which would say the name does not exist. The
 trail page (``trail``) is the same path with the trail view built instead of the report's.
+The narration stream (``events``) makes the same admission in a session closed before the
+response starts, then refuses beyond the subscription bound and on a rejected cursor, and
+streams the attempt's lines over a session per tick (``stream``).
 
 Statement bounds, per request: the listing makes one app-store operation (the version check
 and one statement) and one cache read; the replay page one app-store operation, the log's
-reads of one attempt on one connection, and one cache read; each under the store's
+reads of one attempt on one connection, and one cache read; the stream the replay page's
+reads at subscription and then one log load of the attempt per tick; each under the store's
 three-second connect and three-second statement bounds.
 
 Templates live beside this module and are packaged with it, read by package name like the
@@ -56,18 +60,27 @@ from pathlib import Path
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import (
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    Response,
+    StreamingResponse,
+)
 from fastapi.templating import Jinja2Templates
 from jinja2 import StrictUndefined
+from starlette.background import BackgroundTask
 
 from leaveimpact.adapters.corpus import served_versions
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
-from leaveimpact.agent.log_transition import Rules
+from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.markup import mark_quotes
+from leaveimpact.app.narration import timeline_view
 from leaveimpact.app.public import PublicReplay, public_id_of
 from leaveimpact.app.read_model import (
+    Admitted,
     LogSession,
     PublishableReads,
     admitted,
@@ -83,6 +96,15 @@ from leaveimpact.app.store import (
     AppStoreInvariantBroken,
     AppStoreUnavailable,
     connect_bounded,
+)
+from leaveimpact.app.stream import (
+    DEFAULT_PACING,
+    MEDIA_TYPE,
+    Pacing,
+    RejectedCursor,
+    Subscriptions,
+    cursor_of,
+    frames,
 )
 from leaveimpact.app.trail import trail_view
 from leaveimpact.core.ports.errors import SourceUnreachable
@@ -134,6 +156,8 @@ ROUTES: tuple[RouteClass, ...] = (
     RouteClass("/replays", Surface.PUBLIC_GLOBAL),
     RouteClass("/replays/{public_id}", Surface.ATTEMPT_SCOPED),
     RouteClass("/replays/{public_id}/trail", Surface.ATTEMPT_SCOPED),
+    RouteClass("/replays/{public_id}/timeline", Surface.ATTEMPT_SCOPED),
+    RouteClass("/replays/{public_id}/events", Surface.ATTEMPT_SCOPED),
 )
 """Every route the application registers, classified; the acceptance sweep compares this
 with the route table and walks each attempt-scoped path with a name the predicate refuses."""
@@ -166,12 +190,16 @@ def templating() -> Jinja2Templates:
     return templates
 
 
-def create_app(services: Services) -> FastAPI:
+def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     """The application over ``services``: the index, the readiness route, the listing of
-    published replays and the replay page."""
+    published replays, the replay, report and trail pages, and the narration stream paced
+    by ``pacing`` (the module's constants unless a test passes faster ones); the process's
+    subscription bound is reachable as ``app.state.subscriptions``."""
     app = FastAPI(title="Leave Impact Agent", docs_url=None, redoc_url=None, openapi_url=None)
     templates = templating()
     configuration = services.configuration
+    subscriptions = Subscriptions(pacing.bound)
+    app.state.subscriptions = subscriptions
     common: dict[str, Any] = {
         "code_version": services.code_version,
         "served_world_version": configuration.served_world_version,
@@ -209,9 +237,11 @@ def create_app(services: Services) -> FastAPI:
             return unavailable(request)
         return page(request, "replays.html", entries=entries)
 
-    def attempt_page(request: Request, public_id: str, template: str, build: Build) -> HTMLResponse:
-        """The two attempt-scoped pages share one path: the admission, the open-attempt
-        header, the fold, and ``build`` of the page's view from the export."""
+    def admit(request: Request, public_id: str) -> Admitted | HTMLResponse:
+        """Every attempt-scoped surface's one path: the name parsed, the admission in a log
+        session closed before anything is answered, then the cache's readiness; a refusal
+        is the page it answers (not found before unavailable, so an unavailable cache
+        never tells a published name from an unknown one)."""
         try:
             name = public_id_of(public_id)
         except ValueError:
@@ -219,28 +249,39 @@ def create_app(services: Services) -> FastAPI:
         session = services.log_sessions()
         try:
             admission = admitted(name, services.rows, session, configuration, services.rules)
-            if admission is None:
-                return not_found(request)
-            header = replay_view(admission)
-            if not cache_serves():
-                return unavailable(request)
-            state = admission.state
-            if state.closed is None:
-                return page(request, "replay.html", replay=header)
-            try:
-                export = export_of(state)
-            except ValueError as error:
-                _log.warning(
-                    "publishable row %r names a closed attempt the reader cannot fold: %s",
-                    name,
-                    error,
-                )
-                return unavailable(request)
-            view = build(header, export, instants_of(state))
         except _UNAVAILABLE:
             return unavailable(request)
         finally:
             session.close()
+        if admission is None:
+            return not_found(request)
+        try:
+            if not cache_serves():
+                return unavailable(request)
+        except _UNAVAILABLE:
+            return unavailable(request)
+        return admission
+
+    def attempt_page(request: Request, public_id: str, template: str, build: Build) -> HTMLResponse:
+        """The report and the trail share one path: the admission, the open-attempt header,
+        the fold, and ``build`` of the page's view from the export."""
+        admission = admit(request, public_id)
+        if isinstance(admission, HTMLResponse):
+            return admission
+        header = replay_view(admission)
+        state = admission.state
+        if state.closed is None:
+            return page(request, "replay.html", replay=header)
+        try:
+            export = export_of(state)
+        except ValueError as error:
+            _log.warning(
+                "publishable row %r names a closed attempt the reader cannot fold: %s",
+                admission.row.public_id,
+                error,
+            )
+            return unavailable(request)
+        view = build(header, export, instants_of(state))
         return page(request, template, replay=header, view=view)
 
     def replay(request: Request, public_id: str) -> HTMLResponse:
@@ -249,10 +290,58 @@ def create_app(services: Services) -> FastAPI:
     def trail(request: Request, public_id: str) -> HTMLResponse:
         return attempt_page(request, public_id, "trail.html", trail_view)
 
+    def timeline(request: Request, public_id: str) -> HTMLResponse:
+        """The timeline: the narration over the admitted state, open or closed; an open
+        attempt's page follows the stream from its last rendered position."""
+        admission = admit(request, public_id)
+        if isinstance(admission, HTMLResponse):
+            return admission
+        view = timeline_view(admission.state, services.rules)
+        return page(request, "timeline.html", replay=replay_view(admission), view=view)
+
+    def events(request: Request, public_id: str, after: str | None = None) -> Response:
+        """The narration stream: the admission as the pages make it; then the subscription
+        bound and the cursor, in that order; then the frames over a session per tick.
+        ``after`` is read as text, since a typed parameter would be refused before the
+        admission."""
+        admission = admit(request, public_id)
+        if isinstance(admission, HTMLResponse):
+            return admission
+        state = admission.state
+        inputs = state.inputs
+        assert inputs is not None, "an admitted attempt holds its admission"
+        slot = subscriptions.try_acquire()
+        if slot is None:
+            return unavailable(request)
+        cursor = cursor_of(after, request.headers.get("last-event-id"), state.last_position)
+        if isinstance(cursor, RejectedCursor):
+            slot.release()
+            return PlainTextResponse(cursor.reason, status_code=400)
+        closed = state.closed
+        if closed is not None and cursor.position >= closed.position:
+            slot.release()
+            return Response(status_code=204)
+        run_id, attempt = inputs.run_id, inputs.attempt
+
+        def read() -> AttemptState:
+            tick = services.log_sessions()
+            try:
+                return tick.load(run_id, attempt, rules=services.rules)
+            finally:
+                tick.close()
+
+        body = frames(read, services.rules, cursor=cursor.position, pacing=pacing, slot=slot)
+        return StreamingResponse(
+            body,
+            media_type=MEDIA_TYPE,
+            headers={"Cache-Control": "no-store"},
+            background=BackgroundTask(slot.release),
+        )
+
     # Registered by call rather than by decorator so the handlers are plain closures over
     # the services, named and typed where they are read; the paths are ROUTES' strings so
     # the table and the registration cannot drift.
-    index_path, ready_path, replays_path, replay_path, trail_path = (
+    index_path, ready_path, replays_path, replay_path, trail_path, timeline_path, events_path = (
         route.path for route in ROUTES
     )
     app.add_api_route(index_path, index, methods=["GET"], response_class=HTMLResponse)
@@ -260,6 +349,8 @@ def create_app(services: Services) -> FastAPI:
     app.add_api_route(replays_path, replays, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(replay_path, replay, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(trail_path, trail, methods=["GET"], response_class=HTMLResponse)
+    app.add_api_route(timeline_path, timeline, methods=["GET"], response_class=HTMLResponse)
+    app.add_api_route(events_path, events, methods=["GET"])
     return app
 
 

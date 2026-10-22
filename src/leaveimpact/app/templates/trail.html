@@ -3,7 +3,7 @@
 {% block content %}
 {% macro moment(at) %}position {{ at.position }}{% if at.recorded_at %}, recorded in the log at {{ at.recorded_at.isoformat() }}{% endif %}{% endmacro %}
 {% set header = view.header %}
-<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ header.public_id }}">The report</a></p>
+<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ header.public_id }}">The report</a> · <a href="/replays/{{ header.public_id }}/timeline">Timeline</a></p>
 <h1>Audit trail: {{ header.title or header.public_id }}</h1>
 <dl>
   <dt>Scenario</dt><dd>{{ header.scenario_id }}, scenario date {{ header.scenario_date.isoformat() }} ({{ header.timezone }})</dd>

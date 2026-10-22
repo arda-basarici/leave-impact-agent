@@ -2,7 +2,7 @@
 {% block title %}{{ view.header.title or view.header.public_id }} · Leave Impact Agent{% endblock %}
 {% block content %}
 {% set header = view.header %}
-<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ header.public_id }}/trail">Audit trail</a></p>
+<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ header.public_id }}/trail">Audit trail</a> · <a href="/replays/{{ header.public_id }}/timeline">Timeline</a></p>
 <h1>{{ header.title or header.public_id }}</h1>
 <dl>
   <dt>Scenario</dt><dd>{{ header.scenario_id }}</dd>

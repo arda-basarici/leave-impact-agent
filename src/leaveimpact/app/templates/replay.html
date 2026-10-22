@@ -8,5 +8,5 @@
   <dt>Ending</dt><dd>{{ replay.status_label }}</dd>
   <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
 </dl>
-<p class="meta">This run is in progress; its report renders when it closes.</p>
+<p class="meta">This run is in progress; its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
 {% endblock %}

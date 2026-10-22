@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Timeline · {{ replay.title or replay.public_id }} · Leave Impact Agent{% endblock %}
+{% block content %}
+<p class="meta"><a href="/replays">All replays</a>{% if not view.open %} · <a href="/replays/{{ replay.public_id }}">The report</a> · <a href="/replays/{{ replay.public_id }}/trail">Audit trail</a>{% endif %}</p>
+<h1>Timeline: {{ replay.title or replay.public_id }}</h1>
+<dl>
+  <dt>Scenario</dt><dd>{{ replay.scenario_id }}</dd>
+  <dt>Ending</dt><dd>{{ replay.status_label }}</dd>
+  <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
+</dl>
+<p class="meta">One line per event the log recorded, in the order it accepted them; each says only what its event establishes, and an instant is when the log accepted the event. Nothing here is model prose.</p>
+{% if view.open %}
+<p class="meta" id="live-status">Following the run live; new lines appear as the log records them.</p>
+<noscript><p class="meta">Scripting is off: the lines below are the run so far; reload for progress.</p></noscript>
+{% else %}
+<p class="meta">This run has ended; the timeline is its record, shown whole.</p>
+{% endif %}
+<ol class="timeline" id="timeline">
+{% for line in view.lines %}
+  <li id="{{ replay.public_id }}:{{ line.position }}"><span class="when">position {{ line.position }}, recorded in the log at {{ line.recorded_at.isoformat() }}</span><span class="line">{{ line.text }}</span></li>
+{% endfor %}
+</ol>
+{% if view.open %}
+<script>
+(function () {
+  var list = document.getElementById("timeline");
+  var status = document.getElementById("live-status");
+  var attempt = {{ replay.public_id|tojson }};
+  var after = {{ view.last_position }};
+  var source = new EventSource("/replays/" + encodeURIComponent(attempt) + "/events?after=" + after);
+  function place(data) {
+    // Keyed by attempt and position: a stale reconnection cannot duplicate a line.
+    var key = attempt + ":" + data.position;
+    if (document.getElementById(key)) { return; }
+    var item = document.createElement("li");
+    item.id = key;
+    var when = document.createElement("span");
+    when.className = "when";
+    when.textContent = "position " + data.position + ", recorded in the log at " + data.recorded_at;
+    var text = document.createElement("span");
+    text.className = "line";
+    text.textContent = data.text;
+    item.appendChild(when);
+    item.appendChild(text);
+    list.appendChild(item);
+  }
+  source.addEventListener("line", function (event) { place(JSON.parse(event.data)); });
+  source.addEventListener("closed", function (event) {
+    place(JSON.parse(event.data));
+    status.textContent = "The run has ended; reload this page for its report.";
+    source.close();
+  });
+  source.addEventListener("unavailable", function () {
+    status.textContent = "The live view stopped: the log could not be read. Reload to try again.";
+    source.close();
+  });
+  source.onopen = function () { status.textContent = "Following the run live; new lines appear as the log records them."; };
+  source.onerror = function () {
+    if (source.readyState === EventSource.CLOSED) {
+      status.textContent = "The live view stopped; reload this page to try again.";
+    } else {
+      status.textContent = "Connection lost; reconnecting.";
+    }
+  };
+})();
+</script>
+{% endif %}
+{% endblock %}
