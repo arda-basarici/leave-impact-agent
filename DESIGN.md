@@ -4247,6 +4247,38 @@ script under any response-header rule are the deployed streaming probe of the pu
 ticket at the disclosure step, not this step's; the stream was held on the local server and
 the test client alone.
 
+As built at the results step (M3 step 7, 2026-10-22, the forks read externally before the
+build). The results page is a rendering of the committed public results file through the
+package's own reader and nothing else, decoded once when the application is created, since
+the file ships in the image and cannot change under a running process; a file the reader
+refuses fails the creation, which the deploy's readiness check reports. The page shows
+what the entry ruling lists, with the headroom and the descriptive pairs beside them under
+a heading that says no claim is made from them, because the base-level pair of the
+investigator and full context is where the investigator loses and a page that showed only
+the padded comparison would show the one it wins; the classes and the sixty measures of a
+cell stay in the file, as the standalone report leaves them. Every count is shown over its
+denominator and never as a bare ratio; every interval is named with its method and its
+direction (Wilson for an arm's count, a paired scenario bootstrap for a difference, stated
+as the first system minus the second), an unresolved interval shows its recorded reason
+and an unavailable comparison its reason; a comparison's counts are taken from its
+two-by-two table, so they are exact. A cell's total over its runs is labelled the mean
+model cost per run and shown beside the recorded median and range; a total with a
+lower-bound run says "at least" and rounds down; a cell with no runs or no spread renders
+unavailable, never as nothing spent; the spend section says it covers the measurement
+workload only. Rows keep the file's order and nothing sorts by a measure. The entry
+ruling's labels are observations stated as constants in the view module and built from the
+file where the file holds the fact (the repeats, the changed files, the world's
+disclosure), rendered as one block before the figures and again as the caption of the
+table each qualifies, so a sentence cannot be rephrased in one place and not the other;
+the sentence about the served world (a development world the investigator was built
+against; the numbers from a withheld world generated after the procedure was frozen) is
+rendered by the base template on every page the surface answers, the refusal pages
+included. The stopped-call counts the report cites are aggregates the schema could hold
+and does not; their absence is this step's scope decision, said on the page, which links
+the released report. Tables only; the acceptance renders the committed file through the
+real template and reads the base loss and the padded gain each from the section whose
+heading names its pair and level.
+
 **The shell and the report view.** FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow
