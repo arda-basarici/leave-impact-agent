@@ -48,6 +48,10 @@ hours after the job ended (the bound on how long SSM may deliver and run the com
 the driver reads its log for the store's own refusal of the attempt before it releases
 (the two external reads of the replay step, the first of which also found the dry run
 approving a standing run's review: it now ends before any send, approval or ledger line).
+The continuation's listing finds the attempt's containers by the name the host gives them,
+so it answers only for a launch whose own log shows the host creating the attempt-named
+admit container; a launch log showing no container is an operator's decision on the host
+(the fourth external read).
 
 A send's identity is its token. `gh workflow run` prints no run id, and the first driver
 took the one new run created after the send, a clock window that would have adopted a
@@ -133,12 +137,17 @@ REVIEW_WAIT_SECONDS = 600
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
 # The runner's own lines (deploy/runner/investigate.sh): the line before a send and the
 # command id after it (the runners before the replay step printed the id alone), the admit
-# command's marker, and on a continuation the host's listing of the attempt's lifecycle
-# containers, the launcher's refusal the store answers for a run with no attempt, relayed
-# from stderr, and the status step's relayed exit.
+# command's marker, compose's line as the host creates the launch's admit container
+# (deploy/instance/lifecycle.sh names it for the run and the attempt), and on a
+# continuation the host's listing of the attempt's lifecycle containers, the launcher's
+# refusal the store answers for a run with no attempt, relayed from stderr, and the status
+# step's relayed exit.
 LAUNCH_SENDING = re.compile(r"\blaunch: sending\b")
 LAUNCH_SENT = re.compile(r"\blaunch: command \S+ on \S+")
 LAUNCH_ADMITTED = re.compile(r"\blaunch: admitted=\S+")
+LAUNCH_ADMIT_CONTAINER = re.compile(
+    r"\blaunch \(stderr\):\s+Container lifecycle-(run-\d+)-a(\d+)-admit Created\b"
+)
 STATUS_CONTAINERS = re.compile(r"\bstatus: attempt_containers=(\S+)")
 STATUS_NO_ATTEMPT = re.compile(
     r"\bstatus \(stderr\): leaveimpact\.launch: refused: run (run-\d+) has no attempt (\d+)"
@@ -772,7 +781,15 @@ def run(plan: Plan, max_runs: int, dry_run: bool) -> int:
     return 0
 
 
-def launch_read(run_id: int) -> str:
+def launch_log(run_id: int) -> str:
+    """The run's job log; an empty one is a stop, since nothing is read from it."""
+    text = gh("run", "view", str(run_id), "--log", timeout=120)
+    if not text.strip():
+        raise Stop(f"run {run_id}'s log is empty; nothing is read from it")
+    return text
+
+
+def launch_read(text: str) -> str:
     """How far the job's launch send is known to have gone, read off the run log.
 
     ``none``: the runner printed no sending line, so the job ended before its first send
@@ -784,14 +801,24 @@ def launch_read(run_id: int) -> str:
     the marker (the two external reads of the replay step). Whether a sent launch admitted
     is the host's store to answer, through ``host_read``.
     """
-    text = gh("run", "view", str(run_id), "--log", timeout=120)
-    if not text.strip():
-        raise Stop(f"run {run_id}'s log is empty; nothing is read from it")
     if LAUNCH_ADMITTED.search(text):
         return "admitted"
     if LAUNCH_SENDING.search(text) or LAUNCH_SENT.search(text):
         return "sent"
     return "none"
+
+
+def admit_container_named(text: str, run_id: int) -> bool:
+    """Whether the launch log shows the host creating the admit container named for
+    ``run-<run_id>`` attempt 1. The continuation's listing finds containers by that name
+    and sees nothing of one a host before the naming started, so its ``none`` counts only
+    for a launch whose log shows the name (the fourth external read of the replay step). A
+    log that shows no container at all, a response lost before the host answered among
+    them, leaves the decision to an operator on the host's own listing."""
+    return any(
+        match.group(1) == f"run-{run_id}" and match.group(2) == "1"
+        for match in LAUNCH_ADMIT_CONTAINER.finditer(text)
+    )
 
 
 def host_read(status_run: int, run_id: int, launch_ended_at: str) -> str:
@@ -857,8 +884,9 @@ def release(plan: Plan, key: Key, reason: str, status_run: int | None = None) ->
     that the run is completed and either its log shows no launch was sent, or the host's
     store, read through the continue-run ``status_run`` names, holds no attempt of it. Any
     other state is refused: a run that admitted an attempt holds its slot under PROTOCOL, a
-    sent launch without the host's answer may have admitted, and the fold's history is
-    never edited."""
+    sent launch without the host's answer may have admitted, a launch whose log shows no
+    attempt-named admit container is outside what the host's listing can answer, and the
+    fold's history is never edited."""
     entry = fold(read_ledger(plan)).get(key.text, empty_entry())
     if entry["intent"] is None and entry["dispatched"] is None:
         raise Stop(f"{key.text} has nothing to release: it was never sent")
@@ -880,7 +908,8 @@ def release(plan: Plan, key: Key, reason: str, status_run: int | None = None) ->
                 f"run {run_id} has {run['attempt']} job attempts; the driver dispatches once and "
                 "re-runs nothing, so a re-run by hand is a history it does not release"
             )
-        launch = launch_read(run_id)
+        text = launch_log(run_id)
+        launch = launch_read(text)
         if launch == "admitted":
             raise Stop(
                 f"run {run_id}'s log carries an admission its markers did not; the run holds "
@@ -894,6 +923,14 @@ def release(plan: Plan, key: Key, reason: str, status_run: int | None = None) ->
                 "admitted; dispatch continue-run by hand for run-"
                 f"{run_id} attempt 1 no sooner than {HOST_COMMAND_BOUND_SECONDS} s after the job "
                 "ended, and pass its run id as --status-run"
+            )
+        elif not admit_container_named(text, run_id):
+            raise Stop(
+                f"run {run_id}'s log shows no admit container named for run-{run_id} attempt 1 "
+                "(compose's `Container lifecycle-run-N-a1-admit Created` on the launch's "
+                "stderr); the continuation's listing sees only containers so named, so its "
+                "answer cannot stand for this launch, and an operator decides on the host's "
+                "own `docker ps -a`"
             )
         else:
             read = host_read(status_run, run_id, str(run["updatedAt"]))

@@ -75,8 +75,12 @@ host's listing of no lifecycle container of the attempt still running (the SSM k
 reaches the compose client, not the admit container, which can commit after a store read
 that found nothing) together with the store's own refusal ("run run-N has no attempt 1")
 and the status step's relayed exit; a status that answered a state means the attempt
-exists, the run holds its slot, and the continuation is how it is finished. A run with
-more than one job attempt is never released: the driver re-runs nothing.
+exists, the run holds its slot, and the continuation is how it is finished. The listing
+can only see containers named for the attempt, so the launch's own log must show the host
+creating `lifecycle-run-N-a1-admit` (compose's line, relayed on the launch's stderr) before
+the listing's `none` counts; a launch whose log shows no such container, a response lost
+before the host answered among them, is decided by hand on the host's own `docker ps -a`.
+A run with more than one job attempt is never released: the driver re-runs nothing.
 
 ## Deploys
 

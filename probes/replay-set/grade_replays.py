@@ -15,7 +15,8 @@ the two buckets the contract names unless the environment names others. The resu
 carries scenario ids, tiers, outcome kinds and counts, and for a miss where the rows fall
 short in the reading `correct_whole` makes and which plan checks found what, by kind;
 never a claim's text, a payload, a person or a world's content. Verdict rows are keyed by
-the public name the surface will carry.
+the public name the surface will carry. The header records what graded: the commit, whether
+the tree was clean, and this file's digest, so a record is of a grader in the tree.
 
     AWS_PROFILE=leave-impact uv run python probes/replay-set/grade_replays.py \
         [--plan-dir probes/replay-set] [--out probes/replay-set/grading.json]
@@ -208,15 +209,12 @@ def grade(plan_dir: Path, env: dict[str, str]) -> dict:
         verdicts.append(row)
     graded_keys = {row["plan_key"] for row in verdicts}
     missing = sorted(set(wanted) - graded_keys)
-    head = subprocess.run(
-        ["git", "rev-parse", "HEAD"], cwd=REPOSITORY, capture_output=True, text=True, check=True
-    ).stdout.strip()
     return {
         "world_version": str(version),
         "plan": plan_dir.name,
         "ledger_sha256": hashlib.sha256(ledger_bytes).hexdigest(),
         "graded_at": datetime.now(UTC).replace(microsecond=0).isoformat().replace("+00:00", "Z"),
-        "tree": head,
+        **provenance(),
         "runs_wanted": len(wanted),
         "runs_graded": len(verdicts),
         "runs_without_export": missing,
@@ -233,6 +231,25 @@ def grade(plan_dir: Path, env: dict[str, str]) -> dict:
             for tier in sorted({str(row["tier"]) for row in verdicts})
         },
         "verdicts": sorted(verdicts, key=lambda row: row["public_id"]),
+    }
+
+
+def provenance() -> dict:
+    """What graded: the tree's commit, whether the working tree was clean (an uncommitted
+    grader or evaluator is otherwise unaccounted for; the first record named a commit the
+    grader was not in, the external read of 2026-10-23), and this file's own digest, which
+    the test over the committed record holds to the committed file."""
+    git = ["git", "-C", str(REPOSITORY)]
+    head = subprocess.run(
+        [*git, "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+    ).stdout.strip()
+    porcelain = subprocess.run(
+        [*git, "status", "--porcelain"], capture_output=True, text=True, check=True
+    ).stdout
+    return {
+        "tree": head,
+        "tree_clean": porcelain.strip() == "",
+        "grader_sha256": hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),
     }
 
 

@@ -1,7 +1,8 @@
 """The replay set's publish-list generator (`probes/replay-set/publish_list.py`): one
 `publish` command per key of the plan in plan order, the run and attempt from the admission
 marker and never typed, the public name the scenario id with a hyphen, the publisher
-`operator`, a title only where the titles file gives one and quoted for the shell; a refusal
+`operator`, a title only where the titles file gives one and quoted for the shell, the preamble
+exporting every variable the compose file requires at parse; a refusal
 for an unfinished key, a stopped run, a malformed or missing admission, an admission of
 another scenario, two rows for one name, and a title naming no row; a released key reads from
 its later run. The real replay plan's order is the thirty golden scenarios."""
@@ -10,6 +11,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import re
 import sys
 from pathlib import Path
 from types import ModuleType
@@ -122,6 +124,25 @@ def test_two_rows_for_one_name_and_a_title_naming_no_row_are_refused(
     records = [finished(ORDER[0], 71, "run-71/1"), finished(ORDER[1], 72, "run-72/1")]
     with pytest.raises(generator.Refused, match="titles name no row: scenario-031"):
         generator.rows_of(ORDER, records, {"scenario-031": "nowhere"})
+
+
+def test_the_preamble_exports_every_variable_the_compose_file_requires_at_parse(
+    generator: ModuleType,
+) -> None:
+    """`docker compose run` parses the whole file first, so a `${NAME:?...}` anywhere in
+    it stops a publish in a shell that has not exported NAME; the first list carried the tag
+    and the password and not the data directory, and would have failed at the parse."""
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    required = set(re.findall(r"\$\{([A-Z_]+):\?", compose))
+    assert required, "the compose file names its required variables with :?"
+    exported = {
+        name
+        for line in generator.PREAMBLE
+        for name in re.findall(r"(?:^|; )export ([A-Z_]+)|^([A-Z_]+)=", line)
+        for name in name
+        if name
+    }
+    assert required <= exported, f"not exported by the preamble: {sorted(required - exported)}"
 
 
 def test_the_committed_plan_names_the_thirty_golden_scenarios(generator: ModuleType) -> None:

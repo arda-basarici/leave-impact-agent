@@ -467,8 +467,11 @@ def test_release_of_a_sent_launch_needs_the_host_stores_answer_not_the_logs_shap
     """The two histories the second external read constructed: a response lost after SSM
     accepted the send (no command id on the log, the host running the command anyway), and
     a commit whose acknowledgement was lost (an unsuccessful exit without the marker, the
-    admission committed). Neither is releasable from the log; both are from the store's
-    refusal on a continuation made after the host command's bound."""
+    admission committed). Neither is releasable from the log; the second is from the store's
+    refusal on a continuation made after the host command's bound, once the log shows the
+    host created the attempt-named admit container the continuation's listing can see. The
+    first shows no container at all and is never released by the driver (the fourth
+    external read: a listing by attempt name sees nothing of an unnamed container)."""
     plan = scratch_plan(tmp_path, driver)
     key = plan.order[0]
     stopped_after_launch(driver, plan, key, 40)
@@ -480,13 +483,31 @@ def test_release_of_a_sent_launch_needs_the_host_stores_answer_not_the_logs_shap
         "launch: sending",
         "Connection was closed before we received a valid response from endpoint URL",
     )
+    github.logs[40] = lost_response
+    with pytest.raises(driver.Stop, match="pass its run id as --status-run"):
+        driver.release(plan, key, "the launch failed")
+    github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *NO_ATTEMPT)
+    with pytest.raises(driver.Stop, match="no admit container named for run-40 attempt 1"):
+        driver.release(plan, key, "the launch failed", status_run=41)
+    another_attempts_container = runner_log(
+        "launch: sending",
+        "launch: command 1111-2222 on i-0abc",
+        "launch (stderr):  Container lifecycle-run-40-a2-admit Created ",
+        "launch: the process exited 1",
+    )
+    github.logs[40] = another_attempts_container
+    with pytest.raises(driver.Stop, match="no admit container named for run-40 attempt 1"):
+        driver.release(plan, key, "the launch failed", status_run=41)
     lost_acknowledgement = runner_log(
         "launch: sending",
         "launch: command 1111-2222 on i-0abc",
+        "launch (stderr):  Container lifecycle-run-40-a1-plan Created ",
+        "launch (stderr):  Container lifecycle-run-40-a1-threshold Created ",
+        "launch (stderr):  Container lifecycle-run-40-a1-admit Created ",
         "launch (stderr): leaveimpact.agent: the connection was lost while the admission committed",
         "launch: the process exited 1",
     )
-    for history in (lost_response, lost_acknowledgement):
+    for history in (lost_acknowledgement,):
         github.logs[40] = history
         with pytest.raises(driver.Stop, match="pass its run id as --status-run"):
             driver.release(plan, key, "the launch failed")

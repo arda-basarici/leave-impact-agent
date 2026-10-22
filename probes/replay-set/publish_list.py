@@ -12,8 +12,11 @@ JSON file, public id to title, written after the local grading picks them.
 The list refuses rather than guess: a key of the plan with no finished record, a finished
 record that stopped the driver (an operator decides those by hand), an admission marker
 that is not `run-<id>/<attempt>`, an admission whose scenario is not the key's, two rows
-for one public name, a title naming no row. The preamble lines are the host's: the deploy
-script's own way of exporting the database password and the deployed tag.
+for one public name, a title naming no row. The preamble lines are the host's: every
+variable the compose file requires at parse time (`${NAME:?...}`), exported the deploy
+script's way, since `docker compose run` parses the whole file before it runs one service;
+the first list omitted the data directory and would have stopped at the parse (the
+external read of 2026-10-23). The test holds the preamble to the compose file's own list.
 
     uv run python probes/replay-set/publish_list.py [--plan-dir probes/replay-set] \
         [--titles titles.json]
@@ -35,6 +38,7 @@ PUBLISHER = "operator"
 PREAMBLE = (
     "cd /srv/app",
     "export APP_TAG=$(cat DEPLOYED)",
+    "export PGDATA_HOST=/srv/pgdata",
     "POSTGRES_PASSWORD=$(aws ssm get-parameter --region eu-central-1 --with-decryption "
     "--name /leave-agent/postgres-password --query Parameter.Value --output text); "
     "export POSTGRES_PASSWORD",
