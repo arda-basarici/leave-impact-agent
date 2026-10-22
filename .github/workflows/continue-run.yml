@@ -39,7 +39,7 @@ on:
         type: choice
         options: [automatic, human]
       ledger:
-        description: the ledger the attempt was admitted against; the host refuses one that differs from the launch's record while that record stands
+        description: the ledger the attempt was admitted against; the host refuses one that differs from the attempt's recorded ledger
         required: true
         type: choice
         default: ledger-development

@@ -54,9 +54,12 @@
 # with the workflow's ledger to `inventory`, so a continuation after a reboot of the
 # host, whose run directory is gone, still publishes and lists a closed attempt (the
 # step-14 review's finding, before the first reported dispatch), and an attempt is
-# listed under the commit it was admitted under and never a later checkout's. A status
-# that printed neither ends the job red before publish, since the inventory could not
-# be scoped.
+# listed under the commit it was admitted under and never a later checkout's. `status`
+# prints the ledger the attempt was admitted against the same way, and the host checks
+# the workflow's ledger against it where the name is used, so a continuation naming
+# another ledger than the admission's is refused after a reboot too (the replay step's
+# external read). A status that printed none of the three ends the job red before
+# publish, since the inventory could not be scoped.
 #
 # Identities are the workflow run's: run id `run-<GITHUB_RUN_ID>`, attempt
 # `GITHUB_RUN_ATTEMPT`, request id `req-<run id>-a<attempt>` (a re-run of the job
@@ -284,6 +287,7 @@ common=(
 work_sends=0
 ADMITTED_WORLD=""
 ADMITTED_COMMIT=""
+ADMITTED_LEDGER=""
 case "$MODE" in
   run)
     must launch "${common[@]}" LIFECYCLE_COMMAND=launch \
@@ -342,6 +346,7 @@ while :; do
       recoveries=$(field "$LAST_OUT" recoveries)
       ADMITTED_WORLD=$(field "$LAST_OUT" world_version)
       ADMITTED_COMMIT=$(field "$LAST_OUT" registration_commit)
+      ADMITTED_LEDGER=$(field "$LAST_OUT" ledger)
       echo "status: next=$next after ${recoveries:-?} recoveries, container=$container"
       if [ "$container" = running ] && { [ "$next" = work ] || [ "$next" = recover ]; }; then
         echo "status: the attempt's work container is still running; read again in $POLL_SECONDS s"
@@ -365,13 +370,14 @@ while :; do
       esac
       ;;
     publish)
-      if [ -z "$ADMITTED_WORLD" ] || [ -z "$ADMITTED_COMMIT" ]; then
-        echo "status printed no world version or registration commit for the attempt; the inventory cannot be scoped and nothing is published"
+      if [ -z "$ADMITTED_WORLD" ] || [ -z "$ADMITTED_COMMIT" ] || [ -z "$ADMITTED_LEDGER" ]; then
+        echo "status printed no world version, registration commit or ledger for the attempt; the inventory cannot be scoped and nothing is published"
         exit 1
       fi
       must publish "${common[@]}" LIFECYCLE_COMMAND=publish
       must inventory "${common[@]}" LIFECYCLE_COMMAND=inventory \
-        "WORLD_VERSION=$ADMITTED_WORLD" "REGISTRATION_COMMIT=$ADMITTED_COMMIT" "LEDGER=$LEDGER"
+        "WORLD_VERSION=$ADMITTED_WORLD" "REGISTRATION_COMMIT=$ADMITTED_COMMIT" \
+        "LEDGER=$LEDGER" "ADMITTED_LEDGER=$ADMITTED_LEDGER"
       {
         echo "## $RUN_ID attempt $ATTEMPT published"
         echo

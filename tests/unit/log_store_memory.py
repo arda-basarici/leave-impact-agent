@@ -61,6 +61,9 @@ from leaveimpact.core.run_timing import HarnessRevision
 from tests.unit import format_fixtures as cases
 
 PLENTY = 10**15
+LEDGER = "ledger-memory"
+"""The one ledger this store admits reserving attempts against, the name its status read
+answers; the real store records the admission request's."""
 
 
 @dataclass
@@ -129,6 +132,13 @@ class MemoryLog:
     def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState:
         with self.lock:
             return fold(self._log(run_id, attempt), rules)
+
+    def ledger_of(self, run_id: str, attempt: int) -> str | None:
+        """The one ledger this store keeps, for a reserving attempt; ``None`` for one that
+        reserved nothing, as the real store's row answers."""
+        with self.lock:
+            self._log(run_id, attempt)
+            return LEDGER if (run_id, attempt) in self.heads else None
 
     def now(self) -> datetime:
         with self.lock:

@@ -327,14 +327,19 @@ def _specification(
 
 def _status(line: StatusLine, registration: Registration, store: LogStore) -> list[str]:
     state = store.load(line.run_id, line.attempt, rules=_rules_of(registration))
-    return status_lines(state, approval=line.approval)
+    ledger = store.ledger_of(line.run_id, line.attempt)
+    return status_lines(state, approval=line.approval, ledger=ledger)
 
 
-def status_lines(state: AttemptState, *, approval: ApprovalPolicy) -> list[str]:
+def status_lines(
+    state: AttemptState, *, approval: ApprovalPolicy, ledger: str | None
+) -> list[str]:
     """The attempt's state as the fields the job seam exposes, the recoveries its log
     counts, the world version and registration commit it was admitted under (the
     inventory's scope, which the driver hands on so a continuation needs nothing the host
-    kept), and the lifecycle's next step under ``approval``."""
+    kept), the ledger it was admitted against (``none`` for an attempt that reserved
+    nothing; the host checks a continuation's ledger input against it), and the lifecycle's
+    next step under ``approval``."""
     inputs = state.inputs
     if inputs is None:
         raise ValueError("an attempt with no admission has no status")
@@ -357,6 +362,7 @@ def status_lines(state: AttemptState, *, approval: ApprovalPolicy) -> list[str]:
         f"recoveries={state.recoveries}",
         f"world_version={inputs.context.world_version}",
         f"registration_commit={inputs.preregistration_commit}",
+        f"ledger={ledger or 'none'}",
         f"next={next_step(state, approval=approval).value}",
     ]
 

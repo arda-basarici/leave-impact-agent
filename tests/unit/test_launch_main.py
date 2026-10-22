@@ -27,7 +27,7 @@ from leaveimpact.launch.plan import RunCell, plan_run
 from tests.unit import format_fixtures as cases
 from tests.unit import worker_support as support
 from tests.unit.launch_fixture import SealedDevelopment, probe_helper, seal_development
-from tests.unit.log_store_memory import MemoryLog
+from tests.unit.log_store_memory import LEDGER, MemoryLog
 from tests.unit.reads_fixture import systems_holding
 from tests.unit.throwaway_world import loaded_world
 
@@ -251,6 +251,7 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
         "recoveries=0",
         f"world_version={inputs.context.world_version}",
         f"registration_commit={inputs.preregistration_commit}",
+        f"ledger={LEDGER}",
         "next=work",
     ]
     turns, client = support.throttled_script(inputs.context)
@@ -282,11 +283,15 @@ def test_status_prints_the_attempts_fields_and_the_next_step(
         "recoveries=0",
         f"world_version={inputs.context.world_version}",
         f"registration_commit={inputs.preregistration_commit}",
+        f"ledger={LEDGER}",
         "next=recover",
     ]
     state = left_open.load(RUN, ATTEMPT, rules=rules)
-    at_bound = launcher.status_lines(replace(state, recoveries=2), approval=AutomaticApproval())
+    at_bound = launcher.status_lines(
+        replace(state, recoveries=2), approval=AutomaticApproval(), ledger=None
+    )
     assert "recoveries=2" in at_bound and at_bound[-1] == "next=hold"
+    assert "ledger=none" in at_bound, "an attempt that reserved nothing names no ledger"
     assert launcher.main(_status(log, probe), {}, log) == 0  # type: ignore[arg-type]
     out = capsys.readouterr().out.splitlines()
     assert out[0] == "attempt=closed" and out[1] == "ending=failed" and out[-1] == "next=publish"

@@ -262,16 +262,15 @@ case "$LIFECYCLE_COMMAND" in
     : "${WORLD_VERSION:?the world the attempt was admitted on}"
     : "${REGISTRATION_COMMIT:?the registration commit the attempt was admitted under}"
     : "${LEDGER:?the ledger id}"
-    # The ledger is the continuing job's input, and the admission record holds no ledger
-    # id to read it back from; the launch's run.env does, while the tmpfs keeps it, so a
-    # continuation that names another ledger than the launch's is refused here, where the
-    # name is used. After a reboot the input stands alone (the instance README).
-    if [ -f "$run_dir/run.env" ]; then
-      launched_ledger=$(sed -n 's/^LEDGER=//p' "$run_dir/run.env")
-      if [ -n "$launched_ledger" ] && [ "$launched_ledger" != "$LEDGER" ]; then
-        echo "the inventory names ledger $LEDGER and the launch admitted against $launched_ledger; the continuation's ledger input is wrong" >&2
-        exit 2
-      fi
+    : "${ADMITTED_LEDGER:?the ledger the attempt was admitted against, as status printed it}"
+    # The ledger is the continuing job's input; the attempt's row holds the one it was
+    # admitted against, `status` prints it and the driver hands it here with the scope, so
+    # a continuation naming another ledger is refused where the name is used, after a
+    # reboot as before one. An attempt that reserved nothing (rules only) has none, and
+    # the input stands for its inventory's scope.
+    if [ "$ADMITTED_LEDGER" != none ] && [ "$ADMITTED_LEDGER" != "$LEDGER" ]; then
+      echo "the inventory names ledger $LEDGER and the attempt was admitted against $ADMITTED_LEDGER; the continuation's ledger input is wrong" >&2
+      exit 2
     fi
     run_app python -m leaveimpact.agent inventory --registration "$registration" \
       --world-version "$WORLD_VERSION" --registration-commit "$REGISTRATION_COMMIT" \

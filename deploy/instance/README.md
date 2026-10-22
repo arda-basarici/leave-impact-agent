@@ -94,9 +94,10 @@ running container as a fault for an operator; a work process the host killed (13
 limit) is read the same way, and only the process's own exits 2 and 3 end the job at
 once. The driver's poll is bounded and classifies its failures, and a send it cannot
 read past ends the job naming `continue-run`, which takes the attempt's approval
-policy and its ledger as inputs: the admission record holds no ledger id, so the
-host compares a continuation's ledger with the launch's `run.env` while the tmpfs
-keeps it and refuses a mismatch, and after a reboot the input stands alone (the
-demo milestone's replay step). Both scripts' headers carry the rules; the fake-binary tests
+policy and its ledger as inputs: `status` prints the ledger the attempt's row records
+beside the scope, and the host refuses an inventory whose ledger input differs from
+it, after a reboot as before one (the demo milestone's replay step and its external
+read, which found the first form of this check reading `run.env`, a file the reboot
+clears). Both scripts' headers carry the rules; the fake-binary tests
 under `tests/unit/` run every step and every branch of the walk, and CI runs
 shellcheck over this directory and `../runner/`.

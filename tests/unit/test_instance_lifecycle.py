@@ -7,6 +7,7 @@ only)."""
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 
 import pytest
@@ -223,7 +224,12 @@ def test_work_after_a_cleared_run_directory_stops_and_says_why(
         ),
         (
             "inventory",
-            {"WORLD_VERSION": WORLD, "REGISTRATION_COMMIT": COMMIT, "LEDGER": "ledger-development"},
+            {
+                "WORLD_VERSION": WORLD,
+                "REGISTRATION_COMMIT": COMMIT,
+                "LEDGER": "ledger-development",
+                "ADMITTED_LEDGER": "ledger-development",
+            },
             "python -m leaveimpact.agent inventory --registration /run/job/registration.json "
             f"--world-version {WORLD} --registration-commit {COMMIT} --ledger ledger-development",
         ),
@@ -338,7 +344,13 @@ def test_every_word_but_work_runs_after_a_cleared_run_directory(
     status, err = _run(fakes, env, "publish")
     assert status == 0, err
     status, err = _run(
-        fakes, env, "inventory", WORLD_VERSION=WORLD, REGISTRATION_COMMIT=COMMIT, LEDGER="ledger-x"
+        fakes,
+        env,
+        "inventory",
+        WORLD_VERSION=WORLD,
+        REGISTRATION_COMMIT=COMMIT,
+        LEDGER="ledger-x",
+        ADMITTED_LEDGER="ledger-x",
     )
     assert status == 0, err
     status, err = _run(fakes, env, "deliver", APPROVER="github:arda", PAYLOAD_DIGEST="d" * 64)
@@ -372,22 +384,45 @@ def test_inventory_refuses_a_payload_that_names_no_scope(
     assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
 
 
-def test_inventory_refuses_a_ledger_other_than_the_launchs_while_run_env_stands(
-    host: tuple[FakeBinaries, dict[str, str]],
+def test_inventory_refuses_a_ledger_other_than_the_one_the_attempt_was_admitted_against(
+    host: tuple[FakeBinaries, dict[str, str]], tmp_path: Path
 ) -> None:
-    """The ledger is the continuing job's input and the admission record holds no ledger id
-    (the replay step's external read), so the launch's run.env is the record the name is
-    checked against where it is used; the launch's own ledger passes, another is refused
-    before the container runs, and the cleared-directory case above runs on the input
-    alone."""
+    """The ledger is the continuing job's input and the attempt's row holds the one it was
+    admitted against, which status prints and the driver hands here (the replay step's
+    external read, which found the first form of this check reading the launch's run.env,
+    gone after the very reboot a continuation exists for). The admitted ledger passes,
+    another is refused before the container runs, with the run directory cleared as with
+    it standing; an attempt that reserved nothing lets the input stand."""
     fakes, env = host
     _launched(fakes, env)
     scope = {"WORLD_VERSION": WORLD, "REGISTRATION_COMMIT": COMMIT}
     status, err = _run(fakes, env, "inventory", LEDGER="ledger-demo", **scope)
+    assert status != 0 and "ADMITTED_LEDGER" in err, "the admitted ledger is required"
+    status, err = _run(
+        fakes, env, "inventory", LEDGER="ledger-demo", ADMITTED_LEDGER="ledger-development", **scope
+    )
     assert status == 2
     assert "ledger-demo" in err and "ledger-development" in err
     assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
-    status, err = _run(fakes, env, "inventory", LEDGER="ledger-development", **scope)
+    shutil.rmtree(tmp_path / "run" / "run-1")
+    status, err = _run(
+        fakes, env, "inventory", LEDGER="ledger-demo", ADMITTED_LEDGER="ledger-development", **scope
+    )
+    assert status == 2 and "ledger-development" in err, "the reboot clears nothing the check reads"
+    assert len(fakes.lines("docker compose run")) == 3
+    status, err = _run(
+        fakes,
+        env,
+        "inventory",
+        LEDGER="ledger-development",
+        ADMITTED_LEDGER="ledger-development",
+        **scope,
+    )
+    assert status == 0, err
+    assert fakes.lines("docker compose run")[-1].endswith("--ledger ledger-development")
+    status, err = _run(
+        fakes, env, "inventory", LEDGER="ledger-development", ADMITTED_LEDGER="none", **scope
+    )
     assert status == 0, err
     assert fakes.lines("docker compose run")[-1].endswith("--ledger ledger-development")
 

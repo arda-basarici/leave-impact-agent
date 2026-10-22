@@ -146,9 +146,13 @@ OK = ("Success", 0, "")
 LAUNCHED = ("Success", 0, "launch=launch-1\nrun=run-77\nreservation_pico_usd=3253360000000\n")
 ADMITTED_WORLD = "5" * 64
 ADMITTED_COMMIT = "a" * 40
-ADMITTED = f"world_version={ADMITTED_WORLD}\nregistration_commit={ADMITTED_COMMIT}\n"
+ADMITTED = (
+    f"world_version={ADMITTED_WORLD}\nregistration_commit={ADMITTED_COMMIT}\n"
+    "ledger=ledger-development\n"
+)
 """What status prints of the admission: the inventory's scope, which is the attempt's and
-not the dispatch's inputs or the checkout's commit."""
+not the dispatch's inputs or the checkout's commit, and the ledger the attempt was
+admitted against, which the host checks the job's ledger input against."""
 
 
 def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_inventory(
@@ -195,6 +199,7 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     assert inventory["WORLD_VERSION"] == ADMITTED_WORLD != RUN_INPUTS["INPUT_WORLD_VERSION"]
     assert inventory["REGISTRATION_COMMIT"] == ADMITTED_COMMIT != _head(Path(env["CHECKOUT"]))
     assert inventory["LEDGER"] == "ledger-development"
+    assert inventory["ADMITTED_LEDGER"] == "ledger-development", "status's line, for the host"
     payload = json.loads((fakes.fake_dir / "payload-1.json").read_text())
     assert payload["commands"][0].endswith(HOST_SCRIPT.read_text())
     assert payload["executionTimeout"] == ["3600"]
@@ -506,7 +511,23 @@ def test_a_status_that_names_no_admission_ends_the_job_before_publish(
     status, out, _ = _run(fakes, env, **RUN_INPUTS)
     assert status == 1
     assert _words(fakes) == ["launch", "work", "status"]
-    assert "status printed no world version or registration commit" in out
+    assert "status printed no world version, registration commit or ledger" in out
+
+
+def test_a_status_without_the_admitted_ledger_ends_the_job_before_publish(
+    driver: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """The scope alone is not enough: without the admitted ledger the host could not check
+    the job's ledger input against the admission, so the job ends before publish."""
+    fakes, env = driver
+    without_ledger = ADMITTED.replace("ledger=ledger-development\n", "")
+    assert without_ledger != ADMITTED
+    scoped = ("Success", 0, "attempt=closed\n" + without_ledger + "next=publish\n")
+    _script(fakes, LAUNCHED, OK, scoped)
+    status, out, _ = _run(fakes, env, **RUN_INPUTS)
+    assert status == 1
+    assert _words(fakes) == ["launch", "work", "status"]
+    assert "status printed no world version, registration commit or ledger" in out
 
 
 def test_a_work_process_the_host_killed_is_read_and_recovered_not_ended(

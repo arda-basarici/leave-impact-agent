@@ -785,6 +785,15 @@ class LogStore:
         with self._guarded() as conn, conn.transaction():
             return self._fold(conn, self._row(conn, run_id, attempt), rules)
 
+    def ledger_of(self, run_id: str, attempt: int) -> str | None:
+        """The ledger the attempt was admitted against, from its row; ``None`` for an attempt
+        that reserved nothing. The admission event carries no ledger id, so the row is the
+        durable record of the association, and the status read prints it so a continuation's
+        ledger input is checked against the admission and not against a file a reboot clears
+        (the replay step's external read)."""
+        with self._guarded() as conn, conn.transaction():
+            return self._row(conn, run_id, attempt).ledger_id
+
     def now(self) -> datetime:
         """The log's clock read with no lock: the instant a worker measures a re-dispatch
         delay from when the anchoring timestamp was logged by an earlier segment (the ruling
