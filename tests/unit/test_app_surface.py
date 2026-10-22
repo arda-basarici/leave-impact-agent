@@ -7,25 +7,34 @@ not-found page for an unknown name, an honest row of another world, a forged row
 served world for another world's attempt, and a name that is not a slug; the unavailable page
 when the cache does not serve the version or a store does not answer, after admission so an
 unavailable cache never tells a published name from an unknown one; the log session closed on
-every path; and the sweep: every registered route classified, every attempt-scoped route
+every path; the results page over the public results decoded once at creation, its
+labels and figures in their rows, and the served-world line on every page the surface
+answers; and the sweep: every registered route classified, every attempt-scoped route
 walked with the forged name and the unknown name to the same bytes."""
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 
+import pytest
 from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
+from markupsafe import escape
 
 from leaveimpact.agent.log_events import Admitted, RefusedBy
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.main import ROUTES, Services, Surface, create_app
+from leaveimpact.app.results import SERVED_WORLD_LABEL, results_view
 from leaveimpact.app.store import AppStoreInvariantBroken, AppStoreUnavailable
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.ports.errors import Source, SourceUnreachable
+from leaveimpact.results.committed import committed_results
+from leaveimpact.results.public import PublicResults
 from tests.unit import log_histories as histories
 from tests.unit import report_view_fixture as reported
 from tests.unit import stated_fixture as f
+from tests.unit import test_results_codec as codec
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.publishable_fixture import (
     CLOSED,
@@ -120,16 +129,20 @@ class Rig:
         )
 
     def client(self) -> TestClient:
-        services = Services(
-            CODE,
-            CONFIGURATION,
-            self.store.ready_versions,
-            self.store.app_schema,
-            self.rows,
-            self.sessions,
-            histories.RULES,
-        )
-        return TestClient(create_app(services))
+        return TestClient(create_app(services(self)))
+
+
+def services(rig: Rig, results: Callable[[], PublicResults] = codec.results) -> Services:
+    return Services(
+        CODE,
+        CONFIGURATION,
+        rig.store.ready_versions,
+        rig.store.app_schema,
+        rig.rows,
+        rig.sessions,
+        histories.RULES,
+        results,
+    )
 
 
 def test_the_listing_is_the_served_worlds_projection_with_links_to_each_name() -> None:
@@ -284,17 +297,7 @@ def test_every_registered_route_is_classified_and_every_scoped_one_refuses_the_f
     surface added later joins the sweep or is refused; each attempt-scoped path is walked with
     the forged name and the unknown name and must answer the same not-found bytes."""
     rig = Rig()
-    app = create_app(
-        Services(
-            CODE,
-            CONFIGURATION,
-            rig.store.ready_versions,
-            rig.store.app_schema,
-            rig.rows,
-            rig.sessions,
-            histories.RULES,
-        )
-    )
+    app = create_app(services(rig))
     registered = {route.path for route in app.routes if isinstance(route, APIRoute)}
     classified = {route.path for route in ROUTES}
     assert registered == classified, registered ^ classified
@@ -312,15 +315,94 @@ def test_every_registered_route_is_classified_and_every_scoped_one_refuses_the_f
 
 def test_a_live_flag_still_shows_on_the_index() -> None:
     rig = Rig()
-    live = replace(CONFIGURATION, live_runs=True)
-    services = Services(
-        CODE,
-        live,
-        rig.store.ready_versions,
-        rig.store.app_schema,
-        rig.rows,
-        rig.sessions,
-        histories.RULES,
-    )
-    with TestClient(create_app(services)) as web:
+    live = replace(services(rig), configuration=replace(CONFIGURATION, live_runs=True))
+    with TestClient(create_app(live)) as web:
         assert ">on<" in web.get("/").text
+
+
+# --- The results page -------------------------------------------------------------------
+
+
+def test_the_results_page_states_the_labels_and_the_figures_in_their_rows() -> None:
+    rig = Rig()
+    with rig.client() as web:
+        assert 'href="/results"' in web.get("/").text
+        page = web.get("/results")
+    assert page.status_code == 200
+    text = page.text
+    for label in results_view(codec.results()).labels:
+        assert str(escape(label)) in text
+    assert "24 of 30" in text and "14 of 30" in text and "+0.20 to +0.47" in text
+    assert "no interval: every resample equal" in text
+    assert "Unavailable: an arm of the pair was not built." in text
+    assert "$2.2125" in text and "$0.0738 over 30 runs" in text
+    assert "unavailable: no answer-quality checks (degraded condition)" in text
+    assert "20 of 30 scenarios the rules-only reference did not pass" in text
+    assert "where-the-single-call-stops.pdf" in text
+
+
+def test_every_page_the_surface_answers_carries_the_served_world_line() -> None:
+    rig = Rig()
+    line = str(escape(SERVED_WORLD_LABEL))
+    pages = (
+        "/",
+        "/replays",
+        "/results",
+        "/replays/served",
+        "/replays/served/trail",
+        "/replays/served/timeline",
+        "/replays/live",
+        f"/replays/{UNKNOWN}",
+    )
+    with rig.client() as web:
+        for path in pages:
+            assert line in web.get(path).text, path
+        rig.store.reachable = False
+        unavailable = web.get("/replays")
+    assert unavailable.status_code == 503 and line in unavailable.text
+
+
+def test_the_results_are_decoded_once_at_creation_and_a_broken_file_fails_it() -> None:
+    rig = Rig()
+    calls = 0
+
+    def counted() -> PublicResults:
+        nonlocal calls
+        calls += 1
+        return codec.results()
+
+    app = create_app(services(rig, counted))
+    assert calls == 1
+    with TestClient(app) as web:
+        for _ in range(3):
+            assert web.get("/results").status_code == 200
+    assert calls == 1
+
+    def broken() -> PublicResults:
+        raise ValueError("the public results.plan.seed is an integer, got str")
+
+    with pytest.raises(ValueError, match="plan.seed"):
+        create_app(services(rig, broken))
+
+
+def section(text: str, heading: str) -> str:
+    """The comparison section under the ``h3`` that reads ``heading``, to its end."""
+    start = text.index(f"<h3>{heading}</h3>")
+    return text[start : text.index("</section>", start)]
+
+
+def test_the_committed_results_render_the_base_loss_and_the_padded_gain_in_their_rows() -> None:
+    """The real producer through the real template: each headline figure sits in the section
+    whose heading names its pair and level, so a figure cannot land under another label."""
+    rig = Rig()
+    with TestClient(create_app(services(rig, committed_results))) as web:
+        text = web.get("/results").text
+    base = section(text, "Descriptive: the investigator against full context, base")
+    assert "<td>24 of 30</td>" in base and "<td>30 of 30</td>" in base
+    assert "-0.30 to -0.10" in base
+    padded = section(text, "Primary: the investigator against full context, padded")
+    assert "<td>24 of 30</td>" in padded and "<td>14 of 30</td>" in padded
+    assert "+0.20 to +0.47" in padded
+    assert "both 14 · first only 10 · second only 0 · neither 6" in padded
+    assert "$9.9594 over 240 runs" in text
+    assert text.count("<tr>") >= 8 + 6 + 4

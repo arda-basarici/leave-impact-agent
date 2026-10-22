@@ -22,7 +22,7 @@ from fastapi.testclient import TestClient
 from leaveimpact.agent.log_events import Admitted, LoggedEvent
 from leaveimpact.agent.log_store import LogStoreUnavailable
 from leaveimpact.agent.log_transition import AttemptState, Rules, fold
-from leaveimpact.app.main import Services, create_app
+from leaveimpact.app.main import create_app
 from leaveimpact.app.narration import narration
 from leaveimpact.app.stream import (
     CLOSED_EVENT,
@@ -35,12 +35,11 @@ from tests.unit import log_histories as histories
 from tests.unit import narration_histories as variants
 from tests.unit.publishable_fixture import (
     CLOSED,
-    CONFIGURATION,
     SERVED,
     history_in_world,
     row,
 )
-from tests.unit.test_app_surface import CODE, FORGED, Rig, Sessions
+from tests.unit.test_app_surface import FORGED, Rig, Sessions, services
 
 FAST = Pacing(tick_seconds=0.01, heartbeat_seconds=0.08, bound=2)
 LIVE = ("run-14", 1)
@@ -59,16 +58,7 @@ class FailingSessions(Sessions):
 
 
 def client_of(rig: Rig, pacing: Pacing = FAST) -> TestClient:
-    services = Services(
-        CODE,
-        CONFIGURATION,
-        rig.store.ready_versions,
-        rig.store.app_schema,
-        rig.rows,
-        rig.sessions,
-        histories.RULES,
-    )
-    return TestClient(create_app(services, pacing))
+    return TestClient(create_app(services(rig), pacing))
 
 
 def subscriptions_of(client: TestClient) -> Subscriptions:

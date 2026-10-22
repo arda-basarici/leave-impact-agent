@@ -22,6 +22,7 @@ from tests.unit import log_histories as histories
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.publishable_fixture import Rows
 from tests.unit.registration_fixture import COMMITTED, COMMITTED_FILE, DRAFT_FILE
+from tests.unit.test_results_codec import results
 
 CODE = "b" * 40
 CONFIGURATION = committed_configuration()
@@ -63,6 +64,7 @@ def services(
         Rows(),
         lambda: MemoryLog(),  # type: ignore[arg-type, return-value]
         histories.RULES,
+        results,
     )
 
 

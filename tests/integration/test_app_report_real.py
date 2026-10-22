@@ -25,6 +25,7 @@ from leaveimpact.app.report import ReportView, report_view
 from leaveimpact.app.store import Published
 from leaveimpact.app.trail import operation_anchor
 from leaveimpact.evaluator.sealed_world import SealedWorld
+from leaveimpact.results.committed import committed_results
 from tests.integration.log_store_support import Rig, rig
 from tests.integration.test_app_surface import app_store
 from tests.integration.worker_rig import (
@@ -106,6 +107,7 @@ def pages(rig: Rig, log: LogStore, inputs: FrozenInputs) -> tuple[str, str, Repo
         rows=store,
         log_sessions=rig.store,
         rules=RULES,
+        results=committed_results,
     )
     with TestClient(create_app(services)) as web:
         report = web.get(f"/replays/{SLUG}")

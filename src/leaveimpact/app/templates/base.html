@@ -37,10 +37,19 @@
   ol.timeline .when { display: block; color: var(--muted); font-size: .85rem; font-family: ui-monospace, monospace; }
   table.caps { border-collapse: collapse; }
   table.caps td, table.caps th { padding: .2rem .75rem .2rem 0; text-align: left; }
+  .world { margin: 0 0 1rem; padding: .4rem .75rem; border: 1px solid var(--rule); border-radius: 4px; color: var(--muted); font-size: .9rem; }
+  .caption { color: var(--muted); font-size: .92rem; margin: .25rem 0 .5rem; }
+  table.results { border-collapse: collapse; width: 100%; font-size: .95rem; }
+  table.results th, table.results td { padding: .3rem .6rem .3rem 0; text-align: left; vertical-align: top; border-bottom: 1px solid var(--rule); }
+  table.results th { color: var(--muted); font-weight: 600; }
+  table.results .tiers { display: block; color: var(--muted); font-size: .85rem; }
+  h3 { font-size: 1.05rem; margin: 1.25rem 0 .25rem; }
+  .labels ul { margin: .25rem 0 0; padding-left: 1.25rem; }
 </style>
 </head>
 <body>
 <main>
+<p class="world">{{ served_world_label }}</p>
 {% block content %}{% endblock %}
 <footer>Leave Impact Agent · revision {{ code_version }}</footer>
 </main>

@@ -32,7 +32,13 @@ unavailable page, never the not-found page, which would say the name does not ex
 trail page (``trail``) is the same path with the trail view built instead of the report's.
 The narration stream (``events``) makes the same admission in a session closed before the
 response starts, then refuses beyond the subscription bound and on a rejected cursor, and
-streams the attempt's lines over a session per tick (``stream``).
+streams the attempt's lines over a session per tick (``stream``). The results page
+(``results``) renders the committed public results of the investigator milestone's
+measurement, decoded once when the application is created, since the file ships in the
+image and cannot change under a running process: a file the package cannot decode fails
+the creation, which the deploy's readiness check reports, rather than the first visitor's
+request. The served-world label every page carries is the results view's constant, a
+global of the template environment rendered by the base template, so no page can omit it.
 
 Statement bounds, per request: the listing makes one app-store operation (the version check
 and one statement) and one cache read; the replay page one app-store operation, the log's
@@ -91,6 +97,7 @@ from leaveimpact.app.read_model import (
 )
 from leaveimpact.app.ready import AppSchema, ReadyVersions, readiness
 from leaveimpact.app.report import Instants, report_view
+from leaveimpact.app.results import SERVED_WORLD_LABEL, results_view
 from leaveimpact.app.store import (
     AppStore,
     AppStoreInvariantBroken,
@@ -109,6 +116,8 @@ from leaveimpact.app.stream import (
 from leaveimpact.app.trail import trail_view
 from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.run_export import RunExport
+from leaveimpact.results.committed import committed_results
+from leaveimpact.results.public import PublicResults
 
 _log = logging.getLogger(__name__)
 
@@ -154,6 +163,7 @@ ROUTES: tuple[RouteClass, ...] = (
     RouteClass("/", Surface.PUBLIC_GLOBAL),
     RouteClass("/ready", Surface.PUBLIC_GLOBAL),
     RouteClass("/replays", Surface.PUBLIC_GLOBAL),
+    RouteClass("/results", Surface.PUBLIC_GLOBAL),
     RouteClass("/replays/{public_id}", Surface.ATTEMPT_SCOPED),
     RouteClass("/replays/{public_id}/trail", Surface.ATTEMPT_SCOPED),
     RouteClass("/replays/{public_id}/timeline", Surface.ATTEMPT_SCOPED),
@@ -165,7 +175,8 @@ with the route table and walks each attempt-scoped path with a name the predicat
 
 @dataclass(frozen=True, slots=True)
 class Services:
-    """What the routes need, bound once at the composition root."""
+    """What the routes need, bound once at the composition root; ``results`` reads the
+    public results the page renders, called once at the application's creation."""
 
     code_version: str
     configuration: DemoConfiguration
@@ -174,15 +185,18 @@ class Services:
     rows: PublishableReads
     log_sessions: Callable[[], LogSession]
     rules: Rules
+    results: Callable[[], PublicResults]
 
 
 def templating() -> Jinja2Templates:
     """The template environment every page renders through: the packaged templates, the
     quote-marking filter, and an undefined name refused rather than rendered as nothing, so
     a mistyped attribute fails a test instead of hiding a section (the renderer lesson of the
-    report step)."""
+    report step). The served-world label is a global of the environment, not a key a page
+    passes, so every template under the base, rendered by a route or by a test, carries it."""
     templates = Jinja2Templates(directory=str(TEMPLATES))
     templates.env.undefined = StrictUndefined
+    templates.env.globals["served_world_label"] = SERVED_WORLD_LABEL
     # Jinja types its filter table by its built-in filters' signatures; a filter of our own
     # is registered through the table's untyped face.
     filters = cast(dict[str, Any], templates.env.filters)
@@ -192,14 +206,17 @@ def templating() -> Jinja2Templates:
 
 def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     """The application over ``services``: the index, the readiness route, the listing of
-    published replays, the replay, report and trail pages, and the narration stream paced
-    by ``pacing`` (the module's constants unless a test passes faster ones); the process's
-    subscription bound is reachable as ``app.state.subscriptions``."""
+    published replays, the results page over the public results read once here, the replay,
+    report, trail and timeline pages, and the narration stream paced by ``pacing`` (the
+    module's constants unless a test passes faster ones); the process's subscription bound
+    is reachable as ``app.state.subscriptions``. Raises what ``services.results`` raises, so
+    an undecodable results file is a creation failure."""
     app = FastAPI(title="Leave Impact Agent", docs_url=None, redoc_url=None, openapi_url=None)
     templates = templating()
     configuration = services.configuration
     subscriptions = Subscriptions(pacing.bound)
     app.state.subscriptions = subscriptions
+    measurement = results_view(services.results())
     common: dict[str, Any] = {
         "code_version": services.code_version,
         "served_world_version": configuration.served_world_version,
@@ -236,6 +253,9 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         except _UNAVAILABLE:
             return unavailable(request)
         return page(request, "replays.html", entries=entries)
+
+    def results(request: Request) -> HTMLResponse:
+        return page(request, "results.html", view=measurement)
 
     def admit(request: Request, public_id: str) -> Admitted | HTMLResponse:
         """Every attempt-scoped surface's one path: the name parsed, the admission in a log
@@ -346,12 +366,20 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     # Registered by call rather than by decorator so the handlers are plain closures over
     # the services, named and typed where they are read; the paths are ROUTES' strings so
     # the table and the registration cannot drift.
-    index_path, ready_path, replays_path, replay_path, trail_path, timeline_path, events_path = (
-        route.path for route in ROUTES
-    )
+    (
+        index_path,
+        ready_path,
+        replays_path,
+        results_path,
+        replay_path,
+        trail_path,
+        timeline_path,
+        events_path,
+    ) = (route.path for route in ROUTES)
     app.add_api_route(index_path, index, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(ready_path, ready, methods=["GET"])
     app.add_api_route(replays_path, replays, methods=["GET"], response_class=HTMLResponse)
+    app.add_api_route(results_path, results, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(replay_path, replay, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(trail_path, trail, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(timeline_path, timeline, methods=["GET"], response_class=HTMLResponse)
@@ -388,6 +416,7 @@ def services_from_env(env: Mapping[str, str] | None = None) -> Services:
         rows=store,
         log_sessions=lambda: LogStore(dsn=dsn, connect=connect_bounded),
         rules=rules_under(configuration, registration),
+        results=committed_results,
     )
 
 

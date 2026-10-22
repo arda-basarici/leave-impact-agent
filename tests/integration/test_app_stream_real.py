@@ -25,6 +25,7 @@ from leaveimpact.app.public import PublicationDraft, PublicId
 from leaveimpact.app.store import Published
 from leaveimpact.app.stream import CLOSED_EVENT, Pacing
 from leaveimpact.evaluator.sealed_world import SealedWorld
+from leaveimpact.results.committed import committed_results
 from tests.integration.log_store_support import Rig, rig
 from tests.integration.test_app_surface import app_store
 from tests.integration.worker_rig import (
@@ -100,6 +101,7 @@ def test_a_stream_over_a_live_run_delivers_its_lines_before_the_worker_closes_it
         rows=store,
         log_sessions=rig.store,
         rules=RULES,
+        results=committed_results,
     )
     approval = GatedApproval()
     composed = composition(inputs, world, saver_on(rig), approval=approval, script=named)

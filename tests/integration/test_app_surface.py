@@ -20,6 +20,7 @@ from leaveimpact.app.main import Services, create_app
 from leaveimpact.app.public import PublicationDraft, PublicId
 from leaveimpact.app.store import STATEMENT_TIMEOUT_MS, AppStore, Published
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.results.committed import committed_results
 from tests.integration.log_store_support import Rig, rig
 from tests.integration.test_log_store import opened, replay
 from tests.unit import log_histories as histories
@@ -80,6 +81,7 @@ def client(rig: Rig, store: AppStore, *, served: bool = True) -> TestClient:
         rows=store,
         log_sessions=log_session,
         rules=histories.RULES,
+        results=committed_results,
     )
     return TestClient(create_app(services))
 

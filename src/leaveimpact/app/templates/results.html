@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}Results · Leave Impact Agent{% endblock %}
+{% block content %}
+{% macro difference(row, label) %}
+  <tr>
+    <td>{{ label }}</td>
+    <td>{{ row.first_count if row.first_count is not none else "unavailable" }}</td>
+    <td>{{ row.second_count if row.second_count is not none else "unavailable" }}</td>
+    <td>{% if row.interval is not none %}{{ row.interval }}{% else %}{{ row.unresolved }}{% endif %}</td>
+    <td>{% if row.two_by_two is not none %}both {{ row.two_by_two.both }} · first only {{ row.two_by_two.first_only }} · second only {{ row.two_by_two.second_only }} · neither {{ row.two_by_two.neither }}{% else %}unavailable{% endif %}</td>
+    <td>{{ row.paired }}</td>
+  </tr>
+{% endmacro %}
+{% macro comparison(row) %}
+<section class="comparison">
+<h3>{{ row.kind|capitalize }}: {{ row.title }}</h3>
+{% if row.unavailable is not none %}
+<p class="meta">Unavailable: {{ row.unavailable }}.</p>
+{% else %}
+<table class="results">
+  <thead><tr><th>Stratum</th><th>{{ row.first_name|capitalize }}</th><th>{{ row.second_name|capitalize }}</th><th>Difference, {{ row.direction }}</th><th>Paired scenarios by outcome</th><th>Paired</th></tr></thead>
+  <tbody>
+  {% if row.overall is not none %}{{ difference(row.overall, "overall") }}{% endif %}
+  {% for tier in row.breakdowns %}{{ difference(tier, tier.stratum) }}{% endfor %}
+  </tbody>
+</table>
+{% endif %}
+</section>
+{% endmacro %}
+<p class="meta"><a href="/">Leave Impact Agent</a> · <a href="/replays">Replays</a></p>
+<h1>Results: the investigator milestone's measurement</h1>
+<p>What the registered investigator and three baselines scored on a withheld world, rendered
+from the committed public results file and nothing else. The standalone report reads the
+same file: <a href="https://ardabasarici.dev/reports/where-the-single-call-stops.pdf">Where
+the Single Call Stops</a> (2026-10-20), which also holds the counts of calls stopped at the
+output maximum, which this file does not.</p>
+
+<div class="banner labels">
+  <strong>Read these first.</strong>
+  <ul>{% for label in view.labels %}<li>{{ label }}</li>{% endfor %}</ul>
+</div>
+<p class="meta">{{ view.interval_method }}</p>
+
+<h2>Reports correct whole, by system and level</h2>
+<p class="caption">{{ view.arms_caption }}</p>
+<table class="results">
+  <thead><tr><th>System</th><th>Level</th><th>Correct whole</th><th>Wilson interval</th><th>Model spend</th><th>Mean per run</th><th>Median per run (range)</th></tr></thead>
+  <tbody>
+  {% for arm in view.arms %}
+  <tr>
+    <td>{{ arm.name|capitalize }}</td>
+    <td>{{ arm.level }}</td>
+    <td>{% if arm.count is not none %}{{ arm.count }}{% if arm.tiers %}<span class="tiers">{% for tier in arm.tiers %}{{ tier.tier }} {{ tier.count }}{% if not loop.last %} · {% endif %}{% endfor %}</span>{% endif %}{% else %}unavailable: {{ arm.unavailable }}{% endif %}</td>
+    <td>{% if arm.interval is not none %}{{ arm.interval }}{% elif arm.count is not none %}none recorded{% else %}unavailable{% endif %}</td>
+    {% if arm.cost is not none %}
+    <td>{{ arm.cost.total }}</td>
+    <td>{{ arm.cost.mean_per_run }} over {{ arm.cost.runs }} runs</td>
+    <td>{{ arm.cost.median_per_run }}</td>
+    {% else %}
+    <td colspan="3">unavailable: {{ arm.cost_unavailable }}</td>
+    {% endif %}
+  </tr>
+  {% endfor %}
+  </tbody>
+</table>
+
+<h2>Registered comparisons</h2>
+<p class="caption">{{ view.comparisons_caption }}</p>
+{{ comparison(view.primary) }}
+{% for row in view.secondary %}{{ comparison(row) }}{% endfor %}
+{% for row in view.level_contrasts %}{{ comparison(row) }}{% endfor %}
+
+<h2>Descriptive comparisons: no claim is made from these</h2>
+{% for row in view.descriptive %}{{ comparison(row) }}{% endfor %}
+
+<h2>Mechanism{% if view.mechanism.name is not none %}: {{ view.mechanism.name }}{% endif %}</h2>
+{% if view.mechanism.pending is not none %}
+<p class="meta">Pending: {{ view.mechanism.pending }}.</p>
+{% else %}
+<p class="caption">{{ view.mechanism_caption }}</p>
+<table class="results">
+  <thead><tr><th>System</th><th>Level</th>{% for stage in view.mechanism.stages %}<th>{{ stage }}</th>{% endfor %}</tr></thead>
+  <tbody>
+  {% for row in view.mechanism.rows %}
+  <tr><td>{{ row.name|capitalize }}</td><td>{{ row.level }}</td>{% for stage in row.stages %}<td>{{ stage.count }}</td>{% endfor %}</tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% endif %}
+
+<h2>Headroom</h2>
+<ul>{% for row in view.headroom %}<li>At {{ row.level }}: {{ row.text }}.</li>{% endfor %}</ul>
+
+<h2>Cells not run</h2>
+{% if view.not_run %}
+<table class="results">
+  <thead><tr><th>System</th><th>Condition</th><th>Level</th><th>Why</th></tr></thead>
+  <tbody>
+  {% for row in view.not_run %}<tr><td>{{ row.name|capitalize }}</td><td>{{ row.condition }}</td><td>{{ row.level }}</td><td>{{ row.why }}</td></tr>{% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="meta">Every planned cell was run.</p>
+{% endif %}
+
+<h2>Model spend</h2>
+<p>{{ view.spend.total }} over {{ view.spend.runs }} runs, priced from the provider's published
+rates by the harness. That covers the measurement workload only: development runs, the
+calibration and the worlds' generation were paid separately.</p>
+
+<h2>Disclosures</h2>
+<ul>
+  <li>{{ view.disclosures.world }}</li>
+  <li>{{ view.disclosures.changed_code }}</li>
+  <li>{{ view.disclosures.repeats }}</li>
+  <li>{{ view.disclosures.incidents }}</li>
+</ul>
+
+<h2>Provenance</h2>
+<dl>
+  {% for label, value in view.provenance.items %}<dt>{{ label }}</dt><dd>{{ value }}</dd>{% endfor %}
+</dl>
+{% endblock %}
