@@ -36,9 +36,10 @@ uv run python probes/phase-c-dispatch/dispatch.py run
 This plan is complete; the commands above read its record. Another plan is driven with
 `--plan-dir <directory>` before the command (`../replay-set/README.md`).
 
-The first run of a sitting is sent with `--max 1` and read before the rest. `Ctrl+C` is
-safe at any moment: a run already dispatched is resumed by the next invocation, which
-waits on it and records it.
+The first run of a sitting is sent with `--max 1` and read before the rest; the bound
+counts every run the invocation handles, so `--max 1` after a stop finishes the standing
+run and sends nothing. `Ctrl+C` is safe at any moment: a run already dispatched is
+resumed by the next invocation, which waits on it and records it.
 
 ## The review
 

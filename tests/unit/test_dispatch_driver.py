@@ -79,6 +79,7 @@ class FakeGitHub:
         self.views: dict[int, dict[str, Any]] = {}
         self.logs: dict[int, str] = {}
         self.pending: list[dict[str, Any]] = []
+        self.approvals: list[dict[str, Any]] = []
 
     def gh_json(self, *args: str) -> object:
         if args[:2] == ("run", "list"):
@@ -91,6 +92,8 @@ class FakeGitHub:
                 "attempt": 1,
             }
             return self.views.get(int(args[2]), default)
+        if args[0] == "api" and args[1].endswith("/approvals"):
+            return self.approvals
         if args[0] == "api":
             return self.pending
         raise AssertionError(f"unexpected read {args}")
@@ -618,6 +621,57 @@ def test_a_dry_run_ends_before_any_approval_or_ledger_line(
     monkeypatch.setattr(driver, "markers_of", good.__getitem__)
     assert driver.run(plan, 0, False) == 0
     assert [args[:3] for args in github.sent] == [("api", "-X", "POST")] * 2
+
+
+def test_the_run_bound_counts_a_resumed_run_so_max_one_after_a_stop_sends_nothing(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The wiring run of a sitting is read before the rest: after the review wait stopped
+    the driver on a queued run (2026-10-22), `--max 1` must finish that run and stop, not
+    count it as free and send the second key."""
+    plan = scratch_plan(tmp_path, driver)
+    first, second = plan.order
+    driver.append_ledger(
+        plan, {"kind": "dispatched", "key": first.text, "token": TOKEN, "run_id": 50}
+    )
+    github = FakeGitHub([[]])
+    wire(driver, monkeypatch, github)
+    monkeypatch.setattr(driver, "dispatch", no_second_send)
+
+    def markers_of(_run_id: int) -> dict[str, str]:
+        return good_markers(plan, first)
+
+    monkeypatch.setattr(driver, "markers_of", markers_of)
+    assert driver.run(plan, 1, False) == 0
+    kinds = [r["kind"] for r in driver.read_ledger(plan)]
+    assert kinds == ["dispatched", "finished"], "the resumed run finished and nothing was sent"
+    assert driver.fold(driver.read_ledger(plan)).get(second.text) is None
+
+
+def test_a_review_approved_by_hand_on_a_run_still_queued_is_not_a_missing_review(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The wiring run (2026-10-22): the operator approved the review by hand within seconds
+    of the dispatch and the job then queued nine minutes for a runner, so nothing was
+    pending and nothing had started; the first driver stopped on it. The run's approvals
+    are the record of a review already given (`GET .../runs/{id}/approvals`, the state and
+    the environments as the API lists them)."""
+    plan = scratch_plan(tmp_path, driver)
+    github = FakeGitHub([[]])
+    github.views[60] = {"status": "queued"}
+    wire(driver, monkeypatch, github)
+    with pytest.raises(driver.Stop, match="no pending review and has not started"):
+        driver.approve_if_pending(plan, 60)
+    assert clock.slept >= driver.REVIEW_WAIT_SECONDS
+    github.approvals = [
+        {
+            "state": "approved",
+            "user": {"login": "arda-basarici"},
+            "environments": [{"name": "production"}],
+        }
+    ]
+    assert driver.approve_if_pending(plan, 60) is None
+    assert github.sent == [], "nothing was approved twice"
 
 
 def test_a_recorded_stop_stands_across_invocations_until_acknowledged(

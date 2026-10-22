@@ -127,7 +127,9 @@ RUN_WAIT_SECONDS = 3 * 3600
 LISTING_LIMIT = "50"
 REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
 GATED_ENVIRONMENT = "production"
-REVIEW_WAIT_SECONDS = 90
+# The replay set's wiring run sat queued for over two minutes before GitHub placed its
+# review (2026-10-22), and the first wait of 90 s stopped the driver on a run that was fine.
+REVIEW_WAIT_SECONDS = 600
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
 # The runner's own lines (deploy/runner/investigate.sh): the line before a send and the
 # command id after it (the runners before the replay step printed the id alone), the admit
@@ -494,7 +496,9 @@ def approve_if_pending(plan: Plan, run_id: int) -> str | None:
     deployment is normally listed at the first read; the wait covers the moments before
     GitHub lists it. A run already past the review (resumed after the driver died between
     the dispatch and the approval, or approved by hand) has nothing pending and nothing is
-    sent.
+    sent: the run's approvals say so while it still queues for a runner, which took nine
+    minutes on the replay set's wiring run (2026-10-22), so a queued run is not read as a
+    missing review once an approval of the environment stands.
     """
     deadline = now() + timedelta(seconds=REVIEW_WAIT_SECONDS)
     path = f"repos/{REPOSITORY_NAME}/actions/runs/{run_id}/pending_deployments"
@@ -517,6 +521,17 @@ def approve_if_pending(plan: Plan, run_id: int) -> str | None:
         run = gh_json("run", "view", str(run_id), "--json", "status")
         assert isinstance(run, dict)
         if run["status"] in ("in_progress", "completed"):
+            return None
+        approvals = gh_json("api", f"repos/{REPOSITORY_NAME}/actions/runs/{run_id}/approvals")
+        assert isinstance(approvals, list)
+        by_hand = [
+            a["user"]["login"]
+            for a in approvals
+            if a["state"] == "approved"
+            and any(e["name"] == GATED_ENVIRONMENT for e in a["environments"])
+        ]
+        if by_hand:
+            log(f"run {run_id}'s {GATED_ENVIRONMENT} review was approved by {by_hand[0]}; queued")
             return None
         if now() > deadline:
             raise Stop(f"run {run_id} lists no pending review and has not started; check Actions")
@@ -697,18 +712,21 @@ def next_action(key: Key, entry: dict[str, dict | None]) -> str:
     return f"the next dispatch would be {key.text}"
 
 
-def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
+def run(plan: Plan, max_runs: int, dry_run: bool) -> int:
     """The plan from its first unfinished key: each resumed, adopted or sent, approved and
-    waited for, until the plan is complete, the dispatch bound is reached or the driver
-    stops. A finished run whose record carries stop reasons stops every invocation until
-    the operator's `acknowledged` line stands beside it or a `released` line clears the
-    key, so a stop read by nobody is never walked past by a restart. A dry run names what
-    the first unfinished key would get and ends there, before any send, approval or ledger
-    line (both from the external read of the replay step).
+    waited for, until the plan is complete, the run bound is reached or the driver stops.
+    The bound counts every run the invocation handles, a resumed or adopted one as much as
+    a sent one, so `--max 1` after a stop finishes the standing run and sends nothing: the
+    wiring run of a sitting is read before the rest whatever path it took to its finish. A
+    finished run whose record carries stop reasons stops every invocation until the
+    operator's `acknowledged` line stands beside it or a `released` line clears the key, so
+    a stop read by nobody is never walked past by a restart. A dry run names what the first
+    unfinished key would get and ends there, before any send, approval or ledger line (both
+    from the external read of the replay step).
     """
     records = read_ledger(plan)
     state = fold(records)
-    dispatched = 0
+    handled = 0
     last_sha: str | None = None
     for key in plan.order:
         entry = state.get(key.text, empty_entry())
@@ -722,21 +740,21 @@ def run(plan: Plan, max_dispatches: int, dry_run: bool) -> int:
                     "or `release` clears the key"
                 )
             continue
+        if max_runs and handled >= max_runs:
+            log(f"run bound {max_runs} reached; next is {key.text}")
+            return 0
         if dry_run:
             log(f"dry run: {next_action(key, entry)}; nothing sent, nothing written")
             return 0
+        handled += 1
         if entry["dispatched"] is not None:
             run_id = entry["dispatched"]["run_id"]
             log(f"resuming {key.text}: run {run_id} was dispatched and never recorded as finished")
         elif entry["intent"] is not None:
             run_id, _ = adopt(plan, key, entry["intent"])
         else:
-            if max_dispatches and dispatched >= max_dispatches:
-                log(f"dispatch bound {max_dispatches} reached; next is {key.text}")
-                return 0
             wait_until_idle()
             run_id, sha = send(plan, key)
-            dispatched += 1
             if last_sha is not None and sha != last_sha:
                 log(f"NOTE the dispatched commit changed from {last_sha[:7]} to {sha[:7]}")
             last_sha = sha
@@ -990,7 +1008,10 @@ def main(argv: list[str]) -> int:
     sub.add_parser("status")
     runner = sub.add_parser("run")
     runner.add_argument(
-        "--max", type=int, default=0, help="dispatches this invocation may send; 0 is no bound"
+        "--max",
+        type=int,
+        default=0,
+        help="runs this invocation may handle, resumed or sent; 0 is no bound",
     )
     runner.add_argument(
         "--dry-run", action="store_true", help="name the next dispatch and send nothing"
