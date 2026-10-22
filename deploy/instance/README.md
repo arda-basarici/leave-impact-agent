@@ -92,7 +92,11 @@ reports that container first and the driver reads the state again while it runs
 instead of re-sending work, and `work` refuses to start beside another attempt's
 running container as a fault for an operator; a work process the host killed (137 under the memory
 limit) is read the same way, and only the process's own exits 2 and 3 end the job at
-once. The driver's poll is bounded and classifies its failures, and a send it cannot
+once. The launch's three containers (plan, threshold, admit) are named for the attempt
+and the step the same way, `launch` refuses to run a step beside a running one as a
+fault, and `status` lists every container of the attempt the host still runs, so a
+reader deciding whether the host can still admit (the dispatcher's release of a failed
+run) has the host's word and not the clock's (the replay step's third external read). The driver's poll is bounded and classifies its failures, and a send it cannot
 read past ends the job naming `continue-run`, which takes the attempt's approval
 policy and its ledger as inputs: `status` prints the ledger the attempt's row records
 beside the scope, and the host refuses an inventory whose ledger input differs from

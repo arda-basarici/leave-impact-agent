@@ -76,6 +76,12 @@ def test_launch_plans_receipts_the_threshold_and_admits_in_one_run_directory(
     plan, threshold, admit = runs
     mount = f"-v {posix(tmp_path / 'run')}/run-1:/run/job"
     assert all(mount in line for line in runs)
+    # Named for the attempt and the step, so status can list a step the host still runs.
+    for line, step in zip(runs, ("plan", "threshold", "admit"), strict=True):
+        assert f"--name lifecycle-run-1-a1-{step} " in line
+    assert fakes.lines("docker rm") == [
+        f"docker rm -f lifecycle-run-1-a1-{step}" for step in ("plan", "threshold", "admit")
+    ], "an exited container of the name is removed before a new one takes it"
     assert " python -m leaveimpact.launch plan " in plan
     for flag in (
         f"--world-version {WORLD}",
@@ -143,16 +149,20 @@ def test_work_hands_the_vendor_principals_to_the_container_environment_and_no_co
     _launched(fakes, env)
     status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="human")
     assert status == 0, err
-    work = fakes.lines("docker compose run")[3]
+    runs = fakes.lines("docker compose run")
+    work = runs[3]
     assert re.search(r" --nonce nonce-[0-9a-f]{32} --launch launch-fake ", work)
     assert " --name lifecycle-run-1-a1 " in work
-    assert "docker rm -f lifecycle-run-1-a1" in fakes.lines("docker rm")[0]
+    assert fakes.lines("docker rm")[3] == "docker rm -f lifecycle-run-1-a1"
     assert (
         "--approval human --system agent --condition normal --level base --region eu-central-1"
         in work
     )
     assert "value-of-" not in fakes.log.read_text(), "a parameter's value reached a command line"
-    handed = (fakes.fake_dir / "docker-env-4.txt").read_text()
+    # The fake numbers every docker invocation (listings and removals included), so the
+    # work container's capture is found by its place among them.
+    calls = fakes.lines("docker ")
+    handed = (fakes.fake_dir / f"docker-env-{calls.index(work) + 1}.txt").read_text()
     for variable, parameter in (
         ("LEAVE_IMPACT_FRAPPE_API_KEY", "frappe-api-key"),
         ("LEAVE_IMPACT_FRAPPE_API_SECRET", "frappe-api-secret"),
@@ -165,7 +175,8 @@ def test_work_hands_the_vendor_principals_to_the_container_environment_and_no_co
     assert "LEAVE_IMPACT_FRAPPE_BASE_URL=https://hr-w3.example.test\n" in handed
     assert f"APP_TAG={SHA}\n" in handed
     # The launch's containers read no vendor: the deploy's rule, kept here.
-    assert "LEAVE_IMPACT_FRAPPE_API_KEY" not in (fakes.fake_dir / "docker-env-1.txt").read_text()
+    plan_env = (fakes.fake_dir / f"docker-env-{calls.index(runs[0]) + 1}.txt").read_text()
+    assert "LEAVE_IMPACT_FRAPPE_API_KEY" not in plan_env, "the vendor principals are work's alone"
     assert fakes.lines("curl ") and len(fakes.lines("curl ")) == 2, (
         "a later word re-fetches nothing present"
     )
@@ -270,7 +281,21 @@ def test_work_refuses_to_start_beside_the_attempts_running_container(
     assert status == 4
     assert "a work container of this attempt is still running: lifecycle-run-1-a1" in err
     assert len(fakes.lines("docker compose run")) == 3, "no work container started"
-    assert fakes.lines("docker rm") == []
+    assert len(fakes.lines("docker rm")) == 3, "the launch steps' removals and no other"
+
+
+def test_launch_refuses_beside_a_running_step_of_the_attempt_as_a_fault(
+    host: tuple[FakeBinaries, dict[str, str]],
+) -> None:
+    """An admit container a killed client left running can still commit (the third
+    external read); a launch of the same attempt beside it is a fault for an operator,
+    before any container runs."""
+    fakes, env = host
+    (fakes.fake_dir / "running.txt").write_text("lifecycle-run-1-a1-admit\n")
+    status, err = _run(fakes, env, "launch", **LAUNCH_INPUTS)
+    assert status == 3
+    assert "a container of this attempt is still running (lifecycle-run-1-a1-admit)" in err
+    assert fakes.lines("docker compose run") == [] and fakes.lines("docker rm") == []
 
 
 def test_status_reports_the_attempts_container_before_the_launchers_answer(
@@ -282,11 +307,25 @@ def test_status_reports_the_attempts_container_before_the_launchers_answer(
     line = {**env, "LIFECYCLE_COMMAND": "status", "APPROVAL": "automatic"}
     assert run_script(HOST_SCRIPT, line).stdout.splitlines() == [
         "container=none",
+        "attempt_containers=none",
         "attempt=open",
         "next=recover",
     ]
     (fakes.fake_dir / "running.txt").write_text("lifecycle-run-1-a1\n")
-    assert run_script(HOST_SCRIPT, line).stdout.splitlines()[0] == "container=running"
+    assert run_script(HOST_SCRIPT, line).stdout.splitlines()[:2] == [
+        "container=running",
+        "attempt_containers=lifecycle-run-1-a1",
+    ]
+    # The attempt's launch steps are listed too, another attempt's never: a reader of the
+    # host deciding whether it can still admit (the driver's release) needs every container
+    # of the attempt and only those.
+    (fakes.fake_dir / "running.txt").write_text(
+        "lifecycle-run-1-a1-admit\nlifecycle-run-1-a10\nlifecycle-run-10-a1-admit\n"
+    )
+    assert run_script(HOST_SCRIPT, line).stdout.splitlines()[:2] == [
+        "container=none",
+        "attempt_containers=lifecycle-run-1-a1-admit",
+    ]
 
 
 def test_a_failing_parameter_read_ends_the_step_with_the_clis_own_error(

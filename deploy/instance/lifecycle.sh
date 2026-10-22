@@ -161,6 +161,20 @@ container="lifecycle-$RUN_ID-a$ATTEMPT"
 running_lifecycle_containers() {
   docker ps --filter "name=^lifecycle-" --filter status=running --format '{{.Names}}'
 }
+# A launch step's container is named for the attempt and the step, as the work container
+# is for the attempt, so `status` can list what of the attempt the host still runs: the
+# SSM agent's kill at a timeout reaches the compose client and not the container, and an
+# admit container that outlives its client can commit after the job that sent it ended
+# (the replay step's third external read). The launch refuses to start while any
+# container of the attempt still runs, before its first step (a fault for an operator,
+# exit 3, as work's is); an exited one of a step's name holds no process and a new one
+# takes the name.
+run_launch_step() {
+  local name="$container-$1"
+  shift
+  docker rm -f "$name" > /dev/null 2>&1 || true
+  docker compose run --rm --name "$name" -v "$run_dir:$JOB_DIR" app "$@"
+}
 registration="$JOB_DIR/registration.json"
 prices="$JOB_DIR/prices.json"
 
@@ -170,6 +184,15 @@ case "$LIFECYCLE_COMMAND" in
     : "${REGISTRATION_COMMIT:?}" "${REQUEST_ID:?}" "${ADMITTER:?}" "${AUTHORITY:?}"
     : "${LEDGER:?}" "${THRESHOLD_PICO:?}" "${LIMIT_PICO:?}"
     : "${FRAPPE_BASE_URL:?}" "${JIRA_BASE_URL:?}"
+    listing=$(running_lifecycle_containers) || {
+      echo "the host's container listing failed (docker ps exit $?); the launch cannot tell whether an earlier step of this attempt still runs" >&2
+      exit 2
+    }
+    running=$(printf '%s\n' "$listing" | grep -E "^${container}(-|\$)" | paste -sd, -) || true
+    if [ -n "$running" ]; then
+      echo "a container of this attempt is still running ($running); a launch is never run beside it" >&2
+      exit 3
+    fi
     # The later steps read these back; every value here is one the job log already shows.
     {
       for name in WORLD_VERSION SCENARIO SYSTEM CONDITION LEVEL REGISTRATION_COMMIT \
@@ -188,15 +211,15 @@ case "$LIFECYCLE_COMMAND" in
     if [ "$SYSTEM" != rules_only ]; then
       plan+=(--ledger "$LEDGER")
     fi
-    run_app python -m leaveimpact.launch "${plan[@]}"
+    run_launch_step plan python -m leaveimpact.launch "${plan[@]}"
     if [ "$SYSTEM" != rules_only ]; then
       # Sent on every launch: an equal amount answers with the entry in force and writes
       # nothing (the group's review); the amounts are the registration's budget block.
-      run_app python -m leaveimpact.agent set-threshold --ledger "$LEDGER" \
+      run_launch_step threshold python -m leaveimpact.agent set-threshold --ledger "$LEDGER" \
         --amount "$THRESHOLD_PICO" --authority "$AUTHORITY" \
         --registration-commit "$REGISTRATION_COMMIT" --limit "$LIMIT_PICO"
     fi
-    run_app python -m leaveimpact.agent admit --registration "$registration" \
+    run_launch_step admit python -m leaveimpact.agent admit --registration "$registration" \
       --request "$JOB_DIR/attempt-$ATTEMPT/request.json"
     ;;
   work)
@@ -246,6 +269,10 @@ case "$LIFECYCLE_COMMAND" in
       exit 2
     }
     if printf '%s\n' "$listing" | grep -qx "$container"; then echo "container=running"; else echo "container=none"; fi
+    # Every container of the attempt still running, the launch steps' included, for a
+    # reader deciding whether the host can still admit (the driver's release).
+    attempt_containers=$(printf '%s\n' "$listing" | grep -E "^${container}(-|\$)" | paste -sd, -) || true
+    echo "attempt_containers=${attempt_containers:-none}"
     run_app python -m leaveimpact.launch status --run "$RUN_ID" --attempt "$ATTEMPT" \
       --registration "$registration" --approval "$APPROVAL"
     ;;
