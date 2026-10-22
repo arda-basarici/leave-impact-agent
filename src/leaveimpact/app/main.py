@@ -196,11 +196,12 @@ def templating() -> Jinja2Templates:
     passes, so every template under the base, rendered by a route or by a test, carries it."""
     templates = Jinja2Templates(directory=str(TEMPLATES))
     templates.env.undefined = StrictUndefined
-    templates.env.globals["served_world_label"] = SERVED_WORLD_LABEL
-    # Jinja types its filter table by its built-in filters' signatures; a filter of our own
-    # is registered through the table's untyped face.
+    # Jinja types its filter and global tables by its built-in entries; a filter or a global
+    # of our own is registered through the table's untyped face.
     filters = cast(dict[str, Any], templates.env.filters)
     filters["mark_quotes"] = mark_quotes
+    globals_table = cast(dict[str, Any], templates.env.globals)
+    globals_table["served_world_label"] = SERVED_WORLD_LABEL
     return templates
 
 
