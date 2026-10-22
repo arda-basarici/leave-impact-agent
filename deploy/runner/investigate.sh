@@ -211,6 +211,11 @@ send() {
     done
     cat "$HOST_SCRIPT"
   } | jq -Rs --arg t "$EXECUTION_TIMEOUT" '{commands: [.], executionTimeout: [$t]}' > "$stem.payload.json"
+  # Printed before the send, so a response lost after SSM accepted the command (the job
+  # then ends on the failed assignment below, and the host runs the command anyway) leaves
+  # a log that says the send happened; a reader of the log tells "never sent" from "sent
+  # and unread" by this line alone (the replay step's second external read).
+  echo "$word: sending"
   local cid
   cid=$(aws ssm send-command --instance-ids "$IID" --document-name AWS-RunShellScript \
     --comment "$word $RUN_ID/$ATTEMPT" --parameters "file://$stem.payload.json" \

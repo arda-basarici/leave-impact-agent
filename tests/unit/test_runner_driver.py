@@ -178,6 +178,9 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
     jobs = " ".join(REQUIRED_JOBS)
     assert f"CI run {CI_RUN} attempt {CI_ATTEMPT} of {SHA}: {jobs} concluded success" in out
     assert _words(fakes) == ["launch", "work", "status", "publish", "inventory"]
+    assert out.index("launch: sending") < out.index("launch: command"), (
+        "the send is on the log before its response, for a reader of a lost one"
+    )
     launch = fakes.payload_exports(1)
     budget = json.loads(REGISTRATION.read_text())["budget"]
     assert launch["RUN_SHA"] == SHA
