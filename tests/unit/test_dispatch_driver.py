@@ -84,7 +84,12 @@ class FakeGitHub:
         if args[:2] == ("run", "list"):
             return self.listings.pop(0) if len(self.listings) > 1 else self.listings[0]
         if args[:2] == ("run", "view"):
-            default = {"status": "completed", "conclusion": "success", "updatedAt": LAUNCH_ENDED}
+            default = {
+                "status": "completed",
+                "conclusion": "success",
+                "updatedAt": LAUNCH_ENDED,
+                "attempt": 1,
+            }
             return self.views.get(int(args[2]), default)
         if args[0] == "api":
             return self.pending
@@ -405,12 +410,12 @@ def test_a_run_that_failed_before_admission_is_released_once_completed(
         },
     )
     github = FakeGitHub([[]])
-    github.views[14] = {"status": "in_progress"}
+    github.views[14] = {"status": "in_progress", "updatedAt": LAUNCH_ENDED, "attempt": 1}
     github.logs[14] = runner_log("no running leave-impact instance")
     wire(driver, monkeypatch, github)
     with pytest.raises(driver.Stop, match="not completed"):
         driver.release(plan, key, "the launch failed on a stopped instance")
-    github.views[14] = {"status": "completed"}
+    github.views[14] = {"status": "completed", "updatedAt": LAUNCH_ENDED, "attempt": 1}
     assert driver.release(plan, key, "the launch failed on a stopped instance") == 0
     records = driver.read_ledger(plan)
     assert records[-1]["read"] == "run 14 completed; its launch was never sent"
@@ -445,6 +450,8 @@ def continuation(created_at: str, *lines: str) -> tuple[dict[str, Any], str]:
 NO_ATTEMPT = (
     "status: sending",
     "status: command 5555-6666 on i-0abc",
+    "status: container=none",
+    "status: attempt_containers=none",
     "status (stderr): leaveimpact.launch: refused: run run-40 has no attempt 1",
     "status: the process exited 1",
 )
@@ -493,16 +500,52 @@ def test_release_of_a_sent_launch_needs_the_host_stores_answer_not_the_logs_shap
             driver.release(plan, key, "the launch failed", status_run=41)
         other = tuple(line.replace("run-40", "run-39") for line in NO_ATTEMPT)
         github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *other)
-        with pytest.raises(driver.Stop, match="read run-39, not run-40"):
+        with pytest.raises(driver.Stop, match="read run-39 attempt 1, not run-40 attempt 1"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        second = tuple(line.replace("no attempt 1", "no attempt 2") for line in NO_ATTEMPT)
+        github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *second)
+        with pytest.raises(driver.Stop, match="read run-40 attempt 2, not run-40 attempt 1"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        alive = tuple(
+            line.replace("attempt_containers=none", "attempt_containers=lifecycle-run-40-a1-admit")
+            for line in NO_ATTEMPT
+        )
+        github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *alive)
+        with pytest.raises(driver.Stop, match="lifecycle-run-40-a1-admit.*may commit after"):
+            driver.release(plan, key, "the launch failed", status_run=41)
+        unlisted = tuple(line for line in NO_ATTEMPT if "attempt_containers" not in line)
+        github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *unlisted)
+        with pytest.raises(driver.Stop, match="container listing"):
             driver.release(plan, key, "the launch failed", status_run=41)
         assert [r["kind"] for r in driver.read_ledger(plan)] == ["dispatched", "finished"]
+    github.views[40] = {"status": "completed", "updatedAt": LAUNCH_ENDED, "attempt": 2}
     github.views[41], github.logs[41] = continuation(LATE_ENOUGH, *NO_ATTEMPT)
+    with pytest.raises(driver.Stop, match="2 job attempts"):
+        driver.release(plan, key, "the launch failed", status_run=41)
+    del github.views[40]
     assert driver.release(plan, key, "the launch failed", status_run=41) == 0
     read = driver.read_ledger(plan)[-1]["read"]
     assert read == (
-        "continue-run 41, 7200 s after the launch job ended, read the store: run-40 has no "
-        "attempt 1"
+        "continue-run 41, 7200 s after the launch job ended, read the host: no lifecycle "
+        "container of run-40 running, and the store has no attempt 1"
     )
+
+
+def test_a_launch_the_earlier_runner_printed_is_a_sent_one(
+    tmp_path: Path, driver: ModuleType, monkeypatch: pytest.MonkeyPatch, clock: FakeClock
+) -> None:
+    """The runners before the replay step printed the command id and no sending line; a
+    log of theirs with the id and an unsuccessful exit is a sent launch, not a never-sent
+    one (the third external read)."""
+    plan = scratch_plan(tmp_path, driver)
+    key = plan.order[0]
+    stopped_after_launch(driver, plan, key, 40)
+    github = FakeGitHub([[]])
+    wire(driver, monkeypatch, github)
+    github.logs[40] = runner_log("launch: command cmd-123 on i-123", "launch: the process exited 1")
+    with pytest.raises(driver.Stop, match="pass its run id as --status-run"):
+        driver.release(plan, key, "the launch failed")
+    assert [r["kind"] for r in driver.read_ledger(plan)] == ["dispatched", "finished"]
 
 
 def test_an_admission_on_the_log_refuses_release_whatever_the_markers_say(

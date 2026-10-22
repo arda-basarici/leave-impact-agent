@@ -70,9 +70,12 @@ was lost: dispatch `continue-run.yml` by hand for `run-<run id>`, attempt 1, the
 ledger and any launch identity, no sooner than two hours after the job ended (SSM may
 deliver and run the launch command for that long after the job that sent it), and pass
 its run id as `--status-run`. The driver reads that run's log and releases only on the
-store's own refusal ("run run-N has no attempt 1") with the status step's relayed exit; a
-status that answered a state means the attempt exists, the run holds its slot, and the
-continuation is how it is finished.
+host's listing of no lifecycle container of the attempt still running (the SSM kill
+reaches the compose client, not the admit container, which can commit after a store read
+that found nothing) together with the store's own refusal ("run run-N has no attempt 1")
+and the status step's relayed exit; a status that answered a state means the attempt
+exists, the run holds its slot, and the continuation is how it is finished. A run with
+more than one job attempt is never released: the driver re-runs nothing.
 
 ## Deploys
 

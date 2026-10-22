@@ -129,11 +129,15 @@ REPOSITORY_NAME = "arda-basarici/leave-impact-agent"
 GATED_ENVIRONMENT = "production"
 REVIEW_WAIT_SECONDS = 90
 MARKER = re.compile(r"\b(launch|work|status|publish|inventory): ([a-z_]+)=(\S*)")
-# The runner's own lines (deploy/runner/investigate.sh): the line before a send, the admit
-# command's marker, and on a continuation the launcher's refusal the store answers for a
-# run with no attempt, relayed from stderr, with the status step's relayed exit.
+# The runner's own lines (deploy/runner/investigate.sh): the line before a send and the
+# command id after it (the runners before the replay step printed the id alone), the admit
+# command's marker, and on a continuation the host's listing of the attempt's lifecycle
+# containers, the launcher's refusal the store answers for a run with no attempt, relayed
+# from stderr, and the status step's relayed exit.
 LAUNCH_SENDING = re.compile(r"\blaunch: sending\b")
+LAUNCH_SENT = re.compile(r"\blaunch: command \S+ on \S+")
 LAUNCH_ADMITTED = re.compile(r"\blaunch: admitted=\S+")
+STATUS_CONTAINERS = re.compile(r"\bstatus: attempt_containers=(\S+)")
 STATUS_NO_ATTEMPT = re.compile(
     r"\bstatus \(stderr\): leaveimpact\.launch: refused: run (run-\d+) has no attempt (\d+)"
 )
@@ -767,21 +771,24 @@ def launch_read(run_id: int) -> str:
         raise Stop(f"run {run_id}'s log is empty; nothing is read from it")
     if LAUNCH_ADMITTED.search(text):
         return "admitted"
-    if LAUNCH_SENDING.search(text):
+    if LAUNCH_SENDING.search(text) or LAUNCH_SENT.search(text):
         return "sent"
     return "none"
 
 
 def host_read(status_run: int, run_id: int, launch_ended_at: str) -> str:
-    """The host store's answer about the launch's attempt, read off a continue-run the
-    operator dispatched by hand for ``run-<run_id>``: the one durable evidence that a sent
-    launch admitted nothing. The continuation's status step runs the launcher on the host,
-    which asks the store for the attempt and prints the store's refusal when there is none,
-    and the runner relays it with the process's exit. The read counts only when that run
-    completed and was created at least ``HOST_COMMAND_BOUND_SECONDS`` after the launch job
-    ended: SSM may deliver and run a command the job sent for that long after the job, and
-    a store read before its end would answer about a host that had not admitted yet. A
-    status that answered a state means the attempt exists and the run holds its slot."""
+    """The host's answer about the launch's attempt, read off a continue-run the operator
+    dispatched by hand for ``run-<run_id>`` attempt 1: the one durable evidence that a sent
+    launch admitted nothing. The continuation's status step lists the attempt's lifecycle
+    containers the host still runs and then runs the launcher, which asks the store for the
+    attempt and prints the store's refusal when there is none; the runner relays both with
+    the process's exit. The read counts only when that run completed and was created at
+    least ``HOST_COMMAND_BOUND_SECONDS`` after the launch job ended, since SSM may hold a
+    command undelivered for an hour and a store read before it started would answer about a
+    host that had not admitted yet; and only when the listing names no container, since
+    the SSM kill reaches the compose client and not the admit container, which can commit
+    after a read that found nothing (the third external read). A status that answered a
+    state means the attempt exists and the run holds its slot."""
     run = gh_json("run", "view", str(status_run), "--json", "status,workflowName,createdAt")
     assert isinstance(run, dict)
     if run["workflowName"] != CONTINUATION_WORKFLOW_NAME or run["status"] != "completed":
@@ -794,22 +801,33 @@ def host_read(status_run: int, run_id: int, launch_ended_at: str) -> str:
     if waited < HOST_COMMAND_BOUND_SECONDS:
         raise Stop(
             f"continue-run {status_run} was created {waited} s after run {run_id}'s job ended; "
-            f"the host may run the launch command for {HOST_COMMAND_BOUND_SECONDS} s after it, "
-            "so the store's answer is not yet about the launch's end"
+            f"SSM may hold the launch command undelivered for {HOST_COMMAND_BOUND_SECONDS} s "
+            "after it, so the host's answer is not yet about the launch's end"
         )
     text = gh("run", "view", str(status_run), "--log", timeout=120)
     found = STATUS_NO_ATTEMPT.search(text)
-    if found is None or not STATUS_EXITED.search(text):
+    containers = STATUS_CONTAINERS.search(text)
+    if found is None or containers is None or not STATUS_EXITED.search(text):
         raise Stop(
             f"continue-run {status_run}'s log holds no store refusal of an attempt of "
-            f"run-{run_id} with the status step's relayed exit; a status that answered a state "
-            "means the attempt exists and the run holds its slot"
+            f"run-{run_id} with the host's container listing and the status step's relayed "
+            "exit; a status that answered a state means the attempt exists and the run holds "
+            "its slot"
         )
-    if found.group(1) != f"run-{run_id}":
-        raise Stop(f"continue-run {status_run} read {found.group(1)}, not run-{run_id}")
+    if found.group(1) != f"run-{run_id}" or found.group(2) != "1":
+        raise Stop(
+            f"continue-run {status_run} read {found.group(1)} attempt {found.group(2)}, not "
+            f"run-{run_id} attempt 1"
+        )
+    if containers.group(1) != "none":
+        raise Stop(
+            f"continue-run {status_run} found lifecycle containers of run-{run_id} still "
+            f"running ({containers.group(1)}); the launch's admit container may commit after "
+            "the store was read, so the answer stands only once the host lists none"
+        )
     return (
-        f"continue-run {status_run}, {waited} s after the launch job ended, read the store: "
-        f"run-{run_id} has no attempt {found.group(2)}"
+        f"continue-run {status_run}, {waited} s after the launch job ended, read the host: "
+        f"no lifecycle container of run-{run_id} running, and the store has no attempt 1"
     )
 
 
@@ -835,10 +853,15 @@ def release(plan: Plan, key: Key, reason: str, status_run: int | None = None) ->
                 "its slot under PROTOCOL; a retry goes through continue-run by hand"
             )
         run_id = entry["finished"]["run_id"]
-        run = gh_json("run", "view", str(run_id), "--json", "status,updatedAt")
+        run = gh_json("run", "view", str(run_id), "--json", "status,updatedAt,attempt")
         assert isinstance(run, dict)
         if run["status"] != "completed":
             raise Stop(f"run {run_id} is {run['status']}, not completed; it may still admit")
+        if int(run["attempt"]) != 1:
+            raise Stop(
+                f"run {run_id} has {run['attempt']} job attempts; the driver dispatches once and "
+                "re-runs nothing, so a re-run by hand is a history it does not release"
+            )
         launch = launch_read(run_id)
         if launch == "admitted":
             raise Stop(
