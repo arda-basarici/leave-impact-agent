@@ -20,7 +20,11 @@ plan directory of the same driver (the demo's replay set) tallies by `--plan-dir
     uv run python probes/phase-c-dispatch/tally.py [--plan-dir probes/replay-set]
 
 The exports are cached under `data/<plan>/exports/` (git-ignored) so a rerun costs no
-bucket reads.
+bucket reads. The CLI writes UTF-8 to the pipe and `text=True` alone decodes it in the
+locale's codepage on Windows, so the fetch names the encoding: the first caches of both
+plans held every em dash as mojibake (2026-10-23, the replay step's close); no tallied
+field is text, so no number moved, and a cache older than that day is deleted and
+refetched rather than read as the export's bytes.
 """
 
 from __future__ import annotations
@@ -43,7 +47,11 @@ def export_of(run_id: int, cache: Path) -> dict:
     if cached.exists():
         return json.loads(cached.read_text(encoding="utf-8"))
     log = subprocess.run(
-        ["gh", "run", "view", str(run_id), "--log"], capture_output=True, text=True, check=True
+        ["gh", "run", "view", str(run_id), "--log"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=True,
     ).stdout
     match = OBJECT_IDENTITY.search(log)
     if match is None:
@@ -52,6 +60,7 @@ def export_of(run_id: int, cache: Path) -> dict:
         ["aws", "s3", "cp", f"s3://{BUCKET}/{match.group(1)}", "-", "--profile", PROFILE],
         capture_output=True,
         text=True,
+        encoding="utf-8",
         check=True,
     ).stdout
     cache.mkdir(parents=True, exist_ok=True)

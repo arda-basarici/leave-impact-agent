@@ -17,6 +17,10 @@ variable the compose file requires at parse time (`${NAME:?...}`), exported the 
 script's way, since `docker compose run` parses the whole file before it runs one service;
 the first list omitted the data directory and would have stopped at the parse (the
 external read of 2026-10-23). The test holds the preamble to the compose file's own list.
+The list opens with the way to run it: a paste of the whole list into the host's shell
+published two rows of thirty, because `docker compose run` attaches the container's
+stdin and the first command's container read the lines after it (the publish session
+of 2026-10-23); written to a file and run with stdin closed, every line runs.
 
     uv run python probes/replay-set/publish_list.py [--plan-dir probes/replay-set] \
         [--titles titles.json]
@@ -36,6 +40,9 @@ ADMITTED = re.compile(r"^(run-\d+)/(\d+)$")
 PUBLIC_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,62}$")  # the app's slug rule (app/public.py)
 PUBLISHER = "operator"
 PREAMBLE = (
+    "# Run from a file with stdin closed: bash publish_list.sh < /dev/null. Pasted into the",
+    "# shell, the lines after the first command feed that command's container instead",
+    "# (docker compose run attaches stdin), and the rest of the list never runs.",
     "cd /srv/app",
     "export APP_TAG=$(cat DEPLOYED)",
     "export PGDATA_HOST=/srv/pgdata",
