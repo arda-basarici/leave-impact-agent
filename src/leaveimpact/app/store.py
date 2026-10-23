@@ -32,12 +32,13 @@ from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from importlib import resources
-from typing import Any
+from typing import Any, cast
 
 import psycopg
 
 from leaveimpact.app.public import PublicationDraft, PublicId, PublishableRow
 from leaveimpact.core.ids import ScenarioId, WorldVersion
+from leaveimpact.core.jsonshape import JsonObject
 
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
@@ -66,6 +67,11 @@ case, twelve seconds, is stated at the route."""
 _SELECT_VERSION = "SELECT version FROM app_schema"
 _INSERT_VERSION = "INSERT INTO app_schema (version) VALUES (%s) ON CONFLICT DO NOTHING"
 _ADVANCE_VERSION = "UPDATE app_schema SET version = %s WHERE version = ANY(%s)"
+_SELECT_CAPTURE = (
+    "SELECT coalesce(jsonb_agg(c ORDER BY c.ledger_id), '[]'::jsonb) FROM ledger_capture c"
+)
+"""The platform's backup script reads the view with this exact statement (its ticket-B
+exchange, 2026-10-23); the restore drill reads it the same way so the two compare equal."""
 _ROW = (
     "public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by"
 )
@@ -202,6 +208,21 @@ class AppStore:
         ``AppStoreUnavailable`` when the store does not answer."""
         with self._connection(check_version=False) as conn:
             return _version_of(conn) == SCHEMA_VERSION
+
+    def ledger_capture(self) -> list[JsonObject]:
+        """The ``ledger_capture`` view's rows as the backup script records them: one JSON
+        object per ledger, ordered by ledger id, the keys in the server's canonical order,
+        so a restored database's read compares with the recorded capture by equality. The
+        version check and one statement."""
+        with self._connection() as conn:
+            row = conn.execute(_SELECT_CAPTURE).fetchone()
+        assert row is not None, "an aggregate answers one row"
+        rows = row[0]
+        if not isinstance(rows, list):
+            raise AppStoreInvariantBroken(
+                f"the ledger capture decoded as {type(rows).__name__}, not a list of rows"
+            )
+        return cast(list[JsonObject], rows)
 
     # --- the publishable table ---------------------------------------------------------
 

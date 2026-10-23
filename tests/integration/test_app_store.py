@@ -9,6 +9,8 @@ the publish command end to end over a closed run replayed into the log."""
 
 from __future__ import annotations
 
+import io
+import json
 from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
@@ -34,7 +36,7 @@ from leaveimpact.app.store import (
     Published,
     SlugTaken,
 )
-from leaveimpact.core.ids import ScenarioId
+from leaveimpact.core.ids import ScenarioId, WorldVersion
 from tests.integration.log_store_support import Rig, rig
 from tests.integration.test_log_store import AUTHORITY, LEDGER, PLENTY, opened, replay
 from tests.unit import format_fixtures as cases
@@ -365,3 +367,121 @@ def test_the_publish_command_writes_a_closed_run_of_the_served_world_and_refuses
     assert main(open_run, env, **seams) == 1
     assert "run run-14 attempt 1 is open; a replay is a closed run" in capsys.readouterr().err
     assert store.row_of(PublicId("live")) is None
+
+
+# --- the restore drill ---------------------------------------------------------------------
+
+
+def test_the_restore_drill_passes_over_the_real_stores_and_names_the_check_a_bad_ledger_fails(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The real log and app stores stand in for the restored scratch database: a closed run
+    settled on the ledger, an open admission beside it, one row published; the capture read
+    with the backup script's statement. The drill passes every check and writes nothing (the
+    ledger's revision and the event count are what they were). Then the ledger's settled
+    entry is moved by one pico-dollar with its head and the later total kept consistent, so
+    the fold holds and the capture re-read agrees, and the drill fails the settlements check
+    naming the run, since the account rule recomputed from the log says otherwise. The cache
+    read is a seam here: the rig holds no corpus cache, and the real read has its own tests."""
+    store = app_store(rig)
+    store.ensure_schema()
+    log = opened(rig)
+    replay(log, history_in_world(CLOSED, SERVED))
+    replay(log, admission_only(SERVED, run_id="run-14"))
+    log.close()
+    assert isinstance(store.publish(draft("example", "run-12")), Published)
+    env = {"DATABASE_URL": rig.url, "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE)}
+
+    def fixture_rules(configuration: DemoConfiguration, content: bytes) -> Rules:
+        return histories.RULES
+
+    def app_over(dsn: str) -> AppStore:
+        return store
+
+    def log_over(dsn: str) -> LogStore:
+        return rig.store()
+
+    def cached(dsn: str) -> frozenset[WorldVersion]:
+        return frozenset({SERVED})
+
+    seams: dict[str, Any] = {
+        "store": app_over,
+        "restore_log": log_over,
+        "cache": cached,
+        "configuration": lambda: CONFIGURATION,
+        "rules": fixture_rules,
+    }
+
+    def capture() -> list[dict[str, Any]]:
+        with rig.observer() as observer:
+            row = observer.execute(in_schema(rig, CAPTURE_STATEMENT)).fetchone()
+        assert row is not None
+        return row[0]
+
+    def counts() -> tuple[int, int]:
+        with rig.observer() as observer:
+            events = observer.execute(in_schema(rig, "SELECT count(*) FROM {}.event")).fetchone()
+            revision = observer.execute(
+                in_schema(rig, "SELECT revision FROM {}.ledger_head WHERE ledger_id = %s"),
+                (LEDGER,),
+            ).fetchone()
+        assert events is not None and revision is not None
+        return int(events[0]), int(revision[0])
+
+    before = counts()
+    assert main(["verify-restore"], env, stdin=io.StringIO(json.dumps(capture())), **seams) == 0
+    out = capsys.readouterr().out
+    assert out.startswith("verify-restore: recovery procedure: both bootstraps applied\n")
+    for name in (
+        "app-schema",
+        "served-world-cached",
+        "ledger-capture",
+        "ledger-fold",
+        "settlements",
+        "listing",
+        "replay",
+    ):
+        assert f"verify-restore: {name}: ok: " in out, out
+    assert "settlements: ok: 1 closed attempts" in out
+    assert "replay: ok: example served:" in out
+    assert out.endswith("verify-restore: 7 of 7 checks passed\n")
+    assert counts() == before, "the drill wrote nothing"
+
+    with rig.observer() as observer:
+        observer.execute(
+            in_schema(
+                rig,
+                "UPDATE {}.ledger_entry SET amount_pico_usd = amount_pico_usd + 1, "
+                "total_after_pico_usd = total_after_pico_usd + 1 "
+                "WHERE ledger_id = %s AND kind = 'settled' AND run_id = 'run-12'",
+            ),
+            (LEDGER,),
+        )
+        observer.execute(
+            in_schema(
+                rig,
+                "UPDATE {}.ledger_entry SET total_after_pico_usd = total_after_pico_usd + 1 "
+                "WHERE ledger_id = %s AND kind = 'admitted' AND run_id = 'run-14'",
+            ),
+            (LEDGER,),
+        )
+        observer.execute(
+            in_schema(
+                rig,
+                "UPDATE {}.ledger_head SET total_pico_usd = total_pico_usd + 1 "
+                "WHERE ledger_id = %s",
+            ),
+            (LEDGER,),
+        )
+    assert main(["verify-restore"], env, stdin=io.StringIO(json.dumps(capture())), **seams) == 1
+    out = capsys.readouterr().out
+    assert "verify-restore: ledger-fold: ok: " in out, out
+    assert (
+        "verify-restore: settlements: FAILED: run run-12 attempt 1: the account rule charges" in out
+    )
+    assert out.endswith("verify-restore: 6 of 7 checks passed\n")
+
+    stale = io.StringIO(json.dumps([{"ledger_id": "ledger-other"}]))
+    assert main(["verify-restore"], env, stdin=stale, **seams) == 1
+    out = capsys.readouterr().out
+    assert "ledger-capture: FAILED: the capture names ledgers ['ledger-other']" in out
