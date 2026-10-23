@@ -4540,3 +4540,65 @@ absent skill fact). Their walkthroughs are the committed `src/leaveimpact/app/wa
 their titles are fixed at the operator's publish. The structured example's export is committed
 as `tests/fixtures/replay-scenario-004-export.json` with its sidecar (key, version id, digest),
 the real-export rendering test of the report step re-pointed at it.
+
+## backup-restore-drill — the first nightly backup restored into a scratch database and verified by the application: seven of seven, 214 closed attempts recharged, three seconds of CPU (2026-10-23 to 24)
+
+The demo milestone's backup step (its forks file in the stream, `m3-build/2026-10-23-step-9-forks.md`;
+the platform's ticket B landed the same days). Every number here is read off the platform session's
+report of the first backup and the restore-check unit's journal on the instance; nothing is derived.
+
+**The object.** The platform ran the nightly backup by hand on the instance at its checkout
+`bc15a24` (one false start: the scripts came down from the Windows clone without the executable bit,
+fixed by a mode-only commit): `daily/leaveimpact-2026-10-23.dump` in `leave-impact-backup-445743457479`,
+version id `cw8UX0aicXWR5clPYhrIqZCFNau4dhxP`, 3,877,426 bytes, 20 table-data entries in the
+`pg_restore --list` preflight, SHA-256 `ccafe26ef5b3651d7dc8e307bffd925a119540c896d4a8de0ef54a0f6246a587`
+(S3's verified checksum and the `x-amz-meta-sha256` metadata agree), 349 bytes of capture metadata
+against the script's 1,900-byte refusal. The capture, read by the backup inside the dump's own
+repeatable-read transaction from the `ledger_capture` view this step added (app schema version 2,
+deployed at `ddfb692`), holds two rows and no other: `ledger-demo` at revision 61, total
+2,096,667,100,000 pico-dollars (the replay set's $2.0967), threshold 45,000,000,000,000, no open
+reservation; `ledger-development` at revision 372, total 19,961,056,800,000 pico-dollars, the same
+threshold, no open reservation. The step's survey had expected measurement ledgers beside them; the
+investigate workflow pins `ledger-development` as a constant, so two ledgers is the whole database.
+
+**The drill** (2026-10-24, the unit started by hand on the replaced instance `i-0dc8c9d26587ba78e`
+after the deploy of `4972cda`, which carries the verification command): the platform's
+`leave-impact-restore-check.service` fetched the key named in its state file, verified the digest
+against the metadata, wrote the capture to a file, created `leaveimpact_restore_check` on the live
+service, restored the archive into it with `--exit-on-error`, and ran
+`python -m leaveimpact.app verify-restore` from the deployed image with the capture on stdin. The
+journal, in the command's own lines:
+
+```
+verify-restore: recovery procedure: both bootstraps applied
+verify-restore: app-schema: ok: the app schema is at this code's version
+verify-restore: served-world-cached: ok: the cache serves the served world 7b806ed6f405…
+verify-restore: ledger-capture: ok: 2 ledger rows equal the capture
+verify-restore: ledger-fold: ok: 2 ledger heads fold from their entries
+verify-restore: settlements: ok: 214 closed attempts charged as the account rule, the closing event and the ledger agree
+verify-restore: listing: ok: 30 published replays of the served world
+verify-restore: replay: ok: scenario-001 served: 63 events folded, the report built with 1 impact sections
+verify-restore: 7 of 7 checks passed
+```
+
+The unit then reported the restore ok (the object 0 days old, 3,877,426 bytes), dropped the scratch
+database, and said the dead-man was not armed, since the restore check's ping URL still held the
+placeholder; the service consumed 3.336 s of CPU. This run is the ticket's "monthly check passed
+once by hand"; the timer is enabled for 1 November 04:30 UTC, the nightly for 03:30 UTC daily.
+
+**One forecast missed.** The command counts closed attempts it skips as admitted under another
+registration, and the platform was told to expect a nonzero count (the development runs before the
+freeze). The drill folded all 214 and skipped none. The cheapest check afterwards: the three
+registration versions today's decoder reads (`67d4742`, `3cd334f`, `546e1ba`, format 5) share the
+attribution table digest `cdec429af8e3…` and the re-dispatch policy (3 dispatches, 1,000 ms); the
+format-4 versions the step-14 runs were admitted under cannot be decoded by today's code, so their
+agreement is read off the fold itself, which refuses an admission whose table or policy differs.
+The forecast was a guess offered as a fact, the recommendation lesson's case; the skip branch stays,
+held by its unit test, and the instance has shown no attempt that takes it.
+
+**What the drill does not show.** The scratch database was restored on the same PostgreSQL service
+as the live one, so the drill proves the archive and the application's reading of it, not a fresh
+host; the host replacement the same day (the data volume reattached with the live database, the
+units baked into cloud-init) is the fresh-host half, by the platform's record. The retained
+liability is recomputed by the account rule on the restored log and compared with the ledger's
+settled entries; it is not a captured figure, by the step's amendment of ruling 5.

@@ -4307,6 +4307,42 @@ like the results, so the prose is reviewed with the tree and no column moves; th
 shows the three first and the report page carries its walkthrough above the ending, and a
 titled row the file does not name renders its title alone.
 
+As built at the backup step (M3 step 9, 2026-10-23 to 24, the platform's ticket landed
+in parallel and its questions ruled in one batch; the lighter ritual). The backup is the
+platform's nightly unit: a dump of the whole database in the custom format, taken inside
+a repeatable-read transaction that first exports its snapshot and reads the
+application's `ledger_capture` view, so the figures the drill compares and the archive
+describe one instant by construction and no application container is involved. The view
+is the app schema's, at version 2, the first version the deployed database crossed: the
+bootstrap reads the held version before any DDL, refuses one it neither writes nor
+advances from with nothing applied, and advances a declared set of earlier versions in
+the one transaction, since a rollback's older code would otherwise replace the view
+under a newer version row and then refuse. The view holds what the ledger tables state
+outright, the head's total, revision and threshold and the admitted-and-not-settled
+reservations; the retained liability is not in it, because the account rule derives it
+from decoded events and a second copy in SQL would drift, so the drill recomputes it on
+the restored database instead, which amends the entry ruling's "four ledger figures".
+The verification is the application's own command over the restored scratch database:
+both bootstraps first, the recovery procedure the runbook states, then the app schema at
+the code's version, the served world marked ready by the cache the dump carried, the
+restored view equal to the capture row for row, every captured ledger's head folding
+from its entries, every closed attempt admitted under the served registration recharged
+by the account rule from its restored log and equal to what its closing event logged and
+the ledger's settled entry holds, the listing admitting the served world's rows, and one
+listed replay admitted, folded and built into the report view; an attempt admitted under
+another registration is counted and not folded, since the transition refuses rules that
+differ from an admission's. "Execution disabled" is a property of what the command does,
+reads through the surface's own admission and fold, shown by the event count and the
+ledger revision unchanged over the real stores under the suite's network block and by
+the drill module's import edges; it is not a flag, and not a property of the package,
+which imports the worker already. The hosting passage's writer that "cannot read or
+delete" became one that cannot overwrite or delete: the monthly check restores on the
+host, so the instance role holds one conditional put and one get on the backup prefix,
+no list and no delete, and a host that holds the live database learns nothing from
+reading its own archive. The first drill restored the first nightly object into the
+scratch database and passed seven of seven, 214 closed attempts recharged and none
+skipped, in about three seconds of CPU (FINDINGS, backup-restore-drill).
+
 **The shell and the report view.** FastAPI with server-side templates, one process on
 the instance behind the platform's proxy; Pydantic parses HTTP input only, the plain
 types and their codecs authoritative; a read model returns public view data; two narrow
@@ -4358,7 +4394,7 @@ Elastic IP (every public IPv4 address since February 2024) near $19 a month agai
 the $30 line, so the demo's threshold is about $8 the first month and the count cap
 starts at five, the line's re-cut deferred to the first bill. Backup mirrors the
 box's existing backup pattern with S3 as the off-host store: a nightly archive put by
-conditional creation under a create-only prefix the writer cannot read or delete, a
+conditional create under a create-only prefix the writer cannot overwrite or delete, a
 checksum recorded, the restore itself the verification (a listing is a preflight only),
 the drill comparing a restored scratch database's replay and ledger figures with the
 dump's own snapshot under execution disabled, the recovery-point limitation recorded

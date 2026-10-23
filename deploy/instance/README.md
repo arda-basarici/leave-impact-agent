@@ -105,3 +105,40 @@ read, which found the first form of this check reading `run.env`, a file the reb
 clears). Both scripts' headers carry the rules; the fake-binary tests
 under `tests/unit/` run every step and every branch of the walk, and CI runs
 shellcheck over this directory and `../runner/`.
+
+## Backup and recovery (the demo milestone's backup step, 2026-10-24)
+
+The database is the application's one durable state: the run log and its ledgers, the
+publishable attempts, the corpus cache. Its backup is the platform's (`projects/leave-impact/`
+in the platform repository, its runbook the operations): `leave-impact-backup.timer` dumps the
+whole database nightly at 03:30 UTC into the backup bucket under `daily/leaveimpact-<date>.dump`
+by conditional create, with the `ledger_capture` view's rows as the object's metadata, read in
+the dump's own transaction; `leave-impact-restore-check.timer` restores the newest object
+monthly into a scratch database on the live service and runs this image's
+`python -m leaveimpact.app verify-restore` with that capture on stdin. The command runs both
+bootstraps on the scratch database first, then seven checks, one printed line each, and exits
+0 only on seven of seven (what each checks: the `restore` module's docstring). The first drill,
+2026-10-24: `daily/leaveimpact-2026-10-23.dump`, seven of seven, 214 closed attempts recharged
+(`probes/FINDINGS.md`, backup-restore-drill). The command reads only, so it also runs against
+the live database as a check after a recovery (the compose default `DATABASE_URL`).
+
+**The recovery point.** A nightly dump loses up to a day: admissions, settlements and
+publications made after the last dump are gone from the database and not from the bill of the
+vendor that served them. After a real recovery the live flag stays off (off by default; a
+recovery flips nothing) until the lost window is reconciled from billing on the host:
+
+```
+docker compose run --rm app python -m leaveimpact.agent import-spend --request <identity, held across retries> --ledger <ledger id> --amount <pico-dollars> --authority "<who, from what bill>" --registration-commit <sha>
+```
+
+one import per ledger that spent in the window, the Bedrock bill as the authority; the
+standing TODO's unimported 102 sends is the precedent for the form.
+
+**The procedure.** Stop the app (`docker compose stop app`); choose the object (the key and
+the version id from the bucket's listing, read with the administrator identity from a
+workstation, since the instance role holds no list); restore it into the live database with
+the platform's restore script's own restore line (it verifies the digest against the object's
+metadata first); re-run the deploy for the deployed sha from Actions, so both bootstraps, the
+identity check and the readiness check run as at every landing; then run `verify-restore`
+against the live database with the object's capture on stdin from a file, and keep the live
+flag off until the import above is done.
