@@ -16,6 +16,7 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from leaveimpact.agent.ledger import EntryKind
 from leaveimpact.agent.log_store import LogStore
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.__main__ import main
@@ -35,7 +36,8 @@ from leaveimpact.app.store import (
 )
 from leaveimpact.core.ids import ScenarioId
 from tests.integration.log_store_support import Rig, rig
-from tests.integration.test_log_store import opened, replay
+from tests.integration.test_log_store import AUTHORITY, LEDGER, PLENTY, opened, replay
+from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit.publishable_fixture import (
     CLOSED,
@@ -120,9 +122,17 @@ def test_another_version_is_unsupported_and_the_bootstrap_refuses_it(rig: Rig) -
         observer.execute(
             in_schema(rig, "UPDATE {}.app_schema SET version = %s"), (SCHEMA_VERSION + 1,)
         )
+        # The view dropped, so a refused bootstrap that still ran the DDL would show here.
+        observer.execute(in_schema(rig, "DROP VIEW {}.ledger_capture"))
     assert store.schema_supported() is False
     with pytest.raises(AppStoreInvariantBroken, match=f"holds version {SCHEMA_VERSION + 1}"):
         store.ensure_schema()
+    with rig.observer() as observer:
+        views = observer.execute(
+            "SELECT table_name FROM information_schema.views WHERE table_schema = %s",
+            (rig.schema,),
+        ).fetchall()
+    assert views == [], "the refusal applied nothing"
     # Every read and write of the publishable table refuses too, on its own connection
     # (the step's external read: an unhealthy readiness stops no request).
     with pytest.raises(AppStoreInvariantBroken, match=f"holds {SCHEMA_VERSION + 1}"):
@@ -131,6 +141,86 @@ def test_another_version_is_unsupported_and_the_bootstrap_refuses_it(rig: Rig) -
         store.row_of(PublicId("anyone"))
     with pytest.raises(AppStoreInvariantBroken, match=f"holds {SCHEMA_VERSION + 1}"):
         store.publish(draft("example", "run-12"))
+
+
+def test_a_version_one_database_is_advanced_by_the_bootstrap_and_gains_the_view(rig: Rig) -> None:
+    """The instance's database was bootstrapped at version 1 (the publishability step) and
+    version 2 added the view only, so the same DDL brings it forward; a version the set
+    does not name stays refused (the test above)."""
+    store = app_store(rig)
+    store.ensure_schema()
+    with rig.observer() as observer:
+        observer.execute(in_schema(rig, "DROP VIEW {}.ledger_capture"))
+        observer.execute(in_schema(rig, "UPDATE {}.app_schema SET version = 1"))
+    assert store.schema_supported() is False
+    store.ensure_schema()
+    assert store.schema_supported() is True
+    with rig.observer() as observer:
+        views = observer.execute(
+            "SELECT table_name FROM information_schema.views WHERE table_schema = %s",
+            (rig.schema,),
+        ).fetchall()
+        versions = observer.execute(in_schema(rig, "SELECT version FROM {}.app_schema")).fetchall()
+    assert views == [("ledger_capture",)] and versions == [(SCHEMA_VERSION,)]
+
+
+CAPTURE_STATEMENT = (
+    "SELECT coalesce(jsonb_agg(c ORDER BY c.ledger_id), '[]'::jsonb) FROM {}.ledger_capture c"
+)
+"""The backup script's read of the view, verbatim but for the schema qualification the rig
+needs (the platform's ticket-B exchange, 2026-10-23): the capture it records on the dump."""
+
+
+def test_the_ledger_capture_states_each_ledgers_head_and_its_open_reservations(rig: Rig) -> None:
+    """One settled attempt and one open on the test ledger, a second ledger with a head and
+    no entry: the capture's rows equal what the ledger view's entries say under the ledger
+    module's own definitions (open is admitted and not settled), ordered by ledger id, the
+    empty ledger at zero rather than null."""
+    store = app_store(rig)
+    store.ensure_schema()
+    log = opened(rig)
+    log.set_threshold(
+        "ledger-empty",
+        PLENTY,
+        authority=AUTHORITY,
+        registration_commit=cases.COMMIT,
+        limit_pico_usd=PLENTY,
+    )
+    replay(log, history_in_world(CLOSED, SERVED, run_id="run-12"))
+    replay(log, history_in_world(CLOSED, SERVED, run_id="run-13"), upto=1)
+    view = log.ledger_view(LEDGER)
+    log.close()
+    settled = {(e.run_id, e.attempt) for e in view.entries if e.kind is EntryKind.SETTLED}
+    open_entries = [
+        e
+        for e in view.entries
+        if e.kind is EntryKind.ADMITTED and (e.run_id, e.attempt) not in settled
+    ]
+    assert settled == {("run-12", 1)} and [(e.run_id, e.attempt) for e in open_entries] == [
+        ("run-13", 1)
+    ]
+    assert view.head.total_pico_usd > 0, "the settled attempt charged something"
+    with rig.observer() as observer:
+        row = observer.execute(in_schema(rig, CAPTURE_STATEMENT)).fetchone()
+    assert row is not None
+    assert row[0] == [
+        {
+            "ledger_id": "ledger-empty",
+            "total_pico_usd": 0,
+            "revision": 1,
+            "threshold_pico_usd": PLENTY,
+            "open_reservation_pico_usd": 0,
+            "open_attempts": 0,
+        },
+        {
+            "ledger_id": LEDGER,
+            "total_pico_usd": view.head.total_pico_usd,
+            "revision": view.head.revision,
+            "threshold_pico_usd": view.head.threshold_pico_usd,
+            "open_reservation_pico_usd": open_entries[0].amount_pico_usd,
+            "open_attempts": 1,
+        },
+    ]
 
 
 def test_a_publishable_row_for_an_attempt_the_log_does_not_hold_cannot_exist(rig: Rig) -> None:

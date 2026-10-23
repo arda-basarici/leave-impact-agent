@@ -14,6 +14,7 @@ import pytest
 from leaveimpact.app.__main__ import main
 from leaveimpact.app.public import PublicId
 from leaveimpact.app.store import (
+    ADVANCED_FROM,
     CONNECT_TIMEOUT_S,
     SCHEMA_VERSION,
     STATEMENT_TIMEOUT_MS,
@@ -110,13 +111,40 @@ def test_ensure_schema_applies_the_ddl_writes_the_version_once_and_refuses_anoth
     fresh = Answering(SCHEMA_VERSION)
     store, _ = store_over(fresh, Answering(SCHEMA_VERSION + 1))
     store.ensure_schema()
-    ddl, insert, select = fresh.executed
+    held, ddl, insert, advance, select = fresh.executed
+    assert held == "SELECT version FROM app_schema"
     assert "CREATE TABLE IF NOT EXISTS publishable_attempt" in ddl
+    assert "CREATE OR REPLACE VIEW ledger_capture" in ddl
     assert insert.startswith("INSERT INTO app_schema") and "DO NOTHING" in insert
+    assert advance.startswith("UPDATE app_schema SET version")
     assert select == "SELECT version FROM app_schema"
     assert fresh.closed
     with pytest.raises(AppStoreInvariantBroken, match=f"version {SCHEMA_VERSION}, the database"):
         store.ensure_schema()
+
+
+class Advancing(Answering):
+    """A database at an earlier version the bootstrap advances: the update moves what the
+    later select answers, as the real row would."""
+
+    def execute(self, statement: Any, params: Any = None) -> Any:
+        if str(statement).startswith("UPDATE app_schema SET version"):
+            self.version = SCHEMA_VERSION
+        return super().execute(statement, params)
+
+
+def test_an_advanced_from_version_is_brought_forward_and_an_unknown_one_applies_nothing() -> None:
+    """The version is read before the DDL: a rollback to older code over a newer database
+    must not replace the view under a version row it cannot see."""
+    earlier = Advancing(min(ADVANCED_FROM))
+    unknown = Answering(SCHEMA_VERSION + 1)
+    store, _ = store_over(earlier, unknown)
+    store.ensure_schema()
+    assert [s[:6] for s in earlier.executed] == ["SELECT", "-- The", "INSERT", "UPDATE", "SELECT"]
+    assert earlier.version == SCHEMA_VERSION and earlier.closed
+    with pytest.raises(AppStoreInvariantBroken, match="does not advance from; nothing was applied"):
+        store.ensure_schema()
+    assert unknown.executed == ["SELECT version FROM app_schema"] and unknown.closed
 
 
 def test_a_content_read_on_another_version_is_refused_before_any_content_statement() -> None:
@@ -142,7 +170,7 @@ def test_a_database_without_the_run_log_is_refused_by_name_before_any_version_ro
     store, _ = store_over(bare)
     with pytest.raises(AppStoreInvariantBroken, match="run log is not bootstrapped.*bootstrap-log"):
         store.ensure_schema()
-    assert bare.closed and len(bare.executed) == 0
+    assert bare.closed and bare.executed == ["SELECT version FROM app_schema"]
 
 
 def test_the_default_connection_is_bounded_on_the_connect_and_the_statement(

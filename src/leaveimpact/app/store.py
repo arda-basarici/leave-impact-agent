@@ -42,10 +42,19 @@ from leaveimpact.core.ids import ScenarioId, WorldVersion
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 """The layout this code writes and reads; a database at another version is refused. The
 number names the layout and nothing else, advancing with every change to the DDL that
-lands in a commit."""
+lands in a commit. Version 2 (the demo milestone's backup step) added the ``ledger_capture``
+view and nothing else."""
+
+ADVANCED_FROM: frozenset[int] = frozenset({1})
+"""The earlier versions the bootstrap brings to ``SCHEMA_VERSION`` by applying the DDL as it
+stands: every change between them was additive (a view created or replaced, a table created
+where missing), so the one idempotent DDL file is the whole migration and no step alters a
+row of data. A version outside this set and not the current one is refused as before, since
+the DDL says nothing about how to reach the current layout from it; a change that is not
+additive gets its own migration statement and this set is reset to the versions it reaches."""
 
 CONNECT_TIMEOUT_S = 3
 STATEMENT_TIMEOUT_MS = 3000
@@ -56,6 +65,7 @@ case, twelve seconds, is stated at the route."""
 
 _SELECT_VERSION = "SELECT version FROM app_schema"
 _INSERT_VERSION = "INSERT INTO app_schema (version) VALUES (%s) ON CONFLICT DO NOTHING"
+_ADVANCE_VERSION = "UPDATE app_schema SET version = %s WHERE version = ANY(%s)"
 _ROW = (
     "public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by"
 )
@@ -146,16 +156,31 @@ class AppStore:
         self._connect = connect
 
     def ensure_schema(self) -> None:
-        """The tables created where missing and the version row written where absent, then
-        the version checked; never alters an existing table. ``AppStoreInvariantBroken``
-        when the database holds another version, ``AppStoreUnavailable`` when it does not
-        answer."""
+        """The version read first and a database at a version this code neither writes nor
+        advances from refused before anything is applied; then, in one transaction, the
+        tables created where missing and the view replaced, the version row written where
+        absent or advanced from a version in ``ADVANCED_FROM``, and the version checked
+        again; never alters an existing table. The read comes first because the DDL
+        replaces the view: a rollback to older code bootstrapping a newer database would
+        otherwise put the older view under the newer version row and then refuse, a state
+        the version row cannot see. The transaction means a database is at its old version
+        with its old layout or at the new one with the new, never between.
+        ``AppStoreInvariantBroken`` when the database holds another version,
+        ``AppStoreUnavailable`` when it does not answer."""
         ddl = resources.files(__package__).joinpath("schema.sql").read_text(encoding="utf-8")
         with self._connection(check_version=False) as conn:
+            held = _version_of(conn)
+            if held is not None and held != SCHEMA_VERSION and held not in ADVANCED_FROM:
+                raise AppStoreInvariantBroken(
+                    f"this code reads and writes app schema version {SCHEMA_VERSION}, the "
+                    f"database holds version {held}, which it does not advance from; nothing "
+                    "was applied"
+                )
             try:
                 with conn.transaction():
                     conn.execute(ddl.encode())
                     conn.execute(_INSERT_VERSION, (SCHEMA_VERSION,))
+                    conn.execute(_ADVANCE_VERSION, (SCHEMA_VERSION, sorted(ADVANCED_FROM)))
             except psycopg.errors.UndefinedTable as exc:
                 # The publishable table references the log's attempt row, so the DDL needs
                 # the log's schema first; the deploy runs the two bootstraps in that order.
