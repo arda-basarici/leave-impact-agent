@@ -15,7 +15,7 @@ outside with worker and database ok. Capture: `captures/box-upgrade/free-before.
 `free-after.txt`.
 
 Facts established beyond the criterion: the pre-upgrade box was **4 GB, not the 2 GB**
-the baseline review and the TODO memory-split bullet assumed — re-derive the Compose
+the baseline review and the memory-split note assumed — re-derive the Compose
 memory budget from the real numbers. Resting footprint ~550–650 MB (OS + app + Caddy,
 idle). **No swap configured** — decide before the `frappe-up` probe.
 
@@ -31,7 +31,7 @@ What was set up, in order: root MFA, no root keys, billing access for non-root
 identities · a 17-region read-only sweep (old Amplify project remnants: none; the
 account is clean) · Identity Center single-region instance in `eu-central-1`, user
 `arda`, `AdministratorAccess` permission set, 8 h sessions, MFA required (the
-portal URL lives in the stream's access note, off the public repo) · budget
+portal URL lives in a private access note, off the public repo) · budget
 `leave-impact-monthly` $30/month with actual 50/80/100 % + forecast 25 % alerts ·
 the AWS-created anomaly monitor kept, its subscription re-tuned from "$100 AND 40 %,
 daily" to "$2 absolute, daily" (individual alerts require an SNS topic — deferred to
@@ -123,13 +123,13 @@ Facts established beyond the criterion:
   not evidence. Earlier run files renamed to the sequence form (content unchanged).
 - **aws-bootstrap — targeting identifiers redacted.** Not credentials, but in a
   public repo the Identity Center portal URL + username + alert email together are
-  a phishing starter kit; the portal URLs moved to the stream's access note, the
+  a phishing starter kit; the portal URLs moved to a private access note, the
   capture's `UserId` / role ARN and the subscriber email are redacted. The account
   id stays — `backend.tf` needs it and it is not a secret.
 
 ## jira — PASS (2026-08-23)
 
-The probe site (Free; named in the stream's access note), project `PRB` created **company-managed over
+The probe site (Free; named in a private access note), project `PRB` created **company-managed over
 REST** (`style=classic`, `assigneeType=UNASSIGNED`) — Free does not restrict the
 project style. The ruled person model holds end to end: (a) a single-select custom
 field `Synthetic Owner` (`customfield_10042`) created over REST with three options
@@ -288,7 +288,7 @@ Facts established beyond the criterion:
   the reproductions). A connection-fault-only retry (never on HTTP errors) absorbed
   it — run 5's capture shows 2 faults on one call, third attempt clean. Lesson for
   M1/M2: **every adapter needs connection-level retries**; root cause unassigned
-  (Cloudflare security events not yet checked), parked in FIXLOG.
+  (Cloudflare security events not yet checked), parked as a known defect.
 
 Captures: `captures/seed-spike/run-01.json` (the creation run), `run-05.json` (the
 0-creation idempotence run, transport faults visible in its exchange log); runs 02–04
@@ -355,8 +355,8 @@ send-command` — the compose file and the image *of that commit*, both by sha.
   sha. The next commit (the one recording this probe) flipped it through the gate:
   `leaveimpact 2f028b2` at 12:26:24Z — two commits, two identities, one approval each.
 - **The gate is real only once configured:** a workflow that references a missing
-  environment auto-creates it *bare*; the first run went straight through. Reviewer
-  (Arda) and a `main`-only deployment-branch policy were set through the API; the
+  environment auto-creates it *bare*; the first run went straight through. A required
+  reviewer and a `main`-only deployment-branch policy were set through the API; the
   re-run paused at "Review pending" until approved.
 
 Deviation from the plan's wording, by design: **no ECR.** The baseline review
@@ -409,7 +409,7 @@ Capture: `captures/bedrock/models.md` (the table + prices), `probe-run-1.jsonl`.
   the Pricing API (only legacy Claude 2/3 US SKUs) — read from the pricing page
   in a browser: `eu.` = `global.` + 10 % flat (Haiku 4.5 1.10 / 5.50, Sonnet 5
   2.20 / 11.00 at the unlabelled intro rate, Opus 5 5.50 / 27.50). The "Public
-  Extended Access 2×" rate the TODO carried belongs to legacy Claude 3.5 Sonnet
+  Extended Access 2×" rate the earlier plan carried belongs to legacy Claude 3.5 Sonnet
   rows only.
 - **Correction to aws-bootstrap (2026-08-22), dated:** "Bedrock needs no
   model-access request in this account" no longer holds for Anthropic — Haiku
@@ -452,7 +452,7 @@ Correction to the two entries above, dated. The Support case opened 2026-08-27
 Sonnet 5 and Opus 5 "requires an account review process", which Support submits on
 the customer's behalf once given (1) a business use case — task types, usage
 pattern, why the region — and (2) a business website URL. So the earlier finding
-"no official criterion, no confirmed fix in any thread" (session 6's research over
+"no official criterion, no confirmed fix in any thread" (the 2026-08-26 research over
 public threads) is superseded: the gate is a manual review with a named intake, not
 an unresolved fault; the public threads look unresolved because nobody posted the
 Support answer. The case auto-closed after ten days unanswered (2026-09-06) and was
@@ -524,8 +524,8 @@ absent key with AccessDenied whenever list is denied, precisely so the caller ca
 learn whether the key exists — and the truth bucket was empty when the probe ran. The
 sentence "a missing key reads as AccessDenied only while list is also denied" is true
 and was read backwards: it makes the get ambiguous, not meaningful. The list refusal
-stands. A meaningful get needs a key known to exist; the platform stream holds the
-ticket for a canary object at `access-probe/read-denied-canary`, and both the
+stands. A meaningful get needs a key known to exist; the platform repository holds the
+request for a canary object at `access-probe/read-denied-canary`, and both the
 deploy-time probe and the validator's refusal check target it once it exists.
 
 ## objectstore — PASS (2026-09-13)
@@ -562,7 +562,7 @@ and `workflow` = the workflow's display name. The docs describe the claim for re
 workflows only; it is populated for every job. So a `job_workflow_ref` condition in
 each role's trust policy can bind the generator role to `generate-world.yml` and the
 validator role to `validate-world.yml` without a second environment and without
-reusable workflows. Recorded for the platform TODO; not a step 12 change.
+reusable workflows. Recorded for the platform repository; not a step 12 change.
 
 ## deploy-boundary — PASS (2026-09-13)
 
@@ -605,8 +605,8 @@ ten scenarios. World version `d674d5763715549f49e82c251977cfe5093b6bf09099c165b5
   custom rule; the ordering against an Access service token is undocumented. The
   2026-08-30 "machine clients pass" observation rested on UptimeRobot, a verified bot
   Bot Fight Mode exempts, so it said nothing about unverified cloud clients; this run
-  was the first such client ever to reach the Frappe hostnames. Ruled in the platform
-  stream (its commit `b894ac6`): Bot Fight Mode off, the paid-plan trigger re-cut, the
+  was the first such client ever to reach the Frappe hostnames. Ruled on the platform
+  side (its commit `b894ac6`): Bot Fight Mode off, the paid-plan trigger re-cut, the
   service-to-service connectivity row (a private tunnel network) re-opened for M2 entry.
 - **Attempt 2 (same run id, 21:25–21:32 UTC): green in 375.6 s.** The truth objects
   kept attempt 1's timestamps — the content-addressed restart hit the equal case on
@@ -702,8 +702,8 @@ inspection because the calendar loop runs first. The inspection did its job: the
 refusal names the site and the holder, and nothing was written to Frappe or Jira.
 Resume stays possible on a new site: the checkpoint compares the Frappe config (the
 company, derived from the version) and takes the observed host fresh, "diagnostic,
-free to differ". Ruled 2026-09-15 (Arda): a second world site `hr-w2`, the ticket in
-the platform stream (`handoffs/2026-09-15-world-site-hr-w2.md`); the `benchmark`
+free to differ". Ruled 2026-09-15: a second world site `hr-w2`, requested from the
+platform repository the same day; the `benchmark`
 environment's Frappe URL and key pair move to it; the same resume command runs again.
 Box headroom measured the same day: 13.9 GB of 16 GB available, the Frappe stack about
 1.2 GB used of its 5.4 GB cap, a site's database about 120 MB on disk; the scheduler
@@ -721,7 +721,7 @@ probe.py`, `ensure_setup`) and had done so on `hr-w1` on 2026-08-23, so the gene
 preparation, which took over every other piece of site setup (naming rule, custom
 fields, grades, leave types, company, holiday list, approver, skills), never took this
 one and never met the refusal until the first truly fresh site. The answer given to the
-platform ticket that morning ("nothing per site beyond the recipe") was wrong by
+platform request that morning ("nothing per site beyond the recipe") was wrong by
 exactly this step. Ruled the same day (option 1 of three, with an external reviewer's
 notes adopted): preparation gains an explicit, idempotent base-site readiness step
 before any benchmark-specific preparation — read `setup_complete`, complete the wizard
@@ -743,7 +743,7 @@ from the checkpoint's 28 calendars. The measurement world is live.
 printed only after sealing returned in the same process; the fifth run sealed and then
 died in the calendar loop, so they died with it, and the resume had no prose stage. The
 sealed record holds attempts, refusals by guard, digests and the accepted propositions
-only (session 24's log had claimed tokens and latencies were in it; they were not).
+only (the 2026-09-14 log had claimed tokens and latencies were in it; they were not).
 Bedrock's CloudWatch metrics (`AWS/Bedrock`, per model id, one-minute resolution)
 carried them, attributed to each dispatch by its time window; the hour's sums (40
 writer calls, 31 checker calls) reconcile exactly, the ten calls in no run window being
@@ -769,8 +769,8 @@ comments. Ruled 2026-09-15: the counters are printed before sealing begins and s
 into the materialization record (`metrics`, absent from records sealed before, the
 decoder accepting either), so they travel with the world they measured.
 
-**The gate on those numbers (2026-09-15, session 26).** Six questions, one per
-exchange, an external low-context reviewer's read on each and Arda's ruling; the
+**The gate on those numbers (2026-09-15).** Six questions, one per
+exchange, an external low-context reviewer's read on each and a ruling on each; the
 outcome block sits under DESIGN's "The classes that leave the easy path". The
 evidence: the sealed record (attempts 3, 1, 1; two extraction refusals on
 `comment_001`, 1 and 2 findings, bodies discarded by design), the three texts (in the
@@ -817,7 +817,7 @@ credited to `adacec1`).
   as unavailable, never zero.
 - **The three-character cut, retained** as a heuristic without contrary evidence; the
   sentence-start false refusal added to the existing test that pins both sides.
-- **The hand sample, Arda's read:** `comment_002` and `comment_003` state exactly the
+- **The hand sample, read by hand:** `comment_002` and `comment_003` state exactly the
   planted skill, read correctly and completely; `comment_001`'s skill read correctly,
   its hedged ownership not in the text — checker overreach, the request's carrier line
   (the ticket's name beside the author) the only ownership cue, a hypothesis on one
@@ -827,7 +827,7 @@ credited to `adacec1`).
   ("I've worked with X before, so …") at temperature 0.7; the golden audit looks for
   the shape.
 
-**Torn down 2026-09-15 (session 27).** The site `hr-w2` dropped on the box (`bench drop-site --no-backup --force`; database and user gone, the site folder archived in the bench); the platform's trigger row notes it fired, the edge stanza and record are platform's removal. Everything the gate ruled on survives the site: the sealed bundle and the verdict `verdicts/34965191151-1.json` in S3, the numbers above, the prose in the benchmark-private world spec. The world is no longer live anywhere; a re-read of its live shape would be a regeneration under the current generator, a new version.
+**Torn down 2026-09-15.** The site `hr-w2` dropped on the box (`bench drop-site --no-backup --force`; database and user gone, the site folder archived in the bench); the platform's trigger row notes it fired, the edge stanza and record are platform's removal. Everything the gate ruled on survives the site: the sealed bundle and the verdict `verdicts/34965191151-1.json` in S3, the numbers above, the prose in the benchmark-private world spec. The world is no longer live anywhere; a re-read of its live shape would be a regeneration under the current generator, a new version.
 
 ## source-dependence — the step 8 carry probed at the responsibility class (2026-09-15)
 
@@ -1072,10 +1072,10 @@ verification included):
 | admitted and verified | 196 |
 | contaminated by the re-verification | 0 |
 | reservation book exhausted | 1 (seed 10: the cardinality class's two leavers, the cast's fillers, both named contacts by three earlier prose rows; the error names both rules and the holding scenarios) |
-| a scenario's own invariant failed | 3 (seeds 21, 61, 187: the qualification class under the `wrong_team` + `outside_window` pair, an availability verdict on the meeting; reproduced standalone with fresh books, so a pre-existing defect of that pair, FIXLOG) |
+| a scenario's own invariant failed | 3 (seeds 21, 61, 187: the qualification class under the `wrong_team` + `outside_window` pair, an availability verdict on the meeting; reproduced standalone with fresh books, so a pre-existing defect of that pair, parked) |
 
 Zero contaminations is the book's claim held: the two rules are the two interactions. The
-exhaustion rate and the pair defect are measured, not fixed, at this step (FIXLOG, both with
+exhaustion rate and the pair defect are measured, not fixed, at this step (parked, both with
 their options); the thirty-row golden plan is swept the same way at 15.5 before it is
 declared. Determinism: same seed, same world, is the suite's existing claim and the book
 changes nothing a seed draws until it refuses something.
@@ -1132,7 +1132,7 @@ first. Reservation pressure on run three: 5,970 rows, 2,388 sealing expected unk
 absence-dependent pairs reserved (3,084 in the fragmented tier, 796 in the adversarial), 796
 expected conflicts; the one exhaustion crosses three rules at once. The cardinality
 exhaustion parked at 15.4 (1 of 200 at twenty rows, 1 of 200 at thirty on run one) is 0 of
-200 under the scarcity order; the FIXLOG's first option, taken on the measured rate, without
+200 under the scarcity order; the parked defect's first option, taken on the measured rate, without
 the renumbering it feared. About 2.5 s a world.
 
 *Run 4, the random construction order (2026-10-08, generator version 17).* The generator
@@ -1322,7 +1322,7 @@ key pair each. The recipe is step 5 of the site recipe in `deploy/frappe/README.
 the acceptance is `probes/read-principals/probe.py frappe --principal <p>`, run once per
 user from the workstation with the Administrator's pair as the reference. The pass
 criteria were fixed before any ceremony by the probe's committed docstring and the
-step's rulings (the stream's step-0 rulings record), not by a row in `README.md`, which
+step's rulings (the step-0 rulings), not by a row in `README.md`, which
 is the M0 probe plan and by its own rule is never edited. Captures:
 `captures/validator-principals/frappe-run-01.json` and
 `captures/investigator-principals/frappe-run-01.json`.
@@ -1390,7 +1390,7 @@ finding below), `jira-run-02.json`, and `captures/investigator-principals/jira-r
   both readers.
 - **The limitation made visible:** Jira grants each account Browse, Create, Edit,
   Comment and Transition on the golden project and on the canary project, and not
-  Delete. The Free plan cannot narrow this, as session 42 recorded; the credential
+  Delete. The Free plan cannot narrow this, as recorded 2026-09-22; the credential
   can. Under either scoped token the known-valid create is refused at the gateway with
   401 `Unauthorized; scope does not match`, the status the documentation leaves
   unstated and this probe measured; the same payload created by the generator first
@@ -1493,22 +1493,22 @@ boundary probe as a step under the assumed validator role before the entry point
   another reason than AccessDenied and the run stopped there, its five earlier controls
   having held exactly as above. The repair sends a real temp file; the failed run stays
   on record.
-- **What this closes and what it leaves:** platform ticket 1 accepted whole; ticket 2's
+- **What this closes and what it leaves:** the platform's first request accepted whole; the second's
   Terraform half landed on 2026-09-22 and its from-the-instance read waits for build
   plan step 14 (the instance's Jira base URL must be the gateway root, a named
-  dependency there); ticket 3's dispatch-probe evidence is owed at step 6.
+  dependency there); the third's dispatch-probe evidence is owed at step 6.
 
 ## historical-bytes — PASS on every world today's codecs read, the first world ruled unread (2026-09-27)
 
 The M1 repository audit's E-003, the first evaluator-side evidence of the investigator
-milestone's build plan step 1 (the rulings in the stream's
-`m2-build/2026-09-24-step-1-rulings.md`): the sealed worlds' private bytes fetched by
+milestone's build plan step 1 (the rulings
+of 2026-09-24): the sealed worlds' private bytes fetched by
 exact version id from a fixed inventory, decoded through the reader a consumer uses,
 re-encoded through the writer, compared by digest, on Python 3.13.5. The test is
 `tests/live/test_sealed_bytes_round_trip.py`, committed at `66b99f0` before its first
 run and at `aa0463b` before its second, run from the workstation under the
 administrative `leave-impact` profile, the one identity that reads both buckets; the
-inventory is the stream's `audit/2026-09-27-sealed-inventory.json`, its version ids
+inventory is a private sealed-inventory record of 2026-09-27, its version ids
 recovered by five hand listings the same day, each key holding exactly one version.
 
 - **The golden world `7b806ed6…` (generator version 14), exact on every shape:** the
@@ -1549,7 +1549,7 @@ recovered by five hand listings the same day, each key holding exactly one versi
   `materialization is missing`, the fields the inventory declares, while its scenario
   specs and manifest round-trip and its documents skip with the reason. The rerun on
   that revision: twelve cases and the doctest green, one reasoned skip. The inventory
-  the runs read is the stream's commit `52bd3f0`.
+  the runs read is the private record at its commit `52bd3f0`.
 - **Step 2 rerun (2026-10-01, build plan step 2's third commit):** the entity codec
   moved from the world's spec codecs into `core` at `d88d452` (seven observable kinds,
   the observed-record wrapper, the time shapes) and the model configuration with its
@@ -1589,8 +1589,8 @@ are the bytes that were sealed. The probe is `probes/golden-chain/probe.py`, its
 predicates preregistered in the docstring and committed before it ran; the run from the
 workstation under the administrative `leave-impact` profile, a write-capable identity,
 the program itself read-only (thirty-six gets, each for a named version id, no list, no
-latest-version read, no write); the inventory the stream's
-`audit/2026-09-27-sealed-inventory.json`. Capture:
+latest-version read, no write); the inventory the private
+sealed-inventory record of 2026-09-27. Capture:
 `captures/golden-chain/golden-chain-run-01.json`, locators, digests and verdicts, no
 content. Every predicate true, exit 0.
 
@@ -1612,10 +1612,10 @@ content. Every predicate true, exit 0.
   (2026-09-16) and step 0's run under the new principals (2026-09-24) wrote the same
   bytes and differ by key alone. The serving rule's condition holds on both.
 - **The audit prefix.** The index hashes to `93745e04…`, the identity that names the
-  prefix; the four objects hash to the digests the stream's sealed-objects record holds;
+  prefix; the four objects hash to the digests the private sealed-objects record holds;
   the index binds the rulings, summary and checklist by the digests of the objects
   beside it, names the golden version, the manifest's generator version and the golden
-  run's verdict key; and the four staging copies in the stream hash equal to the sealed
+  run's verdict key; and the four private staging copies hash equal to the sealed
   objects.
 - **Every response carried the requested version id**, thirty-six of thirty-six.
 
@@ -1628,13 +1628,13 @@ and any audit object set, weaker than its contract; at `8ba3ef2` three predicate
 added (exactly two verdicts, distinct keys, exactly the four audit objects), twenty-three
 in all, and run 02 on that revision (`captures/golden-chain/golden-chain-run-02.json`)
 reported every one true, thirty-six versioned gets as before. The inventory both runs
-read is the stream's commit `52bd3f0`, which also freezes the staging copies the
+read is the private record's commit `52bd3f0`, which also freezes the staging copies the
 audit check compared against.
 
 ## runtime-truth — the evaluator grades against what a run can obtain, measured on forty worlds and proven on the golden one (2026-10-01)
 
 A measurement behind three rulings of the investigator milestone's build step 3 (the
-stream's `m2-build/2026-10-01-step-3-rulings.md`), with no pass criterion of its own, and
+rulings of 2026-10-01), with no pass criterion of its own, and
 one live proof that has one. A world has two views. The dated view is the truth fact base,
 each fact visible from the day its record was planted. The runtime view is what a run
 obtains: the systems hold every projected record at once and the harness dates what it
@@ -1780,13 +1780,13 @@ that adds it. It reproduces every number the rulings record.
   not an outage of two sources at once, which no ruling registers yet. It compares what
   the oracle expects, and says nothing of grounding, which reads only what a run observed
   and involves neither view. The evaluator's own role cannot yet read the scenario specs
-  the join needs (a platform ticket, owed before the evaluation workflow's first
+  the join needs (a platform change, owed before the evaluation workflow's first
   dispatch), so every live reading here ran under the administrative profile.
 
 ## grounding-basis — what a run must read for the rules to reproduce its claims, measured on twenty worlds (2026-10-02)
 
 A measurement behind four rulings of the investigator milestone's build step 4 (the
-stream's `m2-build/2026-10-02-step-4-rulings.md`, rulings 1, 2, 3 and 5), with no pass
+rulings of 2026-10-02, rulings 1, 2, 3 and 5), with no pass
 criterion. The grounding replay asks whether the rules, fed only what a run's completed
 reads returned, conclude what its report claims. Before any of it was designed, five
 things about the worlds had to be known: where the facts that exist only in prose live,
@@ -1860,9 +1860,9 @@ script behind it and is corrected below.
   both miss, in different places, and the statement does not. Ruled: the retrieval target
   is the answer-changing statement, its carriers alternatives, retrieved when any of them
   came back.
-- **One number corrected.** The rulings file recorded "578 targets have one carrier and 2
+- **One number corrected.** The rulings had recorded "578 targets have one carrier and 2
   have two", a subtraction from the carrier count. Counted: 618 distinct statements, 616
-  on one carrier and 2 on two. The rulings file carries the correction.
+  on one carrier and 2 on two. The rulings carry the correction.
 - **A constraint whose clause states no requirement makes the rules raise.** A
   requirement fact removed with its constraint kept: 340 of 340 raise in
   `applicable_requirements`. On truth that is right, the world being defective. A run that
@@ -2027,7 +2027,7 @@ number below is pinned by a test, named with it.
 ## baseline-basis — what the shared rules conclude over structured reads alone, forecast on twenty worlds before the baseline exists (2026-10-03)
 
 A measurement behind the six rulings of the investigator milestone's build step 5 (the
-stream's `m2-build/2026-10-02-step-5-rulings.md`), with no pass criterion. The rules-only
+rulings of 2026-10-02), with no pass criterion. The rules-only
 baseline reads the structured systems through a frozen prefetch, feeds what came back to
 the shared rules and reports their results. It reads no document, so it holds no clause
 and no constraint. Before it was designed, five things had to be known: what that answer
@@ -2155,7 +2155,7 @@ here is `core`'s. The step's acceptance grades the baseline through these same p
 The investigator milestone's fifth build step built the first system: the frozen
 prefetch, the structured projection of what it read as its whole view, the shared rules
 through `core`'s composing pass, one reporting policy, and the export the evaluator grades
-(commits `761ed3f` to `db07c03`, the stream's `m2-build/2026-10-02-step-5-rulings.md`
+(commits `761ed3f` to `db07c03`, the step's rulings of 2026-10-02
 holding the six rulings, each group's design, as-built notes and reviews). The forecast
 of `baseline-basis` above was a simulation; this entry is the real thing. Every number
 below is pinned by a test, named with it, on the tests' throwaway golden world (thirty
@@ -3019,7 +3019,7 @@ the instance fills from the world bucket: the levels object sealed beside the do
 the serving rule at rank 2, the schema with its world, level and pool-rank rows, the
 reader-only adapter at one level, the loader, the cache job and the deploy step. Its
 evidence, in order; every number below is pinned by a test named beside it or by a run
-whose command is recorded in the stream's step file.
+whose command is recorded in the step's private record.
 
 **The served side carried no membership.** Under `worlds/<version>/` a projected world held
 its documents, the scenario specs, the manifest and the verdicts, and the pool's order and
@@ -3087,7 +3087,7 @@ conforming to the prefetch plan with no finding, no failure and no abstention; t
 validator's document identity and field check over the cache at the padded level exact and
 equal on every record, the base level holding every planted document and no pool document.
 
-**The order check** (`step-9-scratch/order_check_group1.sh` in the stream): four stages on
+**The order check** (a scratch script kept outside this repository): four stages on
 an exported copy of `89e4231`, 5,686, 5,697, 5,704 and 5,714 passed with 3 skipped, lint
 and types clean at each; its first run stopped at stage 2 on a symbol the review's fix had
 moved between commits.
@@ -3115,7 +3115,7 @@ deploy finds it ready under the same projection and digest, and the other two ro
 fact of the instance's database until someone removes them by hand.
 
 **The golden world validated again under version 2** (2026-10-08, 21:57 UTC, validate run
-37849760348, dispatched and approved by Arda): `approval=approved`, the verdict sealed at
+37849760348, dispatched and approved by hand): `approval=approved`, the verdict sealed at
 `verdicts/37849760348-1.json` beside the two of 2026-09-16 and 2026-09-24. Read back from
 the bucket under the workstation profile: format 2, validator version 2, the levels block
 `passed` with scope "absent: the base level over no pool", as forecast; the serving rule
@@ -3123,7 +3123,7 @@ approves it against the manifest's digest, and the two earlier verdicts (format 
 validator 1, approved) approve nothing for serving.
 
 **The deploy after it** (2026-10-08, 22:01 UTC, the deploy job of CI run 37847676629 re-run
-and approved by Arda, deploying `334b7de`): `declined=785bc4cd…` as before,
+and approved by hand, deploying `334b7de`): `declined=785bc4cd…` as before,
 `already_ready=7b806ed6… projection=projected documents=26 levels=base`, `declined=d674d576…`
 as before, `loaded=0 already_ready=1 declined=2`. The golden world's row, loaded under the
 version 1 verdict at 20:41, is found ready under the same projection and manifest digest
@@ -3587,7 +3587,7 @@ two tests that list the draft's pending values say so.
 `results/verdicts.md` by `verdicts.py`).** The probe's reduction carried the oracle's
 plan findings and the report findings and not the check the preregistration reads
 first, whether a report is correct in every part against the expected answer (the
-session-88 FIXLOG); the captured exports of all fifteen rounds were evaluated again
+gap noted 2026-10-10); the captured exports of all fifteen rounds were evaluated again
 with the real evaluator, no model called, and the probe records the verdict in its
 result files from the close on. The verdict follows the usable count exactly. The two
 structured scenarios and the seventh run are correct whole in every round.
@@ -3611,7 +3611,7 @@ $7.71 before the repeat.
 ## single-shot-query — the single-shot baseline's query chosen model-free on the first development world: a template over the leaver's component names, the limit of 20 (2026-10-11)
 
 **What ran** (`probes/single-shot-query/selection.py`, the README's preregistered entry; the
-procedure, the candidates and the tie rules fixed in the step-12 forks file before any score
+procedure, the candidates and the tie rules fixed at the step-12 design pass before any score
 was seen). The first development world `b7ec4563…` (seed 101), loaded in the laptop's cache
 at its padded level, every scenario with an oracle answer under the normal condition; the
 scored targets are the retrieval targets that move a required key and have a document-section
@@ -3650,7 +3650,7 @@ which the investigator's own prompt sentence ("general words such as 'procedure'
 names carry the recall, and their disjunction beats either alone. The padded corpus is 38
 documents, so a limit of 20 returns more than half of it: on this world the single-shot at
 its limit is nearer full context than a retrieval, which is a property of the small world and
-not of the protocol (the step-12 forks file's size note; the padded level's size is the
+not of the protocol (the step-12 design pass's size note; the padded level's size is the
 freeze's). T5 missed 9 of the 28 required targets at the limit of 20, so the single-shot on
 this world has room below the agent, which is what a baseline the comparison can separate
 needs. Whether any candidate would have found them is not what the counts say: summing each
@@ -3672,7 +3672,7 @@ The baselines step built the single-shot and the full-context systems over the s
 skeleton: a sixth node issues each system's one harness read between the prefetch and its
 call, and one request flagged final shows the model the investigator's first message, the
 harness read's block and the finalization text, the fact tool alone and forced (the step-12
-forks file, forks 1, 2, 7, 8 and 9). The `reader` role's three prompt assets were written
+rulings 1, 2, 7, 8 and 9). The `reader` role's three prompt assets were written
 from the investigator's with the loop sentences removed and one sentence on what the message
 holds, and no real model had read them; the lesson that a contract a model must write to is
 shown a real model's output before more is built around it, and the step's fork 3, ask for a
@@ -3779,7 +3779,7 @@ claim: the composition excluded them as `scope_without_one_section` or
 requirement, and whether the report separates filler-carried statements from invented ones,
 is a ruling for the close and the freeze's reporting design, not this probe's.
 
-*The close's first reading (2026-10-11, session 92).* Today's `false` is the union of two
+*The close's first reading (2026-10-11).* Today's `false` is the union of two
 populations the record tells apart model-free: a statement on a section of a filler
 document, which the sealed filler pool names, and the rest. The report separates them by
 that membership; the filler-carried count reads as how much filler a system was shown and
@@ -3802,29 +3802,29 @@ The investigator milestone's step 14 (commits `64ab1c5` to `a7f1d22`) built the 
 path: the launcher package, the host and runner lifecycle scripts, the investigate and
 continue-run workflows, the rules-only system through the shared worker, the committed
 price table and the reservation derived from the registered caps. Its evidence, in order;
-every number below is pinned by a job log kept in the stream's step file, by the
+every number below is pinned by a job log kept in the step's private record, by the
 evaluation artifact `evaluations/7b806ed6…/38461907818-1.json`, or by a run of
 `core.pricing.run_reservation` over the committed registration and price table at this
 close.
 
-**The instance's own path, probed before any run (2026-10-11, session 94).** The probe
+**The instance's own path, probed before any run (2026-10-11).** The probe
 `read-principals/instance/probe.py` ran inside the deployed image `8b27e525…` over SSM
 (command `0ef3e1ab…`; `captures/investigator-principals/instance-run-01.txt`). The five
 vendor parameters were put (set, none `UNSET`). The development world `7b806ed6…`'s
 manifest read from the world bucket under the instance role (stage projected, three
 artifacts) and the three readers built from it under the investigator principals: 28
 employees and a by-id read, 33 work items and a by-id read, 25 calendar events in the
-probe's span, the acceptance of the investigator-principals ticket. `Converse` on the
+probe's span, the acceptance of the investigator-principals grant. `Converse` on the
 registered `eu.` Haiku 4.5 profile ended `end_turn` at 14 input and 4 output tokens, both
 cache counters present and zero on a call with no cache point (data for the price table's
 `when_absent` entry, not yet the entry). `CountTokens` through the production client was
 denied on the profile id and on the base model id alike (`AccessDeniedException` from the
-instance role), the finding that became the platform's counting-grant ticket. The world
+instance role), the finding that became the platform's counting grant. The world
 bucket's create-only rule held from the instance: 200 on the first put with
 `If-None-Match: *`, 412 `PreconditionFailed` on the same put again, `AccessDenied` without
 the header.
 
-**The counting grant, accepted from the instance (2026-10-13, session 97).** The platform
+**The counting grant, accepted from the instance (2026-10-13).** The platform
 applied the counting statement over the model half of the shortlist (its commit
 `b242958`, plan 0/1/0, the simulator allowing the foundation-model ARNs and implicitly
 denying the profile ARN). The probe re-sent against `8cb71803…` with the three create-only
@@ -3842,7 +3842,7 @@ the base level, from `main` at `a7f1d22`, which the instance held deployed:
 
 | system | approval | investigate job | continuation | export digest |
 |---|---|---|---|---|
-| agent | automatic | `38451098371` (session 97) | continue-run `38455347582` | `b3bb883e…` |
+| agent | automatic | `38451098371` (2026-10-13) | continue-run `38455347582` | `b3bb883e…` |
 | agent | human | `38459124374` | continue-run `38460205544` | `f5b8de4c…` |
 | rules_only | automatic | `38460597691` | none | `0f671cce…` |
 | single_shot | automatic | `38460902135` | none | `cb52cec8…` |
@@ -3858,7 +3858,7 @@ read-back the policy refuses, exercised in the recovery acceptance), with no inc
 inventories grew one attempt a run to five.
 
 **The first run's four dispatches were each a finding the fake-binary tests could not
-see** (session 97; the step's forks file): the run directory root-only against the image's
+see** (2026-10-13): the run directory root-only against the image's
 uid 1000 (`498917c`); the guard refusing a dispatch whose sha the host had not yet deployed,
 by design; the instance's run log never bootstrapped, so the first ledger command refused
 (`ce0cbd1`, a `bootstrap-log` command the deploy runs after the cache job); publish and
@@ -3909,7 +3909,7 @@ docstring (no corpus read, the empty constraint list a premise, wrong with confi
 where the key lives in a clause) and the `one-call` entry above, where the single-shot's
 search returned one of the two target documents on this scenario.
 
-**Three lines differed from the session-98 baton's forecast, none a finding:** the
+**Three lines differed from the 2026-10-13 forecast, none a finding:** the
 listing's one eligible attempt (the forecast said five pending, written from one agent
 attempt); the two baselines' findings (declared by their modules); the second agent
 attempt's equality with the first (temperature 0). The lifecycle lines held one for one.
@@ -3921,7 +3921,7 @@ still to be read against the table.
 
 ## step-15-calibration — the freeze's calibration on the second development world: the reader instruction probed in four rounds, the padded level chosen by the stated rule at 40,000, seven cells measured at base and at the level, the caps derived and replayed, $4.70 (2026-10-14)
 
-The freeze step's design pass (the step-15 forks file, forks 2, 4, 12, 13 and 21) left four
+The freeze step's design pass (the step-15 rulings 2, 4, 12, 13 and 21) left four
 measurements to the calibration before the registration's pending values are written: which
 instruction the one-call readers finalize under, the padded level by a rule stated before
 the runs, the caps by a rule from the calibration histories, and the owner-field
@@ -4091,7 +4091,7 @@ and the caps are the freeze commit's; this entry is their evidence.
 ## second-development-world — seed 103's second draw sealed with a 432-document filler pool and three candidate paddings, after a throttle abort and a namespace-guard refusal (2026-10-14)
 
 The freeze step's calibration needed a development world whose filler pool reaches a
-full-context request near 100,000 tokens (the step-15 forks file, forks 2 and 29); the
+full-context request near 100,000 tokens (the step-15 rulings 2 and 29); the
 first development world's twelve filler documents put full context at the ceiling on seven
 of seven. Three local runs under SSO, unprojected, writer Haiku 4.5 and checker Nova Pro on
 the EU profiles, four prose workers (`--prose-workers`, the concurrent filler loop built
@@ -4159,8 +4159,8 @@ the second draw's zero, not on a sweep over seeds.
 ## step-15-freeze — the registration frozen at format 5 with the calibration's values, the CI guard on the dispatching driver and the digest-verified deploy (2026-10-14)
 
 The freeze commit's record: what the frozen file holds and what pinned each value; the
-rulings are the step-15 forks file's (groups A and B, the calibration rulings, the freeze
-rulings of session 102), the evidence the `step-15-calibration` and
+rulings are the step-15 design pass's (groups A and B, the calibration rulings, the freeze
+rulings of 2026-10-14), the evidence the `step-15-calibration` and
 `second-development-world` entries'.
 
 **Format 5.** A corpus level's `filler_tokens` meant tokens of filler added; the ruled
@@ -4198,7 +4198,7 @@ committed file:
 | budget | expected $45, ceiling $90, threshold $45, limit $90, reforecast after 10 | fork 9 |
 | status | frozen; pending `world.version` alone | the type's lifecycle check |
 
-Where the forks file said seven cells, the file holds eight: rules only runs at the padded
+Where the design pass said seven cells, the file holds eight: rules only runs at the padded
 level, since the descriptive pairs are one list over every place and three name it, and the
 cell costs thirty model-free attempts (the freeze rulings, fork B). The textual basis the
 rulings asked for ("calibration, world `3e00fc80…`, 12 runs") has no field; it lives here and
@@ -4237,7 +4237,7 @@ probe of the pull-by-digest path on the host.
 ## measurement-audit — the measurement world accepted: validated under validator version 2, three scenarios traced by the audit method with a blind model reader, five filler documents read, the audit sealed (2026-10-15)
 
 The acceptance of the measurement world under the freeze's rule (PROTOCOL, "How the
-measurement world is accepted"; the step 15 forks file, fork 16): the validator's verdict,
+measurement world is accepted"; the step 15 design pass, fork 16): the validator's verdict,
 one scenario per tier traced by the world milestone's audit method, five filler documents
 read by a model of another family than the writer's. Nothing here names the world's seed,
 its scenario-specs digest, its semantic digest, a tier beside a scenario id, or any
@@ -4276,7 +4276,7 @@ identity (the index's sha256, the prefix's last segment) is
 `8ae837022c456ac91a660ba89bb0aaa86028046975446f28bea796635d6c02fc`; `traced_stratified`
 the three ids, no targeted tranche, no coverage notes, `supersedes` null, started and
 completed 2026-10-15. The checklist bound is the golden world's unchanged, the trace being
-its ten steps. The object version ids are in the private stream's audit folder; the
+its ten steps. The object version ids are in a private audit record outside this repository; the
 record and the summary are the bucket's and are not copied into any repository.
 
 **Limits.** Three traces and five reads are spot checks and establish no defect rate over
@@ -4284,7 +4284,7 @@ the pool, as fork 16 words them; the twenty-seven untraced scenarios rest on the
 validator's verdict and the generator's class contracts. The outage-by-outage
 required-sources derivation was reasoned in each trace from the predicate registry's
 domains and the rules, not executed. The sheet's rollups label the filler register `?`, a
-rendering gap carried in the stream's FIXLOG; no trace reads the rollups, and the digest
+rendering gap carried as a parked defect; no trace reads the rollups, and the digest
 bound is this rendering's. The bind of the registration to this world is the commit after
 this entry's.
 
@@ -4317,7 +4317,7 @@ read's two fixes after the bind), so the artifact carries `evaluated_by_changed_
 true and names the two files; the registration bytes are the bound ones.
 
 **The runs.** Every one of the 240 closed completed on its first attempt, no recovery, no
-run at a cap. Cost $9.9594 over the phase against the about $12 the freeze's forks file
+run at a cap. Cost $9.9594 over the phase against the about $12 the freeze's design pass
 forecast by hand from the calibration's per-run figures.
 
 | cell | cost | mean a run | calls a run | input tokens a run | stopped at the output maximum |
@@ -4333,7 +4333,7 @@ forecast by hand from the calibration's per-run figures.
 
 The agent's input tokens are summed over its calls; a run that stopped at the maximum is
 one whose one call ended with `max_tokens` and whose fact batch did not parse, the two
-counts equal in both padded cells. Against the forks file's per-run figures, the agent at base ran $0.0738
+counts equal in both padded cells. Against the design pass's per-run figures, the agent at base ran $0.0738
 against $0.051 (the step-14 single run) and the single shot at padded $0.0558 against about
 $0.05; the agent at padded $0.0726 against about $0.08, full context at padded $0.0854
 against about $0.155 (figured at a 100,000-token request the level never reached), and the
@@ -4451,8 +4451,8 @@ world `2e6705ba…341c` sealed `embargoed` and the served world `7b806ed6…3ad4
 world, M1's audited one) sealed `open`, read from the two world specs in the truth bucket
 under the SSO profile, and `verdict=accepted` with no finding. The artifact was hashed
 before it was parsed, the projection regenerated under the sealed mark and compared byte
-for byte with the committed file (2,027,258 bytes; the step's forks file records the
-size against the pass's forecast of 300 to 400 KB and Arda's ruling to commit whole).
+for byte with the committed file (2,027,258 bytes, against the pass's forecast of 300 to 400 KB, and ruled
+committed whole).
 
 The phase-C entry's prose was then read against the file, figure by figure: every arm
 row (correct whole, the Wilson interval, the tiers, strict precision), every cell's cost
@@ -4470,7 +4470,7 @@ that moves one fails CI before the prose is wrong.
 
 ## replay-set — the demo's thirty replays on the golden world: every run admitted and finished, the investigator correct whole on 26 of 30 in the operator's offline grading, $2.0967 (2026-10-22 to 23)
 
-The demo milestone's replay step (its forks file in the stream, `m3-build/2026-10-22-step-8-forks.md`):
+The demo milestone's replay step (2026-10-22 to 23):
 the registered investigator at the base level over the golden world's thirty scenarios, run
 through `investigate.yml` against the golden world's HR site (`hr-w3`) and the demo ledger
 (`ledger-demo`, threshold 45 USD, limit 90), dispatched one at a time by
@@ -4481,13 +4481,13 @@ numbers here are `tally.py --plan-dir probes/replay-set`'s over the exports and
 `tests/unit/test_replay_grading.py`; a number neither prints is marked as arithmetic by hand.
 
 **The wiring run** (`39842390519`, `scenario_001`, 2026-10-22 19:42 to 19:54 UTC) was read
-before the rest was sent, against the forks' forecast: the admission's marker `ledger=ledger-demo`,
+before the rest was sent, against the step's forecast: the admission's marker `ledger=ledger-demo`,
 the site `hr-w3` in the launch, `ledger_revision=2` after the threshold entry
 (`amount_pico_usd=45000000000000`, the ledger's head created and the threshold written as its
 first entry, the admission its second), the registration's reservation `2167352000000`
 pico-dollars; met exactly. Two driver findings came out of it and were fixed before the batch
 (a review approved by hand on a run GitHub still queued read as missing; the run bound counted
-sends and not resumed runs), recorded in the forks file.
+sends and not resumed runs), recorded at the step.
 
 **The batch** (the remaining 29, 19:58 to 21:20 UTC, one invocation, no stop): 30 intents, 30
 dispatched, 29 approvals by the driver under the operator's login (the wiring run's by hand),
@@ -4500,7 +4500,7 @@ last `8bc1369cee5d…`).
 |---|---|---|---|---|---|---|---|---|---|
 | agent, base | 30 | $2.0967 | $0.0699 | 4 to 9 | 38,933 to 98,575 | 0 | 0 | 30 | 0 |
 
-The forks' forecast was about $2.10, taken by hand from the phase-C base cell's mean of $0.0738
+The step's forecast was about $2.10, taken by hand from the phase-C base cell's mean of $0.0738
 over thirty runs ($2.21). The reservation is thirty-one times the mean actual (by hand:
 2.167352 over 0.0699), which is the cap's design.
 
@@ -4543,8 +4543,8 @@ the real-export rendering test of the report step re-pointed at it.
 
 ## backup-restore-drill — the first nightly backup restored into a scratch database and verified by the application: seven of seven, 214 closed attempts recharged, three seconds of CPU (2026-10-23 to 24)
 
-The demo milestone's backup step (its forks file in the stream, `m3-build/2026-10-23-step-9-forks.md`;
-the platform's ticket B landed the same days). Every number here is read off the platform session's
+The demo milestone's backup step (2026-10-23 to 24;
+the platform's backup change landed the same days). Every number here is read off the platform session's
 report of the first backup and the restore-check unit's journal on the instance; nothing is derived.
 
 **The object.** The platform ran the nightly backup by hand on the instance at its checkout
@@ -4605,8 +4605,8 @@ settled entries; it is not a captured figure, by the step's amendment of ruling 
 
 ## memory-baseline — the instance read under the demo's loads: memory moves little, the single worker's CPU is what binds, the limits set by the rule (2026-10-24)
 
-The demo milestone's memory baseline step (its forks file in the stream,
-`m3-build/2026-10-24-step-10-forks.md`; the criterion and the rule in `probes/README.md`,
+The demo milestone's memory baseline step (2026-10-24;
+the criterion and the rule in `probes/README.md`,
 written before the run). Every number here is the reduction script's over the saved capture
 (`probes/memory-baseline/reduce.py` over `captures/memory-baseline/2026-10-24/host.out.txt`,
 to `probes/memory-baseline/reading.json`); the unit test `tests/unit/test_memory_baseline.py`
@@ -4615,7 +4615,7 @@ regenerates the reading from the capture and holds `compose.yaml` and the stream
 **The host and the run.** `i-0dc8c9d26587ba78e`, kernel 6.18.54 (Amazon Linux 2023, arm64),
 two vCPUs, 1,930,240,000 bytes of memory (1841 MiB), no swap, Docker 25.0.16 with the systemd
 cgroup driver on cgroup v2, `e02ccc2` deployed. SSM command `25ce6583…`, sent 16:29:08 UTC by
-Arda's hand through `send.ps1`, Success in 8 minutes 21 seconds, 17,014 characters of stdout
+hand through `send.ps1`, Success in 8 minutes 21 seconds, 17,014 characters of stdout
 under the 24,000 cap. Eight levels of 45 seconds, three samples each at 15, 25 and 35 seconds,
 the loader a one-off container of the deployed image (`docker compose run --no-deps`, stdin
 closed, the script bind mounted), the sampler the host's Python over the cgroup files. Every
@@ -4703,4 +4703,95 @@ The host baseline had subtracted Caddy's current while nothing allocated for it,
 read 408 MiB where it is 364; the baseline, budget and spare above are the corrected ones. A
 per-looper cost of 150 KB and a forecast of 1,169 loopers were a subtraction of two maxima
 over three levels with no slope, and "450 ms of CPU" was a wall time; both are reworded above.
-The exchange is in the step's forks file.
+The exchange is recorded outside this repository.
+
+## disclosure-sweep — the tree read for what a public reader may not be shown: 190 lines rewritten, the embargoed digests found nowhere, the structural half now a test (2026-10-24)
+
+The demo milestone's exit step opens with the sweep its entry ruled: before the hostname
+serves the application, the repository holds no digest of the embargoed world, no pointer
+to a record outside the tree, and no narration of who did what by name. The three
+predicates were run as three different instruments, since no one instrument can hold all
+three.
+
+**The embargoed digests.** The evaluator already refused to run when the checkout at `HEAD`
+held the measurement world's scenario-specs digest or semantic digest as a literal
+(`leaveimpact.evaluator.entrypoint.require_undisclosed`, the generator step's ruling). It
+looked for the whole value only, and the repository's prose cites a digest as twelve or
+eight hex characters and an ellipsis (ten distinct twelve-character citations and twenty
+eight-character ones in the tree), so a prefix citation of either digest would have passed
+it. The scan now looks for the whole value and the four cited forms (`cited_forms`), with a
+bare prefix left out since eight hex characters are a short commit hash too; the unit test
+holds a prefix citation refused and a bare prefix passed. `scripts/sweep_disclosure.py` runs
+that same check on demand against the current `HEAD` under the administrator profile,
+loading the sealed world from the two buckets and printing the commit, the tree's state,
+the world's public version and mark, and the verdict, never a value. Its first run, on
+`46c556d` with the rewrites below still uncommitted: `verdict=held`, fifteen seconds. A
+committed test cannot hold this predicate, since it would carry the digests it looks for;
+the scan reruns on the commit that lands the rewrites and before the public switch.
+
+**The structural predicates, as a test.** `tests/unit/test_disclosure_sweep.py` reads every
+tracked text file and reports each line holding a pattern the file is not allowed: the
+pointers (the reference layer's name, a stream path, the baton folder, a session's log, the
+parked-defects log, a TODO file, a step's record by path or by the phrase, a stream named as
+platform or private, "the stream's" followed by anything but the narration stream's own
+nouns, the whiteboard, a workstation path, another project's ticket by letter, a session
+number) and the names (the author's; the assistant's unless the next word makes it a model
+family). Allowed by path with a reason: the copyright holder, the report's author line, the
+ignore rule for the whiteboard, the test's own patterns, the vendor captures, and one
+recorded probe output of 2026-10-10 whose text is the script's docstring of that day. Its
+first run on the tree as it stood found 190 lines in 35 files:
+
+| kind | lines |
+|---|---|
+| a step's record by path or phrase | 46 |
+| a session number | 36 |
+| the author by name | 26 |
+| a stream by name | 19 |
+| a stream's possession | 18 |
+| the parked-defects log | 17 |
+| a session's log | 12 |
+| the assistant by name | 8 |
+| another project's ticket | 4 |
+| the baton folder, a TODO file | 2 each |
+
+by file, `probes/FINDINGS.md` 75, `REPORT_NOTES.md` 60, the rest in thirty-three code,
+test, workflow and probe files, one to five each.
+
+**The reading no pattern makes.** A blind reader (a cheaper model, given the files and the
+three predicates and nothing of the build) read the short prose files whole and the three
+long ones by search, and added about forty lines no pattern catches: pointers in words
+(a private audit record named by its folder, a step's record named by file, a platform
+request called a ticket), and a run of sentences in REPORT_NOTES written in the first
+person from the assistant's side. It also flagged the project's "external read" and
+"external review" as process narration; those stay, as an impersonal role that says where
+a finding came from, which is the reasoning the documents are meant to show. It did not
+read the three long files exhaustively, by its own account, and the test is what holds the
+pattern-shaped part of its list from now on.
+
+**The rewrites.** Every line of both lists was rewritten by a script of exact replacements,
+each old text required to occur once, 216 placed on the first dry run, nothing else in any
+file touched and each file's line endings kept. A session number became its date or was
+dropped beside one; a stream file became "the step's rulings of <date>" or "the step's
+design pass"; a parked-defect mention became "parked" or "a gap noted <date>"; a platform
+request became a change in the platform repository, which is public where the ticket is not; a
+private artifact a sentence depends on is named as "a private record outside this
+repository" and never by path; a name became the role or the passive, and the assistant's
+side in REPORT_NOTES became "the proposal", "the recommendation" or "the answer". Kept with
+the reason: the model's product names, the LICENSE and the author line, the platform
+repository by name and URL, "handoff" in its domain sense (the approval handoff), and the
+recorded probe output. REPORT_NOTES keeps its process narrative, since the file is the
+report's raw material by design; only names and pointers left it. One line read as a
+pointer was the narration stream's own subscription bound, a domain use; the test learned
+the noun and the line stayed. The report's pin on the phase-C cost forecast cites a FINDINGS
+sentence by exact text and moved with it.
+
+**Gates on the rewritten tree:** the sweep test green; the evaluator's scan tests and
+doctest green; the unit level 6,333 passed with 5 skipped; the report's pins green; ruff and
+pyright clean.
+
+**Limits.** The structural test matches patterns, not meaning: a new way of pointing
+outside the tree passes it until the pattern is added, and the blind reader is the check
+for that, rerun at each release pass. The offline scan covers the two digests and nothing
+else of the embargo (a tier beside a scenario id, a retrieval-target count, the prose) and
+those stay a reader's predicate. Nothing of `data/` is tracked, so the measurement world's
+local audit sheet is in no commit; the scan is over tracked content, as the evaluator's is.

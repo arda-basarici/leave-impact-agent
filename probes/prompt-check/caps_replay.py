@@ -3,7 +3,7 @@ from the calibration rounds' exports, and every calibration history replayed thr
 account check under those caps, model-free, so the freeze registers caps no calibration run
 would have been stopped by, with the replay's own findings beside the numbers.
 
-The rule (the step-15 forks file, fork 4, ruled as proposed): per system, the call cap is
+The rule (the step-15 design pass, ruled as proposed): per system, the call cap is
 twice the largest completed calibration run's call count and at least 8; the token cap is
 twice the largest completed run's counted tokens, rounded up to a multiple of 10,000; the
 finalization reserve stays 2 calls and 20,000 tokens; full context's token cap is the

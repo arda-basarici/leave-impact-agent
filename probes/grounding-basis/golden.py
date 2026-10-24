@@ -94,7 +94,7 @@ def measure(world: SealedWorld) -> dict:
 def main() -> int:
     path = os.environ.get(INVENTORY_VARIABLE)
     if path is None:
-        print(f"{INVENTORY_VARIABLE} is not set; the inventory lives in the private stream")
+        print(f"{INVENTORY_VARIABLE} is not set; the inventory is a private record outside this repository")
         return 2
     inventory = json.loads(Path(path).read_text(encoding="utf-8"))
     version = WorldVersion(inventory["golden_chain"]["world_version"])

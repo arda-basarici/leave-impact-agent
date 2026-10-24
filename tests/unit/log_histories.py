@@ -6,7 +6,7 @@ reader test folds it and compares the export with the fixture's hand-built one
 (``format_fixtures``), which was built before the reader existed and stays independent of
 it (the event log step's ruling on placement and acceptance, part 7). The builder assigns
 dense positions and timestamps and tracks the current generation, so a history reads as
-the table in the rulings file: who appended, what, at which offset.
+the table in the step's rulings: who appended, what, at which offset.
 
 Response bodies are the provider's Converse objects, as the parse reads them: content
 blocks, a stop reason, the usage. A fact payload in the answer's own content is a text

@@ -148,7 +148,7 @@ tier, stratified because the slots are shuffled, each traced by the world milest
 method (`AUDIT_METHODOLOGY.md`); and *n* filler documents drawn by the same rule and read
 by a person or by a model of another family than the writer's, checking that each reads as
 the requirement it imitates and names nothing of the world. *k* is one scenario per tier
-and *n* five filler documents, read by Nova Pro (the freeze step's fork 16); both are spot
+and *n* five filler documents, read by Nova Pro (a ruling of the freeze step); both are spot
 checks and establish no defect rate over the pool.
 
 ## What is measured

@@ -164,7 +164,7 @@ test with the reading above.
 The investigator's three prompt assets (`agent/prompts/`) were written from the span probe's
 accepted second-pass configuration, revised for a loop that reads through tools instead of
 being shown everything, and no real model has run the loop under them. The check is the
-step's live probe (the step-11 forks file, fork 15 with amendment 6): the real worker over
+step's live probe (a step-11 ruling, as amended): the real worker over
 the real store and the real turns, the live clients, the first development world read from
 the local store through the planted readers and the corpus cache, the automatic approval,
 publishing nothing; the forecast is the first section of the FINDINGS entry, computed
@@ -203,14 +203,14 @@ registration took from them.
 The single-shot baseline's one search asks a registered query, a literal or a template over
 the prefetch's records, and the registration's step-6 ruling says it is chosen on development
 worlds from other seeds with the procedure fixed before any candidate is tried, never on the
-golden world. The procedure, the eight candidates and the tie rules are in the step-12 forks
-file (fork 5 as amended) and restated in `single-shot-query/selection.py`'s docstring; the
+golden world. The procedure, the eight candidates and the tie rules were fixed at the step-12
+design pass (fork 5 as amended) and are restated in `single-shot-query/selection.py`'s docstring; the
 candidates were written before any was scored, and T2 lost the team name there because the
 prefetch returns no team record.
 
 | probe | what it decides | forecast | rests on |
 |---|---|---|---|
-| **single-shot-query** (`single-shot-query/selection.py`, model-free; the development worlds the laptop's cache holds at the padded level, every scenario with an answer under the normal condition; the frozen prefetch over the planted readers and the real corpus adapter, each candidate rendered with the production rendering and searched once at the limit of 20) — per candidate the required document-section targets recovered at 5, 10 and 20, pooled, and the mean rendered length | which candidate the draft registration carries as the single-shot's query protocol and at which limit, by the fixed rule: the most recovered at 20, ties by fewer inputs, shorter mean length, list position; the limit the smallest within one target of the count at 20 | no forecast of the winner is made, since a guess written here would be the methodological decision the procedure exists to keep out of the scorer's hands; the first development world's padded corpus is about 2,750 tokens of documents (the forks file), so a literal that names the clauses' own vocabulary may reach every target, and a tie is likely | one development world until the second is sealed (fork 6, approved); the result is labelled by the worlds it ran on, the registration's value is development until the freeze re-selects on the worlds it names, and the templates' inputs are values the model is shown anyway |
+| **single-shot-query** (`single-shot-query/selection.py`, model-free; the development worlds the laptop's cache holds at the padded level, every scenario with an answer under the normal condition; the frozen prefetch over the planted readers and the real corpus adapter, each candidate rendered with the production rendering and searched once at the limit of 20) — per candidate the required document-section targets recovered at 5, 10 and 20, pooled, and the mean rendered length | which candidate the draft registration carries as the single-shot's query protocol and at which limit, by the fixed rule: the most recovered at 20, ties by fewer inputs, shorter mean length, list position; the limit the smallest within one target of the count at 20 | no forecast of the winner is made, since a guess written here would be the methodological decision the procedure exists to keep out of the scorer's hands; the first development world's padded corpus is about 2,750 tokens of documents (measured at the design pass), so a literal that names the clauses' own vocabulary may reach every target, and a tie is likely | one development world until the second is sealed (fork 6, approved); the result is labelled by the worlds it ran on, the registration's value is development until the freeze re-selects on the worlds it names, and the templates' inputs are values the model is shown anyway |
 
 ## The baselines step's one-call probe (written 2026-10-11, before it runs)
 
@@ -218,7 +218,7 @@ The two one-call baselines share the `reader` role, whose three prompt assets we
 from the investigator's with the loop sentences removed and one sentence on what the message
 holds, and no real model had read them when the runtime landed. The lesson that a contract a
 model must write to is shown a real model's output before more is built around it, and the
-step-12 forks file's fork 3, ask for a live run of both systems before anything further rests
+step-12 ruling that followed it, ask for a live run of both systems before anything further rests
 on those prompts. The probe is the prompt check's script with the system and the level as
 arguments; its composition is the work command's through `commands.system_content`, so the
 probe and the production path compose the same content from the same kind. The forecast's
@@ -247,7 +247,7 @@ and writes `prompt-check/results/false_by_carrier.md`.
 
 | probe | what it decides | forecast | rests on |
 |---|---|---|---|
-| **read-principals/instance** (`read-principals/instance/probe.py`, sent by `send.ps1` through `host.sh` over SSM, run inside the deployed image under the instance role and the investigator's five parameters) — the manifest and the three readers under the production path, one `Converse`, the production counting client on both model ids, the world bucket's create-only rule from the instance | P3 to P5 green (the investigator-principals ticket's acceptance); `Converse` passes; counting denied before the grant and `Counted` on the base model id after it (the counting-grant ticket's acceptance); 200 / 412 / AccessDenied on the three puts | the platform's two tickets and the step's forks file |
+| **read-principals/instance** (`read-principals/instance/probe.py`, sent by `send.ps1` through `host.sh` over SSM, run inside the deployed image under the instance role and the investigator's five parameters) — the manifest and the three readers under the production path, one `Converse`, the production counting client on both model ids, the world bucket's create-only rule from the instance | P3 to P5 green (the investigator-principals grant's acceptance); `Converse` passes; counting denied before the grant and `Counted` on the base model id after it (the counting grant's acceptance); 200 / 412 / AccessDenied on the three puts | the platform's two grants and the step's record |
 
 **Result (two runs, `captures/investigator-principals/instance-run-01.txt` and
 `instance-run-02.txt`).** Both as forecast: 28 employees, 33 work items, 25 events, by-id
@@ -266,7 +266,7 @@ entry `step-14` carries the runs with the five lifecycle runs that followed them
 nothing of the world against 182 forms compared; the names listed were each document's own
 fictional release or client and the skills its briefs carry. One answer omitted the
 `reads_as` field the schema requires; the verdict field was present on all five. 3,599
-input and 353 output tokens. The three traces ran the same day in session 104, three
+input and 353 output tokens. The three traces ran the same day (2026-10-15), three
 accept, and the audit sealed under the identity `8ae83702…`; the FINDINGS entry
 `measurement-audit` has the counts. The folder's README has the run.
 

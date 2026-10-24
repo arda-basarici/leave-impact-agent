@@ -196,7 +196,7 @@ RECORD_ANCHORS: tuple[RecordAnchor, ...] = (
     _findings(
         "forecast.phase_usd",
         "phase-c",
-        "Cost $9.9594 over the phase against the about $12 the freeze's forks file",
+        "Cost $9.9594 over the phase against the about $12 the freeze's design pass",
         "$12",
         "the phase's cost forecast by hand at the freeze, as phase-c restates it",
     ),

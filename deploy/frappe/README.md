@@ -127,5 +127,5 @@ footprints and the limits get re-derived from them.
 ## Backup
 
 MariaDB's data dir is a bind mount (`/srv/frappe/data/db`); the nightly box
-backup covers it once a `mariadb-dump` step joins `backup.sh` — parked in the
-stream's TODO until the world milestone gives it data worth keeping.
+backup covers it once a `mariadb-dump` step joins `backup.sh` — parked
+until the world milestone gives it data worth keeping.

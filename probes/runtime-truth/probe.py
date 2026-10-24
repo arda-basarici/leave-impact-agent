@@ -1,8 +1,8 @@
 """Runtime truth: where the two views of a world differ, and what an outage does to the answer.
 
 A measurement, not a pass-or-fail probe: it has no criterion, it produced the numbers three
-rulings of the investigator milestone's third build step were made on (the stream's
-`m2-build/2026-10-01-step-3-rulings.md`, rulings 2, 3 and 4). It was first run on
+rulings of the investigator milestone's third build step were made on (the step's rulings
+of 2026-10-01, rulings 2, 3 and 4). It was first run on
 2026-10-01 from four scratch scripts, one question at a time, while the rulings were being
 argued; this file is the same computation in one pass per world, committed with its
 capture so the numbers are regenerable from recorded inputs: the seeds, the golden plan,

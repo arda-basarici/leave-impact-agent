@@ -1,6 +1,6 @@
 """The correct-whole verdict of every prompt-check run, read back from the captured exports
 with the real evaluator and no model call: the one check the probe's reduction did not
-carry (the FIXLOG of session 88, closed at the step's close).
+carry (a gap noted 2026-10-10, closed at the step's close).
 
 The probe's result files reduce the oracle's plan findings and the report findings; the
 row match that decides correct whole lives in the evaluation's claim rows, and no summary

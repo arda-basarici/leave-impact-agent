@@ -320,7 +320,7 @@ def test_an_aggregate_counts_only_the_dispatches_that_reported_each_counter() ->
 
 PUBLISHED = (
     # (model and class, the rate as published, the tokens it is published per): AWS's public
-    # price list for eu-central-1 as read on 2026-10-04, standard on-demand rows, the Claude
+    # price list for eu-central-1 as read on 2026-10-04, standard on-demand rows, the Claude model
     # rows the regional series.
     ("haiku-4.5 input", "1.10", 1_000_000),
     ("haiku-4.5 output", "5.50", 1_000_000),

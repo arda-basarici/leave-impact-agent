@@ -33,8 +33,8 @@ CREATE TABLE IF NOT EXISTS publishable_attempt (
     FOREIGN KEY (run_id, attempt) REFERENCES attempt (run_id, attempt)
 );
 
--- The backup's capture (the demo milestone's backup ruling, as the platform's ticket B
--- settled it): one row per ledger of the figures the ledger tables hold outright or as a
+-- The backup's capture (the demo milestone's backup ruling, as the exchange with the
+-- platform of 2026-10-23 settled it): one row per ledger of the figures the ledger tables hold outright or as a
 -- sum over their columns, read by the nightly backup script inside the dump's own
 -- repeatable-read transaction and recorded on the dump's object, then read again from
 -- the restored scratch database by the restore verification and compared row for row.

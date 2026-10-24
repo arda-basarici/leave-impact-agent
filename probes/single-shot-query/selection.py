@@ -1,6 +1,6 @@
 """The single-shot baseline's query selection: every candidate protocol scored, model-free, on
 development worlds by what the real full-text search returns, under the procedure the step's
-forks file fixed before any candidate was tried (M2 step 12, fork 5 as amended).
+design pass fixed before any candidate was tried (M2 step 12, fork 5 as amended).
 
 What runs. For each development world named on the line (loaded in the laptop's cache at its
 padded level and sealed under the local object store's two roots), each of its scenarios
@@ -89,7 +89,7 @@ CANDIDATES: tuple[tuple[str, QueryProtocol], ...] = (
     ("T4", TemplateQuery((QueryInput.COMPONENT_NAMES, QueryInput.WORK_ITEM_TITLES), L1)),
     ("T5", TemplateQuery((QueryInput.COMPONENT_NAMES, L2), L1)),
 )
-"""The candidates as the forks file wrote them before any was scored; T2 lost the team name,
+"""The candidates as the design pass wrote them before any was scored; T2 lost the team name,
 which the prefetch returns no record of (the amendment of fork 5)."""
 
 
@@ -229,7 +229,7 @@ def main(argv: list[str]) -> int:
     lines = [
         f"# Single-shot query selection, {stamp}",
         "",
-        "Model-free; the procedure and the candidates fixed in the step-12 forks file before "
+        "Model-free; the procedure and the candidates fixed at the step-12 design pass before "
         "any score was seen. Scored at the padded level on the worlds below, over every "
         "scenario with an answer under the normal condition, on the required targets carried "
         "by a document section.",

@@ -29,13 +29,13 @@ index and the three files it binds go under ``audit/<world-version>/<index-diges
 through the sealer's conditional create (the object-store writer's ``put_if_absent``: a
 key already holding these bytes is accepted as present and equal, one holding other bytes
 refuses, a plain put is refused by the bucket policy), each object read back and re-hashed
-against the local digest, the version ids printed for the stream's audit folder. The
+against the local digest, the version ids printed for the private audit record. The
 sheet is not uploaded: it is regenerable and its digest is in the index. The object names
 under the prefix are this script's and may move; the index binds the files by digest, so
 a reader verifies by content, never by name. The truth bucket's ``audit/`` prefix became
-create-only on 2026-09-19 (the platform ticket of 2026-09-17, its probe passed). This is a
-human-run tool under the SSO profile, outside the application's import law; the writer
-is imported inside ``upload`` alone.
+create-only on 2026-09-19 (the platform repository's change of 2026-09-17, its probe
+passed). This is a human-run tool under the SSO profile, outside the application's import
+law; the writer is imported inside ``upload`` alone.
 
 Usage: ``python scripts/audit_index.py build <world_version>`` with ``AWS_PROFILE`` set;
 ``python scripts/audit_index.py verify <world_version>`` offline;

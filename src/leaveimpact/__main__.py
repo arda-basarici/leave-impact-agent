@@ -29,7 +29,7 @@ reaches it over the shared ``web`` network and nothing is published to the host 
 One Uvicorn worker: store access is synchronous on Starlette's thread pool and the demo's
 load is a stranger reading pages. Forwarded headers are left at Uvicorn's defaults, trusted
 from the loopback only, until the proxy upstream flips to the application and the deployed
-streaming probe of that platform ticket says what the proxy sends.
+streaming probe the platform owes at the public switch says what the proxy sends.
 """
 
 from __future__ import annotations

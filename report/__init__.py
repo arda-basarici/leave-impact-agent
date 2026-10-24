@@ -7,6 +7,6 @@ render; ``markup`` parses a chapter's deliberately small Markdown subset; ``pins
 every figure a chapter may state from the committed results file, the bound registration
 and the recorded FINDINGS rows; ``generate`` is the build. The package sits outside
 ``src`` on purpose: it is not the product, the image never carries it, and its
-dependencies live in the ``report`` group alone. The rulings behind the shape are the
-demo milestone's second-step forks file in the project's stream.
+dependencies live in the ``report`` group alone. The rulings behind the shape are
+the demo milestone's second step's, made 2026-10-20.
 """

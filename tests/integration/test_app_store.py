@@ -170,7 +170,7 @@ CAPTURE_STATEMENT = (
     "SELECT coalesce(jsonb_agg(c ORDER BY c.ledger_id), '[]'::jsonb) FROM {}.ledger_capture c"
 )
 """The backup script's read of the view, verbatim but for the schema qualification the rig
-needs (the platform's ticket-B exchange, 2026-10-23): the capture it records on the dump."""
+needs (the exchange with the platform, 2026-10-23): the capture it records on the dump."""
 
 
 def test_the_ledger_capture_states_each_ledgers_head_and_its_open_reservations(rig: Rig) -> None:

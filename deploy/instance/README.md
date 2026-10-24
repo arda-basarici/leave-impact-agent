@@ -132,7 +132,7 @@ docker compose run --rm app python -m leaveimpact.agent import-spend --request <
 ```
 
 one import per ledger that spent in the window, the Bedrock bill as the authority; the
-standing TODO's unimported 102 sends is the precedent for the form.
+102 sends still unimported are the precedent for the form.
 
 **The procedure.** Stop the app (`docker compose stop app`); choose the object (the key and
 the version id from the bucket's listing, read with the administrator identity from a

@@ -726,7 +726,7 @@ def _work(
     The attempt's state is read first: the manifest and the corpus reader are functions of
     the admitted world version and level, and an attempt at a recorded stop with its
     segment open, or one already closed, goes to the terminal worker before any of them is
-    built (fork 9 of the first live run's step; the FIXLOG's session-86 case). Otherwise
+    built (fork 9 of the first live run's step; the case found 2026-10-09). Otherwise
     the corpus reader runs its serving check before any read port is built
     (``corpus_reader_for``). The composed configuration is the registration's and this
     code's for the cell named, and either worker refuses the claim where it differs from
@@ -771,8 +771,8 @@ def _work(
         )
     # Read as the entry reads it, not indexed: the entry validated the name before it built
     # the store, but a caller handing in a store under another environment reaches this line
-    # first, and a missing name is a configuration fault, never an unexpected error (FIXLOG,
-    # session 86).
+    # first, and a missing name is a configuration fault, never an unexpected error (found
+    # 2026-10-09).
     dsn = env.get(DATABASE, "").strip()
     if not dsn:
         raise ConfigurationError(f"{DATABASE} names the run log's database")

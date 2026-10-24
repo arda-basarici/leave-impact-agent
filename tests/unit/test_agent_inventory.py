@@ -161,7 +161,7 @@ def test_the_unresolved_dispatch_history_reproduces_the_forecast_figures() -> No
     """Group 2's sixth history, the inventory's view of the unresolved dispatch beside the
     answered one: the known consumption is the answered dispatch's priced cost, the
     retained liability the unresolved dispatch's whole allocation, and their total the
-    charged amount the export fixture's reservation pins. The step's rulings file had
+    charged amount the export fixture's reservation pins. The step's rulings had
     written the retained figure by hand as 17,457,000,000 and the total as 17,754,000,000;
     no fixture held those, and this test pins the fixture's."""
     inventory = inventory_of(SNAPSHOT, SCOPE, builder_commit=BUILDER, rules=RULES)

@@ -26,7 +26,7 @@ it; the rendered text is clipped to the search argument's maximum at a word boun
 a query the executor refuses would be this harness's defect and never the model's.
 
 The selection between candidate protocols is a probe's, model-free, on development worlds
-with the procedure fixed before any candidate is scored (the forks file); nothing here
+with the procedure fixed before any candidate is scored (the step's design pass); nothing here
 chooses.
 """
 

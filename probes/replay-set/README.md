@@ -2,7 +2,7 @@
 
 The demo surface (M3) shows the registered investigator at the base level over the golden
 world's thirty scenarios: thirty runs of `investigate.yml` on the golden world's HR site
-against the demo ledger (the demo milestone's step 8, its forks file in the stream). They
+against the demo ledger (the demo milestone's step 8). They
 go through the phase-C driver, `../phase-c-dispatch/dispatch.py`, with this directory as
 the plan: the driver's module docstring carries the rules it keeps and why, and the
 phase-C README the review arrangement and what a `STOP` means. This file is the runbook
@@ -32,7 +32,7 @@ uv run python probes/phase-c-dispatch/dispatch.py --plan-dir probes/replay-set r
 
 The first run is the wiring run: its job log is read for the `LEDGER=ledger-demo` line
 and the `hr-w3` site before the rest is sent, and its `launch.ledger_revision` is
-compared with the forecast in the step's forks file. `Ctrl+C` is safe at any moment: a
+compared with the step's forecast. `Ctrl+C` is safe at any moment: a
 run already dispatched is resumed by the next invocation, a send whose run was not yet
 recorded is adopted by its token, and a key is never sent twice by the driver.
 

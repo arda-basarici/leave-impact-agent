@@ -2381,7 +2381,7 @@ registered. The schedule's digest covers the source sets, the injection and a pr
 version, and a run records it.
 
 **The freeze registered twelve of the twenty-four cells and runs eight** (2026-10-14,
-the freeze step's forks 1 and 7, ruled on the remaining path's time and money). Every
+the freeze step's rulings 1 and 7, ruled on the remaining path's time and money). Every
 system under the normal condition at both levels is run, 240 attempts at one repeat, 180
 of them model attempts; full context's four outage cells stay registered in their group,
 decided not run with the reason in the file, so the amendment history reads; the twelve
@@ -3263,7 +3263,7 @@ was never dispatched, a run that raised), which the contract step's format answe
 
 **An attempt has one writer at a time, and a claim always wins.** Ruled at the event
 log step (2026-10-05), the design interview between the acceptance spike and the
-harness, eleven forks each read cold by an external chat before its ruling. An attempt
+harness, eleven forks each read cold by an external reader before its ruling. An attempt
 is a row with a generation, a segment count and an open or closed state; the row is
 coordination and the log stays the history. Every authoritative change, a worker's
 append, a claim, a terminal event, an abandonment, an outside producer's append, locks
@@ -3464,7 +3464,7 @@ registered configuration being wrong; anything else ends the attempt at once by
 infrastructure with no rule permitting a new attempt, over calling it a defect, which
 would assert a cause nobody has. A denied count therefore ends by infrastructure
 though no retry can cure a missing grant. The deployed role's grant for the counting
-call came with the first live run's step as a platform ticket, on the foundation-model
+call came with the first live run's step as a change in the platform repository, on the foundation-model
 resources alone, since the action evaluates no inference-profile resource, so the
 counting identifier is the profile's base model, registered by value with no lookup;
 the production client counted from the instance under that grant before the first run
@@ -3854,7 +3854,7 @@ revision cannot identify it, since a segment start, an approval or a publication
 changes it with no ledger entry. It is written under the world's runs prefix in a
 prefix of its own, the one place the instance may put, which the evaluator already
 lists and reads and the bucket keeps create-only, so the interview's grant question
-closed with no platform ticket. The limit, as the report must state it: a
+closed with no platform change. The limit, as the report must state it: a
 harness-written inventory lets a separate evaluator find implementation mistakes and
 inconsistencies. It does not prove that every admission or invocation was logged, that
 events describe what happened, that nothing was spent outside the ledger, or that no
@@ -4243,8 +4243,8 @@ generator at its next await, within a millisecond, under the test client the sam
 disconnect polling is done. The acceptance's live case holds a line observed while the
 real worker is held at its approval on the real stores, since lines read after completion
 prove only the replay. The streaming response through the platform's proxy and the inline
-script under any response-header rule are the deployed streaming probe of the public-surface
-ticket at the disclosure step, not this step's; the stream was held on the local server and
+script under any response-header rule are the deployed streaming probe the platform owes
+at the disclosure step, not this step's; the stream was held on the local server and
 the test client alone.
 
 As built at the results step (M3 step 7, 2026-10-22, the forks read externally before the
@@ -4307,7 +4307,7 @@ like the results, so the prose is reviewed with the tree and no column moves; th
 shows the three first and the report page carries its walkthrough above the ending, and a
 titled row the file does not name renders its title alone.
 
-As built at the backup step (M3 step 9, 2026-10-23 to 24, the platform's ticket landed
+As built at the backup step (M3 step 9, 2026-10-23 to 24, the platform's backup change landed
 in parallel and its questions ruled in one batch; the lighter ritual). The backup is the
 platform's nightly unit: a dump of the whole database in the custom format, taken inside
 a repeatable-read transaction that first exports its snapshot and reads the

@@ -18,7 +18,7 @@ derived sets, which a world sealed before generator version 13 lacks and this mo
 The verdict has no reader yet; it is owed when its reader lands (the step 1 rulings of the
 investigator milestone say where), and nothing here claims it.
 
-The inventory is fixed, never discovered: a JSON file in the private stream naming each
+The inventory is fixed, never discovered: a private JSON file outside this repository naming each
 world by its manifest's version id, each truth pair by its two version ids, and each world
 ruled unread by today's codecs with the refusals it was ruled on, handed in through
 ``LEAVE_IMPACT_SEALED_INVENTORY``. The three registered worlds are a constant here, and the

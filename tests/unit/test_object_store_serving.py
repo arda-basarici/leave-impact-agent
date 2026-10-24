@@ -183,7 +183,7 @@ def test_the_summary_reads_what_the_validator_wrote_and_refuses_another_format_o
 
 
 def test_the_decline_reason_names_the_clause_each_verdict_fell_on() -> None:
-    """FIXLOG, session 82: the instance's two versions, approved under validator version 1,
+    """The instance's case of 2026-10-08: its two versions, approved under validator version 1,
     read "no approved verdict judges manifest" like a world never validated. The reason now
     says what the verdicts read said, in the clause order, and a world with no verdict says
     so."""

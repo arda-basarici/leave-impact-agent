@@ -39,7 +39,7 @@ Read-only is a property of this program, not of the principal: every read is a
 ``GetObject`` with a ``VersionId``; no list, no latest-version read, no write exists
 here. It runs from a workstation under the administrative ``leave-impact`` profile,
 the one identity that reads both buckets and the identity that wrote the audit, so
-FINDINGS says so. The inventory is the stream's fixed record, handed in through
+FINDINGS says so. The inventory is a fixed private record, handed in through
 ``LEAVE_IMPACT_SEALED_INVENTORY``; the staging copies sit in the same folder. The
 capture, under ``captures/golden-chain/``, records locators (bucket, key, version id),
 digests and verdicts, and no content: keys and version ids are publishable by ruling

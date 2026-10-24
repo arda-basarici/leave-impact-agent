@@ -476,7 +476,7 @@ class _Log(MemoryLog):
 def test_an_attempt_at_a_recorded_stop_is_closed_over_the_run_log_alone(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    """The FIXLOG's session-86 case, ruled as fork 9 of the first live run's step: the log
+    """The case found 2026-10-09, ruled as fork 9 of the first live run's step: the log
     holds a recorded stopping failure and its segment was never ended (the process died
     between the stop and its closing); the work command closes the attempt by that failure
     through the terminal worker, under an environment that names no object store, no vendor

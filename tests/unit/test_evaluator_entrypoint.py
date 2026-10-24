@@ -712,6 +712,26 @@ def test_a_checkout_publishing_an_embargoed_digest_refuses_by_path_and_kind(
     assert semantic not in err and specs not in err and "Traceback" not in err
 
 
+def test_a_digest_cited_by_prefix_is_found_as_the_whole_value_is(
+    embargoed: SealedWorld, checkout: Repository
+) -> None:
+    """The prose cites a digest as twelve or eight hex characters and an ellipsis; a scan
+    for the whole value alone would pass such a citation (the demo milestone's exit step).
+    A bare prefix is not a hit: eight hex characters are a short commit hash too."""
+    semantic, specs = embargoed.semantic_digest, embargoed.scenario_specs.digest
+    head = committed(checkout, "probes/FINDINGS.md", f"the world `{specs[:12]}…` (open)\n")
+    head = committed(checkout, "README.md", f"a semantic digest of {semantic[:8]}...\n")
+    with pytest.raises(job.EvaluationRefused) as refused:
+        require_undisclosed(embargoed, checkout, head)
+    message = str(refused.value)
+    assert "scenario-specs digest in probes/FINDINGS.md" in message
+    assert "semantic digest in README.md" in message
+    assert specs[:8] not in message and semantic[:8] not in message
+    head = committed(checkout, "probes/FINDINGS.md", f"a commit {specs[:8]} and {semantic[:12]}\n")
+    head = committed(checkout, "README.md", "nothing cited\n")
+    require_undisclosed(embargoed, checkout, head)
+
+
 def test_an_open_world_is_not_scanned(
     world: SealedWorld, twin: Path, checkout: Repository
 ) -> None:

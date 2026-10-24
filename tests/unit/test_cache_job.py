@@ -180,7 +180,7 @@ def test_a_ready_version_is_reported_as_such_and_a_declined_one_by_its_reason() 
 
 
 def test_a_served_version_the_rule_declines_now_is_demoted_and_readmitted_later() -> None:
-    """The instance's case (FIXLOG, session 82): a version an earlier deploy served under the
+    """The instance's case (2026-10-08): a version an earlier deploy served under the
     previous rule is declined by the current one and flipped not ready with the clause that
     declined it; a version the listing no longer holds is reported and left; a served
     version is not touched; and once the rule admits the flipped version again the load

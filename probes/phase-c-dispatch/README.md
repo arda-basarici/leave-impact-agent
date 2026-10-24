@@ -25,7 +25,7 @@ runbook.
 
 ## Running it
 
-From the repository root, `gh` logged in, in a terminal that outlives the chat:
+From the repository root, `gh` logged in, in a terminal that outlives the dispatching shell:
 
 ```
 uv run python probes/phase-c-dispatch/dispatch.py status
@@ -57,7 +57,7 @@ not succeed; the attempt's ending is not closed and completed (a cap, a defect, 
 infrastructure failure); the publication is not published or carries an incident; the
 inventory was not created; or the admission names another scenario, system or world than
 the key. Each is an operator's decision under PROTOCOL ("How a run is counted") and the
-decision is written in the session log before anything else is sent, and the stop stands
+decision is written in the operator's record before anything else is sent, and the stop stands
 in the ledger: every later `run` stops on it until `acknowledge --key K --reason R`
 records that it was read, so a restart never walks past it. The driver never
 re-dispatches the key: a replacement would be surplus, or would take the slot an

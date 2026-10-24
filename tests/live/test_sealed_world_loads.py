@@ -20,7 +20,7 @@ specs to join and is not loaded here.
 The inventory and the profile are E-003's (``test_sealed_bytes_round_trip``): the private
 JSON in the stream through ``LEAVE_IMPACT_SEALED_INVENTORY``, the administrative profile,
 the one identity that reads both buckets. The evaluator's own role cannot read the scenario
-specs yet (a platform ticket, owed before the evaluation workflow's first dispatch), which
+specs yet (a platform change, owed before the evaluation workflow's first dispatch), which
 is why this runs from the workstation. Nothing is listed or written. A refusal prints the
 scenarios and counts it concerns and the kinds of conclusion that differ, never a key's
 content.

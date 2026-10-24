@@ -1,8 +1,8 @@
 """The rules-only baseline's basis: what the shared rules conclude over structured reads alone.
 
 A measurement, not a pass-or-fail probe: it has no criterion, it produced the numbers the
-six rulings of the investigator milestone's fifth build step were made on (the stream's
-`m2-build/2026-10-02-step-5-rulings.md`). It was first run on 2026-10-02 and 2026-10-03
+six rulings of the investigator milestone's fifth build step were made on (the step's rulings
+of 2026-10-02). It was first run on 2026-10-02 and 2026-10-03
 from six scratch scripts, one question at a time, while the rulings were being argued; this
 file is the same computation in one pass per world, committed with its capture before any
 code of the baseline exists.

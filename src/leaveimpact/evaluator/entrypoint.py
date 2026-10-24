@@ -207,20 +207,53 @@ def prove(
     return Proven(world.version, len(world.scenarios), targets, world.disclosure)
 
 
+CITED_PREFIXES: tuple[int, ...] = (12, 8)
+"""The lengths at which the repository's prose cites a digest, each followed by an
+ellipsis (`7b806ed6f405…`, `7b806ed6…`); the scan looks for them beside the whole value."""
+
+
+def cited_forms(digest: str) -> tuple[str, ...]:
+    """The literals a scan looks for: the whole ``digest`` and each cited prefix with either
+    ellipsis character the prose uses, so a citation by prefix is found as a whole value is.
+    A bare prefix is not looked for: eight hex characters occur in commit hashes and prompt
+    digests, and the convention always writes the ellipsis.
+
+    >>> cited_forms("ab" * 32)[0] == "ab" * 32
+    True
+    >>> cited_forms("ab" * 32)[1:]
+    ('abababababab…', 'abababababab...', 'abababab…', 'abababab...')
+    """
+    forms = [digest]
+    for length in CITED_PREFIXES:
+        forms.extend((f"{digest[:length]}…", f"{digest[:length]}..."))
+    return tuple(forms)
+
+
 def require_undisclosed(world: SealedWorld, repository: Repository, commit: str) -> None:
     """Refuse an embargoed ``world`` whose scenario-specs digest or semantic digest is in a
-    file tracked at ``commit``: each is a function of the seed and public code alone, so a
-    published one makes the seed enumerable. An additional check, proving nothing about
-    logs; an open world is not scanned."""
+    file tracked at ``commit``, whole or in a cited prefix form (``cited_forms``): each is
+    a function of the seed and public code alone, so a published one makes the seed
+    enumerable, and a prefix of twelve or eight hex characters with its ellipsis is the
+    form the repository's prose cites a digest in. An additional check, proving nothing
+    about logs; an open world is not scanned. The message names the paths and the kind,
+    never a value or which form was found."""
     if world.disclosure is not Disclosure.EMBARGOED:
         return
     hits = [
         f"the {name} in {', '.join(paths)}"
-        for name, needle in (
+        for name, digest in (
             ("scenario-specs digest", world.scenario_specs.digest),
             ("semantic digest", world.semantic_digest),
         )
-        if (paths := repository.paths_holding(commit, needle))
+        if (
+            paths := sorted(
+                {
+                    path
+                    for form in cited_forms(digest)
+                    for path in repository.paths_holding(commit, form)
+                }
+            )
+        )
     ]
     if hits:
         raise DisclosureRefused(

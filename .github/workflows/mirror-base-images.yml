@@ -2,7 +2,7 @@
 # PostgreSQL service in ci.yml and compose.yaml) into this repository's own GHCR
 # namespace, by digest. The shared GitHub runner pool's anonymous pull quota failed CI
 # closed on Docker Hub twice (2026-10-10) and on the public ECR mirror of the library
-# four times (2026-10-14, FIXLOG), and since the freeze's dispatch guard a red CI attempt
+# four times (2026-10-14), and since the freeze's dispatch guard a red CI attempt
 # blocks the measurement runs until a re-run by hand. A pull from GHCR rides the workflow
 # token in CI and GitHub's own registry on the host, no third-party quota and no secret.
 #
@@ -27,7 +27,7 @@ on:
 permissions: {}
 
 env:
-  # The upstream index digests, read off the library on 2026-10-10 (FIXLOG, session 87)
+  # The upstream index digests, read off the library on 2026-10-10
   # and again on 2026-10-15. The tag is the human label the mirror is written under and
   # the digest is the identity the copy reads; skopeo refuses a reference carrying both
   # (probed on 1.22.3), so they are held apart here and joined only at the pull sites.

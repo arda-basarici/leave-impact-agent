@@ -99,7 +99,7 @@ run's dispatch call died on a local connection abort after GitHub had created th
 the driver stopped rather than send again, the run was adopted into the ledger by hand
 with the lost response on its line, and the driver now reads for a run when a response
 is lost. Every one of the 240 closed completed on its first attempt, no recovery, no
-run at a cap, $9.96 of model spend against the about $12 the freeze's forks file had
+run at a cap, $9.96 of model spend against the about $12 the freeze's design pass had
 forecast by hand from the calibration (`tally.py`); the agent at the base level was the
 largest overrun, $0.0738 a run against $0.051 from a single step-14 run, the single shot
 at the padded level a shade over its figure, and every other model cell under.
@@ -153,14 +153,14 @@ projection of the spec and enters neither the bundle nor the version.
 Then three readers found three faults of one shape in one day. Each was an object
 or a state that nothing had vouched for, accepted because the code checked what it
 had been told to check and not what it rested on. The internal batch review, a
-subagent reading the diff cold, found two and reproduced both on the real database.
+model reader given the diff cold, found two and reproduced both on the real database.
 A levels object the manifest never recorded was decoded and shaped the levels; a
 final prefix in the bucket is create-only, so a key the manifest lacks is exactly
 what a later put could add, and the probe loaded a stray padded object onto a world
 whose manifest knew nothing of it. And two loaders racing on a fresh version
 collided on the primary key, because a row lock covers no row that is not there yet:
 the first loader selected for update and locked nothing, the second did the same,
-and its insert was refused. The external chat's review found the third and largest.
+and its insert was refused. The external reader found the third and largest.
 The validator, whose approving verdict the serving rule rests on, had never read the
 levels object; a sealed pool naming a planted document as filler reached the cache
 with the world approved, reproduced on a generated golden world, and with it a
@@ -172,7 +172,7 @@ The fixes share the shape of the faults. The validator now compares the served
 object with the levels the authenticated spec derives, a fourth block of the
 verdict, which moved the verdict to format 2 and the validator to version 2; the
 serving rule requires the current validator version, a fork taken as recommended
-and Arda's to reverse, on the reasoning that an older logic approved a shorter list
+and the owner's to reverse, on the reasoning that an older logic approved a shorter list
 of checks and the new check existed exactly because that list was too short. The
 levels object is written last by an unprojected sealing and a development world is
 admitted on nothing else, so a sealing that stopped is never served. The loader takes
@@ -181,11 +181,11 @@ and the race test holds the first loader's transaction by hand while the real on
 waits in a thread. The commit-order check, run on an exported copy of the tree after
 the fixes, stopped at its second stage on a symbol a fix had moved from one commit
 to another, the first live catch of the lesson that says to rerun it after every
-review fix; three runs, the last green at every stage (5,686 to 5,714 tests, the
-step file `m2-build/2026-10-08-step-9-forks.md` in the stream).
+review fix; three runs, the last green at every stage (5,686 to 5,714 tests, as the
+step's record of 2026-10-08 holds).
 
 What makes the day worth a report is the end of it. The serving rule, run read-only
-against the real bucket from the workstation after Arda's listing turned a guess
+against the real bucket from the workstation after a hand listing turned a guess
 about the bucket's contents into a dry run, predicted three worlds loading with 3,
 26 and 0 documents, the zero being the first world whose manifest receipts none. The
 first deploy loaded exactly those from inside the container under the instance role
@@ -1103,7 +1103,7 @@ show how little of the damage the headline check sees.
 *M2 step 6, the investigator milestone's sixth build step: the preregistration as a
 committed file, the harness and the evaluator reading it, and the evaluation job proved
 once against the golden world. Seven rulings by interview, then eight commit groups, each
-opened by a design pass and closed by an external review with no chat context; this entry
+opened by a design pass and closed by an external review with no context of the build; this entry
 covers the last four groups and the dispatch (commits `6bb06c0` to `761a58d`, per
 `git log`). Feeds: the M2 milestone report's method section, on what was fixed before any
 system was measured and how a run is tied to it; the final report's section on honest
@@ -1228,8 +1228,8 @@ prose.
 *M2 step 5, the investigator milestone's fifth build step: the rules-only baseline, the
 first system the benchmark measures, from the frozen prefetch through the shared rules to
 the export the evaluator grades. Six rulings by interview, each measured before it was
-argued and read by an external reviewer with no chat context (session 48), then six
-commit groups built and reviewed in batches (session 49, 2026-10-03). Feeds: the M2
+argued and read by an external reviewer with no context of the build (2026-10-02), then six
+commit groups built and reviewed in batches (2026-10-03). Feeds: the M2
 milestone report's baseline section, on what a system that reads only structured records
 is worth and on why its numbers are the floor the agent is measured against; the final
 report's section on honest measurement, on grounded not meaning correct and on
@@ -1357,8 +1357,8 @@ tier and part on two.
 source discipline, from the coverage a run's reads give the shared rules through the
 observed-run view, the replay with its citations and the trace metrics to the tables and
 their intervals. Six rulings by interview, each read by an external reviewer with no
-chat context, then six commit groups, each reviewed in one batch after its push (session
-47, 2026-10-02). Feeds: the M2 milestone report's evaluation-design section, on what
+context of the build, then six commit groups, each reviewed in one batch after its push
+(2026-10-02). Feeds: the M2 milestone report's evaluation-design section, on what
 "grounded" is allowed to mean and on which interval goes with which number; the final
 report's section on honest measurement, on a negative no system can establish and on a
 number that was corrected twice; and its process section, on what the batch reviews
@@ -1433,7 +1433,7 @@ gained a line: a number in a ruling has a script behind it, or says it was deriv
 hand.
 
 The build ran in six groups, each read after its push by the external reviewer, who sees
-the repository and no chat, and every finding was reproduced on the committed code
+the repository and nothing else, and every finding was reproduced on the committed code
 before it was triaged. The reviewer found something real in every group. In the probe:
 the three properties that make a requirement's scope admissible through its clause all
 read the sealed pairing and never the clause, so a clause naming nothing would have
@@ -1522,8 +1522,8 @@ and strictly grounded, per condition (1,001 / 1,001 / 547; 613 / 613 / 613; 722 
 *M2 step 3, the investigator milestone's third build step: the evaluator's grading, from
 the truth manifest's decoder through the joined world, the oracle, the grade's rows and
 the plan checks to one outcome per export. Six rulings by interview, each read by an
-external reviewer with no chat context, then twelve planned commits reviewed in batches
-after their pushes (session 46, 2026-10-01). Feeds: the M2 milestone report's
+external reviewer with no context of the build, then twelve planned commits reviewed in
+batches after their pushes (2026-10-01). Feeds: the M2 milestone report's
 evaluation-design section, on which truth a run is graded against and on what the outage
 results are allowed to cover; the final report's section on honest measurement, on a
 claim that was narrowed the day it was made and then earned by a second run; and its
@@ -1618,7 +1618,7 @@ only for an impact the oracle expects (`d6cbccd`).
 *M2 step 2, the investigator milestone's second build step: the run export, the
 artifact a run leaves behind and the evaluator grades, built as plain data in the core
 package with its codec, its pricing arithmetic and the tool specifications, eight
-commits each reviewed after its push (session 45, 2026-10-01). Feeds: the M2 milestone
+commits each reviewed after its push (2026-10-01). Feeds: the M2 milestone
 report's evaluation-design section, on what a cost claim is allowed to say and on why
 the export is one byte sequence; the final report's reproducibility section, on
 enforcing a canonical encoding where the reader meets bytes; and its process section,
@@ -1634,10 +1634,10 @@ complete when those two were present, and a cache counter the provider had not
 reported added nothing, on the reading that an absent cache counter means no cached
 tokens were billed (`eb98474`). The docstring called it a provider assumption and
 promised that the acceptance spike would check it against the real configurations.
-The author had argued the narrower rule in chat on the grounds that Bedrock reports
+The narrower rule had been argued on the grounds that Bedrock reports
 cache counters only when caching is in play, so the literal ruling would mark nearly
 every uncached call incomplete, and the owner had accepted it before the review. The
-external reviewer, reading the pushed commit with no chat context, named the defect in
+external reviewer, reading the pushed commit cold, named the defect in
 one sentence: a cost could be understated while labelled complete, which is the one
 thing the completeness flag exists to prevent, and a fact a spike might later prove
 should become recorded policy rather than a global assumption in code.
@@ -1651,7 +1651,7 @@ travels in the pricing rows every export embeds, so a cost's completeness is
 verifiable from the record alone, with no code constant to consult and no spike
 finding to remember. Until the spike earns the zero entry for a configuration, a
 missing cache counter makes a cost incomplete, which is the ruling's literal reading
-restored (`aadb2d8`; the spike's obligation is in the stream's TODO under build
+restored (`aadb2d8`; the spike's obligation is owed to build
 step 7). The lesson is the same shape as one already in the
 repo's lessons, that a prompt instruction stays only on a probe that shows it moves
 the model: a claim about a vendor is data a probe earns, and the place it lives is a
@@ -1692,7 +1692,7 @@ historical-bytes entry).
 
 *M1 step 16, the hand audit's close: a four-seat critique panel over the audit of the
 first golden world, its findings answered the same day, the audit sealed under a
-content-addressed identity, M1's exit (session 35, 2026-09-19). Feeds: the M1 milestone
+content-addressed identity, M1's exit (2026-09-19). Feeds: the M1 milestone
 report's evaluation section, on what "golden" can honestly mean and on auditing an
 audit; the final report's process section, on a panel as a gate, on sealing only the
 method that ran, and on an external reader as a reading engine.*
@@ -1707,8 +1707,8 @@ the checklist, the sheet, the rulings record and the summary blind to each other
 checked every sentence of the summary against the record, one attacked the checklist
 against the code and the design contracts, one hunted for what the audit had never
 asked, one modelled what a released example would leak. The run cost about 795k
-subagent tokens (the seat reports and synthesis are in the private stream,
-`panels/2026-09-19-audit-panel/`), and every finding was reproduced on the source
+subagent tokens (the seat reports and synthesis are a private record outside
+this repository), and every finding was reproduced on the source
 before it was triaged, which is how two of the seats' claims were narrowed before they
 entered any record.
 
@@ -1759,7 +1759,7 @@ employee, and a person's location does not redefine the leave interval, because 
 record carries no zone. The key stands and the scenario is that convention's test. For
 future worlds the far seat will always be a colleague, and because the organization's
 guarantee of one far person no longer suffices when that person is the leaver, the
-guarantee grows to two far seats in the same change [BUILT 2026-09-19, session 36,
+guarantee grows to two far seats in the same change [BUILT 2026-09-19,
 commit 33a7b69: generator version 15; the golden world stays at version 14].
 
 **Sealing only the method that ran.** The audit's identity is the digest of a small
@@ -1801,16 +1801,16 @@ corrected in eleven places with dated notes and a ledger and none of them touchi
 key, the index was rebuilt and the four objects were created once under the truth
 bucket's create-only audit prefix, each read back and re-hashed equal, on 2026-09-19:
 audit identity `93745e04fe11de480da1e785873fddb0d2f7e843e21c573f8f3beb7b87da44d1`, the
-sha256 of the index object, with the object version ids kept in the private stream's
-audit folder and never in the record, since the record is sealed by digest before the
+sha256 of the index object, with the object version ids kept in a private audit record
+outside this repository and never in the record, since the record is sealed by digest before the
 upload exists (the upload mode in `16638f2`, the design record's account in `40d452b`).
 The chain the milestone can state in one sentence: thirty accepted, seventeen traced,
 seven recounted without the rule, three panel checks on named scopes, a four-seat
 panel, the amendments, the seal. The reading-engine pattern carried the day's human
 hours: an external low-context reader did the seven counts and the two traces from
-packets built off the new sheet, the main chat re-verified every claim against the
+packets built off the new sheet, the main reading re-verified every claim against the
 sheet and the code before entry, and the reader caught one wording slip of the main
-chat's own brief before it reached the record. The cost of that pattern is the
+reading's own brief before it reached the record. The cost of that pattern is the
 re-verification; its benefit showed on both sides of the seam in one day.
 
 Figure: the two-shape universe count as a small table or diagram, unknown (0 viable, 1
@@ -1822,9 +1822,9 @@ placement inside or outside the eligible component as the one variable.
 *M1 step 15 of the build plan: the measurement world the step 14 design demanded before
 the remaining prose classes — the qualification rows generated under the real
 pipeline, sealed, projected, approved — and then the gate that the design tied to it:
-one session (session 26, 2026-09-15) reviewing every fix the five runs forced and every
+one session (2026-09-15) reviewing every fix the five runs forced and every
 item on the revisit list, one question per exchange, an external low-context reviewer's
-read on each relayed by Arda, Arda's ruling on each. Feeds: the M1 milestone post; the
+read on each, a ruling on each. Feeds: the M1 milestone post; the
 final report's evaluation section, on measuring a generator before trusting it and on
 what a sample of three can and cannot say; and its process section, on interview mode
 with an external reviewer and on letting a probe decide before the argument starts.*
@@ -1893,9 +1893,9 @@ where it is true; but a text that passed because the checker read "something I c
 work through" as hedged ownership is not a success of the allowance, it is a checker
 residual.
 
-Two rulings went further than Claude's recommendation because the reviewer pushed.
+Two rulings went further than the first recommendation because the reviewer pushed.
 The hedge tolerance from the fourth fix, which let a hedged mention of allowed context
-pass, had been justified in code as "nothing rests on it". Claude identified the
+pass, had been justified in code as "nothing rests on it". The response identified the
 condition under which that is true, that the allowed fact is established by a
 structured record the agent under test reads directly, and recommended recording the
 condition and enforcing it at the next class. The reviewer's answer was that knowingly
@@ -1907,14 +1907,14 @@ is one the text must carry, and the guard tolerates a hedge on allowed context o
 when a structured record establishes the fact, refusing a hedge on a fact that only
 other prose establishes as a softened conflict the world never planted. The other
 push was on the cap. The baton had framed the cap of four as confirmed by a maximum of
-three attempts observed. Claude's arithmetic said otherwise: attempts are fresh
+three attempts observed. The arithmetic said otherwise: attempts are fresh
 samples, so a brief that passes one attempt in three exhausts a cap of four about one
 time in five, and five such briefs in a world fail the generation about two runs in
 three; at a cap of eight the same figures are about one in twenty-five and one in
 five [PRELIMINARY — a per-attempt rate read from one target's three-attempt pass, a
 point estimate that supports no prediction]. The reviewer agreed the inference from
 the maximum was unsound, agreed eight should be the default rather than a golden-run
-knob, and added what Claude had left out: the earlier entry in these notes had called
+knob, and added what the recommendation had left out: the earlier entry in these notes had called
 four a diagnostic cap that assumes a good prompt, and raising it should not abandon
 that. So attempts above four are now read as a struggling brief, from the sealed
 attempt count and with no new field, and the cost of an exhausted run is stated
@@ -1949,7 +1949,7 @@ one wording was corrected on the way: a miss there is of a foreign surface menti
 which the checker still catches when the mention makes a claim; only a mention that
 makes no claim has the scanner as its sole layer.
 
-**A sample of three.** Arda read the three accepted texts against their sealed
+**A sample of three.** The three accepted texts were read by hand against their sealed
 propositions. Two say exactly the skill they were planted to carry and nothing else,
 and the checker read them exactly. The third, "I've got experience with Go, so the
 retry queue migration is something I can work through", was read as the skill, which
@@ -1972,8 +1972,8 @@ before-and-after bar, one bar pair per fault.
 
 ## 2026-09-14 — Prose entered the world through a gate, and the gate was rebuilt five times before any model wrote a word
 
-*M1 step 14 of the build plan: the design interview of session 23 (ten questions, an
-external reviewer's read on each, Arda's ruling on each), then five commits — the
+*M1 step 14 of the build plan: the design interview of 2026-09-14 (ten questions, an
+external reviewer's read on each, a ruling on each), then five commits — the
 semantic world and composition, the artifacts, the Bedrock seam, the materializer, the
 wiring — each reviewed after its push, with the review fixes as their own commits
 (2026-09-14). Feeds: the M1 milestone post; the final report's evaluation section under
@@ -1989,10 +1989,10 @@ semantic specification, the frozen bundle identifies the realized world, and the
 not the same thing. Everything else followed from taking that sentence literally.
 
 **Ten questions, one reviewer, one ruler.** The step opened with a design interview,
-one question per exchange, and Arda relayed each proposal to a second chat with almost
-no context and brought its verdict back. That reviewer's closing "my ruling" was, by
-Arda's own instruction that morning, the reviewer's verdict and never his; the ruling
-stayed with him. The shape that came out: the pure assembly no longer produces a world
+one question per exchange, and each proposal went to an external reader with almost
+no context, whose verdict came back. That reviewer's closing "my ruling" was, by
+the instruction given that morning, the reviewer's verdict and never a ruling; the ruling
+stayed with the project's owner. The shape that came out: the pure assembly no longer produces a world
 but a *semantic world*, complete in every structured record and holding, where a model
 must write, a typed pending target instead of text — a brief that says which comment or
 section, under which parent, at which position, carrying which facts, in which
@@ -2003,7 +2003,7 @@ realized bundle, which they do not. The reviewer's sharpest early contribution w
 move the regression oracle: the suite had pinned a reference seed's world version, and
 that pin could not survive non-deterministic prose, so the pair became generator
 version plus reference semantic digest, and the realized version became provenance no
-test expects to reproduce. Two of Claude's own additions were adopted the same way: a
+test expects to reproduce. Two of the proposal's own additions were adopted the same way: a
 required fact's role — answer-changing or context — is derived by running the rules
 once with the fact removed rather than tagged by the class author, because the hand
 audit at step 16 reads every artifact carrying an answer-changing fact and a wrong tag
@@ -2011,7 +2011,7 @@ would misdirect it silently; and the surface namespace a text may use is derived
 the brief's facts through the closed vocabulary, so a class cannot forget a name or
 leak one.
 
-The rest of the interview fixed the machinery the reviewer and Claude then mostly agreed
+The rest of the interview fixed the machinery the reviewer and the proposal then mostly agreed
 on. The record of how each text was accepted seals with the world and is part of its
 identity; rejected text exists nowhere, not even in the job log, because the repository
 is public and its Actions logs are world-readable, so a quoted rejected sentence would
@@ -2036,12 +2036,12 @@ a runbook, a guard or a required fact is never reaches it.
 
 **One check the interview missed, caught against the project's own rule.** The
 interview had put the materialization record in the world spec's provenance. While
-building the artifacts Claude read the record's contents against the standing storage
+building the artifacts the record's contents were read against the standing storage
 rule — storage follows who may know a thing — and they contradicted: the world spec is
 readable by the validator's role and holds nothing truth expects, and a brief's
 required facts and a checker's reading of a text are exactly what truth expects. The
 record and the briefs moved to the evaluator-only truth manifest before a line of
-encoder was written, on Arda's ruling. That choice had a price paid later in the
+encoder was written, by ruling. That choice had a price paid later in the
 wiring: a resume needs the record to re-compose the world, and the truth manifest has
 no decoder by design, so the generator got a private decoder of that one section,
 unreachable by the validator under the import law — a narrower thing than "the
@@ -2086,7 +2086,7 @@ had been a documented assumption until then. A side finding worth its line: the
 test suite's network guard matches the resolved IP a socket connects to, not the
 hostname, so an endpoint cannot be allow-listed by name and the live level now runs
 without the block, which is what "live" means. The suite grew from 1677 to 1754 tests
-across the step (the pytest runs of session 23), 77 of them the gate's own.
+across the step (the pytest runs of 2026-09-14), 77 of them the gate's own.
 
 [PRELIMINARY — no prose has been materialized for a real world yet. Tier 1 has no
 briefs; the first Tier 2 world at step 15 gives the first-attempt pass rate, the
@@ -2105,7 +2105,7 @@ the seal after its proofs; the two identities labelled where they are born.
 *M1 step 13 of the build plan, the first world live: the `generate world` workflow run
 34780738512 (attempt 1 red, attempt 2 green), the validator runs 34784309718 (refused)
 and 34785009950 (approved), the reader fix `c9823a7`, the platform's Bot Fight Mode
-ruling in its commit `b894ac6` (session 22, 2026-09-13/14). Feeds: the M1 milestone
+ruling in its commit `b894ac6` (2026-09-13/14). Feeds: the M1 milestone
 post; the final report's evaluation section under "ground truth by construction" —
 what an independent re-read of the live systems is worth, shown on the day it caught
 something; and the operations section on the edge, where the first cloud-network client
@@ -2145,9 +2145,9 @@ reassurance at the time, turned out to rest on one client, the UptimeRobot monit
 which is on Cloudflare's verified-bot list and therefore exempt by design. Every
 machine client had passed because the only one that had ever knocked was a verified
 bot; no unverified client from a cloud network had ever reached these hostnames
-before the first real run. The ruling was taken in the platform stream the same night:
+before the first real run. The ruling was taken on the platform side the same night:
 Bot Fight Mode off, the paid-plan trigger re-cut, the hollow monitor observation
-corrected in the docs. Arda raised the wider frame himself, a private Cloudflare Tunnel
+corrected in the docs. The wider frame was raised the same night, a private Cloudflare Tunnel
 network between the AWS host and the netcup box with no inbound port on either side;
 that closes the M2 path, the agent on the instance talking to Frappe, but not the
 generator's, since a GitHub runner sits in neither network and has no fixed address.
@@ -2192,7 +2192,7 @@ shared reading code cannot produce an evaluation that agrees with a wrong world.
 
 **Where to fix it, and what not to schedule.** The first proposal was to sort at the
 reader and to note a `frozenset` as the type-honest eventual form for the field. The
-external reviewer, reading the proposal relayed by Arda, pushed back on the second
+external reviewer, reading the relayed proposal, pushed back on the second
 half and was right: a frozenset gives order-independent equality but every
 serialization boundary then has to impose an order again, so it moves the
 canonicalization rather than removing it, and for a system that cares about
@@ -2237,7 +2237,7 @@ digest.
 
 *M1 step 12 of the build plan, the generator's entry point and the sealing of a world
 into the two buckets: nine design rulings first, one question per exchange with the
-external reviewer answering each cold (session 21, 2026-09-13), then six builds each
+external reviewer answering each cold (2026-09-13), then six builds each
 pushed and reviewed — the object store (`26ae48d`, reviews `73617d2`, `5c47f8f` and the
 checksum fix), the key layout and the sealed documents (`48b7584`), the sealing sequence
 (`272b033`), the generator's entry point (`4020df7`), the shared wiring and the
@@ -2266,7 +2266,7 @@ answer key's secrecy rested on discipline. The ruling that replaced it moved the
 privileged jobs off the instance entirely: the generator and the validator are
 `workflow_dispatch` jobs under one GitHub environment, `benchmark`, reviewer-gated and
 `main`-only, each assuming its own OIDC-trusted role through the web-identity
-exchange, and the instance role assumes nothing. The platform stream built and applied
+exchange, and the instance role assumes nothing. The platform repository built and applied
 it the same evening (its commit `529c998`), and the trust was proven by a throwaway
 workflow run rather than by policy text (run 34719626730 in this repository's
 findings): both roles assumed, the generator's two models answering under it, the
@@ -2284,7 +2284,7 @@ key with AccessDenied precisely when list is denied, so that a caller cannot lea
 whether the key exists — whatever the get permission says. The truth bucket had been
 empty when the probe ran. The get had proven nothing about GetObject; the list denial
 made it ambiguous, not meaningful. The project's own record carried the backwards
-reasoning in two places, the session log and the findings, and both received a dated
+reasoning in two places, the private log and the findings, and both received a dated
 correction rather than a rewrite. The fix needed a key known to exist: the platform
 stream added a canary object at `access-probe/read-denied-canary` (its commit
 `57ec6df`), placed outside the create-only prefixes because Terraform's S3 object
@@ -2426,7 +2426,7 @@ three layers: identity exactness per closed enumeration, missing and foreign bot
 named; record fidelity, each record read back equal to its planting; and the derived
 view of a run, the facts a scenario's reads yield compared with the facts the
 plantings yield. The reviewer proposed "projection equivalence" for the second layer,
-equality after vendor normalization, and I pushed back with the projector's own
+equality after vendor normalization, and the answer pushed back with the projector's own
 docstring: the adapters' round trips are proven exact for every generator-controlled
 field, so naming a looser equivalence would admit a looseness the record says does not
 exist; plain equality stayed. The reviewer also wanted exactness for calendar events
@@ -2434,14 +2434,14 @@ over the whole of each world-exclusive calendar rather than the world's time hor
 the read port offers events by window only, on purpose, since the investigator never
 enumerates a calendar, so the scope became the horizon, one bounding interval over
 every scenario window so a foreign event in a gap between windows fails rather than
-hides, and debris outside every window went to the fix log as the composition root's
+hides, and debris outside every window went to the parked defects as the composition root's
 hygiene concern. The decoders became a codec over one value: `PlantedWorldSpec` is
 exactly the file's content, a pure function projects the assembled world onto it, the
 encoder takes it, and three claims are proven separately (the projection equals the
 expected value, decoding an encoding yields the value, encoding a decoding of the
 sealed bytes yields the bytes). The verdict became its own artifact, never a stage on
 the manifest, approved exactly when every check passed, carrying the validator's
-version and the SHA-256 of the manifest bytes it judged. That last field was my
+version and the SHA-256 of the manifest bytes it judged. That last field was an
 addition to the reviewer's shape, for a reason worth keeping: the world version and
 the artifact digests identify the world, not the projection, and a re-projection of
 the same world onto other sites changes every receipt and the calendar map while
@@ -2454,7 +2454,7 @@ either importing the other.
 **The checker that borrowed the calendar.** The third part landed the checks
 (`6b225d5`) and the reviewer's finding on it was the step's turn. A live record knows
 nothing of when the synthetic world "made it observable"; the entity types keep vendor
-timestamps out by design. My view layer therefore looked up each live record's
+timestamps out by design. The view layer therefore looked up each live record's
 planting date in the sealed spec by identity, stamped its facts with that date, and
 compared the result at two instants inside the stable interval with the truth's dated
 view. It passed. The reviewer's point was that the investigator will never possess
@@ -2467,7 +2467,7 @@ produced a cleaner historical view than the runtime can obtain, borrowing
 benchmark-private chronology to do it, and so would have hidden exactly the mismatch
 it exists to expose.
 
-Before ruling, I probed the reference world for the two facts that decided the size
+Before the ruling, the reference world was probed for the two facts that decided the size
 of the problem. No planting in any of the ten scenarios is observable only after its
 scenario's `now`. And when every planted fact of every scenario is made visible at
 each scenario's today, the way the live systems actually present the world, not one
@@ -2531,17 +2531,17 @@ encoder never writes, so the round-trip claim now holds for every value a sealed
 codec accepts, and the vendor adapters are deliberately outside it because normalizing
 a vendor's spelling is their job (`9971acc`, `482d104`). The file store's rename was
 atomic but not durable across a host crash without a sync of the parent directory;
-the reviewer filed it as a P2 against the receipt contract, I answered with the ruled
+the reviewer filed it as a P2 against the receipt contract, the answer was the ruled
 contract, restartability after the faults the transport reports and a loud coverage
 refusal for the window between a write and its checkpoint, and the reviewer
-downgraded their own severity while tightening my phrasing (a rollback can land behind
+downgraded their own severity while tightening the phrasing (a rollback can land behind
 more than one external write); the barrier was taken anyway on the POSIX production
 path, the two guarantees stated apart, and the test of it ran inside a Linux container
 since the development platform cannot sync a directory through `os.open` (`fb67e44`).
 The corpus port offers documents by id and by search and no enumeration, so the
 foreign direction of document exactness needed an inspection outside the port, the
 same shape as Frappe's held employee numbers and Jira's held markers (`69a0b71`). And
-the closing review found a hole in the integrity chain I had drawn: the scenario specs
+the closing review found a hole in the integrity chain as drawn: the scenario specs
 are authenticated by the world spec's digest, so the manifest's own copy of that
 digest was never compared, and a manifest recording a false one was approved with the
 false digest carried into the verdict's provenance; reproduced by a scratch script
@@ -2570,7 +2570,7 @@ what.*
 
 Step 10 was designed before it was coded, in an interview with an external reviewer
 who saw each question cold: one ruling per exchange, the reviewer's feedback answered
-point by point, then Arda's call. Seven rulings came out of that, and the interesting
+point by point, then the ruling. Seven rulings came out of that, and the interesting
 part of the step is that two of them did not survive contact with the code. The
 record below keeps both the rulings and the reversals, because the reversals are the
 story.
@@ -2614,11 +2614,11 @@ a vendor locator, on purpose, so that vendor ids stay inside the adapters. Jira'
 key therefore exists in exactly one place, the writer's return value. If the source
 died after the third issue, the batch raised, the three locators were gone, and a
 restart would find the three issues, correctly not re-create them, and have no way to
-learn their keys. The same held for Frappe's generated leave names. The fix I proposed
+learn their keys. The same held for Frappe's generated leave names. The fix proposed
 before the commit, when the shape first showed, was a third manifest stage —
 "projecting", with receipts growing under it — to preserve an invariant the first
 review round had introduced: that a manifest still preparing carries no receipts. The
-reviewer's fix was better and I said so: keep two stages, let receipts grow under
+reviewer's fix was better and was taken: keep two stages, let receipts grow under
 "preparing", and give the projector a sink it calls with each locator before the next
 external write, so the root can checkpoint it durably. A third stage would have
 encoded internal workflow progress that nothing consumes, since a restart re-runs
@@ -2635,7 +2635,7 @@ it cannot prove is survival of a process death, or a failed checkpoint, in the w
 between an external write returning and its locator reaching the file — there is no
 transaction spanning Jira and a local file, and no callback placement closes that. The
 project's recovery contract is restartability after the faults the transport reports,
-not after a kill at any instruction, and the docstring says exactly that. What I added
+not after a kill at any instruction, and the docstring says exactly that. What was added
 to the record: the window is loud, never silent. A restart finds the record, receipts
 nothing for it, and the post-projection coverage check refuses to promote the
 manifest; the operator's remedy is the same as for any debris, delete the marked record
@@ -2648,8 +2648,8 @@ docstring now lists beside them (`871ebc0`).
 start fresh, one calendar per employee with a save after each new id, the site
 inspections as a preflight allowing a subset of the world, the projectors with every
 receipt checkpointed, the inspections again demanding the exact set, a coverage proof,
-then the promotion to "projected". Its first review (`985c4ec`) found four things I
-had left open, all reproduced before triage and all adopted: the remembered calendar
+then the promotion to "projected". Its first review (`985c4ec`) found four things
+left open, all reproduced before triage and all adopted: the remembered calendar
 map was never scope-checked, so a checkpoint carrying a stranger's calendar would have
 widened the application's read surface, since the calendar adapter reads every
 configured calendar; a resumed checkpoint's header — digests, generator version,
@@ -2659,13 +2659,13 @@ silently skipped a company employee without a number. The resume now builds the
 fresh manifest every time and takes from the checkpoint only what grew in it, the
 calendar map and the receipts, after every header field is compared.
 
-The second review round asked for more, and this is where I pushed back. The
+The second review round asked for more, and this is where the answer pushed back. The
 reviewer's finding was that the postflight proves exactness only for employees and
 Jira issues, while the readers also enumerate leaves, components, events and
 documents: a foreign record of any of those kinds, carrying a valid planted-style id,
 would survive promotion and enter the investigator's fact surface, where the
 closed-world enumeration contract grades absence as known false. True, and the root's
-docstring had claimed "this world and nothing outside it". My answer was that the
+docstring had claimed "this world and nothing outside it". The answer was that the
 root's inspections exist for one class of failure — its own interrupted writes leaving
 state its find-or-create cannot see, which only Jira issues can do, since every other
 kind lands with its identity in one write — plus the integrity of its own checkpoint
@@ -2675,8 +2675,8 @@ the independent proof that the live systems hold exactly the declared world is t
 validator's, the next step, which already re-reads every enumerable kind. Proving full
 exactness in the root and again in the validator would be the same proof twice, in the
 layer not built to give independent evidence. The reviewer agreed, called their own
-earlier recommendation a conflation of two guarantees, and tightened two things I
-would have left loose: the manifest's "projected" stage now means the projection
+earlier recommendation a conflation of two guarantees, and tightened two things that
+would have stayed loose: the manifest's "projected" stage now means the projection
 lifecycle completed with the generator's own invariants proven, not that the world was
 independently accepted — only a validator-approved world is served — and the step-11
 claim is written explicitly as set equality of observed and expected identities per
@@ -3144,7 +3144,7 @@ semantics.
 The build ran in three commits, reviewed as foundation first and dependents together.
 The moment worth telling is in part 2. Once the viability rule existed, the five-person
 test fixture was run under three conditions — every source reachable, the tracker
-down, the calendar down — and the verdicts printed as a table for Arda's read. One row
+down, the calendar down — and the verdicts printed as a table for a hand read. One row
 was wrong on sight: with the tracker down, the ticket's component could not be read,
 and the code had marked the whole need unresolved, so the leaver herself showed as
 *unknown* although her leave was a known failure. The ruling said a known failure
@@ -3175,8 +3175,8 @@ suite and worked from the pushed diffs. The one that would have bitten silently:
 closure function validated the subject of a query but not the value, so asking
 whether someone holds `"Kafka"` where a lower-case slug is declared returned a known
 false rather than raising — a programming error turned into a statement about the
-world. The one I got wrong: the reviewer asked for a runtime check that a
-requirement's criteria are the criterion classes, and I left it out as "the type
+world. The one the answer got wrong: the reviewer asked for a runtime check that a
+requirement's criteria are the criterion classes, and it was left out as "the type
 checker's job". The reviewer's follow-up showed the chain: the value spec admitted
 the object, and the codec's unreachable branch would have failed with an assertion
 instead of a `ValueError`. The codebase's own rule, that an object which exists is
@@ -3292,7 +3292,7 @@ Support case is queued for the record.
 
 Two smaller facts fell out. Anthropic's rows are not in the Pricing API (it carries
 only legacy Claude 2/3 US SKUs), so their prices came from the pricing page read in a
-browser by a subagent; the `eu.` inference profiles cost a flat 10 % over `global.`
+browser; the `eu.` inference profiles cost a flat 10 % over `global.`
 across the board. And Nova Pro missed its cache once in five passes — an `eu.`
 profile can route a call to a region that has not yet seen the prefix — which is a
 line item for the M2 cost model, since the $0.75-per-investigation estimate assumes
@@ -3376,12 +3376,12 @@ environment itself.
 
 Before the spike could run, a ruling: the earlier probes had left residue (a "Probe
 Org" company in Frappe, auto-created projects in Jira, test events in calendars), and
-Arda asked for clean plates. The options differed in kind. Scrubbing shared systems
+The request was for clean plates. The options differed in kind. Scrubbing shared systems
 can never prove it got everything — every future world inherits doubt about what's
 left. Fresh containers — a new Frappe site per world (`bench new-site` ≈ 2 min, the
 Host header selects the site), a new Jira project key, new secondary calendars — are
 provably clean *by creation*, and "reset a world" becomes drop-and-recreate instead of
-a cleanup audit. Arda ratified fresh containers; the compose frontend switched from a
+a cleanup audit. Fresh containers were ratified; the compose frontend switched from a
 pinned single-site name to `$host` routing the same hour, and the probe created its
 own site (`hr-w1`) rather than inheriting the probe site's residue. One honest limit:
 Jira Free is one site, so the *project key* is the container there — residue outside
@@ -3408,9 +3408,9 @@ The idempotence half took a fight. Reruns kept dying on a transient transport fa
 an authorized Frappe GET would intermittently hang or get connection-reset, and the
 origin's nginx access log proved the request *never arrived* — something between the
 client and the box (the Cloudflare edge, or the hosting provider's connection
-policing; the stream's fix log already records SSH resets on the same box under rapid
+policing; the parked defects already record SSH resets on the same box under rapid
 connections) was killing it. Unauthenticated calls never failed in reproduction; the
-same call passed moments later. Mid-diagnosis Arda made a process correction that
+same call passed moments later. Mid-diagnosis a process correction was made that
 shaped the outcome: don't burrow — surface what's known and discuss the approach.
 The known facts supported a pragmatic fix over a root-cause hunt: a retry on
 *connection-level* faults only (never on HTTP errors), safe here because every write
@@ -3419,10 +3419,10 @@ identical verify results** — and its capture shows the retry earning its keep:
 faults on one call, third attempt clean (`run-05.json`; runs 02–04 are the fault
 captures). The transferable lesson went into FINDINGS: every M1/M2 adapter needs
 connection-fault retries, because the transport to real external tools is measurably
-imperfect even at probe scale. Root cause stays open in the fix log (cheapest next
+imperfect even at probe scale. Root cause stays open as a parked defect (cheapest next
 clue: Cloudflare's Security → Events page).
 
-A design consequence surfaced by Arda's question rather than any probe: when this
+A design consequence surfaced by a question rather than any probe: when this
 project is shared, *nobody visits the three tools*. They are the agent's world —
 credentialed, private (a Free Jira site, Frappe behind Caddy on the box, a consumer
 Google account) — not the audience's window. The audience surface is the demo
@@ -3438,7 +3438,7 @@ counts (64 → 0) as the idempotence before/after.
 ## 2026-08-23 — Two vendor surprises from the HRIS probe: the setting that is silently ignored, and the approval check the admin token walks through
 
 *M0 day 1, the frappe-rest probe (PASS same day; detail in `probes/FINDINGS.md`).
-Written 2026-08-24 from the stream session log and FINDINGS. Feeds: the M0 probe-days
+Written 2026-08-24 from the private log and FINDINGS. Feeds: the M0 probe-days
 post; the report's adapter section (vendor-behavior risk) and its security/permissions
 section (the runtime principal ruling).*
 
@@ -3480,7 +3480,7 @@ same split Jira needed custom fields to achieve, Frappe gives away.
 ## 2026-08-23 — The box doesn't build: how a missing Docker image ruled the supply chain, and a reviewer tightened "pinned" into a digest
 
 *M0 day 1, the frappe-up probe (PASS; detail in `probes/FINDINGS.md`). Written
-2026-08-24 from the stream session log and FINDINGS. Feeds: the report's
+2026-08-24 from the private log and FINDINGS. Feeds: the report's
 ops/deployment section; candidate material for a post on supply-chain discipline at
 hobby scale.*
 
@@ -3516,14 +3516,13 @@ sizing is not measured need, and the box's 16 GB holds two tenants comfortably.
 
 *The world-shape rulings session (ruling 2 of five, written to DESIGN "The world's
 shape") and the Jira probe that proved it the same day (PASS; detail in
-`probes/FINDINGS.md`). Written 2026-08-24 from the stream session log and FINDINGS.
+`probes/FINDINGS.md`). Written 2026-08-24 from the private log and FINDINGS.
 Feeds: the report's world-design section — likely its opening argument; the M0/M1
 posts.*
 
 The blocking question looked like a licensing problem: Jira Free allows 10 users, the
 synthetic org wants 25–30 people, and buying seats for fake employees violates the
-project's $0-tools constraint (org tools cost nothing; the spend is AWS and tokens —
-Arda's line). Every path that treated synthetic people as *Atlassian accounts* was
+project's $0-tools constraint (org tools cost nothing; the spend is AWS and tokens). Every path that treated synthetic people as *Atlassian accounts* was
 some mix of expensive, fragile, and dishonest (a "dev instance" is licensed for
 dev/testing only; shared accounts fake what they claim to test).
 
@@ -3552,7 +3551,7 @@ custom date fields the generator controls (`Opened On`, `Resolved On`), Jira's o
 timestamps are hidden as vendor time, and the CSV import is demoted to cosmetics.
 The vocabulary that keeps all of this straight — synthetic world → vendor
 representation → domain-facing tools, with adapters that translate identity and
-never launder a planted inconsistency — is Arda's framing, and it's the sentence the
+never launder a planted inconsistency — is the project's framing, and it's the sentence the
 report's world section should open with.
 
 Figure: the three-layer diagram (world / vendor representation / domain tools) with
@@ -3570,26 +3569,26 @@ anywhere*.
   Slack content a run-time write in the world generator. The cost line as an
   honesty anecdote: the design doc's ~$21 held and the working estimate of ~$18–19
   was the low guess (Pricing API, `probes/captures/instance/pricing.md`). Material:
-  SESSION_LOG session 7, FINDINGS slack entry.*
+  FINDINGS slack entry.*
 - *The instance floor (2026-08-26) — the whole host from Terraform, the secrets rail
   (Origin CA pair as SecureString, read at boot by a path-scoped role), the
   Cloudflare-only security group, and the three interview rulings annotated lasting
-  vs cheap. Material: SESSION_LOG session 5, FINDINGS instance entry.*
+  vs cheap. Material: FINDINGS instance entry.*
 
 - *The hosting ruling (2026-08-22) — app on AWS, HRIS on the box, decided by the
   career-strategy gap's own wording; tombstoned extremes and the preregistered
-  ephemeral-compute probe. Material: SESSION_LOG 2026-08-22 (design session part 1),
+  ephemeral-compute probe. Material:
   DESIGN's hosting matrix.*
 - *The three-lens review pivot (2026-08-23) — three independent review agents
   converged on "the world's shape is undecided," moving the next step from a probe to
-  five rulings. Material: SESSION_LOG 2026-08-23 (calendar session).*
+  five rulings. Material: the rulings as recorded 2026-08-23.*
 - *Calendar scopes measured, not assumed (2026-08-23) — `calendar.app.created` can
   create calendars it then cannot list; the working non-sensitive scope pair; the
-  UTC-authoring slip as a timezone-distractor lesson. Material: SESSION_LOG +
+  UTC-authoring slip as a timezone-distractor lesson. Material:
   FINDINGS calendar entry.*
 - *The vision method (2026-08-20→22) — grading SteamLens's vision with build
   hindsight, draft-then-interview, deploy-from-day-one as a mid-interview ruling.
-  Material: SESSION_LOG founding entry, VISION.md.*
+  Material: VISION.md.*
 - *Probe day 0 as a teach-through (2026-08-22) — the AWS account bootstrapped with
   every term defined at first use; why the admin SSO user beats root. Material:
-  SESSION_LOG day-0 entry, the AWS study file.*
+  the FINDINGS probe-day entries.*

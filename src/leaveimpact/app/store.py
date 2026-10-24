@@ -70,8 +70,8 @@ _ADVANCE_VERSION = "UPDATE app_schema SET version = %s WHERE version = ANY(%s)"
 _SELECT_CAPTURE = (
     "SELECT coalesce(jsonb_agg(c ORDER BY c.ledger_id), '[]'::jsonb) FROM ledger_capture c"
 )
-"""The platform's backup script reads the view with this exact statement (its ticket-B
-exchange, 2026-10-23); the restore drill reads it the same way so the two compare equal."""
+"""The platform's backup script reads the view with this exact statement (the
+exchange of 2026-10-23); the restore drill reads it the same way so the two compare equal."""
 _ROW = (
     "public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by"
 )

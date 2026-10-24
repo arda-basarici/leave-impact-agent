@@ -7,7 +7,7 @@ two-by-two table; a null stays null. Three statistical families carry every figu
 yes-or-no check estimated in a cell, a ratio estimated in a cell, a paired comparison of
 two arms), so a new named statistic is a new row and never a new type. What the
 projection leaves out is decided per field at the demo milestone's first build step (the
-mapping in the step's forks file): the per-run listing, the scenario ids, the audit
+mapping in the step's design pass): the per-run listing, the scenario ids, the audit
 counters a cell's accounting carries beyond what happened to its runs, the mechanism's
 supporting fact tallies, the repeat-consistency diagnostic, and the sealed world objects'
 digests and store version ids. The embargo covers two of those digests; the rest are

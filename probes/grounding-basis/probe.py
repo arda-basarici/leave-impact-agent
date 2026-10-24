@@ -1,8 +1,8 @@
 """The grounding replay's basis: what a run must read for the rules to reproduce its claims.
 
 A measurement, not a pass-or-fail probe: it has no criterion, it produced the numbers four
-rulings of the investigator milestone's fourth build step were made on (the stream's
-`m2-build/2026-10-02-step-4-rulings.md`, rulings 1, 2, 3 and 5). It was first run on
+rulings of the investigator milestone's fourth build step were made on (the step's rulings
+of 2026-10-02, rulings 1, 2, 3 and 5). It was first run on
 2026-10-02 from seven scratch scripts, one question at a time, while the rulings were
 being argued; this file is the same computation in one pass per world, committed with its
 capture so the numbers are regenerable from recorded inputs: the seeds, the golden plan,
