@@ -4602,3 +4602,90 @@ host; the host replacement the same day (the data volume reattached with the liv
 units baked into cloud-init) is the fresh-host half, by the platform's record. The retained
 liability is recomputed by the account rule on the restored log and compared with the ledger's
 settled entries; it is not a captured figure, by the step's amendment of ruling 5.
+
+## memory-baseline — the instance read under the demo's loads: memory moves little, the single worker's CPU is what binds, the limits set by the rule (2026-10-24)
+
+The demo milestone's memory baseline step (its forks file in the stream,
+`m3-build/2026-10-24-step-10-forks.md`; the criterion and the rule in `probes/README.md`,
+written before the run). Every number here is the reduction script's over the saved capture
+(`probes/memory-baseline/reduce.py` over `captures/memory-baseline/2026-10-24/host.out.txt`,
+to `probes/memory-baseline/reading.json`); the unit test `tests/unit/test_memory_baseline.py`
+regenerates the reading from the capture and holds `compose.yaml` and the stream's bound to it.
+
+**The host and the run.** `i-0dc8c9d26587ba78e`, kernel 6.18.54 (Amazon Linux 2023, arm64),
+two vCPUs, 1,930,240,000 bytes of memory (1841 MiB), no swap, Docker 25.0.16 with the systemd
+cgroup driver on cgroup v2, `e02ccc2` deployed. SSM command `25ce6583…`, sent 16:29:08 UTC by
+Arda's hand through `send.ps1`, Success in 8 minutes 21 seconds, 17,014 characters of stdout
+under the 24,000 cap. Eight levels of 45 seconds, three samples each at 15, 25 and 35 seconds,
+the loader a one-off container of the deployed image (`docker compose run --no-deps`, stdin
+closed, the script bind mounted), the sampler the host's Python over the cgroup files. Every
+loader exited 0 with no transport error; every page read answered 200 and every stream fetch
+200 (none reached the bound: a looper's fetch is short, so eight loopers never held eight slots
+at one instant). Both containers were up before the run and up after it with their ages intact
+(17 and 18 hours), so no restart or kill under the old limits.
+
+**The levels** (the maximum over a level's three samples; `cur` is the cgroup's
+`memory.current`, what a limit is enforced on; `anon` its anonymous pages; `thr` the app
+process's threads; the loader's own counts beside):
+
+| level | app cur | app anon | app thr | pg cur | pg anon | caddy | loader |
+|---|---|---|---|---|---|---|---|
+| idle | 229.7 MiB | 97.6 MiB | 2 | 83.6 MiB | 4.0 MiB | 44.3 MiB | |
+| r1 | 219.2 | 92.0 | 3 | 84.5 | 5.7 | 43.8 | 298 reads, 6.62/s, p50 153 ms, p95 413 |
+| r4 | 217.0 | 93.1 | 6 | 85.4 | 7.7 | 43.4 | 310 reads, 6.89/s, p50 644 ms, p95 1171 |
+| r16 | 219.5 | 97.9 | 18 | 98.8 | 19.4 | 43.0 | 294 reads, 6.53/s, p50 2860 ms, p95 4873 |
+| s1 | 218.6 | 97.9 | 3 | 80.9 | 4.0 | 42.8 | 98 fetches, 2.18/s, p50 430 ms |
+| s4 | 232.0 | 111.0 | 8 | 85.7 | 8.6 | 42.8 | 101 fetches, 2.24/s, p50 1774 ms |
+| s8 | 219.6 | 98.3 | 15 | 92.9 | 14.2 | 42.8 | 103 fetches, 2.29/s, p50 3545 ms |
+| r16s8 | 233.2 | 112.3 | 27 | 99.4 | 20.6 | 42.7 | 194 reads, 4.31/s, p50 4537 ms; 41 fetches, 0.91/s, p50 9752 ms |
+
+The host's largest residents at idle, by RSS: the app's Python 110.3 MiB, dockerd 88.7,
+containerd 49.4, Caddy 41.0, the SSM agent worker 29.0, the PostgreSQL postmaster 26.0, the
+SSM document worker 24.1, journald 22.4, two containerd shims of about 20 each. Memory in use
+outside the three sampled containers at idle, the host baseline: 344.6 MiB at its largest
+sample. The proxy stack's hello container (4.6 MiB by `docker stats`) was not in the sampler's
+list; it is inside the baseline, not beside it. About 130 MiB of the app cgroup's current is
+neither anonymous nor file pages (the kernel's share, which the sampler does not break out);
+the rule reads current because that is what the limit is enforced on.
+
+**The rule's outputs** (the script prints every input): the app's peak current 233.2 MiB,
+times 1.5 is 349.8, rounded up to 64 MiB gives **384m**; PostgreSQL's peak current 99.4 MiB,
+times 1.5 is 149.1, rounded up gives **192m**. Each limit also clears 1.5 times the kernel's
+own `memory.peak` over the container's life (248.7 and 125.4 MiB), which the earlier day's
+restore drill and backup sit inside. The host's 1841 MiB less the 345 MiB baseline is a
+1496 MiB budget; 384 plus 192 plus the worker's 512 MiB reservation is 1088 MiB, fits, 408 MiB
+spare. The bound: the combined level's app current (233.2 MiB) is under the app's limit and its
+reader median is 1.59 times the readers-only level's, within the rule's two, so the
+**subscription bound stays at 8**. A looper costs about 150 KB of app memory (s1 to s8), so the
+app's remaining budget would buy about 1,169 of them: memory is not what bounds streams. The
+limits replace the 768m guesses of 2026-08-27 in `compose.yaml` and land with the next deploy.
+
+**What binds is the single worker's CPU, not bytes and not threads.** Throughput was flat
+from one client upward: 6.6, 6.9 and 6.5 page views a second at 1, 4 and 16 readers, with the
+median latency growing in proportion (153, 644, 2860 ms); 2.2, 2.2 and 2.3 stream fetches a
+second at 1, 4 and 8 loopers (430, 1774, 3545 ms). One reader already saturates the server,
+so a page costs about 150 ms of its time and a whole-stream fetch of a sixty-event attempt
+about 450 ms (admission, one session of about three statements, the fold, the narration over
+every event, sixty frames). The thread count reached 27 of the pool's 40 at the heaviest level
+and memory barely moved, so the third fork's answer is neither: the Python process on two
+vCPUs serves one request's CPU at a time. For the exit this is a stranger reading pages at
+150 ms each. For the live path it is a finding owed to the live pages step: a narration tick
+re-folds the whole attempt per subscription per second, so eight viewers of the one open
+attempt would ask for about four times what the host serves and tick late rather than fail
+(the tick loop sleeps a second after each tick, and the readers slow with them, as the
+combined level shows: 6.5 page views a second fell to 4.3 beside eight loopers). A fold shared
+per attempt per tick, or a lower bound, is decided there.
+
+**The fourth fork, amended on the evidence.** The recommendation paired the instance's
+loopers with a workstation measurement of the held generator over an open attempt. The
+instance's own numbers made it unnecessary: the held generator's bytes are inside the 150 KB
+a looper costs (a looper holds the same generator plus transient buffers), and the per-tick
+cost is bounded above by the fetch cost measured where the ruling wants it. Step 14's
+extension re-reads held streams on the instance with the worker's real open attempt.
+
+**Build findings.** The host script's "before" `docker compose ps` ran one line before the
+Compose preamble's exports and printed three interpolation errors to stderr instead of the
+state; the "after" line ran under the exports and carried the uptimes the restart check reads,
+so the criterion held on it alone, and the line order is corrected in the script. The sampler
+did not collect the cgroup's `kernel` and `slab` keys, which would have named the 130 MiB
+above; a later capture adds them.

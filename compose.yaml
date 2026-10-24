@@ -59,8 +59,12 @@ services:
       retries: 6
       start_period: 15s
     # Two processes on a 2 GB instance: bound each so one cannot OOM the other;
-    # rotate logs so a chatty event stream cannot fill the root volume.
-    mem_limit: 768m
+    # rotate logs so a chatty event stream cannot fill the root volume. The limits are
+    # the memory baseline's rule over the instance's reading (probes/memory-baseline:
+    # 1.5 times the peak memory.current sampled under the demo's loads, rounded up to
+    # 64 MiB); tests/unit/test_memory_baseline.py holds them to the committed reading,
+    # so a change here starts with a new capture. The worker's reading is step 14's.
+    mem_limit: 384m
     logging: &log
       driver: json-file
       options: { max-size: "10m", max-file: "5" }
@@ -85,7 +89,7 @@ services:
     # service, this mount is for durability across rebuilds.
     volumes:
       - ${PGDATA_HOST:?absolute host path for PostgreSQL data, set in the environment}:/var/lib/postgresql/data
-    mem_limit: 768m
+    mem_limit: 192m
     shm_size: 128m
     logging: *log
     healthcheck:

@@ -45,8 +45,13 @@ Cost per tick, measured on the store's code: a fresh session is one connect, the
 schema-version check, the attempt row and the events read inside a transaction, about three
 statements, each under the store's three-second bound and the connect under its own, so a
 wedged tick can take twelve seconds, under the heartbeat interval. The pacing constants are
-the process's; the subscription bound is reset from the instance's memory baseline at the
-step that measures it.
+the process's; the subscription bound was confirmed by the instance's memory baseline (the
+demo milestone's step 10, ``probes/memory-baseline``): memory is not what bounds streams
+there (about 150 KB a looper, a thousand of them inside the app's limit), the thread pool
+is not either (27 of 40 threads at the heaviest level), the single worker's CPU is: a tick
+over a sixty-event attempt costs about 450 ms of it, so eight subscriptions on one open
+attempt ask for about four times what the host serves and tick late rather than fail. The
+bound stays at eight under the rule and the live pages step owns the per-tick cost.
 """
 
 from __future__ import annotations
@@ -70,7 +75,8 @@ TICK_SECONDS = 1.0
 HEARTBEAT_SECONDS = 15.0
 """The longest silence before a comment line keeps the connection alive."""
 SUBSCRIPTION_BOUND = 8
-"""Concurrent streams one process serves; the next is refused."""
+"""Concurrent streams one process serves; the next is refused. Held to the memory
+baseline's committed reading by ``tests/unit/test_memory_baseline.py``."""
 
 MEDIA_TYPE = "text/event-stream"
 HEARTBEAT = b": keepalive\n\n"
