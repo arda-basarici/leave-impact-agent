@@ -1,0 +1,436 @@
+{
+ "capture": "2026-10-24",
+ "source_sha256": "353a0989d042ab6163c7a763eb843157e771ac8139f58280c8dc27ee05e81576",
+ "host": {
+  "work": "/tmp/memory-baseline.md5kcK",
+  "kernel": "6.18.54-121.166.amzn2023.aarch64",
+  "cpus": "2",
+  "swap": "none",
+  "cgroup": "cgroup systemd v2 docker 25.0.16",
+  "deployed": "e02ccc23db57fb71e54c2b5adc4cea4b5c60fd8a",
+  "total_bytes": 1930240000
+ },
+ "largest_processes_at_idle": [
+  [
+   115679232,
+   "python"
+  ],
+  [
+   93040640,
+   "dockerd"
+  ],
+  [
+   51781632,
+   "containerd"
+  ],
+  [
+   42954752,
+   "caddy"
+  ],
+  [
+   30412800,
+   "ssm-agent-worke"
+  ],
+  [
+   27238400,
+   "postgres"
+  ],
+  [
+   25251840,
+   "ssm-document-wo"
+  ],
+  [
+   23482368,
+   "systemd-journal"
+  ],
+  [
+   21123072,
+   "containerd-shim"
+  ],
+  [
+   20930560,
+   "containerd-shim"
+  ]
+ ],
+ "levels": {
+  "idle": {
+   "samples": 3,
+   "host_available_min": 1193984000,
+   "host_used_outside_containers_max": 361340928,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 240848896,
+     "anon_max": 102313984,
+     "threads_max": 2,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 87609344,
+     "anon_max": 4235264,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 46456832,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   }
+  },
+  "r1": {
+   "samples": 3,
+   "host_available_min": 1152860160,
+   "host_used_outside_containers_max": 414810112,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 229879808,
+     "anon_max": 96456704,
+     "threads_max": 3,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 88592384,
+     "anon_max": 5947392,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 45969408,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 1,
+    "streams": 0,
+    "reads": {
+     "200": 298
+    },
+    "reads_per_second": 6.62,
+    "read_latency_ms": {
+     "count": 298,
+     "p50": 153.1,
+     "p95": 413.1,
+     "max": 691.7,
+     "mean": 153.0
+    },
+    "stream_fetches": {},
+    "stream_fetches_per_second": 0.0,
+    "stream_fetch_ms": {},
+    "errors": 0
+   }
+  },
+  "r4": {
+   "samples": 3,
+   "host_available_min": 1128259584,
+   "host_used_outside_containers_max": 444403712,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 227516416,
+     "anon_max": 97648640,
+     "threads_max": 6,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 89567232,
+     "anon_max": 8052736,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 45531136,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 4,
+    "streams": 0,
+    "reads": {
+     "200": 310
+    },
+    "reads_per_second": 6.89,
+    "read_latency_ms": {
+     "count": 310,
+     "p50": 643.6,
+     "p95": 1171.2,
+     "max": 1942.7,
+     "mean": 589.7
+    },
+    "stream_fetches": {},
+    "stream_fetches_per_second": 0.0,
+    "stream_fetch_ms": {},
+    "errors": 0
+   }
+  },
+  "r16": {
+   "samples": 3,
+   "host_available_min": 1109409792,
+   "host_used_outside_containers_max": 445767680,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 230182912,
+     "anon_max": 102678528,
+     "threads_max": 18,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 103571456,
+     "anon_max": 20377600,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 45056000,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 16,
+    "streams": 0,
+    "reads": {
+     "200": 294
+    },
+    "reads_per_second": 6.53,
+    "read_latency_ms": {
+     "count": 294,
+     "p50": 2860.1,
+     "p95": 4872.6,
+     "max": 6565.7,
+     "mean": 2533.0
+    },
+    "stream_fetches": {},
+    "stream_fetches_per_second": 0.0,
+    "stream_fetch_ms": {},
+    "errors": 0
+   }
+  },
+  "s1": {
+   "samples": 3,
+   "host_available_min": 1117552640,
+   "host_used_outside_containers_max": 453857280,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 229228544,
+     "anon_max": 102641664,
+     "threads_max": 3,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 84819968,
+     "anon_max": 4235264,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 44883968,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 0,
+    "streams": 1,
+    "reads": {},
+    "reads_per_second": 0.0,
+    "read_latency_ms": {},
+    "stream_fetches": {
+     "200": 98
+    },
+    "stream_fetches_per_second": 2.18,
+    "stream_fetch_ms": {
+     "count": 98,
+     "p50": 430.0,
+     "p95": 806.2,
+     "max": 1072.8,
+     "mean": 462.1
+    },
+    "errors": 0
+   }
+  },
+  "s4": {
+   "samples": 3,
+   "host_available_min": 1102970880,
+   "host_used_outside_containers_max": 455831552,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 243314688,
+     "anon_max": 116363264,
+     "threads_max": 8,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 89841664,
+     "anon_max": 8966144,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 44883968,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 0,
+    "streams": 4,
+    "reads": {},
+    "reads_per_second": 0.0,
+    "read_latency_ms": {},
+    "stream_fetches": {
+     "200": 101
+    },
+    "stream_fetches_per_second": 2.24,
+    "stream_fetch_ms": {
+     "count": 101,
+     "p50": 1773.6,
+     "p95": 2557.9,
+     "max": 3214.2,
+     "mean": 1795.9
+    },
+    "errors": 0
+   }
+  },
+  "s8": {
+   "samples": 3,
+   "host_available_min": 1115357184,
+   "host_used_outside_containers_max": 446480384,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 230260736,
+     "anon_max": 103038976,
+     "threads_max": 15,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 97386496,
+     "anon_max": 14876672,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 44883968,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 0,
+    "streams": 8,
+    "reads": {},
+    "reads_per_second": 0.0,
+    "read_latency_ms": {},
+    "stream_fetches": {
+     "200": 103
+    },
+    "stream_fetches_per_second": 2.29,
+    "stream_fetch_ms": {
+     "count": 103,
+     "p50": 3544.9,
+     "p95": 4732.5,
+     "max": 5082.6,
+     "mean": 3597.5
+    },
+    "errors": 0
+   }
+  },
+  "r16s8": {
+   "samples": 3,
+   "host_available_min": 1103204352,
+   "host_used_outside_containers_max": 457953280,
+   "containers": {
+    "leaveimpact-app-1": {
+     "current_max": 244527104,
+     "anon_max": 117719040,
+     "threads_max": 27,
+     "peak": 260730880
+    },
+    "leaveimpact-postgres-1": {
+     "current_max": 104230912,
+     "anon_max": 21585920,
+     "threads_max": 1,
+     "peak": 131502080
+    },
+    "proxy-caddy-1": {
+     "current_max": 44802048,
+     "anon_max": 9928704,
+     "threads_max": 8,
+     "peak": 52580352
+    }
+   },
+   "loader": {
+    "readers": 16,
+    "streams": 8,
+    "reads": {
+     "200": 194
+    },
+    "reads_per_second": 4.31,
+    "read_latency_ms": {
+     "count": 194,
+     "p50": 4536.5,
+     "p95": 7002.5,
+     "max": 9306.3,
+     "mean": 4101.4
+    },
+    "stream_fetches": {
+     "200": 41
+    },
+    "stream_fetches_per_second": 0.91,
+    "stream_fetch_ms": {
+     "count": 41,
+     "p50": 9752.1,
+     "p95": 12058.4,
+     "max": 15750.7,
+     "mean": 9606.0
+    },
+    "errors": 0
+   }
+  }
+ },
+ "rule": {
+  "headroom": 1.5,
+  "rounding_bytes": 67108864,
+  "worker_reservation_bytes": 536870912,
+  "app": {
+   "peak_current_bytes": 244527104,
+   "limit_bytes": 402653184,
+   "mem_limit": "384m",
+   "kernel_peak_bytes": 260730880,
+   "limit_clears_headroom_on_kernel_peak": true
+  },
+  "postgres": {
+   "peak_current_bytes": 104230912,
+   "limit_bytes": 201326592,
+   "mem_limit": "192m",
+   "kernel_peak_bytes": 131502080,
+   "limit_clears_headroom_on_kernel_peak": true
+  },
+  "host": {
+   "total_bytes": 1930240000,
+   "idle_baseline_bytes": 361340928,
+   "budget_bytes": 1568899072,
+   "limits_plus_reservation_bytes": 1140850688,
+   "fits": true,
+   "spare_bytes": 428048384
+  },
+  "bound": {
+   "deployed": 8,
+   "combined_level": "r16s8",
+   "combined_app_current_max": 244527104,
+   "combined_fits_app_limit": true,
+   "latency_ratio_combined_over_readers": 1.59,
+   "latency_within_twice": true,
+   "subscription_bound": 8,
+   "per_looper_bytes_s1_to_s8": 147456,
+   "forecast_loopers_the_app_budget_buys": 1169
+  }
+ }
+}

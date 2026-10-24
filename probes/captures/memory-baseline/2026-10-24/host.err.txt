@@ -1,0 +1,4 @@
+﻿error while interpolating services.app.environment.DATABASE_URL: required variable POSTGRES_PASSWORD is missing a value: set in the environment
+error while interpolating services.postgres.environment.POSTGRES_PASSWORD: required variable POSTGRES_PASSWORD is missing a value: set in the environment
+error while interpolating services.postgres.volumes.[]: required variable PGDATA_HOST is missing a value: absolute host path for PostgreSQL data, set in the environment
+

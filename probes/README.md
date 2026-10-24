@@ -284,3 +284,39 @@ tables from the reported artifact, which it refuses to mistake for another. The 
 entry `phase-c` cites both and has the result: 240 of 240 closed completed, $9.96, the
 investigator 24 of 30 at both levels, full context 30 and 14, the primary difference 0.20
 to 0.47.
+
+## The demo milestone's memory baseline (written 2026-10-24, before it runs)
+
+The demo milestone's step 10: the instance's memory read under the loads the demo serves,
+and the two Compose limits and the narration stream's subscription bound set from the
+reading by a rule fixed here, before the run. Both limits were guesses (768m each, 2026-08-27)
+and the bound a constant whose docstring promises this reset. The worker's reading is step
+14's; 512 MiB is held back for it today.
+
+**The load.** Eight levels on the instance, each held 45 seconds with three samples at 15,
+25 and 35 seconds, the maximum taken, 15 seconds of settling between: `idle`; readers at
+1, 4 and 16, each cycling the listing, a report, its trail, its timeline and the results
+page over the thirty replays from its own offset; stream loopers at 1, 4 and 8 (the
+deployed bound), each fetching a closed attempt's whole narration stream from cursor 0 and
+starting again, since no attempt on the instance is open and a looper that never pauses
+places at least the tick load of an idle subscription; readers 16 beside loopers 8. The
+loader (`memory-baseline/loader.py`) runs in a one-off container of the deployed image on
+the stack's network, so its own memory is its own cgroup's; the sampler
+(`memory-baseline/sampler.py`) runs on the host and reads each container's cgroup
+(`memory.current`, `memory.peak`, the anonymous, file and shared pages), `/proc/meminfo`,
+the app process's thread count and, at the idle level, the host's largest resident
+processes. Sent by `memory-baseline/send.ps1` through `memory-baseline/host.sh`, outside
+the backup window.
+
+**The rule.** A service's limit is 1.5 times the largest `memory.current` the sampler read
+for it over every level, rounded up to the next 64 MiB; the two limits plus the worker's
+512 MiB stay under the host's total minus the idle level's host baseline (used memory
+outside the three containers), or the rule fails and the finding says so. The subscription
+bound stays at the largest measured looper level whose combined level fits the app's limit
+and whose reader latency stays within twice the readers-only level; a raise past the deployed
+bound needs a measurement at the raised level, so the run records what the app's remaining
+budget would buy at the measured per-looper cost as a forecast for step 14.
+
+| probe | pass criterion | capture |
+|---|---|---|
+| **memory-baseline** — the eight levels above on the deployed instance | (a) every level's loader reports no transport error, every page read 200, every stream fetch 200 or, past the bound, 503 and no other status; (b) no container restarted or killed across the levels (`docker compose ps` after equals before); (c) the idle level carries the host's largest processes, so the host baseline is read, not assumed; (d) `memory-baseline/reduce.py` regenerates `memory-baseline/reading.json` from the capture, prints every input of the rule, and the limits in `compose.yaml` and `stream.SUBSCRIPTION_BOUND` equal the rule's output over the committed reading, held by a unit test; (e) the deployed app answers ready after the limits land. A level whose loader fails or whose container is killed under its limit is a finding, and no limit is set from a run with one. | `captures/memory-baseline/<date>/host.out.txt` (the host's shape, each level's loader summary, the samples), `host.err.txt` |
