@@ -4795,3 +4795,54 @@ for that, rerun at each release pass. The offline scan covers the two digests an
 else of the embargo (a tier beside a scenario id, a retrieval-target count, the prose) and
 those stay a reader's predicate. Nothing of `data/` is tracked, so the measurement world's
 local audit sheet is in no commit; the scan is over tracked content, as the evaluator's is.
+
+## golden-release — the first golden world released whole under docs/: three sealed objects equal to the buckets' bytes, proven the served world by content, the audit sheet renderable from them (2026-10-24)
+
+The demo milestone's entry ruled that the golden world's scenario specs and keys may be
+published with the demo, since the demo publishes the world's prose on every page. The
+release is the three sealed objects as the buckets hold them, under `docs/golden-world/`
+with an index: the world spec (48,668 bytes), the scenario specs (6,198) and the truth
+manifest (181,476), fetched under the administrator profile on 2026-10-24.
+
+**Proven by content, in CI.** The world version is the digest over the three files'
+canonical bytes, so `tests/unit/test_golden_release.py` needs no bucket: it joins the three
+committed files through the evaluator's own loader (`join_sealed_world`), which decodes the
+world spec, checks the digests it cites against the other two files, recomputes the version
+and requires today's rules to reproduce every sealed key, and holds the recomputed version
+to the one the demo configuration serves. Thirty scenarios, generator version 14, sealed
+open; the index's digests and version held to the files.
+
+**Equal to the buckets.** `scripts/accept_golden_release.py`, first run 2026-10-24 under the
+profile: `world-spec.json` equal (bucket version `8qWE9gppFrK55lkEqhpa3L7_Qkc_V5Lv`),
+`scenario-specs.json` equal (`oEyrOwBR1SGT38bfz_dUZrFwDYMHddlA`), `truth-manifest.json` equal
+(`SLuBHnmFkmENp8QXOEOIMsDxtEGvQ.Xa`), disclosure open, `verdict=accepted`.
+
+**The audit sheet from the released files, and what it showed.** `scripts/audit_sheet.py
+--released docs/golden-world` renders the sheet with no bucket access. Its first attempt
+refused: the sheet's outcome witness rebuilt the semantic world from the seed with the
+current generator and required the semantic digest equal, and generator version 19
+assembles another world from seed 16 than version 14 sealed (`e47828d8…` rebuilt against
+`17428de2…` sealed). The bucket mode would refuse this world today for the same reason. The
+released mode therefore takes its world from the sealed files joined by the evaluator's
+loader, whose own requirement is that today's rules reproduce every sealed key, and says so
+in its header; the recipe rebuild stays the bucket mode's witness for a world the current
+generator still reproduces. Compared with the sheet the audit read on 2026-09-19 (571,015
+bytes, bound by digest in the audit's index), the released rendering (572,419 bytes)
+differs on 53 lines: the witness sentence, one counter label, the released note, and the
+same section heading reworded in each of the twenty-four scenarios that have one; every
+key, witness, planting and fact line is identical. Today's rules over the sealed facts give
+the audit day's answers.
+
+**What the release changes.** README's sentence that a golden world's audit output stays in
+the truth bucket is amended: the first golden world's is released whole, the measurement
+world's stays until the last measurement on it. The per-scenario retirement ruling's
+exclusion of rows observable only after a scenario's `now` protected other scenarios of a
+world released one scenario at a time; a world released whole has none left to protect, and
+the released sheet keeps those sections and says why. The golden world's replays were
+already labelled development runs on a world its builders had read end to end; the keys'
+release changes no claim, and the results page's numbers come from the withheld world.
+
+**Limits.** The release is one world at one version; a regenerated golden world is a new
+version beside it and a new release. The CI proof is over content and says nothing about
+the buckets; the acceptance script is the bucket check and is rerun when a released file,
+the demo configuration or the objects change.

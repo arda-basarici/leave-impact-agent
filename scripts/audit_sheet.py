@@ -72,10 +72,20 @@ carry, other scenarios' plantings, is of a world with nothing to protect; the he
 so. The prose stage spends a few model calls under the ambient credentials, the generator's
 three model variables naming the writer, the checker and their region.
 
+The released mode reads the three files of a world released whole under the tree
+(``docs/golden-world``, the demo milestone's release of the first golden world) and
+renders the same sheet from them with no bucket access, so a reader of the repository can
+see what the keys say. The version in its header is recomputed from the three files, and
+the sections of rows observable only after a scenario's ``now`` are kept, since a world
+released whole has no other scenario left to protect. It writes beside the sealed world's
+sheet under its own name, never over it: the sheet the audit read is bound by digest in the
+audit's index, and a rendering by today's code is a different document.
+
 Usage: ``python scripts/audit_sheet.py <world_version>`` with ``AWS_PROFILE`` set renders a
 sealed world; ``python scripts/audit_sheet.py --throwaway --seed N --world-start DATE
 --plan golden …`` takes the generator's recipe flags after ``--throwaway`` and renders the
-example.
+example; ``python scripts/audit_sheet.py --released DIR`` renders the released files in
+``DIR``.
 """
 
 from __future__ import annotations
@@ -88,7 +98,7 @@ from collections import Counter, defaultdict
 from collections.abc import Iterable, Mapping, Sequence
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 import boto3
 
@@ -97,6 +107,7 @@ from leaveimpact.adapters.object_store.layout import (
     truth_manifest_key,
     world_spec_key,
 )
+from leaveimpact.adapters.object_store.read import StoredObject
 from leaveimpact.core.enums import EntityKind
 from leaveimpact.core.facts import Fact, FactBase, FactView, RunCondition
 from leaveimpact.core.ids import WorldVersion
@@ -107,6 +118,7 @@ from leaveimpact.core.values import FactValue
 from leaveimpact.core.values_json import encode_value
 from leaveimpact.core.viability import Assessment, assess_impact
 from leaveimpact.core.worldtime import DateSpan, InstantSpan
+from leaveimpact.evaluator.sealed_world import join_sealed_world
 from leaveimpact.generator.entrypoint import (
     ConfigurationError,
     parse_recipe,
@@ -114,7 +126,16 @@ from leaveimpact.generator.entrypoint import (
     prose_models_from_env,
 )
 from leaveimpact.generator.fresh import fresh_world
-from leaveimpact.world.artifacts import Bundle, semantic_digest
+from leaveimpact.world.artifacts import (
+    SCENARIO_SPECS,
+    TRUTH_MANIFEST,
+    WORLD_SPEC,
+    Artifact,
+    Bundle,
+    digest,
+    semantic_digest,
+    world_version,
+)
 from leaveimpact.world.assembly import SemanticWorld, assemble_semantic_world
 from leaveimpact.world.construction import required_count_for
 from leaveimpact.world.decoders import decode_world_spec
@@ -143,7 +164,47 @@ THROWAWAY_NOTES = (
 )
 """What the example's header says that a sealed world's does not."""
 
+RELEASED_NOTES = (
+    "released world: rendered from the three sealed files released whole under the tree, "
+    "the version recomputed from them; the sections of rows observable only after a "
+    "scenario's `now` are kept, since a world released whole has no other scenario left to "
+    "protect",
+)
+"""What a released world's header says."""
+
+REBUILT_WITNESS = (
+    "the semantic world rebuilt from this provenance by the generator's assembly, semantic "
+    "digest verified equal; per impact the generator's own assessment at the scenario's "
+    "`now` under the dated view"
+)
+"""The witness line of a sheet whose world the current generator rebuilds from its recipe."""
+
+RELEASED_WITNESS = (
+    "the sealed files joined by the evaluator's own loader, which requires today's rules to "
+    "reproduce every sealed key; per impact today's assessment at the scenario's `now` under "
+    "the dated view over the sealed fact base. The recipe is not rebuilt: a generator that "
+    "has moved since the sealing assembles another world from the same seed"
+)
+"""The witness line of a released world's sheet: the keys are proven from the sealed files,
+not from a rebuild, since the generator version that sealed a world may no longer be the
+current one (the first golden world: sealed under 14, read under 19)."""
+
 Json = Mapping[str, Any]
+
+
+class WorldView(Protocol):
+    """What the sheet reads of a world: the organization, the dated fact base and the
+    scenarios with their keys. The generator's rebuilt semantic world and the evaluator's
+    join of the sealed files both give it."""
+
+    @property
+    def org(self) -> OrgSpec: ...
+
+    @property
+    def facts(self) -> FactBase: ...
+
+    @property
+    def scenarios(self) -> Sequence[Scenario]: ...
 
 
 # --- Reading ------------------------------------------------------------------------------
@@ -172,6 +233,18 @@ def throwaway_bundle(argv: Sequence[str]) -> Bundle:
     for line in fresh.metrics.lines():
         print(line)
     return fresh.bundle
+
+
+def released_bundle(directory: Path) -> Bundle:
+    """The three files of a world released whole under ``directory``, as the bundle they
+    are: the version is recomputed from their bytes, so the header names what the files
+    hash to and nothing a reader has to take on trust."""
+    spec, specs, truth = (
+        Artifact(name, content, digest(content))
+        for name in (WORLD_SPEC, SCENARIO_SPECS, TRUTH_MANIFEST)
+        for content in [(directory / name).read_bytes()]
+    )
+    return Bundle(spec, specs, truth, world_version((spec, specs, truth)))
 
 
 def require_ignored(path: Path) -> None:
@@ -331,7 +404,12 @@ def quoted(text: str) -> list[str]:
 
 
 def header(
-    version: str, spec: Json, truth: Json, record: Any, notes: Sequence[str] = ()
+    version: str,
+    spec: Json,
+    truth: Json,
+    record: Any,
+    notes: Sequence[str] = (),
+    witness: str = REBUILT_WITNESS,
 ) -> list[str]:
     prov = spec.get("provenance", {})
     facts = truth.get("facts", {})
@@ -351,11 +429,7 @@ def header(
     )
     params = spec.get("org", {}).get("params", {})
     out.append("- org parameters: " + ", ".join(f"{name}={val}" for name, val in params.items()))
-    out.append(
-        "- outcome witness: the semantic world rebuilt from this provenance by the generator's "
-        "assembly, semantic digest verified equal; per impact the generator's own assessment "
-        "at the scenario's `now` under the dated view"
-    )
+    out.append(f"- outcome witness: {witness}")
     for role, configured in (("writer", record.writer), ("checker", record.checker)):
         settings = [(s.name, s.value) for s in configured.settings]
         out.append(f"- {role} `{configured.model_id}` {settings}")
@@ -907,8 +981,9 @@ def render(
     truth: Json,
     specs: Sequence[Json],
     record: Any,
-    semantic: SemanticWorld,
+    semantic: WorldView,
     notes: Sequence[str] = (),
+    witness: str = REBUILT_WITNESS,
 ) -> str:
     names = Names(spec.get("org", {}))
     texts: dict[str, str] = {}
@@ -921,7 +996,7 @@ def render(
     scenarios = {scenario.spec.id: scenario for scenario in semantic.scenarios}
     world_start = date.fromisoformat(spec["provenance"]["world_start"])
 
-    out = header(version, spec, truth, record, notes)
+    out = header(version, spec, truth, record, notes, witness)
     out += rollups(record, briefs, texts)
     out += ["## Scenarios, in the plan's order", ""]
     for row in spec.get("plan", []):
@@ -954,6 +1029,13 @@ def main() -> int:
         spec_bytes, specs_bytes, truth_bytes = (a.content for a in unsealed.artifacts)
         notes: Sequence[str] = THROWAWAY_NOTES
         path = EXAMPLE_PATH
+    elif sys.argv[1:2] == ["--released"]:
+        released = released_bundle(Path(sys.argv[2]))
+        version = released.world_version
+        spec_bytes, specs_bytes, truth_bytes = (a.content for a in released.artifacts)
+        notes = RELEASED_NOTES
+        path = OUT_DIR / f"audit_sheet_{version[:8]}.released.md"
+        require_ignored(path)
     else:
         version = WorldVersion(sys.argv[1])
         s3 = boto3.Session(region_name=REGION).client("s3")
@@ -968,9 +1050,21 @@ def main() -> int:
     truth = json.loads(truth_bytes)
     record = decode_truth_manifest(truth_bytes).materialization
     assert record is not None, "no materialization record sealed"
-    semantic = rebuild(spec_bytes)
+    if notes is RELEASED_NOTES:
+        # The sealed files are the truth; the join proves them the world named and that
+        # today's rules reproduce every key, which is the witness a released sheet rests on.
+        view: WorldView = join_sealed_world(
+            version,
+            StoredObject(WORLD_SPEC, spec_bytes, "released"),
+            StoredObject(SCENARIO_SPECS, specs_bytes, "released"),
+            StoredObject(TRUTH_MANIFEST, truth_bytes, "released"),
+        )
+        witness = RELEASED_WITNESS
+    else:
+        view = rebuild(spec_bytes)
+        witness = REBUILT_WITNESS
 
-    sheet = render(version, spec, truth, specs, record, semantic, notes)
+    sheet = render(version, spec, truth, specs, record, view, notes, witness)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(sheet, encoding="utf-8")
     print(f"wrote {path}")

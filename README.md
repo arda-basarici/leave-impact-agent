@@ -156,10 +156,12 @@ probe proves on every deploy.
   vendor cassettes live under `tests/integration/cassettes/`.
 - `AUDIT_METHODOLOGY.md` — how a generated world becomes a golden set;
   `scripts/audit_sheet.py` renders the sheet the audit reads and `scripts/audit_index.py`
-  verifies and seals the audit's index. The audit's output on a golden world holds its
-  answer keys and stays in the truth bucket, never in this tree;
-  `docs/examples/audit_sheet_throwaway.md` shows the sheet's shape, keys included, on a
-  throwaway-seed world that is never sealed or scored.
+  verifies and seals the audit's index. The first golden world, the one the demo serves,
+  is released whole under `docs/golden-world/` (its three sealed objects, answer keys
+  included, with an index); the measurement world's stay in the truth bucket until the
+  last measurement on it. `docs/examples/audit_sheet_throwaway.md` shows the sheet's
+  shape on a throwaway-seed world, and `scripts/audit_sheet.py --released
+  docs/golden-world` renders it for the released one.
 - `probes/` — the preregistered unknowns of the probe days, the build's probes (each
   written before it ran), the phase C dispatcher with its committed plan and ledger and
   the two scripts behind the reported numbers, and `FINDINGS.md`, every outcome;
