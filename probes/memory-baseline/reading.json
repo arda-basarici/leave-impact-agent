@@ -1,6 +1,6 @@
 {
  "capture": "2026-10-24",
- "source_sha256": "353a0989d042ab6163c7a763eb843157e771ac8139f58280c8dc27ee05e81576",
+ "source_sha256": "ce78299c7817a6f6c47b2189d29ef4202cf00812b41e33ecce4cb22c0ba391f7",
  "host": {
   "work": "/tmp/memory-baseline.md5kcK",
   "kernel": "6.18.54-121.166.amzn2023.aarch64",
@@ -56,7 +56,7 @@
   "idle": {
    "samples": 3,
    "host_available_min": 1193984000,
-   "host_used_outside_containers_max": 361340928,
+   "host_used_outside_stack_max": 407797760,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 240848896,
@@ -81,7 +81,7 @@
   "r1": {
    "samples": 3,
    "host_available_min": 1152860160,
-   "host_used_outside_containers_max": 414810112,
+   "host_used_outside_stack_max": 460644352,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 229879808,
@@ -125,7 +125,7 @@
   "r4": {
    "samples": 3,
    "host_available_min": 1128259584,
-   "host_used_outside_containers_max": 444403712,
+   "host_used_outside_stack_max": 489869312,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 227516416,
@@ -169,7 +169,7 @@
   "r16": {
    "samples": 3,
    "host_available_min": 1109409792,
-   "host_used_outside_containers_max": 445767680,
+   "host_used_outside_stack_max": 490721280,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 230182912,
@@ -213,7 +213,7 @@
   "s1": {
    "samples": 3,
    "host_available_min": 1117552640,
-   "host_used_outside_containers_max": 453857280,
+   "host_used_outside_stack_max": 498741248,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 229228544,
@@ -257,7 +257,7 @@
   "s4": {
    "samples": 3,
    "host_available_min": 1102970880,
-   "host_used_outside_containers_max": 455831552,
+   "host_used_outside_stack_max": 500715520,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 243314688,
@@ -301,7 +301,7 @@
   "s8": {
    "samples": 3,
    "host_available_min": 1115357184,
-   "host_used_outside_containers_max": 446480384,
+   "host_used_outside_stack_max": 491364352,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 230260736,
@@ -345,7 +345,7 @@
   "r16s8": {
    "samples": 3,
    "host_available_min": 1103204352,
-   "host_used_outside_containers_max": 457953280,
+   "host_used_outside_stack_max": 502620160,
    "containers": {
     "leaveimpact-app-1": {
      "current_max": 244527104,
@@ -415,11 +415,11 @@
   },
   "host": {
    "total_bytes": 1930240000,
-   "idle_baseline_bytes": 361340928,
-   "budget_bytes": 1568899072,
+   "idle_baseline_bytes": 407797760,
+   "budget_bytes": 1522442240,
    "limits_plus_reservation_bytes": 1140850688,
    "fits": true,
-   "spare_bytes": 428048384
+   "spare_bytes": 381591552
   },
   "bound": {
    "deployed": 8,
@@ -429,8 +429,11 @@
    "latency_ratio_combined_over_readers": 1.59,
    "latency_within_twice": true,
    "subscription_bound": 8,
-   "per_looper_bytes_s1_to_s8": 147456,
-   "forecast_loopers_the_app_budget_buys": 1169
+   "app_current_max_at_loopers": {
+    "s1": 229228544,
+    "s4": 243314688,
+    "s8": 230260736
+   }
   }
  }
 }

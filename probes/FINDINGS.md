@@ -4642,9 +4642,10 @@ process's threads; the loader's own counts beside):
 The host's largest residents at idle, by RSS: the app's Python 110.3 MiB, dockerd 88.7,
 containerd 49.4, Caddy 41.0, the SSM agent worker 29.0, the PostgreSQL postmaster 26.0, the
 SSM document worker 24.1, journald 22.4, two containerd shims of about 20 each. Memory in use
-outside the three sampled containers at idle, the host baseline: 344.6 MiB at its largest
-sample. The proxy stack's hello container (4.6 MiB by `docker stats`) was not in the sampler's
-list; it is inside the baseline, not beside it. About 130 MiB of the app cgroup's current is
+outside the two containers the limits bound at idle, the host baseline: 388.9 MiB at its
+largest sample, Caddy's 44.3 MiB inside it, since nothing allocates for the proxy; the proxy
+stack's hello container (4.6 MiB by `docker stats`) was not in the sampler's list and is inside
+it too. About 130 MiB of the app cgroup's current is
 neither anonymous nor file pages (the kernel's share, which the sampler does not break out);
 the rule reads current because that is what the limit is enforced on.
 
@@ -4652,29 +4653,34 @@ the rule reads current because that is what the limit is enforced on.
 times 1.5 is 349.8, rounded up to 64 MiB gives **384m**; PostgreSQL's peak current 99.4 MiB,
 times 1.5 is 149.1, rounded up gives **192m**. Each limit also clears 1.5 times the kernel's
 own `memory.peak` over the container's life (248.7 and 125.4 MiB), which the earlier day's
-restore drill and backup sit inside. The host's 1841 MiB less the 345 MiB baseline is a
-1496 MiB budget; 384 plus 192 plus the worker's 512 MiB reservation is 1088 MiB, fits, 408 MiB
+restore drill and backup sit inside. The host's 1841 MiB less the 389 MiB baseline is a
+1452 MiB budget; 384 plus 192 plus the worker's 512 MiB reservation is 1088 MiB, fits, 364 MiB
 spare. The bound: the combined level's app current (233.2 MiB) is under the app's limit and its
 reader median is 1.59 times the readers-only level's, within the rule's two, so the
-**subscription bound stays at 8**. A looper costs about 150 KB of app memory (s1 to s8), so the
-app's remaining budget would buy about 1,169 of them: memory is not what bounds streams. The
-limits replace the 768m guesses of 2026-08-27 in `compose.yaml` and land with the next deploy.
+**subscription bound stays at 8**. The app's current at one, four and eight loopers was 218.6,
+232.0 and 219.6 MiB, a spread with no slope, so no per-looper cost is read from this run and no
+capacity is forecast from it; held-stream capacity is the live path's measurement. The limits
+replace the 768m guesses of 2026-08-27 in `compose.yaml` and land with the next deploy.
 
-**What binds is the single worker's CPU, not bytes and not threads.** Throughput was flat
-from one client upward: 6.6, 6.9 and 6.5 page views a second at 1, 4 and 16 readers, with the
-median latency growing in proportion (153, 644, 2860 ms); 2.2, 2.2 and 2.3 stream fetches a
-second at 1, 4 and 8 loopers (430, 1774, 3545 ms). One reader already saturates the server,
-so a page costs about 150 ms of its time and a whole-stream fetch of a sixty-event attempt
-about 450 ms (admission, one session of about three statements, the fold, the narration over
-every event, sixty frames). The thread count reached 27 of the pool's 40 at the heaviest level
-and memory barely moved, so the third fork's answer is neither: the Python process on two
-vCPUs serves one request's CPU at a time. For the exit this is a stranger reading pages at
-150 ms each. For the live path it is a finding owed to the live pages step: a narration tick
-re-folds the whole attempt per subscription per second, so eight viewers of the one open
-attempt would ask for about four times what the host serves and tick late rather than fail
+**What binds is the server itself, not bytes and not threads; the worker's CPU by
+inference.** Throughput was flat from one client upward: 6.6, 6.9 and 6.5 page views a second
+at 1, 4 and 16 readers, with the median latency growing in proportion (153, 644, 2860 ms);
+2.2, 2.2 and 2.3 stream fetches a second at 1, 4 and 8 loopers (430, 1774, 3545 ms). One
+reader already saturates the server, so a page takes about 150 ms of wall time at one client
+and a whole-stream fetch of a sixty-event attempt about 450 ms (admission, one session of about
+three statements, the fold, the narration over every event, sixty frames). No CPU time was
+sampled; that the limit is the single worker's CPU is an inference from the flat throughput,
+since a server waiting on its store would serve more under concurrency and this one did not,
+and a CPU sample at the worker's step confirms or corrects it. The thread count reached 27 of
+the pool's 40 at the heaviest level and memory barely moved, so the third fork's answer is
+neither. For the exit this is a stranger reading pages at 150 ms each. For the live path it
+is a question owed to the live pages step: a narration tick re-folds the whole attempt per
+subscription per second, so if a tick costs what a fetch costs, eight viewers of the one open
+attempt would ask for about four times the measured ceiling and tick late rather than fail
 (the tick loop sleeps a second after each tick, and the readers slow with them, as the
-combined level shows: 6.5 page views a second fell to 4.3 beside eight loopers). A fold shared
-per attempt per tick, or a lower bound, is decided there.
+combined level shows: 6.5 page views a second fell to 4.3 beside eight loopers). The tick's
+own cost is measured there; a fold shared per attempt per tick, or a lower bound, is decided
+on it.
 
 **The fourth fork, amended on the evidence.** The recommendation paired the instance's
 loopers with a workstation measurement of the held generator over an open attempt. The
@@ -4689,3 +4695,12 @@ state; the "after" line ran under the exports and carried the uptimes the restar
 so the criterion held on it alone, and the line order is corrected in the script. The sampler
 did not collect the cgroup's `kernel` and `slab` keys, which would have named the 130 MiB
 above; a later capture adds them.
+
+**Corrected after the first external read of the commits (2026-10-24).** The digest of the
+capture was over the working copy's bytes (a byte-order mark and CRLF from PowerShell) where
+HEAD stores LF, so the regeneration test failed on Linux; it is over the decoded lines now.
+The host baseline had subtracted Caddy's current while nothing allocated for it, so the spare
+read 408 MiB where it is 364; the baseline, budget and spare above are the corrected ones. A
+per-looper cost of 150 KB and a forecast of 1,169 loopers were a subtraction of two maxima
+over three levels with no slope, and "450 ms of CPU" was a wall time; both are reworded above.
+The exchange is in the step's forks file.

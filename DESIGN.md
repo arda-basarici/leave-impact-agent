@@ -4348,8 +4348,9 @@ two Compose limits, guesses of 768m each since the host's first day, are set by 
 fixed before the run over the instance's own reading: 1.5 times the largest
 `memory.current` sampled under the demo's loads, rounded up to 64 MiB, which gives the
 application 384m from a 233 MiB peak and PostgreSQL 192m from a 99 MiB peak; with 512 MiB
-held back for the worker the sum is 1088 MiB against a budget of 1496 MiB, the host's
-1841 MiB less the 345 MiB in use outside the containers at idle. The loads were eight
+held back for the worker the sum is 1088 MiB against a budget of 1452 MiB, the host's
+1841 MiB less the 389 MiB in use outside the two bounded containers at idle, the proxy's
+containers inside that baseline since nothing allocates for them. The loads were eight
 levels of readers over the public pages and loopers fetching closed attempts' whole
 narration streams, each level held and sampled three times from the host's cgroup files,
 the loader in a one-off container of the deployed image so its own memory sat in its own
@@ -4358,10 +4359,12 @@ closed attempt ends at its closing frame and no attempt on the instance is open 
 the live path, so K loopers that never pause bound K idle subscriptions' steady cost
 from above. Memory moved little under any level and neither it nor the thread pool is
 what bounds the surface: throughput was flat from one client upward at about 6.5 page
-views or 2.2 stream fetches a second, the single worker's CPU, so the subscription bound
-stays at eight under the rule and the live pages step owns the per-tick cost, where
-eight viewers of one open attempt would ask for about four times what the host serves
-and tick late rather than fail. A unit test holds the limits and the bound to the
+views or 2.2 stream fetches a second, which reads as the single worker's CPU (an
+inference from the flat throughput, no CPU time having been sampled), so the subscription
+bound stays at eight under the rule and the live pages step owns the per-tick cost, where
+eight viewers of one open attempt would, if a tick costs what a fetch costs, ask for
+about four times that ceiling and tick late rather than fail. A unit test holds the
+limits and the bound to the
 committed reading, so a change to either starts with a new capture; the worker's reading
 extends the baseline at its step (FINDINGS, memory-baseline).
 

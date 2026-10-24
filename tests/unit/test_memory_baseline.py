@@ -60,7 +60,9 @@ def test_the_reading_regenerates_from_the_committed_capture(
 ) -> None:
     source = CAPTURE / "host.out.txt"
     assert reading["capture"] == CAPTURE.name
-    assert reading["source_sha256"] == hashlib.sha256(source.read_bytes()).hexdigest()
+    canonical = cast(Any, reduce).canonical_text(source)
+    assert reading["source_sha256"] == hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+    assert "\r" not in canonical, "the digest reads the lines, not the checkout's line endings"
     assert cast(Any, reduce).reduce_capture(CAPTURE) == reading
 
 
@@ -79,6 +81,24 @@ def test_the_rule_block_is_the_rule_over_the_levels(
         assert service["limit_clears_headroom_on_kernel_peak"] is True
     assert rule["host"]["fits"] is True, "fork 2: the limits and the reservation under the host"
     assert rule["bound"]["subscription_bound"] is not None, "the combined level fits the limit"
+
+
+def test_the_proxy_stays_inside_the_host_baseline(
+    reduce: ModuleType, reading: dict[str, Any]
+) -> None:
+    """Fork 2's boundary: the budget is the host less what is in use outside the two
+    bounded containers, Caddy included in that baseline since nothing allocates for it. A
+    host smaller by the recorded spare plus one byte no longer fits; a baseline that
+    subtracted Caddy's current too would still find Caddy's size of room there."""
+    rule = reading["rule"]
+    caddy = reading["levels"]["idle"]["containers"]["proxy-caddy-1"]["current_max"]
+    assert caddy > 0
+    total = reading["host"]["total_bytes"]
+    apply_rule = cast(Any, reduce).apply_rule
+    assert apply_rule(reading["levels"], total - rule["host"]["spare_bytes"])["host"]["fits"]
+    tighter = apply_rule(reading["levels"], total - rule["host"]["spare_bytes"] - 1)["host"]
+    assert tighter["fits"] is False
+    assert -tighter["spare_bytes"] < caddy, "the case Caddy's exclusion would have approved"
 
 
 def test_every_level_ran_clean(reading: dict[str, Any]) -> None:

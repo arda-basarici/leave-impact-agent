@@ -46,12 +46,13 @@ schema-version check, the attempt row and the events read inside a transaction, 
 statements, each under the store's three-second bound and the connect under its own, so a
 wedged tick can take twelve seconds, under the heartbeat interval. The pacing constants are
 the process's; the subscription bound was confirmed by the instance's memory baseline (the
-demo milestone's step 10, ``probes/memory-baseline``): memory is not what bounds streams
-there (about 150 KB a looper, a thousand of them inside the app's limit), the thread pool
-is not either (27 of 40 threads at the heaviest level), the single worker's CPU is: a tick
-over a sixty-event attempt costs about 450 ms of it, so eight subscriptions on one open
-attempt ask for about four times what the host serves and tick late rather than fail. The
-bound stays at eight under the rule and the live pages step owns the per-tick cost.
+demo milestone's step 10, ``probes/memory-baseline``): memory did not move with loopers
+(218 to 232 MiB at one, four and eight), the thread pool did not bind (27 of 40 threads at
+the heaviest level), and throughput stayed flat at about 2.2 whole-stream fetches a second
+from one client upward, which reads as the single worker's CPU. A tick re-folds the
+attempt, so eight subscriptions on one open attempt would ask for several times that
+ceiling and tick late rather than fail; the bound stays at eight under the rule and the
+live pages step measures the tick's own cost before it decides.
 """
 
 from __future__ import annotations

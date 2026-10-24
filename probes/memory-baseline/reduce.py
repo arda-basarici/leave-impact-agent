@@ -10,14 +10,22 @@ The reduction takes, per level, the maximum over the three samples of each conta
 host's available memory, and the loader's own counts and latency quantiles. The rule: a
 service's limit is 1.5 times the largest `memory.current` sampled for it over every
 level, rounded up to the next 64 MiB; the two limits plus the worker's 512 MiB reservation
-stay under the host's total minus the idle host baseline (memory in use outside the
-sampled containers, the largest idle sample); the subscription bound stays at the
-deployed value when the combined level fits the app's limit and its reader latency stays
-within twice the readers-only level. `memory.peak`, the kernel's own high-water mark over
-the container's life, is reported beside each limit with whether the limit clears 1.5
-times it too; it is not the rule's input, since it predates the run. The unit test
-`tests/unit/test_memory_baseline.py` holds the committed reading, `compose.yaml` and the
-stream module to this arithmetic.
+stay under the host's total minus the idle host baseline (memory in use outside the two
+containers the limits bound, the largest idle sample: the proxy's Caddy and hello
+containers are the platform's residents and stay inside the baseline, since nothing here
+allocates for them); the subscription bound stays at the deployed value when the combined
+level fits the app's limit and its reader latency stays within twice the readers-only
+level. `memory.peak`, the kernel's own high-water mark over the container's life, is
+reported beside each limit with whether the limit clears 1.5 times it too; it is not the
+rule's input, since it predates the run. The app's current at one, four and eight loopers
+is reported as the three numbers it is, since they show no slope a per-looper cost could
+be read from. The unit test `tests/unit/test_memory_baseline.py` holds the committed
+reading, `compose.yaml` and the stream module to this arithmetic.
+
+The capture's digest is over its decoded lines joined by newline, not its bytes: the send
+script saved it through PowerShell with a byte-order mark and CRLF, git stores it LF, and
+a digest of the bytes would differ between a Windows checkout and a Linux one (the first
+external read of the step's commits found exactly that).
 """
 
 from __future__ import annotations
@@ -50,6 +58,17 @@ def mem_limit_of(limit_bytes: int) -> str:
     """The limit as Compose spells it (`384m`)."""
     assert limit_bytes % MIB == 0
     return f"{limit_bytes // MIB}m"
+
+
+def canonical_text(source: Path) -> str:
+    """The capture's lines joined by newline, whatever mark and line ending the file on
+    disk carries; what the digest and the parse read."""
+    return "\n".join(source.read_text(encoding="utf-8-sig").splitlines()) + "\n"
+
+
+def capture_digest(source: Path) -> str:
+    """SHA-256 of the canonical text, the same on every checkout."""
+    return hashlib.sha256(canonical_text(source).encode("utf-8")).hexdigest()
 
 
 def parse(text: str) -> tuple[dict[str, str], list[dict[str, Any]], list[dict[str, Any]]]:
@@ -94,10 +113,11 @@ def reduce_level(label: str, samples: list[dict[str, Any]], loader: dict[str, An
     level: dict[str, Any] = {
         "samples": len(samples),
         "host_available_min": min(sample["host"]["avail"] for sample in samples),
-        "host_used_outside_containers_max": max(
+        # Outside the two containers the limits bound; the proxy's containers stay inside.
+        "host_used_outside_stack_max": max(
             sample["host"]["total"]
             - sample["host"]["avail"]
-            - sum(reading["cur"] for reading in sample["containers"].values())
+            - sum(sample["containers"][name]["cur"] for name in (APP, POSTGRES))
             for sample in samples
         ),
         "containers": containers,
@@ -130,7 +150,7 @@ def apply_rule(levels: dict[str, dict[str, Any]], host_total: int) -> dict[str, 
 
     app_peak, postgres_peak = peak_current(APP), peak_current(POSTGRES)
     app_limit, postgres_limit = limit_of(app_peak), limit_of(postgres_peak)
-    baseline = levels["idle"]["host_used_outside_containers_max"]
+    baseline = levels["idle"]["host_used_outside_stack_max"]
     budget = host_total - baseline
     total = app_limit + postgres_limit + WORKER_RESERVATION
     combined, readers = levels[COMBINED_LEVEL], levels[READERS_LEVEL]
@@ -138,10 +158,6 @@ def apply_rule(levels: dict[str, dict[str, Any]], host_total: int) -> dict[str, 
     latency_ratio = (
         combined["loader"]["read_latency_ms"]["p50"] / readers["loader"]["read_latency_ms"]["p50"]
     )
-    per_looper = (
-        levels["s8"]["containers"][APP]["current_max"] - levels["s1"]["containers"][APP]["current_max"]
-    ) / 7
-    remaining = app_limit - readers["containers"][APP]["current_max"]
     return {
         "headroom": HEADROOM,
         "rounding_bytes": ROUNDING,
@@ -176,18 +192,16 @@ def apply_rule(levels: dict[str, dict[str, Any]], host_total: int) -> dict[str, 
             "latency_ratio_combined_over_readers": round(latency_ratio, 2),
             "latency_within_twice": latency_ratio <= 2.0,
             "subscription_bound": DEPLOYED_BOUND if combined_fits and latency_ratio <= 2.0 else None,
-            "per_looper_bytes_s1_to_s8": round(per_looper),
-            "forecast_loopers_the_app_budget_buys": (
-                math.floor(remaining / per_looper) if per_looper > 0 else "unbounded by memory"
-            ),
+            "app_current_max_at_loopers": {
+                label: levels[label]["containers"][APP]["current_max"] for label in ("s1", "s4", "s8")
+            },
         },
     }
 
 
 def reduce_capture(capture: Path) -> dict[str, Any]:
     source = capture / "host.out.txt"
-    text = source.read_text(encoding="utf-8-sig")
-    header, loaders, samples = parse(text)
+    header, loaders, samples = parse(canonical_text(source))
     by_label = {loader["label"]: loader for loader in loaders}
     levels = {
         label: reduce_level(label, [s for s in samples if s["label"] == label], by_label.get(label))
@@ -197,7 +211,7 @@ def reduce_capture(capture: Path) -> dict[str, Any]:
     idle = [s for s in samples if s["label"] == "idle" and "processes" in s]
     return {
         "capture": capture.name,
-        "source_sha256": hashlib.sha256(source.read_bytes()).hexdigest(),
+        "source_sha256": capture_digest(source),
         "host": {**header, "total_bytes": host_total},
         "largest_processes_at_idle": idle[0]["processes"] if idle else [],
         "levels": levels,
@@ -256,8 +270,9 @@ def print_derivation(reading: dict[str, Any]) -> None:
         f"bound: combined level {b['combined_level']} app current {mib(b['combined_app_current_max'])} "
         f"≤ app limit: {b['combined_fits_app_limit']}; reader p50 ratio combined/readers "
         f"{b['latency_ratio_combined_over_readers']} ≤ 2: {b['latency_within_twice']} → "
-        f"subscription bound {b['subscription_bound']}; per looper s1→s8 {b['per_looper_bytes_s1_to_s8']} B, "
-        f"forecast at a raised bound: {b['forecast_loopers_the_app_budget_buys']}"
+        f"subscription bound {b['subscription_bound']}; app current at 1, 4, 8 loopers: "
+        + ", ".join(mib(value) for value in b["app_current_max_at_loopers"].values())
+        + " (no slope to read a per-looper cost from)"
     )
 
 
