@@ -28,8 +28,11 @@ Serving binds the application to every interface of the container on port 8000; 
 reaches it over the shared ``web`` network and nothing is published to the host (compose).
 One Uvicorn worker: store access is synchronous on Starlette's thread pool and the demo's
 load is a stranger reading pages. Forwarded headers are left at Uvicorn's defaults, trusted
-from the loopback only, until the proxy upstream flips to the application and the deployed
-streaming probe the platform owes at the public switch says what the proxy sends.
+from the loopback only, until the live commands step reads a client address for its
+per-address limit; the setting then comes from the platform contract's ``web`` subnet row
+through compose (``FORWARDED_ALLOW_IPS``), since the proxy dials from that network and the
+application publishes no port. Until then the application sees the proxy's address as every
+client and nothing reads it (the public switch, 2026-10-24).
 """
 
 from __future__ import annotations

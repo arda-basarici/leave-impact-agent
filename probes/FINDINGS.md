@@ -4846,3 +4846,70 @@ release changes no claim, and the results page's numbers come from the withheld 
 version beside it and a new release. The CI proof is over content and says nothing about
 the buckets; the acceptance script is the bucket check and is rerun when a released file,
 the demo configuration or the objects change.
+
+## public-switch — the hostname serves the application: the redeploy on the replacement host, the hostname reads, the crawl held on 124 pages, two edge findings, the exit amended (2026-10-24 to 25)
+
+**What changed.** The platform's public-switch change (its commit `db9017b`, 2026-10-24):
+the proxy's upstream moved from the echo service to `app:8000` on the `web` network with
+`flush_interval -1` stated (Caddy's documentation: a `text/event-stream` response is
+flushed immediately regardless), the `web` network pinned to `172.18.0.0/16` as the
+contract row for `FORWARDED_ALLOW_IPS`, the zone's rate rule, the `/ready` keyword monitor
+and the managed WAF. The host was replaced once (`i-026413a300b30a8b4`, first boot
+20:43:10Z); this repository's `e1b5b35` was re-landed on it at 20:48:01Z by a rerun of the
+deploy job of its own CI run (attempt 2; the image digest carried over from the run's image
+job, as GitHub documents for a single-job rerun; approved in Actions): the identity and
+ready lines as before, the cache `already_ready` for both worlds, the app schema at
+version 2 (the data volume carried the database across the replacement), the boundary
+probe PASS under the new instance's role.
+
+**Through the hostname (20:48 to 20:50Z).** `/ready` 200 with `"ready":true`, the code
+version and the served world; `/replays` 200 listing 30; `/`, `/results` and scenario 004's
+report, trail and timeline pages 200. The stream `/replays/scenario-004/events?after=0`:
+200, `Content-Type: text/event-stream; charset=utf-8`, chunked, no `Content-Encoding`,
+`via: 1.1 Caddy`, `cf-cache-status: DYNAMIC`; 52 line frames and the closed frame; 13,392
+bytes, sha256 `3278ddc41fb81232…`, equal across the edge (two workstations), the proxy and
+inside the container by the platform's own fetches. A closed attempt's stream is one dump:
+the generator yields every line past the cursor on its first tick and returns, and the
+heartbeat runs only through silence over an open attempt; so the timed probe of buffering
+waits for the first open attempt and is the live commands step's acceptance, as is the
+content-security check against the timeline's inline script, which the template renders
+only for an open attempt. No public page carries a script of this repository's today.
+
+**The crawl (2026-10-25).** `scripts/crawl_disclosure.py`, the hostname half of the sweep:
+the four global routes and each listed attempt's report, trail, timeline and stream from
+cursor 0, 124 pages paced at 0.5 s, every one 200, 3,553,533 bytes; the embargoed world's
+two digests in their five cited forms (the evaluator's predicate, the world read under the
+administrator profile, no value printed) 0 hits; the gate's 15 structural patterns 0 hits;
+`verdict=held`. Run twice: once as a scratch script (143 s) and once as the committed one
+after it entered the tree (140 s), same pages, same bytes, same verdict. The pure half,
+`leaveimpact.evaluator.public_crawl`, has its unit test over the gate's real patterns.
+
+**Edge finding 1.** The managed WAF answers 403 to `User-Agent: Python-urllib/3.13` and
+200 to curl, a browser and a named agent on the same path; found when a search script's
+first request forgot its agent. No consequence for a visitor; the crawl script names its
+agent and says why.
+
+**Edge finding 2, with a correction.** Every HTML page carries Cloudflare's insights beacon
+(`<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/…"
+integrity="sha512-…">` before `</body>`): 93 of 124 pages, every HTML one, none of the 30
+streams and not `/ready`; no template, compose line or deploy script names it. A later
+read with curl found it on none of four pages, and the night's record first called it
+gone; isolating the request showed the injection follows the `Accept` header: absent or
+naming `text/html`, which a browser sends, gets the beacon, and curl's default of any type
+does not, under both HTTP versions and either agent (six variants each way). So every
+browser loads it on every page, the first reads after the deploy (curl's) said nothing
+about it, and whether the zone's Web Analytics is meant to stay on is the platform's
+decision, owed: if it stays, a content-security header must admit the host and the module
+script and the public surface's wording should say the page loads it; if not, the zone
+setting goes.
+
+**The exit, amended (ruled 2026-10-25).** The milestone's exit evidence was the URL and one
+person who is not the author using the surface unassisted within fifteen minutes, by a
+protocol written before the test. The test is skipped indefinitely by ruling, and the exit
+evidence is the URL with the crawl held. Recorded with the ruling: the test was the one
+claim about the surface's legibility that the code cannot make, it costs a person and
+fifteen minutes, and a deferral with a trigger before the milestone's post was offered and
+declined. The README and the milestone's post may therefore claim the public URL, the
+replay set, the crawl and the platform's acceptance, and not that anyone but the author
+has used the surface unassisted. A reader objection naming the world's tuning stays the
+revisit trigger of the entry's second ruling and has no reader now.

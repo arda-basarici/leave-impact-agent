@@ -54,8 +54,11 @@ fixes the laptop's fakes could not have found, and one evaluation graded all fiv
 procedure was then frozen before the measurement world existed, that world drawn from
 a secret seed, validated and audited, the registration bound to it, and the 240
 registered runs dispatched one at a time through the deployed lifecycle and graded in
-one reported evaluation; the demo milestone is next. This README grows with the build
-and never claims ahead of it.
+one reported evaluation. The demo milestone's replay surface is public at
+`https://leave-agent.ardabasarici.dev`: thirty replays of the golden world with their
+reports, self-contained evidence, audit trails and narration timelines, and the results
+page for the measurement; live runs stay behind an operator flag, off. This README grows
+with the build and never claims ahead of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
 > agent that will be graded on it. The organization is synthetic and small (about thirty

@@ -4427,6 +4427,33 @@ dump's own snapshot under execution disabled, the recovery-point limitation reco
 is reconciled from billing). The model served is the registered Haiku 4.5, labelled as
 registered rather than chosen on a table, since the model arm was not run.
 
+As built at the public switch (M3 step 11, 2026-10-24 and 25; the sweep and the golden
+world's release have their own FINDINGS entries, `disclosure-sweep` and `golden-release`).
+The hostname serves the application since the platform's change of 2026-10-24: the proxy's
+upstream is `app:8000` on the `web` network with immediate flushing stated, the `web`
+subnet is pinned and published as the contract row the application's forwarded-headers
+setting will read, the zone's rate rule, the readiness keyword monitor and the managed WAF
+are in place, and the host was replaced once, the deployed revision re-landed on it by a
+rerun of its deploy job with the data volume carrying the database. The readiness route,
+the listing, every page of a replay and the narration stream were read through the
+hostname; the stream is byte-equal across the edge, the proxy and the container, its
+content type intact and uncompressed. The sweep gained its hostname half:
+`scripts/crawl_disclosure.py` fetches every public page the listing names and reads each
+body with the evaluator's embargo predicate and the gate test's structural patterns, loaded
+from the test by path so the patterns keep one home; the first crawls held on 124 pages.
+Two facts about the edge came out of it and are the platform's to rule on: the managed
+rules refuse Python's default user agent, and the zone injects an analytics script into
+every HTML page for browser-like requests, which no template names; a content-security
+header must admit it or the zone setting goes. Deferred to the live commands step, with the
+reason that no attempt is open until then: the forwarded-headers setting from the contract
+row (nothing before the per-address limit reads a client address), the timed probe of the
+stream's buffering (a closed attempt's stream is one dump), and the content-security check
+against the timeline's inline script (rendered only for an open attempt). The exit evidence
+was amended by ruling on 2026-10-25: the stranger test, one person who is not the author
+using the surface unassisted, is skipped indefinitely, and the milestone's exit is the URL
+with the crawl held; the claims the repository makes shrink to match (FINDINGS
+`public-switch`).
+
 **Platform-side at the demo's entry.** The agent's hostname goes public after a
 disclosure sweep of the tree and the pages, behind the free plan's WAF and a rate limit
 on the start route, with a deployed probe deciding the proxy's streaming behaviour.
