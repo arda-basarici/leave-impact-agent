@@ -31,6 +31,7 @@ from leaveimpact.agent.log_events import (
     CountKey,
     CountOutcomeLogged,
     CountStarted,
+    Declined,
     DispatchIntent,
     DispatchOutcome,
     Event,
@@ -399,7 +400,7 @@ def payload_text(*entries: object) -> JsonObject:
     return text(json.dumps(payload(*entries)))
 
 
-# --- The sixteen, as histories ---------------------------------------------------------------
+# --- The seventeen, as histories --------------------------------------------------------------
 
 type Build = Callable[[], tuple[LoggedEvent, ...]]
 
@@ -916,6 +917,24 @@ def left_open_claims(claims: int) -> tuple[LoggedEvent, ...]:
     return log.logged()
 
 
+def declined_attempt() -> tuple[LoggedEvent, ...]:
+    fixture = cases.declined_attempt()
+    expected = fixture.record.reservation
+    assert expected is not None
+    log = History()
+    _one_call_prefix(log, expected.pico_usd)
+    log.worker(intent(1), offset=600)
+    log.worker(outcome(1, 1, complete(), response=body("end_turn", text("Done."))), offset=1_500)
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=7_000)
+    log.worker(SegmentEnded(), offset=7_900)
+    log.outside(
+        "human:visitor",
+        Declined(cases.review_payload_digest((), cases.RULES), settlement_of(expected)),
+        at=fixture.record.timing.terminal_at,
+    )
+    return log.logged()
+
+
 HISTORIES: dict[str, Build] = {
     "facts beside tools in one answer": facts_beside_tools,
     "a malformed batch": malformed_batch,
@@ -933,6 +952,7 @@ HISTORIES: dict[str, Build] = {
     "an attempt admitted and never claimed": never_claimed,
     "a recorded defect an operator finalized": defect_finalized_by_operator,
     "a request whose input bound was never established": input_bound_exhausted,
+    "a declined attempt": declined_attempt,
 }
 """Each fixture's history, by the fixture's name."""
 

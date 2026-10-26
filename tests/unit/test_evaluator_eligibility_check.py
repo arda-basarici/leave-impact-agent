@@ -1,5 +1,5 @@
 """How an exported attempt ended, in the vocabulary the eligibility function reads, and
-whether it permitted an attempt after it. The sixteen format fixtures project to the endings
+whether it permitted an attempt after it. The seventeen format fixtures project to the endings
 their names say and two of them permit a successor; every ending kind is reached, and the
 check is not evaluated without a retry rule or where the projection needs a standing or a
 policy it was not given."""
@@ -113,6 +113,7 @@ def test_the_format_fixtures_end_as_their_names_say_and_two_permit_a_successor()
         False,
         RULES.DEFECT,
     )
+    assert endings["a declined attempt"] == (EndingKind.DECLINED, False, RULES.DECLINED)
     completed = [name for name, (kind, _, _) in endings.items() if kind is EndingKind.COMPLETED]
     assert len(completed) == 10
     assert all(

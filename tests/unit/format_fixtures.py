@@ -34,10 +34,14 @@ counting operation, a re-dispatch reusing the count. Positions are on a scale of
 ``n`` of a case is position ``10 n``, so a call's count has its two positions just before
 its first intent. What a case is about is in its own function.
 
-Every case is a format 3 export and spells its version as a literal, never the written
-constant, so a bump of the written format leaves them as the older format the reader must
-still read, and the histories re-stamped to format 3 rebuild them exactly (the demo
-milestone's live-path step, fork 10).
+The seventeenth is the demo milestone's live-path step's, the first format 4 case:
+
+17. a declined attempt: a human refused the review payload, and the refusal closed it
+
+Every earlier case is a format 3 export and spells its version as a literal, never the
+written constant, so a bump of the written format leaves them as the older format the
+reader must still read, and the histories re-stamped to format 3 rebuild them exactly (the
+live-path step, fork 10); the declined case spells 4, the format its vocabulary needs.
 """
 
 from __future__ import annotations
@@ -482,9 +486,12 @@ def export(
     approval: Approval | None = None,
     counting_operations: Sequence[CountingOperation] | None = None,
     reservation: Reservation | None = None,
+    status: TerminalStatus | None = None,
+    format_version: int = 3,
 ) -> RunExport:
-    """An agent's export around ``calls``. The attempt completed unless ``failure`` says how
-    it failed; it is approved automatically when it completed, its request stamped at
+    """An agent's export around ``calls``, at ``format_version``. The attempt completed
+    unless ``failure`` says how it failed or ``status`` names another ending; it is
+    approved automatically when it completed, its request stamped at
     position ``request`` and its resume two later, and requested no approval when it
     failed, unless ``approval`` says otherwise. Each call rests on one successful count
     unless ``counting_operations`` says otherwise, and the reservation is settled over the
@@ -513,7 +520,13 @@ def export(
         retrieval=Retrieval(RetrievalKind.FULL_TEXT, None),
         prefetch_rule=PrefetchRule("prefetch-v1", DIGEST),
         caps=Caps(20, 100_000, 2, 5_000, "input_plus_output_cached_included", METHOD),
-        status=TerminalStatus.COMPLETED if failure is None else TerminalStatus.FAILED,
+        status=(
+            status
+            if status is not None
+            else TerminalStatus.COMPLETED
+            if failure is None
+            else TerminalStatus.FAILED
+        ),
         failure=failure,
         abandonment=abandonment,
         timing=timing if timing is not None else one_segment(request=request),
@@ -524,7 +537,7 @@ def export(
         pricing=BASIS,
     )
     return RunExport(
-        3,  # the format these cases were sealed in, spelled, never the written constant
+        format_version,  # spelled by each case, never the written constant
         "run-12",
         1,
         CONTEXT,
@@ -1000,6 +1013,31 @@ def input_bound_exhausted() -> RunExport:
     )
 
 
+def declined_attempt() -> RunExport:
+    """A human refused the review payload the worker froze at 7,000 ms of a segment that
+    ended at 7,900 on the request; the decline is an outside producer's event two days
+    later, the terminal one, so the attempt holds a request stamp and no resume, its timing
+    complete, and its ending is the refusal: no failure, no abandonment, nothing graded
+    (format 4, the demo milestone's live-path step)."""
+    call = answered("call-1", 6, Answer(True, (), ()))
+    timing = Timing(
+        (Segment(1, REVISION, 7_900, True),),
+        ADMITTED,
+        ADMITTED + timedelta(days=2),
+        Stamp(1, 7_000, 8),
+        None,
+    )
+    refused = Approval(ApprovalState.DECLINED, Approver.HUMAN, review_payload_digest((), RULES))
+    return export(
+        (call,),
+        (prefetched(),),
+        status=TerminalStatus.DECLINED,
+        timing=timing,
+        approval=refused,
+        format_version=4,
+    )
+
+
 FIXTURES: dict[str, Callable[[], RunExport]] = {
     "facts beside tools in one answer": facts_beside_tools,
     "a malformed batch": malformed_batch,
@@ -1017,6 +1055,13 @@ FIXTURES: dict[str, Callable[[], RunExport]] = {
     "an attempt admitted and never claimed": never_claimed,
     "a recorded defect an operator finalized": defect_finalized_by_operator,
     "a request whose input bound was never established": input_bound_exhausted,
+    "a declined attempt": declined_attempt,
 }
 """Each case by its name in the ruling; the eighth is two exports, a paused attempt having
 none."""
+
+SEALED_AT_FORMAT_3: tuple[str, ...] = tuple(
+    name for name, build in FIXTURES.items() if build().format_version == 3
+)
+"""The cases sealed at format 3, the ones an older-format reading exists for: every case but
+the declined attempt, whose vocabulary is format 4's."""

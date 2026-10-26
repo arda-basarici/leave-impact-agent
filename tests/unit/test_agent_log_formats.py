@@ -58,11 +58,12 @@ def test_the_written_format_is_the_last_readable_one_in_every_document() -> None
         export_format_of(2)
 
 
-def test_the_pins_cover_every_history_once() -> None:
-    assert list(PINS) == list(histories.HISTORIES)
+def test_the_pins_cover_every_format_3_history_once() -> None:
+    assert list(PINS) == list(cases.SEALED_AT_FORMAT_3)
+    assert set(histories.HISTORIES) - set(PINS) == {"a declined attempt"}
 
 
-@pytest.mark.parametrize("name", list(histories.HISTORIES))
+@pytest.mark.parametrize("name", list(cases.SEALED_AT_FORMAT_3))
 def test_a_format_3_history_digests_as_the_tree_before_the_bump_digested_it(name: str) -> None:
     history = histories.at_format(histories.HISTORIES[name](), 3)
     pin = PINS[name]

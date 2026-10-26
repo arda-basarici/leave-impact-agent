@@ -25,6 +25,8 @@ The endings are a closed vocabulary, and every one has a rule:
 - *abandoned after a dispatch was authorized*: no. The evidence is the log's and not the
   reason an operator gives: an attempt that may have produced output is resumed, by a
   claim, and never replaced.
+- *declined*: no. A person read the plan and refused it; the refusal is the run's answer,
+  and nothing replaces it (format 4, the demo milestone's live-path step).
 - *any other infrastructure ending*: no. A source that is down is a registered condition,
   a database that is down writes no ending at all and the attempt is recovered, and a
   failure of the harness's own composition is a defect.
@@ -101,6 +103,12 @@ class Abandoned:
 
 
 @dataclass(frozen=True, slots=True)
+class Declined:
+    """A human refused the review payload and the attempt closed on it (format 4): a
+    decision, never recoverable."""
+
+
+@dataclass(frozen=True, slots=True)
 class OtherInfrastructure:
     """An infrastructure failure no rule names, at the site ``site``."""
 
@@ -119,6 +127,7 @@ type Ending = (
     | InputBoundExhausted
     | Abandoned
     | OtherInfrastructure
+    | Declined
 )
 
 DISPATCH_SEND = "dispatch_send"
@@ -149,6 +158,7 @@ class EligibilityRule(StrEnum):
     ABANDONED_AFTER_AN_INTENT = "abandoned_after_an_intent"
     NO_RULE_NAMES_THE_ENDING = "no_rule_names_the_ending"
     MAXIMUM_REACHED = "maximum_reached"
+    DECLINED = "declined"
 
 
 @dataclass(frozen=True, slots=True)
@@ -179,6 +189,8 @@ def _by_ending(ending: Ending) -> Eligibility:
             return Eligibility(True, EligibilityRule.ABANDONED_BEFORE_ANY_INTENT)
         case OtherInfrastructure():
             return Eligibility(False, EligibilityRule.NO_RULE_NAMES_THE_ENDING)
+        case Declined():
+            return Eligibility(False, EligibilityRule.DECLINED)
 
 
 def new_attempt_eligibility(
@@ -217,6 +229,7 @@ __all__ = [
     "INPUT_BOUND",
     "Abandoned",
     "Completed",
+    "Declined",
     "Eligibility",
     "EligibilityRule",
     "EndedByDefect",

@@ -338,6 +338,15 @@ class Inventory:
             raise ValueError(
                 f"this code reads inventory formats {_readable_text()}, got {self.format_version}"
             )
+        if self.format_version < 2:
+            for each in self.attempts:
+                status = each.status
+                ending = None if status is None else status.ending
+                if ending is not None and ending.status is TerminalStatus.DECLINED:
+                    raise ValueError(
+                        "declined is format 2 vocabulary; this inventory is format "
+                        f"{self.format_version} (run {each.run_id} attempt {each.attempt})"
+                    )
         if self.ledger is not None and self.ledger.ledger_id != self.scope.ledger_id:
             raise ValueError("the ledger listed is the scope's")
         keys = [(each.run_id, each.attempt) for each in self.attempts]

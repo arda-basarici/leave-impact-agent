@@ -229,7 +229,17 @@ def _reverse_attempts(tree: Tree) -> None:
     attempts.reverse()
 
 
+def _declined_under_format_1(tree: Tree) -> None:
+    """Format 2's word in a format 1 document: the completed attempt's ending re-labelled."""
+    tree["format_version"] = 1
+    _nested(_attempt(tree, 2), "status", "ending")["status"] = "declined"
+
+
 MALFORMED: list[tuple[Mutation, str]] = [
+    (
+        _declined_under_format_1,
+        "declined is format 2 vocabulary; this inventory is format 1 (run run-b attempt 1)",
+    ),
     (
         lambda tree: tree.update(format_version=3),
         "this code reads inventory formats 1 and 2, got 3",

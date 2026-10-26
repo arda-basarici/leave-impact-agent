@@ -8,6 +8,7 @@ import pytest
 from leaveimpact.core.eligibility import (
     Abandoned,
     Completed,
+    Declined,
     Eligibility,
     EligibilityRule,
     EndedByDefect,
@@ -44,6 +45,8 @@ DENIED: tuple[tuple[Ending, EligibilityRule], ...] = (
     # A counting failure nothing classifies ends at the input bound's site and is not
     # the exhausted ending: no rule names it.
     (OtherInfrastructure("input_bound"), EligibilityRule.NO_RULE_NAMES_THE_ENDING),
+    # A person refused the plan: the refusal is the answer, nothing replaces it.
+    (Declined(), EligibilityRule.DECLINED),
 )
 
 

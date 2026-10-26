@@ -449,7 +449,8 @@ class LoggedSettlement:
 
 
 class EventKind(StrEnum):
-    """The sixteen kinds, closed; a member is the wire format."""
+    """The seventeen kinds, closed; a member is the wire format. ``DECLINED`` is format 4
+    vocabulary (``KIND_SINCE_FORMAT``)."""
 
     ADMITTED = "admitted"
     SEGMENT_STARTED = "segment_started"
@@ -467,6 +468,7 @@ class EventKind(StrEnum):
     CAP_EXHAUSTED = "cap_exhausted"
     FAILED = "failed"
     ABANDONED = "abandoned"
+    DECLINED = "declined"
 
 
 @dataclass(frozen=True, slots=True)
@@ -724,6 +726,23 @@ class Abandoned:
         require_member(self.reason, AbandonmentReason, "an abandonment's reason")
 
 
+@dataclass(frozen=True, slots=True)
+class Declined:
+    """A human's refusal of the review payload, delivered by an outside producer and closing
+    the attempt (the demo milestone's live-path step, ruling 4): the digest of the payload
+    refused, and the settlement the closer wrote. Who refused is the producer envelope; the
+    ending is human by ruling, so no approver member is carried, and no generation is
+    fenced, since a decline answers an outstanding request and the request's digest is the
+    binding (the step's fork 4). Format 4 vocabulary: a log admitted at an older format
+    refuses it in the transition."""
+
+    payload_digest: str
+    settlement: LoggedSettlement | None
+
+    def __post_init__(self) -> None:
+        require_digest(self.payload_digest, "the review payload's digest")
+
+
 type Event = (
     Admitted
     | SegmentStarted
@@ -741,10 +760,11 @@ type Event = (
     | CapExhausted
     | Failed
     | Abandoned
+    | Declined
 )
 
 type TerminalEvent = Completed | CapExhausted | Failed
-type ClosingEvent = TerminalEvent | Abandoned
+type ClosingEvent = TerminalEvent | Abandoned | Declined
 
 
 def kind_of(event: Event) -> EventKind:
@@ -782,14 +802,22 @@ def kind_of(event: Event) -> EventKind:
             return EventKind.FAILED
         case Abandoned():
             return EventKind.ABANDONED
+        case Declined():
+            return EventKind.DECLINED
         case _:
             assert_never(event)
 
 
 def is_worker_event(event: Event) -> bool:
-    """Whether ``event`` is one a worker appends under a stamp; the three others (the
-    admission, an approval, an abandonment) are an outside producer's."""
-    return not isinstance(event, Admitted | Approved | Abandoned)
+    """Whether ``event`` is one a worker appends under a stamp; the four others (the
+    admission, an approval, an abandonment, a decline) are an outside producer's."""
+    return not isinstance(event, Admitted | Approved | Abandoned | Declined)
+
+
+KIND_SINCE_FORMAT: Mapping[EventKind, int] = {EventKind.DECLINED: 4}
+"""The kinds a format added, by the first format holding each; a kind absent here is in
+every readable format. The transition refuses a kind in a log whose format predates it,
+so a format 3 log never holds format 4 vocabulary."""
 
 
 # --- The logged event ------------------------------------------------------------------------
@@ -1070,6 +1098,11 @@ def encode_event(event: Event) -> JsonObject:
                 "reason": event.reason.value,
                 "settlement": _encode_settlement(event.settlement),
             }
+        case Declined():
+            return {
+                "payload_digest": event.payload_digest,
+                "settlement": _encode_settlement(event.settlement),
+            }
         case _:
             assert_never(event)
 
@@ -1195,6 +1228,12 @@ def decode_event(kind: str, data: Mapping[str, object]) -> Event:
             return Abandoned(
                 integer_field(data, "expected_generation"),
                 AbandonmentReason(string_field(data, "reason")),
+                _decode_settlement(field_of(data, "settlement")),
+            )
+        case EventKind.DECLINED:
+            expect_fields(data, ("payload_digest", "settlement"), "a decline")
+            return Declined(
+                string_field(data, "payload_digest"),
                 _decode_settlement(field_of(data, "settlement")),
             )
         case _:
@@ -1609,6 +1648,7 @@ def _decode_prompt(item: object) -> tuple[str, str, str]:
 
 
 __all__ = [
+    "KIND_SINCE_FORMAT",
     "LOG_FORMAT_VERSION",
     "READABLE_LOG_FORMATS",
     "Abandoned",
@@ -1622,6 +1662,7 @@ __all__ = [
     "CountKey",
     "CountOutcomeLogged",
     "CountStarted",
+    "Declined",
     "DispatchIntent",
     "DispatchOutcome",
     "Envelope",

@@ -1,5 +1,5 @@
 """Every bound held to the count it names, every count to its outcome, every group of counts
-to the rule it was retried under. The sixteen format fixtures carry no finding under their
+to the rule it was retried under. The seventeen format fixtures carry no finding under their
 table and policy; each finding kind is reached from a hand-built export; the two
 registration parts are marked not evaluated without a policy and the identifiers."""
 
@@ -103,9 +103,9 @@ def test_the_format_fixtures_carry_no_finding_under_their_table_and_policy() -> 
         assert (check.registration_evaluated, check.findings) == (True, ()), name
         operations += check.operations
         dispatches += check.dispatches
-    # Sixteen exports: fourteen with one count per call, one with two calls, one with three
+    # Seventeen exports: fifteen with one count per call, one with two calls, one with three
     # failed counts and no dispatch, one with nothing.
-    assert (operations, dispatches) == (18, 17)
+    assert (operations, dispatches) == (19, 18)
 
 
 def test_a_rules_only_export_reads_nothing_and_is_evaluated(world: SealedWorld) -> None:

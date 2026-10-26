@@ -239,6 +239,7 @@ from leaveimpact.core.derivation import (
 from leaveimpact.core.eligibility import (
     Abandoned,
     Completed,
+    Declined,
     Eligibility,
     EligibilityRule,
     EndedByDefect,
@@ -1416,6 +1417,7 @@ __all__ = [
     "decide_call",
     "Abandoned",
     "Completed",
+    "Declined",
     "Eligibility",
     "EligibilityRule",
     "EndedByDefect",

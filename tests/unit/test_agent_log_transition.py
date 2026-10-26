@@ -19,12 +19,14 @@ from leaveimpact.agent.log_events import (
     CountKey,
     CountOutcomeLogged,
     CountStarted,
+    Declined,
     DispatchIntent,
     EventKind,
     Failed,
     FinalizationEntered,
     LoggedEvent,
     OperationEvent,
+    Producer,
     Resumed,
     SegmentEnded,
     SegmentStarted,
@@ -1064,3 +1066,41 @@ def test_a_worker_stopped_cleanly_after_its_own_resume_earns_no_resumption() -> 
     assert state.approved is not None and state.resumed is not None
     assert state.current_segment is not None and state.current_segment.ended
     assert next_claim(state) is ClaimKind.RECOVERY
+
+
+# --- The decline (format 4) -----------------------------------------------------------------
+
+
+def test_a_decline_answers_an_outstanding_request_under_its_digest_and_closes() -> None:
+    """Ruling 4 of the demo milestone's entry: a decline requires an outstanding decision
+    request, binds the requested payload's digest, closes the attempt, and is refused before
+    a request, after an approval, and under another digest."""
+    events = h.HISTORIES["a declined attempt"]()
+    closing = events[-1]
+    assert isinstance(closing.event, Declined) and isinstance(closing.envelope, Producer)
+    final = fold(events, RULES)
+    assert final.closed is final.events[-1] and final.approved is None
+    assert final.closing == closing.event
+    before_request = fold(events[:-3], RULES)
+    early = replace(closing, position=before_request.last_position + 1)
+    assert next_state(before_request, early, RULES) == Refused("a decline answers a request")
+    waiting = fold(events[:-1], RULES)
+    other = replace(closing, event=replace(closing.event, payload_digest="0" * 64))
+    assert next_state(waiting, other, RULES) == Refused(
+        "a decline names the digest of the payload that was requested"
+    )
+    approved = h.HISTORIES["an approval wait across a restart"]()
+    index = next(i for i, e in enumerate(approved) if isinstance(e.event, Approved)) + 1
+    given = fold(approved[:index], RULES)
+    digest = cases.review_payload_digest((), cases.RULES)
+    late = LoggedEvent(
+        index + 1, approved[index - 1].timestamp, Producer("human:visitor"), Declined(digest, None)
+    )
+    assert next_state(given, late, RULES) == Refused("no decline after an approval was given")
+
+
+def test_a_decline_is_format_4_vocabulary_and_a_format_3_log_refuses_it() -> None:
+    events = h.at_format(h.HISTORIES["a declined attempt"](), 3)
+    with pytest.raises(ValueError, match="declined is format 4 vocabulary; this log is format 3"):
+        fold(events, RULES)
+    assert fold(events[:-1], RULES).open, "the same log without the decline folds as format 3"

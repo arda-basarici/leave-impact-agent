@@ -46,7 +46,7 @@ def test_every_fixture_has_a_history() -> None:
     assert list(histories.HISTORIES) == list(cases.FIXTURES)
 
 
-@pytest.mark.parametrize("name", list(cases.FIXTURES))
+@pytest.mark.parametrize("name", list(cases.SEALED_AT_FORMAT_3))
 def test_a_fixture_rebuilt_from_its_history_is_the_hand_built_export(name: str) -> None:
     expected = cases.FIXTURES[name]()
     actual = rebuilt(name)

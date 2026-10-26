@@ -50,6 +50,7 @@ from leaveimpact.core.eligibility import (
     INPUT_BOUND,
     Abandoned,
     Completed,
+    Declined,
     EligibilityRule,
     EndedByDefect,
     Ending,
@@ -86,6 +87,7 @@ class EndingKind(StrEnum):
     INPUT_BOUND_EXHAUSTED = "input_bound_exhausted"
     ABANDONED = "abandoned"
     OTHER_INFRASTRUCTURE = "other_infrastructure"
+    DECLINED = "declined"
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,6 +125,8 @@ def ending_of(
             return Completed()
         case TerminalStatus.CAP_EXHAUSTED:
             return ReportedAtCap()
+        case TerminalStatus.DECLINED:
+            return Declined()
         case TerminalStatus.FAILED:
             pass
     failure = record.failure
@@ -210,6 +214,8 @@ def _projected(ending: Ending) -> ProjectedEnding:
             return ProjectedEnding(EndingKind.ABANDONED, dispatch_intents=ending.dispatch_intents)
         case OtherInfrastructure():
             return ProjectedEnding(EndingKind.OTHER_INFRASTRUCTURE, site=ending.site)
+        case Declined():
+            return ProjectedEnding(EndingKind.DECLINED)
 
 
 __all__ = [

@@ -155,6 +155,13 @@ def test_an_attempt_that_never_ran_and_a_failure_at_the_input_bound_render_whole
     assert any("client error, timeout" in count.outcome for count in bound.counts)
 
 
+def test_a_decline_is_stated_as_the_approval_with_its_request_and_no_resume() -> None:
+    view = view_of(cases.declined_attempt())
+    assert view.approval.state == "declined" and view.approval.approver == "human"
+    assert view.approval.requested is not None and view.approval.requested.position == 8
+    assert view.approval.resumed is None
+
+
 def test_the_approval_and_the_segments_are_stated_with_their_stamps() -> None:
     view = view_of(fixture.all_types())
     assert view.approval.state == "approved" and view.approval.approver == "automatic"

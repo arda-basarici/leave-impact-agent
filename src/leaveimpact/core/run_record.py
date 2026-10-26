@@ -94,12 +94,15 @@ class TerminalStatus(StrEnum):
     ``COMPLETED`` means the system produced its final claims, the same for every system,
     a refusal or a claimless completion included (graded with its omissions);
     ``CAP_EXHAUSTED`` that it reported what it had at the cap; ``FAILED`` that a defect
-    or an infrastructure fault ended it, recorded with the fault.
+    or an infrastructure fault ended it, recorded with the fault; ``DECLINED`` that a human
+    refused the review payload and the attempt closed on the refusal, a terminal human
+    ending nothing grades (format 4, the demo milestone's live-path step).
     """
 
     COMPLETED = "completed"
     CAP_EXHAUSTED = "cap_exhausted"
     FAILED = "failed"
+    DECLINED = "declined"
 
 
 class FailureCategory(StrEnum):
@@ -475,7 +478,10 @@ class RunRecord:
     worker's resume and misstate its active time. A worker's approval stamps in the timing
     exist only where the approval says one was requested, or given; an attempt that did not
     fail ended at a terminal event its worker wrote, so its last segment's end was recorded
-    and a stamped request has its stamped resume.
+    and a stamped request has its stamped resume. A declined attempt (format 4) holds the
+    declined approval by a human that closed it, no failure and no resume, and its last
+    segment's end recorded or not, since the terminal event is a producer's and the worker
+    may have died at the pause.
 
     ``attribution_table`` is the digest of the registered table the dispatches' rules are
     identifiers into, and ``reservation`` what became of the amount reserved at admission;
@@ -598,7 +604,14 @@ class RunRecord:
         if not self.timing.segments:
             self._require_the_never_claimed_ending()
         approved = self.approval.state is ApprovalState.APPROVED
-        if not failed and not approved:
+        declined = self.status is TerminalStatus.DECLINED
+        if declined != (self.approval.state is ApprovalState.DECLINED):
+            raise ValueError(
+                "a declined approval closed the attempt, so the status is declined exactly "
+                f"when the approval is: status {self.status.value}, approval "
+                f"{self.approval.state.value}"
+            )
+        if not failed and not declined and not approved:
             raise ValueError(
                 "an attempt that completed or reported at its cap holds an approval of its "
                 f"review payload: status {self.status.value}, approval "
@@ -609,7 +622,7 @@ class RunRecord:
             raise ValueError("the timing stamps an approval request the approval does not hold")
         if self.timing.approval_resumed is not None and not approved:
             raise ValueError("the timing stamps a resume from an approval that was not given")
-        if failed:
+        if failed or declined:
             return
         # A terminal event a worker wrote is that worker's recorded end, and it wrote it
         # after resuming from the approval it had stamped a request for.

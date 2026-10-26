@@ -715,6 +715,8 @@ def ending_view(export: RunExport, *, empty: bool) -> EndingView:
                 if never_claimed
                 else "The run failed."
             )
+        case TerminalStatus.DECLINED:
+            headline = "The plan was declined."
         case _:
             assert_never(record.status)
     failure = record.failure
@@ -734,6 +736,8 @@ def ending_view(export: RunExport, *, empty: bool) -> EndingView:
         case ApprovalState.APPROVED:
             who = "automatically" if approval.approver is Approver.AUTOMATIC else "by a person"
             details.append(f"The plan was approved {who}.")
+        case ApprovalState.DECLINED:
+            details.append("The plan was declined by a person, which closed the run.")
         case _:
             assert_never(approval.state)
     caps = _cap_lines(export) if record.status is TerminalStatus.CAP_EXHAUSTED else ()

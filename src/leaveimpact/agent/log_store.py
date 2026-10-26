@@ -95,6 +95,7 @@ from leaveimpact.agent.log_events import (
     ClosingEvent,
     CommitOverride,
     Completed,
+    Declined,
     Envelope,
     Event,
     Failed,
@@ -443,10 +444,12 @@ class LogStore:
     def admit(self, request: AdmissionRequest) -> AdmissionResult:
         """The ruling on admission: one transaction, the run row locked first, a recorded
         request returned as recorded, the predecessor read, the reservation made or refused,
-        then the attempt row and the admission event at position 1. A new attempt is
-        admitted only at the log format this code writes; a request recorded under an older
-        readable format is answered as recorded, and the same inputs under a new request id
-        are refused, since an older format is read and never written."""
+        then the attempt row and the admission event at position 1. Creating a new attempt
+        requires the log format this code writes: a request recorded under an older readable
+        format is answered as recorded, an attempt that exists at an older format gives its
+        receipt to identical inputs under any request id, and only inputs that would create
+        an attempt at an older format are refused, since an older format is read and never
+        written."""
         inputs = request.inputs
         run_id, attempt = inputs.run_id, inputs.attempt
         with self._guarded() as conn, conn.transaction():
@@ -686,7 +689,8 @@ class LogStore:
         and a closing event have their own commands and are refused here by type. A worker
         passes its stamp as a factory, called under the lock (see the module)."""
         if isinstance(
-            event, Admitted | SegmentStarted | Completed | CapExhausted | Failed | Abandoned
+            event,
+            Admitted | SegmentStarted | Completed | CapExhausted | Failed | Abandoned | Declined,
         ):
             raise ValueError(
                 f"{kind_of(event).value} is appended through its own command, not append"
@@ -777,7 +781,7 @@ class LogStore:
         held_event = held.event
         if kind_of(held_event) is not kind_of(closing):
             return Refused(f"the attempt is closed at position {held.position}")
-        assert isinstance(held_event, Completed | CapExhausted | Failed | Abandoned)
+        assert isinstance(held_event, Completed | CapExhausted | Failed | Abandoned | Declined)
         masked: ClosingEvent = replace(held_event, settlement=None)
         if event_bytes(masked, log_format=row.log_format) == event_bytes(
             closing, log_format=row.log_format

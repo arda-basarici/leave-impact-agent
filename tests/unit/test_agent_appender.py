@@ -6,7 +6,7 @@ the segment's monotonic clock, drawn when the log calls the factory under its lo
 threaded state lacks is a harness fault; a ``Refused`` is raised as ``AppendRefused`` with
 the refusal and the event, nothing appended; a close carries the settlement the log filled.
 
-The in-memory log's claim: the sixteen histories replayed through its commands, each event
+The in-memory log's claim: the seventeen histories replayed through its commands, each event
 through the command its kind takes, come back as the fixtures hold them, the ledger revision
 of a settlement masked (the store's integration suite makes the same substitution).
 """
@@ -24,6 +24,7 @@ from leaveimpact.agent.log_events import (
     Abandoned,
     CapExhausted,
     Completed,
+    Declined,
     Failed,
     LoggedEvent,
     SegmentStarted,
@@ -65,7 +66,7 @@ def step(log: MemoryLog, logged: LoggedEvent, state: AttemptState) -> Appended:
                 rules=RULES,
                 state=state,
             )
-        case Completed() | CapExhausted() | Failed() | Abandoned():
+        case Completed() | CapExhausted() | Failed() | Abandoned() | Declined():
             result = log.close_attempt(
                 RUN,
                 ATTEMPT,
@@ -82,7 +83,8 @@ def step(log: MemoryLog, logged: LoggedEvent, state: AttemptState) -> Appended:
 
 def revision_masked(logged: LoggedEvent) -> LoggedEvent:
     event = logged.event
-    if isinstance(event, Completed | CapExhausted | Failed | Abandoned) and event.settlement:
+    closing = isinstance(event, Completed | CapExhausted | Failed | Abandoned | Declined)
+    if closing and event.settlement:
         return replace(
             logged, event=replace(event, settlement=replace(event.settlement, ledger_revision=0))
         )

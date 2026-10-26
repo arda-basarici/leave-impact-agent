@@ -33,11 +33,12 @@ ledger revision it was settled at. Keeping and reconciling are the ledger's; thi
 the export states the result, so an auditor can check that known consumption plus
 retained allocations stayed inside the allowance.
 
-*The approval.* An export is terminal-only, so its approval is one of three states: not
+*The approval.* An export is terminal-only, so its approval is one of four states: not
 requested; requested and unapproved at termination; approved, by the automatic policy or a
-human. A run waiting for approval is a state of the log and never an export, and absent is
-never an approval of an empty set: an abstention's empty payload is approved explicitly. A
-requested approval holds the digest of the frozen review payload it was asked over. An
+human; declined, by a human, the decline being the termination (format 4). A run waiting
+for approval is a state of the log and never an export, and absent is never an approval of
+an empty set: an abstention's empty payload is approved explicitly. A requested approval
+holds the digest of the frozen review payload it was asked over. An
 automatic approval is a registered policy's decision, not authorization.
 
 *The composition.* The claims a run ends with were composed by the rules from the run's
@@ -237,10 +238,12 @@ class ApprovalState(StrEnum):
     NOT_REQUESTED = "not_requested"
     REQUESTED_UNAPPROVED = "requested_unapproved"
     APPROVED = "approved"
+    DECLINED = "declined"
+    """Refused by a human, which closed the attempt (format 4)."""
 
 
 class Approver(StrEnum):
-    """Who approved; a member is the wire format."""
+    """Who gave the decision; a member is the wire format. A decline is human by ruling."""
 
     AUTOMATIC = "automatic"
     HUMAN = "human"
@@ -251,14 +254,15 @@ class Approval:
     """The approval of an attempt's review payload, as it stood at termination.
 
     ``payload_digest`` is the digest of the frozen review payload, held exactly when an
-    approval was requested; ``approver`` exactly when it was given.
+    approval was requested; ``approver`` exactly when a decision was given, approved or
+    declined.
 
     >>> Approval(ApprovalState.NOT_REQUESTED, None, None).state.value
     'not_requested'
     >>> Approval(ApprovalState.APPROVED, None, "0" * 64)
     Traceback (most recent call last):
     ...
-    ValueError: an approver is named exactly for an approval that was given
+    ValueError: an approver is named exactly for a decision that was given
     """
 
     state: ApprovalState
@@ -267,8 +271,9 @@ class Approval:
 
     def __post_init__(self) -> None:
         require_member(self.state, ApprovalState, "an approval's state")
-        if (self.approver is not None) != (self.state is ApprovalState.APPROVED):
-            raise ValueError("an approver is named exactly for an approval that was given")
+        decided = self.state in (ApprovalState.APPROVED, ApprovalState.DECLINED)
+        if (self.approver is not None) != decided:
+            raise ValueError("an approver is named exactly for a decision that was given")
         if self.approver is not None:
             require_member(self.approver, Approver, "an approver")
         if (self.payload_digest is not None) != (self.state is not ApprovalState.NOT_REQUESTED):

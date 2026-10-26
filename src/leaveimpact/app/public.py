@@ -18,7 +18,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from datetime import datetime
-from typing import NewType
+from typing import NewType, assert_never
 
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.run_record import TerminalStatus
@@ -119,6 +119,9 @@ class PublicReplay:
         >>> capped = TerminalStatus.CAP_EXHAUSTED
         >>> PublicReplay(PublicId("x"), ScenarioId("s"), None, at, capped).status_label
         'stopped at the cap'
+        >>> declined = TerminalStatus.DECLINED
+        >>> PublicReplay(PublicId("x"), ScenarioId("s"), None, at, declined).status_label
+        'declined'
         """
         match self.status:
             case None:
@@ -129,3 +132,7 @@ class PublicReplay:
                 return "stopped at the cap"
             case TerminalStatus.FAILED:
                 return "failed"
+            case TerminalStatus.DECLINED:
+                return "declined"
+            case _ as unreachable:
+                assert_never(unreachable)

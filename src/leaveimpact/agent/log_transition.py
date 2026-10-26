@@ -83,6 +83,7 @@ from leaveimpact.agent.answer_parse import (
 )
 from leaveimpact.agent.conclusion import Abstention, abstention_of, defect_of, leave_of
 from leaveimpact.agent.log_events import (
+    KIND_SINCE_FORMAT,
     Abandoned,
     Admitted,
     ApprovalRequested,
@@ -93,6 +94,7 @@ from leaveimpact.agent.log_events import (
     CountKey,
     CountOutcomeLogged,
     CountStarted,
+    Declined,
     DispatchIntent,
     DispatchOutcome,
     EventKey,
@@ -290,7 +292,7 @@ class AttemptState:
         if self.closed is None:
             return None
         event = self.closed.event
-        assert isinstance(event, Completed | CapExhausted | Failed | Abandoned)
+        assert isinstance(event, Completed | CapExhausted | Failed | Abandoned | Declined)
         return event
 
     @property
@@ -412,6 +414,12 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
         )
     if state.closed is not None:
         return Refused(f"the attempt is closed at position {state.closed.position}")
+    since = KIND_SINCE_FORMAT.get(kind_of(logged.event))
+    if since is not None and inputs.log_format_version < since:
+        return Refused(
+            f"{kind_of(logged.event).value} is format {since} vocabulary; this log is format "
+            f"{inputs.log_format_version}"
+        )
     mismatch = rules_differ(inputs, rules)
     if mismatch is not None:
         return Refused(mismatch)
@@ -501,6 +509,21 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
                     f"the abandon command expects generation {event.expected_generation}; "
                     f"the attempt is at {state.generation}"
                 )
+            refusal = _settlement_refusal(inputs, event.settlement is not None)
+            if refusal is not None:
+                return Refused(refusal)
+            return Appended(_close(_with_event(state, logged), logged))
+        case Declined():
+            request = state.approval_requested
+            if request is None:
+                return Refused("a decline answers a request")
+            if state.approved is not None:
+                return Refused("no decline after an approval was given")
+            if state.stopped is not None:
+                return Refused(_stopped(state, "no decline"))
+            asked = _request(request)
+            if event.payload_digest != review_payload_digest(asked.claims, asked.composition):
+                return Refused("a decline names the digest of the payload that was requested")
             refusal = _settlement_refusal(inputs, event.settlement is not None)
             if refusal is not None:
                 return Refused(refusal)

@@ -16,6 +16,9 @@ from datetime import timedelta
 import pytest
 
 from leaveimpact.core import (
+    Approval,
+    ApprovalState,
+    Approver,
     CandidateAssessment,
     Claim,
     CoverageAction,
@@ -479,6 +482,22 @@ def test_a_failed_run_is_excluded_by_its_failure_category(world: SealedWorld) ->
     infrastructure = grade_run(world, provider_failed_export(world, scenario))
     assert isinstance(infrastructure, Excluded)
     assert infrastructure.reason is ExcludedReason.FAILED_BY_INFRASTRUCTURE
+
+
+def test_a_declined_run_is_counted_and_never_graded(world: SealedWorld) -> None:
+    """A human refused the plan (format 4): the run is excluded under its own reason, not a
+    failure's, and nothing about its claims is read."""
+    scenario = world.scenarios[0]
+    export = run_export(world, scenario, ())
+    record = export.record
+    refused = Approval(ApprovalState.DECLINED, Approver.HUMAN, record.approval.payload_digest)
+    declined = replace(
+        export,
+        record=replace(record, status=TerminalStatus.DECLINED, approval=refused),
+    )
+    outcome = grade_run(world, declined)
+    assert isinstance(outcome, Excluded) and outcome.reason is ExcludedReason.DECLINED
+    assert outcome.header.status is TerminalStatus.DECLINED
 
 
 def test_a_run_of_another_context_is_excluded_before_anything_else_is_read(

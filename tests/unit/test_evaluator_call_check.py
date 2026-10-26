@@ -1,5 +1,5 @@
 """Each call's standing under the registered table and policy, and whether the attempt ended
-where its calls say. The sixteen format fixtures carry no finding under their table and
+where its calls say. The seventeen format fixtures carry no finding under their table and
 policy; the two findings are reached from hand-built exports, since no conforming harness
 produces either; a call the attribution check faults gets no standing."""
 

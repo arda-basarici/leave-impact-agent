@@ -215,9 +215,9 @@ def test_the_format_cases_carry_no_finding_under_a_table_holding_their_rules() -
         check = check_attributions(FIXTURE_TABLE, FIXTURE_POLICY, build().trace.model_calls)
         assert check.findings == (), name
         read += check.dispatches
-    # Sixteen exports, two with no dispatch, one with two dispatches of one call and one with
-    # three dispatches over two calls.
-    assert read == 17
+    # Seventeen exports, two with no dispatch, one with two dispatches of one call and one
+    # with three dispatches over two calls; the declined attempt has one dispatch of one call.
+    assert read == 18
 
 
 # --- Where it is evaluated -------------------------------------------------------------------

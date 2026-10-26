@@ -1,6 +1,6 @@
 """The store against PostgreSQL, one connection: the claims the acceptance manifest makes of
 its commands (the event log step's ruling on placement and acceptance, part 5), and the
-sixteen format fixtures replayed through it.
+seventeen format fixtures replayed through it.
 
 *Replay.* Every history the reader's acceptance rebuilds is appended through the command
 its kind takes (admit, claim, append, close), the store's clock scripted to the history's
@@ -47,6 +47,7 @@ from leaveimpact.agent.log_events import (
     Admitted,
     CapExhausted,
     Completed,
+    Declined,
     DispatchOutcome,
     Failed,
     LoggedEvent,
@@ -159,7 +160,7 @@ def step(store: LogStore, logged: LoggedEvent, state: AttemptState) -> Appended:
                 rules=RULES,
                 state=state,
             )
-        case Completed() | CapExhausted() | Failed() | Abandoned():
+        case Completed() | CapExhausted() | Failed() | Abandoned() | Declined():
             result = store.close_attempt(
                 run_id,
                 attempt,
@@ -977,3 +978,37 @@ def test_a_recorded_request_of_an_older_format_is_answered_as_recorded_and_never
     assert [entry.kind for entry in store.ledger_view(LEDGER).entries] == [
         ledger.EntryKind.THRESHOLD_SET
     ]
+
+
+def test_an_attempt_that_exists_at_an_older_format_gives_its_receipt_under_any_request_id(
+    rig: Rig,
+) -> None:
+    """The existing-attempt backstop sits before the format guard (group 1's external read):
+    identical inputs for an attempt stored at format 3 get its receipt under a new request
+    id, other inputs the conflict, and only an admission that would create an attempt at
+    format 3 is refused. The historical attempt is one admitted at the written format and
+    re-stamped to 3 in the row and the admission event, as a store written before the bump
+    holds it."""
+    store = opened(rig)
+    admitted, admitter = admission_of(histories.HISTORIES["facts beside tools in one answer"]())
+    first = store.admit(request_for(admitted, admitter))
+    assert isinstance(first, AdmissionReceipt)
+    with rig.connect_for(0)(rig.url) as conn:
+        conn.execute("UPDATE attempt SET log_format = 3 WHERE run_id = %s", ("run-12",))
+        conn.execute(
+            "UPDATE event SET record = jsonb_set(record, "
+            "'{content,inputs,log_format_version}', '3') WHERE run_id = %s AND position = 1",
+            ("run-12",),
+        )
+    older = replace(admitted.inputs, log_format_version=3)
+    loaded = store.load("run-12", 1, rules=RULES)
+    assert loaded.inputs == older, "the store reads the attempt at the format it holds"
+    request = replace(request_for(admitted, admitter), inputs=older)
+    assert store.admit(request) == first
+    with pytest.raises(LogStoreConflict, match="exists with other frozen inputs"):
+        store.admit(
+            replace(request, request_id=request_id(), inputs=replace(older, corpus_level="padded"))
+        )
+    with pytest.raises(ValueError, match="writes log format 4; a new admission at format 3"):
+        store.admit(replace(request, request_id=request_id(), inputs=replace(older, attempt=2)))
+    assert store.open_attempts() == (AttemptRef("run-12", 1),)

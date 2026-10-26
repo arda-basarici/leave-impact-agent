@@ -90,6 +90,9 @@ class ExcludedReason(StrEnum):
     FAILED_BY_DEFECT = "failed_by_defect"
     FAILED_BY_INFRASTRUCTURE = "failed_by_infrastructure"
     CONTEXT_MISMATCH = "context_mismatch"
+    DECLINED = "declined"
+    """A human refused the review payload (format 4): counted as made, never graded, since a
+    grade of a refused plan would report the quality of an answer nobody accepted."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -258,6 +261,8 @@ def grade_run(world: SealedWorld, export: RunExport) -> RunOutcome:
             else ExcludedReason.FAILED_BY_INFRASTRUCTURE
         )
         return Excluded(header, failed_by)
+    if record.status is TerminalStatus.DECLINED:
+        return Excluded(header, ExcludedReason.DECLINED)
     observed = observed_condition(trace.operations)
     harness = _condition_findings(record.observed_condition, observed.condition)
     run = observe(world.index, export)

@@ -41,6 +41,7 @@ from leaveimpact.agent.log_events import (
     Completed,
     CountOutcomeLogged,
     CountStarted,
+    Declined,
     DispatchIntent,
     DispatchOutcome,
     EventKind,
@@ -213,6 +214,10 @@ def _text(before: AttemptState, after: AttemptState, logged: LoggedEvent) -> str
             )
         case Abandoned():
             return _abandoned(event.reason) + _settled(event.settlement)
+        case Declined():
+            return "a person declined the plan; the attempt is closed" + _settled(
+                event.settlement
+            )
         case Failed():
             return (
                 f"the run failed: {_category(event.category)} at {_site(event.site)}: "

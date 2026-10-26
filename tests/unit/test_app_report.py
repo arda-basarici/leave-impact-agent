@@ -271,6 +271,16 @@ def test_an_attempt_that_ended_before_any_read_says_nothing_ran() -> None:
     assert view.leave is None and view.impacts == () and ending.empty
 
 
+def test_a_declined_run_states_the_refusal_first_and_no_failure() -> None:
+    view = view_of(cases.declined_attempt())
+    ending = view.ending
+    assert ending.status is TerminalStatus.DECLINED
+    assert ending.headline == "The plan was declined."
+    assert "The plan was declined by a person, which closed the run." in ending.details
+    assert not any(line.startswith(("Failed by", "Abandoned by")) for line in ending.details)
+    assert ending.failure_anchor is None and ending.caps == ()
+
+
 def test_a_failure_at_the_input_bound_anchors_the_counting_operation() -> None:
     view = view_of(cases.input_bound_exhausted())
     ending = view.ending

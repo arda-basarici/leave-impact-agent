@@ -39,7 +39,7 @@ EVERY_HISTORY = [logged for build in histories.HISTORIES.values() for logged in 
 def test_the_histories_hold_every_kind() -> None:
     held = {kind_of(logged.event) for logged in EVERY_HISTORY}
     assert held == set(EventKind) - {EventKind.CAP_EXHAUSTED, EventKind.FINALIZATION_ENTERED}
-    assert len(EventKind) == 16
+    assert len(EventKind) == 17
 
 
 @pytest.mark.parametrize(

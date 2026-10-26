@@ -10,7 +10,7 @@ counters agree with the log, folded otherwise). What it has none of is a lock, a
 schema: a single ``threading.Lock`` serializes the commands so two appenders in one test
 behave as two connections would in their legal orders, and nothing here can be unavailable.
 
-A test holds this log to the real store over the sixteen histories (same commands, same
+A test holds this log to the real store over the seventeen histories (same commands, same
 positions, same events), so a worker test that passes here states something about the
 store's behaviour and not only about this file's. The ``boundary`` seam fires at the store's
 three points of a writing command so an ordering test reads the same names.
@@ -32,6 +32,7 @@ from leaveimpact.agent.log_events import (
     ClosingEvent,
     CommitOverride,
     Completed,
+    Declined,
     Envelope,
     Event,
     Failed,
@@ -200,7 +201,8 @@ class MemoryLog:
         state: AttemptState | None = None,
     ) -> Transition:
         if isinstance(
-            event, Admitted | SegmentStarted | Completed | CapExhausted | Failed | Abandoned
+            event,
+            Admitted | SegmentStarted | Completed | CapExhausted | Failed | Abandoned | Declined,
         ):
             raise ValueError(
                 f"{kind_of(event).value} is appended through its own command, not append"
@@ -319,7 +321,7 @@ def _closed_again(held: LoggedEvent, closing: ClosingEvent, log_format: int) -> 
     held_event = held.event
     if kind_of(held_event) is not kind_of(closing):
         return Refused(f"the attempt is closed at position {held.position}")
-    assert isinstance(held_event, Completed | CapExhausted | Failed | Abandoned)
+    assert isinstance(held_event, Completed | CapExhausted | Failed | Abandoned | Declined)
     masked: ClosingEvent = replace(held_event, settlement=None)
     if event_bytes(masked, log_format=log_format) == event_bytes(closing, log_format=log_format):
         return Received(held.position)

@@ -95,7 +95,7 @@ def test_a_paused_attempt_has_no_export() -> None:
     """The eighth case's third history: an attempt waiting for its approval is a state of the
     log. The nearest export, a completed attempt whose approval is still only requested, does
     not construct, and no approval state names a wait."""
-    assert len(cases.FIXTURES) == 16
+    assert len(cases.FIXTURES) == 17
     assert "pending" not in {state.value for state in ApprovalState}
     record = cases.recovered_attempt().record
     waiting = Approval(ApprovalState.REQUESTED_UNAPPROVED, None, record.approval.payload_digest)
@@ -454,3 +454,25 @@ def test_an_exhausted_input_bound_names_the_last_count_and_authorized_no_dispatc
             record=replace(record, failure=replace(record.failure, site=InputBoundSite(denied.id))),
             trace=replace(export.trace, counting_operations=(denied, timed_out, died)),
         )
+
+
+def test_a_declined_attempt_is_a_human_ending_with_no_failure_and_a_refused_approval() -> None:
+    """The seventeenth case, the first at format 4: the decline closed the attempt, so the
+    status and the approval say declined together, nothing failed and nothing abandoned,
+    the request is stamped and no resume follows, and the same record under format 3 is
+    refused for the word."""
+    export = decoded(cases.declined_attempt())
+    record = export.record
+    assert export.format_version == 4
+    assert record.status is TerminalStatus.DECLINED
+    assert record.failure is None and record.abandonment is None
+    assert record.approval == Approval(
+        ApprovalState.DECLINED, Approver.HUMAN, review_payload_digest((), cases.RULES)
+    )
+    assert record.timing.approval_requested is not None
+    assert record.timing.approval_resumed is None and timing_complete(record.timing)
+    assert evidenced_active_ms(record.timing) == 7_000
+    with pytest.raises(ValueError, match="format 4 vocabulary; this export is format 3"):
+        replace(export, format_version=3)
+    with pytest.raises(ValueError, match="status is declined exactly when the approval is"):
+        replace(record, status=TerminalStatus.COMPLETED)

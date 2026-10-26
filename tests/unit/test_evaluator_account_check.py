@@ -1,6 +1,6 @@
 """Every authorization a run recorded, replayed over the account as it stood, and what the
 run holds against its caps and reservation. The producers there are carry no finding: the
-sixteen format fixtures, the never-claimed attempt among them with a settlement at zero
+seventeen format fixtures, the never-claimed attempt among them with a settlement at zero
 compared with its reservation. A rules-only export records no reservation and is not
 evaluated. Each finding kind is reached from a hand-built export, and the decisions a replay
 can reach are the four an export can state, since an intent's purpose is read off its

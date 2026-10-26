@@ -61,6 +61,7 @@ from leaveimpact.core.model_calls import (
     Sends,
 )
 from leaveimpact.core.run_ending import (
+    ApprovalState,
     ClaimAuthor,
     Composition,
     DispatchPhase,
@@ -105,6 +106,15 @@ predecessor by vocabulary, never by canonicalization."""
 def readable_export_formats_text() -> str:
     """The readable formats as a refusal names them: ``"3 and 4"``."""
     return " and ".join(str(version) for version in READABLE_EXPORT_FORMATS)
+
+
+def _require_no_format_4_vocabulary(record: RunRecord, version: int) -> None:
+    """A format 3 export never states the declined ending: the word is format 4's."""
+    if (
+        record.status is TerminalStatus.DECLINED
+        or record.approval.state is ApprovalState.DECLINED
+    ):
+        raise ValueError(f"declined is format 4 vocabulary; this export is format {version}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -349,6 +359,8 @@ class RunExport:
                 f"this code reads export formats {readable_export_formats_text()}, got "
                 f"{self.format_version}"
             )
+        if self.format_version < 4:
+            _require_no_format_4_vocabulary(self.record, self.format_version)
         require_opaque_id(self.run_id, "a run id")
         require_integer(self.attempt, "an attempt", minimum=1)
         if self.record.system.kind is SystemKind.RULES_ONLY:

@@ -62,6 +62,7 @@ def test_every_event_kind_is_reached_by_some_history() -> None:
 
 
 VARIANT_LINES: tuple[tuple[str, EventKind, int, str], ...] = (
+    ("a declined attempt", EventKind.DECLINED, 1, "a person declined the plan"),
     ("facts beside tools in one answer", EventKind.ADMITTED, 1, "run admitted: scenario"),
     (
         "facts beside tools in one answer",

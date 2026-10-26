@@ -90,7 +90,7 @@ from leaveimpact.core.registration_json import (
 )
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_export_json import decode_export_bytes
-from leaveimpact.core.run_record import PrefetchRule, SystemKind
+from leaveimpact.core.run_record import PrefetchRule, SystemKind, TerminalStatus
 from leaveimpact.core.run_timing import TreeState
 from leaveimpact.evaluator.analysis import Analysis, analyse
 from leaveimpact.evaluator.cells import StratumKind
@@ -297,6 +297,13 @@ class OpenAttempts(ValueError):
     names the runs and attempt numbers."""
 
 
+class DeclinedAttempts(ValueError):
+    """An evaluation was asked over a scope holding a declined attempt (the demo milestone's
+    live-path step, fork 7): a decline is a visitor's answer on the demo's world, and no
+    measured world holds one until a ruling admits it to the accounting, so the boundary is
+    enforced here rather than assumed; the message names the runs and attempt numbers."""
+
+
 def cited_commits(runs: Sequence[StoredRun], inventory: Inventory) -> tuple[str, ...]:
     """The preregistration commits the exports among ``runs`` cite and the registration
     commits the attempts of ``inventory`` were admitted under, each once, in order: what the
@@ -354,6 +361,12 @@ def evaluation_artifact(
         )
     label = label_of(registration)
     scoped = scoped_attempts(inventory, world.version, registrations_at, registration_content)
+    declined = _declined_in_scope(runs, {(each.run_id, each.attempt) for each in scoped})
+    if declined:
+        raise DeclinedAttempts(
+            "a declined attempt is in the evaluation's scope, which no measured world holds: "
+            + ", ".join(f"{run_id} attempt {attempt}" for run_id, attempt in declined)
+        )
     held_open = open_attempts(scoped)
     if label is Label.REPORTED and held_open:
         raise OpenAttempts(
@@ -676,6 +689,21 @@ def _decoded(run: StoredRun) -> RunExport | None:
         return None
 
 
+def _declined_in_scope(
+    runs: Sequence[StoredRun], in_scope: frozenset[tuple[str, int]] | set[tuple[str, int]]
+) -> tuple[tuple[str, int], ...]:
+    """The scoped attempts among ``runs`` whose export states the declined ending, in key
+    order; bytes that are not an export are left to the listing's own verdict."""
+    found: list[tuple[str, int]] = []
+    for run in sorted(runs, key=lambda run: run.key):
+        export = _decoded(run)
+        if export is None or export.record.status is not TerminalStatus.DECLINED:
+            continue
+        if (export.run_id, export.attempt) in in_scope:
+            found.append((export.run_id, export.attempt))
+    return tuple(found)
+
+
 def label_of(registration: Registration) -> Label:
     """What kind of evidence an evaluation under ``registration`` is: development unless the
     registration is bound, exploratory when it declares an amendment after a prior full
@@ -705,6 +733,7 @@ __all__ = [
     "ARTIFACT_FORMAT_VERSION",
     "AmbiguousRuns",
     "ChangedPath",
+    "DeclinedAttempts",
     "Disposition",
     "EvaluationArtifact",
     "EvaluatorRevision",

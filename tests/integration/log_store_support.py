@@ -9,7 +9,7 @@ unqualified table names land there and tests never read one another; the schema 
 whole at the end, the way the lock-race probe isolated its run.
 
 *The clock.* A scripted clock hands the store the timestamps a fixture's history recorded,
-one per command in order, so the sixteen histories replay through the store and rebuild
+one per command in order, so the seventeen histories replay through the store and rebuild
 their exports exactly; the default clock is the database's.
 
 *The barrier.* The store calls its ``boundary`` seam at ``locked``, ``decided`` and

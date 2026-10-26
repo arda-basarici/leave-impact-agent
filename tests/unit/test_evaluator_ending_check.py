@@ -111,7 +111,7 @@ def test_the_format_cases_carry_no_finding_and_seven_have_an_unknown_tail() -> N
         "a recorded defect an operator finalized": 1,
         "a request whose input bound was never established": 3,
     }
-    assert sum(ending.segments == 1 for ending in endings.values()) == 11
+    assert sum(ending.segments == 1 for ending in endings.values()) == 12
     never = endings["an attempt admitted and never claimed"]
     assert (never.segments, never.timing_complete, never.elapsed_ms) == (0, True, 7_200_000)
 

@@ -8,10 +8,11 @@ and the command is kept beside the failure as who closed (format 3's first fork)
 stopping failures are a malformed record and a dispatch read as a defect (defects), a call
 that stood failed by infrastructure, and a count group that was refused (a defect),
 exhausted or failed in an unclassified way. Otherwise the ending is the closing event's own:
-completed, reported at
-the cap, failed at the site the worker named, or abandoned, which is an infrastructure
-failure at the abandoned site holding the command. Who closed and why the attempt failed
-are two facts, both in the log, and the export states both.
+completed, reported at the cap, failed at the site the worker named, declined by the person
+who held the outstanding request (format 4, the demo milestone's live-path step), or
+abandoned, which is an infrastructure failure at the abandoned site holding the command.
+Who closed and why the attempt failed are two facts, both in the log, and the export states
+both.
 
 *The status* is the three fields the job seam exposes (the ruling on the job seam, part
 1): the attempt (open, or closed with its ending), the segment (never started, open,
@@ -41,6 +42,7 @@ from leaveimpact.agent.log_events import (
     Approved,
     CapExhausted,
     Completed,
+    Declined,
     Failed,
     Producer,
     call_id,
@@ -61,6 +63,7 @@ from leaveimpact.core.run_ending import (
     Abandonment,
     Approval,
     ApprovalState,
+    Approver,
     DispatchSite,
     HarnessSite,
     HarnessSiteName,
@@ -115,6 +118,8 @@ def ending_of(state: AttemptState) -> Ending:
                 _abandonment_reason(state),
             )
             return Ending(TerminalStatus.FAILED, failure, abandonment)
+        case Declined():
+            return Ending(TerminalStatus.DECLINED, None, None)
 
 
 def _abandonment_reason(state: AttemptState) -> str:
@@ -124,8 +129,9 @@ def _abandonment_reason(state: AttemptState) -> str:
 
 
 def approval_of(state: AttemptState) -> Approval:
-    """The approval as the log states it: not requested, requested and unapproved, or
-    approved by whoever delivered it, over the requested payload's digest."""
+    """The approval as the log states it: not requested, requested and unapproved, approved
+    by whoever delivered it, or declined by a human, which closed the attempt; over the
+    requested payload's digest."""
     request = state.approval_requested
     if request is None:
         return Approval(ApprovalState.NOT_REQUESTED, None, None)
@@ -134,6 +140,8 @@ def approval_of(state: AttemptState) -> Approval:
     digest = review_payload_digest(asked.claims, asked.composition)
     approved = state.approved
     if approved is None:
+        if isinstance(state.closing, Declined):
+            return Approval(ApprovalState.DECLINED, Approver.HUMAN, digest)
         return Approval(ApprovalState.REQUESTED_UNAPPROVED, None, digest)
     given = approved.event
     assert isinstance(given, Approved)
@@ -179,6 +187,8 @@ def eligibility_ending_of(state: AttemptState, rules: Rules) -> eligibility.Endi
             return eligibility.Completed()
         case TerminalStatus.CAP_EXHAUSTED:
             return eligibility.ReportedAtCap()
+        case TerminalStatus.DECLINED:
+            return eligibility.Declined()
         case TerminalStatus.FAILED:
             pass
     failure = ending.failure

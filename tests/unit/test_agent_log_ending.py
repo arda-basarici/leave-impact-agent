@@ -55,9 +55,9 @@ def test_the_agents_projection_is_the_evaluators_on_every_fixture(name: str) -> 
     assert eligibility_ending_of(state, histories.RULES) == expected
 
 
-def test_the_fixtures_reach_four_of_the_vocabularys_kinds() -> None:
-    """Measured at the build: the sixteen histories end completed, by defect, abandoned
-    (before and after an intent) and with the input bound exhausted; no fixture ends by a
+def test_the_fixtures_reach_five_of_the_vocabularys_kinds() -> None:
+    """Measured at the build: the seventeen histories end completed, by defect, abandoned
+    (before and after an intent), with the input bound exhausted and declined; no fixture ends by a
     send failure or unresolved at the maximum, which the admission's refusal reasons for
     those kinds therefore rest on the function's own tests for."""
     endings = [
@@ -69,6 +69,7 @@ def test_the_fixtures_reach_four_of_the_vocabularys_kinds() -> None:
         eligibility.EndedByDefect,
         eligibility.Abandoned,
         eligibility.InputBoundExhausted,
+        eligibility.Declined,
     }
     assert {e.dispatch_intents for e in endings if isinstance(e, eligibility.Abandoned)} == {0, 1}
 

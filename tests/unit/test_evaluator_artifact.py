@@ -22,6 +22,9 @@ from leaveimpact.agent.registered import rules_only_provenance
 from leaveimpact.agent.rules_only import investigate
 from leaveimpact.core import (
     Amendment,
+    Approval,
+    ApprovalState,
+    Approver,
     CallConfiguration,
     CallSetting,
     Caps,
@@ -44,6 +47,7 @@ from leaveimpact.core import (
     Source,
     System,
     SystemKind,
+    TerminalStatus,
     TreeState,
     basis_for,
     condition_id,
@@ -59,6 +63,7 @@ from leaveimpact.evaluator.artifact import (
     ARTIFACT_FORMAT_VERSION,
     AmbiguousRuns,
     ChangedPath,
+    DeclinedAttempts,
     Disposition,
     EvaluationArtifact,
     EvaluatorRevision,
@@ -954,6 +959,25 @@ def test_a_listed_publication_absent_or_changed_refuses_the_evaluation(
     changed = with_record(export, prefetch_rule=PrefetchRule("another", DIGEST))
     with pytest.raises(MissingPublications, match="runs/a holds other bytes than recorded"):
         artifact_of(world, stored("runs/a", changed), inventory=inventory)
+
+
+def test_an_evaluation_refuses_a_declined_attempt_in_its_scope(world: SealedWorld) -> None:
+    """The measurement boundary enforced (the live-path step's fork 7 as amended): a decline
+    is the demo's, and an evaluation whose scope holds one refuses by name before any
+    table is built, whatever its label."""
+    export = exported(world, world.scenarios[0])
+    record = export.record
+    refused = Approval(ApprovalState.DECLINED, Approver.HUMAN, record.approval.payload_digest)
+    declined = with_record(
+        export,
+        status=TerminalStatus.DECLINED,
+        approval=refused,
+        timing=replace(record.timing, approval_resumed=None),
+    )
+    run = stored("runs/a", declined)
+    inventory = inventory_over(world.version, {run.key: run.content})
+    with pytest.raises(DeclinedAttempts, match="no measured world holds: run-1 attempt 1$"):
+        artifact_of(world, run, inventory=inventory)
 
 
 def test_a_reported_evaluation_waits_for_open_attempts_in_its_scope_and_others_count_them(

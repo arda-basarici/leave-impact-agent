@@ -57,6 +57,7 @@ from leaveimpact.agent.log_events import (
     ApprovalRequested,
     Approved,
     CommitOverride,
+    Declined,
     Producer,
     log_digest,
 )
@@ -354,6 +355,81 @@ def deliver_approval(
             return CommandRefused(subject, reason)
 
 
+# --- decline -----------------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class DeclineDelivery:
+    """A human's refusal of the review payload: who, for which attempt, and the digest of
+    the payload they saw, which must be the logged request's."""
+
+    run_id: str
+    attempt: int
+    decider: str
+    payload_digest: str
+
+    def __post_init__(self) -> None:
+        require_opaque_id(self.run_id, "a run id")
+        require_integer(self.attempt, "an attempt number", minimum=1)
+        require_opaque_id(self.decider, "a decider's identity")
+        require_digest(self.payload_digest, "the review payload's digest")
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptDeclined:
+    """The attempt is closed by the decline at ``position``, its reservation settled."""
+
+    run_id: str
+    attempt: int
+    position: int
+
+
+def decline(
+    delivery: DeclineDelivery, store: LogStore, *, rules: Rules
+) -> AttemptDeclined | CommandRefused:
+    """Close the attempt with the human's refusal as an outside producer (the demo
+    milestone's live-path step, ruling 4); the store closes and settles in one transaction.
+    Refused on an attempt closed by anything but this decline, with no approval requested,
+    after an approval was given, and with a digest that is not the logged request's; a
+    repeat with the same digest is the decline already made, whether it raced this one at
+    the store or came later, since a visitor's second click consumes nothing (ruling 4's
+    idempotent admission, read onto the decision). The capability and the deadline that
+    gate it on the public surface are the commands step's."""
+    subject = f"run {delivery.run_id} attempt {delivery.attempt}"
+    state = store.load(delivery.run_id, delivery.attempt, rules=rules)
+    closed = state.closed
+    if closed is not None:
+        held = closed.event
+        if isinstance(held, Declined) and held.payload_digest == delivery.payload_digest:
+            return AttemptDeclined(delivery.run_id, delivery.attempt, closed.position)
+        return CommandRefused(subject, f"the attempt is closed at position {closed.position}")
+    request = state.approval_requested
+    if request is None:
+        return CommandRefused(subject, "no approval is requested")
+    given = state.approved
+    if given is not None:
+        return CommandRefused(subject, f"an approval is already given at position {given.position}")
+    assert isinstance(request.event, ApprovalRequested)
+    expected = review_payload_digest(request.event.claims, request.event.composition)
+    if delivery.payload_digest != expected:
+        return CommandRefused(subject, "the digest given is not the requested payload's")
+    result = store.close_attempt(
+        delivery.run_id,
+        delivery.attempt,
+        Producer(delivery.decider),
+        Declined(delivery.payload_digest, None),
+        rules=rules,
+        state=state,
+    )
+    match result:
+        case Appended(after):
+            return AttemptDeclined(delivery.run_id, delivery.attempt, after.last_position)
+        case Received(position):
+            return AttemptDeclined(delivery.run_id, delivery.attempt, position)
+        case Refused(reason):
+            return CommandRefused(subject, reason)
+
+
 # --- abandon -----------------------------------------------------------------------------
 
 
@@ -646,7 +722,9 @@ __all__ = [
     "ApprovalDelivered",
     "ApprovalDelivery",
     "AttemptAbandoned",
+    "AttemptDeclined",
     "CommandRefused",
+    "DeclineDelivery",
     "ImportRequest",
     "InventoryRequest",
     "InventoryWritten",
@@ -660,6 +738,7 @@ __all__ = [
     "WorkerComposition",
     "abandon",
     "admit",
+    "decline",
     "deliver_approval",
     "finalize",
     "import_spend",

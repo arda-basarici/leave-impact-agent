@@ -30,7 +30,9 @@ from leaveimpact.agent.commands import (
     ApprovalDelivered,
     ApprovalDelivery,
     AttemptAbandoned,
+    AttemptDeclined,
     CommandRefused,
+    DeclineDelivery,
     InventoryRequest,
     PublishRequest,
     ReviewPayload,
@@ -38,6 +40,7 @@ from leaveimpact.agent.commands import (
     ThresholdRequest,
     WorkRequest,
     abandon,
+    decline,
     deliver_approval,
     publish,
     review_approval,
@@ -47,7 +50,7 @@ from leaveimpact.agent.commands import (
 )
 from leaveimpact.agent.inventory import PublicationRecord
 from leaveimpact.agent.ledger import LedgerEntry
-from leaveimpact.agent.log_events import ApprovalRequested
+from leaveimpact.agent.log_events import ApprovalRequested, Declined
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import SCHEMA_VERSION
 from leaveimpact.agent.log_transition import AttemptState
@@ -56,6 +59,7 @@ from leaveimpact.agent.worker import (
     WorkerEnding,
     WorkerEndingKind,
 )
+from leaveimpact.core import ApprovalState, TerminalStatus
 from leaveimpact.core.claims_json import encode_claim
 from leaveimpact.core.inventory import InventoryScope, PublicationStatus, decode_inventory_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
@@ -200,6 +204,53 @@ def test_an_approval_is_delivered_as_a_command_and_the_next_work_resumes(
     unreviewable = review_approval(ReviewRequest(RUN, ATTEMPT), store, rules=RULES)
     assert isinstance(unreviewable, CommandRefused)
     assert unreviewable.reason.startswith("the attempt is closed")
+
+
+def test_a_human_decline_closes_the_attempt_and_settles_it(rig: Rig, world: SealedWorld) -> None:
+    """Ruling 4 of the demo milestone's entry, through the real store: the decline binds the
+    requested digest, closes the attempt with the reservation settled, repeats as the
+    receipt, and leaves nothing an approval or a worker can do after."""
+    store, inputs = admitted(rig, world)
+    first = work(
+        WorkRequest(RUN, ATTEMPT, "nonce-1", "launch-1"),
+        store,
+        composition(inputs, world, saver_on(rig), approval=HumanApproval()),
+    )
+    assert first.kind is WorkerEndingKind.AWAITING_APPROVAL
+    state = store.load(RUN, ATTEMPT, rules=RULES)
+    request = state.approval_requested
+    assert request is not None and isinstance(request.event, ApprovalRequested)
+    digest = review_payload_digest(request.event.claims, request.event.composition)
+    subject = f"run {RUN} attempt {ATTEMPT}"
+    wrong = decline(DeclineDelivery(RUN, ATTEMPT, "visitor:a", "0" * 64), store, rules=RULES)
+    assert wrong == CommandRefused(subject, "the digest given is not the requested payload's")
+    declined = decline(DeclineDelivery(RUN, ATTEMPT, "visitor:a", digest), store, rules=RULES)
+    assert isinstance(declined, AttemptDeclined)
+    again = decline(DeclineDelivery(RUN, ATTEMPT, "visitor:b", digest), store, rules=RULES)
+    assert again == declined, "a repeat with the same digest is the store's receipt"
+    closed = store.load(RUN, ATTEMPT, rules=RULES)
+    assert closed.closed is not None and closed.closed.position == declined.position
+    closing = closed.closed.event
+    assert isinstance(closing, Declined) and closing.settlement is not None
+    export = export_of(closed)
+    assert export.format_version == 4 and export.record.status is TerminalStatus.DECLINED
+    assert export.record.approval.state is ApprovalState.DECLINED
+    assert export.record.failure is None and export.record.abandonment is None
+    assert export.record.reservation is not None
+    assert export.record.reservation.charged_pico_usd == closing.settlement.charged_pico_usd
+    refused = deliver_approval(
+        ApprovalDelivery(RUN, ATTEMPT, "approver:a", digest), store, rules=RULES
+    )
+    assert refused == CommandRefused(
+        subject, f"the attempt is closed at position {declined.position}"
+    )
+    assert store.open_attempts() == ()
+    later = work(
+        WorkRequest(RUN, ATTEMPT, "nonce-2", "launch-2"),
+        store,
+        composition(inputs, world, saver_on(rig), approval=HumanApproval()),
+    )
+    assert later.kind is WorkerEndingKind.CLOSED_ALREADY and later.detail == "declined"
 
 
 def test_an_approval_with_none_requested_is_refused(rig: Rig, world: SealedWorld) -> None:
