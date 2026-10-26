@@ -145,6 +145,8 @@ def test_a_database_without_the_app_schema_is_unavailable_not_an_error(rig: Rig)
     store = app_store(rig)
     store.ensure_schema()
     with rig.observer() as observer:
+        # The live table references the publishable one (app schema 3), so it goes first.
+        observer.execute(in_schema(rig, "DROP TABLE {}.live_attempt"))
         observer.execute(in_schema(rig, "DROP TABLE {}.publishable_attempt"))
         observer.execute(in_schema(rig, "DROP TABLE {}.app_schema"))
     with client(rig, store) as web:
