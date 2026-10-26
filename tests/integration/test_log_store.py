@@ -33,6 +33,10 @@ what the takeover holds.
 *The advance.* A populated database at the previous version is brought to this one by the
 bootstrap, twice without change, every log's digest and every open attempt as before; a
 version the code does not advance from is refused before anything is applied.
+
+*The public start's reads.* A recorded request is found by its identity, admitted or
+refused; the admissions by an admitter against a ledger since an instant list what the
+day's cap counts, with every open one beside them.
 """
 
 from __future__ import annotations
@@ -76,11 +80,13 @@ from leaveimpact.agent.log_store import (
     AdmissionReceipt,
     AdmissionRefusal,
     AdmissionRequest,
+    AdmittedAttempt,
     AttemptRef,
     LogStore,
     LogStoreConflict,
     LogStoreInvariantBroken,
     PublicationStatus,
+    RecordedAdmission,
 )
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused
 from leaveimpact.core import (
@@ -1185,3 +1191,86 @@ def test_a_populated_database_at_the_previous_version_is_advanced_by_the_bootstr
     with pytest.raises(LogStoreInvariantBroken, match="does not advance from"):
         rig.store().ensure_schema()
     assert conn.execute("SELECT version FROM log_schema").fetchone() == (4,), "nothing applied"
+
+
+# --- The public start's two reads ------------------------------------------------------------
+
+
+def test_a_recorded_request_is_found_by_its_identity_admitted_or_refused(rig: Rig) -> None:
+    """The lookup answers a recorded request, admitted or refused, with the run and attempt
+    it asked for, and nothing for an identity never recorded; a refusal is recorded too,
+    since the start must answer a repeat of a refused request as refused and not as new."""
+    store = opened(rig)
+    events = histories.HISTORIES["a cut call"]()
+    admitted, admitter = admission_of(events)
+    request = request_for(admitted, admitter)
+    receipt = store.admit(request)
+    assert isinstance(receipt, AdmissionReceipt)
+    found = store.recorded_admission(request.request_id)
+    assert found == RecordedAdmission(request.request_id, "run-12", 1, True, receipt.recorded_at)
+    unheaded = request_for(
+        Admitted(replace(admitted.inputs, run_id="run-14")), admitter, ledger_id="ledger-unset"
+    )
+    assert isinstance(store.admit(unheaded), AdmissionRefusal)
+    recorded = store.recorded_admission(unheaded.request_id)
+    assert recorded is not None and (recorded.run_id, recorded.attempt, recorded.admitted) == (
+        "run-14",
+        1,
+        False,
+    )
+    assert store.recorded_admission("req-never") is None
+
+
+def test_the_admissions_by_an_admitter_against_a_ledger_since_an_instant_and_the_open_ones(
+    rig: Rig,
+) -> None:
+    """The read lists what the public start counts: admissions by the named admitter against
+    the named ledger at or after the instant, and every open one however old; an operator's
+    admission on the same ledger, and the same admitter's on another ledger, are absent."""
+    store = opened(rig)
+    store.set_threshold(
+        "ledger-other",
+        PLENTY,
+        authority=AUTHORITY,
+        registration_commit=cases.COMMIT,
+        limit_pico_usd=PLENTY,
+    )
+    events = histories.HISTORIES["a cut call"]()
+    admitted, _ = admission_of(events)
+    visitor = Producer("demo-start")
+
+    def admit(run_id: str, admitter: Producer, ledger_id: str = LEDGER) -> AdmissionReceipt:
+        request = request_for(Admitted(replace(admitted.inputs, run_id=run_id)), admitter)
+        receipt = store.admit(replace(request, ledger_id=ledger_id))
+        assert isinstance(receipt, AdmissionReceipt)
+        return receipt
+
+    admit("run-operator", OPERATOR)
+    early = admit("run-early", visitor)
+    since = store.now()
+    assert early.recorded_at < since
+    late = admit("run-late", visitor)
+    admit("run-elsewhere", visitor, "ledger-other")
+    listed = store.admitted_by(visitor, LEDGER, since=since)
+    assert listed == (
+        AdmittedAttempt("run-early", 1, early.recorded_at, False),
+        AdmittedAttempt("run-late", 1, late.recorded_at, False),
+    ), "an open admission before the instant is listed, for the single-open condition"
+    closed = store.close_attempt(
+        "run-early",
+        1,
+        OPERATOR,
+        Abandoned(0, AbandonmentReason.CANCELLED, None),
+        rules=RULES,
+    )
+    assert isinstance(closed, Appended)
+    assert store.admitted_by(visitor, LEDGER, since=since) == (
+        AdmittedAttempt("run-late", 1, late.recorded_at, False),
+    ), "closed and before the instant, it is neither counted nor open"
+    assert store.admitted_by(visitor, LEDGER, since=early.recorded_at) == (
+        AdmittedAttempt("run-early", 1, early.recorded_at, True),
+        AdmittedAttempt("run-late", 1, late.recorded_at, False),
+    ), "at the instant counts, and a closed one is reported closed"
+    assert [one.run_id for one in store.admitted_by(OPERATOR, LEDGER, since=since)] == [
+        "run-operator"
+    ], "the operator's open admission is listed under the operator alone"

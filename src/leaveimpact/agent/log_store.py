@@ -262,6 +262,29 @@ class LedgerView:
 
 
 @dataclass(frozen=True, slots=True)
+class RecordedAdmission:
+    """A recorded admission request as the lookup by identity reports it: the run and
+    attempt it asked for, whether it was admitted or refused, and when it was recorded."""
+
+    request_id: str
+    run_id: str
+    attempt: int
+    admitted: bool
+    recorded_at: datetime
+
+
+@dataclass(frozen=True, slots=True)
+class AdmittedAttempt:
+    """An attempt as the admissions-by-admitter read lists it: when its admission was
+    recorded and whether its row is closed."""
+
+    run_id: str
+    attempt: int
+    admitted_at: datetime
+    closed: bool
+
+
+@dataclass(frozen=True, slots=True)
 class SlotHolder:
     """The attempt holding the host's execution slot: the generation and the launch
     identity of the claim that took it, and the log's instant of that claim."""
@@ -394,6 +417,18 @@ _SELECT_SUPERSEDED = """
     SELECT reader_commit, object_identity, object_digest, recorded_at
     FROM publication_superseded WHERE run_id = %s AND attempt = %s
     ORDER BY recorded_at, reader_commit
+"""
+_SELECT_RECORDED = """
+    SELECT run_id, attempt, outcome, recorded_at FROM admission_request WHERE request_id = %s
+"""
+_SELECT_ADMITTED_BY = """
+    SELECT a.run_id, a.attempt, e.recorded_at, a.closed
+    FROM attempt AS a
+    JOIN event AS e ON e.run_id = a.run_id AND e.attempt = a.attempt AND e.position = 1
+    WHERE a.ledger_id = %s
+      AND e.record -> 'envelope' ->> 'identity' = %s
+      AND (e.recorded_at >= %s OR NOT a.closed)
+    ORDER BY e.recorded_at, a.run_id, a.attempt
 """
 _SELECT_SLOT = "SELECT run_id, attempt, generation, launch, claimed_at FROM execution_slot"
 _LOCK_SLOT = _SELECT_SLOT + " FOR UPDATE"
@@ -895,6 +930,44 @@ class LogStore:
         with self._guarded() as conn, conn.transaction():
             rows = conn.execute(_OPEN_ATTEMPTS).fetchall()
         return tuple(AttemptRef(str(run_id), int(attempt)) for run_id, attempt in rows)
+
+    def recorded_admission(self, request_id: str) -> RecordedAdmission | None:
+        """The admission request recorded under ``request_id``, admitted or refused, or
+        ``None`` for one never recorded: the public start's first read (the live-path
+        commands step, fork 2 as amended), so a repeat of a request finds the attempt it
+        asked for before any inputs are rebuilt, and a start that lost its response, or
+        arrives after a deploy that changed what the inputs would be, is answered as
+        recorded and never conflicts."""
+        with self._guarded() as conn, conn.transaction():
+            row = conn.execute(_SELECT_RECORDED, (request_id,)).fetchone()
+        if row is None:
+            return None
+        run_id, attempt, outcome, recorded_at = row
+        return RecordedAdmission(
+            request_id, str(run_id), int(attempt), outcome == "admitted", recorded_at
+        )
+
+    def admitted_by(
+        self, admitter: Producer, ledger_id: str, *, since: datetime
+    ) -> tuple[AdmittedAttempt, ...]:
+        """The attempts admitted against ``ledger_id`` by ``admitter`` whose admission was
+        recorded at or after ``since``, and every open one whenever it was admitted, in
+        admission order: what the public start counts against the day's cap and reads for
+        the single-open condition (the live-path commands step, fork 1 as amended). The
+        admitter is the producer of the admission at position 1 and the ledger the attempt
+        row's, so an operator's run on the demo's ledger is not a public one and a public
+        attempt that got no live row is counted from the moment its admission committed.
+        Read with no lock: the caller serializes on a lock of its own and the admission
+        commits inside that section. The attempt table is scanned (a few hundred rows,
+        bounded by what the ledger admits), so no index is kept for it."""
+        with self._guarded() as conn, conn.transaction():
+            rows = conn.execute(
+                _SELECT_ADMITTED_BY, (ledger_id, admitter.identity, since)
+            ).fetchall()
+        return tuple(
+            AdmittedAttempt(str(run_id), int(attempt), admitted_at, bool(closed))
+            for run_id, attempt, admitted_at, closed in rows
+        )
 
     def execution_slot(self) -> SlotHolder | None:
         """The attempt holding the host's execution slot, read with no lock, or ``None`` when
@@ -1676,6 +1749,7 @@ __all__ = [
     "AdmissionRefusal",
     "AdmissionRequest",
     "AdmissionResult",
+    "AdmittedAttempt",
     "AttemptRef",
     "Boundary",
     "Clock",
@@ -1687,6 +1761,7 @@ __all__ = [
     "LogStoreUnavailable",
     "PublicationRecord",
     "PublicationStatus",
+    "RecordedAdmission",
     "RefusedRequest",
     "SlotHolder",
     "SnapshotAttempt",
