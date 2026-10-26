@@ -63,9 +63,13 @@ printf '%s\n' "$HOST_SCRIPT" \
   | jq -Rs --arg t "$EXECUTION_TIMEOUT" '{commands: [.], executionTimeout: [$t]}' \
   > "$OUT_DIR/payload.json"
 
+# The CLI is a Windows program under git's bash and reads no `/tmp`; the payload's path is
+# handed to it in the form it reads (`C:/...` on Windows, unchanged elsewhere).
+payload_ref="$OUT_DIR/payload.json"
+if command -v cygpath > /dev/null 2>&1; then payload_ref=$(cygpath -m "$payload_ref"); fi
 cid=$(aws ssm send-command --region "$REGION" --instance-ids "$instance" \
   --document-name AWS-RunShellScript --comment "verify-publications" \
-  --parameters "file://$OUT_DIR/payload.json" --query Command.CommandId --output text)
+  --parameters "file://$payload_ref" --query Command.CommandId --output text)
 echo "command $cid sent"
 
 status=Pending
