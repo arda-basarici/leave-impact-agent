@@ -4705,6 +4705,14 @@ per-looper cost of 150 KB and a forecast of 1,169 loopers were a subtraction of 
 over three levels with no slope, and "450 ms of CPU" was a wall time; both are reworded above.
 The exchange is recorded outside this repository.
 
+**Corrected again after the external read of the public switch's commits (2026-10-25).** The
+fourth fork's amendment above still rests on the withdrawn per-looper figure ("inside the 150 KB
+a looper costs"), which the correction before this one withdrew without reaching that
+paragraph. What stands of the amendment: the held generator's bytes were not measured apart
+from a looper's, no per-looper cost is known, and the pairing with a workstation measurement is
+not replaced by a number; the live pages step's extension of the baseline on the instance, with
+the worker's real open attempt, is where the held generator is measured.
+
 ## disclosure-sweep — the tree read for what a public reader may not be shown: 190 lines rewritten, the embargoed digests found nowhere, the structural half now a test (2026-10-24)
 
 The demo milestone's exit step opens with the sweep its entry ruled: before the hostname
@@ -4913,3 +4921,22 @@ declined. The README and the milestone's post may therefore claim the public URL
 replay set, the crawl and the platform's acceptance, and not that anyone but the author
 has used the surface unassisted. A reader objection naming the world's tuning stays the
 revisit trigger of the entry's second ruling and has no reader now.
+
+**Corrected after the first external read of the public switch's commits (2026-10-25).** The
+crawl's reading scanned the raw body only, and the real encoders hide both predicates from it:
+the frame encoder writes the ellipsis a cited digest ends in as the JSON escape `…`, so a
+stream's narration carrying a cited prefix held no cited form, and the templates escape an
+apostrophe to `&#39;`, so a possessive pointer passed; both reproduced on the encoder and the
+template library. `leaveimpact.evaluator.public_crawl` now reads every body in each view a
+reader may see (the raw text, the HTML-decoded text, the JSON-decoded strings of every frame)
+and the unit test builds its cases from the frame encoder and the template escape. The crawl
+was rerun on the corrected script: 124 pages, every one 200, 3,553,533 bytes, 0 hits in any
+view, `verdict=held`; it took 969 s with 8 pages retried, because from about 22:44 UTC one read
+in ten through the hostname from the workstation stalled 20 to 90 s or lost its handshake while
+the host answered the same page in 0.33 s twenty of twenty in-network and twenty of twenty
+from itself through the edge (a read-only probe over SSM; CPU 3 to 10 percent, no container
+restart, the deploy of `a79e09f` inside the window and not the cause): the workstation's path
+to the edge, which the script now survives with a retry count it reports. The two earlier runs
+of the raw scan are superseded by this one; their verdicts stand on the embargo half (the
+stream bodies' escaped text could hide a cited digest from them, and the decoded read of the
+same bodies found none).

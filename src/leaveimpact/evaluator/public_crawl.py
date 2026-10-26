@@ -20,11 +20,14 @@ template names, which this reading is what showed.
 
 from __future__ import annotations
 
+import html
+import json
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
+from typing import cast
 
-__all__ = ["GLOBAL_PATHS", "PageFindings", "crawl_paths", "page_findings"]
+__all__ = ["GLOBAL_PATHS", "PageFindings", "crawl_paths", "page_findings", "views_of"]
 
 GLOBAL_PATHS: tuple[str, ...] = ("/", "/results", "/replays", "/ready")
 """The public routes that name no attempt, in the order the crawl reads them."""
@@ -70,14 +73,61 @@ def crawl_paths(listing_html: str) -> tuple[str, ...]:
     )
 
 
+_FRAME_DATA = re.compile(r"^data: (.*)$", re.MULTILINE)
+
+
+def _strings_in(value: object) -> list[str]:
+    """Every string a decoded JSON value holds, keys included, in document order."""
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, dict):
+        items = cast(dict[str, object], value)
+        return [text for key, item in items.items() for text in (key, *_strings_in(item))]
+    if isinstance(value, list):
+        return [text for item in cast(list[object], value) for text in _strings_in(item)]
+    return []
+
+
+def views_of(body: str) -> tuple[tuple[str, str], ...]:
+    """The texts a reader of ``body`` may see, each named: the raw body; its HTML-decoded
+    form when entities change it (a template escapes an apostrophe to ``&#39;``, so a
+    possessive pattern misses the raw text); and, when the body carries server-sent frames,
+    the strings of every ``data:`` payload decoded from JSON, one line per frame (the frame
+    encoder writes the ellipsis a cited digest ends in as ``\\u2026``, so the raw text holds
+    no cited form). Found by the first external read of the crawl: the raw scan alone passed
+    bodies the real encoders had made.
+
+    >>> [name for name, _ in views_of("plain")]
+    ['raw']
+    >>> dict(views_of("a &#39;b&#39;"))["html-decoded"]
+    "a 'b'"
+    >>> dict(views_of('id: 1\\nevent: line\\ndata: {"text": "x\\\\u2026"}\\n\\n'))["frame data"]
+    'text\\nx…'
+    """
+    views = [("raw", body)]
+    decoded = html.unescape(body)
+    if decoded != body:
+        views.append(("html-decoded", decoded))
+    frames: list[str] = []
+    for payload in _FRAME_DATA.findall(body):
+        try:
+            frames.append("\n".join(_strings_in(json.loads(payload))))
+        except ValueError:
+            frames.append(payload)
+    if frames:
+        views.append(("frame data", "\n".join(frames)))
+    return tuple(views)
+
+
 def page_findings(
     body: str, *, embargoed: Mapping[str, Sequence[str]], patterns: Sequence[Pattern]
 ) -> PageFindings:
-    """Read one fetched ``body``: ``embargoed`` maps the kind of digest to the literals that
-    would publish it (the whole value and its cited forms), and a kind is reported when any
-    literal occurs; ``patterns`` are the structural predicates, applied per line and reported
-    as ``line: what``; the external hosts are the ``https?://host`` of every ``href`` and
-    ``src`` attribute.
+    """Read one fetched ``body`` in every view ``views_of`` gives: ``embargoed`` maps the kind
+    of digest to the literals that would publish it (the whole value and its cited forms),
+    and a kind is reported when any literal occurs in any view; ``patterns`` are the
+    structural predicates, applied per line of each view and reported as ``line: what`` for
+    the raw body and ``view line: what`` for a decoded one; the external hosts are the
+    ``https?://host`` of every ``href`` and ``src`` attribute of the raw body.
 
     >>> found = page_findings(
     ...     'a <a href="https://example.org/x">b</a>\\nMARKER here',
@@ -87,10 +137,16 @@ def page_findings(
     >>> found.embargoed, found.structural, sorted(found.external_hosts)
     ((), ('2: a marker',), ['https://example.org'])
     """
-    kinds = tuple(kind for kind, forms in embargoed.items() if any(form in body for form in forms))
+    views = views_of(body)
+    kinds = tuple(
+        kind
+        for kind, forms in embargoed.items()
+        if any(form in text for _, text in views for form in forms)
+    )
     structural = tuple(
-        f"{number}: {what}"
-        for number, line in enumerate(body.splitlines(), start=1)
+        f"{number}: {what}" if name == "raw" else f"{name} {number}: {what}"
+        for name, text in views
+        for number, line in enumerate(text.splitlines(), start=1)
         for what, pattern in patterns
         if pattern.search(line)
     )

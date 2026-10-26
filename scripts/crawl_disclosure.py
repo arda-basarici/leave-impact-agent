@@ -51,6 +51,10 @@ REGION = os.environ.get("LEAVE_IMPACT_AWS_REGION", "eu-central-1")
 HOSTNAME = "https://leave-agent.ardabasarici.dev"
 USER_AGENT = "leave-impact-agent disclosure crawl"
 PACE_SECONDS = 0.5
+READ_TIMEOUT_SECONDS = 90.0
+"""A stream's one tick may take the store's bounds summed (twelve seconds) and the third and
+fourth crawls saw two reads pass thirty seconds through the hostname with the host's CPU
+near idle; the timeout is for a page that never answers, not a slow one."""
 GATE_TEST = Path("tests/unit/test_disclosure_sweep.py")
 
 
@@ -65,13 +69,28 @@ def gate_patterns(repository: Path) -> tuple[Pattern, ...]:
     return tuple(module.POINTERS) + tuple(module.NAMES)
 
 
-def fetch(url: str) -> tuple[int, bytes]:
+def fetch(url: str, *, retries: int) -> tuple[int, bytes, int]:
+    """The status, the body and the number of reads it took: a read that times out is tried
+    again up to ``retries`` times, since the first crawls after the switch saw one read in
+    ten stall from one workstation while the host answered the same page in a third of a
+    second in-network and through the edge from itself, so a stall is the client's path and
+    not a page's answer; the last timeout is a failure the caller reports. The run prints how
+    many pages needed a retry, so a record of the crawl says what the path was like."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
-    try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            return response.status, response.read()
-    except urllib.error.HTTPError as error:
-        return error.code, error.read()
+    for attempt in range(1, retries + 2):
+        try:
+            with urllib.request.urlopen(request, timeout=READ_TIMEOUT_SECONDS) as response:
+                return response.status, response.read(), attempt
+        except urllib.error.HTTPError as error:
+            return error.code, error.read(), attempt
+        except TimeoutError:
+            if attempt == retries + 1:
+                raise
+        except urllib.error.URLError as error:
+            # A handshake that times out arrives wrapped; any other reason is not a stall.
+            if not isinstance(error.reason, TimeoutError) or attempt == retries + 1:
+                raise
+    raise AssertionError("unreachable")
 
 
 def main(argv: list[str]) -> int:
@@ -84,6 +103,12 @@ def main(argv: list[str]) -> int:
         "--profile", default=None, help="the AWS profile that reads the two buckets"
     )
     parser.add_argument("--hostname", default=HOSTNAME, help="the public origin to crawl")
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=1,
+        help="how many more times a read that timed out is tried (the run reports the count)",
+    )
     parser.add_argument(
         "--world-version",
         default=None,
@@ -112,7 +137,7 @@ def main(argv: list[str]) -> int:
     print(f"hostname={parsed.hostname}")
     print(f"world={version} sealed {world.disclosure.value}; patterns={len(patterns)}")
 
-    status, listing = fetch(parsed.hostname + "/replays")
+    status, listing, _ = fetch(parsed.hostname + "/replays", retries=parsed.retries)
     if status != 200:
         print(f"crawl_disclosure: the listing answered {status}", file=sys.stderr)
         return 2
@@ -121,11 +146,14 @@ def main(argv: list[str]) -> int:
 
     statuses: dict[int, int] = {}
     total_bytes = 0
+    retried: list[str] = []
     findings: list[str] = []
     hosts: set[str] = set()
     started = time.monotonic()
     for path in paths:
-        status, body = fetch(parsed.hostname + path)
+        status, body, reads = fetch(parsed.hostname + path, retries=parsed.retries)
+        if reads > 1:
+            retried.append(path)
         statuses[status] = statuses.get(status, 0) + 1
         total_bytes += len(body)
         if status == 429:
@@ -144,6 +172,7 @@ def main(argv: list[str]) -> int:
     fetched = sum(statuses.values())
     print(f"fetched={fetched} in {time.monotonic() - started:.0f}s bytes={total_bytes}")
     print(f"statuses={dict(sorted(statuses.items()))}")
+    print(f"retried_after_a_timeout={len(retried)} {retried}")
     print(f"external_hosts={sorted(hosts) or 'none'}")
     for finding in findings:
         print(f"finding: {finding}")

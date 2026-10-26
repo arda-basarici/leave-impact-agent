@@ -1,14 +1,27 @@
-"""The hostname half of the disclosure sweep, over bodies built by hand and the gate's own
-patterns: the page list follows the listing, a cited prefix of an embargoed digest is found
-and named without its value, a structural hit is placed on its line, and a clean body of the
-kind the pages serve is clean under the real patterns."""
+"""The hostname half of the disclosure sweep, over bodies built by hand and by the real
+encoders, with the gate's own patterns: the page list follows the listing, a cited prefix of
+an embargoed digest is found and named without its value, a structural hit is placed on its
+line, a clean body of the kind the pages serve is clean under the real patterns, and what
+the application's frame encoder and the templates' escaping do to a pattern does not hide
+it (the first external read of the crawl: the raw scan passed both)."""
 
 from __future__ import annotations
 
 import re
+from datetime import UTC, datetime
 
+from markupsafe import escape
+
+from leaveimpact.agent.log_events import EventKind
+from leaveimpact.app.narration import Line
+from leaveimpact.app.stream import line_frame
 from leaveimpact.evaluator.entrypoint import cited_forms
-from leaveimpact.evaluator.public_crawl import GLOBAL_PATHS, crawl_paths, page_findings
+from leaveimpact.evaluator.public_crawl import (
+    GLOBAL_PATHS,
+    crawl_paths,
+    page_findings,
+    views_of,
+)
 from tests.unit.test_disclosure_sweep import NAMES, POINTERS
 
 DIGEST = "7b806ed6f405e2d4be39cd02e6f6e99353917c9904cac709cc8b4fee1cd83ad4"
@@ -89,3 +102,36 @@ def test_the_patterns_are_applied_as_given() -> None:
     only = (("a marker", re.compile(r"MARKER")),)
     found = page_findings(f"x\nMARKER\nsee the {POINTER_TEXT}", embargoed={}, patterns=only)
     assert found.structural == ("2: a marker",)
+
+
+def test_a_cited_prefix_inside_a_real_narration_frame_is_found() -> None:
+    line = Line(
+        position=1,
+        recorded_at=datetime(2026, 10, 22, 20, 2, 48, tzinfo=UTC),
+        kind=EventKind("admitted"),
+        text=f"run admitted: scenario scenario_004 of world {DIGEST[:12]}…, attempt 1",
+    )
+    body = line_frame(line).decode("utf-8")
+    assert "…" not in body, "the encoder escapes the ellipsis, which is the case under test"
+    found = page_findings(body, embargoed=EMBARGOED, patterns=PATTERNS)
+    assert found.embargoed == ("semantic digest",)
+    assert dict(views_of(body))["frame data"].endswith(f"{DIGEST[:12]}…, attempt 1")
+
+
+def test_a_possessive_pattern_escaped_by_the_template_is_found_in_the_decoded_view() -> None:
+    body = f"<p>{escape(chr(39).join(['the stream', 's access note']))}</p>"
+    assert "&#39;" in body, "the template escapes the apostrophe, which is the case under test"
+    found = page_findings(body, embargoed=EMBARGOED, patterns=PATTERNS)
+    assert found.structural == ("html-decoded 1: a stream's possession",)
+
+
+def test_a_cited_prefix_ending_in_an_entity_ellipsis_is_found() -> None:
+    body = f"<p>world {DIGEST[:12]}&#8230;</p>"
+    found = page_findings(body, embargoed=EMBARGOED, patterns=PATTERNS)
+    assert found.embargoed == ("semantic digest",)
+
+
+def test_a_frame_whose_data_is_not_json_is_read_as_text() -> None:
+    body = f"event: line\ndata: plain {DIGEST[:8]}…\n\n"
+    found = page_findings(body, embargoed=EMBARGOED, patterns=PATTERNS)
+    assert found.embargoed == ("semantic digest",)
