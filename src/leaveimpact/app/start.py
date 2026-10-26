@@ -279,7 +279,11 @@ def _as_recorded(
     digest: str,
 ) -> StartOutcome:
     """A repeat answered as the log recorded it: the refusal with its reason, or the
-    attempt with its live row, written now if the first start lost it."""
+    attempt with its live row, written now if the first start lost it. The write is the
+    section's get-or-create: a repeat that found no row and then met the first start's
+    rows landing (the first start's log connection died after its admission committed, so
+    its session lock was gone while its rows were still in flight) takes those rows as its
+    receipt."""
     if not recorded.admitted:
         assert recorded.reason is not None, "a recorded refusal carries its reason"
         return StartRefused(StartRefusalKind.RESERVATION_REFUSED, recorded.reason, recorded=True)

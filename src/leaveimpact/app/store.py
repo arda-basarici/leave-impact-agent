@@ -102,18 +102,20 @@ _INSERT_ROW = (
     f"VALUES (%s, %s, %s, %s, %s, %s, now(), %s) RETURNING {_ROW}"
 )
 # The start's publishable row carries the admission's instant, not the clock's: the row
-# and the live row beside it say the one moment the log recorded.
-_INSERT_ROW_AT = (
+# and the live row beside it say the one moment the log recorded. Both inserts do
+# nothing on a conflict and the section reads the rows back: a retry racing the first
+# start's rows gets them as its receipt (``StartSection.write``).
+_INSERT_ROW_IF_ABSENT = (
     "INSERT INTO publishable_attempt "
     "(public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by) "
-    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) ON CONFLICT DO NOTHING"
 )
 _LIVE ="public_id, run_id, attempt, key_digest, started_at, decision, decided_at"
 _SELECT_LIVE = f"SELECT {_LIVE} FROM live_attempt WHERE public_id = %s"
 _SELECT_LIVE_OF_ATTEMPT = f"SELECT {_LIVE} FROM live_attempt WHERE run_id = %s AND attempt = %s"
-_INSERT_LIVE = (
+_INSERT_LIVE_IF_ABSENT = (
     "INSERT INTO live_attempt (public_id, run_id, attempt, key_digest, started_at) "
-    f"VALUES (%s, %s, %s, %s, %s) RETURNING {_LIVE}"
+    "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING"
 )
 
 
@@ -384,12 +386,18 @@ class StartSection:
         return None if row is None else _live_of(row)
 
     def write(self, publishable: PublicationDraft, live: LiveDraft) -> LiveRow:
-        """The publishable row and the live row of one started attempt, the publishable
-        one dated at the live one's ``started_at``; the two name one attempt and one public
-        id, or ``ValueError``. The constraints decide what the section's lock did not: a
-        public id or an attempt already in either table raises on the server, an
-        invariant of this module and never a visitor's outcome, since the section's rules
-        read the log before any write."""
+        """The publishable row and the live row of one started attempt, written where
+        absent and otherwise found: the two name one attempt and one public id, or
+        ``ValueError``; each insert does nothing on a conflict, and the rows then read back
+        by the public id must be the drafts' (the attempt, the world, the scenario, the key
+        digest, the instant), the receipt a retry gets when the first start's rows landed
+        after the retry found none (a first start whose log connection died after its
+        admission committed and before its rows did, group 2's external read); rows that
+        disagree, or none under the public id because another attempt holds it, are an
+        invariant of this module raised by name and never a visitor's outcome, since the
+        start's rules read the log before any write. An insert that meets a row another
+        transaction has not committed waits for that transaction, so a retry that races the
+        first start's rows reads them once they exist."""
         if (publishable.public_id, publishable.run_id, publishable.attempt) != (
             live.public_id,
             live.run_id,
@@ -397,7 +405,7 @@ class StartSection:
         ):
             raise ValueError("the publishable row and the live row name one attempt")
         self._conn.execute(
-            _INSERT_ROW_AT,
+            _INSERT_ROW_IF_ABSENT,
             (
                 publishable.public_id,
                 publishable.run_id,
@@ -409,12 +417,39 @@ class StartSection:
                 publishable.published_by,
             ),
         )
-        written = self._conn.execute(
-            _INSERT_LIVE,
+        self._conn.execute(
+            _INSERT_LIVE_IF_ABSENT,
             (live.public_id, live.run_id, live.attempt, live.key_digest, live.started_at),
-        ).fetchone()
-        assert written is not None, "an insert with RETURNING yields its row"
-        return _live_of(written)
+        )
+        held = self._conn.execute(_SELECT_ROW, (publishable.public_id,)).fetchone()
+        held_live = self._conn.execute(_SELECT_LIVE, (live.public_id,)).fetchone()
+        if held is None or held_live is None:
+            raise AppStoreInvariantBroken(
+                f"the rows of {live.public_id} were neither written nor found: another "
+                "attempt holds its public id or its attempt"
+            )
+        found, found_live = _row_of(held), _live_of(held_live)
+        expected = PublishableRow(
+            publishable.public_id,
+            publishable.run_id,
+            publishable.attempt,
+            publishable.world_version,
+            publishable.scenario_id,
+            publishable.title,
+            live.started_at,
+            publishable.published_by,
+        )
+        if found != expected or (
+            found_live.run_id,
+            found_live.attempt,
+            found_live.key_digest,
+            found_live.started_at,
+        ) != (live.run_id, live.attempt, live.key_digest, live.started_at):
+            raise AppStoreInvariantBroken(
+                f"the rows held under {live.public_id} are not this start's: the public id "
+                "names another attempt or another key"
+            )
+        return found_live
 
 
 def _refusal_of(

@@ -76,16 +76,28 @@ def composition(**changes: object) -> StartComposition:
     return StartComposition(**fields)  # type: ignore[arg-type]
 
 
-def app_store(rig: Rig, *, boundary: Callable[[str], None] | None = None) -> AppStore:
+@dataclass
+class Recording:
+    """The connections an app store opened, so a race test finds a backend's pid."""
+
+    connections: list[psycopg.Connection[Any]]
+
+
+def app_store(
+    rig: Rig, *, boundary: Callable[[str], None] | None = None, recording: Recording | None = None
+) -> AppStore:
     """The store over the rig's schema with the production statement bound."""
 
     def connect(dsn: str) -> psycopg.Connection[Any]:
-        return psycopg.connect(
+        conn = psycopg.connect(
             dsn,
             connect_timeout=10,
             autocommit=True,
             options=f"-c statement_timeout={STATEMENT_TIMEOUT_MS} -c search_path={rig.schema}",
         )
+        if recording is not None:
+            recording.connections.append(conn)
+        return conn
 
     extra: dict[str, Any] = {} if boundary is None else {"boundary": boundary}
     return AppStore(dsn=rig.url, connect=connect, **extra)
@@ -298,3 +310,34 @@ def test_the_cap_holds_when_a_start_is_held_inside_its_admission_and_its_app_sid
     assert len(listed) == 5 and [each.closed for each in listed] == [True] * 4 + [False]
     assert log.recorded_admission(key_digest_of(key(6))) is None, "nothing was asked of the log"
     assert len(store.rows_for(SERVED)) == 4, "A's rows died with its section"
+
+
+def test_a_retry_racing_the_first_starts_rows_after_its_log_backend_died_gets_the_same_rows(
+    rig: Rig,
+) -> None:
+    """The external read's second history: A's admission committed and its rows written
+    but not committed; A's log backend terminated, so its session lock is gone; B retries
+    the same key, finds the recorded admission, sees no live row and writes. B's insert
+    waits on A's uncommitted row; A commits; B takes A's rows as its receipt instead of
+    failing on the uniqueness. One admission, one pair of rows, the same row to both."""
+    log, store = prepared(rig)
+    hold = Hold("start-before-commit")
+    a_log, b_log = rig.store(), rig.store()
+    a_store = app_store(rig, boundary=hold)
+    b_recording = Recording([])
+    b_store = app_store(rig, recording=b_recording)
+    with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
+        a = pool.submit(start, StartRequest(key(1), SCENARIO), a_log, a_store, composition())
+        hold.wait_reached()
+        observer.execute("SELECT pg_terminate_backend(%s)", (rig.backend_pid(a_log),))
+        b = pool.submit(start, StartRequest(key(1), SCENARIO), b_log, b_store, composition())
+        while not b_recording.connections:
+            pass
+        wait_until_blocked(observer, int(b_recording.connections[-1].info.backend_pid))
+        hold.release.set()
+        first = started(a.result(timeout=10))
+        again = started(b.result(timeout=10))
+    assert not first.repeated and again.repeated and again.row == first.row
+    assert len(store.rows_for(SERVED)) == 1
+    assert store.live_row_of(first.row.public_id) == first.row
+    assert len(log.events(first.row.run_id, 1)) == 1

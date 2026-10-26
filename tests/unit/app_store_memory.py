@@ -89,30 +89,45 @@ class MemorySection:
             live.attempt,
         ):
             raise ValueError("the publishable row and the live row name one attempt")
-        for held in (*self.store.rows, *self.rows):
-            if held.public_id == publishable.public_id or (held.run_id, held.attempt) == (
-                publishable.run_id,
-                publishable.attempt,
-            ):
-                raise MemoryAppStoreInvariant(f"a row holds {publishable.public_id} already")
-        for held_live in (*self.store.live, *self.live):
-            if held_live.key_digest == live.key_digest:
-                raise MemoryAppStoreInvariant("a live row holds the key digest already")
-        self.rows.append(
-            PublishableRow(
-                publishable.public_id,
-                publishable.run_id,
-                publishable.attempt,
-                publishable.world_version,
-                publishable.scenario_id,
-                publishable.title,
-                live.started_at,
-                publishable.published_by,
-            )
+        expected = PublishableRow(
+            publishable.public_id,
+            publishable.run_id,
+            publishable.attempt,
+            publishable.world_version,
+            publishable.scenario_id,
+            publishable.title,
+            live.started_at,
+            publishable.published_by,
         )
         row = LiveRow(
             live.public_id, live.run_id, live.attempt, live.key_digest, live.started_at, None, None
         )
+        # The real section's get-or-create: rows already held under the public id are the
+        # receipt when they are this start's, and an invariant when they are another's.
+        held = next(
+            (each for each in (*self.store.rows, *self.rows) if each.public_id == row.public_id),
+            None,
+        )
+        held_live = next(
+            (each for each in (*self.store.live, *self.live) if each.public_id == row.public_id),
+            None,
+        )
+        if held is not None or held_live is not None:
+            if held != expected or held_live is None or (
+                held_live.run_id,
+                held_live.attempt,
+                held_live.key_digest,
+                held_live.started_at,
+            ) != (row.run_id, row.attempt, row.key_digest, row.started_at):
+                raise MemoryAppStoreInvariant(f"the rows under {row.public_id} are another's")
+            return held_live
+        for other in (*self.store.rows, *self.rows):
+            if (other.run_id, other.attempt) == (publishable.run_id, publishable.attempt):
+                raise MemoryAppStoreInvariant("another public id holds the attempt")
+        for other_live in (*self.store.live, *self.live):
+            if other_live.key_digest == live.key_digest:
+                raise MemoryAppStoreInvariant("another live row holds the key digest")
+        self.rows.append(expected)
         self.live.append(row)
         return row
 
