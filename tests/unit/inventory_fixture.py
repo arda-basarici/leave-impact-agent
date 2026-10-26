@@ -11,6 +11,7 @@ from datetime import UTC, datetime
 
 from leaveimpact.adapters.object_store.layout import run_export_key
 from leaveimpact.core import (
+    INVENTORY_FORMAT_VERSION,
     AccountFigures,
     AttemptEnding,
     AttemptStatus,
@@ -56,7 +57,7 @@ def listed(
 ) -> Inventory:
     """An inventory of ``attempts`` for ``version``, sorted as the type requires."""
     return Inventory(
-        format_version=1,
+        format_version=INVENTORY_FORMAT_VERSION,
         scope=InventoryScope(version, registration_commit, LEDGER),
         snapshot=InventorySnapshot(4, BUILDER, taken_at),
         ledger=None,

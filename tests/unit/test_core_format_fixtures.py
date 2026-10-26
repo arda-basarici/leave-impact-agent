@@ -476,3 +476,8 @@ def test_a_declined_attempt_is_a_human_ending_with_no_failure_and_a_refused_appr
         replace(export, format_version=3)
     with pytest.raises(ValueError, match="status is declined exactly when the approval is"):
         replace(record, status=TerminalStatus.COMPLETED)
+    # The external read of the vocabulary group: a decline is human, and answers a request.
+    with pytest.raises(ValueError, match="a decline is a human's decision"):
+        replace(record.approval, approver=Approver.AUTOMATIC)
+    with pytest.raises(ValueError, match="stamps the request its decline answered"):
+        replace(record, timing=replace(record.timing, approval_requested=None))

@@ -479,9 +479,9 @@ class RunRecord:
     exist only where the approval says one was requested, or given; an attempt that did not
     fail ended at a terminal event its worker wrote, so its last segment's end was recorded
     and a stamped request has its stamped resume. A declined attempt (format 4) holds the
-    declined approval by a human that closed it, no failure and no resume, and its last
-    segment's end recorded or not, since the terminal event is a producer's and the worker
-    may have died at the pause.
+    declined approval by a human that closed it, the stamp of the request it answered, no
+    failure and no resume, and its last segment's end recorded or not, since the terminal
+    event is a producer's and the worker may have died at the pause.
 
     ``attribution_table`` is the digest of the registered table the dispatches' rules are
     identifiers into, and ``reservation`` what became of the amount reserved at admission;
@@ -611,6 +611,8 @@ class RunRecord:
                 f"when the approval is: status {self.status.value}, approval "
                 f"{self.approval.state.value}"
             )
+        if declined and self.timing.approval_requested is None:
+            raise ValueError("a declined attempt stamps the request its decline answered")
         if not failed and not declined and not approved:
             raise ValueError(
                 "an attempt that completed or reported at its cap holds an approval of its "

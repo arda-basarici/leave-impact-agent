@@ -17,6 +17,7 @@ from leaveimpact.adapters.object_store.layout import (
 )
 from leaveimpact.core import PublicationStatus, inventory_bytes, inventory_digest
 from leaveimpact.core.ids import WorldVersion
+from leaveimpact.core.inventory import INVENTORY_FORMAT_VERSION
 from leaveimpact.evaluator.harness_inventory import (
     ObjectStanding,
     UnexportedStatus,
@@ -65,7 +66,7 @@ def test_the_inventory_is_read_by_its_name_and_the_name_is_checked_against_the_b
     assert decoded == inventory
     assert (read.key, read.digest) == (inventory_key(VERSION, digest), digest)
     assert (read.format_version, read.schema_version, read.taken_at) == (
-        1,
+        INVENTORY_FORMAT_VERSION,
         4,
         inventory.snapshot.taken_at,
     )

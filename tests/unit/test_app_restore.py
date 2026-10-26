@@ -37,6 +37,7 @@ from tests.unit import log_histories as histories
 from tests.unit.publishable_fixture import CLOSED, CONFIGURATION, SERVED, history_in_world
 
 MODULE = Path(__file__).resolve().parents[2] / "src" / "leaveimpact" / "app" / "restore.py"
+SIBLING = MODULE.with_name("publication_check.py")
 
 DISPATCHING = frozenset(
     {
@@ -63,8 +64,9 @@ ENV = {
 }
 
 
-def test_the_drill_imports_no_module_that_dispatches() -> None:
-    tree = ast.parse(MODULE.read_text(encoding="utf-8"))
+@pytest.mark.parametrize("module", [MODULE, SIBLING], ids=["restore", "publication_check"])
+def test_the_drill_and_its_sibling_import_no_module_that_dispatches(module: Path) -> None:
+    tree = ast.parse(module.read_text(encoding="utf-8"))
     imported: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):

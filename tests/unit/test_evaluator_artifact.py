@@ -25,6 +25,8 @@ from leaveimpact.core import (
     Approval,
     ApprovalState,
     Approver,
+    AttemptEnding,
+    AttemptStatus,
     CallConfiguration,
     CallSetting,
     Caps,
@@ -44,7 +46,9 @@ from leaveimpact.core import (
     RetrievalKind,
     RunExport,
     Segment,
+    SegmentStatus,
     Source,
+    Stamp,
     System,
     SystemKind,
     TerminalStatus,
@@ -972,11 +976,35 @@ def test_an_evaluation_refuses_a_declined_attempt_in_its_scope(world: SealedWorl
         export,
         status=TerminalStatus.DECLINED,
         approval=refused,
-        timing=replace(record.timing, approval_resumed=None),
+        timing=replace(
+            record.timing, approval_requested=Stamp(1, 100, 10_000), approval_resumed=None
+        ),
     )
     run = stored("runs/a", declined)
     inventory = inventory_over(world.version, {run.key: run.content})
     with pytest.raises(DeclinedAttempts, match="no measured world holds: run-1 attempt 1$"):
+        artifact_of(world, run, inventory=inventory)
+
+
+@pytest.mark.parametrize("incident", [False, True])
+def test_a_declined_attempt_the_inventory_alone_states_refuses_the_evaluation_too(
+    world: SealedWorld, incident: bool
+) -> None:
+    """The external read of the vocabulary group: an attempt closed as declined with its
+    publication pending or failed has no export to read, and the inventory's own ending is
+    what the guard sees."""
+    export = exported(world, world.scenarios[0])
+    run = stored("runs/a", export)
+    refused = AttemptStatus(
+        AttemptEnding(TerminalStatus.DECLINED, None, None, None),
+        SegmentStatus.STOPPED,
+        ApprovalState.DECLINED,
+    )
+    unexported = replace(
+        closed_without_export(world.version, "run-2", 1, incident=incident), status=refused
+    )
+    inventory = inventory_over(world.version, {run.key: run.content}, extra=(unexported,))
+    with pytest.raises(DeclinedAttempts, match="no measured world holds: run-2 attempt 1$"):
         artifact_of(world, run, inventory=inventory)
 
 

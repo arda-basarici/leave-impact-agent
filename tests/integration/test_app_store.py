@@ -18,6 +18,9 @@ import psycopg
 import pytest
 from psycopg import sql
 
+from leaveimpact.adapters.wiring import run_export_publisher_over
+from leaveimpact.agent.commands import PublishRequest, publish
+from leaveimpact.agent.inventory import PublicationRecord
 from leaveimpact.agent.ledger import EntryKind
 from leaveimpact.agent.log_store import LogStore
 from leaveimpact.agent.log_transition import Rules
@@ -41,6 +44,7 @@ from tests.integration.log_store_support import Rig, rig
 from tests.integration.test_log_store import AUTHORITY, LEDGER, PLENTY, opened, replay
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
+from tests.unit.in_memory_object_store import InMemoryObjectStore
 from tests.unit.publishable_fixture import (
     CLOSED,
     CONFIGURATION,
@@ -485,3 +489,62 @@ def test_the_restore_drill_passes_over_the_real_stores_and_names_the_check_a_bad
     assert main(["verify-restore"], env, stdin=stale, **seams) == 1
     out = capsys.readouterr().out
     assert "ledger-capture: FAILED: the capture names ledgers ['ledger-other']" in out
+
+
+# --- the publication digests ----------------------------------------------------------------
+
+
+def test_every_published_replays_digests_reproduce_and_a_moved_record_is_named(
+    rig: Rig, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The production acceptance of a format bump (the live-path step, fork 10 as the external
+    read amended it), over the real stores: a closed run published through the publish command
+    with its record in the log store and its row in the app store; the check regenerates both
+    digests from the log under this code and reports them reproduced, then the record's object
+    digest is moved and the check fails that replay naming the kind of difference."""
+    store = app_store(rig)
+    store.ensure_schema()
+    log = opened(rig)
+    replay(log, history_in_world(CLOSED, SERVED))
+    publisher = run_export_publisher_over(InMemoryObjectStore())
+    record = publish(
+        PublishRequest("run-12", 1, cases.COMMIT), log, publisher, rules=histories.RULES
+    )
+    assert isinstance(record, PublicationRecord) and record.object_digest is not None
+    log.close()
+    assert isinstance(store.publish(draft("example", "run-12")), Published)
+    env = {"DATABASE_URL": rig.url, "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE)}
+
+    def app_over(dsn: str) -> AppStore:
+        return store
+
+    def log_over(dsn: str) -> LogStore:
+        return rig.store()
+
+    def fixture_rules(configuration: DemoConfiguration, content: bytes) -> Rules:
+        return histories.RULES
+
+    seams: dict[str, Any] = {
+        "store": app_over,
+        "restore_log": log_over,
+        "configuration": lambda: CONFIGURATION,
+        "rules": fixture_rules,
+    }
+    assert main(["verify-publications"], env, **seams) == 0
+    out = capsys.readouterr().out
+    assert out.startswith(
+        "verify-publications: example: ok: run run-12 attempt 1: log format 4, export format 4, "
+    )
+    assert "events: both digests reproduced\n" in out
+    assert out.endswith("verify-publications: 1 of 1 replays reproduce\n")
+
+    with rig.observer() as observer:
+        observer.execute(
+            in_schema(rig, "UPDATE {}.publication SET object_digest = %s WHERE run_id = %s"),
+            ("0" * 64, "run-12"),
+        )
+    assert main(["verify-publications"], env, **seams) == 1
+    out = capsys.readouterr().out
+    assert "verify-publications: example: FAILED: run run-12 attempt 1: " in out
+    assert "events: the export digest differs\n" in out
+    assert out.endswith("verify-publications: 0 of 1 replays reproduce\n")

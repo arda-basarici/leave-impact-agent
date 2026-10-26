@@ -69,7 +69,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 
 from leaveimpact.core.attribution import attribution_table_digest
-from leaveimpact.core.inventory import Inventory
+from leaveimpact.core.inventory import Inventory, InventoryAttempt
 from leaveimpact.core.jsonshape import canonical_bytes
 from leaveimpact.core.pricing import PriceTable, decode_price_table
 from leaveimpact.core.registration import (
@@ -361,7 +361,7 @@ def evaluation_artifact(
         )
     label = label_of(registration)
     scoped = scoped_attempts(inventory, world.version, registrations_at, registration_content)
-    declined = _declined_in_scope(runs, {(each.run_id, each.attempt) for each in scoped})
+    declined = _declined_in_scope(runs, scoped)
     if declined:
         raise DeclinedAttempts(
             "a declined attempt is in the evaluation's scope, which no measured world holds: "
@@ -690,18 +690,26 @@ def _decoded(run: StoredRun) -> RunExport | None:
 
 
 def _declined_in_scope(
-    runs: Sequence[StoredRun], in_scope: frozenset[tuple[str, int]] | set[tuple[str, int]]
+    runs: Sequence[StoredRun], scoped: Sequence[InventoryAttempt]
 ) -> tuple[tuple[str, int], ...]:
-    """The scoped attempts among ``runs`` whose export states the declined ending, in key
-    order; bytes that are not an export are left to the listing's own verdict."""
-    found: list[tuple[str, int]] = []
-    for run in sorted(runs, key=lambda run: run.key):
+    """The scoped attempts whose ending is declined, by run and attempt in order: those whose
+    stored export states it, and those the inventory alone states it for, closed with the
+    publication pending or failed (the external read of the vocabulary group). Bytes that
+    are not an export are left to the listing's own verdict."""
+    in_scope = {(each.run_id, each.attempt) for each in scoped}
+    found: set[tuple[str, int]] = set()
+    for run in runs:
         export = _decoded(run)
         if export is None or export.record.status is not TerminalStatus.DECLINED:
             continue
         if (export.run_id, export.attempt) in in_scope:
-            found.append((export.run_id, export.attempt))
-    return tuple(found)
+            found.add((export.run_id, export.attempt))
+    for each in scoped:
+        status = each.status
+        ending = None if status is None else status.ending
+        if ending is not None and ending.status is TerminalStatus.DECLINED:
+            found.add((each.run_id, each.attempt))
+    return tuple(sorted(found))
 
 
 def label_of(registration: Registration) -> Label:

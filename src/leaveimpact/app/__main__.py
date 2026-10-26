@@ -45,6 +45,7 @@ from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.main import DATABASE, REGISTRATION_FILE
 from leaveimpact.app.public import public_id_of
+from leaveimpact.app.publication_check import PublicationReads, verify_publications
 from leaveimpact.app.publishing import PublishRefused, PublishRequest, draft_of
 from leaveimpact.app.read_model import LogSession, rules_under
 from leaveimpact.app.restore import RestoreReads, verify
@@ -67,6 +68,7 @@ from leaveimpact.core.ports.errors import SourceUnreachable
 BOOTSTRAP = "bootstrap"
 PUBLISH = "publish"
 VERIFY_RESTORE = "verify-restore"
+VERIFY_PUBLICATIONS = "verify-publications"
 
 MakeStore = Callable[[str], AppStore]
 MakeLog = Callable[[str], LogSession]
@@ -107,10 +109,12 @@ def main(
     ``publish --run <id> --attempt <n> --as <public-id> --by <who> [--title <t>]`` writes
     a replay's row after verifying the attempt against the log; ``verify-restore`` runs
     both bootstraps on the restored database the environment names and every check of the
-    restore drill against the capture on ``stdin``, one line per check. 0 with the printed
-    lines, 1 when a store refuses or does not answer, the attempt is not publishable or a
-    check failed, 2 on any other command line, an environment that lacks the database or
-    the registration, or a stdin that is not a JSON list."""
+    restore drill against the capture on ``stdin``, one line per check;
+    ``verify-publications`` regenerates every published replay's log and export digests
+    from its log under this code and holds them to its publication record, one line per
+    replay. 0 with the printed lines, 1 when a store refuses or does not answer, the attempt
+    is not publishable or a check failed, 2 on any other command line, an environment that
+    lacks the database or the registration, or a stdin that is not a JSON list."""
     arguments = list(sys.argv[1:] if argv is None else argv)
     environment = os.environ if env is None else env
     try:
@@ -134,6 +138,10 @@ def main(
             configuration,
             registration,
             rules,
+        )
+    if parsed.command == VERIFY_PUBLICATIONS:
+        return _verify_publications(
+            dsn, environment, store, restore_log, configuration, registration, rules
         )
     return _publish(parsed, dsn, environment, store, log, configuration, registration, rules)
 
@@ -165,6 +173,13 @@ def _parser() -> argparse.ArgumentParser:
         description=(
             "The restore drill: both bootstraps on the restored database, then every check "
             "against the backup's capture read from stdin."
+        ),
+    )
+    commands.add_parser(
+        VERIFY_PUBLICATIONS,
+        description=(
+            "Every published replay's log and export digests regenerated from its log under "
+            "this code and held to its publication record; one line per replay."
         ),
     )
     return parser
@@ -237,6 +252,59 @@ def _verify_restore(
     passed = sum(check.passed for check in checks)
     print(f"verify-restore: {passed} of {len(checks)} checks passed")
     return 0 if passed == len(checks) else 1
+
+
+def _verify_publications(
+    dsn: str,
+    environment: Mapping[str, str],
+    store: MakeStore,
+    restore_log: MakeRestoreLog,
+    configuration: Callable[[], DemoConfiguration],
+    registration: Callable[[str], bytes],
+    rules: Callable[[DemoConfiguration, bytes], Rules],
+) -> int:
+    registration_file = environment.get(REGISTRATION_FILE, "").strip()
+    if not registration_file:
+        print(
+            f"leaveimpact.app: {REGISTRATION_FILE} is not set and the check folds attempts "
+            "under the registration's rules",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        demo = configuration()
+        folding = rules(demo, registration(registration_file))
+    except (OSError, ValueError) as error:
+        print(f"leaveimpact.app: refused: {error}", file=sys.stderr)
+        return 1
+    log = restore_log(dsn)
+    try:
+        reads = PublicationReads(
+            rows=store(dsn),
+            log=log,
+            publication_of=log.publication_of,
+            configuration=demo,
+            rules=folding,
+        )
+        checks = verify_publications(reads)
+    except (
+        AppStoreInvariantBroken,
+        AppStoreUnavailable,
+        LogStoreInvariantBroken,
+        LogStoreUnavailable,
+    ) as error:
+        print(f"leaveimpact.app: refused: {error}", file=sys.stderr)
+        return 1
+    finally:
+        log.close()
+    for check in checks:
+        print(
+            f"verify-publications: {check.name}: {'ok' if check.passed else 'FAILED'}: "
+            f"{check.detail}"
+        )
+    passed = sum(check.passed for check in checks)
+    print(f"verify-publications: {passed} of {len(checks)} replays reproduce")
+    return 0 if checks and passed == len(checks) else 1
 
 
 def _bootstrap(app: AppStore) -> int:

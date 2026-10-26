@@ -263,6 +263,10 @@ class Approval:
     Traceback (most recent call last):
     ...
     ValueError: an approver is named exactly for a decision that was given
+    >>> Approval(ApprovalState.DECLINED, Approver.AUTOMATIC, "0" * 64)
+    Traceback (most recent call last):
+    ...
+    ValueError: a decline is a human's decision
     """
 
     state: ApprovalState
@@ -274,6 +278,8 @@ class Approval:
         decided = self.state in (ApprovalState.APPROVED, ApprovalState.DECLINED)
         if (self.approver is not None) != decided:
             raise ValueError("an approver is named exactly for a decision that was given")
+        if self.state is ApprovalState.DECLINED and self.approver is not Approver.HUMAN:
+            raise ValueError("a decline is a human's decision")
         if self.approver is not None:
             require_member(self.approver, Approver, "an approver")
         if (self.payload_digest is not None) != (self.state is not ApprovalState.NOT_REQUESTED):

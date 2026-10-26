@@ -342,7 +342,11 @@ class Inventory:
             for each in self.attempts:
                 status = each.status
                 ending = None if status is None else status.ending
-                if ending is not None and ending.status is TerminalStatus.DECLINED:
+                declined_ending = ending is not None and ending.status is TerminalStatus.DECLINED
+                declined_approval = status is not None and (
+                    status.approval is ApprovalState.DECLINED
+                )
+                if declined_ending or declined_approval:
                     raise ValueError(
                         "declined is format 2 vocabulary; this inventory is format "
                         f"{self.format_version} (run {each.run_id} attempt {each.attempt})"

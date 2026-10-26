@@ -28,6 +28,7 @@ from leaveimpact.core import (
     RunCondition,
     RunExport,
     Source,
+    Stamp,
     TerminalStatus,
     Verdict,
     ViolationKind,
@@ -491,9 +492,10 @@ def test_a_declined_run_is_counted_and_never_graded(world: SealedWorld) -> None:
     export = run_export(world, scenario, ())
     record = export.record
     refused = Approval(ApprovalState.DECLINED, Approver.HUMAN, record.approval.payload_digest)
+    answered = replace(record.timing, approval_requested=Stamp(1, 100, 50))
     declined = replace(
         export,
-        record=replace(record, status=TerminalStatus.DECLINED, approval=refused),
+        record=replace(record, status=TerminalStatus.DECLINED, approval=refused, timing=answered),
     )
     outcome = grade_run(world, declined)
     assert isinstance(outcome, Excluded) and outcome.reason is ExcludedReason.DECLINED

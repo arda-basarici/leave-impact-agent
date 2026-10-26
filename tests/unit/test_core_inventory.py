@@ -235,9 +235,20 @@ def _declined_under_format_1(tree: Tree) -> None:
     _nested(_attempt(tree, 2), "status", "ending")["status"] = "declined"
 
 
+def _declined_approval_under_format_1(tree: Tree) -> None:
+    """The same word in the approval field alone (the external read of the vocabulary
+    group): the ending kept at completed, the approval re-labelled."""
+    tree["format_version"] = 1
+    _nested(_attempt(tree, 2), "status")["approval"] = "declined"
+
+
 MALFORMED: list[tuple[Mutation, str]] = [
     (
         _declined_under_format_1,
+        "declined is format 2 vocabulary; this inventory is format 1 (run run-b attempt 1)",
+    ),
+    (
+        _declined_approval_under_format_1,
         "declined is format 2 vocabulary; this inventory is format 1 (run run-b attempt 1)",
     ),
     (
