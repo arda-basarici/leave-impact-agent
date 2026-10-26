@@ -63,7 +63,13 @@ from leaveimpact.adapters.object_store.layout import (
 )
 from leaveimpact.adapters.object_store.local import LocalObjectReader
 from leaveimpact.agent.ledger import EntryKind
-from leaveimpact.agent.log_events import EventKind, LoggedEvent, event_digest, kind_of
+from leaveimpact.agent.log_events import (
+    EventKind,
+    LoggedEvent,
+    event_digest,
+    kind_of,
+    log_format_of,
+)
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore
 from leaveimpact.agent.log_transition import Appended, AttemptState, calls_of, next_state
@@ -375,7 +381,8 @@ def boundary_violations(
 ) -> list[str]:
     """Each position and digest a checkpoint or a pending write represents, checked against
     the log on its own, nothing merged first."""
-    digests = {str(e.position): event_digest(e.event) for e in events}
+    version = log_format_of(events)
+    digests = {str(e.position): event_digest(e.event, log_format=version) for e in events}
     found: list[str] = []
     for index, (reached, pending) in enumerate(checkpoints):
         for label, held in (

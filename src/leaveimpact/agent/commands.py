@@ -60,7 +60,7 @@ from leaveimpact.agent.log_events import (
     Producer,
     log_digest,
 )
-from leaveimpact.agent.log_reader import export_of
+from leaveimpact.agent.log_reader import export_format_of, export_of
 from leaveimpact.agent.log_store import (
     AdmissionRequest,
     AdmissionResult,
@@ -88,7 +88,7 @@ from leaveimpact.core.inventory import (
 )
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.run_ending import AbandonmentReason, Approver
-from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport
+from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_export_json import export_bytes
 from leaveimpact.core.run_parts_json import review_payload, review_payload_digest
 from leaveimpact.core.run_record import SystemKind
@@ -448,19 +448,20 @@ def publish(
     if held is not None and held.state is PublicationStatus.PUBLISHED:
         return held
     closed_log = log_digest(state.events)
+    inputs = state.inputs
+    assert inputs is not None, "a closed attempt was admitted"
     try:
-        content = export_bytes(reader(state))
+        export = reader(state)
+        content = export_bytes(export)
     except ValueError as exc:
         return store.publication_unbuilt(
             request.run_id,
             request.attempt,
             reader_commit=request.reader_commit,
-            export_format=EXPORT_FORMAT_VERSION,
+            export_format=export_format_of(inputs.log_format_version),
             log_digest=closed_log,
             incident=f"the reader could not build the export: {type(exc).__name__}",
         )
-    inputs = state.inputs
-    assert inputs is not None, "a closed attempt was admitted"
     digest = hashlib.sha256(content).hexdigest()
     intended = run_export_key(
         inputs.context.world_version, request.run_id, request.attempt, request.reader_commit
@@ -469,7 +470,7 @@ def publish(
         request.run_id,
         request.attempt,
         reader_commit=request.reader_commit,
-        export_format=EXPORT_FORMAT_VERSION,
+        export_format=export.format_version,
         log_digest=closed_log,
         object_identity=intended,
         object_digest=digest,

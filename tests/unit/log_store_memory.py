@@ -44,6 +44,7 @@ from leaveimpact.agent.log_events import (
     event_bytes,
     event_key,
     kind_of,
+    log_format_of,
 )
 from leaveimpact.agent.log_store import LogStoreConflict
 from leaveimpact.agent.log_transition import (
@@ -165,7 +166,9 @@ class MemoryLog:
             if held is not None:
                 stamp = held.stamp
                 assert stamp is not None
-                if event_bytes(held.event) != event_bytes(event):
+                if event_bytes(held.event, log_format=log_format_of(log)) != event_bytes(
+                    event, log_format=log_format_of(log)
+                ):
                     raise LogStoreConflict(
                         f"run {run_id} attempt {attempt} holds another content under the "
                         f"claim nonce of the segment start at position {held.position}"
@@ -236,7 +239,7 @@ class MemoryLog:
             self.boundary("locked")
             current = self._current(log, state, rules)
             if current.closed is not None:
-                return _closed_again(current.closed, closing)
+                return _closed_again(current.closed, closing, _format_of(current))
             stamped = _envelope_of(envelope)
             inputs = current.inputs
             assert inputs is not None
@@ -295,7 +298,9 @@ def _receipt(log: list[LoggedEvent], logged: LoggedEvent) -> Received | None:
     for held in log:
         if event_key(held) != key:
             continue
-        if event_bytes(held.event) == event_bytes(logged.event):
+        if event_bytes(held.event, log_format=log_format_of(log)) == event_bytes(
+            logged.event, log_format=log_format_of(log)
+        ):
             return Received(held.position)
         raise LogStoreConflict(
             f"the log holds another content under the identifier of the "
@@ -304,13 +309,19 @@ def _receipt(log: list[LoggedEvent], logged: LoggedEvent) -> Received | None:
     return None
 
 
-def _closed_again(held: LoggedEvent, closing: ClosingEvent) -> Transition:
+def _format_of(state: AttemptState) -> int:
+    inputs = state.inputs
+    assert inputs is not None
+    return inputs.log_format_version
+
+
+def _closed_again(held: LoggedEvent, closing: ClosingEvent, log_format: int) -> Transition:
     held_event = held.event
     if kind_of(held_event) is not kind_of(closing):
         return Refused(f"the attempt is closed at position {held.position}")
     assert isinstance(held_event, Completed | CapExhausted | Failed | Abandoned)
     masked: ClosingEvent = replace(held_event, settlement=None)
-    if event_bytes(masked) == event_bytes(closing):
+    if event_bytes(masked, log_format=log_format) == event_bytes(closing, log_format=log_format):
         return Received(held.position)
     raise LogStoreConflict(
         f"the attempt is closed at position {held.position} by a {kind_of(closing).value} "

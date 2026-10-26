@@ -498,14 +498,16 @@ def test_absent_and_empty_stay_distinct_in_the_bytes() -> None:
 def test_the_tree_opens_with_the_format_version_and_the_identity() -> None:
     encoded = encode_run_export(_export())
     assert list(encoded)[:3] == ["format_version", "run_id", "attempt"]
-    assert canonical_json(encoded).startswith('{"format_version":3,"run_id":"run-7","attempt":2,')
+    assert canonical_json(encoded).startswith(
+        f'{{"format_version":{EXPORT_FORMAT_VERSION},"run_id":"run-7","attempt":2,'
+    )
 
 
 def test_another_format_refuses_before_anything_else() -> None:
     data = cast(JsonObject, _reparsed(_export()))
     data["format_version"] = 2
     del data["trace"]
-    with pytest.raises(ValueError, match="this code reads export format 3, got 2"):
+    with pytest.raises(ValueError, match="this code reads export formats 3 and 4, got 2"):
         decode_run_export(data)
     data["format_version"] = True
     with pytest.raises(ValueError, match="format_version is an integer, got True"):

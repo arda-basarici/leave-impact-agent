@@ -398,7 +398,10 @@ def next_state(state: AttemptState, logged: LoggedEvent, rules: Rules) -> Transi
         return _admit(state, logged)
     held = _held_under(state, event_key(logged))
     if held is not None:
-        if event_bytes(held.event) == event_bytes(logged.event):
+        version = inputs.log_format_version
+        if event_bytes(held.event, log_format=version) == event_bytes(
+            logged.event, log_format=version
+        ):
             return Received(held.position)
         return Refused(
             f"another content under the identifier of the event at position {held.position}"

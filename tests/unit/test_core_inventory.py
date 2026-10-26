@@ -230,7 +230,10 @@ def _reverse_attempts(tree: Tree) -> None:
 
 
 MALFORMED: list[tuple[Mutation, str]] = [
-    (lambda tree: tree.update(format_version=2), "the inventory format is 1, got 2"),
+    (
+        lambda tree: tree.update(format_version=3),
+        "this code reads inventory formats 1 and 2, got 3",
+    ),
     (lambda tree: tree.update(extra=1), "surplus ['extra']"),
     (lambda tree: _nested(tree, "scope").pop("ledger_id"), "missing ['ledger_id']"),
     (

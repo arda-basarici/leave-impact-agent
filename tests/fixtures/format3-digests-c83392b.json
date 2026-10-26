@@ -1,0 +1,82 @@
+{
+  "facts beside tools in one answer": {
+    "log_format": 3,
+    "log_digest": "fd6dccd5864c48efb10edad3b0e442929e9dc3827a342ed9e4155fb113a727c1",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a malformed batch": {
+    "log_format": 3,
+    "log_digest": "e815cc92d976a9f6cd5cd2fed01ab2b7d1c7c772ce4b4919e3d07d1d75cee06f",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a refused fact that cannot construct a value": {
+    "log_format": 3,
+    "log_digest": "1f2a3d561ac6557e686d9e46790c093242b5a849e0e240a237d98019885dc238",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a cut call": {
+    "log_format": 3,
+    "log_digest": "587dd53ca8a0e8d4b56632df2439079cd4149a7b5d2c2442d92957710cd08c44",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a handled fact-submission tool": {
+    "log_format": 3,
+    "log_digest": "3f513a952eb9e009759757a84e8d99f2912b8b6632b4f977b3c60283b2980903",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "an unresolved dispatch followed by an answered one": {
+    "log_format": 3,
+    "log_digest": "fb54521748c33ae1365d16b172484a3d6de01a9e6452bdde6c220896c9b437bf",
+    "inputs_digest": "3ad8940b372b2d2ffb448825d2e7f00cd29e20c9d94a814d3d82a649ed5ac891"
+  },
+  "the Nova signature beside another model error": {
+    "log_format": 3,
+    "log_digest": "90ae9ad04e89dbc0431d72f246ed7bbcf213bdcb99d6b7c9645ca5ed1d8c0dc3",
+    "inputs_digest": "50aa1335a5945f22ac72cff833c3c785cfe8b204166b8f25d6e40db74dec49bd"
+  },
+  "a recovered attempt": {
+    "log_format": 3,
+    "log_digest": "bd24ac77f2894a3b2288b9300a21fc67a2b5fea6f79113a74467ba410af6a02d",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "an abandoned attempt": {
+    "log_format": 3,
+    "log_digest": "d3e43759468aaf41afeeb76a8dffa7ea030f9a42962c097d425ad6fbe9d31453",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "an approval wait across a restart": {
+    "log_format": 3,
+    "log_digest": "0547d9b6efca75c61529649f4e5868c64da88362b9c961f243c84b68a111975f",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a wrong scope beside an unplaced one": {
+    "log_format": 3,
+    "log_digest": "0bf54b49c97e2996506b0efed7b9189f587e90cb4b3ff0d8186075ca0e04d0bd",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a multi-tool answer whose first call ends the attempt": {
+    "log_format": 3,
+    "log_digest": "73c7f0b7bb2561d8f83ee38d859240498aa54812a1df0bdf4071258fde1a0e99",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a tool call whose result was lost before it was logged": {
+    "log_format": 3,
+    "log_digest": "d89cb85df0144ab884265b095e9e729942941d9438ea81511f4407cacf1f70df",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "an attempt admitted and never claimed": {
+    "log_format": 3,
+    "log_digest": "76474ff90aabe106a5a125700ed8c1984b063934e0722e22c7cc8a041c9ca93f",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a recorded defect an operator finalized": {
+    "log_format": 3,
+    "log_digest": "35152c88815a0f940fa5062b77906b36e8380ce72a498d7f79da8c5bd229b43b",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  },
+  "a request whose input bound was never established": {
+    "log_format": 3,
+    "log_digest": "c7324a7b7966d9daa0457cc97894ffc54dd8c347bde2fe1b0c1e6d49bf2118ee",
+    "inputs_digest": "f709be65f502cc564f45c8688b66fcbfd7a3e98f51cd0c49a6327044b8ea3cd1"
+  }
+}

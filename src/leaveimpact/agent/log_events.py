@@ -37,7 +37,7 @@ rules, beside the schema's and the export's.
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -141,13 +141,23 @@ from leaveimpact.core.timeshape import decode_date, decode_instant, encode_date,
 from leaveimpact.core.tools import SEARCH_LIMIT
 from leaveimpact.core.worldtime import RunContext
 
-LOG_FORMAT_VERSION = 3
-"""The log format this code writes and reads. 2: the approval request carries the ending
-it freezes toward (the worker group's review). 3: the admission freezes the single-shot's
-query protocol and search limit and each role's context allowance (the baselines step,
-fork 12), so a claim under a registration that differs on them is refused and a recovering
-worker renders the same request a first process did."""
-"""The log format this code writes and reads: the codecs here and their canonicalization."""
+LOG_FORMAT_VERSION = 4
+"""The log format this code writes. 2: the approval request carries the ending it freezes
+toward (the worker group's review). 3: the admission freezes the single-shot's query
+protocol and search limit and each role's context allowance (the baselines step, fork 12),
+so a claim under a registration that differs on them is refused and a recovering worker
+renders the same request a first process did. 4: the ``Declined`` ending, a human's answer
+to an approval request that closes the attempt (the demo milestone's live-path step); the
+number moved first with no vocabulary behind it, so the read of an older format was proved
+on bytes that differ in nothing else, and the ending followed."""
+
+READABLE_LOG_FORMATS = (3, 4)
+"""The formats this code reads, the written one last. A stored log keeps the format it was
+admitted under and is read, digested and exported in that format; the store admits a new
+attempt only at the written format, and a worker claims only the written format
+(``worker.WorkerConfiguration.frozen_for``), so no open attempt is migrated. The codecs
+here are one set over every readable format: a format differs from its predecessor by
+vocabulary, never by canonicalization."""
 
 
 # --- Envelopes -------------------------------------------------------------------------------
@@ -381,9 +391,10 @@ class FrozenInputs:
             raise ValueError(f"context_allowances names exactly the configured roles {roles}")
         for role, allowance in self.context_allowances:
             require_integer(allowance, f"the {role} context allowance", minimum=1)
-        if self.log_format_version != LOG_FORMAT_VERSION:
+        if self.log_format_version not in READABLE_LOG_FORMATS:
             raise ValueError(
-                f"this code writes log format {LOG_FORMAT_VERSION}, got {self.log_format_version}"
+                f"this code reads log formats {_listed(READABLE_LOG_FORMATS)}, got "
+                f"{self.log_format_version}"
             )
         for pairs in (
             "model_configurations",
@@ -866,36 +877,56 @@ def event_key_bytes(logged: LoggedEvent) -> bytes:
     return canonical_bytes({"kind": kind.value, "key": key})
 
 
-def event_bytes(event: Event) -> bytes:
-    """The versioned canonical content idempotence compares: the log format version, the
-    kind and the content, in canonical JSON."""
+def log_format_of(events: Sequence[LoggedEvent]) -> int:
+    """The format of the log ``events`` is a prefix of: the one its admission froze, or the
+    written one for an empty log, which no stored log is.
+
+    >>> log_format_of(()) == LOG_FORMAT_VERSION
+    True
+    """
+    if not events:
+        return LOG_FORMAT_VERSION
+    first = events[0].event
+    if not isinstance(first, Admitted):
+        raise ValueError(f"a log begins with its admission, got {kind_of(first).value}")
+    return first.inputs.log_format_version
+
+
+def event_bytes(event: Event, *, log_format: int) -> bytes:
+    """The versioned canonical content idempotence compares: the log's format, the kind and
+    the content, in canonical JSON. ``log_format`` is the log's own (``log_format_of``), so a
+    stored digest reads the same under every later writer; the two sides of a comparison
+    are always under one format."""
     return canonical_bytes(
-        {
-            "log_format": LOG_FORMAT_VERSION,
-            "kind": kind_of(event).value,
-            "content": encode_event(event),
-        }
+        {"log_format": log_format, "kind": kind_of(event).value, "content": encode_event(event)}
     )
 
 
-def event_digest(event: Event) -> str:
+def event_digest(event: Event, *, log_format: int) -> str:
     """SHA-256 of ``event_bytes``."""
-    return hashlib.sha256(event_bytes(event)).hexdigest()
+    return hashlib.sha256(event_bytes(event, log_format=log_format)).hexdigest()
 
 
 def log_digest(events: Iterable[LoggedEvent]) -> str:
-    """SHA-256 of a log as stored: the log format version and every logged event, provenance
-    included, in position order, in canonical JSON. The publication record names the closed
-    log it read by this; the inventory names the prefix it read an open attempt at.
+    """SHA-256 of a log as stored: the log's own format version and every logged event,
+    provenance included, in position order, in canonical JSON. The publication record names
+    the closed log it read by this; the inventory names the prefix it read an open attempt
+    at. The version is the log's (``log_format_of``), so a digest cited under one writer is
+    reproduced by every later one.
 
     >>> len(log_digest(())), log_digest(()) == log_digest([])
     (64, True)
     """
+    held = tuple(events)
     data: JsonObject = {
-        "log_format": LOG_FORMAT_VERSION,
-        "events": [encode_logged_event(logged) for logged in events],
+        "log_format": log_format_of(held),
+        "events": [encode_logged_event(logged) for logged in held],
     }
     return hashlib.sha256(canonical_bytes(data)).hexdigest()
+
+
+def _listed(versions: Sequence[int]) -> str:
+    return " and ".join(str(version) for version in versions)
 
 
 # --- The codec -------------------------------------------------------------------------------
@@ -1579,6 +1610,7 @@ def _decode_prompt(item: object) -> tuple[str, str, str]:
 
 __all__ = [
     "LOG_FORMAT_VERSION",
+    "READABLE_LOG_FORMATS",
     "Abandoned",
     "Admitted",
     "ApprovalRequested",
@@ -1628,5 +1660,6 @@ __all__ = [
     "is_worker_event",
     "kind_of",
     "log_digest",
+    "log_format_of",
     "operation_id",
 ]

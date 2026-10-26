@@ -33,6 +33,11 @@ reservation settled as a ledger settles it, and every dispatch resting on its ca
 counting operation, a re-dispatch reusing the count. Positions are on a scale of ten: slot
 ``n`` of a case is position ``10 n``, so a call's count has its two positions just before
 its first intent. What a case is about is in its own function.
+
+Every case is a format 3 export and spells its version as a literal, never the written
+constant, so a bump of the written format leaves them as the older format the reader must
+still read, and the histories re-stamped to format 3 rebuild them exactly (the demo
+milestone's live-path step, fork 10).
 """
 
 from __future__ import annotations
@@ -45,7 +50,6 @@ from leaveimpact.agent.fact_entries import refused_by
 from leaveimpact.agent.log_events import CountKey
 from leaveimpact.agent.log_events import count_id as rendered_count_id
 from leaveimpact.core import (
-    EXPORT_FORMAT_VERSION,
     UNRESOLVED_RULE,
     Abandonment,
     AbandonmentReason,
@@ -520,7 +524,7 @@ def export(
         pricing=BASIS,
     )
     return RunExport(
-        EXPORT_FORMAT_VERSION,
+        3,  # the format these cases were sealed in, spelled, never the written constant
         "run-12",
         1,
         CONTEXT,

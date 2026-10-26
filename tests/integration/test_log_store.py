@@ -27,18 +27,22 @@ formatted traceback names no content of the inputs.
 
 from __future__ import annotations
 
+import json
 import traceback
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
-from datetime import datetime
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import pytest
+from psycopg.types.json import Jsonb
 
 from leaveimpact.agent import ledger
 from leaveimpact.agent.inventory import inventory_of
 from leaveimpact.agent.log_events import (
+    LOG_FORMAT_VERSION,
     Abandoned,
     Admitted,
     CapExhausted,
@@ -50,6 +54,7 @@ from leaveimpact.agent.log_events import (
     SegmentEnded,
     SegmentStarted,
     WorkerStamp,
+    event_digest,
     kind_of,
     log_digest,
 )
@@ -67,6 +72,7 @@ from leaveimpact.agent.log_store import (
 )
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused
 from leaveimpact.core import (
+    EXPORT_FORMAT_VERSION,
     AbandonmentReason,
     Attribution,
     AttributionKind,
@@ -81,6 +87,7 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.eligibility import EligibilityRule
 from leaveimpact.core.inventory import InventoryScope, decode_inventory_bytes, inventory_bytes
+from leaveimpact.core.timeshape import encode_instant
 from tests.integration.log_store_support import Hold, Rig, Scripted, rig
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
@@ -208,7 +215,7 @@ def test_a_history_replayed_through_the_store_rebuilds_its_export(rig: Rig, name
     stored = store.load(run_id, attempt, rules=RULES)
     assert stored == final, "the state the commands returned is the fold of what was stored"
     assert [logged.position for logged in stored.events] == list(range(1, len(events) + 1))
-    expected = cases.FIXTURES[name]()
+    expected = replace(cases.FIXTURES[name](), format_version=EXPORT_FORMAT_VERSION)
     reservation = expected.record.reservation
     if reservation is not None:
         view = plain.ledger_view(LEDGER)
@@ -915,3 +922,58 @@ def test_a_record_replaced_under_another_reader_keeps_the_object_it_named(rig: R
     )
     assert [one.object_identity for one in inventory.attempts[0].superseded] == [key_a, key_b]
     assert decode_inventory_bytes(inventory_bytes(inventory)) == inventory
+
+
+# --- Older formats ---------------------------------------------------------------------------
+
+PINS = Path(__file__).parents[1] / "fixtures" / "format3-digests-c83392b.json"
+
+
+def test_a_recorded_request_of_an_older_format_is_answered_as_recorded_and_never_admitted_anew(
+    rig: Rig,
+) -> None:
+    """The admission identity is hashed under the admission's own format (the live-path
+    step's external read of fork 3): a request recorded under format 3 is answered as
+    recorded by code writing 4, admitted and refused alike, with no reservation and no
+    attempt; the same inputs under a new request id are a new format 3 admission, refused."""
+    store = opened(rig)
+    admitted, admitter = admission_of(histories.HISTORIES["facts beside tools in one answer"]())
+    older = replace(admitted.inputs, log_format_version=3)
+    assert LOG_FORMAT_VERSION == 4
+    digest = event_digest(Admitted(older), log_format=3)
+    pins = json.loads(PINS.read_text(encoding="utf-8"))
+    assert digest == pins["facts beside tools in one answer"]["inputs_digest"]
+    at = datetime(2026, 3, 1, 9, 0, tzinfo=UTC)
+    recorded = {
+        "req-older-admitted": (
+            "admitted",
+            {"outcome": "admitted", "recorded_at": encode_instant(at), "ledger_revision": 2},
+        ),
+        "req-older-refused": (
+            "refused",
+            {"outcome": "refused", "reason": "the ledger refused", "ledger_revision": None},
+        ),
+    }
+    with rig.connect_for(0)(rig.url) as conn:
+        for request_id_, (outcome, result) in recorded.items():
+            conn.execute(
+                "INSERT INTO admission_request (request_id, run_id, attempt, inputs_digest, "
+                "ledger_id, outcome, result, recorded_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (request_id_, "run-12", 1, digest, LEDGER, outcome, Jsonb(result), at),
+            )
+    request = replace(request_for(admitted, admitter), inputs=older)
+    assert store.admit(replace(request, request_id="req-older-admitted")) == AdmissionReceipt(
+        "run-12", 1, at, 2
+    )
+    assert store.admit(replace(request, request_id="req-older-refused")) == AdmissionRefusal(
+        "run-12", 1, "the ledger refused", None
+    )
+    assert store.open_attempts() == ()
+    view = store.ledger_view(LEDGER)
+    assert [entry.kind for entry in view.entries] == [ledger.EntryKind.THRESHOLD_SET]
+    with pytest.raises(ValueError, match="writes log format 4; a new admission at format 3"):
+        store.admit(request)
+    assert store.open_attempts() == ()
+    assert [entry.kind for entry in store.ledger_view(LEDGER).entries] == [
+        ledger.EntryKind.THRESHOLD_SET
+    ]

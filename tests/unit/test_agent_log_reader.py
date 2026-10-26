@@ -12,6 +12,8 @@ ending function."""
 
 from __future__ import annotations
 
+from dataclasses import replace
+
 import pytest
 
 from leaveimpact.agent.log_ending import SegmentStatus, status_of
@@ -28,12 +30,16 @@ from leaveimpact.core import (
     decode_export_bytes,
     export_bytes,
 )
+from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 
 
 def rebuilt(name: str):  # noqa: ANN201 - the export type is the fixtures'
-    return export_of(fold(histories.HISTORIES[name](), histories.RULES))
+    """The export of the history re-stamped to format 3, the format its fixture is sealed
+    in: the cross-version read, on bytes that differ from the written format in the number
+    alone."""
+    return export_of(fold(histories.at_format(histories.HISTORIES[name](), 3), histories.RULES))
 
 
 def test_every_fixture_has_a_history() -> None:
@@ -47,6 +53,16 @@ def test_a_fixture_rebuilt_from_its_history_is_the_hand_built_export(name: str) 
     assert actual == expected
     assert export_bytes(actual) == export_bytes(expected)
     assert decode_export_bytes(export_bytes(actual)) == expected
+
+
+@pytest.mark.parametrize("name", list(cases.FIXTURES))
+def test_a_history_at_the_written_format_rebuilds_its_export_at_the_written_format(
+    name: str,
+) -> None:
+    expected = replace(cases.FIXTURES[name](), format_version=EXPORT_FORMAT_VERSION)
+    actual = export_of(fold(histories.HISTORIES[name](), histories.RULES))
+    assert actual == expected
+    assert export_bytes(actual) == export_bytes(expected)
 
 
 def test_an_open_attempt_has_no_export() -> None:

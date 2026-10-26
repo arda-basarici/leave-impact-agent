@@ -53,12 +53,12 @@ def test_every_logged_event_round_trips_through_its_json(logged: LoggedEvent) ->
 
 def test_bytes_carry_the_log_format_version_and_the_kind_and_not_the_envelope() -> None:
     first = EVERY_HISTORY[0]
-    held = event_bytes(first.event)
+    held = event_bytes(first.event, log_format=LOG_FORMAT_VERSION)
     assert f'"log_format":{LOG_FORMAT_VERSION}'.encode() in held
     assert b'"kind":"admitted"' in held
     assert b'"position"' not in held and b'"timestamp"' not in held
     moved = LoggedEvent(first.position + 5, first.timestamp, first.envelope, first.event)
-    assert event_bytes(moved.event) == held
+    assert event_bytes(moved.event, log_format=LOG_FORMAT_VERSION) == held
 
 
 def test_an_unknown_kind_refuses_by_name() -> None:
@@ -100,7 +100,7 @@ def test_content_tells_two_approvals_apart() -> None:
     one = Approved(Approver.AUTOMATIC, cases.DIGEST)
     other = Approved(Approver.HUMAN, cases.DIGEST)
     assert encode_event(one) != encode_event(other)
-    assert event_bytes(one) != event_bytes(other)
+    assert event_bytes(one, log_format=4) != event_bytes(other, log_format=4)
 
 
 def test_key_bytes_are_equal_exactly_when_the_keys_are() -> None:
@@ -135,7 +135,9 @@ def test_the_log_digest_covers_provenance_and_order() -> None:
     moved = first.timestamp.replace(microsecond=1)
     later = LoggedEvent(first.position, moved, first.envelope, first.event)
     assert log_digest((later, *events[1:])) != digest
-    assert log_digest((events[1], events[0], *events[2:])) != digest
+    assert log_digest((events[0], events[2], events[1], *events[3:])) != digest
+    with pytest.raises(ValueError, match="a log begins with its admission"):
+        log_digest((events[1], events[0], *events[2:]))
 
 
 def test_the_frozen_inputs_hold_the_single_shots_protocol_and_every_roles_allowance() -> None:

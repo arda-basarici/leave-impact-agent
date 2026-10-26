@@ -16,12 +16,13 @@ block holding the batch's JSON; a handled fact tool is a ``toolUse`` block of ``
 from __future__ import annotations
 
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date, datetime, timedelta
 
 from leaveimpact.agent.answer_parse import FACT_TOOL
 from leaveimpact.agent.fact_entries import refused_by
 from leaveimpact.agent.log_events import (
+    LOG_FORMAT_VERSION,
     Abandoned,
     Admitted,
     ApprovalRequested,
@@ -148,8 +149,21 @@ def inputs(*, reservation: int | None, system: System = AGENT) -> FrozenInputs:
         search_limit=10 if single_shot else None,
         context_allowances=((cases.ROLE, 200_000),) if calls_a_model else (),
         reservation_pico_usd=reservation if calls_a_model else None,
-        log_format_version=3,
+        log_format_version=LOG_FORMAT_VERSION,
     )
+
+
+def at_format(history: tuple[LoggedEvent, ...], log_format: int) -> tuple[LoggedEvent, ...]:
+    """``history`` as a log admitted at ``log_format``: the admission's frozen inputs
+    re-stamped, every later event as it was. Every case is a format 3 log by construction
+    and differs from the written format in the number alone, so the reader's
+    cross-version read and the digests the bump must not move are both tested on them
+    (the demo milestone's live-path step, fork 10)."""
+    first = history[0]
+    admitted = first.event
+    assert isinstance(admitted, Admitted)
+    inputs = replace(admitted.inputs, log_format_version=log_format)
+    return (replace(first, event=Admitted(inputs)), *history[1:])
 
 
 def settlement_of(reservation: Reservation) -> LoggedSettlement:

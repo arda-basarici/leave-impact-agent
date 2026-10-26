@@ -128,6 +128,7 @@ from leaveimpact.agent.log_events import (
     call_id,
     count_id,
     event_digest,
+    log_format_of,
 )
 from leaveimpact.agent.log_transition import (
     AttemptState,
@@ -300,7 +301,8 @@ INITIAL: Cursor = {"route": "", "at_cap": False, "reached": {}}
 
 
 def _reached(events: tuple[LoggedEvent, ...], since: int) -> dict[str, str]:
-    return {str(e.position): event_digest(e.event) for e in events[since:]}
+    version = log_format_of(events)
+    return {str(e.position): event_digest(e.event, log_format=version) for e in events[since:]}
 
 
 # --- Reads through the executor -------------------------------------------------------------

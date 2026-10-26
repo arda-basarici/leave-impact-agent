@@ -88,6 +88,7 @@ from leaveimpact.agent.inventory import (
 from leaveimpact.agent.ledger import LedgerEntry, LedgerHead
 from leaveimpact.agent.log_ending import eligibility_ending_of
 from leaveimpact.agent.log_events import (
+    LOG_FORMAT_VERSION,
     Abandoned,
     Admitted,
     CapExhausted,
@@ -442,7 +443,10 @@ class LogStore:
     def admit(self, request: AdmissionRequest) -> AdmissionResult:
         """The ruling on admission: one transaction, the run row locked first, a recorded
         request returned as recorded, the predecessor read, the reservation made or refused,
-        then the attempt row and the admission event at position 1."""
+        then the attempt row and the admission event at position 1. A new attempt is
+        admitted only at the log format this code writes; a request recorded under an older
+        readable format is answered as recorded, and the same inputs under a new request id
+        are refused, since an older format is read and never written."""
         inputs = request.inputs
         run_id, attempt = inputs.run_id, inputs.attempt
         with self._guarded() as conn, conn.transaction():
@@ -466,6 +470,12 @@ class LogStore:
                 result: AdmissionResult = self._existing_admission(conn, run_id, attempt, inputs)
                 self._record_request(conn, request, result, at)
                 return result
+            if inputs.log_format_version != LOG_FORMAT_VERSION:
+                raise ValueError(
+                    f"this store writes log format {LOG_FORMAT_VERSION}; a new admission at "
+                    f"format {inputs.log_format_version} is refused, since an older format is "
+                    "read and never written"
+                )
             if attempt != admitted_so_far + 1:
                 raise LogStoreConflict(
                     f"run {run_id} has {admitted_so_far} attempts; attempt {attempt} is not "
@@ -509,7 +519,10 @@ class LogStore:
         row = conn.execute(_SELECT_LAST, (run_id, attempt, 1)).fetchone()
         assert row is not None, "an admitted attempt holds its admission at position 1"
         held = decode_logged_event(row[0])
-        if event_bytes(held.event) != event_bytes(Admitted(inputs)):
+        version = inputs.log_format_version
+        if event_bytes(held.event, log_format=version) != event_bytes(
+            Admitted(inputs), log_format=version
+        ):
             raise LogStoreConflict(
                 f"run {run_id} attempt {attempt} exists with other frozen inputs"
             )
@@ -635,7 +648,9 @@ class LogStore:
                 earlier = decode_logged_event(held[0])
                 stamp = earlier.stamp
                 assert stamp is not None
-                if event_bytes(earlier.event) != event_bytes(event):
+                if event_bytes(earlier.event, log_format=row.log_format) != event_bytes(
+                    event, log_format=row.log_format
+                ):
                     raise LogStoreConflict(
                         f"run {run_id} attempt {attempt} holds another content under the claim "
                         f"nonce of the segment start at position {earlier.position}"
@@ -764,7 +779,9 @@ class LogStore:
             return Refused(f"the attempt is closed at position {held.position}")
         assert isinstance(held_event, Completed | CapExhausted | Failed | Abandoned)
         masked: ClosingEvent = replace(held_event, settlement=None)
-        if event_bytes(masked) == event_bytes(closing):
+        if event_bytes(masked, log_format=row.log_format) == event_bytes(
+            closing, log_format=row.log_format
+        ):
             return Received(held.position)
         raise LogStoreConflict(
             f"run {row.run_id} attempt {row.attempt} is closed at position {held.position} by "
@@ -1146,7 +1163,9 @@ class LogStore:
         if held_row is None:
             return None
         held = decode_logged_event(held_row[0])
-        if event_bytes(held.event) == event_bytes(logged.event):
+        if event_bytes(held.event, log_format=row.log_format) == event_bytes(
+            logged.event, log_format=row.log_format
+        ):
             return Received(held.position)
         raise LogStoreConflict(
             f"run {row.run_id} attempt {row.attempt} holds another content under the identifier "
@@ -1206,7 +1225,7 @@ class LogStore:
                 event_key_bytes(logged).decode("utf-8"),
                 claim_nonce,
                 logged.timestamp,
-                event_digest(logged.event),
+                event_digest(logged.event, log_format=inputs.log_format_version),
                 Jsonb(encode_logged_event(logged)),
             ),
         )
@@ -1360,7 +1379,7 @@ def _import_digest(ledger_id: str, amount: int, authority: str, commit: str) -> 
 
 
 def _inputs_digest(inputs: FrozenInputs) -> str:
-    return event_digest(Admitted(inputs))
+    return event_digest(Admitted(inputs), log_format=inputs.log_format_version)
 
 
 def _check_version(conn: Connection) -> None:

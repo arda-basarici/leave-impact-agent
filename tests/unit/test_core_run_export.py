@@ -854,8 +854,8 @@ def test_the_export_is_this_formats_self_identifying_tree() -> None:
         "run-7",
         1,
     )
-    assert EXPORT_FORMAT_VERSION == 3
-    with pytest.raises(ValueError, match="builds export format 3, got 2"):
+    assert EXPORT_FORMAT_VERSION == 4
+    with pytest.raises(ValueError, match="reads export formats 3 and 4, got 2"):
         replace(export, format_version=2)
     with pytest.raises(ValueError, match="an attempt is at least 1, got 0"):
         replace(export, attempt=0)

@@ -18,20 +18,30 @@ self-identifying by run id and attempt at its top, beside the format version, so
 not depend on its object key for identity; its digest is computed from its canonical
 bytes by whoever cites it and never stored inside, which would define it circularly.
 
-The format version is the tree's own contract. Structural fields a replay cannot do
-without are required per version, an incompatible change bumps the version and an
-unknown version refuses; the extensible blocks (the usage counters, the provenance
-names) follow a declared append-only order within a version, so a field appended
-later reads as unavailable from an older export and the codec learns nothing.
+The format version is the log's. An export states its log in the vocabulary the log was
+admitted under, so a sealed log re-exports to its sealed bytes under every later reader; the
+mapping from a log's format to the export's lives with the reader in ``agent``, and the
+tree's contract is the set of formats it reads, the one it builds for a current log last.
+Structural fields a replay cannot do without are required per version, an incompatible
+change bumps the version and a version outside the readable set refuses; the extensible
+blocks (the usage counters, the provenance names) follow a declared append-only order
+within a version, so a field appended later reads as unavailable from an older export and
+the codec learns nothing. A decoded export keeps the version its bytes carry, so a digest
+of the decoded object is a digest of the stored one.
 
-This is format 3 (the event log step's rulings). Format 2 could not state an attempt that
-was admitted and never claimed, a terminal instant before the admission, which dispatches
-were finalization, what the ledger charged, why an attempt was abandoned or who closed a
-defect, a harness fault nobody classified, or anything about how a dispatch's input was
-bounded; each is stated where it lives (``run_timing``, ``run_ending``, ``run_record``,
-``model_calls``, ``counting_operations``). Format 1 gave a model call one outcome and one
-send, a run one process and one duration, a failure one of two anchors, and costs in
-nano-dollars. Nothing reads an earlier format: its bytes refuse by version.
+Format 4 (the demo milestone's live-path step) adds the ``Declined`` ending to format 3,
+a human's answer to an approval request that closes the attempt; the number moved first
+with no vocabulary behind it, so the read of an older format was proved on bytes that
+differ in nothing else, and the ending followed. Format 3 (the event log step's rulings)
+holds what format 2 could not state: an attempt that was admitted and never claimed, a
+terminal instant before the admission, which dispatches were finalization, what the ledger
+charged, why an attempt was abandoned or who closed a defect, a harness fault nobody
+classified, and how a dispatch's input was bounded; each is stated where it lives
+(``run_timing``, ``run_ending``, ``run_record``, ``model_calls``,
+``counting_operations``). Format 1 gave a model call one outcome and one send, a run one
+process and one duration, a failure one of two anchors, and costs in nano-dollars. Formats
+1 and 2 are not read: no export of record was written in either, and their bytes refuse by
+version.
 """
 
 from __future__ import annotations
@@ -82,8 +92,19 @@ from leaveimpact.core.run_trace import (
 )
 from leaveimpact.core.worldtime import RunContext
 
-EXPORT_FORMAT_VERSION = 3
-"""The format this code writes and reads; a decoder refuses any other."""
+EXPORT_FORMAT_VERSION = 4
+"""The format this code builds for a log at the written log format; the formats it reads are
+``READABLE_EXPORT_FORMATS``."""
+
+READABLE_EXPORT_FORMATS = (3, 4)
+"""The formats this code reads, the written one last. A decoded export keeps the version its
+bytes carry and a constructor refuses a version outside the set; a format differs from its
+predecessor by vocabulary, never by canonicalization."""
+
+
+def readable_export_formats_text() -> str:
+    """The readable formats as a refusal names them: ``"3 and 4"``."""
+    return " and ".join(str(version) for version in READABLE_EXPORT_FORMATS)
 
 
 @dataclass(frozen=True, slots=True)
@@ -323,9 +344,10 @@ class RunExport:
 
     def __post_init__(self) -> None:
         require_integer(self.format_version, "the format version")
-        if self.format_version != EXPORT_FORMAT_VERSION:
+        if self.format_version not in READABLE_EXPORT_FORMATS:
             raise ValueError(
-                f"this code builds export format {EXPORT_FORMAT_VERSION}, got {self.format_version}"
+                f"this code reads export formats {readable_export_formats_text()}, got "
+                f"{self.format_version}"
             )
         require_opaque_id(self.run_id, "a run id")
         require_integer(self.attempt, "an attempt", minimum=1)

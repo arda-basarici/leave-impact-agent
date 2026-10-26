@@ -63,8 +63,16 @@ from leaveimpact.core.run_timing import require_commit
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_instant, encode_instant
 
-INVENTORY_FORMAT_VERSION = 1
-"""The inventory's own format version, apart from the schema's, the log's and the export's."""
+INVENTORY_FORMAT_VERSION = 2
+"""The inventory's own format version, apart from the schema's, the log's and the export's:
+the one this code writes. 2 (the demo milestone's live-path step) admits the ``declined``
+ending in an attempt's status; the number moved first with no vocabulary behind it, so the
+read of format 1 was proved on bytes that differ in nothing else."""
+
+READABLE_INVENTORY_FORMATS = (1, 2)
+"""The formats this code reads, the written one last; a decoded inventory keeps the version
+its bytes carry. A new member of a closed vocabulary is a format change even with the same
+fields, so the inventory moves with the export it lists (the live-path step's fork 8)."""
 
 
 class PublicationStatus(StrEnum):
@@ -326,9 +334,9 @@ class Inventory:
     refused: tuple[RefusedAdmission, ...]
 
     def __post_init__(self) -> None:
-        if self.format_version != INVENTORY_FORMAT_VERSION:
+        if self.format_version not in READABLE_INVENTORY_FORMATS:
             raise ValueError(
-                f"the inventory format is {INVENTORY_FORMAT_VERSION}, got {self.format_version}"
+                f"this code reads inventory formats {_readable_text()}, got {self.format_version}"
             )
         if self.ledger is not None and self.ledger.ledger_id != self.scope.ledger_id:
             raise ValueError("the ledger listed is the scope's")
@@ -344,6 +352,10 @@ class Inventory:
 
 
 # --- The codec ----------------------------------------------------------------------------
+
+
+def _readable_text() -> str:
+    return " and ".join(str(version) for version in READABLE_INVENTORY_FORMATS)
 
 
 def inventory_bytes(inventory: Inventory) -> bytes:
@@ -396,8 +408,8 @@ def decode_inventory(value: object) -> Inventory:
         "an inventory",
     )
     version = integer_field(data, "format_version")
-    if version != INVENTORY_FORMAT_VERSION:
-        raise ValueError(f"the inventory format is {INVENTORY_FORMAT_VERSION}, got {version}")
+    if version not in READABLE_INVENTORY_FORMATS:
+        raise ValueError(f"this code reads inventory formats {_readable_text()}, got {version}")
     scope = object_field(data, "scope")
     expect_fields(scope, ("world_version", "registration_commit", "ledger_id"), "the scope")
     snapshot = object_field(data, "snapshot")
@@ -705,6 +717,7 @@ def _decode_refusal(data: Mapping[str, object]) -> RefusedAdmission:
 
 __all__ = [
     "INVENTORY_FORMAT_VERSION",
+    "READABLE_INVENTORY_FORMATS",
     "AttemptEnding",
     "AttemptStatus",
     "Inventory",

@@ -69,16 +69,35 @@ from leaveimpact.core.model_calls import (
 from leaveimpact.core.pricing import aggregate_usage, cost_of_reported, run_cost
 from leaveimpact.core.read_condition import observed_condition
 from leaveimpact.core.run_ending import Composition, DispatchPhase, DispatchSite, Reservation
-from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport, RunTrace
+from leaveimpact.core.run_export import RunExport, RunTrace
 from leaveimpact.core.run_record import Failure, RunRecord
 from leaveimpact.core.run_timing import Segment, Stamp, Timing
 from leaveimpact.core.run_trace import Cost, Operation
 
+EXPORT_FORMAT_OF_LOG_FORMAT: dict[int, int] = {3: 3, 4: 4}
+"""The export format each readable log format maps to. An export states its log in the
+vocabulary the log was admitted under, so a sealed log re-exports to its sealed bytes under
+every later reader and a publication's digests regenerate from the log alone (the demo
+milestone's live-path step, fork 2); the two numbers have moved together so far."""
+
+
+def export_format_of(log_format: int) -> int:
+    """The export format a log at ``log_format`` exports to; ``ValueError`` for a format no
+    reader maps.
+
+    >>> export_format_of(3)
+    3
+    """
+    try:
+        return EXPORT_FORMAT_OF_LOG_FORMAT[log_format]
+    except KeyError:
+        raise ValueError(f"no export format is mapped for log format {log_format}") from None
+
 
 def export_of(state: AttemptState) -> RunExport:
-    """The format 3 export of the closed attempt ``state`` holds; ``ValueError`` while it is
-    open, when the frozen parser is not this code's, or when the export's constructor
-    refuses what the log states."""
+    """The export of the closed attempt ``state`` holds, in its log's format
+    (``export_format_of``); ``ValueError`` while it is open, when the frozen parser is not
+    this code's, or when the export's constructor refuses what the log states."""
     inputs = state.inputs
     closed = state.closed
     if inputs is None or closed is None:
@@ -120,7 +139,7 @@ def export_of(state: AttemptState) -> RunExport:
         pricing=inputs.pricing,
     )
     return RunExport(
-        EXPORT_FORMAT_VERSION,
+        export_format_of(inputs.log_format_version),
         inputs.run_id,
         inputs.attempt,
         inputs.context,

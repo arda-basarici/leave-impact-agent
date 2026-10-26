@@ -56,7 +56,12 @@ from leaveimpact.core.jsonshape import (
     string_item,
 )
 from leaveimpact.core.pricing import decode_rate, encode_rate
-from leaveimpact.core.run_export import EXPORT_FORMAT_VERSION, RunExport, RunTrace
+from leaveimpact.core.run_export import (
+    READABLE_EXPORT_FORMATS,
+    RunExport,
+    RunTrace,
+    readable_export_formats_text,
+)
 from leaveimpact.core.run_parts_json import (
     decode_abandonment,
     decode_approval,
@@ -310,7 +315,7 @@ def decode_export_bytes(content: bytes | str) -> RunExport:
     >>> decode_export_bytes(b'{"format_version": 2}')
     Traceback (most recent call last):
     ...
-    ValueError: this code reads export format 3, got 2
+    ValueError: this code reads export formats 3 and 4, got 2
     """
     raw = content.encode("utf-8") if isinstance(content, str) else content
     export = decode_run_export(json.loads(raw))
@@ -323,16 +328,19 @@ def decode_export_bytes(content: bytes | str) -> RunExport:
 
 
 def decode_run_export(value: object) -> RunExport:
-    """The export ``value`` encodes; a format other than this code's refuses before anything."""
+    """The export ``value`` encodes, at the version its bytes carry; a format outside the
+    readable set refuses before anything."""
     data = as_object(value, "a run export")
     version = require_integer(field_of(data, "format_version"), "format_version")
-    if version != EXPORT_FORMAT_VERSION:
-        raise ValueError(f"this code reads export format {EXPORT_FORMAT_VERSION}, got {version}")
+    if version not in READABLE_EXPORT_FORMATS:
+        raise ValueError(
+            f"this code reads export formats {readable_export_formats_text()}, got {version}"
+        )
     expect_fields(
         data, ("format_version", "run_id", "attempt", "context", "record", "trace"), "a run export"
     )
     return RunExport(
-        EXPORT_FORMAT_VERSION,
+        version,
         string_field(data, "run_id"),
         integer_field(data, "attempt"),
         decode_run_context(object_field(data, "context")),
