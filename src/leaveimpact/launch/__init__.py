@@ -8,7 +8,11 @@ committed price table, the registered cell and the scenario's specification it b
 frozen inputs an admission records, through the same provenance functions the work command
 composes with, so the admission and the worker's effective configuration cannot drift; it
 reserves the run's money through ``core.pricing.run_reservation``; and it decides, from an
-attempt's state alone, what the lifecycle sends next. ``__main__`` is the composition root:
+attempt's state alone, what the lifecycle sends next. ``demo`` is the same plan for the
+demo surface's public start (the live-path commands step): the demo's cell over the
+served world's specifications, handed to the surface as a planner over scenario ids,
+since the surface imports neither this package nor the world's codecs. ``__main__`` is the
+composition root:
 it reads the scenario specification from the world store, draws the launch identity, writes
 the request file and the work command's cell flags beside it, and reads an attempt's state
 back for the workflow between sends.

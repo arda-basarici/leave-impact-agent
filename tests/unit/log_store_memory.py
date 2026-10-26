@@ -47,7 +47,15 @@ from leaveimpact.agent.log_events import (
     kind_of,
     log_format_of,
 )
-from leaveimpact.agent.log_store import LogStoreConflict
+from leaveimpact.agent.log_store import (
+    AdmissionReceipt,
+    AdmissionRefusal,
+    AdmissionRequest,
+    AdmissionResult,
+    AdmittedAttempt,
+    LogStoreConflict,
+    RecordedAdmission,
+)
 from leaveimpact.agent.log_transition import (
     Appended,
     AttemptState,
@@ -84,6 +92,16 @@ def _no_boundary(name: str) -> None:
     return None
 
 
+@dataclass(frozen=True, slots=True)
+class _RecordedRequest:
+    """An admission request as recorded: what it asked (the run, the attempt, the
+    admission's bytes, the ledger), the result it got, and when."""
+
+    asked: tuple[str, int, bytes, str | None]
+    result: AdmissionResult
+    recorded_at: datetime
+
+
 @dataclass
 class MemoryLog:
     """Every attempt's log, the segment-start events by claim nonce, and one ledger head per
@@ -101,6 +119,11 @@ class MemoryLog:
         default_factory=dict[tuple[str, int], LedgerHead]
     )
     entries: list[LedgerEntry] = field(default_factory=list[LedgerEntry])
+    requests: dict[str, _RecordedRequest] = field(default_factory=dict[str, _RecordedRequest])
+    threshold: int = PLENTY
+    """The room every reserving admission is judged against: this log keeps a head per
+    attempt, so the room is the threshold whole, where the store judges against the
+    ledger head's running total."""
     lock: threading.Lock = field(default_factory=threading.Lock)
 
     # --- seeding -----------------------------------------------------------------------
@@ -145,6 +168,115 @@ class MemoryLog:
     def now(self) -> datetime:
         with self.lock:
             return self.clock()
+
+    def admit(self, request: AdmissionRequest) -> AdmissionResult:
+        """The store's admission over this log, under its lock: a recorded request answered
+        as recorded and other content under its identity a conflict, the attempt number the
+        next of its run (an existing attempt gives its receipt to identical inputs), the
+        predecessor closed, the reservation judged against ``threshold`` as a fresh head's
+        room, the admission at position 1 under the admitter, the request recorded. The
+        predecessor's publication and ending rules are not mirrored: no unit test admits a
+        successor."""
+        inputs = request.inputs
+        run_id, attempt = inputs.run_id, inputs.attempt
+        admission = Admitted(inputs)
+        asked = (
+            run_id,
+            attempt,
+            event_bytes(admission, log_format=inputs.log_format_version),
+            request.ledger_id,
+        )
+        with self.lock:
+            self.boundary("locked")
+            held = self.requests.get(request.request_id)
+            if held is not None:
+                if held.asked != asked:
+                    raise LogStoreConflict(
+                        f"request {request.request_id} was recorded for run {held.asked[0]} "
+                        f"attempt {held.asked[1]} with other content, asked again for run "
+                        f"{run_id} attempt {attempt}"
+                    )
+                return held.result
+            at = self.clock()
+            admitted_so_far = sum(1 for run, _ in self.logs if run == run_id)
+            if attempt <= admitted_so_far:
+                first = self.logs[(run_id, attempt)][0]
+                if event_bytes(first.event, log_format=inputs.log_format_version) != asked[2]:
+                    raise LogStoreConflict(
+                        f"run {run_id} attempt {attempt} exists with other frozen inputs"
+                    )
+                result: AdmissionResult = AdmissionReceipt(
+                    run_id, attempt, first.timestamp, self._reservation_revision(run_id, attempt)
+                )
+                self.requests[request.request_id] = _RecordedRequest(asked, result, at)
+                return result
+            if attempt != admitted_so_far + 1:
+                raise LogStoreConflict(
+                    f"run {run_id} has {admitted_so_far} attempts; attempt {attempt} is not "
+                    "the next"
+                )
+            reason: str | None = None
+            revision: int | None = None
+            if attempt > 1 and not _is_closed(self.logs[(run_id, attempt - 1)]):
+                reason = f"attempt {attempt - 1} is open"
+            if reason is None and inputs.reservation_pico_usd is not None:
+                head = LedgerHead(threshold_pico_usd=self.threshold)
+                reason = ledger.reservation_refusal(head, inputs.reservation_pico_usd)
+                if reason is None:
+                    entry, after = ledger.admitted(
+                        head, run_id, attempt, inputs.reservation_pico_usd
+                    )
+                    self.heads[(run_id, attempt)] = after
+                else:
+                    entry, _ = ledger.refused(
+                        head, run_id, attempt, inputs.reservation_pico_usd, reason=reason
+                    )
+                self.entries.append(entry)
+                revision = entry.revision
+            if reason is not None:
+                result = AdmissionRefusal(run_id, attempt, reason, revision)
+            else:
+                logged = LoggedEvent(1, at, request.admitter, admission)
+                transition = next_state(AttemptState(), logged, request.rules)
+                assert isinstance(transition, Appended), transition
+                self.logs[(run_id, attempt)] = [logged]
+                result = AdmissionReceipt(run_id, attempt, at, revision)
+            self.requests[request.request_id] = _RecordedRequest(asked, result, at)
+            self.boundary("before-commit")
+            return result
+
+    def recorded_admission(self, request_id: str) -> RecordedAdmission | None:
+        with self.lock:
+            held = self.requests.get(request_id)
+        if held is None:
+            return None
+        result = held.result
+        admitted = isinstance(result, AdmissionReceipt)
+        return RecordedAdmission(
+            request_id,
+            result.run_id,
+            result.attempt,
+            admitted,
+            held.recorded_at,
+            None if isinstance(result, AdmissionReceipt) else result.reason,
+        )
+
+    def admitted_by(
+        self, admitter: Producer, ledger_id: str, *, since: datetime
+    ) -> tuple[AdmittedAttempt, ...]:
+        """The store's read: the attempts admitted against ``ledger_id`` (this log's one
+        ledger, for every reserving attempt) by ``admitter`` at or after ``since``, and
+        every open one, in admission order."""
+        with self.lock:
+            listed = [
+                AdmittedAttempt(run_id, attempt, log[0].timestamp, _is_closed(log))
+                for (run_id, attempt), log in self.logs.items()
+                if ledger_id == LEDGER
+                and (run_id, attempt) in self.heads
+                and log[0].envelope == admitter
+                and (log[0].timestamp >= since or not _is_closed(log))
+            ]
+        return tuple(sorted(listed, key=lambda each: (each.admitted_at, each.run_id, each.attempt)))
 
     def claim(
         self,
@@ -287,6 +419,25 @@ class MemoryLog:
         if state is not None and state.last_position == len(log):
             return state
         return fold(log, rules)
+
+    def _reservation_revision(self, run_id: str, attempt: int) -> int | None:
+        return next(
+            (
+                entry.revision
+                for entry in self.entries
+                if entry.kind is ledger.EntryKind.ADMITTED
+                and (entry.run_id, entry.attempt) == (run_id, attempt)
+            ),
+            None,
+        )
+
+
+def _is_closed(log: list[LoggedEvent]) -> bool:
+    """Whether the log holds a closing event: the attempt row's flag, as the store keeps it."""
+    return any(
+        isinstance(logged.event, Completed | CapExhausted | Failed | Abandoned | Declined)
+        for logged in log
+    )
 
 
 def _envelope_of(envelope: Envelope | Stamping) -> Envelope:

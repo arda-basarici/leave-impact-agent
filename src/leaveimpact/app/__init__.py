@@ -25,8 +25,12 @@ the investigator (the import law's denied edges). ``config`` is the demo's own
 configuration file and its strict decoder; ``public`` the public names and view data (the
 slug a URL carries, the publishable row, the listing's and the page's views); ``store``
 the surface's own PostgreSQL module (the app schema in ``schema.sql`` beside it, the table
-of publishable attempts and its version row, the publication's outcomes, bounded
-connections per operation); ``read_model`` the one admission every read passes, a
+of publishable attempts, the live table beside it and its version row, the publication's
+outcomes, bounded connections per operation, the public start's serialization point);
+``live`` the live attempt's names and row (the key's digest as the request identity and
+the capability's hash, the derived run id and public id); ``start`` the public start
+command under the demo's rules (the live-path commands step); ``read_model`` the one
+admission every read passes, a
 projection for the listing and a log-checked resolution for content, with the surface's
 reading of the registration; ``publishing`` what the operator's publication verifies
 against the log before a row is written; this package's ``__main__`` the operator
