@@ -345,13 +345,13 @@ class Claimant:
                 WorkerEndingKind.LEFT_OPEN, run_id, attempt, None, "log unavailable"
             )
         match claimed:
-            case Refused():
+            case Refused(reason):
                 return WorkerEnding(
                     WorkerEndingKind.CLAIM_REFUSED,
                     run_id,
                     attempt,
                     state.generation,
-                    "claim refused",
+                    reason,
                 )
             case Received():
                 raise RuntimeError("a fresh nonce was received as a repeated claim")

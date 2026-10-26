@@ -1,10 +1,12 @@
 -- The event log's tables: the attempt rows the store locks, the events they own, the
--- admission requests, the shared ledger and the publication records. Schema version 5
--- (the version advances with every change to this file that lands in a commit; 2 added
--- the admission request's inputs digest and ledger; 3 let a publication record hold no
--- object, for a reader that could not build the export; 4 added the superseded
--- publications; 5 added the import requests, so a spend import replayed after a lost
--- acknowledgement is charged once).
+-- admission requests, the shared ledger, the publication records and the host's
+-- execution slot. Schema version 6 (the version advances with every change to this file
+-- that lands in a commit; 2 added the admission request's inputs digest and ledger; 3 let
+-- a publication record hold no object, for a reader that could not build the export; 4
+-- added the superseded publications; 5 added the import requests, so a spend import
+-- replayed after a lost acknowledgement is charged once; 6 added the execution slot, the
+-- demo milestone's live-path ruling, and is the first version a deployed log crossed, so
+-- the store advances a database from 5 by applying this file as it stands).
 --
 -- Idempotent DDL, applied whole by the store's ensure_schema as bootstrap, never as
 -- migration (the event log step's ruling on placement and acceptance, part 3): no ALTER
@@ -149,3 +151,25 @@ CREATE TABLE IF NOT EXISTS publication_superseded (
     PRIMARY KEY (run_id, attempt, reader_commit, object_identity),
     FOREIGN KEY (run_id, attempt) REFERENCES attempt (run_id, attempt)
 );
+
+-- The host's execution slot (the demo milestone's live-path ruling, the commands step):
+-- one row, holding the attempt whose segment is open on this host, the generation and
+-- the launch identity of the claim that took it and the instant it did, or no holder.
+-- Every claim locks it last, after the attempt row and the ledger head, and is refused
+-- while another attempt holds it, so the operator's work container and the worker
+-- service, which never see each other, cannot run two investigations at once; the
+-- event that ends the holder's segment or closes the attempt clears it in the same
+-- transaction, so a holder whose log shows an ended segment cannot exist. The row is
+-- written by this file so it exists wherever the schema does; the five columns are null
+-- together, exactly when no attempt holds the host.
+CREATE TABLE IF NOT EXISTS execution_slot (
+    singleton   boolean     PRIMARY KEY DEFAULT TRUE CHECK (singleton),
+    run_id      text,
+    attempt     integer,
+    generation  integer,
+    launch      text,
+    claimed_at  timestamptz,
+    CHECK (num_nulls(run_id, attempt, generation, launch, claimed_at) IN (0, 5))
+);
+
+INSERT INTO execution_slot (singleton) VALUES (TRUE) ON CONFLICT DO NOTHING;

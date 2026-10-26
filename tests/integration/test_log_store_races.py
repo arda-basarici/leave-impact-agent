@@ -17,11 +17,15 @@ released and commits, and the waiting side reads the committed row.
 - *a stale caller's state* (the store group's first fork): an outside producer's approval
   between a worker's state and its next append is seen, because the row's counters say the
   state is stale and the store folds the log.
+- *two attempts claiming at once* (the live-path commands step): the host's execution
+  slot admits exactly one, the other refused with the holder named, whichever order
+  the two attempt-row locks were taken in, since the slot is locked last by both.
 """
 
 from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import replace
 
 import pytest
 
@@ -38,7 +42,12 @@ from leaveimpact.agent.log_events import (
     WorkerStamp,
     kind_of,
 )
-from leaveimpact.agent.log_store import AdmissionReceipt, AdmissionRequest, LogStore
+from leaveimpact.agent.log_store import (
+    AdmissionReceipt,
+    AdmissionRequest,
+    LogStore,
+    SlotHolder,
+)
 from leaveimpact.agent.log_transition import Appended, AttemptState, Refused, Transition
 from leaveimpact.core import (
     AbandonmentReason,
@@ -306,3 +315,59 @@ def test_a_stale_state_is_folded_and_sees_the_approval_between(rig: Rig) -> None
     assert isinstance(resumed, Appended)
     assert resumed.state.approved is not None and resumed.state.last_position == 10
     assert kinds(worker)[-3:] == [("approval_requested", 1), ("approved", None), ("resumed", 1)]
+
+
+# --- Two attempts claiming at once ------------------------------------------------------------
+
+
+def admitted_other(rig: Rig, store: LogStore) -> None:
+    """A second run's attempt admitted through ``store``: the cut-call history's admission
+    under ``run-13`` (nothing after position 1 names the run)."""
+    events = histories.HISTORIES["a cut call"]()
+    admitted = events[0].event
+    assert isinstance(admitted, Admitted) and isinstance(events[0].envelope, Producer)
+    receipt = store.admit(
+        AdmissionRequest(
+            f"req-{rig.schema}-13",
+            replace(admitted.inputs, run_id="run-13"),
+            events[0].envelope,
+            LEDGER,
+            RULES,
+        )
+    )
+    assert isinstance(receipt, AdmissionReceipt)
+
+
+def claim_of(store: LogStore, run_id: str) -> Transition:
+    return store.claim(
+        run_id,
+        1,
+        harness=cases.REVISION,
+        nonce=f"nonce-{run_id}",
+        launch=f"launch-{run_id}",
+        rules=RULES,
+    )
+
+
+def test_two_attempts_claiming_at_once_admit_exactly_one_holder(rig: Rig) -> None:
+    """The first claimant is held after its transition is decided, its attempt row locked
+    and the slot not yet; the second claims to completion in between, since nothing it
+    locks is held; released, the first finds the slot taken and appends nothing."""
+    plain, _ = admitted_and_claimed(rig, upto=1)
+    admitted_other(rig, plain)
+    hold = Hold("decided")
+    first = rig.store(boundary=hold)
+    second = rig.store()
+    with ThreadPoolExecutor(2) as pool:
+        claiming = pool.submit(claim_of, first, "run-12")
+        hold.wait_reached()
+        taken = claim_of(second, "run-13")
+        hold.release.set()
+        refused = claiming.result(10)
+    assert isinstance(taken, Appended)
+    assert refused == Refused(
+        "the host's execution slot is held by run run-13 attempt 1 at generation 1"
+    )
+    holder = plain.execution_slot()
+    assert isinstance(holder, SlotHolder) and (holder.run_id, holder.attempt) == ("run-13", 1)
+    assert kinds(plain) == [("admitted", None)], "the refused claim appended nothing"

@@ -36,6 +36,19 @@ the offset and the guarantee is the store's and not the caller's threading. ``no
 the same clock with no lock, for a worker in a new segment measuring the re-dispatch delay
 from a timestamp an earlier segment logged (the ruling on re-dispatch, part 3).
 
+**The execution slot** (the demo milestone's live-path ruling, the commands step) is one
+row of this schema, locked last in the order and only by the commands that can change
+who holds the host: a claim, after the transition admits it, is refused while another
+attempt holds the slot and otherwise takes it (a recovery of the holder's own attempt
+takes it over at the new generation); the one row-update path clears it in the same
+transaction as the event that ends the holder's segment or closes the attempt, and only
+when the holder is that attempt at that generation, so an outside producer's append on an
+attempt that no longer holds the host leaves the holder as it is. The slot says who owns
+the authoritative writes, never whether that process is alive: a sweeper reads the holder
+and decides by rules of its own, and a closure under its judgment is what releases a dead
+holder. Two paths that never see each other, the operator's work container and the
+worker service, meet here.
+
 **The settlement** is computed where the lock is: a closing event arrives with no
 settlement and leaves with the one ``settle`` gives over the state's account, at the
 ledger revision the settled entry was written at, in the same transaction (the ruling on
@@ -141,11 +154,21 @@ from leaveimpact.core.run_timing import HarnessRevision, require_commit
 from leaveimpact.core.run_trace import require_integer, require_opaque_id
 from leaveimpact.core.timeshape import decode_instant, encode_instant
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 """The schema this code writes and reads; a connection to another version is refused. The
 number names the layout and nothing else: it advances with every change to the DDL that
 lands in a commit, whether or not any database holds the layout before it (the store
-group's review, second read). 2: the admission request's inputs digest and ledger."""
+group's review, second read). 2: the admission request's inputs digest and ledger. 6: the
+execution slot, the first version a deployed log crossed."""
+
+ADVANCED_FROM: frozenset[int] = frozenset({5})
+"""The earlier versions ``ensure_schema`` brings to ``SCHEMA_VERSION`` by applying the DDL
+as it stands (the app store's mechanism, brought here at the live-path commands step when
+the deployed log first had to cross a version): every change between them is additive, a
+table created where missing and its singleton row inserted where absent, so the one
+idempotent file is the whole migration and no row of data is altered. A version outside
+this set and not the current one is refused, since the DDL says nothing about how to reach
+the current layout from it."""
 
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
@@ -236,6 +259,18 @@ class LedgerView:
 
     head: LedgerHead
     entries: tuple[LedgerEntry, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class SlotHolder:
+    """The attempt holding the host's execution slot: the generation and the launch
+    identity of the claim that took it, and the log's instant of that claim."""
+
+    run_id: str
+    attempt: int
+    generation: int
+    launch: str
+    claimed_at: datetime
 
 
 @dataclass(frozen=True, slots=True)
@@ -360,7 +395,18 @@ _SELECT_SUPERSEDED = """
     FROM publication_superseded WHERE run_id = %s AND attempt = %s
     ORDER BY recorded_at, reader_commit
 """
+_SELECT_SLOT = "SELECT run_id, attempt, generation, launch, claimed_at FROM execution_slot"
+_LOCK_SLOT = _SELECT_SLOT + " FOR UPDATE"
+_SET_SLOT = """
+    UPDATE execution_slot
+    SET run_id = %s, attempt = %s, generation = %s, launch = %s, claimed_at = %s
+"""
+_CLEAR_SLOT = """
+    UPDATE execution_slot
+    SET run_id = NULL, attempt = NULL, generation = NULL, launch = NULL, claimed_at = NULL
+"""
 _SELECT_VERSION = "SELECT version FROM log_schema"
+_ADVANCE_VERSION = "UPDATE log_schema SET version = %s WHERE version = ANY(%s)"
 _SNAPSHOT_ISOLATION = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
 _SNAPSHOT_ATTEMPTS = """
     SELECT run_id, attempt, generation, segments, positions, closed, log_format, ledger_id
@@ -430,13 +476,26 @@ class LogStore:
     # --- preparation -------------------------------------------------------------------
 
     def ensure_schema(self) -> None:
-        """The tables created where missing and the version row written where absent, then
-        the version checked; never alters an existing table."""
+        """The version read first and a database at a version this code neither writes nor
+        advances from refused before anything is applied; then, in one transaction, the
+        tables created where missing and the slot row inserted where absent, the version
+        row written where absent or advanced from a version in ``ADVANCED_FROM``, and the
+        version checked; never alters an existing table or a row of data. The transaction
+        means a database is at its old version with its old layout or at the new one with
+        the new, never between (the app store's bootstrap, whose order this follows)."""
         ddl = resources.files(__package__).joinpath("log_schema.sql").read_text(encoding="utf-8")
         with self._guarded(check_version=False) as conn:
+            held = _version_held(conn)
+            if held is not None and held != SCHEMA_VERSION and held not in ADVANCED_FROM:
+                raise LogStoreInvariantBroken(
+                    f"this code reads and writes log schema version {SCHEMA_VERSION}, the "
+                    f"database holds version {held}, which it does not advance from; nothing "
+                    "was applied"
+                )
             with conn.transaction():
                 conn.execute(ddl.encode())
                 conn.execute(_INSERT_VERSION, (SCHEMA_VERSION,))
+                conn.execute(_ADVANCE_VERSION, (SCHEMA_VERSION, sorted(ADVANCED_FROM)))
             _check_version(conn)
 
     # --- admission ---------------------------------------------------------------------
@@ -641,7 +700,9 @@ class LogStore:
     ) -> Transition:
         """The ruling on one writer, part 3: the next segment under the next generation in
         one transaction; a retry under a held nonce gets its receipt back and opens nothing,
-        unless a later claim fenced it."""
+        unless a later claim fenced it. Refused, with the holder named, while another
+        attempt holds the host's execution slot (see the module); a claim that is admitted
+        takes the slot in the same transaction."""
         event = SegmentStarted(harness, nonce, launch, override)
         with self._guarded() as conn, conn.transaction():
             row = self._lock(conn, run_id, attempt)
@@ -671,7 +732,14 @@ class LogStore:
             transition = next_state(current, logged, rules)
             self._boundary("decided")
             if isinstance(transition, Appended):
+                holder = self._lock_slot(conn)
+                if holder is not None and (holder.run_id, holder.attempt) != (run_id, attempt):
+                    return Refused(
+                        f"the host's execution slot is held by run {holder.run_id} attempt "
+                        f"{holder.attempt} at generation {holder.generation}"
+                    )
                 self._insert(conn, transition.state, logged, claim_nonce=nonce)
+                conn.execute(_SET_SLOT, (run_id, attempt, transition.state.generation, launch, at))
             self._boundary("before-commit")
             return transition
 
@@ -827,6 +895,20 @@ class LogStore:
         with self._guarded() as conn, conn.transaction():
             rows = conn.execute(_OPEN_ATTEMPTS).fetchall()
         return tuple(AttemptRef(str(run_id), int(attempt)) for run_id, attempt in rows)
+
+    def execution_slot(self) -> SlotHolder | None:
+        """The attempt holding the host's execution slot, read with no lock, or ``None`` when
+        the host is free: what a sweeper reads before it decides whether the holder is a
+        running process or a dead one, a question this store cannot answer (the live-path
+        commands step, fork 5)."""
+        with self._guarded() as conn, conn.transaction():
+            row = conn.execute(_SELECT_SLOT).fetchone()
+        if row is None:
+            raise LogStoreInvariantBroken(
+                "the execution slot row is missing: the schema is not at this version; run "
+                "ensure_schema"
+            )
+        return _holder_of(row)
 
     # --- the ledger --------------------------------------------------------------------
 
@@ -1216,7 +1298,11 @@ class LogStore:
         *,
         claim_nonce: str | None = None,
     ) -> None:
-        """The event's row and the counters the state after it gives."""
+        """The event's row and the counters the state after it gives; the execution slot
+        cleared when the event ends the last segment or closes the attempt and this attempt
+        at this generation holds it (the live-path commands step, the release by ownership:
+        an append by an attempt that is not the holder leaves the slot as it is). The slot
+        is locked only on such an event, so an ordinary append never touches it."""
         inputs = after.inputs
         assert inputs is not None
         conn.execute(
@@ -1244,6 +1330,27 @@ class LogStore:
                 inputs.attempt,
             ),
         )
+        segment_ended = bool(after.segments) and after.segments[-1].ended
+        if after.closed is None and not segment_ended:
+            return
+        holder = self._lock_slot(conn)
+        if holder is not None and (holder.run_id, holder.attempt, holder.generation) == (
+            inputs.run_id,
+            inputs.attempt,
+            after.generation,
+        ):
+            conn.execute(_CLEAR_SLOT)
+
+    def _lock_slot(self, conn: Connection) -> SlotHolder | None:
+        """The slot row locked, last in the order (run, attempt, ledger head, slot); its
+        holder, or ``None`` when the host is free."""
+        row = conn.execute(_LOCK_SLOT).fetchone()
+        if row is None:
+            raise LogStoreInvariantBroken(
+                "the execution slot row is missing: the schema is not at this version; run "
+                "ensure_schema"
+            )
+        return _holder_of(row)
 
     # --- the ledger's rows -------------------------------------------------------------
 
@@ -1386,6 +1493,16 @@ def _inputs_digest(inputs: FrozenInputs) -> str:
     return event_digest(Admitted(inputs), log_format=inputs.log_format_version)
 
 
+def _version_held(conn: Connection) -> int | None:
+    """The version row's value, or ``None`` for a database with no log schema or no row
+    (the bootstrap's first read, before anything is applied)."""
+    try:
+        row = conn.execute(_SELECT_VERSION).fetchone()
+    except psycopg.errors.UndefinedTable:
+        return None
+    return None if row is None else int(row[0])
+
+
 def _check_version(conn: Connection) -> None:
     try:
         row = conn.execute(_SELECT_VERSION).fetchone()
@@ -1400,6 +1517,13 @@ def _check_version(conn: Connection) -> None:
             f"this code reads and writes log schema version {SCHEMA_VERSION}, the database "
             f"holds version {row[0]}"
         )
+
+
+def _holder_of(row: tuple[Any, ...]) -> SlotHolder | None:
+    run_id, attempt, generation, launch, claimed_at = row
+    if run_id is None:
+        return None
+    return SlotHolder(str(run_id), int(attempt), int(generation), str(launch), claimed_at)
 
 
 def _matches(row: _Row, state: AttemptState) -> bool:
@@ -1546,6 +1670,7 @@ def _decode_result(run_id: str, attempt: int, value: object) -> AdmissionResult:
 
 
 __all__ = [
+    "ADVANCED_FROM",
     "SCHEMA_VERSION",
     "AdmissionReceipt",
     "AdmissionRefusal",
@@ -1563,6 +1688,7 @@ __all__ = [
     "PublicationRecord",
     "PublicationStatus",
     "RefusedRequest",
+    "SlotHolder",
     "SnapshotAttempt",
     "SnapshotEntry",
     "SnapshotLedger",

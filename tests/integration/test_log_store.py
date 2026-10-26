@@ -23,6 +23,16 @@ one record is a conflict, a failed record is repaired under another reader and s
 
 *Faults.* Another schema version and a missing bootstrap refuse the connection; a conflict's
 formatted traceback names no content of the inputs.
+
+*The execution slot* (the demo milestone's live-path commands step). A claim is refused
+while another attempt holds the host and admitted once the holder's segment ends or its
+attempt closes; the release is by ownership, so a closure of an attempt that no longer
+holds the slot leaves the holder as it is, and a fenced generation's append cannot release
+what the takeover holds.
+
+*The advance.* A populated database at the previous version is brought to this one by the
+bootstrap, twice without change, every log's digest and every open attempt as before; a
+version the code does not advance from is refused before anything is applied.
 """
 
 from __future__ import annotations
@@ -61,6 +71,7 @@ from leaveimpact.agent.log_events import (
 )
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import (
+    ADVANCED_FROM,
     SCHEMA_VERSION,
     AdmissionReceipt,
     AdmissionRefusal,
@@ -1012,3 +1023,165 @@ def test_an_attempt_that_exists_at_an_older_format_gives_its_receipt_under_any_r
     with pytest.raises(ValueError, match="writes log format 4; a new admission at format 3"):
         store.admit(replace(request, request_id=request_id(), inputs=replace(older, attempt=2)))
     assert store.open_attempts() == (AttemptRef("run-12", 1),)
+
+
+# --- The execution slot ----------------------------------------------------------------------
+
+
+def under_run(events: tuple[LoggedEvent, ...], run_id: str) -> tuple[LoggedEvent, ...]:
+    """The history as the log of ``run_id``'s attempt: the admission's frozen inputs renamed,
+    every later event as it is (nothing after position 1 names the run)."""
+    first = events[0]
+    admitted = first.event
+    assert isinstance(admitted, Admitted)
+    return (replace(first, event=Admitted(replace(admitted.inputs, run_id=run_id))), *events[1:])
+
+
+def holder_fields(store: LogStore) -> tuple[str, int, int, str] | None:
+    holder = store.execution_slot()
+    if holder is None:
+        return None
+    return holder.run_id, holder.attempt, holder.generation, holder.launch
+
+
+def test_a_claim_is_refused_while_another_attempt_holds_the_slot_and_admitted_once_free(
+    rig: Rig,
+) -> None:
+    store = opened(rig)
+    events = histories.HISTORIES["a cut call"]()
+    first = events[1].event
+    assert isinstance(first, SegmentStarted)
+    assert store.execution_slot() is None, "a bootstrapped schema holds a free slot"
+    held = replay(store, events, upto=2)
+    assert holder_fields(store) == ("run-12", 1, 1, first.launch)
+    other = replay(store, under_run(events, "run-13"), upto=1)
+    refused = store.claim(
+        "run-13", 1, harness=cases.REVISION, nonce="nonce-13", launch="launch-13", rules=RULES
+    )
+    assert refused == Refused(
+        "the host's execution slot is held by run run-12 attempt 1 at generation 1"
+    )
+    assert holder_fields(store) == ("run-12", 1, 1, first.launch)
+    assert store.open_attempts() == (AttemptRef("run-12", 1), AttemptRef("run-13", 1))
+    ended = store.append(
+        "run-12", 1, WorkerStamp(1, 1, 10), SegmentEnded(), rules=RULES, state=held
+    )
+    assert isinstance(ended, Appended)
+    assert store.execution_slot() is None, "a segment end releases the holder's slot"
+    taken = store.claim(
+        "run-13",
+        1,
+        harness=cases.REVISION,
+        nonce="nonce-13",
+        launch="launch-13",
+        rules=RULES,
+        state=other,
+    )
+    assert isinstance(taken, Appended)
+    assert holder_fields(store) == ("run-13", 1, 1, "launch-13")
+    closed = store.close_attempt(
+        "run-13",
+        1,
+        OPERATOR,
+        Abandoned(1, AbandonmentReason.CANCELLED, None),
+        rules=RULES,
+        state=taken.state,
+    )
+    assert isinstance(closed, Appended)
+    assert store.execution_slot() is None, "a closure releases the holder's slot"
+
+
+def test_the_slot_is_released_by_its_holder_alone(rig: Rig) -> None:
+    """The release is by ownership: A ends its segment and releases, B claims, and an
+    outside producer closes A; B's slot is untouched. Then a takeover of B holds the slot at
+    the new generation, the fenced worker's segment end releases nothing, and the new
+    generation's does."""
+    store = opened(rig)
+    events = histories.HISTORIES["a cut call"]()
+    a = replay(store, events, upto=2)
+    a_ended = store.append("run-12", 1, WorkerStamp(1, 1, 10), SegmentEnded(), rules=RULES, state=a)
+    assert isinstance(a_ended, Appended)
+    b = replay(store, under_run(events, "run-13"), upto=1)
+    b_claimed = store.claim(
+        "run-13",
+        1,
+        harness=cases.REVISION,
+        nonce="nonce-b1",
+        launch="launch-b",
+        rules=RULES,
+        state=b,
+    )
+    assert isinstance(b_claimed, Appended)
+    assert holder_fields(store) == ("run-13", 1, 1, "launch-b")
+    a_closed = store.close_attempt(
+        "run-12",
+        1,
+        OPERATOR,
+        Abandoned(1, AbandonmentReason.CANCELLED, None),
+        rules=RULES,
+        state=a_ended.state,
+    )
+    assert isinstance(a_closed, Appended)
+    assert holder_fields(store) == ("run-13", 1, 1, "launch-b"), "A's closure is not B's release"
+    taken_over = store.claim(
+        "run-13", 1, harness=cases.REVISION, nonce="nonce-b2", launch="launch-b2", rules=RULES
+    )
+    assert isinstance(taken_over, Appended) and taken_over.state.generation == 2
+    assert holder_fields(store) == ("run-13", 1, 2, "launch-b2")
+    fenced = store.append(
+        "run-13", 1, WorkerStamp(1, 1, 10), SegmentEnded(), rules=RULES, state=b_claimed.state
+    )
+    assert isinstance(fenced, Refused)
+    assert holder_fields(store) == ("run-13", 1, 2, "launch-b2"), "a fenced append releases nothing"
+    ended = store.append(
+        "run-13", 1, WorkerStamp(2, 2, 10), SegmentEnded(), rules=RULES, state=taken_over.state
+    )
+    assert isinstance(ended, Appended)
+    assert store.execution_slot() is None
+
+
+# --- The schema's advance --------------------------------------------------------------------
+
+
+def closing_histories() -> list[str]:
+    """The histories whose last event closes the attempt, so each releases the slot for the
+    next when replayed in one schema."""
+    return [
+        name
+        for name, build in histories.HISTORIES.items()
+        if isinstance(build()[-1].event, Completed | CapExhausted | Failed | Abandoned | Declined)
+    ]
+
+
+def test_a_populated_database_at_the_previous_version_is_advanced_by_the_bootstrap(
+    rig: Rig,
+) -> None:
+    """The deployed log was at version 5 when the slot joined the schema (the first version
+    it crossed): the previous layout is the current one without the slot table, so a
+    populated schema is put at it by dropping that table and setting the row; the bootstrap
+    advances it in one transaction, twice without change, and no row of data moves."""
+    assert (SCHEMA_VERSION, sorted(ADVANCED_FROM)) == (6, [5])
+    store = opened(rig)
+    names = closing_histories()
+    assert len(names) >= 3
+    digests: dict[str, str] = {}
+    for index, name in enumerate(names):
+        run_id = f"run-h{index}"
+        replay(store, under_run(histories.HISTORIES[name](), run_id))
+        digests[run_id] = log_digest(store.events(run_id, 1))
+    assert store.execution_slot() is None and store.open_attempts() == ()
+    conn = rig.connections[max(rig.connections)]
+    conn.execute("DROP TABLE execution_slot")
+    conn.execute("UPDATE log_schema SET version = 5")
+    with pytest.raises(LogStoreInvariantBroken, match="holds version 5"):
+        rig.store().open_attempts()
+    for _ in range(2):
+        rig.store().ensure_schema()
+    advanced = rig.store()
+    assert advanced.execution_slot() is None
+    assert advanced.open_attempts() == ()
+    assert {run_id: log_digest(advanced.events(run_id, 1)) for run_id in digests} == digests
+    conn.execute("UPDATE log_schema SET version = 4")
+    with pytest.raises(LogStoreInvariantBroken, match="does not advance from"):
+        rig.store().ensure_schema()
+    assert conn.execute("SELECT version FROM log_schema").fetchone() == (4,), "nothing applied"
