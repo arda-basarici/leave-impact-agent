@@ -168,7 +168,11 @@ the deployed log first had to cross a version): every change between them is add
 table created where missing and its singleton row inserted where absent, so the one
 idempotent file is the whole migration and no row of data is altered. A version outside
 this set and not the current one is refused, since the DDL says nothing about how to reach
-the current layout from it."""
+the current layout from it. The advance to 6 brings the slot in empty, so its precondition
+is that no process owns an open segment while the bootstrap runs: the deploy establishes
+it (nothing was open at the first crossing, and the worker service's deploy drains it
+before the bootstrap), and an attempt whose segment is open across the advance holds
+nothing afterwards until its next claim."""
 
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
@@ -264,13 +268,20 @@ class LedgerView:
 @dataclass(frozen=True, slots=True)
 class RecordedAdmission:
     """A recorded admission request as the lookup by identity reports it: the run and
-    attempt it asked for, whether it was admitted or refused, and when it was recorded."""
+    attempt it asked for, whether it was admitted or refused, when it was recorded, and
+    the refusal's reason (``None`` for an admitted one), so a repeat of a refused request
+    is answered with what refused it."""
 
     request_id: str
     run_id: str
     attempt: int
     admitted: bool
     recorded_at: datetime
+    reason: str | None = None
+
+    def __post_init__(self) -> None:
+        if self.admitted == (self.reason is not None):
+            raise ValueError("a refusal carries its reason and an admission none")
 
 
 @dataclass(frozen=True, slots=True)
@@ -419,7 +430,8 @@ _SELECT_SUPERSEDED = """
     ORDER BY recorded_at, reader_commit
 """
 _SELECT_RECORDED = """
-    SELECT run_id, attempt, outcome, recorded_at FROM admission_request WHERE request_id = %s
+    SELECT run_id, attempt, outcome, recorded_at, result FROM admission_request
+    WHERE request_id = %s
 """
 _SELECT_ADMITTED_BY = """
     SELECT a.run_id, a.attempt, e.recorded_at, a.closed
@@ -942,9 +954,15 @@ class LogStore:
             row = conn.execute(_SELECT_RECORDED, (request_id,)).fetchone()
         if row is None:
             return None
-        run_id, attempt, outcome, recorded_at = row
+        run_id, attempt, outcome, recorded_at, result = row
+        decoded = _decode_result(str(run_id), int(attempt), result)
         return RecordedAdmission(
-            request_id, str(run_id), int(attempt), outcome == "admitted", recorded_at
+            request_id,
+            str(run_id),
+            int(attempt),
+            outcome == "admitted",
+            recorded_at,
+            decoded.reason if isinstance(decoded, AdmissionRefusal) else None,
         )
 
     def admitted_by(

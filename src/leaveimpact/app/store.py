@@ -3,9 +3,13 @@ by the deploy and checked by every read, over connections bounded on the connect
 each statement.
 
 The surface serves a replay only when an app-owned table of publishable attempts holds it
-(the demo milestone's publishability ruling); that table and its version row live here, in
-``schema.sql`` beside this module, and never in the log's schema, so the investigator's
-store learns nothing about what the demo publishes. The log store keeps one connection for
+(the demo milestone's publishability ruling); that table, the live table beside it (one
+row per attempt a visitor started: the capability's hash and the decision as recorded, the
+live-path commands step) and the version row live here, in ``schema.sql`` beside this
+module, and never in the log's schema, so the investigator's store learns nothing about
+what the demo publishes. The public start's rules serialize here too, on an advisory lock
+of this store's connection (``start_section``), since the rules count what the log holds
+and the log's own transaction is on another connection. The log store keeps one connection for
 a worker's lifetime under a ten-second connect timeout and no statement bound, the right
 discipline for a process that owns one attempt and the wrong one for a web request: this
 store opens a fresh connection per operation, three seconds to connect and three per
@@ -36,20 +40,26 @@ from typing import Any, cast
 
 import psycopg
 
+from leaveimpact.app.live import Decision, LiveDraft, LiveRow
 from leaveimpact.app.public import PublicationDraft, PublicId, PublishableRow
 from leaveimpact.core.ids import ScenarioId, WorldVersion
 from leaveimpact.core.jsonshape import JsonObject
 
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
+Boundary = Callable[[str], None]
+"""The seam a two-connection test holds a side at, called with the point's name: the
+start's section at ``start-locked`` (the advisory lock held, nothing read) and
+``start-before-commit`` (the rows written, the transaction open); a no-op by default."""
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 """The layout this code writes and reads; a database at another version is refused. The
 number names the layout and nothing else, advancing with every change to the DDL that
 lands in a commit. Version 2 (the demo milestone's backup step) added the ``ledger_capture``
-view and nothing else."""
+view and nothing else; version 3 (the live-path commands step) added the ``live_attempt``
+table and nothing else."""
 
-ADVANCED_FROM: frozenset[int] = frozenset({1})
+ADVANCED_FROM: frozenset[int] = frozenset({1, 2})
 """The earlier versions the bootstrap brings to ``SCHEMA_VERSION`` by applying the DDL as it
 stands: every change between them was additive (a view created or replaced, a table created
 where missing), so the one idempotent DDL file is the whole migration and no step alters a
@@ -90,6 +100,29 @@ _INSERT_ROW = (
     "(public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by) "
     f"VALUES (%s, %s, %s, %s, %s, %s, now(), %s) RETURNING {_ROW}"
 )
+# The start's publishable row carries the admission's instant, not the clock's: the row
+# and the live row beside it say the one moment the log recorded.
+_INSERT_ROW_AT = (
+    "INSERT INTO publishable_attempt "
+    "(public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by) "
+    "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
+)
+# The public start's serialization point: a transaction-scoped advisory lock keyed by the
+# schema and the ledger, taken before anything is read, the corpus loader's shape (a row
+# lock covers no row that is not there yet, and the rules count rows that may not exist).
+# The schema in the key keeps two schemas of one database (the test rigs) apart.
+_LOCK_STARTS = "SELECT pg_advisory_xact_lock(hashtext(current_schema() || ':start:' || %s))"
+_LIVE = "public_id, run_id, attempt, key_digest, started_at, decision, decided_at"
+_SELECT_LIVE = f"SELECT {_LIVE} FROM live_attempt WHERE public_id = %s"
+_SELECT_LIVE_OF_ATTEMPT = f"SELECT {_LIVE} FROM live_attempt WHERE run_id = %s AND attempt = %s"
+_INSERT_LIVE = (
+    "INSERT INTO live_attempt (public_id, run_id, attempt, key_digest, started_at) "
+    f"VALUES (%s, %s, %s, %s, %s) RETURNING {_LIVE}"
+)
+
+
+def _no_boundary(name: str) -> None:
+    return None
 
 
 class AppStoreUnavailable(Exception):
@@ -157,9 +190,12 @@ class AppStore:
     """The app schema over one database; construction does no I/O, every operation opens
     and closes its own bounded connection."""
 
-    def __init__(self, *, dsn: str, connect: Connect = connect_bounded) -> None:
+    def __init__(
+        self, *, dsn: str, connect: Connect = connect_bounded, boundary: Boundary = _no_boundary
+    ) -> None:
         self._dsn = dsn
         self._connect = connect
+        self._boundary = boundary
 
     def ensure_schema(self) -> None:
         """The version read first and a database at a version this code neither writes nor
@@ -277,6 +313,37 @@ class AppStore:
         assert written is not None, "an insert with RETURNING yields its row"
         return Published(_row_of(written))
 
+    # --- the live table ----------------------------------------------------------------
+
+    def live_row_of(self, public_id: PublicId) -> LiveRow | None:
+        """The live row ``public_id`` names, ``None`` when the attempt was not started by a
+        visitor (a replay the operator published has none). The version check and one
+        statement."""
+        with self._connection() as conn:
+            row = conn.execute(_SELECT_LIVE, (public_id,)).fetchone()
+        return None if row is None else _live_of(row)
+
+    @contextmanager
+    def start_section(self, ledger_id: str) -> Generator[StartSection]:
+        """The public start's critical section (the live-path commands step, fork 1 as
+        amended): one connection, one transaction, the advisory lock keyed by ``ledger_id``
+        taken first, so every public start against one ledger runs its rules one at a time
+        and the log's admission, made on the log's own connection while the lock is held,
+        commits inside the section. The yielded writer reads and writes the live rows on
+        the section's connection; the transaction commits when the block ends and rolls
+        back on an exception leaving it (the log's admission, already committed, then
+        stands with no row: the orphan the next start counts from the log and the sweeper
+        closes at the wait's deadline). The lock order is this lock then the log's locks,
+        and the log never takes this one, so no cycle. The version check, the lock and
+        the writer's statements, each under the statement bound: a start that waits on the
+        lock longer than the bound is cancelled and ``AppStoreUnavailable``, as any
+        blocked statement of this module is."""
+        with self._connection() as conn, conn.transaction():
+            conn.execute(_LOCK_STARTS, (ledger_id,))
+            self._boundary("start-locked")
+            yield StartSection(conn)
+            self._boundary("start-before-commit")
+
     @contextmanager
     def _connection(self, *, check_version: bool = True) -> Generator[Connection]:
         """One operation's connection, the schema version checked on it first unless the
@@ -308,6 +375,54 @@ class AppStore:
             ) from exc
 
 
+class StartSection:
+    """The writer a start holds inside its critical section: the live rows read and
+    written on the section's connection, inside its transaction, so a crash before the
+    block ends leaves none of them."""
+
+    def __init__(self, conn: Connection) -> None:
+        self._conn = conn
+
+    def live_row_of_attempt(self, run_id: str, attempt: int) -> LiveRow | None:
+        """The live row of ``attempt`` of ``run_id``, ``None`` when the start that admitted
+        it never wrote one (a crash between the log's commit and this section's)."""
+        row = self._conn.execute(_SELECT_LIVE_OF_ATTEMPT, (run_id, attempt)).fetchone()
+        return None if row is None else _live_of(row)
+
+    def write(self, publishable: PublicationDraft, live: LiveDraft) -> LiveRow:
+        """The publishable row and the live row of one started attempt, the publishable
+        one dated at the live one's ``started_at``; the two name one attempt and one public
+        id, or ``ValueError``. The constraints decide what the section's lock did not: a
+        public id or an attempt already in either table raises on the server, an
+        invariant of this module and never a visitor's outcome, since the section's rules
+        read the log before any write."""
+        if (publishable.public_id, publishable.run_id, publishable.attempt) != (
+            live.public_id,
+            live.run_id,
+            live.attempt,
+        ):
+            raise ValueError("the publishable row and the live row name one attempt")
+        self._conn.execute(
+            _INSERT_ROW_AT,
+            (
+                publishable.public_id,
+                publishable.run_id,
+                publishable.attempt,
+                publishable.world_version,
+                publishable.scenario_id,
+                publishable.title,
+                live.started_at,
+                publishable.published_by,
+            ),
+        )
+        written = self._conn.execute(
+            _INSERT_LIVE,
+            (live.public_id, live.run_id, live.attempt, live.key_digest, live.started_at),
+        ).fetchone()
+        assert written is not None, "an insert with RETURNING yields its row"
+        return _live_of(written)
+
+
 def _refusal_of(
     draft: PublicationDraft, by_id: PublishableRow | None, by_attempt: PublishableRow | None
 ) -> AlreadyPublished | SlugTaken | AttemptPublished | PublicationConflict:
@@ -334,6 +449,19 @@ def _row_of(row: tuple[Any, ...]) -> PublishableRow:
         None if title is None else str(title),
         published_at,
         str(published_by),
+    )
+
+
+def _live_of(row: tuple[Any, ...]) -> LiveRow:
+    public_id, run_id, attempt, key_digest, started_at, decision, decided_at = row
+    return LiveRow(
+        PublicId(str(public_id)),
+        str(run_id),
+        int(attempt),
+        str(key_digest),
+        started_at,
+        None if decision is None else Decision(str(decision)),
+        decided_at,
     )
 
 

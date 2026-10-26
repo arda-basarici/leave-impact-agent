@@ -59,6 +59,7 @@ from leaveimpact.agent.log_events import (
     LOG_FORMAT_VERSION,
     Abandoned,
     Admitted,
+    ApprovalRequested,
     CapExhausted,
     Completed,
     Declined,
@@ -1165,7 +1166,15 @@ def test_a_populated_database_at_the_previous_version_is_advanced_by_the_bootstr
     """The deployed log was at version 5 when the slot joined the schema (the first version
     it crossed): the previous layout is the current one without the slot table, so a
     populated schema is put at it by dropping that table and setting the row; the bootstrap
-    advances it in one transaction, twice without change, and no row of data moves."""
+    advances it in one transaction, twice without change, and no row of data moves: the
+    closed histories, an attempt admitted and never claimed, one paused at a human approval
+    with its segment ended, and one holding the slot with its segment open, each with its
+    digest and its open state as before. The advance brings the slot in empty, so an
+    attempt with an open segment at the advance holds nothing afterwards: the advance's
+    precondition is that no process owns an open segment while the bootstrap runs, which
+    the deploy establishes (nothing was open at the first crossing; the worker service's
+    deploy drains it before the bootstrap), and the one such attempt here shows what the
+    slot says if it is not met."""
     assert (SCHEMA_VERSION, sorted(ADVANCED_FROM)) == (6, [5])
     store = opened(rig)
     names = closing_histories()
@@ -1176,6 +1185,41 @@ def test_a_populated_database_at_the_previous_version_is_advanced_by_the_bootstr
         replay(store, under_run(histories.HISTORIES[name](), run_id))
         digests[run_id] = log_digest(store.events(run_id, 1))
     assert store.execution_slot() is None and store.open_attempts() == ()
+    cut = histories.HISTORIES["a cut call"]()
+    replay(store, under_run(cut, "run-unclaimed"), upto=1)
+    with_request = next(
+        build()
+        for build in histories.HISTORIES.values()
+        if any(isinstance(logged.event, ApprovalRequested) for logged in build())
+    )
+    requested = next(
+        index
+        for index, logged in enumerate(with_request)
+        if isinstance(logged.event, ApprovalRequested)
+    )
+    pausing = replay(store, under_run(with_request, "run-paused"), upto=requested + 1)
+    generation = pausing.generation
+    paused = store.append(
+        "run-paused",
+        1,
+        WorkerStamp(generation, generation, 100_000),
+        SegmentEnded(),
+        rules=RULES,
+        state=pausing,
+    )
+    assert isinstance(paused, Appended)
+    running = replay(store, under_run(cut, "run-running"), upto=2)
+    claim = cut[1].event
+    assert isinstance(claim, SegmentStarted)
+    assert holder_fields(store) == ("run-running", 1, 1, claim.launch)
+    open_attempts = (
+        AttemptRef("run-paused", 1),
+        AttemptRef("run-running", 1),
+        AttemptRef("run-unclaimed", 1),
+    )
+    assert store.open_attempts() == open_attempts
+    for run_id in ("run-unclaimed", "run-paused", "run-running"):
+        digests[run_id] = log_digest(store.events(run_id, 1))
     conn = rig.connections[max(rig.connections)]
     conn.execute("DROP TABLE execution_slot")
     conn.execute("UPDATE log_schema SET version = 5")
@@ -1184,9 +1228,17 @@ def test_a_populated_database_at_the_previous_version_is_advanced_by_the_bootstr
     for _ in range(2):
         rig.store().ensure_schema()
     advanced = rig.store()
-    assert advanced.execution_slot() is None
-    assert advanced.open_attempts() == ()
+    assert advanced.execution_slot() is None, "the advance brings the slot in empty"
+    assert advanced.open_attempts() == open_attempts
     assert {run_id: log_digest(advanced.events(run_id, 1)) for run_id in digests} == digests
+    for run_id in ("run-unclaimed", "run-paused"):
+        assert advanced.load(run_id, 1, rules=RULES).closed is None
+    assert advanced.load("run-paused", 1, rules=RULES).approval_requested is not None
+    ended = advanced.append(
+        "run-running", 1, WorkerStamp(1, 1, 10), SegmentEnded(), rules=RULES, state=running
+    )
+    assert isinstance(ended, Appended), "an unslotted open segment still ends; nothing to clear"
+    assert advanced.execution_slot() is None
     conn.execute("UPDATE log_schema SET version = 4")
     with pytest.raises(LogStoreInvariantBroken, match="does not advance from"):
         rig.store().ensure_schema()
@@ -1199,7 +1251,8 @@ def test_a_populated_database_at_the_previous_version_is_advanced_by_the_bootstr
 def test_a_recorded_request_is_found_by_its_identity_admitted_or_refused(rig: Rig) -> None:
     """The lookup answers a recorded request, admitted or refused, with the run and attempt
     it asked for, and nothing for an identity never recorded; a refusal is recorded too,
-    since the start must answer a repeat of a refused request as refused and not as new."""
+    with its reason, since the start must answer a repeat of a refused request as refused
+    and not as new, and say what refused it."""
     store = opened(rig)
     events = histories.HISTORIES["a cut call"]()
     admitted, admitter = admission_of(events)
@@ -1213,11 +1266,12 @@ def test_a_recorded_request_is_found_by_its_identity_admitted_or_refused(rig: Ri
     )
     assert isinstance(store.admit(unheaded), AdmissionRefusal)
     recorded = store.recorded_admission(unheaded.request_id)
-    assert recorded is not None and (recorded.run_id, recorded.attempt, recorded.admitted) == (
-        "run-14",
-        1,
-        False,
-    )
+    assert recorded is not None and (
+        recorded.run_id,
+        recorded.attempt,
+        recorded.admitted,
+        recorded.reason,
+    ) == ("run-14", 1, False, "ledger ledger-unset has no head: no threshold is set on it")
     assert store.recorded_admission("req-never") is None
 
 

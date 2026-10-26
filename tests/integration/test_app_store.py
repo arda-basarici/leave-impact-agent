@@ -1,7 +1,9 @@
 """The demo surface's store over the real PostgreSQL: the app schema applied beside the log's
 in one schema, idempotent and versioned, read as unsupported before the bootstrap and after
-a version the code does not know; the publishable table's reference to the log's attempt
-row refusing a row for an attempt the log does not hold; the statement bound cancelling a
+a version the code does not know, a populated database at either earlier version advanced
+by the bootstrap; the publishable table's reference to the log's attempt row refusing a
+row for an attempt the log does not hold, and the live table's constraints (its references,
+its two uniquenesses, the decision written with its instant); the statement bound cancelling a
 read a lock holds past three seconds, the next read clean; the publication's five outcomes
 over admitted attempts, the identical repeat keeping the first timestamp, two publications
 racing on one name and on one attempt decided by the constraints; the listing's reads; and
@@ -26,8 +28,10 @@ from leaveimpact.agent.log_store import LogStore
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.__main__ import main
 from leaveimpact.app.config import DemoConfiguration
+from leaveimpact.app.live import Decision
 from leaveimpact.app.public import PublicationDraft, PublicId, PublishableRow
 from leaveimpact.app.store import (
+    ADVANCED_FROM,
     SCHEMA_VERSION,
     STATEMENT_TIMEOUT_MS,
     AlreadyPublished,
@@ -168,6 +172,74 @@ def test_a_version_one_database_is_advanced_by_the_bootstrap_and_gains_the_view(
         ).fetchall()
         versions = observer.execute(in_schema(rig, "SELECT version FROM {}.app_schema")).fetchall()
     assert views == [("ledger_capture",)] and versions == [(SCHEMA_VERSION,)]
+
+
+def test_a_populated_version_two_database_is_advanced_by_the_bootstrap_and_gains_the_live_table(
+    rig: Rig,
+) -> None:
+    """The instance's database was at version 2 when the live table joined the schema (the
+    live-path commands step): the previous layout is the current one without that table,
+    so a populated schema is put at it by dropping the table and setting the row; the
+    bootstrap advances it, twice without change, the published rows as before and the live
+    table present and empty. Nothing can be open in it at the advance: a live row exists
+    only once the code at version 3 wrote it."""
+    assert (SCHEMA_VERSION, sorted(ADVANCED_FROM)) == (3, [1, 2])
+    store = admitted_runs(rig)
+    published = store.publish(draft("twelve", "run-12", "a title"))
+    assert isinstance(published, Published)
+    before = store.rows_for(SERVED)
+    with rig.observer() as observer:
+        observer.execute(in_schema(rig, "DROP TABLE {}.live_attempt"))
+        observer.execute(in_schema(rig, "UPDATE {}.app_schema SET version = 2"))
+    assert store.schema_supported() is False
+    for _ in range(2):
+        store.ensure_schema()
+    assert store.schema_supported() is True
+    assert store.rows_for(SERVED) == before
+    assert store.live_row_of(PublicId("twelve")) is None
+    with rig.observer() as observer:
+        tables = observer.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = %s",
+            (rig.schema,),
+        ).fetchall()
+        count = observer.execute(in_schema(rig, "SELECT count(*) FROM {}.live_attempt")).fetchone()
+    assert ("live_attempt",) in tables and count == (0,)
+
+
+def test_the_live_table_holds_the_constraints_the_start_and_the_decision_rely_on(rig: Rig) -> None:
+    """A live row needs its publishable row and its attempt row; one key digest and one
+    attempt start one live row; a decision and its instant are written together."""
+    store = admitted_runs(rig)
+    assert isinstance(store.publish(draft("twelve", "run-12")), Published)
+    digest = "a" * 64
+    insert = in_schema(
+        rig,
+        "INSERT INTO {}.live_attempt (public_id, run_id, attempt, key_digest, started_at) "
+        "VALUES (%s, %s, %s, %s, now())",
+    )
+    with rig.observer() as observer:
+        with pytest.raises(psycopg.errors.ForeignKeyViolation):
+            observer.execute(insert, ("thirteen", "run-13", 1, digest))
+        observer.execute(insert, ("twelve", "run-12", 1, digest))
+        assert isinstance(store.publish(draft("thirteen", "run-13")), Published)
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            observer.execute(insert, ("thirteen", "run-13", 1, digest))
+        with pytest.raises(psycopg.errors.UniqueViolation):
+            observer.execute(insert, ("thirteen", "run-12", 1, "b" * 64))
+        with pytest.raises(psycopg.errors.CheckViolation):
+            observer.execute(
+                in_schema(rig, "UPDATE {}.live_attempt SET decision = 'approved'"),
+            )
+        with pytest.raises(psycopg.errors.CheckViolation):
+            observer.execute(
+                in_schema(rig, "UPDATE {}.live_attempt SET decision = 'maybe', decided_at = now()"),
+            )
+        observer.execute(
+            in_schema(rig, "UPDATE {}.live_attempt SET decision = 'declined', decided_at = now()"),
+        )
+    row = store.live_row_of(PublicId("twelve"))
+    assert row is not None and row.decision is Decision.DECLINED and row.decided_at is not None
+    assert store.live_row_of(PublicId("thirteen")) is None
 
 
 CAPTURE_STATEMENT = (

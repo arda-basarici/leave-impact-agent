@@ -70,3 +70,25 @@ LEFT JOIN (
       )
     GROUP BY admitted.ledger_id
 ) AS open_entries ON open_entries.ledger_id = head.ledger_id;
+
+-- One row per attempt a visitor started (the live-path commands step): the public id of
+-- the publishable row the start wrote beside it, the attempt, the SHA-256 of the key the
+-- initiating browser holds (the request identity the log recorded the admission under,
+-- and the capability's hash the decision route compares with; the key itself is stored
+-- nowhere), the log's instant of the admission, and the decision as the decision command
+-- recorded it, null until then. No deadline column: it derives from the approval
+-- request's instant on the log and the configured wait. The log is the authority for
+-- every column here; a row that disagrees with it is repaired under its lock, never
+-- trusted. Version 3 added this table and nothing else.
+CREATE TABLE IF NOT EXISTS live_attempt (
+    public_id       text        PRIMARY KEY REFERENCES publishable_attempt (public_id),
+    run_id          text        NOT NULL,
+    attempt         integer     NOT NULL,
+    key_digest      text        NOT NULL UNIQUE,
+    started_at      timestamptz NOT NULL,
+    decision        text        CHECK (decision IN ('approved', 'declined')),
+    decided_at      timestamptz,
+    CHECK ((decision IS NULL) = (decided_at IS NULL)),
+    UNIQUE (run_id, attempt),
+    FOREIGN KEY (run_id, attempt) REFERENCES attempt (run_id, attempt)
+);
