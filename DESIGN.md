@@ -1707,6 +1707,18 @@ reader accepts bytes only when their re-encoding reproduces them, so one export 
 one byte sequence. Formats 1 and 2 are not read: no export of record was written in
 either, and their bytes refuse by version.
 
+Format 4 (the demo milestone's live-path step, 2026-10-26) adds the `Declined` ending,
+and with it the first reader of an older format: the decoders admit a declared readable
+set, 3 and 4, a decoded export keeps the version its bytes carry, and an export states
+its log in the format the log was admitted under, so a sealed log re-exports to its
+sealed bytes under every later reader and a publication's two digests regenerate from
+the log alone, which the instance's thirty published replays showed on the day
+(`verify-publications`, thirty of thirty). The number moved first with no vocabulary
+behind it, so the cross-version read was proved on bytes that differ in nothing else; a
+format 3 export holding the newer word is refused, the inventory moved to format 2
+reading 1 beside it on the same rule, and the written log format is the only one a new
+attempt is admitted at.
+
 Format 3 holds what the event log produces and format 2 could not state. An attempt
 admitted and never claimed exports with zero segments: failed by infrastructure at the
 abandoned site, no operation, call or approval, zero active time, elapsed from
@@ -3323,7 +3335,7 @@ segment end, so one pure function takes the attempt's state and an event and giv
 next state or a refusal, the appender runs it under the lock against the state on the
 row, and the reader folds it over the whole log before it builds an export; the rules
 are written once and not again as database constraints, and unknown kinds fail loudly.
-Sixteen kinds exist, each with a written key specification and what it needs in the
+Seventeen kinds exist, each with a written key specification and what it needs in the
 prefix, and the state they fold to keeps the events and a few derived fields, every
 per-call, per-count and per-operation view a projection over the events so no two
 fields can disagree. A log format version covering codecs and canonicalization is set
@@ -3331,6 +3343,13 @@ on the row at admission and immutable; a worker claims only an attempt of the ex
 format it writes, a reader may support older ones, and no open attempt is migrated.
 The database schema's version, the log format's and the export format's are three
 numbers with their own compatibility rules.
+
+As built at the live-path step (2026-10-26): the log at format 4 reading 3, the export
+at 4 reading 3, the inventory at 2 reading 1; a kind a format added (the decline, the
+seventeenth) is refused in a log admitted before it; the cited log digest and the
+admission identity hash the log's own format, so a digest cited under format 3
+reproduces under the format 4 writer, pinned for the sixteen hand-built histories and
+read on the instance's thirty publications.
 
 **Admission is one transaction that reserves, creates the attempt and freezes its
 inputs, and the settlement rides the closing event.** The admitter writes the ledger's
@@ -4411,6 +4430,17 @@ maximum reservation under the threshold, and the page says so); single flight wi
 queue; a wall-clock bound beside the registered caps. Abuse is held by the cap and an
 edge rate limit, no accounts and no CAPTCHA until abuse is observed.
 
+As built at step 12 (2026-10-26; the blast radius enumerated before the build, ten
+forks ruled, three external reads answered): the `Declined` event is a producer's over
+the requested payload's digest with the settlement, admitted only on an outstanding
+request and never after an approval; the export states the declined status with a
+declined approval by a human and the request's stamp; eligibility refuses a successor
+under its own rule on both sides; the grader excludes a declined run under its own
+reason, and an evaluation refuses a scope holding one, by export or by inventory ending;
+the decline command closes and settles through the store's closing transaction, a later
+repeat under the same digest the decline already made. The capability, the deadline and
+the public row are the commands step's.
+
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
 against per-run compute is not established and is recorded as unknown), its criteria
@@ -4617,8 +4647,8 @@ vision's deferred list.
   the log, and partial model text is not report content (the demo passage in the
   deployment section).
 - **A human declining a plan**: closed 2026-10-19, a first-class `Declined` ending,
-  human and terminal, a log format bump built in the demo milestone (the live-path
-  passage).
+  human and terminal, a log format bump; built 2026-10-26 at the demo milestone's step
+  12 (the live-path passage and the event log passage carry the as-built notes).
 - **The ephemeral-compute probe**: closed 2026-10-19 as declined unrun (the
   future-work item carries the reason and the trigger).
 - **The world the demo serves and what a release may contain**: closed 2026-10-19,

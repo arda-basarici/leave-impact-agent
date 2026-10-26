@@ -4940,3 +4940,54 @@ to the edge, which the script now survives with a retry count it reports. The tw
 of the raw scan are superseded by this one; their verdicts stand on the embargo half (the
 stream bodies' escaped text could hide a cited digest from them, and the decoded read of the
 same bodies found none).
+
+## declined-ending — log format 4 with the `Declined` ending, the first reader of an older format: the pinned digests held, the crawl held on 124 pages, thirty publications reproduced on the instance (2026-10-26)
+
+**What changed.** The written log, export and inventory formats moved to 4, 4 and 2, each
+decoder reading a declared set (log and export 3 and 4, inventory 1 and 2) and a decoded
+document keeping the version its bytes carry; an export states its log in the log's own
+format; the cited log digest and the admission identity hash the log's own format; the
+store admits a new attempt only at the written format and answers a request recorded under
+an older one as recorded. Then the vocabulary: the `Declined` event (the seventeenth kind,
+a producer's over the requested payload's digest with the settlement), the declined status
+and approval with the record's ties, eligibility not permitted on both sides, the grader's
+exclusion and the artifact's refusal of a declined scope, the decline command, the three
+renderers, and `python -m leaveimpact.app verify-publications` with its sender. Commits
+`a7d3083` (the formats), `0f2662e` (the vocabulary), `fee2a44` (the command and the second
+read's fixes), then the sender's three; CI green and deployed at each.
+
+**The number moved first with nothing behind it.** Group 1 bumped the three numbers with
+no new vocabulary, so the only thing the group could break was version handling, and a
+fixture of the sixteen hand-built histories' log digests and admission identities,
+computed on an exported copy of the tree before the bump, held under the new writer with
+the histories re-stamped to format 3: sixteen of sixteen on both digests
+(`tests/fixtures/format3-digests-c83392b.json`; the first write of that file was truncated
+by the shell pipe that wrote it and found by the suite, not by a read-back). The real
+format 3 export of the published set (`tests/fixtures/replay-scenario-004-export.json`)
+decodes at 3 and re-encodes byte for byte to its sidecar's sha256.
+
+**On the instance.** After the vocabulary group's deploy the public crawl held on all 124
+pages through the edge (376 s, every page 200, two reads retried after a timeout): the
+public pages render the format 3 logs under the format 4 code. After the command's deploy
+(`fee2a44`), `verify-publications` run from the workstation over SSM read every published
+row of the served world: thirty replays, each a format 3 log exporting at format 3, the
+log digest and the export digest regenerated under the deployed code equal to the
+publication record's, "30 of 30 replays reproduce" (the per-replay event counts ran
+from 32 to 63). The sender needed three one-line fixes
+before it ran from PowerShell through git's bash: that bash's own tools were not on PATH,
+the AWS CLI reads no `/tmp`, and the first sender did not propagate the host's failure.
+
+**The three external reads.** The formats group: one P3, the admission docstring claiming
+a refusal the branch order does not make, narrowed with a test. The vocabulary group: two
+P2 and a P3, each reproduced on the source: an automatic decline and a declined record
+without its request stamp were accepted, the artifact's guard read exports and not the
+inventory's endings, and a format 1 inventory admitted the declined approval; all three
+fixed in the command's commit with negative tests. The command's group: one P2, the
+sender's exit codes, fixed with six cases on the tree's fake `aws`. Every suite green
+locally on each pushed tree except the vocabulary group's unit and crash levels, which
+ran in CI only by the operator's call after a memory stop; CI green throughout.
+
+**What this does not show.** No decline has been made on the instance: the first real one
+is the live path's, behind the flag, at the commands step and the acceptance after it.
+The format bump's reader is proved on the fixtures and on thirty sealed rows, not on a
+format 4 log read by a later format; that reading has no reader yet.
