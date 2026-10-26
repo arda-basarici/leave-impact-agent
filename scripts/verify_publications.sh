@@ -21,13 +21,16 @@
 # read was uncertain: no running host, the poll deadline passed, or the CLI kept failing.
 set -euo pipefail
 
+# Git's bash started by its path from PowerShell carries PowerShell's PATH, without its
+# own coreutils (the first run found no `mktemp`); appended, so a test's fakes stay first.
+export PATH="$PATH:/usr/bin"
 export AWS_PROFILE=${AWS_PROFILE:-leave-impact}
 REGION=${LEAVE_IMPACT_AWS_REGION:-eu-central-1}
 POLL_SECONDS=${POLL_SECONDS:-10}
 POLL_FAILURES_BOUND=${POLL_FAILURES_BOUND:-6}
 EXECUTION_TIMEOUT=${EXECUTION_TIMEOUT:-900}
 DEADLINE_SECONDS=${DEADLINE_SECONDS:-1200}
-OUT_DIR=${OUT_DIR:-$(mktemp -d)}
+OUT_DIR=${OUT_DIR:-${TMPDIR:-/tmp}/verify-publications-$$}
 mkdir -p "$OUT_DIR"
 
 instance=$(aws ec2 describe-instances --region "$REGION" \
