@@ -452,6 +452,11 @@ _CLEAR_SLOT = """
     UPDATE execution_slot
     SET run_id = NULL, attempt = NULL, generation = NULL, launch = NULL, claimed_at = NULL
 """
+# Session-level, so it outlives the transactions inside the block and dies with the
+# connection, together with any transaction that connection had open; the schema in the
+# key keeps two schemas of one database (the test rigs) apart.
+_LOCK_SESSION = "SELECT pg_advisory_lock(hashtext(current_schema() || ':' || %s))"
+_UNLOCK_SESSION = "SELECT pg_advisory_unlock(hashtext(current_schema() || ':' || %s))"
 _SELECT_VERSION = "SELECT version FROM log_schema"
 _ADVANCE_VERSION = "UPDATE log_schema SET version = %s WHERE version = ANY(%s)"
 _SNAPSHOT_ISOLATION = "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
@@ -986,6 +991,31 @@ class LogStore:
             AdmittedAttempt(str(run_id), int(attempt), admitted_at, bool(closed))
             for run_id, attempt, admitted_at, closed in rows
         )
+
+    @contextmanager
+    def serialized(self, name: str) -> Generator[None]:
+        """Every caller of this block under ``name`` runs one at a time, by a session-level
+        advisory lock on this store's connection: the public start's serialization point
+        (the live-path commands step, fork 1 as amended at group 2's external read). The
+        lock is on the connection that commits the admission, so it is held exactly as
+        long as that connection lives: a caller whose connection dies inside the block
+        loses the lock and its open transaction together, and one whose admission
+        committed is counted by the next holder. The first build put the lock on the app
+        store's connection, and a start whose app backend died during its admission
+        released the lock while its admission went on to commit, which admitted a sixth
+        attempt against a cap of five on the real store. The boundary ``serialized`` is
+        called once the lock is held. Released on the way out; a connection this module
+        dropped on a fault has released it already."""
+        with self._guarded() as conn:
+            conn.execute(_LOCK_SESSION, (name,))
+        self._boundary("serialized")
+        try:
+            yield
+        finally:
+            if self._connection is not None:
+                # A failure here means the connection is gone, and the lock with it.
+                with suppress(LogStoreUnavailable), self._guarded() as conn:
+                    conn.execute(_UNLOCK_SESSION, (name,))
 
     def execution_slot(self) -> SlotHolder | None:
         """The attempt holding the host's execution slot, read with no lock, or ``None`` when

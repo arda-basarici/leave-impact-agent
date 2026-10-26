@@ -19,7 +19,8 @@ three points of a writing command so an ordering test reads the same names.
 from __future__ import annotations
 
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Generator
+from contextlib import contextmanager
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
@@ -125,6 +126,9 @@ class MemoryLog:
     attempt, so the room is the threshold whole, where the store judges against the
     ledger head's running total."""
     lock: threading.Lock = field(default_factory=threading.Lock)
+    serial: threading.Lock = field(default_factory=threading.Lock)
+    """The store's session-level lock: held across the commands inside ``serialized``,
+    apart from ``lock``, which each command takes and releases on its own."""
 
     # --- seeding -----------------------------------------------------------------------
 
@@ -168,6 +172,14 @@ class MemoryLog:
     def now(self) -> datetime:
         with self.lock:
             return self.clock()
+
+    @contextmanager
+    def serialized(self, name: str) -> Generator[None]:
+        """The store's session-level lock: one holder of the block at a time, the commands
+        inside it taking the command lock as they always do."""
+        with self.serial:
+            self.boundary("serialized")
+            yield
 
     def admit(self, request: AdmissionRequest) -> AdmissionResult:
         """The store's admission over this log, under its lock: a recorded request answered

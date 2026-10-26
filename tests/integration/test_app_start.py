@@ -1,8 +1,10 @@
 """The public start over the real stores: an admission by the demo's admitter with both
 rows read back from the app's tables and the request recorded in the log under the key's
 digest, a repeat the same row; two starts at the cap on two connections admitting exactly
-the cap, the second serialized on the app's advisory lock and refused by its own count
-(history 8); a crash between the log's commit and the section's leaving the admission
+the cap, the second serialized on the log's session lock and refused by its own count
+(history 8), and the same with the first held inside its admission's transaction and its
+app side dying, the external read's history, where a lock on the app's connection had
+admitted a sixth; a crash between the log's commit and the section's leaving the admission
 with no rows, counted by the next start as busy and given its rows by the repeat
 (history 7); the day's window on the log's clock, the sixth start refused and the first of
 the next UTC day admitted; and the ledger's refusal recorded under the key and answered as
@@ -74,28 +76,16 @@ def composition(**changes: object) -> StartComposition:
     return StartComposition(**fields)  # type: ignore[arg-type]
 
 
-@dataclass
-class Recording:
-    """The connections an app store opened, so a race test finds a backend's pid."""
-
-    connections: list[psycopg.Connection[Any]]
-
-
-def app_store(
-    rig: Rig, *, boundary: Callable[[str], None] | None = None, recording: Recording | None = None
-) -> AppStore:
+def app_store(rig: Rig, *, boundary: Callable[[str], None] | None = None) -> AppStore:
     """The store over the rig's schema with the production statement bound."""
 
     def connect(dsn: str) -> psycopg.Connection[Any]:
-        conn = psycopg.connect(
+        return psycopg.connect(
             dsn,
             connect_timeout=10,
             autocommit=True,
             options=f"-c statement_timeout={STATEMENT_TIMEOUT_MS} -c search_path={rig.schema}",
         )
-        if recording is not None:
-            recording.connections.append(conn)
-        return conn
 
     extra: dict[str, Any] = {} if boundary is None else {"boundary": boundary}
     return AppStore(dsn=rig.url, connect=connect, **extra)
@@ -166,18 +156,16 @@ def test_a_start_admits_and_both_rows_and_the_recorded_request_are_read_back(rig
 
 def test_two_starts_at_the_cap_on_two_connections_admit_exactly_the_cap(rig: Rig) -> None:
     """History 8: four admitted and closed today; the fifth and the sixth start at once. The
-    first holds the advisory lock at ``start-locked`` while the server shows the second
+    first holds the log's session lock at ``serialized`` while the server shows the second
     waiting on it; released, the first counts four and admits, the second counts five and
     refuses by the cap. Exactly the cap is admitted, in that order, with no sleep."""
     log, store = prepared(rig)
     for number in range(1, 5):
         outcome = started(start(StartRequest(key(number), SCENARIO), log, store, composition()))
         closed(log, outcome.row.run_id)
-    hold = Hold("start-locked")
-    first_store = app_store(rig, boundary=hold)
-    recording = Recording([])
-    second_store = app_store(rig, recording=recording)
-    first_log, second_log = rig.store(), rig.store()
+    hold = Hold("serialized")
+    first_log, second_log = rig.store(boundary=hold), rig.store()
+    first_store, second_store = app_store(rig), app_store(rig)
     with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
         first = pool.submit(
             start, StartRequest(key(5), SCENARIO), first_log, first_store, composition()
@@ -186,9 +174,7 @@ def test_two_starts_at_the_cap_on_two_connections_admit_exactly_the_cap(rig: Rig
         second = pool.submit(
             start, StartRequest(key(6), SCENARIO), second_log, second_store, composition()
         )
-        while not recording.connections:
-            pass
-        wait_until_blocked(observer, int(recording.connections[0].info.backend_pid))
+        wait_until_blocked(observer, rig.backend_pid(second_log))
         hold.release.set()
         admitted = started(first.result(timeout=10))
         spent = refused(second.result(timeout=10), StartRefusalKind.BUDGET_SPENT)
@@ -278,3 +264,37 @@ def test_the_ledgers_refusal_is_recorded_under_the_key_and_a_repeat_answers_it(r
         StartRefusalKind.RESERVATION_REFUSED,
     )
     assert again.recorded and again.detail == first.detail
+
+
+def test_the_cap_holds_when_a_start_is_held_inside_its_admission_and_its_app_side_dies(
+    rig: Rig,
+) -> None:
+    """The external read's history on the real stores: four admitted and closed today; A
+    passes its checks and is held inside its admission's transaction, past the point where
+    a lock on the app's connection protected anything; B starts and must wait on A's
+    session lock, which lives on the connection committing A's admission. Released, A's
+    admission commits, A's app section dies and its rows are lost, and B counts five and
+    refuses. Before the fix, B counted four, waited on the ledger head instead, and
+    admitted a sixth against a cap of five with two attempts open, reproduced by a probe
+    on this rig."""
+    log, store = prepared(rig)
+    for number in range(1, 5):
+        outcome = started(start(StartRequest(key(number), SCENARIO), log, store, composition()))
+        closed(log, outcome.row.run_id)
+    hold = Hold("before-commit")
+    a_log, b_log = rig.store(boundary=hold), rig.store()
+    a_store, b_store = app_store(rig, boundary=DiesOnce("start-before-commit")), app_store(rig)
+    with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
+        a = pool.submit(start, StartRequest(key(5), SCENARIO), a_log, a_store, composition())
+        hold.wait_reached()
+        b = pool.submit(start, StartRequest(key(6), SCENARIO), b_log, b_store, composition())
+        wait_until_blocked(observer, rig.backend_pid(b_log))
+        hold.release.set()
+        with pytest.raises(RuntimeError, match="the process died"):
+            a.result(timeout=10)
+        spent = refused(b.result(timeout=10), StartRefusalKind.BUDGET_SPENT)
+    assert spent.detail == "today's budget is spent: 5 of 5 starts"
+    listed = log.admitted_by(DEMO_START, LEDGER, since=datetime(2000, 1, 1, tzinfo=UTC))
+    assert len(listed) == 5 and [each.closed for each in listed] == [True] * 4 + [False]
+    assert log.recorded_admission(key_digest_of(key(6))) is None, "nothing was asked of the log"
+    assert len(store.rows_for(SERVED)) == 4, "A's rows died with its section"

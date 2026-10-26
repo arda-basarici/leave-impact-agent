@@ -1,8 +1,8 @@
 """The demo surface's store in memory: the publishable and the live rows as lists, the
-store's reads over them, and the public start's critical section as one lock with the
-store's boundary names, its writes staged and kept only when the section ends without an
-exception, so a unit test of the start drives the lost rows of history 7 and the
-serialization of history 8 the way the real store's tests do.
+store's reads over them, and the start's section as one lock with the store's boundary
+name before its commit, its writes staged and kept only when the section ends without an
+exception, so a unit test of the start drives the lost rows of history 7 the way the real
+store's tests do.
 """
 
 from __future__ import annotations
@@ -52,11 +52,11 @@ class MemoryAppStore:
             return next((each for each in self.live if each.public_id == public_id), None)
 
     @contextmanager
-    def start_section(self, ledger_id: str) -> Generator[MemorySection]:
-        """The real store's section: the lock held for the block, the two boundary names,
-        the staged rows kept when the block ends and dropped when an exception leaves it."""
+    def start_section(self) -> Generator[MemorySection]:
+        """The real store's section: one transaction over the rows, the boundary name
+        before its commit, the staged rows kept when the block ends and dropped when an
+        exception leaves it."""
         with self.lock:
-            self.boundary("start-locked")
             section = MemorySection(self)
             yield section
             self.boundary("start-before-commit")

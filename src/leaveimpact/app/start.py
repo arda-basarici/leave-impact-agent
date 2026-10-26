@@ -2,15 +2,20 @@
 to the log under the demo's rules or refused by name, and the rows the pages read written
 beside the admission.
 
-**Where the rules serialize** (the live-path commands step, fork 1 as amended). The start
-holds the app store's advisory lock for the demo's ledger across the whole command, and
-every check it makes reads the log, never the live rows: the recorded request by its
-identity, then the admissions by the demo's admitter against the demo's ledger since the
-UTC day's start with their open state. The log's admission commits on the log's own
-connection while the lock is held, so an admission that got no live row (a crash between
-the two commits, history 7 of the step's forks) is counted by the next start from the
-moment it committed and no extra admission is possible; the live rows are a cache of
-page-facing facts and nothing the rules read.
+**Where the rules serialize** (the live-path commands step, fork 1 as amended at group 2's
+external read). The start runs its checks and the log's admission under the log store's
+session-level lock for the demo's ledger, on the connection that commits the admission:
+the recorded request by its identity, then the admissions by the demo's admitter against
+the demo's ledger since the UTC day's start with their open state, then the admission
+itself. The lock lives exactly as long as that connection, so a start whose connection
+dies inside the block loses the lock and its open transaction together, and a start whose
+admission committed is counted by the next holder from that moment; an admission that got
+no live row (a crash between the log's commit and the rows', history 7 of the step's
+forks) is counted all the same and no extra admission is possible. The first build held
+the lock on the app store's connection, and a start whose app backend died during its
+admission released the lock while the admission went on to commit, which admitted a sixth
+attempt against a cap of five on the real store. The live rows are a cache of page-facing
+facts, written in their own transaction after the admission, and nothing the rules read.
 
 **The order of the checks.** The recorded request first: a repeat of a request, a lost
 response resent or a start retried after a deploy that changed what the inputs would be,
@@ -22,7 +27,7 @@ the composition the deploy fixed. Then the day's count against the cap, by the a
 instants and never the tuple's length (the read lists older open ones too); then the
 single-open condition, by the closed flag; then the log's admission, whose refusal (the
 ledger's) is the recorded one and leaves nothing on the app side; then the publishable row
-and the live row in the section's transaction.
+and the live row in the app store's section.
 
 **The names.** The key's digest is the request identity, the run id and the public id are
 derived from it, and the admitter is one identity, ``demo-start``, which is what makes an
@@ -76,6 +81,8 @@ FIRST_ATTEMPT = 1
 class StartLog(Protocol):
     """The log's commands and reads a start uses, as the log store provides them."""
 
+    def serialized(self, name: str) -> AbstractContextManager[None]: ...
+
     def now(self) -> datetime: ...
 
     def recorded_admission(self, request_id: str) -> RecordedAdmission | None: ...
@@ -90,7 +97,7 @@ class StartLog(Protocol):
 
 
 class LiveWriter(Protocol):
-    """The live rows inside one start's critical section."""
+    """The live rows inside one section of the app store."""
 
     def live_row_of_attempt(self, run_id: str, attempt: int) -> LiveRow | None: ...
 
@@ -98,10 +105,9 @@ class LiveWriter(Protocol):
 
 
 class StartSections(Protocol):
-    """The app store's serialization point: the section every public start against a
-    ledger runs inside, one at a time."""
+    """The app store's section: one transaction over the rows of one started attempt."""
 
-    def start_section(self, ledger_id: str) -> AbstractContextManager[LiveWriter]: ...
+    def start_section(self) -> AbstractContextManager[LiveWriter]: ...
 
 
 Planner = Callable[[ScenarioId, str, int], FrozenInputs]
@@ -170,6 +176,15 @@ class StartRefused:
 StartOutcome = Started | StartRefused
 
 
+def serialization_name(ledger_id: str) -> str:
+    """The name every public start against ``ledger_id`` serializes under.
+
+    >>> serialization_name("ledger-demo")
+    'start:ledger-demo'
+    """
+    return f"start:{ledger_id}"
+
+
 def start(
     request: StartRequest, log: StartLog, sections: StartSections, composition: StartComposition
 ) -> StartOutcome:
@@ -179,10 +194,10 @@ def start(
     a visitor's outcome."""
     configuration = composition.configuration
     digest = key_digest_of(request.key)
-    with sections.start_section(configuration.ledger_id) as writer:
+    with log.serialized(serialization_name(configuration.ledger_id)):
         recorded = log.recorded_admission(digest)
         if recorded is not None:
-            return _as_recorded(recorded, writer, log, composition, digest)
+            return _as_recorded(recorded, sections, log, composition, digest)
         if not configuration.live_runs:
             return StartRefused(StartRefusalKind.LIVE_RUNS_OFF, "live runs are off")
         if not composition.world_served():
@@ -212,18 +227,19 @@ def start(
         )
         if not isinstance(result, AdmissionReceipt):
             return StartRefused(StartRefusalKind.RESERVATION_REFUSED, result.reason)
-        row = writer.write(
-            PublicationDraft(
-                public_id_for(digest),
-                run_id,
-                FIRST_ATTEMPT,
-                inputs.context.world_version,
-                inputs.context.scenario_id,
-                None,
-                DEMO_START.identity,
-            ),
-            LiveDraft(public_id_for(digest), run_id, FIRST_ATTEMPT, digest, result.recorded_at),
-        )
+        with sections.start_section() as writer:
+            row = writer.write(
+                PublicationDraft(
+                    public_id_for(digest),
+                    run_id,
+                    FIRST_ATTEMPT,
+                    inputs.context.world_version,
+                    inputs.context.scenario_id,
+                    None,
+                    DEMO_START.identity,
+                ),
+                LiveDraft(public_id_for(digest), run_id, FIRST_ATTEMPT, digest, result.recorded_at),
+            )
         return Started(row, repeated=False)
 
 
@@ -257,7 +273,7 @@ def _rule_refusal(
 
 def _as_recorded(
     recorded: RecordedAdmission,
-    writer: LiveWriter,
+    sections: StartSections,
     log: StartLog,
     composition: StartComposition,
     digest: str,
@@ -267,24 +283,27 @@ def _as_recorded(
     if not recorded.admitted:
         assert recorded.reason is not None, "a recorded refusal carries its reason"
         return StartRefused(StartRefusalKind.RESERVATION_REFUSED, recorded.reason, recorded=True)
-    row = writer.live_row_of_attempt(recorded.run_id, recorded.attempt)
-    if row is None:
-        inputs = log.load(recorded.run_id, recorded.attempt, rules=composition.rules).inputs
-        assert inputs is not None, "an admitted attempt's state holds its frozen inputs"
-        context = inputs.context
-        public_id = public_id_for(digest)
-        row = writer.write(
-            PublicationDraft(
-                public_id,
-                recorded.run_id,
-                recorded.attempt,
-                context.world_version,
-                context.scenario_id,
-                None,
-                DEMO_START.identity,
-            ),
-            LiveDraft(public_id, recorded.run_id, recorded.attempt, digest, recorded.recorded_at),
-        )
+    with sections.start_section() as writer:
+        row = writer.live_row_of_attempt(recorded.run_id, recorded.attempt)
+        if row is None:
+            inputs = log.load(recorded.run_id, recorded.attempt, rules=composition.rules).inputs
+            assert inputs is not None, "an admitted attempt's state holds its frozen inputs"
+            context = inputs.context
+            public_id = public_id_for(digest)
+            row = writer.write(
+                PublicationDraft(
+                    public_id,
+                    recorded.run_id,
+                    recorded.attempt,
+                    context.world_version,
+                    context.scenario_id,
+                    None,
+                    DEMO_START.identity,
+                ),
+                LiveDraft(
+                    public_id, recorded.run_id, recorded.attempt, digest, recorded.recorded_at
+                ),
+            )
     return Started(row, repeated=True)
 
 
@@ -302,5 +321,6 @@ __all__ = [
     "StartSections",
     "Started",
     "day_start_of",
+    "serialization_name",
     "start",
 ]

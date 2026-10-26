@@ -7,10 +7,11 @@ The surface serves a replay only when an app-owned table of publishable attempts
 row per attempt a visitor started: the capability's hash and the decision as recorded, the
 live-path commands step) and the version row live here, in ``schema.sql`` beside this
 module, and never in the log's schema, so the investigator's store learns nothing about
-what the demo publishes. The public start's rules serialize here too, on an advisory lock
-of this store's connection (``start_section``), since the rules count what the log holds
-and the log's own transaction is on another connection. The log store keeps one connection for
-a worker's lifetime under a ten-second connect timeout and no statement bound, the right
+what the demo publishes. The public start's two rows are written together in one
+transaction here (``start_section``); the start's rules serialize on the log store's own
+connection, the one that commits the admission, and never here. The log store keeps one
+connection for a worker's lifetime under a ten-second connect timeout and no statement
+bound, the right
 discipline for a process that owns one attempt and the wrong one for a web request: this
 store opens a fresh connection per operation, three seconds to connect and three per
 statement, and closes it before returning, so a request holds nothing while a browser
@@ -48,9 +49,9 @@ from leaveimpact.core.jsonshape import JsonObject
 Connection = psycopg.Connection[Any]
 Connect = Callable[[str], Connection]
 Boundary = Callable[[str], None]
-"""The seam a two-connection test holds a side at, called with the point's name: the
-start's section at ``start-locked`` (the advisory lock held, nothing read) and
-``start-before-commit`` (the rows written, the transaction open); a no-op by default."""
+"""The seam a test holds a side at, called with the point's name: the start's section at
+``start-before-commit`` (the rows written, the transaction open), where a test lets the
+process die with the log's admission committed and the rows lost; a no-op by default."""
 
 SCHEMA_VERSION = 3
 """The layout this code writes and reads; a database at another version is refused. The
@@ -107,12 +108,7 @@ _INSERT_ROW_AT = (
     "(public_id, run_id, attempt, world_version, scenario_id, title, published_at, published_by) "
     "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)"
 )
-# The public start's serialization point: a transaction-scoped advisory lock keyed by the
-# schema and the ledger, taken before anything is read, the corpus loader's shape (a row
-# lock covers no row that is not there yet, and the rules count rows that may not exist).
-# The schema in the key keeps two schemas of one database (the test rigs) apart.
-_LOCK_STARTS = "SELECT pg_advisory_xact_lock(hashtext(current_schema() || ':start:' || %s))"
-_LIVE = "public_id, run_id, attempt, key_digest, started_at, decision, decided_at"
+_LIVE ="public_id, run_id, attempt, key_digest, started_at, decision, decided_at"
 _SELECT_LIVE = f"SELECT {_LIVE} FROM live_attempt WHERE public_id = %s"
 _SELECT_LIVE_OF_ATTEMPT = f"SELECT {_LIVE} FROM live_attempt WHERE run_id = %s AND attempt = %s"
 _INSERT_LIVE = (
@@ -324,23 +320,21 @@ class AppStore:
         return None if row is None else _live_of(row)
 
     @contextmanager
-    def start_section(self, ledger_id: str) -> Generator[StartSection]:
-        """The public start's critical section (the live-path commands step, fork 1 as
-        amended): one connection, one transaction, the advisory lock keyed by ``ledger_id``
-        taken first, so every public start against one ledger runs its rules one at a time
-        and the log's admission, made on the log's own connection while the lock is held,
-        commits inside the section. The yielded writer reads and writes the live rows on
-        the section's connection; the transaction commits when the block ends and rolls
-        back on an exception leaving it (the log's admission, already committed, then
-        stands with no row: the orphan the next start counts from the log and the sweeper
-        closes at the wait's deadline). The lock order is this lock then the log's locks,
-        and the log never takes this one, so no cycle. The version check, the lock and
-        the writer's statements, each under the statement bound: a start that waits on the
-        lock longer than the bound is cancelled and ``AppStoreUnavailable``, as any
-        blocked statement of this module is."""
+    def start_section(self) -> Generator[StartSection]:
+        """The rows of one started attempt, written in one transaction on one connection:
+        the yielded writer reads a live row by attempt and writes the publishable row and
+        the live row together; the transaction commits when the block ends and rolls back
+        on an exception leaving it, so the two rows exist together or not at all. This
+        section serializes nothing: the public start's rules and the log's admission run
+        under the log store's own session-level lock, on the connection that commits the
+        admission, and this block is entered after that admission committed (the live-path
+        commands step, fork 1 as amended at group 2's external read: a lock on this
+        store's connection died with that connection while the admission went on to
+        commit). A crash before the block ends leaves the admission with no rows, the
+        orphan the next start counts from the log and the sweeper closes at the wait's
+        deadline. The version check and the writer's statements, each under the statement
+        bound."""
         with self._connection() as conn, conn.transaction():
-            conn.execute(_LOCK_STARTS, (ledger_id,))
-            self._boundary("start-locked")
             yield StartSection(conn)
             self._boundary("start-before-commit")
 
