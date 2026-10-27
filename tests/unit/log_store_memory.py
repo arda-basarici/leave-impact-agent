@@ -25,6 +25,7 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 
 from leaveimpact.agent import ledger
+from leaveimpact.agent.inventory import PublicationRecord
 from leaveimpact.agent.ledger import LedgerEntry, LedgerHead
 from leaveimpact.agent.log_events import (
     Abandoned,
@@ -54,8 +55,10 @@ from leaveimpact.agent.log_store import (
     AdmissionRequest,
     AdmissionResult,
     AdmittedAttempt,
+    AttemptRef,
     LogStoreConflict,
     RecordedAdmission,
+    SlotHolder,
 )
 from leaveimpact.agent.log_transition import (
     Appended,
@@ -129,6 +132,15 @@ class MemoryLog:
     serial: threading.Lock = field(default_factory=threading.Lock)
     """The store's session-level lock: held across the commands inside ``serialized``,
     apart from ``lock``, which each command takes and releases on its own."""
+    slot: SlotHolder | None = None
+    """The host's execution slot as the store keeps it: taken by an admitted claim,
+    refused to another attempt's claim while held, cleared by ownership when the holder's
+    event ends its segment or closes the attempt (the live-path commands step, fork 5)."""
+    publications: dict[tuple[str, int], PublicationRecord] = field(
+        default_factory=dict[tuple[str, int], PublicationRecord]
+    )
+    """A publication record per attempt, set by a test; the store's publication commands
+    are not mirrored, so a test of a publishing pass runs over the real store."""
 
     # --- seeding -----------------------------------------------------------------------
 
@@ -290,6 +302,37 @@ class MemoryLog:
             ]
         return tuple(sorted(listed, key=lambda each: (each.admitted_at, each.run_id, each.attempt)))
 
+    def open_attempts(self) -> tuple[AttemptRef, ...]:
+        with self.lock:
+            return tuple(
+                AttemptRef(run_id, attempt)
+                for (run_id, attempt), log in sorted(self.logs.items())
+                if not _is_closed(log)
+            )
+
+    def execution_slot(self) -> SlotHolder | None:
+        with self.lock:
+            return self.slot
+
+    def publication_of(self, run_id: str, attempt: int) -> PublicationRecord | None:
+        with self.lock:
+            return self.publications.get((run_id, attempt))
+
+    def _release(self, run_id: str, attempt: int, after: AttemptState) -> None:
+        """The store's release by ownership: the slot cleared when the state after the
+        event ends its last segment or closes the attempt and this attempt at this
+        generation holds it; under ``lock``."""
+        segment_ended = bool(after.segments) and after.segments[-1].ended
+        if after.closed is None and not segment_ended:
+            return
+        holder = self.slot
+        if holder is not None and (holder.run_id, holder.attempt, holder.generation) == (
+            run_id,
+            attempt,
+            after.generation,
+        ):
+            self.slot = None
+
     def claim(
         self,
         run_id: str,
@@ -329,8 +372,17 @@ class MemoryLog:
             transition = next_state(current, logged, rules)
             self.boundary("decided")
             if isinstance(transition, Appended):
+                holder = self.slot
+                if holder is not None and (holder.run_id, holder.attempt) != (run_id, attempt):
+                    return Refused(
+                        f"the host's execution slot is held by run {holder.run_id} attempt "
+                        f"{holder.attempt} at generation {holder.generation}"
+                    )
                 log.append(logged)
                 self.nonces[(run_id, attempt, nonce)] = logged
+                self.slot = SlotHolder(
+                    run_id, attempt, transition.state.generation, launch, logged.timestamp
+                )
             self.boundary("before-commit")
             return transition
 
@@ -363,6 +415,7 @@ class MemoryLog:
             self.boundary("decided")
             if isinstance(transition, Appended):
                 log.append(logged)
+                self._release(run_id, attempt, transition.state)
             self.boundary("before-commit")
             return transition
 
@@ -414,6 +467,7 @@ class MemoryLog:
                     self.entries.append(written[0])
                     self.heads[(run_id, attempt)] = written[1]
                 log.append(logged)
+                self._release(run_id, attempt, transition.state)
             self.boundary("before-commit")
             return transition
 

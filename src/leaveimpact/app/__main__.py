@@ -34,16 +34,25 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import sys
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import asdict
 from pathlib import Path
 from typing import TextIO, cast
 
 from leaveimpact.adapters.corpus.adapter import served_versions
+from leaveimpact.adapters.wiring import (
+    ConfigurationError,
+    inventory_publisher,
+    run_export_publisher,
+    world_store_from_env,
+)
+from leaveimpact.agent.commands import publish, write_inventory
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
 from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
-from leaveimpact.app.main import DATABASE, REGISTRATION_FILE
+from leaveimpact.app.main import CODE_VERSION, DATABASE, REGISTRATION_FILE
 from leaveimpact.app.public import public_id_of
 from leaveimpact.app.publication_check import PublicationReads, verify_publications
 from leaveimpact.app.publishing import PublishRefused, PublishRequest, draft_of
@@ -61,19 +70,44 @@ from leaveimpact.app.store import (
     SlugTaken,
     connect_bounded,
 )
+from leaveimpact.app.sweeper import (
+    PublishExport,
+    SweepAction,
+    SweepComposition,
+    WriteInventoryCommand,
+    sweep,
+)
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.run_timing import HarnessRevision, TreeState, require_commit
 
 BOOTSTRAP = "bootstrap"
 PUBLISH = "publish"
 VERIFY_RESTORE = "verify-restore"
 VERIFY_PUBLICATIONS = "verify-publications"
+SWEEP = "sweep"
 
 MakeStore = Callable[[str], AppStore]
 MakeLog = Callable[[str], LogSession]
 MakeRestoreLog = Callable[[str], LogStore]
 CacheVersions = Callable[[str], frozenset[WorldVersion]]
+SweepCommands = Callable[
+    [Mapping[str, str], LogStore, Rules], tuple[PublishExport, WriteInventoryCommand]
+]
+"""The two publication commands of a sweep, bound to the world store the environment names,
+the log and the rules; a test binds fakes."""
+
+
+def _sweep_commands_from_env(
+    env: Mapping[str, str], log: LogStore, rules: Rules
+) -> tuple[PublishExport, WriteInventoryCommand]:
+    world_store = world_store_from_env(env)
+    exporter, inventorier = run_export_publisher(world_store), inventory_publisher(world_store)
+    return (
+        lambda request: publish(request, log, exporter, rules=rules),
+        lambda request: write_inventory(request, log, inventorier, rules=rules),
+    )
 
 
 def _store_over(dsn: str) -> AppStore:
@@ -104,6 +138,7 @@ def main(
     restore_log: MakeRestoreLog = _log_store_over,
     cache: CacheVersions = served_versions,
     stdin: TextIO | None = None,
+    sweep_commands: SweepCommands = _sweep_commands_from_env,
 ) -> int:
     """``bootstrap`` applies the app schema to the database the environment names;
     ``publish --run <id> --attempt <n> --as <public-id> --by <who> [--title <t>]`` writes
@@ -112,9 +147,13 @@ def main(
     restore drill against the capture on ``stdin``, one line per check;
     ``verify-publications`` regenerates every published replay's log and export digests
     from its log under this code and holds them to its publication record, one line per
-    replay. 0 with the printed lines, 1 when a store refuses or does not answer, the attempt
-    is not publishable or a check failed, 2 on any other command line, an environment that
-    lacks the database or the registration, or a stdin that is not a JSON list."""
+    replay; ``sweep`` runs one pass of the sweeper over the demo's public attempts (the
+    reconciliations and the fifteen-minute close, the publications through the world
+    store the environment names), one line per action. 0 with the printed lines, 1 when a
+    store refuses or does not answer, the attempt is not publishable, a check failed or an
+    action was not carried, 2 on any other command line, an environment that lacks the
+    database, the registration or (for a sweep) the commit this code runs as, or a stdin
+    that is not a JSON list."""
     arguments = list(sys.argv[1:] if argv is None else argv)
     environment = os.environ if env is None else env
     try:
@@ -142,6 +181,10 @@ def main(
     if parsed.command == VERIFY_PUBLICATIONS:
         return _verify_publications(
             dsn, environment, store, restore_log, configuration, registration, rules
+        )
+    if parsed.command == SWEEP:
+        return _sweep(
+            dsn, environment, store, restore_log, sweep_commands, configuration, registration, rules
         )
     return _publish(parsed, dsn, environment, store, log, configuration, registration, rules)
 
@@ -180,6 +223,13 @@ def _parser() -> argparse.ArgumentParser:
         description=(
             "Every published replay's log and export digests regenerated from its log under "
             "this code and held to its publication record; one line per replay."
+        ),
+    )
+    commands.add_parser(
+        SWEEP,
+        description=(
+            "One pass of the sweeper over the demo's public attempts: the reconciliations, "
+            "the fifteen-minute close and the publications; one line per action."
         ),
     )
     return parser
@@ -305,6 +355,80 @@ def _verify_publications(
     passed = sum(check.passed for check in checks)
     print(f"verify-publications: {passed} of {len(checks)} replays reproduce")
     return 0 if checks and passed == len(checks) else 1
+
+
+def _sweep(
+    dsn: str,
+    environment: Mapping[str, str],
+    store: MakeStore,
+    restore_log: MakeRestoreLog,
+    sweep_commands: SweepCommands,
+    configuration: Callable[[], DemoConfiguration],
+    registration: Callable[[str], bytes],
+    rules: Callable[[DemoConfiguration, bytes], Rules],
+) -> int:
+    registration_file = environment.get(REGISTRATION_FILE, "").strip()
+    if not registration_file:
+        print(
+            f"leaveimpact.app: {REGISTRATION_FILE} is not set and the pass folds attempts "
+            "under the registration's rules",
+            file=sys.stderr,
+        )
+        return 2
+    code_version = environment.get(CODE_VERSION, "").strip()
+    try:
+        require_commit(code_version, "the commit this code runs as")
+    except ValueError as error:
+        print(
+            f"leaveimpact.app: {CODE_VERSION} names the commit the exports and inventories "
+            f"are built as: {error}",
+            file=sys.stderr,
+        )
+        return 2
+    try:
+        demo = configuration()
+        folding = rules(demo, registration(registration_file))
+    except (OSError, ValueError) as error:
+        print(f"leaveimpact.app: refused: {error}", file=sys.stderr)
+        return 1
+    log = restore_log(dsn)
+    try:
+        publish_export, write_inventory_command = sweep_commands(environment, log, folding)
+        composition = SweepComposition(
+            demo,
+            folding,
+            HarnessRevision(code_version, TreeState.CLEAN),
+            code_version,
+            publish_export,
+            write_inventory_command,
+            lambda: secrets.token_hex(16),
+        )
+        report = sweep(log, store(dsn), composition)
+    except (
+        AppStoreInvariantBroken,
+        AppStoreUnavailable,
+        ConfigurationError,
+        LogStoreInvariantBroken,
+        LogStoreUnavailable,
+    ) as error:
+        print(f"leaveimpact.app: refused: {error}", file=sys.stderr)
+        return 1
+    finally:
+        log.close()
+    for outcome in report:
+        print(
+            f"sweep: {_action_line(outcome.action)}: "
+            f"{'ok' if outcome.carried else 'NOT CARRIED'}: {outcome.detail}"
+        )
+    carried = sum(outcome.carried for outcome in report)
+    print(f"sweep: {carried} of {len(report)} actions carried")
+    return 0 if carried == len(report) else 1
+
+
+def _action_line(action: SweepAction) -> str:
+    """The action's kind and its fields, as the log line names it."""
+    fields = " ".join(f"{name}={value}" for name, value in asdict(action).items())
+    return f"{type(action).__name__} {fields}"
 
 
 def _bootstrap(app: AppStore) -> int:
