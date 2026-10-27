@@ -38,6 +38,14 @@ services:
       LEAVE_IMPACT_JIRA_EMAIL: ${LEAVE_IMPACT_JIRA_EMAIL:-}
       LEAVE_IMPACT_JIRA_TOKEN: ${LEAVE_IMPACT_JIRA_TOKEN:-}
       LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON:-}
+      # The proxy's subnet, from which the client address in the forwarded headers is
+      # trusted: Uvicorn reads this name from the environment when no flag names it,
+      # and the start route's per-address window counts the address it yields (the
+      # live-path commands step, fork 8). The value is the platform contract's `web`
+      # subnet row (platform/projects/leave-impact/README.md, row 27), a constant of the
+      # contract and not a parameter the deploy reads, so it is the literal here;
+      # tests/unit/test_compose_edge.py holds it to the row's value.
+      FORWARDED_ALLOW_IPS: 172.18.0.0/16
     # The service since the demo milestone's scaffold step: restarted on exit unless
     # stopped by hand, so a crash comes back and a deploy's stop stays stopped. The
     # restart policy governs container exits only; an unhealthy readiness below is a
