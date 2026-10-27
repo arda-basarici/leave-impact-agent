@@ -56,13 +56,19 @@ wording (fork 10): a condition that no longer holds is reported as the state's m
 nothing is done; the next pass reads the new state.
 
 **The inventory is remembered, not inferred from the publications.** The driver keeps,
-per scope, the latest publication instant the inventory it last wrote covered; the
-snapshot carries that memory, and a published attempt whose record is later than it, or
-a publication this pass makes, schedules the scope's inventory. A crash after a
-publication and before its inventory, or an inventory write that raised, leaves the
-memory behind the record, so the next pass writes it (group 3's external read: the first
-build scheduled the inventory beside an unpublished attempt only, and a death between
-the two left it unwritten for good). The memory is the process's: a restart rewrites
+per scope, the identities of the publications (the run, the attempt and the object's
+digest) the inventory it last wrote covered; the snapshot carries that memory, and a
+published attempt whose identity is not in it, or a publication this pass makes,
+schedules the scope's inventory, which then covers every published identity the
+snapshot showed and the pass's own. A crash after a publication and before its
+inventory, or an inventory write that raised, leaves the identity out of the memory, so
+the next pass writes it (group 3's external read: the first build scheduled the
+inventory beside an unpublished attempt only, and a death between the two left it
+unwritten for good). Identities and never instants: a publication made by another
+process, the operator's command among them, is as new to the memory as the pass's own
+whatever its record's instant says, where the first memory kept the latest instant and
+missed a record at or before it (the read's second round). The memory is the process's:
+a restart rewrites
 each scope's inventory once, a new object under a new digest, since an inventory carries
 the instant of the snapshot it was built from, and the sweep command, one process per
 pass, writes it on every pass that lists a published attempt. A durable marker on the
@@ -122,6 +128,9 @@ DEFAULT_LOOKBACK = timedelta(days=7)
 Scope = tuple[WorldVersion, str]
 """An inventory's scope on the demo's ledger: the world and the registration commit."""
 
+PublicationKey = tuple[str, int, str]
+"""A publication's identity: the run, the attempt and the digest of the object sealed."""
+
 
 class SweepLog(LogCommands, Protocol):
     """The log's commands and reads a pass uses, as the log store provides them."""
@@ -169,13 +178,15 @@ class SweptAttempt:
 @dataclass(frozen=True, slots=True)
 class SweepSnapshot:
     """What one pass decides over: the clock's instant, the public attempts in admission
-    order, the slot's holder, and per scope the latest publication instant the driver's
-    last inventory of it covered."""
+    order, the slot's holder, and per scope the publications the driver's last inventory
+    of it covered."""
 
     taken_at: datetime
     attempts: tuple[SweptAttempt, ...]
     slot: SlotHolder | None
-    inventoried: Mapping[Scope, datetime] = field(default_factory=dict[Scope, datetime])
+    inventoried: Mapping[Scope, frozenset[PublicationKey]] = field(
+        default_factory=dict[Scope, frozenset[PublicationKey]]
+    )
 
 
 # --- the actions -------------------------------------------------------------------------
@@ -216,13 +227,13 @@ class Publish:
 
 @dataclass(frozen=True, slots=True)
 class WriteInventory:
-    """Write the inventory of one scope, after the pass's publications; ``through`` is the
-    latest publication instant the snapshot showed in the scope, ``None`` when the pass
+    """Write the inventory of one scope, after the pass's publications; ``covering`` is
+    every published identity the snapshot showed in the scope, empty when the pass
     publishes the scope's first."""
 
     world_version: WorldVersion
     registration_commit: str
-    through: datetime | None
+    covering: frozenset[PublicationKey]
 
     @property
     def scope(self) -> Scope:
@@ -284,10 +295,11 @@ def actions_of(
     """The actions one pass takes over ``snapshot`` under ``configuration`` as the code at
     ``harness_commit``, in the order the module docstring states: the row repairs and the
     closures per attempt in admission order, the publications, then one inventory per
-    scope that a publication of the pass or a record later than the remembered inventory
-    calls for."""
+    scope that a publication of the pass or a published identity outside the remembered
+    inventory calls for."""
     actions: list[SweepAction] = []
-    scopes: dict[Scope, datetime | None] = {}
+    seen: dict[Scope, set[PublicationKey]] = {}
+    needed: list[Scope] = []
     wait = timedelta(seconds=configuration.approval_wait_seconds)
     wall = timedelta(seconds=configuration.attempt_wall_seconds)
     for each in snapshot.attempts:
@@ -301,19 +313,20 @@ def actions_of(
             publication = each.publication
             if publication is None or publication.state is not PublicationStatus.PUBLISHED:
                 actions.append(Publish(each.run_id, each.attempt, *scope))
-                scopes.setdefault(scope, None)
+                seen.setdefault(scope, set())
+                if scope not in needed:
+                    needed.append(scope)
                 continue
-            remembered = snapshot.inventoried.get(scope)
-            if remembered is None or publication.recorded_at > remembered:
-                held = scopes.get(scope)
-                scopes[scope] = (
-                    publication.recorded_at if held is None else max(held, publication.recorded_at)
-                )
+            assert publication.object_digest is not None, "a published record names its object"
+            key = (each.run_id, each.attempt, publication.object_digest)
+            seen.setdefault(scope, set()).add(key)
+            if key not in snapshot.inventoried.get(scope, frozenset()) and scope not in needed:
+                needed.append(scope)
             continue
         closure = _closure_of(each, snapshot, wait=wait, wall=wall, harness_commit=harness_commit)
         if closure is not None:
             actions.append(closure)
-    actions.extend(WriteInventory(*scope, through) for scope, through in scopes.items())
+    actions.extend(WriteInventory(*scope, frozenset(seen[scope])) for scope in needed)
     return tuple(actions)
 
 
@@ -386,21 +399,21 @@ WriteInventoryCommand = Callable[[InventoryRequest], InventoryWritten]
 @dataclass
 class InventoryMemory:
     """The driver's memory of the inventories it wrote (see the module): per scope, the
-    latest publication instant the last inventory covered, and the instants of the
-    publications the current pass made, folded into the former when the scope's inventory
-    is written."""
+    publications the last inventory covered, and those the current pass made, folded into
+    the former when the scope's inventory is written."""
 
-    written: dict[Scope, datetime] = field(default_factory=dict[Scope, datetime])
-    published: dict[Scope, datetime] = field(default_factory=dict[Scope, datetime])
+    covered: dict[Scope, frozenset[PublicationKey]] = field(
+        default_factory=dict[Scope, frozenset[PublicationKey]]
+    )
+    published: dict[Scope, set[PublicationKey]] = field(
+        default_factory=dict[Scope, set[PublicationKey]]
+    )
 
-    def note_publication(self, scope: Scope, at: datetime) -> None:
-        held = self.published.get(scope)
-        self.published[scope] = at if held is None else max(held, at)
+    def note_publication(self, scope: Scope, key: PublicationKey) -> None:
+        self.published.setdefault(scope, set()).add(key)
 
-    def note_inventory(self, scope: Scope, through: datetime | None) -> None:
-        instants = [at for at in (through, self.published.pop(scope, None)) if at is not None]
-        if instants:
-            self.written[scope] = max(instants)
+    def note_inventory(self, scope: Scope, covering: frozenset[PublicationKey]) -> None:
+        self.covered[scope] = covering | self.published.pop(scope, set())
 
 
 @dataclass(frozen=True, slots=True)
@@ -463,7 +476,7 @@ def snapshot_of(log: SweepLog, rows: SweepRows, composition: SweepComposition) -
             )
         )
     return SweepSnapshot(
-        taken_at, tuple(attempts), log.execution_slot(), dict(composition.memory.written)
+        taken_at, tuple(attempts), log.execution_slot(), dict(composition.memory.covered)
     )
 
 
@@ -492,7 +505,10 @@ def perform(
                 return SweepOutcome(action, False, record.reason)
             published = record.state is PublicationStatus.PUBLISHED
             if published:
-                composition.memory.note_publication(action.scope, record.recorded_at)
+                assert record.object_digest is not None, "a published record names its object"
+                composition.memory.note_publication(
+                    action.scope, (action.run_id, action.attempt, record.object_digest)
+                )
             return SweepOutcome(action, published, f"publication {record.state.value}")
         case WriteInventory():
             written = composition.write_inventory(
@@ -505,7 +521,7 @@ def perform(
                     composition.reader_commit,
                 )
             )
-            composition.memory.note_inventory(action.scope, action.through)
+            composition.memory.note_inventory(action.scope, action.covering)
             return SweepOutcome(action, True, f"inventory {written.digest} {written.outcome.value}")
         case CloseWait():
             with log.serialized(decision_name(action.run_id, action.attempt)):
@@ -643,11 +659,16 @@ def _unclaimed_unmet(state: AttemptState) -> str | None:
 
 def _holding_unmet(state: AttemptState, generation: int) -> str | None:
     """Why the attempt no longer holds the slot past the wall at ``generation``: closed,
-    taken over, or its segment ended (the approval pause, or a clean stop)."""
+    taken over, its segment ended (the approval pause, or a clean stop), or an approval
+    requested and not given, which is the wait's case whether or not the segment has ended
+    yet (the read's second round: the request and the segment's end are two events, and a
+    worker may die, or the closure land, between them)."""
     if state.closed is not None:
         return f"closed at position {state.closed.position}"
     if state.generation != generation:
         return f"taken over by generation {state.generation}"
+    if state.approval_requested is not None and state.approved is None:
+        return "an approval is requested"
     segment = state.current_segment
     if segment is None or segment.ended:
         return "the segment ended"
@@ -673,6 +694,7 @@ __all__ = [
     "InventoryMemory",
     "Publish",
     "PublishExport",
+    "PublicationKey",
     "RepairRow",
     "Scope",
     "SweepAction",

@@ -426,8 +426,12 @@ def _sweep(
 
 
 def _action_line(action: SweepAction) -> str:
-    """The action's kind and its fields, as the log line names it."""
-    fields = " ".join(f"{name}={value}" for name, value in asdict(action).items())
+    """The action's kind and its fields, as the log line names it; a set of publication
+    identities is named by its size."""
+    fields = " ".join(
+        f"{name}={len(cast(frozenset[object], value)) if isinstance(value, frozenset) else value}"
+        for name, value in asdict(action).items()
+    )
     return f"{type(action).__name__} {fields}"
 
 

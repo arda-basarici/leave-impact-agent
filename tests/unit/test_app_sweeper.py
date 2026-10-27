@@ -48,6 +48,7 @@ from leaveimpact.app.sweeper import (
     CloseWait,
     FenceAndClose,
     Finalize,
+    PublicationKey,
     Publish,
     RepairRow,
     SweepAction,
@@ -83,6 +84,11 @@ _FIRST = histories.HISTORIES["an approval wait across a restart"]()[0].event
 assert isinstance(_FIRST, Admitted)
 SCOPE = (_FIRST.inputs.context.world_version, _FIRST.inputs.preregistration_commit)
 """The inventory scope every fixture history's inputs name."""
+
+
+def key_of(number: int) -> PublicationKey:
+    """The publication identity ``record`` gives the attempt started under ``key(number)``."""
+    return (run_of(number), 1, "1" * 64)
 
 
 def public(events: tuple[LoggedEvent, ...], number: int) -> tuple[LoggedEvent, ...]:
@@ -324,13 +330,15 @@ def test_closed_attempts_are_published_and_one_inventory_per_scope_follows() -> 
     assert [action for action in actions if not isinstance(action, RepairRow)] == [
         Publish(run_of(1), 1, *SCOPE),
         Publish(run_of(2), 1, *SCOPE),
-        WriteInventory(*SCOPE, ADMITTED),
+        WriteInventory(*SCOPE, frozenset({key_of(3)})),
     ]
     assert kinds(actions) == [RepairRow, Publish, RepairRow, Publish, RepairRow, WriteInventory]
-    # The third is published and no inventory is remembered, so the inventory covers through
-    # its record's instant; once remembered, the pass's own publications still call for one.
-    remembered = replace(snapshot(ADMITTED, first, second, third), inventoried={SCOPE: ADMITTED})
-    assert plan(remembered)[-1] == WriteInventory(*SCOPE, None)
+    # The third is published and outside the memory, so the inventory covers it; once it is
+    # remembered, the pass's own publications still call for one, covering it as well.
+    remembered = replace(
+        snapshot(ADMITTED, first, second, third), inventoried={SCOPE: frozenset({key_of(3)})}
+    )
+    assert plan(remembered)[-1] == WriteInventory(*SCOPE, frozenset({key_of(3)}))
 
 
 def test_a_row_is_repaired_from_a_decline_the_log_holds() -> None:
@@ -343,11 +351,12 @@ def test_a_row_is_repaired_from_a_decline_the_log_holds() -> None:
     assert closed is not None
     assert plan(snapshot(ADMITTED, attempt)) == (
         RepairRow(rows.live[0].public_id, Decision.DECLINED, closed.timestamp),
-        WriteInventory(*SCOPE, ADMITTED),
+        WriteInventory(*SCOPE, frozenset({key_of(1)})),
     )
     repaired = replace(rows.live[0], decision=Decision.DECLINED, decided_at=closed.timestamp)
     remembered = replace(
-        snapshot(ADMITTED, replace(attempt, row=repaired)), inventoried={SCOPE: ADMITTED}
+        snapshot(ADMITTED, replace(attempt, row=repaired)),
+        inventoried={SCOPE: frozenset({key_of(1)})},
     )
     assert plan(remembered) == ()
 
@@ -533,7 +542,7 @@ def test_publications_go_through_the_injected_commands_with_the_scope_from_the_i
     assert [outcome.action for outcome in report if not isinstance(outcome.action, RepairRow)] == [
         Publish(ordered[0], 1, *SCOPE),
         Publish(ordered[1], 1, *SCOPE),
-        WriteInventory(*SCOPE, None),
+        WriteInventory(*SCOPE, frozenset()),
     ]
     assert all(outcome.carried for outcome in report)
     assert recording.published == [
@@ -575,7 +584,7 @@ def test_a_row_repair_writes_the_logs_decision_onto_the_row() -> None:
     assert closed is not None
     assert [outcome.action for outcome in report] == [
         RepairRow(rows.live[0].public_id, Decision.DECLINED, closed.timestamp),
-        WriteInventory(*SCOPE, ADMITTED),
+        WriteInventory(*SCOPE, frozenset({key_of(1)})),
     ]
     assert (
         rows.live[0].decision is Decision.DECLINED and rows.live[0].decided_at == closed.timestamp
@@ -686,7 +695,7 @@ def test_a_wall_time_closure_is_refused_when_the_worker_paused_before_the_lock()
     log, rows = WorkerBeforeTheLock(clock=clock), MemoryAppStore()
     action, composed = fence_scheduled(log, rows, clock)
     outcome = perform(action, log, rows, composed)
-    assert outcome == SweepOutcome(action, True, "the segment ended")
+    assert outcome == SweepOutcome(action, True, "an approval is requested")
     state = log.load(run_of(1), 1, rules=RULES)
     assert state.closed is None and state.approval_requested is not None
     assert log.execution_slot() is None, "the segment end released the slot"
@@ -727,7 +736,7 @@ def test_an_inventory_lost_to_a_crash_after_the_publication_is_written_by_the_ne
     fresh = Recording()
     restarted = composition(fresh)
     again = plan(snapshot_of(log, rows, restarted))
-    assert again == (WriteInventory(*SCOPE, published_at),)
+    assert again == (WriteInventory(*SCOPE, frozenset({key_of(1)})),)
 
     def raising(request: InventoryRequest) -> InventoryWritten:
         raise RuntimeError("the world store did not answer")
@@ -735,11 +744,13 @@ def test_an_inventory_lost_to_a_crash_after_the_publication_is_written_by_the_ne
     failing = composition(fresh, write_inventory=raising)
     with pytest.raises(RuntimeError, match="did not answer"):
         perform(again[0], log, rows, failing)
-    assert plan(snapshot_of(log, rows, failing)) == (WriteInventory(*SCOPE, published_at),)
+    assert plan(snapshot_of(log, rows, failing)) == (
+        WriteInventory(*SCOPE, frozenset({key_of(1)})),
+    )
     outcome = perform(again[0], log, rows, restarted)
     assert outcome.carried and fresh.inventoried, "written on the retry"
     assert plan(snapshot_of(log, rows, restarted)) == ()
-    assert restarted.memory.written == {SCOPE: published_at}
+    assert restarted.memory.covered == {SCOPE: frozenset({key_of(1)})}
 
 
 def test_a_recorded_stop_from_another_commit_is_closed_as_interrupted_with_the_stop_kept() -> None:
@@ -794,3 +805,81 @@ def test_a_closures_precondition_is_read_under_the_lock_and_refuses_without_appe
         precondition=lambda current: None,
     )
     assert isinstance(closed, Appended) and closed.state.closed is not None
+
+
+class RequestBeforeTheLock(MemoryLog):
+    """The worker's approval request alone landing before the store's lock, the segment
+    still open: the read's second round."""
+
+    landed: bool = False
+
+    def close_attempt(
+        self,
+        run_id: str,
+        attempt: int,
+        envelope: Envelope | Stamping,
+        closing: ClosingEvent,
+        *,
+        rules: Rules,
+        state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
+    ) -> Transition:
+        if not self.landed:
+            self.landed = True
+            requested = self.append(
+                run_id,
+                attempt,
+                WorkerStamp(1, 1, 2_000),
+                ApprovalRequested((), cases.RULES, False),
+                rules=RULES,
+            )
+            assert isinstance(requested, Appended)
+        return super().close_attempt(
+            run_id, attempt, envelope, closing, rules=rules, state=state, precondition=precondition
+        )
+
+
+def test_a_wall_time_closure_is_refused_on_a_request_outstanding_with_the_segment_open() -> None:
+    """The read's second round: the request and the segment's end are two events; a closure
+    landing between them, or after a worker died between them, is refused by the
+    precondition on the request alone, and the wait's rule owns the attempt from there."""
+    clock = FixedClock(ADMITTED)
+    log, rows = RequestBeforeTheLock(clock=clock), MemoryAppStore()
+    action, composed = fence_scheduled(log, rows, clock)
+    outcome = perform(action, log, rows, composed)
+    assert outcome == SweepOutcome(action, True, "an approval is requested")
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert state.closed is None and state.approval_requested is not None
+    assert state.current_segment is not None and not state.current_segment.ended
+    assert log.execution_slot() is not None, "the dead worker's claim holds the slot"
+    clock.at = state.approval_requested.timestamp + WAIT
+    report = sweep(log, rows, composed)
+    assert [outcome.action for outcome in report] == [CloseWait(run_of(1), 1)]
+    assert report[0].carried and log.execution_slot() is None, "the wait's close freed it"
+
+
+def test_a_publication_from_outside_the_pass_is_inventoried_whatever_its_instant_says() -> None:
+    """The read's second round: the memory holds identities, so a publication another
+    process made, recorded at the remembered instant or before it, is outside the memory
+    and schedules the inventory; once written, it is covered."""
+    clock = FixedClock(ADMITTED + timedelta(minutes=1))
+    log, rows = MemoryLog(clock=clock), MemoryAppStore()
+    seeded(log, rows, 1, closed_completed())
+    seeded(log, rows, 2, closed_completed())
+    log.publications[(run_of(1), 1)] = record(run_of(1), 1, PublicationStatus.PUBLISHED)
+    composed = composition(Recording())
+    composed.memory.covered[SCOPE] = frozenset({key_of(1)})
+    assert [a for a in plan(snapshot_of(log, rows, composed)) if not isinstance(a, RepairRow)] == [
+        Publish(run_of(2), 1, *SCOPE),
+        WriteInventory(*SCOPE, frozenset({key_of(1)})),
+    ]
+    for instant in (ADMITTED, ADMITTED - timedelta(seconds=1)):
+        log.publications[(run_of(2), 1)] = replace(
+            record(run_of(2), 1, PublicationStatus.PUBLISHED), recorded_at=instant
+        )
+        planned = plan(snapshot_of(log, rows, composed))
+        actions = [a for a in planned if not isinstance(a, RepairRow)]
+        assert actions == [WriteInventory(*SCOPE, frozenset({key_of(1), key_of(2)}))], instant
+    perform(actions[0], log, rows, composed)
+    assert composed.memory.covered == {SCOPE: frozenset({key_of(1), key_of(2)})}
+    assert [a for a in plan(snapshot_of(log, rows, composed)) if not isinstance(a, RepairRow)] == []
