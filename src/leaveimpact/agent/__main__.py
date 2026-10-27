@@ -10,8 +10,8 @@ here reads a clock.
 The commands: ``admit`` takes the request from a file (the request identity, the admitter,
 the ledger, and the frozen inputs as the admission event encodes them), since the agent
 decodes no scenario and the file is written by a launcher that may; ``deliver-approval``,
-``abandon``, ``publish``, ``inventory``, ``set-threshold`` and ``import-spend`` take their
-fields as flags. ``review-approval`` prints the frozen review payload a human approves
+``decline``, ``abandon``, ``publish``, ``inventory``, ``set-threshold`` and ``import-spend``
+take their fields as flags. ``review-approval`` prints the frozen review payload a human approves
 over, with the digest ``deliver-approval`` must carry (the first live run's step, fork 10):
 the one command whose output is the run's content, so it is run in a Session Manager
 session, which is account-private, and never in a workflow's log or an SSM invocation's
@@ -91,6 +91,7 @@ from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivery,
     CommandRefused,
+    DeclineDelivery,
     ImportRequest,
     InventoryRequest,
     PublishRequest,
@@ -101,6 +102,7 @@ from leaveimpact.agent.commands import (
     WorkRequest,
     abandon,
     admit,
+    decline,
     deliver_approval,
     finalize,
     import_spend,
@@ -163,6 +165,7 @@ class Command(StrEnum):
     WORK = "work"
     REVIEW_APPROVAL = "review-approval"
     DELIVER_APPROVAL = "deliver-approval"
+    DECLINE = "decline"
     ABANDON = "abandon"
     PUBLISH = "publish"
     INVENTORY = "inventory"
@@ -217,6 +220,7 @@ type Request = (
     | WorkLine
     | ReviewRequest
     | ApprovalDelivery
+    | DeclineDelivery
     | AbandonRequest
     | PublishRequest
     | InventoryRequest
@@ -231,6 +235,7 @@ type Resolved = (
     | WorkResolved
     | ReviewRequest
     | ApprovalDelivery
+    | DeclineDelivery
     | AbandonRequest
     | PublishRequest
     | InventoryRequest
@@ -335,6 +340,9 @@ def parse_request(argv: Sequence[str], env: Mapping[str, str]) -> Parsed:
     delivering = commands.add_parser(Command.DELIVER_APPROVAL.value, parents=[registration, about])
     delivering.add_argument("--approver", required=True, help="the approver's identity")
     delivering.add_argument("--payload-digest", required=True, help="the payload the approver saw")
+    declining = commands.add_parser(Command.DECLINE.value, parents=[registration, about])
+    declining.add_argument("--decider", required=True, help="the decider's identity")
+    declining.add_argument("--payload-digest", required=True, help="the payload the decider saw")
     abandoning = commands.add_parser(Command.ABANDON.value, parents=[registration, about])
     abandoning.add_argument("--authority", required=True, help="who decides")
     abandoning.add_argument(
@@ -406,6 +414,10 @@ def _request_of(command: Command, parsed: argparse.Namespace, env: Mapping[str, 
         case Command.DELIVER_APPROVAL:
             return ApprovalDelivery(
                 parsed.run, parsed.attempt, parsed.approver, parsed.payload_digest
+            )
+        case Command.DECLINE:
+            return DeclineDelivery(
+                parsed.run, parsed.attempt, parsed.decider, parsed.payload_digest
             )
         case Command.ABANDON:
             return AbandonRequest(
@@ -657,6 +669,14 @@ def _run(
             return 0, [
                 f"approved={delivered.run_id}/{delivered.attempt}",
                 f"position={delivered.position}",
+            ]
+        case DeclineDelivery():
+            declined = decline(request, store, rules=rules)
+            if isinstance(declined, CommandRefused):
+                return _refused(declined)
+            return 0, [
+                f"declined={declined.run_id}/{declined.attempt}",
+                f"position={declined.position}",
             ]
         case AbandonRequest():
             closed = abandon(request, store, rules=rules)

@@ -10,9 +10,10 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 
-from leaveimpact.app.live import LiveDraft, LiveRow
+from leaveimpact.app.live import Decision, LiveDraft, LiveRow
 from leaveimpact.app.public import PublicationDraft, PublicId, PublishableRow
 from leaveimpact.core.ids import WorldVersion
 
@@ -50,6 +51,30 @@ class MemoryAppStore:
     def live_row_of(self, public_id: PublicId) -> LiveRow | None:
         with self.lock:
             return next((each for each in self.live if each.public_id == public_id), None)
+
+    def live_row_of_attempt(self, run_id: str, attempt: int) -> LiveRow | None:
+        with self.lock:
+            return next(
+                (each for each in self.live if (each.run_id, each.attempt) == (run_id, attempt)),
+                None,
+            )
+
+    def record_decision(
+        self, public_id: PublicId, decision: Decision, decided_at: datetime
+    ) -> LiveRow:
+        """The real store's unconditional write of the decision columns, the boundary name
+        before it; no row under the id is the real store's invariant."""
+        self.boundary("decide-before-record")
+        with self.lock:
+            index = next(
+                (at for at, each in enumerate(self.live) if each.public_id == public_id), None
+            )
+            if index is None:
+                raise MemoryAppStoreInvariant(f"no live row holds {public_id}")
+            self.live[index] = replace(
+                self.live[index], decision=decision, decided_at=decided_at
+            )
+            return self.live[index]
 
     @contextmanager
     def start_section(self) -> Generator[MemorySection]:

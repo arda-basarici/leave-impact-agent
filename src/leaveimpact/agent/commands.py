@@ -47,6 +47,7 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from leaveimpact.adapters.object_store.layout import run_export_key
 from leaveimpact.adapters.object_store.read import AccessRefused
 from leaveimpact.adapters.wiring import InventoryPublisher, RunExportPublisher, UploadOutcome
+from leaveimpact.agent.appender import LogCommands
 from leaveimpact.agent.assets import load_prompt_assets
 from leaveimpact.agent.execution import ReadPorts
 from leaveimpact.agent.graph import ModelClient, NoPreparation, Preparation, TokenCounter, Turns
@@ -215,11 +216,13 @@ class TerminalComposition:
 
 
 def finalize(
-    request: WorkRequest, store: LogStore, composition: TerminalComposition
+    request: WorkRequest, store: LogCommands, composition: TerminalComposition
 ) -> WorkerEnding:
     """Close an attempt whose log holds a recorded stopping failure by that failure, as the
     terminal worker does: load, compare the configuration, claim, close; nothing beyond the
-    run log is touched (the first live run's step, fork 9)."""
+    run log is touched (the first live run's step, fork 9). The store is any that offers
+    the log's commands, so the demo's sweeper runs this over the store it is handed and a
+    unit test over an in-memory one."""
     worker = TerminalWorker(
         store,
         composition.configuration,
@@ -315,12 +318,14 @@ class ApprovalDelivered:
 
 
 def deliver_approval(
-    delivery: ApprovalDelivery, store: LogStore, *, rules: Rules
+    delivery: ApprovalDelivery, store: LogCommands, *, rules: Rules
 ) -> ApprovalDelivered | CommandRefused:
     """Append the human's approval as an outside producer (the worker group's handoff).
     Refused on a closed attempt, with no approval requested, with one already given under
     another digest, and with a digest that is not the logged request's; a repeat with the
-    same digest is the store's receipt."""
+    same digest is the store's receipt. The store is any that offers the log's commands:
+    the demo's decision runs this under its own serialization over the store it is handed
+    (the live-path commands step)."""
     subject = f"run {delivery.run_id} attempt {delivery.attempt}"
     state = store.load(delivery.run_id, delivery.attempt, rules=rules)
     if state.closed is not None:
@@ -385,7 +390,7 @@ class AttemptDeclined:
 
 
 def decline(
-    delivery: DeclineDelivery, store: LogStore, *, rules: Rules
+    delivery: DeclineDelivery, store: LogCommands, *, rules: Rules
 ) -> AttemptDeclined | CommandRefused:
     """Close the attempt with the human's refusal as an outside producer (the demo
     milestone's live-path step, ruling 4); the store closes and settles in one transaction.
@@ -394,7 +399,8 @@ def decline(
     repeat with the same digest is the decline already made, whether it raced this one at
     the store or came later, since a visitor's second click consumes nothing (ruling 4's
     idempotent admission, read onto the decision). The capability and the deadline that
-    gate it on the public surface are the commands step's."""
+    gate it on the public surface are the demo's decision command's, which runs this under
+    its own serialization over the store it is handed (the live-path commands step)."""
     subject = f"run {delivery.run_id} attempt {delivery.attempt}"
     state = store.load(delivery.run_id, delivery.attempt, rules=rules)
     closed = state.closed
@@ -460,11 +466,15 @@ class AttemptAbandoned:
 
 
 def abandon(
-    request: AbandonRequest, store: LogStore, *, rules: Rules
+    request: AbandonRequest, store: LogCommands, *, rules: Rules
 ) -> AttemptAbandoned | CommandRefused:
     """Close the attempt with an abandonment under the authority's identity, fencing the
     generation the load shows; the store closes and settles in one transaction. A closed
-    attempt is refused with its position; a repeat is the store's receipt."""
+    attempt is refused with its position, so a repeat is the store's receipt only when it
+    raced the first abandonment at the store, and a later repeat is refused as closed; a
+    caller that may repeat after a crash (the demo's sweeper) reads closure from the
+    state it reloads, never from the refusal's wording. The store is any that offers the
+    log's commands."""
     subject = f"run {request.run_id} attempt {request.attempt}"
     state = store.load(request.run_id, request.attempt, rules=rules)
     if state.closed is not None:

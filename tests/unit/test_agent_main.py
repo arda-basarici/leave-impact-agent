@@ -22,6 +22,7 @@ from leaveimpact.agent import __main__ as job
 from leaveimpact.agent.commands import (
     AbandonRequest,
     ApprovalDelivery,
+    DeclineDelivery,
     ImportRequest,
     InventoryRequest,
     PublishRequest,
@@ -141,6 +142,11 @@ def test_each_command_parses_to_its_request() -> None:
     )
     assert delivered.request == ApprovalDelivery("run-12", 1, "approver:a", "f" * 64)
     assert delivered.command is job.Command.DELIVER_APPROVAL and delivered.registration is None
+    declined = job.parse_request(
+        ["decline", *ABOUT, "--decider", "visitor:a", "--payload-digest", "f" * 64], {}
+    )
+    assert declined.request == DeclineDelivery("run-12", 1, "visitor:a", "f" * 64)
+    assert declined.command is job.Command.DECLINE and declined.registration is None
     abandoned = job.parse_request(
         ["abandon", *ABOUT, "--authority", "operator:x", "--reason", "cancelled"], {}
     )

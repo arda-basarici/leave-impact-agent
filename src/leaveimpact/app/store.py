@@ -36,6 +36,7 @@ from __future__ import annotations
 from collections.abc import Callable, Generator
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime
 from importlib import resources
 from typing import Any, cast
 
@@ -51,7 +52,10 @@ Connect = Callable[[str], Connection]
 Boundary = Callable[[str], None]
 """The seam a test holds a side at, called with the point's name: the start's section at
 ``start-before-commit`` (the rows written, the transaction open), where a test lets the
-process die with the log's admission committed and the rows lost; a no-op by default."""
+process die with the log's admission committed and the rows lost, and the decision's
+record at ``decide-before-record`` (the log decided, the row not yet), where a test lets
+the process die with the row undecided for the retry or the sweeper to repair; a no-op by
+default."""
 
 SCHEMA_VERSION = 3
 """The layout this code writes and reads; a database at another version is refused. The
@@ -116,6 +120,12 @@ _SELECT_LIVE_OF_ATTEMPT = f"SELECT {_LIVE} FROM live_attempt WHERE run_id = %s A
 _INSERT_LIVE_IF_ABSENT = (
     "INSERT INTO live_attempt (public_id, run_id, attempt, key_digest, started_at) "
     "VALUES (%s, %s, %s, %s, %s) ON CONFLICT DO NOTHING"
+)
+# The decision and its instant together (the table's check), unconditionally: every writer
+# of these columns writes what the log holds, read under the decision's serialization.
+_RECORD_DECISION = (
+    "UPDATE live_attempt SET decision = %s, decided_at = %s WHERE public_id = %s "
+    f"RETURNING {_LIVE}"
 )
 
 
@@ -320,6 +330,33 @@ class AppStore:
         with self._connection() as conn:
             row = conn.execute(_SELECT_LIVE, (public_id,)).fetchone()
         return None if row is None else _live_of(row)
+
+    def live_row_of_attempt(self, run_id: str, attempt: int) -> LiveRow | None:
+        """The live row of ``attempt`` of ``run_id`` outside any section, ``None`` for an
+        attempt no visitor started or one whose start lost its rows: the sweeper's read
+        when it pairs the log's public admissions with their rows. The version check and
+        one statement."""
+        with self._connection() as conn:
+            row = conn.execute(_SELECT_LIVE_OF_ATTEMPT, (run_id, attempt)).fetchone()
+        return None if row is None else _live_of(row)
+
+    def record_decision(
+        self, public_id: PublicId, decision: Decision, decided_at: datetime
+    ) -> LiveRow:
+        """The decision the log holds for the attempt ``public_id`` names, written onto its
+        row with its instant, and the row as it then stands. The write is unconditional:
+        the decision command and the sweeper both write what they read from the log under
+        the decision's serialization, so every writer of these columns agrees and a row
+        that says otherwise is repaired by the write. No row under the id is an invariant
+        of this module, since the decision command found it before deciding. The boundary
+        ``decide-before-record`` is called before the statement; the version check and
+        one statement."""
+        self._boundary("decide-before-record")
+        with self._connection() as conn:
+            row = conn.execute(_RECORD_DECISION, (decision.value, decided_at, public_id)).fetchone()
+        if row is None:
+            raise AppStoreInvariantBroken(f"no live row holds {public_id} to record a decision on")
+        return _live_of(row)
 
     @contextmanager
     def start_section(self) -> Generator[StartSection]:
