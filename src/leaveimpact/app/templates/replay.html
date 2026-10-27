@@ -9,4 +9,14 @@
   <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
 </dl>
 <p class="meta">This run is in progress; its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
+{% if review %}
+<h2>A decision is asked</h2>
+<p class="meta">The run asks whether to act on its plan, as the log recorded it at position {{ review.position }}; the digest below is what the decision binds to.</p>
+<pre class="evidence">{{ review.payload_json }}</pre>
+<form method="post" action="/replays/{{ replay.public_id }}/decision" id="decision">
+  <input type="hidden" name="payload_digest" value="{{ review.digest }}">
+  <button type="submit" name="decision" value="approve">Approve</button>
+  <button type="submit" name="decision" value="decline">Decline</button>
+</form>
+{% endif %}
 {% endblock %}

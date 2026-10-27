@@ -181,6 +181,9 @@ class MemoryLog:
             self._log(run_id, attempt)
             return LEDGER if (run_id, attempt) in self.heads else None
 
+    def close(self) -> None:
+        """The store's session close; this log keeps no connection."""
+
     def now(self) -> datetime:
         with self.lock:
             return self.clock()

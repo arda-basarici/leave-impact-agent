@@ -19,7 +19,9 @@ repaired from the log by a retry or the sweeper when a process died between the 
 
 **The order of the checks.** The live row by its public id (a replay the operator
 published has none); the capability, a hash comparison of the key the browser holds with
-the digest the row stores; then, under the lock, the state loaded: the same decision
+the digest the row stores, a browser holding none refused the same way and after the row,
+so a name nobody started answers alike with and without a key; then, under the lock, the
+state loaded: the same decision
 already held under the digest (an approval under it, or a close by a decline under it)
 answers with its receipt whatever the clock says, and the row is repaired on the way
 out; otherwise no request yet is refused by name; otherwise the deadline is the approval
@@ -35,6 +37,7 @@ the deadline and the serialization around them. The deciding identity is one pro
 
 from __future__ import annotations
 
+import json
 from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -49,11 +52,18 @@ from leaveimpact.agent.commands import (
     decline,
     deliver_approval,
 )
-from leaveimpact.agent.log_events import Approved, Declined, LoggedEvent, Producer
+from leaveimpact.agent.log_events import (
+    ApprovalRequested,
+    Approved,
+    Declined,
+    LoggedEvent,
+    Producer,
+)
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.config import DemoConfiguration
 from leaveimpact.app.live import Decision, LiveRow, StartKey
 from leaveimpact.app.public import PublicId
+from leaveimpact.core.run_parts_json import review_payload, review_payload_digest
 from leaveimpact.core.run_trace import require_digest
 
 DEMO_VISITOR = Producer("demo-visitor")
@@ -94,11 +104,12 @@ class DecideComposition:
 
 @dataclass(frozen=True, slots=True)
 class DecideRequest:
-    """What a visitor's click carries: the attempt's public id, the key the browser holds,
-    the decision, and the digest of the review payload the page showed."""
+    """What a visitor's click carries: the attempt's public id, the key the browser holds
+    (``None`` when it holds none), the decision, and the digest of the review payload the
+    page showed."""
 
     public_id: PublicId
-    key: StartKey
+    key: StartKey | None
     decision: Decision
     payload_digest: str
 
@@ -112,7 +123,7 @@ class DecideRefusalKind(StrEnum):
     NOT_LIVE = "not_live"
     """No visitor started the attempt the public id names, or nothing is published under it."""
     CAPABILITY = "capability"
-    """The key given is not the one the attempt was started under."""
+    """The key given is not the one the attempt was started under, or none was given."""
     NO_REQUEST = "no_request"
     """The attempt has asked for no approval yet."""
     LATE = "late"
@@ -162,7 +173,7 @@ def decide(
     row = rows.live_row_of(request.public_id)
     if row is None:
         return DecideRefused(DecideRefusalKind.NOT_LIVE, "no visitor started this attempt")
-    if not row.holds(request.key):
+    if request.key is None or not row.holds(request.key):
         return DecideRefused(DecideRefusalKind.CAPABILITY, "the key given did not start it")
     with log.serialized(decision_name(row.run_id, row.attempt)):
         state = log.load(row.run_id, row.attempt, rules=composition.rules)
@@ -180,6 +191,33 @@ def decide(
         decided_at = _instant_at(log, row, position)
     recorded = rows.record_decision(row.public_id, request.decision, decided_at)
     return Decided(recorded, position, repeated)
+
+
+@dataclass(frozen=True, slots=True)
+class Review:
+    """The review an open attempt awaits a decision on, as the replay page shows it: the
+    request's position, the payload as indented JSON, and its digest, which the decision
+    form carries back."""
+
+    position: int
+    payload_json: str
+    digest: str
+
+
+def review_of(state: AttemptState) -> Review | None:
+    """The review ``state`` awaits a decision on, or ``None``: before any request, once an
+    approval is given, or once the attempt is closed."""
+    requested = state.approval_requested
+    if requested is None or state.approved is not None or state.closed is not None:
+        return None
+    event = requested.event
+    assert isinstance(event, ApprovalRequested), "the request is its own event"
+    payload = review_payload(event.claims, event.composition)
+    return Review(
+        requested.position,
+        json.dumps(payload, indent=2, sort_keys=True),
+        review_payload_digest(event.claims, event.composition),
+    )
 
 
 def held_position(state: AttemptState, decision: Decision, payload_digest: str) -> int | None:
@@ -266,8 +304,10 @@ __all__ = [
     "DecideRequest",
     "Decided",
     "DecisionRows",
+    "Review",
     "deadline_of",
     "decide",
     "decision_name",
     "held_position",
+    "review_of",
 ]

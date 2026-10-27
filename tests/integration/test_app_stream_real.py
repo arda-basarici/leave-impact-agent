@@ -39,6 +39,7 @@ from tests.integration.worker_rig import (
     work,
 )
 from tests.unit import worker_support as support
+from tests.unit.live_routes_fixture import live_services
 from tests.unit.publishable_fixture import CONFIGURATION
 from tests.unit.test_app_stream import frames_of
 from tests.unit.throwaway_world import loaded_world
@@ -103,6 +104,7 @@ def test_a_stream_over_a_live_run_delivers_its_lines_before_the_worker_closes_it
         rules=RULES,
         results=committed_results,
         walkthroughs=lambda: (),
+        **live_services(rig.store, store),
     )
     approval = GatedApproval()
     composed = composition(inputs, world, saver_on(rig), approval=approval, script=named)

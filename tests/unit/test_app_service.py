@@ -15,10 +15,13 @@ from leaveimpact.agent.registered import effective_rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.main import Services, create_app, services_from_env
 from leaveimpact.app.ready import Readiness, readiness
+from leaveimpact.app.start import Planning
 from leaveimpact.app.store import AppStoreUnavailable
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.ports.errors import Source, SourceUnreachable
 from tests.unit import log_histories as histories
+from tests.unit.app_store_memory import MemoryAppStore
+from tests.unit.live_routes_fixture import live_services, never_planned
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.publishable_fixture import Rows
 from tests.unit.registration_fixture import COMMITTED, COMMITTED_FILE, DRAFT_FILE
@@ -66,6 +69,7 @@ def services(
         histories.RULES,
         results,
         lambda: (),
+        **live_services(MemoryLog(), MemoryAppStore()),
     )
 
 
@@ -155,24 +159,32 @@ def test_the_composition_root_names_what_the_environment_lacks() -> None:
         "DATABASE_URL": "postgresql://x@localhost/x",
         "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE),
     }
-    services = services_from_env(env)
+    planned: list[DemoConfiguration] = []
+
+    def planning(configuration: DemoConfiguration) -> Planning:
+        planned.append(configuration)
+        return Planning(frozenset(), never_planned)
+
+    services = services_from_env(env, planning)
     assert services.code_version == CODE
+    assert planned == [CONFIGURATION] and services.planning.scenarios == frozenset()
     assert services.configuration == CONFIGURATION
     assert services.rules == effective_rules(COMMITTED)
     for missing in ("LEAVEIMPACT_CODE_VERSION", "DATABASE_URL", "LEAVEIMPACT_REGISTRATION_FILE"):
         partial = {key: value for key, value in env.items() if key != missing}
         try:
-            services_from_env(partial)
+            services_from_env(partial, planning)
         except ValueError as error:
             assert missing in str(error)
         else:
             raise AssertionError(f"composed without {missing}")
     foreign = {**env, "LEAVEIMPACT_REGISTRATION_FILE": str(DRAFT_FILE)}
     with pytest.raises(ValueError, match="registration file's digest"):
-        services_from_env(foreign)
+        services_from_env(foreign, planning)
     missing_file = {**env, "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE) + ".none"}
     with pytest.raises(ValueError, match="LEAVEIMPACT_REGISTRATION_FILE names"):
-        services_from_env(missing_file)
+        services_from_env(missing_file, planning)
+    assert planned == [CONFIGURATION], "the planning is built after the environment's checks"
 
 
 def test_a_live_configuration_shows_on_the_page() -> None:

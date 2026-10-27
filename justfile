@@ -98,8 +98,10 @@ hooks:
     uv run pre-commit install
 
 # The demo surface on the laptop against the local PostgreSQL (`just db-up` first):
-# http://127.0.0.1:8000/ and /ready. LEAVEIMPACT_CODE_VERSION and DATABASE_URL come from
-# the user's environment, as the container gets them from compose.
+# http://127.0.0.1:8000/ and /ready. LEAVEIMPACT_CODE_VERSION, DATABASE_URL,
+# LEAVEIMPACT_REGISTRATION_FILE, LEAVEIMPACT_REGISTRATION_COMMIT, LEAVEIMPACT_PRICES_FILE
+# and the world store's name (LEAVE_IMPACT_OBJECT_STORE_ROOT for the local twin) come
+# from the user's environment, as the container gets them from the image and compose.
 serve:
     uv run python -m leaveimpact
 

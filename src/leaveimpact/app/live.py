@@ -27,6 +27,7 @@ from __future__ import annotations
 
 import hashlib
 import re
+import secrets
 from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
@@ -58,6 +59,16 @@ def start_key_of(value: str) -> StartKey:
     if not _KEY.match(value):
         raise ValueError(f"a start key is {KEY_HEX_DIGITS} lowercase hex digits, got {value!r}")
     return StartKey(value)
+
+
+def mint_start_key() -> StartKey:
+    """A fresh key for the index's form: 128 bits from the system's entropy, in the
+    rule's spelling.
+
+    >>> start_key_of(mint_start_key()) == mint_start_key()
+    False
+    """
+    return start_key_of(secrets.token_hex(KEY_HEX_DIGITS // 2))
 
 
 def key_digest_of(key: StartKey) -> str:
@@ -143,6 +154,7 @@ __all__ = [
     "LiveRow",
     "StartKey",
     "key_digest_of",
+    "mint_start_key",
     "public_id_for",
     "run_id_for",
     "start_key_of",

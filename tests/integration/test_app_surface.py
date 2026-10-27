@@ -24,6 +24,7 @@ from leaveimpact.results.committed import committed_results
 from tests.integration.log_store_support import Rig, rig
 from tests.integration.test_log_store import opened, replay
 from tests.unit import log_histories as histories
+from tests.unit.live_routes_fixture import live_services
 from tests.unit.publishable_fixture import (
     CLOSED,
     CONFIGURATION,
@@ -83,6 +84,7 @@ def client(rig: Rig, store: AppStore, *, served: bool = True) -> TestClient:
         rules=histories.RULES,
         results=committed_results,
         walkthroughs=lambda: (),
+        **live_services(rig.store, store),
     )
     return TestClient(create_app(services))
 

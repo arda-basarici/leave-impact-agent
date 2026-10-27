@@ -27,12 +27,20 @@ page ever renders it.
 Serving binds the application to every interface of the container on port 8000; the proxy
 reaches it over the shared ``web`` network and nothing is published to the host (compose).
 One Uvicorn worker: store access is synchronous on Starlette's thread pool and the demo's
-load is a stranger reading pages. Forwarded headers are left at Uvicorn's defaults, trusted
-from the loopback only, until the live commands step reads a client address for its
-per-address limit; the setting then comes from the platform contract's ``web`` subnet row
-through compose (``FORWARDED_ALLOW_IPS``), since the proxy dials from that network and the
-application publishes no port. Until then the application sees the proxy's address as every
-client and nothing reads it (the public switch, 2026-10-24).
+load is a stranger reading pages. Forwarded headers are trusted from the proxy's subnet,
+which compose sets from the platform contract's ``web`` row (``FORWARDED_ALLOW_IPS``, read
+by Uvicorn from the environment when no flag names it), since the proxy dials from that
+network and the application publishes no port; the start route's per-address window reads
+the client address it yields (the live-path commands step, fork 8).
+
+Serving composes the demo's planning above both rank-4 shells (the import law: the surface
+is beside the launcher and never imports it): the launcher builds the served world's
+scenario ids and the planner from the registration and the price table the image ships,
+the registration's commit the build baked and the world store the environment names, and
+the surface receives them as plain values. The planning is built after the surface's own
+reading of the environment, so a missing database is still the first refusal, and before
+any socket is bound, so a store the service cannot read or a price table without the
+role's rates fails the deploy's readiness wait and never a visitor's first start.
 """
 
 from __future__ import annotations
@@ -133,16 +141,40 @@ def _smoke(
 
 
 def _serve(environment: Mapping[str, str]) -> int:
-    """The real server: the application composed from the environment, run by Uvicorn until
-    the stop signal; a composition the environment cannot satisfy is refused before any
-    socket is bound."""
+    """The real server: the application composed from the environment with the demo's
+    planning, run by Uvicorn until the stop signal; a composition the environment cannot
+    satisfy is refused before any socket is bound."""
     import uvicorn
 
+    from leaveimpact.adapters.object_store.read import (
+        AccessRefused,
+        ObjectStoreMisconfigured,
+        ObjectStoreUnreachable,
+    )
+    from leaveimpact.adapters.wiring import ConfigurationError
     from leaveimpact.app.main import app_from_env
+    from leaveimpact.app.start import Planning
+    from leaveimpact.launch.demo import demo_planning_from_env
+
+    def planning_for(configuration: DemoConfiguration) -> Planning:
+        demo = demo_planning_from_env(
+            environment,
+            world_version=configuration.served_world_version,
+            system=configuration.system,
+            level=configuration.level,
+            region=configuration.region,
+        )
+        return Planning(demo.scenarios, demo.plan)
 
     try:
-        application = app_from_env(environment)
-    except ValueError as error:
+        application = app_from_env(environment, planning_for)
+    except (
+        ValueError,
+        ConfigurationError,
+        AccessRefused,
+        ObjectStoreMisconfigured,
+        ObjectStoreUnreachable,
+    ) as error:
         print(f"leaveimpact: {error}", file=sys.stderr)
         return 1
     uvicorn.run(application, host="0.0.0.0", port=PORT, log_level="info")

@@ -28,6 +28,7 @@ from leaveimpact.app.start import (
     StartRequest,
     start,
 )
+from leaveimpact.app.window import MemoryWindow
 from leaveimpact.core import AbandonmentReason
 from leaveimpact.core.ids import ScenarioId
 from tests.unit import log_histories as histories
@@ -40,6 +41,10 @@ LIVE = replace(CONFIGURATION, ledger_id=LEDGER, live_runs=True)
 OTHER_SCENARIO = ScenarioId("scenario_004")
 SCENARIOS = frozenset({SCENARIO, OTHER_SCENARIO})
 SWEEPER = Producer("demo-sweeper")
+ADDRESS = "203.0.113.7"
+"""The one client address the tests start from unless a test says otherwise."""
+UNLIMITED = 1_000
+"""A window no test of the other rules can reach; the window's own tests set two."""
 NOON = datetime(2026, 10, 26, 12, 0, tzinfo=UTC)
 
 _base = admission_only(SERVED, run_id="run-base")[0].event
@@ -50,6 +55,10 @@ BASE = _base.inputs
 
 def key(number: int) -> StartKey:
     return StartKey(f"{number:032x}")
+
+
+def request(key: StartKey, scenario_id: ScenarioId, address: str = ADDRESS) -> StartRequest:
+    return StartRequest(key, scenario_id, address)
 
 
 def plan(scenario_id: ScenarioId, run_id: str, attempt: int) -> object:
@@ -69,6 +78,7 @@ def composition(**changes: object) -> StartComposition:
         "scenarios": SCENARIOS,
         "plan": plan,
         "world_served": lambda: True,
+        "window": MemoryWindow(limit=UNLIMITED),
     }
     fields.update(changes)
     return StartComposition(**fields)  # type: ignore[arg-type]
@@ -125,7 +135,7 @@ def refused(outcome: object, kind: StartRefusalKind) -> StartRefused:
 
 def test_a_start_admits_under_the_demo_admitter_and_writes_both_rows_at_the_logs_instant() -> None:
     log, rows = stores()
-    outcome = started(start(StartRequest(key(1), SCENARIO), log, rows, composition()))
+    outcome = started(start(request(key(1), SCENARIO), log, rows, composition()))
     digest = key_digest_of(key(1))
     run_id, public_id = run_id_for(digest), public_id_for(digest)
     assert not outcome.repeated
@@ -164,8 +174,8 @@ def test_a_repeat_under_the_key_is_the_same_attempt_whatever_else_the_form_says(
     row comes back, nothing new is admitted, and a scenario the repeat names is ignored,
     since the recorded request is resolved before any input is read."""
     log, rows = stores()
-    first = started(start(StartRequest(key(1), SCENARIO), log, rows, composition()))
-    again = started(start(StartRequest(key(1), OTHER_SCENARIO), log, rows, composition()))
+    first = started(start(request(key(1), SCENARIO), log, rows, composition()))
+    again = started(start(request(key(1), OTHER_SCENARIO), log, rows, composition()))
     assert again.repeated and again.row == first.row
     assert len(log.logs) == 1 and len(rows.rows) == 1 and len(rows.live) == 1
 
@@ -175,15 +185,15 @@ def test_a_recorded_request_is_answered_before_the_flag_the_world_and_the_rules(
     build and even stopped serving the world, a repeat under a recorded key is answered
     as recorded and the planner is never asked; a new key is refused by the flag."""
     log, rows = stores()
-    first = started(start(StartRequest(key(1), SCENARIO), log, rows, composition()))
+    first = started(start(request(key(1), SCENARIO), log, rows, composition()))
     later = composition(
         configuration=replace(LIVE, live_runs=False),
         plan=never_planned,
         world_served=lambda: False,
     )
-    again = started(start(StartRequest(key(1), SCENARIO), log, rows, later))
+    again = started(start(request(key(1), SCENARIO), log, rows, later))
     assert again.repeated and again.row == first.row
-    refused(start(StartRequest(key(2), SCENARIO), log, rows, later), StartRefusalKind.LIVE_RUNS_OFF)
+    refused(start(request(key(2), SCENARIO), log, rows, later), StartRefusalKind.LIVE_RUNS_OFF)
     assert len(log.logs) == 1
 
 
@@ -193,15 +203,15 @@ def test_a_recorded_request_is_answered_before_the_flag_the_world_and_the_rules(
 def test_the_flag_the_served_world_and_the_scenario_refuse_before_any_rule_reads_the_log() -> None:
     log, rows = stores(clock=Instants([]))  # a rule would read the clock; none may
     off = composition(configuration=replace(LIVE, live_runs=False), plan=never_planned)
-    refused(start(StartRequest(key(1), SCENARIO), log, rows, off), StartRefusalKind.LIVE_RUNS_OFF)
+    refused(start(request(key(1), SCENARIO), log, rows, off), StartRefusalKind.LIVE_RUNS_OFF)
     unserved = composition(world_served=lambda: False, plan=never_planned)
     refused(
-        start(StartRequest(key(1), SCENARIO), log, rows, unserved),
+        start(request(key(1), SCENARIO), log, rows, unserved),
         StartRefusalKind.WORLD_NOT_SERVED,
     )
     unknown = refused(
         start(
-            StartRequest(key(1), ScenarioId("scenario_099")),
+            request(key(1), ScenarioId("scenario_099")),
             log,
             rows,
             composition(plan=never_planned),
@@ -222,13 +232,13 @@ def test_a_second_start_while_one_is_open_is_busy_and_an_operators_open_run_is_n
     admitter; an operator's open attempt on the same ledger is not a public one."""
     log, rows = stores()
     log.seed(admission_only(SERVED, run_id="run-operator"))  # the fixtures' admitter, open
-    first = started(start(StartRequest(key(1), SCENARIO), log, rows, composition()))
+    first = started(start(request(key(1), SCENARIO), log, rows, composition()))
     busy = refused(
-        start(StartRequest(key(2), OTHER_SCENARIO), log, rows, composition()), StartRefusalKind.BUSY
+        start(request(key(2), OTHER_SCENARIO), log, rows, composition()), StartRefusalKind.BUSY
     )
     assert "replays" in busy.detail
     closed(log, first.row.run_id)
-    second = started(start(StartRequest(key(2), OTHER_SCENARIO), log, rows, composition()))
+    second = started(start(request(key(2), OTHER_SCENARIO), log, rows, composition()))
     assert not second.repeated and second.row.run_id != first.row.run_id
 
 
@@ -242,17 +252,17 @@ def test_the_sixth_start_of_a_utc_day_is_refused_and_the_first_of_the_next_admit
     for number in range(1, 6):
         at = day + timedelta(hours=number)
         instants.instants.extend([at, at, at + timedelta(minutes=10)])
-        outcome = started(start(StartRequest(key(number), SCENARIO), log, rows, composition()))
+        outcome = started(start(request(key(number), SCENARIO), log, rows, composition()))
         closed(log, outcome.row.run_id)
     instants.instants.append(day + timedelta(hours=23, minutes=59))
     spent = refused(
-        start(StartRequest(key(6), SCENARIO), log, rows, composition()),
+        start(request(key(6), SCENARIO), log, rows, composition()),
         StartRefusalKind.BUDGET_SPENT,
     )
     assert spent.detail == "today's budget is spent: 5 of 5 starts"
     next_day = day + timedelta(days=1)
     instants.instants.extend([next_day, next_day])
-    admitted = started(start(StartRequest(key(6), SCENARIO), log, rows, composition()))
+    admitted = started(start(request(key(6), SCENARIO), log, rows, composition()))
     assert admitted.row.started_at == next_day
     assert not instants.instants, "every instant given was read"
 
@@ -263,13 +273,13 @@ def test_the_ledgers_refusal_is_the_logs_recorded_one_and_a_repeat_answers_it() 
     the same reason, marked as recorded, admitting nothing."""
     log, rows = stores(threshold=1)
     first = refused(
-        start(StartRequest(key(1), SCENARIO), log, rows, composition()),
+        start(request(key(1), SCENARIO), log, rows, composition()),
         StartRefusalKind.RESERVATION_REFUSED,
     )
     assert "exceeds the room of 1" in first.detail and not first.recorded
     assert not log.logs and not rows.rows and not rows.live
     again = refused(
-        start(StartRequest(key(1), SCENARIO), log, rows, composition(plan=never_planned)),
+        start(request(key(1), SCENARIO), log, rows, composition(plan=never_planned)),
         StartRefusalKind.RESERVATION_REFUSED,
     )
     assert again.recorded and again.detail == first.detail
@@ -302,12 +312,12 @@ def test_an_admission_whose_rows_were_lost_is_counted_from_the_log_and_written_b
     log, rows = stores()
     rows.boundary = DiesOnce("start-before-commit")
     with pytest.raises(RuntimeError, match="the process died"):
-        start(StartRequest(key(1), SCENARIO), log, rows, composition())
+        start(request(key(1), SCENARIO), log, rows, composition())
     digest = key_digest_of(key(1))
     assert log.recorded_admission(digest) is not None and not rows.rows and not rows.live
-    refused(start(StartRequest(key(2), SCENARIO), log, rows, composition()), StartRefusalKind.BUSY)
+    refused(start(request(key(2), SCENARIO), log, rows, composition()), StartRefusalKind.BUSY)
     repaired = started(
-        start(StartRequest(key(1), SCENARIO), log, rows, composition(plan=never_planned))
+        start(request(key(1), SCENARIO), log, rows, composition(plan=never_planned))
     )
     assert repaired.repeated
     assert repaired.row.started_at == log.events(run_id_for(digest), 1)[0].timestamp
@@ -315,3 +325,75 @@ def test_an_admission_whose_rows_were_lost_is_counted_from_the_log_and_written_b
     publishable = rows.row_of(public_id_for(digest))
     assert publishable is not None and publishable.scenario_id == SCENARIO
     assert len(log.logs) == 1
+
+
+# --- the per-address window ---------------------------------------------------------------------
+
+
+def test_the_window_refuses_the_third_admission_from_one_address_with_the_busy_wording() -> (
+    None
+):
+    """Fork 8: two admissions per address per UTC day, counted on admission alone; the third
+    from the address is refused under its own kind with the busy sentence, while another
+    address is admitted; a refusal counts for nothing, and the next UTC day admits again."""
+    day = datetime(2026, 10, 26, 0, 0, tzinfo=UTC)
+    instants = Instants([])
+    log, rows = stores(clock=instants)
+    window = MemoryWindow(limit=2)
+    windowed = composition(window=window)
+    for number in (1, 2):
+        at = day + timedelta(hours=number)
+        instants.instants.extend([at, at, at + timedelta(minutes=10)])
+        outcome = started(start(request(key(number), SCENARIO), log, rows, windowed))
+        closed(log, outcome.row.run_id)
+    instants.instants.append(day + timedelta(hours=3))
+    spent = refused(
+        start(request(key(3), SCENARIO), log, rows, composition(window=window)),
+        StartRefusalKind.ADDRESS_SPENT,
+    )
+    busy = StartRefused(StartRefusalKind.BUSY, "an attempt is running; the replays are open")
+    assert spent.detail == busy.detail and not spent.recorded
+    assert len(log.logs) == 2, "a refused start admits nothing and is not noted"
+    instants.instants.extend([day + timedelta(hours=4)] * 2)
+    other = started(
+        start(request(key(4), SCENARIO, "198.51.100.9"), log, rows, composition(window=window))
+    )
+    assert not other.repeated
+    instants.instants.append(day + timedelta(hours=4, minutes=10))
+    closed(log, other.row.run_id)
+    instants.instants.extend([day + timedelta(days=1, hours=1)] * 2)
+    tomorrow = started(start(request(key(5), SCENARIO), log, rows, composition(window=window)))
+    assert not tomorrow.repeated
+
+
+def test_a_repeat_is_answered_past_the_address_window_and_a_refusal_before_it_is_not_noted() -> (
+    None
+):
+    """The design pass's reason for the window's place: a lost response resent after the
+    address's second admission is answered as recorded, with the row the cookie needs; and
+    the flag, the world and the scenario refuse before the window is asked, so a refused
+    form never spends the address."""
+    day = datetime(2026, 10, 26, 0, 0, tzinfo=UTC)
+    instants = Instants([])
+    log, rows = stores(clock=instants)
+    window = MemoryWindow(limit=2)
+    windowed = composition(window=window)
+    first = None
+    for number in (1, 2):
+        at = day + timedelta(hours=number)
+        instants.instants.extend([at, at, at + timedelta(minutes=10)])
+        outcome = started(start(request(key(number), SCENARIO), log, rows, windowed))
+        first = first or outcome
+        closed(log, outcome.row.run_id)
+    assert first is not None
+    again = started(start(request(key(1), SCENARIO), log, rows, composition(window=window)))
+    assert again.repeated and again.row == first.row
+    unknown = refused(
+        start(request(key(7), ScenarioId("scenario_099")), log, rows, composition(window=window)),
+        StartRefusalKind.UNKNOWN_SCENARIO,
+    )
+    assert unknown.kind is StartRefusalKind.UNKNOWN_SCENARIO
+    assert window.admissions[ADDRESS] == [
+        day + timedelta(hours=1),
+        day + timedelta(hours=2),
+    ], "two admissions noted at the log's instants, nothing for the repeat or the refusal"

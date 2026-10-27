@@ -37,6 +37,8 @@ from tests.unit import log_histories as histories
 from tests.unit import report_view_fixture as reported
 from tests.unit import stated_fixture as f
 from tests.unit import test_results_codec as codec
+from tests.unit.app_store_memory import MemoryAppStore
+from tests.unit.live_routes_fixture import DECISION_FORM, live_services
 from tests.unit.log_store_memory import MemoryLog
 from tests.unit.publishable_fixture import (
     CLOSED,
@@ -149,6 +151,7 @@ def services(
         histories.RULES,
         results,
         lambda: walkthroughs,
+        **live_services(rig.sessions.memory, MemoryAppStore()),
     )
 
 
@@ -300,24 +303,35 @@ def test_a_row_whose_scenario_disagrees_with_the_admission_is_not_found() -> Non
 def test_every_registered_route_is_classified_and_every_scoped_one_refuses_the_forged_name() -> (
     None
 ):
-    """The sweep: a route the table registers but ROUTES does not classify fails here, so a
-    surface added later joins the sweep or is refused; each attempt-scoped path is walked with
-    the forged name and the unknown name and must answer the same not-found bytes."""
+    """The sweep: a route the table registers but ROUTES does not classify, by path and
+    method, fails here, so a surface added later joins the sweep or is refused; each
+    attempt-scoped path is walked by its method (a post with the decision form and no
+    cookie) with the forged name and the unknown name and must answer the same not-found
+    bytes."""
     rig = Rig()
     app = create_app(services(rig))
-    registered = {route.path for route in app.routes if isinstance(route, APIRoute)}
-    classified = {route.path for route in ROUTES}
+    registered = {
+        (route.path, method)
+        for route in app.routes
+        if isinstance(route, APIRoute)
+        for method in route.methods or ()
+    }
+    classified = {(route.path, method) for route in ROUTES for method in route.methods}
     assert registered == classified, registered ^ classified
     scoped = [route for route in ROUTES if route.surface is Surface.ATTEMPT_SCOPED]
     assert scoped, "the sweep walks at least the replay page"
+    assert any(route.methods == {"POST"} for route in scoped), "the decision route is walked"
     with TestClient(app) as web:
         for route in scoped:
-            forged = web.get(route.path.format(public_id=FORGED))
-            unknown = web.get(route.path.format(public_id=UNKNOWN))
-            assert forged.status_code == unknown.status_code == 404, route.path
-            assert forged.content == unknown.content, route.path
-            served = web.get(route.path.format(public_id="served"))
-            assert served.status_code == 200, route.path
+            for method in route.methods:
+                data = DECISION_FORM if method == "POST" else None
+                forged = web.request(method, route.path.format(public_id=FORGED), data=data)
+                unknown = web.request(method, route.path.format(public_id=UNKNOWN), data=data)
+                assert forged.status_code == unknown.status_code == 404, (route.path, method)
+                assert forged.content == unknown.content, (route.path, method)
+                if method == "GET":
+                    served = web.get(route.path.format(public_id="served"))
+                    assert served.status_code == 200, route.path
 
 
 def test_a_live_flag_still_shows_on_the_index() -> None:

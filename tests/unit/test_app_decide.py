@@ -154,6 +154,10 @@ def test_no_live_row_and_a_wrong_key_are_refused_before_the_log_is_read() -> Non
         decide(request(Decision.APPROVED, key_given=key(2)), log, rows, COMPOSITION),
         DecideRefusalKind.CAPABILITY,
     )
+    refused(
+        decide(replace(request(Decision.APPROVED), key=None), log, rows, COMPOSITION),
+        DecideRefusalKind.CAPABILITY,
+    )
     assert len(log.events(RUN, 1)) == len(events)
     assert rows.live_row_of(PUBLIC_ID) is not None
     assert rows.live_row_of(PUBLIC_ID).decision is None  # type: ignore[union-attr]

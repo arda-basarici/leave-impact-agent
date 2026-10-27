@@ -10,4 +10,18 @@ withheld world, with every caveat the measurement carries.</p>
   <dt>Served world</dt><dd>{{ served_world_version }}</dd>
   <dt>Live runs</dt><dd>{{ "on" if live_runs else "off" }}</dd>
 </dl>
+{% if live_runs %}
+<form method="post" action="/start" id="start">
+  <input type="hidden" name="key" value="{{ start_key }}">
+  <label>Scenario <select name="scenario_id">
+{% for scenario_id in scenarios %}
+    <option value="{{ scenario_id }}">{{ scenario_id }}</option>
+{% endfor %}
+  </select></label>
+  <button type="submit">Start a live run</button>
+</form>
+<p class="meta">A live run investigates one scenario of the served world now and asks this browser to approve or decline its plan; the key in the form is what lets this browser decide.</p>
+{% else %}
+<p class="meta">Live runs are off; the replays are the recorded investigations.</p>
+{% endif %}
 {% endblock %}

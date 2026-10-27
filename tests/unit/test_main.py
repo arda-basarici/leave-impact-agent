@@ -16,6 +16,7 @@ from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.core.tools import Role
 from leaveimpact.results.committed import M2_REPORTED, committed_results
 from leaveimpact.results.public import PublicResults
+from tests.unit.registration_fixture import COMMITTED_FILE
 
 ENV = {"LEAVEIMPACT_CODE_VERSION": "a" * 40}
 
@@ -48,6 +49,21 @@ def test_serving_refuses_an_environment_without_a_database_before_binding(
     never a bound socket."""
     assert main([], ENV) == 1
     assert "DATABASE_URL is not set" in capsys.readouterr().err
+
+
+def test_serving_refuses_a_planning_the_environment_cannot_build_before_binding(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """The composition above the shells: with the surface's own names present, the planner's
+    missing name is the refusal, printed and exit 1, before any store is opened or a socket
+    bound (the start has no database to reach in this test, and it never tries)."""
+    env = {
+        **ENV,
+        "DATABASE_URL": "postgresql://x@localhost:1/x",
+        "LEAVEIMPACT_REGISTRATION_FILE": str(COMMITTED_FILE),
+    }
+    assert main([], env) == 1
+    assert "LEAVEIMPACT_REGISTRATION_COMMIT is not set" in capsys.readouterr().err
 
 
 def test_the_smoke_prints_every_roles_asset_digests_beside_the_code_version(

@@ -31,10 +31,10 @@ from leaveimpact.app.start import (
     Started,
     StartRefusalKind,
     StartRefused,
-    StartRequest,
     start,
 )
 from leaveimpact.app.store import STATEMENT_TIMEOUT_MS, AppStore
+from leaveimpact.app.window import MemoryWindow
 from leaveimpact.core import AbandonmentReason
 from leaveimpact.core.ids import ScenarioId
 from tests.integration.log_store_support import Hold, Rig, Scripted, rig, wait_until_blocked
@@ -42,7 +42,7 @@ from tests.integration.test_log_store import AUTHORITY, PLENTY
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit.publishable_fixture import CONFIGURATION, SCENARIO, SERVED, admission_only
-from tests.unit.test_app_start import SWEEPER, key, never_planned
+from tests.unit.test_app_start import SWEEPER, UNLIMITED, key, never_planned, request
 
 pytestmark = pytest.mark.integration
 
@@ -71,6 +71,7 @@ def composition(**changes: object) -> StartComposition:
         "scenarios": frozenset({SCENARIO, OTHER_SCENARIO}),
         "plan": plan,
         "world_served": lambda: True,
+        "window": MemoryWindow(limit=UNLIMITED),
     }
     fields.update(changes)
     return StartComposition(**fields)  # type: ignore[arg-type]
@@ -142,7 +143,7 @@ def refused(outcome: object, kind: StartRefusalKind) -> StartRefused:
 
 def test_a_start_admits_and_both_rows_and_the_recorded_request_are_read_back(rig: Rig) -> None:
     log, store = prepared(rig)
-    outcome = started(start(StartRequest(key(1), SCENARIO), log, store, composition()))
+    outcome = started(start(request(key(1), SCENARIO), log, store, composition()))
     digest = key_digest_of(key(1))
     run_id, public_id = run_id_for(digest), public_id_for(digest)
     assert not outcome.repeated and outcome.row.holds(key(1))
@@ -161,7 +162,7 @@ def test_a_start_admits_and_both_rows_and_the_recorded_request_are_read_back(rig
     ) == (run_id, 1, SERVED, SCENARIO, outcome.row.started_at, DEMO_START.identity)
     recorded = log.recorded_admission(digest)
     assert recorded is not None and recorded.admitted and recorded.run_id == run_id
-    again = started(start(StartRequest(key(1), OTHER_SCENARIO), log, store, composition()))
+    again = started(start(request(key(1), OTHER_SCENARIO), log, store, composition()))
     assert again.repeated and again.row == outcome.row
     assert len(store.rows_for(SERVED)) == 1
 
@@ -173,18 +174,18 @@ def test_two_starts_at_the_cap_on_two_connections_admit_exactly_the_cap(rig: Rig
     refuses by the cap. Exactly the cap is admitted, in that order, with no sleep."""
     log, store = prepared(rig)
     for number in range(1, 5):
-        outcome = started(start(StartRequest(key(number), SCENARIO), log, store, composition()))
+        outcome = started(start(request(key(number), SCENARIO), log, store, composition()))
         closed(log, outcome.row.run_id)
     hold = Hold("serialized")
     first_log, second_log = rig.store(boundary=hold), rig.store()
     first_store, second_store = app_store(rig), app_store(rig)
     with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
         first = pool.submit(
-            start, StartRequest(key(5), SCENARIO), first_log, first_store, composition()
+            start, request(key(5), SCENARIO), first_log, first_store, composition()
         )
         hold.wait_reached()
         second = pool.submit(
-            start, StartRequest(key(6), SCENARIO), second_log, second_store, composition()
+            start, request(key(6), SCENARIO), second_log, second_store, composition()
         )
         wait_until_blocked(observer, rig.backend_pid(second_log))
         hold.release.set()
@@ -218,14 +219,14 @@ def test_an_admission_whose_section_was_lost_is_counted_from_the_log_and_repaire
     log, store = prepared(rig)
     dying = app_store(rig, boundary=DiesOnce("start-before-commit"))
     with pytest.raises(RuntimeError, match="the process died"):
-        start(StartRequest(key(1), SCENARIO), log, dying, composition())
+        start(request(key(1), SCENARIO), log, dying, composition())
     digest = key_digest_of(key(1))
     recorded = log.recorded_admission(digest)
     assert recorded is not None and recorded.admitted
     assert store.row_of(public_id_for(digest)) is None and store.rows_for(SERVED) == ()
-    refused(start(StartRequest(key(2), SCENARIO), log, store, composition()), StartRefusalKind.BUSY)
+    refused(start(request(key(2), SCENARIO), log, store, composition()), StartRefusalKind.BUSY)
     repaired = started(
-        start(StartRequest(key(1), SCENARIO), log, store, composition(plan=never_planned))
+        start(request(key(1), SCENARIO), log, store, composition(plan=never_planned))
     )
     assert repaired.repeated and repaired.row.started_at == recorded.recorded_at
     assert store.live_row_of(public_id_for(digest)) == repaired.row
@@ -251,14 +252,14 @@ def test_the_sixth_start_of_a_utc_day_is_refused_and_the_first_of_the_next_admit
     scripted = Scripted(instants)
     log = rig.store(clock=scripted)
     for number in range(1, 6):
-        outcome = started(start(StartRequest(key(number), SCENARIO), log, store, composition()))
+        outcome = started(start(request(key(number), SCENARIO), log, store, composition()))
         closed(log, outcome.row.run_id)
     spent = refused(
-        start(StartRequest(key(6), SCENARIO), log, store, composition()),
+        start(request(key(6), SCENARIO), log, store, composition()),
         StartRefusalKind.BUDGET_SPENT,
     )
     assert spent.detail == "today's budget is spent: 5 of 5 starts"
-    admitted = started(start(StartRequest(key(6), SCENARIO), log, store, composition()))
+    admitted = started(start(request(key(6), SCENARIO), log, store, composition()))
     assert admitted.row.started_at == next_day
     assert scripted.given == len(instants), "every instant given was read"
 
@@ -266,13 +267,13 @@ def test_the_sixth_start_of_a_utc_day_is_refused_and_the_first_of_the_next_admit
 def test_the_ledgers_refusal_is_recorded_under_the_key_and_a_repeat_answers_it(rig: Rig) -> None:
     log, store = prepared(rig, threshold=1)
     first = refused(
-        start(StartRequest(key(1), SCENARIO), log, store, composition()),
+        start(request(key(1), SCENARIO), log, store, composition()),
         StartRefusalKind.RESERVATION_REFUSED,
     )
     assert "exceeds the room of 1" in first.detail and not first.recorded
     assert store.rows_for(SERVED) == () and log.open_attempts() == ()
     again = refused(
-        start(StartRequest(key(1), SCENARIO), log, store, composition(plan=never_planned)),
+        start(request(key(1), SCENARIO), log, store, composition(plan=never_planned)),
         StartRefusalKind.RESERVATION_REFUSED,
     )
     assert again.recorded and again.detail == first.detail
@@ -291,15 +292,15 @@ def test_the_cap_holds_when_a_start_is_held_inside_its_admission_and_its_app_sid
     on this rig."""
     log, store = prepared(rig)
     for number in range(1, 5):
-        outcome = started(start(StartRequest(key(number), SCENARIO), log, store, composition()))
+        outcome = started(start(request(key(number), SCENARIO), log, store, composition()))
         closed(log, outcome.row.run_id)
     hold = Hold("before-commit")
     a_log, b_log = rig.store(boundary=hold), rig.store()
     a_store, b_store = app_store(rig, boundary=DiesOnce("start-before-commit")), app_store(rig)
     with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
-        a = pool.submit(start, StartRequest(key(5), SCENARIO), a_log, a_store, composition())
+        a = pool.submit(start, request(key(5), SCENARIO), a_log, a_store, composition())
         hold.wait_reached()
-        b = pool.submit(start, StartRequest(key(6), SCENARIO), b_log, b_store, composition())
+        b = pool.submit(start, request(key(6), SCENARIO), b_log, b_store, composition())
         wait_until_blocked(observer, rig.backend_pid(b_log))
         hold.release.set()
         with pytest.raises(RuntimeError, match="the process died"):
@@ -327,10 +328,10 @@ def test_a_retry_racing_the_first_starts_rows_after_its_log_backend_died_gets_th
     b_recording = Recording([])
     b_store = app_store(rig, recording=b_recording)
     with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
-        a = pool.submit(start, StartRequest(key(1), SCENARIO), a_log, a_store, composition())
+        a = pool.submit(start, request(key(1), SCENARIO), a_log, a_store, composition())
         hold.wait_reached()
         observer.execute("SELECT pg_terminate_backend(%s)", (rig.backend_pid(a_log),))
-        b = pool.submit(start, StartRequest(key(1), SCENARIO), b_log, b_store, composition())
+        b = pool.submit(start, request(key(1), SCENARIO), b_log, b_store, composition())
         while not b_recording.connections:
             pass
         wait_until_blocked(observer, int(b_recording.connections[-1].info.backend_pid))

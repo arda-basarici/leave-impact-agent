@@ -41,6 +41,7 @@ from tests.integration.worker_rig import (
     work,
 )
 from tests.unit import worker_support as support
+from tests.unit.live_routes_fixture import live_services
 from tests.unit.publishable_fixture import CONFIGURATION
 from tests.unit.throwaway_world import loaded_world
 
@@ -109,6 +110,7 @@ def pages(rig: Rig, log: LogStore, inputs: FrozenInputs) -> tuple[str, str, Repo
         rules=RULES,
         results=committed_results,
         walkthroughs=lambda: (),
+        **live_services(rig.store, store),
     )
     with TestClient(create_app(services)) as web:
         report = web.get(f"/replays/{SLUG}")

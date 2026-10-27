@@ -23,11 +23,15 @@ is answered as the log recorded it before the flag, the cap or the single-open c
 can refuse it as new, and before any inputs are rebuilt (fork 2 as amended, history 17);
 a recorded admission with no live row gets its rows now. Then the flag: live runs off
 admits no new attempt and nothing else. Then the served world and the scenario, read off
-the composition the deploy fixed. Then the day's count against the cap, by the admissions'
-instants and never the tuple's length (the read lists older open ones too); then the
-single-open condition, by the closed flag; then the log's admission, whose refusal (the
-ledger's) is the recorded one and leaves nothing on the app side; then the publishable row
-and the live row in the app store's section.
+the composition the deploy fixed. Then the client address's window (``window``, fork 8 as
+placed at group 4's design pass): two admissions per address per UTC day, consulted here
+and not on the route, so a repeat is answered before it and the window counts admissions
+alone; its refusal wears the busy page's wording under its own kind. Then the day's count
+against the cap, by the admissions' instants and never the tuple's length (the read lists
+older open ones too); then the single-open condition, by the closed flag; then the log's
+admission, whose refusal (the ledger's) is the recorded one and leaves nothing on the app
+side, and whose receipt is noted on the window; then the publishable row and the live row
+in the app store's section.
 
 **The names.** The key's digest is the request identity, the run id and the public id are
 derived from it, and the admitter is one identity, ``demo-start``, which is what makes an
@@ -68,6 +72,7 @@ from leaveimpact.app.live import (
     run_id_for,
 )
 from leaveimpact.app.public import PublicationDraft
+from leaveimpact.app.window import AddressWindow
 from leaveimpact.core.ids import ScenarioId
 
 DEMO_START = Producer("demo-start")
@@ -116,24 +121,37 @@ only for a scenario the composition lists."""
 
 
 @dataclass(frozen=True, slots=True)
+class Planning:
+    """What the composition root above the shells hands the surface: the served world's
+    scenario ids and the planner over them, built by the launcher from the registration,
+    the price table and the world store, which the surface never imports."""
+
+    scenarios: frozenset[ScenarioId]
+    plan: Planner
+
+
+@dataclass(frozen=True, slots=True)
 class StartComposition:
     """What the composition root fixes for every start: the configuration, the rules the
-    log is folded under, the served world's scenario ids, the planner over them, and
-    whether the cache serves the configured world."""
+    log is folded under, the served world's scenario ids, the planner over them, whether
+    the cache serves the configured world, and the per-address window."""
 
     configuration: DemoConfiguration
     rules: Rules
     scenarios: frozenset[ScenarioId]
     plan: Planner
     world_served: Callable[[], bool]
+    window: AddressWindow
 
 
 @dataclass(frozen=True, slots=True)
 class StartRequest:
-    """What a visitor's form carries: the key the index minted into it and the scenario."""
+    """What a visitor's form carries, the key the index minted into it and the scenario,
+    and the client address the route read for the window."""
 
     key: StartKey
     scenario_id: ScenarioId
+    address: str
 
 
 class StartRefusalKind(StrEnum):
@@ -149,6 +167,9 @@ class StartRefusalKind(StrEnum):
     """The day's admissions reached the cap."""
     BUSY = "busy"
     """A public attempt is open; the replays are there to read meanwhile."""
+    ADDRESS_SPENT = "address_spent"
+    """The client address had its admissions for the UTC day; rendered with the busy
+    wording, so the sentence a visitor reads is one, and named here so the record is."""
     RESERVATION_REFUSED = "reservation_refused"
     """The log refused the admission (the ledger's room or its head); the reason is the
     log's, recorded under the request identity."""
@@ -210,6 +231,10 @@ def start(
                 f"the served world has no scenario {request.scenario_id}",
             )
         since = day_start_of(log.now())
+        if not composition.window.admits(request.address, since=since):
+            return StartRefused(
+                StartRefusalKind.ADDRESS_SPENT, "an attempt is running; the replays are open"
+            )
         admitted = log.admitted_by(DEMO_START, configuration.ledger_id, since=since)
         refusal = _rule_refusal(admitted, configuration, since=since)
         if refusal is not None:
@@ -227,6 +252,7 @@ def start(
         )
         if not isinstance(result, AdmissionReceipt):
             return StartRefused(StartRefusalKind.RESERVATION_REFUSED, result.reason)
+        composition.window.note(request.address, result.recorded_at)
         with sections.start_section() as writer:
             row = writer.write(
                 PublicationDraft(
@@ -316,6 +342,7 @@ __all__ = [
     "FIRST_ATTEMPT",
     "LiveWriter",
     "Planner",
+    "Planning",
     "StartComposition",
     "StartLog",
     "StartOutcome",
