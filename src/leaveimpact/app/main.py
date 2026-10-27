@@ -52,7 +52,12 @@ id, and the decision from an open attempt's replay page, carrying the decision a
 digest of the review payload the page showed, the key coming back as the cookie the start
 set (``Path`` the attempt's replay path, ``HttpOnly``, ``Secure``, ``SameSite=Strict``,
 fork 3). Both routes are ``async`` and read their urlencoded body themselves, since the
-service carries no multipart parser for a form this small, then run the command on the
+service carries no multipart parser for a form this small, from the request's stream
+under a byte bound and with the parser's field bound (``form_of``: the group's external
+read posted eight mebibytes of empty fields under the flag off and the process's peak
+working set rose from 118 to 502 MiB against the container's 384; a body past the bound
+is 413 and a form with more fields than the page's is 400, before any rule and before
+any store is opened), then run the command on the
 thread pool as the plain routes run, in a log session of their own. A start answers a
 redirect to the replay page with the cookie on every ``Started``, a repeat included, so a
 lost response is survivable; a decision answers the same redirect. A refusal renders by
@@ -187,6 +192,14 @@ COOKIE = "start_key"
 decision route reads back (fork 3 of the live-path commands step)."""
 COOKIE_MAX_AGE_SECONDS = 24 * 60 * 60
 """Longer than any wait and wall the configuration bounds; a repeat of the start renews it."""
+FORM_BYTES_BOUND = 1024
+"""What a posted form may be, read from the stream and never buffered past it: the start's
+key and scenario id or the decision's digest and button are under a hundred bytes each, and
+an unbounded read let one post make the process hold the whole body (the group's external
+read, finding 1)."""
+FORM_FIELDS_BOUND = 8
+"""More fields than either form carries; the parser refuses past it before a dictionary is
+built."""
 GET = frozenset({"GET"})
 POST = frozenset({"POST"})
 
@@ -277,6 +290,16 @@ _DECIDE_WORDING: dict[DecideRefusalKind, tuple[int, str]] = {
 visitor started is the not-found page and is not here."""
 _DECISIONS = {"approve": Decision.APPROVED, "decline": Decision.DECLINED}
 """The decision form's two button values."""
+
+
+class FormRefused(Exception):
+    """A posted body neither form produces: past the byte bound (413) or with more fields
+    than the parser's bound (400); the status and the sentence the route renders."""
+
+    def __init__(self, status: int, reason: str) -> None:
+        super().__init__(reason)
+        self.status = status
+        self.reason = reason
 
 
 class LiveLog(StartLog, DecideLog, Protocol):
@@ -519,10 +542,13 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
             log.close()
 
     async def start_run(request: Request) -> Response:
-        """The start: the form read, the key and the scenario checked for shape, the
-        command on the thread pool, the redirect with the cookie or the refusal by
-        kind."""
-        form = await form_of(request)
+        """The start: the form read under its bounds, the key and the scenario checked for
+        shape, the command on the thread pool, the redirect with the cookie or the refusal
+        by kind."""
+        try:
+            form = await form_of(request)
+        except FormRefused as error:
+            return refused(request, error.status, error.reason)
         try:
             key = start_key_of(form.get("key", ""))
         except ValueError:
@@ -568,7 +594,10 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
             name = public_id_of(public_id)
         except ValueError:
             return not_found(request)
-        form = await form_of(request)
+        try:
+            form = await form_of(request)
+        except FormRefused as error:
+            return refused(request, error.status, error.reason)
         decision = _DECISIONS.get(form.get("decision", ""))
         if decision is None:
             return refused(request, 400, "The form names no decision.")
@@ -616,10 +645,32 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
 
 
 async def form_of(request: Request) -> dict[str, str]:
-    """The urlencoded form a browser posts, the last value per name; the two forms are
-    read here since the service carries no multipart parser."""
-    body = await request.body()
-    return dict(parse_qsl(body.decode("utf-8", errors="replace"), keep_blank_values=True))
+    """The urlencoded form a browser posts, the last value per name, read from the stream
+    under ``FORM_BYTES_BOUND`` and parsed under ``FORM_FIELDS_BOUND``; the two forms are read
+    here since the service carries no multipart parser. ``FormRefused`` past either bound:
+    a declared length past the byte bound refuses before a byte is read, and the stream is
+    bounded as it arrives whatever the headers declare, so a chunked body without a length
+    is held to the same bound."""
+    declared = request.headers.get("content-length", "")
+    if declared.isdigit() and int(declared) > FORM_BYTES_BOUND:
+        raise FormRefused(413, TOO_LARGE)
+    received = bytearray()
+    async for chunk in request.stream():
+        received += chunk
+        if len(received) > FORM_BYTES_BOUND:
+            raise FormRefused(413, TOO_LARGE)
+    try:
+        pairs = parse_qsl(
+            received.decode("utf-8", errors="replace"),
+            keep_blank_values=True,
+            max_num_fields=FORM_FIELDS_BOUND,
+        )
+    except ValueError:
+        raise FormRefused(400, "The form carries more fields than any this page posts.") from None
+    return dict(pairs)
+
+
+TOO_LARGE = "The form is larger than any this page posts."
 
 
 def address_of(request: Request) -> str:

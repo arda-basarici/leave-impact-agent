@@ -12,6 +12,7 @@ digest 400."""
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from dataclasses import replace
 from datetime import datetime, timedelta
 from http.cookies import SimpleCookie
@@ -22,7 +23,13 @@ from fastapi.testclient import TestClient
 from leaveimpact.agent.log_events import Admitted, Approved, Declined
 from leaveimpact.app.config import DemoConfiguration
 from leaveimpact.app.live import Decision, key_digest_of, public_id_for
-from leaveimpact.app.main import COOKIE, Services, create_app
+from leaveimpact.app.main import (
+    COOKIE,
+    FORM_BYTES_BOUND,
+    FORM_FIELDS_BOUND,
+    Services,
+    create_app,
+)
 from leaveimpact.app.public import PublishableRow
 from leaveimpact.app.window import MemoryWindow
 from leaveimpact.core.ids import ScenarioId
@@ -166,6 +173,34 @@ def test_the_flag_off_the_busy_run_and_the_spent_address_refuse_by_kind() -> Non
         spent = web.post("/start", data=form(2))
     assert spent.status_code == 409 and BUSY_SENTENCE in spent.text
     assert spent.content == busy.content, "the address's refusal reads as the busy one"
+
+
+def test_a_body_past_the_bound_or_with_too_many_fields_is_refused_before_any_rule() -> None:
+    """The group's external read: an unbounded read let one post make the process hold the
+    whole body. A declared length past the bound, a chunked body without a length past it,
+    and a body within it carrying more fields than the parser's bound are refused on both
+    routes before any rule runs: no log session opened, nothing admitted, no row."""
+    rig = Rig()
+    urlencoded = {"content-type": "application/x-www-form-urlencoded"}
+    oversized = b"x=&" * FORM_BYTES_BOUND
+
+    def chunks() -> Iterator[bytes]:
+        yield oversized[: FORM_BYTES_BOUND // 2]
+        yield oversized[FORM_BYTES_BOUND // 2 :]
+
+    crowded = {f"f{number}": "" for number in range(FORM_FIELDS_BOUND + 1)}
+    decision = f"/replays/{public_id_for(key_digest_of(key(1)))}/decision"
+    with rig.client() as web:
+        sized = web.post("/start", content=oversized, headers=urlencoded)
+        chunked = web.post("/start", content=chunks(), headers=urlencoded)
+        fields = web.post("/start", data=crowded)
+        decided_sized = web.post(decision, content=oversized, headers=urlencoded)
+        decided_fields = web.post(decision, data=crowded)
+    assert sized.status_code == chunked.status_code == decided_sized.status_code == 413
+    assert "larger than any this page posts" in sized.text
+    assert fields.status_code == decided_fields.status_code == 400
+    assert "more fields than any this page posts" in fields.text
+    assert rig.log.logs == {} and rig.rows.live == [] and rig.sessions.opened == 0
 
 
 def test_the_world_not_served_and_a_store_not_answering_are_the_unavailable_page() -> None:
