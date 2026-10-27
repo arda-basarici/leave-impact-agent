@@ -55,8 +55,10 @@ instance, over `ssm send-command` from the workflow's `production`
 environment, never by hand.
 
 One deploy runs on the host at a time (the worker service's step): the workflow's
-deploy job sits in one concurrency group that cancels nothing, so a later approved run
-waits, and the script itself takes `flock -n` on `/srv/app/deploy.lock` before it
+deploy job sits in one concurrency group that cancels nothing in progress, so a later
+run waits behind a running deploy (a newer run queued behind it replaces an older one
+still queued, GitHub's default queue policy, which serializes the same), and the script
+itself takes `flock -n` on `/srv/app/deploy.lock` before it
 fetches or pulls anything, refusing with one sentence when another deploy holds it; the
 descriptor dies with the script's shell, so a deploy that crashed holds nothing.
 
