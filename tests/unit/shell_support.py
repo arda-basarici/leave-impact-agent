@@ -1,7 +1,7 @@
 """Running the lifecycle and deploy shell scripts under fake binaries: a ``bash`` found
 beside git on Windows (the system one there may be WSL's), a directory of fake ``aws``,
-``docker``, ``curl``, ``chown`` and ``gh`` scripts put first on ``PATH``, and a log every
-fake appends its command line to.
+``docker``, ``curl``, ``chown``, ``gh`` and ``flock`` scripts put first on ``PATH``, and a
+log every fake appends its command line to.
 
 The fakes answer what the scripts read and record what they ran, so a test asserts the
 composed command lines, the environment a container was handed, and the sequence of sends,
@@ -96,6 +96,15 @@ case "$1 $2" in
     ;;
   *) echo "fake aws: $*" >&2; exit 1 ;;
 esac
+"""
+
+_FAKE_FLOCK = r"""#!/usr/bin/env bash
+# flock(1) is util-linux's and git's bash on Windows ships none; the deploy script takes
+# it with -n, whose documented answer to a held lock is exit 1. FAKE_FLOCK_HELD scripts
+# the held lock; otherwise the lock is taken.
+set -euo pipefail
+printf '%s\n' "flock $*" >> "$FAKE_LOG"
+[ -z "${FAKE_FLOCK_HELD:-}" ] || exit 1
 """
 
 _FAKE_DOCKER = r"""#!/usr/bin/env bash
@@ -250,6 +259,7 @@ def fake_binaries(root: Path) -> FakeBinaries:
         ("curl", _FAKE_CURL),
         ("chown", _FAKE_CHOWN),
         ("gh", _FAKE_GH),
+        ("flock", _FAKE_FLOCK),
     ):
         script = bin_dir / name
         script.write_text(body, newline="\n")

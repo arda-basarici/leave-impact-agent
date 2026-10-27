@@ -53,6 +53,17 @@ def test_a_dispatched_workflow_stays_under_the_input_cap(workflow: Path) -> None
     assert 0 < len(inputs) <= 10, f"{workflow.name} declares {len(inputs)} inputs"
 
 
+def test_the_deploy_job_runs_under_one_concurrency_group_and_cancels_nothing() -> None:
+    """The worker service's step: two approved deploys could overlap on the host, and the
+    deploy drains the worker before the schema bootstraps, an order a second run would cut
+    across. The job names one group and cancels nothing in progress, so a later run waits;
+    the host-side lock in deploy.sh is the second layer."""
+    deploy = _jobs((WORKFLOWS[0].parent / "ci.yml").read_text())["deploy"]
+    assert re.search(r"^    concurrency:\s*$", deploy, re.MULTILINE)
+    assert re.search(r"^      group: deploy-production\s*$", deploy, re.MULTILINE)
+    assert re.search(r"^      cancel-in-progress: false\s*$", deploy, re.MULTILINE)
+
+
 def test_the_two_lifecycle_workflows_are_among_those_checked() -> None:
     names = {path.name for path in WORKFLOWS}
     assert {"investigate.yml", "continue-run.yml", "ci.yml"} <= names

@@ -80,6 +80,34 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     assert "value-of-" not in "\n".join(docker)
 
 
+def test_the_host_lock_is_taken_first_and_a_held_lock_refuses_before_any_fetch_or_pull(
+    host: tuple[FakeBinaries, dict[str, str], Path],
+) -> None:
+    """The worker service's step: one deploy on the host at a time, the second layer under
+    the workflow's concurrency group. The lock is the script's first recorded action, on a
+    descriptor over the app directory's lock file; a held lock (``flock -n``'s exit 1,
+    scripted) refuses with one sentence before the compose file is fetched or an image
+    pulled, and leaves no marker."""
+    fakes, env, app_dir = host
+    completed = run_script(DEPLOY_SCRIPT, env)
+    assert completed.returncode == 0, completed.stderr
+    assert fakes.log.read_text().splitlines()[0] == "flock -n 9"
+    assert (app_dir / "deploy.lock").exists()
+    (app_dir / "second").mkdir()
+    held = fake_binaries(app_dir / "second")
+    held_env = held.environment(
+        APP_DIR=posix(app_dir), DEPLOY_SHA=SHA, DEPLOY_DIGEST=DIGEST, FAKE_FLOCK_HELD="1"
+    )
+    (app_dir / "DEPLOYED").unlink()
+    completed = run_script(DEPLOY_SCRIPT, held_env)
+    assert completed.returncode == 1
+    assert f"another deploy holds {posix(app_dir)}/deploy.lock; this one is refused" in (
+        completed.stderr
+    )
+    assert held.lines("docker") == [] and held.lines("curl") == []
+    assert not (app_dir / "DEPLOYED").exists()
+
+
 def test_no_digest_refuses_the_deploy_before_any_pull(
     host: tuple[FakeBinaries, dict[str, str], Path],
 ) -> None:

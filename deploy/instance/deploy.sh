@@ -36,6 +36,13 @@ param() {
 }
 
 cd "$APP_DIR"
+# One deploy on this host at a time, beside the workflow's concurrency group (for a
+# command sent by hand, or two runs the group did not see). The lock is a descriptor the
+# shell holds for the script's life, so a deploy that dies releases it, where a lock
+# directory would outlive its maker; `-n` refuses at once rather than queueing behind a
+# deploy whose state this one cannot know. Taken before anything is fetched or pulled.
+exec 9> "$APP_DIR/deploy.lock"
+flock -n 9 || { echo "another deploy holds $APP_DIR/deploy.lock; this one is refused" >&2; exit 1; }
 curl -fsSL "https://raw.githubusercontent.com/$REPO/$DEPLOY_SHA/compose.yaml" -o compose.yaml
 
 export APP_TAG="$DEPLOY_SHA"

@@ -306,6 +306,15 @@ jobs:
     needs: image
     runs-on: ubuntu-latest
     environment: production
+    # One deploy on the host at a time: two approved runs could otherwise overlap there,
+    # and the worker service's step drains the worker before the schema bootstraps, an
+    # order a second run would cut across. Nothing in progress is cancelled; a later run
+    # waits. The host-side lock in deploy.sh is the second layer, for a command sent by
+    # hand. Whether a run pending environment review holds the group's slot is observed
+    # on this group's first pushes and recorded in the stream.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
     # The three actions below are pinned by full commit SHA: `id-token: write` is
     # job-level, so any action here could mint the token the deploy role trusts.
     permissions:

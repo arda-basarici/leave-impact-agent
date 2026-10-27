@@ -54,6 +54,12 @@ rollback is the same script with an older sha. It runs as root on the
 instance, over `ssm send-command` from the workflow's `production`
 environment, never by hand.
 
+One deploy runs on the host at a time (the worker service's step): the workflow's
+deploy job sits in one concurrency group that cancels nothing, so a later approved run
+waits, and the script itself takes `flock -n` on `/srv/app/deploy.lock` before it
+fetches or pulls anything, refusing with one sentence when another deploy holds it; the
+descriptor dies with the script's shell, so a deploy that crashed holds nothing.
+
 `DEPLOYED` names the last run that reached its end, not a verified release: the
 marker is written last, so an interrupted run leaves the new `compose.yaml`
 beside the old marker, and the boundary probe runs after the write, so a red
