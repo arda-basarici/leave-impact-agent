@@ -841,11 +841,18 @@ class LogStore:
         *,
         rules: Rules,
         state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
     ) -> Transition:
         """The closing event with the settlement the store computes under the lock and the
         ledger's settled entry in the same transaction (the ruling on admission, part 8);
         ``closing`` arrives with no settlement. A repeat on the closed attempt is the receipt.
-        A worker passes its stamp as a factory, called under the lock (see the module)."""
+        A worker passes its stamp as a factory, called under the lock (see the module).
+        ``precondition`` is read on the current state under the attempt's lock, before the
+        clock and the settlement, and its sentence is the refusal when it returns one: a
+        caller whose closure rests on what the log showed a moment ago (the demo's sweeper
+        fencing a holder past its wall, which must still hold an open segment at that
+        generation when the closure lands) states the condition here, where the state
+        cannot move under it (the live-path commands step, group 3's external read)."""
         if closing.settlement is not None:
             raise ValueError(
                 "the store computes the settlement; pass the closing event without one"
@@ -856,8 +863,12 @@ class LogStore:
             if row.closed:
                 return self._closed_again(conn, row, closing)
             stamped = _envelope_of(envelope)
-            at = self._clock(conn)
             current = self._current_state(conn, row, state, rules)
+            if precondition is not None:
+                unmet = precondition(current)
+                if unmet is not None:
+                    return Refused(unmet)
+            at = self._clock(conn)
             inputs = current.inputs
             assert inputs is not None
             written: tuple[str, LedgerEntry, LedgerHead] | None = None

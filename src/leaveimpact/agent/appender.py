@@ -94,6 +94,7 @@ class LogCommands(Protocol):
         *,
         rules: Rules,
         state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
     ) -> Transition: ...
 
     def now(self) -> datetime: ...

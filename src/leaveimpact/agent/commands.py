@@ -466,17 +466,28 @@ class AttemptAbandoned:
 
 
 def abandon(
-    request: AbandonRequest, store: LogCommands, *, rules: Rules
+    request: AbandonRequest,
+    store: LogCommands,
+    *,
+    rules: Rules,
+    state: AttemptState | None = None,
+    precondition: Callable[[AttemptState], str | None] | None = None,
 ) -> AttemptAbandoned | CommandRefused:
     """Close the attempt with an abandonment under the authority's identity, fencing the
-    generation the load shows; the store closes and settles in one transaction. A closed
-    attempt is refused with its position, so a repeat is the store's receipt only when it
-    raced the first abandonment at the store, and a later repeat is refused as closed; a
-    caller that may repeat after a crash (the demo's sweeper) reads closure from the
-    state it reloads, never from the refusal's wording. The store is any that offers the
-    log's commands."""
+    generation ``state`` shows, the load's when none is given; the store closes and
+    settles in one transaction. A closed attempt is refused with its position, so a
+    repeat is the store's receipt only when it raced the first abandonment at the store,
+    and a later repeat is refused as closed; a caller that may repeat after a crash (the
+    demo's sweeper) reads closure from the state it reloads, never from the refusal's
+    wording. A caller that decided on a state it read hands that state in, so the
+    generation the abandonment fences is the one it checked and a takeover between its
+    check and this command's own read is refused by the store as a stale generation; a
+    condition the closure rests on beyond the generation goes in ``precondition``, read
+    by the store on the current state under the attempt's lock (group 3's external read
+    of the live-path commands step). The store is any that offers the log's commands."""
     subject = f"run {request.run_id} attempt {request.attempt}"
-    state = store.load(request.run_id, request.attempt, rules=rules)
+    if state is None:
+        state = store.load(request.run_id, request.attempt, rules=rules)
     if state.closed is not None:
         return CommandRefused(subject, f"the attempt is closed at position {state.closed.position}")
     closing = Abandoned(state.generation, request.reason, None)
@@ -487,6 +498,7 @@ def abandon(
         closing,
         rules=rules,
         state=state,
+        precondition=precondition,
     )
     match result:
         case Appended(after):

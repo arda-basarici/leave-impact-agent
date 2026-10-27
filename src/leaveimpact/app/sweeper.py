@@ -5,42 +5,69 @@ reconciliations and the fifteen-minute close).
 
 **One function decides, one driver acts.** ``actions_of`` is pure: from a snapshot (the
 public admissions of the demo's ledger with their folded state, their live row and, for a
-closed one, their publication record; the execution slot's holder; the log's clock) and
-the configuration, the actions in a closed union. The driver takes the snapshot, performs
-each action through a command and reports what each did; an operator command runs one
-pass, and the worker service of the next step calls the same function between claims.
-The function reads one snapshot, so an attempt it finalizes is published on the next
-pass, not this one.
+closed one, their publication record; the execution slot's holder; the inventories the
+driver remembers writing; the log's clock), the configuration and the commit this code
+runs as, the actions in a closed union. The driver takes the snapshot, performs each
+action through a command and reports what each did; an operator command runs one pass,
+and the worker service of the next step calls the same function between claims. The
+function reads one snapshot, so an attempt it finalizes is published on the next pass,
+not this one.
 
 **The reconciliations, scoped to public attempts.** The sweeper acts on attempts the
 demo's start admitted (the admitter ``demo-start`` at position 1 on the demo's ledger)
 and leaves the operator's attempts to the lifecycle that admitted them, the wall bound
 included (fork 5 as amended). For each open public attempt, in this order: a recorded
-stop is finished by the terminal worker (it claims, so the slot is taken, and closes by
-the stop); an attempt never claimed is closed as cancelled once its admission is older
-than the approval wait (the orphan of a start that lost its rows, and an attempt the
-slot never came free for); an approval requested and not given is closed as cancelled at
-or past the deadline, the request's recorded instant plus the wait, under the decision's
-own serialization with the state reloaded and the condition re-read there, so a decision
-that holds the lock first is admitted and one that waited past the deadline is refused
-(histories 1, 2, 5, 6 and 15 of the step); and the slot's holder with a live row and an
-open segment is fenced and closed as interrupted, its liabilities kept by the settlement,
-once the claim's instant is older than the wall bound, measured per occupied segment
-from its claim and never across the approval pause, since a request outstanding is the
-wait's case above. A public attempt with its segment cleanly ended and nothing requested
-gets nothing: the worker's recovery is the next step's. The sweeper applies no liveness
-rule to a holder inside the wall (history 10). For each closed public attempt, a
-publication that is not published is published, and one inventory per distinct scope
-(the world and the registration commit the attempts' frozen inputs name, since the image
-carries no registration commit) is written after the publications of the pass. A live
-row whose log holds a decision it does not is repaired (history 3), the decision's
-instant the event's.
+stop is finished by the terminal worker when its first segment ran the commit this code
+runs as (it claims, so the slot is taken, and closes by the stop), and otherwise closed
+by abandonment as interrupted at the generation the snapshot showed, the recorded stop
+kept as the ending by the transition's own rule, since a claim across commits is an
+operator's audited override and never the sweeper's (group 3's external read: the first
+build claimed under the current commit whatever the first segment ran, and a stop from
+before a deploy stayed open with the slot held, pass after pass); an attempt never
+claimed is closed as cancelled once its admission is older than the approval wait (the
+orphan of a start that lost its rows, and an attempt the slot never came free for); an
+approval requested and not given is closed as cancelled at or past the deadline, the
+request's recorded instant plus the wait, under the decision's own serialization with
+the state reloaded and the condition re-read there, so a decision that holds the lock
+first is admitted and one that waited past the deadline is refused (histories 1, 2, 5,
+6 and 15 of the step); and the slot's holder with a live row and an open segment is
+fenced and closed as interrupted, its liabilities kept by the settlement, once the
+claim's instant is older than the wall bound, measured per occupied segment from its
+claim and never across the approval pause, since a request outstanding is the wait's
+case above. A public attempt with its segment cleanly ended and nothing requested gets
+nothing: the worker's recovery is the next step's. The sweeper applies no liveness rule
+to a holder inside the wall (history 10). For each closed public attempt, a publication
+that is not published is published, and one inventory per distinct scope (the world and
+the registration commit the attempts' frozen inputs name, since the image carries no
+registration commit) is written after the publications of the pass. A live row whose
+log holds a decision it does not is repaired (history 3), the decision's instant the
+event's.
 
-**What the sweeper reads of a refusal: nothing.** An abandonment may be retried after a
-crash; the driver reloads the attempt's state and reads closure from it, never from the
-refusal's wording (fork 10). A state that changed under the action (a decision landed, a
-takeover moved the generation) is reported as such and nothing is done; the next pass
-reads the new state.
+**A closure lands on the state it was decided on.** Each abandonment hands the command
+the state the driver checked, so the generation it fences is the checked one and a
+takeover in between is refused by the store as stale; and each states its condition as
+a precondition the store reads on the current state under the attempt's lock, so a
+segment that ended, a claim that landed or a decision that arrived between the driver's
+reload and the closure refuses it (group 3's external read: the first build rechecked
+closure and the generation alone, and a worker that requested approval and ended its
+segment after the snapshot was fenced as interrupted). A refused closure is read from
+the state reloaded and the driver's own predicate over it, never from the refusal's
+wording (fork 10): a condition that no longer holds is reported as the state's move and
+nothing is done; the next pass reads the new state.
+
+**The inventory is remembered, not inferred from the publications.** The driver keeps,
+per scope, the latest publication instant the inventory it last wrote covered; the
+snapshot carries that memory, and a published attempt whose record is later than it, or
+a publication this pass makes, schedules the scope's inventory. A crash after a
+publication and before its inventory, or an inventory write that raised, leaves the
+memory behind the record, so the next pass writes it (group 3's external read: the first
+build scheduled the inventory beside an unpublished attempt only, and a death between
+the two left it unwritten for good). The memory is the process's: a restart rewrites
+each scope's inventory once, a new object under a new digest, since an inventory carries
+the instant of the snapshot it was built from, and the sweep command, one process per
+pass, writes it on every pass that lists a published attempt. A durable marker on the
+live row is the step's candidate if the live pages come to read the inventory or the
+command's passes come to run often.
 
 **The lookback.** The snapshot lists public admissions since a lookback before the clock,
 seven days by default, and every open one whatever its age; a closed public attempt left
@@ -51,9 +78,9 @@ nothing.
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Protocol
 
@@ -91,6 +118,9 @@ claims its finalizations take."""
 
 DEFAULT_LOOKBACK = timedelta(days=7)
 """How far back the snapshot lists closed public admissions (see the module)."""
+
+Scope = tuple[WorldVersion, str]
+"""An inventory's scope on the demo's ledger: the world and the registration commit."""
 
 
 class SweepLog(LogCommands, Protocol):
@@ -139,11 +169,13 @@ class SweptAttempt:
 @dataclass(frozen=True, slots=True)
 class SweepSnapshot:
     """What one pass decides over: the clock's instant, the public attempts in admission
-    order, and the slot's holder."""
+    order, the slot's holder, and per scope the latest publication instant the driver's
+    last inventory of it covered."""
 
     taken_at: datetime
     attempts: tuple[SweptAttempt, ...]
     slot: SlotHolder | None
+    inventoried: Mapping[Scope, datetime] = field(default_factory=dict[Scope, datetime])
 
 
 # --- the actions -------------------------------------------------------------------------
@@ -158,19 +190,43 @@ class Finalize:
 
 
 @dataclass(frozen=True, slots=True)
-class Publish:
-    """Publish a closed attempt's export."""
+class CloseStopped:
+    """Close an attempt whose recorded stop this code cannot finalize, its first segment
+    having run another commit: abandoned as interrupted at the generation the snapshot
+    showed, the recorded stop kept as the ending."""
 
     run_id: str
     attempt: int
+    generation: int
+
+
+@dataclass(frozen=True, slots=True)
+class Publish:
+    """Publish a closed attempt's export; the scope is its inventory's."""
+
+    run_id: str
+    attempt: int
+    world_version: WorldVersion
+    registration_commit: str
+
+    @property
+    def scope(self) -> Scope:
+        return (self.world_version, self.registration_commit)
 
 
 @dataclass(frozen=True, slots=True)
 class WriteInventory:
-    """Write the inventory of one scope, after the pass's publications."""
+    """Write the inventory of one scope, after the pass's publications; ``through`` is the
+    latest publication instant the snapshot showed in the scope, ``None`` when the pass
+    publishes the scope's first."""
 
     world_version: WorldVersion
     registration_commit: str
+    through: datetime | None
+
+    @property
+    def scope(self) -> Scope:
+        return (self.world_version, self.registration_commit)
 
 
 @dataclass(frozen=True, slots=True)
@@ -209,18 +265,29 @@ class RepairRow:
 
 
 SweepAction = (
-    Finalize | Publish | WriteInventory | CloseWait | CloseUnclaimed | FenceAndClose | RepairRow
+    Finalize
+    | CloseStopped
+    | Publish
+    | WriteInventory
+    | CloseWait
+    | CloseUnclaimed
+    | FenceAndClose
+    | RepairRow
 )
+
+Closure = CloseStopped | CloseWait | CloseUnclaimed | FenceAndClose
 
 
 def actions_of(
-    snapshot: SweepSnapshot, configuration: DemoConfiguration
+    snapshot: SweepSnapshot, configuration: DemoConfiguration, *, harness_commit: str
 ) -> tuple[SweepAction, ...]:
-    """The actions one pass takes over ``snapshot`` under ``configuration``, in the order
-    the module docstring states: the row repairs and the closures per attempt in admission
-    order, the publications, then one inventory per scope among them."""
+    """The actions one pass takes over ``snapshot`` under ``configuration`` as the code at
+    ``harness_commit``, in the order the module docstring states: the row repairs and the
+    closures per attempt in admission order, the publications, then one inventory per
+    scope that a publication of the pass or a record later than the remembered inventory
+    calls for."""
     actions: list[SweepAction] = []
-    scopes: dict[tuple[WorldVersion, str], None] = {}
+    scopes: dict[Scope, datetime | None] = {}
     wait = timedelta(seconds=configuration.approval_wait_seconds)
     wall = timedelta(seconds=configuration.attempt_wall_seconds)
     for each in snapshot.attempts:
@@ -228,17 +295,25 @@ def actions_of(
         if repair is not None:
             actions.append(repair)
         if each.state.closed is not None:
+            inputs = each.state.inputs
+            assert inputs is not None, "a closed attempt was admitted"
+            scope = (inputs.context.world_version, inputs.preregistration_commit)
             publication = each.publication
             if publication is None or publication.state is not PublicationStatus.PUBLISHED:
-                actions.append(Publish(each.run_id, each.attempt))
-                inputs = each.state.inputs
-                assert inputs is not None, "a closed attempt was admitted"
-                scopes[(inputs.context.world_version, inputs.preregistration_commit)] = None
+                actions.append(Publish(each.run_id, each.attempt, *scope))
+                scopes.setdefault(scope, None)
+                continue
+            remembered = snapshot.inventoried.get(scope)
+            if remembered is None or publication.recorded_at > remembered:
+                held = scopes.get(scope)
+                scopes[scope] = (
+                    publication.recorded_at if held is None else max(held, publication.recorded_at)
+                )
             continue
-        closure = _closure_of(each, snapshot, wait=wait, wall=wall)
+        closure = _closure_of(each, snapshot, wait=wait, wall=wall, harness_commit=harness_commit)
         if closure is not None:
             actions.append(closure)
-    actions.extend(WriteInventory(world, commit) for world, commit in scopes)
+    actions.extend(WriteInventory(*scope, through) for scope, through in scopes.items())
     return tuple(actions)
 
 
@@ -261,13 +336,21 @@ def _row_repair(each: SweptAttempt) -> RepairRow | None:
 
 
 def _closure_of(
-    each: SweptAttempt, snapshot: SweepSnapshot, *, wait: timedelta, wall: timedelta
-) -> Finalize | CloseUnclaimed | CloseWait | FenceAndClose | None:
+    each: SweptAttempt,
+    snapshot: SweepSnapshot,
+    *,
+    wait: timedelta,
+    wall: timedelta,
+    harness_commit: str,
+) -> Finalize | Closure | None:
     """The one closure an open public attempt is due, or none."""
     state = each.state
     now = snapshot.taken_at
     if state.stopped is not None:
-        return Finalize(each.run_id, each.attempt)
+        assert state.segments, "a recorded stop follows a claim"
+        if state.segments[0].harness.commit == harness_commit:
+            return Finalize(each.run_id, each.attempt)
+        return CloseStopped(each.run_id, each.attempt, state.generation)
     segment = state.current_segment
     if segment is None:
         if now >= each.admitted_at + wait:
@@ -300,12 +383,33 @@ WriteInventoryCommand = Callable[[InventoryRequest], InventoryWritten]
 """The agent's inventory command bound to its publisher and rules."""
 
 
+@dataclass
+class InventoryMemory:
+    """The driver's memory of the inventories it wrote (see the module): per scope, the
+    latest publication instant the last inventory covered, and the instants of the
+    publications the current pass made, folded into the former when the scope's inventory
+    is written."""
+
+    written: dict[Scope, datetime] = field(default_factory=dict[Scope, datetime])
+    published: dict[Scope, datetime] = field(default_factory=dict[Scope, datetime])
+
+    def note_publication(self, scope: Scope, at: datetime) -> None:
+        held = self.published.get(scope)
+        self.published[scope] = at if held is None else max(held, at)
+
+    def note_inventory(self, scope: Scope, through: datetime | None) -> None:
+        instants = [at for at in (through, self.published.pop(scope, None)) if at is not None]
+        if instants:
+            self.written[scope] = max(instants)
+
+
 @dataclass(frozen=True, slots=True)
 class SweepComposition:
     """What the composition root fixes for every pass: the configuration, the rules, the
     harness revision the finalizations claim under, the commit the exports and inventories
     are built as, the two publication commands bound to their publishers, the nonce source
-    of the claims, the launch identity, and the lookback."""
+    of the claims, the launch identity, the lookback, and the inventory memory the passes
+    of one process share."""
 
     configuration: DemoConfiguration
     rules: Rules
@@ -316,12 +420,14 @@ class SweepComposition:
     nonces: Callable[[], str]
     launch: str = DEMO_SWEEPER.identity
     lookback: timedelta = DEFAULT_LOOKBACK
+    memory: InventoryMemory = field(default_factory=InventoryMemory)
 
 
 @dataclass(frozen=True, slots=True)
 class SweepOutcome:
-    """What one action did: carried when the command did what the action asked or found it
-    already done, otherwise the detail says what stood in the way."""
+    """What one action did: carried when the command did what the action asked, found it
+    already done, or found the state moved from under it; otherwise the detail says what
+    stood in the way."""
 
     action: SweepAction
     carried: bool
@@ -334,7 +440,7 @@ SweepReport = tuple[SweepOutcome, ...]
 def snapshot_of(log: SweepLog, rows: SweepRows, composition: SweepComposition) -> SweepSnapshot:
     """The snapshot of one pass: the public admissions since the lookback with every open
     one, each with its state, its row and, for a closed one, its publication; the slot;
-    the clock, read first."""
+    the inventory memory as it stands; the clock, read first."""
     taken_at = log.now()
     configuration = composition.configuration
     listed = log.admitted_by(
@@ -356,16 +462,18 @@ def snapshot_of(log: SweepLog, rows: SweepRows, composition: SweepComposition) -
                 publication,
             )
         )
-    return SweepSnapshot(taken_at, tuple(attempts), log.execution_slot())
+    return SweepSnapshot(
+        taken_at, tuple(attempts), log.execution_slot(), dict(composition.memory.written)
+    )
 
 
 def sweep(log: SweepLog, rows: SweepRows, composition: SweepComposition) -> SweepReport:
     """One pass: the snapshot, the actions, each performed in order, the report."""
     snapshot = snapshot_of(log, rows, composition)
-    return tuple(
-        perform(action, log, rows, composition)
-        for action in actions_of(snapshot, composition.configuration)
+    actions = actions_of(
+        snapshot, composition.configuration, harness_commit=composition.harness.commit
     )
+    return tuple(perform(action, log, rows, composition) for action in actions)
 
 
 def perform(
@@ -382,11 +490,10 @@ def perform(
             )
             if isinstance(record, CommandRefused):
                 return SweepOutcome(action, False, record.reason)
-            return SweepOutcome(
-                action,
-                record.state is PublicationStatus.PUBLISHED,
-                f"publication {record.state.value}",
-            )
+            published = record.state is PublicationStatus.PUBLISHED
+            if published:
+                composition.memory.note_publication(action.scope, record.recorded_at)
+            return SweepOutcome(action, published, f"publication {record.state.value}")
         case WriteInventory():
             written = composition.write_inventory(
                 InventoryRequest(
@@ -398,27 +505,43 @@ def perform(
                     composition.reader_commit,
                 )
             )
+            composition.memory.note_inventory(action.scope, action.through)
             return SweepOutcome(action, True, f"inventory {written.digest} {written.outcome.value}")
         case CloseWait():
             with log.serialized(decision_name(action.run_id, action.attempt)):
                 state = log.load(action.run_id, action.attempt, rules=composition.rules)
-                if not _wait_ended(state, log.now(), composition.configuration):
-                    return SweepOutcome(action, True, _wait_state(state))
-                return _abandon(action, state, AbandonmentReason.CANCELLED, log, composition)
+                now = log.now()
+                unmet = _wait_unmet(state, now, composition.configuration)
+                if unmet is not None:
+                    return SweepOutcome(action, True, unmet)
+                return _abandon(
+                    action,
+                    state,
+                    AbandonmentReason.CANCELLED,
+                    lambda current: _wait_unmet(current, now, composition.configuration),
+                    log,
+                    composition,
+                )
         case CloseUnclaimed():
-            state = log.load(action.run_id, action.attempt, rules=composition.rules)
-            if state.closed is not None:
-                return SweepOutcome(action, True, f"closed at position {state.closed.position}")
-            if state.current_segment is not None:
-                return SweepOutcome(action, True, "claimed meanwhile")
-            return _abandon(action, state, AbandonmentReason.CANCELLED, log, composition)
+            return _close_checked(
+                action, AbandonmentReason.CANCELLED, _unclaimed_unmet, log, composition
+            )
         case FenceAndClose():
-            state = log.load(action.run_id, action.attempt, rules=composition.rules)
-            if state.closed is not None:
-                return SweepOutcome(action, True, f"closed at position {state.closed.position}")
-            if state.generation != action.generation:
-                return SweepOutcome(action, True, f"taken over by generation {state.generation}")
-            return _abandon(action, state, AbandonmentReason.INTERRUPTED, log, composition)
+            return _close_checked(
+                action,
+                AbandonmentReason.INTERRUPTED,
+                lambda current: _holding_unmet(current, action.generation),
+                log,
+                composition,
+            )
+        case CloseStopped():
+            return _close_checked(
+                action,
+                AbandonmentReason.INTERRUPTED,
+                lambda current: _stopped_unmet(current, action.generation),
+                log,
+                composition,
+            )
         case RepairRow():
             rows.record_decision(action.public_id, action.decision, action.decided_at)
             return SweepOutcome(action, True, f"row records {action.decision.value}")
@@ -440,56 +563,118 @@ def _finalize(action: Finalize, log: SweepLog, composition: SweepComposition) ->
     )
 
 
-def _abandon(
-    action: CloseWait | CloseUnclaimed | FenceAndClose,
-    state: AttemptState,
+Unmet = Callable[[AttemptState], str | None]
+"""An action's own condition over a state: ``None`` while it holds, otherwise the sentence
+that says how the state moved."""
+
+
+def _close_checked(
+    action: Closure,
     reason: AbandonmentReason,
+    unmet: Unmet,
     log: SweepLog,
     composition: SweepComposition,
 ) -> SweepOutcome:
-    """The abandonment under the sweeper's identity; a refusal is read for closure from
-    the state reloaded, never from its wording."""
+    """The closure after the driver's own reload: the condition read on it, then the
+    abandonment on that state with the condition as the store's precondition."""
+    state = log.load(action.run_id, action.attempt, rules=composition.rules)
+    moved = _closed_or(state, unmet)
+    if moved is not None:
+        return SweepOutcome(action, True, moved)
+    return _abandon(action, state, reason, unmet, log, composition)
+
+
+def _abandon(
+    action: Closure,
+    state: AttemptState,
+    reason: AbandonmentReason,
+    unmet: Unmet,
+    log: SweepLog,
+    composition: SweepComposition,
+) -> SweepOutcome:
+    """The abandonment under the sweeper's identity on the state checked, the condition as
+    the store's precondition; a refusal is read from the state reloaded and the condition
+    over it, never from the refusal's wording."""
     closed = abandon(
         AbandonRequest(action.run_id, action.attempt, DEMO_SWEEPER.identity, reason),
         log,
         rules=composition.rules,
+        state=state,
+        precondition=unmet,
     )
     if isinstance(closed, AttemptAbandoned):
         return SweepOutcome(action, True, f"{reason.value} at position {closed.position}")
     latest = log.load(action.run_id, action.attempt, rules=composition.rules)
-    if latest.closed is not None:
-        return SweepOutcome(action, True, f"closed at position {latest.closed.position}")
+    moved = _closed_or(latest, unmet)
+    if moved is not None:
+        return SweepOutcome(action, True, moved)
     return SweepOutcome(action, False, closed.reason)
 
 
-def _wait_ended(state: AttemptState, now: datetime, configuration: DemoConfiguration) -> bool:
-    """Whether the wait for a decision is over with none given: open, requested, no
-    approval, no decline, the deadline at or past ``now``."""
-    if state.closed is not None or state.approved is not None:
-        return False
-    deadline = deadline_of(state, configuration)
-    return deadline is not None and now >= deadline
+def _closed_or(state: AttemptState, unmet: Unmet) -> str | None:
+    if state.closed is not None:
+        return f"closed at position {state.closed.position}"
+    return unmet(state)
 
 
-def _wait_state(state: AttemptState) -> str:
+def _wait_unmet(state: AttemptState, now: datetime, configuration: DemoConfiguration) -> str | None:
+    """Why the wait for a decision is not over with none given: closed, approved, no
+    request, or the deadline not yet reached at ``now``."""
     if state.closed is not None:
         return f"closed at position {state.closed.position}"
     given = state.approved
     if given is not None:
         return f"approved at position {given.position}"
-    return "the wait is open"
+    deadline = deadline_of(state, configuration)
+    if deadline is None:
+        return "no approval is requested"
+    if now < deadline:
+        return "the wait is open"
+    return None
+
+
+def _unclaimed_unmet(state: AttemptState) -> str | None:
+    if state.closed is not None:
+        return f"closed at position {state.closed.position}"
+    if state.current_segment is not None:
+        return "claimed meanwhile"
+    return None
+
+
+def _holding_unmet(state: AttemptState, generation: int) -> str | None:
+    """Why the attempt no longer holds the slot past the wall at ``generation``: closed,
+    taken over, or its segment ended (the approval pause, or a clean stop)."""
+    if state.closed is not None:
+        return f"closed at position {state.closed.position}"
+    if state.generation != generation:
+        return f"taken over by generation {state.generation}"
+    segment = state.current_segment
+    if segment is None or segment.ended:
+        return "the segment ended"
+    return None
+
+
+def _stopped_unmet(state: AttemptState, generation: int) -> str | None:
+    if state.closed is not None:
+        return f"closed at position {state.closed.position}"
+    if state.generation != generation:
+        return f"taken over by generation {state.generation}"
+    return None
 
 
 __all__ = [
     "DEFAULT_LOOKBACK",
     "DEMO_SWEEPER",
+    "CloseStopped",
     "CloseUnclaimed",
     "CloseWait",
     "FenceAndClose",
     "Finalize",
+    "InventoryMemory",
     "Publish",
     "PublishExport",
     "RepairRow",
+    "Scope",
     "SweepAction",
     "SweepComposition",
     "SweepLog",

@@ -168,11 +168,20 @@ class CrossingStore:
         *,
         rules: Rules,
         state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
     ) -> Transition:
         kind = kind_of(closing).value
         injector.set_kind(kind)
         return self._witnessed(
-            self.inner.close_attempt(run_id, attempt, envelope, closing, rules=rules, state=state),
+            self.inner.close_attempt(
+                run_id,
+                attempt,
+                envelope,
+                closing,
+                rules=rules,
+                state=state,
+                precondition=precondition,
+            ),
             kind,
         )
 

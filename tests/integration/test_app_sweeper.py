@@ -23,8 +23,9 @@ from leaveimpact.agent.commands import (
     write_inventory,
 )
 from leaveimpact.agent.inventory import PublicationRecord
-from leaveimpact.agent.log_events import Abandoned, Failed, LoggedEvent
+from leaveimpact.agent.log_events import Abandoned, Failed, LoggedEvent, SegmentEnded, WorkerStamp
 from leaveimpact.agent.log_store import LogStore
+from leaveimpact.agent.log_transition import Appended, AttemptState, Refused
 from leaveimpact.app.decide import (
     DecideComposition,
     DecideRefusalKind,
@@ -64,6 +65,7 @@ from tests.unit.test_app_sweeper import (
     closed_completed,
     public,
     run_of,
+    running,
     stopped,
 )
 
@@ -141,7 +143,8 @@ def test_a_closed_public_attempt_is_published_with_its_inventory_and_the_row_rep
     log, store = prepared(rig)
     row = replayed(log, store, 1, closed_completed())
     objects = InMemoryObjectStore()
-    report = sweep(log, store, composition(log, objects))
+    composed = composition(log, objects)
+    report = sweep(log, store, composed)
     assert [type(outcome.action) for outcome in report] == [RepairRow, Publish, WriteInventory]
     assert all(outcome.carried for outcome in report), report
     assert report[1].detail == "publication published"
@@ -151,7 +154,12 @@ def test_a_closed_public_attempt_is_published_with_its_inventory_and_the_row_rep
     assert len(objects.list_keys("")) == 2, "the export and the inventory"
     repaired = store.live_row_of(row.public_id)
     assert repaired is not None and repaired.decision is Decision.APPROVED
-    assert sweep(log, store, composition(log, objects)) == (), "published and recorded"
+    assert sweep(log, store, composed) == (), "published, recorded and remembered"
+    # A fresh process remembers no inventory and writes the scope's once more: a new
+    # object, since the inventory carries the instant of the snapshot it was built from.
+    restarted = sweep(log, store, composition(log, objects))
+    assert [type(outcome.action) for outcome in restarted] == [WriteInventory]
+    assert len(objects.list_keys("")) == 3
 
 
 def test_the_wait_is_closed_under_the_lock_while_a_decision_waits_on_it(rig: Rig) -> None:
@@ -169,7 +177,9 @@ def test_the_wait_is_closed_under_the_lock_while_a_decision_waits_on_it(rig: Rig
     sweeper_log = rig.store(clock=Scripted([deadline, deadline, deadline]), boundary=hold)
     decider_log = rig.store(clock=Scripted([deadline - timedelta(seconds=1)]))
     composed = composition(sweeper_log, InMemoryObjectStore())
-    actions = actions_of(snapshot_of(sweeper_log, store, composed), CONFIGURATION)
+    actions = actions_of(
+        snapshot_of(sweeper_log, store, composed), CONFIGURATION, harness_commit=cases.COMMIT
+    )
     assert actions == (CloseWait(run_of(1), 1),)
     request = DecideRequest(row.public_id, key(1), Decision.APPROVED, DIGEST)
     with ThreadPoolExecutor(max_workers=2) as pool, rig.observer() as observer:
@@ -226,3 +236,36 @@ def test_a_decision_in_time_leaves_the_pass_at_the_deadline_nothing_to_close(rig
     assert sweep(later, store, composition(later, InMemoryObjectStore())) == ()
     assert log.load(run_of(1), 1, rules=RULES).closed is None
     assert store.live_row_of(row.public_id) == approved.row
+
+
+def test_a_closures_precondition_is_read_on_the_state_the_store_folds_under_the_lock(
+    rig: Rig,
+) -> None:
+    """The store's precondition on the real store: the sweeper decided on a state it read;
+    the worker's segment end then landed through another store; the closure hands the
+    stale state in and the store folds the current log under the lock, so the precondition
+    reads the ended segment and refuses without appending or settling anything."""
+    log, store = prepared(rig)
+    replayed(log, store, 1, running())
+    stale = log.load(run_of(1), 1, rules=RULES)
+    worker = rig.store()
+    ended = worker.append(run_of(1), 1, WorkerStamp(1, 1, 2_000), SegmentEnded(), rules=RULES)
+    assert isinstance(ended, Appended)
+
+    def still_open(current: AttemptState) -> str | None:
+        segment = current.current_segment
+        return None if segment is not None and not segment.ended else "the segment ended"
+
+    refused = log.close_attempt(
+        run_of(1),
+        1,
+        DEMO_SWEEPER,
+        Abandoned(stale.generation, AbandonmentReason.INTERRUPTED, None),
+        rules=RULES,
+        state=stale,
+        precondition=still_open,
+    )
+    assert refused == Refused("the segment ended")
+    latest = log.load(run_of(1), 1, rules=RULES)
+    assert latest.closed is None and latest.last_position == ended.state.last_position
+    assert log.execution_slot() is None, "the end released the slot; the closure took nothing"

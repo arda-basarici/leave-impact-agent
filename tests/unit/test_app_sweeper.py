@@ -8,6 +8,7 @@ from the reload and not from a refusal).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
 from typing import cast
@@ -22,15 +23,27 @@ from leaveimpact.agent.commands import (
     PublishRequest,
 )
 from leaveimpact.agent.inventory import PublicationRecord
-from leaveimpact.agent.log_events import Abandoned, Admitted, LoggedEvent, SegmentEnded, WorkerStamp
+from leaveimpact.agent.log_ending import ending_of
+from leaveimpact.agent.log_events import (
+    Abandoned,
+    Admitted,
+    ApprovalRequested,
+    ClosingEvent,
+    Envelope,
+    LoggedEvent,
+    SegmentEnded,
+    Stamping,
+    WorkerStamp,
+)
 from leaveimpact.agent.log_store import SlotHolder
-from leaveimpact.agent.log_transition import Appended
+from leaveimpact.agent.log_transition import Appended, AttemptState, Refused, Rules, Transition
 from leaveimpact.agent.worker import WorkerEndingKind
 from leaveimpact.app.decide import DecideComposition, DecideRefusalKind, DecideRequest, decide
 from leaveimpact.app.live import Decision, LiveRow, key_digest_of, public_id_for, run_id_for
 from leaveimpact.app.start import DEMO_START
 from leaveimpact.app.sweeper import (
     DEMO_SWEEPER,
+    CloseStopped,
     CloseUnclaimed,
     CloseWait,
     FenceAndClose,
@@ -48,8 +61,9 @@ from leaveimpact.app.sweeper import (
     snapshot_of,
     sweep,
 )
-from leaveimpact.core import AbandonmentReason
+from leaveimpact.core import AbandonmentReason, Failure
 from leaveimpact.core.inventory import Inventory, InventoryScope, PublicationStatus
+from leaveimpact.core.run_timing import HarnessRevision, TreeState
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
 from tests.unit.app_store_memory import MemoryAppStore
@@ -64,6 +78,11 @@ WAIT = timedelta(seconds=LIVE.approval_wait_seconds)
 WALL = timedelta(seconds=LIVE.attempt_wall_seconds)
 ADMITTED = cases.ADMITTED
 """Every fixture history's admission instant; its events sit one second apart after it."""
+
+_FIRST = histories.HISTORIES["an approval wait across a restart"]()[0].event
+assert isinstance(_FIRST, Admitted)
+SCOPE = (_FIRST.inputs.context.world_version, _FIRST.inputs.preregistration_commit)
+"""The inventory scope every fixture history's inputs name."""
 
 
 def public(events: tuple[LoggedEvent, ...], number: int) -> tuple[LoggedEvent, ...]:
@@ -202,6 +221,11 @@ def snapshot(
     return SweepSnapshot(at, attempts, slot)
 
 
+def plan(taken: SweepSnapshot) -> tuple[SweepAction, ...]:
+    """The pure function under the live configuration as the code at the fixtures' commit."""
+    return actions_of(taken, LIVE, harness_commit=cases.COMMIT)
+
+
 def kinds(actions: tuple[SweepAction, ...]) -> list[type[SweepAction]]:
     return [type(action) for action in actions]
 
@@ -214,8 +238,8 @@ def test_a_wait_is_closed_at_its_deadline_and_not_before() -> None:
     history = seeded(log, rows, 1, awaiting())
     requested_at = history[7].timestamp
     attempt = swept(log, 1, awaiting(), rows.live[0])
-    assert actions_of(snapshot(requested_at + WAIT - timedelta(seconds=1), attempt), LIVE) == ()
-    assert actions_of(snapshot(requested_at + WAIT, attempt), LIVE) == (CloseWait(run_of(1), 1),)
+    assert plan(snapshot(requested_at + WAIT - timedelta(seconds=1), attempt)) == ()
+    assert plan(snapshot(requested_at + WAIT, attempt)) == (CloseWait(run_of(1), 1),)
 
 
 def test_an_approval_given_is_not_a_wait_and_a_clean_pause_gets_nothing() -> None:
@@ -228,18 +252,18 @@ def test_an_approval_given_is_not_a_wait_and_a_clean_pause_gets_nothing() -> Non
     late = ADMITTED + timedelta(days=1)
     # The resumed segment holds the slot inside the wall: the wait is over, the wall is not.
     slot = SlotHolder(run_of(1), 1, 3, "launch-1", late - WALL + timedelta(seconds=1))
-    actions = actions_of(snapshot(late, approved, slot=slot), LIVE)
+    actions = plan(snapshot(late, approved, slot=slot))
     assert actions == (
         RepairRow(rows.live[0].public_id, Decision.APPROVED, approved.state.events[10].timestamp),
     )
     decided_row = replace(rows.live[0], decision=Decision.APPROVED, decided_at=ADMITTED)
-    assert actions_of(snapshot(late, replace(approved, row=decided_row), slot=slot), LIVE) == ()
+    assert plan(snapshot(late, replace(approved, row=decided_row), slot=slot)) == ()
     seeded(log, rows, 2, running())
     ended = log.append(run_of(2), 1, WorkerStamp(1, 1, 2_000), SegmentEnded(), rules=RULES)
     assert isinstance(ended, Appended)
     paused = swept(log, 2, running(), rows.live[1])
     assert paused.state.current_segment is not None and paused.state.current_segment.ended
-    assert actions_of(snapshot(late, paused), LIVE) == ()
+    assert plan(snapshot(late, paused)) == ()
 
 
 def test_an_unclaimed_attempt_is_closed_once_older_than_the_wait_row_or_not() -> None:
@@ -250,8 +274,8 @@ def test_an_unclaimed_attempt_is_closed_once_older_than_the_wait_row_or_not() ->
     orphan = swept(log, 1, admission_only(), None)
     waiting = swept(log, 2, admission_only(), rows.live[0])
     young = ADMITTED + WAIT - timedelta(seconds=1)
-    assert actions_of(snapshot(young, orphan, waiting), LIVE) == ()
-    assert actions_of(snapshot(ADMITTED + WAIT, orphan, waiting), LIVE) == (
+    assert plan(snapshot(young, orphan, waiting)) == ()
+    assert plan(snapshot(ADMITTED + WAIT, orphan, waiting)) == (
         CloseUnclaimed(run_of(1), 1),
         CloseUnclaimed(run_of(2), 1),
     )
@@ -262,7 +286,7 @@ def test_a_recorded_stop_is_finalized_whatever_the_clock() -> None:
     seeded(log, rows, 1, stopped())
     attempt = swept(log, 1, stopped(), rows.live[0])
     assert attempt.state.stopped is not None and attempt.state.closed is None
-    assert actions_of(snapshot(ADMITTED, attempt), LIVE) == (Finalize(run_of(1), 1),)
+    assert plan(snapshot(ADMITTED, attempt)) == (Finalize(run_of(1), 1),)
 
 
 def test_the_wall_bound_fences_the_public_holder_past_it_and_nobody_else() -> None:
@@ -275,14 +299,14 @@ def test_the_wall_bound_fences_the_public_holder_past_it_and_nobody_else() -> No
     slot = SlotHolder(run_of(1), 1, 1, "launch-1", claimed_at)
     with_row = swept(log, 1, running(), rows.live[0])
     inside = claimed_at + WALL - timedelta(seconds=1)
-    assert actions_of(snapshot(inside, with_row, slot=slot), LIVE) == ()
-    assert actions_of(snapshot(claimed_at + WALL, with_row, slot=slot), LIVE) == (
+    assert plan(snapshot(inside, with_row, slot=slot)) == ()
+    assert plan(snapshot(claimed_at + WALL, with_row, slot=slot)) == (
         FenceAndClose(run_of(1), 1, 1),
     )
     no_row = replace(with_row, row=None)
-    assert actions_of(snapshot(claimed_at + WALL, no_row, slot=slot), LIVE) == ()
+    assert plan(snapshot(claimed_at + WALL, no_row, slot=slot)) == ()
     other_holder = SlotHolder("run-operator", 1, 1, "launch-2", ADMITTED)
-    assert actions_of(snapshot(claimed_at + WALL, with_row, slot=other_holder), LIVE) == ()
+    assert plan(snapshot(claimed_at + WALL, with_row, slot=other_holder)) == ()
 
 
 def test_closed_attempts_are_published_and_one_inventory_per_scope_follows() -> None:
@@ -295,14 +319,18 @@ def test_closed_attempts_are_published_and_one_inventory_per_scope_follows() -> 
     first, second, third = (swept(log, n, closed_completed(), rows.live[n - 1]) for n in (1, 2, 3))
     inputs = first.state.inputs
     assert inputs is not None
-    actions = actions_of(snapshot(ADMITTED, first, second, third), LIVE)
+    actions = plan(snapshot(ADMITTED, first, second, third))
     # Each row says undecided while its log holds the approval: repaired first, per attempt.
     assert [action for action in actions if not isinstance(action, RepairRow)] == [
-        Publish(run_of(1), 1),
-        Publish(run_of(2), 1),
-        WriteInventory(inputs.context.world_version, inputs.preregistration_commit),
+        Publish(run_of(1), 1, *SCOPE),
+        Publish(run_of(2), 1, *SCOPE),
+        WriteInventory(*SCOPE, ADMITTED),
     ]
     assert kinds(actions) == [RepairRow, Publish, RepairRow, Publish, RepairRow, WriteInventory]
+    # The third is published and no inventory is remembered, so the inventory covers through
+    # its record's instant; once remembered, the pass's own publications still call for one.
+    remembered = replace(snapshot(ADMITTED, first, second, third), inventoried={SCOPE: ADMITTED})
+    assert plan(remembered)[-1] == WriteInventory(*SCOPE, None)
 
 
 def test_a_row_is_repaired_from_a_decline_the_log_holds() -> None:
@@ -313,11 +341,15 @@ def test_a_row_is_repaired_from_a_decline_the_log_holds() -> None:
     attempt = swept(log, 1, declined, rows.live[0])
     closed = attempt.state.closed
     assert closed is not None
-    assert actions_of(snapshot(ADMITTED, attempt), LIVE) == (
+    assert plan(snapshot(ADMITTED, attempt)) == (
         RepairRow(rows.live[0].public_id, Decision.DECLINED, closed.timestamp),
+        WriteInventory(*SCOPE, ADMITTED),
     )
     repaired = replace(rows.live[0], decision=Decision.DECLINED, decided_at=closed.timestamp)
-    assert actions_of(snapshot(ADMITTED, replace(attempt, row=repaired)), LIVE) == ()
+    remembered = replace(
+        snapshot(ADMITTED, replace(attempt, row=repaired)), inventoried={SCOPE: ADMITTED}
+    )
+    assert plan(remembered) == ()
 
 
 # --- the driver over the in-memory stores -------------------------------------------------
@@ -375,7 +407,7 @@ def test_a_decision_landing_between_the_snapshot_and_the_close_is_read_from_the_
     history = seeded(log, rows, 1, awaiting())
     clock.at = history[7].timestamp + WAIT
     composed = composition(Recording())
-    actions = actions_of(snapshot_of(log, rows, composed), LIVE)
+    actions = plan(snapshot_of(log, rows, composed))
     assert actions == (CloseWait(run_of(1), 1),)
     clock.at = history[7].timestamp + WAIT - timedelta(seconds=1)
     approved = decided(
@@ -415,7 +447,7 @@ def test_a_claim_landing_between_the_snapshot_and_the_close_leaves_the_attempt_o
     seeded(log, rows, 1, admission_only())
     clock.at = ADMITTED + WAIT
     composed = composition(Recording())
-    actions = actions_of(snapshot_of(log, rows, composed), LIVE)
+    actions = plan(snapshot_of(log, rows, composed))
     assert actions == (CloseUnclaimed(run_of(1), 1),)
     claimed = log.claim(
         run_of(1), 1, harness=cases.REVISION, nonce="nonce-w", launch="launch-w", rules=RULES
@@ -449,7 +481,7 @@ def test_a_takeover_between_the_snapshot_and_the_fence_is_left_to_the_new_genera
     log.slot = SlotHolder(run_of(1), 1, 1, "launch-1", history[1].timestamp)
     clock.at = history[1].timestamp + WALL
     composed = composition(Recording())
-    actions = actions_of(snapshot_of(log, rows, composed), LIVE)
+    actions = plan(snapshot_of(log, rows, composed))
     assert actions == (FenceAndClose(run_of(1), 1, 1),)
     taken = log.claim(
         run_of(1), 1, harness=cases.REVISION, nonce="nonce-2", launch="launch-2", rules=RULES
@@ -499,9 +531,9 @@ def test_publications_go_through_the_injected_commands_with_the_scope_from_the_i
     # The two were admitted at one instant, so the listing orders them by run id.
     ordered = sorted((run_of(1), run_of(2)))
     assert [outcome.action for outcome in report if not isinstance(outcome.action, RepairRow)] == [
-        Publish(ordered[0], 1),
-        Publish(ordered[1], 1),
-        WriteInventory(inputs.context.world_version, inputs.preregistration_commit),
+        Publish(ordered[0], 1, *SCOPE),
+        Publish(ordered[1], 1, *SCOPE),
+        WriteInventory(*SCOPE, None),
     ]
     assert all(outcome.carried for outcome in report)
     assert recording.published == [
@@ -542,12 +574,15 @@ def test_a_row_repair_writes_the_logs_decision_onto_the_row() -> None:
     closed = log.load(run_of(1), 1, rules=RULES).closed
     assert closed is not None
     assert [outcome.action for outcome in report] == [
-        RepairRow(rows.live[0].public_id, Decision.DECLINED, closed.timestamp)
+        RepairRow(rows.live[0].public_id, Decision.DECLINED, closed.timestamp),
+        WriteInventory(*SCOPE, ADMITTED),
     ]
     assert (
         rows.live[0].decision is Decision.DECLINED and rows.live[0].decided_at == closed.timestamp
     )
-    assert sweep(log, rows, composition(Recording())) == ()
+    composed = composition(Recording())
+    assert kinds([o.action for o in sweep(log, rows, composed)]) == [WriteInventory]  # type: ignore[arg-type]
+    assert sweep(log, rows, composed) == (), "remembered by the process"
 
 
 def test_an_action_the_driver_does_not_know_raises() -> None:
@@ -558,3 +593,204 @@ def test_an_action_the_driver_does_not_know_raises() -> None:
     log, rows, _ = stores(ADMITTED)
     with pytest.raises(TypeError, match="Unknown"):
         perform(cast(SweepAction, Unknown("r")), log, rows, composition(Recording()))
+
+
+# --- the external read's histories --------------------------------------------------------
+
+
+class WorkerBeforeTheLock(MemoryLog):
+    """The worker's approval request and segment end landing after the driver's reload
+    and before the store's lock: the window the precondition exists for."""
+
+    landed: bool = False
+
+    def close_attempt(
+        self,
+        run_id: str,
+        attempt: int,
+        envelope: Envelope | Stamping,
+        closing: ClosingEvent,
+        *,
+        rules: Rules,
+        state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
+    ) -> Transition:
+        if not self.landed:
+            self.landed = True
+            requested = self.append(
+                run_id,
+                attempt,
+                WorkerStamp(1, 1, 2_000),
+                ApprovalRequested((), cases.RULES, False),
+                rules=RULES,
+            )
+            ended = self.append(
+                run_id, attempt, WorkerStamp(1, 1, 2_100), SegmentEnded(), rules=RULES
+            )
+            assert isinstance(requested, Appended) and isinstance(ended, Appended)
+        return super().close_attempt(
+            run_id, attempt, envelope, closing, rules=rules, state=state, precondition=precondition
+        )
+
+
+class TakeoverBeforeTheLock(MemoryLog):
+    """A takeover claim landing after the driver's reload and before the store's lock."""
+
+    taken: bool = False
+
+    def close_attempt(
+        self,
+        run_id: str,
+        attempt: int,
+        envelope: Envelope | Stamping,
+        closing: ClosingEvent,
+        *,
+        rules: Rules,
+        state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
+    ) -> Transition:
+        if not self.taken:
+            self.taken = True
+            taken = self.claim(
+                run_id,
+                attempt,
+                harness=cases.REVISION,
+                nonce="nonce-take",
+                launch="launch-2",
+                rules=RULES,
+            )
+            assert isinstance(taken, Appended) and taken.state.generation == 2
+        return super().close_attempt(
+            run_id, attempt, envelope, closing, rules=rules, state=state, precondition=precondition
+        )
+
+
+def fence_scheduled(
+    log: MemoryLog, rows: MemoryAppStore, clock: FixedClock
+) -> tuple[SweepAction, SweepComposition]:
+    history = seeded(log, rows, 1, running())
+    log.slot = SlotHolder(run_of(1), 1, 1, "launch-1", history[1].timestamp)
+    clock.at = history[1].timestamp + WALL
+    composed = composition(Recording())
+    actions = plan(snapshot_of(log, rows, composed))
+    assert actions == (FenceAndClose(run_of(1), 1, 1),)
+    return actions[0], composed
+
+
+def test_a_wall_time_closure_is_refused_when_the_worker_paused_before_the_lock() -> None:
+    """The read's first history: the snapshot schedules the fence; the worker requests
+    approval and ends its segment before the store locks the attempt; the precondition
+    under the lock refuses the abandonment, the driver reads the segment's end from the
+    reloaded state, and the attempt stays open with its review window."""
+    clock = FixedClock(ADMITTED)
+    log, rows = WorkerBeforeTheLock(clock=clock), MemoryAppStore()
+    action, composed = fence_scheduled(log, rows, clock)
+    outcome = perform(action, log, rows, composed)
+    assert outcome == SweepOutcome(action, True, "the segment ended")
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert state.closed is None and state.approval_requested is not None
+    assert log.execution_slot() is None, "the segment end released the slot"
+
+
+def test_a_takeover_before_the_lock_is_refused_as_a_stale_generation_and_left_alone() -> None:
+    """The read's second history: the abandonment fences the generation the driver checked,
+    so a takeover between its check and the store's lock is refused by the store, read as
+    the takeover from the reloaded state, and the new generation keeps the attempt."""
+    clock = FixedClock(ADMITTED)
+    log, rows = TakeoverBeforeTheLock(clock=clock), MemoryAppStore()
+    action, composed = fence_scheduled(log, rows, clock)
+    outcome = perform(action, log, rows, composed)
+    assert outcome == SweepOutcome(action, True, "taken over by generation 2")
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert state.closed is None and state.generation == 2
+
+
+def test_an_inventory_lost_to_a_crash_after_the_publication_is_written_by_the_next_pass() -> None:
+    """The read's third history: the publication lands and the process dies before the
+    inventory; the next pass finds the record later than any inventory it remembers and
+    writes it; an inventory write that raises is retried the same way; once written and
+    remembered, nothing more."""
+    clock = FixedClock(ADMITTED + timedelta(minutes=1))
+    log, rows = MemoryLog(clock=clock), MemoryAppStore()
+    seeded(log, rows, 1, closed_completed())
+    recording = Recording()
+    composed = composition(recording)
+    actions = plan(snapshot_of(log, rows, composed))
+    assert kinds(actions) == [RepairRow, Publish, WriteInventory]
+    for action in actions[:2]:
+        perform(action, log, rows, composed)
+    published_at = ADMITTED + timedelta(minutes=2)
+    log.publications[(run_of(1), 1)] = replace(
+        record(run_of(1), 1, PublicationStatus.PUBLISHED), recorded_at=published_at
+    )
+    # The process dies here, before the inventory; a fresh process remembers nothing.
+    fresh = Recording()
+    restarted = composition(fresh)
+    again = plan(snapshot_of(log, rows, restarted))
+    assert again == (WriteInventory(*SCOPE, published_at),)
+
+    def raising(request: InventoryRequest) -> InventoryWritten:
+        raise RuntimeError("the world store did not answer")
+
+    failing = composition(fresh, write_inventory=raising)
+    with pytest.raises(RuntimeError, match="did not answer"):
+        perform(again[0], log, rows, failing)
+    assert plan(snapshot_of(log, rows, failing)) == (WriteInventory(*SCOPE, published_at),)
+    outcome = perform(again[0], log, rows, restarted)
+    assert outcome.carried and fresh.inventoried, "written on the retry"
+    assert plan(snapshot_of(log, rows, restarted)) == ()
+    assert restarted.memory.written == {SCOPE: published_at}
+
+
+def test_a_recorded_stop_from_another_commit_is_closed_as_interrupted_with_the_stop_kept() -> None:
+    """The read's fourth history: the first segment ran another commit, which the claim
+    across commits refuses without an operator's override; the sweeper closes the attempt
+    by abandonment instead, the stop kept as the ending and the slot released, where the
+    first build retried the refused claim every pass with the slot held."""
+    clock = FixedClock(ADMITTED + timedelta(minutes=1))
+    log, rows = MemoryLog(clock=clock), MemoryAppStore()
+    history = seeded(log, rows, 1, stopped())
+    log.slot = SlotHolder(run_of(1), 1, 1, "launch-1", history[1].timestamp)
+    deployed = HarnessRevision("c" * 40, TreeState.CLEAN)
+    composed = composition(Recording(), harness=deployed)
+    actions = actions_of(snapshot_of(log, rows, composed), LIVE, harness_commit=deployed.commit)
+    assert actions == (CloseStopped(run_of(1), 1, 1),)
+    report = sweep(log, rows, composed)
+    assert [(o.action, o.carried) for o in report] == [(CloseStopped(run_of(1), 1, 1), True)]
+    assert report[0].detail == "interrupted at position 9"
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert state.closed is not None and isinstance(state.closed.event, Abandoned)
+    assert state.closed.event.reason is AbandonmentReason.INTERRUPTED
+    stop = state.stopped
+    assert stop is not None
+    assert ending_of(state).failure == Failure(stop.category, stop.site, stop.reason)
+    assert log.execution_slot() is None, "the closure released the slot by ownership"
+    assert sweep(log, rows, composed)[0].action == Publish(run_of(1), 1, *SCOPE)
+
+
+def test_a_closures_precondition_is_read_under_the_lock_and_refuses_without_appending() -> None:
+    log, rows, _ = stores(ADMITTED)
+    seeded(log, rows, 1, running())
+    state = log.load(run_of(1), 1, rules=RULES)
+    before = len(log.entries)
+    refused = log.close_attempt(
+        run_of(1),
+        1,
+        DEMO_SWEEPER,
+        Abandoned(state.generation, AbandonmentReason.INTERRUPTED, None),
+        rules=RULES,
+        state=state,
+        precondition=lambda current: "the condition moved",
+    )
+    assert refused == Refused("the condition moved")
+    assert log.load(run_of(1), 1, rules=RULES).closed is None and len(log.entries) == before
+    closed = log.close_attempt(
+        run_of(1),
+        1,
+        DEMO_SWEEPER,
+        Abandoned(state.generation, AbandonmentReason.INTERRUPTED, None),
+        rules=RULES,
+        state=state,
+        precondition=lambda current: None,
+    )
+    assert isinstance(closed, Appended) and closed.state.closed is not None

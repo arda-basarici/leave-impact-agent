@@ -428,6 +428,7 @@ class MemoryLog:
         *,
         rules: Rules,
         state: AttemptState | None = None,
+        precondition: Callable[[AttemptState], str | None] | None = None,
     ) -> Transition:
         if closing.settlement is not None:
             raise ValueError(
@@ -439,6 +440,10 @@ class MemoryLog:
             current = self._current(log, state, rules)
             if current.closed is not None:
                 return _closed_again(current.closed, closing, _format_of(current))
+            if precondition is not None:
+                unmet = precondition(current)
+                if unmet is not None:
+                    return Refused(unmet)
             stamped = _envelope_of(envelope)
             inputs = current.inputs
             assert inputs is not None
