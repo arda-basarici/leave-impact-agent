@@ -4418,8 +4418,10 @@ work, only lifecycle reconciliation (a recorded stopping defect finished as that
 defect, closed attempts published, approval waits kept to their deadline, interrupted
 work fenced and closed with its liabilities). The visitor supplies a scenario of the
 served world and nothing else; admission checks the daily count, the single open
-attempt and the reservation in one transaction under the ledger's lock with an
-idempotent identity; the initiating browser holds an attempt-scoped capability, and
+attempt and the reservation in one transaction under the log store's session lock for
+the ledger, on the connection that commits the admission (amended at the commands
+step), with an idempotent identity; the initiating browser holds an attempt-scoped
+capability, and
 approve or decline require it and the frozen payload digest; a decline is a
 first-class `Declined` ending, human, terminal, never recoverable, a log format bump
 read for its blast radius before the build; a visitor who leaves is closed by a sweeper
@@ -4440,6 +4442,47 @@ reason, and an evaluation refuses a scope holding one, by export or by inventory
 the decline command closes and settles through the store's closing transaction, a later
 repeat under the same digest the decline already made. The capability, the deadline and
 the public row are the commands step's.
+
+As built at the commands step (M3 step 13, 2026-10-26 and 27; ten forks ruled at the
+entry, the external read on the entry and on each of the four commit groups, every
+finding reproduced before its change). The
+execution slot is one row of log schema 6, taken by every admitted claim from either
+path and released by ownership when the holder's event ends its segment or closes the
+attempt; the operator's lifecycle keeps its own container check beside it. The public
+start writes app schema 3's live row beside the publishable row and runs its rules and
+the log's admission under the log store's session-level lock for the demo's ledger, on
+the connection that commits the admission: the first build held the lock on the app
+store's connection, and a start whose app backend died inside its admission released
+the lock while the admission went on to commit, admitting a sixth attempt against a cap
+of five on the real store. A recorded request is answered first, before the flag, the
+served world, the scenario and the client address's window (two admissions per address
+per UTC day, in the process's memory, counted on admission alone) can refuse it as new;
+the cap counts by instant and the single-open condition by the closed flag. The key the
+index mints is the capability: every server-side name is its SHA-256 (the request
+identity, the run id, the public id, the live row's digest), and the key lives in the
+browser as a cookie scoped to the attempt's replay path. The decision runs under a
+per-attempt session lock on the log's connection with the deadline read there, and the
+sweeper's close of a wait takes the same lock; the live row's decision columns are a
+cache written after the log's commit and repaired from the log by a retry or the
+sweeper.
+
+The sweeper is one pure function from a snapshot of the public admissions to a closed
+union of actions (finalize a recorded stop, publish and one inventory per scope, close a
+wait at its deadline, close an unclaimed attempt past the wait, fence and close the
+public holder past the wall, repair a row) with a driver through the agent's commands;
+every closure lands on the state it was decided on through a precondition the store
+checks under the attempt's lock, restating the planner's whole predicate; a recorded
+stop whose first segment ran another commit is closed by abandonment with the stop kept
+as the ending, never by a claim across commits; the inventory memory holds the
+identities of the publications it covered, never their instants. The two routes take
+minimal forms, their bodies bounded as they are read and their refusals rendered by
+kind, the busy and the per-address refusals in one sentence; the image carries the
+price table and the registration's commit, minted by the image job on a full checkout,
+and the planner's region is a field of the demo configuration (format 2), since the
+store wiring forbids the store's region name beside a local twin's root; the
+forwarded-headers subnet is the contract row's literal in compose. The timed stream
+probe and the content-security check wait for the first open attempt at the live path's
+acceptance; deployment serialization is the worker service's.
 
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
