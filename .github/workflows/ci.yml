@@ -214,17 +214,25 @@ jobs:
     # audit's F-010). The check job still rides tags; it publishes nothing.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The registration's commit below is a log walk, and on a depth-one clone
+          # `git log -1 -- <file>` answers HEAD for any file present.
+          fetch-depth: 0
 
       # The provenance stamp the Dockerfile refuses to build without: the full sha,
       # since the agent's commands read the image's code version as the forty-hex
       # commit they run as and refuse anything else (the event log step's review).
-      # The short form is minted beside it for the human-readable tag alone.
+      # The short form is minted beside it for the human-readable tag alone. The
+      # registration's commit is minted the way the investigate workflow's runner
+      # computes it, so a visitor's run the demo plans and an operator's run of the
+      # same cell freeze one commit (the live-path commands step, group 4).
       - name: Mint the code-version stamp
         id: stamp
         run: |
           {
             echo "sha=$(git rev-parse HEAD)"
             echo "short=$(git rev-parse --short HEAD)"
+            echo "registration_commit=$(git log -1 --format=%H -- preregistration/registration.json)"
           } >> "$GITHUB_OUTPUT"
 
       # arm64 is the instance (Graviton); amd64 is the workstation. One manifest,
@@ -251,6 +259,7 @@ jobs:
           push: true
           build-args: |
             CODE_VERSION=${{ steps.stamp.outputs.sha }}
+            REGISTRATION_COMMIT=${{ steps.stamp.outputs.registration_commit }}
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ steps.stamp.outputs.short }}

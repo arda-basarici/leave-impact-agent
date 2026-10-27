@@ -37,6 +37,7 @@ def test_the_committed_configuration_is_the_rulings_values_in_one_written_form()
     assert configuration.served_world_version == GOLDEN_WORLD
     assert configuration.frappe_base_url == "https://hr-w3.ardabasarici.dev"
     assert configuration.system is SystemKind.AGENT and configuration.level == "base"
+    assert configuration.region == "eu-central-1"
     assert configuration.ledger_id == "ledger-demo"
     assert configuration.daily_admissions == 5
     assert configuration.approval_wait_seconds == 15 * 60
@@ -72,12 +73,13 @@ def _data(**changes: object) -> JsonObject:
 @pytest.mark.parametrize(
     ("changes", "message"),
     [
-        ({"format_version": 2}, "format 1, got 2"),
+        ({"format_version": 1}, "format 2, got 1"),
         ({"extra": 1}, "surplus ['extra']"),
         ({"served_world_version": "7b80"}, "the served world version is a SHA-256"),
         ({"registration_digest": "X" * 64}, "the registration digest is a SHA-256"),
         ({"system": "investigator"}, "system is one of"),
         ({"level": " "}, "the registered level is a non-empty identifier"),
+        ({"region": ""}, "the region is a non-empty identifier"),
         ({"ledger_id": ""}, "the demo's ledger id is a non-empty identifier"),
         ({"daily_admissions": 0}, "the daily admissions"),
         ({"daily_admissions": True}, "daily_admissions is an integer, got bool"),

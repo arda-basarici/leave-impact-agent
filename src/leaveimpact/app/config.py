@@ -7,9 +7,17 @@ investigator milestone's bound files are never edited for the demo, and the amen
 the world's admission made the served world an allowlist of one named here by version,
 since the sealed disclosure mark lives in an object the instance cannot read. The values
 are the rulings' values: the golden world, the registered investigator at the base level
-under the frozen registration named by its digest, the demo's own ledger apart from the
-measurement's, five admissions a UTC day, a fifteen-minute approval wait, a wall-clock
-bound on a running attempt beside the registered caps, and live runs off.
+under the frozen registration named by its digest, the region its model is called in
+and priced under, the demo's own ledger apart from the measurement's, five admissions a
+UTC day, a fifteen-minute approval wait, a wall-clock bound on a running attempt beside
+the registered caps, and live runs off.
+
+The region is the cell's third coordinate beside the system and the level (format 2,
+the live-path commands step): the planner prices a visitor's run under the table's rates
+for it and the worker calls the model there, one value for both, as the operator's
+lifecycle passes one ``REGION`` to its plan and its work. It is not read from the
+object store's region name, which the store wiring forbids beside a local twin's root,
+so a laptop serving from the twin would have had no region to plan under.
 
 **Off means no new public admissions and nothing else.** With ``live_runs`` false the start
 command admits no visitor's attempt; replay pages, the results page, the narration of
@@ -46,7 +54,7 @@ from leaveimpact.core.jsonshape import (
 from leaveimpact.core.run_record import SystemKind
 from leaveimpact.core.run_trace import require_digest, require_integer, require_opaque_id
 
-DEMO_CONFIGURATION_FORMAT = 1
+DEMO_CONFIGURATION_FORMAT = 2
 DEMO = "demo.json"
 _FIELDS = (
     "format_version",
@@ -54,6 +62,7 @@ _FIELDS = (
     "frappe_base_url",
     "system",
     "level",
+    "region",
     "registration_digest",
     "ledger_id",
     "daily_admissions",
@@ -71,7 +80,8 @@ class DemoConfiguration:
     the cache marks it ready and no other. ``frappe_base_url`` is the HR site of that world
     (the tracker site serves every world and is the platform contract's). ``system`` and
     ``level`` name the registered cell a visitor's run is admitted to under the
-    registration ``registration_digest`` names. ``ledger_id`` is the demo's ledger, never
+    registration ``registration_digest`` names, and ``region`` is where its model is called
+    and priced. ``ledger_id`` is the demo's ledger, never
     the measurement's. ``daily_admissions`` bounds public starts per UTC day;
     ``approval_wait_seconds`` is how long an attempt waits at the approval before the
     sweeper closes it; ``attempt_wall_seconds`` bounds a running attempt's wall clock beside
@@ -82,6 +92,7 @@ class DemoConfiguration:
     frappe_base_url: str
     system: SystemKind
     level: str
+    region: str
     registration_digest: str
     ledger_id: str
     daily_admissions: int
@@ -94,6 +105,7 @@ class DemoConfiguration:
         require_digest(self.registration_digest, "the registration digest")
         require_opaque_id(self.ledger_id, "the demo's ledger id")
         require_opaque_id(self.level, "the registered level")
+        require_opaque_id(self.region, "the region")
         require_integer(self.daily_admissions, "the daily admissions", minimum=1)
         require_integer(self.approval_wait_seconds, "the approval wait", minimum=1)
         require_integer(self.attempt_wall_seconds, "the attempt's wall bound", minimum=1)
@@ -112,6 +124,7 @@ def encode_demo_configuration(configuration: DemoConfiguration) -> JsonObject:
         "frappe_base_url": configuration.frappe_base_url,
         "system": configuration.system.value,
         "level": configuration.level,
+        "region": configuration.region,
         "registration_digest": configuration.registration_digest,
         "ledger_id": configuration.ledger_id,
         "daily_admissions": configuration.daily_admissions,
@@ -131,10 +144,10 @@ def decode_demo_configuration(content: bytes | str) -> DemoConfiguration:
     missing, unknown, of the wrong type or meaningless; a format other than this code's is
     refused first.
 
-    >>> decode_demo_configuration('{"format_version": 2}')
+    >>> decode_demo_configuration('{"format_version": 1}')
     Traceback (most recent call last):
     ...
-    ValueError: the demo configuration is format 1, got 2
+    ValueError: the demo configuration is format 2, got 1
     """
     text = content.decode("utf-8") if isinstance(content, bytes) else content
     data = as_object(json.loads(text), "the demo configuration")
@@ -155,6 +168,7 @@ def decode_demo_configuration(content: bytes | str) -> DemoConfiguration:
         frappe_base_url=string_field(data, "frappe_base_url"),
         system=SystemKind(system),
         level=string_field(data, "level"),
+        region=string_field(data, "region"),
         registration_digest=string_field(data, "registration_digest"),
         ledger_id=string_field(data, "ledger_id"),
         daily_admissions=integer_field(data, "daily_admissions"),

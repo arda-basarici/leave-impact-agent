@@ -39,6 +39,16 @@ FROM ghcr.io/arda-basarici/leave-impact-agent/python:3.13-slim-bookworm@sha256:a
 ARG CODE_VERSION
 RUN test -n "$CODE_VERSION" || { echo "CODE_VERSION build arg required — an image without provenance refuses to build" >&2; exit 1; }
 ENV LEAVEIMPACT_CODE_VERSION=$CODE_VERSION
+# The commit the committed registration was last changed at, the same value the
+# operator's runner computes (`git log -1 --format=%H -- preregistration/registration.json`
+# on a full checkout): the demo's planner freezes it into every visitor's admission and
+# the sweeper's inventories are scoped by it, so a visitor's run and an operator's run of
+# the same cell land in one scope only when both carry it. A property of the tree the
+# build runs over, like the code version, and refused the same way when absent (the
+# live-path commands step, group 4).
+ARG REGISTRATION_COMMIT
+RUN test -n "$REGISTRATION_COMMIT" || { echo "REGISTRATION_COMMIT build arg required — the demo plans every run under the registration's commit" >&2; exit 1; }
+ENV LEAVEIMPACT_REGISTRATION_COMMIT=$REGISTRATION_COMMIT
 
 # Unprivileged, fixed uid: the process owns nothing on disk (the only state is
 # PostgreSQL's, in its own container), and a stable uid keeps file ownership
@@ -52,10 +62,14 @@ COPY src ./src
 # admission froze; the service checks the file's digest against the demo configuration's
 # registration digest at start, so the copy can never silently drift from the configuration.
 COPY preregistration/registration.json ./preregistration/registration.json
+# The committed price table beside it: the demo's planner prices a visitor's run under
+# its rates, the same file the operator's lifecycle fetches at the deployed commit.
+COPY preregistration/prices.json ./preregistration/prices.json
 
 # Container-shape defaults only; secrets and host specifics come from Compose.
 ENV PATH="/app/.venv/bin:$PATH" \
-    LEAVEIMPACT_REGISTRATION_FILE=/app/preregistration/registration.json
+    LEAVEIMPACT_REGISTRATION_FILE=/app/preregistration/registration.json \
+    LEAVEIMPACT_PRICES_FILE=/app/preregistration/prices.json
 
 USER app
 

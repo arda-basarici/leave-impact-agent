@@ -6,7 +6,10 @@
 !pyproject.toml
 !uv.lock
 # The committed registration the demo surface folds replays under (the publishability
-# step); named by file, so nothing else under preregistration/ enters the context.
+# step) and the price table the demo's planner prices a visitor's run with (the live-path
+# commands step); each named by file, so nothing else under preregistration/ enters the
+# context.
 !preregistration/registration.json
+!preregistration/prices.json
 
 src/**/__pycache__

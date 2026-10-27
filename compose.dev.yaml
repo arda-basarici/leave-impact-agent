@@ -14,6 +14,9 @@ services:
         # Honest identity even for laptop builds. PowerShell:
         #   $env:CODE_VERSION = "$(git rev-parse --short HEAD)+dirty"
         CODE_VERSION: ${CODE_VERSION:?set CODE_VERSION to git rev-parse --short HEAD (+dirty if the tree has changes)}
+        # The registration's commit, as the image job mints it:
+        #   $env:REGISTRATION_COMMIT = "$(git log -1 --format=%H -- preregistration/registration.json)"
+        REGISTRATION_COMMIT: ${REGISTRATION_COMMIT:?set REGISTRATION_COMMIT to git log -1 --format=%H -- preregistration/registration.json}
     image: leaveimpact:dev
 
   postgres:
