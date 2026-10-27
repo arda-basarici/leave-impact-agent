@@ -21,26 +21,17 @@ where absent and checks it, and never alters an existing table: the deploy scrip
 at every landing, as it runs the corpus cache's, so a fresh instance holds the log before
 any lifecycle command reaches it (the first live dispatch of 2026-10-13 found one that
 never had).
-``work`` composes the investigator graph's real fillings over an admitted attempt (the
-graph step, fork 17): the configuration the registration and this code give the named cell
-(``registered.model_system_provenance``), the role's model, settings, rate and counting model from
-flags, the price table from a file, the vendor hosts from the environment, the world
-manifest from the world store at the admitted version, the corpus reader from the admitted
-version and level before any read (the registry step's forward), the live clients from the
-region, the turns over the shipped prompts, the checkpoint saver on the run log's database,
-and the approval policy named. A rules-only cell runs the same command through the same
-worker with no model flag (the first live run's step, fork 4): its configuration is
-``registered.rules_only_configuration``, its turns ask nothing, the clients it is
-handed refuse a send or a count as this harness's defect, and the registration's rules it
-is read under are not consulted by its fold. One command, one run, one
-attempt; the worker compares the composed configuration with the admission's and claims
-nothing on a difference. An attempt whose log already holds its ending, a recorded stopping
-failure with its segment still open or a closing, takes the terminal-only path (the first
-live run's step, fork 9, extended to the closed attempt at the group's review): the state
-is read before anything beyond the run log is built, and the attempt is closed by that
-failure, or found closed, through ``commands.finalize`` with no world store, corpus reader,
-vendor reader or client composed, so a closing the log has already decided cannot fail for
-a reason unrelated to the attempt.
+``work`` restates its line as a work order and performs it (``work_order.perform``, where
+the composition of the investigator graph's real fillings over an admitted attempt lives
+since the worker service's step, so the operator's command line and the demo's worker
+compose one way): the role's model, settings, rate and counting model from flags, the
+price table and the registration from files, the approval policy named, the rest from
+the environment and the stores as that module says. A rules-only cell runs the same
+command with no model flag (the first live run's step, fork 4), and the registration's
+rules it is read under are not consulted by its fold. One command, one run, one attempt;
+the worker compares the composed configuration with the admission's and claims nothing on
+a difference, and an attempt whose log already holds its ending takes the terminal-only
+path with nothing beyond the run log built.
 
 The job's log is public, which decides what this module prints: a result as the fields its
 command returns, a refusal of a known kind as its message (files, keys, commits, counts
@@ -60,19 +51,11 @@ import json
 import os
 import sys
 from collections.abc import Callable, Mapping, Sequence
-from contextlib import ExitStack, closing
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 
-import psycopg
-from langgraph.checkpoint.postgres import PostgresSaver
-from psycopg.rows import DictRow, dict_row
-
 from leaveimpact.adapters.corpus import UnservedCorpus
-from leaveimpact.adapters.inference import ConverseClient, CountingClient, inference_client
-from leaveimpact.adapters.manifest import ManifestStage, WorldManifest, decode_manifest
-from leaveimpact.adapters.object_store.layout import world_manifest_key
 from leaveimpact.adapters.object_store.read import (
     AccessRefused,
     ObjectStoreMisconfigured,
@@ -80,12 +63,9 @@ from leaveimpact.adapters.object_store.read import (
 )
 from leaveimpact.adapters.wiring import (
     ConfigurationError,
-    build_readers,
-    hosts_from_env,
     inventory_publisher,
     run_export_publisher,
     world_store_from_env,
-    world_store_reader,
 )
 from leaveimpact.agent.commands import (
     AbandonRequest,
@@ -96,26 +76,18 @@ from leaveimpact.agent.commands import (
     InventoryRequest,
     PublishRequest,
     ReviewRequest,
-    TerminalComposition,
     ThresholdRequest,
-    WorkerComposition,
     WorkRequest,
     abandon,
     admit,
     decline,
     deliver_approval,
-    finalize,
     import_spend,
     publish,
     review_approval,
     set_threshold,
-    system_content,
-    work,
     write_inventory,
 )
-from leaveimpact.agent.corpus import corpus_reader_for
-from leaveimpact.agent.execution import ReadPorts, ports_under
-from leaveimpact.agent.graph import ModelClient, TokenCounter
 from leaveimpact.agent.log_events import Admitted, Producer, decode_event
 from leaveimpact.agent.log_store import (
     SCHEMA_VERSION,
@@ -131,10 +103,8 @@ from leaveimpact.agent.registered import (
     MODEL_SYSTEM_ROLES,
     RoleFilling,
     effective_rules,
-    model_system_provenance,
-    rules_only_configuration,
 )
-from leaveimpact.agent.rules_only import NoCounter, NoModelClient
+from leaveimpact.agent.work_order import DATABASE, WorkOrder, perform
 from leaveimpact.agent.worker import (
     ApprovalPolicy,
     AutomaticApproval,
@@ -146,7 +116,7 @@ from leaveimpact.core.call_settings import CallConfiguration, CallSetting
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.inventory import InventoryScope, PublicationStatus
 from leaveimpact.core.jsonshape import as_object, expect_fields, object_field, string_field
-from leaveimpact.core.pricing import PriceTable, basis_for, decode_price_table
+from leaveimpact.core.pricing import PriceTable, decode_price_table
 from leaveimpact.core.registration import Registration
 from leaveimpact.core.registration_json import decode_registration_bytes
 from leaveimpact.core.run_ending import AbandonmentReason
@@ -154,7 +124,6 @@ from leaveimpact.core.run_record import PricingSelection, SystemKind
 from leaveimpact.core.run_timing import GIT_SHA_LENGTH, HarnessRevision, TreeState
 
 PROGRAM = "python -m leaveimpact.agent"
-DATABASE = "DATABASE_URL"
 CODE_VERSION = "LEAVEIMPACT_CODE_VERSION"
 
 
@@ -736,130 +705,22 @@ def _run(
 def _work(
     request: WorkResolved, store: LogStore, rules: Rules, env: Mapping[str, str]
 ) -> WorkerEnding:
-    """The model system's composition over the admitted attempt, worked as far as one
-    process can: the system the line names chooses its content behind the skeleton's
-    protocols (``commands.system_content``) and its provenance. What is opened here is closed before
-    it returns, in the reverse of its opening: the corpus reader, the vendor readers, the
-    SDK runtime client the two live clients share and the saver's connection; the
-    world-store reader holds nothing to close.
-
-    The attempt's state is read first: the manifest and the corpus reader are functions of
-    the admitted world version and level, and an attempt at a recorded stop with its
-    segment open, or one already closed, goes to the terminal worker before any of them is
-    built (fork 9 of the first live run's step; the case found 2026-10-09). Otherwise
-    the corpus reader runs its serving check before any read port is built
-    (``corpus_reader_for``). The composed configuration is the registration's and this
-    code's for the cell named, and either worker refuses the claim where it differs from
-    the admission's.
-
-    The registered outage is injected over the composed ports from the assignment the
-    admission recorded, never from the line's condition again (the outage step, forks 1
-    and 2): a recovering process injects what the first was admitted under. Every reader
-    is built as under the normal condition, the serving check included, and the
-    scheduled-out ones are wrapped in front of their adapters, so the wiring, the
-    credentials it requires and the closing are one path whatever the condition (fork 4).
-    """
+    """The line's work order performed (``work_order.perform``, where the composition and
+    its order live): the line restated as the order, its two decoded files beside it."""
     line = request.line
-    turns, preparation = system_content(line.system)
-    if line.role is None:
-        configuration = rules_only_configuration(
-            request.registration,
-            line.condition,
-            line.level,
-            preregistration_commit=line.registration_commit,
-            pricing=basis_for(request.prices, ()),
-        )
-    else:
-        configuration = model_system_provenance(
-            request.registration,
-            line.system,
-            line.condition,
-            line.level,
-            preregistration_commit=line.registration_commit,
-            pricing=basis_for(request.prices, (line.role.pricing,)),
-            role=line.role,
-        )
-    state = store.load(line.attempt.run_id, line.attempt.attempt, rules=rules)
-    inputs = state.inputs
-    if inputs is None:
-        raise ValueError(
-            f"run {line.attempt.run_id} attempt {line.attempt.attempt} holds no admission"
-        )
-    if state.closed is not None or state.stopped is not None:
-        return finalize(
-            line.attempt, store, TerminalComposition(configuration, line.harness, rules)
-        )
-    # Read as the entry reads it, not indexed: the entry validated the name before it built
-    # the store, but a caller handing in a store under another environment reaches this line
-    # first, and a missing name is a configuration fault, never an unexpected error (found
-    # 2026-10-09).
-    dsn = env.get(DATABASE, "").strip()
-    if not dsn:
-        raise ConfigurationError(f"{DATABASE} names the run log's database")
-    world_reader = world_store_reader(world_store_from_env(env))
-    version = inputs.context.world_version
-    key = world_manifest_key(version)
-    stored = world_reader.get(key)
-    if stored is None:
-        raise ValueError(f"the world store holds no manifest at {key}")
-    manifest = _manifest_of(stored.content, key)
-    if manifest.world_version != version:
-        raise ValueError(
-            f"the manifest at the keys of {version} describes world {manifest.world_version}"
-        )
-    with ExitStack() as opened:
-        corpus = opened.enter_context(closing(corpus_reader_for(inputs, dsn=dsn)))
-        hosts = hosts_from_env(env, jira_at_gateway=True)
-        readers = opened.enter_context(closing(build_readers(hosts, manifest, world_reader)))
-        # A rules-only run is handed no runtime: no client is built, and the two it gets
-        # refuse a send or a count as this harness's defect.
-        client: ModelClient = NoModelClient(line.region)
-        counter: TokenCounter = NoCounter()
-        if line.role is not None:
-            runtime = opened.enter_context(closing(inference_client(line.region)))
-            client, counter = ConverseClient(runtime), CountingClient(runtime)
-        connection = opened.enter_context(closing(_saver_connection(dsn)))
-        saver = PostgresSaver(connection)
-        saver.setup()
-        composition = WorkerComposition(
-            configuration,
-            line.harness,
-            rules,
-            turns,
-            preparation,
-            client,
-            counter,
-            ports_under(
-                ReadPorts(readers.people, readers.work, readers.calendar, corpus),
-                inputs.outage.scheduled_unreachable,
-            ),
-            line.approval,
-            saver,
-        )
-        return work(line.attempt, store, composition)
-
-
-def _manifest_of(content: bytes, key: str) -> WorldManifest:
-    """The projected manifest ``content`` holds. The codec's refusal quotes the fields it
-    found and the job's log is public, so the refusal raised names the key and the
-    exception's type alone, after the handler has ended, and no traceback carries the
-    codec's message (the group's review, second finding)."""
-    manifest: WorldManifest | None = None
-    failure: str | None = None
-    try:
-        manifest = decode_manifest(content, stage=ManifestStage.PROJECTED)
-    except ValueError as error:
-        failure = type(error).__name__
-    if manifest is None:
-        raise ValueError(f"the world manifest at {key} does not decode ({failure})")
-    return manifest
-
-
-def _saver_connection(dsn: str) -> psycopg.Connection[DictRow]:
-    """The checkpoint saver's own connection, in the configuration the acceptance spike
-    settled: autocommit, no prepared statements, dictionary rows."""
-    return psycopg.Connection[DictRow].connect(
-        dsn, autocommit=True, prepare_threshold=0, row_factory=dict_row
+    order = WorkOrder(
+        line.attempt,
+        line.system,
+        line.condition,
+        line.level,
+        line.registration_commit,
+        line.role,
+        line.region,
+        line.harness,
+        line.approval,
+    )
+    return perform(
+        order, request.registration, request.prices, store=store, rules=rules, env=env
     )
 
 

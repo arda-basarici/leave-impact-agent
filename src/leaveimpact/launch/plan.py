@@ -45,20 +45,15 @@ from leaveimpact.agent.registered import (
     RoleFilling,
     effective_rules,
     model_system_provenance,
+    registered_filling,
     rules_only_configuration,
 )
 from leaveimpact.agent.worker import ApprovalPolicy
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.input_bound import output_maximum
 from leaveimpact.core.pricing import PriceTable, basis_for, run_reservation
-from leaveimpact.core.registration import (
-    AgentSystem,
-    FullContextSystem,
-    Pending,
-    Registration,
-    SingleShotSystem,
-)
-from leaveimpact.core.run_record import PricingSelection, SystemKind
+from leaveimpact.core.registration import Registration
+from leaveimpact.core.run_record import SystemKind
 from leaveimpact.core.worldtime import RunContext
 from leaveimpact.world.scenario import ScenarioSpec
 
@@ -128,7 +123,7 @@ def plan_run(
             registration_commit,
             region,
         )
-    role = _registered_filling(registration, cell.system, region, billing_mode)
+    role = registered_filling(registration, cell.system, region, billing_mode)
     basis = basis_for(prices, (role.pricing,))
     configuration = model_system_provenance(
         registration,
@@ -153,32 +148,6 @@ def plan_run(
         cell,
         registration_commit,
         region,
-    )
-
-
-def _registered_filling(
-    registration: Registration, kind: SystemKind, region: str, billing_mode: str
-) -> RoleFilling:
-    """The one role ``kind`` runs, as the registration binds it, priced under the table's key
-    for its model in ``region``."""
-    system = registration.system(kind)
-    if not isinstance(system, AgentSystem | SingleShotSystem | FullContextSystem):
-        raise ValueError(f"the registration names no {kind.value} system that runs a role")
-    roles = system.roles
-    if isinstance(roles, Pending):
-        raise ValueError(
-            f"the registration holds the {kind.value} roles pending; the launcher fills a role "
-            "from the registration alone"
-        )
-    if len(roles) != 1:
-        raise ValueError(f"{kind.value} is registered with {len(roles)} roles; a run fills one")
-    (registered,) = roles
-    return RoleFilling(
-        registered.name,
-        registered.configuration,
-        PricingSelection(registered.configuration.model_id, region, billing_mode),
-        registered.counting_model_id,
-        registered.context_allowance_tokens,
     )
 
 

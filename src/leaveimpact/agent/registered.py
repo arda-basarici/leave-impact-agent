@@ -324,6 +324,36 @@ class RoleFilling:
     context_allowance_tokens: int
 
 
+def registered_filling(
+    registration: Registration, kind: SystemKind, region: str, billing_mode: str
+) -> RoleFilling:
+    """The one role ``kind`` runs, as the registration binds it, priced under the table's key
+    for its model in ``region``: what a composition root that holds the registration fills
+    the role from, the launcher's plan and the demo's worker alike (the worker service's
+    step moved it here from the launcher, so the surface's side needs no launcher import).
+    ``ValueError`` for a kind that runs no role, roles the registration holds pending, or a
+    role count that is not one."""
+    system = registration.system(kind)
+    if not isinstance(system, AgentSystem | SingleShotSystem | FullContextSystem):
+        raise ValueError(f"the registration names no {kind.value} system that runs a role")
+    roles = system.roles
+    if isinstance(roles, Pending):
+        raise ValueError(
+            f"the registration holds the {kind.value} roles pending; the launcher fills a role "
+            "from the registration alone"
+        )
+    if len(roles) != 1:
+        raise ValueError(f"{kind.value} is registered with {len(roles)} roles; a run fills one")
+    (registered,) = roles
+    return RoleFilling(
+        registered.name,
+        registered.configuration,
+        PricingSelection(registered.configuration.model_id, region, billing_mode),
+        registered.counting_model_id,
+        registered.context_allowance_tokens,
+    )
+
+
 def effective_rules(registration: Registration) -> Rules:
     """The attribution table and re-dispatch policy a run of ``registration`` is read under:
     the registered ones, or the development values above where the registration holds
@@ -489,5 +519,6 @@ __all__ = [
     "RoleFilling",
     "effective_rules",
     "model_system_provenance",
+    "registered_filling",
     "rules_only_provenance",
 ]

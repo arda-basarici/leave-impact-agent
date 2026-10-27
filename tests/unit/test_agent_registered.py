@@ -30,6 +30,7 @@ from leaveimpact.agent.registered import (
     RoleFilling,
     effective_rules,
     model_system_provenance,
+    registered_filling,
     rules_only_configuration,
     rules_only_provenance,
 )
@@ -526,3 +527,37 @@ def test_the_rules_only_configuration_is_the_provenance_in_the_lifecycles_form()
         rules_only_configuration(
             DRAFT, "slack_down", "base", preregistration_commit=COMMIT, pricing=PRICING
         )
+
+
+def test_the_registered_filling_is_the_registrations_one_role_priced_in_the_region() -> None:
+    """What a composition root that holds the registration fills a role from, the launcher's
+    plan and the demo's worker alike (moved here from the launcher at the worker service's
+    step): the one registered role's name, configuration, counting model and allowance, the
+    pricing selection its model id, the region and the billing mode. Refused by name for a
+    kind that runs no role, roles held pending, and a role count that is not one."""
+    agent = DRAFT.system(SystemKind.AGENT)
+    assert isinstance(agent, AgentSystem) and not isinstance(agent.roles, Pending)
+    (role,) = agent.roles
+    filling = registered_filling(DRAFT, SystemKind.AGENT, "eu-central-1", "on_demand")
+    assert filling == RoleFilling(
+        role.name,
+        role.configuration,
+        PricingSelection(role.configuration.model_id, "eu-central-1", "on_demand"),
+        role.counting_model_id,
+        role.context_allowance_tokens,
+    )
+    with pytest.raises(ValueError, match="names no rules_only system that runs a role"):
+        registered_filling(DRAFT, SystemKind.RULES_ONLY, "eu-central-1", "on_demand")
+    with pytest.raises(ValueError, match="holds the agent roles pending"):
+        registered_filling(pending_roles(DRAFT), SystemKind.AGENT, "eu-central-1", "on_demand")
+    # The registration registers a role once per system by name, so a second role takes
+    # its own name to reach the count's refusal.
+    doubled = replace(
+        DRAFT,
+        systems=tuple(
+            replace(agent, roles=(role, replace(role, name="second"))) if held is agent else held
+            for held in DRAFT.systems
+        ),
+    )
+    with pytest.raises(ValueError, match="agent is registered with 2 roles; a run fills one"):
+        registered_filling(doubled, SystemKind.AGENT, "eu-central-1", "on_demand")
