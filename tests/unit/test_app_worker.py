@@ -473,13 +473,55 @@ def test_the_closure_of_a_lost_child_keeps_an_outstanding_review_window() -> Non
     recording = Recording()
     lines: list[str] = []
     seeded(log, rows, 1, awaiting())
-    (lost,) = snapshot_now(log, rows, recording).attempts
-    report = close_lost(log, rows, service(recording, Spawner(), lines=lines), lost)
+    report = close_lost(log, rows, service(recording, Spawner(), lines=lines), FIRST)
     assert report == ()
     assert lines == [
         f"work: run {run_of(1)} attempt 1: the rule keeps the attempt open; the next pass decides"
     ]
     assert log.load(run_of(1), 1, rules=RULES).closed is None
+
+
+def test_the_closure_of_a_lost_child_leaves_a_takeover_of_its_attempt_alone() -> None:
+    """The child claimed and was killed; an operator took the attempt over before the
+    supervisor's snapshot (the external read's first finding): the zero wall's fence names
+    the operator's generation, which is not the child's claim, so nothing is closed."""
+    log, rows, _ = stores(ADMITTED)
+    recording = Recording()
+    lines: list[str] = []
+    seeded(log, rows, 1, admission_only())
+
+    def claim_then_takeover() -> None:
+        claims_only(log, FIRST)()
+        taken = log.claim(
+            run_of(1),
+            1,
+            harness=cases.REVISION,
+            nonce="nonce-op",
+            launch="launch-lifecycle-7",
+            rules=RULES,
+        )
+        assert isinstance(taken, Appended) and taken.state.generation == 2
+
+    child = FakeChild(
+        subprocess.TimeoutExpired, ignores_terminate=True, on_terminate=claim_then_takeover
+    )
+    report = tick(log, rows, service(recording, Spawner([child]), lines=lines))
+    assert report.lost is not None and report.closed == ()
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert state.closed is None and state.generation == 2
+    assert lines[-1].endswith("the rule keeps the attempt open; the next pass decides")
+
+
+def test_an_orphan_admission_without_its_rows_is_never_due() -> None:
+    """The start that lost its app rows (a documented crash state): nobody can watch the
+    attempt, so no child is spawned for it and the sweeper's wait cancels it (the external
+    read's second finding: a claimed orphan with an open segment had no closure)."""
+    log, rows, _ = stores(ADMITTED)
+    recording = Recording()
+    seeded(log, rows, 1, admission_only(), row=False)
+    assert work_due(snapshot_now(log, rows, recording), harness_commit=cases.COMMIT) is None
+    spawn = Spawner()
+    assert tick(log, rows, service(recording, spawn)).worked is None and spawn.spawned == []
 
 
 # --- the drain --------------------------------------------------------------------------
@@ -563,6 +605,40 @@ def test_the_start_pass_closes_a_dead_services_open_segment_and_keeps_a_review_w
         log.slot = SlotHolder(run_of(3), 1, 1, holder, ADMITTED - timedelta(seconds=1))
         assert start_pass(log, rows, service(Recording(), Spawner())) == ()
         assert log.load(run_of(3), 1, rules=RULES).closed is None
+
+
+def test_the_start_pass_leaves_a_takeover_between_its_slot_read_and_its_snapshot_alone() -> None:
+    """The dead holder is read at generation 1; an operator takes the attempt over before
+    the snapshot (the external read's first finding): the zero wall's fence names
+    generation 2, which is not the holder that was read, and the operator's attempt stays
+    open."""
+    log, rows, _ = stores(ADMITTED)
+    recording = Recording()
+    seeded(log, rows, 1, running())
+    log.slot = SlotHolder(run_of(1), 1, 1, DEAD, ADMITTED - timedelta(seconds=1))
+    original = log.execution_slot
+    reads: list[int] = []
+
+    def slot_then_takeover() -> SlotHolder | None:
+        holder = original()
+        reads.append(1)
+        if len(reads) == 1:
+            taken = log.claim(
+                run_of(1),
+                1,
+                harness=cases.REVISION,
+                nonce="nonce-op",
+                launch="launch-lifecycle-7",
+                rules=RULES,
+            )
+            assert isinstance(taken, Appended) and taken.state.generation == 2
+        return holder
+
+    log.execution_slot = slot_then_takeover  # type: ignore[method-assign]
+    report = start_pass(log, rows, service(recording, Spawner()))
+    assert report == ()
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert state.closed is None and state.generation == 2
 
 
 # --- the heartbeat ------------------------------------------------------------------------

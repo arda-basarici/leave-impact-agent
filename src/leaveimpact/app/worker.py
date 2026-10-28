@@ -11,9 +11,10 @@ service's launch identity, waited on under the wall, its ending read and reporte
 ``work_due`` is the pure part: the oldest open public attempt whose next claim the
 transition reads as a first claim or a resumption on this commit
 (``log_transition.next_claim``), which is the launcher's WORK; an outstanding request, a
-recovery, another commit's attempt or a closed one is never due, the sweeper's rule having
-closed or kept each (``sweeper``, the eighth action). The tick blocks on the child:
-single flight is the loop's shape, not a lock.
+recovery, another commit's attempt, a closed one or the orphan of a start that lost its
+rows is never due, the sweeper's rule having closed or kept each (``sweeper``, the eighth
+action; the orphan is cancelled after the wait and has no page to work for). The tick
+blocks on the child: single flight is the loop's shape, not a lock.
 
 **The child.** The work runs in a process of its own because the blocked-work probe
 showed the in-process shape losing the first stop signal: LangGraph submits the
@@ -34,7 +35,10 @@ if still there, and reaped. A killed child leaves its segment open, or ended by 
 stop handler, under the service's identity, and the next pass would close it only at the
 wall; so the supervisor closes the attempt itself in the same tick, by the sweeper's rule
 with the wall read as elapsed (``close_lost``: a fresh snapshot, the actions under a zero
-wall, kept to the lost attempt's own), as the start pass does for a dead service. A child
+wall, kept to the lost attempt's own, a fence kept only while the attempt's current claim
+is the child's), as the start pass does for a dead service, whose fence is bound the same
+way to the holder it read: a zero wall fences whatever holds the slot, and a takeover
+between the read and the snapshot would put a healthy replacement there. A child
 that exits on its own without an ending line (a crash, a refusal, a stop that reached it
 from outside) is closed the same way, its exit code reported: the service read no ending,
 and the attempt is not left to the wall either. An attempt the child left waiting on an
@@ -93,11 +97,13 @@ from types import FrameType
 from typing import Any, Protocol
 
 from leaveimpact.agent.commands import WorkRequest
+from leaveimpact.agent.log_events import SegmentStarted
 from leaveimpact.agent.log_store import LogStoreUnavailable
-from leaveimpact.agent.log_transition import ClaimKind, next_claim
+from leaveimpact.agent.log_transition import AttemptState, ClaimKind, next_claim
 from leaveimpact.agent.worker import WorkerEnding, WorkerEndingKind
 from leaveimpact.app.store import AppStoreUnavailable
 from leaveimpact.app.sweeper import (
+    FenceAndClose,
     RepairRow,
     SweepAction,
     SweepComposition,
@@ -163,6 +169,11 @@ def work_due(snapshot: SweepSnapshot, *, harness_commit: str) -> SweptAttempt | 
         state = each.state
         if state.closed is not None or state.stopped is not None:
             continue
+        # The orphan of a start that lost its rows has no page a visitor could watch, and
+        # the sweeper's rule closes it as cancelled once the wait has passed; a claim on it
+        # would spend a model call for nobody (the group's external read, second finding).
+        if each.row is None:
+            continue
         if state.segments and state.segments[0].harness.commit != harness_commit:
             continue
         if state.approval_requested is not None and state.approved is None:
@@ -190,6 +201,15 @@ def concerns(action: SweepAction, run_id: str, attempt: int) -> bool:
             return False
         case _:
             return (action.run_id, action.attempt) == (run_id, attempt)
+
+
+def claimed_by(state: AttemptState, request: WorkRequest) -> bool:
+    """Whether the attempt's current claim is the one ``request`` made: the last claim's
+    nonce and launch identity are the request's. A takeover since carries another's."""
+    for logged in reversed(state.events):
+        if isinstance(logged.event, SegmentStarted):
+            return (logged.event.nonce, logged.event.launch) == (request.nonce, request.launch)
+    return False
 
 
 # --- the heartbeat ----------------------------------------------------------------------
@@ -470,17 +490,33 @@ def start_pass(log: SweepLog, rows: SweepRows, composition: ServiceComposition) 
     actions = actions_of(
         snapshot, sweeping.configuration, harness_commit=sweeping.harness.commit, wall=wall
     )
-    report = tuple(perform(action, log, rows, sweeping) for action in actions)
+    # A fence the zero wall produced is bound to the holder that was read: a takeover
+    # between the slot's read and the snapshot puts a healthy replacement's generation in
+    # the slot, and the rule alone would fence it (the group's external read, first
+    # finding). The lock's generation check refuses a takeover after the snapshot.
+    bound = tuple(
+        action
+        for action in actions
+        if not isinstance(action, FenceAndClose)
+        or (
+            holder is not None
+            and (action.run_id, action.attempt, action.generation)
+            == (holder.run_id, holder.attempt, holder.generation)
+        )
+    )
+    report = tuple(perform(action, log, rows, sweeping) for action in bound)
     _report_pass(composition, report)
     return report
 
 
 def close_lost(
-    log: SweepLog, rows: SweepRows, composition: ServiceComposition, lost: SweptAttempt
+    log: SweepLog, rows: SweepRows, composition: ServiceComposition, request: WorkRequest
 ) -> SweepReport:
     """The closure of an attempt whose child returned no ending (see the module): a fresh
-    snapshot, the rule under a zero wall, its actions kept to this attempt's own,
-    performed and reported; none when the rule keeps the attempt (a review window)."""
+    snapshot, the rule under a zero wall, its actions kept to this attempt's own, a fence
+    kept only when the attempt's current claim is the child's (``claimed_by``: a takeover
+    since the child died is another's to close), performed and reported; none when the
+    rule keeps the attempt (a review window)."""
     sweeping = composition.sweep
     snapshot = snapshot_of(log, rows, sweeping)
     actions = actions_of(
@@ -489,13 +525,33 @@ def close_lost(
         harness_commit=sweeping.harness.commit,
         wall=timedelta(0),
     )
-    own = tuple(action for action in actions if concerns(action, lost.run_id, lost.attempt))
+    current = next(
+        (
+            each
+            for each in snapshot.attempts
+            if (each.run_id, each.attempt) == (request.run_id, request.attempt)
+        ),
+        None,
+    )
+    own = tuple(
+        action
+        for action in actions
+        if concerns(action, request.run_id, request.attempt)
+        and (
+            not isinstance(action, FenceAndClose)
+            or (
+                current is not None
+                and action.generation == current.state.generation
+                and claimed_by(current.state, request)
+            )
+        )
+    )
     report = tuple(perform(action, log, rows, sweeping) for action in own)
     _report_pass(composition, report)
     if not report:
         composition.report(
-            f"work: run {lost.run_id} attempt {lost.attempt}: the rule keeps the attempt open; "
-            "the next pass decides"
+            f"work: run {request.run_id} attempt {request.attempt}: the rule keeps the attempt "
+            "open; the next pass decides"
         )
     return report
 
@@ -545,7 +601,9 @@ def tick(log: SweepLog, rows: SweepRows, composition: ServiceComposition) -> Tic
         f"work: run {due.run_id} attempt {due.attempt}: the child {outcome.detail} "
         f"(exit code {outcome.exit_code}); the attempt is closed by the rule"
     )
-    return TickReport(swept, None, lost=outcome, closed=close_lost(log, rows, composition, due))
+    return TickReport(
+        swept, None, lost=outcome, closed=close_lost(log, rows, composition, request)
+    )
 
 
 def serve(log: SweepLog, rows: SweepRows, composition: ServiceComposition) -> int:
@@ -586,6 +644,7 @@ __all__ = [
     "ServiceComposition",
     "Spawn",
     "TickReport",
+    "claimed_by",
     "close_lost",
     "concerns",
     "decode_ending_line",
