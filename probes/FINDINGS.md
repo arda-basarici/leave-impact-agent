@@ -5113,13 +5113,21 @@ under the wall); under the signal the service exits 10.2 seconds after it, the g
 a fraction, the segment left open under the service's identity and fenced by the
 replacement's start pass.
 
-**The criteria, read against the ruling.** Criterion 1 holds in every case as the step's
-ruling restated it: the attempt is closed by the supervisor itself after the kill, not by
-the next pass at the wall. Criterion 2 fixed two seconds for the exit after the signal;
-four cases meet it and the checkpoint case exits at the ruled grace plus a fraction (10.2
-s), which the ruling accepted when it fixed the grace: a process that cannot unwind is
-ended by the kill, and the grace is the time a stop handler that can unwind needs. The
-number is recorded as measured, the criterion not moved. Criteria 3 to 6 read as the first
+**The criteria, read against the ruling.** Criterion 1, as the step's ruling restated it
+(the attempt closed by the supervisor itself after the kill, not by the next pass at the
+wall), holds where the store answers: the send, the socket and the checkpoint cases close
+in the same tick. Under a store held locked for the whole run it does not: the blocked
+segment end's closure was refused by the lock on every tick and performed by the
+replacement after the release, as the first capture's append case was, and the blocked
+claim never reached the wall at all. Criterion 2 fixed two seconds for the exit after the
+signal; three cases meet it, the blocked segment end exits at 3.6 s (the stop handler's
+append waiting out the three-second statement bound, as the first capture's 3.2 s), and
+the checkpoint case exits at the ruled grace plus a fraction (10.2 s), which the ruling
+accepted when it fixed the grace: a process that cannot unwind is ended by the kill, and
+the grace is the time a stop handler that can unwind needs. The numbers are recorded as
+measured, the criterion not moved; the first draft of this paragraph counted four and
+claimed every case, and the group's external read corrected both against the table.
+Criteria 3 to 6 read as the first
 capture's: nothing appended after the closure, the liabilities retained in stages, no
 inference by the replacement, the closed attempt published once.
 
