@@ -1,9 +1,10 @@
 """The memory baseline's committed reading (`probes/memory-baseline/reading.json`, written
 by `reduce.py` over the capture of 2026-10-24) and what was set from it: the reading
 regenerates from the committed capture exactly, its rule block is the rule recomputed over
-its own levels, and the two Compose limits and the stream's subscription bound equal the
-rule's outputs. The limits are numbers with a script behind them; this test is what keeps
-`compose.yaml`, the stream module and the reading from moving alone."""
+its own levels, and the three Compose limits and the stream's subscription bound equal
+the rule's outputs (the worker's its reservation until its own reading exists). The
+limits are numbers with a script behind them; this test is what keeps `compose.yaml`,
+the stream module and the reading from moving alone."""
 
 from __future__ import annotations
 
@@ -121,3 +122,25 @@ def test_the_limits_and_the_bound_are_the_rules_outputs(reading: dict[str, Any])
     assert limits["app"] == rule["app"]["mem_limit"]
     assert limits["postgres"] == rule["postgres"]["mem_limit"]
     assert rule["bound"]["subscription_bound"] == SUBSCRIPTION_BOUND
+
+
+def _mebibytes(limit: str) -> int:
+    assert limit.endswith("m"), limit
+    return int(limit[:-1]) * 1024 * 1024
+
+
+def test_the_worker_holds_the_reservation_and_the_three_limits_sum_to_the_budget_line(
+    reading: dict[str, Any],
+) -> None:
+    """The worker service's step: the worker has no reading of its own until a public
+    attempt runs under it, so its limit is the rule's reservation, and the three limits
+    together are exactly what the rule's host line budgeted (`limits_plus_reservation`),
+    so a fourth service or a moved limit fails here and not on the host."""
+    rule = reading["rule"]
+    limits = compose_limits()
+    assert set(limits) == {"app", "postgres", "worker"}
+    assert _mebibytes(limits["worker"]) == rule["worker_reservation_bytes"]
+    assert (
+        sum(_mebibytes(limit) for limit in limits.values())
+        == rule["host"]["limits_plus_reservation_bytes"]
+    )
