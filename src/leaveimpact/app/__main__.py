@@ -61,6 +61,7 @@ from leaveimpact.agent.registered import RoleFilling, registered_filling
 from leaveimpact.agent.work_order import WorkOrder, perform
 from leaveimpact.agent.worker import HumanApproval, WorkerEnding
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
+from leaveimpact.app.heartbeat import heartbeat_path, worker_healthy
 from leaveimpact.app.main import CODE_VERSION, DATABASE, REGISTRATION_FILE
 from leaveimpact.app.public import public_id_of
 from leaveimpact.app.publication_check import PublicationReads, verify_publications
@@ -87,14 +88,11 @@ from leaveimpact.app.sweeper import (
     sweep,
 )
 from leaveimpact.app.worker import (
-    DEFAULT_HEARTBEAT_PATH,
-    HEARTBEAT_FILE,
     ServiceComposition,
     ending_line,
     install_stop_handlers,
     serve,
     service_identity,
-    worker_healthy,
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.jsonshape import JsonObject
@@ -263,7 +261,7 @@ def main(
             parsed, dsn, environment, restore_log, configuration, registration, rules, perform_work
         )
     if parsed.command == WORKER_HEALTH:
-        return 0 if worker_healthy(_heartbeat_path(environment), now()) else 1
+        return 0 if worker_healthy(heartbeat_path(environment), now()) else 1
     return _publish(parsed, dsn, environment, store, log, configuration, registration, rules)
 
 
@@ -525,11 +523,6 @@ def _sweep(
     return 0 if carried == len(report) else 1
 
 
-def _heartbeat_path(environment: Mapping[str, str]) -> Path:
-    named = environment.get(HEARTBEAT_FILE, "").strip()
-    return Path(named) if named else DEFAULT_HEARTBEAT_PATH
-
-
 class _Refused(Exception):
     """What a command's composition refuses before any store is opened: the exit code the
     command line answers with and the line it prints."""
@@ -696,7 +689,7 @@ def _worker(
             ),
             work_one_command,
             now,
-            heartbeat=_heartbeat_path(environment),
+            heartbeat=heartbeat_path(environment),
         )
         install_stop_handlers()
         return serve_worker(log, store(dsn), composition)

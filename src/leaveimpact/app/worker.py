@@ -64,8 +64,9 @@ terminate that reaches it ends the segment where an append is still possible
 (``worker.Worker``, the handler around the invocation) and exits without an ending line,
 and one that parks behind a stuck write ends with the kill.
 
-**The heartbeat.** A small JSON file the compose healthcheck reads through
-``worker-health``: the state and a deadline, idle three intervals ahead and rewritten
+**The heartbeat.** A small JSON file (``app.heartbeat``, which the compose healthcheck
+runs without importing this module; ``worker-health`` is the operator's word for the same
+read): the state and a deadline, idle three intervals ahead and rewritten
 per tick once the pass has read the stores (a store that does not answer lets it go
 stale), working the claim's instant plus the wall plus the cleanup allowance and
 written at the claim. The check compares the clock with the deadline, one rule for both
@@ -83,7 +84,6 @@ as the sweep command's do.
 from __future__ import annotations
 
 import json
-import os
 import random
 import secrets
 import signal
@@ -101,6 +101,7 @@ from leaveimpact.agent.log_events import SegmentStarted
 from leaveimpact.agent.log_store import LogStoreUnavailable
 from leaveimpact.agent.log_transition import AttemptState, ClaimKind, next_claim
 from leaveimpact.agent.worker import WorkerEnding, WorkerEndingKind
+from leaveimpact.app.heartbeat import DEFAULT_HEARTBEAT_PATH, Heartbeat
 from leaveimpact.app.store import AppStoreUnavailable
 from leaveimpact.app.sweeper import (
     FenceAndClose,
@@ -133,11 +134,6 @@ that reached the child needs to end its segment where the store answers."""
 CLEANUP_ALLOWANCE = timedelta(seconds=30)
 """What the working heartbeat's deadline grants past the wall for the grace, the kill and
 the closure."""
-
-HEARTBEAT_FILE = "LEAVEIMPACT_HEARTBEAT_FILE"
-"""The environment name of the heartbeat's path."""
-
-DEFAULT_HEARTBEAT_PATH = Path("/tmp/leaveimpact-worker-heartbeat.json")  # noqa: S108 - the container's own tmpfs, read by its healthcheck alone
 
 IDLE_INTERVALS = 3
 """How many intervals an idle heartbeat stays fresh."""
@@ -210,42 +206,6 @@ def claimed_by(state: AttemptState, request: WorkRequest) -> bool:
         if isinstance(logged.event, SegmentStarted):
             return (logged.event.nonce, logged.event.launch) == (request.nonce, request.launch)
     return False
-
-
-# --- the heartbeat ----------------------------------------------------------------------
-
-
-@dataclass(frozen=True, slots=True)
-class Heartbeat:
-    """What the loop last said of itself: idle or working, and the instant past which the
-    claim is stale."""
-
-    state: str
-    deadline: datetime
-
-    def write(self, path: Path) -> None:
-        """Written whole then moved into place, so a reader never sees a torn file."""
-        staged = path.with_name(path.name + ".tmp")
-        staged.write_text(
-            json.dumps({"state": self.state, "deadline": self.deadline.isoformat()}),
-            encoding="utf-8",
-        )
-        os.replace(staged, path)
-
-    @classmethod
-    def read(cls, path: Path) -> Heartbeat | None:
-        """The heartbeat at ``path``, or ``None`` when absent or unreadable."""
-        try:
-            data = json.loads(path.read_text(encoding="utf-8"))
-            return cls(str(data["state"]), datetime.fromisoformat(str(data["deadline"])))
-        except (OSError, ValueError, KeyError, TypeError):
-            return None
-
-
-def worker_healthy(path: Path, now: datetime) -> bool:
-    """The healthcheck's one bit: a heartbeat present whose deadline is still ahead."""
-    beat = Heartbeat.read(path)
-    return beat is not None and now < beat.deadline
 
 
 # --- the child and its ending ------------------------------------------------------------
@@ -629,9 +589,7 @@ def serve(log: SweepLog, rows: SweepRows, composition: ServiceComposition) -> in
 
 __all__ = [
     "CLEANUP_ALLOWANCE",
-    "DEFAULT_HEARTBEAT_PATH",
     "DEFAULT_INTERVAL_SECONDS",
-    "HEARTBEAT_FILE",
     "IDLE_INTERVALS",
     "SERVICE_PREFIX",
     "TERMINATE_GRACE_SECONDS",
@@ -640,7 +598,6 @@ __all__ = [
     "ChildOutcome",
     "ChildProcess",
     "Drained",
-    "Heartbeat",
     "ServiceComposition",
     "Spawn",
     "TickReport",
@@ -658,5 +615,4 @@ __all__ = [
     "supervise",
     "tick",
     "work_due",
-    "worker_healthy",
 ]

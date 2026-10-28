@@ -20,10 +20,10 @@ from leaveimpact.agent.log_transition import Rules
 from leaveimpact.agent.work_order import WorkOrder
 from leaveimpact.agent.worker import HumanApproval, WorkerEnding, WorkerEndingKind
 from leaveimpact.app.__main__ import main, work_one_command
+from leaveimpact.app.heartbeat import Heartbeat
 from leaveimpact.app.store import AppStore
 from leaveimpact.app.worker import (
     SERVICE_PREFIX,
-    Heartbeat,
     ServiceComposition,
     decode_ending_line,
     spawn_child,

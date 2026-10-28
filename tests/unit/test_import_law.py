@@ -166,9 +166,13 @@ _IO_MODULES = frozenset(
 # read the wall clock, converting it into an explicit context at once. A job runner or a
 # CLI joins the set by path when it exists. Monotonic timing for retries is
 # infrastructure and is not matched here.
-_CLOCK_ROOTS = frozenset({Path("__main__.py"), Path("app") / "__main__.py"})
-"""The package root, and the demo surface's command line since the worker service's
-step: it hands the service the clock its heartbeat deadlines are written from."""
+_CLOCK_ROOTS = frozenset(
+    {Path("__main__.py"), Path("app") / "__main__.py", Path("app") / "heartbeat.py"}
+)
+"""The package root; the demo surface's command line since the worker service's step,
+which hands the service the clock its heartbeat deadlines are written from; and the
+worker's healthcheck, a process of its own that reads the clock at its own main (the
+same step's group 3: the check imports nothing of the worker, so it composes itself)."""
 _CLOCK_READ = re.compile(r"\b(?:datetime|date)\.(?:now|utcnow|today)\(|\btime\.time\(")
 
 

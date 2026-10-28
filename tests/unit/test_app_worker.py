@@ -26,6 +26,7 @@ from leaveimpact.agent.log_events import Abandoned, SegmentEnded, WorkerStamp
 from leaveimpact.agent.log_store import LogStoreUnavailable, SlotHolder
 from leaveimpact.agent.log_transition import Appended
 from leaveimpact.agent.worker import WorkerEnding, WorkerEndingKind
+from leaveimpact.app.heartbeat import Heartbeat, worker_healthy
 from leaveimpact.app.sweeper import (
     CloseUnrecovered,
     CloseWait,
@@ -40,7 +41,6 @@ from leaveimpact.app.worker import (
     ChildLost,
     ChildProcess,
     Drained,
-    Heartbeat,
     ServiceComposition,
     close_lost,
     ending_line,
@@ -51,7 +51,6 @@ from leaveimpact.app.worker import (
     supervise,
     tick,
     work_due,
-    worker_healthy,
 )
 from tests.unit import format_fixtures as cases
 from tests.unit.test_app_sweeper import (
