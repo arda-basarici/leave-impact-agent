@@ -397,8 +397,9 @@ def test_a_recorded_stop_is_finalized_whatever_the_clock() -> None:
 
 def test_the_wall_bound_fences_the_public_holder_past_it_and_nobody_else() -> None:
     """History 10 and fork 5: inside the wall the holder is left alone (no liveness rule);
-    past it, a holder with a live row is fenced at the slot's generation; a holder with no
-    row is not the sweeper's, and the bound is measured from the claim, not the admission."""
+    past it, the holder is fenced at the slot's generation, with its live row or without
+    one (the claimed orphan of the worker service's external read, which no later pass
+    could otherwise close), and the bound is measured from the claim, not the admission."""
     log, rows, _ = stores(ADMITTED)
     seeded(log, rows, 1, running())
     claimed_at = ADMITTED + timedelta(hours=1)
@@ -410,7 +411,7 @@ def test_the_wall_bound_fences_the_public_holder_past_it_and_nobody_else() -> No
         FenceAndClose(run_of(1), 1, 1),
     )
     no_row = replace(with_row, row=None)
-    assert plan(snapshot(claimed_at + WALL, no_row, slot=slot)) == ()
+    assert plan(snapshot(claimed_at + WALL, no_row, slot=slot)) == (FenceAndClose(run_of(1), 1, 1),)
     other_holder = SlotHolder("run-operator", 1, 1, "launch-2", ADMITTED)
     assert plan(snapshot(claimed_at + WALL, with_row, slot=other_holder)) == ()
 

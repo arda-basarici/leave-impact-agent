@@ -30,11 +30,13 @@ approval requested and not given is closed as cancelled at or past the deadline,
 request's recorded instant plus the wait, under the decision's own serialization with
 the state reloaded and the condition re-read there, so a decision that holds the lock
 first is admitted and one that waited past the deadline is refused (histories 1, 2, 5,
-6 and 15 of the step); and the slot's holder with a live row and an open segment is
-fenced and closed as interrupted, its liabilities kept by the settlement, once the
-claim's instant is older than the wall bound, measured per occupied segment from its
-claim and never across the approval pause, since a request outstanding is the wait's
-case above. Two states no process of this code will continue are closed as interrupted
+6 and 15 of the step); and the slot's holder with an open segment is fenced and closed as
+interrupted, its liabilities kept by the settlement, once the claim's instant is older
+than the wall bound, its live row or none (the orphan a process claimed is the log's to
+close, or the slot stays held for good; the worker service's external read), measured per
+occupied segment from its claim and never across the approval pause, since a request
+outstanding is the wait's case above.
+Two states no process of this code will continue are closed as interrupted
 at the generation the snapshot showed, the liabilities kept (the worker service's step):
 an attempt whose first segment ran another commit than this code's, whatever its state
 and the wait included, since a claim across commits is the operator's audited override
@@ -411,7 +413,6 @@ def _closure_of(
     slot = snapshot.slot
     if (
         not segment.ended
-        and each.row is not None
         and slot is not None
         and (slot.run_id, slot.attempt) == (each.run_id, each.attempt)
         and now >= slot.claimed_at + wall
