@@ -6,7 +6,9 @@
 # LIFECYCLE_COMMAND is one word: `launch` (the plan, the ledger threshold as a
 # receipt, the admission), `work`, `status`, `deliver`, `publish` or `inventory`;
 # each is one `docker compose run` of the deployed image, and the python command's
-# exit status is this script's.
+# exit status is this script's. `work` runs as the `worker` service, the one service
+# whose environment names the vendor principals since the worker service's step
+# (compose.yaml); every other word runs as `app`, which names none.
 #
 # The commit a run rides is the one the workflow was dispatched from: RUN_SHA must
 # equal the sha in DEPLOYED, so the image, the registration and price files (fetched
@@ -257,7 +259,7 @@ case "$LIFECYCLE_COMMAND" in
     # One nonce per process: a re-sent work is a new claimant of the same attempt.
     nonce="nonce-$(od -An -N16 -tx1 /dev/urandom | tr -d ' \n')"
     mapfile -t cell < "$attempt_dir/work.args"
-    docker compose run --rm --name "$container" -v "$run_dir:$JOB_DIR" app \
+    docker compose run --rm --name "$container" -v "$run_dir:$JOB_DIR" worker \
       python -m leaveimpact.agent work --run "$RUN_ID" --attempt "$ATTEMPT" \
       --nonce "$nonce" --launch "$LAUNCH" --registration "$registration" --prices "$prices" \
       --approval "$APPROVAL" "${cell[@]}"

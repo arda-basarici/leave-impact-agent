@@ -21,7 +21,8 @@ the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its e
 writes the plan's two files under the mounted run directory for a ``plan`` command and
 prints ``launch=launch-fake``, prints the scripted ``status.txt`` for a ``status``, and
 answers a ``ps`` with the scripted ``running.txt`` (the attempt's container, when the test
-says it still runs). ``chown`` only records, since the real one is a no-op on Windows and
+says it still runs), and fails a ``compose stop`` with ``FAKE_DOCKER_STOP_EXIT`` (the
+deploy's drain refused). ``chown`` only records, since the real one is a no-op on Windows and
 the handover to the image's user is what a test asserts. ``gh`` answers the two Actions
 API reads the driver's CI guard makes with the test's scripted ``ci-runs.json`` and
 ``ci-jobs.json``.
@@ -141,6 +142,9 @@ elif [[ " $* " == *" exec -T app python -c "* ]] && [[ " $* " == *"/ready"* ]]; 
 elif [ "$1" = ps ]; then
   [ -z "${FAKE_DOCKER_PS_EXIT:-}" ] || exit "$FAKE_DOCKER_PS_EXIT"
   cat "$FAKE_DIR/running.txt" 2>/dev/null || true
+elif [ "$1 $2" = "compose stop" ]; then
+  # The deploy's drain; FAKE_DOCKER_STOP_EXIT scripts a stop the daemon refused.
+  [ -z "${FAKE_DOCKER_STOP_EXIT:-}" ] || exit "$FAKE_DOCKER_STOP_EXIT"
 fi
 exit "${FAKE_DOCKER_EXIT:-0}"
 """

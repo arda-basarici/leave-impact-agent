@@ -14,6 +14,23 @@
 # nothing is rendered to
 # disk (compose.yaml's own rule). A failing `aws` inside `param` ends the deploy with
 # the CLI's own error (the explicit return and `inherit_errexit`, as lifecycle.sh).
+#
+# The order since the worker service's step (its forks 5 and 6): everything that can
+# fail without touching the host's state first (the fetch, the pulls, every parameter
+# read), then the worker drained (`compose stop`, which honours its grace period, so an
+# attempt mid-flight ends its segment where it can and the replacement's first pass
+# closes it), then the bootstraps and the app as before, then the worker started last.
+# Between the stop and the app's swap the previous app container serves, and a schema
+# advance makes it refuse every log read until the swap: the window is the two
+# bootstraps and the start, read off this script's phase stamps in the deploy log. A
+# container stopped by `compose stop` does not return under `unless-stopped`, through a
+# reboot included, so a deploy that fails after the stop leaves the worker stopped: the
+# EXIT trap starts the previous worker again when the failure came before the first
+# bootstrap (the schema is still the one it ran under; that window holds only the stop
+# itself) and otherwise says the state and the rerun, since the old image may not read
+# the advanced schema. Each phase prints a UTC stamp, so a deploy's growth is
+# attributable (the deploy job's waiter was shown too short on two deploys whose phases
+# nobody could time).
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -35,6 +52,31 @@ param() {
   printf '%s' "$value"
 }
 
+stamp() { echo "$(date -u +%FT%TZ) $*"; }
+
+# The phase the trap reads: the worker's state on a failure depends on how far the deploy
+# got. `before-stop`: nothing on the host changed, nothing to repair. `before-bootstrap`:
+# the worker is stopped under a schema the previous image still reads, so it is started
+# again. `after-bootstrap`: it stays stopped until a deploy succeeds, and the state is
+# said. `finished`: the marker is written.
+PHASE=before-stop
+on_exit() {
+  local status=$?
+  if [ "$status" -ne 0 ]; then
+    case "$PHASE" in
+      before-bootstrap)
+        echo "deploy failed before the bootstraps (exit $status); starting the previous worker again under the schema it ran under" >&2
+        docker compose start worker || echo "the previous worker did not start (docker compose ps shows the state)" >&2
+        ;;
+      after-bootstrap)
+        echo "deploy failed after a bootstrap (exit $status): the worker stays stopped until a deploy succeeds; docker compose ps shows it exited and its heartbeat is absent; public attempts are untended until then. Rerun: this script with DEPLOY_SHA=$DEPLOY_SHA DEPLOY_DIGEST=$DEPLOY_DIGEST, or the rollback's older sha and digest" >&2
+        ;;
+    esac
+  fi
+  exit "$status"
+}
+trap on_exit EXIT
+
 cd "$APP_DIR"
 # One deploy on this host at a time, beside the workflow's concurrency group (for a
 # command sent by hand, or two runs the group did not see). The lock is a descriptor the
@@ -44,11 +86,35 @@ cd "$APP_DIR"
 exec 9> "$APP_DIR/deploy.lock"
 flock -n 9 || { echo "another deploy holds $APP_DIR/deploy.lock; this one is refused" >&2; exit 1; }
 curl -fsSL "https://raw.githubusercontent.com/$REPO/$DEPLOY_SHA/compose.yaml" -o compose.yaml
+stamp "fetched compose.yaml of $DEPLOY_SHA"
 
 export APP_TAG="$DEPLOY_SHA"
 export PGDATA_HOST=/srv/pgdata
 POSTGRES_PASSWORD=$(param /leave-agent/postgres-password)
 export POSTGRES_PASSWORD
+# The worker service's vendor principals (the worker service's step, fork 8): the five
+# parameters under /leave-agent/ and the two base URLs, exported for `compose up` of the
+# worker the way the password is, and read here, before the worker is stopped, so a
+# parameter that does not read fails the deploy with the host untouched. The app
+# service names none of them (compose.yaml, held by tests/unit/test_compose_edge.py), so
+# the web process is handed nothing of this. The URLs are the demo configuration's HR
+# site and the tracker's gateway root, nonsecret constants of the demo, held equal to
+# their sources by tests/unit/test_instance_deploy.py.
+export LEAVE_IMPACT_FRAPPE_BASE_URL=https://hr-w3.ardabasarici.dev
+export LEAVE_IMPACT_JIRA_BASE_URL=https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
+LEAVE_IMPACT_FRAPPE_API_KEY=$(param /leave-agent/frappe-api-key)
+LEAVE_IMPACT_FRAPPE_API_SECRET=$(param /leave-agent/frappe-api-secret)
+LEAVE_IMPACT_JIRA_EMAIL=$(param /leave-agent/jira-email)
+LEAVE_IMPACT_JIRA_TOKEN=$(param /leave-agent/jira-token)
+LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
+export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
+export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+# The bucket name is the platform contract's literal (the boundary probe after this
+# script names the same bucket); the credentials are the instance role's, reached
+# through the metadata service from inside the container (hop limit 2).
+export LEAVE_IMPACT_WORLD_BUCKET=leave-impact-world-445743457479
+export LEAVE_IMPACT_AWS_REGION="$REGION"
+stamp "parameters read"
 
 # The app image by its digest, then given the sha tag the compose file names, so
 # compose finds the tag present and pulls nothing for it; the service image is pulled
@@ -57,24 +123,33 @@ docker pull --quiet "ghcr.io/$REPO@$DEPLOY_DIGEST"
 docker tag "ghcr.io/$REPO@$DEPLOY_DIGEST" "ghcr.io/$REPO:$DEPLOY_SHA"
 docker compose pull --quiet postgres
 docker compose up -d --wait postgres
+stamp "images pulled, postgres up"
+# The drain: the worker stopped under its grace period (compose.yaml's
+# `stop_grace_period`, above the supervisor's own terminate grace), so an attempt
+# mid-flight ends its segment where the store answers and the replacement's start pass
+# closes it; a host that has never run the service stops nothing. From here a failure
+# leaves the worker stopped, which the trap above repairs or reports by phase.
+PHASE=before-bootstrap
+docker compose stop worker
+stamp "worker stopped"
 # The corpus cache: every world under `worlds/` the serving rule admits is loaded
 # into PostgreSQL under its version, verified against its manifest, and marked
 # ready; a refusal fails the deploy here, before the application is declared
-# landed. The bucket name is the platform contract's literal (the boundary probe
-# below names the same bucket); the credentials are the instance role's, reached
-# through the metadata service from inside the container (hop limit 2).
-export LEAVE_IMPACT_WORLD_BUCKET=leave-impact-world-445743457479
-export LEAVE_IMPACT_AWS_REGION="$REGION"
+# landed.
+PHASE=after-bootstrap
 docker compose run --rm app python -m leaveimpact.cache
+stamp "cache loaded"
 # The run log's schema, the same way: tables created where missing, the version row
 # written where absent, the version checked, and a mismatch fails the deploy here.
 # Nothing else creates them; the first live dispatch (2026-10-13) reached an instance
 # that had never been bootstrapped and refused at its first ledger command.
 docker compose run --rm app python -m leaveimpact.agent bootstrap-log
+stamp "log bootstrapped"
 # The demo surface's own schema (the table of publishable attempts and its version row),
 # the same way and apart from the log's: the readiness route reports the version as its
 # third bit, so a deploy that skipped this line fails at the readiness check below.
 docker compose run --rm app python -m leaveimpact.app bootstrap
+stamp "app bootstrapped"
 # Two named checks, neither the sole gate (the demo entry's HTTP-shell ruling).
 # The image check: the identity command states the commit the image was built from,
 # the deploy's evidence since the `oidc-deploy` probe, and a container that cannot say
@@ -97,6 +172,14 @@ READY=$(docker compose exec -T app python -c "import urllib.request; print(urlli
 echo "ready: $READY"
 grep -q "\"code_version\":\"$DEPLOY_SHA\"" <<< "$READY"
 grep -q '"ready":true' <<< "$READY"
+stamp "app ready"
+# The worker last, after the app serves (fork 6's order): recreated from the new image
+# and waited on through its healthcheck, the heartbeat the loop writes once its start
+# pass has read the stores (the start period covers the imports). A worker that never
+# becomes healthy fails the deploy here with the app already swapped and the marker
+# unwritten; the trap says the worker's state.
+docker compose up -d --wait --wait-timeout 90 worker
+stamp "worker up"
 
 # Every deploy pulls a new image and nothing ever removed the old ones: about 130
 # deploys in a week filled the 12 GB root and the pull itself failed (2026-09-15,
@@ -111,4 +194,5 @@ docker images "ghcr.io/$REPO" --format '{{.ID}}' | sort -u | awk -v keep="$KEEP_
 docker image prune -f
 
 echo "$DEPLOY_SHA" > "$APP_DIR/DEPLOYED"
+PHASE=finished
 echo "deployed $DEPLOY_SHA ($DEPLOY_DIGEST) at $(date -u +%FT%TZ)"
