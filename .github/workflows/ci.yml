@@ -368,7 +368,25 @@ jobs:
             --comment "deploy $GITHUB_SHA" --parameters file://payload.json \
             --query Command.CommandId --output text)
           echo "command $CID on $IID"
-          aws ssm wait command-executed --command-id "$CID" --instance-id "$IID" || true
+          # The CLI's waiter gives up after 20 polls at 5 s, and the step then read a
+          # deploy still in progress as a failed one: two false reds on 2026-10-28, at
+          # 136 s and 202 s, against 60 s on the two first deploys before. Polled here
+          # under a bound of six minutes, about 1.8 times the longest first deploy seen
+          # and 1.4 times the forecast with the worker's drain and start; the command
+          # keeps its own timeout on the instance. The invocation can be absent for the
+          # first poll or two after the send (the CLI's documented waiter reads that as
+          # pending), and the final read below is what the result is taken from.
+          DEADLINE=$((SECONDS + 360))
+          while :; do
+            STATUS=$(aws ssm get-command-invocation --command-id "$CID" --instance-id "$IID" \
+              --query Status --output text 2>/dev/null) || STATUS=Pending
+            case "$STATUS" in Pending|InProgress|Delayed) ;; *) break ;; esac
+            if (( SECONDS >= DEADLINE )); then
+              echo "the deploy is still $STATUS after 360 s; read it on the instance: aws ssm get-command-invocation --command-id $CID --instance-id $IID"
+              break
+            fi
+            sleep 10
+          done
           aws ssm get-command-invocation --command-id "$CID" --instance-id "$IID" \
             --query '{Status:Status,Out:StandardOutputContent,Err:StandardErrorContent}' --output json | tee result.json
           test "$(jq -r .Status result.json)" = Success

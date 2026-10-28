@@ -1,7 +1,9 @@
 """The workflow files' two structural rules, read with a regex so no YAML parser becomes a
 dependency for them: a job that may mint the OIDC token (``id-token: write``) uses only
 actions pinned by a full commit sha, since a moved tag there is a moved trust boundary (the
-deploy job's own comment); and a dispatched workflow stays under GitHub's ten-input cap."""
+deploy job's own comment); and a dispatched workflow stays under GitHub's ten-input cap.
+The deploy job's own shape (one concurrency group; a bounded poll of the deploy command)
+is held here too, since no other suite reads the workflow text."""
 
 from __future__ import annotations
 
@@ -63,6 +65,26 @@ def test_the_deploy_job_runs_under_one_concurrency_group_and_cancels_nothing_in_
     assert re.search(r"^    concurrency:\s*$", deploy, re.MULTILINE)
     assert re.search(r"^      group: deploy-production\s*$", deploy, re.MULTILINE)
     assert re.search(r"^      cancel-in-progress: false\s*$", deploy, re.MULTILINE)
+
+
+def test_the_deploy_job_polls_the_command_under_a_bound_the_measured_deploys_fit() -> None:
+    """The CLI's ``aws ssm wait command-executed`` gives up after 20 polls at 5 s, and the
+    step then read a deploy still in progress as a failed one: two pushes of 2026-10-28
+    went red at 136 s and 202 s while the instance's deploy succeeded. The job polls the
+    invocation itself under a bound of six minutes, about 1.8 times the longest first
+    deploy observed and 1.4 times the forecast with the worker's drain and start (the worker
+    service step's finding), and the result is taken from the read after the loop."""
+    deploy = _jobs((WORKFLOWS[0].parent / "ci.yml").read_text())["deploy"]
+    assert "aws ssm wait" not in deploy
+    assert re.search(r"^\s+DEADLINE=\$\(\(SECONDS \+ 360\)\)\s*$", deploy, re.MULTILINE)
+    assert re.search(
+        r"^\s+case \"\$STATUS\" in Pending\|InProgress\|Delayed\) ;; \*\) break ;; esac\s*$",
+        deploy,
+        re.MULTILINE,
+    )
+    assert re.search(
+        r"^\s+test \"\$\(jq -r \.Status result\.json\)\" = Success\s*$", deploy, re.MULTILINE
+    )
 
 
 def test_the_two_lifecycle_workflows_are_among_those_checked() -> None:
