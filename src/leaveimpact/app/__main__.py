@@ -2,7 +2,12 @@
 the app schema, which the deploy runs after the log's bootstrap and before the service
 starts; ``publish`` writes a replay's row in the table of publishable attempts;
 ``verify-restore`` is the restore drill's verification over a restored scratch database,
-the capture the backup recorded on stdin (the backup step; the checks in ``restore``).
+the capture the backup recorded on stdin (the backup step; the checks in ``restore``);
+``worker`` is the worker service (``app.worker``) and ``work-one`` the child it spawns per
+attempt, which composes the same work order the service would and performs it once, the
+ending as one JSON line on stdout (the worker service's step: the work runs in a process
+the service can terminate, wait on, kill and reap, since the blocked-work probe showed the
+in-process shape losing the first stop signal behind the checkpointer's executor).
 
 ``verify-restore`` runs the recovery procedure first, the log's bootstrap and the app's,
 both idempotent, since a dump older than the code's layout is recovered that way and the
@@ -37,9 +42,10 @@ import os
 import secrets
 import sys
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import asdict
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import TextIO, cast
+from typing import Protocol, TextIO, cast
 
 from leaveimpact.adapters.corpus.adapter import served_versions
 from leaveimpact.adapters.wiring import (
@@ -48,9 +54,12 @@ from leaveimpact.adapters.wiring import (
     run_export_publisher,
     world_store_from_env,
 )
-from leaveimpact.agent.commands import publish, write_inventory
+from leaveimpact.agent.commands import WorkRequest, publish, write_inventory
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
 from leaveimpact.agent.log_transition import Rules
+from leaveimpact.agent.registered import RoleFilling, registered_filling
+from leaveimpact.agent.work_order import WorkOrder, perform
+from leaveimpact.agent.worker import HumanApproval, WorkerEnding
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.main import CODE_VERSION, DATABASE, REGISTRATION_FILE
 from leaveimpact.app.public import public_id_of
@@ -72,14 +81,28 @@ from leaveimpact.app.store import (
 )
 from leaveimpact.app.sweeper import (
     PublishExport,
-    SweepAction,
     SweepComposition,
     WriteInventoryCommand,
+    action_line,
     sweep,
+)
+from leaveimpact.app.worker import (
+    DEFAULT_HEARTBEAT_PATH,
+    HEARTBEAT_FILE,
+    ServiceComposition,
+    ending_line,
+    install_stop_handlers,
+    serve,
+    service_identity,
+    worker_healthy,
 )
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.jsonshape import JsonObject
 from leaveimpact.core.ports.errors import SourceUnreachable
+from leaveimpact.core.pricing import PriceTable, decode_price_table
+from leaveimpact.core.registration import NORMAL_CONDITION, Registration
+from leaveimpact.core.registration_json import decode_registration_bytes
+from leaveimpact.core.run_record import SystemKind
 from leaveimpact.core.run_timing import HarnessRevision, TreeState, require_commit
 
 BOOTSTRAP = "bootstrap"
@@ -87,6 +110,14 @@ PUBLISH = "publish"
 VERIFY_RESTORE = "verify-restore"
 VERIFY_PUBLICATIONS = "verify-publications"
 SWEEP = "sweep"
+WORKER = "worker"
+WORKER_HEALTH = "worker-health"
+WORK_ONE = "work-one"
+
+REGISTRATION_COMMIT = "LEAVEIMPACT_REGISTRATION_COMMIT"
+PRICES_FILE = "LEAVEIMPACT_PRICES_FILE"
+"""The two names the image bakes beside the registration file (the Dockerfile is the
+contract; the launcher reads the same names for the surface's planning)."""
 
 MakeStore = Callable[[str], AppStore]
 MakeLog = Callable[[str], LogSession]
@@ -97,6 +128,24 @@ SweepCommands = Callable[
 ]
 """The two publication commands of a sweep, bound to the world store the environment names,
 the log and the rules; a test binds fakes."""
+ServeWorker = Callable[[LogStore, AppStore, ServiceComposition], int]
+"""The worker service's life over the two stores; a test serves a fake."""
+
+
+class PerformWork(Protocol):
+    """``work_order.perform``'s shape, the seam the child's command performs through; a
+    test records the order and answers an ending."""
+
+    def __call__(
+        self,
+        order: WorkOrder,
+        registration: Registration,
+        prices: PriceTable,
+        *,
+        store: LogStore,
+        rules: Rules,
+        env: Mapping[str, str],
+    ) -> WorkerEnding: ...
 
 
 def _sweep_commands_from_env(
@@ -139,6 +188,9 @@ def main(
     cache: CacheVersions = served_versions,
     stdin: TextIO | None = None,
     sweep_commands: SweepCommands = _sweep_commands_from_env,
+    serve_worker: ServeWorker = serve,
+    perform_work: PerformWork = perform,
+    now: Callable[[], datetime] = lambda: datetime.now(UTC),
 ) -> int:
     """``bootstrap`` applies the app schema to the database the environment names;
     ``publish --run <id> --attempt <n> --as <public-id> --by <who> [--title <t>]`` writes
@@ -149,11 +201,18 @@ def main(
     from its log under this code and holds them to its publication record, one line per
     replay; ``sweep`` runs one pass of the sweeper over the demo's public attempts (the
     reconciliations and the fifteen-minute close, the publications through the world
-    store the environment names), one line per action. 0 with the printed lines, 1 when a
-    store refuses or does not answer, the attempt is not publishable, a check failed or an
-    action was not carried, 2 on any other command line, an environment that lacks the
-    database, the registration or (for a sweep) the commit this code runs as, or a stdin
-    that is not a JSON list."""
+    store the environment names), one line per action; ``worker`` runs the worker service
+    (``app.worker``: the start pass, then the sweeper's pass and one visitor's attempt per
+    tick, each attempt worked in a child running ``work-one``, until the stop signal
+    drains it); ``work-one --run <id> --attempt <n> --nonce <hex> --launch <identity>``
+    is that child: the agent's work order over the demo's cell under the human approval,
+    performed once, the ending printed as one JSON line; ``worker-health`` reads the
+    worker's heartbeat. 0 with the printed lines (a drained worker included), 1 when a
+    store refuses or does not answer, the attempt is not publishable, a check failed, an
+    action was not carried, the work refused or the heartbeat is absent or stale, 2 on any
+    other command line, an environment that lacks the database, the registration or (for
+    a sweep, the worker or its child) the commit this code runs as, the registration's
+    commit or the price table, or a stdin that is not a JSON list."""
     arguments = list(sys.argv[1:] if argv is None else argv)
     environment = os.environ if env is None else env
     try:
@@ -186,6 +245,25 @@ def main(
         return _sweep(
             dsn, environment, store, restore_log, sweep_commands, configuration, registration, rules
         )
+    if parsed.command == WORKER:
+        return _worker(
+            dsn,
+            environment,
+            store,
+            restore_log,
+            sweep_commands,
+            configuration,
+            registration,
+            rules,
+            serve_worker,
+            now,
+        )
+    if parsed.command == WORK_ONE:
+        return _work_one(
+            parsed, dsn, environment, restore_log, configuration, registration, rules, perform_work
+        )
+    if parsed.command == WORKER_HEALTH:
+        return 0 if worker_healthy(_heartbeat_path(environment), now()) else 1
     return _publish(parsed, dsn, environment, store, log, configuration, registration, rules)
 
 
@@ -232,6 +310,28 @@ def _parser() -> argparse.ArgumentParser:
             "the fifteen-minute close and the publications; one line per action."
         ),
     )
+    commands.add_parser(
+        WORKER,
+        description=(
+            "The worker service: the sweeper's pass and one visitor's attempt per tick, "
+            "single flight, until the stop signal drains it."
+        ),
+    )
+    commands.add_parser(
+        WORKER_HEALTH,
+        description="The worker's healthcheck: 0 while its heartbeat's deadline is ahead.",
+    )
+    one = commands.add_parser(
+        WORK_ONE,
+        description=(
+            "The worker service's child: one attempt worked once under the demo's cell, the "
+            "ending printed as one JSON line."
+        ),
+    )
+    one.add_argument("--run", required=True, help="the run id the log holds")
+    one.add_argument("--attempt", required=True, type=int, help="the attempt number")
+    one.add_argument("--nonce", required=True, help="the process nonce of this claim")
+    one.add_argument("--launch", required=True, help="the service's launch identity")
     return parser
 
 
@@ -417,7 +517,7 @@ def _sweep(
         log.close()
     for outcome in report:
         print(
-            f"sweep: {_action_line(outcome.action)}: "
+            f"sweep: {action_line(outcome.action)}: "
             f"{'ok' if outcome.carried else 'NOT CARRIED'}: {outcome.detail}"
         )
     carried = sum(outcome.carried for outcome in report)
@@ -425,15 +525,239 @@ def _sweep(
     return 0 if carried == len(report) else 1
 
 
-def _action_line(action: SweepAction) -> str:
-    """The action's kind and its fields, as the log line names it; a set of publication
-    identities is named by its size."""
-    fields = " ".join(
-        f"{name}={len(cast(frozenset[object], value)) if isinstance(value, frozenset) else value}"
-        for name, value in asdict(action).items()
-    )
-    return f"{type(action).__name__} {fields}"
+def _heartbeat_path(environment: Mapping[str, str]) -> Path:
+    named = environment.get(HEARTBEAT_FILE, "").strip()
+    return Path(named) if named else DEFAULT_HEARTBEAT_PATH
 
+
+class _Refused(Exception):
+    """What a command's composition refuses before any store is opened: the exit code the
+    command line answers with and the line it prints."""
+
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
+
+@dataclass(frozen=True, slots=True)
+class _WorkMaterials:
+    """What one worker execution is composed from, read once from the environment the
+    image bakes: the demo's configuration, its rules, the registration and the price table
+    the image ships, the registered role's filling (none for rules only), the harness
+    revision this code claims and the registration's commit. The service reads them for
+    its sweep composition and the child for its order, from one reading, so the two cannot
+    drift."""
+
+    demo: DemoConfiguration
+    rules: Rules
+    registered: Registration
+    prices: PriceTable
+    role: RoleFilling | None
+    harness: HarnessRevision
+    registration_commit: str
+
+    def perform(
+        self,
+        request: WorkRequest,
+        log: LogStore,
+        environment: Mapping[str, str],
+        performing: PerformWork = perform,
+    ) -> WorkerEnding:
+        """The work order over ``request`` under the demo's cell, the normal condition and
+        the human approval, performed through ``work_order.perform`` (``performing`` is
+        the seam)."""
+        order = WorkOrder(
+            request,
+            self.demo.system,
+            NORMAL_CONDITION,
+            self.demo.level,
+            self.registration_commit,
+            self.role,
+            self.demo.region,
+            self.harness,
+            HumanApproval(),
+        )
+        return performing(
+            order, self.registered, self.prices, store=log, rules=self.rules, env=environment
+        )
+
+
+def _work_materials(
+    environment: Mapping[str, str],
+    configuration: Callable[[], DemoConfiguration],
+    registration: Callable[[str], bytes],
+    rules: Callable[[DemoConfiguration, bytes], Rules],
+) -> _WorkMaterials:
+    """The materials from the environment, or ``_Refused``: 2 for a name unset or a commit
+    that is not one, 1 for a file or a registration that does not read."""
+    missing = [
+        name
+        for name in (REGISTRATION_FILE, CODE_VERSION, REGISTRATION_COMMIT, PRICES_FILE)
+        if not environment.get(name, "").strip()
+    ]
+    if missing:
+        raise _Refused(2, f"{', '.join(missing)} not set and the worker composes from them")
+    code_version = environment[CODE_VERSION].strip()
+    try:
+        require_commit(code_version, "the commit this code runs as")
+        registration_commit = require_commit(
+            environment[REGISTRATION_COMMIT].strip(), "the commit the registration was changed at"
+        )
+    except ValueError as error:
+        raise _Refused(2, str(error)) from None
+    try:
+        demo = configuration()
+        registration_bytes = registration(environment[REGISTRATION_FILE].strip())
+        folding = rules(demo, registration_bytes)
+        registered = decode_registration_bytes(registration_bytes)
+        prices = decode_price_table(
+            json.loads(Path(environment[PRICES_FILE].strip()).read_bytes())
+        )
+        role = (
+            None
+            if demo.system is SystemKind.RULES_ONLY
+            else registered_filling(registered, demo.system, demo.region, "on_demand")
+        )
+    except (OSError, ValueError) as error:
+        raise _Refused(1, f"refused: {error}") from None
+    return _WorkMaterials(
+        demo,
+        folding,
+        registered,
+        prices,
+        role,
+        HarnessRevision(code_version, TreeState.CLEAN),
+        registration_commit,
+    )
+
+
+def work_one_command(request: WorkRequest) -> list[str]:
+    """The child's command line for ``request``: this interpreter running this package's
+    ``work-one`` with the request's four fields; the environment is inherited whole.
+
+    >>> line = work_one_command(WorkRequest("run-a", 1, "ab" * 16, "worker-20261028T090500Z-x"))
+    >>> line[1:8]
+    ['-m', 'leaveimpact.app', 'work-one', '--run', 'run-a', '--attempt', '1']
+    >>> line[8:]
+    ['--nonce', 'abababababababababababababababab', '--launch', 'worker-20261028T090500Z-x']
+    """
+    return [
+        sys.executable,
+        "-m",
+        "leaveimpact.app",
+        WORK_ONE,
+        "--run",
+        request.run_id,
+        "--attempt",
+        str(request.attempt),
+        "--nonce",
+        request.nonce,
+        "--launch",
+        request.launch,
+    ]
+
+
+def _worker(
+    dsn: str,
+    environment: Mapping[str, str],
+    store: MakeStore,
+    restore_log: MakeRestoreLog,
+    sweep_commands: SweepCommands,
+    configuration: Callable[[], DemoConfiguration],
+    registration: Callable[[str], bytes],
+    rules: Callable[[DemoConfiguration, bytes], Rules],
+    serve_worker: ServeWorker,
+    now: Callable[[], datetime],
+) -> int:
+    """The service composed (``app.worker``): the sweep composition as ``sweep`` builds it
+    under the service's identity over the work materials, the child's command line the
+    ``work-one`` of this interpreter, the stop handlers installed, the service served
+    until drained. The materials are read here too, before any store is opened, so a
+    service whose child could not compose refuses at its start and not per attempt."""
+    try:
+        materials = _work_materials(environment, configuration, registration, rules)
+    except _Refused as refused:
+        print(f"leaveimpact.app: {refused}", file=sys.stderr)
+        return refused.code
+    identity = service_identity(now(), secrets.token_hex(16))
+    log = restore_log(dsn)
+    try:
+        publish_export, write_inventory_command = sweep_commands(environment, log, materials.rules)
+        composition = ServiceComposition(
+            SweepComposition(
+                materials.demo,
+                materials.rules,
+                materials.harness,
+                materials.harness.commit,
+                publish_export,
+                write_inventory_command,
+                lambda: secrets.token_hex(16),
+                launch=identity,
+            ),
+            work_one_command,
+            now,
+            heartbeat=_heartbeat_path(environment),
+        )
+        install_stop_handlers()
+        return serve_worker(log, store(dsn), composition)
+    except (
+        AppStoreInvariantBroken,
+        AppStoreUnavailable,
+        ConfigurationError,
+        LogStoreInvariantBroken,
+        LogStoreUnavailable,
+    ) as error:
+        print(f"leaveimpact.app: refused: {error}", file=sys.stderr)
+        return 1
+    finally:
+        log.close()
+
+
+def _work_one(
+    parsed: argparse.Namespace,
+    dsn: str,
+    environment: Mapping[str, str],
+    restore_log: MakeRestoreLog,
+    configuration: Callable[[], DemoConfiguration],
+    registration: Callable[[str], bytes],
+    rules: Callable[[DemoConfiguration, bytes], Rules],
+    perform_work: PerformWork,
+) -> int:
+    """The service's child: the work materials, the request from the line, the stop
+    handlers installed so the supervisor's terminate ends the segment where the store
+    answers (the worker's stop branch re-raises and this process exits through it, with
+    no ending line, which the supervisor reads as the loss it caused), the order performed
+    once and the ending printed as one JSON line on stdout. A refusal the stores, a codec,
+    the registration or the corpus name is printed to stderr and answered with 1; a stdout
+    with no ending line is the supervisor's signal either way."""
+    try:
+        materials = _work_materials(environment, configuration, registration, rules)
+    except _Refused as refused:
+        print(f"leaveimpact.app: {refused}", file=sys.stderr)
+        return refused.code
+    try:
+        request = WorkRequest(parsed.run, parsed.attempt, parsed.nonce, parsed.launch)
+    except ValueError as error:
+        print(f"leaveimpact.app: {error}", file=sys.stderr)
+        return 2
+    log = restore_log(dsn)
+    try:
+        install_stop_handlers()
+        ending = materials.perform(request, log, environment, perform_work)
+    except (
+        ConfigurationError,
+        LogStoreInvariantBroken,
+        LogStoreUnavailable,
+        OSError,
+        SourceUnreachable,
+        ValueError,
+    ) as error:
+        print(f"leaveimpact.app: refused: {error}", file=sys.stderr)
+        return 1
+    finally:
+        log.close()
+    print(ending_line(ending), flush=True)
+    return 0
 
 def _bootstrap(app: AppStore) -> int:
     try:
