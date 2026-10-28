@@ -34,9 +34,18 @@ first is admitted and one that waited past the deadline is refused (histories 1,
 fenced and closed as interrupted, its liabilities kept by the settlement, once the
 claim's instant is older than the wall bound, measured per occupied segment from its
 claim and never across the approval pause, since a request outstanding is the wait's
-case above. A public attempt with its segment cleanly ended and nothing requested gets
-nothing: the worker's recovery is the next step's. The sweeper applies no liveness rule
-to a holder inside the wall (history 10). For each closed public attempt, a publication
+case above. Two states no process of this code will continue are closed as interrupted
+at the generation the snapshot showed, the liabilities kept (the worker service's step):
+an attempt whose first segment ran another commit than this code's, whatever its state
+and the wait included, since a claim across commits is the operator's audited override
+and a preserved window would end in the same closure after the approval; and a segment
+cleanly ended with nothing outstanding whose next claim the transition reads as a
+recovery (``log_transition.next_claim``, the launcher's own reading of work against
+recovery), since ruling 4 allows a public attempt no automatic recovery; an approval
+delivered and not yet resumed is a resumption, the worker service's to claim, and is left
+alone. The sweeper applies no liveness rule to a holder inside the wall (history 10),
+and its reading equals the launcher's next-step rule under a human approval wherever the
+segment has ended. For each closed public attempt, a publication
 that is not published is published, and one inventory per distinct scope (the world and
 the registration commit the attempts' frozen inputs name, since the image carries no
 registration commit) is written after the publications of the pass. A live row whose
@@ -86,9 +95,9 @@ from __future__ import annotations
 
 from collections.abc import Callable, Mapping
 from contextlib import AbstractContextManager
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
-from typing import Protocol
+from typing import Protocol, cast
 
 from leaveimpact.agent.appender import LogCommands
 from leaveimpact.agent.commands import (
@@ -106,7 +115,7 @@ from leaveimpact.agent.commands import (
 from leaveimpact.agent.inventory import PublicationRecord
 from leaveimpact.agent.log_events import Approved, Declined, Producer
 from leaveimpact.agent.log_store import AdmittedAttempt, SlotHolder
-from leaveimpact.agent.log_transition import AttemptState, Rules
+from leaveimpact.agent.log_transition import AttemptState, ClaimKind, Rules, next_claim
 from leaveimpact.agent.worker import WorkerConfiguration, WorkerEndingKind
 from leaveimpact.app.config import DemoConfiguration
 from leaveimpact.app.decide import deadline_of, decision_name
@@ -267,6 +276,19 @@ class FenceAndClose:
 
 
 @dataclass(frozen=True, slots=True)
+class CloseUnrecovered:
+    """Close an attempt no process of this code will continue, as interrupted at the
+    generation the snapshot showed, its liabilities kept: its first segment ran another
+    commit (whatever its state, the wait included), or its segment ended cleanly with
+    nothing outstanding and the next claim would be a recovery, which ruling 4 forbids a
+    public attempt (the worker service's step)."""
+
+    run_id: str
+    attempt: int
+    generation: int
+
+
+@dataclass(frozen=True, slots=True)
 class RepairRow:
     """Write onto the live row the decision its log holds."""
 
@@ -283,25 +305,33 @@ SweepAction = (
     | CloseWait
     | CloseUnclaimed
     | FenceAndClose
+    | CloseUnrecovered
     | RepairRow
 )
 
-Closure = CloseStopped | CloseWait | CloseUnclaimed | FenceAndClose
+Closure = CloseStopped | CloseWait | CloseUnclaimed | FenceAndClose | CloseUnrecovered
 
 
 def actions_of(
-    snapshot: SweepSnapshot, configuration: DemoConfiguration, *, harness_commit: str
+    snapshot: SweepSnapshot,
+    configuration: DemoConfiguration,
+    *,
+    harness_commit: str,
+    wall: timedelta | None = None,
 ) -> tuple[SweepAction, ...]:
     """The actions one pass takes over ``snapshot`` under ``configuration`` as the code at
     ``harness_commit``, in the order the module docstring states: the row repairs and the
     closures per attempt in admission order, the publications, then one inventory per
     scope that a publication of the pass or a published identity outside the remembered
-    inventory calls for."""
+    inventory calls for. ``wall`` replaces the configuration's wall bound for the pass:
+    the worker service's start pass reads a dead service's holder as past it with a wall
+    of zero, which the configuration itself refuses as a value."""
     actions: list[SweepAction] = []
     seen: dict[Scope, set[PublicationKey]] = {}
     needed: list[Scope] = []
     wait = timedelta(seconds=configuration.approval_wait_seconds)
-    wall = timedelta(seconds=configuration.attempt_wall_seconds)
+    if wall is None:
+        wall = timedelta(seconds=configuration.attempt_wall_seconds)
     for each in snapshot.attempts:
         repair = _row_repair(each)
         if repair is not None:
@@ -369,11 +399,15 @@ def _closure_of(
         if now >= each.admitted_at + wait:
             return CloseUnclaimed(each.run_id, each.attempt)
         return None
+    if state.segments[0].harness.commit != harness_commit:
+        return CloseUnrecovered(each.run_id, each.attempt, state.generation)
     if state.approval_requested is not None and state.approved is None:
         deadline = state.approval_requested.timestamp + wait
         if now >= deadline:
             return CloseWait(each.run_id, each.attempt)
         return None
+    if segment.ended and next_claim(state) is ClaimKind.RECOVERY:
+        return CloseUnrecovered(each.run_id, each.attempt, state.generation)
     slot = snapshot.slot
     if (
         not segment.ended
@@ -480,6 +514,20 @@ def snapshot_of(log: SweepLog, rows: SweepRows, composition: SweepComposition) -
     )
 
 
+def action_line(action: SweepAction) -> str:
+    """The action's kind and its fields, as a log line names it; a set of publication
+    identities is named by its size. The sweep command's and the worker service's one form.
+
+    >>> action_line(CloseWait("demo-0abc", 1))
+    'CloseWait run_id=demo-0abc attempt=1'
+    """
+    fields = " ".join(
+        f"{name}={len(cast(frozenset[object], value)) if isinstance(value, frozenset) else value}"
+        for name, value in asdict(action).items()
+    )
+    return f"{type(action).__name__} {fields}"
+
+
 def sweep(log: SweepLog, rows: SweepRows, composition: SweepComposition) -> SweepReport:
     """One pass: the snapshot, the actions, each performed in order, the report."""
     snapshot = snapshot_of(log, rows, composition)
@@ -555,6 +603,16 @@ def perform(
                 action,
                 AbandonmentReason.INTERRUPTED,
                 lambda current: _stopped_unmet(current, action.generation),
+                log,
+                composition,
+            )
+        case CloseUnrecovered():
+            return _close_checked(
+                action,
+                AbandonmentReason.INTERRUPTED,
+                lambda current: _unrecovered_unmet(
+                    current, action.generation, composition.harness.commit
+                ),
                 log,
                 composition,
             )
@@ -683,11 +741,36 @@ def _stopped_unmet(state: AttemptState, generation: int) -> str | None:
     return None
 
 
+def _unrecovered_unmet(state: AttemptState, generation: int, harness_commit: str) -> str | None:
+    """Why the attempt is no longer one nobody will continue at ``generation``: closed,
+    taken over, or (on this commit alone, since another commit's attempt stays unrecoverable
+    whatever else happened) an approval requested, its segment open again, or a next claim
+    the transition reads as a resumption rather than a recovery; the planner's branches
+    restated, field by field."""
+    if state.closed is not None:
+        return f"closed at position {state.closed.position}"
+    if state.generation != generation:
+        return f"taken over by generation {state.generation}"
+    if state.segments and state.segments[0].harness.commit != harness_commit:
+        return None
+    if state.approval_requested is not None and state.approved is None:
+        return "an approval is requested"
+    segment = state.current_segment
+    if segment is None:
+        return "never claimed"
+    if not segment.ended:
+        return "the segment is open"
+    if next_claim(state) is not ClaimKind.RECOVERY:
+        return "the next claim is not a recovery"
+    return None
+
+
 __all__ = [
     "DEFAULT_LOOKBACK",
     "DEMO_SWEEPER",
     "CloseStopped",
     "CloseUnclaimed",
+    "CloseUnrecovered",
     "CloseWait",
     "FenceAndClose",
     "Finalize",
@@ -707,6 +790,7 @@ __all__ = [
     "SweptAttempt",
     "WriteInventory",
     "WriteInventoryCommand",
+    "action_line",
     "actions_of",
     "perform",
     "snapshot_of",

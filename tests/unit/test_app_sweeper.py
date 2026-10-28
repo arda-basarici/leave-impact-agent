@@ -17,10 +17,12 @@ import pytest
 
 from leaveimpact.adapters.wiring import UploadOutcome
 from leaveimpact.agent.commands import (
+    ApprovalDelivery,
     CommandRefused,
     InventoryRequest,
     InventoryWritten,
     PublishRequest,
+    deliver_approval,
 )
 from leaveimpact.agent.inventory import PublicationRecord
 from leaveimpact.agent.log_ending import ending_of
@@ -32,6 +34,7 @@ from leaveimpact.agent.log_events import (
     Envelope,
     LoggedEvent,
     SegmentEnded,
+    SegmentStarted,
     Stamping,
     WorkerStamp,
 )
@@ -45,6 +48,7 @@ from leaveimpact.app.sweeper import (
     DEMO_SWEEPER,
     CloseStopped,
     CloseUnclaimed,
+    CloseUnrecovered,
     CloseWait,
     FenceAndClose,
     Finalize,
@@ -248,10 +252,12 @@ def test_a_wait_is_closed_at_its_deadline_and_not_before() -> None:
     assert plan(snapshot(requested_at + WAIT, attempt)) == (CloseWait(run_of(1), 1),)
 
 
-def test_an_approval_given_is_not_a_wait_and_a_clean_pause_gets_nothing() -> None:
+def test_an_approval_given_is_not_a_wait_and_a_clean_pause_is_closed_as_unrecovered() -> None:
     """Histories 6 and 12: approved and resumed with the deadline long past, nothing closes;
-    a segment cleanly ended with nothing requested is the worker's recovery, not the
-    sweeper's. The row of the approved attempt is repaired when it says undecided."""
+    a segment cleanly ended with nothing requested would be a recovery next, which ruling 4
+    forbids a public attempt, so it is closed as unrecovered at its generation (the worker
+    service's step; the first build left it to nobody). The row of the approved attempt is
+    repaired when it says undecided."""
     log, rows, _ = stores(ADMITTED)
     seeded(log, rows, 1, closed_completed()[:13])  # approved, claimed again, resumed
     approved = swept(log, 1, closed_completed()[:13], rows.live[0])
@@ -269,7 +275,101 @@ def test_an_approval_given_is_not_a_wait_and_a_clean_pause_gets_nothing() -> Non
     assert isinstance(ended, Appended)
     paused = swept(log, 2, running(), rows.live[1])
     assert paused.state.current_segment is not None and paused.state.current_segment.ended
-    assert plan(snapshot(late, paused)) == ()
+    assert plan(snapshot(late, paused)) == (CloseUnrecovered(run_of(2), 1, 1),)
+    # An approval delivered after the segment's end and not yet resumed is a resumption,
+    # the worker's to claim: nothing closes, however late.
+    delivered = swept(log, 3, approval_delivered(log, rows, 3), rows.live[2])
+    assert delivered.state.approved is not None and delivered.state.resumed is None
+    assert [kind for kind in kinds(plan(snapshot(late, delivered))) if kind is not RepairRow] == []
+
+
+def approval_delivered(
+    log: MemoryLog, rows: MemoryAppStore, number: int, commit: str = cases.COMMIT
+) -> tuple[LoggedEvent, ...]:
+    """The wait's history seeded under ``commit`` and the approval delivered through the
+    command, so the segment has ended before the approval: a resumption comes next."""
+    history = seeded(log, rows, number, under_commit(awaiting(), commit))
+    given = deliver_approval(
+        ApprovalDelivery(run_of(number), 1, "human:test", DIGEST),
+        log,  # type: ignore[arg-type]
+        rules=RULES,
+    )
+    assert not isinstance(given, CommandRefused), given
+    return history
+
+
+def under_commit(events: tuple[LoggedEvent, ...], commit: str) -> tuple[LoggedEvent, ...]:
+    """The history with every claim's harness at ``commit``."""
+    return tuple(
+        replace(each, event=replace(each.event, harness=HarnessRevision(commit, TreeState.CLEAN)))
+        if isinstance(each.event, SegmentStarted)
+        else each
+        for each in events
+    )
+
+
+def test_an_attempt_whose_first_segment_ran_another_commit_is_closed_whatever_its_state() -> None:
+    """The worker service's step, the external read's third point: a claim across commits
+    is refused without an override, so after a deploy no process continues an attempt the
+    old commit ran; it is closed as unrecovered at once, the outstanding wait included
+    (ruled at the step) and the approval delivered included, where the same histories on this
+    commit are the wait's and the worker's."""
+    log, rows, _ = stores(ADMITTED)
+    other = "c" * 40
+    seeded(log, rows, 1, under_commit(awaiting(), other))
+    waiting = swept(log, 1, under_commit(awaiting(), other), rows.live[0])
+    requested_at = waiting.state.events[7].timestamp
+    before_deadline = requested_at + timedelta(seconds=1)
+    assert plan(snapshot(before_deadline, waiting)) == (CloseUnrecovered(run_of(1), 1, 1),)
+    delivered = swept(log, 2, approval_delivered(log, rows, 2, other), rows.live[1])
+    assert delivered.state.approved is not None and delivered.state.resumed is None
+    assert [
+        action
+        for action in plan(snapshot(before_deadline, delivered))
+        if not isinstance(action, RepairRow)
+    ] == [CloseUnrecovered(run_of(2), 1, 1)]
+    seeded(log, rows, 3, under_commit(running(), other))
+    open_segment = swept(log, 3, under_commit(running(), other), rows.live[2])
+    assert plan(snapshot(before_deadline, open_segment)) == (CloseUnrecovered(run_of(3), 1, 1),)
+    # A recorded stop under another commit keeps its own closure.
+    seeded(log, rows, 4, under_commit(stopped(), other))
+    stop = swept(log, 4, under_commit(stopped(), other), rows.live[3])
+    assert plan(snapshot(before_deadline, stop)) == (CloseStopped(run_of(4), 1, 1),)
+
+
+def test_the_unrecovered_closure_lands_on_the_state_it_was_decided_on() -> None:
+    """The driver: the abandonment as interrupted under the sweeper's identity with the
+    settlement; a claim landing between the snapshot and the close is read from the reload
+    as a takeover and nothing is appended; a closed attempt is read as closed; another
+    commit's attempt is closed with its request outstanding."""
+    log, rows, _ = stores(ADMITTED)
+    recording = Recording()
+    seeded(log, rows, 1, running())
+    ended = log.append(run_of(1), 1, WorkerStamp(1, 1, 2_000), SegmentEnded(), rules=RULES)
+    assert isinstance(ended, Appended)
+    outcome = perform(CloseUnrecovered(run_of(1), 1, 1), log, rows, composition(recording))
+    assert outcome.carried and outcome.detail == "interrupted at position 9"
+    closed = log.load(run_of(1), 1, rules=RULES)
+    assert closed.closed is not None and isinstance(closed.closed.event, Abandoned)
+    assert closed.closed.event.reason is AbandonmentReason.INTERRUPTED
+    assert closed.closed.envelope == DEMO_SWEEPER
+    assert closed.closed.event.settlement is not None
+    again = perform(CloseUnrecovered(run_of(1), 1, 1), log, rows, composition(recording))
+    assert again.carried and again.detail == "closed at position 9"
+    seeded(log, rows, 2, running())
+    ended = log.append(run_of(2), 1, WorkerStamp(1, 1, 2_000), SegmentEnded(), rules=RULES)
+    assert isinstance(ended, Appended)
+    claimed = log.claim(
+        run_of(2), 1, harness=cases.REVISION, nonce="nonce-late", launch="launch-late", rules=RULES
+    )
+    assert isinstance(claimed, Appended) and claimed.state.generation == 2
+    taken = perform(CloseUnrecovered(run_of(2), 1, 1), log, rows, composition(recording))
+    assert taken.carried and taken.detail == "taken over by generation 2"
+    assert log.load(run_of(2), 1, rules=RULES).closed is None
+    seeded(log, rows, 3, under_commit(awaiting(), "c" * 40))
+    crossed = perform(CloseUnrecovered(run_of(3), 1, 1), log, rows, composition(recording))
+    assert crossed.carried and crossed.detail == "interrupted at position 10"
+    assert log.load(run_of(3), 1, rules=RULES).closed is not None
 
 
 def test_an_unclaimed_attempt_is_closed_once_older_than_the_wait_row_or_not() -> None:
