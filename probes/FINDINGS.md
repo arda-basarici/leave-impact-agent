@@ -4991,3 +4991,152 @@ ran in CI only by the operator's call after a memory stop; CI green throughout.
 is the live path's, behind the flag, at the commands step and the acceptance after it.
 The format bump's reader is proved on the fixtures and on thirty sealed rows, not on a
 format 4 log read by a later format; that reading has no reader yet.
+
+## worker-blocked — the worker service's loop under four ways a call can block: the model send, the socket, the claim and the segment end unwind on the first signal and close by the rule; a checkpoint write stuck on the executor's thread loses the first signal and holds the exit, with and without a saver bound (2026-10-27)
+
+The demo milestone's worker step (the criteria and the rule in `probes/README.md`; the
+probe `worker-blocked/probe.py`, the table `worker-blocked/reduce.py` over
+`captures/worker-blocked/2026-10-27/runs.jsonl`). The loop under test is the service as
+built at the step's second group (the sweeper's pass, one work per tick, the wall timer
+raising in the main thread, the stop handler raising the same way), the wall at five
+seconds, the work the real worker over the throwaway world's scripted two-call turns (the
+stalled socket under the real investigator turns, since the SDK client validates a
+Converse body before it sends). Ten runs, five cases under two modes, every block observed
+by its own sign; the replacement's passes in the parent after each.
+
+| case | mode | blocked after (s) | exit after signal (s) | within grace | wall after start (s) | next closure | child left | replacement | threads left |
+|---|---|---|---|---|---|---|---|---|---|
+| send | term | 3.11 | 0.21 | yes | - | - | open, segment ended, 1 dispatch in flight | closed interrupted, settlement kept (unresolved dispatch), no work call, published | none |
+| send | wall | 3.11 | - | yes | 8.0 (claim at 3.1) | yes, 1.0 s later | closed interrupted, 1 in flight | same | none |
+| checkpoint | term | 4.21 | none within the 10 s grace | **no** | - | - | closed at the wall by the child itself | closed, no work call, published | (killed) |
+| checkpoint | wall | 4.11 | - | **no** | none at the wall; unwound by the SIGTERM at 20 s | - | open, segment ended | closed, no work call, published | three executor threads, the exit hung until the kill |
+| http | term | 3.41 | 0.37 | yes | - | - | open, segment ended, 1 in flight | closed interrupted, settlement kept, published | the probe's own accept thread |
+| http | wall | 3.01 | - | yes | 7.8 (claim at 3.0) | yes, 0.8 s later | closed interrupted, 1 in flight | same | the probe's own |
+| claim | term | 4.17 | 0.37 | yes | - | - | never claimed, 1 event | the replacement works it (a first claim) | none |
+| claim | wall | 4.15 | - | yes | none: the claim refused by the 3 s statement bound each tick, the outage reported and retried | - | never claimed | the replacement works it | none |
+| append | term | 3.11 | 3.22 | yes | - | - | open, segment open, 1 in flight | the start pass fenced the dead service's holder, settlement kept, published | none |
+| append | wall | 3.01 | - | yes | 10.8 (the wall plus the 3 s bound on the blocked segment end) | not inside the child's life (the store stayed locked) | open, segment open, 1 in flight | fenced and closed by the start pass, published | none |
+
+**What passed.** The model send and the stalled socket, both modes: the first signal
+unwinds the blocked call on the main thread (LangGraph runs a lone task inline), the
+worker's stop branch ends the segment, the process exits in under half a second or the
+loop claims again a second after the wall, no thread survives, the dispatch in flight is
+retained by the settlement when the replacement closes the attempt as unrecovered, and
+nothing is investigated again before the publication. The blocked claim and the blocked
+segment end: the log connection's three-second statement bound (`connect_bounded`, the
+app store's) cancels the waiting statement, the drain completes within the bound plus a
+fraction, a claim that never held leaves a first claim for the replacement, and a segment
+end that could not be appended leaves the slot to the replacement's start pass, which
+fences the dead service's holder at once. A store that does not answer inside a tick is
+reported and retried, the heartbeat left stale (the first build's loop died on it in both
+blocked-store wall runs; fixed before this capture).
+
+**What failed: the checkpoint write stuck on the executor's thread.** With the saver's
+tables locked after the claim so that reads pass and the first write waits, the first
+signal after the block was lost in both modes: in the drain mode the SIGTERM at 4.7 s did
+nothing, the wall's alarm at 8.2 s unwound the work and the loop ran on, and the process
+never exited on its own; in the wall mode the alarm at 8.2 s did nothing, the SIGTERM at
+19.3 s unwound it, and the exit then hung joining three executor threads until the kill.
+The read of the mechanism, from the source (`langgraph/pregel/_executor.py`,
+`BackgroundExecutor.__exit__`): the loop's checkpoint writes are submitted to a thread
+pool under the `sync` durability, and the executor's exit waits for every pending future
+before an exception in flight propagates, so the first signal's exception parks behind
+the stuck write and a later exception raised inside that wait replaces it. Four
+experiments under the same interpreter confirmed Python's own waits are not the cause
+(a lock another thread holds, a future's wait, a future's result and a condition wait
+each unwound on the first signal in 1.0 s; `signal_experiment.py` beside the capture).
+
+**The remedy tried, a statement bound on the saver's connection** (the one store
+connection the worker made with none; `captures/worker-blocked/bounded-saver/` at 5 s,
+`bounded-saver-2s/` at 2 s, the checkpoint case). At 5 s the wall mode recovered with no
+thread left (the bound failed the write, the executor's wait ended, the parked alarm
+propagated when the SIGTERM arrived) and the drain mode still lost its signal, since the
+wall's alarm arrived before the bound expired and replaced it. At 2 s the drain mode lost
+it still: SIGTERM at 5.1 s, nothing until the wall at 8.5 s, no exit. The bound ends the
+hang at exit; it does not return the lost signal, whose loss sits inside the executor's
+exit and not in the write's duration. The remedy is withdrawn as a sufficient one.
+
+**The decision, by the rule fixed before the run.** Criterion (2) fails under one case
+in-process, so the service supervises the work in a child process it can terminate, wait
+on, kill and reap before ownership moves; the loop, the sweeper's pass, the start pass and
+the selection stay as built and measured. The child is the shape ruling 4 recorded as the
+fallback. What the probe adds to its design: a killed child leaves its segment open under
+the service's own identity, so the supervisor closes that attempt itself after the kill by
+the sweeper's rule with the wall read as elapsed, as the start pass does for a dead
+service, rather than leaving the visitor to the wall; and the child installs the same stop
+handler, so a drain that reaches it ends the segment where the store answers, and one that
+parks behind a stuck write ends with the kill.
+
+## worker-blocked — the rerun under the supervised child: every case ends on the first signal or at the wall through the supervisor, the checkpoint write's child killed after the ten-second grace and its attempt closed in the same tick; the first rerun found the drain escaping the grace (2026-10-28)
+
+The same probe over the service as rebuilt after the first capture's decision (the step's
+fork 11): the loop, the pass, the start pass and the selection unchanged, the work in a
+child process the service spawns per attempt (`leaveimpact.app.worker.supervise`: the wait
+under the wall, then terminate, a ten-second grace, kill, reap, and the lost attempt closed
+by the sweeper's rule with the wall read as elapsed in the same tick). Three processes in
+the probe: the parent, the service (`probe.py run`) and the work (`probe.py work`), the
+work's announcements on stderr and its ending on the service's pipe; the wall at fifteen
+seconds, since the wall counts the work process's startup (about three seconds of imports
+under WSL) and the first rerun's five met the signal at the wall itself. Ten runs, the
+table from `reduce.py` over `captures/worker-blocked/2026-10-28-child/runs.jsonl`; "exit
+after signal" is the service's exit, "ready again" the instant the supervisor's closure
+line was seen.
+
+| case | mode | blocked after (s) | exit code | exit after signal (s) | within grace | wall after start (s) | next closure seen | ready again (s) | child left | replacement | threads left |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| send | term | 5.616 | 0 | 0.415 | yes | - | - | - | open, segment ended, 1 in flight, 12 events | closed interrupted; settlement kept (unresolved_dispatch); 0 work call(s); 2 object(s) published | [] |
+| send | wall | 6.317 | - | - | yes | 18.043 | yes | 18.328 | closed interrupted, 1 in flight, 13 events | closed interrupted; settlement kept (unresolved_dispatch); 0 work call(s); 2 object(s) published | [] |
+| checkpoint | term | 6.611 | 0 | 10.196 | yes | - | - | - | open, segment open, 0 in flight, 2 events | closed interrupted; settlement reconciled; 0 work call(s); 2 object(s) published | [] |
+| checkpoint | wall | 6.652 | - | - | yes | 17.749 | yes | 27.81 | closed interrupted, 0 in flight, 3 events | closed interrupted; settlement reconciled; 0 work call(s); 2 object(s) published | [] |
+| http | term | 9.621 | 0 | 0.816 | yes | - | - | - | open, segment ended, 1 in flight, 12 events | closed interrupted; settlement kept (unresolved_dispatch); 0 work call(s); 2 object(s) published | [] |
+| http | wall | 9.024 | - | - | yes | 18.189 | yes | 18.723 | closed interrupted, 1 in flight, 13 events | closed interrupted; settlement kept (unresolved_dispatch); 0 work call(s); 2 object(s) published | [] |
+| claim | term | 6.83 | 0 | 0.566 | yes | - | - | - | open, segment ended, 0 in flight, 1 events | left open; no settlement; 2 work call(s); 0 object(s) published | [] |
+| claim | wall | 6.626 | - | - | yes | - | - | - | open, segment ended, 0 in flight, 1 events | left open; no settlement; 2 work call(s); 0 object(s) published | [] |
+| append | term | 6.415 | 0 | 3.626 | yes | - | - | - | open, segment open, 1 in flight, 11 events | closed interrupted; settlement kept (unresolved_dispatch); 0 work call(s); 2 object(s) published | [] |
+| append | wall | 6.816 | - | - | yes | 18.301 | no | 33.302 | open, segment open, 1 in flight, 11 events | closed interrupted; settlement kept (unresolved_dispatch); 0 work call(s); 2 object(s) published | [] |
+
+**What passed.** The model send and the stalled socket, both modes: the terminate reaches
+the work process's stop handler, the segment ends where the store answers, the work
+process exits in under a second, and under the wall the supervisor's own closure
+(`CloseUnrecovered`) follows the wall's line within half a second, the dispatch in flight
+retained by the settlement; under the signal the service exits in under a second with
+nothing closed and the replacement closes and publishes. The blocked claim: the three-second
+statement bound cancels the claim, the work process prints a `left_open` ending and the
+attempt stays a first claim for the next tick (two work calls by the replacement, none of
+them inference). The blocked segment end: the stop handler's append waits out the bound
+and the work process exits three and a half seconds after the signal, the slot left to the
+replacement's start pass. The checkpoint write stuck on the executor's thread, the case the
+in-process shape failed: the terminate reaches a work process that cannot unwind (the
+first capture's mechanism, unchanged), the grace runs out, the kill ends it, and the
+supervisor fences and closes the attempt at once (`FenceAndClose` 60 ms after the kill
+under the wall); under the signal the service exits 10.2 seconds after it, the grace plus
+a fraction, the segment left open under the service's identity and fenced by the
+replacement's start pass.
+
+**The criteria, read against the ruling.** Criterion 1 holds in every case as the step's
+ruling restated it: the attempt is closed by the supervisor itself after the kill, not by
+the next pass at the wall. Criterion 2 fixed two seconds for the exit after the signal;
+four cases meet it and the checkpoint case exits at the ruled grace plus a fraction (10.2
+s), which the ruling accepted when it fixed the grace: a process that cannot unwind is
+ended by the kill, and the grace is the time a stop handler that can unwind needs. The
+number is recorded as measured, the criterion not moved. Criteria 3 to 6 read as the first
+capture's: nothing appended after the closure, the liabilities retained in stages, no
+inference by the replacement, the closed attempt published once.
+
+**What the reruns found on the way.** The first rerun (its capture kept outside the tree)
+found a supervisor fault: the service's wall and the parent's signal landed a tenth of a
+second apart, and the drain raised inside the grace wait of the termination escaped it
+without the kill, so the service exited 0 with its child alive, which then finished only
+because the parent's lock release let it. In production that is a stopped container leaving
+its child to Docker's kill. `end_child` now kills, reaps and re-raises on a drain inside the
+grace; a unit test holds the history. The same rerun's socket case fired its trigger three
+seconds after the service's claiming line, before the work process had imported, and the
+second rerun's checkpoint case fired on a session waiting during the work process's own
+setup, before the parent's lock existed; both triggers now wait for the work process's
+readiness line and the second for the parent's held lock. Each false trigger read as a
+pass of its case until the lines were read.
+
+**What group 3 inherits.** The Compose service's `stop_grace_period` must exceed the
+supervisor's grace plus the closure's time, or Docker's kill of the container lands before
+the supervisor's own kill and the drain's third stage is lost; the measured closure after a
+kill is under a tenth of a second, the grace ten seconds.

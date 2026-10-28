@@ -320,3 +320,55 @@ budget would buy at the measured per-looper cost as a forecast for step 14.
 | probe | pass criterion | capture |
 |---|---|---|
 | **memory-baseline** — the eight levels above on the deployed instance | (a) every level's loader reports no transport error, every page read 200, every stream fetch 200 or, past the bound, 503 and no other status; (b) no container restarted or killed across the levels (`docker compose ps` after equals before); (c) the idle level carries the host's largest processes, so the host baseline is read, not assumed; (d) `memory-baseline/reduce.py` regenerates `memory-baseline/reading.json` from the capture, prints every input of the rule, and the limits in `compose.yaml` and `stream.SUBSCRIPTION_BOUND` equal the rule's output over the committed reading, held by a unit test; (e) the deployed app answers ready after the limits land. A level whose loader fails or whose container is killed under its limit is a finding, and no limit is set from a run with one. | `captures/memory-baseline/<date>/host.out.txt` (the host's shape, each level's loader summary, the samples), `host.err.txt` |
+
+## The demo milestone's blocked-work probe (criteria fixed 2026-10-27 at the worker step's entry, before it ran; this section written at the capture)
+
+Whether the worker service runs the agent's commands in one process or supervises the
+work in a child process it can kill (ruling 4 of the demo milestone's entry, which made
+in-process provisional on this probe). The service's loop (`leaveimpact.app.worker`) runs
+in a child under the real signal timer and stop handlers, over the real `Worker` composed
+as the crash matrix's child composes it (the throwaway world's scripted turns, the planted
+ports, the real checkpoint saver, a scratch schema per run with one public attempt admitted
+as the demo's start admits it), the wall at five seconds; the block is applied from outside
+in four ways: a model client whose send waits on an event never set; the saver's tables
+locked by another session in `EXCLUSIVE` mode after the claim, so the first checkpoint
+write waits on the graph's executor thread while its reads pass; a local socket that
+accepts and never answers behind the real SDK client by endpoint URL; the log's attempt
+table locked by another session after the claim is announced (the claim's row lock waits)
+or after the send blocks (the segment end's insert waits). Two modes per case: `term`
+sends SIGTERM once the block is seen (the client's own line, the named session waiting on
+a lock in `pg_stat_activity`, or three seconds after the claim for the socket) and
+measures the exit; `wall` waits for the wall's line and the next pass's closure. The
+parent then runs a replacement's start pass and tick over a work that records and
+declines, and reads the staged accounting. `worker-blocked/probe.py parent`, under
+Linux (the signals are POSIX; from this machine under WSL's Ubuntu with the project
+synced there), against the dev PostgreSQL.
+
+**The six criteria.** (1) Blocked work stopped at the wall: the unwinding within a second
+of the wall, the segment ended where the store answers, the attempt closed by the next
+pass, the loop claiming again. (2) Forced termination: SIGTERM while blocked, the process
+gone within two seconds with the segment ended where the store answers, no second signal
+needed. (3) The fence: nothing appended by the old generation after the closure. (4)
+Liabilities retained, in stages: after the drain the segment ended where possible and the
+dispatched call's liability still reserved; after the replacement's pass the attempt
+closed and settled with it retained and no inference; after the publication the export
+and the inventory written. (5) A restart making no further inference call over what the
+drain left. (6) Closed but unpublished published without investigating again. The
+decision rule: in-process if all six pass under every case; a failure on (1) or (2)
+under any case takes the supervised child (terminate, a bounded wait, kill, reap, before
+ownership moves); a failure on (3) to (6) is a defect of the loop or the sweeper, fixed
+before the rule is applied.
+
+**The rerun under the supervised child (2026-10-28).** The decision rule chose the child,
+and the probe reran through it: the service process spawns the probe's `work` subcommand
+per attempt and supervises it (the wall as the wait, terminate, a ten-second grace, kill,
+reap, the lost attempt closed by the rule in the same tick); the parent signals the
+service. The wall is fifteen seconds under the child, since it counts the work process's
+startup. The criteria read the same, with criterion 2's exit measured on the service and
+the checkpoint case's exit at the grace plus a fraction, by the ruling that fixed the grace
+(FINDINGS, the 2026-10-28 entry).
+
+| probe | pass criterion | capture |
+|---|---|---|
+| **worker-blocked** — the five cases above under both modes | (1) and (2) as stated, measured through process exit or the next claim with the teardown, the child's threads at its exit printed; (3) to (6) read off the log and the replacement's report; `worker-blocked/reduce.py` turns the capture into the findings table | `captures/worker-blocked/<date>/runs.jsonl` (one JSON record per case and mode: the instants, the exit, the child's lines, the state after the child and after the replacement's passes, the objects published), `captures/worker-blocked/bounded-saver*/runs.jsonl` (the checkpoint case under a saver statement bound, the remedy tried after the first reading) |
+| **worker-blocked**, the rerun under the supervised child | the same criteria through the supervisor: the service's exit after the signal, the supervisor's own closure after the wall, the kill path's timing | `captures/worker-blocked/2026-10-28-child/runs.jsonl` (the same record per case and mode, the service's and the work process's lines together) |
