@@ -68,9 +68,10 @@ beside the old marker, and the boundary probe runs after the write, so a red
 probe leaves the new marker beside a failed deploy. Recovery reads the actual
 state, the image the compose file names, the containers up, the probe's result
 in the workflow log, and re-runs the script. Making the marker a ledger of
-verified releases waits for the service to be long-running (the M1 repository
-audit's F-012); today the app is a one-shot stub and nothing serves traffic in
-the window.
+verified releases waited for the service to be long-running (the M1 repository
+audit's F-012); the app has served since the demo milestone's scaffold step and the
+worker runs beside it since the worker service's step, so the item is due and is
+ruled at that step's close.
 
 ## The run lifecycle
 
@@ -142,7 +143,8 @@ docker compose run --rm app python -m leaveimpact.agent import-spend --request <
 one import per ledger that spent in the window, the Bedrock bill as the authority; the
 102 sends still unimported are the precedent for the form.
 
-**The procedure.** Stop the app (`docker compose stop app`); choose the object (the key and
+**The procedure.** Stop the worker and the app (`docker compose stop worker app`, the worker
+first so no attempt is mid-flight over the restore); choose the object (the key and
 the version id from the bucket's listing, read with the administrator identity from a
 workstation, since the instance role holds no list); restore it into the live database with
 the platform's restore script's own restore line (it verifies the digest against the object's
@@ -150,3 +152,50 @@ metadata first); re-run the deploy for the deployed sha from Actions, so both bo
 identity check and the readiness check run as at every landing; then run `verify-restore`
 against the live database with the object's capture on stdin from a file, and keep the live
 flag off until the import above is done.
+
+## The worker service (the worker service's step, 2026-10-28)
+
+The third container of the stack: `python -m leaveimpact.app worker`, the single-flight
+loop that runs a visitor's attempt (the sweeper's pass and one attempt per tick, each
+attempt worked in a child the service supervises; `src/leaveimpact/app/worker.py` carries
+the design, `probes/FINDINGS.md` under `worker-blocked` the probe that chose the child).
+It is the one service whose environment names the investigator's vendor principals: the
+deploy reads the five parameters under `/leave-agent/` and exports them with the two base
+URLs for `compose up`, and the lifecycle's `work` step runs its one-off container as this
+service for the same reason; `app` names none, held by `tests/unit/test_compose_edge.py`.
+Its memory limit is the baseline's reservation (512 MiB) until a public attempt runs under
+it, which is the live path's first acceptance; the three limits sum to the budget line
+`tests/unit/test_memory_baseline.py` holds.
+
+**Reading it.** `docker compose ps` shows the three containers and the worker's health;
+`docker compose logs worker` is one line per tick action, claim and ending (ids, kinds and
+exit codes, nothing of a scenario). The health is the heartbeat the loop writes
+(`/tmp/leaveimpact-worker-heartbeat.json` inside the container): idle, a deadline three
+intervals ahead rewritten per tick; working, the claim's instant plus the wall plus a
+cleanup allowance; the check (`python -m leaveimpact.app.heartbeat`, standard library
+only, so it costs the interpreter's start) compares the clock with the deadline. Unhealthy
+means the loop stopped ticking or a child is past its wall and its cleanup; Docker restarts
+nothing on it, `up --wait` and the platform's monitor read it.
+
+**The deploy's order and its window.** The script reads every parameter and pulls every
+image first, then stops the worker (`compose stop`, under `stop_grace_period: 15s`: the
+service's own chain is the child's terminate, the supervisor's ten-second grace, the kill
+and the reap, measured at 10.2 s; an attempt mid-flight ends its segment where the store
+answers and the replacement's start pass closes it), then runs the cache load and the two
+bootstraps, swaps the app, and starts the worker last. Between the stop and the swap the
+previous app container serves, and a schema advance makes it refuse every log read until
+the swap; the window's length is read off the phase stamps the script prints, and this
+step's first deploy is where it was first measured. A deploy that fails after the stop
+leaves the worker stopped, since a container `compose stop` stopped does not return under
+`unless-stopped`, a reboot included: before the first bootstrap the script's trap starts
+the previous worker again (the window holds only the stop itself); after one, the worker
+stays stopped until a deploy succeeds, the trap says so with the rerun line, `docker
+compose ps` shows it exited, its heartbeat is absent, and the public attempts are untended
+until the rerun (this script with the same sha and digest, or the rollback's older ones).
+
+**A reboot.** The daemon stops the containers in parallel under its own shutdown cap, so
+PostgreSQL may be gone before the worker's last append; the segment is left open and the
+replacement's start pass fences and closes it under the sweeper's rule, the same path the
+probe's fourth blocked case exercises. A reboot is crash recovery, not a drain, and needs
+no stop ordering between the services and no change to the daemon's configuration (the
+step's fork 9, decided under the fifteen-second grace).
