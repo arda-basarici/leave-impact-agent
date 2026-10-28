@@ -178,20 +178,31 @@ means the loop stopped ticking or a child is past its wall and its cleanup; Dock
 nothing on it, `up --wait` and the platform's monitor read it.
 
 **The deploy's order and its window.** The script reads every parameter and pulls every
-image first, then stops the worker (`compose stop`, under `stop_grace_period: 15s`: the
+image first, with the target's compose file fetched beside the installed one, then stops
+the worker under the installed file when that file names the service (`compose stop`,
+under `stop_grace_period: 15s`: the
 service's own chain is the child's terminate, the supervisor's ten-second grace, the kill
 and the reap, measured at 10.2 s; an attempt mid-flight ends its segment where the store
-answers and the replacement's start pass closes it), then runs the cache load and the two
-bootstraps, swaps the app, and starts the worker last. Between the stop and the swap the
+answers and the replacement's start pass closes it), installs the target's file, runs the
+cache load and the two bootstraps, swaps the app, and starts the worker last when the
+target names it. A service is stopped and started by name in the file compose reads, and
+a file that does not name it answers "no such service", so a rollback to a release
+before the worker drains the running worker under the installed file and starts none
+(its stopped container stays as an orphan compose warns about until a deploy that names
+the service again, or `docker compose rm worker`). Between the stop and the swap the
 previous app container serves, and a schema advance makes it refuse every log read until
 the swap; the window's length is read off the phase stamps the script prints, and this
 step's first deploy is where it was first measured. A deploy that fails after the stop
 leaves the worker stopped, since a container `compose stop` stopped does not return under
 `unless-stopped`, a reboot included: before the first bootstrap the script's trap starts
-the previous worker again (the window holds only the stop itself); after one, the worker
-stays stopped until a deploy succeeds, the trap says so with the rerun line, `docker
-compose ps` shows it exited, its heartbeat is absent, and the public attempts are untended
-until the rerun (this script with the same sha and digest, or the rollback's older ones).
+the previous worker again (the window holds only the stop and the file's replacement);
+after one, the worker stays stopped until a deploy succeeds, the trap says so with the
+rerun line, `docker compose ps` shows it exited, its heartbeat is absent, and the public
+attempts are untended until the rerun (this script with the same sha and digest, or the
+rollback's older ones). A failure after the worker's own start (its wait, the prune) is
+different: a detached start leaves the container running whatever its wait said, so the
+trap claims nothing about it beyond what `docker compose ps` shows, and the marker stays
+unwritten. On a host that ran no worker before the deploy, the trap says so instead.
 
 **A reboot.** The daemon stops the containers in parallel under its own shutdown cap, so
 PostgreSQL may be gone before the worker's last append; the segment is left open and the

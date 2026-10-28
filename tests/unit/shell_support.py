@@ -15,14 +15,17 @@ copying the payload, and an invocation read with the test's scripted ``response-
 error first as many times as ``missing-<n>`` holds, and an ``ExpiredToken`` error on every
 invocation read after the ``FAKE_INVOCATION_FAIL_AFTER``-th; a parameter read of the name
 in ``FAKE_PARAMETER_FAIL`` fails as a throttled CLI does. ``curl`` writes an empty JSON
-object to the ``-o`` path, or, once, under ``FAKE_CURL_FAIL_ONCE``, half a document and
-exit 18. ``docker`` records its line and
+object to the ``-o`` path (or the named compose file, below), or, once, under
+``FAKE_CURL_FAIL_ONCE``, half a document and exit 18. ``docker`` records its line and
 the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its environment,
 writes the plan's two files under the mounted run directory for a ``plan`` command and
 prints ``launch=launch-fake``, prints the scripted ``status.txt`` for a ``status``, and
 answers a ``ps`` with the scripted ``running.txt`` (the attempt's container, when the test
-says it still runs), and fails a ``compose stop`` with ``FAKE_DOCKER_STOP_EXIT`` (the
-deploy's drain refused). ``chown`` only records, since the real one is a no-op on Windows and
+says it still runs), answers ``config --services`` by reading the service names off the
+compose file it is pointed at, and fails the one invocation whose line carries
+``FAKE_DOCKER_FAIL_ON``. ``curl`` writes ``FAKE_COMPOSE_SOURCE``'s file to the ``-o`` path
+when the test names one (the deploy's target compose file). ``chown`` only records, since
+the real one is a no-op on Windows and
 the handover to the image's user is what a test asserts. ``gh`` answers the two Actions
 API reads the driver's CI guard makes with the test's scripted ``ci-runs.json`` and
 ``ci-jobs.json``.
@@ -111,6 +114,9 @@ printf '%s\n' "flock $*" >> "$FAKE_LOG"
 _FAKE_DOCKER = r"""#!/usr/bin/env bash
 set -euo pipefail
 printf '%s\n' "docker $*" >> "$FAKE_LOG"
+# A scripted failure of one invocation, by a substring of its line (the deploy's
+# histories: a refused stop, a worker whose wait failed, a prune that failed).
+if [ -n "${FAKE_DOCKER_FAIL_ON:-}" ] && [[ " $* " == *"$FAKE_DOCKER_FAIL_ON"* ]]; then exit 1; fi
 n=$(( $(cat "$FAKE_DIR/containers" 2>/dev/null || echo 0) + 1 ))
 echo "$n" > "$FAKE_DIR/containers"
 env | grep -E '^(LEAVE_IMPACT_|POSTGRES_PASSWORD=|APP_TAG=)' | sort > "$FAKE_DIR/docker-env-$n.txt"
@@ -142,9 +148,14 @@ elif [[ " $* " == *" exec -T app python -c "* ]] && [[ " $* " == *"/ready"* ]]; 
 elif [ "$1" = ps ]; then
   [ -z "${FAKE_DOCKER_PS_EXIT:-}" ] || exit "$FAKE_DOCKER_PS_EXIT"
   cat "$FAKE_DIR/running.txt" 2>/dev/null || true
-elif [ "$1 $2" = "compose stop" ]; then
-  # The deploy's drain; FAKE_DOCKER_STOP_EXIT scripts a stop the daemon refused.
-  [ -z "${FAKE_DOCKER_STOP_EXIT:-}" ] || exit "$FAKE_DOCKER_STOP_EXIT"
+elif [[ " $* " == *" config --services"* ]]; then
+  # The services a compose file names, read as the real client reads them from the
+  # file (`-f`, else compose.yaml in the working directory): the deploy's drain and
+  # the worker's start are each conditional on the file they run under naming it.
+  file=compose.yaml
+  for ((i = 1; i <= $#; i++)); do if [ "${!i}" = "-f" ]; then i=$((i + 1)); file="${!i}"; fi; done
+  awk '/^services:/ { s = 1; next } /^[^ ]/ { s = 0 }
+       s && /^  [a-z_]+:[[:space:]]*$/ { sub(/^  /, ""); sub(/:.*/, ""); print }' "$file"
 fi
 exit "${FAKE_DOCKER_EXIT:-0}"
 """
@@ -176,7 +187,12 @@ for ((i = 1; i <= $#; i++)); do
       printf '{"half' > "${!i}"
       exit 18
     fi
-    echo '{}' > "${!i}"
+    # The deploy's target compose file, when the test names one; an empty document else.
+    if [ -n "${FAKE_COMPOSE_SOURCE:-}" ]; then
+      cp "$FAKE_COMPOSE_SOURCE" "${!i}"
+    else
+      echo '{}' > "${!i}"
+    fi
   fi
 done
 """

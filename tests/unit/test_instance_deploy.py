@@ -5,11 +5,14 @@ command as the image check, the readiness route read after `up --wait` as the re
 check) with the deployed sha written last and only after both, and the refusals: before
 any pull (no digest, a parameter still holding its placeholder), and after the service
 started (a service that is not ready, a container answering with another revision), each
-leaving no DEPLOYED marker. Since the worker service's step: the worker drained after the
-pulls and the parameter reads and started last, after the app serves; its vendor
-principals and the two base URLs in the environment `compose up` reads; the trap's two
-branches on a failure after the stop; a UTC stamp per phase; and the base URLs held
-equal to the demo configuration and the investigate workflow's default."""
+leaving no DEPLOYED marker. Since the worker service's step: the worker drained under the
+installed definition after the pulls and the parameter reads, and started last under the
+target's, after the app serves, each only when that file names the service (a fresh
+host stops nothing; a rollback to a release before the worker starts none); its vendor
+principals and the two base URLs in the environment `compose up` reads; the trap's
+branches on a failure after the stop, after a bootstrap and after the worker's own
+start; a UTC stamp per phase; and the base URLs held equal to the demo configuration
+and the investigate workflow's default."""
 
 from __future__ import annotations
 
@@ -24,14 +27,33 @@ from tests.unit.shell_support import DEPLOY_SCRIPT, FakeBinaries, fake_binaries,
 SHA = "f" * 40
 DIGEST = "sha256:" + "d" * 64
 IMAGE = "ghcr.io/arda-basarici/leave-impact-agent"
+COMPOSE = DEPLOY_SCRIPT.parents[2] / "compose.yaml"
+PRE_WORKER_COMPOSE = """name: leaveimpact
+services:
+  app:
+    image: ghcr.io/arda-basarici/leave-impact-agent:${APP_TAG:-latest}
+  postgres:
+    image: postgres
+"""
+"""A release before the worker service (the shape of `c0256f4`'s file): what a rollback
+targets, and what a host ran before this step's first deploy."""
+WORKER_UP = "docker compose up -d --wait --wait-timeout 90 worker"
 
 
 @pytest.fixture
 def host(tmp_path: Path) -> tuple[FakeBinaries, dict[str, str], Path]:
+    """A host running the current stack (the tree's compose file installed), deploying the
+    current stack again; the tests of other histories change the two files."""
     fakes = fake_binaries(tmp_path)
     app_dir = tmp_path / "srv"
     app_dir.mkdir()
-    env = fakes.environment(APP_DIR=posix(app_dir), DEPLOY_SHA=SHA, DEPLOY_DIGEST=DIGEST)
+    (app_dir / "compose.yaml").write_bytes(COMPOSE.read_bytes())
+    env = fakes.environment(
+        APP_DIR=posix(app_dir),
+        DEPLOY_SHA=SHA,
+        DEPLOY_DIGEST=DIGEST,
+        FAKE_COMPOSE_SOURCE=posix(COMPOSE),
+    )
     return fakes, env, app_dir
 
 
@@ -45,11 +67,12 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     completed = run_script(DEPLOY_SCRIPT, env)
     assert completed.returncode == 0, completed.stderr
     docker = fakes.lines("docker ")
-    assert docker[:5] == [
+    assert docker[:6] == [
         f"docker pull --quiet {IMAGE}@{DIGEST}",
         f"docker tag {IMAGE}@{DIGEST} {IMAGE}:{SHA}",
-        "docker compose pull --quiet postgres",
-        "docker compose up -d --wait postgres",
+        "docker compose -f compose.yaml.next pull --quiet postgres",
+        "docker compose -f compose.yaml.next up -d --wait postgres",
+        "docker compose config --services",
         "docker compose stop worker",
     ]
     assert "docker compose pull --quiet\n" not in "\n".join(docker) + "\n"
@@ -64,13 +87,18 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     service = [line for line in docker if line.endswith(" app") or " exec -T app " in line]
     assert service[0] == "docker compose up -d --wait --wait-timeout 120 app"
     assert service[1].startswith("docker compose exec -T app python -c ") and "/ready" in service[1]
-    # The worker last, after the readiness read, and nothing of it before the stop.
-    worker_up = "docker compose up -d --wait --wait-timeout 90 worker"
+    # The worker last, after the readiness read and the target's own service list, and
+    # nothing of it before the stop; the installed file replaced by the target's after
+    # the drain (the file on disk is the target's at the end).
+    worker_up = WORKER_UP
     assert docker.index(worker_up) > docker.index(service[1])
+    assert docker[docker.index(worker_up) - 1] == "docker compose config --services"
     assert [line for line in docker if line.endswith(" worker")] == [
         "docker compose stop worker",
         worker_up,
     ]
+    assert (app_dir / "compose.yaml").read_bytes() == COMPOSE.read_bytes()
+    assert not (app_dir / "compose.yaml.next").exists()
     assert f"identity: leaveimpact {SHA}: the demo surface's image" in completed.stdout
     assert f'ready: {{"ready":true,"code_version":"{SHA}"' in completed.stdout
     assert (app_dir / "DEPLOYED").read_text() == SHA + "\n"
@@ -78,7 +106,7 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     # The compose file of the commit, fetched by sha into the app directory.
     assert fakes.lines("curl") == [
         "curl -fsSL https://raw.githubusercontent.com/arda-basarici/leave-impact-agent/"
-        f"{SHA}/compose.yaml -o compose.yaml"
+        f"{SHA}/compose.yaml -o compose.yaml.next"
     ]
     # Every container saw the tag, the bucket and the password in its environment, and no
     # command line carried the password. The fake numbers every docker invocation, so the
@@ -199,26 +227,102 @@ def test_a_failed_check_leaves_no_deployed_marker(
     # The trap's after-bootstrap branch: the worker stays stopped and the state is said,
     # with the rerun line; nothing starts the previous worker under an advanced schema.
     assert "deploy failed after a bootstrap" in completed.stderr
+    assert "the worker stays stopped until a deploy succeeds" in completed.stderr
     assert f"DEPLOY_SHA={SHA} DEPLOY_DIGEST={DIGEST}" in completed.stderr
     assert "docker compose start worker" not in docker
-    assert "docker compose up -d --wait --wait-timeout 90 worker" not in docker
+    assert WORKER_UP not in docker
 
 
 def test_a_refused_stop_starts_the_previous_worker_again_and_runs_no_bootstrap(
     host: tuple[FakeBinaries, dict[str, str], Path],
 ) -> None:
     """The trap's before-bootstrap branch: the window between the drain and the first
-    bootstrap holds only the stop itself, since the pulls and every parameter read come
-    before it; a stop the daemon refused leaves the worker under the schema it ran under,
-    so it is started again and the deploy fails with no bootstrap run and no marker."""
+    bootstrap holds only the stop and the file's replacement, since the pulls and every
+    parameter read come before it; a stop the daemon refused leaves the worker under the
+    schema it ran under, so it is started again (under the installed file, still in
+    place) and the deploy fails with no bootstrap run and no marker."""
     fakes, env, app_dir = host
-    env["FAKE_DOCKER_STOP_EXIT"] = "1"
+    env["FAKE_DOCKER_FAIL_ON"] = "compose stop worker"
     completed = run_script(DEPLOY_SCRIPT, env)
     assert completed.returncode == 1
     assert "deploy failed before the bootstraps (exit 1)" in completed.stderr
     docker = fakes.lines("docker ")
     assert docker[-2:] == ["docker compose stop worker", "docker compose start worker"]
     assert not any("compose run" in line for line in docker)
+    assert not (app_dir / "DEPLOYED").exists()
+    assert (app_dir / "compose.yaml.next").exists(), "the installed file was not replaced"
+
+
+def test_a_fresh_host_stops_nothing_and_starts_the_worker_the_target_names(
+    host: tuple[FakeBinaries, dict[str, str], Path],
+) -> None:
+    """No installed file (a fresh host) or one naming no worker (a host before this step):
+    the drain is skipped and said, the worker is started from the target, and a failure
+    after a bootstrap reports that no worker was running rather than a stopped one."""
+    fakes, env, app_dir = host
+    (app_dir / "compose.yaml").unlink()
+    completed = run_script(DEPLOY_SCRIPT, env)
+    assert completed.returncode == 0, completed.stderr
+    docker = fakes.lines("docker ")
+    assert "docker compose stop worker" not in docker
+    assert WORKER_UP in docker
+    assert "no installed worker to stop" in completed.stdout
+    assert (app_dir / "DEPLOYED").exists()
+    (app_dir / "DEPLOYED").unlink()
+    (app_dir / "compose.yaml").write_text(PRE_WORKER_COMPOSE)
+    (app_dir / "before").mkdir()
+    before = fake_binaries(app_dir / "before")
+    before_env = before.environment(
+        APP_DIR=posix(app_dir),
+        DEPLOY_SHA=SHA,
+        DEPLOY_DIGEST=DIGEST,
+        FAKE_COMPOSE_SOURCE=posix(COMPOSE),
+        FAKE_READY="false",
+    )
+    completed = run_script(DEPLOY_SCRIPT, before_env)
+    assert completed.returncode != 0
+    assert "docker compose stop worker" not in before.lines("docker ")
+    assert "no worker was running before it and none was started" in completed.stderr
+    assert not (app_dir / "DEPLOYED").exists()
+
+
+def test_a_rollback_to_a_release_before_the_worker_drains_it_and_starts_none(
+    host: tuple[FakeBinaries, dict[str, str], Path], tmp_path: Path
+) -> None:
+    """The advertised rollback (this script with an older sha and digest) against a target
+    whose file names no worker: the running worker is drained under the installed file,
+    the target's file is installed, the app lands, and no worker is started (the stopped
+    container is an orphan compose warns about; the runbook says so)."""
+    fakes, env, app_dir = host
+    target = tmp_path / "pre-worker.yaml"
+    target.write_text(PRE_WORKER_COMPOSE)
+    env["FAKE_COMPOSE_SOURCE"] = posix(target)
+    completed = run_script(DEPLOY_SCRIPT, env)
+    assert completed.returncode == 0, completed.stderr
+    docker = fakes.lines("docker ")
+    assert "docker compose stop worker" in docker
+    assert WORKER_UP not in docker
+    assert "the target names no worker service; none started" in completed.stdout
+    assert (app_dir / "compose.yaml").read_text() == PRE_WORKER_COMPOSE
+    assert (app_dir / "DEPLOYED").read_text() == SHA + "\n"
+
+
+@pytest.mark.parametrize("fail_on", [WORKER_UP.removeprefix("docker "), "image prune -f"])
+def test_a_failure_after_the_workers_start_reports_only_what_ps_can_tell(
+    host: tuple[FakeBinaries, dict[str, str], Path], fail_on: str
+) -> None:
+    """The external read's first finding: a detached start whose wait failed, or a prune
+    that failed after a healthy start, leaves the container running, so the trap must
+    not say the worker is stopped; it says the state is `docker compose ps`'s."""
+    fakes, env, app_dir = host
+    env["FAKE_DOCKER_FAIL_ON"] = fail_on  # the fake matches its arguments, without "docker "
+    completed = run_script(DEPLOY_SCRIPT, env)
+    assert completed.returncode == 1
+    assert WORKER_UP in fakes.lines("docker ")
+    assert "deploy failed after the worker was started from the new image" in completed.stderr
+    assert "stays stopped" not in completed.stderr
+    assert f"DEPLOY_SHA={SHA} DEPLOY_DIGEST={DIGEST}" in completed.stderr
+    assert "docker compose start worker" not in fakes.lines("docker ")
     assert not (app_dir / "DEPLOYED").exists()
 
 

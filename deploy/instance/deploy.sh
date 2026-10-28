@@ -20,6 +20,13 @@
 # read), then the worker drained (`compose stop`, which honours its grace period, so an
 # attempt mid-flight ends its segment where it can and the replacement's first pass
 # closes it), then the bootstraps and the app as before, then the worker started last.
+# The worker is drained under the stack definition installed on the host and started
+# under the target's: the target's compose file is fetched beside the installed one and
+# replaces it only after the drain, since a service is stopped and started by name in
+# the file compose reads, and a file that does not name it answers "no such service"
+# (the group's external read: a rollback to a release before the worker would have
+# failed at the stop). Each file is asked which services it names, so a host with no
+# worker installed stops nothing and a target without one starts none.
 # Between the stop and the app's swap the previous app container serves, and a schema
 # advance makes it refuse every log read until the swap: the window is the two
 # bootstraps and the start, read off this script's phase stamps in the deploy log. A
@@ -27,10 +34,12 @@
 # reboot included, so a deploy that fails after the stop leaves the worker stopped: the
 # EXIT trap starts the previous worker again when the failure came before the first
 # bootstrap (the schema is still the one it ran under; that window holds only the stop
-# itself) and otherwise says the state and the rerun, since the old image may not read
-# the advanced schema. Each phase prints a UTC stamp, so a deploy's growth is
-# attributable (the deploy job's waiter was shown too short on two deploys whose phases
-# nobody could time).
+# and the file's replacement), says the stopped state and the rerun after one, since
+# the old image may not read the advanced schema, and after the worker's own start
+# says only what `docker compose ps` can tell, since a detached start that failed its
+# wait leaves the container running (the same read). Each phase prints a UTC stamp, so
+# a deploy's growth is attributable (the deploy job's waiter was shown too short on two
+# deploys whose phases nobody could time).
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -56,20 +65,36 @@ stamp() { echo "$(date -u +%FT%TZ) $*"; }
 
 # The phase the trap reads: the worker's state on a failure depends on how far the deploy
 # got. `before-stop`: nothing on the host changed, nothing to repair. `before-bootstrap`:
-# the worker is stopped under a schema the previous image still reads, so it is started
-# again. `after-bootstrap`: it stays stopped until a deploy succeeds, and the state is
-# said. `finished`: the marker is written.
+# a drained worker is stopped under a schema the previous image still reads, so it is
+# started again. `after-bootstrap`: a drained worker stays stopped until a deploy
+# succeeds, and the state is said. `worker-started`: the worker was started from the
+# new image and only `docker compose ps` knows its state, since a detached start whose
+# wait failed leaves the container running. `finished`: the marker is written.
+# WORKER_DRAINED says whether this deploy stopped a worker at all.
 PHASE=before-stop
+WORKER_DRAINED=0
 on_exit() {
   local status=$?
+  local rerun="Rerun: this script with DEPLOY_SHA=$DEPLOY_SHA DEPLOY_DIGEST=$DEPLOY_DIGEST, or the rollback's older sha and digest"
   if [ "$status" -ne 0 ]; then
     case "$PHASE" in
       before-bootstrap)
-        echo "deploy failed before the bootstraps (exit $status); starting the previous worker again under the schema it ran under" >&2
-        docker compose start worker || echo "the previous worker did not start (docker compose ps shows the state)" >&2
+        if [ "$WORKER_DRAINED" -eq 1 ]; then
+          echo "deploy failed before the bootstraps (exit $status); starting the previous worker again under the schema it ran under" >&2
+          docker compose start worker || echo "the previous worker did not start (docker compose ps shows the state)" >&2
+        else
+          echo "deploy failed before the bootstraps (exit $status); no worker was running before it, nothing to repair" >&2
+        fi
         ;;
       after-bootstrap)
-        echo "deploy failed after a bootstrap (exit $status): the worker stays stopped until a deploy succeeds; docker compose ps shows it exited and its heartbeat is absent; public attempts are untended until then. Rerun: this script with DEPLOY_SHA=$DEPLOY_SHA DEPLOY_DIGEST=$DEPLOY_DIGEST, or the rollback's older sha and digest" >&2
+        if [ "$WORKER_DRAINED" -eq 1 ]; then
+          echo "deploy failed after a bootstrap (exit $status): the worker stays stopped until a deploy succeeds; docker compose ps shows it exited and its heartbeat is absent; public attempts are untended until then. $rerun" >&2
+        else
+          echo "deploy failed after a bootstrap (exit $status): no worker was running before it and none was started. $rerun" >&2
+        fi
+        ;;
+      worker-started)
+        echo "deploy failed after the worker was started from the new image (exit $status): its state is what docker compose ps shows (running, unhealthy or exited), the marker is unwritten. $rerun" >&2
         ;;
     esac
   fi
@@ -85,7 +110,9 @@ cd "$APP_DIR"
 # deploy whose state this one cannot know. Taken before anything is fetched or pulled.
 exec 9> "$APP_DIR/deploy.lock"
 flock -n 9 || { echo "another deploy holds $APP_DIR/deploy.lock; this one is refused" >&2; exit 1; }
-curl -fsSL "https://raw.githubusercontent.com/$REPO/$DEPLOY_SHA/compose.yaml" -o compose.yaml
+# The target's file beside the installed one; it replaces the installed file after the
+# drain below, so the drain reads the definition the running worker was created from.
+curl -fsSL "https://raw.githubusercontent.com/$REPO/$DEPLOY_SHA/compose.yaml" -o compose.yaml.next
 stamp "fetched compose.yaml of $DEPLOY_SHA"
 
 export APP_TAG="$DEPLOY_SHA"
@@ -121,17 +148,34 @@ stamp "parameters read"
 # by compose under its own pinned tag.
 docker pull --quiet "ghcr.io/$REPO@$DEPLOY_DIGEST"
 docker tag "ghcr.io/$REPO@$DEPLOY_DIGEST" "ghcr.io/$REPO:$DEPLOY_SHA"
-docker compose pull --quiet postgres
-docker compose up -d --wait postgres
+docker compose -f compose.yaml.next pull --quiet postgres
+docker compose -f compose.yaml.next up -d --wait postgres
 stamp "images pulled, postgres up"
-# The drain: the worker stopped under its grace period (compose.yaml's
-# `stop_grace_period`, above the supervisor's own terminate grace), so an attempt
-# mid-flight ends its segment where the store answers and the replacement's start pass
-# closes it; a host that has never run the service stops nothing. From here a failure
-# leaves the worker stopped, which the trap above repairs or reports by phase.
+# The drain, under the installed definition: the worker stopped under its grace period
+# (compose.yaml's `stop_grace_period`, above the supervisor's own terminate grace), so
+# an attempt mid-flight ends its segment where the store answers and the replacement's
+# start pass closes it. A host whose installed file names no worker (one that never ran
+# the service, or a fresh host with no file) stops nothing; the services a file names
+# are read from compose itself, and a file compose cannot read fails the deploy here.
+# From here a failure leaves a drained worker stopped, which the trap above repairs or
+# reports by phase.
 PHASE=before-bootstrap
-docker compose stop worker
-stamp "worker stopped"
+if [ -f compose.yaml ]; then
+  installed_services=$(docker compose config --services)
+else
+  installed_services=""
+fi
+# Drained is set before the stop: a stop the daemon refused leaves the worker in a state
+# this script cannot know, and a start of a running container is a no-op, so the repair
+# is the same.
+if grep -qx worker <<< "$installed_services"; then
+  WORKER_DRAINED=1
+  docker compose stop worker
+  stamp "worker stopped"
+else
+  stamp "no installed worker to stop"
+fi
+mv -f compose.yaml.next compose.yaml
 # The corpus cache: every world under `worlds/` the serving rule admits is loaded
 # into PostgreSQL under its version, verified against its manifest, and marked
 # ready; a refusal fails the deploy here, before the application is declared
@@ -173,13 +217,21 @@ echo "ready: $READY"
 grep -q "\"code_version\":\"$DEPLOY_SHA\"" <<< "$READY"
 grep -q '"ready":true' <<< "$READY"
 stamp "app ready"
-# The worker last, after the app serves (fork 6's order): recreated from the new image
-# and waited on through its healthcheck, the heartbeat the loop writes once its start
-# pass has read the stores (the start period covers the imports). A worker that never
-# becomes healthy fails the deploy here with the app already swapped and the marker
-# unwritten; the trap says the worker's state.
-docker compose up -d --wait --wait-timeout 90 worker
-stamp "worker up"
+# The worker last, after the app serves (fork 6's order), when the target names the
+# service (a rollback to a release before it starts none and leaves the drained
+# container stopped, an orphan compose warns about): recreated from the new image and
+# waited on through its healthcheck, the heartbeat the loop writes once its start pass
+# has read the stores (the start period covers the imports). A worker that never
+# becomes healthy fails the deploy here with the app already swapped, the container
+# running and the marker unwritten; the trap says what can be known.
+target_services=$(docker compose config --services)
+if grep -qx worker <<< "$target_services"; then
+  PHASE=worker-started
+  docker compose up -d --wait --wait-timeout 90 worker
+  stamp "worker up"
+else
+  stamp "the target names no worker service; none started"
+fi
 
 # Every deploy pulls a new image and nothing ever removed the old ones: about 130
 # deploys in a week filled the 12 GB root and the pull itself failed (2026-09-15,
