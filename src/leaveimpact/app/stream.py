@@ -49,7 +49,8 @@ Cost per tick, measured on the instance (the live pages step, ``probes/tick-cost
 runs on 2026-10-30 over the replay set's thirty closed attempts of 32 to 63 events): a tick
 that folds the whole log, a subscription's first, cost 0.12 to 0.69 s of CPU at the 95th
 percentile, the store's load and the narration's own replay about equal halves of it; a
-tick that finds nothing new (the connect, the version check, the row read, the close)
+tick that finds nothing new, by proxy (a fresh session's connect, version check, row read
+and close, the events statement itself unmeasured until the live path's acceptance)
 6.5 to 11.1 ms; and an event folded 1.8 to 5.2 ms. So a subscription pays the whole fold
 once and then the new events, about 0.02 s of CPU a second at a run's worst rates (1.3 events a
 second), and eight subscriptions on one open attempt about 0.14 s of the one interpreter's

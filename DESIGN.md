@@ -4384,7 +4384,9 @@ views or 2.2 stream fetches a second, which reads as the single worker's CPU (an
 inference from the flat throughput, no CPU time having been sampled), so the subscription
 bound stays at eight under the rule. The live pages step then timed the tick on the
 instance over the replay set's thirty attempts (`probes/tick-cost`, 2026-10-30): a whole
-re-fold 0.12 to 0.69 s of CPU, a tick finding nothing new 6.5 to 11.1 ms, an event
+re-fold 0.12 to 0.69 s of CPU, a tick finding nothing new 6.5 to 11.1 ms by proxy (a
+session's row read; the events statement itself is unmeasured until the live path's
+acceptance), an event
 1.8 to 5.2 ms; so a subscription folds the log whole once and every later tick reads only
 the events past its position and extends the state, and eight viewers of one open attempt
 are forecast at about 0.14 s of the one interpreter's second, the forecast checked on the

@@ -946,8 +946,10 @@ class LogStore:
         """The events past position ``after`` up to the row's last position, decoded and
         not folded: the narration stream's tick after its first (the live pages step),
         so a tick costs the new events and not the log's length, which on the instance
-        was 0.12 to 0.69 s of CPU a whole fold against 6.5 to 11.1 ms for this read
-        finding nothing (``probes/tick-cost``). The row's position is the cutoff for the
+        was 0.12 to 0.69 s of CPU a whole fold against 6.5 to 11.1 ms for a session's row
+        read, the probe's proxy for this read finding nothing (``probes/tick-cost``; the
+        events statement itself is unmeasured until the live path's acceptance). The row's
+        position is the cutoff for the
         reason the whole read's is: the prefix at or below it is immutable, and an
         append between the two statements is above it. ``ValueError`` for an attempt the
         log does not hold; ``after`` at or past the row's position reads as nothing.
