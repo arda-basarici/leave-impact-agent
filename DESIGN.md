@@ -4484,6 +4484,48 @@ forwarded-headers subnet is the contract row's literal in compose. The timed str
 probe and the content-security check wait for the first open attempt at the live path's
 acceptance; deployment serialization is the worker service's.
 
+As built at the worker service step (M3 step 14, 2026-10-27 to 30; ten forks ruled at
+the entry with the external read's five amendments and an eleventh at the child's build,
+the read on each of the three commit groups and twice on the third, every finding
+reproduced before its change; FINDINGS `worker-blocked` holds the probe). The
+blocked-work probe ruled the supervised child: of five blocks induced under both modes,
+every one but a checkpoint write stuck on the executor's thread unwound on the first
+stop signal, and that one lost the signal behind the executor's exit wait, which waits
+for every pending future before an exception in flight propagates, so the work alone
+left the process. The service is one loop: a start pass reads the slot and fences a dead
+holder, each tick writes an idle heartbeat once the stores have answered, takes the
+sweeper's actions (an eighth closes an attempt whose segment ended under another commit
+or awaits a recovery) and spawns a `work-one` child for the one due request under a
+fresh nonce, waits on it under the wall and reads the ending off its last line; past the
+wall or under a drain the child is terminated, given the fixed ten-second grace, killed,
+and the lost attempt closed with its liabilities; a store that does not answer inside a
+tick is retried with the heartbeat left stale. The compose service runs the same image
+as `worker`, holds the seven vendor names off `app` by test, a `stop_grace_period` of 15
+s (10 s fixed, 0.2 s measured variable, 4.8 s margin), a healthcheck every 30 s through
+a stdlib-only heartbeat module, since the command surface costs about 2.5 s a call, and
+a 512 MiB limit the three limits' sum holds to the memory baseline's line.
+
+The deploy reads every parameter and pulls every image before it stops the worker,
+drains it under the installed compose file and only when that file names the service,
+installs the target's file, runs the bootstraps and the app's swap, and starts the worker
+last under the target's file, waiting on its healthcheck. The EXIT trap reads the phase:
+the previous worker started again on a failure before the bootstraps, the stopped state
+and the rerun line after them, and after the worker's own start only what `docker compose
+ps` can tell, since a detached start whose wait failed leaves the container running. The
+vendor values are exported inside a subshell around the worker's start alone, because a
+rollback installs a file that names them on `app`. The job polls the invocation under a
+360 s bound against first deploys measured at 136 and 202 s; serialization is the job's
+concurrency group and a host lock taken before any fetch. The first two live deploys:
+91 s whole, the drain 1 s idle, the cache load 22 s, the bootstrap window 46 and 47 s,
+the worker's wait 31 and 32 s, the healthcheck's first run one interval after the start.
+Three rulings at the close: the saver's connection stays unbounded, the kill the measured
+mechanism and a bound unprobed for what a cancelled checkpoint statement leaves; a child
+dying before its claim is retried per tick under the unclaimed wait's fifteen-minute
+bound, no count, a backoff the shape if a storm is seen; the `DEPLOYED` marker keeps its
+bare sha, which the lifecycle gates on, and a ledger beside it records the started,
+deployed, failed and probe lines, built at the pinning step. Owed to the acceptance step:
+the worker's memory under a public attempt and the per-tick CPU.
+
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
 against per-run compute is not established and is recorded as unknown), its criteria
