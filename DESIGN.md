@@ -3887,8 +3887,10 @@ workflow under the production environment runs a committed driver on the runner;
 step is one `ssm send-command` carrying one host script in its payload, so nothing is
 fetched from anywhere the host could be lied to by, and each step is one
 `docker compose run` of the deployed image: launch (the launcher's plan from the
-registered role alone, the ledger threshold set as a receipt on an equal amount, the
-admission), work, status, deliver, publish, inventory. The host refuses a step whose
+registered role alone, the admission under the threshold the ledger holds; until the
+live pages step the launch also set the registration's threshold as a receipt on an
+equal amount, removed there as a second authority over a ledger's wall), work, status,
+deliver, publish, inventory. The host refuses a step whose
 sha is not the deployed one, so the image, the registration and price files fetched at
 that sha and the registration commit the runner cites are one commit; a push between a
 deploy and a dispatch is re-dispatched after the next deploy, which is the right order

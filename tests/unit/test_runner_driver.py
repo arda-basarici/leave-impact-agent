@@ -1,8 +1,9 @@
 """The runner-side driver under a fake ``aws`` and a fake ``gh``: the CI guard that reads
 the dispatched commit's CI run before any send, the lifecycle's sends in the order the
 launcher's ``status`` answers dictate, each payload carrying the step's exports and the
-host script, the identities derived from the workflow run, the threshold amounts from the
-registration's own budget, and the ends the walk can reach (published, waiting, held, a
+host script, the identities derived from the workflow run, no threshold amount anywhere
+(the ledger's threshold is the operator's since the live pages step), and the ends the
+walk can reach (published, waiting, held, a
 fault no re-send cures, an uncertain completion read before any re-send)."""
 
 from __future__ import annotations
@@ -182,16 +183,14 @@ def test_a_run_walks_launch_work_status_publish_inventory_and_reports_the_invent
         "the send is on the log before its response, for a reader of a lost one"
     )
     launch = fakes.payload_exports(1)
-    budget = json.loads(REGISTRATION.read_text())["budget"]
     assert launch["RUN_SHA"] == SHA
     assert launch["RUN_ID"] == "run-77" and launch["ATTEMPT"] == "1"
     assert launch["REQUEST_ID"] == "req-run-77-a1"
-    assert launch["THRESHOLD_PICO"] == str(budget["admission_threshold_usd"] * 10**12)
-    assert launch["LIMIT_PICO"] == str(budget["admission_threshold_limit_usd"] * 10**12)
-    assert (
-        launch["ADMITTER"] == "workflow:investigate"
-        and launch["AUTHORITY"] == "workflow:investigate"
+    assert "THRESHOLD_PICO" not in launch and "LIMIT_PICO" not in launch, (
+        "the launch sets no threshold: the admission runs under the one in force"
     )
+    assert "AUTHORITY" not in launch, "no step of the lifecycle names an authority now"
+    assert launch["ADMITTER"] == "workflow:investigate"
     assert launch["REGISTRATION_COMMIT"] == _head(Path(env["CHECKOUT"]))
     assert launch["SCENARIO"] == "scn-development-3"
     assert launch["FRAPPE_BASE_URL"] == "https://hr-w3.example.test"

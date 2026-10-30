@@ -82,7 +82,7 @@ base-image pinning step, the next change to this script.
 ## The run lifecycle
 
 `lifecycle.sh` is one step of a run on the host: `launch` (the launcher's plan, the
-ledger threshold as a receipt, the admission), `work`, `status`, `deliver`,
+admission under the ledger's threshold in force), `work`, `status`, `deliver`,
 `publish` or `inventory`, each one `docker compose run` of the deployed image. The
 runner-side driver `../runner/investigate.sh` sends it over `ssm send-command` with
 the step's `export` lines in the payload, reads each step back, and takes the next
@@ -107,7 +107,7 @@ reports that container first and the driver reads the state again while it runs
 instead of re-sending work, and `work` refuses to start beside another attempt's
 running container as a fault for an operator; a work process the host killed (137 under the memory
 limit) is read the same way, and only the process's own exits 2 and 3 end the job at
-once. The launch's three containers (plan, threshold, admit) are named for the attempt
+once. The launch's two containers (plan, admit) are named for the attempt
 and the step the same way, `launch` refuses to run a step beside a running one as a
 fault, and `status` lists every container of the attempt the host still runs, so a
 reader deciding whether the host can still admit (the dispatcher's release of a failed
@@ -120,6 +120,38 @@ read, which found the first form of this check reading `run.env`, a file the reb
 clears). Both scripts' headers carry the rules; the fake-binary tests
 under `tests/unit/` run every step and every branch of the walk, and CI runs
 shellcheck over this directory and `../runner/`.
+
+## The ledgers and their thresholds (the live pages step, 2026-10-30)
+
+Three ledgers live in the log: `ledger-development` for measurement and development
+runs, `ledger-demo` for the replay set the demo surface shows (thirty runs under the
+registration's $45, admitted by the investigate workflow), and the visitors' ledger the
+demo configuration names (`src/leaveimpact/app/demo.json`, `ledger_id`), which only the
+public start admits on and no workflow reaches. A ledger's threshold is the operator's,
+set by hand on the host; nothing in a workflow sets one, and an admission on a ledger
+with no threshold is refused with the ledger's own words ("no threshold is set on the
+ledger"), which the driver prints as the launch's refusal. Until this step the launch
+set the registration's threshold on every run as a receipt, a second authority over a
+ledger's wall that would have rewritten the visitors' lower one on the next operator run
+on the same ledger (the step-8 external read's note).
+
+Setting or reading one, with the registration's commit from `git log -1 --format=%H --
+preregistration/registration.json` and the limit the registration's
+`admission_threshold_limit_usd` times 10^12:
+
+```
+docker compose run --rm app python -m leaveimpact.agent set-threshold --ledger <ledger id> --amount <pico-dollars> --authority "<who, from what budget>" --registration-commit <sha> --limit <pico-dollars>
+```
+
+The command refuses an amount above the registered limit or below the ledger's committed
+total, writes a new prospective entry for any other amount, and answers an amount equal
+to the one in force with that entry and writes nothing, so the same command with the
+same amount is the read-back (it prints the ledger, the entry's revision and the amount).
+The visitors' wall for the first public month is $8 (8,000,000,000,000 pico-dollars), the
+demo's residual by hand on the hosting ruling's figures: the $30 budget line, less the
+fixed floor near $19 (the instance, the volume, the Elastic IP, backup storage), less a
+buffer of $3; the first bill re-cuts the line and a re-cut is a new entry. An operator run
+on another ledger in the same month draws on the budget and not on this wall.
 
 ## Backup and recovery (the demo milestone's backup step, 2026-10-24)
 

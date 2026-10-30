@@ -3,8 +3,8 @@
 # by the investigate and continue-run workflows (the first live run's step, fork 1):
 # the script travels inside the command payload after the `export` lines that
 # name the step, so nothing is fetched from anywhere the host could be lied to by.
-# LIFECYCLE_COMMAND is one word: `launch` (the plan, the ledger threshold as a
-# receipt, the admission), `work`, `status`, `deliver`, `publish` or `inventory`;
+# LIFECYCLE_COMMAND is one word: `launch` (the plan, the admission under the ledger's
+# threshold in force), `work`, `status`, `deliver`, `publish` or `inventory`;
 # each is one `docker compose run` of the deployed image, and the python command's
 # exit status is this script's. `work` runs as the `worker` service, the one service
 # whose environment names the vendor principals since the worker service's step
@@ -183,8 +183,7 @@ prices="$JOB_DIR/prices.json"
 case "$LIFECYCLE_COMMAND" in
   launch)
     : "${WORLD_VERSION:?}" "${SCENARIO:?}" "${SYSTEM:?}" "${CONDITION:?}" "${LEVEL:?}"
-    : "${REGISTRATION_COMMIT:?}" "${REQUEST_ID:?}" "${ADMITTER:?}" "${AUTHORITY:?}"
-    : "${LEDGER:?}" "${THRESHOLD_PICO:?}" "${LIMIT_PICO:?}"
+    : "${REGISTRATION_COMMIT:?}" "${REQUEST_ID:?}" "${ADMITTER:?}" "${LEDGER:?}"
     : "${FRAPPE_BASE_URL:?}" "${JIRA_BASE_URL:?}"
     listing=$(running_lifecycle_containers) || {
       echo "the host's container listing failed (docker ps exit $?); the launch cannot tell whether an earlier step of this attempt still runs" >&2
@@ -198,7 +197,7 @@ case "$LIFECYCLE_COMMAND" in
     # The later steps read these back; every value here is one the job log already shows.
     {
       for name in WORLD_VERSION SCENARIO SYSTEM CONDITION LEVEL REGISTRATION_COMMIT \
-          LEDGER ADMITTER AUTHORITY FRAPPE_BASE_URL JIRA_BASE_URL; do
+          LEDGER ADMITTER FRAPPE_BASE_URL JIRA_BASE_URL; do
         printf '%s=%q\n' "$name" "${!name}"
       done
     } > "$run_dir/run.env"
@@ -209,18 +208,16 @@ case "$LIFECYCLE_COMMAND" in
       --prices "$prices" --region "$REGION"
       --run "$RUN_ID" --attempt "$ATTEMPT" --request-id "$REQUEST_ID" --admitter "$ADMITTER"
       --out "$JOB_DIR/attempt-$ATTEMPT")
-    # Rules only reserves nothing: no ledger on its plan and no threshold receipt.
+    # Rules only reserves nothing: no ledger on its plan.
     if [ "$SYSTEM" != rules_only ]; then
       plan+=(--ledger "$LEDGER")
     fi
     run_launch_step plan python -m leaveimpact.launch "${plan[@]}"
-    if [ "$SYSTEM" != rules_only ]; then
-      # Sent on every launch: an equal amount answers with the entry in force and writes
-      # nothing (the group's review); the amounts are the registration's budget block.
-      run_launch_step threshold python -m leaveimpact.agent set-threshold --ledger "$LEDGER" \
-        --amount "$THRESHOLD_PICO" --authority "$AUTHORITY" \
-        --registration-commit "$REGISTRATION_COMMIT" --limit "$LIMIT_PICO"
-    fi
+    # The admission runs under the threshold the ledger holds; a ledger with none refuses
+    # it with the ledger's own words, and the operator sets one by hand (the runbook's
+    # ledgers section). Until the live pages step the launch set the registration's
+    # threshold on every run as a receipt, a second authority over the wall that would
+    # have rewritten a demo ledger's lower one.
     run_launch_step admit python -m leaveimpact.agent admit --registration "$registration" \
       --request "$JOB_DIR/attempt-$ATTEMPT/request.json"
     ;;

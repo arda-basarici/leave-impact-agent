@@ -11,11 +11,13 @@
 # one; and the driver refuses to send anything until the CI run that built the commit
 # shows every named job concluded success (the freeze step, fork 10). The model
 # settings are not inputs: the launcher fills the role from the registration, and the
-# price key is the model id. The threshold receipt's amounts
-# are read from the registration in this checkout. The ledger is an input since the demo
+# price key is the model id. The ledger is an input since the demo
 # milestone's replay set (its step 8): the development ledger for measurement and
-# development runs, the demo ledger for the runs the demo surface shows and its live
-# path charges. The dispatch token is the dispatcher's identity for one send, carried
+# development runs, the demo ledger for the replay set the demo surface shows; the
+# visitors' live runs are admitted on the configuration's own ledger, which no workflow
+# reaches. The launch admits under the threshold the ledger holds and sets none (the
+# live pages step; a ledger's threshold is the operator's, by hand). The dispatch token
+# is the dispatcher's identity for one send, carried
 # into the run name so the driver that sent it finds its run by that name and never by
 # the clock; a hand dispatch leaves it blank. Credentials are the deploy
 # role's (OIDC) for the sends and the instance role's on the host; the repository

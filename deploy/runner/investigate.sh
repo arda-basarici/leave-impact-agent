@@ -68,9 +68,10 @@
 # printed one, held for every work send of the attempt; the continue-run workflow
 # takes it as an input, with the policy the attempt was dispatched under, so an
 # automatic attempt continued from another job is recovered and not waited for. The
-# admitter and the threshold's authority are this workflow; the approver is the
-# human who dispatched the continue-run workflow after reading the
-# payload in Session Manager.
+# admitter is this workflow; the approver is the human who dispatched the continue-run
+# workflow after reading the payload in Session Manager. The ledger's threshold is the
+# operator's, set by hand on the host (the live pages step): the launch admits under the
+# one in force and a ledger with none refuses the admission.
 #
 # Before any send the CI run that built the dispatched commit is read off the Actions
 # API and every named required job must have concluded success (the guard below, the
@@ -101,7 +102,6 @@ OUT_DIR=${RUNNER_TEMP:-/tmp}/lifecycle
 SUMMARY=${GITHUB_STEP_SUMMARY:-/dev/null}
 mkdir -p "$OUT_DIR"
 
-AUTHORITY="workflow:investigate"
 ADMITTER="workflow:investigate"
 case "$MODE" in
   run)
@@ -136,13 +136,9 @@ case "$MODE" in
   *) echo "MODE is run or continue, not $MODE" >&2; exit 2 ;;
 esac
 REQUEST_ID="req-$RUN_ID-a$ATTEMPT"
-# The registration's commit and its budget, from the checkout the run rides: the
-# threshold receipt carries the registered dollars times 10^12, in 64-bit shell
-# arithmetic, so the amounts are the file's own and not a hand-typed copy.
+# The registration's commit, from the checkout the run rides.
 REGISTRATION_COMMIT=$(git log -1 --format=%H -- "$REGISTRATION_FILE")
 test -n "$REGISTRATION_COMMIT" || { echo "no commit touches $REGISTRATION_FILE"; exit 2; }
-THRESHOLD_PICO=$(( $(jq -r .budget.admission_threshold_usd "$REGISTRATION_FILE") * 1000000000000 ))
-LIMIT_PICO=$(( $(jq -r .budget.admission_threshold_limit_usd "$REGISTRATION_FILE") * 1000000000000 ))
 
 # The CI guard (the freeze step, fork 10; ruled at the first live run's close). The host's
 # DEPLOYED check says the dispatched commit is the deployed one, not that the CI run that
@@ -299,8 +295,7 @@ case "$MODE" in
       "WORLD_VERSION=$INPUT_WORLD_VERSION" "SCENARIO=$INPUT_SCENARIO" "SYSTEM=$INPUT_SYSTEM" \
       "CONDITION=$INPUT_CONDITION" "LEVEL=$INPUT_LEVEL" \
       "REGISTRATION_COMMIT=$REGISTRATION_COMMIT" "REQUEST_ID=$REQUEST_ID" \
-      "ADMITTER=$ADMITTER" "AUTHORITY=$AUTHORITY" "LEDGER=$LEDGER" \
-      "THRESHOLD_PICO=$THRESHOLD_PICO" "LIMIT_PICO=$LIMIT_PICO" \
+      "ADMITTER=$ADMITTER" "LEDGER=$LEDGER" \
       "FRAPPE_BASE_URL=$INPUT_FRAPPE_BASE_URL" "JIRA_BASE_URL=$INPUT_JIRA_BASE_URL"
     LAUNCH=$(field "$LAST_OUT" launch)
     test -n "$LAUNCH" || { echo "launch printed no launch identity"; exit 1; }

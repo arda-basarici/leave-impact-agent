@@ -27,10 +27,7 @@ LAUNCH_INPUTS = {
     "REGISTRATION_COMMIT": COMMIT,
     "REQUEST_ID": "req-run-1-a1",
     "ADMITTER": "workflow:investigate",
-    "AUTHORITY": "workflow:investigate",
     "LEDGER": "ledger-development",
-    "THRESHOLD_PICO": "50000000000000",
-    "LIMIT_PICO": "270000000000000",
     "FRAPPE_BASE_URL": "https://hr-w3.example.test",
     "JIRA_BASE_URL": "https://api.atlassian.com/ex/jira/cloud-id",
 }
@@ -66,21 +63,26 @@ def _launched(fakes: FakeBinaries, env: dict[str, str], **overrides: str) -> Non
     assert status == 0, err
 
 
-def test_launch_plans_receipts_the_threshold_and_admits_in_one_run_directory(
+def test_launch_plans_and_admits_in_one_run_directory_and_sets_no_threshold(
     host: tuple[FakeBinaries, dict[str, str]], tmp_path: Path
 ) -> None:
+    """The launch is the plan and the admission; the admission runs under whatever
+    threshold the ledger holds. Until the live pages step a third container set the
+    registration's threshold on every launch, and would have rewritten a demo ledger's
+    lower wall on the next operator run."""
     fakes, env = host
     _launched(fakes, env)
     runs = fakes.lines("docker compose run")
-    assert len(runs) == 3
-    plan, threshold, admit = runs
+    assert len(runs) == 2
+    plan, admit = runs
+    assert "set-threshold" not in " ".join(runs)
     mount = f"-v {posix(tmp_path / 'run')}/run-1:/run/job"
     assert all(mount in line for line in runs)
     # Named for the attempt and the step, so status can list a step the host still runs.
-    for line, step in zip(runs, ("plan", "threshold", "admit"), strict=True):
+    for line, step in zip(runs, ("plan", "admit"), strict=True):
         assert f"--name lifecycle-run-1-a1-{step} " in line
     assert fakes.lines("docker rm") == [
-        f"docker rm -f lifecycle-run-1-a1-{step}" for step in ("plan", "threshold", "admit")
+        f"docker rm -f lifecycle-run-1-a1-{step}" for step in ("plan", "admit")
     ], "an exited container of the name is removed before a new one takes it"
     assert " python -m leaveimpact.launch plan " in plan
     for flag in (
@@ -96,12 +98,6 @@ def test_launch_plans_receipts_the_threshold_and_admits_in_one_run_directory(
         "--ledger ledger-development",
     ):
         assert flag in plan, flag
-    assert (
-        "leaveimpact.agent set-threshold --ledger ledger-development --amount 50000000000000 "
-        "--authority workflow:investigate --registration-commit "
-        + COMMIT
-        + " --limit 270000000000000"
-    ) in threshold
     assert (
         "leaveimpact.agent admit --registration /run/job/registration.json "
         "--request /run/job/attempt-1/request.json"
@@ -120,7 +116,7 @@ def test_launch_plans_receipts_the_threshold_and_admits_in_one_run_directory(
     assert handover < log.index(runs[0])
 
 
-def test_rules_only_plans_against_no_ledger_and_sends_no_threshold(
+def test_rules_only_plans_against_no_ledger(
     host: tuple[FakeBinaries, dict[str, str]],
 ) -> None:
     fakes, env = host
@@ -128,7 +124,6 @@ def test_rules_only_plans_against_no_ledger_and_sends_no_threshold(
     runs = fakes.lines("docker compose run")
     assert len(runs) == 2
     assert "--ledger" not in runs[0]
-    assert "set-threshold" not in " ".join(runs)
     assert " admit " in runs[1]
 
 
@@ -150,10 +145,10 @@ def test_work_hands_the_vendor_principals_to_the_container_environment_and_no_co
     status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="human")
     assert status == 0, err
     runs = fakes.lines("docker compose run")
-    work = runs[3]
+    work = runs[2]
     assert re.search(r" --nonce nonce-[0-9a-f]{32} --launch launch-fake ", work)
     assert " --name lifecycle-run-1-a1 " in work
-    assert fakes.lines("docker rm")[3] == "docker rm -f lifecycle-run-1-a1"
+    assert fakes.lines("docker rm")[2] == "docker rm -f lifecycle-run-1-a1"
     assert (
         "--approval human --system agent --condition normal --level base --region eu-central-1"
         in work
@@ -198,7 +193,7 @@ def test_a_parameter_still_holding_the_placeholder_fails_the_step(
     assert (
         "parameter /leave-agent/jira-token is not put: it still holds the UNSET placeholder" in err
     )
-    assert len(fakes.lines("docker compose run")) == 3, "no work container ran"
+    assert len(fakes.lines("docker compose run")) == 2, "no work container ran"
 
 
 def test_work_after_a_cleared_run_directory_stops_and_says_why(
@@ -253,7 +248,7 @@ def test_each_later_word_composes_its_one_command(
     _launched(fakes, env)
     status, err = _run(fakes, env, word, **step)
     assert status == 0, err
-    assert fakes.lines("docker compose run")[3].endswith(expected)
+    assert fakes.lines("docker compose run")[2].endswith(expected)
 
 
 def test_the_python_exit_status_is_the_steps(host: tuple[FakeBinaries, dict[str, str]]) -> None:
@@ -280,8 +275,8 @@ def test_work_refuses_to_start_beside_the_attempts_running_container(
     status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="automatic")
     assert status == 4
     assert "a work container of this attempt is still running: lifecycle-run-1-a1" in err
-    assert len(fakes.lines("docker compose run")) == 3, "no work container started"
-    assert len(fakes.lines("docker rm")) == 3, "the launch steps' removals and no other"
+    assert len(fakes.lines("docker compose run")) == 2, "no work container started"
+    assert len(fakes.lines("docker rm")) == 2, "the launch steps' removals and no other"
 
 
 def test_launch_refuses_beside_a_running_step_of_the_attempt_as_a_fault(
@@ -346,7 +341,7 @@ def test_a_failing_parameter_read_ends_the_step_with_the_clis_own_error(
     assert status == 254
     assert "ThrottlingException" in err
     assert "is not set" not in err
-    assert len(fakes.lines("docker compose run")) == 3, "no work container ran"
+    assert len(fakes.lines("docker compose run")) == 2, "no work container ran"
 
 
 def test_a_transfer_that_died_mid_body_leaves_no_file_and_the_next_launch_fetches_it_whole(
@@ -420,7 +415,7 @@ def test_inventory_refuses_a_payload_that_names_no_scope(
     status, err = _run(fakes, env, "inventory", LEDGER="ledger-development")
     assert status != 0
     assert "WORLD_VERSION" in err
-    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
+    assert len(fakes.lines("docker compose run")) == 2, "the launch's two, no inventory"
 
 
 def test_inventory_refuses_a_ledger_other_than_the_one_the_attempt_was_admitted_against(
@@ -442,13 +437,13 @@ def test_inventory_refuses_a_ledger_other_than_the_one_the_attempt_was_admitted_
     )
     assert status == 2
     assert "ledger-demo" in err and "ledger-development" in err
-    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no inventory"
+    assert len(fakes.lines("docker compose run")) == 2, "the launch's two, no inventory"
     shutil.rmtree(tmp_path / "run" / "run-1")
     status, err = _run(
         fakes, env, "inventory", LEDGER="ledger-demo", ADMITTED_LEDGER="ledger-development", **scope
     )
     assert status == 2 and "ledger-development" in err, "the reboot clears nothing the check reads"
-    assert len(fakes.lines("docker compose run")) == 3
+    assert len(fakes.lines("docker compose run")) == 2
     status, err = _run(
         fakes,
         env,
@@ -499,7 +494,7 @@ def test_work_refuses_beside_another_attempts_running_container_as_a_fault(
     status, err = _run(fakes, env, "work", LAUNCH="launch-fake", APPROVAL="automatic")
     assert status == 3
     assert "another attempt's work container is running on this host: lifecycle-run-2-a1" in err
-    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, no work container"
+    assert len(fakes.lines("docker compose run")) == 2, "the launch's two, no work container"
 
 
 def test_a_failed_container_listing_refuses_work_and_status_instead_of_reading_as_none(
@@ -517,4 +512,4 @@ def test_a_failed_container_listing_refuses_work_and_status_instead_of_reading_a
     status, err = _run(fakes, failing, "status", APPROVAL="automatic")
     assert status == 2
     assert "container listing failed (docker ps exit 1); the attempt's container state" in err
-    assert len(fakes.lines("docker compose run")) == 3, "the launch's three, nothing after"
+    assert len(fakes.lines("docker compose run")) == 2, "the launch's two, nothing after"
