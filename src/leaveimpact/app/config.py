@@ -8,7 +8,9 @@ the world's admission made the served world an allowlist of one named here by ve
 since the sealed disclosure mark lives in an object the instance cannot read. The values
 are the rulings' values: the golden world, the registered investigator at the base level
 under the frozen registration named by its digest, the region its model is called in
-and priced under, the demo's own ledger apart from the measurement's, five admissions a
+and priced under, the visitors' own ledger apart from the measurement's and from the
+replay set's (the live pages step: the ledger page shows what the live demo spends, from
+zero, and no operator run reaches it), five admissions a
 UTC day, a fifteen-minute approval wait, a wall-clock bound on a running attempt beside
 the registered caps, and live runs off.
 
@@ -81,8 +83,8 @@ class DemoConfiguration:
     (the tracker site serves every world and is the platform contract's). ``system`` and
     ``level`` name the registered cell a visitor's run is admitted to under the
     registration ``registration_digest`` names, and ``region`` is where its model is called
-    and priced. ``ledger_id`` is the demo's ledger, never
-    the measurement's. ``daily_admissions`` bounds public starts per UTC day;
+    and priced. ``ledger_id`` is the visitors' ledger, never the measurement's and never
+    the replay set's. ``daily_admissions`` bounds public starts per UTC day;
     ``approval_wait_seconds`` is how long an attempt waits at the approval before the
     sweeper closes it; ``attempt_wall_seconds`` bounds a running attempt's wall clock beside
     the registered call and token caps. ``live_runs`` false admits no visitor's attempt.

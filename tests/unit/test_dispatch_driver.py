@@ -206,12 +206,18 @@ def test_the_phase_c_plan_reads_with_the_workflows_then_defaults_and_folds_compl
     assert len(driver.known_run_ids(records)) == 240
 
 
-def test_the_replay_plan_equals_the_demo_configuration(driver: ModuleType) -> None:
+def test_the_replay_plan_equals_the_demo_configuration_but_for_the_ledger(
+    driver: ModuleType,
+) -> None:
+    """The replay set is the served world's thirty scenarios under the configured cell at
+    the configured site, on the replay set's ledger; the configuration's ledger is the
+    visitors' own since the live pages step, so the two ledgers differ by design and no
+    operator run reaches the one the ledger page shows."""
     plan = driver.read_plan(REPLAY)
     demo = json.loads(DEMO.read_text(encoding="utf-8"))
     assert plan.world_version == demo["served_world_version"]
     assert plan.frappe_base_url == demo["frappe_base_url"]
-    assert plan.ledger == demo["ledger_id"]
+    assert plan.ledger == "ledger-demo" and demo["ledger_id"] == "ledger-visitors"
     assert plan.cells == ((demo["system"], demo["level"]),)
     assert plan.scenarios == tuple(f"scenario_{n:03d}" for n in range(1, 31))
     assert (plan.condition, plan.approval, plan.workflow) == (

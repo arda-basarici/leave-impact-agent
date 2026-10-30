@@ -38,7 +38,7 @@ def test_the_committed_configuration_is_the_rulings_values_in_one_written_form()
     assert configuration.frappe_base_url == "https://hr-w3.ardabasarici.dev"
     assert configuration.system is SystemKind.AGENT and configuration.level == "base"
     assert configuration.region == "eu-central-1"
-    assert configuration.ledger_id == "ledger-demo"
+    assert configuration.ledger_id == "ledger-visitors"
     assert configuration.daily_admissions == 5
     assert configuration.approval_wait_seconds == 15 * 60
     assert configuration.attempt_wall_seconds == 10 * 60
@@ -59,7 +59,10 @@ def test_the_registration_digest_names_the_committed_registration_and_a_cell_of_
     configuration = committed_configuration()
     digest = hashlib.sha256(COMMITTED_FILE.read_bytes()).hexdigest()
     assert configuration.registration_digest == digest
-    assert configuration.ledger_id != "ledger-development"
+    # Never the measurement's ledger, and never the replay set's (the live pages step's
+    # first fork): the ledger page shows the visitors' money alone, and an operator run
+    # on `ledger-demo` must not touch their wall.
+    assert configuration.ledger_id not in {"ledger-development", "ledger-demo"}
     places = {(cell.system, cell.condition, cell.level) for cell in COMMITTED.cells}
     assert (configuration.system, "normal", configuration.level) in places
 
