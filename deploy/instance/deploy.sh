@@ -120,22 +120,24 @@ export PGDATA_HOST=/srv/pgdata
 POSTGRES_PASSWORD=$(param /leave-agent/postgres-password)
 export POSTGRES_PASSWORD
 # The worker service's vendor principals (the worker service's step, fork 8): the five
-# parameters under /leave-agent/ and the two base URLs, exported for `compose up` of the
-# worker the way the password is, and read here, before the worker is stopped, so a
-# parameter that does not read fails the deploy with the host untouched. The app
-# service names none of them (compose.yaml, held by tests/unit/test_compose_edge.py), so
-# the web process is handed nothing of this. The URLs are the demo configuration's HR
-# site and the tracker's gateway root, nonsecret constants of the demo, held equal to
-# their sources by tests/unit/test_instance_deploy.py.
-export LEAVE_IMPACT_FRAPPE_BASE_URL=https://hr-w3.ardabasarici.dev
-export LEAVE_IMPACT_JIRA_BASE_URL=https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
+# parameters under /leave-agent/ and the two base URLs, read here, before the worker is
+# stopped, so a parameter that does not read fails the deploy with the host untouched,
+# and held as shell variables, never exported here: they enter the environment inside
+# the subshell around the worker's start alone, below. The tree's app service names
+# none of them (compose.yaml, held by tests/unit/test_compose_edge.py), but a rollback
+# installs an older file that still names them on `app` with empty defaults, and an
+# export here would hand the web process the credentials under that file (the
+# group's second external read, reproduced with the real pre-worker file). The URLs
+# are the demo configuration's HR site and the tracker's gateway root, nonsecret
+# constants of the demo, held equal to their sources by
+# tests/unit/test_instance_deploy.py.
+LEAVE_IMPACT_FRAPPE_BASE_URL=https://hr-w3.ardabasarici.dev
+LEAVE_IMPACT_JIRA_BASE_URL=https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
 LEAVE_IMPACT_FRAPPE_API_KEY=$(param /leave-agent/frappe-api-key)
 LEAVE_IMPACT_FRAPPE_API_SECRET=$(param /leave-agent/frappe-api-secret)
 LEAVE_IMPACT_JIRA_EMAIL=$(param /leave-agent/jira-email)
 LEAVE_IMPACT_JIRA_TOKEN=$(param /leave-agent/jira-token)
 LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
-export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
-export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
 # The bucket name is the platform contract's literal (the boundary probe after this
 # script names the same bucket); the credentials are the instance role's, reached
 # through the metadata service from inside the container (hop limit 2).
@@ -227,7 +229,14 @@ stamp "app ready"
 target_services=$(docker compose config --services)
 if grep -qx worker <<< "$target_services"; then
   PHASE=worker-started
-  docker compose up -d --wait --wait-timeout 90 worker
+  # The one command that sees the vendor principals: exported in a subshell that ends
+  # with it, so nothing after (the prune, the trap's own commands) carries them either.
+  (
+    export LEAVE_IMPACT_FRAPPE_BASE_URL LEAVE_IMPACT_JIRA_BASE_URL
+    export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
+    export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+    docker compose up -d --wait --wait-timeout 90 worker
+  )
   stamp "worker up"
 else
   stamp "the target names no worker service; none started"

@@ -1,0 +1,118 @@
+# The instance shape (DESIGN, "The application host"): the application and its
+# PostgreSQL as one Compose stack. The app runs the image CI published — no
+# `build:` here, so the 2 GB instance can never become a build server. The proxy
+# that terminates TLS behind Cloudflare owns the shared `web` network and lands
+# with the instance probe; the app joins it and publishes nothing to the host.
+# Local development layers compose.dev.yaml on top.
+name: leaveimpact
+
+services:
+  app:
+    # The deploy script pins APP_TAG to the commit sha it lands; a laptop rehearsal
+    # without one follows `latest`. Rollback = an older sha.
+    image: ghcr.io/arda-basarici/leave-impact-agent:${APP_TAG:-latest}
+    # Values interpolate from the process environment — no .env, no `env_file`:
+    # the app gets exactly the variables named here. Locally they are user
+    # environment variables (never a file in the tree); on the instance the deploy
+    # step reads SSM Parameter Store and exports them for `compose up`, never
+    # rendering a file to disk.
+    environment:
+      DATABASE_URL: postgresql://leaveimpact:${POSTGRES_PASSWORD:?set in the environment}@postgres:5432/leaveimpact
+      # The world bucket and its region, for the corpus cache loader; the instance role's
+      # credentials come from the instance metadata service, never from here. The truth
+      # bucket is never named to the application (DESIGN, "Keeping the benchmark out of
+      # the product"). Empty on a laptop that fills its cache from a local twin.
+      LEAVE_IMPACT_WORLD_BUCKET: ${LEAVE_IMPACT_WORLD_BUCKET:-}
+      LEAVE_IMPACT_AWS_REGION: ${LEAVE_IMPACT_AWS_REGION:-}
+      LEAVE_IMPACT_OBJECT_STORE_ROOT: ${LEAVE_IMPACT_OBJECT_STORE_ROOT:-}
+      # The investigator's read-only vendor principals (the platform contract's five
+      # parameters under /leave-agent/) and the two base URLs, exported into the
+      # environment by the run's send script on the instance the way the deploy script
+      # exports the PostgreSQL password; empty for the deploy and the cache loader,
+      # which read no vendor. The Google credential travels as the JSON value, never
+      # a file (step 14, fork 2).
+      LEAVE_IMPACT_FRAPPE_BASE_URL: ${LEAVE_IMPACT_FRAPPE_BASE_URL:-}
+      LEAVE_IMPACT_FRAPPE_API_KEY: ${LEAVE_IMPACT_FRAPPE_API_KEY:-}
+      LEAVE_IMPACT_FRAPPE_API_SECRET: ${LEAVE_IMPACT_FRAPPE_API_SECRET:-}
+      LEAVE_IMPACT_JIRA_BASE_URL: ${LEAVE_IMPACT_JIRA_BASE_URL:-}
+      LEAVE_IMPACT_JIRA_EMAIL: ${LEAVE_IMPACT_JIRA_EMAIL:-}
+      LEAVE_IMPACT_JIRA_TOKEN: ${LEAVE_IMPACT_JIRA_TOKEN:-}
+      LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON: ${LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON:-}
+      # The proxy's subnet, from which the client address in the forwarded headers is
+      # trusted: Uvicorn reads this name from the environment when no flag names it,
+      # and the start route's per-address window counts the address it yields (the
+      # live-path commands step, fork 8). The value is the platform contract's `web`
+      # subnet row (platform/projects/leave-impact/README.md, row 27), a constant of the
+      # contract and not a parameter the deploy reads, so it is the literal here;
+      # tests/unit/test_compose_edge.py holds it to the row's value.
+      FORWARDED_ALLOW_IPS: 172.18.0.0/16
+    # The service since the demo milestone's scaffold step: restarted on exit unless
+    # stopped by hand, so a crash comes back and a deploy's stop stays stopped. The
+    # restart policy governs container exits only; an unhealthy readiness below is a
+    # signal to the deploy (`up --wait`) and to the platform's monitor, never a repair,
+    # since Docker restarts no container for failing its health check.
+    restart: unless-stopped
+    # The readiness route from inside the container with Python's own client (the slim
+    # image carries no curl): 200 only when the store answers, the cache serves the
+    # allowlisted world and the app schema is at the code's version, so `up --wait`
+    # returns when the demo can be served and the deploy's readiness check reads the same
+    # route. A 503 raises in urlopen and exits 1. The route makes two bounded reads
+    # (three seconds to connect and three per statement, each); the client's eight
+    # seconds cover the normal path, and a probe that gives up on a blocked store reads
+    # unhealthy exactly as a 503 would.
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=8)"]
+      interval: 10s
+      timeout: 10s
+      retries: 6
+      start_period: 15s
+    # Two processes on a 2 GB instance: bound each so one cannot OOM the other;
+    # rotate logs so a chatty event stream cannot fill the root volume. The limits are
+    # the memory baseline's rule over the instance's reading (probes/memory-baseline:
+    # 1.5 times the peak memory.current sampled under the demo's loads, rounded up to
+    # 64 MiB); tests/unit/test_memory_baseline.py holds them to the committed reading,
+    # so a change here starts with a new capture. The worker's reading is step 14's.
+    mem_limit: 384m
+    logging: &log
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - web
+      - store
+
+  postgres:
+    # The same mirrored image CI's service runs, at the same digest, read anonymously:
+    # the host has no registry login (mirror-base-images.yml).
+    image: ghcr.io/arda-basarici/leave-impact-agent/postgres:16-alpine@sha256:721873c34ceb9f8d8fc265984940dc982404c105f19ad51be9fdc5970a6080ea
+    environment:
+      POSTGRES_USER: leaveimpact
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set in the environment}
+      POSTGRES_DB: leaveimpact
+    # Data on the host disk — an absolute path from the environment so the instance pins it
+    # to the gp3 volume and a laptop to wherever it likes. Owned by the container's
+    # postgres uid; never copied live — the nightly pg_dump runs against the
+    # service, this mount is for durability across rebuilds.
+    volumes:
+      - ${PGDATA_HOST:?absolute host path for PostgreSQL data, set in the environment}:/var/lib/postgresql/data
+    mem_limit: 192m
+    shm_size: 128m
+    logging: *log
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U leaveimpact -d leaveimpact"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - store
+
+networks:
+  # Owned by the proxy stack, shared across projects on the host — created once:
+  # `docker network create web`.
+  web:
+    external: true
+  # Private to this stack: PostgreSQL is reachable from the app only.
+  store:

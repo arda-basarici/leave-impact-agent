@@ -161,8 +161,11 @@ attempt worked in a child the service supervises; `src/leaveimpact/app/worker.py
 the design, `probes/FINDINGS.md` under `worker-blocked` the probe that chose the child).
 It is the one service whose environment names the investigator's vendor principals: the
 deploy reads the five parameters under `/leave-agent/` and exports them with the two base
-URLs for `compose up`, and the lifecycle's `work` step runs its one-off container as this
-service for the same reason; `app` names none, held by `tests/unit/test_compose_edge.py`.
+URLs inside a subshell around the worker's start alone, so no other container of the
+deploy is created with them, under the tree's file or a rollback's older one that still
+names them on `app` (held by `tests/unit/test_instance_deploy.py` against the real
+pre-worker file); the lifecycle's `work` step runs its one-off container as this service
+for the same reason; `app` names none, held by `tests/unit/test_compose_edge.py`.
 Its memory limit is the baseline's reservation (512 MiB) until a public attempt runs under
 it, which is the live path's first acceptance; the three limits sum to the budget line
 `tests/unit/test_memory_baseline.py` holds.

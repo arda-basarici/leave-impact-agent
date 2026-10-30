@@ -23,21 +23,32 @@ from pathlib import Path
 import pytest
 
 from tests.unit.shell_support import DEPLOY_SCRIPT, FakeBinaries, fake_binaries, posix, run_script
+from tests.unit.test_compose_edge import VENDOR_NAMES, VENDOR_PREFIXES
 
 SHA = "f" * 40
 DIGEST = "sha256:" + "d" * 64
 IMAGE = "ghcr.io/arda-basarici/leave-impact-agent"
 COMPOSE = DEPLOY_SCRIPT.parents[2] / "compose.yaml"
-PRE_WORKER_COMPOSE = """name: leaveimpact
-services:
-  app:
-    image: ghcr.io/arda-basarici/leave-impact-agent:${APP_TAG:-latest}
-  postgres:
-    image: postgres
-"""
-"""A release before the worker service (the shape of `c0256f4`'s file): what a rollback
-targets, and what a host ran before this step's first deploy."""
+PRE_WORKER_COMPOSE = Path(__file__).parent / "fixtures" / "compose-before-worker.yaml"
+"""The compose file of the release before the worker service (`c0256f4`'s, copied whole):
+what a rollback targets and what a host ran before this step's first deploy. It names
+the vendor variables on `app` with empty defaults, so the deploy's environment at the
+app's creation is what decides whether the web process holds the credentials."""
 WORKER_UP = "docker compose up -d --wait --wait-timeout 90 worker"
+APP_UP = "docker compose up -d --wait --wait-timeout 120 app"
+
+
+def vendor_names_in(held: str) -> list[str]:
+    """The vendor variables a fake docker invocation found in its environment."""
+    return [
+        line.partition("=")[0] for line in held.splitlines() if line.startswith(VENDOR_PREFIXES)
+    ]
+
+
+def environment_of(fakes: FakeBinaries, docker: list[str], line: str) -> str:
+    """What the fake docker recorded of its environment at the invocation ``line`` (the
+    fake numbers every docker invocation, listings and removals included)."""
+    return (fakes.fake_dir / f"docker-env-{docker.index(line) + 1}.txt").read_text()
 
 
 @pytest.fixture
@@ -120,8 +131,14 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
         assert "LEAVE_IMPACT_AWS_REGION=eu-central-1" in held
         assert "POSTGRES_PASSWORD=value-of-/leave-agent/postgres-password" in held
     assert "value-of-" not in "\n".join(docker)
-    # The worker's `up` saw the five principals and the two base URLs; no command line did.
-    handed = (fakes.fake_dir / f"docker-env-{docker.index(worker_up) + 1}.txt").read_text()
+    # The worker's `up` saw the five principals and the two base URLs; no command line did,
+    # and no other invocation did either: not the app's bootstraps, not its `up`, not the
+    # prune after the worker (the credential boundary, under the tree's own file).
+    for line in docker:
+        if line != worker_up:
+            assert vendor_names_in(environment_of(fakes, docker, line)) == [], line
+    handed = environment_of(fakes, docker, worker_up)
+    assert set(vendor_names_in(handed)) == VENDOR_NAMES
     for variable, parameter in (
         ("LEAVE_IMPACT_FRAPPE_API_KEY", "frappe-api-key"),
         ("LEAVE_IMPACT_FRAPPE_API_SECRET", "frappe-api-secret"),
@@ -269,7 +286,7 @@ def test_a_fresh_host_stops_nothing_and_starts_the_worker_the_target_names(
     assert "no installed worker to stop" in completed.stdout
     assert (app_dir / "DEPLOYED").exists()
     (app_dir / "DEPLOYED").unlink()
-    (app_dir / "compose.yaml").write_text(PRE_WORKER_COMPOSE)
+    (app_dir / "compose.yaml").write_bytes(PRE_WORKER_COMPOSE.read_bytes())
     (app_dir / "before").mkdir()
     before = fake_binaries(app_dir / "before")
     before_env = before.environment(
@@ -287,24 +304,27 @@ def test_a_fresh_host_stops_nothing_and_starts_the_worker_the_target_names(
 
 
 def test_a_rollback_to_a_release_before_the_worker_drains_it_and_starts_none(
-    host: tuple[FakeBinaries, dict[str, str], Path], tmp_path: Path
+    host: tuple[FakeBinaries, dict[str, str], Path],
 ) -> None:
-    """The advertised rollback (this script with an older sha and digest) against a target
-    whose file names no worker: the running worker is drained under the installed file,
-    the target's file is installed, the app lands, and no worker is started (the stopped
-    container is an orphan compose warns about; the runbook says so)."""
+    """The advertised rollback (this script with an older sha and digest) against the real
+    pre-worker file: the running worker is drained under the installed file, the target's
+    file is installed, the app lands, no worker is started (the stopped container is an
+    orphan compose warns about; the runbook says so), and the app's creation sees no
+    vendor value although that file names the variables on `app` (the second external
+    read: the exports used to be process-wide and the old file would have taken them)."""
     fakes, env, app_dir = host
-    target = tmp_path / "pre-worker.yaml"
-    target.write_text(PRE_WORKER_COMPOSE)
-    env["FAKE_COMPOSE_SOURCE"] = posix(target)
+    env["FAKE_COMPOSE_SOURCE"] = posix(PRE_WORKER_COMPOSE)
     completed = run_script(DEPLOY_SCRIPT, env)
     assert completed.returncode == 0, completed.stderr
     docker = fakes.lines("docker ")
     assert "docker compose stop worker" in docker
     assert WORKER_UP not in docker
     assert "the target names no worker service; none started" in completed.stdout
-    assert (app_dir / "compose.yaml").read_text() == PRE_WORKER_COMPOSE
+    assert (app_dir / "compose.yaml").read_bytes() == PRE_WORKER_COMPOSE.read_bytes()
     assert (app_dir / "DEPLOYED").read_text() == SHA + "\n"
+    assert APP_UP in docker
+    for line in docker:
+        assert vendor_names_in(environment_of(fakes, docker, line)) == [], line
 
 
 @pytest.mark.parametrize("fail_on", [WORKER_UP.removeprefix("docker "), "image prune -f"])
@@ -326,20 +346,20 @@ def test_a_failure_after_the_workers_start_reports_only_what_ps_can_tell(
     assert not (app_dir / "DEPLOYED").exists()
 
 
-def test_the_base_urls_the_deploy_exports_are_their_sources_values() -> None:
-    """The worker's child composes its hosts from the environment, so the deploy exports
+def test_the_base_urls_the_deploy_holds_are_their_sources_values() -> None:
+    """The worker's child composes its hosts from the environment, so the deploy holds
     the HR site and the tracker's gateway root as literals; neither is in Parameter Store.
     The HR site is the demo configuration's and the gateway root the investigate
     workflow's default, so the three copies are held to one another here (the worker
     service step's group 3)."""
     script = DEPLOY_SCRIPT.read_text(encoding="utf-8")
-    exported = dict(re.findall(r"^export (LEAVE_IMPACT_\w+_BASE_URL)=(\S+)$", script, re.MULTILINE))
+    held = dict(re.findall(r"^(LEAVE_IMPACT_\w+_BASE_URL)=(\S+)$", script, re.MULTILINE))
     demo = json.loads(
         (DEPLOY_SCRIPT.parents[2] / "src" / "leaveimpact" / "app" / "demo.json").read_text(
             encoding="utf-8"
         )
     )
-    assert exported["LEAVE_IMPACT_FRAPPE_BASE_URL"] == demo["frappe_base_url"]
+    assert held["LEAVE_IMPACT_FRAPPE_BASE_URL"] == demo["frappe_base_url"]
     workflow = (DEPLOY_SCRIPT.parents[2] / ".github" / "workflows" / "investigate.yml").read_text(
         encoding="utf-8"
     )
@@ -347,4 +367,4 @@ def test_the_base_urls_the_deploy_exports_are_their_sources_values() -> None:
         r"^      jira_base_url:\n(?:        .*\n)*?        default: (\S+)$", workflow, re.MULTILINE
     )
     assert default is not None
-    assert exported["LEAVE_IMPACT_JIRA_BASE_URL"] == default.group(1)
+    assert held["LEAVE_IMPACT_JIRA_BASE_URL"] == default.group(1)
