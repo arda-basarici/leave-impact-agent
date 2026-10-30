@@ -12,22 +12,36 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import UTC, date, datetime
 
+from leaveimpact.agent.log_events import ApprovalRequested, LoggedEvent
+from leaveimpact.agent.log_reader import export_of
+from leaveimpact.agent.log_transition import fold, trace_operations
+from leaveimpact.app.decide import review_of
 from leaveimpact.app.public import PublicId, PublicReplay
 from leaveimpact.app.report import (
     EvidenceStatus,
+    Reads,
     ReportView,
+    ReviewView,
+    exclusion_sentence,
     report_view,
+    requirement_sentence,
+    review_view,
     value_text,
 )
 from leaveimpact.core import (
     ClaimType,
     DateSpan,
     EvidenceRef,
+    Excluded,
+    Exclusion,
+    PlacementState,
     Requirement,
     RunCondition,
+    RunExport,
     ScenarioId,
     SkillCriterion,
     Source,
+    SpanPlacement,
     TerminalStatus,
     Unknown,
     UnknownReason,
@@ -37,6 +51,7 @@ from leaveimpact.core.ids import claim_id, skill_id
 from leaveimpact.core.pricing import aggregate_usage
 from leaveimpact.core.usage import ReportedUsage
 from tests.unit import format_fixtures as cases
+from tests.unit import log_histories as histories
 from tests.unit import report_view_fixture as fixture
 from tests.unit import stated_fixture as f
 
@@ -265,7 +280,8 @@ def test_an_attempt_that_ended_before_any_read_says_nothing_ran() -> None:
     assert ending.status is TerminalStatus.FAILED
     assert ending.headline == "Nothing ran: no worker claimed the attempt."
     assert "Failed by infrastructure: no worker claimed the attempt" in ending.details
-    assert "Abandoned by operator: cancelled" in ending.details
+    assert "Abandoned by an operator: cancelled" in ending.details
+    assert ending.authority == "operator", "the identity itself, for the trail"
     assert ending.failure_anchor is None and ending.caps == ()
     assert ending.reads_summary == "0 completed reads returned 0 records from no source."
     assert view.leave is None and view.impacts == () and ending.empty
@@ -370,9 +386,7 @@ def test_fact_values_read_as_a_sentence_says_them() -> None:
     reads = report_view(REPLAY, fixture.all_types(), fixture.INSTANTS)
     assert reads is not None
     requirement = Requirement(2, (SkillCriterion(skill_id("kafka")),))
-    from leaveimpact.app.report import _Reads  # pyright: ignore[reportPrivateUsage]
-
-    empty = _Reads(())
+    empty = Reads(())
     assert value_text(requirement, empty) == "at least 2 people, each with the skill kafka"
     assert value_text(Requirement(1, ()), empty) == "at least 1 person"
     assert (
@@ -380,3 +394,140 @@ def test_fact_values_read_as_a_sentence_says_them() -> None:
         == "2026-03-09 to 2026-03-13"
     )
     assert value_text(f.DENIZ_REF, empty) == "emp_023"
+
+
+# --- The ending's sweeper cases and the role wording --------------------------------------------
+
+
+def closed_by_the_sweeper(export: RunExport) -> RunExport:
+    """The same export with its abandonment under the demo sweeper's identity."""
+    record = export.record
+    assert record.abandonment is not None
+    abandonment = replace(record.abandonment, authority="demo-sweeper")
+    return replace(export, record=replace(record, abandonment=abandonment))
+
+
+def test_a_wait_the_sweeper_closed_reads_as_no_decision_within_the_wait() -> None:
+    view = view_of(closed_by_the_sweeper(cases.abandoned_attempt()))
+    ending = view.ending
+    assert ending.status is TerminalStatus.FAILED
+    assert ending.headline == (
+        "No decision came within the wait; the run closed without one. "
+        "Its reservation was reconciled."
+    )
+    assert "Abandoned by the demo's sweeper: cancelled" in ending.details
+    assert "An approval was requested and never given." in ending.details
+    assert ending.authority == "demo-sweeper"
+    assert all("demo-sweeper" not in line for line in (ending.headline, *ending.details))
+
+
+def test_an_unclaimed_attempt_the_sweeper_closed_says_so() -> None:
+    view = view_of(closed_by_the_sweeper(cases.never_claimed()))
+    ending = view.ending
+    assert ending.headline == "The demo's sweeper closed the attempt before any worker ran it."
+    assert "Abandoned by the demo's sweeper: cancelled" in ending.details
+    assert "No approval was requested." in ending.details
+
+
+def test_an_operators_abandonment_names_the_role_and_keeps_the_identity_apart() -> None:
+    view = view_of(cases.abandoned_attempt())
+    ending = view.ending
+    assert ending.headline == "The run failed."
+    assert "Abandoned by an operator: cancelled" in ending.details
+    assert ending.authority == "operator"
+    completed = view_of(fixture.all_types())
+    assert completed.ending.authority is None
+
+
+# --- The review view ----------------------------------------------------------------------------
+
+
+def review_over(events: tuple[LoggedEvent, ...]) -> tuple[ReviewView, int]:
+    """The review view over the history's open state at its approval request, built as the
+    route builds it: the request's review and the open state's operations."""
+    requested = next(e.position for e in events if isinstance(e.event, ApprovalRequested))
+    state = fold(events[:requested], histories.RULES)
+    review = review_of(state)
+    assert review is not None
+    return review_view(review, trace_operations(state)), requested
+
+
+def test_the_review_states_every_claim_with_the_sentence_the_report_will_state() -> None:
+    events = fixture.reported_history()
+    view, requested = review_over(events)
+    report = report_view(REPLAY, export_of(fold(events, histories.RULES)), fixture.INSTANTS)
+    assert view.claim_ids() == report.claim_ids() and len(view.claim_ids()) == 11
+    lines = {
+        line.claim_id: line
+        for line in (
+            *(
+                line
+                for section in view.impacts
+                for line in (section.impact, *section.assessments, *section.actions)
+            ),
+            *view.constraints,
+            *view.unknowns,
+            *view.conflicts,
+            *view.unlinked,
+        )
+    }
+    blocks = {
+        block.claim_id: block
+        for block in (
+            *(
+                block
+                for section in report.impacts
+                for block in (section.impact, *section.assessments, *section.actions)
+            ),
+            *(section.constraint for section in report.constraints),
+            *report.unknowns,
+            *report.conflicts,
+            *report.unlinked,
+        )
+    }
+    for identity, line in lines.items():
+        block = blocks[identity]
+        assert (line.kind, line.sentence, line.observations, line.rationale) == (
+            block.kind,
+            block.sentence,
+            block.observations,
+            block.rationale,
+        ), identity
+    assert view.impacts[0].actions[0].rationale == fixture.RATIONALE
+    assert view.conflicts[0].observations == report.conflicts[0].observations != ()
+    assert (view.author, view.policy) == ("rules", "stated-fact-composer")
+    assert view.position == requested and len(view.digest) == 64
+    assert '"claims"' in view.payload_json
+    assert view.unbound == () and view.exclusions == () and view.problems == ()
+
+
+def test_the_review_states_an_unbound_requirement_as_a_sentence() -> None:
+    view, _ = review_over(histories.wrong_scope_beside_unplaced())
+    assert view.claim_ids() == ()
+    assert len(view.unbound) == 1, "the placed requirement is not repeated"
+    assert view.unbound[0] == (
+        "clause_011 of Payments runbook (doc_003) requires at least 1 person, each with the "
+        'skill kafka for "Ledger cutover"; no artifact the run read bears that title, so no '
+        "constraint was composed."
+    )
+
+
+def test_an_ambiguous_requirement_and_an_exclusion_read_as_sentences() -> None:
+    export = cases.wrong_scope_beside_unplaced()
+    reads = Reads(export.trace.operations)
+    unplaced = export.trace.composition.placements[1]
+    ambiguous = replace(
+        unplaced,
+        placement=SpanPlacement(PlacementState.AMBIGUOUS, among=(f.TICKET_REF, f.REGIONAL_REF)),
+    )
+    assert requirement_sentence(ambiguous, reads) == (
+        "clause_011 of Payments runbook (doc_003) requires at least 1 person, each with the "
+        'skill kafka for "Ledger cutover"; the title matched more than one artifact the run '
+        f"read ({f.TITLE} (ticket_042), {f.REGIONAL_REF.id}), so no constraint was composed."
+    )
+    withdrawn = fixture.ticket_returned_two_ways()
+    excluded = Excluded(cases.SKILL, Exclusion.CARRIER_WITHDRAWN)
+    assert exclusion_sentence(excluded, Reads(withdrawn.trace.operations)) == (
+        f"A statement read from comment_001 of {f.TITLE} (ticket_042), that Deniz Kaya "
+        "(emp_023) has skill kafka, was left out: carrier withdrawn."
+    )

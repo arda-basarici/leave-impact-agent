@@ -18,6 +18,7 @@
 <div class="ending">
 <h2>{{ view.ending.headline }}</h2>
 {% for line in view.ending.details %}<p>{{ line }}</p>{% endfor %}
+{% if view.ending.authority %}<p class="meta">The abandoning authority as the log records it: <span class="cited">{{ view.ending.authority }}</span>.</p>{% endif %}
 <p class="meta">{{ view.ending.reads_summary }}</p>
 </div>
 

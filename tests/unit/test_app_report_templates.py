@@ -152,3 +152,17 @@ def test_the_trail_template_renders_every_fixture_whole() -> None:
     assert "service error 429" in page and 'id="count-' in page
     page = trail_of(cases.approval_wait_across_restart())
     assert "<dt>Execution</dt>" in page and "<dt>requested</dt>" in page
+
+
+def test_the_trail_prints_the_abandoning_authority_and_the_report_names_the_role() -> None:
+    export = cases.abandoned_attempt()
+    trail = trail_of(export)
+    assert (
+        'The abandoning authority as the log records it: <span class="cited">operator</span>.'
+        in trail
+    )
+    assert "Abandoned by an operator: cancelled" in trail
+    page, _ = rendered(export)
+    assert "Abandoned by an operator: cancelled" in page
+    assert "abandoning authority" not in page
+    assert "abandoning authority" not in trail_of(fixture.all_types())

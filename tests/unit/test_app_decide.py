@@ -7,11 +7,18 @@ process died between the two.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from leaveimpact.agent.log_events import Abandoned, Admitted, Approved, Declined, LoggedEvent
+from leaveimpact.agent.log_events import (
+    Abandoned,
+    Admitted,
+    ApprovalRequested,
+    Approved,
+    Declined,
+    LoggedEvent,
+)
 from leaveimpact.agent.log_transition import Appended
 from leaveimpact.app.decide import (
     DEMO_VISITOR,
@@ -20,9 +27,12 @@ from leaveimpact.app.decide import (
     DecideRefusalKind,
     DecideRefused,
     DecideRequest,
+    Viewer,
     deadline_of,
     decide,
     decision_name,
+    review_of,
+    viewer_of,
 )
 from leaveimpact.app.live import Decision, LiveRow, key_digest_of, public_id_for, run_id_for
 from leaveimpact.core import AbandonmentReason
@@ -268,3 +278,31 @@ def test_a_crash_between_the_logs_commit_and_the_row_is_repaired_by_the_retry(
     assert repaired.row.decision is decision
     assert repaired.row.decided_at == log.events(RUN, 1)[-1].timestamp
     assert rows.live_row_of(PUBLIC_ID) == repaired.row
+
+
+# --- The review and the viewer ------------------------------------------------------------------
+
+
+def test_the_review_carries_the_frozen_claims_and_composition_the_digest_covers() -> None:
+    events = awaiting()
+    log, _, _ = stores(events, clock=deadline(events))
+    review = review_of(log.load(RUN, 1, rules=RULES))
+    assert review is not None
+    requested = events[REQUESTED_AT_POSITION - 1].event
+    assert isinstance(requested, ApprovalRequested)
+    assert (review.position, review.claims, review.composition, review.digest) == (
+        REQUESTED_AT_POSITION,
+        requested.claims,
+        requested.composition,
+        DIGEST,
+    )
+    assert review_of(log.load(RUN, 1, rules=RULES)) == review, "a pure reading of the state"
+
+
+def test_the_viewer_is_the_holder_another_visitor_or_no_visitor() -> None:
+    row = LiveRow(PUBLIC_ID, RUN, 1, KEY_DIGEST, datetime(2026, 10, 27, tzinfo=UTC), None, None)
+    assert viewer_of(row, KEY) is Viewer.HOLDER
+    assert viewer_of(row, key(9)) is Viewer.OTHER
+    assert viewer_of(row, None) is Viewer.OTHER
+    assert viewer_of(None, KEY) is Viewer.NO_VISITOR
+    assert viewer_of(None, None) is Viewer.NO_VISITOR

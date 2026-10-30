@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from leaveimpact.agent.log_events import (
+    Abandoned,
     ApprovalRequested,
     Approved,
     CapExhausted,
@@ -35,6 +36,7 @@ from leaveimpact.agent.log_events import (
     SegmentStarted,
 )
 from leaveimpact.core import (
+    AbandonmentReason,
     AbsentOutcome,
     Approver,
     AttributionKind,
@@ -250,7 +252,35 @@ def failed_in_the_harness() -> tuple[LoggedEvent, ...]:
     return log.logged()
 
 
+def sweeper_closed_wait() -> tuple[LoggedEvent, ...]:
+    """A review requested and never decided, the wait closed by the demo's sweeper: the
+    live pages step's wait case, the abandonment an outside producer's under the sweeper's
+    own identity with the reason ``cancelled``."""
+    log = _claimed()
+    _counted(log)
+    log.worker(h.intent(1), offset=600)
+    answer = h.body("end_turn", h.text("Done."))
+    log.worker(h.outcome(1, 1, h.complete(), response=answer), offset=1_500)
+    log.worker(ApprovalRequested((), cases.RULES, False), offset=7_000)
+    log.worker(SegmentEnded(), offset=7_900)
+    log.outside(SWEEPER, Abandoned(1, AbandonmentReason.CANCELLED, SETTLEMENT))
+    return log.logged()
+
+
+def sweeper_closed_unclaimed() -> tuple[LoggedEvent, ...]:
+    """An attempt admitted and claimed by nobody, given up on by the demo's sweeper."""
+    log = h.History()
+    log.admit(h.inputs(reservation=10 * cases.ALLOCATION))
+    log.outside(SWEEPER, Abandoned(0, AbandonmentReason.CANCELLED, SETTLEMENT))
+    return log.logged()
+
+
+SWEEPER = "demo-sweeper"
+"""The demo sweeper's identity as the roles module spells it (its test holds the two equal)."""
+
 VARIANTS: dict[str, Build] = {
+    "a wait the demo's sweeper closed": sweeper_closed_wait,
+    "an unclaimed attempt the demo's sweeper closed": sweeper_closed_unclaimed,
     "a read that found nothing and one the wrapper refused": reads_absent_and_refused,
     "two skipped reads": reads_skipped,
     "an unreachable source": read_unreachable,

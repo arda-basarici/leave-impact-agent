@@ -63,6 +63,8 @@ from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.config import DemoConfiguration
 from leaveimpact.app.live import Decision, LiveRow, StartKey
 from leaveimpact.app.public import PublicId
+from leaveimpact.core.claims import Claim
+from leaveimpact.core.run_ending import Composition
 from leaveimpact.core.run_parts_json import review_payload, review_payload_digest
 from leaveimpact.core.run_trace import require_digest
 
@@ -196,10 +198,13 @@ def decide(
 @dataclass(frozen=True, slots=True)
 class Review:
     """The review an open attempt awaits a decision on, as the replay page shows it: the
-    request's position, the payload as indented JSON, and its digest, which the decision
+    request's position, the frozen claims and composition the digest covers (what the page
+    renders as sentences), the payload as indented JSON, and its digest, which the decision
     form carries back."""
 
     position: int
+    claims: tuple[Claim, ...]
+    composition: Composition
     payload_json: str
     digest: str
 
@@ -215,9 +220,36 @@ def review_of(state: AttemptState) -> Review | None:
     payload = review_payload(event.claims, event.composition)
     return Review(
         requested.position,
+        event.claims,
+        event.composition,
         json.dumps(payload, indent=2, sort_keys=True),
         review_payload_digest(event.claims, event.composition),
     )
+
+
+class Viewer(StrEnum):
+    """Who is reading an open attempt's page, as the live row and the browser's key tell it;
+    the page renders the decision form to the holder alone and tells every other viewer
+    what is true (the live pages step, group 3's design pass, fork 3). The post keeps its
+    own check: this classification decides what a page shows, never what the log admits."""
+
+    HOLDER = "holder"
+    """The browser holds the key the attempt was started under."""
+    OTHER = "other"
+    """A visitor started the attempt, and this browser holds no key or another one."""
+    NO_VISITOR = "no_visitor"
+    """No visitor started it: an operator's attempt, published while open."""
+
+
+def viewer_of(row: LiveRow | None, key: StartKey | None) -> Viewer:
+    """The viewer the page renders for, from the live row the public id names (``None`` for
+    an attempt no visitor started) and the key the browser's cookie carries (``None`` for
+    none or not a key); a hash comparison, as the decision's."""
+    if row is None:
+        return Viewer.NO_VISITOR
+    if key is not None and row.holds(key):
+        return Viewer.HOLDER
+    return Viewer.OTHER
 
 
 def held_position(state: AttemptState, decision: Decision, payload_digest: str) -> int | None:
@@ -305,9 +337,11 @@ __all__ = [
     "Decided",
     "DecisionRows",
     "Review",
+    "Viewer",
     "deadline_of",
     "decide",
     "decision_name",
     "held_position",
     "review_of",
+    "viewer_of",
 ]

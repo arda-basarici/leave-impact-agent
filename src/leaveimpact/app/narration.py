@@ -56,6 +56,7 @@ from leaveimpact.agent.log_events import (
     OperationResult,
     OperationSkip,
     PrefetchKey,
+    Producer,
     Resumed,
     SegmentEnded,
     SegmentStarted,
@@ -72,6 +73,7 @@ from leaveimpact.agent.log_transition import (
     trace_operations,
 )
 from leaveimpact.app.amounts import dollars
+from leaveimpact.app.roles import SWEEPER_IDENTITY, role_of
 from leaveimpact.core.counting_operations import (
     CountClientError,
     Counted,
@@ -229,7 +231,11 @@ def _text(before: AttemptState, after: AttemptState, logged: LoggedEvent) -> str
                 event.settlement
             )
         case Abandoned():
-            return _abandoned(event.reason) + _settled(event.settlement)
+            envelope = logged.envelope
+            assert isinstance(envelope, Producer), "an abandonment is an outside producer's"
+            return _abandoned(before, envelope.identity, event.reason) + _settled(
+                event.settlement
+            )
         case Declined():
             return "a person declined the plan; the attempt is closed" + _settled(
                 event.settlement
@@ -491,12 +497,25 @@ def _approver(approver: Approver) -> str:
             assert_never(unreachable)
 
 
-def _abandoned(reason: AbandonmentReason) -> str:
+def _abandoned(before: AttemptState, authority: str, reason: AbandonmentReason) -> str:
+    """The abandonment's line: the authority by role (the roles module), and for the demo
+    sweeper's cancellation the condition it cancels on, read off the state before it, a
+    wait with no decision or an attempt no worker claimed."""
+    role = role_of(authority)
     match reason:
         case AbandonmentReason.CANCELLED:
-            return "an operator cancelled the attempt; it is abandoned"
+            if authority != SWEEPER_IDENTITY:
+                return f"{role} cancelled the attempt; it is abandoned"
+            if before.approval_requested is not None and before.approved is None:
+                return (
+                    f"no decision came within the wait; {role} closed the attempt; it is abandoned"
+                )
+            return f"{role} closed the attempt before any worker ran it; it is abandoned"
         case AbandonmentReason.INTERRUPTED:
-            return "the attempt lost its worker and was judged not resumable; it is abandoned"
+            return (
+                f"the attempt lost its worker and was judged not resumable by {role}; "
+                "it is abandoned"
+            )
         case _ as unreachable:
             assert_never(unreachable)
 

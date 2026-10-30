@@ -214,7 +214,21 @@ VARIANT_LINES: tuple[tuple[str, EventKind, int, str], ...] = (
         "a recorded defect an operator finalized",
         EventKind.ABANDONED,
         1,
-        "the attempt lost its worker and was judged not resumable; it is abandoned",
+        "the attempt lost its worker and was judged not resumable by an operator; it is "
+        "abandoned",
+    ),
+    (
+        "a wait the demo's sweeper closed",
+        EventKind.ABANDONED,
+        1,
+        "no decision came within the wait; the demo's sweeper closed the attempt; it is "
+        "abandoned; the reservation was reconciled",
+    ),
+    (
+        "an unclaimed attempt the demo's sweeper closed",
+        EventKind.ABANDONED,
+        1,
+        "the demo's sweeper closed the attempt before any worker ran it; it is abandoned",
     ),
     (
         "a multi-tool answer whose first call ends the attempt",

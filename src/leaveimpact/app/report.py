@@ -31,17 +31,31 @@ recurse; the core's structural check of the claim set is shown as a defect banne
 page's one input beyond the export is the log's accept instant per position, read off the
 admitted state by the read model, since an export holds positions and not instants and the
 timeline shows the same clock.
+
+The review view is the one page not rendered from an export: an open attempt awaiting its
+decision has none, and the visitor deciding should read what the plan says, not a JSON
+dump (the live pages step, group 3's design pass, fork 1). It is built from the log's
+frozen request, the claims and the composition the approval's digest covers, over the
+same reads index the closed report builds, fed the open state's operations by the same
+reader the export uses, so a claim's sentence on the awaiting page is the sentence the
+report states a minute later. Every claim kind is rendered, grouped as the report groups
+them, with the unbound requirements and the exclusions as sentences of their own; the
+frozen JSON and its digest sit beneath, the page saying the digest binds the JSON and the
+rendering is a reading of it. No evidence is shown there: the quotations and the records
+are the closed report's, and the review's sentences carry the names the run read.
 """
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass, fields
 from datetime import date, datetime
 from enum import StrEnum
 from typing import assert_never, cast
 
+from leaveimpact.app.decide import Review
 from leaveimpact.app.public import PublicReplay
+from leaveimpact.app.roles import SWEEPER_IDENTITY, role_of
 from leaveimpact.core.claims import (
     AssessmentReason,
     AuthorityRule,
@@ -85,17 +99,20 @@ from leaveimpact.core.refs import (
     leave_ref,
 )
 from leaveimpact.core.run_ending import (
+    AbandonmentReason,
     ApprovalState,
     Approver,
     DispatchSite,
     HarnessSite,
     InputBoundSite,
     OperationSite,
+    RequirementPlacement,
 )
 from leaveimpact.core.run_export import RunExport
 from leaveimpact.core.run_record import TerminalStatus
 from leaveimpact.core.run_trace import Operation, is_completed_read, is_failed_read, records_of
-from leaveimpact.core.stated import Admitted, StatedFact
+from leaveimpact.core.stated import Admitted, PlacementState, StatedFact
+from leaveimpact.core.stated_view import Excluded
 from leaveimpact.core.token_counting import count_tokens
 from leaveimpact.core.values import (
     FactValue,
@@ -223,7 +240,9 @@ class CapLine:
 class EndingView:
     """How the run ended, first on the page: the headline, the approval and failure lines,
     the anchor on the trail where a failure sits, the caps when the run stopped at them,
-    what the run read, and whether it reported any impact."""
+    what the run read, and whether it reported any impact. ``authority`` is the abandoning
+    producer's identity itself, which the trail prints beside the role the lines name and
+    the report never does."""
 
     status: TerminalStatus
     headline: str
@@ -232,6 +251,7 @@ class EndingView:
     caps: tuple[CapLine, ...]
     reads_summary: str
     empty: bool
+    authority: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -287,6 +307,62 @@ class ReportView:
         return tuple(ids)
 
 
+@dataclass(frozen=True, slots=True)
+class ReviewLine:
+    """One claim as the awaiting page states it: the sentence over the run's reads and the
+    fields only some kinds carry; no evidence, which is the closed report's."""
+
+    claim_id: ClaimId
+    kind: ClaimType
+    sentence: str
+    observations: tuple[tuple[str, str], ...] = ()
+    rationale: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewImpact:
+    """An impact with the candidates assessed for it and the plan's action on it, as the
+    review states them."""
+
+    impact: ReviewLine
+    assessments: tuple[ReviewLine, ...]
+    actions: tuple[ReviewLine, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ReviewView:
+    """The review an open attempt awaits a decision on, rendered: the request's position,
+    who composed the claims under which policy, every claim as a sentence in the report's
+    grouping, the requirements whose span did not bind and the statements the composition
+    left out as sentences, the structural problems, and beneath them the frozen JSON with
+    the digest the decision binds to."""
+
+    position: int
+    digest: str
+    payload_json: str
+    author: str
+    policy: str
+    impacts: tuple[ReviewImpact, ...]
+    constraints: tuple[ReviewLine, ...]
+    unknowns: tuple[ReviewLine, ...]
+    conflicts: tuple[ReviewLine, ...]
+    unlinked: tuple[ReviewLine, ...]
+    unbound: tuple[str, ...]
+    exclusions: tuple[str, ...]
+    problems: tuple[str, ...]
+
+    def claim_ids(self) -> tuple[ClaimId, ...]:
+        """Every claim the review states, in page order."""
+        ids: list[ClaimId] = []
+        for section in self.impacts:
+            ids.append(section.impact.claim_id)
+            ids.extend(line.claim_id for line in section.assessments)
+            ids.extend(line.claim_id for line in section.actions)
+        for lines in (self.constraints, self.unknowns, self.conflicts, self.unlinked):
+            ids.extend(line.claim_id for line in lines)
+        return tuple(ids)
+
+
 # --- The reads, indexed --------------------------------------------------------------------
 
 
@@ -298,7 +374,7 @@ class _Part:
     parent: EntityRef
 
 
-class _Reads:
+class Reads:
     """The run's completed reads by reference: each record as first returned, each section
     and comment as first returned with its parent, every position that returned each, and
     the references the core's coverage mapping withdrew."""
@@ -407,7 +483,7 @@ def _fields_of(record: Observed[Entity]) -> tuple[tuple[str, str], ...]:
 
 def _evidence(
     cited: EvidenceRef,
-    reads: _Reads,
+    reads: Reads,
     statements: _Statements,
     instants: Instants,
 ) -> EvidenceItem:
@@ -473,7 +549,7 @@ def _phrase(name: PredicateName) -> str:
     return name.value.replace("_", " ")
 
 
-def value_text(value: FactValue, label: _Reads) -> str:
+def value_text(value: FactValue, label: Reads) -> str:
     """A fact value as a sentence says it."""
     match value:
         case EntityRef():
@@ -500,7 +576,7 @@ def value_text(value: FactValue, label: _Reads) -> str:
             assert_never(value)
 
 
-def impact_sentence(claim: Impact, reads: _Reads) -> str:
+def impact_sentence(claim: Impact, reads: Reads) -> str:
     artifact = reads.label(claim.artifact)
     match claim.subtype:
         case ImpactSubtype.DEADLINE:
@@ -513,11 +589,11 @@ def impact_sentence(claim: Impact, reads: _Reads) -> str:
             assert_never(claim.subtype)
 
 
-def constraint_sentence(claim: Constraint, reads: _Reads) -> str:
+def constraint_sentence(claim: Constraint, reads: Reads) -> str:
     return f"{reads.label(clause_ref(claim.clause_id))} applies to {reads.label(claim.applies_to)}."
 
 
-def assessment_sentence(claim: CandidateAssessment, reads: _Reads) -> str:
+def assessment_sentence(claim: CandidateAssessment, reads: Reads) -> str:
     who = reads.label(employee_ref(claim.employee_id))
     artifact = reads.label(claim.impact_key.artifact)
     match claim.verdict:
@@ -532,7 +608,7 @@ def assessment_sentence(claim: CandidateAssessment, reads: _Reads) -> str:
             assert_never(claim.verdict)
 
 
-def action_sentence(claim: CoverageAction, reads: _Reads) -> str:
+def action_sentence(claim: CoverageAction, reads: Reads) -> str:
     artifact = reads.label(claim.impact_key.artifact)
     match claim.action:
         case CoverageActionKind.ASSIGN:
@@ -546,14 +622,14 @@ def action_sentence(claim: CoverageAction, reads: _Reads) -> str:
             assert_never(claim.action)
 
 
-def unknown_sentence(claim: Unknown, reads: _Reads) -> str:
+def unknown_sentence(claim: Unknown, reads: Reads) -> str:
     return (
         f"The {_phrase(claim.required_fact)} of {reads.label(claim.subject)} could not be "
         f"established: {_UNKNOWN_REASONS[claim.reason]}."
     )
 
 
-def conflict_sentence(claim: SourceConflict, reads: _Reads) -> str:
+def conflict_sentence(claim: SourceConflict, reads: Reads) -> str:
     said = "; ".join(
         f"{observation.source.value} says {value_text(observation.value, reads)}"
         for observation in claim.observations
@@ -565,7 +641,39 @@ def conflict_sentence(claim: SourceConflict, reads: _Reads) -> str:
     )
 
 
-def sentence_of(claim: Claim, reads: _Reads) -> str:
+def requirement_sentence(entry: RequirementPlacement, reads: Reads) -> str:
+    """The sentence for a requirement whose span did not bind: the clause as the run read
+    it, what it requires, the span as the model quoted it, and why nothing was placed (no
+    read title equals it, or the read titles that kept it from binding)."""
+    fact = entry.fact
+    clause = reads.label(fact.carrier)
+    requires = value_text(fact.value, reads)
+    span = fact.quote if fact.target_span is None else fact.target_span
+    placement = entry.placement
+    match placement.state:
+        case PlacementState.UNPLACED:
+            why = "no artifact the run read bears that title"
+        case PlacementState.AMBIGUOUS:
+            among = ", ".join(reads.label(ref) for ref in placement.among)
+            why = f"the title matched more than one artifact the run read ({among})"
+        case PlacementState.PLACED:
+            why = "it was placed"
+        case _:
+            assert_never(placement.state)
+    return f'{clause} requires {requires} for "{span}"; {why}, so no constraint was composed.'
+
+
+def exclusion_sentence(excluded: Excluded, reads: Reads) -> str:
+    """The sentence for an admitted statement the composition left out of the view: what was
+    stated of whom, read from where, and the reason."""
+    fact = excluded.fact
+    said = f"{reads.label(fact.subject)} {_phrase(fact.predicate)} {value_text(fact.value, reads)}"
+    reason = excluded.reason.value.replace("_", " ")
+    carrier = reads.label(fact.carrier)
+    return f"A statement read from {carrier}, that {said}, was left out: {reason}."
+
+
+def sentence_of(claim: Claim, reads: Reads) -> str:
     """The deterministic sentence for ``claim`` over the run's reads."""
     match claim:
         case Impact():
@@ -587,13 +695,8 @@ def sentence_of(claim: Claim, reads: _Reads) -> str:
 # --- The blocks -----------------------------------------------------------------------------
 
 
-def _block(
-    claim: Claim,
-    reads: _Reads,
-    statements: _Statements,
-    instants: Instants,
-    held: frozenset[ClaimId],
-) -> ClaimBlock:
+def _extras(claim: Claim, reads: Reads) -> tuple[tuple[tuple[str, str], ...], str | None]:
+    """The fields only some kinds carry: a conflict's observations, an action's rationale."""
     observations: tuple[tuple[str, str], ...] = ()
     rationale: str | None = None
     if isinstance(claim, SourceConflict):
@@ -603,6 +706,17 @@ def _block(
         )
     if isinstance(claim, CoverageAction):
         rationale = claim.rationale
+    return observations, rationale
+
+
+def _block(
+    claim: Claim,
+    reads: Reads,
+    statements: _Statements,
+    instants: Instants,
+    held: frozenset[ClaimId],
+) -> ClaimBlock:
+    observations, rationale = _extras(claim, reads)
     return ClaimBlock(
         claim_id=claim.claim_id,
         kind=claim.claim_type,
@@ -723,11 +837,26 @@ def ending_view(export: RunExport, *, empty: bool) -> EndingView:
     if failure is not None:
         details.append(f"Failed by {failure.category.value}: {failure.reason}")
     abandonment = record.abandonment
-    if abandonment is not None:
-        details.append(
-            f"Abandoned by {abandonment.authority}: {abandonment.reason.value.replace('_', ' ')}"
-        )
     approval = record.approval
+    if abandonment is not None:
+        # The demo's sweeper cancels on exactly two conditions (its module): a wait whose
+        # deadline passed with no decision, and an attempt no worker claimed. Each gets the
+        # headline a visitor can read; the generic line names the role, never the identity.
+        by_sweeper = (
+            abandonment.authority == SWEEPER_IDENTITY
+            and abandonment.reason is AbandonmentReason.CANCELLED
+        )
+        if by_sweeper and approval.state is ApprovalState.REQUESTED_UNAPPROVED:
+            headline = "No decision came within the wait; the run closed without one."
+            reservation = record.reservation
+            if reservation is not None:
+                headline += f" Its reservation was {reservation.state.value}."
+        elif by_sweeper and approval.state is ApprovalState.NOT_REQUESTED:
+            headline = "The demo's sweeper closed the attempt before any worker ran it."
+        details.append(
+            f"Abandoned by {role_of(abandonment.authority)}: "
+            f"{abandonment.reason.value.replace('_', ' ')}"
+        )
     match approval.state:
         case ApprovalState.NOT_REQUESTED:
             details.append("No approval was requested.")
@@ -754,11 +883,12 @@ def ending_view(export: RunExport, *, empty: bool) -> EndingView:
         caps=caps,
         reads_summary=_reads_summary(export.trace.operations),
         empty=empty,
+        authority=None if abandonment is None else abandonment.authority,
     )
 
 
 def _leave(
-    export: RunExport, reads: _Reads, statements: _Statements, instants: Instants
+    export: RunExport, reads: Reads, statements: _Statements, instants: Instants
 ) -> LeaveView | None:
     ref = leave_ref(export.context.leave_id)
     record = reads.first.get(ref)
@@ -807,17 +937,24 @@ def header_view(replay: PublicReplay, export: RunExport) -> ReportHeader:
     )
 
 
-def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> ReportView:
-    """The page for ``export`` under the public name ``replay`` gives it, each position's
-    log instant from ``instants``; pure, and total over any export the type admits."""
-    claims = export.trace.claims
-    reads = _Reads(export.trace.operations)
-    statements = _admitted_statements(export)
-    held = frozenset(claim.claim_id for claim in claims)
+@dataclass(frozen=True, slots=True)
+class _Grouping:
+    """The claims in the manager's reading order, which the report and the review share:
+    the impacts by key order each with its assessments and actions, the constraints, the
+    unknowns, the conflicts, the assessments and actions whose impact is not in the set,
+    and the first impact claimed about each artifact."""
 
-    def block(claim: Claim) -> ClaimBlock:
-        return _block(claim, reads, statements, instants, held)
+    impacts: tuple[
+        tuple[Impact, tuple[CandidateAssessment, ...], tuple[CoverageAction, ...]], ...
+    ]
+    constraints: tuple[Constraint, ...]
+    unknowns: tuple[Unknown, ...]
+    conflicts: tuple[SourceConflict, ...]
+    unlinked: tuple[CandidateAssessment | CoverageAction, ...]
+    by_artifact: Mapping[EntityRef, ClaimId]
 
+
+def _grouped(claims: Sequence[Claim]) -> _Grouping:
     impacts = sorted((c for c in claims if isinstance(c, Impact)), key=lambda c: key_order(c.key))
     assessments = [c for c in claims if isinstance(c, CandidateAssessment)]
     actions = [c for c in claims if isinstance(c, CoverageAction)]
@@ -827,50 +964,118 @@ def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> 
     impact_keys: dict[ImpactKey, ClaimId] = {}
     for impact in impacts:
         impact_keys.setdefault(impact.key, impact.claim_id)
-    sections = tuple(
-        ImpactSection(
-            block(impact),
-            tuple(
-                block(c)
-                for c in assessments
-                if c.impact_key == impact.key and impact_keys[impact.key] == impact.claim_id
-            ),
-            tuple(
-                block(c)
-                for c in actions
-                if c.impact_key == impact.key and impact_keys[impact.key] == impact.claim_id
-            ),
-        )
-        for impact in impacts
-    )
+
+    def under(impact: Impact, claim: CandidateAssessment | CoverageAction) -> bool:
+        return claim.impact_key == impact.key and impact_keys[impact.key] == impact.claim_id
+
     by_artifact: dict[EntityRef, ClaimId] = {}
     for impact in impacts:
         by_artifact.setdefault(impact.artifact, impact.claim_id)
-    constraints = tuple(
-        ConstraintSection(block(c), reads.label(c.applies_to), by_artifact.get(c.applies_to))
-        for c in claims
-        if isinstance(c, Constraint)
+    return _Grouping(
+        impacts=tuple(
+            (
+                impact,
+                tuple(c for c in assessments if under(impact, c)),
+                tuple(c for c in actions if under(impact, c)),
+            )
+            for impact in impacts
+        ),
+        constraints=tuple(c for c in claims if isinstance(c, Constraint)),
+        unknowns=tuple(c for c in claims if isinstance(c, Unknown)),
+        conflicts=tuple(c for c in claims if isinstance(c, SourceConflict)),
+        unlinked=tuple(
+            c
+            for c in claims
+            if isinstance(c, CandidateAssessment | CoverageAction)
+            and c.impact_key not in impact_keys
+        ),
+        by_artifact=by_artifact,
     )
-    unknowns = tuple(block(c) for c in claims if isinstance(c, Unknown))
-    conflicts = tuple(block(c) for c in claims if isinstance(c, SourceConflict))
-    unlinked = tuple(
-        block(c)
-        for c in claims
-        if isinstance(c, CandidateAssessment | CoverageAction) and c.impact_key not in impact_keys
-    )
+
+
+def report_view(replay: PublicReplay, export: RunExport, instants: Instants) -> ReportView:
+    """The page for ``export`` under the public name ``replay`` gives it, each position's
+    log instant from ``instants``; pure, and total over any export the type admits."""
+    claims = export.trace.claims
+    reads = Reads(export.trace.operations)
+    statements = _admitted_statements(export)
+    held = frozenset(claim.claim_id for claim in claims)
+    grouping = _grouped(claims)
+
+    def block(claim: Claim) -> ClaimBlock:
+        return _block(claim, reads, statements, instants, held)
+
     context = export.context
     return ReportView(
         header=header_view(replay, export),
-        ending=ending_view(export, empty=not impacts),
+        ending=ending_view(export, empty=not grouping.impacts),
         condition=condition_view(export),
         leave_id=context.leave_id,
         leave=_leave(export, reads, statements, instants),
-        impacts=sections,
-        constraints=constraints,
-        unknowns=unknowns,
-        conflicts=conflicts,
-        unlinked=unlinked,
+        impacts=tuple(
+            ImpactSection(
+                block(impact),
+                tuple(block(c) for c in assessments),
+                tuple(block(c) for c in actions),
+            )
+            for impact, assessments, actions in grouping.impacts
+        ),
+        constraints=tuple(
+            ConstraintSection(
+                block(c), reads.label(c.applies_to), grouping.by_artifact.get(c.applies_to)
+            )
+            for c in grouping.constraints
+        ),
+        unknowns=tuple(block(c) for c in grouping.unknowns),
+        conflicts=tuple(block(c) for c in grouping.conflicts),
+        unlinked=tuple(block(c) for c in grouping.unlinked),
         problems=structural_problems(claims),
+    )
+
+
+def review_view(review: Review, operations: Iterable[Operation]) -> ReviewView:
+    """The awaiting page's reading of ``review`` over the reads ``operations`` hold, the
+    open state's operations as the export's own reader lists them, so each sentence is the
+    one the report states once the attempt closes; pure, and total over any review."""
+    reads = Reads(operations)
+    composition = review.composition
+    grouping = _grouped(review.claims)
+
+    def line(claim: Claim) -> ReviewLine:
+        observations, rationale = _extras(claim, reads)
+        return ReviewLine(
+            claim_id=claim.claim_id,
+            kind=claim.claim_type,
+            sentence=sentence_of(claim, reads),
+            observations=observations,
+            rationale=rationale,
+        )
+
+    return ReviewView(
+        position=review.position,
+        digest=review.digest,
+        payload_json=review.payload_json,
+        author=composition.author.value,
+        policy=composition.policy.identifier,
+        impacts=tuple(
+            ReviewImpact(
+                line(impact), tuple(line(c) for c in assessments), tuple(line(c) for c in actions)
+            )
+            for impact, assessments, actions in grouping.impacts
+        ),
+        constraints=tuple(line(c) for c in grouping.constraints),
+        unknowns=tuple(line(c) for c in grouping.unknowns),
+        conflicts=tuple(line(c) for c in grouping.conflicts),
+        unlinked=tuple(line(c) for c in grouping.unlinked),
+        unbound=tuple(
+            requirement_sentence(entry, reads)
+            for entry in composition.placements
+            if entry.placement.state is not PlacementState.PLACED
+        ),
+        exclusions=tuple(
+            exclusion_sentence(excluded, reads) for excluded in composition.exclusions
+        ),
+        problems=structural_problems(review.claims),
     )
 
 
@@ -887,12 +1092,19 @@ __all__ = [
     "Instants",
     "LeaveView",
     "QuoteView",
+    "Reads",
     "ReportHeader",
     "ReportView",
+    "ReviewImpact",
+    "ReviewLine",
+    "ReviewView",
     "condition_view",
     "ending_view",
+    "exclusion_sentence",
     "header_view",
     "report_view",
+    "requirement_sentence",
+    "review_view",
     "sentence_of",
     "value_text",
 ]
