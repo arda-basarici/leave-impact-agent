@@ -11,6 +11,7 @@
 {% endif %}
 </div>
 {%- endmacro %}
+{% block head %}{% if view.refresh_seconds %}<meta http-equiv="refresh" content="{{ view.refresh_seconds }}">{% endif %}{% endblock %}
 {% block content %}
 <p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ replay.public_id }}/timeline">Timeline</a></p>
 <h1>{{ replay.title or replay.public_id }}</h1>
@@ -20,10 +21,10 @@
   <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
 </dl>
 {% if view.phase.value == "investigating" %}
-<p class="meta">This run is investigating; its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
+<p class="meta">This run is investigating; its report renders when it closes. This page refreshes itself every {{ view.refresh_seconds }} seconds and shows the decision when the run asks for one. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
 <p class="meta">{{ view.wait }}</p>
 {% elif view.phase.value == "approved" %}
-<p class="meta">The plan was approved at {{ view.approved_at.isoformat() }}; the run is carrying it out and its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
+<p class="meta">The plan was approved at {{ view.approved_at.isoformat() }}; the run is carrying it out and its report renders when it closes. This page refreshes itself every {{ view.refresh_seconds }} seconds. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
 {% elif view.phase.value == "awaiting" %}
 {% set review = view.review %}
 <h2>A decision is asked</h2>

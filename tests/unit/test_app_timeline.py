@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from markupsafe import escape
 
-from leaveimpact.agent.log_events import OperationEvent, OperationResult, PrefetchKey
+from leaveimpact.agent.log_events import EventKind, OperationEvent, OperationResult, PrefetchKey
 from leaveimpact.core import RefusedCallOutcome, Source
 from tests.unit import log_histories as histories
 from tests.unit.publishable_fixture import CLOSED, SERVED, history_in_world
@@ -51,6 +51,12 @@ def test_an_open_attempts_timeline_shows_the_lines_so_far_and_follows_the_stream
     assert 'addEventListener("unavailable"' in page.text
     assert "textContent = data.text" in page.text and "innerHTML" not in page.text
     assert "in progress" in page.text
+    # Group 3's external read: the open timeline leads back to the page where a decision
+    # is asked, in its header always and in its status line when the request's frame lands.
+    assert '<a href="/replays/live">The replay page, where a decision is asked</a>' in page.text
+    assert f'data.kind === "{EventKind.APPROVAL_REQUESTED.value}"' in page.text
+    assert 'link.href = "/replays/" + encodeURIComponent(attempt)' in page.text
+    assert "Audit trail" not in page.text, "the trail needs an export, which an open run has not"
 
 
 def test_the_other_pages_link_to_the_timeline() -> None:

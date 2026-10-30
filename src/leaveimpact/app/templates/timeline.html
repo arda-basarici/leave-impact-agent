@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Timeline · {{ replay.title or replay.public_id }} · Leave Impact Agent{% endblock %}
 {% block content %}
-<p class="meta"><a href="/replays">All replays</a>{% if not view.open %} · <a href="/replays/{{ replay.public_id }}">The report</a> · <a href="/replays/{{ replay.public_id }}/trail">Audit trail</a>{% endif %}</p>
+<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ replay.public_id }}">{% if view.open %}The replay page, where a decision is asked{% else %}The report{% endif %}</a>{% if not view.open %} · <a href="/replays/{{ replay.public_id }}/trail">Audit trail</a>{% endif %}</p>
 <h1>Timeline: {{ replay.title or replay.public_id }}</h1>
 <dl>
   <dt>Scenario</dt><dd>{{ replay.scenario_id }}</dd>
@@ -44,7 +44,19 @@
     item.appendChild(text);
     list.appendChild(item);
   }
-  source.addEventListener("line", function (event) { place(JSON.parse(event.data)); });
+  function asked() {
+    // The approval request's frame: the decision is asked on the replay page, not here.
+    status.textContent = "A decision is asked: ";
+    var link = document.createElement("a");
+    link.href = "/replays/" + encodeURIComponent(attempt);
+    link.textContent = "the replay page has it";
+    status.appendChild(link);
+  }
+  source.addEventListener("line", function (event) {
+    var data = JSON.parse(event.data);
+    place(data);
+    if (data.kind === "approval_requested") { asked(); }
+  });
   source.addEventListener("closed", function (event) {
     place(JSON.parse(event.data));
     status.textContent = "The run has ended; reload this page for its report.";

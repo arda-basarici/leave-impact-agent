@@ -431,18 +431,26 @@ def test_the_index_state_is_the_form_then_busy_then_spent_then_the_address() -> 
     log, rows = stores()
     assert index_state(log, composition(), ADDRESS) == FormOpen(remaining=5, cap=5)
     first = started(start(request(key(1), SCENARIO), log, rows, composition()))
-    assert index_state(log, composition(), ADDRESS) == Busy(first.row.public_id)
-    assert index_state(log, composition(), "198.51.100.9") == Busy(first.row.public_id)
+    assert index_state(log, composition(), ADDRESS) == Busy(first.row.public_id, 4, True)
+    assert index_state(log, composition(), "198.51.100.9") == Busy(first.row.public_id, 4, True)
     closed(log, first.row.run_id)
     assert index_state(log, composition(), ADDRESS) == FormOpen(remaining=4, cap=5)
-    for number in range(2, 6):
+    for number in range(2, 5):
         outcome = started(start(request(key(number), SCENARIO), log, rows, composition()))
         closed(log, outcome.row.run_id)
+    last = started(start(request(key(5), SCENARIO), log, rows, composition()))
+    assert index_state(log, composition(), ADDRESS) == Busy(last.row.public_id, 0, True), (
+        "the open run is today's last: busy, with nothing left after it"
+    )
+    closed(log, last.row.run_id)
     assert index_state(log, composition(), ADDRESS) == Spent(today=5, cap=5)
 
     window = MemoryWindow(limit=1)
     log, rows = stores()
     outcome = started(start(request(key(1), SCENARIO), log, rows, composition(window=window)))
+    assert index_state(log, composition(window=window), ADDRESS) == Busy(
+        outcome.row.public_id, 4, False
+    ), "busy, and this address has had its start"
     closed(log, outcome.row.run_id)
     assert index_state(log, composition(window=window), ADDRESS) == AddressSpent()
     assert index_state(log, composition(window=window), "198.51.100.9") == FormOpen(4, 5)

@@ -252,11 +252,17 @@ class FormOpen:
 
 @dataclass(frozen=True, slots=True)
 class Busy:
-    """A public run is open; the index names it by its derived public id."""
+    """A public run is open; the index names it by its derived public id and says what a
+    start after it meets: the day's remaining count once it closes (the open run counted
+    in today's tally already), and whether the visitor's own address still admits one
+    (group 3's external read: the first wording promised a start the cap or the address
+    would refuse)."""
 
     kind: ClassVar[str] = "busy"
 
     open_run: PublicId
+    remaining: int
+    address_admits: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,11 +294,12 @@ def index_state(log: StartLog, composition: StartComposition, address: str) -> I
     since = day_start_of(log.now())
     admitted = log.admitted_by(DEMO_START, configuration.ledger_id, since=since)
     tally = day_tally(admitted, configuration, since=since)
+    address_admits = composition.window.admits(address, since=since)
     if tally.open_runs:
-        return Busy(public_id_of_run(tally.open_runs[0]))
+        return Busy(public_id_of_run(tally.open_runs[0]), tally.remaining, address_admits)
     if tally.today >= tally.cap:
         return Spent(tally.today, tally.cap)
-    if not composition.window.admits(address, since=since):
+    if not address_admits:
         return AddressSpent()
     return FormOpen(tally.remaining, tally.cap)
 

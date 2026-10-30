@@ -20,6 +20,7 @@ from leaveimpact.app.decide import Viewer, review_of
 from leaveimpact.app.public import PublicAttempt, PublicId
 from leaveimpact.app.publishing import PublishRefused, PublishRequest, draft_of
 from leaveimpact.app.read_model import (
+    OPEN_PAGE_REFRESH_SECONDS,
     Admitted,
     OpenPhase,
     admitted,
@@ -242,6 +243,7 @@ def test_the_open_view_is_investigating_awaiting_then_approved() -> None:
     before = open_view(fold(events[:7], RULES), None, None, live)
     assert before.phase is OpenPhase.INVESTIGATING and before.review is None
     assert before.wait == wait_explained(live) and before.deadline is None
+    assert before.refresh_seconds == OPEN_PAGE_REFRESH_SECONDS == 10
     awaiting = fold(events[:9], RULES)
     review = review_of(awaiting)
     assert review is not None
@@ -250,8 +252,10 @@ def test_the_open_view_is_investigating_awaiting_then_approved() -> None:
     assert view.deadline == events[7].timestamp + timedelta(seconds=live.approval_wait_seconds)
     assert view.review is not None and view.review.digest == review.digest
     assert view.review.claim_ids() == () and view.approved_at is None
+    assert view.refresh_seconds is None, "a page with the decision form never moves"
     approved = fold(events[:11], RULES)
     assert review_of(approved) is None
     after = open_view(approved, None, None, live)
     assert after.phase is OpenPhase.APPROVED and after.approved_at == events[10].timestamp
     assert after.review is None and after.deadline is None
+    assert after.refresh_seconds == 10

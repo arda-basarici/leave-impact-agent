@@ -24,7 +24,8 @@ withheld world, with every caveat the measurement carries.</p>
 <p class="meta">{{ state.remaining }} of today's {{ state.cap }} live runs remain; the day turns at midnight UTC. The key in the form is what lets this browser decide.</p>
 <p class="meta">{{ wait }}</p>
 {% elif state.kind == "busy" %}
-<p>A live run is in progress. <a href="/replays/{{ state.open_run }}">Follow it</a> or <a href="/replays/{{ state.open_run }}/timeline">watch its timeline</a>; a new run can start when it ends.</p>
+<p>A live run is in progress. <a href="/replays/{{ state.open_run }}">Follow it</a> or <a href="/replays/{{ state.open_run }}/timeline">watch its timeline</a>.
+{% if not state.address_admits %}This address has had its live runs for today; the day turns at midnight UTC.{% elif state.remaining == 0 %}It is today's last; the next can start at midnight UTC.{% else %}When it ends, {{ state.remaining }} more can start today.{% endif %}</p>
 <p class="meta">{{ wait }}</p>
 {% elif state.kind == "spent" %}
 <p>Today's budget of live runs is spent: {{ state.today }} of {{ state.cap }} started. It opens again at midnight UTC; the replays are open meanwhile.</p>

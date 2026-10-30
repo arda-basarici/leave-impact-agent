@@ -223,14 +223,24 @@ class OpenPhase(StrEnum):
     """Approved, carrying out its plan until it closes."""
 
 
+OPEN_PAGE_REFRESH_SECONDS = 10
+"""How often the open page reloads itself while the run is investigating or carrying out
+an approved plan, through a plain refresh header, so the starting browser meets the
+decision form without acting (group 3's external read: the first open page was static).
+Under the measured 40 s median a run costs about four loads; the page with the decision
+form never refreshes, since a page with two buttons must not move under a click."""
+
+
 @dataclass(frozen=True, slots=True)
 class OpenView:
-    """An open attempt's replay page: the phase, the wait explained, and in the awaiting
-    phase the viewer the page renders for, the deadline in UTC and the review rendered as
-    sentences over the run's reads; in the approved phase the approval's instant."""
+    """An open attempt's replay page: the phase, the wait explained, the refresh interval
+    (``None`` in the awaiting phase), and in the awaiting phase the viewer the page renders
+    for, the deadline in UTC and the review rendered as sentences over the run's reads; in
+    the approved phase the approval's instant."""
 
     phase: OpenPhase
     wait: str
+    refresh_seconds: int | None = OPEN_PAGE_REFRESH_SECONDS
     viewer: Viewer | None = None
     deadline: datetime | None = None
     review: ReviewView | None = None
@@ -252,6 +262,7 @@ def open_view(
         return OpenView(
             OpenPhase.AWAITING,
             wait,
+            refresh_seconds=None,
             viewer=viewer,
             deadline=deadline_of(state, configuration),
             review=review_view(review, trace_operations(state)),

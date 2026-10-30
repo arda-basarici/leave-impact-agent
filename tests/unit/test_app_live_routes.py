@@ -278,6 +278,7 @@ def test_the_open_replay_page_shows_the_review_and_the_decision_form_to_the_hold
     assert no_visitor.status_code == 200 and 'value="approve"' not in no_visitor.text
     assert f"awaits its operator's decision, until {deadline}" in no_visitor.text
     for page in (holder, other, wrong, no_visitor):
+        assert 'http-equiv="refresh"' not in page.text, "the awaiting page never moves"
         assert "&#34;claims&#34;" in page.text, "the payload's JSON, escaped as text"
         assert f'<span class="cited">{deciding.DIGEST}</span>' in page.text
         assert "The run reported no impact." in page.text, "the fixture's review holds no claim"
@@ -303,6 +304,7 @@ def test_a_decision_with_the_cookie_lands_on_the_log_and_the_row_and_redirects()
         approved_at = rig.log.load(deciding.RUN, 1, rules=histories.RULES).approved
         assert approved_at is not None
         assert f"The plan was approved at {approved_at.timestamp.isoformat()}" in after.text
+        assert '<meta http-equiv="refresh" content="10">' in after.text
         declined = web.post(
             f"{path}/decision", data={"decision": "decline", "payload_digest": deciding.DIGEST}
         )
@@ -387,6 +389,7 @@ def test_the_index_reads_the_live_state_form_busy_spent_and_the_address() -> Non
     assert 'action="/start"' not in busy and "A live run is in progress" in busy
     assert f'<a href="/replays/{open_run}">Follow it</a>' in busy
     assert f'href="/replays/{open_run}/timeline"' in busy
+    assert "When it ends, 4 more can start today." in busy
     assert len(rig.minter.minted) == 1, "a key is minted only for a form the page renders"
     assert rig.sessions.opened == rig.sessions.closed, "the index's session is closed"
 
@@ -394,16 +397,24 @@ def test_the_index_reads_the_live_state_form_busy_spent_and_the_address() -> Non
     with capped.client() as web:
         for number in range(1, 6):
             assert web.post("/start", data=form(number), follow_redirects=False).status_code == 303
-            closed(capped.log, run_id_for(key_digest_of(key(number))))
+            if number < 5:
+                closed(capped.log, run_id_for(key_digest_of(key(number))))
+        last_open = web.get("/").text
+        closed(capped.log, run_id_for(key_digest_of(key(5))))
         spent = web.get("/").text
+    assert "A live run is in progress" in last_open
+    assert "It is today's last; the next can start at midnight UTC." in last_open
     assert 'action="/start"' not in spent
     assert "Today's budget of live runs is spent: 5 of 5 started" in spent
 
     windowed = Rig(window=MemoryWindow(limit=1))
     with windowed.client() as web:
         assert web.post("/start", data=form(1), follow_redirects=False).status_code == 303
+        busy_and_spent = web.get("/").text
         closed(windowed.log, run_id_for(key_digest_of(key(1))))
         address = web.get("/").text
+    assert "A live run is in progress" in busy_and_spent
+    assert "This address has had its live runs for today" in busy_and_spent
     assert 'action="/start"' not in address
     assert "This address has started its live runs for today" in address
 
@@ -443,3 +454,5 @@ def test_the_open_page_before_the_request_says_investigating_with_the_wait() -> 
     assert "This run is investigating; its report renders when it closes." in page.text
     assert "about 40 seconds at the median and 48 at most" in page.text
     assert "A decision is asked" not in page.text and 'value="approve"' not in page.text
+    assert '<meta http-equiv="refresh" content="10">' in page.text
+    assert "This page refreshes itself every 10 seconds" in page.text
