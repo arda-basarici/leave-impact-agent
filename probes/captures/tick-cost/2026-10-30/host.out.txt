@@ -1,0 +1,1282 @@
+﻿work /tmp/tick-cost.ylVci9
+== host 2026-10-30T18:30:00Z
+6.18.54-121.166.amzn2023.aarch64
+cpus 2
+Architecture:                            aarch64
+Model name:                              Neoverse-N1
+BIOS Model name:                         AWS Graviton2
+deployed f4db23edad5ca02cc08dca49cd0d1aa755f5de84
+leaveimpact-app-1 running Up 29 minutes (healthy)
+leaveimpact-postgres-1 running Up 5 days (healthy)
+leaveimpact-worker-1 running Up 29 minutes (healthy)
+== probe ledger=ledger-demo repetitions=20 18:30:01
+probe exit 0
+== reading
+{
+ "attempts": [
+  {
+   "attempt": 1,
+   "durations_s": {
+    "admission_to_close": 48.327,
+    "admission_to_request": 48.3,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.011
+   },
+   "events": 63,
+   "fold_cpu": {
+    "max": 0.216111,
+    "median": 0.207605,
+    "p95": 0.213227
+   },
+   "fold_wall": {
+    "max": 0.222446,
+    "median": 0.207725,
+    "p95": 0.220408
+   },
+   "lines": 63,
+   "load_cpu": {
+    "max": 0.355239,
+    "median": 0.187084,
+    "p95": 0.19302
+   },
+   "load_wall": {
+    "max": 0.366667,
+    "median": 0.197493,
+    "p95": 0.215212
+   },
+   "whole_cpu": {
+    "max": 0.559741,
+    "median": 0.395099,
+    "p95": 0.406247
+   },
+   "whole_wall": {
+    "max": 0.571262,
+    "median": 0.406293,
+    "p95": 0.431386
+   }
+  },
+  {
+   "attempt": 2,
+   "durations_s": {
+    "admission_to_close": 39.23,
+    "admission_to_request": 39.204,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.01
+   },
+   "events": 32,
+   "fold_cpu": {
+    "max": 0.078526,
+    "median": 0.058693,
+    "p95": 0.061023
+   },
+   "fold_wall": {
+    "max": 0.078528,
+    "median": 0.05874,
+    "p95": 0.061022
+   },
+   "lines": 32,
+   "load_cpu": {
+    "max": 0.060019,
+    "median": 0.056277,
+    "p95": 0.057692
+   },
+   "load_wall": {
+    "max": 0.073268,
+    "median": 0.065492,
+    "p95": 0.06881
+   },
+   "whole_cpu": {
+    "max": 0.134537,
+    "median": 0.115191,
+    "p95": 0.118057
+   },
+   "whole_wall": {
+    "max": 0.143253,
+    "median": 0.124572,
+    "p95": 0.131273
+   }
+  },
+  {
+   "attempt": 3,
+   "durations_s": {
+    "admission_to_close": 39.724,
+    "admission_to_request": 39.693,
+    "approval_to_close": 0.021,
+    "request_to_approval": 0.011
+   },
+   "events": 36,
+   "fold_cpu": {
+    "max": 0.096702,
+    "median": 0.093404,
+    "p95": 0.096118
+   },
+   "fold_wall": {
+    "max": 0.109762,
+    "median": 0.093451,
+    "p95": 0.097897
+   },
+   "lines": 36,
+   "load_cpu": {
+    "max": 0.101397,
+    "median": 0.091128,
+    "p95": 0.093865
+   },
+   "load_wall": {
+    "max": 0.11773,
+    "median": 0.100793,
+    "p95": 0.110488
+   },
+   "whole_cpu": {
+    "max": 0.197008,
+    "median": 0.184961,
+    "p95": 0.188765
+   },
+   "whole_wall": {
+    "max": 0.212109,
+    "median": 0.193965,
+    "p95": 0.211213
+   }
+  },
+  {
+   "attempt": 4,
+   "durations_s": {
+    "admission_to_close": 46.916,
+    "admission_to_request": 46.887,
+    "approval_to_close": 0.017,
+    "request_to_approval": 0.013
+   },
+   "events": 53,
+   "fold_cpu": {
+    "max": 0.23405,
+    "median": 0.223373,
+    "p95": 0.230212
+   },
+   "fold_wall": {
+    "max": 0.234052,
+    "median": 0.22339,
+    "p95": 0.230213
+   },
+   "lines": 53,
+   "load_cpu": {
+    "max": 0.221454,
+    "median": 0.21497,
+    "p95": 0.220429
+   },
+   "load_wall": {
+    "max": 0.23695,
+    "median": 0.224649,
+    "p95": 0.236677
+   },
+   "whole_cpu": {
+    "max": 0.449676,
+    "median": 0.439282,
+    "p95": 0.445544
+   },
+   "whole_wall": {
+    "max": 0.464352,
+    "median": 0.448832,
+    "p95": 0.459558
+   }
+  },
+  {
+   "attempt": 5,
+   "durations_s": {
+    "admission_to_close": 36.236,
+    "admission_to_request": 36.211,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.01
+   },
+   "events": 40,
+   "fold_cpu": {
+    "max": 0.1335,
+    "median": 0.097875,
+    "p95": 0.103685
+   },
+   "fold_wall": {
+    "max": 0.133538,
+    "median": 0.09832,
+    "p95": 0.103808
+   },
+   "lines": 40,
+   "load_cpu": {
+    "max": 0.127218,
+    "median": 0.092968,
+    "p95": 0.098607
+   },
+   "load_wall": {
+    "max": 0.138763,
+    "median": 0.102491,
+    "p95": 0.113581
+   },
+   "whole_cpu": {
+    "max": 0.260718,
+    "median": 0.190739,
+    "p95": 0.199633
+   },
+   "whole_wall": {
+    "max": 0.272301,
+    "median": 0.200808,
+    "p95": 0.213371
+   }
+  },
+  {
+   "attempt": 6,
+   "durations_s": {
+    "admission_to_close": 46.173,
+    "admission_to_request": 46.147,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.011
+   },
+   "events": 59,
+   "fold_cpu": {
+    "max": 0.278427,
+    "median": 0.256267,
+    "p95": 0.265566
+   },
+   "fold_wall": {
+    "max": 0.280308,
+    "median": 0.256696,
+    "p95": 0.267304
+   },
+   "lines": 59,
+   "load_cpu": {
+    "max": 0.271048,
+    "median": 0.2431,
+    "p95": 0.251988
+   },
+   "load_wall": {
+    "max": 0.295298,
+    "median": 0.253216,
+    "p95": 0.26291
+   },
+   "whole_cpu": {
+    "max": 0.536614,
+    "median": 0.498883,
+    "p95": 0.526071
+   },
+   "whole_wall": {
+    "max": 0.562602,
+    "median": 0.510089,
+    "p95": 0.53755
+   }
+  },
+  {
+   "attempt": 7,
+   "durations_s": {
+    "admission_to_close": 40.091,
+    "admission_to_request": 40.064,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.011
+   },
+   "events": 40,
+   "fold_cpu": {
+    "max": 0.139773,
+    "median": 0.136398,
+    "p95": 0.138641
+   },
+   "fold_wall": {
+    "max": 0.156116,
+    "median": 0.136446,
+    "p95": 0.139774
+   },
+   "lines": 40,
+   "load_cpu": {
+    "max": 0.138722,
+    "median": 0.134734,
+    "p95": 0.137586
+   },
+   "load_wall": {
+    "max": 0.162608,
+    "median": 0.143836,
+    "p95": 0.151598
+   },
+   "whole_cpu": {
+    "max": 0.276135,
+    "median": 0.271172,
+    "p95": 0.275685
+   },
+   "whole_wall": {
+    "max": 0.318725,
+    "median": 0.280314,
+    "p95": 0.290647
+   }
+  },
+  {
+   "attempt": 8,
+   "durations_s": {
+    "admission_to_close": 42.03,
+    "admission_to_request": 42.002,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.012
+   },
+   "events": 43,
+   "fold_cpu": {
+    "max": 0.140596,
+    "median": 0.131231,
+    "p95": 0.134736
+   },
+   "fold_wall": {
+    "max": 0.140686,
+    "median": 0.131436,
+    "p95": 0.134768
+   },
+   "lines": 43,
+   "load_cpu": {
+    "max": 0.146208,
+    "median": 0.127661,
+    "p95": 0.138106
+   },
+   "load_wall": {
+    "max": 0.158856,
+    "median": 0.136906,
+    "p95": 0.155061
+   },
+   "whole_cpu": {
+    "max": 0.279529,
+    "median": 0.25914,
+    "p95": 0.278702
+   },
+   "whole_wall": {
+    "max": 0.299542,
+    "median": 0.269036,
+    "p95": 0.288383
+   }
+  },
+  {
+   "attempt": 9,
+   "durations_s": {
+    "admission_to_close": 38.019,
+    "admission_to_request": 37.994,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.01
+   },
+   "events": 33,
+   "fold_cpu": {
+    "max": 0.081664,
+    "median": 0.066742,
+    "p95": 0.074356
+   },
+   "fold_wall": {
+    "max": 0.095018,
+    "median": 0.066905,
+    "p95": 0.076926
+   },
+   "lines": 33,
+   "load_cpu": {
+    "max": 0.090972,
+    "median": 0.06416,
+    "p95": 0.06922
+   },
+   "load_wall": {
+    "max": 0.165335,
+    "median": 0.073787,
+    "p95": 0.084456
+   },
+   "whole_cpu": {
+    "max": 0.172636,
+    "median": 0.130979,
+    "p95": 0.140776
+   },
+   "whole_wall": {
+    "max": 0.260353,
+    "median": 0.140559,
+    "p95": 0.154195
+   }
+  },
+  {
+   "attempt": 10,
+   "durations_s": {
+    "admission_to_close": 44.4,
+    "admission_to_request": 44.375,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.01
+   },
+   "events": 52,
+   "fold_cpu": {
+    "max": 0.167282,
+    "median": 0.154212,
+    "p95": 0.160034
+   },
+   "fold_wall": {
+    "max": 0.167282,
+    "median": 0.154443,
+    "p95": 0.160036
+   },
+   "lines": 52,
+   "load_cpu": {
+    "max": 0.154119,
+    "median": 0.141288,
+    "p95": 0.145536
+   },
+   "load_wall": {
+    "max": 0.163044,
+    "median": 0.15026,
+    "p95": 0.154158
+   },
+   "whole_cpu": {
+    "max": 0.321401,
+    "median": 0.295523,
+    "p95": 0.305571
+   },
+   "whole_wall": {
+    "max": 0.330327,
+    "median": 0.304804,
+    "p95": 0.314193
+   }
+  },
+  {
+   "attempt": 11,
+   "durations_s": {
+    "admission_to_close": 40.355,
+    "admission_to_request": 40.326,
+    "approval_to_close": 0.017,
+    "request_to_approval": 0.011
+   },
+   "events": 34,
+   "fold_cpu": {
+    "max": 0.107329,
+    "median": 0.077709,
+    "p95": 0.081906
+   },
+   "fold_wall": {
+    "max": 0.109002,
+    "median": 0.077762,
+    "p95": 0.088568
+   },
+   "lines": 34,
+   "load_cpu": {
+    "max": 0.099987,
+    "median": 0.07522,
+    "p95": 0.077441
+   },
+   "load_wall": {
+    "max": 0.108702,
+    "median": 0.084743,
+    "p95": 0.087192
+   },
+   "whole_cpu": {
+    "max": 0.207317,
+    "median": 0.153189,
+    "p95": 0.159199
+   },
+   "whole_wall": {
+    "max": 0.217704,
+    "median": 0.162944,
+    "p95": 0.174497
+   }
+  },
+  {
+   "attempt": 12,
+   "durations_s": {
+    "admission_to_close": 40.5,
+    "admission_to_request": 40.473,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.012
+   },
+   "events": 43,
+   "fold_cpu": {
+    "max": 0.100096,
+    "median": 0.093424,
+    "p95": 0.099997
+   },
+   "fold_wall": {
+    "max": 0.102662,
+    "median": 0.093436,
+    "p95": 0.10168
+   },
+   "lines": 43,
+   "load_cpu": {
+    "max": 0.089141,
+    "median": 0.085128,
+    "p95": 0.088791
+   },
+   "load_wall": {
+    "max": 0.102625,
+    "median": 0.094635,
+    "p95": 0.09957
+   },
+   "whole_cpu": {
+    "max": 0.189237,
+    "median": 0.178743,
+    "p95": 0.187175
+   },
+   "whole_wall": {
+    "max": 0.203084,
+    "median": 0.18886,
+    "p95": 0.201251
+   }
+  },
+  {
+   "attempt": 13,
+   "durations_s": {
+    "admission_to_close": 40.105,
+    "admission_to_request": 40.079,
+    "approval_to_close": 0.014,
+    "request_to_approval": 0.011
+   },
+   "events": 43,
+   "fold_cpu": {
+    "max": 0.11073,
+    "median": 0.094928,
+    "p95": 0.103677
+   },
+   "fold_wall": {
+    "max": 0.110838,
+    "median": 0.094947,
+    "p95": 0.103743
+   },
+   "lines": 43,
+   "load_cpu": {
+    "max": 0.101238,
+    "median": 0.086237,
+    "p95": 0.094292
+   },
+   "load_wall": {
+    "max": 0.110383,
+    "median": 0.095499,
+    "p95": 0.103027
+   },
+   "whole_cpu": {
+    "max": 0.211968,
+    "median": 0.181129,
+    "p95": 0.19797
+   },
+   "whole_wall": {
+    "max": 0.221221,
+    "median": 0.190389,
+    "p95": 0.20677
+   }
+  },
+  {
+   "attempt": 14,
+   "durations_s": {
+    "admission_to_close": 37.821,
+    "admission_to_request": 37.792,
+    "approval_to_close": 0.017,
+    "request_to_approval": 0.011
+   },
+   "events": 46,
+   "fold_cpu": {
+    "max": 0.093308,
+    "median": 0.08903,
+    "p95": 0.092312
+   },
+   "fold_wall": {
+    "max": 0.096895,
+    "median": 0.089042,
+    "p95": 0.093672
+   },
+   "lines": 46,
+   "load_cpu": {
+    "max": 0.100998,
+    "median": 0.077137,
+    "p95": 0.087223
+   },
+   "load_wall": {
+    "max": 0.109841,
+    "median": 0.086687,
+    "p95": 0.103446
+   },
+   "whole_cpu": {
+    "max": 0.19331,
+    "median": 0.167023,
+    "p95": 0.178586
+   },
+   "whole_wall": {
+    "max": 0.206736,
+    "median": 0.176151,
+    "p95": 0.195632
+   }
+  },
+  {
+   "attempt": 15,
+   "durations_s": {
+    "admission_to_close": 36.805,
+    "admission_to_request": 36.777,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.012
+   },
+   "events": 39,
+   "fold_cpu": {
+    "max": 0.101941,
+    "median": 0.089051,
+    "p95": 0.093543
+   },
+   "fold_wall": {
+    "max": 0.102253,
+    "median": 0.089117,
+    "p95": 0.098826
+   },
+   "lines": 39,
+   "load_cpu": {
+    "max": 0.10148,
+    "median": 0.08504,
+    "p95": 0.088437
+   },
+   "load_wall": {
+    "max": 0.113654,
+    "median": 0.094598,
+    "p95": 0.101975
+   },
+   "whole_cpu": {
+    "max": 0.203422,
+    "median": 0.174631,
+    "p95": 0.180706
+   },
+   "whole_wall": {
+    "max": 0.215908,
+    "median": 0.185204,
+    "p95": 0.2008
+   }
+  },
+  {
+   "attempt": 16,
+   "durations_s": {
+    "admission_to_close": 46.792,
+    "admission_to_request": 46.759,
+    "approval_to_close": 0.019,
+    "request_to_approval": 0.014
+   },
+   "events": 58,
+   "fold_cpu": {
+    "max": 0.206242,
+    "median": 0.184733,
+    "p95": 0.195789
+   },
+   "fold_wall": {
+    "max": 0.206243,
+    "median": 0.184816,
+    "p95": 0.195822
+   },
+   "lines": 58,
+   "load_cpu": {
+    "max": 0.183873,
+    "median": 0.169202,
+    "p95": 0.178103
+   },
+   "load_wall": {
+    "max": 0.192856,
+    "median": 0.179751,
+    "p95": 0.188659
+   },
+   "whole_cpu": {
+    "max": 0.390115,
+    "median": 0.352854,
+    "p95": 0.373892
+   },
+   "whole_wall": {
+    "max": 0.399099,
+    "median": 0.363703,
+    "p95": 0.384481
+   }
+  },
+  {
+   "attempt": 17,
+   "durations_s": {
+    "admission_to_close": 38.959,
+    "admission_to_request": 38.935,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.01
+   },
+   "events": 38,
+   "fold_cpu": {
+    "max": 0.136566,
+    "median": 0.119474,
+    "p95": 0.125883
+   },
+   "fold_wall": {
+    "max": 0.147495,
+    "median": 0.1195,
+    "p95": 0.126302
+   },
+   "lines": 38,
+   "load_cpu": {
+    "max": 0.118446,
+    "median": 0.114738,
+    "p95": 0.117436
+   },
+   "load_wall": {
+    "max": 0.128723,
+    "median": 0.124109,
+    "p95": 0.127567
+   },
+   "whole_cpu": {
+    "max": 0.255012,
+    "median": 0.233921,
+    "p95": 0.240067
+   },
+   "whole_wall": {
+    "max": 0.276218,
+    "median": 0.243158,
+    "p95": 0.250292
+   }
+  },
+  {
+   "attempt": 18,
+   "durations_s": {
+    "admission_to_close": 38.315,
+    "admission_to_request": 38.291,
+    "approval_to_close": 0.014,
+    "request_to_approval": 0.01
+   },
+   "events": 39,
+   "fold_cpu": {
+    "max": 0.100735,
+    "median": 0.090034,
+    "p95": 0.098423
+   },
+   "fold_wall": {
+    "max": 0.100737,
+    "median": 0.090119,
+    "p95": 0.098794
+   },
+   "lines": 39,
+   "load_cpu": {
+    "max": 0.103283,
+    "median": 0.083019,
+    "p95": 0.092096
+   },
+   "load_wall": {
+    "max": 0.124739,
+    "median": 0.0924,
+    "p95": 0.101365
+   },
+   "whole_cpu": {
+    "max": 0.197446,
+    "median": 0.172846,
+    "p95": 0.192831
+   },
+   "whole_wall": {
+    "max": 0.218903,
+    "median": 0.182912,
+    "p95": 0.202102
+   }
+  },
+  {
+   "attempt": 19,
+   "durations_s": {
+    "admission_to_close": 39.857,
+    "admission_to_request": 39.832,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.01
+   },
+   "events": 42,
+   "fold_cpu": {
+    "max": 0.127288,
+    "median": 0.122137,
+    "p95": 0.125923
+   },
+   "fold_wall": {
+    "max": 0.136246,
+    "median": 0.122215,
+    "p95": 0.125924
+   },
+   "lines": 42,
+   "load_cpu": {
+    "max": 0.119229,
+    "median": 0.115118,
+    "p95": 0.118546
+   },
+   "load_wall": {
+    "max": 0.230443,
+    "median": 0.124157,
+    "p95": 0.129677
+   },
+   "whole_cpu": {
+    "max": 0.245834,
+    "median": 0.236405,
+    "p95": 0.242327
+   },
+   "whole_wall": {
+    "max": 0.352196,
+    "median": 0.246503,
+    "p95": 0.265924
+   }
+  },
+  {
+   "attempt": 20,
+   "durations_s": {
+    "admission_to_close": 35.3,
+    "admission_to_request": 35.272,
+    "approval_to_close": 0.017,
+    "request_to_approval": 0.012
+   },
+   "events": 33,
+   "fold_cpu": {
+    "max": 0.068585,
+    "median": 0.066359,
+    "p95": 0.067757
+   },
+   "fold_wall": {
+    "max": 0.068871,
+    "median": 0.06637,
+    "p95": 0.068598
+   },
+   "lines": 33,
+   "load_cpu": {
+    "max": 0.067116,
+    "median": 0.064975,
+    "p95": 0.066146
+   },
+   "load_wall": {
+    "max": 0.083676,
+    "median": 0.073996,
+    "p95": 0.081692
+   },
+   "whole_cpu": {
+    "max": 0.135702,
+    "median": 0.131305,
+    "p95": 0.133591
+   },
+   "whole_wall": {
+    "max": 0.14975,
+    "median": 0.14023,
+    "p95": 0.149
+   }
+  },
+  {
+   "attempt": 21,
+   "durations_s": {
+    "admission_to_close": 40.312,
+    "admission_to_request": 40.285,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.011
+   },
+   "events": 43,
+   "fold_cpu": {
+    "max": 0.151121,
+    "median": 0.135101,
+    "p95": 0.143418
+   },
+   "fold_wall": {
+    "max": 0.180103,
+    "median": 0.135242,
+    "p95": 0.159799
+   },
+   "lines": 43,
+   "load_cpu": {
+    "max": 0.298142,
+    "median": 0.130164,
+    "p95": 0.142107
+   },
+   "load_wall": {
+    "max": 0.309014,
+    "median": 0.139916,
+    "p95": 0.173218
+   },
+   "whole_cpu": {
+    "max": 0.430507,
+    "median": 0.26634,
+    "p95": 0.293228
+   },
+   "whole_wall": {
+    "max": 0.441378,
+    "median": 0.275807,
+    "p95": 0.333016
+   }
+  },
+  {
+   "attempt": 22,
+   "durations_s": {
+    "admission_to_close": 42.037,
+    "admission_to_request": 42.006,
+    "approval_to_close": 0.019,
+    "request_to_approval": 0.012
+   },
+   "events": 47,
+   "fold_cpu": {
+    "max": 0.192649,
+    "median": 0.185267,
+    "p95": 0.189325
+   },
+   "fold_wall": {
+    "max": 0.199623,
+    "median": 0.185369,
+    "p95": 0.189674
+   },
+   "lines": 47,
+   "load_cpu": {
+    "max": 0.186796,
+    "median": 0.178921,
+    "p95": 0.185197
+   },
+   "load_wall": {
+    "max": 0.208353,
+    "median": 0.189104,
+    "p95": 0.200427
+   },
+   "whole_cpu": {
+    "max": 0.37658,
+    "median": 0.364318,
+    "p95": 0.373216
+   },
+   "whole_wall": {
+    "max": 0.396075,
+    "median": 0.375787,
+    "p95": 0.393315
+   }
+  },
+  {
+   "attempt": 23,
+   "durations_s": {
+    "admission_to_close": 34.184,
+    "admission_to_request": 34.156,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.012
+   },
+   "events": 34,
+   "fold_cpu": {
+    "max": 0.080993,
+    "median": 0.076358,
+    "p95": 0.080603
+   },
+   "fold_wall": {
+    "max": 0.083295,
+    "median": 0.07636,
+    "p95": 0.080707
+   },
+   "lines": 34,
+   "load_cpu": {
+    "max": 0.077194,
+    "median": 0.074764,
+    "p95": 0.076762
+   },
+   "load_wall": {
+    "max": 0.08654,
+    "median": 0.08374,
+    "p95": 0.086404
+   },
+   "whole_cpu": {
+    "max": 0.157365,
+    "median": 0.150987,
+    "p95": 0.156234
+   },
+   "whole_wall": {
+    "max": 0.169658,
+    "median": 0.1599,
+    "p95": 0.16645
+   }
+  },
+  {
+   "attempt": 24,
+   "durations_s": {
+    "admission_to_close": 39.833,
+    "admission_to_request": 39.807,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.011
+   },
+   "events": 44,
+   "fold_cpu": {
+    "max": 0.153169,
+    "median": 0.145612,
+    "p95": 0.149035
+   },
+   "fold_wall": {
+    "max": 0.154826,
+    "median": 0.145636,
+    "p95": 0.154357
+   },
+   "lines": 44,
+   "load_cpu": {
+    "max": 0.143584,
+    "median": 0.140049,
+    "p95": 0.142887
+   },
+   "load_wall": {
+    "max": 0.160543,
+    "median": 0.150058,
+    "p95": 0.157865
+   },
+   "whole_cpu": {
+    "max": 0.292619,
+    "median": 0.286105,
+    "p95": 0.291707
+   },
+   "whole_wall": {
+    "max": 0.311344,
+    "median": 0.295702,
+    "p95": 0.304946
+   }
+  },
+  {
+   "attempt": 25,
+   "durations_s": {
+    "admission_to_close": 41.139,
+    "admission_to_request": 41.111,
+    "approval_to_close": 0.017,
+    "request_to_approval": 0.012
+   },
+   "events": 39,
+   "fold_cpu": {
+    "max": 0.13607,
+    "median": 0.126722,
+    "p95": 0.133003
+   },
+   "fold_wall": {
+    "max": 0.136085,
+    "median": 0.126727,
+    "p95": 0.132995
+   },
+   "lines": 39,
+   "load_cpu": {
+    "max": 0.128124,
+    "median": 0.125587,
+    "p95": 0.12807
+   },
+   "load_wall": {
+    "max": 0.14297,
+    "median": 0.13476,
+    "p95": 0.137839
+   },
+   "whole_cpu": {
+    "max": 0.264194,
+    "median": 0.251692,
+    "p95": 0.261072
+   },
+   "whole_wall": {
+    "max": 0.279054,
+    "median": 0.261468,
+    "p95": 0.270834
+   }
+  },
+  {
+   "attempt": 26,
+   "durations_s": {
+    "admission_to_close": 45.85,
+    "admission_to_request": 45.823,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.012
+   },
+   "events": 47,
+   "fold_cpu": {
+    "max": 0.258693,
+    "median": 0.18762,
+    "p95": 0.254018
+   },
+   "fold_wall": {
+    "max": 0.264101,
+    "median": 0.187827,
+    "p95": 0.254718
+   },
+   "lines": 47,
+   "load_cpu": {
+    "max": 0.247662,
+    "median": 0.183565,
+    "p95": 0.202797
+   },
+   "load_wall": {
+    "max": 0.263307,
+    "median": 0.192996,
+    "p95": 0.217008
+   },
+   "whole_cpu": {
+    "max": 0.50168,
+    "median": 0.371275,
+    "p95": 0.46149
+   },
+   "whole_wall": {
+    "max": 0.518025,
+    "median": 0.381572,
+    "p95": 0.481109
+   }
+  },
+  {
+   "attempt": 27,
+   "durations_s": {
+    "admission_to_close": 45.903,
+    "admission_to_request": 45.877,
+    "approval_to_close": 0.015,
+    "request_to_approval": 0.012
+   },
+   "events": 50,
+   "fold_cpu": {
+    "max": 0.182405,
+    "median": 0.176526,
+    "p95": 0.179376
+   },
+   "fold_wall": {
+    "max": 0.186907,
+    "median": 0.176734,
+    "p95": 0.184924
+   },
+   "lines": 50,
+   "load_cpu": {
+    "max": 0.173694,
+    "median": 0.168007,
+    "p95": 0.171603
+   },
+   "load_wall": {
+    "max": 0.183462,
+    "median": 0.17778,
+    "p95": 0.183106
+   },
+   "whole_cpu": {
+    "max": 0.35307,
+    "median": 0.344192,
+    "p95": 0.348137
+   },
+   "whole_wall": {
+    "max": 0.364685,
+    "median": 0.353886,
+    "p95": 0.363439
+   }
+  },
+  {
+   "attempt": 28,
+   "durations_s": {
+    "admission_to_close": 37.711,
+    "admission_to_request": 37.683,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.012
+   },
+   "events": 39,
+   "fold_cpu": {
+    "max": 0.159698,
+    "median": 0.130122,
+    "p95": 0.140971
+   },
+   "fold_wall": {
+    "max": 0.174563,
+    "median": 0.130148,
+    "p95": 0.141011
+   },
+   "lines": 39,
+   "load_cpu": {
+    "max": 0.140154,
+    "median": 0.128842,
+    "p95": 0.136353
+   },
+   "load_wall": {
+    "max": 0.165828,
+    "median": 0.137859,
+    "p95": 0.14838
+   },
+   "whole_cpu": {
+    "max": 0.299853,
+    "median": 0.259811,
+    "p95": 0.275697
+   },
+   "whole_wall": {
+    "max": 0.340391,
+    "median": 0.269211,
+    "p95": 0.287083
+   }
+  },
+  {
+   "attempt": 29,
+   "durations_s": {
+    "admission_to_close": 37.381,
+    "admission_to_request": 37.353,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.012
+   },
+   "events": 39,
+   "fold_cpu": {
+    "max": 0.100173,
+    "median": 0.089483,
+    "p95": 0.094658
+   },
+   "fold_wall": {
+    "max": 0.100468,
+    "median": 0.089936,
+    "p95": 0.094658
+   },
+   "lines": 39,
+   "load_cpu": {
+    "max": 0.100485,
+    "median": 0.085587,
+    "p95": 0.09155
+   },
+   "load_wall": {
+    "max": 0.111914,
+    "median": 0.09524,
+    "p95": 0.10584
+   },
+   "whole_cpu": {
+    "max": 0.200658,
+    "median": 0.174625,
+    "p95": 0.186208
+   },
+   "whole_wall": {
+    "max": 0.212382,
+    "median": 0.184865,
+    "p95": 0.195624
+   }
+  },
+  {
+   "attempt": 30,
+   "durations_s": {
+    "admission_to_close": 47.351,
+    "admission_to_request": 47.322,
+    "approval_to_close": 0.016,
+    "request_to_approval": 0.012
+   },
+   "events": 62,
+   "fold_cpu": {
+    "max": 0.334943,
+    "median": 0.321795,
+    "p95": 0.328931
+   },
+   "fold_wall": {
+    "max": 0.335559,
+    "median": 0.321873,
+    "p95": 0.332987
+   },
+   "lines": 62,
+   "load_cpu": {
+    "max": 0.319838,
+    "median": 0.307666,
+    "p95": 0.318893
+   },
+   "load_wall": {
+    "max": 0.332681,
+    "median": 0.317792,
+    "p95": 0.328706
+   },
+   "whole_cpu": {
+    "max": 0.654781,
+    "median": 0.630672,
+    "p95": 0.645217
+   },
+   "whole_wall": {
+    "max": 0.66824,
+    "median": 0.642568,
+    "p95": 0.658134
+   }
+  }
+ ],
+ "attempts_measured": 30,
+ "cpu_count": 2,
+ "durations_s": {
+  "admission_to_close": {
+   "max": 48.327,
+   "median": 40.098,
+   "p95": 47.351
+  },
+  "admission_to_request": {
+   "max": 48.3,
+   "median": 40.0715,
+   "p95": 47.322
+  }
+ },
+ "ledger": "ledger-demo",
+ "python": "3.13.16",
+ "repetitions": 20,
+ "rule": {
+  "branch": "undecided: the fold alone exceeds the budget",
+  "budget_seconds": 0.2,
+  "c_seconds": 0.645217,
+  "eight_c_seconds": 5.161736,
+  "highest_attempt": 30,
+  "subscribers": 8
+ },
+ "schema_version": 6,
+ "taken_at": "2026-10-30T18:30:03.970080+00:00",
+ "warmup": 1
+}
+
+== stderr (first lines)
+ Container leaveimpact-app-run-a29b583a172b Creating 
+ Container leaveimpact-app-run-a29b583a172b Created 
+== done 18:33:05
+

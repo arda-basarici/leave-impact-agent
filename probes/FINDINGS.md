@@ -5148,3 +5148,93 @@ pass of its case until the lines were read.
 supervisor's grace plus the closure's time, or Docker's kill of the container lands before
 the supervisor's own kill and the drain's third stage is lost; the measured closure after a
 kill is under a tenth of a second, the grace ten seconds.
+
+## visitors-ledger-threshold — the visitors' ledger's wall set by hand on the instance and read back: revision 1, $8 (2026-10-30)
+
+The demo milestone's step 15, group 1 (the hosting ruling's acceptance, "the threshold set
+and read back").
+After the deploy of `f4db23e` (the launch sets no threshold; the demo configuration names
+`ledger-visitors`), the operator ran on the instance from a Session Manager root shell under the
+lifecycle's compose preamble:
+
+```
+docker compose run --rm app python -m leaveimpact.agent set-threshold --ledger ledger-visitors --amount 8000000000000 --authority operator:budget-2026-11 --registration-commit 546e1badbfdc137edbacfb2beab40aadf58f5dde --limit 90000000000000
+```
+
+The first run printed `threshold=ledger-visitors`, `revision=1`, `amount_pico_usd=8000000000000`:
+revision 1, so the ledger's head was created by this entry and nothing was ever admitted or
+set on it before. The second run of the same command printed the same three lines and wrote
+nothing, the store's answer to an amount equal to the one in force, which is the read-back.
+The amount is the demo's residual by hand on the hosting ruling's figures: the $30 budget
+line, less the fixed floor near $19 (the instance about $14, the volume about $1, the
+Elastic IP about $3.65, backup storage small; recollections until the first bill), less a
+buffer of $3. The limit is the registration's `admission_threshold_limit_usd`, $90; the
+registration commit is the file's last on HEAD. The replay set's $2.0967 stays on
+`ledger-demo` under its $45 and is October's spend; an operator run on another ledger in the
+same month draws on the budget and not on this wall. The ledger page built later in the step
+is the page-side read of the same entry.
+
+## tick-cost — the narration tick timed on the instance over the replay set's thirty attempts: a whole tick costs 0.12 to 0.65 s of CPU, the load and the fold about equal, so the rule's third branch and the shape decided on the number (2026-10-30)
+
+The demo milestone's step 15 (the live pages), group 2; the probe and its criterion are in
+`probes/README.md` ("The live pages step's tick-cost probe"), the reading in
+`captures/tick-cost/2026-10-30/host.out.txt` (whole: the probe's JSON parses and the host's
+done marker follows it), the table and every figure below printed by
+`tick-cost/reduce.py` over that capture. Run at 18:30 UTC on the deployed `f4db23e` host
+(Graviton2, two vCPUs, Python 3.13.16 in the image), the app and the worker idle beside it;
+the probe took 3 min 5 s end to end.
+
+**What was measured.** For each of the thirty closed attempts on `ledger-demo`, one warm-up
+and twenty repetitions of the tick as the narration stream makes it: a fresh bounded log
+session loading the attempt (the connect, the version check, the row, the events decoded
+and folded under the registration's rules) and the narration folded over the loaded state
+(a second replay of every event through the transition, since the narration reads the
+state before each event); CPU by `process_time` and wall by `perf_counter`, the whole tick
+summed within a repetition before its percentile.
+
+| attempts | events an attempt | whole-tick CPU, p95 | load CPU, median | fold CPU, median | fold CPU an event | load CPU an event |
+|---|---|---|---|---|---|---|
+| 30 | 32 to 63 | 0.118 to 0.645 s | 0.056 to 0.308 s | 0.059 to 0.322 s | 1.83 to 5.19 ms | 1.68 to 4.96 ms |
+
+The highest tick is attempt 30's (62 events): `c` = 0.645 s, so `8c` = 5.162 s against the
+rule's budget of 0.2 s, and `c` alone exceeds the budget: the rule's third branch, the shape
+left to the step to decide on the number. Wall tracks CPU within a few percent on every
+attempt (the whole-tick wall p95 0.131 to 0.658 s), so the tick is compute and not waiting
+on the database. The cost is not a function of the event count alone: attempts 1 and 30
+hold 63 and 62 events and cost 0.41 and 0.65 s, so the per-event figures above are ranges
+and not a rate. Two reads of the same figures: the load and the fold cost about the same
+per attempt, which says the transition replay is about half of each and the decoding the
+rest of the load; and the tick folds the whole log twice, once in the store's load and once
+in the narration's own replay, so a tick's cost grows with the log's length and nothing in
+it is proportional to what is new since the last tick.
+
+**The memory baseline's inference, now a sample.** That step read the flat 2.2 whole-stream
+fetches a second at one client as the single worker's CPU and labelled the 450 ms a fetch as
+wall time with no CPU sampled; this probe's whole-tick CPU on the longest attempts (0.4 to
+0.65 s) is of that size, so the inference stands as measured here, for the tick and not for
+a fetch (a fetch adds the admission and the frames).
+
+**Durations, for the pages' wait sentence.** From each attempt's instants: admission to the
+approval request median 40.07 s, p95 47.32 s, max 48.30 s over the thirty; admission to
+close median 40.10 s, p95 47.35 s, max 48.33 s. The request to the approval and the approval
+to the close are each under a tenth of a second on these runs, since the replay set's
+approvals were automatic; a visitor's wait for a decision and the resumption after it are
+not in this reading.
+
+**The second run, the idle tick** (18:50 UTC, `captures/tick-cost/2026-10-30-idle/`). The
+shape's choice turned on a figure the first run had not isolated, what a tick pays when the
+log has not moved: a fresh bounded session, the version check, the row read, the close, timed
+through the store's `ledger_of` as the stand-in for an events read with a lower bound that
+returns nothing. Over the same thirty attempts and repetitions: idle-tick CPU p95 0.0065 to
+0.0111 s, wall p95 0.0131 to 0.0464 s; eight such ticks a second at the highest are 0.089 s of
+the interpreter. The whole tick re-measured at 0.118 to 0.691 s (attempt 30's p95 0.691 against
+0.645 twenty minutes earlier, the one repeat so far under one configuration). The host's
+stdout was cut at SSM's 24,000 characters once the idle figures joined the indented reading, so
+`host.out.txt` there is partial and `reading.json` beside it is the whole reading fetched from
+the host's work directory by a second command; the host script prints the reading compact
+since. The figures are `reduce.py`'s over `reading.json`.
+
+**Criterion.** (a) met on both runs: thirty of thirty measured, exit 0, one JSON object (the
+second's whole copy fetched, as the host script's header provides); (b) met: the rule's
+inputs and branch are in the reading and the step's record carries the branch with the
+captures cited; (c) and (d) are the build's, on the shape the step rules.

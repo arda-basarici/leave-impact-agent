@@ -372,3 +372,35 @@ the checkpoint case's exit at the grace plus a fraction, by the ruling that fixe
 |---|---|---|
 | **worker-blocked** — the five cases above under both modes | (1) and (2) as stated, measured through process exit or the next claim with the teardown, the child's threads at its exit printed; (3) to (6) read off the log and the replacement's report; `worker-blocked/reduce.py` turns the capture into the findings table | `captures/worker-blocked/<date>/runs.jsonl` (one JSON record per case and mode: the instants, the exit, the child's lines, the state after the child and after the replacement's passes, the objects published), `captures/worker-blocked/bounded-saver*/runs.jsonl` (the checkpoint case under a saver statement bound, the remedy tried after the first reading) |
 | **worker-blocked**, the rerun under the supervised child | the same criteria through the supervisor: the service's exit after the signal, the supervisor's own closure after the wall, the kill path's timing | `captures/worker-blocked/2026-10-28-child/runs.jsonl` (the same record per case and mode, the service's and the work process's lines together) |
+
+## The live pages step's tick-cost probe (written 2026-10-30, before it runs)
+
+The demo milestone's step 15: the narration stream ticks once a second per subscription,
+each tick a fresh bounded log session loading the attempt and the narration folded over it
+from the first event, and the memory baseline left the tick's cost an inference (throughput
+flat at about 2.2 whole-stream fetches a second at one client, read as the single worker's
+CPU, no CPU time sampled). Eight viewers of one open attempt would ask for eight ticks a
+second of the one interpreter. The step fixed the rule before the number: `c`
+is the 95th percentile of a whole tick's CPU on the attempt whose tick measured highest;
+`8c` at or under a fifth of a second keeps the per-subscription tick, `8c` above it with
+`c` at or under it shares the fold per attempt per tick (one ticker per open attempt per
+process, fanned out to its subscribers), and `c` alone above it leaves the shape undecided
+for the step to rule on the number.
+
+**The probe.** `tick-cost/probe.py` runs in a one-off container of the deployed image on
+the stack's network, sent by `tick-cost/send.ps1` through `tick-cost/host.sh` under the
+administrator profile: for every closed attempt of the replay set's ledger (`ledger-demo`,
+the probe's own argument and not the demo configuration's, which names the visitors' ledger
+since this step's first group), one warm-up tick then twenty repetitions of the tick as the
+stream makes it (`LogStore` with the app's bounded connect for the load, `narration` for the
+fold, the registration's rules through the read model), each repetition's load and fold
+timed in CPU (`process_time`, this process's own) and wall (`perf_counter`), the whole tick
+summed within the repetition before any percentile, so no percentile is a sum of two. The
+same load gives each attempt's durations off its instants (admission to the approval
+request, request to approval, approval to close, admission to close), the figures the pages'
+"what a visitor is in for" sentence quotes. Attempts are numbered; no run id or text leaves
+the container.
+
+| probe | pass criterion | capture |
+|---|---|---|
+| **tick-cost** — the stream's tick timed on the deployed instance over the replay set's thirty closed attempts | (a) every attempt of the ledger measured, the probe exiting 0 with the reading as one JSON object; (b) the reading carries the rule's inputs (`c`, `8c`, the attempt they come from) and the branch the rule names, and the step's record names the branch with the reading cited; (c) the stream module's docstring and DESIGN's memory passage carry the measured CPU in place of the inference, held to the committed reading by a unit test; (d) if the shared fold is built, the probe is rerun through it with eight subscribers on one open attempt and the replay page's and the decision route's latency sampled beside them, and that rerun is a second capture. A reading over fewer attempts than the ledger holds is a finding, and no branch is taken from it. | `captures/tick-cost/<date>/host.out.txt` (the host's shape, the deployed sha, the reading), `host.err.txt` |
