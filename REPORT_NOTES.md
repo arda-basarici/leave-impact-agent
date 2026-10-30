@@ -7,6 +7,93 @@ decisions it feeds.
 
 ---
 
+## 2026-10-30 — Three reads of one deploy path, each a history the rulings allowed and no fixture held, and the third found the fixture was a memory of the file, not the file
+
+*M3, the worker service step (step 14, 2026-10-27 to 30): the deploy script gained a
+drain and an order for a long-running worker, and an external reader read the path
+three times. Feeds: the M3 report's engineering section, on the deploy's drain and
+rollback and on the review method per commit group; the method section, on reproducing
+a finding before triage and on probing the histories between two states.*
+
+The demo milestone's worker service is a process that stays up between visits, so the
+deploy script that had replaced a one-shot container now had to stop a running worker,
+swap the app, start the worker again under the new image, and say what state it left
+when something failed in between. The group that built it (the drain and the order in
+`fa930fc`, deployed 2026-10-28) was designed on facts read or measured rather than
+argued: the container's stop grace is fifteen seconds because the supervisor's chain is
+a fixed ten seconds plus 0.2 s measured variable time plus margin, the healthcheck runs
+through a module with standard-library imports alone because the command surface costs
+about 2.5 s a call (three runs on the workstation, 2.26 to 2.71 s, against 0.15 s for a
+bare interpreter), and the trap that runs on a failure reads which phase the script was
+in. The first live deploy with the service ran 91 s end to end, the cache load 22 s of
+it and the worker's wait 32 s, since Docker runs a container's first health check one
+interval after the start (the stamps of the `ce43b37` deploy, 2026-10-28; the third,
+run 41048137264 on 2026-10-30, read 47 s for the bootstrap window and 31 s for
+the wait; the stop took one second on each, of no container on the first and of a
+running idle worker on the second).
+
+Then the path was read, by the external reviewer each commit group is relayed to, who
+sees the diff and the documents and nothing of the session, and the three findings that came back over two
+reads have one shape: each was a history the rulings permitted and no test had written
+down. The first: a failure after the worker's own start was reported as "the worker
+stays stopped", because the trap kept the after-bootstrap phase through the worker's
+start and the prune; a detached start whose wait failed leaves the container running,
+which Compose documents and the reviewer cited, so the message claimed a state the
+script could not know. The second: a rollback to a release from before the worker could
+not complete at all. The script installed the target's compose file first and then ran
+`compose stop worker`, and under the older file Compose answers "no such service" and
+exits 1; the trap's attempt to restart the worker failed the same way. Both were
+reproduced before they were triaged, the first through the deploy harness with its fake
+Docker failing the worker's start line and then the prune line, the second with the real
+Compose client on the workstation against the old file. The fixes went in as one commit
+(`3b5c795`), since both rewrote the same block: the drain runs under the installed file
+and only when that file names the service, the target's file replaces it afterwards, the
+worker starts only when the target names it, and after the worker's start the trap says
+only what `docker compose ps` can tell.
+
+The second read confirmed both fixes and found a third history, the one worth the entry.
+The script exported the five vendor parameters and the two base URLs process-wide, for
+the worker's start. The current compose file keeps those names off the web container,
+and a test holds it there; the file of the release before the worker names all seven on
+the web container with empty defaults, so a rollback to it created the web process with
+the HR system's, the tracker's and the calendar's credentials in its environment, the
+first time that process would ever have held them. The rollback test had not seen this
+because its pre-worker compose file was not the pre-worker compose file: it was a
+stand-in written from memory of the old file, and the memory had dropped exactly the
+seven lines that mattered. The reproduction used the real file from the old commit as
+the rollback's target and found six vendor values in the environment of the web
+container's start. The fix (`3f63af3`) reads the values into plain shell variables and
+exports them inside a subshell around the worker's start alone, so no bootstrap, no app
+start, no prune and no trap command carries them under any file a rollback might
+install; the real old file became a committed fixture the rollback and fresh-host tests
+target, and the first-deploy test asserts every Docker invocation but the worker's saw no
+vendor name.
+
+Two lessons were entered in the project's lesson list at the step's close, and both are
+transferable past this script. A test against a historical artifact uses the artifact,
+never a stand-in shaped from memory of it: the old file was one `git show` away, and a
+stand-in holds what its author remembered mattering, which is never the line that will.
+And an `export` in a deploy script reaches every container any installed file names,
+so a credential's scope is the one command that needs it, not the process; a
+process-wide export is scoped by whatever every file the script might install does with
+it. The method lesson underneath is older and held again here: a sentence of the form
+"the worker is stopped after a failure" or "a rollback is the same script with an older
+sha" is checked against each state a run could be in between, with the real artifacts
+of those states, before it becomes a trap branch or a test.
+
+The step's close also ruled three things the build had parked, each by declining a
+change. The checkpoint saver's database connection stays without a statement bound,
+because the kill at the grace is the mechanism the blocked-work probe measured and a
+bound would add a second ending for the same fault with no probe of what a cancelled
+checkpoint statement leaves behind; a child that dies before claiming its attempt is
+retried every tick rather than counted, because the fifteen-minute unclaimed wait already
+bounds the cost and a count needs a threshold no measurement supports; and the deploy's
+success marker keeps its bare commit sha, which the run lifecycle gates on, with a ledger
+of started, deployed, failed and probe lines to be written beside it at the base-image
+pinning step, since moving the marker's write after the boundary probe would have tied a
+release's identity to a check of something else. [The ledger is ruled and not built; its
+first lines are read on that step's deploy.]
+
 ## 2026-10-17 — The single call is perfect when its answer fits the output allowance and stops at the maximum when it does not, and the agent is ahead at the padded level where that happens
 
 *M2, phase C: the 240 registered runs on the measurement world and the one reported
