@@ -33,6 +33,17 @@ admission, whose refusal (the ledger's) is the recorded one and leaves nothing o
 side, and whose receipt is noted on the window; then the publishable row and the live row
 in the app store's section.
 
+**One tally, two readers** (the live pages step, group 3's design pass, fork 2). The cap and
+the single-open condition are read off ``day_tally``, the admissions listing reduced to
+today's count, the cap and the open runs; the index page reads the same tally through
+``index_state`` to say, before any click, whether the form is open with how many starts
+remain, a run is in progress (named by its derived public id, so the page links it), or
+the day's budget is spent. The rule and the page cannot drift, since neither has a predicate
+of its own. The busy refusal carries the open run's id for the same reason, so the refusal
+page points at the run and not only at the replays. The index's read runs under no lock
+and the post keeps every check: the read and the submit can race, and the refusal is the
+truth then.
+
 **The names.** The key's digest is the request identity, the run id and the public id are
 derived from it, and the admitter is one identity, ``demo-start``, which is what makes an
 admission at position 1 a public one (``live.py``). The frozen inputs come from a planner
@@ -51,7 +62,7 @@ from contextlib import AbstractContextManager
 from dataclasses import dataclass
 from datetime import UTC, datetime, time
 from enum import StrEnum
-from typing import Protocol
+from typing import ClassVar, Protocol
 
 from leaveimpact.agent.log_events import FrozenInputs, Producer
 from leaveimpact.agent.log_store import (
@@ -69,9 +80,10 @@ from leaveimpact.app.live import (
     StartKey,
     key_digest_of,
     public_id_for,
+    public_id_of_run,
     run_id_for,
 )
-from leaveimpact.app.public import PublicationDraft
+from leaveimpact.app.public import PublicationDraft, PublicId
 from leaveimpact.app.window import AddressWindow
 from leaveimpact.core.ids import ScenarioId
 
@@ -185,16 +197,104 @@ class Started:
 
 @dataclass(frozen=True, slots=True)
 class StartRefused:
-    """The start was refused: the kind, a sentence, and whether the refusal is the log's
+    """The start was refused: the kind, a sentence, whether the refusal is the log's
     recorded answer to this request (a repeat of a refused one) rather than a rule of this
-    command applied now."""
+    command applied now, and for the busy kind the open run's id, so the page can point at
+    the run; ``None`` on every other kind."""
 
     kind: StartRefusalKind
     detail: str
     recorded: bool = False
+    open_run: str | None = None
 
 
 StartOutcome = Started | StartRefused
+
+
+@dataclass(frozen=True, slots=True)
+class DayTally:
+    """The day's public admissions as the rule and the index read them: how many were
+    admitted at or after the day's start, the cap, and the run ids of the open ones in the
+    listing (older ones included: an open attempt is open whatever day admitted it)."""
+
+    today: int
+    cap: int
+    open_runs: tuple[str, ...]
+
+    @property
+    def remaining(self) -> int:
+        """How many starts the day has left, never below zero."""
+        return max(self.cap - self.today, 0)
+
+
+def day_tally(
+    admitted: tuple[AdmittedAttempt, ...], configuration: DemoConfiguration, *, since: datetime
+) -> DayTally:
+    """The tally over the admissions-by-admitter listing read since ``since``, the UTC
+    day's start: today's count by each admission's instant and never the tuple's length,
+    openness by each entry's closed flag."""
+    return DayTally(
+        today=sum(1 for each in admitted if each.admitted_at >= since),
+        cap=configuration.daily_admissions,
+        open_runs=tuple(each.run_id for each in admitted if not each.closed),
+    )
+
+
+@dataclass(frozen=True, slots=True)
+class FormOpen:
+    """The index shows the form: the day's remaining starts against the cap."""
+
+    kind: ClassVar[str] = "form"
+
+    remaining: int
+    cap: int
+
+
+@dataclass(frozen=True, slots=True)
+class Busy:
+    """A public run is open; the index names it by its derived public id."""
+
+    kind: ClassVar[str] = "busy"
+
+    open_run: PublicId
+
+
+@dataclass(frozen=True, slots=True)
+class Spent:
+    """The day's cap is reached; it opens again at midnight UTC."""
+
+    kind: ClassVar[str] = "spent"
+
+    today: int
+    cap: int
+
+
+@dataclass(frozen=True, slots=True)
+class AddressSpent:
+    """The visitor's own address had its starts for the day; the post would refuse it."""
+
+    kind: ClassVar[str] = "address_spent"
+
+
+IndexState = FormOpen | Busy | Spent | AddressSpent
+
+
+def index_state(log: StartLog, composition: StartComposition, address: str) -> IndexState:
+    """What the index says under the flag on, from one admissions read in ``log`` and the
+    window the composition holds: busy first (a run to follow is the most useful fact),
+    then the spent day, then the visitor's own spent address, else the open form with the
+    remaining count. Raises what the log raises."""
+    configuration = composition.configuration
+    since = day_start_of(log.now())
+    admitted = log.admitted_by(DEMO_START, configuration.ledger_id, since=since)
+    tally = day_tally(admitted, configuration, since=since)
+    if tally.open_runs:
+        return Busy(public_id_of_run(tally.open_runs[0]))
+    if tally.today >= tally.cap:
+        return Spent(tally.today, tally.cap)
+    if not composition.window.admits(address, since=since):
+        return AddressSpent()
+    return FormOpen(tally.remaining, tally.cap)
 
 
 def serialization_name(ledger_id: str) -> str:
@@ -236,7 +336,7 @@ def start(
                 StartRefusalKind.ADDRESS_SPENT, "an attempt is running; the replays are open"
             )
         admitted = log.admitted_by(DEMO_START, configuration.ledger_id, since=since)
-        refusal = _rule_refusal(admitted, configuration, since=since)
+        refusal = _rule_refusal(day_tally(admitted, configuration, since=since))
         if refusal is not None:
             return refusal
         run_id = run_id_for(digest)
@@ -280,20 +380,20 @@ def day_start_of(instant: datetime) -> datetime:
     return datetime.combine(instant.astimezone(UTC).date(), time(), tzinfo=UTC)
 
 
-def _rule_refusal(
-    admitted: tuple[AdmittedAttempt, ...], configuration: DemoConfiguration, *, since: datetime
-) -> StartRefused | None:
-    """The cap, then the single-open condition, over the log's listing: today's count is
-    the admissions at or after ``since`` (the listing holds older open ones beside them),
-    openness is each entry's closed flag."""
-    today = sum(1 for each in admitted if each.admitted_at >= since)
-    if today >= configuration.daily_admissions:
+def _rule_refusal(tally: DayTally) -> StartRefused | None:
+    """The cap, then the single-open condition, over the day's tally; the busy refusal
+    carries the first open run."""
+    if tally.today >= tally.cap:
         return StartRefused(
             StartRefusalKind.BUDGET_SPENT,
-            f"today's budget is spent: {today} of {configuration.daily_admissions} starts",
+            f"today's budget is spent: {tally.today} of {tally.cap} starts",
         )
-    if any(not each.closed for each in admitted):
-        return StartRefused(StartRefusalKind.BUSY, "an attempt is running; the replays are open")
+    if tally.open_runs:
+        return StartRefused(
+            StartRefusalKind.BUSY,
+            "an attempt is running; the replays are open",
+            open_run=tally.open_runs[0],
+        )
     return None
 
 
@@ -340,9 +440,15 @@ def _as_recorded(
 __all__ = [
     "DEMO_START",
     "FIRST_ATTEMPT",
+    "AddressSpent",
+    "Busy",
+    "DayTally",
+    "FormOpen",
+    "IndexState",
     "LiveWriter",
     "Planner",
     "Planning",
+    "Spent",
     "StartComposition",
     "StartLog",
     "StartOutcome",
@@ -352,6 +458,8 @@ __all__ = [
     "StartSections",
     "Started",
     "day_start_of",
+    "day_tally",
+    "index_state",
     "serialization_name",
     "start",
 ]

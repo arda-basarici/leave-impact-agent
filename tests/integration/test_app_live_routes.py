@@ -121,12 +121,16 @@ def test_a_decision_through_the_route_lands_on_the_log_and_the_row(rig: Rig) -> 
     path = f"/replays/{PUBLIC_ID}"
     with client(rig, store, configuration) as bare:
         page = bare.get(path)
-        assert page.status_code == 200 and f'value="{DIGEST}"' in page.text
+        assert page.status_code == 200 and f'<span class="cited">{DIGEST}</span>' in page.text
+        assert 'value="approve"' not in page.text, "the form renders to the key's holder alone"
+        assert "awaits a decision from the browser that started it" in page.text
         without = bare.post(
             f"{path}/decision", data={"decision": "approve", "payload_digest": DIGEST}
         )
         assert without.status_code == 403
     with client(rig, store, configuration, {COOKIE: KEY}) as web:
+        holder = web.get(path)
+        assert holder.status_code == 200 and f'value="{DIGEST}"' in holder.text
         answer = web.post(
             f"{path}/decision",
             data={"decision": "approve", "payload_digest": DIGEST},

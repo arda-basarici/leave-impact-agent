@@ -17,15 +17,23 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from leaveimpact.agent.log_events import Abandoned, Admitted, Producer
+from leaveimpact.agent.log_store import AdmittedAttempt
 from leaveimpact.agent.log_transition import Appended
 from leaveimpact.app.live import StartKey, key_digest_of, public_id_for, run_id_for
 from leaveimpact.app.start import (
     DEMO_START,
+    AddressSpent,
+    Busy,
+    DayTally,
+    FormOpen,
+    Spent,
     StartComposition,
     Started,
     StartRefusalKind,
     StartRefused,
     StartRequest,
+    day_tally,
+    index_state,
     start,
 )
 from leaveimpact.app.window import MemoryWindow
@@ -397,3 +405,44 @@ def test_a_repeat_is_answered_past_the_address_window_and_a_refusal_before_it_is
         day + timedelta(hours=1),
         day + timedelta(hours=2),
     ], "two admissions noted at the log's instants, nothing for the repeat or the refusal"
+
+
+# --- the tally and the index's state -------------------------------------------------------------
+
+
+def test_the_tally_counts_today_by_instant_and_lists_every_open_run() -> None:
+    day = datetime(2026, 10, 26, 0, 0, tzinfo=UTC)
+    listing = (
+        AdmittedAttempt("demo-a", 1, day - timedelta(hours=1), False),
+        AdmittedAttempt("demo-b", 1, day + timedelta(hours=1), True),
+        AdmittedAttempt("demo-c", 1, day + timedelta(hours=2), False),
+    )
+    tally = day_tally(listing, LIVE, since=day)
+    assert tally == DayTally(today=2, cap=5, open_runs=("demo-a", "demo-c"))
+    assert tally.remaining == 3
+    assert day_tally((), LIVE, since=day) == DayTally(0, 5, ())
+    assert day_tally(listing * 3, LIVE, since=day).remaining == 0, "never below zero"
+
+
+def test_the_index_state_is_the_form_then_busy_then_spent_then_the_address() -> None:
+    """Fork 4 of the live pages step: the index reads the start's own tally and the window,
+    busy before spent (a run to follow is the more useful fact), the visitor's own address
+    last; the form state carries the remaining count."""
+    log, rows = stores()
+    assert index_state(log, composition(), ADDRESS) == FormOpen(remaining=5, cap=5)
+    first = started(start(request(key(1), SCENARIO), log, rows, composition()))
+    assert index_state(log, composition(), ADDRESS) == Busy(first.row.public_id)
+    assert index_state(log, composition(), "198.51.100.9") == Busy(first.row.public_id)
+    closed(log, first.row.run_id)
+    assert index_state(log, composition(), ADDRESS) == FormOpen(remaining=4, cap=5)
+    for number in range(2, 6):
+        outcome = started(start(request(key(number), SCENARIO), log, rows, composition()))
+        closed(log, outcome.row.run_id)
+    assert index_state(log, composition(), ADDRESS) == Spent(today=5, cap=5)
+
+    window = MemoryWindow(limit=1)
+    log, rows = stores()
+    outcome = started(start(request(key(1), SCENARIO), log, rows, composition(window=window)))
+    closed(log, outcome.row.run_id)
+    assert index_state(log, composition(window=window), ADDRESS) == AddressSpent()
+    assert index_state(log, composition(window=window), "198.51.100.9") == FormOpen(4, 5)

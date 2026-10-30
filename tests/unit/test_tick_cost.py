@@ -16,6 +16,13 @@ from typing import Any
 import pytest
 
 from leaveimpact.app import stream
+from leaveimpact.app.config import committed_configuration
+from leaveimpact.app.read_model import (
+    MEASURED_LONGEST_SECONDS,
+    MEASURED_MEDIAN_SECONDS,
+    MEASURED_RUNS,
+    wait_explained,
+)
 
 ROOT = Path(__file__).resolve().parents[2]
 PROBE = ROOT / "probes" / "tick-cost"
@@ -83,3 +90,22 @@ def test_the_rule_landed_on_its_third_branch(
         rule = reading["rule"]
         assert rule["c_seconds"] > rule["budget_seconds"] < rule["eight_c_seconds"]
         assert rule["branch"].startswith("undecided")
+
+
+
+def test_the_pages_wait_figures_are_the_captures_durations(
+    readings: tuple[dict[str, Any], dict[str, Any]],
+) -> None:
+    """The live pages quote the thirty replays' admission-to-request durations rounded to
+    the second (fork 10 of the live pages step); the constants the sentence is built from
+    are held to both captures through the reducer, as the figures the stream module cites
+    are."""
+    for reading in readings:
+        durations = reading["durations_s"]["admission_to_request"]
+        assert round(durations["median"]) == MEASURED_MEDIAN_SECONDS == 40
+        assert round(durations["max"]) == MEASURED_LONGEST_SECONDS == 48
+        assert reading["attempts_measured"] == MEASURED_RUNS == 30
+    sentence = wait_explained(committed_configuration())
+    assert f"Over the {MEASURED_RUNS} recorded runs" in sentence
+    assert f"about {MEASURED_MEDIAN_SECONDS} seconds at the median" in sentence
+    assert f"{MEASURED_LONGEST_SECONDS} at most" in sentence

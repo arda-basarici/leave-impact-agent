@@ -102,6 +102,29 @@ def public_id_for(key_digest: str) -> PublicId:
     return public_id_of(f"live-{key_digest[:PUBLIC_ID_DIGITS]}")
 
 
+RUN_PREFIX = "demo-"
+
+
+def public_id_of_run(run_id: str) -> PublicId:
+    """The public id of the attempt ``run_id`` names, from the run id alone, so the index
+    can point at the open run the admissions read lists without a row lookup (the live
+    pages step, group 3's design pass, fork 2); ``ValueError`` for a run id no public
+    start derives.
+
+    >>> public_id_of_run("demo-" + "f" * 64)
+    'live-ffffffffffffffffffffffffffffffff'
+    >>> public_id_of_run("run-12")
+    Traceback (most recent call last):
+    ...
+    ValueError: run-12 is not a public run id: no demo- prefix
+    """
+    if not run_id.startswith(RUN_PREFIX):
+        raise ValueError(f"{run_id} is not a public run id: no {RUN_PREFIX} prefix")
+    digest = run_id[len(RUN_PREFIX) :]
+    require_digest(digest, f"the digest of the public run id {run_id}")
+    return public_id_for(digest)
+
+
 class Decision(StrEnum):
     """The decision the row records, as the log holds it."""
 
@@ -156,6 +179,7 @@ __all__ = [
     "key_digest_of",
     "mint_start_key",
     "public_id_for",
+    "public_id_of_run",
     "run_id_for",
     "start_key_of",
 ]

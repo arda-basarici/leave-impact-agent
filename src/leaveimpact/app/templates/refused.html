@@ -3,5 +3,6 @@
 {% block content %}
 <h1>Not this time</h1>
 <p>{{ reason }}</p>
+{% if follow %}<p><a href="/replays/{{ follow }}">Follow the run in progress</a> · <a href="/replays/{{ follow }}/timeline">its timeline</a></p>{% endif %}
 <p class="meta"><a href="/replays">All replays</a> · <a href="/">Start</a></p>
 {% endblock %}

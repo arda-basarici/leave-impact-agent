@@ -21,12 +21,14 @@ import pytest
 from fastapi.testclient import TestClient
 
 from leaveimpact.agent.log_events import Admitted, Approved, Declined
+from leaveimpact.agent.log_store import LogStoreUnavailable
 from leaveimpact.app.config import DemoConfiguration
-from leaveimpact.app.live import Decision, key_digest_of, public_id_for
+from leaveimpact.app.live import Decision, key_digest_of, public_id_for, run_id_for
 from leaveimpact.app.main import (
     COOKIE,
     FORM_BYTES_BOUND,
     FORM_FIELDS_BOUND,
+    LiveLog,
     Services,
     create_app,
 )
@@ -40,7 +42,7 @@ from tests.unit.app_store_memory import MemoryAppStore
 from tests.unit.live_routes_fixture import Minter, live_services
 from tests.unit.log_store_memory import LEDGER, MemoryLog
 from tests.unit.publishable_fixture import CONFIGURATION, SCENARIO, SERVED, history_in_world
-from tests.unit.test_app_start import UNLIMITED, key
+from tests.unit.test_app_start import UNLIMITED, closed, key
 from tests.unit.test_app_surface import Sessions, Store
 
 CODE = "b" * 40
@@ -162,17 +164,22 @@ def test_the_flag_off_the_busy_run_and_the_spent_address_refuse_by_kind() -> Non
     assert answer.status_code == 403 and "Live runs are off" in answer.text
 
     rig = Rig(window=MemoryWindow(limit=UNLIMITED))
+    open_run = public_id_for(key_digest_of(key(1)))
     with rig.client() as web:
         assert web.post("/start", data=form(1), follow_redirects=False).status_code == 303
         busy = web.post("/start", data=form(2))
     assert busy.status_code == 409 and BUSY_SENTENCE in busy.text
+    assert f'<a href="/replays/{open_run}">Follow the run in progress</a>' in busy.text
+    assert f'href="/replays/{open_run}/timeline"' in busy.text
 
     windowed = Rig(window=MemoryWindow(limit=1))
     with windowed.client() as web:
         assert web.post("/start", data=form(1), follow_redirects=False).status_code == 303
         spent = web.post("/start", data=form(2))
     assert spent.status_code == 409 and BUSY_SENTENCE in spent.text
-    assert spent.content == busy.content, "the address's refusal reads as the busy one"
+    assert "Follow the run in progress" not in spent.text, (
+        "the address's refusal is made before the read that names the open run"
+    )
 
 
 def test_a_body_past_the_bound_or_with_too_many_fields_is_refused_before_any_rule() -> None:
@@ -244,15 +251,38 @@ def awaiting_rig(*, clock: datetime | None = None) -> tuple[Rig, str]:
     return rig, f"/replays/{deciding.PUBLIC_ID}"
 
 
-def test_the_open_replay_page_shows_the_review_and_the_decision_form() -> None:
+def test_the_open_replay_page_shows_the_review_and_the_decision_form_to_the_holder() -> None:
+    """Fork 5 of the live pages step: the form renders to the browser holding the key; any
+    other viewer reads that the run awaits the browser that started it, with the deadline;
+    an attempt no visitor started reads that it awaits its operator. Every viewer reads the
+    review's sentences and its digest."""
     rig, path = awaiting_rig()
+    deadline = deciding.deadline(deciding.awaiting()).isoformat()
+    with rig.client({COOKIE: deciding.KEY}) as web:
+        holder = web.get(path)
     with rig.client() as web:
-        page = web.get(path)
-    assert page.status_code == 200
-    assert f'action="{path}/decision"' in page.text
-    assert f'value="{deciding.DIGEST}"' in page.text
-    assert 'value="approve"' in page.text and 'value="decline"' in page.text
-    assert "&#34;claims&#34;" in page.text, "the payload's JSON, escaped as text"
+        other = web.get(path)
+    with rig.client({COOKIE: str(key(9))}) as web:
+        wrong = web.get(path)
+    rig.rows.live.clear()
+    with rig.client({COOKIE: deciding.KEY}) as web:
+        no_visitor = web.get(path)
+    assert holder.status_code == 200
+    assert f'action="{path}/decision"' in holder.text
+    assert f'value="{deciding.DIGEST}"' in holder.text
+    assert 'value="approve"' in holder.text and 'value="decline"' in holder.text
+    assert f"The wait ends at {deadline}" in holder.text
+    for page in (other, wrong):
+        assert page.status_code == 200 and 'value="approve"' not in page.text
+        assert f"awaits a decision from the browser that started it, until {deadline}" in page.text
+    assert no_visitor.status_code == 200 and 'value="approve"' not in no_visitor.text
+    assert f"awaits its operator's decision, until {deadline}" in no_visitor.text
+    for page in (holder, other, wrong, no_visitor):
+        assert "&#34;claims&#34;" in page.text, "the payload's JSON, escaped as text"
+        assert f'<span class="cited">{deciding.DIGEST}</span>' in page.text
+        assert "The run reported no impact." in page.text, "the fixture's review holds no claim"
+        assert "Composed by rules under the policy stated-fact-composer" in page.text
+        assert "This run is investigating" not in page.text, "the awaiting page, not the first"
 
 
 def test_a_decision_with_the_cookie_lands_on_the_log_and_the_row_and_redirects() -> None:
@@ -270,6 +300,9 @@ def test_a_decision_with_the_cookie_lands_on_the_log_and_the_row_and_redirects()
         assert row is not None and row.decision is Decision.APPROVED
         after = web.get(path)
         assert 'value="approve"' not in after.text, "no form once the approval is given"
+        approved_at = rig.log.load(deciding.RUN, 1, rules=histories.RULES).approved
+        assert approved_at is not None
+        assert f"The plan was approved at {approved_at.timestamp.isoformat()}" in after.text
         declined = web.post(
             f"{path}/decision", data={"decision": "decline", "payload_digest": deciding.DIGEST}
         )
@@ -287,6 +320,11 @@ def test_a_decline_closes_the_attempt_and_the_page_renders_its_ending() -> None:
     assert answer.status_code == 303
     state = rig.log.load(deciding.RUN, 1, rules=histories.RULES)
     assert state.closed is not None and isinstance(state.closed.event, Declined)
+    with rig.client() as web:
+        page = web.get(path)
+    assert page.status_code == 200 and "<h2>The plan was declined.</h2>" in page.text
+    assert "The plan was declined by a person, which closed the run." in page.text
+    assert "Abandoned by" not in page.text and "Failed by" not in page.text
 
 
 def test_without_the_cookie_or_with_another_key_the_decision_is_the_capabilitys_refusal() -> None:
@@ -329,3 +367,79 @@ def test_a_scenario_id_the_form_names_is_the_planners_scenario() -> None:
         answer = web.post("/start", data=form(1, "scenario_004"), follow_redirects=False)
         page = web.get(answer.headers["location"])
     assert ScenarioId("scenario_004") in page.text
+
+
+# --- the index's live state ----------------------------------------------------------------------
+
+
+def test_the_index_reads_the_live_state_form_busy_spent_and_the_address() -> None:
+    """Fork 4 of the live pages step: one admissions read decides the index's state; the key
+    is minted for the form alone, and the busy state links the open run by its derived id."""
+    rig = Rig(window=MemoryWindow(limit=UNLIMITED))
+    open_run = public_id_for(key_digest_of(key(1)))
+    with rig.client() as web:
+        fresh = web.get("/").text
+        assert web.post("/start", data=form(1), follow_redirects=False).status_code == 303
+        busy = web.get("/").text
+    assert 'action="/start"' in fresh and "5 of today's 5 live runs remain" in fresh
+    assert "about 40 seconds at the median and 48 at most" in fresh
+    assert "The decision waits 15 minutes" in fresh and "bounded at 10 minutes" in fresh
+    assert 'action="/start"' not in busy and "A live run is in progress" in busy
+    assert f'<a href="/replays/{open_run}">Follow it</a>' in busy
+    assert f'href="/replays/{open_run}/timeline"' in busy
+    assert len(rig.minter.minted) == 1, "a key is minted only for a form the page renders"
+    assert rig.sessions.opened == rig.sessions.closed, "the index's session is closed"
+
+    capped = Rig(window=MemoryWindow(limit=UNLIMITED))
+    with capped.client() as web:
+        for number in range(1, 6):
+            assert web.post("/start", data=form(number), follow_redirects=False).status_code == 303
+            closed(capped.log, run_id_for(key_digest_of(key(number))))
+        spent = web.get("/").text
+    assert 'action="/start"' not in spent
+    assert "Today's budget of live runs is spent: 5 of 5 started" in spent
+
+    windowed = Rig(window=MemoryWindow(limit=1))
+    with windowed.client() as web:
+        assert web.post("/start", data=form(1), follow_redirects=False).status_code == 303
+        closed(windowed.log, run_id_for(key_digest_of(key(1))))
+        address = web.get("/").text
+    assert 'action="/start"' not in address
+    assert "This address has started its live runs for today" in address
+
+
+def test_the_index_under_the_flag_on_is_unavailable_when_the_log_does_not_answer() -> None:
+    rig = Rig()
+
+    def refusing() -> LiveLog:
+        raise LogStoreUnavailable("the log store did not answer")
+
+    with TestClient(create_app(replace(rig.services, live_logs=refusing))) as web:
+        answer = web.get("/")
+    assert answer.status_code == 503 and rig.minter.minted == []
+
+
+def test_the_open_page_before_the_request_says_investigating_with_the_wait() -> None:
+    events = history_in_world("an approval wait across a restart", SERVED, run_id=deciding.RUN)
+    log, rows, _ = deciding.stores(events[:7], clock=events[6].timestamp)
+    admitted = events[0].event
+    assert isinstance(admitted, Admitted)
+    rows.rows.append(
+        PublishableRow(
+            deciding.PUBLIC_ID,
+            deciding.RUN,
+            1,
+            SERVED,
+            admitted.inputs.context.scenario_id,
+            None,
+            events[0].timestamp,
+            "demo-start",
+        )
+    )
+    rig = Rig(log=log, rows=rows)
+    with rig.client() as web:
+        page = web.get(f"/replays/{deciding.PUBLIC_ID}")
+    assert page.status_code == 200
+    assert "This run is investigating; its report renders when it closes." in page.text
+    assert "about 40 seconds at the median and 48 at most" in page.text
+    assert "A decision is asked" not in page.text and 'value="approve"' not in page.text

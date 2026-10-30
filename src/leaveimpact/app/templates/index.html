@@ -11,6 +11,7 @@ withheld world, with every caveat the measurement carries.</p>
   <dt>Live runs</dt><dd>{{ "on" if live_runs else "off" }}</dd>
 </dl>
 {% if live_runs %}
+{% if state.kind == "form" %}
 <form method="post" action="/start" id="start">
   <input type="hidden" name="key" value="{{ start_key }}">
   <label>Scenario <select name="scenario_id">
@@ -20,7 +21,16 @@ withheld world, with every caveat the measurement carries.</p>
   </select></label>
   <button type="submit">Start a live run</button>
 </form>
-<p class="meta">A live run investigates one scenario of the served world now and asks this browser to approve or decline its plan; the key in the form is what lets this browser decide.</p>
+<p class="meta">{{ state.remaining }} of today's {{ state.cap }} live runs remain; the day turns at midnight UTC. The key in the form is what lets this browser decide.</p>
+<p class="meta">{{ wait }}</p>
+{% elif state.kind == "busy" %}
+<p>A live run is in progress. <a href="/replays/{{ state.open_run }}">Follow it</a> or <a href="/replays/{{ state.open_run }}/timeline">watch its timeline</a>; a new run can start when it ends.</p>
+<p class="meta">{{ wait }}</p>
+{% elif state.kind == "spent" %}
+<p>Today's budget of live runs is spent: {{ state.today }} of {{ state.cap }} started. It opens again at midnight UTC; the replays are open meanwhile.</p>
+{% elif state.kind == "address_spent" %}
+<p>This address has started its live runs for today; the replays are open meanwhile, and the day turns at midnight UTC.</p>
+{% endif %}
 {% else %}
 <p class="meta">Live runs are off; the replays are the recorded investigations.</p>
 {% endif %}

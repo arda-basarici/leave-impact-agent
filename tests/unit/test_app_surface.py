@@ -187,7 +187,7 @@ def test_the_replay_page_shows_the_admitted_attempts_ending_and_no_run_id() -> N
     assert "scenario_003" in page.text and ">completed<" in page.text
     assert "run-12" not in page.text
     assert live.status_code == 200 and ">in progress<" in live.text
-    assert "in progress; its report renders when it closes" in live.text
+    assert "investigating; its report renders when it closes" in live.text
     assert "The run completed. It reported no impact." in page.text
     assert rig.sessions.opened == 2 and rig.sessions.closed == 2
 

@@ -10,15 +10,25 @@ and scenario, never the operator's."""
 from __future__ import annotations
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
-from leaveimpact.agent.log_transition import AttemptState, Rules
+from leaveimpact.agent.log_transition import AttemptState, Rules, fold
 from leaveimpact.agent.registered import effective_rules
+from leaveimpact.app.decide import Viewer, review_of
 from leaveimpact.app.public import PublicAttempt, PublicId
 from leaveimpact.app.publishing import PublishRefused, PublishRequest, draft_of
-from leaveimpact.app.read_model import Admitted, admitted, listing, replay_view, rules_under
+from leaveimpact.app.read_model import (
+    Admitted,
+    OpenPhase,
+    admitted,
+    listing,
+    open_view,
+    replay_view,
+    rules_under,
+    wait_explained,
+)
 from leaveimpact.core.ids import ScenarioId
 from leaveimpact.core.run_record import TerminalStatus
 from tests.unit import log_histories as histories
@@ -207,3 +217,41 @@ def test_an_unknown_an_open_and_an_other_world_attempt_are_refused_by_name(
     log: CountingLog, run_id: str, reason: str
 ) -> None:
     assert draft_of(request(run_id), CONFIGURATION, log, RULES) == PublishRefused(reason)
+
+
+# --- the open page --------------------------------------------------------------------------------
+
+
+def test_the_wait_explained_quotes_the_measured_figures_and_the_configured_bounds() -> None:
+    sentence = wait_explained(CONFIGURATION)
+    assert "Over the 30 recorded runs the investigation took about 40 seconds at the median" in (
+        sentence
+    )
+    assert "and 48 at most" in sentence
+    assert "The decision waits 15 minutes; without one the run closes." in sentence
+    assert "Each running segment is bounded at 10 minutes" in sentence
+    assert "new segment with its own bound" in sentence
+    odd = replace(CONFIGURATION, approval_wait_seconds=90, attempt_wall_seconds=45)
+    assert "waits 90 seconds" in wait_explained(odd)
+    assert "bounded at 45 seconds" in wait_explained(odd)
+
+
+def test_the_open_view_is_investigating_awaiting_then_approved() -> None:
+    events = history_in_world("an approval wait across a restart", SERVED)
+    live = replace(CONFIGURATION, live_runs=True)
+    before = open_view(fold(events[:7], RULES), None, None, live)
+    assert before.phase is OpenPhase.INVESTIGATING and before.review is None
+    assert before.wait == wait_explained(live) and before.deadline is None
+    awaiting = fold(events[:9], RULES)
+    review = review_of(awaiting)
+    assert review is not None
+    view = open_view(awaiting, review, Viewer.OTHER, live)
+    assert view.phase is OpenPhase.AWAITING and view.viewer is Viewer.OTHER
+    assert view.deadline == events[7].timestamp + timedelta(seconds=live.approval_wait_seconds)
+    assert view.review is not None and view.review.digest == review.digest
+    assert view.review.claim_ids() == () and view.approved_at is None
+    approved = fold(events[:11], RULES)
+    assert review_of(approved) is None
+    after = open_view(approved, None, None, live)
+    assert after.phase is OpenPhase.APPROVED and after.approved_at == events[10].timestamp
+    assert after.review is None and after.deadline is None

@@ -24,9 +24,12 @@ contradicts, so a forced row reveals nothing; a store that does not answer, a da
 without the app schema, and a served world the cache does not mark ready are the
 unavailable page, 503, answered after admission is resolved, so an unavailable cache never
 distinguishes a published name from an unknown one. The replay page branches on the
-admitted state: an open attempt (a live run investigating or awaiting its decision) is the
-progress header, and a closed one is the report, the export folded from the state by the
-log reader and rendered as the report view (``report``); a closed attempt the reader
+admitted state: an open attempt (a live run investigating, awaiting its decision or
+approved and finishing) is the open page (``read_model.open_view``: the phase, the wait
+explained, and while a review is outstanding the review as sentences with the decision
+form rendered to the browser holding the key alone, the live row read for that on the
+awaiting branch only), and a closed one is the report, the export folded from the state
+by the log reader and rendered as the report view (``report``); a closed attempt the reader
 refuses to fold is a defect of the deployment, logged by name and answered as the
 unavailable page, never the not-found page, which would say the name does not exist. The
 trail page (``trail``) is the same path with the trail view built instead of the report's.
@@ -63,7 +66,8 @@ thread pool as the plain routes run, in a log session of their own. A start answ
 redirect to the replay page with the cookie on every ``Started``, a repeat included, so a
 lost response is survivable; a decision answers the same redirect. A refusal renders by
 its kind with the wording fixed here (``_START_WORDING``, ``_DECIDE_WORDING``): the busy
-and the per-address refusals share one sentence (fork 8), the world not served is the
+and the per-address refusals share one sentence (fork 8), the busy one carrying a link to
+the open run the start's tally named (the live pages step), the world not served is the
 unavailable page, and an attempt no visitor started is the not-found page, byte-identical
 to an unknown name's, so the sweep's invariant holds on the decision route too. A form
 that is not the page's (a key outside the rule, no scenario, no decision, no digest) is
@@ -122,8 +126,15 @@ from leaveimpact.app.decide import (
     DecisionRows,
     decide,
     review_of,
+    viewer_of,
 )
-from leaveimpact.app.live import Decision, StartKey, mint_start_key, start_key_of
+from leaveimpact.app.live import (
+    Decision,
+    StartKey,
+    mint_start_key,
+    public_id_of_run,
+    start_key_of,
+)
 from leaveimpact.app.markup import mark_quotes
 from leaveimpact.app.narration import timeline_view
 from leaveimpact.app.public import PublicReplay, public_id_of
@@ -134,13 +145,16 @@ from leaveimpact.app.read_model import (
     admitted,
     instants_of,
     listing,
+    open_view,
     replay_view,
     rules_under,
+    wait_explained,
 )
 from leaveimpact.app.ready import AppSchema, ReadyVersions, readiness
 from leaveimpact.app.report import Instants, report_view
 from leaveimpact.app.results import SERVED_WORLD_LABEL, results_view
 from leaveimpact.app.start import (
+    FormOpen,
     Planning,
     StartComposition,
     StartLog,
@@ -149,6 +163,7 @@ from leaveimpact.app.start import (
     StartRefused,
     StartRequest,
     StartSections,
+    index_state,
     start,
 )
 from leaveimpact.app.store import (
@@ -399,15 +414,36 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     def cache_serves() -> bool:
         return configuration.served_world_version in services.ready_versions()
 
-    def refused(request: Request, status: int, reason: str) -> HTMLResponse:
-        return page(request, "refused.html", status, reason=reason)
+    def refused(
+        request: Request, status: int, reason: str, follow: str | None = None
+    ) -> HTMLResponse:
+        """The refusal page; ``follow`` is the public id of a run the page points at (the
+        busy refusal's open run), ``None`` for the replays alone."""
+        return page(request, "refused.html", status, reason=reason, follow=follow)
 
     def index(request: Request) -> HTMLResponse:
-        # A key is minted only for a form the page renders: under the flag off there is
-        # none, and the template reads the name only inside that branch.
+        """The index: under the flag on, one admissions read in a log session closed
+        before the page renders decides which of the live states the page shows (the
+        form with the remaining count, busy with the open run's links, the day spent, the
+        visitor's address spent); under the flag off nothing is read. A key is minted only
+        for a form the page renders, and the template reads it only in that branch."""
         context: dict[str, Any] = {"scenarios": sorted(planning.scenarios)}
         if configuration.live_runs:
-            context["start_key"] = services.mint_key()
+            # Opening the session is the first thing that can fail to answer, so it sits
+            # inside the handler with the read (the group's route test found it outside).
+            log: LiveLog | None = None
+            try:
+                log = services.live_logs()
+                state = index_state(log, start_composition, address_of(request))
+            except _UNAVAILABLE:
+                return unavailable(request)
+            finally:
+                if log is not None:
+                    log.close()
+            context["state"] = state
+            context["wait"] = wait_explained(configuration)
+            if isinstance(state, FormOpen):
+                context["start_key"] = services.mint_key()
         return page(request, "index.html", **context)
 
     def ready() -> JSONResponse:
@@ -462,7 +498,18 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         header = replay_view(admission)
         state = admission.state
         if state.closed is None:
-            return page(request, "replay.html", replay=header, review=review_of(state))
+            review = review_of(state)
+            viewer = None
+            if review is not None:
+                # The live row is read on the awaiting branch alone: one app-store statement
+                # that tells the holder's browser from any other and from an operator's run.
+                try:
+                    row = services.live.live_row_of(admission.row.public_id)
+                except _UNAVAILABLE:
+                    return unavailable(request)
+                viewer = viewer_of(row, key_in(request))
+            view = open_view(state, review, viewer, configuration)
+            return page(request, "replay.html", replay=header, view=view)
         try:
             export = export_of(state)
         except ValueError as error:
@@ -565,7 +612,8 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
             if outcome.kind is StartRefusalKind.WORLD_NOT_SERVED:
                 return unavailable(request)
             status, wording = _START_WORDING[outcome.kind]
-            return refused(request, status, wording)
+            follow = None if outcome.open_run is None else public_id_of_run(outcome.open_run)
+            return refused(request, status, wording, follow=follow)
         location = f"/replays/{outcome.row.public_id}"
         response = RedirectResponse(location, status_code=303)
         response.set_cookie(

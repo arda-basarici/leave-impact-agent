@@ -1,22 +1,100 @@
 {% extends "base.html" %}
 {% block title %}{{ replay.title or replay.public_id }} · Leave Impact Agent{% endblock %}
+{% macro line(item) -%}
+<div class="claim" id="{{ item.claim_id }}">
+<p class="sentence">{{ item.sentence }}</p>
+{% if item.rationale %}
+<div class="rationale"><span class="label">model-generated rationale</span><p>{{ item.rationale }}</p></div>
+{% endif %}
+{% if item.observations %}
+<ul class="meta">{% for source, value in item.observations %}<li>{{ source }} says {{ value }}</li>{% endfor %}</ul>
+{% endif %}
+</div>
+{%- endmacro %}
 {% block content %}
-<p class="meta"><a href="/replays">All replays</a></p>
+<p class="meta"><a href="/replays">All replays</a> · <a href="/replays/{{ replay.public_id }}/timeline">Timeline</a></p>
 <h1>{{ replay.title or replay.public_id }}</h1>
 <dl>
   <dt>Scenario</dt><dd>{{ replay.scenario_id }}</dd>
   <dt>Ending</dt><dd>{{ replay.status_label }}</dd>
   <dt>Published</dt><dd>{{ replay.published_at.date().isoformat() }}</dd>
 </dl>
-<p class="meta">This run is in progress; its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
-{% if review %}
+{% if view.phase.value == "investigating" %}
+<p class="meta">This run is investigating; its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
+<p class="meta">{{ view.wait }}</p>
+{% elif view.phase.value == "approved" %}
+<p class="meta">The plan was approved at {{ view.approved_at.isoformat() }}; the run is carrying it out and its report renders when it closes. <a href="/replays/{{ replay.public_id }}/timeline">Follow it live on the timeline.</a></p>
+{% elif view.phase.value == "awaiting" %}
+{% set review = view.review %}
 <h2>A decision is asked</h2>
-<p class="meta">The run asks whether to act on its plan, as the log recorded it at position {{ review.position }}; the digest below is what the decision binds to.</p>
+{% if view.viewer.value == "holder" %}
+<p>The run asks this browser, which started it, whether to act on its plan. The wait ends at {{ view.deadline.isoformat() }}; without a decision by then the run closes without one.</p>
+{% elif view.viewer.value == "other" %}
+<p>The run awaits a decision from the browser that started it, until {{ view.deadline.isoformat() }}; without one by then it closes without a decision. <a href="/replays/{{ replay.public_id }}/timeline">Follow it on the timeline.</a></p>
+{% else %}
+<p>The run awaits its operator's decision, until {{ view.deadline.isoformat() }}; without one by then it closes without a decision. <a href="/replays/{{ replay.public_id }}/timeline">Follow it on the timeline.</a></p>
+{% endif %}
+<p class="meta">Composed by {{ review.author }} under the policy {{ review.policy }}, as the log recorded it at position {{ review.position }}. The sentences below are a reading of the frozen review; the digest beneath binds the decision to the review itself, and the full report with its evidence renders when the run closes.</p>
+{% if review.problems %}
+<div class="banner defect">
+  <strong>Defect: the claim set is not well-formed.</strong> Every claim is still shown.
+  <ul>{% for problem in review.problems %}<li>{{ problem }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+<section class="claims">
+<h3>Impacts and the plan</h3>
+{% if not review.impacts %}<p class="meta">The run reported no impact.</p>{% endif %}
+{% for section in review.impacts %}
+  {{ line(section.impact) }}
+  <div class="nested">
+  {% if section.assessments %}<h4>Candidates</h4>{% endif %}
+  {% for item in section.assessments %}{{ line(item) }}{% endfor %}
+  {% if section.actions %}<h4>The plan</h4>{% endif %}
+  {% for item in section.actions %}{{ line(item) }}{% endfor %}
+  </div>
+{% endfor %}
+</section>
+<section class="claims">
+<h3>Constraints that apply</h3>
+{% if not review.constraints %}<p class="meta">The run reported no constraint.</p>{% endif %}
+{% for item in review.constraints %}{{ line(item) }}{% endfor %}
+</section>
+<section class="claims">
+<h3>Stated unknowns</h3>
+{% if not review.unknowns %}<p class="meta">The run reported no unknown.</p>{% endif %}
+{% for item in review.unknowns %}{{ line(item) }}{% endfor %}
+</section>
+<section class="claims">
+<h3>Source conflicts</h3>
+{% if not review.conflicts %}<p class="meta">The run reported no conflict.</p>{% endif %}
+{% for item in review.conflicts %}{{ line(item) }}{% endfor %}
+</section>
+{% if review.unlinked %}
+<section class="claims">
+<h3>Unlinked claims</h3>
+<p class="meta">Assessments and actions whose impact the review does not state.</p>
+{% for item in review.unlinked %}{{ line(item) }}{% endfor %}
+</section>
+{% endif %}
+<section class="claims">
+<h3>Requirements that bound nothing</h3>
+{% if not review.unbound %}<p class="meta">Every requirement the run read bound to an artifact.</p>{% endif %}
+{% for sentence in review.unbound %}<p>{{ sentence }}</p>{% endfor %}
+</section>
+<section class="claims">
+<h3>Statements left out</h3>
+{% if not review.exclusions %}<p class="meta">No admitted statement was left out of the view.</p>{% endif %}
+{% for sentence in review.exclusions %}<p>{{ sentence }}</p>{% endfor %}
+</section>
+<h3>The frozen review</h3>
+<p class="meta">Digest <span class="cited">{{ review.digest }}</span>; the decision form carries it back.</p>
 <pre class="evidence">{{ review.payload_json }}</pre>
+{% if view.viewer.value == "holder" %}
 <form method="post" action="/replays/{{ replay.public_id }}/decision" id="decision">
   <input type="hidden" name="payload_digest" value="{{ review.digest }}">
   <button type="submit" name="decision" value="approve">Approve</button>
   <button type="submit" name="decision" value="decline">Decline</button>
 </form>
+{% endif %}
 {% endif %}
 {% endblock %}

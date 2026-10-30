@@ -34,6 +34,13 @@ the registered attribution table and re-dispatch policy, so the composition root
 registration the image ships and this function refuses one whose digest is not the
 configured ``registration_digest``, which makes the configuration's digest a live check of
 what the service loads rather than a label.
+
+``open_view`` is the replay page of an attempt that has not closed (the live pages step,
+group 3's design pass, fork 3): its phase, the wait explained with the measured figures,
+and while a review is outstanding the viewer the page renders for (the decision module's
+classification of the live row and the browser's key), the deadline and the review as
+sentences (``report.review_view``). The page is not the authority: the decision route
+keeps its own capability and deadline checks, and this view decides only what a page shows.
 """
 
 from __future__ import annotations
@@ -43,14 +50,17 @@ import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from typing import Protocol
 
 from leaveimpact.agent.log_ending import status_of
 from leaveimpact.agent.log_events import LoggedEvent
-from leaveimpact.agent.log_transition import AttemptState, Rules
+from leaveimpact.agent.log_transition import AttemptState, Rules, trace_operations
 from leaveimpact.agent.registered import effective_rules
 from leaveimpact.app.config import DemoConfiguration
+from leaveimpact.app.decide import Review, Viewer, deadline_of
 from leaveimpact.app.public import PublicAttempt, PublicId, PublicReplay, PublishableRow
+from leaveimpact.app.report import ReviewView, review_view
 from leaveimpact.core.ids import WorldVersion
 from leaveimpact.core.registration_json import decode_registration_bytes
 
@@ -167,3 +177,86 @@ def replay_view(admitted: Admitted) -> PublicReplay:
         row.published_at,
         None if ending is None else ending.status,
     )
+
+
+# --- The open page --------------------------------------------------------------------------
+
+MEASURED_RUNS = 30
+MEASURED_MEDIAN_SECONDS = 40
+MEASURED_LONGEST_SECONDS = 48
+"""What the pages quote for a run's duration: the thirty replays' admission-to-request
+durations as the tick-cost probe measured them on the instance (FINDINGS ``tick-cost``:
+median 40.07 s, max 48.30 s), rounded to the second. The tick-cost test holds these to the
+committed capture through the probe's own reducer, so the sentence cannot outlive the
+measurement (the live pages step, fork 10)."""
+
+
+def _minutes(seconds: int) -> str:
+    return f"{seconds // 60} minutes" if seconds % 60 == 0 else f"{seconds} seconds"
+
+
+def wait_explained(configuration: DemoConfiguration) -> str:
+    """What a visitor is in for, with the measured figures and the configured bounds and
+    nothing else numeric: the index's form state and the open page before the request say
+    it (fork 10 as amended: the bound is per running segment, the approval's resumption a
+    new segment with its own bound)."""
+    return (
+        "A live run investigates one scenario of the served world and asks the browser that "
+        f"started it to approve or decline its plan. Over the {MEASURED_RUNS} recorded runs "
+        f"the investigation took about {MEASURED_MEDIAN_SECONDS} seconds at the median and "
+        f"{MEASURED_LONGEST_SECONDS} at most. The decision waits "
+        f"{_minutes(configuration.approval_wait_seconds)}; without one the run closes. Each "
+        f"running segment is bounded at {_minutes(configuration.attempt_wall_seconds)}, and "
+        "the approval's resumption runs in a new segment with its own bound. The replays are "
+        "open meanwhile."
+    )
+
+
+class OpenPhase(StrEnum):
+    """Where an open attempt stands, as its replay page says it."""
+
+    INVESTIGATING = "investigating"
+    """Claimed or not, before any approval request."""
+    AWAITING = "awaiting"
+    """The review is requested and no decision is in the log."""
+    APPROVED = "approved"
+    """Approved, carrying out its plan until it closes."""
+
+
+@dataclass(frozen=True, slots=True)
+class OpenView:
+    """An open attempt's replay page: the phase, the wait explained, and in the awaiting
+    phase the viewer the page renders for, the deadline in UTC and the review rendered as
+    sentences over the run's reads; in the approved phase the approval's instant."""
+
+    phase: OpenPhase
+    wait: str
+    viewer: Viewer | None = None
+    deadline: datetime | None = None
+    review: ReviewView | None = None
+    approved_at: datetime | None = None
+
+
+def open_view(
+    state: AttemptState,
+    review: Review | None,
+    viewer: Viewer | None,
+    configuration: DemoConfiguration,
+) -> OpenView:
+    """The open page over an admitted open ``state``: ``review`` is the decision module's
+    reading of it (``None`` outside the awaiting phase) and ``viewer`` the classification
+    of the browser, given exactly when a review is."""
+    wait = wait_explained(configuration)
+    if review is not None:
+        assert viewer is not None, "the awaiting page renders for a classified viewer"
+        return OpenView(
+            OpenPhase.AWAITING,
+            wait,
+            viewer=viewer,
+            deadline=deadline_of(state, configuration),
+            review=review_view(review, trace_operations(state)),
+        )
+    approved = state.approved
+    if approved is not None:
+        return OpenView(OpenPhase.APPROVED, wait, approved_at=approved.timestamp)
+    return OpenView(OpenPhase.INVESTIGATING, wait)

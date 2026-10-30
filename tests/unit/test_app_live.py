@@ -15,6 +15,7 @@ from leaveimpact.app.live import (
     StartKey,
     key_digest_of,
     public_id_for,
+    public_id_of_run,
     run_id_for,
     start_key_of,
 )
@@ -61,3 +62,12 @@ def test_a_row_records_a_decision_and_its_instant_together_and_checks_a_key_by_h
         LiveRow(PublicId("live-x"), "demo-x", 1, digest, AT, Decision.DECLINED, None)
     with pytest.raises(ValueError, match="recorded together"):
         LiveRow(PublicId("live-x"), "demo-x", 1, digest, AT, None, AT)
+
+
+def test_the_public_id_of_a_run_is_the_one_its_key_derives_and_refuses_other_runs() -> None:
+    digest = key_digest_of(KEY)
+    assert public_id_of_run(run_id_for(digest)) == public_id_for(digest)
+    with pytest.raises(ValueError, match="no demo- prefix"):
+        public_id_of_run("run-12")
+    with pytest.raises(ValueError, match="digest"):
+        public_id_of_run("demo-not-a-digest")
