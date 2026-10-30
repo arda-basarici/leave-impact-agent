@@ -722,6 +722,23 @@ def test_a_read_without_the_lock_is_consistent_at_the_rows_cutoff(rig: Rig) -> N
     assert reader.load("run-12", 1, rules=RULES).last_position == 3
 
 
+def test_the_events_past_a_position_are_read_decoded_up_to_the_rows_cutoff(rig: Rig) -> None:
+    """The narration stream's tick after its first (the live pages step): the events past
+    a position, decoded and not folded, bounded by the row's position as the whole read
+    is; nothing at or past the row's position, and an unknown attempt refused by name."""
+    events = histories.HISTORIES["a cut call"]()
+    store = opened(rig)
+    replay(store, events, upto=4)
+    past_two = store.events_after("run-12", 1, after=2)
+    assert [e.position for e in past_two] == [3, 4]
+    assert [kind_of(e.event) for e in past_two] == [kind_of(e.event) for e in events[2:4]]
+    assert len(store.events_after("run-12", 1, after=0)) == 4
+    assert store.events_after("run-12", 1, after=4) == ()
+    assert store.events_after("run-12", 1, after=9) == ()
+    with pytest.raises(ValueError, match="no attempt 2"):
+        store.events_after("run-12", 2, after=0)
+
+
 def test_a_predecessor_whose_attribution_the_table_disowns_permits_no_successor(rig: Rig) -> None:
     store = opened(rig)
     events = histories.HISTORIES["a cut call"]()

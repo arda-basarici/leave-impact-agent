@@ -10,6 +10,7 @@ from datetime import UTC, datetime
 
 import pytest
 
+from leaveimpact.agent.log_events import LoggedEvent
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.__main__ import main
 from leaveimpact.app.public import PublicationDraft, PublicId, PublishableRow
@@ -63,6 +64,11 @@ class Session:
 
     def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState:
         return self.memory.load(run_id, attempt, rules=rules)
+
+    def events_after(
+        self, run_id: str, attempt: int, *, after: int
+    ) -> tuple[LoggedEvent, ...]:
+        return self.memory.events_after(run_id, attempt, after=after)
 
     def close(self) -> None:
         self.closed = True

@@ -43,8 +43,9 @@ global of the template environment rendered by the base template, so no page can
 Statement bounds, per request: the listing makes one app-store operation (the version check
 and one statement) and one cache read; the replay page one app-store operation, the log's
 reads of one attempt on one connection, and one cache read; the stream the replay page's
-reads at subscription and then one log load of the attempt per tick; each under the store's
-three-second connect and three-second statement bounds.
+reads at subscription, one log load of the attempt at its first tick and one read of the
+events past its position per tick after; each under the store's three-second connect and
+three-second statement bounds.
 
 **The two routes that take a visitor's input** (the live-path commands step, fork 7) are
 forms: the start from the index, carrying the key the index minted into it and a scenario
@@ -109,7 +110,7 @@ from starlette.concurrency import run_in_threadpool
 from leaveimpact.adapters.corpus import served_versions
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
-from leaveimpact.agent.log_transition import AttemptState, Rules
+from leaveimpact.agent.log_transition import Rules
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.decide import (
     DecideComposition,
@@ -513,17 +514,16 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         slot = subscriptions.try_acquire()
         if slot is None:
             return unavailable(request)
-        run_id, attempt = inputs.run_id, inputs.attempt
-
-        def read() -> AttemptState:
-            tick = services.log_sessions()
-            try:
-                return tick.load(run_id, attempt, rules=services.rules)
-            finally:
-                tick.close()
-
         try:
-            body = frames(read, services.rules, cursor=cursor.position, pacing=pacing, slot=slot)
+            body = frames(
+                services.log_sessions,
+                inputs.run_id,
+                inputs.attempt,
+                services.rules,
+                cursor=cursor.position,
+                pacing=pacing,
+                slot=slot,
+            )
             return StreamingResponse(
                 body,
                 media_type=MEDIA_TYPE,

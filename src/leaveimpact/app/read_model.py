@@ -46,6 +46,7 @@ from datetime import datetime
 from typing import Protocol
 
 from leaveimpact.agent.log_ending import status_of
+from leaveimpact.agent.log_events import LoggedEvent
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.agent.registered import effective_rules
 from leaveimpact.app.config import DemoConfiguration
@@ -76,7 +77,11 @@ class LogReads(Protocol):
 
 class LogSession(LogReads, Protocol):
     """A log opened for one request or one command, closed by its opener: the log store
-    keeps its connection, so a session is never shared across requests."""
+    keeps its connection, so a session is never shared across requests. Beside the whole
+    fold it reads the events past a position, the narration stream's tick after its first
+    (the live pages step), as the log store provides it."""
+
+    def events_after(self, run_id: str, attempt: int, *, after: int) -> tuple[LoggedEvent, ...]: ...
 
     def close(self) -> None: ...
 

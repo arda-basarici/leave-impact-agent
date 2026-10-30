@@ -22,7 +22,7 @@ from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 from markupsafe import escape
 
-from leaveimpact.agent.log_events import Admitted, RefusedBy
+from leaveimpact.agent.log_events import Admitted, LoggedEvent, RefusedBy
 from leaveimpact.agent.log_transition import AttemptState, Rules
 from leaveimpact.app.main import ROUTES, Services, Surface, create_app
 from leaveimpact.app.public import PublicId
@@ -57,19 +57,29 @@ UNKNOWN = "nobody-here"
 
 
 class Sessions:
-    """Log sessions over one in-memory log, each closing recorded."""
+    """Log sessions over one in-memory log, each opening and closing counted, the whole
+    loads and the reads past a position counted apart (the stream's ticks)."""
 
     def __init__(self, memory: MemoryLog) -> None:
         self.memory = memory
         self.opened = 0
         self.closed = 0
+        self.loads = 0
+        self.afters: list[int] = []
 
     def __call__(self) -> Sessions:
         self.opened += 1
         return self
 
     def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState:
+        self.loads += 1
         return self.memory.load(run_id, attempt, rules=rules)
+
+    def events_after(
+        self, run_id: str, attempt: int, *, after: int
+    ) -> tuple[LoggedEvent, ...]:
+        self.afters.append(after)
+        return self.memory.events_after(run_id, attempt, after=after)
 
     def close(self) -> None:
         self.closed += 1

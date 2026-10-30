@@ -27,6 +27,7 @@ since a public page names people exactly when the run read their record (the rep
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import assert_never
@@ -146,9 +147,24 @@ def narration(state: AttemptState, rules: Rules) -> tuple[Line, ...]:
     """Every event of ``state`` as a line, in position order, built by replaying the log
     under ``rules`` so each line reads the state before its event; the kinds and positions
     are the events' own. ``rules`` are the ones the state was folded under."""
+    return extend(AttemptState(), state.events, rules)[1]
+
+
+def extend(
+    state: AttemptState, events: Iterable[LoggedEvent], rules: Rules
+) -> tuple[AttemptState, tuple[Line, ...]]:
+    """``state`` carried forward over ``events``, the next events of its log in position
+    order, and one line per event, each built from the state before its event exactly as
+    ``narration`` builds it from the first event; ``narration`` is this from the empty
+    state. The stream keeps a subscription's state and extends it by the events past its
+    position each tick, so an event is folded once per subscription and a tick costs the
+    new events and not the log's length (the live pages step: a whole re-fold every tick
+    cost up to 0.69 s of CPU on the instance, ``probes/tick-cost``). The property the
+    acceptance pins, that the lines over a prefix are the prefix of the lines over the
+    whole, is what makes the extension of a prefix equal the whole."""
     lines: list[Line] = []
-    before = AttemptState()
-    for logged in state.events:
+    before = state
+    for logged in events:
         transition = next_state(before, logged, rules)
         assert isinstance(transition, Appended), "a stored log replays under its rules"
         after = transition.state
@@ -157,7 +173,7 @@ def narration(state: AttemptState, rules: Rules) -> tuple[Line, ...]:
             text += _stop_suffix(after.stopped)
         lines.append(Line(logged.position, logged.timestamp, kind_of(logged.event), text))
         before = after
-    return tuple(lines)
+    return before, tuple(lines)
 
 
 # --- One line per kind ----------------------------------------------------------------------

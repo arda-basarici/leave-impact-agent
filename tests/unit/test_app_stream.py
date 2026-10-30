@@ -8,7 +8,9 @@ during the wait releases the subscription, leaves every session closed and the a
 unaffected; idle viewers do not prevent a replay page loading; the bound refuses the next
 subscriber and admits one when a slot is released; an unpublishable attempt is the one
 not-found page; a tick that cannot read the log ends the stream with the unavailable frame;
-and a heartbeat crosses silence."""
+a heartbeat crosses silence; and a live stream loads the attempt whole once and then reads
+only the events past the position it holds, each tick's read starting where the last
+ended (the live pages step's incremental tick)."""
 
 from __future__ import annotations
 
@@ -55,6 +57,13 @@ class FailingSessions(Sessions):
         if self.failing:
             raise LogStoreUnavailable("connection refused: OperationalError")
         return super().load(run_id, attempt, rules=rules)
+
+    def events_after(
+        self, run_id: str, attempt: int, *, after: int
+    ) -> tuple[LoggedEvent, ...]:
+        if self.failing:
+            raise LogStoreUnavailable("connection refused: OperationalError")
+        return super().events_after(run_id, attempt, after=after)
 
 
 def client_of(rig: Rig, pacing: Pacing = FAST) -> TestClient:
@@ -210,6 +219,30 @@ def test_lines_appended_while_a_stream_is_open_arrive_and_the_terminal_closes_it
         assert closing["event"] == CLOSED_EVENT
         assert closing["data"] == {**lines[-1], "status": "completed"}
         assert next(frames, None) is None
+    assert rig.sessions.opened == rig.sessions.closed
+
+
+def test_a_live_stream_loads_once_and_then_reads_only_the_events_past_its_position() -> None:
+    """The incremental tick (the live pages step): the whole fold is the first tick's and
+    every later tick asks the log for the events past the last position the stream
+    holds, so the reads' lower bounds climb with the lines sent and never repeat a fold.
+    The lines are the same as a whole fold would give, which the first test holds."""
+    rig = Rig()
+    events = history_in_world(CLOSED, SERVED, run_id=LIVE[0])
+    lines = expected_lines(events)
+    with client_of(rig).stream("GET", "/replays/live/events") as response:
+        frames = frames_of(response.iter_lines())
+        assert next(frames)["data"] == lines[0]
+        for logged in events[1:4]:
+            feed(rig, logged)
+            assert next(frames)["data"] == lines[logged.position - 1]
+    assert rig.sessions.loads == 2, "the admission's fold and the first tick's, and no other"
+    afters = rig.sessions.afters
+    # The lower bounds never fall and start at the admission; the last read asked past 3 and
+    # brought the fourth line, after which the client closed.
+    assert afters and afters == sorted(afters) and afters[0] == 1 and afters[-1] == 3, (
+        "every later tick reads past the last position held, which climbs with the lines"
+    )
     assert rig.sessions.opened == rig.sessions.closed
 
 

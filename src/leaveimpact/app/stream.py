@@ -3,10 +3,14 @@ explicitly named attempt, built as an asynchronous generator that awaits between
 runs each short synchronous read on the thread pool (the demo milestone's entry ruling on
 narration from the log, as the narration step's forks shaped it).
 
-Each tick is one synchronous function: it opens a log session, loads the attempt, closes
-the session and returns the folded state, so a waiting stream holds no thread, no
-connection and no transaction between ticks; the lines are the narration module's over that
-state, and the generator sends the ones past its cursor. The cursor is a position: the
+Each tick is one synchronous read on the thread pool in a session of its own, opened and
+closed inside it, so a waiting stream holds no thread, no connection and no transaction
+between ticks. A subscription's first tick loads the attempt whole and narrates it; every
+later tick reads only the events past the position the subscription holds and extends its
+state and lines through the transition one event at a time (``narration.extend``), so a
+tick costs the new events and not the log's length (the live pages step: the first shape
+re-folded the whole log every tick, and the measurement below is what changed it). The
+generator sends the lines past its cursor. The cursor is a position: the
 page's first connection says where its server-rendered lines ended through the ``after``
 query parameter, a browser's reconnection says it through ``Last-Event-ID``, which wins
 when both are present, and the client keys what it shows by attempt and position, so a
@@ -41,18 +45,24 @@ received ``CancelledError`` within a millisecond of the client going away and it
 receive channel. A tick's thread is not abandoned on cancellation (anyio's default), so the
 session is closed by the tick function before the cancellation lands.
 
-Cost per tick, measured on the store's code: a fresh session is one connect, the
-schema-version check, the attempt row and the events read inside a transaction, about three
-statements, each under the store's three-second bound and the connect under its own, so a
-wedged tick can take twelve seconds, under the heartbeat interval. The pacing constants are
-the process's; the subscription bound was confirmed by the instance's memory baseline (the
-demo milestone's step 10, ``probes/memory-baseline``): memory did not move with loopers
-(218 to 232 MiB at one, four and eight), the thread pool did not bind (27 of 40 threads at
-the heaviest level), and throughput stayed flat at about 2.2 whole-stream fetches a second
-from one client upward, which reads as the single worker's CPU. A tick re-folds the
-attempt, so eight subscriptions on one open attempt would ask for several times that
-ceiling and tick late rather than fail; the bound stays at eight under the rule and the
-live pages step measures the tick's own cost before it decides.
+Cost per tick, measured on the instance (the live pages step, ``probes/tick-cost``, two
+runs on 2026-10-30 over the replay set's thirty closed attempts of 32 to 63 events): a tick
+that folds the whole log, a subscription's first, cost 0.12 to 0.69 s of CPU at the 95th
+percentile, the store's load and the narration's own replay about equal halves of it; a
+tick that finds nothing new (the connect, the version check, the row read, the close)
+6.5 to 11.1 ms; and an event folded 1.8 to 5.2 ms. So a subscription pays the whole fold
+once and then the new events, about 0.02 s of CPU a second at a run's worst rates (1.3 events a
+second), and eight subscriptions on one open attempt about 0.14 s of the one interpreter's
+second, under the step's budget of a fifth; that forecast is checked on the first public
+attempt at the live path's acceptance step, where the shared fold is the move if it
+misses. Each statement runs under the store's three-second bound and the connect under its
+own, so a wedged tick can take twelve seconds, under the heartbeat interval. The pacing
+constants are the process's; the subscription bound was set by the instance's memory
+baseline (the demo milestone's step 10, ``probes/memory-baseline``): memory did not move
+with loopers (218 to 232 MiB at one, four and eight), the thread pool did not bind (27 of
+40 threads at the heaviest level), and throughput stayed flat at about 2.2 whole-stream
+fetches a second from one client upward, read then as the single worker's CPU and since
+measured as the whole fold's; the bound stays at eight under that rule.
 """
 
 from __future__ import annotations
@@ -62,13 +72,15 @@ import threading
 import time
 from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
+from typing import Protocol
 
 import anyio
 
 from leaveimpact.agent.log_ending import ending_of
+from leaveimpact.agent.log_events import LoggedEvent
 from leaveimpact.agent.log_store import LogStoreInvariantBroken, LogStoreUnavailable
 from leaveimpact.agent.log_transition import AttemptState, Rules
-from leaveimpact.app.narration import Line, narration
+from leaveimpact.app.narration import Line, extend, narration
 from leaveimpact.core.run_record import TerminalStatus
 
 TICK_SECONDS = 1.0
@@ -243,32 +255,85 @@ def unavailable_frame(reason: str) -> bytes:
 
 # --- The generator ----------------------------------------------------------------------
 
-Read = Callable[[], AttemptState]
-"""One tick's synchronous read: a session opened, the attempt loaded, the session closed."""
+
+class TickSession(Protocol):
+    """A log session one tick opens and closes: the whole load for a subscription's first
+    tick, the events past a position for every later one."""
+
+    def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState: ...
+
+    def events_after(
+        self, run_id: str, attempt: int, *, after: int
+    ) -> tuple[LoggedEvent, ...]: ...
+
+    def close(self) -> None: ...
+
+
+Sessions = Callable[[], TickSession]
+"""A fresh session per tick, as the composition root provides them."""
 
 _UNAVAILABLE = (LogStoreUnavailable, LogStoreInvariantBroken, ValueError)
 """What a tick's read may raise: the store not answering or not bootstrapped, and an
 attempt the log no longer holds, a defect of the deployment the stream reports as such."""
 
 
+def _load(sessions: Sessions, run_id: str, attempt: int, rules: Rules) -> AttemptState:
+    """A subscription's first tick: the whole fold, in a session of its own."""
+    session = sessions()
+    try:
+        return session.load(run_id, attempt, rules=rules)
+    finally:
+        session.close()
+
+
+def _events_after(
+    sessions: Sessions, run_id: str, attempt: int, after: int
+) -> tuple[LoggedEvent, ...]:
+    """Every later tick: the events past ``after``, in a session of its own."""
+    session = sessions()
+    try:
+        return session.events_after(run_id, attempt, after=after)
+    finally:
+        session.close()
+
+
 async def frames(
-    read: Read, rules: Rules, *, cursor: int, pacing: Pacing, slot: Slot
+    sessions: Sessions,
+    run_id: str,
+    attempt: int,
+    rules: Rules,
+    *,
+    cursor: int,
+    pacing: Pacing,
+    slot: Slot,
 ) -> AsyncIterator[bytes]:
-    """The frames after ``cursor`` for the attempt ``read`` loads, under ``rules``: every
-    committed line past the cursor as it is found, a heartbeat through silence, the closing
-    frame at the terminal event, the unavailable frame if a read fails; the slot released on
-    every exit."""
+    """The frames after ``cursor`` for the attempt, under ``rules``: every committed line
+    past the cursor as it is found, a heartbeat through silence, the closing frame at the
+    terminal event, the unavailable frame if a read fails; the slot released on every exit.
+    The first tick loads and narrates the whole log and the lines at or below the cursor are
+    skipped; every later tick extends the held state by the events past its position, so
+    the lines it yields are new by construction."""
     sent = cursor
+    state: AttemptState | None = None
     last_frame_at = time.monotonic()
     try:
         while True:
             try:
-                state = await anyio.to_thread.run_sync(read)
+                if state is None:
+                    state = await anyio.to_thread.run_sync(_load, sessions, run_id, attempt, rules)
+                    fresh = narration(state, rules)
+                else:
+                    new = await anyio.to_thread.run_sync(
+                        _events_after, sessions, run_id, attempt, state.last_position
+                    )
+                    state, fresh = extend(state, new, rules)
             except _UNAVAILABLE as error:
                 yield unavailable_frame(f"the log could not be read: {type(error).__name__}")
                 return
             closed = state.closed
-            for line in narration(state, rules)[sent:]:
+            for line in fresh:
+                if line.position <= sent:
+                    continue
                 if closed is not None and line.position == closed.position:
                     yield closing_frame(line, ending_of(state).status)
                     return
@@ -293,8 +358,10 @@ __all__ = [
     "Cursor",
     "Pacing",
     "RejectedCursor",
+    "Sessions",
     "Slot",
     "Subscriptions",
+    "TickSession",
     "closing_frame",
     "cursor_of",
     "frames",

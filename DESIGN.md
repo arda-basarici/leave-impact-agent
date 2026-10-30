@@ -4382,9 +4382,13 @@ from above. Memory moved little under any level and neither it nor the thread po
 what bounds the surface: throughput was flat from one client upward at about 6.5 page
 views or 2.2 stream fetches a second, which reads as the single worker's CPU (an
 inference from the flat throughput, no CPU time having been sampled), so the subscription
-bound stays at eight under the rule and the live pages step owns the per-tick cost, where
-eight viewers of one open attempt would, if a tick costs what a fetch costs, ask for
-about four times that ceiling and tick late rather than fail. A unit test holds the
+bound stays at eight under the rule. The live pages step then timed the tick on the
+instance over the replay set's thirty attempts (`probes/tick-cost`, 2026-10-30): a whole
+re-fold 0.12 to 0.69 s of CPU, a tick finding nothing new 6.5 to 11.1 ms, an event
+1.8 to 5.2 ms; so a subscription folds the log whole once and every later tick reads only
+the events past its position and extends the state, and eight viewers of one open attempt
+are forecast at about 0.14 s of the one interpreter's second, the forecast checked on the
+first public attempt at the live path's acceptance step. A unit test holds the
 limits and the bound to the
 committed reading, so a change to either starts with a new capture; the worker's reading
 extends the baseline at its step (FINDINGS, memory-baseline).

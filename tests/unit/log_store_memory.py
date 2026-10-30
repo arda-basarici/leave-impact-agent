@@ -174,6 +174,13 @@ class MemoryLog:
         with self.lock:
             return fold(self._log(run_id, attempt), rules)
 
+    def events_after(
+        self, run_id: str, attempt: int, *, after: int
+    ) -> tuple[LoggedEvent, ...]:
+        """The events past ``after``, as the store reads them up to the row's position."""
+        with self.lock:
+            return tuple(e for e in self._log(run_id, attempt) if e.position > after)
+
     def ledger_of(self, run_id: str, attempt: int) -> str | None:
         """The one ledger this store keeps, for a reserving attempt; ``None`` for one that
         reserved nothing, as the real store's row answers."""

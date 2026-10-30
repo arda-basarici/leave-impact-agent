@@ -12,8 +12,8 @@ import pytest
 
 from leaveimpact.agent.admissions import answered_calls
 from leaveimpact.agent.log_events import EventKind, LoggedEvent, kind_of
-from leaveimpact.agent.log_transition import fold
-from leaveimpact.app.narration import Line, narration
+from leaveimpact.agent.log_transition import AttemptState, fold
+from leaveimpact.app.narration import Line, extend, narration
 from leaveimpact.core.model_calls import ParsedBatch
 from leaveimpact.core.stated import Admitted
 from tests.unit import log_histories as histories
@@ -54,6 +54,23 @@ def test_the_lines_over_a_prefix_are_the_prefix_of_the_lines_over_the_whole(name
     whole = lines_of(events)
     for n in range(1, len(events) + 1):
         assert lines_of(events[:n]) == whole[:n], f"the lines over the first {n} events differ"
+
+
+@pytest.mark.parametrize("name", list(ALL))
+def test_extending_a_prefix_by_the_rest_gives_the_state_and_the_lines_over_the_whole(
+    name: str,
+) -> None:
+    """The stream's tick after its first: the state folded over a prefix, extended by the
+    events past it, is the state over the whole, and the lines it adds are the whole's
+    lines past the prefix, for every cut of every history."""
+    events = ALL[name]()
+    whole_state = fold(events, histories.RULES)
+    whole_lines = narration(whole_state, histories.RULES)
+    for n in range(len(events) + 1):
+        prefix = fold(events[:n], histories.RULES) if n else AttemptState()
+        state, added = extend(prefix, events[n:], histories.RULES)
+        assert state == whole_state, f"the state extended from {n} events differs"
+        assert added == whole_lines[n:], f"the lines added past {n} events differ"
 
 
 def test_every_event_kind_is_reached_by_some_history() -> None:
