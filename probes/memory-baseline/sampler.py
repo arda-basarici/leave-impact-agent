@@ -10,6 +10,13 @@ whether the thread pool binds reads off the same samples; and, when asked, the h
 largest resident processes, which make the host's own baseline a read number. A container
 that is absent is recorded as absent, never skipped, so the reading shows which
 residents the host had. Written for the instance's Python 3.9, so no syntax newer than it.
+
+The live path's acceptance (the demo milestone's step 16) added the worker service to the
+containers and, per container, the cgroup's CPU time (`cpu.stat`'s `usage_usec`, so a
+rate is a delta between two samples of one run), the kill count (`memory.events`'s
+`oom_kill`) and Docker's restart count, and an epoch instant (`ts`) beside the clock
+text, so a continuous sampling can be joined to the log's instants. The baseline's
+reducer reads none of the added fields; its capture predates them.
 """
 
 import glob
@@ -19,7 +26,12 @@ import subprocess
 import sys
 import time
 
-CONTAINERS = ("leaveimpact-app-1", "leaveimpact-postgres-1", "proxy-caddy-1")
+CONTAINERS = (
+    "leaveimpact-app-1",
+    "leaveimpact-postgres-1",
+    "leaveimpact-worker-1",
+    "proxy-caddy-1",
+)
 STAT_KEYS = {"anon": "anon", "file": "file", "shmem": "shm", "kernel": "kern", "slab": "slab"}
 MEMINFO_KEYS = {
     "MemTotal": "total",
@@ -65,13 +77,13 @@ def threads_of(pid):
 
 def container(name):
     inspected = subprocess.run(
-        ["docker", "inspect", "-f", "{{.Id}} {{.State.Pid}}", name],
+        ["docker", "inspect", "-f", "{{.Id}} {{.State.Pid}} {{.RestartCount}}", name],
         capture_output=True,
         text=True,
     )
     if inspected.returncode != 0:
         return {"absent": inspected.stderr.strip()[:100]}
-    cid, pid = inspected.stdout.split()
+    cid, pid, restarts = inspected.stdout.split()
     dirs = [
         path
         for path in glob.glob("/sys/fs/cgroup/**/*" + cid + "*", recursive=True)
@@ -84,6 +96,9 @@ def container(name):
         "cur": read_int(cgroup + "/memory.current"),
         "peak": read_int(cgroup + "/memory.peak"),
         "thr": threads_of(int(pid)),
+        "cpu": read_stat(cgroup + "/cpu.stat").get("usage_usec"),
+        "oom": read_stat(cgroup + "/memory.events").get("oom_kill"),
+        "restarts": int(restarts),
     }
     stat = read_stat(cgroup + "/memory.stat")
     for key, short in STAT_KEYS.items():
@@ -118,6 +133,7 @@ def main(argv):
     reading = {
         "label": label,
         "t": time.strftime("%H:%M:%S", time.gmtime()),
+        "ts": round(time.time(), 3),
         "host": meminfo(),
         "containers": {name: container(name) for name in CONTAINERS},
     }

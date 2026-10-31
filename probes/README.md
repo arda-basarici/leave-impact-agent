@@ -438,3 +438,43 @@ every view. Attempts are numbered; no run id or text leaves the container.
 | probe | pass criterion | capture |
 |---|---|---|
 | **ledger-cost** — the memo's cold cost and the thirty charges on the deployed instance over the replay set's settled attempts | (a) every settled attempt of the ledger measured and the settled entries counted equal, the probe exiting 0 with the reading as one JSON object and every check passed; (b) the reading carries the rule's inputs (the pass's CPU, the per-attempt mean, the forecast at the cap's month) and the branch the rule names, and the step's record names the branch with the reading cited; (c) `ledger-cost/reduce.py` regenerates the mean charge, the count and the sum from the capture, the sum equals the replay set's recorded total to the cent, and the page's constant is held to the capture by a unit test; (d) the page module's docstring cites the per-attempt rate from the capture and nothing by hand. A failed check is a finding, and no figure is quoted from a reading with one. | `captures/ledger-cost/<date>/host.out.txt` (the host's shape, the deployed sha, the reading), `host.err.txt` |
+
+## The live path's acceptance (written 2026-11-01, before any public run)
+
+The demo milestone's step 16: the flag on, one visitor run approved and one declined from
+a stranger's browser on production, the ledger read back, and the measurements three
+earlier steps left to the first public attempt, each with its forecast fixed here before
+the run. The eight-subscriber forecast (the stream module's docstring over the tick-cost
+capture): eight subscriptions on one open attempt cost about 0.14 s of the interpreter's
+second above idle, under the step's budget of a fifth; a miss names the expensive component
+before the shared fold is chosen. The worker's memory under a public attempt: near 225 to
+260 MiB current by hand (the idle 113 MiB plus a child of about 110 MiB), the 512 MiB
+reservation holding, the rule's limit then 384 or 448 MiB. The edge: every heartbeat
+within the heartbeat's fifteen-second cadence plus one tick at every client, a line frame's
+arrival keeping the recorded intervals, no content-security header at the edge (read
+2026-11-01) so nothing to admit, the inline script running in a real browser. The open
+page under the hold within twice its latency with no subscribers, the memory baseline's
+own latency criterion reused. The ledger page after the first settlement: settled runs
+one, the forecast's source this ledger, the reservation's source the latest admission,
+the identity holding, the charge inside the replay set's $0.0483 to $0.1151.
+
+**The instruments.** `live-acceptance/subscribers.py` runs on the workstation against
+the hostname while an attempt is open: subscribers held on the events route from cursor 0
+with every frame's arrival on a monotonic clock, the open page timed before and during
+the hold, one connection past the bound and one replacement after a release, the timeline
+read with a browser's headers; it ends on the closing frames, so a decision posted from
+the browser while it holds is the decision measured under the bound. The browser with the
+timeline page open holds a connection of its own, so the probe asks for one under the
+bound then. `live-acceptance/host.sh` through `live-acceptance/send.ps1` leaves the memory
+baseline's sampler looping on the host every five seconds, detached, from before the first
+click to after the closure, with the worker service, the cgroup's CPU time, the kill count
+and the restart count added to each sample, fetched slice by slice afterwards.
+`live-acceptance/reduce.py` regenerates every figure from the capture, places the samples
+by the phases the frames carry (admitted, approval requested, the decision, the close),
+rates the CPU over the consecutive pairs inside a phase only, applies the memory baseline's
+rule to the worker's largest current, and reads the app's and the database's largest
+currents beside their committed peaks.
+
+| probe | pass criterion | capture |
+|---|---|---|
+| **live-acceptance** — the first public attempts on production, approved from a phone and declined from a fresh browser on the workstation, with the subscribers probe held through the declined run's three phases and the sampler across both | (a) the functional record: the approved run's log reads Admitted, the segments, FinalizationEntered, ApprovalRequested, Approved, Resumed, Completed with its settlement, the declined run's ApprovalRequested then Declined with its settlement and nothing after, each read on the trail and the ledger page and compared with the pre-flip read-back; (b) every held subscriber ends on the closing frame with no error, the connection past the bound answers 503, the replacement is admitted; (c) every heartbeat gap at every client at most the cadence plus one tick (16 s), the interval lag's 95th percentile under two ticks and no bunched pair; (d) the app's CPU rate under the hold at most 0.2 s of the interpreter's second above the idle phase's, the 0.14 forecast noted as met or revised; (e) the open page's median latency during the hold at most twice its median before; (f) the timeline's content-security header recorded as the response carried it, the inline script seen running in the browser, the beacon's presence recorded; (g) the sampler ran from before the first click to after the closure with no sample absent for the four containers while they ran, no kill and no restart counted, and `live-acceptance/reduce.py` regenerates `live-acceptance/reading.json` from the capture with the worker's limit the rule's output, held by a unit test to `compose.yaml` once set; (h) the ledger page after each settlement states the figures the operator's read-back holds and its identity holds. A failed check is a finding, the flag goes off by commit before the finding is investigated, and no limit is set from a capture with one. | `captures/live-acceptance/<date>/` (`idle-start.out.txt`, `idle-stop.out.txt`, `idle-samples.jsonl`, the same for `runs`, `subscribers-run1.json`, `subscribers-run2.json`) |
