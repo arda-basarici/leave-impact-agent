@@ -57,11 +57,19 @@ Planner = Callable[[ScenarioId, str, int], FrozenInputs]
 
 @dataclass(frozen=True, slots=True)
 class DemoPlanning:
-    """What the surface's start is handed: the scenario ids of the served world and the
-    planner over them."""
+    """What the surface's start is handed: the scenario ids of the served world, the planner
+    over them, and the reservation a plan under this registration freezes, which does not
+    depend on the scenario (``core.pricing.run_reservation`` reads the caps, the role and the
+    pricing basis), derived once here by planning the lowest scenario id under a fixed run
+    id so the surface need not plan to quote it."""
 
     scenarios: frozenset[ScenarioId]
     plan: Planner
+    reservation_pico_usd: int | None
+
+
+RESERVATION_FIGURE_RUN = "reservation-figure"
+"""The run id the reservation figure is planned under; never admitted, never logged."""
 
 
 def demo_planning(
@@ -96,7 +104,8 @@ def demo_planning(
             region=region,
         ).inputs
 
-    return DemoPlanning(frozenset(by_id), plan)
+    reservation = plan(min(by_id), RESERVATION_FIGURE_RUN, 1).reservation_pico_usd
+    return DemoPlanning(frozenset(by_id), plan, reservation)
 
 
 def demo_planning_from_env(

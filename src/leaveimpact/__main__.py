@@ -164,7 +164,7 @@ def _serve(environment: Mapping[str, str]) -> int:
             level=configuration.level,
             region=configuration.region,
         )
-        return Planning(demo.scenarios, demo.plan)
+        return Planning(demo.scenarios, demo.plan, demo.reservation_pico_usd)
 
     try:
         application = app_from_env(environment, planning_for)

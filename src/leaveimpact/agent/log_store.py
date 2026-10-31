@@ -73,6 +73,14 @@ Messages name runs, attempts, positions, kinds and reasons, never content. The
 ``before-commit``) so a two-connection test can hold one side where it chooses; it is a
 no-op in production; ``read`` marks the one statement of a read without the lock that
 follows the row's, where the position cutoff is what keeps the two consistent.
+
+**The ledger page's reads** (the demo milestone's live pages step, group 4):
+``ledger_view_timed`` is a ledger with each entry's accept instant, ``None`` before its
+head exists, and ``ledger_view`` is its projection, so the two faces share one statement;
+``settlements_of`` is every closed attempt's logged settlement on a ledger in one statement,
+the attempt row joined to the event at its last position, which is what the page's memo
+reads so that a reconciled attempt costs one decode and never a fold (the ledger-cost probe
+measured the fold at 129 ms an attempt on the instance, 3.9 s over the replay set).
 """
 
 from __future__ import annotations
@@ -266,6 +274,26 @@ class LedgerView:
 
 
 @dataclass(frozen=True, slots=True)
+class TimedLedgerView:
+    """A ledger as read in one transaction with each entry's accept instant: its head and
+    every entry in revision order, the entry type the snapshot reads, since the instant is
+    the store's and not the ledger's pure record."""
+
+    head: LedgerHead
+    entries: tuple[SnapshotEntry, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class AttemptSettlement:
+    """A closed attempt's logged settlement as the one-statement read over a ledger reports
+    it; ``None`` when its closing event logged none (a system with no reservation)."""
+
+    run_id: str
+    attempt: int
+    settlement: LoggedSettlement | None
+
+
+@dataclass(frozen=True, slots=True)
 class RecordedAdmission:
     """A recorded admission request as the lookup by identity reports it: the run and
     attempt it asked for, whether it was admitted or refused, when it was recorded, and
@@ -401,10 +429,12 @@ _INSERT_ENTRY = """
                               recorded_at)
     VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
 """
-_SELECT_ENTRIES = """
-    SELECT revision, kind, run_id, attempt, amount_pico_usd, total_after_pico_usd, authority,
-           registration_commit, reason
-    FROM ledger_entry WHERE ledger_id = %s AND revision <= %s ORDER BY revision
+_SELECT_SETTLEMENTS = """
+    SELECT a.run_id, a.attempt, e.record
+    FROM attempt a
+    JOIN event e ON e.run_id = a.run_id AND e.attempt = a.attempt AND e.position = a.positions
+    WHERE a.ledger_id = %s AND a.closed
+    ORDER BY a.run_id, a.attempt
 """
 _SELECT_PUBLICATION = """
     SELECT run_id, attempt, state, reader_commit, export_format, log_digest, object_identity,
@@ -1095,11 +1125,10 @@ class LogStore:
             if refusal is not None:
                 raise ValueError(refusal)
             if head.threshold_pico_usd == amount_pico_usd:
-                rows = conn.execute(_SELECT_ENTRIES, (ledger_id, head.revision)).fetchall()
                 in_force = [
-                    entry
-                    for entry in map(_entry_of, rows)
-                    if entry.kind is ledger.EntryKind.THRESHOLD_SET
+                    each.entry
+                    for each in _timed_entries(conn, ledger_id, head)
+                    if each.entry.kind is ledger.EntryKind.THRESHOLD_SET
                 ]
                 assert in_force, "a head with a threshold holds the entry that set it"
                 return in_force[-1]
@@ -1158,22 +1187,46 @@ class LogStore:
             return entry
 
     def ledger_view(self, ledger_id: str) -> LedgerView:
-        """The head and every entry in one transaction; the head must be what its entries
-        fold to."""
+        """The head and every entry in one transaction, the timed read's projection;
+        ``ValueError`` for a ledger with no head."""
+        timed = self.ledger_view_timed(ledger_id)
+        if timed is None:
+            raise ValueError(f"ledger {ledger_id} has no head")
+        return LedgerView(timed.head, tuple(each.entry for each in timed.entries))
+
+    def ledger_view_timed(self, ledger_id: str) -> TimedLedgerView | None:
+        """The head and every entry with its accept instant in one transaction, ``None``
+        before the head exists; the head must be what its entries fold to."""
         with self._guarded() as conn, conn.transaction():
             head_row = conn.execute(_SELECT_HEAD, (ledger_id,)).fetchone()
             if head_row is None:
-                raise ValueError(f"ledger {ledger_id} has no head")
+                return None
             head = _head_of(head_row)
             self._boundary("read")
-            rows = conn.execute(_SELECT_ENTRIES, (ledger_id, head.revision)).fetchall()
-        entries = tuple(_entry_of(row) for row in rows)
-        if ledger.fold(entries) != head:
-            raise LogStoreInvariantBroken(
-                f"ledger {ledger_id}'s head at revision {head.revision} is not what its "
-                f"{len(entries)} entries fold to"
-            )
-        return LedgerView(head, entries)
+            entries = _timed_entries(conn, ledger_id, head)
+        return TimedLedgerView(head, entries)
+
+    def settlements_of(self, ledger_id: str) -> tuple[AttemptSettlement, ...]:
+        """Every closed attempt admitted against ``ledger_id`` with the settlement its closing
+        event logged, in run and attempt order, from one statement joining the attempt row
+        to the event at its last position (the live pages step, the ledger page): the read
+        the page's memo fills from, so a reconciled attempt costs one decode and no fold. No
+        lock, since a closed attempt's log is immutable; a closed row whose last event is not
+        a closing event is an invariant broken, not a settlement."""
+        with self._guarded() as conn, conn.transaction():
+            rows = conn.execute(_SELECT_SETTLEMENTS, (ledger_id,)).fetchall()
+        settlements: list[AttemptSettlement] = []
+        for run_id, attempt, record in rows:
+            logged = decode_logged_event(record)
+            settlement = getattr(logged.event, "settlement", _NOT_A_CLOSURE)
+            if settlement is _NOT_A_CLOSURE:
+                raise LogStoreInvariantBroken(
+                    f"run {run_id} attempt {attempt} is closed and its last event at position "
+                    f"{logged.position} is not a closing event"
+                )
+            assert settlement is None or isinstance(settlement, LoggedSettlement)
+            settlements.append(AttemptSettlement(str(run_id), int(attempt), settlement))
+        return tuple(settlements)
 
     # --- the inventory's snapshot ------------------------------------------------------
 
@@ -1226,14 +1279,7 @@ class LogStore:
         if head_row is None:
             return None
         head = _head_of(head_row)
-        rows = conn.execute(_SNAPSHOT_ENTRIES, (ledger_id, head.revision)).fetchall()
-        entries = tuple(SnapshotEntry(_entry_of(row[:9]), _instant(row[9])) for row in rows)
-        if ledger.fold(each.entry for each in entries) != head:
-            raise LogStoreInvariantBroken(
-                f"ledger {ledger_id}'s head at revision {head.revision} is not what its "
-                f"{len(entries)} entries fold to"
-            )
-        return SnapshotLedger(ledger_id, head, entries)
+        return SnapshotLedger(ledger_id, head, _timed_entries(conn, ledger_id, head))
 
     # --- publication records -----------------------------------------------------------
 
@@ -1717,6 +1763,25 @@ def _head_of(row: tuple[Any, ...]) -> LedgerHead:
     return LedgerHead(int(total), int(revision), None if threshold is None else int(threshold))
 
 
+def _timed_entries(
+    conn: Connection, ledger_id: str, head: LedgerHead
+) -> tuple[SnapshotEntry, ...]:
+    """The entries through ``head``'s revision with their accept instants, refused unless
+    they fold to ``head``."""
+    rows = conn.execute(_SNAPSHOT_ENTRIES, (ledger_id, head.revision)).fetchall()
+    entries = tuple(SnapshotEntry(_entry_of(row[:9]), _instant(row[9])) for row in rows)
+    if ledger.fold(each.entry for each in entries) != head:
+        raise LogStoreInvariantBroken(
+            f"ledger {ledger_id}'s head at revision {head.revision} is not what its "
+            f"{len(entries)} entries fold to"
+        )
+    return entries
+
+
+_NOT_A_CLOSURE = object()
+"""The sentinel the settlements read uses for an event with no settlement field at all."""
+
+
 def _entry_of(row: tuple[Any, ...]) -> LedgerEntry:
     revision, kind, run_id, attempt, amount, total_after, authority, commit, reason = row
     return LedgerEntry(
@@ -1836,6 +1901,7 @@ __all__ = [
     "AdmissionResult",
     "AdmittedAttempt",
     "AttemptRef",
+    "AttemptSettlement",
     "Boundary",
     "Clock",
     "Connect",
@@ -1854,5 +1920,6 @@ __all__ = [
     "SnapshotLedger",
     "StoreSnapshot",
     "SupersededPublication",
+    "TimedLedgerView",
     "PublicationStatus",
 ]

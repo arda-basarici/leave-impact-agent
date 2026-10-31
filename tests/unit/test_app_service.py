@@ -163,7 +163,7 @@ def test_the_composition_root_names_what_the_environment_lacks() -> None:
 
     def planning(configuration: DemoConfiguration) -> Planning:
         planned.append(configuration)
-        return Planning(frozenset(), never_planned)
+        return Planning(frozenset(), never_planned, None)
 
     services = services_from_env(env, planning)
     assert services.code_version == CODE

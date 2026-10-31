@@ -71,6 +71,7 @@ def test_the_planning_lists_the_ids_and_plans_the_demos_cell_as_the_lifecycle_wo
         region=REGION,
     )
     assert inputs == lifecycle.inputs
+    assert demo.reservation_pico_usd == lifecycle.inputs.reservation_pico_usd is not None
 
 
 def test_a_repeat_plans_byte_identical_inputs_and_an_unknown_scenario_is_refused() -> None:

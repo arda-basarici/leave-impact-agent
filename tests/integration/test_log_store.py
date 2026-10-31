@@ -88,6 +88,7 @@ from leaveimpact.agent.log_store import (
     LogStoreInvariantBroken,
     PublicationStatus,
     RecordedAdmission,
+    SnapshotLedger,
 )
 from leaveimpact.agent.log_transition import Appended, AttemptState, Received, Refused
 from leaveimpact.core import (
@@ -106,10 +107,12 @@ from leaveimpact.core import (
 )
 from leaveimpact.core.eligibility import EligibilityRule
 from leaveimpact.core.inventory import InventoryScope, decode_inventory_bytes, inventory_bytes
+from leaveimpact.core.run_account import settle
 from leaveimpact.core.timeshape import encode_instant
 from tests.integration.log_store_support import Hold, Rig, Scripted, rig
 from tests.unit import format_fixtures as cases
 from tests.unit import log_histories as histories
+from tests.unit.publishable_fixture import SERVED, history_in_world
 
 pytestmark = pytest.mark.integration
 
@@ -1345,3 +1348,55 @@ def test_the_admissions_by_an_admitter_against_a_ledger_since_an_instant_and_the
     assert [one.run_id for one in store.admitted_by(OPERATOR, LEDGER, since=since)] == [
         "run-operator"
     ], "the operator's open admission is listed under the operator alone"
+
+
+# --- The ledger page's reads ---------------------------------------------------------------
+
+
+def test_the_timed_view_carries_each_entrys_instant_and_the_plain_view_is_its_projection(
+    rig: Rig,
+) -> None:
+    """The timed view is the snapshot's entry type with the store's accept instants in
+    revision order; the plain view holds the same entries without them; a ledger with no
+    head is ``None`` on the timed read and ``ValueError`` on the plain one."""
+    events = histories.HISTORIES["a cut call"]()
+    plain = opened(rig)
+    replay(plain, events)
+    timed = plain.ledger_view_timed(LEDGER)
+    assert timed is not None
+    assert [e.entry.kind for e in timed.entries] == [
+        ledger.EntryKind.THRESHOLD_SET,
+        ledger.EntryKind.ADMITTED,
+        ledger.EntryKind.SETTLED,
+    ]
+    instants = [e.recorded_at for e in timed.entries]
+    assert instants == sorted(instants) and all(at.tzinfo is not None for at in instants)
+    view = plain.ledger_view(LEDGER)
+    assert view.head == timed.head and view.entries == tuple(e.entry for e in timed.entries)
+    assert plain.snapshot(LEDGER).ledger == SnapshotLedger(LEDGER, timed.head, timed.entries)
+    assert plain.ledger_view_timed("ledger-unset") is None
+    with pytest.raises(ValueError, match="has no head"):
+        plain.ledger_view("ledger-unset")
+
+
+def test_the_settlements_read_reports_every_closed_attempt_on_the_ledger_in_one_statement(
+    rig: Rig,
+) -> None:
+    """A settled attempt's logged settlement equals what the account rule computed and the
+    ledger's settled entry holds; an open attempt is not reported; another ledger's attempts
+    are not reported; a ledger with none is empty."""
+    events = histories.HISTORIES["a cut call"]()
+    plain = opened(rig)
+    final = replay(plain, events)
+    run_id = admission_of(events)[0].inputs.run_id
+    (settled,) = plain.settlements_of(LEDGER)
+    assert (settled.run_id, settled.attempt) == (run_id, 1)
+    assert settled.settlement is not None
+    assert settled.settlement.charged_pico_usd == settle(final.account).charged_pico_usd
+    entry = [e for e in plain.ledger_view(LEDGER).entries if e.kind is ledger.EntryKind.SETTLED][0]
+    assert entry.amount_pico_usd == settled.settlement.charged_pico_usd
+    assert entry.revision == settled.settlement.ledger_revision
+    open_events = history_in_world("a handled fact-submission tool", SERVED, run_id="run-open")
+    replay(plain, open_events, upto=1)
+    assert len(plain.settlements_of(LEDGER)) == 1, "an open attempt is not a settlement"
+    assert plain.settlements_of("ledger-unset") == ()

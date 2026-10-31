@@ -135,11 +135,16 @@ only for a scenario the composition lists."""
 @dataclass(frozen=True, slots=True)
 class Planning:
     """What the composition root above the shells hands the surface: the served world's
-    scenario ids and the planner over them, built by the launcher from the registration,
-    the price table and the world store, which the surface never imports."""
+    scenario ids, the planner over them, and the reservation the planner freezes for a run
+    (``None`` for a system that reserves nothing), all built by the launcher from the
+    registration, the price table and the world store, which the surface never imports.
+    The reservation is one figure and not per scenario because the planner computes it
+    from the registration's caps, the role and the pricing basis alone; the ledger page
+    quotes it before any admission exists."""
 
     scenarios: frozenset[ScenarioId]
     plan: Planner
+    reservation_pico_usd: int | None
 
 
 @dataclass(frozen=True, slots=True)

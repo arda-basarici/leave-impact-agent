@@ -15,10 +15,13 @@ from leaveimpact.app.start import Planning
 from leaveimpact.app.window import AddressWindow, MemoryWindow
 from leaveimpact.core.ids import ScenarioId
 from tests.unit.publishable_fixture import SCENARIO
-from tests.unit.test_app_start import OTHER_SCENARIO, key, plan
+from tests.unit.test_app_start import BASE, OTHER_SCENARIO, key, plan
 
 SCENARIOS = frozenset({SCENARIO, OTHER_SCENARIO})
-PLANNING = Planning(SCENARIOS, plan)  # type: ignore[arg-type]
+assert BASE.reservation_pico_usd is not None, "the base admission reserves"
+RESERVATION: int = BASE.reservation_pico_usd
+"""The reservation the fixture's planner freezes, the base admission's."""
+PLANNING = Planning(SCENARIOS, plan, RESERVATION)  # type: ignore[arg-type]
 """The fixture's planner restates the base admission's inputs under the scenario asked."""
 DECISION_FORM = {"decision": "approve", "payload_digest": "f" * 64}
 """A well-formed decision the sweep posts to a name nobody started."""
@@ -53,7 +56,7 @@ def live_services(
     making one, ``store`` the app store the two commands write."""
     sessions = log if callable(log) else (lambda: log)
     return {
-        "planning": Planning(scenarios, plan),  # type: ignore[arg-type]
+        "planning": Planning(scenarios, plan, RESERVATION),  # type: ignore[arg-type]
         "live": store,
         "live_logs": sessions,
         "window": MemoryWindow() if window is None else window,
