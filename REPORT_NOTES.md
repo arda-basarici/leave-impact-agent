@@ -7,6 +7,96 @@ decisions it feeds.
 
 ---
 
+## 2026-10-31 — A ruling read off the code lasted one probe: the ledger page's liability, a budget fixed before the number, and the number reversing the shape the same hour
+
+*M3, the live pages step (step 15, 2026-10-30 and 31), its last group, the ledger page.
+Feeds: the M3 report's engineering section, on the ledger page and its accounting identity,
+on a budget fixed before a measurement, and on the probe that moved a ruling; the method
+section, on a forecast's figure coming from a probe and not a hand number, and on the
+order check as the gate that actually reads a new file.*
+
+The ledger page is the demo's money as its ledger records it: the wall an operator set,
+what the live runs have reserved and been charged, and an identity the page refuses to
+print unless it adds, the committed total equal to the open reservations plus the known
+consumption plus the retained liability plus the imported spend. Three of those figures
+are entries on the ledger. The retained liability is not: by an earlier ruling it lives in
+no table, because the account rule derives it from a run's decoded events and a second
+copy in SQL would drift, so the page has to derive it per settled attempt and remember it,
+a closed log being immutable. The group's design pass ruled how, on a reading of the code:
+load each settled attempt's log, fold it, read the settlement's state off the fold, split
+a kept one into known and retained, memoize the result for the process's life. The cost
+was quoted by hand from an older drill, about 14 ms an attempt, and the ruling called a
+reconciled attempt one that "needs no further read", which was true of the figure and not
+of the load.
+
+Two things were done before any of that was built. The probe's budget was fixed in the
+probes README first: the first view after a process start, a month into the demo at the
+daily cap of five, may cost five seconds of the interpreter, a design value for a page a
+visitor waits on and not a measurement. Then a probe ran on the instance over the replay
+set's thirty settled attempts, 37 seconds end to end, reproducing the memo's work from its
+parts (the store's bounded load, the account rule's settlement and figures) and checking
+each attempt three ways, the rule's charge against the charge the closing event logged and
+against the amount the ledger's settled entry holds. Every check passed and every number
+moved: the fold cost 129 ms an attempt on the real logs, 3.87 s of CPU over the thirty,
+303 ms on the longest, and the forecast at 150 attempts came to 19.3 s against the 5 s
+budget (FINDINGS `ledger-cost`; every figure printed by `probes/ledger-cost/reduce.py`
+over `probes/captures/ledger-cost/2026-10-31/host.out.txt`). The rule's second branch
+fired and the ruling reopened within the hour.
+
+The fact under the number was simple once the number existed. The page needs only the
+settlement per attempt, and the fold only for a kept settlement, which is the exception by
+construction; all thirty on the demo ledger were reconciled. The ruling had read the
+settlement off the fold because the store had no read of a closing event by itself, and
+the attempt row already carries its last position and whether it is closed, so every
+closed attempt's closing event on a ledger is one indexed statement. That became the
+shape: the store gained a one-statement settlements read, the memo fills the attempts it
+lacks from it, a reconciled one costs a decode and no fold, a kept one is folded once and
+held to the charge its closure logged. Two alternatives were real and died on the same
+number. Warming the memo in a background thread at process start keeps the fold and spends
+19 s of a two-vCPU host beside the cache load on every deploy, growing with the ledger's
+life. A figures column written by the sweeper at settlement is exact and constant per
+view, and it is a schema bump that puts a derived figure in a table the design keeps it
+out of, so the drill's reconciliation would have to grow with it. The recommendation kept
+the column as the move if the replacement read missed the budget, and the page would have
+shipped with the memo meanwhile, since the first month holds at most 150 attempts.
+
+The second run, after the page deployed, closed the question: the settlements read cost
+7.7 ms of CPU cold for the thirty rows, 18.7 ms of wall, and the forecast at 150 attempts
+is 0.04 s (`probes/captures/ledger-cost/2026-10-31-settlements/`, the same reducer). The
+lazy memo stayed and the column was not built. The order of events is the point for the
+report: a budget written down before either number existed, a probe cheap enough to run
+before the build, a ruling reversed on the first number and confirmed on the second, and
+the page module citing both figures with a unit test that recomputes them from the
+captures through the probe's own reducer, so neither text nor constant can outlive its
+measurement.
+
+The same probe paid a second debt it was not sent for. The page quotes a charge forecast
+until a visitor run settles, the replay set's mean of $0.0699 a run, and that figure had
+no committed source: it was printed at the replay step by a tally over the thirty exports,
+which live in the object store, and none of the three committed records holds a charge
+(the dispatch ledger's markers carry the reservation, the grading file no per-run cost,
+the tick-cost capture timings and event counts). The pin pattern the wait sentence uses,
+a constant held to a capture by a test, had nothing to hold the constant to. The probe
+read the thirty charges back from the production ledger: 2,096,667,100,000 pico-dollars
+in all, the recorded $2.0967 to the pico, a mean of 69,888,903,333, and the unit test
+now holds the page's constants to that capture. A figure that only an object store can
+regenerate is a hand number until something in the tree reads it back.
+
+One more finding belongs to the method. The group's gates were run on the working tree
+first and passed, then on an exported copy of HEAD with a throwaway repository and its own
+environment, the three commits applied stage by stage. The copy's first run refused the
+new FINDINGS entry for a sentence naming "the step's forks file", a pointer outside the
+public tree that the working tree's disclosure sweep could not see, since the sweep lists
+its files through the index and the file was not tracked yet; the copy, with everything
+added, was the first place the sentence was actually read. The same run found three type
+findings in two test files written after the last whole-tree type check. Both are the
+reason the copy exists: a gate over tracked files passes a new file vacuously, and a
+whole-tree run covers the tree as it stood when it ran.
+
+Figure: two bars on one axis, the memo's fill per attempt under the fold (129 ms) and under
+the settlements read (7.7 ms for thirty rows, about a quarter of a millisecond a row), the
+5 s budget drawn as the line both forecasts at 150 attempts are measured against.
+
 ## 2026-10-30 — Three reads of one deploy path, each a history the rulings allowed and no fixture held, and the third found the fixture was a memory of the file, not the file
 
 *M3, the worker service step (step 14, 2026-10-27 to 30): the deploy script gained a
