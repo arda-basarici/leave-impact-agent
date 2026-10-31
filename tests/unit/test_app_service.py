@@ -138,7 +138,8 @@ def test_the_index_renders_the_served_world_and_the_flag_without_javascript() ->
         page = web.get("/")
         assert page.status_code == 200
         assert page.headers["content-type"].startswith("text/html")
-        assert GOLDEN in page.text and "off" in page.text and CODE in page.text
+        flag = "on" if CONFIGURATION.live_runs else "off"
+        assert GOLDEN in page.text and f">{flag}<" in page.text and CODE in page.text
         assert "<script" not in page.text
         assert web.get("/docs").status_code == 404 and web.get("/openapi.json").status_code == 404
 

@@ -47,7 +47,7 @@ from tests.unit.test_app_surface import Sessions, Store
 
 CODE = "b" * 40
 LIVE = replace(CONFIGURATION, ledger_id=LEDGER, live_runs=True)
-OFF = replace(CONFIGURATION, ledger_id=LEDGER)
+OFF = replace(CONFIGURATION, ledger_id=LEDGER, live_runs=False)
 BUSY_SENTENCE = "A run is in progress; follow it from the replays, and start one when it ends."
 
 

@@ -12,7 +12,8 @@ and priced under, the visitors' own ledger apart from the measurement's and from
 replay set's (the live pages step: the ledger page shows what the live demo spends, from
 zero, and no operator run reaches it), five admissions a
 UTC day, a fifteen-minute approval wait, a wall-clock bound on a running attempt beside
-the registered caps, and live runs off.
+the registered caps, and live runs off outside an acceptance window, which the live
+path's acceptance step opens and closes by commit.
 
 The region is the cell's third coordinate beside the system and the level (format 2,
 the live-path commands step): the planner prices a visitor's run under the table's rates
