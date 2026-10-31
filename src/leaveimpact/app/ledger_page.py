@@ -28,10 +28,11 @@ attempt's logged settlement, so a reconciled attempt (every line priced whole) c
 decode and never a fold, and only a kept one is folded, once. The ledger-cost probe measured
 the fold at 129 ms an attempt on the instance (3.9 s of CPU over the replay set's thirty,
 19 s forecast for a month at the daily cap), which is why the reconciled case does not
-fold; the settlements read's own cost is the probe's second capture, taken after this page
-deployed. A store failure during a fill caches nothing. The memo has no lock: a closed log
-is immutable, two viewers computing one attempt at once get the same figure, and a dict
-assignment is atomic under the interpreter lock.
+fold; the settlements read's own cost is owed to the probe's second run after this page
+deploys and is not in the committed capture. A store failure during a fill caches
+nothing. The memo has no lock: a closed log is immutable, two viewers computing one
+attempt at once get the same figure, and a dict assignment is atomic under the
+interpreter lock.
 """
 
 from __future__ import annotations

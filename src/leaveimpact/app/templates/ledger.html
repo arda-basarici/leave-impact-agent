@@ -18,7 +18,7 @@ no live run can reserve against it. Live runs are {{ "on" if live_runs else "off
   <dt>Room</dt><dd>{{ view.room_pico_usd|dollars }}</dd>
   <dt>Open reservations</dt><dd>{{ view.open_reservations_pico_usd|dollars }} over {{ view.open_reservations }} open run{{ "" if view.open_reservations == 1 else "s" }}</dd>
   <dt>Charged</dt><dd>{{ view.charged_pico_usd|dollars }} over {{ view.charged }} settled run{{ "" if view.charged == 1 else "s" }}: {{ view.known_pico_usd|dollars }} known consumption plus {{ view.retained_pico_usd|dollars }} retained liability</dd>
-  <dt>Imported spend</dt><dd>{% if view.imported %}{{ view.imported_pico_usd|dollars }} over {{ view.imported }} import{{ "" if view.imported == 1 else "s" }}{% else %}none; nothing was spent outside the log{% endif %}</dd>
+  <dt>Imported spend</dt><dd>{% if view.imported %}{{ view.imported_pico_usd|dollars }} over {{ view.imported }} import{{ "" if view.imported == 1 else "s" }}{% else %}none; no imported spend is recorded on this ledger{% endif %}</dd>
   <dt>Refusals</dt><dd>{{ view.refusals }}</dd>
   <dt>Today's live runs</dt><dd>{{ view.today }} of {{ view.cap }} started; {{ view.remaining_today }} remain, the day turns at midnight UTC</dd>
   <dt>Reservation a run holds</dt><dd>{% if view.reservation_pico_usd is not none %}{{ view.reservation_pico_usd|dollars }} ({{ view.reservation_source }}){% else %}{{ view.reservation_source }}{% endif %}</dd>
