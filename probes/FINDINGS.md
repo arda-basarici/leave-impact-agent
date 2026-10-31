@@ -5285,4 +5285,14 @@ reading and the step's record carries the branch with the capture cited; (c) met
 regenerates the mean, the count and the sum, the sum equals the recorded total, and the page's
 constant is held to the capture by the unit test; (d) met: the page module's and the store's
 docstrings cite the per-attempt rate from the capture, held by the same test. The second run
-is owed once the deployed image carries the read.
+is below.
+
+**The second run, the settlements read** (19:06 UTC on the deployed `5f42420` host, 39 s end
+to end, `captures/ledger-cost/2026-10-31-settlements/`). The same thirty attempts and checks,
+and beside them the read the memo now fills from, one statement for every closed attempt's
+closing event on the ledger: 30 rows, cold 7.7 ms of CPU and 18.7 ms of wall, warm median
+7.6 ms; the forecast at 150 attempts 0.04 s of CPU on the first view against the 5 s budget,
+so the lazy memo over the settlements read stays and the figures column is not built. The fold
+re-measured at 127.2 ms an attempt mean (3.82 s over the set), the charges and the checks
+unchanged. The page module cites the read's figures, held to this capture by the same unit
+test. Criterion (a) to (d) met on both runs; the budget rule closed on the second.

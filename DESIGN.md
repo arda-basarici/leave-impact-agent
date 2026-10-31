@@ -4534,6 +4534,51 @@ bare sha, which the lifecycle gates on, and a ledger beside it records the start
 deployed, failed and probe lines, built at the pinning step. Owed to the acceptance step:
 the worker's memory under a public attempt and the per-tick CPU.
 
+As built at the live pages step (M3 step 15, 2026-10-30 and 31; twelve forks ruled at the
+entry with the external read's six points, one reopened on the tick-cost number, four at
+the pages' design pass, three at the ledger page's and one reopened on the ledger-cost
+number; the read on each of the four commit groups; FINDINGS `visitors-ledger-threshold`,
+`tick-cost` and `ledger-cost` hold the hand step and the two probes). The visitors' runs
+reserve against a ledger of their own, `ledger-visitors`, apart from the measurement's
+and the replay set's, so the accounting a visitor reads is the visitors' alone; the
+lifecycle's launch sends no threshold, since an unequal amount within the limit writes a
+new entry and one operator run would have reset a lowered wall, and the operator sets a
+ledger's threshold by hand through the command whose equal amount answers with the entry
+in force. The wall was set at $8 on 2026-10-30 (revision 1, read back by the same
+command), the residual of the $30 line by hand. The narration stream ticks incrementally:
+the tick-cost probe measured a whole re-fold at 0.12 to 0.69 s of CPU an attempt on the
+instance, so each subscription folds whole once and then reads only the events past the
+position it holds, the idle tick 6.5 to 11.1 ms by proxy. The pages: one admissions tally
+read by the start rule and by the index, which shows the form with the remaining count
+and the measured wait (40 s median, 48 s at most over the thirty replays), busy with links
+to the open run, the day spent or the visitor address spent; the open page in three
+phases, reloading itself every ten seconds outside the awaiting phase, the decision form
+rendered to the holder alone and the review as sentences for every viewer; the ending
+naming the wait the sweeper closed, every abandoning authority worded by role.
+
+The ledger page states the configured ledger with every entry kind accounted for and no
+run named: the threshold in force with when it was set, the committed total, the open
+reservations, the charged spend as known consumption plus retained liability and said so,
+the imported spend, the refusals, the room, today's admissions against the cap, the
+reservation a run holds (the latest admission's, or the planner's before any run), and a
+charge forecast labelled conservative, the mean over this ledger's settled runs or, until
+one settles, the replay set's $0.0699 held to the probe's capture by a unit test. The
+identity, committed total equals open reservations plus known consumption plus retained
+liability plus imported spend, is checked in the page's constructor, and each settled
+attempt's derived total is held to its settled entry before the page is built, so the
+log's account and the ledger's entry are compared on every view and a drift is a refusal.
+The retained liability stays out of the tables: it is derived per settled attempt and
+memoized for the process's life. The ruling had read the settlement off the fold; the
+ledger-cost probe measured the fold at 129 ms an attempt on the instance (3.9 s over the
+replay set, 19 s forecast for a month at the cap against a 5 s budget fixed before the
+run), so the store gained a one-statement read of every closed attempt's logged
+settlement and the memo fills from it, a reconciled attempt costing one decode and only a
+kept one folded. The second run measured that read at 7.7 ms cold for the thirty rows,
+0.04 s forecast at 150 attempts, and the lazy memo stayed. The page is public-global,
+rendered with live runs on and off, a ledger with no head its own state. Owed to the
+acceptance step: the forecast's check under the first public attempt and the memory
+capture of the same run.
+
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
 against per-run compute is not established and is recorded as unknown), its criteria

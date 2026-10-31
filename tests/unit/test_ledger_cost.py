@@ -26,6 +26,8 @@ from leaveimpact.app.ledger_page import (
 ROOT = Path(__file__).resolve().parents[2]
 PROBE = ROOT / "probes" / "ledger-cost"
 FIRST = ROOT / "probes" / "captures" / "ledger-cost" / "2026-10-31" / "host.out.txt"
+SECOND = ROOT / "probes" / "captures" / "ledger-cost" / "2026-10-31-settlements" / "host.out.txt"
+"""The run after the page deployed, timing the settlements read the memo fills from."""
 
 
 @pytest.fixture(scope="module")
@@ -81,3 +83,24 @@ def test_the_cited_fold_rate_and_branch_are_the_captures(reading: dict[str, Any]
     assert rate_text in page_doc and pass_text in page_doc
     assert f"{forecast_text} forecast" in page_doc
     assert rate_text in store_doc and "3.9 s over the replay set" in store_doc
+
+
+def test_the_settlements_read_figures_are_the_second_captures(reduce: ModuleType) -> None:
+    """The second run repeats the thirty attempts and checks, times the settlements read the
+    memo fills from, and lands the budget rule on the lazy memo; the page module cites its
+    cold cost and forecast."""
+    second = reduce.reading_of(SECOND)
+    assert second["attempts_measured"] == 30 and second["checks"]["passed"]
+    assert second["charges"]["sum_pico_usd"] == REPLAY_SET_TOTAL_PICO_USD
+    read = second["settlements_read"]
+    assert read is not None and read["rows"] == 30
+    cold_text = f"{read['cold_cpu_s'] * 1000:.1f} ms of CPU cold for the thirty rows"
+    forecast = second["cold"]["forecast_settlements_read_cpu_s"]
+    forecast_text = f"{forecast:.2f} s forecast at {second['cold']['forecast_attempts']} attempts"
+    assert (cold_text, forecast_text) == (
+        "7.7 ms of CPU cold for the thirty rows",
+        "0.04 s forecast at 150 attempts",
+    )
+    assert forecast <= second["cold"]["budget_seconds"]
+    page_doc = ledger_page.__doc__ or ""
+    assert cold_text in page_doc and forecast_text in page_doc
