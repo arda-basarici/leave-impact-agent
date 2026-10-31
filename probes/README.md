@@ -404,3 +404,37 @@ the container.
 | probe | pass criterion | capture |
 |---|---|---|
 | **tick-cost** — the stream's tick timed on the deployed instance over the replay set's thirty closed attempts | (a) every attempt of the ledger measured, the probe exiting 0 with the reading as one JSON object; (b) the reading carries the rule's inputs (`c`, `8c`, the attempt they come from) and the branch the rule names, and the step's record names the branch with the reading cited; (c) the stream module's docstring and DESIGN's memory passage carry the measured CPU in place of the inference, held to the committed reading by a unit test; (d) if the shared fold is built, the probe is rerun through it with eight subscribers on one open attempt and the replay page's and the decision route's latency sampled beside them, and that rerun is a second capture. A reading over fewer attempts than the ledger holds is a finding, and no branch is taken from it. | `captures/tick-cost/<date>/host.out.txt` (the host's shape, the deployed sha, the reading), `host.err.txt` |
+
+## The ledger page's cost probe (written 2026-10-31, before it runs)
+
+The demo milestone's step 15, the ledger page: the page states the retained liability, which
+no table holds by design (the account rule derives it from the decoded events, and a second
+copy in SQL would drift), so the page recomputes it from the log per settled attempt and
+memoizes the figure for the process's life, a closed log being immutable. The first view
+after a process start pays one load per settled attempt. The page also quotes a mean charge
+per settled run as a conservative forecast, and until a visitor run settles the figure is
+the replay set's, whose thirty charges no committed file holds (the dispatch ledger's
+markers carry the reservation, the grading file no per-run cost, the tick-cost capture
+timings). The rule was fixed before the number: the cold pass's mean CPU per attempt times
+the attempts thirty days of the daily cap admit is the forecast first view a month into the
+demo; at or under five seconds of the interpreter the lazy memo stays, above it the memo is
+warmed at the process's start or the figures column (the retained liability's fork, option
+(b)) lands before the flag flips. Five seconds is a design value, a page a visitor waits
+for, and not a measurement.
+
+**The probe.** `ledger-cost/probe.py` runs in a one-off container of the deployed image on
+the stack's network, sent by `ledger-cost/send.ps1` through `ledger-cost/host.sh` under the
+administrator profile, over the replay set's ledger (`ledger-demo`, the probe's own argument;
+the visitors' ledger the configuration names holds no settled attempt): a cold pass first,
+one fresh bounded session and one load per settled attempt in run-id order, timed in CPU
+(`process_time`, this process's own) and wall (`perf_counter`), the pass's sum being the
+memo's first fill; then five repetitions after one warm-up for the spread per attempt, which
+never enter the cold figure. The same load gives each attempt's settlement through the
+account rule (`settle`, `figures_of`), checked against the charge the closing event logged
+and the amount the ledger's settled entry holds, with the rule's state against the logged
+state and a reconciled settlement retaining nothing, the comparison the page will make on
+every view. Attempts are numbered; no run id or text leaves the container.
+
+| probe | pass criterion | capture |
+|---|---|---|
+| **ledger-cost** — the memo's cold cost and the thirty charges on the deployed instance over the replay set's settled attempts | (a) every settled attempt of the ledger measured and the settled entries counted equal, the probe exiting 0 with the reading as one JSON object and every check passed; (b) the reading carries the rule's inputs (the pass's CPU, the per-attempt mean, the forecast at the cap's month) and the branch the rule names, and the step's record names the branch with the reading cited; (c) `ledger-cost/reduce.py` regenerates the mean charge, the count and the sum from the capture, the sum equals the replay set's recorded total to the cent, and the page's constant is held to the capture by a unit test; (d) the page module's docstring cites the per-attempt rate from the capture and nothing by hand. A failed check is a finding, and no figure is quoted from a reading with one. | `captures/ledger-cost/<date>/host.out.txt` (the host's shape, the deployed sha, the reading), `host.err.txt` |

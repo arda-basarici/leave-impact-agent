@@ -5238,3 +5238,51 @@ since. The figures are `reduce.py`'s over `reading.json`.
 second's whole copy fetched, as the host script's header provides); (b) met: the rule's
 inputs and branch are in the reading and the step's record carries the branch with the
 captures cited; (c) and (d) are the build's, on the shape the step rules.
+
+## ledger-cost — the ledger page's cold cost and the thirty charges read on the instance: the fold at 129 ms an attempt sends the memo to a settlements read, the mean charge $0.0699 pinned (2026-10-31)
+
+The demo milestone's step 15 (the live pages), group 4, the ledger page; the probe and its
+criteria are in `probes/README.md` ("The ledger page's cost probe"), the reading in
+`captures/ledger-cost/2026-10-31/host.out.txt` (whole: 12,833 characters under SSM's limit),
+the table and every figure below printed by `ledger-cost/reduce.py` over that capture. Run at
+14:04 UTC on the deployed `b1521ec` host (Graviton2, two vCPUs, Python 3.13.16 in the image),
+the app and the worker idle beside it; the probe took 37 s end to end.
+
+**What was measured.** For each of the thirty closed attempts on `ledger-demo`, in run-id
+order: a cold pass first, one fresh bounded log session and one load each (the memo's first
+fill as the page's design ruled it, the settlement read off the fold), CPU by `process_time`
+and wall by `perf_counter`; then one warm-up and five repetitions for the spread; and from
+the same load the account rule's settlement and figures (`settle`, `figures_of`), checked
+against the charge the closing event logged, the amount the ledger's settled entry holds, the
+logged state, and a reconciled settlement retaining nothing.
+
+| attempts | events an attempt | settlements | charges | cold pass CPU | cold load an attempt | forecast at 150 attempts |
+|---|---|---|---|---|---|---|
+| 30 | 32 to 63 | 30 reconciled, 0 kept | sum $2.0967, mean $0.0699 | 3.87 s (4.18 s wall) | 119.5 ms median, 248.1 ms p95, 303.1 ms max; mean 128.9 ms | 19.34 s against the 5 s budget |
+
+**The charges, pinned.** The thirty settled entries sum to 2,096,667,100,000 pico-dollars,
+the replay set's recorded $2.0967 to the pico; the mean is 69,888,903,333 pico ($0.0699), the
+figure the ledger page quotes as its charge forecast until a visitor run settles, held to this
+capture by `tests/unit/test_ledger_cost.py`. Every settlement was reconciled and the retained
+liability over the set is zero, so known consumption equals the charge on every attempt. Every
+check passed: the rule's charge, the logged charge and the settled entry agree on all thirty.
+
+**The cold cost, and the ruling it moved.** The cold pass is 3.87 s of CPU over thirty
+attempts, 129 ms an attempt on average and 303 ms on the longest log; the forecast for a month
+at the daily cap of five, 150 attempts, is 19.3 s on the first view after a process start, the
+rule's second branch ("warm the memo at the process start, or the figures column before the
+flip"). The step reopened the retained liability's source on the number (the ledger page's
+fourth design fork): the page needs only the settlement per attempt and the fold only for a kept
+one, and the ruling had read the settlement off the fold because the store had no closing-event
+read. The store gained `settlements_of`, one statement joining each closed attempt's row to the
+event at its last position, and the memo fills from it, so a reconciled attempt costs one
+decode and no fold. The budget stands at 5 s; the settlements read's own cost is the second run
+below, taken after the page deployed.
+
+**Criterion.** (a) met: thirty of thirty settled attempts measured and thirty settled entries,
+exit 0, one JSON object, every check passed; (b) met: the rule's inputs and branch are in the
+reading and the step's record carries the branch with the capture cited; (c) met: the reducer
+regenerates the mean, the count and the sum, the sum equals the recorded total, and the page's
+constant is held to the capture by the unit test; (d) met: the page module's and the store's
+docstrings cite the per-attempt rate from the capture, held by the same test. The second run
+is owed once the deployed image carries the read.
