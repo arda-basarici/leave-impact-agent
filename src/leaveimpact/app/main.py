@@ -90,7 +90,7 @@ from __future__ import annotations
 import logging
 import os
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from importlib.resources import files
 from pathlib import Path
@@ -115,6 +115,7 @@ from leaveimpact.adapters.corpus import served_versions
 from leaveimpact.agent.log_reader import export_of
 from leaveimpact.agent.log_store import LogStore, LogStoreInvariantBroken, LogStoreUnavailable
 from leaveimpact.agent.log_transition import Rules
+from leaveimpact.app.amounts import dollars
 from leaveimpact.app.config import DemoConfiguration, committed_configuration
 from leaveimpact.app.decide import (
     DecideComposition,
@@ -127,6 +128,13 @@ from leaveimpact.app.decide import (
     decide,
     review_of,
     viewer_of,
+)
+from leaveimpact.app.ledger_page import (
+    LedgerComposition,
+    LedgerInconsistent,
+    LedgerLog,
+    LiabilityMemo,
+    ledger_page,
 )
 from leaveimpact.app.live import (
     Decision,
@@ -256,6 +264,7 @@ ROUTES: tuple[RouteClass, ...] = (
     RouteClass("/ready", Surface.PUBLIC_GLOBAL, GET),
     RouteClass("/replays", Surface.PUBLIC_GLOBAL, GET),
     RouteClass("/results", Surface.PUBLIC_GLOBAL, GET),
+    RouteClass("/ledger", Surface.PUBLIC_GLOBAL, GET),
     RouteClass("/replays/{public_id}", Surface.ATTEMPT_SCOPED, GET),
     RouteClass("/replays/{public_id}/trail", Surface.ATTEMPT_SCOPED, GET),
     RouteClass("/replays/{public_id}/timeline", Surface.ATTEMPT_SCOPED, GET),
@@ -318,9 +327,9 @@ class FormRefused(Exception):
         self.reason = reason
 
 
-class LiveLog(StartLog, DecideLog, Protocol):
-    """The log session the two live routes open per request: the start's and the
-    decision's operations on one connection, closed before the response."""
+class LiveLog(StartLog, DecideLog, LedgerLog, Protocol):
+    """The log session the live routes open per request: the start's, the decision's and
+    the ledger page's operations on one connection, closed before the response."""
 
     def close(self) -> None: ...
 
@@ -351,6 +360,9 @@ class Services:
     window: AddressWindow
     mint_key: Callable[[], StartKey]
     """The index's key for its start form; the composition root mints from entropy."""
+    memo: LiabilityMemo = field(default_factory=LiabilityMemo)
+    """The ledger page's per-process figures of the settled attempts; one per services, so
+    a test's services share nothing with another's."""
 
 
 def templating() -> Jinja2Templates:
@@ -365,6 +377,7 @@ def templating() -> Jinja2Templates:
     # of our own is registered through the table's untyped face.
     filters = cast(dict[str, Any], templates.env.filters)
     filters["mark_quotes"] = mark_quotes
+    filters["dollars"] = dollars
     globals_table = cast(dict[str, Any], templates.env.globals)
     globals_table["served_world_label"] = SERVED_WORLD_LABEL
     return templates
@@ -373,8 +386,9 @@ def templating() -> Jinja2Templates:
 def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     """The application over ``services``: the index, the readiness route, the listing of
     published replays with the introduced ones first, the results page over the public
-    results read once here, the replay, report, trail and timeline pages, the report carrying
-    its walkthrough when the file names the row, and the narration stream paced by ``pacing``
+    results read once here, the ledger page over the configured ledger, the replay, report,
+    trail and timeline pages, the report carrying its walkthrough when the file names the
+    row, and the narration stream paced by ``pacing``
     (the module's constants unless a test passes faster ones); the process's subscription
     bound is reachable as ``app.state.subscriptions``. Raises what ``services.results`` and
     ``services.walkthroughs`` raise, so an undecodable committed file is a creation failure."""
@@ -395,6 +409,9 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         services.window,
     )
     decide_composition = DecideComposition(configuration, services.rules)
+    ledger_composition = LedgerComposition(
+        configuration, services.rules, planning.reservation_pico_usd
+    )
     common: dict[str, Any] = {
         "code_version": services.code_version,
         "served_world_version": configuration.served_world_version,
@@ -463,6 +480,25 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
 
     def results(request: Request) -> HTMLResponse:
         return page(request, "results.html", view=measurement)
+
+    def ledger(request: Request) -> HTMLResponse:
+        """The ledger page, under the flag on and off alike: one log session closed before
+        the page renders; a ledger with no head yet is the page's own state, and a log
+        whose account disagrees with the ledger is logged and answered unavailable, since
+        the page prints no sum that does not add."""
+        log: LiveLog | None = None
+        try:
+            log = services.live_logs()
+            view = ledger_page(log, ledger_composition, services.memo)
+        except _UNAVAILABLE:
+            return unavailable(request)
+        except LedgerInconsistent as error:
+            _log.error("the ledger page refused to render: %s", error)
+            return unavailable(request)
+        finally:
+            if log is not None:
+                log.close()
+        return page(request, "ledger.html", view=view, ledger_id=configuration.ledger_id)
 
     def admit(request: Request, public_id: str) -> Admitted | HTMLResponse:
         """Every attempt-scoped surface's one path: the name parsed, the admission in a log
@@ -672,6 +708,7 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
         ready_path,
         replays_path,
         results_path,
+        ledger_path,
         replay_path,
         trail_path,
         timeline_path,
@@ -683,6 +720,7 @@ def create_app(services: Services, pacing: Pacing = DEFAULT_PACING) -> FastAPI:
     app.add_api_route(ready_path, ready, methods=["GET"])
     app.add_api_route(replays_path, replays, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(results_path, results, methods=["GET"], response_class=HTMLResponse)
+    app.add_api_route(ledger_path, ledger, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(replay_path, replay, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(trail_path, trail, methods=["GET"], response_class=HTMLResponse)
     app.add_api_route(timeline_path, timeline, methods=["GET"], response_class=HTMLResponse)
@@ -785,6 +823,7 @@ def services_from_env(
         live_logs=log_session,
         window=MemoryWindow(),
         mint_key=mint_start_key,
+        memo=LiabilityMemo(),
     )
 
 
