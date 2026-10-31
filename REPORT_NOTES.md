@@ -85,7 +85,7 @@ regenerate is a hand number until something in the tree reads it back.
 One more finding belongs to the method. The group's gates were run on the working tree
 first and passed, then on an exported copy of HEAD with a throwaway repository and its own
 environment, the three commits applied stage by stage. The copy's first run refused the
-new FINDINGS entry for a sentence naming "the step's forks file", a pointer outside the
+new FINDINGS entry for a sentence naming the step's design record, a pointer outside the
 public tree that the working tree's disclosure sweep could not see, since the sweep lists
 its files through the index and the file was not tracked yet; the copy, with everything
 added, was the first place the sentence was actually read. The same run found three type
