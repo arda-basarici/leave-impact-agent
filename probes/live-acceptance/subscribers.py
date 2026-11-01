@@ -203,7 +203,9 @@ class Subscriber(threading.Thread):
             while not self._stop.is_set():
                 raw = response.readline()
                 if not raw:
-                    self._end("eof")
+                    # A socket this probe shut ends the read with an empty line on Linux
+                    # and with an error on Windows; both are the probe's own close.
+                    self._end("closed by the probe" if self._stop.is_set() else "eof")
                     return
                 arrival = now()
                 line = raw.decode("utf-8", errors="replace").rstrip("\r\n")

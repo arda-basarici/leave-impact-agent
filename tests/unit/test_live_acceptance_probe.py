@@ -344,6 +344,13 @@ def test_the_reducer_places_the_samples_by_the_frames_phases_and_applies_the_rul
     assert rule["worker_mem_limit"] == "384m", "1.5 × 240 MiB = 360, rounded up to 64 MiB"
     assert rule["app_passes_committed_peak"] is False
     assert rule["fits"] is True
+    assert rule["qualifies"] is True and rule["absences"] == []
+    assert [i["name"] for i in subscribers["held_intervals"]] == ["held", "held again"]
+    assert all(i["seconds"] > 0 for i in subscribers["held_intervals"])
+    # The fixture's frames are stamped at T0 and the probe ran now, so the held intervals
+    # fall in no phase here; the held rate is then insufficient coverage, never a number.
+    load = reading["subscriber_load"]["phases"]["run2:active"]
+    assert load["sufficient"] is False and load["above_idle"] is None
     assert samples["counters"]["leaveimpact-worker-1"]["oom_kill_last"] == 0
 
 
@@ -364,7 +371,111 @@ def test_the_committed_reading_regenerates_from_the_committed_capture() -> None:
     for label, samples in reading["samples"].items():
         for phase, level in samples["phases"].items():
             for container in BOUNDED:
-                assert "absent" not in level["containers"][container], (label, phase, container)
+                assert level["containers"][container]["absent_samples"] == 0, (label, phase)
+                assert "current_max" in level["containers"][container], (label, phase)
         for container, counters in samples["counters"].items():
             assert counters["oom_kill_last"] == counters["oom_kill_first"] == 0, container
             assert counters["restarts_last"] == counters["restarts_first"], container
+    assert reading["worker_rule"]["qualifies"] is True
+
+
+def _rows(
+    offsets: range, cpu_per_sample: dict[range, int], worker: int | None = 240 * 2**20
+) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = []
+    cpu = 10_000_000
+    for offset in offsets:
+        step = next((v for r, v in cpu_per_sample.items() if offset in r), 50_000)
+        cpu += step
+        rows.append(_sample(T0.timestamp() + offset, 200 * 2**20, worker, cpu))
+    return rows
+
+
+def test_the_held_rate_is_over_the_hold_and_not_diluted_by_the_seconds_before_it() -> None:
+    """The external read's first finding: clients ready 80 s into a 100 s investigation
+    whose extra load is 0.8 s a second read as 0.16 over the whole span. The held rate
+    reads the 0.8, the whole-span rate the dilution, and a hold under the floor is
+    insufficient rather than a number."""
+    reduce = cast(Any, _module("reduce"))
+    base = T0.timestamp()
+    # One sample every 5 s, a sample's CPU step being the work since the sample before:
+    # idle at 0.01 s/s, the span 0 to 100 at idle until 80, then 0.81 s/s (4.05 s of CPU
+    # a sample) for the four steps of the last 20 s while eight clients are held.
+    rows = _rows(range(-20, 125, 5), {range(85, 101): 4_050_000, range(0, 85): 50_000})
+    windows = [("run:active", base, base + 100.0)]
+    held = [(base + 80.0, base + 100.0)]
+    reading = reduce.reduce_samples(rows, windows, held)
+    active = reading["phases"]["run:active"]["containers"]["leaveimpact-app-1"]
+    assert active["cpu_rate"]["mean"] == pytest.approx(0.17, abs=0.01), "the diluted figure"
+    assert active["cpu_rate_held"]["mean"] == pytest.approx(0.81, abs=0.01)
+    assert reading["phases"]["run:active"]["held_seconds"] == 20.0
+    load = reduce.subscriber_load({"runs": reading}, ["run"])["phases"]["run:active"]
+    assert load["sufficient"] is True
+    assert load["above_idle"] == pytest.approx(0.80, abs=0.01)
+    assert load["within_budget"] is False and load["within_forecast"] is False
+    short = reduce.reduce_samples(rows, windows, [(base + 90.0, base + 100.0)])
+    assert short["phases"]["run:active"]["held_seconds"] == 10.0
+    assert reduce.subscriber_load({"runs": short}, ["run"])["phases"]["run:active"] == {
+        "samples": "runs",
+        "held_seconds": 10.0,
+        "sufficient": False,
+        "app_rate_held": pytest.approx(0.81, abs=0.01),
+        "app_rate_all_pairs": pytest.approx(0.17, abs=0.01),
+        "idle_rate": pytest.approx(0.01, abs=0.001),
+        "above_idle": None,
+        "within_budget": None,
+        "within_forecast": None,
+    }
+
+
+def test_a_container_absent_from_one_sample_is_counted_and_disqualifies_the_capture() -> None:
+    """The second finding: one missing worker reading among three gave ordinary maxima
+    and no mark. The count is kept in the phase, the rule names the absence, and the
+    capture does not qualify to set a limit."""
+    reduce = cast(Any, _module("reduce"))
+    rows = _rows(range(0, 15, 5), {})
+    rows[1]["containers"]["leaveimpact-worker-1"] = {"absent": "no such container"}
+    reading = reduce.reduce_samples(rows, [], [])
+    worker = reading["phases"]["idle"]["containers"]["leaveimpact-worker-1"]
+    assert worker["absent_samples"] == 1 and worker["current_max"] == 240 * 2**20
+    assert reading["phases"]["idle"]["containers"]["leaveimpact-app-1"]["absent_samples"] == 0
+    baseline = json.loads(
+        (ROOT / "probes" / "memory-baseline" / "reading.json").read_text(encoding="utf-8")
+    )
+    rule = reduce.worker_rule({"runs": reading}, baseline, reduce._memory_baseline_rule())
+    assert rule["qualifies"] is False
+    assert rule["absences"] == [
+        {
+            "samples": "runs",
+            "phase": "idle",
+            "container": "leaveimpact-worker-1",
+            "absent_samples": 1,
+        }
+    ]
+    assert rule["worker_mem_limit"] == "384m", "the figure is still derived, and not qualified"
+
+
+def test_the_host_fit_sums_the_rule_over_the_combined_peaks_not_the_committed_limits() -> None:
+    """The third finding: peaks of 375 MiB app, 188 MiB database and 400 MiB worker summed
+    the committed limits to 1,216 MiB and fit; the rule over the combined peaks is
+    1,536 MiB and does not, on this fixture's budget."""
+    reduce = cast(Any, _module("reduce"))
+    rows = _rows(range(0, 15, 5), {}, worker=400 * 2**20)
+    for row in rows:
+        row["containers"]["leaveimpact-app-1"]["cur"] = 375 * 2**20
+        row["containers"]["leaveimpact-postgres-1"]["cur"] = 188 * 2**20
+        # The host as the idle capture read it: 558 MiB in use outside the three bounded
+        # services, so the budget is 1,282.6 MiB of the 1,840.8.
+        row["host"]["avail"] = 1_930_240_000 - 558_200_000 - (375 + 188 + 400) * 2**20
+    reading = reduce.reduce_samples(rows, [], [])
+    baseline = json.loads(
+        (ROOT / "probes" / "memory-baseline" / "reading.json").read_text(encoding="utf-8")
+    )
+    rule = reduce.worker_rule({"runs": reading}, baseline, reduce._memory_baseline_rule())
+    assert rule["app_passes_committed_peak"] and rule["postgres_passes_committed_peak"]
+    assert rule["app_mem_limit"] == "576m" and rule["postgres_mem_limit"] == "320m"
+    assert rule["worker_mem_limit"] == "640m"
+    assert rule["limits_sum_bytes"] == (576 + 320 + 640) * 2**20
+    committed = rule["app_committed_limit_bytes"] + rule["postgres_committed_limit_bytes"]
+    assert committed + 640 * 2**20 == 1216 * 2**20, "what the first form summed"
+    assert rule["budget_bytes"] < rule["limits_sum_bytes"] and rule["fits"] is False

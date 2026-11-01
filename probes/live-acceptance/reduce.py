@@ -20,9 +20,17 @@ largest `memory.current`, the CPU rate as the delta of the cgroup's `usage_usec`
 phase's wall time, the kill and restart counters' movement, and at idle the host's memory in
 use outside the three bounded services, the baseline the worker's budget line reads. The
 worker's limit is the memory baseline's rule applied to its largest sampled current
-(`limit_of`, imported from that reducer so one rule has one body), and the app's and the
-database's largest currents are read beside their committed peaks, since a new level that
-passes a peak moves that limit under the same rule.
+(`limit_of`, imported from that reducer so one rule has one body); the app's and the
+database's limits in the host fit are the same rule over the larger of the committed peak
+and the peak here, since a new level that passes a peak moves that limit, and the fit
+reads the moved one. The eight-subscriber figure is the app's rate over the sample pairs
+that fall inside the subscriber hold (every client at its first frame to the release, the
+replacement's first frame to the hold's end, the release gap excluded), phase by phase,
+less the idle phase's rate, and it is quoted only over a floor of held coverage; a rate
+over the whole active span would dilute the hold with the seconds before the clients
+were ready (the group's external read, first finding). A container absent from a sample
+is counted in every phase it is absent from, never averaged away, and a capture with any
+absence does not qualify to set a limit (its second finding).
 
 The capture's digests are over decoded lines, as the memory baseline's are, so a Windows
 checkout and a Linux one agree. Nothing here reads the log or the instance: the reducer is
@@ -50,6 +58,13 @@ the log so far; the interval comparisons start after it."""
 BUNCH_ARRIVAL_SECONDS = 0.05
 BUNCH_RECORDED_SECONDS = 2.0
 PHASE_KINDS = ("admitted", "approval_requested", "approved", "declined", "abandoned")
+HOLD_COVERAGE_SECONDS = 20.0
+"""The least wall time of held sample pairs inside a phase for its held CPU rate to be
+quoted; under it the rate is reported as insufficient coverage."""
+CPU_BUDGET = 0.2
+CPU_FORECAST = 0.14
+"""The stream module's forecast for eight subscriptions on one open attempt and the
+step's budget, in seconds of the interpreter's second above idle."""
 
 
 def _memory_baseline_rule() -> Any:
@@ -168,6 +183,31 @@ def _phases(reading: dict[str, Any]) -> dict[str, Any]:
     return boundaries
 
 
+def _held_intervals(reading: dict[str, Any]) -> list[dict[str, Any]]:
+    """When the full set of subscribers was held, on the host's clock: from every
+    subscriber's first frame to the release, and from the replacement's first frame to the
+    hold's end; the release gap between them is not held. Instants are moved from the
+    probe's clock by the bounded offset, zero when the Date header gave none."""
+    started = reading["started_epoch"]
+    offset = reading["clock"]["offset_seconds"] or 0.0
+    ready = reading.get("all_first_frames_at")
+    released = (reading.get("released") or {}).get("ended_at")
+    replaced = (reading.get("replacement") or {}).get("first_frame_at")
+    ended = reading.get("hold_ended_at")
+    intervals = []
+    for name, start, end in (("held", ready, released), ("held again", replaced, ended)):
+        if start is not None and end is not None and end > start:
+            intervals.append(
+                {
+                    "name": name,
+                    "from": round(started + start + offset, 3),
+                    "to": round(started + end + offset, 3),
+                    "seconds": round(end - start, 3),
+                }
+            )
+    return intervals
+
+
 def _page(samples: list[dict[str, Any]]) -> dict[str, Any]:
     seconds = [s["seconds"] for s in samples if s.get("status") == 200]
     return {
@@ -233,6 +273,7 @@ def reduce_subscribers(reading: dict[str, Any]) -> dict[str, Any]:
         },
         "hold_ended_by": reading.get("hold_ended_by"),
         "phases": _phases(reading),
+        "held_intervals": _held_intervals(reading),
     }
 
 
@@ -300,36 +341,59 @@ def _present(samples: list[dict[str, Any]], name: str) -> list[dict[str, Any]]:
     ]
 
 
+def _inside(ts: float, intervals: list[tuple[float, float]]) -> bool:
+    return any(start <= ts <= end for start, end in intervals)
+
+
 def reduce_samples(
-    samples: list[dict[str, Any]], windows: list[tuple[str, float, float]]
+    samples: list[dict[str, Any]],
+    windows: list[tuple[str, float, float]],
+    held: list[tuple[float, float]] = (),
 ) -> dict[str, Any]:
+    """The samples by phase: per container the extremes over the phase's samples, the
+    count of samples the container was absent from (zero on a complete capture, never
+    dropped), the CPU rate over the phase's consecutive pairs, and the same rate over the
+    pairs whose both samples fall inside a held interval, with that coverage in seconds;
+    the idle baseline outside the bounded services; the counters' first and last values."""
     samples = sorted(samples, key=lambda s: s["ts"])
+    held = list(held)
     names = sorted({name for s in samples for name in s["containers"]})
     labels = [_label_of(s["ts"], windows) for s in samples]
+    flags = [_inside(s["ts"], held) for s in samples]
     by_phase: dict[str, list[dict[str, Any]]] = {}
-    pairs_by_phase: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
+    pairs: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
+    held_pairs: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
     for index, (sample, label) in enumerate(zip(samples, labels, strict=True)):
         by_phase.setdefault(label, []).append(sample)
         if index > 0 and labels[index - 1] == label:
-            pairs_by_phase.setdefault(label, []).append((samples[index - 1], sample))
+            pair = (samples[index - 1], sample)
+            pairs.setdefault(label, []).append(pair)
+            if flags[index - 1] and flags[index]:
+                held_pairs.setdefault(label, []).append(pair)
     phases: dict[str, Any] = {}
     for phase, rows in by_phase.items():
         containers: dict[str, Any] = {}
         for name in names:
             present = _present(rows, name)
-            if not present:
-                containers[name] = {"absent": len(rows)}
-                continue
-            containers[name] = {
-                "current_max": max(c["cur"] for c in present),
-                "anon_max": max(c["anon"] for c in present),
-                "threads_max": max(c["thr"] for c in present),
-                "cpu_rate": _rate(pairs_by_phase.get(phase, []), name),
-            }
+            reading: dict[str, Any] = {"absent_samples": len(rows) - len(present)}
+            if present:
+                reading.update(
+                    {
+                        "current_max": max(c["cur"] for c in present),
+                        "anon_max": max(c["anon"] for c in present),
+                        "threads_max": max(c["thr"] for c in present),
+                        "cpu_rate": _rate(pairs.get(phase, []), name),
+                        "cpu_rate_held": _rate(held_pairs.get(phase, []), name),
+                    }
+                )
+            containers[name] = reading
+        held_seconds = sum(c["ts"] - p["ts"] for p, c in held_pairs.get(phase, []))
         phases[phase] = {
             "samples": len(rows),
             "from": rows[0]["t"],
             "to": rows[-1]["t"],
+            "held_samples": sum(1 for s, f in zip(samples, flags, strict=True) if f and s in rows),
+            "held_seconds": round(held_seconds, 1),
             "host_available_min": min(s["host"]["avail"] for s in rows),
             "host_used_outside_bounded_max": max(
                 s["host"]["total"]
@@ -364,18 +428,80 @@ def reduce_samples(
     }
 
 
+def subscriber_load(sample_readings: dict[str, Any], labels: list[str]) -> dict[str, Any]:
+    """The eight-subscriber check: for each run's active and awaiting phase, the app's CPU
+    rate over the held pairs less the idle phase's rate over all its pairs, quoted only
+    when the held coverage reaches the floor, against the forecast and the budget."""
+    out: dict[str, Any] = {
+        "forecast_above_idle": CPU_FORECAST,
+        "budget_above_idle": CPU_BUDGET,
+        "coverage_floor_seconds": HOLD_COVERAGE_SECONDS,
+        "phases": {},
+    }
+    for source, reading in sample_readings.items():
+        idle = reading["phases"].get("idle", {}).get("containers", {}).get(APP, {})
+        idle_rate = (idle.get("cpu_rate") or {}).get("mean")
+        for label in labels:
+            for phase in ("active", "awaiting"):
+                name = f"{label}:{phase}"
+                level = reading["phases"].get(name)
+                if level is None:
+                    continue
+                app = level["containers"].get(APP, {})
+                held = app.get("cpu_rate_held")
+                entry: dict[str, Any] = {
+                    "samples": source,
+                    "held_seconds": level["held_seconds"],
+                    "sufficient": level["held_seconds"] >= HOLD_COVERAGE_SECONDS,
+                    "app_rate_held": None if held is None else held["mean"],
+                    "app_rate_all_pairs": (app.get("cpu_rate") or {}).get("mean"),
+                    "idle_rate": idle_rate,
+                }
+                if entry["sufficient"] and held is not None and idle_rate is not None:
+                    above = round(held["mean"] - idle_rate, 4)
+                    entry["above_idle"] = above
+                    entry["within_budget"] = above <= CPU_BUDGET
+                    entry["within_forecast"] = above <= CPU_FORECAST
+                else:
+                    entry["above_idle"] = None
+                    entry["within_budget"] = None
+                    entry["within_forecast"] = None
+                out["phases"][name] = entry
+    return out
+
+
+def _absences(sample_readings: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every sample a bounded container was absent from, by reading and phase."""
+    return [
+        {
+            "samples": source,
+            "phase": phase,
+            "container": name,
+            "absent_samples": c["absent_samples"],
+        }
+        for source, reading in sample_readings.items()
+        for phase, level in reading["phases"].items()
+        for name in BOUNDED
+        for c in [level["containers"].get(name, {"absent_samples": level["samples"]})]
+        if c["absent_samples"] > 0
+    ]
+
+
 def worker_rule(
     sample_readings: dict[str, Any], baseline_reading: dict[str, Any], rule: Any
 ) -> dict[str, Any]:
-    """The worker's limit by the memory baseline's rule over every sampled phase, and
-    whether the app's or the database's largest current here passes its committed peak."""
+    """The worker's limit by the memory baseline's rule over every sampled phase; the
+    app's and the database's limits by the same rule over the larger of the committed peak
+    and the peak here, so a peak that moves a limit moves the fit; the host fit over those
+    three; and whether the capture qualifies to set a limit, which it does only when no
+    bounded container was absent from any sample."""
 
     def largest(name: str) -> int | None:
         values = [
             phase["containers"][name]["current_max"]
             for reading in sample_readings.values()
             for phase in reading["phases"].values()
-            if "absent" not in phase["containers"].get(name, {"absent": 1})
+            if "current_max" in phase["containers"].get(name, {})
         ]
         return max(values) if values else None
 
@@ -387,27 +513,31 @@ def worker_rule(
         if "idle" in reading["phases"]
     ]
     host_total = next((r["host_total"] for r in sample_readings.values()), None)
+    absences = _absences(sample_readings)
     result: dict[str, Any] = {
         "worker_peak_current_bytes": worker_peak,
         "worker_limit_bytes": None if worker_peak is None else rule.limit_of(worker_peak),
         "worker_mem_limit": None
         if worker_peak is None
         else rule.mem_limit_of(rule.limit_of(worker_peak)),
-        "app_peak_here_bytes": largest(APP),
-        "app_committed_peak_bytes": committed["app"]["peak_current_bytes"],
-        "app_passes_committed_peak": (largest(APP) or 0) > committed["app"]["peak_current_bytes"],
-        "postgres_peak_here_bytes": largest(POSTGRES),
-        "postgres_committed_peak_bytes": committed["postgres"]["peak_current_bytes"],
-        "postgres_passes_committed_peak": (largest(POSTGRES) or 0)
-        > committed["postgres"]["peak_current_bytes"],
         "idle_baseline_outside_bounded_bytes": max(idle_baselines) if idle_baselines else None,
         "host_total_bytes": host_total,
+        "absences": absences,
+        "qualifies": worker_peak is not None and not absences,
     }
+    for key, name in (("app", APP), ("postgres", POSTGRES)):
+        here = largest(name)
+        committed_peak = committed[key]["peak_current_bytes"]
+        combined = max(committed_peak, here or 0)
+        result[f"{key}_peak_here_bytes"] = here
+        result[f"{key}_committed_peak_bytes"] = committed_peak
+        result[f"{key}_passes_committed_peak"] = (here or 0) > committed_peak
+        result[f"{key}_committed_limit_bytes"] = committed[key]["limit_bytes"]
+        result[f"{key}_limit_bytes"] = rule.limit_of(combined)
+        result[f"{key}_mem_limit"] = rule.mem_limit_of(rule.limit_of(combined))
     if worker_peak is not None and idle_baselines and host_total is not None:
         limits = (
-            committed["app"]["limit_bytes"]
-            + committed["postgres"]["limit_bytes"]
-            + rule.limit_of(worker_peak)
+            result["app_limit_bytes"] + result["postgres_limit_bytes"] + rule.limit_of(worker_peak)
         )
         budget = host_total - max(idle_baselines)
         result["limits_sum_bytes"] = limits
@@ -430,17 +560,24 @@ def reduce_capture(capture: Path) -> dict[str, Any]:
         reading = json.loads(canonical_text(path))
         subscribers[reading["label"]] = reduce_subscribers(reading)
     windows = _windows({label: r["phases"] for label, r in subscribers.items()})
+    held = [
+        (interval["from"], interval["to"])
+        for r in subscribers.values()
+        for interval in r["held_intervals"]
+    ]
     samples: dict[str, Any] = {}
     for path in sorted(capture.glob("*-samples.jsonl")):
         sources[path.name] = digest(path)
         rows = [json.loads(line) for line in canonical_text(path).splitlines() if line.strip()]
-        samples[path.name[: -len("-samples.jsonl")]] = reduce_samples(rows, windows)
+        samples[path.name[: -len("-samples.jsonl")]] = reduce_samples(rows, windows, held)
     return {
         "capture": capture.name,
         "sources": sources,
         "subscribers": subscribers,
         "windows": [{"name": n, "from": f, "to": t} for n, f, t in windows],
+        "held": [{"from": f, "to": t} for f, t in held],
         "samples": samples,
+        "subscriber_load": subscriber_load(samples, list(subscribers)) if samples else None,
         "worker_rule": worker_rule(samples, baseline, rule) if samples else None,
     }
 
@@ -456,13 +593,15 @@ def _q(q: dict[str, Any] | None) -> str:
 
 
 def _cur(containers: dict[str, Any], name: str) -> str:
-    if "absent" in containers.get(name, {"absent": 1}):
+    reading = containers.get(name, {})
+    if "current_max" not in reading:
         return "absent"
-    return mib(containers[name]["current_max"])
+    absent = reading["absent_samples"]
+    return mib(reading["current_max"]) + (f" (-{absent})" if absent else "")
 
 
-def _cpu(containers: dict[str, Any], name: str) -> str:
-    rate = containers.get(name, {}).get("cpu_rate")
+def _cpu(containers: dict[str, Any], name: str, key: str = "cpu_rate") -> str:
+    rate = containers.get(name, {}).get(key)
     return "-" if not rate else f"{rate['mean']:.3f}"
 
 
@@ -498,34 +637,48 @@ def print_derivation(reading: dict[str, Any]) -> None:
         print(f"timeline: {s['timeline']}")
         phases = ", ".join(f"{k} {v['recorded_at']}" for k, v in s["phases"].items())
         print(f"hold ended by {s['hold_ended_by']}; phases: {phases}")
+        print(f"held intervals on the host clock: {s['held_intervals']}")
     for label, r in reading["samples"].items():
         print(
             f"\n== samples {label}: {r['samples']} over {r['span_seconds']} s "
             f"({r['from']} to {r['to']}), host {mib(r['host_total'])}"
         )
         print(
-            f"{'phase':<22}{'n':>4}{'app cur':>12}{'app cpu/s':>11}{'worker cur':>12}"
-            f"{'worker cpu/s':>13}{'pg cur':>11}{'outside':>12}"
+            f"{'phase':<22}{'n':>4}{'held s':>8}{'app cur':>14}{'app cpu/s':>11}{'held':>8}"
+            f"{'worker cur':>14}{'worker cpu/s':>13}{'pg cur':>11}{'outside':>12}"
         )
         for phase, p in r["phases"].items():
             c = p["containers"]
             print(
-                f"{phase:<22}{p['samples']:>4}{_cur(c, APP):>12}{_cpu(c, APP):>11}"
-                f"{_cur(c, WORKER):>12}{_cpu(c, WORKER):>13}{_cur(c, POSTGRES):>11}"
+                f"{phase:<22}{p['samples']:>4}{p['held_seconds']:>8}{_cur(c, APP):>14}"
+                f"{_cpu(c, APP):>11}{_cpu(c, APP, 'cpu_rate_held'):>8}{_cur(c, WORKER):>14}"
+                f"{_cpu(c, WORKER):>13}{_cur(c, POSTGRES):>11}"
                 f"{mib(p['host_used_outside_bounded_max']):>12}"
             )
         print(f"counters: {r['counters']}")
+    load = reading.get("subscriber_load")
+    if load:
+        print(
+            f"\nsubscriber load (app CPU over held pairs less idle; forecast "
+            f"{load['forecast_above_idle']}, budget {load['budget_above_idle']}, "
+            f"coverage floor {load['coverage_floor_seconds']} s):"
+        )
+        for name, entry in load["phases"].items():
+            print(f"  {name}: {entry}")
     w = reading["worker_rule"]
     if w:
         print(
             f"\nworker: peak memory.current {mib(w['worker_peak_current_bytes'])} × 1.5, "
-            f"rounded up to 64 MiB → {w['worker_mem_limit']}"
+            f"rounded up to 64 MiB → {w['worker_mem_limit']}; qualifies {w['qualifies']}; "
+            f"absences {w['absences']}"
         )
         for name in ("app", "postgres"):
             print(
                 f"{name} peak here {mib(w[f'{name}_peak_here_bytes'])} vs committed "
                 f"{mib(w[f'{name}_committed_peak_bytes'])} "
-                f"(passes: {w[f'{name}_passes_committed_peak']})"
+                f"(passes: {w[f'{name}_passes_committed_peak']}); limit by the rule over the "
+                f"larger {w[f'{name}_mem_limit']} "
+                f"(committed {mib(w[f'{name}_committed_limit_bytes'])})"
             )
         if "fits" in w:
             budget = mib(w["budget_bytes"])
