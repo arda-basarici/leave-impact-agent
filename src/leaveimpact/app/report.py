@@ -834,19 +834,25 @@ def ending_view(export: RunExport, *, empty: bool) -> EndingView:
         case _:
             assert_never(record.status)
     failure = record.failure
-    if failure is not None:
-        details.append(f"Failed by {failure.category.value}: {failure.reason}")
     abandonment = record.abandonment
     approval = record.approval
+    # The demo's sweeper cancels on exactly two conditions (its module): a wait whose
+    # deadline passed with no decision, and an attempt no worker claimed. Each gets the
+    # headline a visitor can read; the generic line names the role, never the identity.
+    by_sweeper = (
+        abandonment is not None
+        and abandonment.authority == SWEEPER_IDENTITY
+        and abandonment.reason is AbandonmentReason.CANCELLED
+    )
+    wait_closed = by_sweeper and approval.state is ApprovalState.REQUESTED_UNAPPROVED
+    if failure is not None and not wait_closed:
+        # A wait the sweeper closed carries the log reader's reason, "no worker resumed the
+        # attempt": true of the record and misleading beside a headline that states the
+        # cause, so this page does not repeat it; the trail keeps the recorded reason (the
+        # first public wait the sweeper closed, at the live path's acceptance).
+        details.append(f"Failed by {failure.category.value}: {failure.reason}")
     if abandonment is not None:
-        # The demo's sweeper cancels on exactly two conditions (its module): a wait whose
-        # deadline passed with no decision, and an attempt no worker claimed. Each gets the
-        # headline a visitor can read; the generic line names the role, never the identity.
-        by_sweeper = (
-            abandonment.authority == SWEEPER_IDENTITY
-            and abandonment.reason is AbandonmentReason.CANCELLED
-        )
-        if by_sweeper and approval.state is ApprovalState.REQUESTED_UNAPPROVED:
+        if wait_closed:
             headline = "No decision came within the wait; the run closed without one."
             reservation = record.reservation
             if reservation is not None:

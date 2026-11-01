@@ -42,7 +42,7 @@ def test_the_committed_configuration_is_the_rulings_values_in_one_written_form()
     assert configuration.daily_admissions == 5
     assert configuration.approval_wait_seconds == 15 * 60
     assert configuration.attempt_wall_seconds == 10 * 60
-    assert configuration.live_runs is True, "the acceptance window; off again by commit"
+    assert configuration.live_runs is False
     assert demo_configuration_bytes(configuration) == committed_configuration_bytes(DEMO)
 
 

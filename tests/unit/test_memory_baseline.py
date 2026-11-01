@@ -2,9 +2,10 @@
 by `reduce.py` over the capture of 2026-10-24) and what was set from it: the reading
 regenerates from the committed capture exactly, its rule block is the rule recomputed over
 its own levels, and the three Compose limits and the stream's subscription bound equal
-the rule's outputs (the worker's its reservation until its own reading exists). The
-limits are numbers with a script behind them; this test is what keeps `compose.yaml`,
-the stream module and the reading from moving alone."""
+the rule's outputs; the worker's limit is the same rule over the live path's acceptance
+reading (`probes/live-acceptance/reading.json`), which replaced the reservation once a
+public attempt had been sampled. The limits are numbers with a script behind them; this
+test is what keeps `compose.yaml`, the stream module and the readings from moving alone."""
 
 from __future__ import annotations
 
@@ -129,18 +130,21 @@ def _mebibytes(limit: str) -> int:
     return int(limit[:-1]) * 1024 * 1024
 
 
-def test_the_worker_holds_the_reservation_and_the_three_limits_sum_to_the_budget_line(
-    reading: dict[str, Any],
-) -> None:
-    """The worker service's step: the worker has no reading of its own until a public
-    attempt runs under it, so its limit is the rule's reservation, and the three limits
-    together are exactly what the rule's host line budgeted (`limits_plus_reservation`),
-    so a fourth service or a moved limit fails here and not on the host."""
-    rule = reading["rule"]
+def test_the_worker_limit_is_the_acceptance_readings_rule_and_the_three_limits_fit() -> None:
+    """The live path's acceptance: the worker's limit is the rule over its largest current
+    sampled under public attempts, from a capture that qualifies (no bounded container
+    absent from a sample), and the three limits are the fit that reading computed over the
+    combined peaks, so a fourth service or a moved limit fails here and not on the host.
+    The reservation the baseline held back is history the acceptance reading supersedes."""
+    acceptance = json.loads(
+        (ROOT / "probes" / "live-acceptance" / "reading.json").read_text(encoding="utf-8")
+    )
+    rule = acceptance["worker_rule"]
     limits = compose_limits()
     assert set(limits) == {"app", "postgres", "worker"}
-    assert _mebibytes(limits["worker"]) == rule["worker_reservation_bytes"]
-    assert (
-        sum(_mebibytes(limit) for limit in limits.values())
-        == rule["host"]["limits_plus_reservation_bytes"]
-    )
+    assert rule["qualifies"] is True and rule["fits"] is True
+    assert limits["worker"] == rule["worker_mem_limit"]
+    assert limits["app"] == rule["app_mem_limit"]
+    assert limits["postgres"] == rule["postgres_mem_limit"]
+    assert sum(_mebibytes(limit) for limit in limits.values()) == rule["limits_sum_bytes"]
+    assert rule["worker_limit_bytes"] >= rule["worker_peak_current_bytes"] * 1.5

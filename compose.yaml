@@ -133,12 +133,13 @@ services:
       timeout: 10s
       retries: 3
       start_period: 30s
-    # The memory baseline's reservation for this service (reading.json, the rule's
-    # `worker_reservation_bytes`), provisional: the idle reading is this step's, the
-    # reading under a public attempt is the live path's first acceptance, and the limits
-    # are reset there by the rule; tests/unit/test_memory_baseline.py holds this to the
-    # reservation and the three limits to the budget's sum.
-    mem_limit: 512m
+    # The live path's acceptance reading (probes/live-acceptance/reading.json, the rule's
+    # `worker_mem_limit`): 1.5 times the largest memory.current sampled for this service
+    # across three public attempts on 2026-11-01, 280.2 MiB in the third's investigation
+    # with the child alive, rounded up to 64 MiB; the 512 MiB reservation it replaces
+    # stood from the memory baseline until that reading existed.
+    # tests/unit/test_memory_baseline.py holds this and the three limits' fit.
+    mem_limit: 448m
     logging: *log
     depends_on:
       postgres:

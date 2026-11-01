@@ -4579,6 +4579,32 @@ rendered with live runs on and off, a ledger with no head its own state. Owed to
 acceptance step: the forecast's check under the first public attempt and the memory
 capture of the same run.
 
+As built at the live path's acceptance (M3 step 16, 2026-11-01; six forks ruled at the
+entry with the external read's seven points, the instruments group read with three
+findings adopted; FINDINGS `live-acceptance` holds the runs and every figure). The flag
+went on by commit for one day and off by the close's commit. Three public attempts ran on
+production: approved from a phone on mobile data, declined from an incognito window on
+the workstation with seven probe streams and the browser's own timeline stream held, and
+one left at the approval until the sweeper closed it 903 s after the request; the ledger
+page turned as the live pages step built it, $0.1971 over three settled runs, the
+reservation's source the latest admission, the forecast's source this ledger. The stream
+through the edge kept its cadence at every held client (heartbeat gaps 15.16 to 15.88 s),
+no frame bunched, the connection past the bound answered 503 and a released slot admitted
+a replacement; the decision posted under the held streams answered in 489 ms at the
+origin. The eight-subscriber forecast was met in the awaiting phases (0.062 and 0.078 s
+of CPU a second above idle against 0.14 forecast and 0.2 budget) and not measured in the
+active phases, which end in about 21 s, inside the time a probe needs to attach once the
+public id is known; a measurement of the active phase starts the run itself. The worker's
+limit is the memory baseline's rule over its largest current under the three attempts,
+280.2 MiB, so 448m in place of the 512 MiB reservation, the three limits fitting the host
+with 258.6 MiB spare; the database passed its committed peak inside the same 64 MiB step.
+The report page no longer pairs the log reader's "no worker resumed the attempt" with the
+headline of a wait the sweeper closed; the trail keeps the recorded reason. Found and
+parked with its trigger before the flag returns for the public month: the sweeper's
+snapshot folds every public admission inside its seven-day lookback on every pass, 110 ms
+a tick per attempt measured over four levels, which at the daily cap exceeds the single
+worker's tick within a week.
+
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
 against per-run compute is not established and is recorded as unknown), its criteria

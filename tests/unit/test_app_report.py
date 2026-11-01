@@ -419,6 +419,12 @@ def test_a_wait_the_sweeper_closed_reads_as_no_decision_within_the_wait() -> Non
     assert "An approval was requested and never given." in ending.details
     assert ending.authority == "demo-sweeper"
     assert all("demo-sweeper" not in line for line in (ending.headline, *ending.details))
+    # The log reader's failure reason stays on the trail and is not paired with a headline
+    # that states the cause (the first public wait the sweeper closed showed the pair).
+    assert not any(line.startswith("Failed by") for line in ending.details)
+    assert view_of(cases.abandoned_attempt()).ending.details[0] == (
+        "Failed by infrastructure: no worker resumed the attempt"
+    ), "an operator's abandonment keeps the line, since its headline states no cause"
 
 
 def test_an_unclaimed_attempt_the_sweeper_closed_says_so() -> None:
