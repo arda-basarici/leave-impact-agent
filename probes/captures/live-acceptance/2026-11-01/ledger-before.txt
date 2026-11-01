@@ -1,0 +1,12 @@
+read 2026-11-01T12:41:17Z through the hostname with a browser Accept, before any public run; deployed 7e136a6
+Ledger  ledger-visitors, revision 1
+Threshold in force  $8.0000, set 2026-10-30 18:19 UTC, 0 entries since
+Committed total  $0.0000
+Room  $8.0000
+Open reservations  $0.0000 over 0 open runs
+Charged  $0.0000 over 0 settled runs: $0.0000 known consumption plus $0.0000 retained liability
+Imported spend  none; no imported spend is recorded on this ledger
+Refusals  0
+Today's live runs  0 of 5 started; 5 remain, the day turns at midnight UTC
+Reservation a run holds  $2.1674 (the planner, before any run)
+Charge forecast  $0.0699 a run, the mean over 30 settled runs (the replay set on the demo ledger, until a run settles here); conservative, since a kept reservation sits inside a charge

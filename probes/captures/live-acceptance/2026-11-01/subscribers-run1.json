@@ -1,0 +1,3014 @@
+{
+ "probe": "subscribers",
+ "label": "run1",
+ "started_utc": "2026-11-01T12:45:28.814875+00:00",
+ "started_epoch": 1793537128.815,
+ "base": "https://leave-agent.ardabasarici.dev",
+ "attempt": "live-22d75b1a1cb3b15466a40e0014b2b52f",
+ "bound": 8,
+ "clients": 8,
+ "hold_seconds": 70.0,
+ "deadline_seconds": 1500.0,
+ "clock": {
+  "status": 200,
+  "date": "Sun, 01 Nov 2026 12:45:29 GMT",
+  "round_trip_seconds": 0.3699,
+  "resolution_seconds": 1.0,
+  "offset_seconds": -0.009
+ },
+ "timeline": {
+  "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f/timeline",
+  "status": 200,
+  "seconds": 0.5817,
+  "bytes": 18448,
+  "headers": {
+   "content-type": "text/html; charset=utf-8",
+   "transfer-encoding": "chunked",
+   "server": "cloudflare",
+   "via": "1.1 Caddy",
+   "cf-cache-status": "DYNAMIC",
+   "date": "Sun, 01 Nov 2026 12:45:29 GMT"
+  },
+  "inline_script_present": true,
+  "beacon_present": true
+ },
+ "page_before": [
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.577,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:30 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4972,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:30 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.6552,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:31 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4296,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:31 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.5071,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:32 GMT"
+   }
+  }
+ ],
+ "attached_at": 5.2375,
+ "all_first_frames_at": 6.3413,
+ "page_during": [
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4909,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:35 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4693,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:35 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4493,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:36 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4143,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:36 GMT"
+   }
+  },
+  {
+   "path": "/replays/live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "status": 200,
+   "seconds": 0.4457,
+   "bytes": 59512,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:37 GMT"
+   }
+  }
+ ],
+ "beyond_bound": {
+  "index": 8,
+  "status": 503,
+  "ended": "refused"
+ },
+ "released": {
+  "index": 0,
+  "ended": "closed by the probe",
+  "ended_at": 9.0775
+ },
+ "replacement": {
+  "index": 9,
+  "status": 200,
+  "first_frame_at": 12.6893,
+  "ended": null
+ },
+ "hold_ended_at": 82.8964,
+ "hold_ended_by": "closing frames",
+ "subscribers": [
+  {
+   "index": 0,
+   "opened_at": 3.6322,
+   "connected_at": 4.0501,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:32 GMT"
+   },
+   "first_frame_at": 4.225,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 4.225,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 4.2251,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 4.2251,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 4.2251,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 4.2251,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 4.2251,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 4.2252,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 4.2253,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 4.2343,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 4.2343,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 4.2343,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 4.2343,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 4.2343,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 4.2343,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 4.2344,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 4.2345,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    }
+   ],
+   "heartbeats": [],
+   "ended": "closed by the probe",
+   "ended_at": 9.0775,
+   "error": "BrokenPipeError(10058, 'A request to send or receive data was disallowed because the socket had already been shut down in that direction with a previous shutdown call', None, 10058, None)"
+  },
+  {
+   "index": 1,
+   "opened_at": 3.8331,
+   "connected_at": 4.381,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:33 GMT"
+   },
+   "first_frame_at": 4.6514,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 4.6514,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 4.6544,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 4.6679,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 4.6679,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 4.6716,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 4.6716,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 4.6722,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 4.6722,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 4.6844,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 4.6844,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 4.6848,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 4.6926,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 4.7006,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 4.7007,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 4.7007,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 4.7007,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 4.7007,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 4.7007,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 4.7118,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 4.7118,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 4.7118,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 4.7118,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 4.7118,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 4.7119,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 4.712,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 4.712,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 4.712,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 4.712,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 4.712,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.071,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 62.183,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 62.1831,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 62.1831,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    20.404,
+    35.6789,
+    50.9426
+   ],
+   "ended": "closed",
+   "ended_at": 62.1831,
+   "error": null
+  },
+  {
+   "index": 2,
+   "opened_at": 4.0341,
+   "connected_at": 4.5303,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:33 GMT"
+   },
+   "first_frame_at": 4.9154,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 4.9154,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 4.9176,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 4.9176,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 4.9176,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 4.9176,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 4.9176,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 4.9177,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 4.9177,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 4.9177,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 4.9177,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 4.9238,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 4.9238,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 4.9238,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 4.9238,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 4.9261,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 4.9398,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 4.94,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 4.9401,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 4.9401,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 4.9401,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 4.9402,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 4.9402,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 4.9402,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 4.9402,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 4.9402,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 4.9403,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 4.9404,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 4.9404,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 4.9404,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 4.9404,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 4.9404,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.1018,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 62.2877,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 62.2877,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 62.2877,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    20.4716,
+    35.715,
+    50.9993
+   ],
+   "ended": "closed",
+   "ended_at": 62.2877,
+   "error": null
+  },
+  {
+   "index": 3,
+   "opened_at": 4.2351,
+   "connected_at": 4.9399,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:33 GMT"
+   },
+   "first_frame_at": 5.3352,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 5.3352,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 5.3353,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 5.3353,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 5.349,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 5.3491,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 5.3591,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 5.3681,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 5.3763,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 5.3764,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 5.3764,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 5.3764,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 5.3764,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 5.3765,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 5.3765,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 5.3765,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 5.3765,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 5.3765,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 5.3765,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 5.3766,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 5.3767,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 5.3767,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 5.3767,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 5.3767,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 5.3767,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 5.3767,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 5.3768,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 5.3768,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 5.3768,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 5.3768,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.1998,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 62.3168,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 62.3169,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 62.3169,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    20.6671,
+    35.8873,
+    51.1232
+   ],
+   "ended": "closed",
+   "ended_at": 62.3169,
+   "error": null
+  },
+  {
+   "index": 4,
+   "opened_at": 4.4357,
+   "connected_at": 5.1029,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:33 GMT"
+   },
+   "first_frame_at": 5.6167,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 5.6167,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 5.6231,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 5.6232,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 5.6232,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 5.6233,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 5.6233,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 5.6233,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 5.6234,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 5.6234,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 5.6235,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 5.6236,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 5.6236,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 5.6237,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 5.6238,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 5.6238,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 5.6238,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 5.6239,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 5.6239,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 5.6239,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 5.6239,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 5.624,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 5.624,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 5.624,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 5.624,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 5.6241,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 5.6241,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 5.6241,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 5.6241,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 5.6242,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 5.6242,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 5.6242,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 5.6242,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 5.6243,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 5.6243,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 5.6243,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 5.6243,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 5.6244,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.4941,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 61.5785,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 61.5786,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 61.5786,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    20.926,
+    36.1705,
+    51.4027
+   ],
+   "ended": "closed",
+   "ended_at": 61.5786,
+   "error": null
+  },
+  {
+   "index": 5,
+   "opened_at": 4.6363,
+   "connected_at": 5.6302,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:34 GMT"
+   },
+   "first_frame_at": 6.0093,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 6.0093,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 6.0093,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 6.0094,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 6.0094,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 6.0094,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 6.0095,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 6.0095,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 6.0114,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 6.0114,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 6.0115,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 6.0115,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 6.0295,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 6.0296,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 6.0296,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 6.0296,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 6.0296,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 6.0296,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 6.0296,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 6.0297,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 6.0298,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 6.0299,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 6.0299,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.9912,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 62.0673,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 62.0674,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 62.0674,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    21.3718,
+    36.6268,
+    51.8598
+   ],
+   "ended": "closed",
+   "ended_at": 62.0674,
+   "error": null
+  },
+  {
+   "index": 6,
+   "opened_at": 4.8368,
+   "connected_at": 5.6303,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:34 GMT"
+   },
+   "first_frame_at": 6.11,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 6.11,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 6.1102,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 6.1102,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 6.1103,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 6.1103,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 6.1103,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 6.1104,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 6.1104,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 6.1104,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 6.1105,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 6.1105,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 6.1105,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 6.1283,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 6.1284,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 6.1284,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 6.1284,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 6.1284,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 6.1284,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 6.1285,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 6.1285,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 6.1285,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 6.1285,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 6.1285,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 6.1286,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 6.1286,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 6.1286,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 6.1286,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 6.1286,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 6.1287,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 6.1287,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 6.1287,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 6.1287,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 6.1287,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 6.1287,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 6.1288,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 6.1288,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 6.1288,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.0919,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 62.2224,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 62.2224,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 62.2225,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    21.4312,
+    36.7021,
+    51.9927
+   ],
+   "ended": "closed",
+   "ended_at": 62.2225,
+   "error": null
+  },
+  {
+   "index": 7,
+   "opened_at": 5.0373,
+   "connected_at": 6.1131,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:34 GMT"
+   },
+   "first_frame_at": 6.2963,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 6.2963,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 6.2964,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 6.2964,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 6.2964,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 6.2965,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 6.2965,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 6.2965,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 6.2965,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 6.2966,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 6.2966,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 6.2966,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 6.2966,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 6.3066,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 6.3067,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 6.3067,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 6.3067,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 6.3067,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 6.3067,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 6.3067,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 6.3068,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 6.3069,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.1123,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 62.2845,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 62.2845,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 62.2845,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    21.5523,
+    36.7907,
+    52.0468
+   ],
+   "ended": "closed",
+   "ended_at": 62.2845,
+   "error": null
+  },
+  {
+   "index": 8,
+   "opened_at": 8.6155,
+   "connected_at": 8.9904,
+   "status": 503,
+   "headers": {
+    "content-type": "text/html; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:37 GMT"
+   },
+   "first_frame_at": null,
+   "frames": [],
+   "heartbeats": [],
+   "ended": "refused",
+   "ended_at": 8.9905,
+   "error": null
+  },
+  {
+   "index": 9,
+   "opened_at": 12.0784,
+   "connected_at": 12.5046,
+   "status": 200,
+   "headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:41 GMT"
+   },
+   "first_frame_at": 12.6893,
+   "frames": [
+    {
+     "event": "line",
+     "position": 1,
+     "arrival": 12.6893,
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "kind": "admitted"
+    },
+    {
+     "event": "line",
+     "position": 2,
+     "arrival": 12.6894,
+     "recorded_at": "2026-11-01T12:44:12.552540+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 3,
+     "arrival": 12.6895,
+     "recorded_at": "2026-11-01T12:44:12.809057+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 4,
+     "arrival": 12.6895,
+     "recorded_at": "2026-11-01T12:44:13.805259+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 5,
+     "arrival": 12.6895,
+     "recorded_at": "2026-11-01T12:44:13.865071+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 6,
+     "arrival": 12.6896,
+     "recorded_at": "2026-11-01T12:44:14.599726+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 7,
+     "arrival": 12.6897,
+     "recorded_at": "2026-11-01T12:44:15.610461+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 8,
+     "arrival": 12.6897,
+     "recorded_at": "2026-11-01T12:44:19.865848+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 9,
+     "arrival": 12.6897,
+     "recorded_at": "2026-11-01T12:44:19.894323+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 10,
+     "arrival": 12.6898,
+     "recorded_at": "2026-11-01T12:44:20.015109+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 11,
+     "arrival": 12.6899,
+     "recorded_at": "2026-11-01T12:44:20.019192+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 12,
+     "arrival": 12.6994,
+     "recorded_at": "2026-11-01T12:44:21.553645+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 13,
+     "arrival": 12.6995,
+     "recorded_at": "2026-11-01T12:44:21.583223+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 14,
+     "arrival": 12.6995,
+     "recorded_at": "2026-11-01T12:44:21.601385+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 15,
+     "arrival": 12.6995,
+     "recorded_at": "2026-11-01T12:44:21.612869+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 16,
+     "arrival": 12.6995,
+     "recorded_at": "2026-11-01T12:44:21.635806+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 17,
+     "arrival": 12.6996,
+     "recorded_at": "2026-11-01T12:44:21.758709+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 18,
+     "arrival": 12.6996,
+     "recorded_at": "2026-11-01T12:44:21.761836+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 19,
+     "arrival": 12.6996,
+     "recorded_at": "2026-11-01T12:44:22.608537+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 20,
+     "arrival": 12.6997,
+     "recorded_at": "2026-11-01T12:44:22.621421+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 21,
+     "arrival": 12.6997,
+     "recorded_at": "2026-11-01T12:44:22.649341+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 22,
+     "arrival": 12.6997,
+     "recorded_at": "2026-11-01T12:44:22.710921+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 23,
+     "arrival": 12.6998,
+     "recorded_at": "2026-11-01T12:44:22.713793+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 24,
+     "arrival": 12.6998,
+     "recorded_at": "2026-11-01T12:44:23.726598+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 25,
+     "arrival": 12.6998,
+     "recorded_at": "2026-11-01T12:44:24.077553+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 26,
+     "arrival": 12.6999,
+     "recorded_at": "2026-11-01T12:44:24.453884+00:00",
+     "kind": "operation"
+    },
+    {
+     "event": "line",
+     "position": 27,
+     "arrival": 12.6999,
+     "recorded_at": "2026-11-01T12:44:24.488458+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 28,
+     "arrival": 12.6999,
+     "recorded_at": "2026-11-01T12:44:24.548834+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 29,
+     "arrival": 12.6999,
+     "recorded_at": "2026-11-01T12:44:24.551773+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 30,
+     "arrival": 12.7,
+     "recorded_at": "2026-11-01T12:44:26.255317+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 31,
+     "arrival": 12.7,
+     "recorded_at": "2026-11-01T12:44:26.283695+00:00",
+     "kind": "finalization_entered"
+    },
+    {
+     "event": "line",
+     "position": 32,
+     "arrival": 12.7,
+     "recorded_at": "2026-11-01T12:44:26.286303+00:00",
+     "kind": "count_started"
+    },
+    {
+     "event": "line",
+     "position": 33,
+     "arrival": 12.7,
+     "recorded_at": "2026-11-01T12:44:26.352951+00:00",
+     "kind": "count_outcome"
+    },
+    {
+     "event": "line",
+     "position": 34,
+     "arrival": 12.7001,
+     "recorded_at": "2026-11-01T12:44:26.356028+00:00",
+     "kind": "dispatch_intent"
+    },
+    {
+     "event": "line",
+     "position": 35,
+     "arrival": 12.7002,
+     "recorded_at": "2026-11-01T12:44:28.341811+00:00",
+     "kind": "dispatch_outcome"
+    },
+    {
+     "event": "line",
+     "position": 36,
+     "arrival": 12.7002,
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "kind": "approval_requested"
+    },
+    {
+     "event": "line",
+     "position": 37,
+     "arrival": 12.7002,
+     "recorded_at": "2026-11-01T12:44:28.425592+00:00",
+     "kind": "segment_ended"
+    },
+    {
+     "event": "line",
+     "position": 38,
+     "arrival": 56.385,
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "kind": "approved"
+    },
+    {
+     "event": "line",
+     "position": 39,
+     "arrival": 61.5105,
+     "recorded_at": "2026-11-01T12:46:30.018464+00:00",
+     "kind": "segment_started"
+    },
+    {
+     "event": "line",
+     "position": 40,
+     "arrival": 61.5105,
+     "recorded_at": "2026-11-01T12:46:30.094516+00:00",
+     "kind": "resumed"
+    },
+    {
+     "event": "closed",
+     "position": 41,
+     "arrival": 61.5106,
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "kind": "completed",
+     "status": "completed"
+    }
+   ],
+   "heartbeats": [
+    27.9437,
+    43.1754
+   ],
+   "ended": "closed",
+   "ended_at": 61.5106,
+   "error": null
+  }
+ ],
+ "finished_at": 82.8969
+}

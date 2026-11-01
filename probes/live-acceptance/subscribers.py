@@ -219,8 +219,10 @@ class Subscriber(threading.Thread):
                     continue
                 buffer.append(line)
         except OSError as error:
-            if self.ended is None:
-                self._end("closed by the probe" if self._stop.is_set() else "error", repr(error))
+            if self.ended is None and self._stop.is_set():
+                self._end("closed by the probe")  # the shutdown's own error is not a finding
+            elif self.ended is None:
+                self._end("error", repr(error))
         finally:
             connection.close()
             if self.ended is None:

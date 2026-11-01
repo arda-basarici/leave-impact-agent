@@ -1,0 +1,21 @@
+Readings taken by hand off the browser's developer tools during the acceptance runs, the
+run from this workstation's Chrome in an incognito window (run 2, the decline), transcribed
+from the operator's screenshots; not machine-captured.
+
+run 2, the decision POST, read in the Network panel of the replay page's tab while the
+seven probe streams and the timeline tab's own stream were held:
+  request      POST /replays/live-2a257db911b5c34793df590954d6f8c0/decision
+  status       303 See Other, Location /replays/live-2a257db911b5c34793df590954d6f8c0
+  Server-Timing  cfEdge;dur=22, cfOrigin;dur=489   (milliseconds, the edge's own account)
+  Date         Sun, 01 Nov 2026 12:52:09 GMT
+  waterfall    the request's bar ends near 600 ms on the panel's scale, the redirect's
+               page load after it
+  via          1.1 Caddy; cf-cache-status DYNAMIC
+
+run 2, the timeline tab (the page opened while the run was in progress, the developer
+tools' Console visible): the page's lines were appended live through position 46, the
+decline, and the status line read "The run has ended; reload this page for its report",
+which the inline script writes on the closing frame; the operator read no error line in
+the console ("no red line, if I didn't miss"), a reading by eye and recorded as one. The
+page's text as pasted by the operator matched the timeline read through the hostname after
+closure (timeline-run2.txt).

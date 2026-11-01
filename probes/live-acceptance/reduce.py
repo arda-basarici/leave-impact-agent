@@ -14,7 +14,9 @@ against its recorded instant under the clock offset the probe bounded; the statu
 bound, the release and the replacement; the open page's latency before and during the
 hold; the timeline's content-security header, inline script and beacon; and the attempt's
 phase boundaries read off the frames' kinds (admitted, approval requested, the decision,
-the closing frame), which place the host's samples. Over each `*-samples.jsonl` (the
+the closing frame), which place the host's samples; an attempt no probe followed gets its
+boundaries from a `phases-<label>.json` the operator enters from the attempt's timeline,
+read through the hostname after the close, the file naming its source. Over each `*-samples.jsonl` (the
 sampler's lines, one every few seconds across a whole run): per container and per phase the
 largest `memory.current`, the CPU rate as the delta of the cgroup's `usage_usec` over the
 phase's wall time, the kill and restart counters' movement, and at idle the host's memory in
@@ -559,7 +561,18 @@ def reduce_capture(capture: Path) -> dict[str, Any]:
         sources[path.name] = digest(path)
         reading = json.loads(canonical_text(path))
         subscribers[reading["label"]] = reduce_subscribers(reading)
-    windows = _windows({label: r["phases"] for label, r in subscribers.items()})
+    phases_by_label = {label: r["phases"] for label, r in subscribers.items()}
+    entered: dict[str, Any] = {}
+    for path in sorted(capture.glob("phases-*.json")):
+        sources[path.name] = digest(path)
+        record = json.loads(canonical_text(path))
+        entered[record["label"]] = {
+            kind: {"recorded_at": record[kind], "epoch": round(_epoch(record[kind]), 3)}
+            for kind in (*PHASE_KINDS, "closed")
+            if kind in record
+        }
+        phases_by_label.setdefault(record["label"], entered[record["label"]])
+    windows = _windows(phases_by_label)
     held = [
         (interval["from"], interval["to"])
         for r in subscribers.values()
@@ -574,6 +587,7 @@ def reduce_capture(capture: Path) -> dict[str, Any]:
         "capture": capture.name,
         "sources": sources,
         "subscribers": subscribers,
+        "entered_phases": entered,
         "windows": [{"name": n, "from": f, "to": t} for n, f, t in windows],
         "held": [{"from": f, "to": t} for f, t in held],
         "samples": samples,

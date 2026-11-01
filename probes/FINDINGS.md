@@ -5296,3 +5296,103 @@ so the lazy memo over the settlements read stays and the figures column is not b
 re-measured at 127.2 ms an attempt mean (3.82 s over the set), the charges and the checks
 unchanged. The page module cites the read's figures, held to this capture by the same unit
 test. Criterion (a) to (d) met on both runs; the budget rule closed on the second.
+
+## live-acceptance — the live path's first public attempts on production: approved from a phone, declined from a fresh browser under eight held subscribers, a wait the sweeper closed; every forecast met where it could be measured, the worker's limit set at 448m, and the worker's idle tick found to grow 55 ms a second per visitor attempt (2026-11-01)
+
+The demo milestone's step 16; the plan and its criteria are in `probes/README.md` ("The
+live path's acceptance"), the capture under `captures/live-acceptance/2026-11-01/` (the
+sampler's two files, the two subscriber readings, the hand-entered phases of the third
+run, the ledger page before and after each run, each run's timeline and the third's report
+wording, the browser readings taken by hand), and every figure below is printed by
+`live-acceptance/reduce.py` over that capture and held to it by
+`tests/unit/test_live_acceptance_probe.py`, except the two the browser readings file marks
+as read by eye. The flag was on from the deploy of `7e136a6` at 12:38 UTC to the close's
+deploy; the runs were made from a phone on mobile data (run 1), an incognito window on the
+workstation (run 2) and the phone again (run 3), each admitted under the per-address
+window. Every run reserved $2.1674 against the $8 wall; the three settled at $0.0602,
+$0.0718 and $0.0651, the ledger page ending at $0.1971 over 3 settled runs with the
+identity holding on every read, the reservation's source turning from the planner to the
+latest admission and the forecast's from the replay set to this ledger's mean ($0.0657)
+as the live pages step built it.
+
+**The functional record.** Run 1, approved: the stream carried admitted, the segment, the
+reads, the model calls, finalization entered, approval requested, segment ended, approved,
+segment started, resumed, completed, the closing frame saying completed; 21 s from the
+admission to the approval request, the decision 116 s later, the resumption 5 s. Run 2,
+declined with every subscriber held: approval requested, segment ended, declined, the
+closing frame saying declined and nothing after; the decision request answered 303 in 489
+ms at the origin by the edge's own Server-Timing, 22 ms at the edge, under the second the
+plan hoped for. Run 3, left alone: the sweeper closed the wait 903 s after the approval
+request, the 900 s wait plus one tick, charged $0.0651 and the page read "No decision came
+within the wait; the run closed without one. Its reservation was reconciled. Failed by
+infrastructure: no worker resumed the attempt. Abandoned by the demo's sweeper:
+cancelled." The third sentence is the log reader's reason the live pages step parked with
+this run as its trigger; the close drops it from the page beside a headline that states
+the cause and keeps it on the trail. The index showed the busy state with its link to the
+open run to a second visitor during run 3, and the per-address window refused this
+workstation's second start of the day with the day-turning sentence: two starts had come
+from one house address, the phone's first run on the house Wi-Fi by the operator's account.
+
+**The edge and the subscribers.**
+
+| run | held | past the bound | replacement | heartbeat gaps (n, min, max) | interval lag p95 | bunched | delivery median, max, bound | page during / before |
+|---|---|---|---|---|---|---|---|---|
+| 1 | 8 then the replacement, all to the closing frame | 503 | 200, first frame in 0.51 s | 23, 15.22 s, 15.69 s | 0.86 s over 24 pairs | 0 | 0.89 s, 1.12 s, ±1.37 s | 0.89 |
+| 2 | 7 beside the browser's timeline tab, all to the closing frame | 503 | 200, first frame in 1.74 s | 44, 15.16 s, 15.88 s | no pair after the dump (the probe attached as the run reached its wait) | 0 | 1.10 s, 1.51 s, ±1.27 s | 1.17 |
+
+Every heartbeat inside the cadence plus one tick, no bunching, the open page under the
+hold inside twice its latency with none, the events route's headers through the edge
+`text/event-stream; charset=utf-8`, chunked, no content encoding, `cf-cache-status:
+DYNAMIC`, `via: 1.1 Caddy`. The timeline carried no content-security header and no
+report-only header, the inline script and the zone's beacon present; in the browser the
+timeline tab appended the lines live through the decline and wrote its closing sentence,
+with no console error by the operator's eye.
+
+**The CPU under the hold.** The forecast, eight subscriptions on one open attempt at
+about 0.14 s of the interpreter's second above idle under a budget of a fifth, concerns
+the active phase, and the active phases lasted 21 and 22 s, inside the fifteen seconds
+the probe needs to attach, release and replace once the public id is known; the held
+coverage of both active phases is zero and the figure is not measured. In the awaiting
+phases, held for 36 s and 93 s, the app's rate over the held pairs was 0.105 and 0.121 s
+a second against an idle rate of 0.043 outside every run, 0.062 and 0.078 above idle:
+inside the forecast and the budget, and what eight idle ticks a second cost by the
+tick-cost capture (6.5 to 11.1 ms each). The active phase's rate over all its pairs, with
+the subscribers attaching and each paying its whole fold, was 0.155 s a second in run 2,
+0.11 above idle, an upper bound that includes the dumps. To measure the active phase a
+probe has to be attached at the admission, which means starting the run itself from the
+key the index mints; recorded as the shape of the next measurement, not taken here.
+
+**The memory, and the worker's limit.** The sampler ran across all three runs, 417
+samples over 36 minutes, every bounded container present in every sample, no kill and no
+restart. The worker's `memory.current` reached 225.5 MiB in run 1's investigation, 274.0
+in run 2's and 280.2 MiB in run 3's (the child alive beside the service), against the
+idle 112 to 128 MiB and the hand forecast of 225 to 260; the rule's limit is 1.5 × 280.2
+MiB rounded up to 64 MiB, 448m, replacing the 512 MiB reservation. The app's largest
+current was 153.0 MiB under the committed peak of 233.2; the database's 126.3 MiB passed
+its committed 99.4 and stays inside the same 64 MiB step, so 192m holds under the rule
+over the combined peaks. The host fit over the three: 384m + 192m + 448m = 1,024 MiB
+against the budget of 1,282.6 MiB (the host's 1,840.8 less 558.2 outside the three
+bounded services at idle), spare 258.6 MiB.
+
+**Found: the worker's idle tick grows with the visitors' attempts.** The worker's CPU
+rate with nothing to do stepped with each public attempt on the ledger: 0.012 s a second
+before any, 0.045 after the first closed, 0.117 after the second, 0.172 after the third
+(the plateaus between the runs and after, read off the capture by the minute). A fit over
+the four levels gives 0.055 s a second per attempt (r squared 0.98, intercept 0.004), 110
+ms per two-second tick per attempt, the size of one whole fold by the ledger-cost capture
+(129 ms an attempt). The mechanism is the sweeper's snapshot, which folds every public
+admission inside its seven-day lookback on every pass, closed and published ones
+included, although a closed log is immutable and a published closed attempt gets no
+action. At the daily cap the window holds 35 attempts after a week, 1.9 s of CPU a
+second, more than the single worker's tick can pay; at the three attempts today it costs
+0.17 s a second and nothing binds. Parked, with its trigger before the flag
+comes back on for the public month: the snapshot folds open attempts and closed ones not
+yet published, or memoizes a closed attempt's folded state as the ledger page memoizes
+its settlement.
+
+**The criteria.** (a) met on both decisions and the lapsed wait, the ledger page read
+against the baseline after each; (b) met twice; (c) met, the lag read on run 1 only; (d)
+met in the awaiting phases, not measured in the active phases, named above; (e) met at
+0.89 and 1.17; (f) met, the header absent and the script seen running; (g) met, the
+reading regenerated and the limit the rule's; (h) met on three reads. The flag went off
+by the close's commit.

@@ -1,11 +1,373 @@
 {
  "capture": "2026-11-01",
  "sources": {
-  "idle-samples.jsonl": "055044c33b7966c9e19eeb376cf032c27129e7edefed904c84b1861506a9a049"
+  "subscribers-run1.json": "6da55233e7ea8d47b3cfee709ea9c25caf869ab134658a81bc097acebc73301a",
+  "subscribers-run2.json": "7406562831b84b420e229ce56d6b6a97db75557423015029cb74e487e9c87ed6",
+  "phases-run3.json": "653de18aeefcf236a34827441cc84ec9b5ce5346de4392443b160a9516744f52",
+  "idle-samples.jsonl": "055044c33b7966c9e19eeb376cf032c27129e7edefed904c84b1861506a9a049",
+  "runs-samples.jsonl": "5930f8aa4ad9cc5911a4952d848bbe2e8a2421e1f74fa79d2507c5fc1afd45bc"
  },
- "subscribers": {},
- "windows": [],
- "held": [],
+ "subscribers": {
+  "run1": {
+   "label": "run1",
+   "attempt": "live-22d75b1a1cb3b15466a40e0014b2b52f",
+   "started_utc": "2026-11-01T12:45:28.814875+00:00",
+   "bound": 8,
+   "clients_asked": 8,
+   "held": 9,
+   "subscribers": 10,
+   "ended": {
+    "closed": 8,
+    "closed by the probe": 1,
+    "refused": 1
+   },
+   "errors": [
+    "BrokenPipeError(10058, 'A request to send or receive data was disallowed because the socket had already been shut down in that direction with a previous shutdown call', None, 10058, None)"
+   ],
+   "first_frame_seconds": {
+    "count": 9,
+    "min": 0.1749,
+    "median": 0.3791,
+    "p95": 0.5138,
+    "max": 0.5138
+   },
+   "line_frames_after_dump": 32,
+   "heartbeat_gap_seconds": {
+    "count": 23,
+    "min": 15.2202,
+    "median": 15.2561,
+    "p95": 15.5312,
+    "max": 15.692
+   },
+   "heartbeat_cadence_seconds": 15.0,
+   "interval_lag_seconds": {
+    "count": 24,
+    "min": -0.2362,
+    "median": -0.0103,
+    "p95": 0.8599,
+    "max": 0.8736
+   },
+   "bunched_pairs": 0,
+   "delivery_seconds": {
+    "count": 32,
+    "min": 0.1889,
+    "median": 0.8876,
+    "p95": 1.0932,
+    "max": 1.1223
+   },
+   "delivery_bound_seconds": 1.37,
+   "clock_offset_seconds": -0.009,
+   "beyond_bound": {
+    "index": 8,
+    "status": 503,
+    "ended": "refused"
+   },
+   "released": {
+    "index": 0,
+    "ended": "closed by the probe",
+    "ended_at": 9.0775
+   },
+   "replacement": {
+    "index": 9,
+    "status": 200,
+    "first_frame_at": 12.6893,
+    "ended": null
+   },
+   "page_before": {
+    "statuses": [
+     "200"
+    ],
+    "seconds": {
+     "count": 5,
+     "min": 0.4296,
+     "median": 0.5071,
+     "p95": 0.6552,
+     "max": 0.6552
+    }
+   },
+   "page_during": {
+    "statuses": [
+     "200"
+    ],
+    "seconds": {
+     "count": 5,
+     "min": 0.4143,
+     "median": 0.4493,
+     "p95": 0.4909,
+     "max": 0.4909
+    }
+   },
+   "page_during_over_before": 0.89,
+   "events_headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:45:32 GMT"
+   },
+   "timeline": {
+    "status": 200,
+    "content_security_policy": null,
+    "report_only": null,
+    "inline_script_present": true,
+    "beacon_present": true
+   },
+   "hold_ended_by": "closing frames",
+   "phases": {
+    "admitted": {
+     "recorded_at": "2026-11-01T12:44:07.269511+00:00",
+     "epoch": 1793537047.27,
+     "position": 1
+    },
+    "approval_requested": {
+     "recorded_at": "2026-11-01T12:44:28.415115+00:00",
+     "epoch": 1793537068.415,
+     "position": 36
+    },
+    "approved": {
+     "recorded_at": "2026-11-01T12:46:24.706122+00:00",
+     "epoch": 1793537184.706,
+     "position": 38
+    },
+    "closed": {
+     "recorded_at": "2026-11-01T12:46:30.104795+00:00",
+     "epoch": 1793537190.105,
+     "position": 41,
+     "status": "completed"
+    }
+   },
+   "held_intervals": [
+    {
+     "name": "held",
+     "from": 1793537135.147,
+     "to": 1793537137.884,
+     "seconds": 2.736
+    },
+    {
+     "name": "held again",
+     "from": 1793537141.495,
+     "to": 1793537211.702,
+     "seconds": 70.207
+    }
+   ]
+  },
+  "run2": {
+   "label": "run2",
+   "attempt": "live-2a257db911b5c34793df590954d6f8c0",
+   "started_utc": "2026-11-01T12:50:15.285772+00:00",
+   "bound": 8,
+   "clients_asked": 7,
+   "held": 8,
+   "subscribers": 9,
+   "ended": {
+    "closed": 7,
+    "closed by the probe": 1,
+    "refused": 1
+   },
+   "errors": [
+    "BrokenPipeError(10058, 'A request to send or receive data was disallowed because the socket had already been shut down in that direction with a previous shutdown call', None, 10058, None)"
+   ],
+   "first_frame_seconds": {
+    "count": 8,
+    "min": 0.4085,
+    "median": 1.4099,
+    "p95": 1.741,
+    "max": 1.741
+   },
+   "line_frames_after_dump": 7,
+   "heartbeat_gap_seconds": {
+    "count": 44,
+    "min": 15.1617,
+    "median": 15.3115,
+    "p95": 15.6634,
+    "max": 15.8814
+   },
+   "heartbeat_cadence_seconds": 15.0,
+   "interval_lag_seconds": null,
+   "bunched_pairs": 0,
+   "delivery_seconds": {
+    "count": 7,
+    "min": 0.6153,
+    "median": 1.1022,
+    "p95": 1.5116,
+    "max": 1.5116
+   },
+   "delivery_bound_seconds": 1.271,
+   "clock_offset_seconds": -0.429,
+   "beyond_bound": {
+    "index": 7,
+    "status": 503,
+    "ended": "refused"
+   },
+   "released": {
+    "index": 0,
+    "ended": "closed by the probe",
+    "ended_at": 11.694
+   },
+   "replacement": {
+    "index": 8,
+    "status": 200,
+    "first_frame_at": 15.6,
+    "ended": null
+   },
+   "page_before": {
+    "statuses": [
+     "200"
+    ],
+    "seconds": {
+     "count": 5,
+     "min": 0.4346,
+     "median": 0.479,
+     "p95": 0.5544,
+     "max": 0.5544
+    }
+   },
+   "page_during": {
+    "statuses": [
+     "200"
+    ],
+    "seconds": {
+     "count": 5,
+     "min": 0.5183,
+     "median": 0.5619,
+     "p95": 0.6281,
+     "max": 0.6281
+    }
+   },
+   "page_during_over_before": 1.17,
+   "events_headers": {
+    "content-type": "text/event-stream; charset=utf-8",
+    "transfer-encoding": "chunked",
+    "cache-control": "no-store",
+    "server": "cloudflare",
+    "via": "1.1 Caddy",
+    "cf-cache-status": "DYNAMIC",
+    "date": "Sun, 01 Nov 2026 12:50:18 GMT"
+   },
+   "timeline": {
+    "status": 200,
+    "content_security_policy": null,
+    "report_only": null,
+    "inline_script_present": true,
+    "beacon_present": true
+   },
+   "hold_ended_by": "closing frames",
+   "phases": {
+    "admitted": {
+     "recorded_at": "2026-11-01T12:49:56.639545+00:00",
+     "epoch": 1793537396.64,
+     "position": 1
+    },
+    "approval_requested": {
+     "recorded_at": "2026-11-01T12:50:18.596197+00:00",
+     "epoch": 1793537418.596,
+     "position": 44
+    },
+    "declined": {
+     "recorded_at": "2026-11-01T12:52:09.862237+00:00",
+     "epoch": 1793537529.862,
+     "position": 46
+    },
+    "closed": {
+     "recorded_at": "2026-11-01T12:52:09.862237+00:00",
+     "epoch": 1793537529.862,
+     "position": 46,
+     "status": "declined"
+    }
+   },
+   "held_intervals": [
+    {
+     "name": "held",
+     "from": 1793537423.136,
+     "to": 1793537426.551,
+     "seconds": 3.415
+    },
+    {
+     "name": "held again",
+     "from": 1793537430.457,
+     "to": 1793537530.713,
+     "seconds": 100.256
+    }
+   ]
+  }
+ },
+ "entered_phases": {
+  "run3": {
+   "admitted": {
+    "recorded_at": "2026-11-01T13:00:08.227889+00:00",
+    "epoch": 1793538008.228
+   },
+   "approval_requested": {
+    "recorded_at": "2026-11-01T13:00:31.109171+00:00",
+    "epoch": 1793538031.109
+   },
+   "abandoned": {
+    "recorded_at": "2026-11-01T13:15:34.592932+00:00",
+    "epoch": 1793538934.593
+   },
+   "closed": {
+    "recorded_at": "2026-11-01T13:15:34.592932+00:00",
+    "epoch": 1793538934.593
+   }
+  }
+ },
+ "windows": [
+  {
+   "name": "run1:active",
+   "from": 1793537047.27,
+   "to": 1793537068.415
+  },
+  {
+   "name": "run1:awaiting",
+   "from": 1793537068.415,
+   "to": 1793537184.706
+  },
+  {
+   "name": "run1:resumed",
+   "from": 1793537184.706,
+   "to": 1793537190.105
+  },
+  {
+   "name": "run2:active",
+   "from": 1793537396.64,
+   "to": 1793537418.596
+  },
+  {
+   "name": "run2:awaiting",
+   "from": 1793537418.596,
+   "to": 1793537529.862
+  },
+  {
+   "name": "run3:active",
+   "from": 1793538008.228,
+   "to": 1793538031.109
+  },
+  {
+   "name": "run3:awaiting",
+   "from": 1793538031.109,
+   "to": 1793538934.593
+  }
+ ],
+ "held": [
+  {
+   "from": 1793537135.147,
+   "to": 1793537137.884
+  },
+  {
+   "from": 1793537141.495,
+   "to": 1793537211.702
+  },
+  {
+   "from": 1793537423.136,
+   "to": 1793537426.551
+  },
+  {
+   "from": 1793537430.457,
+   "to": 1793537530.713
+  }
+ ],
  "samples": {
   "idle": {
    "samples": 83,
@@ -100,37 +462,621 @@
      "restarts_last": 0
     }
    }
+  },
+  "runs": {
+   "samples": 417,
+   "from": "12:42:40",
+   "to": "13:18:19",
+   "span_seconds": 2139.5,
+   "host_total": 1930240000,
+   "phases": {
+    "idle": {
+     "samples": 183,
+     "from": "12:42:40",
+     "to": "13:18:19",
+     "held_samples": 4,
+     "held_seconds": 15.4,
+     "host_available_min": 947949568,
+     "host_used_outside_bounded_max": 564518912,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 156553216,
+       "anon_max": 142233600,
+       "threads_max": 5,
+       "cpu_rate": {
+        "mean": 0.0433,
+        "step_max": 0.1568,
+        "seconds": 920.5
+       },
+       "cpu_rate_held": {
+        "mean": 0.041,
+        "step_max": 0.0805,
+        "seconds": 15.4
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 126107648,
+       "anon_max": 6647808,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0159,
+        "step_max": 0.1018,
+        "seconds": 920.5
+       },
+       "cpu_rate_held": {
+        "mean": 0.0392,
+        "step_max": 0.1018,
+        "seconds": 15.4
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 184557568,
+       "anon_max": 175153152,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1624,
+        "step_max": 1.0591,
+        "seconds": 920.5
+       },
+       "cpu_rate_held": {
+        "mean": 0.9009,
+        "step_max": 0.9977,
+        "seconds": 15.4
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 26914816,
+       "anon_max": 13672448,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0002,
+        "step_max": 0.0065,
+        "seconds": 920.5
+       },
+       "cpu_rate_held": {
+        "mean": 0.0008,
+        "step_max": 0.0016,
+        "seconds": 15.4
+       }
+      }
+     }
+    },
+    "run1:active": {
+     "samples": 4,
+     "from": "12:44:07",
+     "to": "12:44:23",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 892960768,
+     "host_used_outside_bounded_max": 538058752,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 133509120,
+       "anon_max": 125898752,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.03,
+        "step_max": 0.087,
+        "seconds": 15.4
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 131981312,
+       "anon_max": 12886016,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0143,
+        "step_max": 0.0154,
+        "seconds": 15.4
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 236408832,
+       "anon_max": 229355520,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.2498,
+        "step_max": 0.6787,
+        "seconds": 15.4
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 24891392,
+       "anon_max": 11685888,
+       "threads_max": 8,
+       "cpu_rate": {
+        "mean": 0.0002,
+        "step_max": 0.0005,
+        "seconds": 15.4
+       },
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "run1:awaiting": {
+     "samples": 23,
+     "from": "12:44:28",
+     "to": "12:46:21",
+     "held_samples": 9,
+     "held_seconds": 36.0,
+     "host_available_min": 893820928,
+     "host_used_outside_bounded_max": 547213312,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 135446528,
+       "anon_max": 127467520,
+       "threads_max": 6,
+       "cpu_rate": {
+        "mean": 0.1035,
+        "step_max": 0.5503,
+        "seconds": 113.1
+       },
+       "cpu_rate_held": {
+        "mean": 0.1052,
+        "step_max": 0.1397,
+        "seconds": 36.0
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 126230528,
+       "anon_max": 6893568,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0524,
+        "step_max": 0.1329,
+        "seconds": 113.1
+       },
+       "cpu_rate_held": {
+        "mean": 0.0921,
+        "step_max": 0.0948,
+        "seconds": 36.0
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 236871680,
+       "anon_max": 229806080,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0488,
+        "step_max": 0.1139,
+        "seconds": 113.1
+       },
+       "cpu_rate_held": {
+        "mean": 0.0472,
+        "step_max": 0.0675,
+        "seconds": 36.0
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 26386432,
+       "anon_max": 13242368,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.001,
+        "step_max": 0.0118,
+        "seconds": 113.1
+       },
+       "cpu_rate_held": {
+        "mean": 0.0002,
+        "step_max": 0.0004,
+        "seconds": 36.0
+       }
+      }
+     }
+    },
+    "run1:resumed": {
+     "samples": 1,
+     "from": "12:46:26",
+     "to": "12:46:26",
+     "held_samples": 1,
+     "held_seconds": 0,
+     "host_available_min": 1004474368,
+     "host_used_outside_bounded_max": 526729216,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 135561216,
+       "anon_max": 127434752,
+       "threads_max": 5,
+       "cpu_rate": null,
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 125698048,
+       "anon_max": 6205440,
+       "threads_max": 1,
+       "cpu_rate": null,
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 137777152,
+       "anon_max": 130883584,
+       "threads_max": 1,
+       "cpu_rate": null,
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 26648576,
+       "anon_max": 13295616,
+       "threads_max": 9,
+       "cpu_rate": null,
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "run2:active": {
+     "samples": 5,
+     "from": "12:49:57",
+     "to": "12:50:18",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 832684032,
+     "host_used_outside_bounded_max": 544747520,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 138534912,
+       "anon_max": 128118784,
+       "threads_max": 3,
+       "cpu_rate": {
+        "mean": 0.1545,
+        "step_max": 0.4102,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 132042752,
+       "anon_max": 13357056,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0273,
+        "step_max": 0.0565,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 287346688,
+       "anon_max": 278233088,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1708,
+        "step_max": 0.5928,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 26284032,
+       "anon_max": 12963840,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0011,
+        "step_max": 0.0037,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "run2:awaiting": {
+     "samples": 21,
+     "from": "12:50:23",
+     "to": "12:52:06",
+     "held_samples": 20,
+     "held_seconds": 92.6,
+     "host_available_min": 950808576,
+     "host_used_outside_bounded_max": 544174080,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 141787136,
+       "anon_max": 128663552,
+       "threads_max": 8,
+       "cpu_rate": {
+        "mean": 0.1392,
+        "step_max": 0.3519,
+        "seconds": 102.9
+       },
+       "cpu_rate_held": {
+        "mean": 0.1212,
+        "step_max": 0.2442,
+        "seconds": 92.6
+       }
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 125112320,
+       "anon_max": 6512640,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0998,
+        "step_max": 0.1345,
+        "seconds": 102.9
+       },
+       "cpu_rate_held": {
+        "mean": 0.0982,
+        "step_max": 0.1079,
+        "seconds": 92.6
+       }
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 168878080,
+       "anon_max": 159633408,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1177,
+        "step_max": 0.1641,
+        "seconds": 102.9
+       },
+       "cpu_rate_held": {
+        "mean": 0.1149,
+        "step_max": 0.1627,
+        "seconds": 92.6
+       }
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 26775552,
+       "anon_max": 13631488,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0006,
+        "step_max": 0.0048,
+        "seconds": 102.9
+       },
+       "cpu_rate_held": {
+        "mean": 0.0004,
+        "step_max": 0.002,
+        "seconds": 92.6
+       }
+      }
+     }
+    },
+    "run3:active": {
+     "samples": 5,
+     "from": "13:00:09",
+     "to": "13:00:30",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 834187264,
+     "host_used_outside_bounded_max": 528072704,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 143814656,
+       "anon_max": 128618496,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.0523,
+        "step_max": 0.1162,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 132411392,
+       "anon_max": 13357056,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0167,
+        "step_max": 0.0182,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 293847040,
+       "anon_max": 279867392,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.2215,
+        "step_max": 0.7691,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 25710592,
+       "anon_max": 12640256,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0005,
+        "step_max": 0.0013,
+        "seconds": 20.6
+       },
+       "cpu_rate_held": null
+      }
+     }
+    },
+    "run3:awaiting": {
+     "samples": 175,
+     "from": "13:00:35",
+     "to": "13:15:30",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 954728448,
+     "host_used_outside_bounded_max": 540565504,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 160477184,
+       "anon_max": 142446592,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.0477,
+        "step_max": 0.1221,
+        "seconds": 895.0
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 127979520,
+       "anon_max": 9105408,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0199,
+        "step_max": 0.0309,
+        "seconds": 895.0
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 174997504,
+       "anon_max": 161226752,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.1704,
+        "step_max": 0.2357,
+        "seconds": 895.0
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 26099712,
+       "anon_max": 12771328,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0003,
+        "step_max": 0.0019,
+        "seconds": 895.0
+       },
+       "cpu_rate_held": null
+      }
+     }
+    }
+   },
+   "counters": {
+    "leaveimpact-app-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "leaveimpact-postgres-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "leaveimpact-worker-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "proxy-caddy-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    }
+   }
   }
  },
  "subscriber_load": {
   "forecast_above_idle": 0.14,
   "budget_above_idle": 0.2,
   "coverage_floor_seconds": 20.0,
-  "phases": {}
+  "phases": {
+   "run1:active": {
+    "samples": "runs",
+    "held_seconds": 0,
+    "sufficient": false,
+    "app_rate_held": null,
+    "app_rate_all_pairs": 0.03,
+    "idle_rate": 0.0433,
+    "above_idle": null,
+    "within_budget": null,
+    "within_forecast": null
+   },
+   "run1:awaiting": {
+    "samples": "runs",
+    "held_seconds": 36.0,
+    "sufficient": true,
+    "app_rate_held": 0.1052,
+    "app_rate_all_pairs": 0.1035,
+    "idle_rate": 0.0433,
+    "above_idle": 0.0619,
+    "within_budget": true,
+    "within_forecast": true
+   },
+   "run2:active": {
+    "samples": "runs",
+    "held_seconds": 0,
+    "sufficient": false,
+    "app_rate_held": null,
+    "app_rate_all_pairs": 0.1545,
+    "idle_rate": 0.0433,
+    "above_idle": null,
+    "within_budget": null,
+    "within_forecast": null
+   },
+   "run2:awaiting": {
+    "samples": "runs",
+    "held_seconds": 92.6,
+    "sufficient": true,
+    "app_rate_held": 0.1212,
+    "app_rate_all_pairs": 0.1392,
+    "idle_rate": 0.0433,
+    "above_idle": 0.0779,
+    "within_budget": true,
+    "within_forecast": true
+   }
+  }
  },
  "worker_rule": {
-  "worker_peak_current_bytes": 134324224,
-  "worker_limit_bytes": 268435456,
-  "worker_mem_limit": "256m",
+  "worker_peak_current_bytes": 293847040,
+  "worker_limit_bytes": 469762048,
+  "worker_mem_limit": "448m",
   "idle_baseline_outside_bounded_bytes": 585306112,
   "host_total_bytes": 1930240000,
   "absences": [],
   "qualifies": true,
-  "app_peak_here_bytes": 152776704,
+  "app_peak_here_bytes": 160477184,
   "app_committed_peak_bytes": 244527104,
   "app_passes_committed_peak": false,
   "app_committed_limit_bytes": 402653184,
   "app_limit_bytes": 402653184,
   "app_mem_limit": "384m",
-  "postgres_peak_here_bytes": 64507904,
+  "postgres_peak_here_bytes": 132411392,
   "postgres_committed_peak_bytes": 104230912,
-  "postgres_passes_committed_peak": false,
+  "postgres_passes_committed_peak": true,
   "postgres_committed_limit_bytes": 201326592,
   "postgres_limit_bytes": 201326592,
   "postgres_mem_limit": "192m",
-  "limits_sum_bytes": 872415232,
+  "limits_sum_bytes": 1073741824,
   "budget_bytes": 1344933888,
   "fits": true,
-  "spare_bytes": 472518656
+  "spare_bytes": 271192064
  }
 }

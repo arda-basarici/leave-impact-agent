@@ -1,0 +1,2 @@
+read 2026-11-01T13:16:29Z through the hostname with a browser Accept: the report page's ending section of run 3, the wait the sweeper closed
+Published 2026-11-01 No decision came within the wait; the run closed without one. Its reservation was reconciled. Failed by infrastructure: no worker resumed the attempt Abandoned by the demo's sweeper: cancelled An approval was requested and never given. 19 completed reads returned 76 records from calendar, corpus, frappe, jira. The leave Marta Demir (emp_022) is on annual leave from 2026-04-15 to 2026-04-18 (4 day

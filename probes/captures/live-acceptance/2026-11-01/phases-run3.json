@@ -1,0 +1,9 @@
+{
+ "label": "run3",
+ "source": "timeline-run3.txt, the attempt's timeline read through the hostname after the sweeper closed it; no subscriber probe ran on this attempt, so its boundaries are entered by hand from the log's recorded instants on that page",
+ "attempt": "live-87acc80b618b68c280aab70deea8b505",
+ "admitted": "2026-11-01T13:00:08.227889+00:00",
+ "approval_requested": "2026-11-01T13:00:31.109171+00:00",
+ "abandoned": "2026-11-01T13:15:34.592932+00:00",
+ "closed": "2026-11-01T13:15:34.592932+00:00"
+}
