@@ -243,6 +243,31 @@ def test_every_failure_the_probe_can_meet_writes_exactly_one_fail_line(
     assert said in completed.stdout
 
 
+@pytest.mark.parametrize("outcome", ["passed", "failed"])
+def test_a_cleanup_that_fails_in_the_handler_changes_neither_the_line_nor_the_status(
+    probed: tuple[FakeBinaries, dict[str, str], Path], outcome: str
+) -> None:
+    """The group's external read: `rm` as the last command of an `||` list could end the
+    handler under `set -e`, so a passed probe exited with the removal's status and a failed
+    one wrote no line. The cleanup is best effort; the verdict and the status are what the
+    probe found."""
+    fakes, env, app_dir = probed
+    fake = fakes.bin_dir / "rm"
+    fake.write_text("#!/usr/bin/env bash\nexit 73\n", newline="\n")
+    fake.chmod(0o755)
+    if outcome == "failed":
+        env["FAKE_S3_ALLOW_ON"] = "truth"
+    completed = run_script(PROBE_SCRIPT, env)
+    if outcome == "passed":
+        assert completed.returncode == 0, completed.stderr
+        assert ledger_of(app_dir) == [STARTED, DEPLOYED, PROBE_PASS]
+        assert "boundary probe: PASS" in completed.stdout
+    else:
+        assert completed.returncode == 1
+        assert ledger_of(app_dir) == [STARTED, DEPLOYED, f"probe fail sha={SHA} exit=1"]
+        assert "PASS" not in completed.stdout
+
+
 def test_a_pass_line_that_cannot_be_appended_fails_the_probe_before_pass_prints(
     tmp_path: Path,
 ) -> None:

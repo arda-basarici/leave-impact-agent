@@ -25,7 +25,12 @@
 # finished and say nothing (the step-17 external read). A `probe pass` that cannot be
 # appended fails the command before the PASS line prints; the fail line is best effort
 # with the status kept. The path and its default are deploy.sh's, and DEPLOY_SHA is
-# the export the workflow's payload carries ahead of both scripts.
+# the export the workflow's payload carries ahead of both scripts. Every command in
+# the handler before the exit is best effort: under `set -e` the last command of an
+# `||` list can still end the shell, and a cleanup that failed there ended the handler
+# before the fail line and before the status was returned (the group's external read,
+# reproduced with an `rm` answering 73: a passed probe exited 73, a failed one left no
+# line).
 set -euo pipefail
 
 APP_DIR=${APP_DIR:-/srv/app}
@@ -33,7 +38,9 @@ LEDGER="$APP_DIR/DEPLOY_LEDGER"
 errors=""
 on_probe_exit() {
   local status=$?
-  [ -z "$errors" ] || rm -f "$errors"
+  if [ -n "$errors" ]; then
+    rm -f "$errors" || :
+  fi
   if [ "$status" -ne 0 ]; then
     echo "$(date -u +%FT%TZ) probe fail sha=${DEPLOY_SHA:-unknown} exit=$status" >> "$LEDGER" \
       || echo "the deploy ledger $LEDGER could not take the probe's fail line" >&2
