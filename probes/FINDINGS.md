@@ -5422,10 +5422,12 @@ under 0.05 s a second over at least ten minutes with the fill pass cut out.
 By the minute the rate read 0.0187 to 0.0207 over sixteen minutes, no drift and no step
 (`tests/unit/test_live_acceptance_probe.py`, the criterion test, computes the series from
 the committed capture). The residue above the empty-table tick, 0.009 s a second for
-three attempts or 3 ms per attempt per two-second pass, is the two reads the memo keeps
-fresh (the publication record and the live row), near the entry's lower estimate (about
-2 ms a statement) and far under its upper one from the tick-cost proxy, which included a
-session's setup. At the daily cap's week of 35 attempts the residue extrapolates to about
+three attempts, is 18 ms per two-second pass, 6 ms per attempt per pass (0.009 × 2 ÷ 3;
+the first draft of this entry wrote 3 ms, the per-read figure under an even split, and
+the commit's external read caught it), the two reads the memo keeps fresh (the
+publication record and the live row), not timed apart; near the entry's lower estimate
+(about 2 ms a statement) and far under its upper one from the tick-cost proxy, which
+included a session's setup. At the daily cap's week of 35 attempts the residue extrapolates to about
 0.1 s a second, inside the single worker's tick, where the fold had extrapolated to 1.9.
 The second cut named at the entry (skipping the two reads for attempts the inventory
 memory marks published and covered) is not taken.
@@ -5434,6 +5436,8 @@ memory marks published and covered) is not taken.
 against 128.1 MiB in the acceptance's idle capture before any attempt (both the cgroup's
 `memory.current` maximum over the phase), under the 448m limit and under the 280.2 MiB
 peak the limit was set from. The memo holds three states and accounts for well under a
-MiB of it by the suite's deep-size bound; the rest is the process's history since (three
-attempts' publications and inventories, the fold churn before the fix), not measured.
-Nothing binds; the acceptance's limit stands.
+MiB of it by the suite's deep-size bound; the rest is unattributed (the worker was
+recreated by the deploy, so nothing from before the fix is in this process). Nothing
+binds at idle; the limit covers the parent and its active child together, and that
+headroom under a live run is read by the sampler across the final smoke before the flag
+returns, as the acceptance step read it at 280.2 MiB.
