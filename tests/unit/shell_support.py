@@ -14,7 +14,11 @@ copying the payload, and an invocation read with the test's scripted ``response-
 ``InProgress`` first as many times as ``pending-<n>`` holds, an ``InvocationDoesNotExist``
 error first as many times as ``missing-<n>`` holds, and an ``ExpiredToken`` error on every
 invocation read after the ``FAKE_INVOCATION_FAIL_AFTER``-th; a parameter read of the name
-in ``FAKE_PARAMETER_FAIL`` fails as a throttled CLI does. ``curl`` writes an empty JSON
+in ``FAKE_PARAMETER_FAIL`` fails as a throttled CLI does; the identity read answers the
+instance role's assumed-role ARN (another under ``FAKE_STS_ARN``, a failure under
+``FAKE_STS_FAIL``), and the two S3 reads the boundary probe makes refuse the truth bucket
+with AccessDenied and let any other pass, a bucket named by ``FAKE_S3_FAIL_ON`` failing
+for another reason and one named by ``FAKE_S3_ALLOW_ON`` passing. ``curl`` writes an empty JSON
 object to the ``-o`` path (or the named compose file, below), or, once, under
 ``FAKE_CURL_FAIL_ONCE``, half a document and exit 18. ``docker`` records its line and
 the ``LEAVE_IMPACT_*``, ``POSTGRES_PASSWORD`` and ``APP_TAG`` variables of its environment,
@@ -44,6 +48,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 HOST_SCRIPT = REPO_ROOT / "deploy" / "instance" / "lifecycle.sh"
 DRIVER_SCRIPT = REPO_ROOT / "deploy" / "runner" / "investigate.sh"
 DEPLOY_SCRIPT = REPO_ROOT / "deploy" / "instance" / "deploy.sh"
+PROBE_SCRIPT = REPO_ROOT / "deploy" / "instance" / "assert-truth-unreachable.sh"
 
 _FAKE_AWS = r"""#!/usr/bin/env bash
 set -euo pipefail
@@ -64,6 +69,26 @@ case "$1 $2" in
     if [ "$name" = "${FAKE_UNSET_PARAMETER:-}" ]; then echo "UNSET"; else echo "value-of-$name"; fi
     ;;
   "ec2 describe-instances") [ -n "${FAKE_NO_INSTANCE:-}" ] || echo i-fake ;;
+  "sts get-caller-identity")
+    if [ -n "${FAKE_STS_FAIL:-}" ]; then
+      echo "An error occurred (ExpiredToken) when calling the GetCallerIdentity operation" >&2
+      exit 254
+    fi
+    echo "${FAKE_STS_ARN:-arn:aws:sts::445743457479:assumed-role/leave-agent-instance/i-fake}" ;;
+  "s3api list-objects-v2"|"s3api get-object")
+    # The boundary probe's three calls: a bucket whose name carries FAKE_S3_FAIL_ON fails
+    # for a reason that is not AccessDenied, one carrying FAKE_S3_ALLOW_ON succeeds, and
+    # otherwise the truth bucket is refused with AccessDenied and any other succeeds.
+    bucket=$(value_after --bucket "$@")
+    if [ -n "${FAKE_S3_FAIL_ON:-}" ] && [[ "$bucket" == *"$FAKE_S3_FAIL_ON"* ]]; then
+      echo "An error occurred (NoSuchBucket) when calling the $2 operation: $bucket" >&2
+      exit 254
+    fi
+    if [ -n "${FAKE_S3_ALLOW_ON:-}" ] && [[ "$bucket" == *"$FAKE_S3_ALLOW_ON"* ]]; then exit 0; fi
+    if [[ "$bucket" == *truth* ]]; then
+      echo "An error occurred (AccessDenied) when calling the $2 operation: Access Denied" >&2
+      exit 254
+    fi ;;
   "ssm send-command")
     n=$(( $(cat "$FAKE_DIR/sends" 2>/dev/null || echo 0) + 1 ))
     echo "$n" > "$FAKE_DIR/sends"

@@ -16,7 +16,32 @@
 # Anything else fails the command and turns the deploy run red. That red is not an
 # application failure and there is no rollback: the app just deployed may be healthy
 # while the boundary is not, and the fix is in the platform's IAM, not in an image.
+#
+# The deploy ledger (deploy.sh's header): this probe appends its verdict to the block
+# the deploy opened, `probe pass` as its last act or `probe fail exit=<status>` from its
+# exit handler, exactly one of the two. The handler is installed before the first
+# command that can fail: the two scripts share one shell, so until this line the
+# deploy's own handler is the one a failure reaches, and it would read the deploy as
+# finished and say nothing (the step-17 external read). A `probe pass` that cannot be
+# appended fails the command before the PASS line prints; the fail line is best effort
+# with the status kept. The path and its default are deploy.sh's, and DEPLOY_SHA is
+# the export the workflow's payload carries ahead of both scripts.
 set -euo pipefail
+
+APP_DIR=${APP_DIR:-/srv/app}
+LEDGER="$APP_DIR/DEPLOY_LEDGER"
+errors=""
+on_probe_exit() {
+  local status=$?
+  [ -z "$errors" ] || rm -f "$errors"
+  if [ "$status" -ne 0 ]; then
+    echo "$(date -u +%FT%TZ) probe fail sha=${DEPLOY_SHA:-unknown} exit=$status" >> "$LEDGER" \
+      || echo "the deploy ledger $LEDGER could not take the probe's fail line" >&2
+  fi
+  exit "$status"
+}
+trap on_probe_exit EXIT
+: "${DEPLOY_SHA:?the sha deploy.sh landed, exported ahead of both scripts by the payload}"
 
 REGION=eu-central-1
 WORLD_BUCKET=leave-impact-world-445743457479
@@ -34,7 +59,6 @@ aws s3api list-objects-v2 --region "$REGION" --bucket "$WORLD_BUCKET" --prefix w
 echo "boundary probe: positive control passed, worlds/ listed under the instance role"
 
 errors=$(mktemp)
-trap 'rm -f "$errors"' EXIT
 refused() {
   if "$@" 2> "$errors"; then
     echo "boundary probe: NOT refused: $*"
@@ -50,4 +74,5 @@ refused() {
 refused aws s3api list-objects-v2 --region "$REGION" --bucket "$TRUTH_BUCKET" --max-keys 1
 refused aws s3api get-object --region "$REGION" --bucket "$TRUTH_BUCKET" --key "$CANARY" /dev/null
 
+echo "$(date -u +%FT%TZ) probe pass sha=$DEPLOY_SHA" >> "$LEDGER"
 echo "boundary probe: PASS — the truth bucket is unreachable from the instance role"

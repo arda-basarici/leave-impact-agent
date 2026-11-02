@@ -4605,6 +4605,25 @@ snapshot folds every public admission inside its seven-day lookback on every pas
 a tick per attempt measured over four levels, which at the daily cap exceeds the single
 worker's tick within a week.
 
+As built at the deploy ledger (M3 step 17's first group, 2026-11-02; five forks ruled
+at the entry with the external read's four points, one of them a defect in the design
+before the build). The base-image digests the plan listed for this step had landed at
+the freeze's mirror on 2026-10-15, struck. `DEPLOY_LEDGER` beside the marker records one
+line per event, stamp, word, `key=value` fields; a `started` line under the lock opens a
+block, `deployed` or `failed phase=<phase> exit=<status>` ends the deploy's part, and
+the boundary probe, run after the deploy in the same SSM shell, appends `probe pass` or
+`probe fail` to the block. Readings are inside a block, never by sha, since a rerun or
+a rollback redeploys a sha; the lock, a descriptor of the shared shell, keeps blocks
+from interleaving. The probe's handler moved to its first line: it had been installed
+after the identity read, the role check, the positive control and the temporary file,
+so a failure there would have reached the deploy's handler as a finished deploy and
+been recorded nowhere. A refused lock writes nothing; a line that cannot be appended
+fails the command, the deploy gaining a `marker-written` phase so the one case where
+the marker is written and the ledger is not says so; the handlers' lines are best
+effort with the status kept. The runbook's `DEPLOYED` paragraph holds the forms and the
+outcomes; the fake `aws` learned the identity and the two S3 reads for the probe's six
+failure histories.
+
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
 against per-run compute is not established and is recorded as unknown), its criteria

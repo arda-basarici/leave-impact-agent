@@ -71,13 +71,37 @@ in the workflow log, and re-runs the script. Making the marker a ledger of
 verified releases waited for the service to be long-running (the M1 repository
 audit's F-012); the app has served since the demo milestone's scaffold step and the
 worker runs beside it since the worker service's step. Ruled at that step's close
-(2026-10-30): the marker keeps its bare sha, since the lifecycle gates on it and the
-probe scripts read it as the image tag, and an append-only `DEPLOY_LEDGER` beside it
-records a `started` line after the lock, a `deployed` line at the end, a `failed`
-line with the phase from the trap, and the boundary probe's own `pass` or `fail`
-line; an interrupted run is a `started` with no `deployed` after it, and the last
-verified release is the last `deployed` followed by its probe's `pass`. Built at the
-base-image pinning step, the next change to this script.
+(2026-10-30) and built at step 17 (2026-11-02): the marker keeps its bare sha, since
+the lifecycle gates on it and the probe scripts read it as the image tag, and the
+append-only `DEPLOY_LEDGER` beside it on the data volume records one line per event,
+the UTC stamp first, the word second, then `key=value` fields:
+
+```
+2026-11-02T14:00:00Z started sha=<sha> digest=<digest>
+2026-11-02T14:02:10Z deployed sha=<sha> digest=<digest>
+2026-11-02T14:02:14Z probe pass sha=<sha>
+2026-11-02T14:00:00Z failed sha=<sha> phase=after-bootstrap exit=1
+2026-11-02T14:02:14Z probe fail sha=<sha> exit=254
+```
+
+A `started` line, written once the lock is held, opens a block, and every reading is
+inside one block: a sha is redeployed by a rerun or a rollback, so a sha names no
+block. `started` with nothing after it is an interrupted deploy; `started` then
+`failed` names the phase the trap found it in; `deployed` with no probe line is a
+deploy whose verification was interrupted (the probe never ran, or the command was cut
+between the two); `deployed` then `probe fail` is a deploy whose boundary failed; the
+last verified release is the last block holding `deployed` then `probe pass`, and an
+earlier block's verdict says nothing about a later one. Blocks cannot interleave, since
+the lock is a descriptor of the shell both scripts run in and is held until that shell
+exits, the probe's lines included. A refused lock writes nothing, since another deploy
+owns the ledger; a `started`, `deployed` or `probe pass` line that cannot be appended
+fails the command (the deploy before any fetch, the marker's own phase saying so when
+it is the `deployed` line, the probe before its PASS prints); the two handlers' `failed`
+and `probe fail` lines are best effort with the exit status kept. The probe installs
+its handler before its first command, since the two scripts share one shell and a
+failure before that line would reach the deploy's handler, which reads the deploy as
+finished and says nothing. Held by `tests/unit/test_deploy_ledger.py` under the fakes,
+the two scripts run in the payload's order among them.
 
 ## The run lifecycle
 

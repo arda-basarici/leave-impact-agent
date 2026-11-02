@@ -40,6 +40,24 @@
 # wait leaves the container running (the same read). Each phase prints a UTC stamp, so
 # a deploy's growth is attributable (the deploy job's waiter was shown too short on two
 # deploys whose phases nobody could time).
+#
+# The deploy ledger (the M1 audit's F-012, ruled at the worker service's close and built
+# here): `DEPLOY_LEDGER` beside the marker is append-only, one line per event, the UTC
+# stamp first, the word second, then `key=value` fields. A `started` line after the lock
+# opens a block; the block ends with `deployed` or `failed phase=<phase> exit=<status>`,
+# and the boundary probe that runs after this script in the same SSM shell appends its
+# own `probe pass` or `probe fail` to the block. Every reading is inside one block (a
+# sha is redeployed by a rerun or a rollback, so a sha names no block): `started` with
+# nothing after it is an interrupted deploy; `deployed` with no probe line is a deploy
+# whose verification was interrupted; `deployed` then `probe fail` is a deploy whose
+# boundary failed; the last verified release is the last block holding `deployed` then
+# `probe pass`, and an earlier block's verdict says nothing about a later one. Blocks
+# cannot interleave: the lock is a descriptor of the shell both scripts run in, held
+# until that shell exits. A refused lock writes nothing, since another deploy owns the
+# ledger; a failure anywhere after `started` writes `failed`, best effort, with the exit
+# status kept; a `started` or `deployed` line that cannot be appended fails the deploy
+# (`set -e` on the redirection), the marker's phase saying which. The marker keeps its
+# bare sha, since the lifecycle gates on it and the probes read it as the image tag.
 set -euo pipefail
 shopt -s inherit_errexit
 
@@ -63,20 +81,32 @@ param() {
 
 stamp() { echo "$(date -u +%FT%TZ) $*"; }
 
+LEDGER="$APP_DIR/DEPLOY_LEDGER"
+ledger() { echo "$(date -u +%FT%TZ) $*" >> "$LEDGER"; }
+
 # The phase the trap reads: the worker's state on a failure depends on how far the deploy
 # got. `before-stop`: nothing on the host changed, nothing to repair. `before-bootstrap`:
 # a drained worker is stopped under a schema the previous image still reads, so it is
 # started again. `after-bootstrap`: a drained worker stays stopped until a deploy
 # succeeds, and the state is said. `worker-started`: the worker was started from the
 # new image and only `docker compose ps` knows its state, since a detached start whose
-# wait failed leaves the container running. `finished`: the marker is written.
-# WORKER_DRAINED says whether this deploy stopped a worker at all.
+# wait failed leaves the container running. `marker-written`: the deploy is complete and
+# the ledger's `deployed` line is what failed. `finished`: both are written, and the
+# trap writes nothing more, since the probe's own lines follow in this shell.
+# WORKER_DRAINED says whether this deploy stopped a worker at all; LEDGER_STARTED
+# whether this run opened a block, so a refused lock writes no `failed` into a block
+# that is another deploy's.
 PHASE=before-stop
 WORKER_DRAINED=0
+LEDGER_STARTED=0
 on_exit() {
   local status=$?
   local rerun="Rerun: this script with DEPLOY_SHA=$DEPLOY_SHA DEPLOY_DIGEST=$DEPLOY_DIGEST, or the rollback's older sha and digest"
   if [ "$status" -ne 0 ]; then
+    if [ "$LEDGER_STARTED" -eq 1 ] && [ "$PHASE" != finished ]; then
+      ledger "failed sha=$DEPLOY_SHA phase=$PHASE exit=$status" \
+        || echo "the deploy ledger $LEDGER could not take the failed line" >&2
+    fi
     case "$PHASE" in
       before-bootstrap)
         if [ "$WORKER_DRAINED" -eq 1 ]; then
@@ -96,6 +126,9 @@ on_exit() {
       worker-started)
         echo "deploy failed after the worker was started from the new image (exit $status): its state is what docker compose ps shows (running, unhealthy or exited), the marker is unwritten. $rerun" >&2
         ;;
+      marker-written)
+        echo "the deploy completed and the marker is written, but the ledger's deployed line could not be appended to $LEDGER (exit $status): the host runs $DEPLOY_SHA and the ledger does not say so; the boundary probe did not run" >&2
+        ;;
     esac
   fi
   exit "$status"
@@ -110,6 +143,10 @@ cd "$APP_DIR"
 # deploy whose state this one cannot know. Taken before anything is fetched or pulled.
 exec 9> "$APP_DIR/deploy.lock"
 flock -n 9 || { echo "another deploy holds $APP_DIR/deploy.lock; this one is refused" >&2; exit 1; }
+# The block opens here, under the lock: the first line this run owns, and the one whose
+# failure to append fails the deploy before anything is fetched.
+ledger "started sha=$DEPLOY_SHA digest=$DEPLOY_DIGEST"
+LEDGER_STARTED=1
 # The target's file beside the installed one; it replaces the installed file after the
 # drain below, so the drain reads the definition the running worker was created from.
 curl -fsSL "https://raw.githubusercontent.com/$REPO/$DEPLOY_SHA/compose.yaml" -o compose.yaml.next
@@ -255,5 +292,7 @@ docker images "ghcr.io/$REPO" --format '{{.ID}}' | sort -u | awk -v keep="$KEEP_
 docker image prune -f
 
 echo "$DEPLOY_SHA" > "$APP_DIR/DEPLOYED"
+PHASE=marker-written
+ledger "deployed sha=$DEPLOY_SHA digest=$DEPLOY_DIGEST"
 PHASE=finished
 echo "deployed $DEPLOY_SHA ($DEPLOY_DIGEST) at $(date -u +%FT%TZ)"
