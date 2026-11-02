@@ -91,11 +91,28 @@ seven days by default, and every open one whatever its age; a closed public atte
 unpublished longer than the lookback is the operator's ``publish`` command. The
 alternative, every public admission ever on every pass, grows with the ledger for
 nothing.
+
+**A closed attempt is folded once per process.** The live path's acceptance (M3 step 16)
+read the worker's idle tick growing 55 ms a second per visitor attempt: the snapshot
+folded every listed admission on every pass, the closed and published ones included,
+and a pass reads a closed attempt only for its scope, its publication state and a row
+repair, none of which the fold changes. A closed attempt rejects every later append
+(``log_transition``), so its folded state is immutable, and the composition keeps the
+closed states it has folded for the process's life, evicting one when its attempt
+leaves the listing, so the memo holds at most the lookback's population. A closed state
+over the test fixtures' histories measures about 20 KB at its deep size, held under
+40 KB by the suite; production logs run three to five times the fixtures' length, so the
+daily cap's week of 35 attempts holds a few MiB, derived by hand from those figures.
+The publication record and the live row are read fresh on every pass, so a publication
+made since and a repair that failed are seen as before; an open attempt is folded every
+pass, since its log moves. The alternative, listing only the attempts the inventory
+memory does not mark published and covered, would change what the pass decides over,
+and is the second cut if the two fresh reads bind on the instance.
 """
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from contextlib import AbstractContextManager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta
@@ -451,13 +468,44 @@ class InventoryMemory:
         self.covered[scope] = covering | self.published.pop(scope, set())
 
 
+@dataclass
+class ClosedStateMemo:
+    """The folded states of the closed public attempts a process has read (see the module:
+    a closed log is immutable, so the fold cannot change), keyed by run and attempt; an
+    open attempt is never kept, and ``retain`` drops every attempt the listing no longer
+    holds, so the memo is bounded by the lookback's population."""
+
+    states: dict[tuple[str, int], AttemptState] = field(
+        default_factory=dict[tuple[str, int], AttemptState]
+    )
+
+    def state_of(self, log: SweepLog, run_id: str, attempt: int, *, rules: Rules) -> AttemptState:
+        """The attempt's folded state: the memo's when it holds one, else the log's fold,
+        kept when it came back closed."""
+        key = (run_id, attempt)
+        held = self.states.get(key)
+        if held is not None:
+            return held
+        state = log.load(run_id, attempt, rules=rules)
+        if state.closed is not None:
+            self.states[key] = state
+        return state
+
+    def retain(self, listed: Iterable[tuple[str, int]]) -> None:
+        """Keep the states of ``listed`` and drop the rest: an attempt outside the lookback
+        is folded again only if it re-enters the listing."""
+        keep = set(listed)
+        for key in [key for key in self.states if key not in keep]:
+            del self.states[key]
+
+
 @dataclass(frozen=True, slots=True)
 class SweepComposition:
     """What the composition root fixes for every pass: the configuration, the rules, the
     harness revision the finalizations claim under, the commit the exports and inventories
     are built as, the two publication commands bound to their publishers, the nonce source
-    of the claims, the launch identity, the lookback, and the inventory memory the passes
-    of one process share."""
+    of the claims, the launch identity, the lookback, and the two memories the passes of
+    one process share: the inventories written and the closed states folded."""
 
     configuration: DemoConfiguration
     rules: Rules
@@ -469,6 +517,7 @@ class SweepComposition:
     launch: str = DEMO_SWEEPER.identity
     lookback: timedelta = DEFAULT_LOOKBACK
     memory: InventoryMemory = field(default_factory=InventoryMemory)
+    closed: ClosedStateMemo = field(default_factory=ClosedStateMemo)
 
 
 @dataclass(frozen=True, slots=True)
@@ -487,16 +536,20 @@ SweepReport = tuple[SweepOutcome, ...]
 
 def snapshot_of(log: SweepLog, rows: SweepRows, composition: SweepComposition) -> SweepSnapshot:
     """The snapshot of one pass: the public admissions since the lookback with every open
-    one, each with its state, its row and, for a closed one, its publication; the slot;
-    the inventory memory as it stands; the clock, read first."""
+    one, each with its state (a closed one's from the memo after its first fold), its row
+    and, for a closed one, its publication, the last two read fresh; the slot; the
+    inventory memory as it stands; the clock, read first."""
     taken_at = log.now()
     configuration = composition.configuration
     listed = log.admitted_by(
         DEMO_START, configuration.ledger_id, since=taken_at - composition.lookback
     )
+    composition.closed.retain((each.run_id, each.attempt) for each in listed)
     attempts: list[SweptAttempt] = []
     for each in listed:
-        state = log.load(each.run_id, each.attempt, rules=composition.rules)
+        state = composition.closed.state_of(
+            log, each.run_id, each.attempt, rules=composition.rules
+        )
         publication = (
             log.publication_of(each.run_id, each.attempt) if state.closed is not None else None
         )
@@ -768,6 +821,7 @@ def _unrecovered_unmet(state: AttemptState, generation: int, harness_commit: str
 
 __all__ = [
     "DEFAULT_LOOKBACK",
+    "ClosedStateMemo",
     "DEMO_SWEEPER",
     "CloseStopped",
     "CloseUnclaimed",

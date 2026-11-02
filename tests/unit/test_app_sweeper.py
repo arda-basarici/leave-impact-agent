@@ -8,6 +8,10 @@ from the reload and not from a refusal).
 
 from __future__ import annotations
 
+import gc
+import sys
+import types
+from collections import Counter
 from collections.abc import Callable
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timedelta
@@ -46,6 +50,7 @@ from leaveimpact.app.live import Decision, LiveRow, key_digest_of, public_id_for
 from leaveimpact.app.start import DEMO_START
 from leaveimpact.app.sweeper import (
     DEMO_SWEEPER,
+    ClosedStateMemo,
     CloseStopped,
     CloseUnclaimed,
     CloseUnrecovered,
@@ -984,3 +989,138 @@ def test_a_publication_from_outside_the_pass_is_inventoried_whatever_its_instant
     perform(actions[0], log, rows, composed)
     assert composed.memory.covered == {SCOPE: frozenset({key_of(1), key_of(2)})}
     assert [a for a in plan(snapshot_of(log, rows, composed)) if not isinstance(a, RepairRow)] == []
+
+
+# --- the closed-state memo (M3 step 17, the live acceptance's per-attempt tick) --------
+
+
+@dataclass
+class CountingLog(MemoryLog):
+    """The in-memory log recording every fold it is asked for."""
+
+    folds: list[tuple[str, int]] = field(default_factory=list[tuple[str, int]])
+
+    def load(self, run_id: str, attempt: int, *, rules: Rules) -> AttemptState:
+        self.folds.append((run_id, attempt))
+        return super().load(run_id, attempt, rules=rules)
+
+
+def counting_stores(clock: datetime) -> tuple[CountingLog, MemoryAppStore, FixedClock]:
+    ticking = FixedClock(clock)
+    return CountingLog(clock=ticking), MemoryAppStore(), ticking
+
+
+def test_a_closed_attempt_is_folded_once_per_process_and_an_open_one_every_pass() -> None:
+    """The acceptance capture's finding: the snapshot folded every listed admission on every
+    pass. A closed log is immutable, so its fold is kept on the composition; an open one
+    moves, so it is folded each pass; another composition is another process and folds
+    the closed attempt once more."""
+    log, rows, _ = counting_stores(ADMITTED)
+    seeded(log, rows, 1, closed_completed())
+    seeded(log, rows, 2, awaiting())
+    composed = composition(Recording())
+    for _ in range(3):
+        taken = snapshot_of(log, rows, composed)
+        states = {each.run_id: each.state for each in taken.attempts}
+        assert set(states) == {run_of(1), run_of(2)}
+        assert states[run_of(1)].closed is not None and states[run_of(2)].closed is None
+    # The listing's order is the store's, so the folds are counted, not sequenced.
+    assert Counter(log.folds) == {(run_of(1), 1): 1, (run_of(2), 1): 3}
+    assert set(composed.closed.states) == {(run_of(1), 1)}
+    snapshot_of(log, rows, composition(Recording()))
+    assert Counter(log.folds[-2:]) == {(run_of(1), 1): 1, (run_of(2), 1): 1}
+
+
+def test_a_memoized_closed_attempt_still_sees_a_publication_and_retries_a_repair() -> None:
+    """The publication record and the live row are read fresh on every pass: a publication
+    made since the fold schedules the inventory and no publish, and a repair that did not
+    land is planned again from the memoized state until the row holds the decision."""
+    log, rows, _ = counting_stores(ADMITTED)
+    seeded(log, rows, 1, closed_completed())
+    composed = composition(Recording())
+    first = plan(snapshot_of(log, rows, composed))
+    assert kinds(first) == [RepairRow, Publish, WriteInventory]
+    log.publications[(run_of(1), 1)] = record(run_of(1), 1, PublicationStatus.PUBLISHED)
+    second = plan(snapshot_of(log, rows, composed))
+    assert kinds(second) == [RepairRow, WriteInventory]
+    assert second[0] == first[0]
+    perform(second[0], log, rows, composed)
+    third = plan(snapshot_of(log, rows, composed))
+    assert kinds(third) == [WriteInventory]
+    assert log.folds == [(run_of(1), 1)]
+
+
+def test_the_open_to_closed_transition_fills_the_memo_once() -> None:
+    log, rows, _ = counting_stores(ADMITTED)
+    history = seeded(log, rows, 1, awaiting())
+    composed = composition(Recording())
+    snapshot_of(log, rows, composed)
+    snapshot_of(log, rows, composed)
+    assert composed.closed.states == {}
+    log.logs[(run_of(1), 1)].extend(public(closed_completed(), 1)[len(history) :])
+    taken = snapshot_of(log, rows, composed)
+    assert taken.attempts[0].state.closed is not None
+    snapshot_of(log, rows, composed)
+    assert log.folds == [(run_of(1), 1)] * 3
+    assert set(composed.closed.states) == {(run_of(1), 1)}
+
+
+def test_an_attempt_leaving_the_listing_is_evicted_and_folded_again_on_re_entry() -> None:
+    log, rows, clock = counting_stores(ADMITTED)
+    seeded(log, rows, 1, closed_completed())
+    composed = composition(Recording())
+    clock.at = ADMITTED + timedelta(days=1)
+    snapshot_of(log, rows, composed)
+    assert set(composed.closed.states) == {(run_of(1), 1)}
+    clock.at = ADMITTED + timedelta(days=8)
+    assert snapshot_of(log, rows, composed).attempts == ()
+    assert composed.closed.states == {}
+    clock.at = ADMITTED + timedelta(days=1)
+    snapshot_of(log, rows, composed)
+    assert log.folds == [(run_of(1), 1)] * 2
+
+
+def test_the_memo_keeps_a_closed_fold_and_never_an_open_one() -> None:
+    log, rows, _ = counting_stores(ADMITTED)
+    seeded(log, rows, 1, closed_completed())
+    seeded(log, rows, 2, running())
+    memo = ClosedStateMemo()
+    closed = memo.state_of(log, run_of(1), 1, rules=RULES)
+    open_one = memo.state_of(log, run_of(2), 1, rules=RULES)
+    assert closed.closed is not None and open_one.closed is None
+    assert set(memo.states) == {(run_of(1), 1)}
+    assert memo.state_of(log, run_of(1), 1, rules=RULES) is closed
+    memo.retain([(run_of(2), 1)])
+    assert memo.states == {}
+
+
+def deep_size(root: object) -> int:
+    """``sys.getsizeof`` summed over the object graph under ``root`` (classes, modules and
+    functions excluded, each object once): the memo's cost per state with nothing shared."""
+    skip = (type, types.ModuleType, types.FunctionType, types.BuiltinFunctionType)
+    seen: set[int] = set()
+    stack = [root]
+    total = 0
+    while stack:
+        each = stack.pop()
+        if id(each) in seen or isinstance(each, skip):
+            continue
+        seen.add(id(each))
+        total += sys.getsizeof(each)
+        stack.extend(gc.get_referents(each))
+    return total
+
+
+@pytest.mark.parametrize(
+    "name",
+    ["an approval wait across a restart", "a recorded defect an operator finalized", "a cut call"],
+)
+def test_a_closed_states_deep_size_bounds_what_the_memo_holds(name: str) -> None:
+    """The module's memory claim: a folded state over the fixture histories (9 to 14 events)
+    measures about 20 KB at its deep size; the bound here is twice that, and a state that
+    grows past it moves the claim before it moves the worker's limit."""
+    log, rows, _ = stores(ADMITTED)
+    history = seeded(log, rows, 1, histories.HISTORIES[name]())
+    state = log.load(run_of(1), 1, rules=RULES)
+    assert 9 <= len(history) <= 14
+    assert deep_size(state) < 40_000

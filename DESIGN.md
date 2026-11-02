@@ -4622,7 +4622,25 @@ fails the command, the deploy gaining a `marker-written` phase so the one case w
 the marker is written and the ledger is not says so; the handlers' lines are best
 effort with the status kept. The runbook's `DEPLOYED` paragraph holds the forms and the
 outcomes; the fake `aws` learned the identity and the two S3 reads for the probe's six
-failure histories.
+failure histories. The group's external read found one P3, adopted as its own commit:
+the handler's cleanup was the last command of an `||` list, which `set -e` can still
+end, so a removal that failed ended the handler before the fail line and before the
+status was returned; the cleanup is best effort, with a fake `rm` under both outcomes.
+
+As built at the sweeper's fold memo (M3 step 17's second group, 2026-11-02; the
+acceptance step's parked finding, ruled at the entry as the memo over the filtered
+listing). The composition keeps the folded state of every closed public attempt it has
+read, for the process's life, evicting one when its attempt leaves the lookback's
+listing; the publication record and the live row are still read fresh each pass, so a
+publication made since is inventoried and not re-published and a repair that did not
+land is planned again, and an open attempt is folded every pass. The memo's size is
+bounded by a test on the fixture histories (a closed state under 40 KB at its deep size,
+about 20 KB measured); production logs run three to five times the fixtures' length, so
+the cap's week of 35 attempts holds a few MiB against the worker's 168 MiB spare under
+448m, derived by hand from those two figures. The acceptance criterion was fixed before
+the capture: the worker's idle tick under the three acceptance attempts at most 0.05 s a
+second with the fill pass cut out, a miss inspected before any ruling; the measurement
+is the step's close.
 
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on
