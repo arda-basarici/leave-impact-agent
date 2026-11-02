@@ -1,0 +1,137 @@
+{
+ "capture": "2026-11-02",
+ "sources": {
+  "idle-samples.jsonl": "5a9aee496678375c8c4353189864d1ea768392b12250eeb14e241980c58777a9"
+ },
+ "subscribers": {},
+ "entered_phases": {},
+ "windows": [],
+ "held": [],
+ "samples": {
+  "idle": {
+   "samples": 185,
+   "from": "20:44:30",
+   "to": "21:00:16",
+   "span_seconds": 946.1,
+   "host_total": 1930240000,
+   "phases": {
+    "idle": {
+     "samples": 185,
+     "from": "20:44:30",
+     "to": "21:00:16",
+     "held_samples": 0,
+     "held_seconds": 0,
+     "host_available_min": 956993536,
+     "host_used_outside_bounded_max": 575184896,
+     "containers": {
+      "leaveimpact-app-1": {
+       "absent_samples": 0,
+       "current_max": 145408000,
+       "anon_max": 136552448,
+       "threads_max": 2,
+       "cpu_rate": {
+        "mean": 0.0413,
+        "step_max": 0.0891,
+        "seconds": 946.1
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-postgres-1": {
+       "absent_samples": 0,
+       "current_max": 103645184,
+       "anon_max": 7880704,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0188,
+        "step_max": 0.0264,
+        "seconds": 946.1
+       },
+       "cpu_rate_held": null
+      },
+      "leaveimpact-worker-1": {
+       "absent_samples": 0,
+       "current_max": 180084736,
+       "anon_max": 173629440,
+       "threads_max": 1,
+       "cpu_rate": {
+        "mean": 0.0193,
+        "step_max": 0.0777,
+        "seconds": 946.1
+       },
+       "cpu_rate_held": null
+      },
+      "proxy-caddy-1": {
+       "absent_samples": 0,
+       "current_max": 21262336,
+       "anon_max": 11497472,
+       "threads_max": 9,
+       "cpu_rate": {
+        "mean": 0.0001,
+        "step_max": 0.002,
+        "seconds": 946.1
+       },
+       "cpu_rate_held": null
+      }
+     }
+    }
+   },
+   "counters": {
+    "leaveimpact-app-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "leaveimpact-postgres-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "leaveimpact-worker-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    },
+    "proxy-caddy-1": {
+     "oom_kill_first": 0,
+     "oom_kill_last": 0,
+     "restarts_first": 0,
+     "restarts_last": 0
+    }
+   }
+  }
+ },
+ "subscriber_load": {
+  "forecast_above_idle": 0.14,
+  "budget_above_idle": 0.2,
+  "coverage_floor_seconds": 20.0,
+  "phases": {}
+ },
+ "worker_rule": {
+  "worker_peak_current_bytes": 180084736,
+  "worker_limit_bytes": 335544320,
+  "worker_mem_limit": "320m",
+  "idle_baseline_outside_bounded_bytes": 575184896,
+  "host_total_bytes": 1930240000,
+  "absences": [],
+  "qualifies": true,
+  "app_peak_here_bytes": 145408000,
+  "app_committed_peak_bytes": 244527104,
+  "app_passes_committed_peak": false,
+  "app_committed_limit_bytes": 402653184,
+  "app_limit_bytes": 402653184,
+  "app_mem_limit": "384m",
+  "postgres_peak_here_bytes": 103645184,
+  "postgres_committed_peak_bytes": 104230912,
+  "postgres_passes_committed_peak": false,
+  "postgres_committed_limit_bytes": 201326592,
+  "postgres_limit_bytes": 201326592,
+  "postgres_mem_limit": "192m",
+  "limits_sum_bytes": 939524096,
+  "budget_bytes": 1355055104,
+  "fits": true,
+  "spare_bytes": 415531008
+ }
+}

@@ -4639,8 +4639,13 @@ about 20 KB measured); production logs run three to five times the fixtures' len
 the cap's week of 35 attempts holds a few MiB against the worker's 168 MiB spare under
 448m, derived by hand from those two figures. The acceptance criterion was fixed before
 the capture: the worker's idle tick under the three acceptance attempts at most 0.05 s a
-second with the fill pass cut out, a miss inspected before any ruling; the measurement
-is the step's close.
+second with the fill pass cut out, a miss inspected before any ruling. Measured the same
+evening after the deploy (FINDINGS `fold-memo`): 0.019 s a second over 946 s against
+0.172 before the fix under the same three attempts, 0.0187 to 0.0207 by the minute, the
+residue above the empty-table tick the two fresh reads at about 3 ms per attempt per
+pass, so the cap's week extrapolates to about 0.1 s a second where the fold gave 1.9; the
+second cut is not taken. The worker's idle resident size read 171.7 MiB against 128.1
+before any attempt, unattributed beyond the memo's sub-MiB share and inside the limit.
 
 **Hosting, as the demo found it.** The instance stays on; the ephemeral-compute probe
 is declined unrun on scope (the surface is the deliverable; the comparison of always-on

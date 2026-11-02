@@ -3,7 +3,12 @@ readings and the host's samples under a capture directory reduced to `reading.js
 every cited figure printed, so the step's record and the worker's Compose limit are numbers
 with a script behind them. Run from the repository root::
 
-    uv run python probes/live-acceptance/reduce.py probes/captures/live-acceptance/<date>
+    uv run python probes/live-acceptance/reduce.py probes/captures/live-acceptance/<date> [<reading name>]
+
+The reading is written beside this script as `reading.json`, or under the second
+argument's name when a later capture is reduced on its own (the fold memo's capture of
+M3 step 17, `reading-fold-memo.json`), so the acceptance's committed reading stays the one
+its regeneration test and the worker's limit are held to.
 
 Over each `subscribers-*.json` (the workstation probe's reading): the subscribers held and
 how each ended; the delay from connection to first frame; the gap before every heartbeat
@@ -705,14 +710,14 @@ def print_derivation(reading: dict[str, Any]) -> None:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
+    if len(argv) not in (2, 3):
         print(__doc__.split("::")[0].strip(), file=sys.stderr)
         return 2
     # The derivation prints ×, → and −; a Windows console in its legacy code page would
     # refuse them after the reading is written, so the stream is reconfigured first.
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # type: ignore[union-attr]
     reading = reduce_capture(Path(argv[1]))
-    out = Path(__file__).with_name("reading.json")
+    out = Path(__file__).with_name(argv[2] if len(argv) == 3 else "reading.json")
     out.write_text(json.dumps(reading, indent=1) + "\n", encoding="utf-8", newline="\n")
     print_derivation(reading)
     print(f"\nwritten {out}")

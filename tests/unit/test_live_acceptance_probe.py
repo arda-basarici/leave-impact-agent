@@ -479,3 +479,59 @@ def test_the_host_fit_sums_the_rule_over_the_combined_peaks_not_the_committed_li
     committed = rule["app_committed_limit_bytes"] + rule["postgres_committed_limit_bytes"]
     assert committed + 640 * 2**20 == 1216 * 2**20, "what the first form summed"
     assert rule["budget_bytes"] < rule["limits_sum_bytes"] and rule["fits"] is False
+
+
+# --- the fold memo's capture (M3 step 17) -------------------------------------------------
+
+
+FOLD_MEMO_CAPTURE = ROOT / "probes" / "captures" / "live-acceptance" / "2026-11-02"
+WORKER = BOUNDED[2]
+FOLD_MEMO_CRITERION = 0.05
+"""The worker's idle CPU rate, in seconds a second, under the three acceptance attempts
+inside the lookback, fixed before the capture at the step's entry: the fold memo is
+accepted at or under it."""
+
+
+def test_the_fold_memo_reading_regenerates_from_its_committed_capture() -> None:
+    """The second capture of the sampler, idle under the three acceptance attempts after
+    the fold memo's deploy, reduced to its own reading beside the acceptance's."""
+    reduce = _module("reduce")
+    reading = json.loads((PROBE / "reading-fold-memo.json").read_text(encoding="utf-8"))
+    assert reading["capture"] == FOLD_MEMO_CAPTURE.name
+    for name, value in reading["sources"].items():
+        assert cast(Any, reduce).digest(FOLD_MEMO_CAPTURE / name) == value, name
+    assert cast(Any, reduce).reduce_capture(FOLD_MEMO_CAPTURE) == reading
+
+
+def worker_rate_by_minute(rows: list[dict[str, Any]]) -> list[float]:
+    """The worker's CPU rate over each minute of the capture from its first sample, the
+    cgroup's microseconds over the samples' wall time."""
+    start = rows[0]["ts"]
+    buckets: dict[int, list[float]] = {}
+    for before, after in zip(rows, rows[1:], strict=False):
+        minute = int((before["ts"] - start) // 60)
+        cpu = (after["containers"][WORKER]["cpu"] - before["containers"][WORKER]["cpu"]) / 1e6
+        bucket = buckets.setdefault(minute, [0.0, 0.0])
+        bucket[0] += cpu
+        bucket[1] += after["ts"] - before["ts"]
+    return [round(cpu / wall, 4) for _, (cpu, wall) in sorted(buckets.items())]
+
+
+def test_the_fold_memo_meets_the_criterion_whole_and_minute_by_minute() -> None:
+    """The finding the memo answers: 0.172 s a second at three attempts before it, the
+    plateau read by the minute. After it, the whole capture reads 0.019 and no minute above
+    0.021, under the 0.05 criterion with the fill pass before the capture's start (the
+    worker restarted on the deploy a minute before the sampler); the residue above the
+    empty-table tick of 0.010 is the two fresh reads per attempt per pass."""
+    reading = json.loads((PROBE / "reading-fold-memo.json").read_text(encoding="utf-8"))
+    idle = reading["samples"]["idle"]["phases"]["idle"]
+    worker = idle["containers"][WORKER]
+    assert worker["cpu_rate"]["seconds"] >= 600
+    assert worker["cpu_rate"]["mean"] == 0.0193
+    assert worker["cpu_rate"]["mean"] <= FOLD_MEMO_CRITERION
+    samples = (FOLD_MEMO_CAPTURE / "idle-samples.jsonl").read_text(encoding="utf-8")
+    rows = [json.loads(line) for line in samples.splitlines() if line.strip()]
+    minutes = worker_rate_by_minute(rows)
+    assert len(minutes) == 16
+    assert min(minutes) == 0.0187 and max(minutes) == 0.0207
+    assert all(rate <= FOLD_MEMO_CRITERION for rate in minutes)

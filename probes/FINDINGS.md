@@ -5396,3 +5396,44 @@ met in the awaiting phases, not measured in the active phases, named above; (e) 
 0.89 and 1.17; (f) met, the header absent and the script seen running; (g) met, the
 reading regenerated and the limit the rule's; (h) met on three reads. The flag went off
 by the close's commit.
+
+## fold-memo — the sweeper's per-attempt fold memoized and the worker's idle tick read again under the same three attempts: 0.172 s a second before, 0.019 after, flat by the minute, the criterion fixed before the capture met (2026-11-02)
+
+The live acceptance's parked finding (above): the worker's idle CPU rate grew 55 ms a
+second per visitor attempt because the sweeper's snapshot folded every public admission
+inside its seven-day lookback on every two-second pass. The fix ruled at M3 step 17's entry
+(the fold memo over the filtered listing, since a closed log is immutable and the memo
+changes nothing the pass decides over) deployed as `66ab1fb` at 20:43 UTC; the
+acceptance's host sampler then ran idle on the instance from 20:44:30 to 21:00:16 UTC
+(185 samples at a five-second cadence, 946 s), the three acceptance attempts of 2026-11-01
+still inside the lookback and nothing else on the ledger, the worker's fill pass a minute
+before the capture's start (the worker was recreated by the deploy). The capture is
+`captures/live-acceptance/2026-11-02/`, reduced by `live-acceptance/reduce.py` to
+`live-acceptance/reading-fold-memo.json` and held to it by a regeneration test; the
+criterion, fixed at the step's entry before the capture, was the worker's idle rate at or
+under 0.05 s a second over at least ten minutes with the fill pass cut out.
+
+| worker idle CPU rate | attempts in the lookback | capture | source |
+|---|---|---|---|
+| 0.010 s a second | 0 | 2026-11-01 idle, 421 s | `reading.json` |
+| 0.172 s a second | 3 | 2026-11-01 after run 3, by the minute | the live acceptance's reading |
+| **0.019 s a second** | 3 | 2026-11-02 idle, 946 s | `reading-fold-memo.json` |
+
+By the minute the rate read 0.0187 to 0.0207 over sixteen minutes, no drift and no step
+(`tests/unit/test_live_acceptance_probe.py`, the criterion test, computes the series from
+the committed capture). The residue above the empty-table tick, 0.009 s a second for
+three attempts or 3 ms per attempt per two-second pass, is the two reads the memo keeps
+fresh (the publication record and the live row), near the entry's lower estimate (about
+2 ms a statement) and far under its upper one from the tick-cost proxy, which included a
+session's setup. At the daily cap's week of 35 attempts the residue extrapolates to about
+0.1 s a second, inside the single worker's tick, where the fold had extrapolated to 1.9.
+The second cut named at the entry (skipping the two reads for attempts the inventory
+memory marks published and covered) is not taken.
+
+**Observed in passing, unattributed.** The worker's resident size idle was 171.7 MiB here
+against 128.1 MiB in the acceptance's idle capture before any attempt (both the cgroup's
+`memory.current` maximum over the phase), under the 448m limit and under the 280.2 MiB
+peak the limit was set from. The memo holds three states and accounts for well under a
+MiB of it by the suite's deep-size bound; the rest is the process's history since (three
+attempts' publications and inventories, the fold churn before the fix), not measured.
+Nothing binds; the acceptance's limit stands.
