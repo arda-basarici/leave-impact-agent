@@ -1,0 +1,117 @@
+# The Access probe: three requests against the benchmark's world site from a GitHub-hosted
+# runner, reported by status and by the headers that say who answered. The Frappe
+# hostnames sit behind a Cloudflare Access application whose policy admits machine clients
+# by a service token; this probe is the evidence that the runner's own address space
+# passes it, the way the world milestone's first cloud client was challenged by the edge
+# on its first request and no workstation pass could have shown it. It tests the shape
+# of the application, not the token: any valid token proves the path.
+#
+# What each request proves. The login page with the two token headers answers 200 and
+# the upstream's own body, so the policy admits the token and the request reaches
+# Frappe. The login page without them is refused by Access with a 302 to the Zero Trust
+# organization's own login page, observed at the landing on 2026-11-03 where a strict
+# 401 or 403 had been expected, so the refusal is the edge's and not Frappe's and the
+# Location header's host is the assertion. The ping method without the headers answers 200 with
+# `pong`, so the path bypass the uptime monitors rely on holds from this address space
+# too. The token never goes to the ping path, since a bypassed path proves nothing about
+# the policy. The login page is the target because the site's root answers an anonymous
+# visitor with a redirect to it, and a 200 assertion on the root would fail on Frappe.
+#
+# Nothing of a body is printed: statuses, the Server and `cf-` headers and the host of a
+# Location header only, since the job log is public and Access's redirect carries a signed
+# metadata blob in its query that names the visitor's country. The two token values enter under the
+# secret source alone, so the runner masks them if a header line ever carried one.
+# Manual, cheap, and not part of any generation; the generation and validation jobs
+# ride the same edge in earnest through the adapters' transport afterward. The
+# `benchmark` environment's reviewer gate applies, as it does to every job that holds
+# that environment's secrets.
+name: probe access
+on:
+  workflow_dispatch:
+permissions: {}
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    environment: benchmark
+    timeout-minutes: 5
+    permissions: {}
+
+    steps:
+      - name: Three requests against the world site
+        env:
+          BASE_URL: ${{ vars.LEAVE_IMPACT_FRAPPE_BASE_URL }}
+          CF_ACCESS_CLIENT_ID: ${{ secrets.LEAVE_IMPACT_CF_ACCESS_CLIENT_ID }}
+          CF_ACCESS_CLIENT_SECRET: ${{ secrets.LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          # No apostrophe inside a message here: bash reads it as an opening quote.
+          : "${BASE_URL:?the Frappe base URL variable of the benchmark environment is unset}"
+          : "${CF_ACCESS_CLIENT_ID:?the Access client id secret is unset}"
+          : "${CF_ACCESS_CLIENT_SECRET:?the Access client secret is unset}"
+          headers=$(mktemp)
+          body=$(mktemp)
+          log=$(mktemp)
+          failures=0
+
+          # request <label> <path> <expected status> <with-token yes|no> <body marker> <location host>
+          # One GET without following redirects, so a 302 is seen as a 302. The status
+          # is matched whole against the pattern; the marker is searched in the body
+          # and reported as found or absent, never shown; a location host, when given,
+          # must equal the host of the Location header.
+          request() {
+            local label=$1 path=$2 expected=$3 with_token=$4 marker=$5 location_host=$6
+            local -a auth=()
+            if [ "$with_token" = yes ]; then
+              auth=(-H "CF-Access-Client-Id: $CF_ACCESS_CLIENT_ID" -H "CF-Access-Client-Secret: $CF_ACCESS_CLIENT_SECRET")
+            fi
+            local status
+            status=$(curl -sS --max-time 20 -o "$body" -D "$headers" -w '%{http_code}' "${auth[@]}" "$BASE_URL$path")
+            local verdict=pass
+            if ! grep -qxE "$expected" <<<"$status"; then
+              verdict=FAIL
+              failures=$((failures + 1))
+            fi
+            local marker_line=""
+            if [ -n "$marker" ]; then
+              if grep -q "$marker" "$body"; then
+                marker_line="; upstream marker found"
+              else
+                marker_line="; upstream marker absent"
+                verdict=FAIL
+                failures=$((failures + 1))
+              fi
+            fi
+            local location_line=""
+            if [ -n "$location_host" ]; then
+              local found_host
+              found_host=$(grep -i '^location:' "$headers" | tr -d '\r' | sed -E 's#^[Ll]ocation: *https?://([^/]+).*#\1#')
+              if [ "$found_host" = "$location_host" ]; then
+                location_line="; redirected to $location_host"
+              else
+                location_line="; Location host '${found_host:-none}' is not $location_host"
+                verdict=FAIL
+                failures=$((failures + 1))
+              fi
+            fi
+            echo "$verdict  $label: GET $path with token=$with_token -> $status (expected $expected)$marker_line$location_line" | tee -a "$log"
+            grep -iE '^(server|cf-[a-z-]+):' "$headers" | tr -d '\r' | sed 's/^/        /' | tee -a "$log" || true
+          }
+
+          request "the policy admits the token" /login 200 yes frappe ""
+          request "the edge refuses a tokenless request" /login 302 no "" ardabasarici.cloudflareaccess.com
+          request "the monitors' bypass holds" /api/method/ping 200 no pong ""
+
+          {
+            echo "## Access probe"
+            echo
+            echo '```'
+            cat "$log"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$failures" -ne 0 ]; then
+            echo "$failures of the probe's checks failed; the lines above name each" >&2
+            exit 1
+          fi
+          echo "the three requests answered as the Access shape requires"
