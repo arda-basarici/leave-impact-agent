@@ -491,3 +491,18 @@ the fill pass cut out; a miss was to be inspected on the instance before any rul
 | probe | criteria | capture |
 |---|---|---|
 | **fold-memo** — the acceptance's host sampler idle on the instance for 946 s after the fold memo's deploy, the three acceptance attempts inside the lookback | the worker's idle CPU rate at or under 0.05 s a second over at least ten minutes, the fill pass before the capture; met at 0.019 whole and 0.0187 to 0.0207 by the minute (against 0.172 before the fix, 0.010 over an empty table), `live-acceptance/reading-fold-memo.json` regenerated from the capture by a test and the minute series computed from the capture by another | `captures/live-acceptance/2026-11-02/` (`idle-start.out.txt`, `idle-stop.out.txt`, `idle-samples.jsonl`) |
+
+## The Access landing's runner probe (assertions fixed 2026-11-03 before the dispatch; this section written at the capture)
+
+The Frappe hostnames went behind a Cloudflare Access application on 2026-11-03, a
+service token admitting the machine clients; the probe is the runner's own evidence
+that its address space passes it, the way the world milestone's first cloud client was
+challenged by the edge on its first request. It tests the application's shape and not
+the token: any valid token proves the path. The three assertions were fixed in
+`probe-access.yml` before the dispatch, the tokenless one re-cut from a strict 401 or 403
+to the 302 the landing's instance probe observed, and the workflow was dry-run from the
+workstation with a dummy token against the live edge before it was committed.
+
+| probe | criteria | capture |
+|---|---|---|
+| **access-runner-probe** — `probe-access.yml` dispatched on the `benchmark` environment against the base-URL variable's site, three requests without following redirects | the login page with the two token headers answers 200 and a body carrying Frappe's marker; the login page without them answers 302 with a Location host of the Zero Trust organization; the ping method without them answers 200 with `pong`; statuses, the Server and `cf-` headers and the Location host printed, never a body, a cookie or a token value | `captures/access-service-token/runner-probe-01.txt` |

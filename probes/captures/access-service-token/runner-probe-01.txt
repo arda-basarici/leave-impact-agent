@@ -1,0 +1,15 @@
+# probe-access.yml run 41714568385, job probe (126191102590) — commit e84c57f, dispatched
+# 2026-11-03T20:39:24Z, held at the benchmark environment's reviewer gate, the job ran
+# 20:45:39 to 20:45:44 UTC. The three requests from the GitHub-hosted runner against the
+# base-URL variable's site (hr-w4), the Access application live on the edge since 20:25 UTC.
+# The lines are the job's printed output whole: statuses, the upstream-marker verdicts, the
+# Server and cf- headers and the Location host; no body, no cookie, no token value.
+2026-11-03T20:45:41.5104996Z pass  the policy admits the token: GET /login with token=yes -> 200 (expected 200); upstream marker found
+2026-11-03T20:45:41.5129383Z         cf-cache-status: DYNAMIC
+2026-11-03T20:45:41.5130361Z         cf-ray: a54e3958fd8c2fe9-SJC
+2026-11-03T20:45:41.5930792Z pass  the edge refuses a tokenless request: GET /login with token=no -> 302 (expected 302); redirected to ardabasarici.cloudflareaccess.com
+2026-11-03T20:45:41.5968074Z         cf-ray: a54e395e9b0bcf0e-SJC
+2026-11-03T20:45:42.3782414Z pass  the monitors' bypass holds: GET /api/method/ping with token=no -> 200 (expected 200); upstream marker found
+2026-11-03T20:45:42.3828471Z         cf-cache-status: DYNAMIC
+2026-11-03T20:45:42.3829273Z         cf-ray: a54e395f4cd6c0cc-LAX
+2026-11-03T20:45:42.3856183Z the three requests answered as the Access shape requires

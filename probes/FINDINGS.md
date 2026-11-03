@@ -5441,3 +5441,40 @@ recreated by the deploy, so nothing from before the fix is in this process). Not
 binds at idle; the limit covers the parent and its active child together, and that
 headroom under a live run is read by the sampler across the final smoke before the flag
 returns, as the acceptance step read it at 280.2 MiB.
+
+## access-runner-probe — the runner passes the Access application on its first dispatch: the token admitted to Frappe's login page, a tokenless request sent to the organization's login, the ping bypass holding, and the expected strict refusal found to be a redirect (2026-11-03)
+
+The Frappe hostnames (`hr`, `hr-w3`, `hr-w4`) went behind one Cloudflare Access
+application at 20:25 UTC on 2026-11-03, a Service Auth policy admitting the service token
+and an Allow policy for browsers, with a second, path-scoped application bypassing
+`/api/method/ping` so the uptime monitors keep reading the upstream's own body; the
+instance's path was proved by the landing's own probe over both world sites, and this
+probe is the runner's. `probe-access.yml` (commit `e84c57f`) dispatched as run
+41714568385 at 20:39:24 UTC, held at the `benchmark` environment's reviewer gate, the job
+running 20:45:39 to 20:45:44 UTC against `hr-w4`. The capture is
+`captures/access-service-token/runner-probe-01.txt`, the job's printed lines whole.
+
+| request | expected | observed |
+|---|---|---|
+| `GET /login` with the two token headers | 200, Frappe's marker in the body | 200, marker found |
+| `GET /login` without them | 302, Location host `ardabasarici.cloudflareaccess.com` | 302, that host |
+| `GET /api/method/ping` without them | 200, `pong` in the body | 200, `pong` found |
+
+**PASS** on all three. Two findings beside the verdict.
+
+The refusal's shape was not the one designed for. The organization was created with
+strict service-token authentication on, and a tokenless or wrong-token request was
+expected to answer 401 or 403 and never a redirect; the landing's instance probe observed
+a 302 to the organization's login page, and the workstation dry run with a dummy token
+reproduced it on both login calls, so the assertion was re-cut to the status and the
+Location host before the dispatch. The with-token call's 200 is Frappe's own page, the
+upstream marker found in the body, so the policy admits the token and the request reaches
+the origin; a wrong token answers the same 302 as no token, which the dry run showed
+and the probe's first check would refuse.
+
+The redirect's Location is not printable whole. Its query carries a signed metadata blob
+naming the hostname, the application id, an application session hash and the visitor's
+country; the probe prints the Location host alone, and any capture of a full Access
+redirect is read for the blob before it is filed. The dry run before the application went
+live (the token and ping checks passing, the refusal check failing on Frappe's 200)
+exercised the probe's failure path on real responses; the run after it is the record.
