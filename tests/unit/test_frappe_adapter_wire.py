@@ -18,7 +18,12 @@ from typing import Any
 import httpx
 import pytest
 
-from leaveimpact.adapters.frappe import FrappeAdapter, FrappeConfig, FrappeCredential
+from leaveimpact.adapters.frappe import (
+    AccessServiceToken,
+    FrappeAdapter,
+    FrappeConfig,
+    FrappeCredential,
+)
 from leaveimpact.core.entities import Employee, Leave, Team
 from leaveimpact.core.enums import EmploymentType, Grade, LeaveKind, LeaveStatus
 from leaveimpact.core.ids import employee_id, leave_id, skill_id, team_id
@@ -46,9 +51,37 @@ def adapter(script: Scripted) -> FrappeAdapter:
         base_url="https://frappe.invalid",
         credential=FrappeCredential("k", "s"),
         config=FrappeConfig("Cassette Org", "CAS"),
+        access=None,
         sleep=lambda _: None,
         httpx_transport=httpx.MockTransport(script.handler),
     )
+
+
+def test_the_access_service_token_rides_as_two_headers_and_only_when_given() -> None:
+    """The edge in front of the Frappe hostnames reads the pair before Frappe sees the
+    request, so it goes on every request beside the API pair; an adapter built without
+    one sends neither header, so a site with no edge before it (the local twin, a
+    cassette replay) is the same adapter. The repr shows neither half."""
+    gated = Scripted(data([]), data([]))
+    FrappeAdapter(
+        base_url="https://frappe.invalid",
+        credential=FrappeCredential("k", "s"),
+        config=FrappeConfig("Cassette Org", "CAS"),
+        access=AccessServiceToken(client_id="cid-value", client_secret="cs-value"),
+        sleep=lambda _: None,
+        httpx_transport=httpx.MockTransport(gated.handler),
+    ).held_employee_numbers([employee_id(4)])
+    for request in gated.seen:
+        assert request.headers["cf-access-client-id"] == "cid-value"
+        assert request.headers["cf-access-client-secret"] == "cs-value"
+        assert request.headers["authorization"] == "token k:s"
+    ungated = Scripted(data([]), data([]))
+    adapter(ungated).held_employee_numbers([employee_id(4)])
+    for request in ungated.seen:
+        assert "cf-access-client-id" not in request.headers
+        assert "cf-access-client-secret" not in request.headers
+    shown = repr(AccessServiceToken(client_id="cid-value", client_secret="cs-value"))
+    assert "cid-value" not in shown and "cs-value" not in shown
 
 
 def data(payload: Any) -> httpx.Response:

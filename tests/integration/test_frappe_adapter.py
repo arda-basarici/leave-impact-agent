@@ -24,7 +24,12 @@ from datetime import date
 
 import pytest
 
-from leaveimpact.adapters.frappe import FrappeAdapter, FrappeConfig, FrappeCredential
+from leaveimpact.adapters.frappe import (
+    AccessServiceToken,
+    FrappeAdapter,
+    FrappeConfig,
+    FrappeCredential,
+)
 from leaveimpact.adapters.transport import Transport
 from leaveimpact.core.entities import Employee, Leave, Team
 from leaveimpact.core.enums import EmploymentType, Grade, LeaveKind, LeaveStatus, Source
@@ -32,7 +37,7 @@ from leaveimpact.core.ids import employee_id, leave_id, skill_id, team_id
 from leaveimpact.core.ports.errors import SourceUnreachable
 from leaveimpact.core.worldtime import DateSpan
 from tests.integration.frappe_support import reset_company
-from tests.recording import FRAPPE
+from tests.recording import FRAPPE, frappe_access_pair
 
 pytestmark = [pytest.mark.integration, pytest.mark.vcr]
 
@@ -103,18 +108,33 @@ def credential() -> FrappeCredential:
     return FrappeCredential("replay", "replay")
 
 
+def access() -> AccessServiceToken | None:
+    """The edge's service token when recording against the gated sandbox; none on replay,
+    where the cassette holds the filtered placeholder and the placeholder host."""
+    pair = frappe_access_pair() if FRAPPE.recording else None
+    return None if pair is None else AccessServiceToken(*pair)
+
+
 def test_people_written_are_read_back() -> None:
     cred = credential()
+    token = access()
+    raw_headers = {"Authorization": cred.authorization, "Accept": "application/json"}
+    if token is not None:
+        raw_headers.update(token.headers)
     with Transport(
         base_url=FRAPPE.base_url,
         source=Source.FRAPPE,
-        headers={"Authorization": cred.authorization, "Accept": "application/json"},
+        headers=raw_headers,
         sleep=lambda _: None,
     ) as raw:
         reset_company(raw, CONFIG.company)
 
     adapter = FrappeAdapter(
-        base_url=FRAPPE.base_url, credential=cred, config=CONFIG, sleep=lambda _: None
+        base_url=FRAPPE.base_url,
+        credential=cred,
+        config=CONFIG,
+        access=token,
+        sleep=lambda _: None,
     )
     adapter.ensure_site_ready()
     adapter.ensure_site_schema()

@@ -233,11 +233,14 @@ case "$LIFECYCLE_COMMAND" in
     export LEAVE_IMPACT_JIRA_BASE_URL="$JIRA_BASE_URL"
     LEAVE_IMPACT_FRAPPE_API_KEY=$(param /leave-agent/frappe-api-key)
     LEAVE_IMPACT_FRAPPE_API_SECRET=$(param /leave-agent/frappe-api-secret)
+    LEAVE_IMPACT_CF_ACCESS_CLIENT_ID=$(param /leave-agent/cf-access-client-id)
+    LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET=$(param /leave-agent/cf-access-client-secret)
     LEAVE_IMPACT_JIRA_EMAIL=$(param /leave-agent/jira-email)
     LEAVE_IMPACT_JIRA_TOKEN=$(param /leave-agent/jira-token)
     LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
     export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
     export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+    export LEAVE_IMPACT_CF_ACCESS_CLIENT_ID LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET
     listing=$(running_lifecycle_containers) || {
       echo "the host's container listing failed (docker ps exit $?); work is not started on a host whose containers could not be read" >&2
       exit 3

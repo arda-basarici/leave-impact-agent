@@ -127,6 +127,8 @@ jobs:
           LEAVE_IMPACT_FRAPPE_BASE_URL: ${{ vars.LEAVE_IMPACT_FRAPPE_BASE_URL }}
           LEAVE_IMPACT_FRAPPE_API_KEY: ${{ secrets.LEAVE_IMPACT_VALIDATOR_FRAPPE_API_KEY }}
           LEAVE_IMPACT_FRAPPE_API_SECRET: ${{ secrets.LEAVE_IMPACT_VALIDATOR_FRAPPE_API_SECRET }}
+          LEAVE_IMPACT_CF_ACCESS_CLIENT_ID: ${{ secrets.LEAVE_IMPACT_CF_ACCESS_CLIENT_ID }}
+          LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET: ${{ secrets.LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET }}
           LEAVE_IMPACT_JIRA_BASE_URL: ${{ vars.LEAVE_IMPACT_VALIDATOR_JIRA_BASE_URL }}
           LEAVE_IMPACT_JIRA_EMAIL: ${{ vars.LEAVE_IMPACT_VALIDATOR_JIRA_EMAIL }}
           LEAVE_IMPACT_JIRA_TOKEN: ${{ secrets.LEAVE_IMPACT_VALIDATOR_JIRA_TOKEN }}
@@ -139,6 +141,10 @@ jobs:
           set -euo pipefail
           aws sts get-caller-identity --query Arn --output text | tee identity.txt
           grep -q 'assumed-role/leave-agent-validator/' identity.txt
+          # Both halves of the Access service token before any call: a request with one
+          # header is a tokenless request to the edge. No apostrophe inside a message here.
+          : "${LEAVE_IMPACT_CF_ACCESS_CLIENT_ID:?the Access client id secret is unset}"
+          : "${LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET:?the Access client secret is unset}"
           umask 077
           printf '%s' "$LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON" > "$RUNNER_TEMP/google-authorized-user.json"
           export LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_FILE="$RUNNER_TEMP/google-authorized-user.json"

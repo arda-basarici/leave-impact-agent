@@ -17,20 +17,28 @@ WEB_SUBNET = "172.18.0.0/16"
 2026-10-24 (`platform/projects/leave-impact/README.md`, row 27)."""
 
 
-VENDOR_PREFIXES = ("LEAVE_IMPACT_FRAPPE_", "LEAVE_IMPACT_JIRA_", "LEAVE_IMPACT_GOOGLE_")
+VENDOR_PREFIXES = (
+    "LEAVE_IMPACT_FRAPPE_",
+    "LEAVE_IMPACT_CF_ACCESS_",
+    "LEAVE_IMPACT_JIRA_",
+    "LEAVE_IMPACT_GOOGLE_",
+)
 VENDOR_NAMES = frozenset(
     {
         "LEAVE_IMPACT_FRAPPE_BASE_URL",
         "LEAVE_IMPACT_FRAPPE_API_KEY",
         "LEAVE_IMPACT_FRAPPE_API_SECRET",
+        "LEAVE_IMPACT_CF_ACCESS_CLIENT_ID",
+        "LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET",
         "LEAVE_IMPACT_JIRA_BASE_URL",
         "LEAVE_IMPACT_JIRA_EMAIL",
         "LEAVE_IMPACT_JIRA_TOKEN",
         "LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON",
     }
 )
-"""The seven names the investigator's host wiring reads (`adapters.wiring.hosts_from_env`):
-the five parameters under /leave-agent/ and the two base URLs."""
+"""The nine names the investigator's host wiring reads (`adapters.wiring.hosts_from_env`):
+the seven parameters under /leave-agent/ (the five vendor principals and the Access
+service token's pair, since 2026-11-03) and the two base URLs."""
 
 
 def service_environment(name: str) -> dict[str, str]:
@@ -57,7 +65,7 @@ def test_the_forwarded_headers_subnet_is_the_contracts_web_row() -> None:
 def test_the_vendor_principals_are_named_on_the_worker_service_alone() -> None:
     """Once the deploy exports the principals for the worker, `compose up` would hand them
     to any service that names them; the app names none, by prefix and not only by the
-    seven, and the worker names all seven."""
+    nine, and the worker names all nine."""
     app = app_environment()
     assert [name for name in app if name.startswith(VENDOR_PREFIXES)] == []
     worker = service_environment("worker")

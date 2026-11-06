@@ -16,7 +16,8 @@ every request in a committed cassette must address a host on ``ALLOWED_CASSETTE_
 — the placeholders and Google's public API hosts — because CI does not know the real
 sites and a check that needed them would pass vacuously there (a review finding).
 
-**The secrets.** Authorization and cookie request headers are filtered by name; the
+**The secrets.** Authorization, cookie and the two Cloudflare Access service-token
+request headers are filtered by name; the
 form fields of a Google token refresh (the client id and secret, the refresh token) are
 filtered by name; a JSON response body has its secret-shaped keys — an access token, a
 refresh token, an identity token, a client secret, an API key or secret, an account
@@ -51,7 +52,7 @@ from typing import Any, cast
 from urllib.parse import urlsplit
 
 REDACTED = "REDACTED"
-FILTERED_HEADERS = ("authorization", "cookie")
+FILTERED_HEADERS = ("authorization", "cookie", "cf-access-client-id", "cf-access-client-secret")
 # Request-body fields, form-encoded or JSON: the Google refresh grant, the Jira project lead.
 FILTERED_FORM_FIELDS = ("client_id", "client_secret", "refresh_token", "leadAccountId")
 # Response-body keys at any depth: tokens, keys, the Atlassian account behind the token,
@@ -99,6 +100,26 @@ class Sandbox:
     @property
     def recording(self) -> bool:
         return self.real_base_url is not None
+
+
+# The Access service token in front of the Frappe sandboxes since 2026-11-03: sent when
+# recording, under the two names the runners and the instance read, and never written
+# to a cassette (the filtered headers above).
+ACCESS_ENV = ("LEAVE_IMPACT_CF_ACCESS_CLIENT_ID", "LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET")
+
+
+def frappe_access_pair() -> tuple[str, str] | None:
+    """The service token's client id and secret the recording session sends to the Frappe
+    sandbox, or ``None`` when the environment names neither (a replay, or a site with no
+    edge before it); one half alone is a misconfigured recording session."""
+    client_id, client_secret = (os.environ.get(name, "").strip() for name in ACCESS_ENV)
+    if not client_id and not client_secret:
+        return None
+    if not (client_id and client_secret):
+        raise RuntimeError(
+            "the Access service token is a pair: set both of " + " and ".join(ACCESS_ENV)
+        )
+    return client_id, client_secret
 
 
 # The Google principal: a directory holding the consent flow's token file (the probes

@@ -100,6 +100,11 @@ services:
       LEAVE_IMPACT_FRAPPE_BASE_URL: ${LEAVE_IMPACT_FRAPPE_BASE_URL:-}
       LEAVE_IMPACT_FRAPPE_API_KEY: ${LEAVE_IMPACT_FRAPPE_API_KEY:-}
       LEAVE_IMPACT_FRAPPE_API_SECRET: ${LEAVE_IMPACT_FRAPPE_API_SECRET:-}
+      # The Access service token the edge in front of the Frappe hostnames reads (the
+      # platform contract's Access row, since 2026-11-03): the worker's child sends the
+      # pair on the Frappe host alone, from the application's shared transport.
+      LEAVE_IMPACT_CF_ACCESS_CLIENT_ID: ${LEAVE_IMPACT_CF_ACCESS_CLIENT_ID:-}
+      LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET: ${LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET:-}
       LEAVE_IMPACT_JIRA_BASE_URL: ${LEAVE_IMPACT_JIRA_BASE_URL:-}
       LEAVE_IMPACT_JIRA_EMAIL: ${LEAVE_IMPACT_JIRA_EMAIL:-}
       LEAVE_IMPACT_JIRA_TOKEN: ${LEAVE_IMPACT_JIRA_TOKEN:-}

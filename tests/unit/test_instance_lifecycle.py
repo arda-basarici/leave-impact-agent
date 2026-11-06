@@ -161,6 +161,8 @@ def test_work_hands_the_vendor_principals_to_the_container_environment_and_no_co
     for variable, parameter in (
         ("LEAVE_IMPACT_FRAPPE_API_KEY", "frappe-api-key"),
         ("LEAVE_IMPACT_FRAPPE_API_SECRET", "frappe-api-secret"),
+        ("LEAVE_IMPACT_CF_ACCESS_CLIENT_ID", "cf-access-client-id"),
+        ("LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET", "cf-access-client-secret"),
         ("LEAVE_IMPACT_JIRA_EMAIL", "jira-email"),
         ("LEAVE_IMPACT_JIRA_TOKEN", "jira-token"),
         ("LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON", "google-authorized-user-json"),

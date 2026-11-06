@@ -347,11 +347,18 @@ def probe_frappe(env: Mapping[str, str], principal: str, capture: Capture) -> No
         ("disposable_mutations_refused", "both_refused"),
         ("disposable_removed", "removed"),
     )
+    # No Access token: the probe ran on 2026-09-22, before the edge gated the hostnames.
     reader = FrappeAdapter(
-        base_url=reader_site.base_url, credential=reader_site.credential, config=config
+        base_url=reader_site.base_url,
+        credential=reader_site.credential,
+        config=config,
+        access=None,
     )
     admin = FrappeAdapter(
-        base_url=reference_site.base_url, credential=reference_site.credential, config=config
+        base_url=reference_site.base_url,
+        credential=reference_site.credential,
+        config=config,
+        access=None,
     )
     raw_reader = frappe_raw(reader_site.base_url, reader_site.credential)
     raw_admin = frappe_raw(reference_site.base_url, reference_site.credential)

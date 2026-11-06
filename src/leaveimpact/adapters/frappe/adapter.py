@@ -4,7 +4,11 @@ One class implements both ports, because the read and the write side share a
 transport, a company scope and an identity map; which side a caller holds is the
 type it is handed (``PeopleReader`` or ``PeopleWriter``), never a second class.
 Construction does no I/O: the credential, the configuration and the transport policy
-are three frozen values, and the first request happens on the first call.
+are three frozen values, and the first request happens on the first call. A site
+behind Cloudflare Access takes an ``AccessServiceToken`` too: the edge's two headers
+join the same transport's header set, and nothing else of the adapter changes. The
+keyword has no default, so every construction states a token or ``None``, and a
+composition root that forgets the edge fails the type check, not the first live read.
 
 **Scope.** Every read filters by the configured company and every write plants it, so
 a site can hold the world and the cassette recordings side by side without one reading
@@ -89,6 +93,31 @@ class FrappeCredential:
 
 
 @dataclass(frozen=True, slots=True)
+class AccessServiceToken:
+    """The Cloudflare Access service token the edge in front of the Frappe hostnames reads
+    before Frappe sees a request; the repr never shows either half.
+
+    Edge authentication, not Frappe's: the pair rides as two request headers beside the
+    API pair's Authorization, and only this adapter's constructor accepts the type, so
+    "the Frappe host alone" holds by structure rather than by a host check (the Access
+    landing of 2026-11-03; the platform contract's Access row names the headers).
+    """
+
+    client_id: str
+    client_secret: str
+
+    def __repr__(self) -> str:
+        return "AccessServiceToken(client_id=…, client_secret=…)"
+
+    @property
+    def headers(self) -> dict[str, str]:
+        return {
+            "CF-Access-Client-Id": self.client_id,
+            "CF-Access-Client-Secret": self.client_secret,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FrappeConfig:
     """The company the adapter reads and writes under, and the names derived from it.
 
@@ -161,6 +190,7 @@ class FrappeAdapter:
         base_url: str,
         credential: FrappeCredential,
         config: FrappeConfig,
+        access: AccessServiceToken | None,
         policy: TransportPolicy = DEFAULT_POLICY,
         sleep: Callable[[float], None] | None = None,
         httpx_transport: httpx.BaseTransport | None = None,
@@ -169,10 +199,13 @@ class FrappeAdapter:
         extra: dict[str, Any] = {}
         if sleep is not None:
             extra["sleep"] = sleep
+        headers = {"Authorization": credential.authorization, "Accept": "application/json"}
+        if access is not None:
+            headers.update(access.headers)
         self._transport = Transport(
             base_url=base_url,
             source=Source.FRAPPE,
-            headers={"Authorization": credential.authorization, "Accept": "application/json"},
+            headers=headers,
             policy=policy,
             httpx_transport=httpx_transport,
             **extra,

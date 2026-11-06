@@ -21,6 +21,13 @@ two buckets with their region or the local twin's root. The names, listed once:
 
 - ``LEAVE_IMPACT_FRAPPE_BASE_URL``, ``LEAVE_IMPACT_FRAPPE_API_KEY``,
   ``LEAVE_IMPACT_FRAPPE_API_SECRET`` — the world's Frappe site and its API pair.
+- ``LEAVE_IMPACT_CF_ACCESS_CLIENT_ID``, ``LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET`` — the
+  Cloudflare Access service token in front of the Frappe hostnames (the platform
+  contract's Access row, since 2026-11-03), both or neither. The pair rides as two
+  headers on the Frappe transport alone; a deployment with no edge before its site
+  (the local twin, the cassette suite's placeholder) names neither, and one half
+  without the other is refused naming the missing one, since a request with one
+  header is a tokenless request to the edge.
 - ``LEAVE_IMPACT_JIRA_BASE_URL``, ``LEAVE_IMPACT_JIRA_EMAIL``, ``LEAVE_IMPACT_JIRA_TOKEN``
   — the Jira site, the account and its token. A reader holding a scoped API token
   (the validator since the read principals' ceremony, the investigator from its first
@@ -84,7 +91,11 @@ from pathlib import Path
 from typing import Any, assert_never, cast
 
 from leaveimpact.adapters.calendar.adapter import CalendarAdapter, CalendarCredential
-from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeCredential
+from leaveimpact.adapters.frappe.adapter import (
+    AccessServiceToken,
+    FrappeAdapter,
+    FrappeCredential,
+)
 from leaveimpact.adapters.jira.adapter import JiraAdapter, JiraCredential
 from leaveimpact.adapters.manifest import WorldManifest
 from leaveimpact.adapters.object_store.documents import SealedDocumentReader
@@ -118,6 +129,7 @@ class Hosts:
 
     frappe_base_url: str
     frappe_credential: FrappeCredential
+    frappe_access: AccessServiceToken | None
     jira_base_url: str
     jira_credential: JiraCredential
     calendar_credential: CalendarCredential
@@ -253,6 +265,7 @@ def hosts_from_env(env: Mapping[str, str], *, jira_at_gateway: bool = False) -> 
             api_key=_required(env, "FRAPPE_API_KEY"),
             api_secret=_required(env, "FRAPPE_API_SECRET"),
         ),
+        frappe_access=_access_token(env),
         jira_base_url=jira_base_url,
         jira_credential=JiraCredential(
             email=_required(env, "JIRA_EMAIL"), api_token=_required(env, "JIRA_TOKEN")
@@ -460,6 +473,7 @@ def build_readers(hosts: Hosts, manifest: WorldManifest, world_store: ObjectRead
         base_url=hosts.frappe_base_url,
         credential=hosts.frappe_credential,
         config=manifest.systems.frappe,
+        access=hosts.frappe_access,
     )
     jira = JiraAdapter(
         base_url=hosts.jira_base_url, credential=hosts.jira_credential, config=manifest.systems.jira
@@ -518,6 +532,25 @@ _GATEWAY_ROOT = re.compile(
     r"https://api\.atlassian\.com/ex/jira/"
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
 )
+
+
+def _access_token(env: Mapping[str, str]) -> AccessServiceToken | None:
+    """The Access service token's pair, both or neither: one half alone is refused
+    naming the missing one, since a request with one header is a tokenless request to
+    the edge, answered by a redirect and never by Frappe."""
+    names = ("CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET")
+    present = [name for name in names if env.get(PREFIX + name, "").strip()]
+    if not present:
+        return None
+    if len(present) == 1:
+        missing = next(name for name in names if name not in present)
+        raise ConfigurationError(
+            f"{PREFIX}{missing} is not set while {PREFIX}{present[0]} is: the Access "
+            "service token is a pair, both or neither"
+        )
+    return AccessServiceToken(
+        client_id=_required(env, names[0]), client_secret=_required(env, names[1])
+    )
 
 
 def _url(env: Mapping[str, str], name: str) -> str:

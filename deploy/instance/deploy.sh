@@ -167,11 +167,15 @@ export POSTGRES_PASSWORD
 # group's second external read, reproduced with the real pre-worker file). The URLs
 # are the demo configuration's HR site and the tracker's gateway root, nonsecret
 # constants of the demo, held equal to their sources by
-# tests/unit/test_instance_deploy.py.
+# tests/unit/test_instance_deploy.py. The Access service token's pair (the platform
+# contract's Access row, since 2026-11-03) is read beside the Frappe pair and travels
+# the same way: the worker's child sends it on the Frappe host alone.
 LEAVE_IMPACT_FRAPPE_BASE_URL=https://hr-w3.ardabasarici.dev
 LEAVE_IMPACT_JIRA_BASE_URL=https://api.atlassian.com/ex/jira/9a47936a-48cf-49fb-83c1-c720400755af
 LEAVE_IMPACT_FRAPPE_API_KEY=$(param /leave-agent/frappe-api-key)
 LEAVE_IMPACT_FRAPPE_API_SECRET=$(param /leave-agent/frappe-api-secret)
+LEAVE_IMPACT_CF_ACCESS_CLIENT_ID=$(param /leave-agent/cf-access-client-id)
+LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET=$(param /leave-agent/cf-access-client-secret)
 LEAVE_IMPACT_JIRA_EMAIL=$(param /leave-agent/jira-email)
 LEAVE_IMPACT_JIRA_TOKEN=$(param /leave-agent/jira-token)
 LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON=$(param /leave-agent/google-authorized-user-json)
@@ -272,6 +276,7 @@ if grep -qx worker <<< "$target_services"; then
     export LEAVE_IMPACT_FRAPPE_BASE_URL LEAVE_IMPACT_JIRA_BASE_URL
     export LEAVE_IMPACT_FRAPPE_API_KEY LEAVE_IMPACT_FRAPPE_API_SECRET LEAVE_IMPACT_JIRA_EMAIL
     export LEAVE_IMPACT_JIRA_TOKEN LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON
+    export LEAVE_IMPACT_CF_ACCESS_CLIENT_ID LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET
     docker compose up -d --wait --wait-timeout 90 worker
   )
   stamp "worker up"

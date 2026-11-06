@@ -1,6 +1,7 @@
 """The shared wiring: the deployment from the environment with each missing name named, a base
 URL required to carry its scheme, a value still holding Parameter Store's placeholder refused
-as not put, the Google credential read from the file the variable names or from the value
+as not put, the Access service token read as a pair or not at all, the Google credential
+read from the file the variable names or from the value
 itself and never both, refused when absent or not the authorized-user JSON, the local twin
 and the buckets exclusive, the credential values absent from every repr; the stores opened as
 readers only; the four readers built from a manifest's resolved configuration, the
@@ -132,15 +133,50 @@ def test_a_url_without_a_scheme_and_a_bad_google_file_are_refused(tmp_path: Path
 PLACEHOLDER = "UNSET — put the real value out-of-band; see secrets.tf"
 
 
-@pytest.mark.parametrize("name", ["FRAPPE_API_KEY", "JIRA_TOKEN", "GOOGLE_AUTHORIZED_USER_JSON"])
+@pytest.mark.parametrize(
+    "name",
+    ["FRAPPE_API_KEY", "JIRA_TOKEN", "GOOGLE_AUTHORIZED_USER_JSON", "CF_ACCESS_CLIENT_SECRET"],
+)
 def test_a_value_still_holding_the_placeholder_is_refused_as_not_put(
     tmp_path: Path, name: str
 ) -> None:
     env = environment(tmp_path, **{name: PLACEHOLDER})
     if name == "GOOGLE_AUTHORIZED_USER_JSON":
         del env[PREFIX + "GOOGLE_AUTHORIZED_USER_FILE"]
+    if name == "CF_ACCESS_CLIENT_SECRET":
+        env[PREFIX + "CF_ACCESS_CLIENT_ID"] = "cid-value"
     with pytest.raises(ConfigurationError, match=f"{PREFIX}{name} is not put"):
         deployment_from_env(env)
+
+
+def test_the_access_service_token_is_read_as_a_pair_or_not_at_all(tmp_path: Path) -> None:
+    """A reader with no edge before its site names neither half and its hosts carry no
+    token; with both named the pair is the Frappe hosts' record's, the repr hiding it.
+    That the readers built from the hosts carry it is the adapter's required keyword:
+    a construction that omits it fails the type check."""
+    assert hosts_from_env(environment(tmp_path)).frappe_access is None
+    env = environment(
+        tmp_path, CF_ACCESS_CLIENT_ID="cid-value", CF_ACCESS_CLIENT_SECRET="cs-value"
+    )
+    hosts = hosts_from_env(env)
+    assert hosts.frappe_access is not None
+    assert hosts.frappe_access.headers == {
+        "CF-Access-Client-Id": "cid-value",
+        "CF-Access-Client-Secret": "cs-value",
+    }
+    shown = repr(hosts)
+    assert "cid-value" not in shown and "cs-value" not in shown
+
+
+@pytest.mark.parametrize("given", ["CF_ACCESS_CLIENT_ID", "CF_ACCESS_CLIENT_SECRET"])
+def test_half_an_access_service_token_is_refused_naming_the_missing_half(
+    tmp_path: Path, given: str
+) -> None:
+    missing = {"CF_ACCESS_CLIENT_ID": "CF_ACCESS_CLIENT_SECRET"}.get(given, "CF_ACCESS_CLIENT_ID")
+    with pytest.raises(
+        ConfigurationError, match=f"{PREFIX}{missing} is not set while {PREFIX}{given} is"
+    ):
+        hosts_from_env(environment(tmp_path, **{given: "half-value"}))
 
 
 def test_the_google_credential_comes_as_the_file_or_the_value_and_never_both(

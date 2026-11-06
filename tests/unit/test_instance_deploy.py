@@ -131,7 +131,7 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
         assert "LEAVE_IMPACT_AWS_REGION=eu-central-1" in held
         assert "POSTGRES_PASSWORD=value-of-/leave-agent/postgres-password" in held
     assert "value-of-" not in "\n".join(docker)
-    # The worker's `up` saw the five principals and the two base URLs; no command line did,
+    # The worker's `up` saw the seven parameters and the two base URLs; no command line did,
     # and no other invocation did either: not the app's bootstraps, not its `up`, not the
     # prune after the worker (the credential boundary, under the tree's own file).
     for line in docker:
@@ -142,6 +142,8 @@ def test_the_image_is_pulled_by_its_digest_and_tagged_before_compose_runs_anythi
     for variable, parameter in (
         ("LEAVE_IMPACT_FRAPPE_API_KEY", "frappe-api-key"),
         ("LEAVE_IMPACT_FRAPPE_API_SECRET", "frappe-api-secret"),
+        ("LEAVE_IMPACT_CF_ACCESS_CLIENT_ID", "cf-access-client-id"),
+        ("LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET", "cf-access-client-secret"),
         ("LEAVE_IMPACT_JIRA_EMAIL", "jira-email"),
         ("LEAVE_IMPACT_JIRA_TOKEN", "jira-token"),
         ("LEAVE_IMPACT_GOOGLE_AUTHORIZED_USER_JSON", "google-authorized-user-json"),

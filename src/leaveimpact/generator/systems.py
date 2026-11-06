@@ -63,6 +63,7 @@ class AdapterPreparation:
             base_url=hosts.frappe_base_url,
             credential=hosts.frappe_credential,
             config=frappe_company(version),
+            access=hosts.frappe_access,
         )
         self._site = JiraSite(base_url=hosts.jira_base_url, credential=hosts.jira_credential)
         self._principal = CalendarPrincipal(credential=hosts.calendar_credential)

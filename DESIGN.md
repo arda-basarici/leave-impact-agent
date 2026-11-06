@@ -4150,6 +4150,29 @@ the demo milestone's entry or observed abuse before it: Access gives the token-g
 property without a tunnel or a third control plane, and nothing in the investigator
 milestone needs a hostname to be unreachable.
 
+**As landed (2026-11-03, the demo milestone's step 17).** The interim ended on
+2026-11-03: one Access application over the three Frappe hostnames with a Service Auth
+policy for the token `leave-agent-machine-clients` and an Allow policy for the operator
+by one-time PIN, and a second, path-scoped application with a Bypass on the ping method
+so the keyword monitors keep reading Frappe; the platform's work, its contract's Access
+row. A request without the token, or with a wrong one, is answered 302 to the
+organization's login and never by Frappe, where a strict 401 or 403 had been designed
+for; the redirect's query carries a signed metadata blob naming the visitor's country,
+so no probe prints it whole. On this side the pair rides as two request headers from
+the Frappe adapter's own transport and from nowhere else: the adapter's constructor is
+the only one that accepts the token type, and it states the keyword without a default,
+so a composition root that forgets the edge fails the type check rather than the first
+live read. Every reader deployment reads the pair from its own store under
+`LEAVE_IMPACT_CF_ACCESS_CLIENT_ID` and `LEAVE_IMPACT_CF_ACCESS_CLIENT_SECRET`, both or
+neither, one half alone refused naming the other: the instance's deploy and lifecycle
+scripts from Parameter Store, the generator's and validator's workflows from the
+`benchmark` environment's secrets, a recording session from its own environment. The
+cassette recorder filters the two headers by name and the cassette gate refuses one that
+survives. The runner probe passed from a GitHub-hosted runner on its first dispatch
+(FINDINGS `access-runner-probe`); the application's own paths are recorded at the
+acceptance by the validator's dispatch and the instance's read, and the generator's by
+its next generation. The token expires 2027-11-03 and is renewed before.
+
 **The demo milestone's surface, ruled at its entry (2026-10-19).** The exit is a
 public, replay-first demo of the golden world, M1's audited world whose recipe is
 public: understandable reports over finished runs, evidence self-contained per
@@ -4701,6 +4724,9 @@ ruling as the last, optional, time-boxed item outside the exit, with its own
 design pass on the runner story (the hard client is the GitHub runner, which must join
 per run); it slips without the milestone being unfinished. The golden world's site
 stays as the demo world's HR system.
+
+**Landed 2026-11-03**, after the live path's acceptance of 2026-11-01 and before the
+final smoke, as the Frappe hostnames passage of the investigator milestone records it.
 
 ---
 

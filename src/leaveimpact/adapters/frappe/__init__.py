@@ -7,6 +7,11 @@ the company scope and the site preparation. The public surface is the three name
 below.
 """
 
-from leaveimpact.adapters.frappe.adapter import FrappeAdapter, FrappeConfig, FrappeCredential
+from leaveimpact.adapters.frappe.adapter import (
+    AccessServiceToken,
+    FrappeAdapter,
+    FrappeConfig,
+    FrappeCredential,
+)
 
-__all__ = ["FrappeAdapter", "FrappeConfig", "FrappeCredential"]
+__all__ = ["AccessServiceToken", "FrappeAdapter", "FrappeConfig", "FrappeCredential"]
