@@ -13,6 +13,13 @@ the five parameters are put without printing a value, exports them into one
 `docker compose run` of the deployed image, and runs the probe there. The probe prints
 status words, counts and request ids only:
 
+Since 2026-11-06 the host script reads the Access service token's two parameters beside
+the five and the probe builds the token onto the hosts record, so a send is also the
+instance path's acceptance under Cloudflare Access: P3's Frappe read passes the edge
+through the application's own transport, or it does not. The record states whether a
+token was given (`access_token`), never its value; `tests/unit/test_instance_deploy.py`
+holds the host script's parameter list to the deploy script's.
+
 - P0 the development world's manifest read from the world bucket and the three readers
   built from it under the investigator principals;
 - P3 to P5 one list and one by-id read per vendor (Frappe employees, Jira work items,

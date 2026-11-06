@@ -370,3 +370,23 @@ def test_the_base_urls_the_deploy_holds_are_their_sources_values() -> None:
     )
     assert default is not None
     assert held["LEAVE_IMPACT_JIRA_BASE_URL"] == default.group(1)
+
+
+def test_the_instance_probe_reads_exactly_the_parameters_the_deploy_reads() -> None:
+    """The read-principals instance probe is the production path's own evidence, so its
+    host script reads the same Parameter Store names the deploy reads, both in the loop
+    that checks each is put and in the container environment it hands the probe (the
+    Access transport's external read: the probe was found building the hosts record
+    without the pair, outside the type gate's scope)."""
+    deploy = set(
+        re.findall(r"param /leave-agent/([\w-]+)", DEPLOY_SCRIPT.read_text(encoding="utf-8"))
+    )
+    host = (
+        DEPLOY_SCRIPT.parents[2] / "probes" / "read-principals" / "instance" / "host.sh"
+    ).read_text(encoding="utf-8")
+    loop = re.search(r"^for n in (.*?); do$", host, re.MULTILINE | re.DOTALL)
+    assert loop is not None
+    checked = set(loop.group(1).replace("\\\n", " ").split())
+    handed = set(re.findall(r"-e P_\w+=\"\$\(param /leave-agent/([\w-]+)\)\"", host))
+    assert checked == deploy - {"postgres-password"}, (checked, deploy)
+    assert handed == deploy - {"postgres-password"}, (handed, deploy)

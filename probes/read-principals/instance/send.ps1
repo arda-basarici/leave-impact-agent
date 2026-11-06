@@ -1,7 +1,8 @@
 # Sends the instance probe to the app host over SSM under the administrator profile and
 # saves what it printed. The payload is host.sh with probe.py spliced in as base64, so the
-# host fetches nothing; the host script exports the five vendor parameters into the probe's
-# container environment and never prints a value. PowerShell 5.1; `$dir` is a scratch
+# host fetches nothing; the host script exports the five vendor parameters and, since
+# 2026-11-06, the Access service token's pair into the probe's container environment and
+# never prints a value. PowerShell 5.1; `$dir` is a scratch
 # directory outside the tree, since the stdout holds vendor hostnames and request ids.
 param([Parameter(Mandatory = $true)][string]$dir)
 $ErrorActionPreference = "Continue"

@@ -1,5 +1,10 @@
 """Step 14's probe from the instance: the production client's own path. Prints status
-words and counts; never a parameter's value. Run inside the deployed image."""
+words and counts; never a parameter's value. Run inside the deployed image. Since
+2026-11-06 it is also the instance path's acceptance under Cloudflare Access: the host
+script hands it the service token's pair from Parameter Store, the readers are built
+through the shared wiring with the token on the hosts record, and the Frappe read
+(P3) is the evidence that the instance's transport passes the edge; the record states
+whether a token was given, never its value."""
 
 import json
 import os
@@ -31,7 +36,10 @@ out["code_version"] = os.environ.get("LEAVEIMPACT_CODE_VERSION", "")
 out["python"] = sys.version.split()[0]
 
 from leaveimpact.adapters.calendar.adapter import CalendarCredential  # noqa: E402
-from leaveimpact.adapters.frappe.adapter import FrappeCredential  # noqa: E402
+from leaveimpact.adapters.frappe.adapter import (  # noqa: E402
+    AccessServiceToken,
+    FrappeCredential,
+)
 from leaveimpact.adapters.inference import CountingClient, inference_client  # noqa: E402
 from leaveimpact.adapters.jira.adapter import JiraCredential  # noqa: E402
 from leaveimpact.adapters.manifest import ManifestStage, decode_manifest  # noqa: E402
@@ -71,13 +79,28 @@ step("P0_manifest", read_manifest)
 readers = None
 
 
+def access_token():
+    """The Access service token when the host script handed both halves, none when it
+    handed neither; one half alone is the host script's fault and fails the build step."""
+    given = [name for name in ("P_CF_ACCESS_CLIENT_ID", "P_CF_ACCESS_CLIENT_SECRET")
+             if os.environ.get(name, "")]
+    if not given:
+        return None
+    return AccessServiceToken(
+        client_id=env("P_CF_ACCESS_CLIENT_ID"), client_secret=env("P_CF_ACCESS_CLIENT_SECRET")
+    )
+
+
 def build():
     global readers
+    token = access_token()
+    out["access_token"] = "given" if token is not None else "none"
     hosts = Hosts(
         frappe_base_url=env("P_FRAPPE_BASE_URL").rstrip("/"),
         frappe_credential=FrappeCredential(
             api_key=env("P_FRAPPE_API_KEY"), api_secret=env("P_FRAPPE_API_SECRET")
         ),
+        frappe_access=token,
         jira_base_url=jira_gateway_root(env("P_JIRA_BASE_URL")),
         jira_credential=JiraCredential(email=env("P_JIRA_EMAIL"), api_token=env("P_JIRA_TOKEN")),
         calendar_credential=CalendarCredential.from_authorized_user_info(
