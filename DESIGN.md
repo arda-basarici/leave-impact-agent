@@ -4173,6 +4173,11 @@ survives. The runner probe passed from a GitHub-hosted runner on its first dispa
 acceptance by the validator's dispatch and the instance's read, and the generator's by
 its next generation. The token expires 2027-11-03 and is renewed before.
 
+Accepted 2026-11-06 on the validator's and the instance's paths (FINDINGS
+`access-acceptance`): the validator approved the measurement world from a runner under
+the token, the instance probe read the world through the shared wiring with the pair
+from Parameter Store; the generator's path is recorded at its next generation.
+
 **The demo milestone's surface, ruled at its entry (2026-10-19).** The exit is a
 public, replay-first demo of the golden world, M1's audited world whose recipe is
 public: understandable reports over finished runs, evidence self-contained per

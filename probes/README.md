@@ -506,3 +506,19 @@ workstation with a dummy token against the live edge before it was committed.
 | probe | criteria | capture |
 |---|---|---|
 | **access-runner-probe** — `probe-access.yml` dispatched on the `benchmark` environment against the base-URL variable's site, three requests without following redirects | the login page with the two token headers answers 200 and a body carrying Frappe's marker; the login page without them answers 302 with a Location host of the Zero Trust organization; the ping method without them answers 200 with `pong`; statuses, the Server and `cf-` headers and the Location host printed, never a body, a cookie or a token value | `captures/access-service-token/runner-probe-01.txt` |
+
+## The Access transport's acceptance (criteria fixed 2026-11-06 at the design pass, before the runs)
+
+The runner probe above tested the edge with curl; the acceptance tests the application's
+own transport, the Frappe adapter sending the service token's pair from the hosts record,
+on each path a reader deployment takes. The criteria were fixed at the transport group's
+design pass: the validator's dispatch approves the measurement world as its 2026-10-14
+run did; the instance probe reads the two parameters as set, states the token given and
+passes its Frappe read with the counts of its runs before Access; the generator's path is
+its next generation, by the platform's wording. FINDINGS `access-acceptance`.
+
+| probe | criteria | capture |
+|---|---|---|
+| **access-acceptance, validator** — `validate-world.yml` dispatched on `e968612` on the measurement world against the base-URL variable's site | both token secrets present at the set-check; the boundary probe's three reads allowed and four writes refused; `approval=approved` | `captures/access-service-token/validator-run-01.txt` |
+| **access-acceptance, instance** — the read-principals instance probe sent over SSM on the deployed `e968612`, the host script reading the Access pair beside the five | the seven parameters set, `access_token: given`, P3 green at 28 employees with the by-id read, P4 and P5 at their earlier counts | `captures/investigator-principals/instance-run-03.txt` |
+| **access-acceptance, generator** — the next `generate-world.yml` dispatch | a world sealed through the workflow's env lines and set-check | none yet; recorded at the next generation |

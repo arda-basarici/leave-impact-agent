@@ -5478,3 +5478,50 @@ country; the probe prints the Location host alone, and any capture of a full Acc
 redirect is read for the blob before it is filed. The dry run before the application went
 live (the token and ping checks passing, the refusal check failing on Frappe's 200)
 exercised the probe's failure path on real responses; the run after it is the record.
+
+## access-acceptance — the application's own transport passes the Access application on two of its three paths at the first attempt: the validator approving the measurement world from a GitHub runner under the token, the instance's probe reading the world through the shared wiring; the generator's path waits for the next generation (2026-11-06)
+
+The runner probe above proved the runner's address space and the token with curl; these
+two runs prove the application's code path. The transport commit (`f5ce254`) put the
+service token's pair on the hosts record as a type only the Frappe adapter accepts and
+states without a default, read from the environment both or neither, and every
+composition root learned the two names: the deploy and lifecycle scripts from Parameter
+Store, the generator's and validator's workflows from the `benchmark` secrets. The
+external read of that commit found the read-principals instance probe building the
+hosts record without the field, outside the type gate's `src` and `tests` scope; the
+fix (`e968612`) made the probe read the two parameters beside the five and build the
+token, so its send is the instance path's acceptance.
+
+**The validator path.** `validate-world.yml` dispatched on `e968612` as run 42293743586
+on the measurement world (`2e6705ba…`, the site the base-URL variable names, `hr-w4`),
+held at the `benchmark` reviewer gate from 21:05 UTC, the validate job 21:12:17 to
+21:18:30 UTC. The job's set-check found both token secrets; the boundary probe allowed
+its three reads and refused its four writes with AccessDenied; the identity was the
+validator's role; the verdict `approved`, published as
+`worlds/2e6705ba…/verdicts/42293743586-1.json`. Against run 38654375403 of 2026-10-14,
+the same world before Access: the same approval, 5 min 43 s against 4 min 41 s, one run
+each and the difference not attributed. Capture
+`captures/access-service-token/validator-run-01.txt`.
+
+**The instance path.** The read-principals instance probe sent over SSM at 21:22 UTC on
+the deployed `e968612`: all seven parameters under `/leave-agent/` read as set, the record
+stating `access_token: given`, the readers built, and the Frappe read (P3) answering 28
+employees with the by-id read, the Jira read 33 work items and the calendar read 25
+events, the same three counts as the probe's runs of 2026-10-11 and 2026-10-13 before
+Access. `Converse` ended on `end_turn`; the counting client as the counting grant states
+(denied on the profile id, `Counted` on the base model id); the three puts 200, 412 and
+AccessDenied. Capture `captures/investigator-principals/instance-run-03.txt`; the run
+planted a second disposable object under `runs/probe-20261106T212244Z/`, its removal
+pending beside run 1's.
+
+| path | criterion | observed |
+|---|---|---|
+| validator, GitHub runner | the dispatch approves the measurement world as the 2026-10-14 run did, both token secrets present | `approved`, the same verdict shape |
+| instance, SSM send | the two parameters read as set, the token given, P3 green with the pre-Access counts | 7 of 7 set, `given`, 28 employees and by-id |
+| generator, GitHub runner | the next generation seals a world through the same workflow lines | not run; the next generation is the acceptance, by the platform's wording |
+
+**PASS** on the two paths run. What the generator path would add is one respect: that
+its own key pair and the token are set together in its workflow's environment, since the
+token is the policy's subject and the key pair is Frappe's; the workflow carries the same
+two env lines and the same set-check as the validator's, which ran. The token expires
+2027-11-03 and is renewed before.

@@ -1,0 +1,16 @@
+validate-world.yml dispatched on e968612 as run 42293743586, the measurement world 2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c against the base-URL variable site hr-w4, held at the benchmark reviewer gate from 21:05:00 UTC, the validate job 21:12:17 to 21:18:30 UTC on 2026-11-06; the job's printed lines of the boundary-probe step and the validate step (the script echo and the environment block omitted). Compared with run 38654375403 of 2026-10-14 on the same world before Access: the same approval, 5 min 43 s against 4 min 41 s.
+
+2026-11-06T21:12:34.7468071Z boundary probe: allowed, as it must be: aws s3api get-object --bucket leave-impact-truth-445743457479 --key world-spec/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c.json /dev/null
+2026-11-06T21:12:35.9136642Z boundary probe: allowed, as it must be: aws s3api list-objects-v2 --bucket leave-impact-world-445743457479 --prefix worlds/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c/ --max-keys 1
+2026-11-06T21:12:37.5221390Z boundary probe: allowed, as it must be: aws s3api get-object --bucket leave-impact-world-445743457479 --key worlds/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c/world-manifest.json /dev/null
+2026-11-06T21:12:38.6918715Z boundary probe: refused with AccessDenied: aws s3api get-object --bucket leave-impact-truth-445743457479 --key truth-manifest/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c.json /dev/null
+2026-11-06T21:12:39.8914708Z boundary probe: refused with AccessDenied: aws s3api list-objects-v2 --bucket leave-impact-truth-445743457479 --max-keys 1
+2026-11-06T21:12:41.0304807Z boundary probe: refused with AccessDenied: aws s3api put-object --bucket leave-impact-truth-445743457479 --key access-probe/validator-put-denied-42293743586-1 --body /tmp/tmp.JerNYfducm
+2026-11-06T21:12:42.1890202Z boundary probe: refused with AccessDenied: aws s3api put-object --bucket leave-impact-world-445743457479 --key worlds/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c/access-probe/validator-put-denied-42293743586-1 --body /tmp/tmp.JerNYfducm
+2026-11-06T21:12:42.1919190Z boundary probe: three reads allowed, four operations refused with AccessDenied
+2026-11-06T21:12:43.2463576Z arn:aws:sts::445743457479:assumed-role/leave-agent-validator/GitHubActions
+2026-11-06T21:18:25.6290028Z verdict_key=worlds/2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c/verdicts/42293743586-1.json
+2026-11-06T21:18:25.6291503Z verdict_version_id=.KXDBt.Jb7vSChCtsAhmSEk_GRd70Fo5
+2026-11-06T21:18:25.6292243Z world_version=2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c
+2026-11-06T21:18:25.6293140Z judged_world_version=2e6705ba7d11095a9b797abe08495c5497a7c5fe560fa587868763f11192341c
+2026-11-06T21:18:25.6293809Z approval=approved
