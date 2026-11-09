@@ -7,6 +7,109 @@ decisions it feeds.
 
 ---
 
+## 2026-11-09 — The demo closed with three of its entry's sentences changed on the record and none quietly, and the closing reads found the project's own documents claiming more than its tests hold
+
+*M3, the demo milestone, at its close (step 18, 2026-11-09), looking back over the whole
+milestone from its entry on 2026-10-19. Feeds: the M3 report's opening, on what the
+milestone planned against what it recorded; the method section, on amending an exit and on
+recording a criterion as not met; the engineering section, on a documents-only close and on
+what blind readers found in the project's own documents.*
+
+The entry of 2026-10-19 wrote the milestone in three sentences that mattered. The exit was
+a public URL used unassisted by a stranger. Live runs sat behind a flag, off by default.
+Private connectivity between the two hosts was optional work after the exit. Three weeks
+later the URL is public, the replays and the results page are on it, a visitor can start a
+run and approve or decline its plan, and each of those three sentences reads differently
+on the record. What is worth telling is how each one moved, because none moved in a
+commit message alone.
+
+The exit moved first. Before the hostname served the application the tree was swept for
+anything of the embargoed measurement world and the golden world was released whole under
+`docs/`; once the hostname served, a crawl of 124 pages through it held, no hit on the
+embargoed world's digests and none on the gate's structural patterns (FINDINGS
+`public-switch`, the crawl of 2026-10-25, and `disclosure-sweep`). The stranger test, a
+person who had never seen the project using the URL with nobody beside them, was then
+skipped by a ruling the same day, and the exit was amended to what had been shown: the URL,
+with the crawl held. The alternative was real, to run the test with whoever was at hand
+and call it met, and it would have produced a sentence the README could not defend to a
+reader who asked who the stranger was. The public claims were cut to match the amended
+exit instead. The amendment is stated in DESIGN's outcome paragraph for the milestone and
+in the README's demo section, beside the claims and not under them.
+
+The flag moved last. Live runs were built behind it through the worker service, the live
+pages and the ledger page, accepted once on production on 2026-11-01 with the flag turned
+on for the afternoon and off again (FINDINGS `live-acceptance`), and accepted again on
+2026-11-09 with Cloudflare Access in front of the Frappe hostnames, after which it stayed
+on: six runs settled on the visitors' ledger for $0.4088 in all, the worker's Frappe reads
+answering through the edge with the same prefetch lines the replay had recorded, and eight
+held streams on an open attempt costing the application 0.131 s of CPU a second above
+idle against a budget of 0.2 (FINDINGS `final-smoke`; the ledger figures are the page
+reads filed with the capture). "Off by default" was a hedge against a path nobody had run.
+Once the path had run twice under measurement, with a wall of $8 on the ledger and a cap
+of five runs a day, leaving it off would have meant a demo whose most interesting button
+was disabled for a risk the ledger already bounded. Private connectivity went the other
+way on the same day: with Access landed and accepted on two of its three paths (FINDINGS
+`access-acceptance`), a second window with the flag off and a repeated smoke would have
+bought nothing the milestone claims, and the work was ruled out of the milestone with its
+trigger written down.
+
+The same final smoke produced the sentence the milestone is least comfortable with, and
+the one most worth keeping. The plan asked that an open attempt's frames reach a
+subscriber within 2 s of their recorded instants at the 95th percentile. It read 2.0001
+and 2.094 s over 344 frames a run (FINDINGS `final-smoke`, printed by
+`probes/live-acceptance/reduce.py`). The measure compares the client's clock with the
+host's, and the offset between them was bounded there only to 1.3 to 1.5 s, so the
+measure cannot resolve a two-second line at all; the intervals between frames' arrivals,
+the measure the first acceptance's bound had actually been held on, kept the recorded ones
+at 0.55 and 0.60 s. The plan had copied the bound from the acceptance without reading back
+which measure it had been met on. Two repairs were on the table after the run: re-cut the
+criterion to the interval measure and call it met, or record it as not met as written and
+say why the measure was the wrong one. The second was taken. A criterion fixed before a
+run is only worth fixing if the run cannot rewrite it, and the miss is small, explained,
+and visible beside a measure that does hold; a re-cut criterion would have read as clean
+and been the one thing on the page a careful reader could not trust.
+
+The forecast held. The entry's plan summed its phases to 20 to 28 raw working days and 30
+to 56 under the project's rule that a first estimate runs one and a half to two times
+long. The milestone ran from 2026-10-19 to 2026-11-09, sixteen weekdays by the calendar
+(a count of weekdays between the two dates, both included, not a log of days worked, and
+several of those days held more than one long session). By that count it came in under
+the raw figure.
+
+The close itself changed no code, by a ruling at its open. The demo is public with live
+runs on, so every code commit is an image, a deploy and a production review, and a fix
+made at a close gets no step of its own to be measured in; a parked defect earned a change
+only where leaving it made a public sentence false, and then the cheaper repair was
+usually the sentence. That turned the close into three reads of the project's own
+documents, and the reads are the finding. The backlog of parked defects was triaged from
+166 entries to 87. ARCHITECTURE was rewritten as a snapshot of the tree, 482 lines, with
+its module inventory taken by a script over the docstrings and not from memory (284
+modules; the script was a scratch one and the count is marked as hand-run in the close's
+record, not held by a test). The rewrite found that the document had said the import law
+held every separation as a test, where the law's predicate refuses a lateral import among
+the rank-3 shells only: the demo surface and the operator's launcher, and the benchmark
+and the public results schema, are apart by their packages' contracts and by no test. The
+gap was stated in the document and parked, not fixed, under the same ruling. A blind
+reader, given the rewritten document and the tree and nothing of the session, then found
+eleven faults in it; all eleven were reproduced, ten applied and one answered, and three
+were plainly wrong claims, one of them inherited unread from the old text (commit
+`5beaa4d`).
+
+The README and the instance runbook got the same treatment on the last day. A second
+blind reader checked both against the tree and the findings and returned fourteen faults,
+every one reproduced on its source before it was changed. Two are worth the report. The
+README's new demo section placed the disclosure crawl before the hostname switch, in a
+sentence written by the session that had the crawl's entry open, when the crawl ran
+through the hostname and could only have come after. And the runbook's recovery procedure
+still said the live flag was off by default and that a recovery flips nothing, a sentence
+the flag-on ruling of the same morning had made false, in the one procedure where an
+operator would read it under pressure. Neither was found by the author's reread, and both
+were sitting in passages the author had read that day.
+
+Figure: a three-row table for the report's opening, the entry's sentence, the record's
+sentence and the date it moved, for the exit, the live flag and private connectivity, with
+the delivery criterion as a fourth row marked not met as written.
+
 ## 2026-10-31 — A ruling read off the code lasted one probe: the ledger page's liability, a budget fixed before the number, and the number reversing the shape the same hour
 
 *M3, the live pages step (step 15, 2026-10-30 and 31), its last group, the ledger page.
