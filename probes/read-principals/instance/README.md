@@ -39,7 +39,9 @@ Two runs, their stdout under `probes/captures/investigator-principals/`:
 
 Run 2 is this `probe.py` with the three P8 lines removed, so the disposable object of run 1
 (`runs/probe-20261011T175023Z/instance-create-only.txt`) stayed the only one until run 3,
-which ran the file as committed and planted `runs/probe-20261106T212244Z/`; the removal
-of both is pending. The error messages in the captures carry the probe's own `#`
+which ran the file as committed and planted `runs/probe-20261106T212244Z/`. Both were
+removed by key on 2026-11-09 under the administrator profile; the bucket is versioned,
+so each key now ends in a delete marker over its one 23-byte version, and a listing of
+the prefix returns nothing. The error messages in the captures carry the probe's own `#`
 masking of account, instance and region identifiers (`CountServiceError.message_signature`);
 the bucket's AccessDenied in run 1 is the vendor's text as returned.
