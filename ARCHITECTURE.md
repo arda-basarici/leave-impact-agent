@@ -5,8 +5,8 @@ place. Decisions and their rationale live in DESIGN (cited here by name); the pi
 README. How each part came to its shape is in git and in DESIGN's as-built passages,
 not here.
 
-*Snapshot at the demo milestone's close · last updated 2026-11-09 · 284 modules in
-eleven packages under `src/leaveimpact`.*
+*Snapshot at the demo milestone's close · last updated 2026-11-09 · eleven packages
+under `src/leaveimpact`.*
 
 ## Design shape
 
@@ -215,7 +215,7 @@ between them, and the PostgreSQL log is the seam a second process continues from
 Signatures and contracts live in the docstrings, rendered by `scripts/regen_docs.py`;
 this section is the map. Modules are grouped by concern, each named once.
 
-### `core` — the domain, pure (67 modules)
+### `core` — the domain, pure
 
 What the real system believes, with no knowledge that a benchmark exists, and
 everything the investigator and the evaluator must read the same way.
@@ -246,7 +246,7 @@ everything the investigator and the evaluator must read the same way.
   `run_export_json`, `run_parts_json`, `registration_json`, `timeshape`, `jsonshape`.
   One written form each; a bytes decoder accepts only what re-encodes to itself.
 
-### `world` — the benchmark, pure (29 modules)
+### `world` — the benchmark, pure
 
 Everything that exists only because the world is constructed.
 
@@ -269,7 +269,7 @@ Everything that exists only because the world is constructed.
 - **Sealing.** `artifacts` (the three artifacts in canonical bytes, the world version),
   `decoders`, `target_records`, `truth_decoder` (gated), `disclosure`, `version`.
 
-### `adapters` — one external boundary per subpackage (36 modules)
+### `adapters` — one external boundary per subpackage
 
 - **The vendors.** `frappe`, `jira` and `calendar`, each an `adapter` over the vendor's
   REST surface and `records` for the shapes in both directions.
@@ -292,7 +292,7 @@ Everything that exists only because the world is constructed.
 organization parameters and generator version a manifest records; `plantings` alone
 reads a world spec's planted records, and nothing here reads a key.
 
-### `generator` — causes a world, then seals it (20 modules)
+### `generator` — causes a world, then seals it
 
 - **The prose stage.** `materialize` (the attempt loop over every pending brief:
   briefs run on a small thread pool and merge in brief order, so the record is the same
@@ -311,14 +311,14 @@ reads a world spec's planted records, and nothing here reads a key.
   last, every object read back).
 - **The job.** `entrypoint`, `metrics`, `probe`, `__main__`.
 
-### `validator` — read-only verification of a projected world (6 modules)
+### `validator` — read-only verification of a projected world
 
 `verify` (inputs authenticated, systems read, checks run), `checks` (identities,
 records, the view of a run, as pure comparisons), `verdict` (its own artifact, approved
 only when every check passed), `entrypoint`, `__main__`. It reads the world spec and the
 live systems and never a key.
 
-### `evaluator` — grades recorded runs against the sealed truth (53 modules)
+### `evaluator` — grades recorded runs against the sealed truth
 
 Never re-reads a vendor; grounding is `core`'s rules replayed over a run's own reads.
 
@@ -342,7 +342,7 @@ Never re-reads a vendor; grounding is `core`'s rules replayed over a run's own r
   encoder, no decoder), `public_results`, `public_acceptance`, `public_crawl`.
 - **The job.** `repository`, `entrypoint`, `__main__`.
 
-### `agent` — the investigator, its baselines and the run log (32 modules)
+### `agent` — the investigator, its baselines and the run log
 
 The systems the benchmark measures, over the read ports alone; the loop's framework is
 contained inside this package.
@@ -364,7 +364,7 @@ contained inside this package.
   process's ownership of one attempt), `work_order` (the composition every root
   performs), `commands`, `__main__`.
 
-### `launch` — admissions for an operator's run (4 modules)
+### `launch` — admissions for an operator's run
 
 `plan` (the frozen inputs of a run, the work line's flags, the next step of the
 lifecycle from an attempt's state), `demo` (the same inputs for a visitor's run),
@@ -372,19 +372,19 @@ lifecycle from an attempt's state), `demo` (the same inputs for a visitor's run)
 `deploy/instance/lifecycle.sh` and `deploy/runner/investigate.sh`, read by fake-binary
 tests and by shellcheck in CI.
 
-### `cache` — the corpus cache job (3 modules)
+### `cache` — the corpus cache job
 
 `job` (discover, admit by the serving rule, read, verify against the manifest, load,
 demote what the rule no longer serves), `__main__`.
 
-### `results` — the published results, pure (4 modules)
+### `results` — the published results, pure
 
 `public` (what a results page may show of a measurement: aggregates, nothing per
 scenario, no digest of the measurement world's sealed objects), `codec`, `committed`.
 The surface reads it and the evaluator writes into it, since neither may import the
 other.
 
-### `app` — the demo surface and its worker (28 modules, 30 templates)
+### `app` — the demo surface and its worker
 
 FastAPI with server-side templates behind the platform's proxy. Store access is
 synchronous on the thread pool with nothing held open while a browser waits; Pydantic
@@ -424,7 +424,7 @@ Each persisted form carries a version, and a reader names the set it accepts.
 
 ## Tests
 
-Levels are markers, and the default run is everything unmarked: the 260 files of
+Levels are markers, and the default run is everything unmarked: the files of
 `tests/unit` and every module's doctests, the network blocked. `integration` runs over
 the PostgreSQL service and recorded cassettes; `crash` is the crash matrix, child
 processes killed at named crossings, in a CI job of its own; `slow` is the twenty-seed
