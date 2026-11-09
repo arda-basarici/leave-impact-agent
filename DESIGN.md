@@ -34,6 +34,23 @@ whole corpus, full context is 30 of 30 and the investigator 24. The figures are
 the `phase-c` findings entry's, the narrative is the deployment section's "The
 reported runs ran as registered", and the demo milestone builds on them.
 
+**The demo milestone's outcome (2026-11-09).** The golden world's investigations are
+public at the agent's hostname: thirty replays of the registered investigator, each
+with its report, its evidence, its audit trail and its narration timeline, the
+investigator milestone's results page beside them, and capped live runs a visitor
+starts and then approves or declines, on to stay since the final smoke with Access in
+front of the Frappe hostnames. The replay set cost $2.0967 and is correct whole on 26
+of 30 in the operator's offline grading; the first nightly backup was restored into a
+scratch database and verified by the application on seven checks of seven. Two things
+are recorded short of the entry's wording: the exit was amended on 2026-10-25 to the
+URL with the disclosure crawl held on 124 pages, the stranger test skipped by ruling,
+and one criterion of the final smoke was not met as written, the delivery of the
+active phase's frames at a p95 under 2 s reading 2.00 and 2.09 s on a measure whose
+clock bound is 1.3 to 1.5 s. The figures are the `replay-set`, `backup-restore-drill`,
+`public-switch`, `live-acceptance` and `final-smoke` findings entries'; the narrative
+is the deployment section's demo passages, and the conversation milestone builds on
+them.
+
 **Probes preceded the remaining design.** The fatal unknowns (Frappe standing at its
 real footprint, Frappe's REST surface including its `leave_approver` wart, Jira,
 Google Calendar, the generator's seed spike) and the two deployment floors (the
@@ -2449,8 +2466,10 @@ name. The primary comparison: the investigator correct whole on 24 of 30 scenari
 the padded level against full context's 14, the difference 0.20 to 0.47 at 95
 percent, the investigator alone passing ten scenarios and full context alone none.
 Full context is 30 of 30 at the base level with every one of its 1,001 claims
-strictly correct, and loses sixteen scenarios at the padded level by output
-saturation, 24 of its 30 calls stopping at the 8,192-token maximum with the fact
+strictly correct, and fails sixteen scenarios at the padded level, fifteen of them
+with a call stopped at the output maximum and one without (the `phase-c` entry's stops
+table; nine stopped calls belonged to scenarios that passed anyway), 24 of its 30
+calls stopping at the 8,192-token maximum with the fact
 batch malformed; that is the mechanism the calibration showed and the freeze ruled is
 reported as such, and the single shot reads the same way, 22 and 10. The investigator
 is 24 of 30 at both levels, the same six fragmented-tier scenarios failing at each,
@@ -2918,9 +2937,14 @@ and whether it makes the run eligible for a new attempt are two columns of it, a
 defect is read only with a cause the harness established. The re-dispatch policy's two
 values are pending too, a registered maximum per call and a fixed delay, dispatch
 numbers surviving restarts because they are the log's. The zero-cost rules and the
-price rows arrive with the first live run. A model-calling run is not admitted under a
-pending value, and a development registration carries provisional ones. Measurement
-runs are not streamed.
+price rows arrive with the first live run. Under a frozen or bound registration a
+model-calling run is not admitted under a pending value; under a draft the harness
+stands in with its development table and policy and records them, as the accounting
+passage of the deployment section says. Measurement runs are not streamed.
+
+All three hold values since the freeze of 2026-10-14: the committed registration is
+bound at format 5 with no pending field, its attribution rows and re-dispatch policy
+the development values unchanged, and the price table is committed beside it.
 
 **Four audits read a run's account, counts, calls and eligibility from the export, on
 the same `core` functions the harness ran.** The account check replays every recorded
@@ -4767,8 +4791,9 @@ second window with live runs off and a repeated smoke for nothing the milestone 
 It returns on a need that edge does not meet: a second tenant, a finding against the
 edge, or the service token's renewal becoming a burden.
 
-**Landed 2026-11-03**, after the live path's acceptance of 2026-11-01 and before the
-final smoke, as the Frappe hostnames passage of the investigator milestone records it.
+**Access landed 2026-11-03**, after the live path's acceptance of 2026-11-01 and before
+the final smoke, as the Frappe hostnames passage of the investigator milestone records
+it.
 
 ---
 
@@ -4876,8 +4901,11 @@ final smoke, as the Frappe hostnames passage of the investigator milestone recor
   the instance identity and the application's vendor principals, so the registry
   is harness-level least privilege and not a principal split.
 - **The rationale judge**, superseded at the investigator milestone's entry (the
-  grading paragraph); returns when rationale quality has a consumer, the demo's
-  report view, with its hand-graded set and calibration budget.
+  grading paragraph). The demo's report view shipped without it: a rationale is
+  labelled model-generated and the page carries no grading overlay (the demo passage
+  in the deployment section). It returns when rationale quality has a consumer, at the
+  conversation milestone or in the report, with its hand-graded set and calibration
+  budget.
 - **MCP as the tool transport**, weighed and not chosen (the tool paragraph); returns
   with an independently deployed or external client that needs a shared protocol.
 - **Production fault tolerance.** The investigator fails a run on a malformed record
@@ -4931,3 +4959,14 @@ vision's deferred list.
 - **The world the demo serves and what a release may contain**: closed 2026-10-19,
   the golden world, its scenario specs and keys released with the demo; nothing of
   the measurement world until the conversation milestone's last measurement.
+- **The demo milestone's exit evidence**: closed 2026-10-25, the URL with the
+  disclosure crawl held; the stranger test is skipped by ruling and the repository's
+  claims shrink to match (the public-switch passage in the deployment section).
+- **Access in front of the Frappe hostnames**: closed 2026-11-03, landed, and accepted
+  2026-11-06 on the validator's and the instance's paths; the generator's path is
+  recorded at its next generation (the Frappe hostnames passage).
+- **Whether live runs stay on**: closed 2026-11-09 at the final smoke, on by commit
+  and on to stay under the daily cap, the per-address limit, the wall and the one
+  slot; the stop is a commit and a deploy (the final-smoke passage).
+- **Private connectivity between the hosts**: closed 2026-11-09, ruled out of the demo
+  milestone once Access had landed (the future-work item carries the trigger).
