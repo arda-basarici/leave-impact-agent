@@ -10,6 +10,8 @@
  "subscribers": {
   "run1": {
    "label": "run1",
+   "mode": "attached",
+   "started": null,
    "attempt": "live-22d75b1a1cb3b15466a40e0014b2b52f",
    "started_utc": "2026-11-01T12:45:28.814875+00:00",
    "bound": 8,
@@ -55,6 +57,7 @@
     "p95": 1.0932,
     "max": 1.1223
    },
+   "active_delivery_seconds": null,
    "delivery_bound_seconds": 1.37,
    "clock_offset_seconds": -0.009,
    "beyond_bound": {
@@ -155,6 +158,8 @@
   },
   "run2": {
    "label": "run2",
+   "mode": "attached",
+   "started": null,
    "attempt": "live-2a257db911b5c34793df590954d6f8c0",
    "started_utc": "2026-11-01T12:50:15.285772+00:00",
    "bound": 8,
@@ -194,6 +199,7 @@
     "p95": 1.5116,
     "max": 1.5116
    },
+   "active_delivery_seconds": null,
    "delivery_bound_seconds": 1.271,
    "clock_offset_seconds": -0.429,
    "beyond_bound": {
@@ -350,6 +356,7 @@
    "to": 1793538934.593
   }
  ],
+ "idle_window": null,
  "held": [
   {
    "from": 1793537135.147,
@@ -393,7 +400,9 @@
        "cpu_rate": {
         "mean": 0.0407,
         "step_max": 0.0921,
-        "seconds": 421.5
+        "seconds": 421.5,
+        "usage_usec": 17135158,
+        "wall_seconds": 421.51
        },
        "cpu_rate_held": null
       },
@@ -405,7 +414,9 @@
        "cpu_rate": {
         "mean": 0.0071,
         "step_max": 0.0133,
-        "seconds": 421.5
+        "seconds": 421.5,
+        "usage_usec": 2982035,
+        "wall_seconds": 421.51
        },
        "cpu_rate_held": null
       },
@@ -417,7 +428,9 @@
        "cpu_rate": {
         "mean": 0.0103,
         "step_max": 0.0574,
-        "seconds": 421.5
+        "seconds": 421.5,
+        "usage_usec": 4335666,
+        "wall_seconds": 421.51
        },
        "cpu_rate_held": null
       },
@@ -429,7 +442,9 @@
        "cpu_rate": {
         "mean": 0.0001,
         "step_max": 0.0017,
-        "seconds": 421.5
+        "seconds": 421.5,
+        "usage_usec": 30336,
+        "wall_seconds": 421.51
        },
        "cpu_rate_held": null
       }
@@ -487,12 +502,16 @@
        "cpu_rate": {
         "mean": 0.0433,
         "step_max": 0.1568,
-        "seconds": 920.5
+        "seconds": 920.5,
+        "usage_usec": 39885911,
+        "wall_seconds": 920.462
        },
        "cpu_rate_held": {
         "mean": 0.041,
         "step_max": 0.0805,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 633065,
+        "wall_seconds": 15.43
        }
       },
       "leaveimpact-postgres-1": {
@@ -503,12 +522,16 @@
        "cpu_rate": {
         "mean": 0.0159,
         "step_max": 0.1018,
-        "seconds": 920.5
+        "seconds": 920.5,
+        "usage_usec": 14611974,
+        "wall_seconds": 920.462
        },
        "cpu_rate_held": {
         "mean": 0.0392,
         "step_max": 0.1018,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 605461,
+        "wall_seconds": 15.43
        }
       },
       "leaveimpact-worker-1": {
@@ -519,12 +542,16 @@
        "cpu_rate": {
         "mean": 0.1624,
         "step_max": 1.0591,
-        "seconds": 920.5
+        "seconds": 920.5,
+        "usage_usec": 149482736,
+        "wall_seconds": 920.462
        },
        "cpu_rate_held": {
         "mean": 0.9009,
         "step_max": 0.9977,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 13901028,
+        "wall_seconds": 15.43
        }
       },
       "proxy-caddy-1": {
@@ -535,12 +562,16 @@
        "cpu_rate": {
         "mean": 0.0002,
         "step_max": 0.0065,
-        "seconds": 920.5
+        "seconds": 920.5,
+        "usage_usec": 221732,
+        "wall_seconds": 920.462
        },
        "cpu_rate_held": {
         "mean": 0.0008,
         "step_max": 0.0016,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 12474,
+        "wall_seconds": 15.43
        }
       }
      }
@@ -562,7 +593,9 @@
        "cpu_rate": {
         "mean": 0.03,
         "step_max": 0.087,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 462699,
+        "wall_seconds": 15.406
        },
        "cpu_rate_held": null
       },
@@ -574,7 +607,9 @@
        "cpu_rate": {
         "mean": 0.0143,
         "step_max": 0.0154,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 220440,
+        "wall_seconds": 15.406
        },
        "cpu_rate_held": null
       },
@@ -586,7 +621,9 @@
        "cpu_rate": {
         "mean": 0.2498,
         "step_max": 0.6787,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 3848023,
+        "wall_seconds": 15.406
        },
        "cpu_rate_held": null
       },
@@ -598,7 +635,9 @@
        "cpu_rate": {
         "mean": 0.0002,
         "step_max": 0.0005,
-        "seconds": 15.4
+        "seconds": 15.4,
+        "usage_usec": 2761,
+        "wall_seconds": 15.406
        },
        "cpu_rate_held": null
       }
@@ -621,12 +660,16 @@
        "cpu_rate": {
         "mean": 0.1035,
         "step_max": 0.5503,
-        "seconds": 113.1
+        "seconds": 113.1,
+        "usage_usec": 11709763,
+        "wall_seconds": 113.124
        },
        "cpu_rate_held": {
         "mean": 0.1052,
         "step_max": 0.1397,
-        "seconds": 36.0
+        "seconds": 36.0,
+        "usage_usec": 3789107,
+        "wall_seconds": 36.012
        }
       },
       "leaveimpact-postgres-1": {
@@ -637,12 +680,16 @@
        "cpu_rate": {
         "mean": 0.0524,
         "step_max": 0.1329,
-        "seconds": 113.1
+        "seconds": 113.1,
+        "usage_usec": 5924098,
+        "wall_seconds": 113.124
        },
        "cpu_rate_held": {
         "mean": 0.0921,
         "step_max": 0.0948,
-        "seconds": 36.0
+        "seconds": 36.0,
+        "usage_usec": 3315183,
+        "wall_seconds": 36.012
        }
       },
       "leaveimpact-worker-1": {
@@ -653,12 +700,16 @@
        "cpu_rate": {
         "mean": 0.0488,
         "step_max": 0.1139,
-        "seconds": 113.1
+        "seconds": 113.1,
+        "usage_usec": 5523699,
+        "wall_seconds": 113.124
        },
        "cpu_rate_held": {
         "mean": 0.0472,
         "step_max": 0.0675,
-        "seconds": 36.0
+        "seconds": 36.0,
+        "usage_usec": 1700006,
+        "wall_seconds": 36.012
        }
       },
       "proxy-caddy-1": {
@@ -669,12 +720,16 @@
        "cpu_rate": {
         "mean": 0.001,
         "step_max": 0.0118,
-        "seconds": 113.1
+        "seconds": 113.1,
+        "usage_usec": 112614,
+        "wall_seconds": 113.124
        },
        "cpu_rate_held": {
         "mean": 0.0002,
         "step_max": 0.0004,
-        "seconds": 36.0
+        "seconds": 36.0,
+        "usage_usec": 5763,
+        "wall_seconds": 36.012
        }
       }
      }
@@ -739,7 +794,9 @@
        "cpu_rate": {
         "mean": 0.1545,
         "step_max": 0.4102,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 3178070,
+        "wall_seconds": 20.575
        },
        "cpu_rate_held": null
       },
@@ -751,7 +808,9 @@
        "cpu_rate": {
         "mean": 0.0273,
         "step_max": 0.0565,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 562320,
+        "wall_seconds": 20.575
        },
        "cpu_rate_held": null
       },
@@ -763,7 +822,9 @@
        "cpu_rate": {
         "mean": 0.1708,
         "step_max": 0.5928,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 3514942,
+        "wall_seconds": 20.575
        },
        "cpu_rate_held": null
       },
@@ -775,7 +836,9 @@
        "cpu_rate": {
         "mean": 0.0011,
         "step_max": 0.0037,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 22993,
+        "wall_seconds": 20.575
        },
        "cpu_rate_held": null
       }
@@ -798,12 +861,16 @@
        "cpu_rate": {
         "mean": 0.1392,
         "step_max": 0.3519,
-        "seconds": 102.9
+        "seconds": 102.9,
+        "usage_usec": 14316565,
+        "wall_seconds": 102.878
        },
        "cpu_rate_held": {
         "mean": 0.1212,
         "step_max": 0.2442,
-        "seconds": 92.6
+        "seconds": 92.6,
+        "usage_usec": 11215831,
+        "wall_seconds": 92.572
        }
       },
       "leaveimpact-postgres-1": {
@@ -814,12 +881,16 @@
        "cpu_rate": {
         "mean": 0.0998,
         "step_max": 0.1345,
-        "seconds": 102.9
+        "seconds": 102.9,
+        "usage_usec": 10272125,
+        "wall_seconds": 102.878
        },
        "cpu_rate_held": {
         "mean": 0.0982,
         "step_max": 0.1079,
-        "seconds": 92.6
+        "seconds": 92.6,
+        "usage_usec": 9090590,
+        "wall_seconds": 92.572
        }
       },
       "leaveimpact-worker-1": {
@@ -830,12 +901,16 @@
        "cpu_rate": {
         "mean": 0.1177,
         "step_max": 0.1641,
-        "seconds": 102.9
+        "seconds": 102.9,
+        "usage_usec": 12110001,
+        "wall_seconds": 102.878
        },
        "cpu_rate_held": {
         "mean": 0.1149,
         "step_max": 0.1627,
-        "seconds": 92.6
+        "seconds": 92.6,
+        "usage_usec": 10638552,
+        "wall_seconds": 92.572
        }
       },
       "proxy-caddy-1": {
@@ -846,12 +921,16 @@
        "cpu_rate": {
         "mean": 0.0006,
         "step_max": 0.0048,
-        "seconds": 102.9
+        "seconds": 102.9,
+        "usage_usec": 65933,
+        "wall_seconds": 102.878
        },
        "cpu_rate_held": {
         "mean": 0.0004,
         "step_max": 0.002,
-        "seconds": 92.6
+        "seconds": 92.6,
+        "usage_usec": 37755,
+        "wall_seconds": 92.572
        }
       }
      }
@@ -873,7 +952,9 @@
        "cpu_rate": {
         "mean": 0.0523,
         "step_max": 0.1162,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 1077134,
+        "wall_seconds": 20.579
        },
        "cpu_rate_held": null
       },
@@ -885,7 +966,9 @@
        "cpu_rate": {
         "mean": 0.0167,
         "step_max": 0.0182,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 343417,
+        "wall_seconds": 20.579
        },
        "cpu_rate_held": null
       },
@@ -897,7 +980,9 @@
        "cpu_rate": {
         "mean": 0.2215,
         "step_max": 0.7691,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 4558371,
+        "wall_seconds": 20.579
        },
        "cpu_rate_held": null
       },
@@ -909,7 +994,9 @@
        "cpu_rate": {
         "mean": 0.0005,
         "step_max": 0.0013,
-        "seconds": 20.6
+        "seconds": 20.6,
+        "usage_usec": 9421,
+        "wall_seconds": 20.579
        },
        "cpu_rate_held": null
       }
@@ -932,7 +1019,9 @@
        "cpu_rate": {
         "mean": 0.0477,
         "step_max": 0.1221,
-        "seconds": 895.0
+        "seconds": 895.0,
+        "usage_usec": 42660757,
+        "wall_seconds": 895.041
        },
        "cpu_rate_held": null
       },
@@ -944,7 +1033,9 @@
        "cpu_rate": {
         "mean": 0.0199,
         "step_max": 0.0309,
-        "seconds": 895.0
+        "seconds": 895.0,
+        "usage_usec": 17778813,
+        "wall_seconds": 895.041
        },
        "cpu_rate_held": null
       },
@@ -956,7 +1047,9 @@
        "cpu_rate": {
         "mean": 0.1704,
         "step_max": 0.2357,
-        "seconds": 895.0
+        "seconds": 895.0,
+        "usage_usec": 152552225,
+        "wall_seconds": 895.041
        },
        "cpu_rate_held": null
       },
@@ -968,7 +1061,9 @@
        "cpu_rate": {
         "mean": 0.0003,
         "step_max": 0.0019,
-        "seconds": 895.0
+        "seconds": 895.0,
+        "usage_usec": 240371,
+        "wall_seconds": 895.041
        },
        "cpu_rate_held": null
       }
@@ -1054,6 +1149,19 @@
    }
   }
  },
+ "pooled_active": {
+  "runs": {},
+  "run_floor_seconds": 10.0,
+  "coverage_floor_seconds": 20.0,
+  "held_seconds": 0.0,
+  "app_rate_held": null,
+  "idle_rate": null,
+  "idle_seconds": 0.0,
+  "sufficient": false,
+  "above_idle": null,
+  "within_budget": null,
+  "within_forecast": null
+ },
  "worker_rule": {
   "worker_peak_current_bytes": 293847040,
   "worker_limit_bytes": 469762048,
@@ -1077,6 +1185,8 @@
   "limits_sum_bytes": 1073741824,
   "budget_bytes": 1344933888,
   "fits": true,
-  "spare_bytes": 271192064
+  "spare_bytes": 271192064,
+  "counters_moved": [],
+  "accepted": true
  }
 }

@@ -39,6 +39,21 @@ were ready (the group's external read, first finding). A container absent from a
 is counted in every phase it is absent from, never averaged away, and a capture with any
 absence does not qualify to set a limit (its second finding).
 
+The final smoke (the demo milestone's step 17) added four things, each from its design
+pass's external read. A sample pair is held only when both samples lie inside one held
+interval: tested apart, a sample before the release and the next after the replacement
+counted the gap between them as subscribed time. The idle baseline is an entered window
+(`idle-window.json`, the operator's from and to with the source named) when the capture
+carries one, and unmatched time outside it is labelled `between` and kept out of the CPU
+baseline; without the file all unmatched time is idle, as the acceptance capture was
+reduced. The active phases of the runs a probe started are pooled (`pooled_active`):
+their held pairs' usage summed over their wall time, never a pair across two runs, each
+run's own coverage and rate printed, quoted only when every pooled run reaches its own
+floor and the pool reaches the coverage floor, and otherwise unmeasured; the verdict is
+the duration-weighted rate over those phases and no ceiling on one run. And the worker's
+rule carries one verdict, `accepted`: no absence, no kill or restart counter moved, the
+three derived limits fitting the capture's own budget.
+
 The capture's digests are over decoded lines, as the memory baseline's are, so a Windows
 checkout and a Linux one agree. Nothing here reads the log or the instance: the reducer is
 a pure function of the files, rerun by the unit test that holds the committed reading.
@@ -68,6 +83,10 @@ PHASE_KINDS = ("admitted", "approval_requested", "approved", "declined", "abando
 HOLD_COVERAGE_SECONDS = 20.0
 """The least wall time of held sample pairs inside a phase for its held CPU rate to be
 quoted; under it the rate is reported as insufficient coverage."""
+POOLED_RUN_SECONDS = 10.0
+"""The least held coverage each started run brings to the pooled active figure, so one
+run cannot carry the pool; fixed at the final smoke's design pass, before its capture."""
+IDLE_WINDOW_FILE = "idle-window.json"
 CPU_BUDGET = 0.2
 CPU_FORECAST = 0.14
 """The stream module's forecast for eight subscriptions on one open attempt and the
@@ -202,7 +221,12 @@ def _held_intervals(reading: dict[str, Any]) -> list[dict[str, Any]]:
     replaced = (reading.get("replacement") or {}).get("first_frame_at")
     ended = reading.get("hold_ended_at")
     intervals = []
-    for name, start, end in (("held", ready, released), ("held again", replaced, ended)):
+    spans = (("held", ready, released), ("held again", replaced, ended))
+    if released is None and replaced is None:
+        # No release happened (a started run that closed before its approval request):
+        # the set was held from its first frames to the hold's end.
+        spans = (("held", ready, ended),)
+    for name, start, end in spans:
         if start is not None and end is not None and end > start:
             intervals.append(
                 {
@@ -223,6 +247,43 @@ def _page(samples: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
+def _active_deliveries(reading: dict[str, Any], held: list[dict[str, Any]]) -> list[float]:
+    """The deliveries of the frames recorded inside the active phase (admitted up to the
+    approval request), the lateness a viewer of a running attempt sees; empty for a probe
+    that attached after the phase."""
+    phases = _phases(reading)
+    admitted = phases.get("admitted", {}).get("epoch")
+    requested = phases.get("approval_requested", {}).get("epoch")
+    offset = reading["clock"]["offset_seconds"]
+    if admitted is None or requested is None or offset is None:
+        return []
+    started = reading["started_epoch"]
+    return [
+        (started + f["arrival"]) - _epoch(f["recorded_at"]) - offset
+        for s in held
+        for f in _after_dump(s)
+        if admitted <= _epoch(f["recorded_at"]) < requested
+    ]
+
+
+def _started(reading: dict[str, Any]) -> dict[str, Any] | None:
+    """What a started run recorded of its own start and decision: the round trips at the
+    probe's client, the time from the start's send to every first frame."""
+    if reading.get("mode") != "started":
+        return None
+    start, decision = reading.get("start") or {}, reading.get("decision") or {}
+    return {
+        "scenario": reading.get("scenario"),
+        "start_status": start.get("status"),
+        "start_seconds": start.get("seconds"),
+        "reach_seconds": reading.get("reach_seconds"),
+        "decision": decision.get("asked"),
+        "decision_posted": decision.get("posted"),
+        "decision_status": decision.get("status"),
+        "decision_seconds": decision.get("seconds"),
+    }
+
+
 def reduce_subscribers(reading: dict[str, Any]) -> dict[str, Any]:
     held = _held(reading)
     first_frame = [s["first_frame_at"] - s["connected_at"] for s in held]
@@ -239,9 +300,11 @@ def reduce_subscribers(reading: dict[str, Any]) -> dict[str, Any]:
     if page_before["seconds"] and page_during["seconds"]:
         ratio = round(page_during["seconds"]["median"] / page_before["seconds"]["median"], 2)
     events_headers = held[0]["headers"] if held else {}
-    timeline = reading["timeline"]
+    timeline = reading["timeline"] or {}
     return {
         "label": reading["label"],
+        "mode": reading.get("mode", "attached"),
+        "started": _started(reading),
         "attempt": reading["attempt"],
         "started_utc": reading["started_utc"],
         "bound": reading["bound"],
@@ -260,6 +323,7 @@ def reduce_subscribers(reading: dict[str, Any]) -> dict[str, Any]:
         "interval_lag_seconds": _quantiles(lags),
         "bunched_pairs": bunched,
         "delivery_seconds": _quantiles(deliveries),
+        "active_delivery_seconds": _quantiles(_active_deliveries(reading, held)),
         "delivery_bound_seconds": round(
             clock["resolution_seconds"] + clock["round_trip_seconds"], 3
         ),
@@ -272,11 +336,11 @@ def reduce_subscribers(reading: dict[str, Any]) -> dict[str, Any]:
         "page_during_over_before": ratio,
         "events_headers": events_headers,
         "timeline": {
-            "status": timeline["status"],
+            "status": timeline.get("status"),
             "content_security_policy": timeline.get("headers", {}).get("content-security-policy"),
             "report_only": timeline.get("headers", {}).get("content-security-policy-report-only"),
-            "inline_script_present": timeline["inline_script_present"],
-            "beacon_present": timeline["beacon_present"],
+            "inline_script_present": timeline.get("inline_script_present"),
+            "beacon_present": timeline.get("beacon_present"),
         },
         "hold_ended_by": reading.get("hold_ended_by"),
         "phases": _phases(reading),
@@ -307,11 +371,17 @@ def _windows(phases_by_label: dict[str, dict[str, Any]]) -> list[tuple[str, floa
     return windows
 
 
-def _label_of(ts: float, windows: list[tuple[str, float, float]]) -> str:
+def _label_of(
+    ts: float, windows: list[tuple[str, float, float]], idle: tuple[float, float] | None = None
+) -> str:
+    """The phase a sample falls in: a run's window, else idle; with an entered idle window,
+    idle only inside it and `between` elsewhere."""
     for name, start, end in windows:
         if start <= ts <= end:
             return name
-    return "idle"
+    if idle is None or idle[0] <= ts <= idle[1]:
+        return "idle"
+    return "between"
 
 
 def _rate(pairs: list[tuple[dict[str, Any], dict[str, Any]]], name: str) -> dict[str, Any] | None:
@@ -337,6 +407,9 @@ def _rate(pairs: list[tuple[dict[str, Any], dict[str, Any]]], name: str) -> dict
         "mean": round(used / wall, 4),
         "step_max": round(max(u / w for u, w in steps), 4),
         "seconds": round(wall, 1),
+        # The sums themselves, so a pooled rate divides once over whole microseconds.
+        "usage_usec": round(used * 1e6),
+        "wall_seconds": round(wall, 3),
     }
 
 
@@ -348,25 +421,30 @@ def _present(samples: list[dict[str, Any]], name: str) -> list[dict[str, Any]]:
     ]
 
 
-def _inside(ts: float, intervals: list[tuple[float, float]]) -> bool:
-    return any(start <= ts <= end for start, end in intervals)
+def _interval_of(ts: float, intervals: list[tuple[float, float]]) -> int | None:
+    """Which held interval a sample lies in, or ``None``."""
+    return next((i for i, (start, end) in enumerate(intervals) if start <= ts <= end), None)
 
 
 def reduce_samples(
     samples: list[dict[str, Any]],
     windows: list[tuple[str, float, float]],
     held: list[tuple[float, float]] = (),
+    idle: tuple[float, float] | None = None,
 ) -> dict[str, Any]:
     """The samples by phase: per container the extremes over the phase's samples, the
     count of samples the container was absent from (zero on a complete capture, never
     dropped), the CPU rate over the phase's consecutive pairs, and the same rate over the
-    pairs whose both samples fall inside a held interval, with that coverage in seconds;
-    the idle baseline outside the bounded services; the counters' first and last values."""
+    pairs whose both samples fall inside one held interval, with that coverage in seconds
+    (two samples in two intervals span a release gap and are not a held pair);
+    the idle baseline outside the bounded services; the counters' first and last values.
+    ``idle`` is the entered idle window, when the capture carries one."""
     samples = sorted(samples, key=lambda s: s["ts"])
     held = list(held)
     names = sorted({name for s in samples for name in s["containers"]})
-    labels = [_label_of(s["ts"], windows) for s in samples]
-    flags = [_inside(s["ts"], held) for s in samples]
+    labels = [_label_of(s["ts"], windows, idle) for s in samples]
+    intervals = [_interval_of(s["ts"], held) for s in samples]
+    flags = [interval is not None for interval in intervals]
     by_phase: dict[str, list[dict[str, Any]]] = {}
     pairs: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
     held_pairs: dict[str, list[tuple[dict[str, Any], dict[str, Any]]]] = {}
@@ -375,7 +453,7 @@ def reduce_samples(
         if index > 0 and labels[index - 1] == label:
             pair = (samples[index - 1], sample)
             pairs.setdefault(label, []).append(pair)
-            if flags[index - 1] and flags[index]:
+            if intervals[index] is not None and intervals[index - 1] == intervals[index]:
                 held_pairs.setdefault(label, []).append(pair)
     phases: dict[str, Any] = {}
     for phase, rows in by_phase.items():
@@ -477,6 +555,74 @@ def subscriber_load(sample_readings: dict[str, Any], labels: list[str]) -> dict[
     return out
 
 
+def pooled_active(sample_readings: dict[str, Any], started: list[str]) -> dict[str, Any]:
+    """The eight-subscriber check over the active phases of the runs a probe started,
+    pooled: the app's usage over those phases' held pairs summed, over their wall time,
+    less the idle rate of the samples that hold them. Each run's own coverage and rate
+    stand beside the pool. The pool is quoted only when there are at least two runs, each
+    reaches ``POOLED_RUN_SECONDS`` and together they reach the coverage floor; otherwise
+    the figure is unmeasured, and a further run is a decision, never a retry. A pair
+    belongs to one phase of one run, so no pair joins two runs."""
+    runs: dict[str, Any] = {}
+    usage, wall, idle_usage, idle_wall = 0, 0.0, 0, 0.0
+    for reading in sample_readings.values():
+        phases = reading["phases"]
+        found = [label for label in started if f"{label}:active" in phases]
+        for label in found:
+            level = phases[f"{label}:active"]
+            held = level["containers"].get(APP, {}).get("cpu_rate_held")
+            runs[label] = {
+                "held_seconds": level["held_seconds"],
+                "app_rate_held": None if held is None else held["mean"],
+                "reaches_run_floor": level["held_seconds"] >= POOLED_RUN_SECONDS,
+            }
+            if held is not None:
+                usage += held["usage_usec"]
+                wall += held["wall_seconds"]
+        idle = phases.get("idle", {}).get("containers", {}).get(APP, {}).get("cpu_rate")
+        if found and idle is not None:
+            idle_usage += idle["usage_usec"]
+            idle_wall += idle["wall_seconds"]
+    sufficient = (
+        len(runs) >= 2
+        and all(run["reaches_run_floor"] for run in runs.values())
+        and wall >= HOLD_COVERAGE_SECONDS
+    )
+    idle_rate = round(idle_usage / 1e6 / idle_wall, 4) if idle_wall > 0 else None
+    out: dict[str, Any] = {
+        "runs": runs,
+        "run_floor_seconds": POOLED_RUN_SECONDS,
+        "coverage_floor_seconds": HOLD_COVERAGE_SECONDS,
+        "held_seconds": round(wall, 1),
+        "app_rate_held": round(usage / 1e6 / wall, 4) if wall > 0 else None,
+        "idle_rate": idle_rate,
+        "idle_seconds": round(idle_wall, 1),
+        "sufficient": sufficient,
+        "above_idle": None,
+        "within_budget": None,
+        "within_forecast": None,
+    }
+    if sufficient and idle_rate is not None:
+        above = round(out["app_rate_held"] - idle_rate, 4)
+        out["above_idle"] = above
+        out["within_budget"] = above <= CPU_BUDGET
+        out["within_forecast"] = above <= CPU_FORECAST
+    return out
+
+
+def _counters_moved(sample_readings: dict[str, Any]) -> list[dict[str, Any]]:
+    """Every kill or restart counter whose last sample differs from its first, by reading
+    and container; empty on a capture in which nothing was killed or restarted."""
+    return [
+        {"samples": source, "container": name, "counter": counter, "first": first, "last": last}
+        for source, reading in sample_readings.items()
+        for name, counters in reading.get("counters", {}).items()
+        for counter in ("oom_kill", "restarts")
+        for first, last in [(counters[f"{counter}_first"], counters[f"{counter}_last"])]
+        if first != last
+    ]
+
+
 def _absences(sample_readings: dict[str, Any]) -> list[dict[str, Any]]:
     """Every sample a bounded container was absent from, by reading and phase."""
     return [
@@ -501,7 +647,9 @@ def worker_rule(
     app's and the database's limits by the same rule over the larger of the committed peak
     and the peak here, so a peak that moves a limit moves the fit; the host fit over those
     three; and whether the capture qualifies to set a limit, which it does only when no
-    bounded container was absent from any sample."""
+    bounded container was absent from any sample. ``accepted`` is the one verdict the
+    final smoke reads: the capture qualifies, no kill or restart counter moved, and the
+    three limits fit the budget this capture's own idle baseline leaves."""
 
     def largest(name: str) -> int | None:
         values = [
@@ -514,10 +662,14 @@ def worker_rule(
 
     worker_peak = largest(WORKER)
     committed = baseline_reading["rule"]
+    # The memory baseline is every sample outside a run, the entered idle window and the
+    # time between runs alike: the largest use outside the three services is the budget's
+    # floor wherever it was seen.
     idle_baselines = [
-        reading["phases"]["idle"]["host_used_outside_bounded_max"]
+        reading["phases"][phase]["host_used_outside_bounded_max"]
         for reading in sample_readings.values()
-        if "idle" in reading["phases"]
+        for phase in ("idle", "between")
+        if phase in reading["phases"]
     ]
     host_total = next((r["host_total"] for r in sample_readings.values()), None)
     absences = _absences(sample_readings)
@@ -551,6 +703,10 @@ def worker_rule(
         result["budget_bytes"] = budget
         result["fits"] = limits <= budget
         result["spare_bytes"] = budget - limits
+    result["counters_moved"] = _counters_moved(sample_readings)
+    result["accepted"] = (
+        result["qualifies"] and not result["counters_moved"] and result.get("fits") is True
+    )
     return result
 
 
@@ -578,6 +734,7 @@ def reduce_capture(capture: Path) -> dict[str, Any]:
         }
         phases_by_label.setdefault(record["label"], entered[record["label"]])
     windows = _windows(phases_by_label)
+    idle_window = _idle_window(capture, windows, sources)
     held = [
         (interval["from"], interval["to"])
         for r in subscribers.values()
@@ -587,17 +744,46 @@ def reduce_capture(capture: Path) -> dict[str, Any]:
     for path in sorted(capture.glob("*-samples.jsonl")):
         sources[path.name] = digest(path)
         rows = [json.loads(line) for line in canonical_text(path).splitlines() if line.strip()]
-        samples[path.name[: -len("-samples.jsonl")]] = reduce_samples(rows, windows, held)
+        idle = None if idle_window is None else (idle_window["from"], idle_window["to"])
+        samples[path.name[: -len("-samples.jsonl")]] = reduce_samples(rows, windows, held, idle)
+    started = [label for label, r in subscribers.items() if r["mode"] == "started"]
     return {
         "capture": capture.name,
         "sources": sources,
         "subscribers": subscribers,
         "entered_phases": entered,
         "windows": [{"name": n, "from": f, "to": t} for n, f, t in windows],
+        "idle_window": idle_window,
         "held": [{"from": f, "to": t} for f, t in held],
         "samples": samples,
         "subscriber_load": subscriber_load(samples, list(subscribers)) if samples else None,
+        "pooled_active": pooled_active(samples, started) if samples else None,
         "worker_rule": worker_rule(samples, baseline, rule) if samples else None,
+    }
+
+
+def _idle_window(
+    capture: Path, windows: list[tuple[str, float, float]], sources: dict[str, str]
+) -> dict[str, Any] | None:
+    """The capture's entered idle window, or ``None`` when it carries none. The window is
+    the operator's statement of when nothing ran, so one that overlaps a run's phase is
+    refused, naming the phase."""
+    path = capture / IDLE_WINDOW_FILE
+    if not path.exists():
+        return None
+    sources[path.name] = digest(path)
+    record = json.loads(canonical_text(path))
+    start, end = _epoch(record["from"]), _epoch(record["to"])
+    if end <= start:
+        raise ValueError(f"{path.name}: the window ends at or before its start")
+    for name, phase_start, phase_end in windows:
+        if start <= phase_end and phase_start <= end:
+            raise ValueError(f"{path.name}: the idle window overlaps the phase {name}")
+    return {
+        "from": round(start, 3),
+        "to": round(end, 3),
+        "seconds": round(end - start, 1),
+        "source": record["source"],
     }
 
 
@@ -648,6 +834,9 @@ def print_derivation(reading: dict[str, Any]) -> None:
             f"delivery arrival−recorded−offset (s): {_q(s['delivery_seconds'])}, offset "
             f"{s['clock_offset_seconds']}, bound ±{s['delivery_bound_seconds']}"
         )
+        if s["started"]:
+            print(f"started by the probe: {s['started']}")
+        print(f"delivery in the active phase (s): {_q(s['active_delivery_seconds'])}")
         print(f"past the bound: {s['beyond_bound']}; released: {s['released']}")
         print(f"replacement: {s['replacement']}")
         print(f"page before: {s['page_before']}")
@@ -684,6 +873,22 @@ def print_derivation(reading: dict[str, Any]) -> None:
         )
         for name, entry in load["phases"].items():
             print(f"  {name}: {entry}")
+    pool = reading.get("pooled_active")
+    if pool:
+        window = reading.get("idle_window")
+        print(
+            f"\npooled active phases of the started runs (each run at least "
+            f"{pool['run_floor_seconds']} s, the pool at least {pool['coverage_floor_seconds']} s; "
+            f"idle window {'entered: ' + str(window) if window else 'none entered'}):"
+        )
+        for label, run in pool["runs"].items():
+            print(f"  {label}: {run}")
+        print(
+            f"  pool: held {pool['held_seconds']} s at {pool['app_rate_held']}, idle "
+            f"{pool['idle_rate']} over {pool['idle_seconds']} s; sufficient {pool['sufficient']}; "
+            f"above idle {pool['above_idle']}, within budget {pool['within_budget']}, "
+            f"within forecast {pool['within_forecast']}"
+        )
     w = reading["worker_rule"]
     if w:
         print(
@@ -707,6 +912,7 @@ def print_derivation(reading: dict[str, Any]) -> None:
                 f"{baseline} = budget {budget}; limits {mib(w['limits_sum_bytes'])}; "
                 f"fits {w['fits']}, spare {mib(w['spare_bytes'])}"
             )
+        print(f"counters moved: {w['counters_moved']}; accepted {w['accepted']}")
 
 
 def main(argv: list[str]) -> int:

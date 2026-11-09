@@ -6,7 +6,13 @@ and places the host's samples by the phases the frames carry. The frames are bui
 stream module's builders, so the probe's parser is tested on the producer's bytes and not
 on a hand-written copy of them; the samples are the sampler's shape with the fields the
 acceptance added, written here by hand and marked so, until the committed capture
-replaces them."""
+replaces them.
+
+The start mode (the final smoke) runs against a second local server whose index, start
+answer, holder's page and decision answer are the real application's, taken from the live
+routes' rig over the in-memory stores, so the probe's form reading and its cookie are
+tested on what the application renders and sets; only the stream is the server's own,
+paced so an active phase exists."""
 
 from __future__ import annotations
 
@@ -22,13 +28,19 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast
+from urllib.parse import parse_qs
 
 import pytest
 
+from leaveimpact.adapters.frappe.adapter import AccessServiceToken
 from leaveimpact.agent.log_events import EventKind
+from leaveimpact.app.main import COOKIE
 from leaveimpact.app.narration import Line
 from leaveimpact.app.stream import HEARTBEAT, closing_frame, line_frame
 from leaveimpact.core.run_record import TerminalStatus
+from tests.unit import test_app_decide as deciding
+from tests.unit import test_app_live_routes as routes
+from tests.unit.publishable_fixture import SCENARIO
 
 ROOT = Path(__file__).resolve().parents[2]
 PROBE = ROOT / "probes" / "live-acceptance"
@@ -345,6 +357,7 @@ def test_the_reducer_places_the_samples_by_the_frames_phases_and_applies_the_rul
     assert rule["app_passes_committed_peak"] is False
     assert rule["fits"] is True
     assert rule["qualifies"] is True and rule["absences"] == []
+    assert rule["counters_moved"] == [] and rule["accepted"] is True
     assert [i["name"] for i in subscribers["held_intervals"]] == ["held", "held again"]
     assert all(i["seconds"] > 0 for i in subscribers["held_intervals"])
     # The fixture's frames are stamped at T0 and the probe ran now, so the held intervals
@@ -377,6 +390,13 @@ def test_the_committed_reading_regenerates_from_the_committed_capture() -> None:
             assert counters["oom_kill_last"] == counters["oom_kill_first"] == 0, container
             assert counters["restarts_last"] == counters["restarts_first"], container
     assert reading["worker_rule"]["qualifies"] is True
+    assert reading["worker_rule"]["accepted"] is True
+    # No probe started a run at the acceptance, so nothing is pooled and no idle window
+    # was entered: the active phases stay unmeasured there, as its record says.
+    assert reading["idle_window"] is None
+    assert reading["pooled_active"]["runs"] == {}
+    assert reading["pooled_active"]["sufficient"] is False
+    assert reading["pooled_active"]["above_idle"] is None
 
 
 def _rows(
@@ -443,7 +463,7 @@ def test_a_container_absent_from_one_sample_is_counted_and_disqualifies_the_capt
         (ROOT / "probes" / "memory-baseline" / "reading.json").read_text(encoding="utf-8")
     )
     rule = reduce.worker_rule({"runs": reading}, baseline, reduce._memory_baseline_rule())
-    assert rule["qualifies"] is False
+    assert rule["qualifies"] is False and rule["accepted"] is False
     assert rule["absences"] == [
         {
             "samples": "runs",
@@ -479,6 +499,618 @@ def test_the_host_fit_sums_the_rule_over_the_combined_peaks_not_the_committed_li
     committed = rule["app_committed_limit_bytes"] + rule["postgres_committed_limit_bytes"]
     assert committed + 640 * 2**20 == 1216 * 2**20, "what the first form summed"
     assert rule["budget_bytes"] < rule["limits_sum_bytes"] and rule["fits"] is False
+    assert rule["qualifies"] is True and rule["accepted"] is False, "derived, and not fitting"
+
+
+# --- the final smoke's reductions (M3 step 17) --------------------------------------------
+
+
+def test_a_pair_spanning_the_release_gap_is_not_a_held_pair() -> None:
+    """The design pass's external read, first finding: held 0 to 10 and 15 to 20 with a
+    sample every 5 s and 0.25 s a second while held. Each sample's membership tested apart
+    counted the pair across the gap, 20 s at 0.1875; a held pair lies in one interval,
+    15 s at 0.25."""
+    reduce = cast(Any, _module("reduce"))
+    base = T0.timestamp()
+    rows = _rows(
+        range(0, 25, 5), {range(5, 11): 1_250_000, range(11, 16): 0, range(16, 21): 1_250_000}
+    )
+    reading = reduce.reduce_samples(
+        rows,
+        [("run:awaiting", base, base + 20.0)],
+        [(base, base + 10.0), (base + 15.0, base + 20.0)],
+    )
+    phase = reading["phases"]["run:awaiting"]
+    assert phase["held_seconds"] == 15.0
+    held = phase["containers"]["leaveimpact-app-1"]["cpu_rate_held"]
+    assert held["mean"] == 0.25 and held["usage_usec"] == 3_750_000
+    assert held["wall_seconds"] == 15.0
+    assert phase["held_samples"] == 5, "every sample lies in some interval; the pair does not"
+
+
+def _two_started_runs(second_hold_from: float = 102.0) -> tuple[Any, dict[str, Any]]:
+    """Two active phases of 20 s a hundred seconds apart, a sample every 2 s, the app at
+    0.2 s a second inside them and 0.01 outside; each held from 2 s in, 18 s of pairs."""
+    reduce = cast(Any, _module("reduce"))
+    base = T0.timestamp()
+    rows = _rows(
+        range(-60, 180, 2),
+        {range(1, 21): 400_000, range(101, 121): 400_000, range(-60, 180): 20_000},
+    )
+    windows = [("runA:active", base, base + 20.0), ("runB:active", base + 100.0, base + 120.0)]
+    held = [(base + 2.0, base + 20.0), (base + second_hold_from, base + 120.0)]
+    return reduce, reduce.reduce_samples(rows, windows, held)
+
+
+def test_the_pooled_active_rate_is_the_duration_weighted_rate_of_the_started_runs() -> None:
+    """Fork 13 as amended: neither run reaches the 20 s floor alone (18 s of pairs each),
+    the pool of both does (36 s), and its rate is the summed usage over the summed wall
+    time less the idle rate; the verdict is over the pool, each run's own figure beside it."""
+    reduce, reading = _two_started_runs()
+    alone = reduce.subscriber_load({"runs": reading}, ["runA", "runB"])["phases"]
+    assert alone["runA:active"]["held_seconds"] == 18.0
+    assert alone["runA:active"]["sufficient"] is False, "one run stays under the floor"
+    pool = reduce.pooled_active({"runs": reading}, ["runA", "runB"])
+    assert pool["runs"] == {
+        "runA": {"held_seconds": 18.0, "app_rate_held": 0.2, "reaches_run_floor": True},
+        "runB": {"held_seconds": 18.0, "app_rate_held": 0.2, "reaches_run_floor": True},
+    }
+    assert pool["held_seconds"] == 36.0 and pool["app_rate_held"] == 0.2
+    assert pool["idle_rate"] == 0.01 and pool["sufficient"] is True
+    assert pool["above_idle"] == 0.19
+    assert pool["within_budget"] is True and pool["within_forecast"] is False
+
+
+def test_a_pool_of_one_run_or_with_a_run_under_its_floor_is_unmeasured() -> None:
+    """The pooling contract: one run cannot carry the verdict, and an insufficient pool is
+    unmeasured, never a number. A lone run is refused whatever its coverage; a second run
+    held for 8 s leaves the pool at 26 s, over the pool's floor, and still unmeasured."""
+    reduce, reading = _two_started_runs()
+    lone = reduce.pooled_active({"runs": reading}, ["runA"])
+    assert lone["held_seconds"] == 18.0 and lone["sufficient"] is False
+    assert lone["above_idle"] is None and lone["within_budget"] is None
+    reduce, short = _two_started_runs(second_hold_from=112.0)
+    pool = reduce.pooled_active({"runs": short}, ["runA", "runB"])
+    assert pool["runs"]["runB"] == {
+        "held_seconds": 8.0,
+        "app_rate_held": 0.2,
+        "reaches_run_floor": False,
+    }
+    assert pool["held_seconds"] == 26.0 and pool["sufficient"] is False
+    assert pool["above_idle"] is None and pool["within_budget"] is None
+    nobody = reduce.pooled_active({"runs": short}, [])
+    assert nobody["runs"] == {} and nobody["app_rate_held"] is None
+
+
+def test_an_entered_idle_window_is_the_baseline_and_the_rest_is_between() -> None:
+    """The external read's second point: unmatched time was all idle, so a run without
+    boundaries, or the minutes after a close, sat in the baseline. With an entered window
+    the baseline is that window alone; the samples outside it and outside every run are
+    `between`, kept for the memory floor and out of the CPU baseline."""
+    reduce = cast(Any, _module("reduce"))
+    base = T0.timestamp()
+    # Idle at 0.01 until the run; after its close the app works at 0.1 for a minute (a
+    # second run nobody entered boundaries for), which the unmatched reading takes as idle.
+    rows = _rows(
+        range(-60, 100, 2), {range(1, 21): 400_000, range(31, 91): 200_000, range(-60, 100): 20_000}
+    )
+    windows = [("runA:active", base, base + 20.0)]
+    unmatched = reduce.reduce_samples(rows, windows, [])
+    diluted = unmatched["phases"]["idle"]["containers"]["leaveimpact-app-1"]["cpu_rate"]["mean"]
+    # 58 s before the run at 0.01, then 76 s after it holding thirty steps at 0.1 and eight
+    # at 0.01: 0.58 + 6.0 + 0.16 = 6.74 s of CPU over 134 s.
+    assert diluted == 0.0503 and "between" not in unmatched["phases"]
+    entered = reduce.reduce_samples(rows, windows, [], (base - 60.0, base - 10.0))
+    assert set(entered["phases"]) == {"idle", "runA:active", "between"}
+    idle = entered["phases"]["idle"]["containers"]["leaveimpact-app-1"]["cpu_rate"]
+    assert idle["mean"] == 0.01 and idle["wall_seconds"] == 50.0
+    between = entered["phases"]["between"]["containers"]["leaveimpact-app-1"]["cpu_rate"]
+    assert between["mean"] > 0.05, "the unentered run is outside the baseline"
+
+
+def test_an_idle_window_that_overlaps_a_run_is_refused_by_name(tmp_path: Path) -> None:
+    reduce = cast(Any, _module("reduce"))
+    base = T0.timestamp()
+    window = {
+        "from": T0.isoformat(),
+        "to": (T0 + timedelta(seconds=300)).isoformat(),
+        "source": "a test",
+    }
+    (tmp_path / "idle-window.json").write_text(json.dumps(window), encoding="utf-8")
+    sources: dict[str, str] = {}
+    clear = reduce._idle_window(tmp_path, [("runA:active", base + 400.0, base + 420.0)], sources)
+    assert clear == {"from": base, "to": base + 300.0, "seconds": 300.0, "source": "a test"}
+    assert list(sources) == ["idle-window.json"], "the window is a source, digested"
+    with pytest.raises(ValueError, match="the idle window overlaps the phase runA:active"):
+        reduce._idle_window(tmp_path, [("runA:active", base + 290.0, base + 310.0)], {})
+    assert reduce._idle_window(tmp_path / "absent", [], {}) is None
+
+
+def test_a_moved_kill_or_restart_counter_refuses_the_capture() -> None:
+    """Criterion (f) as the external read made it explicit: a limit derived from a capture
+    in which a container was restarted is not accepted, though every sample is present and
+    the limits fit."""
+    reduce = cast(Any, _module("reduce"))
+    rows = _rows(range(0, 15, 5), {})
+    rows[-1]["containers"]["leaveimpact-worker-1"]["restarts"] = 1
+    reading = reduce.reduce_samples(rows, [], [])
+    baseline = json.loads(
+        (ROOT / "probes" / "memory-baseline" / "reading.json").read_text(encoding="utf-8")
+    )
+    rule = reduce.worker_rule({"runs": reading}, baseline, reduce._memory_baseline_rule())
+    assert rule["qualifies"] is True and rule["fits"] is True
+    assert rule["counters_moved"] == [
+        {
+            "samples": "runs",
+            "container": "leaveimpact-worker-1",
+            "counter": "restarts",
+            "first": 0,
+            "last": 1,
+        }
+    ]
+    assert rule["accepted"] is False
+
+
+# --- the start mode against the application's own pages -----------------------------------
+
+
+LIVE_ATTEMPT = deciding.PUBLIC_ID
+ACTIVE_SECONDS = 0.6
+"""How long the local stream takes from the start to its approval request, so the probe
+has an active phase to hold through."""
+
+
+class _Live:
+    """The started flow's local server state: the real application's pages and answers,
+    captured once from the live routes' rig over the in-memory stores (the index's form
+    with the key it minted, the start's redirect and cookie, the holder's page with its
+    decision form, the decision's redirect, and the flag-off index and refusal), beside
+    what the probe posted and the streams open against the bound."""
+
+    def __init__(self, *, flag_on: bool = True) -> None:
+        self.flag_on = flag_on
+        self.lock = threading.Lock()
+        self.open = 0
+        self.refused = 0
+        self.started_at: float | None = None
+        self.decided = threading.Event()
+        self.decision: str | None = None
+        self.posted_key: str | None = None
+        self.holder_reads = 0
+        fresh = routes.Rig()
+        with fresh.client() as web:
+            self.index = web.get("/").text
+            self.key = str(fresh.minter.minted[0])
+            start = web.post(
+                "/start", data={"key": self.key, "scenario_id": SCENARIO}, follow_redirects=False
+            )
+        assert start.status_code == 303 and start.headers["location"] == f"/replays/{LIVE_ATTEMPT}"
+        self.start_headers = (start.headers["location"], start.headers["set-cookie"])
+        waiting, path = routes.awaiting_rig()
+        with waiting.client({COOKIE: deciding.KEY}) as web:
+            self.holder = web.get(path).text
+            decided = web.post(
+                f"{path}/decision",
+                data={"decision": "decline", "payload_digest": deciding.DIGEST},
+                follow_redirects=False,
+            )
+        assert decided.status_code == 303
+        self.decision_location = decided.headers["location"]
+        off = routes.Rig(configuration=routes.OFF)
+        with off.client() as web:
+            self.off_index = web.get("/").text
+            refusal = web.post("/start", data=routes.form(1), follow_redirects=False)
+        assert refusal.status_code == 403
+        self.off_refusal = refusal.text
+
+
+def _live_handler(live: _Live) -> type[http.server.BaseHTTPRequestHandler]:
+    class Handler(http.server.BaseHTTPRequestHandler):
+        protocol_version = "HTTP/1.1"
+
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 (the base's name)
+            pass
+
+        def _answer(
+            self, status: int, body: bytes, headers: tuple[tuple[str, str], ...] = ()
+        ) -> None:
+            self.send_response(status)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(body)))
+            for name, value in headers:
+                self.send_header(name, value)
+            self.end_headers()
+            self.wfile.write(body)
+
+        def _form(self) -> dict[str, str]:
+            length = int(self.headers.get("Content-Length", "0"))
+            fields = parse_qs(self.rfile.read(length).decode("ascii"))
+            return {name: values[0] for name, values in fields.items()}
+
+        def _holds_the_key(self) -> bool:
+            return self.headers.get("Cookie") == f"{COOKIE}={live.key}"
+
+        def do_GET(self) -> None:  # noqa: N802 (the handler's contract)
+            if self.path == "/ready":
+                self._answer(200, b'{"ready": true}')
+            elif self.path == "/":
+                self._answer(200, (live.index if live.flag_on else live.off_index).encode())
+            elif self.path == f"/replays/{LIVE_ATTEMPT}":
+                if self._holds_the_key():
+                    live.holder_reads += 1
+                    self._answer(200, live.holder.encode())
+                else:
+                    self._answer(200, b"<html><body>the open page</body></html>")
+            elif self.path == f"/replays/{LIVE_ATTEMPT}/timeline":
+                self._answer(200, b"<html><script>var s = new EventSource('/x');</script></html>")
+            elif self.path.startswith(f"/replays/{LIVE_ATTEMPT}/events"):
+                self._stream()
+            else:
+                self.send_error(404)
+
+        def do_POST(self) -> None:  # noqa: N802 (the handler's contract)
+            form = self._form()
+            if self.path == "/start":
+                live.posted_key = form.get("key")
+                if not live.flag_on:
+                    self._answer(403, live.off_refusal.encode())
+                elif form != {"key": live.key, "scenario_id": SCENARIO}:
+                    self._answer(400, b"the form is not the index's")
+                else:
+                    live.started_at = time.monotonic()
+                    location, cookie = live.start_headers
+                    self._answer(303, b"", (("Location", location), ("Set-Cookie", cookie)))
+            elif self.path == f"/replays/{LIVE_ATTEMPT}/decision":
+                expected = {"approve", "decline"}
+                if not self._holds_the_key():
+                    self._answer(403, b"the capability")
+                elif (
+                    form.get("payload_digest") != deciding.DIGEST
+                    or form.get("decision") not in expected
+                ):
+                    self._answer(400, b"the form")
+                else:
+                    live.decision = form["decision"]
+                    live.decided.set()
+                    self._answer(303, b"", (("Location", live.decision_location),))
+            else:
+                self.send_error(404)
+
+        def _stream(self) -> None:
+            with live.lock:
+                if live.open >= BOUND:
+                    live.refused += 1
+                    self._answer(503, b"unavailable")
+                    return
+                live.open += 1
+            try:
+                self.send_response(200)
+                self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+                self.send_header("Transfer-Encoding", "chunked")
+                self.end_headers()
+                self._chunk(line_frame(_line(1, EventKind.ADMITTED, 0.0)))
+                self._chunk(line_frame(_line(2, EventKind.SEGMENT_STARTED, 1.0)))
+                assert live.started_at is not None
+                requested = live.started_at + ACTIVE_SECONDS
+                if not self._wait(lambda: time.monotonic() >= requested):
+                    return
+                self._chunk(line_frame(_line(3, EventKind.APPROVAL_REQUESTED, 21.0)))
+                self._chunk(HEARTBEAT)
+                if not self._wait(live.decided.is_set):
+                    return
+                if live.decision == "approve":
+                    self._chunk(line_frame(_line(4, EventKind.APPROVED, 70.0)))
+                    closing = closing_frame(
+                        _line(5, EventKind.COMPLETED, 75.0), TerminalStatus.COMPLETED
+                    )
+                else:
+                    closing = closing_frame(
+                        _line(4, EventKind.DECLINED, 70.0), TerminalStatus.DECLINED
+                    )
+                self._chunk(closing)
+                self.wfile.write(b"0\r\n\r\n")
+                self.wfile.flush()
+            except OSError:
+                pass
+            finally:
+                with live.lock:
+                    live.open -= 1
+
+        def _wait(self, done: Any) -> bool:
+            """Wait for ``done``, watching the socket for the peer's close as the
+            application's disconnect listener does; false when the client went away."""
+            deadline = time.monotonic() + 20
+            while not done() and time.monotonic() < deadline:
+                readable, _, _ = select.select([self.connection], [], [], 0.05)
+                if readable and self.connection.recv(1, socket.MSG_PEEK) == b"":
+                    return False
+            return True
+
+        def _chunk(self, body: bytes) -> None:
+            self.wfile.write(f"{len(body):x}\r\n".encode() + body + b"\r\n")
+            self.wfile.flush()
+
+    return Handler
+
+
+def _serve_live(live: _Live) -> tuple[_QuietServer, str]:
+    httpd = _QuietServer(("127.0.0.1", 0), _live_handler(live))
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    return httpd, f"http://127.0.0.1:{httpd.server_address[1]}"
+
+
+def _run_started(base: str, out: Path, *extra: str) -> tuple[dict[str, Any], str]:
+    probe = _module("subscribers")
+    argv = [
+        "subscribers.py",
+        "--base",
+        base,
+        "--start",
+        "--scenario",
+        SCENARIO,
+        "--out",
+        str(out),
+        "--label",
+        "runA",
+        "--bound",
+        str(BOUND),
+        "--page-samples",
+        "2",
+        "--hold",
+        "0.3",
+        "--awaiting-hold",
+        "0.5",
+        "--read-timeout",
+        "10",
+        "--first-frame-wait",
+        "10",
+        "--replacement-pause",
+        "0.3",
+        *extra,
+    ]
+    assert cast(Any, probe).main(argv) == 0
+    text = out.read_text(encoding="utf-8")
+    return cast(dict[str, Any], json.loads(text)), text
+
+
+@pytest.mark.parametrize(
+    ("decision", "kinds", "status"),
+    [
+        ("decline", ["admitted", "segment_started", "approval_requested", "declined"], "declined"),
+        (
+            "approve",
+            ["admitted", "segment_started", "approval_requested", "approved", "completed"],
+            "completed",
+        ),
+    ],
+)
+def test_the_start_mode_starts_holds_through_the_active_phase_and_decides(
+    tmp_path: Path, decision: str, kinds: list[str], status: str
+) -> None:
+    """Forks 13 and 15 of the final smoke: the probe posts the form the application's index
+    renders, holds every stream from the start through the active phase with the bound's
+    checks moved to the wait, reads the review's digest off the holder's page with the
+    cookie the start set, posts the decision and ends on the closing frames. The written
+    reading carries no key, no cookie and no page."""
+    live = _Live()
+    httpd, base = _serve_live(live)
+    try:
+        reading, text = _run_started(
+            base, tmp_path / "subscribers-runA.json", "--decision", decision, "--max-seconds", "30"
+        )
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    assert reading["mode"] == "started" and reading["attempt"] == LIVE_ATTEMPT
+    assert reading["index"]["form_present"] is True and reading["index"]["scenarios_offered"] >= 1
+    start = reading["start"]
+    assert start["status"] == 303 and start["location_path"] == f"/replays/{LIVE_ATTEMPT}"
+    assert start["cookies_set"] == 1 and start["live_runs_off_text"] is False
+    assert live.posted_key == live.key, "the key the page minted, not one of the probe's"
+    assert reading["clients"] == BOUND, "no browser holds a stream, so the bound itself"
+    assert 0 < reading["reach_seconds"] < ACTIVE_SECONDS, "held inside the active phase"
+    assert reading["all_first_frames_at"] < reading["approval_seen_at"]
+    assert reading["approval_seen_at"] < reading["released"]["ended_at"], (
+        "the release falls in the wait, never in the active phase"
+    )
+    assert reading["beyond_bound"]["status"] == 503 and reading["replacement"]["status"] == 200
+    assert reading["page_before"] == [] and len(reading["page_during"]) == 2
+    assert reading["decision"] == {
+        "asked": decision,
+        "page_status": 200,
+        "page_seconds": reading["decision"]["page_seconds"],
+        "form_present": True,
+        "posted": True,
+        "sent_at": reading["decision"]["sent_at"],
+        "status": 303,
+        "seconds": reading["decision"]["seconds"],
+        "location_host": None,
+        "location_path": f"/replays/{LIVE_ATTEMPT}",
+        "review_digest": deciding.DIGEST,
+        "error": None,
+    }
+    assert live.decision == decision and live.holder_reads == 1
+    assert reading["hold_ended_by"] == "closing frames"
+    for subscriber in reading["subscribers"]:
+        if subscriber["status"] != 200 or subscriber["index"] == reading["released"]["index"]:
+            continue
+        assert [f["kind"] for f in subscriber["frames"]] == kinds, subscriber["index"]
+        assert subscriber["frames"][-1]["status"] == status
+    assert live.key not in text and COOKIE not in text, "the capability is never written"
+    assert "payload_digest" not in text and "<form" not in text, "nor a page's markup"
+
+    reduced = cast(Any, _module("reduce")).reduce_subscribers(reading)
+    assert reduced["mode"] == "started"
+    assert reduced["started"] == {
+        "scenario": SCENARIO,
+        "start_status": 303,
+        "start_seconds": start["seconds"],
+        "reach_seconds": reading["reach_seconds"],
+        "decision": decision,
+        "decision_posted": True,
+        "decision_status": 303,
+        "decision_seconds": reading["decision"]["seconds"],
+    }
+    assert [i["name"] for i in reduced["held_intervals"]] == ["held", "held again"]
+    assert reduced["phases"]["closed"]["status"] == status
+    assert reduced["page_during_over_before"] is None, "nothing precedes the attach"
+
+
+def test_the_start_mode_under_the_flag_off_records_the_applications_refusal(
+    tmp_path: Path,
+) -> None:
+    """Fork 16's second check: the index renders no form, so the probe posts one start
+    with a key of its own and the reading is the application's answer, 403 with its
+    wording, and no stream; the key it posted is not in the file."""
+    live = _Live(flag_on=False)
+    httpd, base = _serve_live(live)
+    try:
+        reading, text = _run_started(base, tmp_path / "start-refusal.json", "--max-seconds", "10")
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    assert reading["attempt"] is None and "subscribers" not in reading
+    assert reading["index"]["form_present"] is False and reading["index"]["status"] == 200
+    start = reading["start"]
+    assert start["posted"] is True and start["status"] == 403
+    assert start["live_runs_off_text"] is True and start["cookies_set"] == 0
+    assert start["location_path"] is None
+    assert live.posted_key is not None and len(live.posted_key) == 32
+    assert live.posted_key != live.key and live.posted_key not in text
+    assert live.open == 0 and live.started_at is None
+
+
+def test_a_started_run_that_never_requests_approval_is_held_to_its_end_undecided(
+    tmp_path: Path,
+) -> None:
+    """A run that fails before its approval request (the smoke's stop condition): no
+    bound check, no release and no decision; the streams are held to the probe's deadline
+    and the reducer reads one held interval from the first frames to the hold's end."""
+    live = _Live()
+    httpd, base = _serve_live(live)
+    try:
+        reading, _ = _run_started(
+            base, tmp_path / "subscribers-runA.json", "--active-wait", "0.2", "--max-seconds", "2"
+        )
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    assert reading["attempt"] == LIVE_ATTEMPT and reading["approval_seen_at"] is None
+    assert reading["decision"] is None and reading["released"] is None
+    assert reading["timeline"] is None and reading["hold_ended_by"] == "deadline"
+    assert live.decision is None and live.holder_reads == 0
+    reduced = cast(Any, _module("reduce")).reduce_subscribers(reading)
+    assert [i["name"] for i in reduced["held_intervals"]] == ["held"]
+    assert reduced["held_intervals"][0]["seconds"] > 1.0
+    assert reduced["timeline"]["status"] is None and reduced["started"]["decision"] is None
+
+
+# --- the worker's Access check and the sender's splices -----------------------------------
+
+
+CLIENT_ID = "0123456789abcdef.access"
+CLIENT_SECRET = "a-secret-the-check-must-never-print"
+REDIRECT = "https://team.example.invalid/cdn-cgi/access/login/hr?kid=abc&meta=SIGNED-BLOB"
+
+
+def _edge_handler() -> type[http.server.BaseHTTPRequestHandler]:
+    """A login page behind an edge that reads the service token: the page with the pair,
+    a redirect to the organization's login without it, its query carrying a blob."""
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: Any) -> None:  # noqa: A002 (the base's name)
+            pass
+
+        def do_GET(self) -> None:  # noqa: N802 (the handler's contract)
+            token = AccessServiceToken(CLIENT_ID, CLIENT_SECRET)
+            given = {name: self.headers.get(name) for name in token.headers}
+            if self.path == "/login" and given == token.headers:
+                body = b"<html>the login page</html>"
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(302)
+                self.send_header("Location", REDIRECT)
+                self.send_header("Content-Length", "0")
+                self.end_headers()
+
+    return Handler
+
+
+def test_the_access_check_prints_statuses_and_hosts_and_never_a_value_or_a_query() -> None:
+    """Fork 16's first check as the external read re-cut it: nonempty is said for each
+    name, and the edge is asked with the pair and without it; the lines carry the status
+    and the redirect's host, and neither half of the pair nor the redirect's query. The
+    headers are the adapter's own, so the check sends what the worker's transport sends."""
+    check = cast(Any, _module("access_check"))
+    assert tuple(AccessServiceToken("a", "b").headers) == check.HEADERS
+    httpd = _QuietServer(("127.0.0.1", 0), _edge_handler())
+    threading.Thread(target=httpd.serve_forever, daemon=True).start()
+    host = f"127.0.0.1:{httpd.server_address[1]}"
+    id_name, secret_name = check.NAMES
+    try:
+        held = check.lines(
+            {id_name: CLIENT_ID, secret_name: CLIENT_SECRET, check.BASE: f"http://{host}/"}
+        )
+        # Compose's empty defaults: the names are there and hold nothing, and the edge
+        # answers two empty headers as it answers none.
+        empty = check.lines({id_name: "", secret_name: "", check.BASE: f"http://{host}"})
+        stale = check.lines(
+            {id_name: CLIENT_ID, secret_name: "rolled", check.BASE: f"http://{host}"}
+        )
+    finally:
+        httpd.shutdown()
+        httpd.server_close()
+    refused = "status 302, location host team.example.invalid"
+    assert held == [
+        f"access {id_name} nonempty",
+        f"access {secret_name} nonempty",
+        f"frappe base host {host}",
+        "access login with the pair: status 200, location host -",
+        f"access login without it: {refused}",
+    ]
+    assert empty == [
+        f"access {id_name} empty",
+        f"access {secret_name} empty",
+        f"frappe base host {host}",
+        f"access login with the pair: {refused}",
+        f"access login without it: {refused}",
+    ]
+    assert stale[:2] == held[:2], "nonempty says nothing of a stale value"
+    assert stale[3] == f"access login with the pair: {refused}", "the edge says it"
+    printed = "\n".join(held + empty + stale)
+    assert CLIENT_ID not in printed and CLIENT_SECRET not in printed and "rolled" not in printed
+    assert "SIGNED-BLOB" not in printed and "kid=" not in printed
+    assert check.lines({}) == [
+        f"access {id_name} empty",
+        f"access {secret_name} empty",
+        "frappe base host unset",
+    ]
+
+
+def test_the_check_reads_the_names_compose_hands_the_worker_and_the_sender_splices_all() -> None:
+    """Two mirrors held structurally: the three names the check reads are ones
+    `compose.yaml` passes into the worker, and every placeholder the host script carries
+    is one the sender replaces, so no action reaches the host with a token unspliced."""
+    check = cast(Any, _module("access_check"))
+    compose = (ROOT / "compose.yaml").read_text(encoding="utf-8")
+    for name in (*check.NAMES, check.BASE):
+        assert f"      {name}: ${{{name}:-}}" in compose, name
+    host = (PROBE / "host.sh").read_text(encoding="utf-8")
+    sender = (PROBE / "send.ps1").read_text(encoding="utf-8")
+    placeholders = sorted({part.split('"')[0] for part in host.split('"<')[1:]})
+    assert placeholders == [
+        "action>",
+        "base64 of access_check.py>",
+        "base64 of sampler.py>",
+        "cadence>",
+        "offset>",
+        "work>",
+    ]
+    for placeholder in placeholders:
+        assert f'.Replace("<{placeholder}"' in sender, placeholder
 
 
 # --- the fold memo's capture (M3 step 17) -------------------------------------------------
