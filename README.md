@@ -57,8 +57,10 @@ registered runs dispatched one at a time through the deployed lifecycle and grad
 one reported evaluation. The demo milestone's replay surface is public at
 `https://leave-agent.ardabasarici.dev`: thirty replays of the golden world with their
 reports, self-contained evidence, audit trails and narration timelines, and the results
-page for the measurement; live runs stay behind an operator flag, off. This README grows
-with the build and never claims ahead of it.
+page for the measurement. A visitor can start a live run there and approve or decline its
+plan: five runs a day, two an address, each charged to a ledger the site shows, behind an
+operator flag that stops them. This README grows with the build and never claims ahead
+of it.
 
 > **What this is and is not.** A benchmark with ground truth by construction, and the
 > agent that will be graded on it. The organization is synthetic and small (about thirty

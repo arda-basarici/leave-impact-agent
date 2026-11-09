@@ -1,6 +1,6 @@
 """The demo's own configuration: the one world the surface serves, the registered system
-it runs for a visitor, the money and time it may spend, and the flag that keeps live runs
-off; a committed file of this package, read by package name, and its strict decoder.
+it runs for a visitor, the money and time it may spend, and the flag that admits live
+runs; a committed file of this package, read by package name, and its strict decoder.
 
 The entry's visitor-run ruling made the demo's configuration its own file so that the
 investigator milestone's bound files are never edited for the demo, and the amendment to
@@ -12,8 +12,9 @@ and priced under, the visitors' own ledger apart from the measurement's and from
 replay set's (the live pages step: the ledger page shows what the live demo spends, from
 zero, and no operator run reaches it), five admissions a
 UTC day, a fifteen-minute approval wait, a wall-clock bound on a running attempt beside
-the registered caps, and live runs off outside an acceptance window, which the live
-path's acceptance step opens and closes by commit.
+the registered caps, and live runs on. The flag was off through the build but for the
+acceptance step's one-day window, and went on to stay at the final smoke under the landed
+connectivity; turning it off again is the operator's stop.
 
 The region is the cell's third coordinate beside the system and the level (format 2,
 the live-path commands step): the planner prices a visitor's run under the table's rates
